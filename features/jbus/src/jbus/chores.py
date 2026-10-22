@@ -1,11 +1,12 @@
-"""The steps that close a project's pass, before `alert.flush`: what a pass that had a world
-marks, the day's snapshot, and the sweep it leaves owed.
+"""Run the steps that close a project's pass, before `alert.flush`. A pass in which T3 Code and
+GitHub both answered (a pass with a world) records that a whole pass has run (`chores.began`). Then
+the pass sends the day's snapshot, and runs the sweep that is due.
 
-Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the
-last Result of each brief written in `SNAPSHOT_DAYS`. It then prunes what was sent of the
-pull requests merged `wake.PRUNE_AFTER` ago, forgets the log's lines older than
-`wake.LOG_KEEP`, and owes a look at what `jmerge` would sweep, again on each pass until
-`jmerge` has run.
+Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the last
+Result of each brief written in `SNAPSHOT_DAYS`. For each pull request that merged
+`wake.PRUNE_AFTER` ago, it then prunes the record of what it sent. It forgets the log's lines older
+than `wake.LOG_KEEP`. Last, it records that the day's look at what `jmerge` would sweep is due. Each
+pass runs that look again until `jmerge` has run.
 """
 
 from __future__ import annotations
@@ -53,7 +54,7 @@ def daily(half: Half) -> None:
 
 
 def sweep(half: Half) -> None:
-    """Run the sweep that is owed, and keep how it went."""
+    """Run the sweep that is due, and record how it went."""
     run = half.run
     owed = run.box.sweep_owed()
     if owed:

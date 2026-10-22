@@ -1,25 +1,26 @@
-"""Merging, which is `jmerge`'s and nobody else's: jbus runs the command and reads its lines.
+"""Merging is `jmerge`'s job and nobody else's: jbus runs the command and reads its lines.
 
-It runs only when the project's home is off, which is a `home-thread` file that is missing
-or empty: a home that is on merges by itself, and two merges at once would race. The pass
-lock is held around the run, so two passes never run it together either.
+jbus runs `jmerge` only when the project's home is off, that is, when the home's `home-thread` file
+is missing or empty. A home that is switched on does its own merging, and two merges at once would
+race. The pass holds the pass lock around the run, so two passes never run `jmerge` together either.
 
-A line `jmerge` prints about a pull request is read by `parse`, which is `jmerge.lines.one`:
-`stall` and `watch` read the `Line` it gives, not the text. `rebase` still reads the text of
-a `wait` line by itself.
+`parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
+and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
+`wait` line on its own.
 
-A `hold` is the user's, but for the ones a crew can lift (`UNRULED`, and a merge gate that
-did not pass), which `expedite` asks its crew for first. No line is sent to them from here:
-`waiting` lists the holds that are theirs.
+A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`, and a merge gate
+that did not pass). `expedite` asks the crew to lift those first. This module sends the user
+no line: `waiting` lists the holds that are the user's.
 
-A sweep is `jmerge`'s too, and jbus only ever asks what one would remove: `SWEEP` is the
-one command it runs for it, and it has `--check`.
+A sweep is `jmerge`'s job too, and jbus only asks what a sweep would remove. The one command
+jbus runs for a sweep is `SWEEP`, which has `--check`.
 
-A reason no rule of `rules` names puts its pull request on no step, and the view shows it
-in the Unknown lane. `unplaced` sends the row's home one queued message, once for a row and
-a reason text, since the fix is a rule, which a home briefs. It is a quiet event, and the
-row is not the user's: it is not in `waiting-on-user.json`. Two reasons are on no step by
-design and tell nobody (`OFF_STEP`): another home's pull request and a draft.
+When no rule of `rules` names a pull request's reason, the pull request is on no step, and
+the view shows it in the Unknown lane. `unplaced` then sends the row's home one queued
+message for each row and each reason text. The fix is a new rule, and a home writes the brief
+for a rule. The message is a quiet event. The row is not the user's, so it is not in
+`waiting-on-user.json`. Two reasons leave a pull request on no step by design, and jbus tells
+nobody of them (`OFF_STEP`): another home's pull request and a draft.
 """
 
 from __future__ import annotations
@@ -75,20 +76,22 @@ _GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
 
 
 def rules() -> tuple[tuple[str, str], ...]:
-    """The `(step, pattern)` of each reason `jmerge` writes, in the order they are tried:
-    `ELSEWHERE`, then each `ready.Reason` from the start of the reason, where it is declared.
+    """Return the `(step, pattern)` of each reason `jmerge` writes, in the order `step` tries
+    them: `ELSEWHERE` first, then each `ready.Reason` in the order `ready` declares it. Each
+    pattern matches from the start of the reason.
 
-    `ELSEWHERE` is what `jmerge` writes from outside `ready` (its run, its proof and its
-    range-diff), and what an older `jmerge` wrote, which a log still holds. It comes first:
-    `ready.MAIN_CHANGED` with `it needs a rebase`, which `jmerge` says of a guarded path, is
-    on the rebase step."""
+    `ELSEWHERE` has the reasons `jmerge` writes from outside `ready` (its run, its proof and its
+    range-diff), and the reasons an older `jmerge` wrote, which a log may still have. `ELSEWHERE`
+    comes first so that a `ready.MAIN_CHANGED` reason with `it needs a rebase` is on the rebase
+    step. `jmerge` gives that reason for a guarded path."""
     return ELSEWHERE + tuple((one.step, "^" + one.pattern) for one in ready.reasons().values())
 
 
 def step(said: str) -> str:
-    """The step a pull request waits on, from what `jmerge` last said of it, `<word>: <reason>`:
-    a `hold` is `hold`, and a `wait` is on the first step of `rules` whose pattern its reason
-    matches. Nothing for a line with no reason, or a reason no rule names."""
+    """Return the step a pull request waits on, read from the last line `jmerge` printed about it
+    (`<word>: <reason>`). A `hold` is on the `hold` step, and a `wait` is on the first step of
+    `rules` whose pattern matches its reason. Return nothing for a line with no reason, or for a
+    reason no rule names."""
     word, _, reason = said.partition(": ")
     if not reason:
         return ""
@@ -99,18 +102,21 @@ def step(said: str) -> str:
 
 
 class Said(list[str]):
-    """The lines `jmerge` printed about a pull request in this pass, as it printed them.
+    """`Said` is the list of lines `jmerge` printed about pull requests in this pass, as it
+    printed them.
 
-    `failed` is a `jmerge` that did not run to its end: a pull request it has no line for
-    is one it did not get to, which is not one that it ran past with nothing to say.
+    `failed` is true when `jmerge` did not run to its end. In that case, a pull request with no line
+    is one that `jmerge` did not reach. It is not one that `jmerge` read and had nothing to say
+    about.
     """
 
     failed = False
 
     def crews(self, numbers: set[int]) -> Said:
-        """The lines as the user is to hear them: a hold of one of these pull requests is its
-        crew's for now, so it is a `wait`. The line stays, since a pull request with no line
-        is one `jmerge` did not reach, which keeps the hold it had."""
+        """Return the lines as the user is to hear them. A hold of one of these pull requests
+        is its crew's to lift for now, so its line becomes a `wait`. The line stays in the
+        list. A pull request with no line counts as one that `jmerge` did not reach, and such
+        a pull request keeps the hold it had."""
         mine = {text for text in self if (line := parse(text)) and line.number in numbers}
         kept = Said(
             "wait" + text[4:] if text in mine and text[:5] == "hold " else text for text in self
@@ -127,14 +133,16 @@ def home_thread(run: Pass) -> str:
 
 
 def merge(run: Pass) -> Said:
-    """Run `jmerge` and send each line it prints about a pull request. The lines come back.
+    """Run `jmerge`, send each line it prints about a pull request, and return the lines.
 
-    Every line is a quiet event, a `hold` line too: `waiting` lists a hold that is the
-    user's, and the list gaining it is what tells them, once for the pull request and not
-    once for each head. A hold a crew can lift is `expedite`'s first.
-    A `jmerge` that did not run is a failure of the `jmerge` streak, and one that ran ends it.
-    One that stopped after it printed a line ends the streak too, as it always did, and is
-    said: the lines are `failed`, which keeps what was known of the rows it did not reach.
+    Every line is a quiet event, including a `hold` line. `waiting` lists each hold that is
+    the user's. The user learns of a hold when the hold joins that list: once for the pull request,
+    not once for each head. `expedite` deals first with a hold that a crew can lift.
+
+    When `jmerge` does not run, that counts as a failure of the `jmerge` streak, and a run of
+    `jmerge` ends the streak. A run that stopped after printing a line also ends the streak, as such
+    a run always did, and the pass says that `jmerge` stopped. The `Said` that this function returns
+    is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did not reach.
     """
     home = home_thread(run)
     if home:
@@ -176,8 +184,8 @@ def _why(ran: subprocess.CompletedProcess[str]) -> str:
 def sweep(run: Pass) -> tuple[bool, str]:
     """Ask `jmerge` what a sweep would remove, and send its lines when there are any.
 
-    Nothing is removed: the command is `SWEEP`, with `--check`. The answer is whether
-    `jmerge` ran, and one line of how it went, for the status file.
+    This function removes nothing: the command is `SWEEP`, with `--check`. Return whether
+    `jmerge` ran, and one line on how the run went, for the status file.
     """
     ran = run.run(*SWEEP)
     if ran.returncode:
@@ -190,9 +198,10 @@ def sweep(run: Pass) -> tuple[bool, str]:
 
 
 def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, thread: str) -> None:
-    """Tell the home of a row whose pull request is on no step, once for the row and what
-    `jmerge` said of it, `<word>: <reason>`. `thread` is the home's, or nothing where it has
-    none. A message that did not go is sent again on the next pass."""
+    """Tell the home that a row's pull request is on no step. Send the message once for each row and
+    for each thing `jmerge` said of the pull request (`<word>: <reason>`). `thread` is the home's
+    thread, or empty where the project has no home. When a message fails to send, the next pass
+    sends it again."""
     reason = said.partition(": ")[2]
     if not reason or step(said) or reason in OFF_STEP:
         return

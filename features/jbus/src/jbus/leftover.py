@@ -1,44 +1,53 @@
-"""A task that ended with something left: its home is told, once, and has it to close.
+"""A task that ended with something left goes to its home: jbus tells the home once, and the
+home closes it.
 
-A leftover is a row whose thread ended, or whose pull request merged, with a last Result
-whose `Left:` line is not `none`, and that no thread is at work on (`ended`). So is a row
-whose thread ended or hung with no Result at all, once its crew had its carry-ons
-(`watch.unwritten`): its `left` text is that reason, and its message says to carry the thread
-on, to remove the row, or to end it with a Result. jbus closes
-none and starts no thread for one. It sends the row's home one queued message (`tell`): the
-slug, its pull request and whether it merged, the `Left:` line whole, each question the
-slug asked with its answer or that it is open, and the two ways to end it. The retry key is
-`leftover|<slug>|<the first 12 of a hash of the Left: text>|<the home's thread>`, so a home
-is told once for a row and a `Left:` text, and again when the text changes. A home that
-took over from the one that was told is told too, and its 30 minutes start then.
+A leftover is a row whose thread ended or whose pull request merged, and whose last Result
+has a `Left:` line that is not `none`. No thread is at work on it (`ended`). A row whose
+thread ended or hung with no Result at all is a leftover too, once its crew has had its
+carry-ons (`watch.unwritten`). For such a row, the `left` text states that reason, and the
+message says to carry the thread on, to remove the row, or to end it with a Result.
 
-The home is the one the brief's `Home:` line names, and its thread the first word of that
-home's `home-id`, read on each pass: `jbriefs.home`, the rule a crewmate and `jmerge` ask.
+jbus closes no leftover and starts no thread for one. `tell` sends the row's home one queued
+message. The message has the slug, its pull request and whether it merged, the whole `Left:`
+line, each question the slug asked with its answer or a note that it is open, and the two
+ways to end it. The retry key is
+`leftover|<slug>|<the first 12 of a hash of the Left: text>|<the home's thread>`, so jbus
+tells a home once for a row and a `Left:` text, and again when the text changes. When a home
+takes over from the one jbus told, jbus tells the new home too, and the new home's 30
+minutes start then.
+
+The home is the one the brief's `Home:` line names. Its thread is the first word of that
+home's `home-id`, which jbus reads on each pass. That rule is `jbriefs.home`, which a
+crewmate and `jmerge` also use.
 
 `leftover.json` in a project's state directory is the record, a `Record` for each slug:
 
-- `left`: the `Left:` text the record is of. A Result with another text is a new record;
-- `thread` and `told`: the home's thread the message went to, and when, or nothing while
-  it has not gone;
-- `why`: why the row is the user's at once, or nothing: its home has no thread, T3 Code
-  does not list that thread as not settled, or the message did not go;
-- `stalled`: when the row was said to the user as a stall, or nothing. It is kept through a
-  new `Left:` text, so a row is said once;
-- `busy`: a thread was at work on the row in the last pass, so it waits on that thread.
+- `left` is the `Left:` text the record is for. A Result with another text starts a new
+  record.
+- `thread` and `told` are the home's thread the message went to and when it went, or empty
+  until jbus sends it.
+- `why` is why the row is the user's at once, or empty. The reasons are that its home has no
+  thread, that T3 Code lists that thread as settled or does not list it, or that the message
+  did not go.
+- `stalled` is when jbus reported the row to the user as a stall, or empty. A new `Left:`
+  text keeps it, so jbus reports a row once.
+- `busy` is true when a thread was at work on the row in the last pass, so the row waits on
+  that thread.
 
-Whose a leftover is, is `his`: the home's while it says nothing, and the user's with the
-reason it gives. It is the user's by `why`, while no home was told, or once `CLOSE_MINUTES`
-have passed since the home was told. That last one is said once, as a `stall` event
-(`stall.unclosed`). The list of what waits on the user (`waiting.left`) and the view read
-the same record. Every row the list has is judged in the pass that writes it, so a record
-it reads has `told` or `why`.
+`his` says whose a leftover is: the home's while `his` returns nothing, and the user's with
+the reason `his` gives. A leftover is the user's when it has a `why`, while jbus has told no
+home, or once `CLOSE_MINUTES` have passed since jbus told the home. jbus reports that last
+case once, as a `stall` event (`stall.unclosed`). The list of what waits on the user
+(`waiting.left`) and the view read the same record. The pass that writes the list judges
+every row on it, so each record the list reads has `told` or `why`.
 
-A pass that could not list the threads that are out judges no home's thread: a row whose
-home was told stays as it was, and any other is the user's until a pass can.
+When a pass could not list the threads that are not settled, it judges no home's thread. A
+row whose home jbus told stays as it was. Any other row is the user's until a pass can list
+those threads again.
 
-The timers of what blocks (`waiting.cadence`) sit here beside `CLOSE_MINUTES`: an item that
-still blocks `REMIND_MINUTES` after it opened is reminded of once, and every
-`REFRESH_MINUTES` the list of what blocks is posted whole.
+This module sets the timers of what blocks (`waiting.cadence`) beside `CLOSE_MINUTES`. jbus
+reminds the user once of an item that still blocks `REMIND_MINUTES` after it opened, and
+posts the whole list of what blocks every `REFRESH_MINUTES`.
 """
 
 from __future__ import annotations
@@ -121,7 +130,8 @@ def path(state: Path) -> Path:
 
 
 def read(state: Path) -> dict[str, Record]:
-    """The record of each slug, or none where the file is not one this module wrote."""
+    """Return the record of each slug. Return no records when this module did not write
+    the file."""
     kept = read_json(path(state), {})
     try:
         return {slug: Record(**one) for slug, one in kept.items()}
@@ -134,14 +144,15 @@ def _write(state: Path, records: dict[str, Record]) -> None:
 
 
 def late(record: Record, now: datetime) -> bool:
-    """Whether the home was told `CLOSE_MINUTES` ago or more."""
+    """Return whether jbus told the home `CLOSE_MINUTES` ago or more."""
     if not record.told:
         return False
     return (now - datetime.fromisoformat(record.told)).total_seconds() >= CLOSE_MINUTES * 60
 
 
 def his(record: Record, now: datetime) -> str:
-    """Why a leftover is the user's, or nothing while its home has it."""
+    """Return why a leftover is the user's, or nothing while the leftover is still its
+    home's."""
     if record.why:
         return record.why
     if late(record, now):
@@ -150,11 +161,12 @@ def his(record: Record, now: datetime) -> str:
 
 
 def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str]]:
-    """The rows whose Result leaves something that no thread is at work on, each with its
-    `why`.
+    """Return the rows whose Result leaves something and that no thread is at work on, each
+    with its `why`.
 
-    A merged row's thread is at work by its status alone: jbus settles the thread of a
-    merge before it tells it, and a settled thread that took the message up is at work.
+    jbus counts a merged row's thread as at work by the thread's status alone. jbus settles
+    the thread of a merge before it tells that thread, and a settled thread that picked the
+    message up is at work.
     """
     found = []
     for row in sorted(rows, key=queue.order):
@@ -166,14 +178,14 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
 
 
 def note(brief: str) -> str:
-    """What the last Result of a brief has on its `Left:` line, whole, or nothing where it
-    leaves nothing."""
+    """Return the whole `Left:` line of a brief's last Result, or nothing when that
+    Result leaves nothing."""
     text = mirror.field(mirror.last_result(brief), "Left")
     return "" if text == "none" else text
 
 
 def _pull(world: World, slug: str, brief: str) -> str:
-    """The slug's pull request and whether it merged, as the message says it."""
+    """Return the slug's pull request and whether it merged, as the message says it."""
     url, number = named(mirror.last_result(brief))
     merged = world.merged.get(slug)
     if merged:
@@ -185,7 +197,7 @@ def _pull(world: World, slug: str, brief: str) -> str:
 
 
 def _asked(run: Pass, slug: str) -> str:
-    """Each question the slug asked, with its answer or that it is open."""
+    """List each question the slug asked, with its answer or a note that it is open."""
     lines = []
     for one in questions.load(run.state):
         if one.slug != slug:
@@ -199,7 +211,7 @@ def _asked(run: Pass, slug: str) -> str:
 
 
 def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> str:
-    """The one message a home gets about a leftover. `why` is the row's `left` text, which a
+    """Write the one message a home gets about a leftover. `why` is the row's `left` text, which a
     row with no Result has in place of a `Left:` line."""
     if not mirror.last_result(brief):
         return UNWRITTEN.format(
@@ -230,7 +242,8 @@ def _judge(
     record: Record,
     out: set[str] | None,
 ) -> Record:
-    """A leftover's record after this pass: whose thread has it, and the message, sent once."""
+    """Return a leftover's record after this pass, and send the message once. The record
+    says whether the home or the user has the leftover."""
     thread = thread_of(home_of(run.home, brief))
     if not thread:
         return replace(record, why=NO_HOME)
@@ -270,10 +283,10 @@ def tell(
     """Tell the home of each leftover, once for a row and a `Left:` text, and rewrite
     `leftover.json`.
 
-    `out` is what `threads.out` gave: the threads that are not settled, or None where T3
+    `out` is what `threads.out` returned: the threads that are not settled, or None where T3
     Code could not list them. A row keeps its record while its last Result has the same
-    `Left:` text, also through a pass in which a thread is at work on it, and loses it when
-    the Result leaves nothing or the row is gone.
+    `Left:` text, even through a pass in which a thread is at work on it. It loses the record
+    when the Result leaves nothing or the row is gone.
     """
     was = read(run.state)
     open_now = {slug for slug, _ in ended(run, world, rows)}
@@ -299,7 +312,7 @@ def tell(
 
 
 def said(state: Path, slug: str, at: datetime) -> None:
-    """Keep that a row was said to the user as a stall."""
+    """Record that jbus reported a row to the user as a stall."""
     records = read(state)
     if slug in records:
         stamp = at.astimezone(UTC).isoformat(timespec="seconds")

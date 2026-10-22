@@ -1,37 +1,41 @@
-"""The digest: what waits and what moved, over every project, as one dict and with no model.
+"""The digest lists what waits and what moved in every project, as one dict built with no model.
 
-`build` is the one builder. `jbus digest --json` prints what it gives, and a server can
-give the same dict at an address. It reads what the passes left and asks nobody: no
-`jmerge`, no GitHub, no T3 Code, and it takes no lock and writes no file. The dict is:
+`build` is the one builder. `jbus digest --json` prints what it returns, and a server can
+serve the same dict at an address. `build` reads only what the passes left and calls no service:
+no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dict has these keys:
 
-- `at`, when it was built, and `since`, the time the merges are counted from;
-- `projects`, by name, each with:
-  - `rows`: the rows of the queue that are not over (`queue.over`), each with the columns in
-    `COLUMNS`, or None where `queue.json` does not parse. A row that merged or is done and
-    leaves nothing is over, and one that merged with work left for after the merge is not;
-  - `merged`: `{"slug", "pr", "at"}` for each row that turned `merged` at or after `since`,
-    oldest first, from `transitions.jsonl`: `pr` is as a row has it, `#<n>`, or nothing;
-  - `done`: the same for each row that turned `done`, which has no pull request;
-  - `pulls`: `{"number", "slug", "url", "waits"}` for each of those rows that has a pull
-    request and is not merged: `waits` is the last line `jmerge` logged for it, as
-    `<wait or hold>: <why>`, from `merge.log.last`, and nothing where it logged none;
-  - `by_rule`: `{"slug", "rule", "follows", "at"}` for each row of the queue, an open one or
+- `at` is when `build` built the dict, and `since` is the time from which the digest counts merges.
+- `projects` maps each project's name to a dict with these keys:
+  - `rows` holds the rows of the queue that are not over (`queue.over`), each with the
+    columns in `COLUMNS`. It is None where `queue.json` does not parse. A row that merged or
+    is done and leaves nothing is over. A row that merged with work left for after the merge
+    is not.
+  - `merged` holds `{"slug", "pr", "at"}` for each row that turned `merged` at or after
+    `since`, oldest first, from `transitions.jsonl`. Each entry's `pr` is the row's own
+    value, `#<n>`, or empty.
+  - `done` holds the same for each row that turned `done`. Such a row has no pull request.
+  - `pulls` holds `{"number", "slug", "url", "waits"}` for each row of `rows` that has a pull
+    request and is not merged. Its `waits` is the last line `jmerge` logged for it, as
+    `<wait or hold>: <why>`, from `merge.log.last`, or empty where `jmerge` logged none.
+  - `by_rule` holds `{"slug", "rule", "follows", "at"}` for each row of the queue, open or
     not, that a home approved by a standing rule at or after `since`, oldest first. The user
-    did not speak of such a row: its length is the count he is told, `follows` the row he
-    did approve, and `at` when the approval was run, as the row has it, to the minute: a
-    `since` is taken back to its minute, so a row is listed twice at worst and never missed;
-  - `waiting`: the list of what waits on the user, as the last pass left it (`waiting`);
-  - `sweep`: what the last look at a sweep found;
-- `status`: what `jbus status` prints;
-- `token_expires`: when the sign-in to T3 Code runs out, by the stored token, or, for a
-  builder that has no token file to read, as the last pass wrote it in the status file.
+    said nothing about such a row. The list's length is the count jbus tells the user.
+    `follows` is the row the user did approve. `at` is when the home ran the approval, to the
+    minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so the digest
+    lists a row twice at worst and never misses it.
+  - `waiting` is the list of what waits on the user, as the last pass left it (`waiting`).
+  - `sweep` is what the last look at a sweep found.
+- `status` is what `jbus status` prints.
+- `token_expires` is when the sign-in to T3 Code runs out, read from the stored token. A
+  builder that has no token file to read takes it from the status file, where the last pass
+  wrote it.
 
-A pull request is named two ways, as the records it comes from name it: a row's `pr` and a
-merge's are the string `#<n>`, and a `number`, of `pulls` or of a hold, is the integer. A
+The digest names a pull request two ways, as the records it comes from name it. A row's `pr`
+and a merge's are the string `#<n>`. A `number`, of `pulls` or of a hold, is the integer. A
 gate's `number` is a string: the number of a question jbus holds, or whatever the heading of
 a gate in `gates.md` says.
 
-No webhook URL, key or token is in it: `redact` takes each out of every string.
+`redact` removes every webhook URL, key and token from every string, so the digest has none.
 """
 
 from __future__ import annotations
@@ -76,15 +80,15 @@ COLUMNS = (
 
 
 def since(given: str | None, user: jsettings.Settings) -> datetime | None:
-    """A `since` as it is typed or put in an address: a time as ISO 8601 writes it, a day
-    alone included, or None for none. One with no zone is a time of the user's zone, and one
-    that is not a time is a `ValueError`."""
+    """Read a `since` as the user types it or puts it in an address: an ISO 8601 time, or a
+    day alone. Return None when none is given. A time with no zone is in the user's zone. A
+    string that is not a time raises a `ValueError`."""
     return user.local(datetime.fromisoformat(given)) if given else None
 
 
 def status(config: Config) -> dict[str, Any]:
-    """What `jbus status` prints: the status file, the streaks and the homes not on the bus
-    as they are now, and the record of the pass."""
+    """Return what `jbus status` prints: the status file, the record of the pass, the streaks
+    as they are now, and the homes that are not on the bus now."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
         "homes_off_bus": project.missing(config),
@@ -95,7 +99,8 @@ def status(config: Config) -> dict[str, Any]:
 def _turned(
     config: Config, project: Project, start: datetime, word: str, pulls: dict[str, str]
 ) -> list:
-    """Each change of a row to `word` at or after `since`. A line that is not one is left out."""
+    """Return each change of a row to `word` at or after `since`. Skip a line of the file
+    that is not such a change."""
     try:
         lines = queue.transitions_path(config.state(project)).read_text().splitlines()
     except OSError:
@@ -114,7 +119,7 @@ def _turned(
 
 
 def _pulls(config: Config, project: Project, rows: list[queue.Row]) -> list[dict[str, Any]]:
-    """What each row's pull request waits on, by the last line `jmerge` logged for it."""
+    """Return what each row's pull request waits on, by the last line `jmerge` logged for it."""
     last = read_json(config.home(project) / "merge.log.last", {})
     last = last if isinstance(last, dict) else {}
     found = []
@@ -136,11 +141,12 @@ def _pulls(config: Config, project: Project, rows: list[queue.Row]) -> list[dict
 
 
 def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[dict[str, str]]:
-    """Each row approved by a standing rule at or after `start`. One whose record holds no
-    time jbus stamped is left out.
+    """Return each row a home approved by a standing rule at or after `start`, and skip a row
+    whose record has no time jbus stamped.
 
-    A record's time is to the minute, so `start` is taken back to its minute: a row approved
-    in the minute a digest was built is in the next one too, and in none is it missed."""
+    A record's time is to the minute, so this rounds `start` down to its minute. A row that a
+    home approved in the minute a digest was built is in the next digest too, and no digest
+    misses it."""
     start = start.replace(second=0, microsecond=0)
     found = []
     for row in table:
@@ -184,7 +190,8 @@ def _project(config: Config, project: Project, start: datetime) -> dict[str, Any
 def build(
     config: Config, since: datetime | None = None, now: datetime | None = None
 ) -> dict[str, Any]:
-    """The digest. `since` is the time the merges are counted from: a day before with none."""
+    """Build the digest. `since` is the time from which the digest counts merges. Without a
+    `since`, it counts from a day before `now`."""
     now = config.user.local(now or datetime.now(UTC))
     since = config.user.local(since or now - DAY)
     expires = t3.expiry(config.token_path)
@@ -200,12 +207,12 @@ def build(
 
 
 def _status(_: argparse.Namespace, config: Config) -> int:
-    """Print the status file, with the streaks and the homes not on the bus as they are now
-    and the record of the pass.
+    """Print the status file and the record of the pass. Print the streaks, and the homes
+    that are not on the bus, as they stand now.
 
-    The file's own streaks are a copy from the last pass that ended, and `jbus alarm` counts
-    after it. The record is there from the start of a pass, so a first pass that never ended
-    is printed too.
+    The file's own streaks are a copy from the last pass that ended, and `jbus alarm` keeps
+    counting after that pass. A pass writes the record at its start, so this also prints a
+    first pass that never ended.
     """
     if not config.status_path.is_file() and not config.pass_path.is_file():
         raise Refused(f"refused: no status at {config.status_path}: no pass has run")
@@ -214,7 +221,7 @@ def _status(_: argparse.Namespace, config: Config) -> int:
 
 
 def _start(given: str | None, config: Config) -> datetime | None:
-    """`--since`, as `since` reads it. One that is not a time is refused."""
+    """Read `--since` as `since` reads it, and refuse a value that is not a time."""
     try:
         return since(given, config.user)
     except ValueError:
@@ -231,10 +238,10 @@ def _digest(args: argparse.Namespace, config: Config) -> int:
 
 
 def _events(args: argparse.Namespace, config: Config) -> int:
-    """Print the project's event log, one JSON object a line, oldest first. It writes nothing.
+    """Print the project's event log, one JSON object per line, oldest first. It writes nothing.
 
-    `--since` is a time as ISO 8601 writes it, a day alone included: one with no zone is in the
-    user's zone.
+    `--since` is an ISO 8601 time, or a day alone. A time with no zone is in the user's
+    zone.
     """
     start = _start(args.since, config)
     project = verbs.project(config, args.project)

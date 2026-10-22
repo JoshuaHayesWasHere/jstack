@@ -1,51 +1,62 @@
-"""A thread that stopped on a usage limit goes on, on another instance of its pool, once.
+"""When a thread stops on a usage limit, `failover` moves it to another instance of its pool,
+and the thread carries on there.
 
-A turn that ends `failed` on a usage limit is not a thread to carry on where it was: the
-instance it ran on is capped until the window resets, and a carry-on sent there fails the same
-way and spends one of `threads.CARRY_ONS`. So `failover` reads the limit from the run's items
-(the `system_notice` itemId `...:<five_hour|seven_day>:<reset>`, the text where none has one),
-writes it to the ledger (`jroles.ledger`) for the instance the run was on, and sends the
-thread on to the instance `jroles.pool.choose` names in its pool:
+A turn that ends `failed` on a usage limit cannot carry on where it was. The instance it ran
+on is capped until the window resets, and a carry-on sent there fails the same way and spends
+one of `threads.CARRY_ONS`. So `failover` reads the limit from the run's items: the
+`system_notice` itemId `...:<five_hour|seven_day>:<reset>`, or the items' text where no
+item has such an id. It writes the limit to the ledger (`jroles.ledger`) for the instance
+the run was on. Then it sends the thread on to the instance of the thread's pool that
+`jroles.pool.choose` names:
 
-- the pool is the first line of the role map that names the thread's instance, its own role's
-  lines first (`crew`, `review`, `scout`, `home`) and then every other role's, and the
-  thread's instance alone where no line names it. So a reviewer on the crew's provider,
-  whose `review` lines name two others, moves in the crew's pool, and a thread is never moved to an
-  instance that is not on one line with its own, so no work goes to another provider;
-- the first instance with headroom: the thread is put on it with `t3_thread_configure`, the
-  model and the options (effort, fast mode) as `t3_thread_configuration` gave them, only the
-  `instanceId` changed, and sent one queued carry-on. A thread already on it is only sent the
-  carry-on. It works both ways: a thread capped on a later instance goes back to an earlier one
-  with headroom, as one capped on the first goes on to the next;
-- none, while every instance of the pool is capped: one `stall` event (user level) that names
-  the first reset, and nothing sent. The first pass after that reset goes on as above.
+- The pool is the first line of the role map that names the thread's instance. `failover`
+  reads the thread's own role's lines first (`crew`, `review`, `scout`, `home`), then every
+  other role's. Where no line names the instance, the pool is the thread's instance alone.
+  So a reviewer on the crew's provider moves in the crew's pool when its `review` lines name
+  two other instances. `failover` never moves a thread to an instance that shares no line of
+  the map with the thread's instance, so no work goes to another provider.
+- When an instance has headroom, `failover` puts the thread on the first such instance with
+  `t3_thread_configure`, and sends it one queued carry-on. The model and the options (effort,
+  fast mode) stay as `t3_thread_configuration` returned them, and only the `instanceId` changes.
+  A thread already on that instance gets only the carry-on. This works both ways: a thread
+  capped on a later instance goes back to an earlier one with headroom, just as a thread
+  capped on the first instance goes on to the next.
+- While every instance of the pool is capped, `failover` sends nothing and raises one `stall`
+  event (user level) that names the first reset. The first pass after that reset handles the
+  thread as above.
 
-A move onto a mirror instance is asked of `jroles mirror --check` first, as a launch is
-(`dispatch.mirrored`): one that is not mirrored is passed over for the pass, and a thread with
-no other instance left waits, sent nothing, for a later pass. A replay asks nothing of it.
+Before a move onto a mirror instance, `failover` asks `jroles mirror --check`, as a launch
+does (`dispatch.mirrored`). For that pass it skips an instance that is not mirrored. A thread
+with no other instance left gets nothing and waits for a later pass. A replay skips the
+check.
 
-A move happens only on a cap, and it is sticky: nothing moves a thread back once its old
-instance is free, since each move is a handoff that loses context. It moves again only when
-the instance it is on caps.
+`failover` moves a thread only on a cap, and the move is final. It never moves a thread back
+once the old instance is free, since each move is a handoff that loses context. A thread
+moves again only when its new instance caps.
 
-Which threads (`movers`): every thread of the project that is not settled and failed, by its
-title, a crew (`crew: `), a reviewer (`review: `) or a scout (`scout: `), a crew a brief names
-on a `Thread:` line, and the homes in a `home-id`, the root home's and each scope's. Every
-project of the config is passed over, so this is every jbus project. A thread that owes nothing
-is left: a crew whose task merged or ended clean, a reviewer whose task is over and whose
-brief's last Review has a verdict, a scout whose Report is written. Each failed run is handled
-once: its key, `failover|<thread>|<run>`, is kept in `sent.json` after the carry-on is queued,
-and the stall has its own key, the reset. A crash between the two calls is safe: the configure
-sets the same selection again, and the send has the key as its retry key. A crew's slug read
-here is in `Pass.limited`, and `threads.resume` leaves it alone: its carry-ons are not for a
-limit. A reviewer's or a scout's events are kept under its thread's id, not its slug, so they
-are never its crew's.
+`movers` picks the threads of the project that failed and are not settled. It finds a crew
+(`crew: `), a reviewer (`review: `) or a scout (`scout: `) by the thread's title. It also
+takes a crew that a brief names on a `Thread:` line, and the homes in a `home-id`, the root
+home's and each scope's. `failover` goes through every project of the config, so this covers every
+jbus project. `failover` leaves alone a thread with nothing left to do: a crew whose task
+merged or ended clean, a reviewer whose task is over and whose brief's last Review has a
+verdict, a scout whose Report is written.
 
-`jbus failover --replay <items.json> --thread <id>` is the instrument: one recorded cap,
-moved to now (`recorded`) and filling the window the ledger has running, through the same
-`plan` and `apply` for one live thread, and the move printed. It keeps the cap out of the
-ledger, which launches read, and `--dry-run` prints the move and writes nothing. Replaying
-the same items on the same thread again sends nothing.
+`failover` handles each failed run once. After it queues the carry-on, it keeps the run's
+key, `failover|<thread>|<run>`, in `sent.json`. It keys a stall by the reset instead. A
+crash between the two calls is safe: the configure call sets the same selection again, and
+the send call uses the key as its retry key. `failover` puts the slug of each crew it reads
+in `Pass.limited`, and `threads.resume` leaves that crew alone, since the carry-ons of
+`threads.resume` are not for a limit. jbus keeps the events of a reviewer or a scout under
+the id of that thread, not under the slug, so they never count as the events of the crew of
+that slug.
+
+`jbus failover --replay <items.json> --thread <id>` tries one recorded cap on one live
+thread. It moves the cap to now (`recorded`), lets it fill the window the ledger has running,
+runs it through the same `plan` and `apply`, and prints the move. It does not write the cap
+to the ledger, because launches read the ledger. `--dry-run` prints the move and writes
+nothing.
+Replaying the same items on the same thread again sends nothing.
 """
 
 from __future__ import annotations
@@ -93,23 +104,24 @@ _NUMBER = re.compile(r",\s*\d+$")
 
 @dataclass(frozen=True)
 class Mover:
-    """A thread failover may move, and what it is: `role` is the name `threads.ROLES` gives
-    it (`crew`, `reviewer`, `scout`, `home`), and `slug` the brief it works on, none for a
-    home."""
+    """A `Mover` is a thread failover may move, with its role. `role` is its name in
+    `threads.ROLES` (`crew`, `reviewer`, `scout`, `home`). `slug` is the brief it
+    works on, and a home has none."""
 
     role: str
     slug: str = ""
 
     @property
     def name(self) -> str:
-        """What its lines call it: the slug for a crew, `home`, or the role and the slug."""
+        """Return the name of the thread in the lines jbus says about it: the slug for a crew,
+        `home` for a home, or the role and the slug for any other."""
         if self.role == "crew":
             return self.slug
         return "home" if self.role == "home" else f"{MAP_ROLE[self.role]} {self.slug}"
 
     def subject(self, thread: str) -> str:
-        """What its events and gates are kept under: a crew's slug, and any other thread's
-        id, so a reviewer's cap is never its crew's."""
+        """Return the name jbus keeps its events and gates under: a crew's slug, and any other
+        thread's id, so a reviewer's cap is never its crew's."""
         return self.slug if self.role == "crew" else thread
 
     def where(self, home: Path) -> str:
@@ -118,7 +130,7 @@ class Mover:
 
 
 def _homes(run: Pass) -> set[str]:
-    """The thread in each `home-id` under the project's home directory, the root's and every
+    """Return the thread in each `home-id` under the project's home directory, the root's and every
     scope's."""
     found = set()
     for file in (run.home / "home-id", *run.home.glob("*/home-id")):
@@ -132,7 +144,7 @@ def _homes(run: Pass) -> set[str]:
 
 
 def _named(run: Pass) -> dict[str, str]:
-    """Each thread a brief names on its `Thread:` line, with the slug of that brief."""
+    """Return each thread a brief names on its `Thread:` line, with the slug of that brief."""
     found = {}
     for path in sorted((run.home / "tasks").glob("*.md")):
         try:
@@ -145,10 +157,11 @@ def _named(run: Pass) -> dict[str, str]:
 
 
 def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
-    """Each of the `listed` threads failover may move, by its id: a home in a `home-id`, a
-    crew a brief names on its `Thread:` line, and a crew, a reviewer or a scout by its title.
-    A thread whose title names none of them, a `home: ` title included, is not one. A
-    reviewer's title may end in its number, `review: <slug>, <n>`, which is not its slug."""
+    """Return each of the `listed` threads failover may move, keyed by its id. Those are a home
+    in a `home-id`, a crew that a brief names on its `Thread:` line, and a crew, a reviewer or
+    a scout found by its title. It leaves out a thread whose title names no crew, reviewer or
+    scout. That includes a `home: ` title. A reviewer's title may end in its number,
+    `review: <slug>, <n>`, and that number is not part of its slug."""
     homes, named = _homes(run), _named(run)
     found = {}
     for thread in listed:
@@ -164,20 +177,22 @@ def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
 
 
 def _over(run: Pass, world: World) -> dict[str, set[str]]:
-    """The slugs, by role, whose threads owe nothing, by the rule jbus settles them by
-    (`threads.finished`): a crew whose task merged or ended clean, a reviewer whose task is
-    over and whose brief's last Review has a verdict, and a scout whose Report is written and
-    waits on nobody. A verdict alone is not enough for a reviewer: a scoped or second-pass
-    reviewer is launched because one is written, and owes its own pass."""
+    """Return, by role, the slugs whose threads have nothing left to do. The rule is the one
+    jbus settles threads by (`threads.finished`): a crew whose task merged or ended clean, a
+    reviewer whose task is over and whose brief's last Review has a verdict, and a scout whose
+    Report is written and waits on nobody. A verdict alone does not finish a reviewer. A
+    verdict is what makes jbus launch a scoped or second-pass reviewer, and that new reviewer
+    still has its own pass to do."""
     done = threads.finished(run, world)
     return {"crew": done["crew: "], "reviewer": done["review: "], "scout": done["scout: "]}
 
 
 def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.Cap, str] | None:
-    """The usage limit the thread's last run ended on and the instance that run was on, from
-    the last items the thread wrote, or None. The run's instance is what is capped, not the
-    thread's now: a thread moved by hand after the failure is on another one. A reset the
-    text gives is read at the time the run ended, not at the pass."""
+    """Return the usage limit the thread's last run ended on and the instance that run was on, or
+    None. It reads both from the last items the thread wrote. The cap is on the run's instance, not
+    on the thread's instance now: a thread that the user moved by hand after the failure is on
+    another one. When the text gives a reset, it reads that reset relative to the time the run
+    ended, not to the time of the pass."""
     items = thread.get("itemCount")
     asked = {
         "threadId": thread["threadId"],
@@ -210,8 +225,8 @@ def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.
 
 
 def _when(stamps: list[Any]) -> datetime | None:
-    """When the run ended, from the first of `stamps` that reads: a text's `resets 11pm` is
-    of that day, whichever pass reads it."""
+    """Return when the run ended, from the first of `stamps` that parses. A text's
+    `resets 11pm` means 11pm of that day, whichever pass reads it."""
     for stamp in stamps:
         try:
             at = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
@@ -222,10 +237,11 @@ def _when(stamps: list[Any]) -> datetime | None:
 
 
 def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
-    """The pool a thread of `role` on `instance` moves in: the first line of the role map
-    that names the instance, its own role's lines first and then every other role's in the
-    map's order, else the instance alone. A reviewer on the crew's provider, whose `review`
-    lines name two others, moves in the crew's pool."""
+    """Return the pool a thread of `role` on `instance` moves in. It is the first line of the
+    role map that names the instance. The function reads the thread's own role's lines first,
+    then every other role's in the map's order. Where no line names the instance, the pool is
+    the instance alone. A reviewer on the crew's provider moves in the crew's pool when its
+    `review` lines name two other instances."""
     own = MAP_ROLE[role]
     for name in (own, *(one for one in jroles.ROLES if one != own)):
         try:
@@ -240,7 +256,7 @@ def pool_of(run: Pass, role: str, instance: str) -> tuple[str, ...]:
 
 
 def failover(run: Pass, client: Client, world: World) -> None:
-    """Move each thread that failed on a usage limit to the instance that is not capped, and
+    """Move each thread that failed on a usage limit to an instance that is not capped, and
     tell it to carry on. See the module for the rules."""
     try:
         said = client.call(
@@ -296,8 +312,9 @@ def failover(run: Pass, client: Client, world: World) -> None:
 
 @dataclass(frozen=True)
 class Move:
-    """What a cap does to one thread: the cap and the instance it is for, the thread's
-    selection and pool, and the instance `pool.choose` gave, none while the pool is capped."""
+    """A `Move` is the result of a cap for one thread. It has the cap and the instance the cap
+    is for, the thread's selection and pool, and the instance that `pool.choose` picked. That
+    instance is None while every instance of the pool is capped."""
 
     thread: dict[str, Any]
     mover: Mover
@@ -317,7 +334,7 @@ class Move:
         return chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN
 
     def line(self) -> str:
-        """The line the move is said and logged by: the failover, or the stall."""
+        """Return the line jbus says and logs for the move: the failover, or the stall."""
         name, cap, choice = self.mover.name, self.cap, self.choice
         if choice.instance is None:
             return f"capped {name}: {choice.why}; it is sent on at the first reset"
@@ -343,14 +360,15 @@ def plan(
     fill: bool = False,
     checked: dict[str, bool] | None = None,
 ) -> Move | None:
-    """The move a cap makes of the thread, read and chosen and nothing written: the ledger as
-    it is with the cap in it. None for a thread whose configuration names no model.
+    """Return the move that a cap makes of the thread. `plan` reads the ledger with the cap added,
+    chooses the move, and writes nothing. It returns None for a thread whose configuration names no
+    model.
 
-    With `fill`, a replay's, the cap fills the window the ledger has running for the capped
-    instance where that one resets later: a cap moved to now would otherwise lose to it by
-    the ledger's rule, the later reset winning, where a real cap carries that window's own
-    reset. With `checked`, a pass's, an instance that is not mirrored is passed over
-    (`dispatch.mirrored_choice`), which may run the mirror."""
+    A replay sets `fill`. Then, when the ledger has a window running for the capped instance
+    and that window resets later, the cap fills that window. Without `fill`, a cap moved to now
+    would lose to that window, because the ledger keeps the later reset. A real cap carries
+    that window's own reset. A pass sets `checked`. With it, `plan` skips an instance that is not
+    mirrored (`dispatch.mirrored_choice`), and that check may run the mirror."""
     cap, ran = found
     configuration = client.call("t3_thread_configuration", {"threadId": thread["threadId"]})
     selection = dict(configuration.get("modelSelection") or {})
@@ -372,9 +390,9 @@ def plan(
 
 
 def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = True) -> None:
-    """Make the move: the cap into the ledger where `record` is on, then the stall, or the
-    configure (only where the instance changes) and the one queued carry-on whose retry key
-    is `key`."""
+    """Make the move. Write the cap into the ledger when `record` is on. Then raise the stall,
+    or send the configure call (only where the instance changes) and the one queued carry-on whose
+    retry key is `key`."""
     at, cap, choice, line = move.at, move.cap, move.choice, move.line()
     client.recipients = client.recipients | {at}
     if record and ledger.write(cap.record(move.capped)):
@@ -424,8 +442,8 @@ def handle(
 
 
 def _items(path: Path) -> list[dict[str, Any]]:
-    """The items of a recording: a list of T3 Code's thread items, or an object whose
-    `items` is one."""
+    """Read the items of a recording: a list of T3 Code's thread items, or an object whose
+    `items` is such a list."""
     try:
         found = json.loads(path.read_text())
     except (OSError, ValueError) as error:
@@ -437,8 +455,8 @@ def _items(path: Path) -> list[dict[str, Any]]:
 
 
 def recorded(items: list[dict[str, Any]], now: datetime) -> ledger.Cap:
-    """The cap a recording holds, moved to `now`: its reset is as far after `now` as it was
-    after the last item's `updatedAt`, so `resets in 17m` reads as 17 minutes from now."""
+    """Return the cap in a recording, moved to `now`. Its reset is as far after `now` as it
+    was after the last item's `updatedAt`, so `resets in 17m` reads as 17 minutes from now."""
     stamps = sorted((str(one.get("updatedAt") or "") for one in items), reverse=True)
     then = _when(stamps)
     cap = ledger.cap_of(items, then or now)
@@ -448,7 +466,7 @@ def recorded(items: list[dict[str, Any]], now: datetime) -> ledger.Cap:
 
 
 def _replay(args: argparse.Namespace, config: jbus.Config) -> int:
-    """`jbus failover --replay`: one recorded cap, through the move a pass makes, for one
+    """`jbus failover --replay` runs one recorded cap through the move a pass makes, for one
     live thread. See `REPLAY`."""
     project = verbs.project(config, args.project)
     now = datetime.now(UTC)
