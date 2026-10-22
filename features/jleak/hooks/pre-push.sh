@@ -1,13 +1,17 @@
 #!/bin/sh
 
 here=$(readlink -f "$0") || exit 1
-repo=${here%/features/jleak/hooks/*}
-[ -d "$repo/features/jleak/src/jleak" ] || {
-  echo "jleak: $repo is no checkout of jstack, so the push is refused" >&2
-  exit 1
-}
+source=${here%/features/jleak/hooks/*}
+if [ ! -d "$source/features/jleak/src/jleak" ]; then
+  python=${source%/share/jstack}/bin/python
+  [ "$python" != "$source/bin/python" ] && [ -x "$python" ] || {
+    echo "jleak: $source is no checkout and no release, so the push is refused" >&2
+    exit 1
+  }
+  PYTHONDONTWRITEBYTECODE=1 exec "$python" -I -m jleak --strict --push "${2:-${1:-.}}"
+fi
 path=
-for folder in "$repo"/src "$repo"/features/*/src; do
+for folder in "$source"/src "$source"/features/*/src; do
   [ -d "$folder" ] && path=${path:+$path:}$folder
 done
 for python in python3 python; do

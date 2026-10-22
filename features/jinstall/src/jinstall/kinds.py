@@ -417,52 +417,6 @@ class HookGroup:
 
 
 @dataclass(frozen=True)
-class GitHook:
-    """A hook of the checkout's own repo, a link from <checkout>/.git/hooks/<name> to
-    <checkout>/<script>. The worktrees of a repo run the hooks of its main checkout, so the
-    one link covers every branch that this machine sends to a remote.
-
-    `needs()` lists this need only with a checkout, since a release has no repo of its own.
-    due: `.git` is a directory, and HOME is the account's own or holds the checkout. A
-      directory `.git` means the main checkout, since a linked worktree runs the hooks of its
-      main checkout. When a sandbox or a test runs the install under another HOME, the run
-      leaves a checkout outside that HOME as it is.
-    old: the path is a link to anywhere else.
-    foreign: the path is a hook of the user's own, and the detail is `not a link`. Or git
-      runs no hook from the folder, and the detail is
-      `core.hooksPath is set, so git runs no hook of .git/hooks`. A put repairs neither case.
-    drop: unlink the path only when it points at the script."""
-
-    name: str
-    script: str
-
-    def _link(self, machine: Machine) -> Link:
-        hooks = machine.checkout / ".git" / "hooks"
-        return Link(hooks / self.name, machine.checkout / self.script)
-
-    def probe(self, machine: Machine) -> Found:
-        elsewhere = machine.run(
-            ["git", "-C", str(machine.checkout), "config", "--get", "core.hooksPath"]
-        )
-        if elsewhere.code == 0 and elsewhere.out.strip():
-            return Found.foreign("core.hooksPath is set, so git runs no hook of .git/hooks")
-        return self._link(machine).probe(machine)
-
-    def due(self, machine: Machine) -> bool:
-        checkout = machine.checkout
-        if checkout is None:
-            return False
-        ours = machine.home == machine.account or checkout.is_relative_to(machine.home)
-        return ours and (checkout / ".git").is_dir()
-
-    def put(self, machine: Machine) -> None:
-        self._link(machine).put(machine)
-
-    def drop(self, machine: Machine) -> Dropped:
-        return self._link(machine).drop(machine)
-
-
-@dataclass(frozen=True)
 class Patterns:
     """The private patterns that `jleak` reads, at
     ${XDG_CONFIG_HOME:-~/.config}/jstack/outbound.toml, through jleak's own loader. The install

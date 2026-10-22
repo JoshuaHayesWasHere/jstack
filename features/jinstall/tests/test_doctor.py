@@ -352,7 +352,8 @@ def test_a_jstack_config_that_is_a_link_to_nothing_is_missing(user):
 def test_usage_names_the_doctor(user):
     code, said, err = user.run_with_stderr("--doctor", "--check")
     assert (code, said) == (2, [])
-    assert err == "usage: install.sh [--check | --uninstall | --doctor | --setup]\n"
+    usage = "usage: install.sh [--check | --uninstall | --doctor | --setup | --repo [<path>]]"
+    assert err == f"{usage}\n"
     assert user.listing() == []
 
 

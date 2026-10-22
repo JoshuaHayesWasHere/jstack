@@ -63,7 +63,8 @@ commit 1a2b3c4 notes.md:12: home-path
 jleak: 3 findings, so the push is refused
 ```
 
-`sh install.sh` links it at `.git/hooks/pre-push` of the main checkout. The repo's worktrees run the same hook.
+The install links it at `.git/hooks/pre-push` of each repo jstack works in ("Which repos get the git hooks").
+A repo's worktrees run the same hook.
 
 `features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on Claude Code's shell commands.
 It runs `jleak --command` and refuses, with exit code 2:
@@ -73,7 +74,8 @@ It runs `jleak --command` and refuses, with exit code 2:
 
 It reads the command as the shell would, so a word in a commit message or in another program's arguments is not taken for a push or a body file. It refuses a body that is piped in, since it cannot read one. It does not see a body that the command builds from a variable, or a command inside a quoted string.
 
-The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is this checkout's alone. A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
+The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is in the repos jstack works in alone.
+A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
 
 ## AI trailers
 
@@ -107,4 +109,12 @@ jleak: took out of the commit message: Co-Authored-By: Claude Opus 5.5 <noreply@
 ```
 
 It never stops a commit, even when it cannot clean the message.
-`sh install.sh` links it at `.git/hooks/commit-msg` of the main checkout, beside `pre-push`, and the repo's worktrees run it too.
+The install links it at `.git/hooks/commit-msg` of each repo jstack works in, beside `pre-push`, and a repo's worktrees run it too.
+
+## Which repos get the git hooks
+
+The install links both git hooks into jstack's own checkout, the checkout of each project of `jbus`'s config, and each repo set up with `jinstall --repo`.
+`/new-home` runs `jinstall --repo` for the repo it sets up.
+To add them to any other repo, run `jinstall --repo` in it, or `sh install.sh --repo <path>` from a checkout.
+Each hook links to its script in the release's source or the checkout, and a release's script runs jleak on the release's own Python, so the hooks need no checkout.
+A hook of the repo's own is never written over: its line in `jinstall --check` names the file and the line that runs this hook from it, as [jinstall's page](../../jinstall/docs/jinstall.md#git-hooks-in-your-repos) shows.

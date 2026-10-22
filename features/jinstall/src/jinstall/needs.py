@@ -22,7 +22,6 @@ from jinstall.kinds import (
     Commands,
     Generated,
     GhSignIn,
-    GitHook,
     GoneLink,
     HomeSkills,
     HookGroup,
@@ -60,6 +59,7 @@ from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
 from jinstall.project import ProjectLink, StrayProjectLink, stray
+from jinstall.repos import GitHook, checkouts
 from jroles import ledger
 from jroles.inventory import claude_instances
 
@@ -92,7 +92,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     one listing of each skills root for GoneLink, and the provider inventory. The inventory
     names the instances and the Claude homes to probe.
 
-    A release has no checkout, so its list has neither the generated line nor the git hook.
+    A release has no checkout, so its list has no generated line and no project skill.
     An inventory that the function cannot read names no instance or home, and its own line
     says why. A skills.json that the function cannot read names no skill and no hook, and each
     layout's line says why.
@@ -136,8 +136,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      hook <file> <event>           HookGroup, for each entry of each hook of
                                               skills.json, in the file its harness reads
                                               (`Harness.hooks`)
-      hard      hook <checkout>/.git/hooks/<name> <name>  GitHook, for each git hook of
-                                              skills.json, in a checkout
+      hard      hook <repo>/.git/hooks/<name> <name>  GitHook, for each git hook of
+                                              skills.json in each repo jstack works in
+                                              (`repos.checkouts`): hard in its own checkout,
+                                              optional in any other repo
       hard      commands <tool>               Commands
       optional  statusline ~/.claude/settings.json  StatusLine, the status line of skills.json
       hard      attribution <file>            Attribution, the keys that turn off the AI
@@ -245,15 +247,15 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for hook in hooked
         for one in hook["events"]
     ]
-    if repo is not None:
-        found += [
-            Need(
-                f"hook {repo / '.git' / 'hooks' / one['name']} {one['name']}",
-                Level.HARD,
-                GitHook(one["name"], one["path"]),
-            )
-            for one in pushed
-        ]
+    found += [
+        Need(
+            f"hook {hook.path()} {hook.name}",
+            Level.HARD if each == repo else Level.OPTIONAL,
+            hook,
+        )
+        for each in checkouts(machine, jbus)
+        for hook in (GitHook(each, one["name"], one["path"]) for one in pushed)
+    ]
     commands = _commands(machine)
     found.append(Need(f"commands {commands.tool}", Level.HARD, commands))
     settings = files[CLAUDE_CODE.name]
