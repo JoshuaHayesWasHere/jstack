@@ -42,7 +42,7 @@ from math import comb
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[4]
+REPO = HERE.parents[3]
 sys.path[:0] = [str(REPO / "features" / "jleak" / "src")]
 
 
