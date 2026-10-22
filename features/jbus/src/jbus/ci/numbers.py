@@ -30,7 +30,7 @@ The nine, in order:
    the last green one. The target is under 15 (set here; the scout named none).
 7. `mainred`: the minutes main was red, on the window's last day, from the first failed push
    to main until the next green one. The target is under 30 (set here).
-8. `flaky`: the tests that failed two branches in the window with no fault in the log.
+8. `flaky`: the tests that failed on two branches in the window with no fault in the log.
    The target is under 3 (set here). The scout counted 9 by hand; this number follows the rule.
 9. `inode`: the peak of /tmp's inode use a job wrote with `jbus ci --notice` (`tmp_inode_pct`).
    The target is under 80 (set here). It has no value until a job writes it.
@@ -67,9 +67,9 @@ TARGETS = {
 @dataclass(frozen=True)
 class Number:
     """A `Number` is one target: its `value` (the local runner's), `shown`, how it reads, the
-    `target` it is held to, whether it is `met` (None where there was nothing to count), `n`,
-    the jobs or pull requests counted, `how` it was counted, and `hosted`, the hosted runner's
-    figure."""
+    `target` it is checked against, whether it is `met` (None where there was nothing to
+    count), `n`, the jobs or pull requests counted, `how` it counts, and `hosted`, the hosted
+    runner's figure."""
 
     key: str
     name: str
@@ -130,7 +130,7 @@ def _in(stamp: str | None, start: datetime, end: datetime) -> bool:
 
 
 class Facts:
-    """`Facts` reads what the ledger holds once, and works out from it once: the pull request
+    """`Facts` reads the ledger once, and works out from it, once: the pull request
     each jbus event is about, the runs of main in order, the intervals main was red, the cause
     of each red, and the cause of each force-push."""
 
@@ -302,7 +302,7 @@ class Facts:
 
     def _pushes(self) -> list[tuple[int, datetime, str]]:
         """Return each force-push of a pull request's branch, with its cause: `conflict` (the
-        rebase settled a conflict), `staleness` (main had only moved), `fix` or `unknown`."""
+        rebase resolved a conflict), `staleness` (main had only moved), `fix` or `unknown`."""
         messages = self._messages()
         found = []
         for one in self.pulls:

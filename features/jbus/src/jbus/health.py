@@ -18,24 +18,24 @@ with.
   not active; its heartbeat is older than `BEAT_MINUTES`; it heard no body for the
   heartbeat's `silent_minutes`, `RELAY_SILENT_MINUTES` in the relay's env; a route's POSTs
   have failed for `ERRORS_MINUTES`; a target refused a body for good in the last
-  `REFUSED_MINUTES`, a body that stays in the relay's `dead/` and is never sent
+  `REFUSED_MINUTES`. Such a body stays in the relay's `dead/` and the relay never sends it
   (`jbus.relay`). jbus does not judge silence and errors from a heartbeat that is stale.
 - `quota <instance> <window>` and `capped <instance>` cover each instance of the role map's
   pools and the built-in one. They read the ledger that the threads' status lines and their
   limit failures write (`jroles.ledger`). jbus pages for the seven-day window at `FULL`. The
   five-hour window fills and resets each day, so jbus pages for it only when it is full.
-  `capped` is the instance `jroles.pool.choose` skips: while the cap holds, new launches go
+  `capped` is the instance `jroles.pool.choose` skips: while the cap lasts, new launches go
   to the next instance of the pool, and with every instance capped no launch starts. The
-  cap clears by itself at the reset, and its recovered line says that launches on the
+  cap ends by itself at the reset, and its recovered line says that launches on the
   instance resume.
 
 A reading over its limit is an incident, with the key `health <the reading's key>`, which
 `jbus.alert` keeps as a streak. jbus pages it once when it starts (`alert.opened`), and once
-when a reading under the limit ends it (`alert.closed`). A reading that jbus could not take
-(`over` None) leaves its incident as it is. When jbus no longer takes an incident's reading,
-because a mount or an instance is gone or the config no longer posts to a relay, the
-incident ends with no line. A page goes to the desk, and once to the top-level webhook as an
-event of the machine (`wake.Box.send`).
+when a reading under the limit ends it (`alert.closed`). When jbus could not take a reading
+(`over` None), it leaves that reading's incident as it is. When jbus no longer takes an
+incident's reading, because a mount or an instance is gone or the config no longer posts to
+a relay, jbus ends the incident with no line. A page goes to the desk, and once to the
+top-level webhook as an event of the machine (`wake.Box.send`).
 
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
@@ -103,7 +103,7 @@ class Relay:
 
 @dataclass(frozen=True)
 class Machine:
-    """A `Machine` is one look, as `gather` reads it at the boundary. `journal` is None where
+    """A `Machine` is one look, as `gather` reads it from the system. `journal` is None where
     `gather` could not read it."""
 
     mounts: tuple[Mount, ...] = ()
@@ -317,9 +317,9 @@ def _minutes(since: Any, now: datetime) -> int | None:
 
 
 def relays(relay: Relay | None, now: datetime) -> list[Reading]:
-    """Return the relay's readings. Silence counts from the last body the relay heard, which a
-    restart keeps. `started` counts only for a relay that has never heard a body, so a relay
-    that restarts often still reads as silent."""
+    """Return the relay's readings. jbus counts silence from the last body the relay heard,
+    and a restart does not reset that time. `started` counts only for a relay that has never
+    heard a body, so a relay that restarts often still reads as silent."""
     if relay is None:
         return [Reading("relay", "the config posts nothing to 127.0.0.1", "not watched", False)]
     found = [

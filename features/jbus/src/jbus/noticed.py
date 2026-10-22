@@ -8,7 +8,7 @@ directory: every `## Result` (a follow-up included), `## Review` and `## Report`
 The line starts with `Noticed`, or with `Noticed` and a few words after a comma or in
 parentheses, and then a colon. The text after the colon is one record, and each item of the
 list under the line is one more (`lines`). So a line added to the list later is one new
-record. A text that is empty or says `none` makes no record.
+record. jbus makes no record of a text that is empty or says `none`.
 
 `noticed.json` in the project's state directory is `{"records"}`, each a `Record`:
 
@@ -19,14 +19,14 @@ record. A text that is empty or says `none` makes no record.
 - `text`: the whole text;
 - `seen_at`: when a pass first found it, in UTC;
 - `mark`: `new`, `taken` or `dropped`. Only `take` or `drop` marks a record, once, from
-  `new`. `row` is the queue row or plan entry that took it, and `why` says why the marker
+  `new`. `row` is the queue row or plan entry that took it up, and `why` says why the marker
   dropped it. `by` and `at` say who marked it and when, copied from `--by` and `--at`.
 
 The first pass of a project, the one that finds no file, marks every line that exists then
-as `dropped`, with the why `FROM_BEFORE` and `by` jbus. A line the threads wrote before jbus
-kept the list is new to nobody. jbus writes nothing into a brief, asks nobody about a line
-and makes no queue row for one. Every verb that would write a file that does not parse
-refuses it (`Unparsable`), and a pass says so and leaves the file as it is.
+as `dropped`, with the why `FROM_BEFORE` and `by` jbus. jbus does not count a line as new
+when the threads wrote it before jbus kept the list. jbus writes nothing into a brief, asks
+nobody about a line and makes no queue row for one. When the file does not parse, every verb
+that would write it refuses (`Unparsable`), and a pass says so and leaves the file as it is.
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def lines(body: str) -> Iterator[tuple[str, str]]:
 
 
 def found(home: Path, now: datetime) -> list[Record]:
-    """Return every record the briefs and requests hold now, each once, as a new record seen
+    """Return every record the briefs and requests have now, each once, as a new record seen
     at `now`."""
     made: dict[str, Record] = {}
     seen = now.astimezone(UTC).isoformat(timespec="seconds")
@@ -155,8 +155,8 @@ def _locked(state: Path) -> Iterator[None]:
 
 
 def read(state: Path) -> list[Record] | None:
-    """Return every record as kept, or None where there is no file yet. Raise `Unparsable`
-    for a file that is not one this module wrote."""
+    """Return every record as the file keeps it, or None where there is no file yet. Raise
+    `Unparsable` for a file that is not one this module wrote."""
     file = path(state)
     if not file.exists():
         return None

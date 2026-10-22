@@ -2,14 +2,14 @@
 
 Each pass reads `tasks/*.md`, `scouts/*.md` and `gates.md` in the home's state directory.
 It sends one event for each new section: a Result (a follow-up included), a Review, a
-Report, an open gate, an answered gate, and a gate that a thread with no home left in its
-own Result or Report. A gate that a thread piped to `jbus gate` is a question jbus holds
+Report, an open gate, an answered gate, and a gate that a thread with no home wrote into its
+own Result or Report. A gate that a thread piped to `jbus gate` is a question jbus keeps
 (`questions`). `gate_key` gives it the same key as the gate in the file, so it is the same
-event, and its answer sends no event. `seen.json` keeps the file, heading and hash of every
-section sent, so each section goes once, and a Result, Review or Report goes again when its
-text changes. The first pass of a project sends nothing: it only records what is already
-there. A file that no pass read before, and whose slug was never a row of the queue, sends
-nothing either. A tree restored from a backup puts such a file back (`scan`).
+event, and jbus sends no event for its answer. `seen.json` keeps the file, heading and hash
+of every section sent. So jbus sends each section once, and sends a Result, Review or Report
+again when its text changes. The first pass of a project sends nothing: it only records what
+is already there. jbus also sends nothing for a file that no pass read before and whose slug
+was never a row of the queue. A tree restored from a backup puts such a file back (`scan`).
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ _OPTION = re.compile(
 def sections(text: str, *, gates_inside: bool = False) -> list[tuple[str, str]]:
     """Return each `## ` heading with the lines under it, in order.
 
-    With `gates_inside`, a `## Gate` line belongs to the section it sits in and does not end
+    With `gates_inside`, a `## Gate` line belongs to the section it is in and does not end
     that section. A thread with no home puts its gate in its own Result or Report.
     """
     found: list[tuple[str, list[str]]] = []
@@ -113,7 +113,7 @@ def undelivered(text: str) -> str:
 
 
 def question(lines: str) -> str:
-    """Return the one line a gate asks, from the lines a thread sent: its `## Gate <n>:` line."""
+    """Return a gate's question, from the lines a thread sent: its `## Gate <n>:` line."""
     for line in lines.splitlines():
         match = _GATE.match(line.strip())
         if match:
@@ -177,8 +177,8 @@ def gates(text: str) -> list[tuple[str, str, str, str]]:
 
 def home_gates(home: Path) -> Iterator[tuple[Path, str, str, str, str]]:
     """Return each gate of the home's `gates.md`, then of each scoped home's: its file, its
-    number, what it asks, the lines under it, and its `gate_key`. A file it cannot read gives
-    no gate."""
+    number, what it asks, the lines under it, and its `gate_key`. It returns no gate for a file
+    it cannot read."""
     for file in (home / "gates.md", *sorted(home.glob("*/gates.md"))):
         for number, asked, _, body in gates(_read(file)):
             yield file, number, asked, body, gate_key(asker(body), asked)
@@ -220,12 +220,12 @@ def scan(
     which records all there is.
 
     `seen.json` keeps each file the pass reads, with no heading while the file has nothing to
-    send, so a later pass knows the file. Suppose no pass ever read a file, and no row of the
-    queue has or had its slug. Then the file arrived with all its sections at once, as a tree
-    restored from a backup does. The pass records it and sends nothing for it, and
-    `noticed.keep` takes in its `Noticed` lines as lines from before. A brief jbus launched
-    has a row. A home writes a scout's request before the launch, so a pass reads the request
-    before the scout's Report is in it.
+    send, so a later pass can tell that a pass read the file. Suppose no pass ever read a
+    file, and no row of the queue has or had its slug. Then the file arrived with all its
+    sections at once, as a tree restored from a backup does. The pass records it and sends
+    nothing for it, and `noticed.keep` takes in its `Noticed` lines as lines from before. A
+    brief jbus launched has a row. A home writes a scout's request before the launch, so a
+    pass reads the request before the scout's Report is in it.
     """
     seen_path = run.state / "seen.json"
     seen: dict[str, dict[str, str]] = read_json(seen_path, {})

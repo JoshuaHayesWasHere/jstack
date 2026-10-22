@@ -1,10 +1,10 @@
 """Write the week's report of the nine targets, `reports/ci-week-<date>.md` in a project's
 home, and send the one alert for a missed target.
 
-The report gives every number with how it was counted (`Number.how`), the period, and what
-the counts are based on: the jobs, local and hosted apart, and how many jobs were cancelled
-while they waited. A week with every target met, or with no data, gives no alert. A week
-that missed a target gives one `alert` event for the week, which names each missed target.
+The report gives every number with how it counts (`Number.how`), the period, and what the
+counts are based on: the jobs, local and hosted apart, and how many jobs were cancelled
+while they waited. jbus sends no alert for a week with every target met, or with no data.
+For a week that missed a target it sends one `alert` event, which names each missed target.
 """
 
 from __future__ import annotations

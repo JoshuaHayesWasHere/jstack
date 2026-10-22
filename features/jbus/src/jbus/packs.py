@@ -25,7 +25,8 @@ NAME = "packs.json"
 
 
 def check(run: Pass) -> None:
-    """Run the day's stale check of the project's pack, if it has one and it is owed."""
+    """Run the day's stale check of the project's pack, if it has one and today's check
+    has not run yet."""
     pack = run.project.checkout.joinpath(*PACK)
     path = run.state / NAME
     if not (pack / "notes").is_dir() or read_json(path, {}).get("day") == run.day:

@@ -1,10 +1,10 @@
-"""The digest is what waits and what moved, over every project, as one dict and with no model.
+"""The digest lists what waits and what moved in every project, as one dict built with no model.
 
 `build` is the one builder. `jbus digest --json` prints what it returns, and a server can
-serve the same dict at an address. It reads what the passes left and asks nobody: no
-`jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dict has these keys:
+serve the same dict at an address. It reads only what the passes left and calls no service:
+no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dict has these keys:
 
-- `at` is when it was built, and `since` is the time the merges are counted from.
+- `at` is when it was built, and `since` is the time from which the digest counts merges.
 - `projects` maps each project's name to a dict with these keys:
   - `rows` holds the rows of the queue that are not over (`queue.over`), each with the
     columns in `COLUMNS`. It is None where `queue.json` does not parse. A row that merged or
@@ -19,9 +19,9 @@ serve the same dict at an address. It reads what the passes left and asks nobody
     `<wait or hold>: <why>`, from `merge.log.last`, or empty where `jmerge` logged none.
   - `by_rule` holds `{"slug", "rule", "follows", "at"}` for each row of the queue, open or
     not, that a home approved by a standing rule at or after `since`, oldest first. The user
-    did not speak of such a row. The list's length is the count the user is told, `follows`
+    said nothing about such a row. The list's length is the count the user is told, `follows`
     is the row the user did approve, and `at` is when the home ran the approval, to the
-    minute, as the row has it. `_by_rule` takes a `since` back to its minute, so the digest
+    minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so the digest
     lists a row twice at worst and never misses it.
   - `waiting` is the list of what waits on the user, as the last pass left it (`waiting`).
   - `sweep` is what the last look at a sweep found.
@@ -35,7 +35,7 @@ and a merge's are the string `#<n>`. A `number`, of `pulls` or of a hold, is the
 gate's `number` is a string: the number of a question jbus holds, or whatever the heading of
 a gate in `gates.md` says.
 
-`redact` takes every webhook URL, key and token out of every string, so the digest holds none.
+`redact` removes every webhook URL, key and token from every string, so the digest has none.
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ COLUMNS = (
 
 def since(given: str | None, user: jsettings.Settings) -> datetime | None:
     """Read a `since` as it is typed or put in an address: a time as ISO 8601 writes it, a day
-    alone included. Return None for none. A time with no zone is in the user's zone, and a
+    alone included. Return None when none is given. A time with no zone is in the user's zone, and a
     string that is not a time raises a `ValueError`."""
     return user.local(datetime.fromisoformat(given)) if given else None
 
@@ -142,9 +142,9 @@ def _pulls(config: Config, project: Project, rows: list[queue.Row]) -> list[dict
 
 def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[dict[str, str]]:
     """Return each row a home approved by a standing rule at or after `start`, and skip a row
-    whose record holds no time jbus stamped.
+    whose record has no time jbus stamped.
 
-    A record's time is to the minute, so this takes `start` back to its minute. A row approved
+    A record's time is to the minute, so this rounds `start` down to its minute. A row approved
     in the minute a digest was built is in the next digest too, and no digest misses it."""
     start = start.replace(second=0, microsecond=0)
     found = []
@@ -189,7 +189,7 @@ def _project(config: Config, project: Project, start: datetime) -> dict[str, Any
 def build(
     config: Config, since: datetime | None = None, now: datetime | None = None
 ) -> dict[str, Any]:
-    """Build the digest. `since` is the time the merges are counted from, a day before `now`
+    """Build the digest. `since` is the time from which it counts merges, a day before `now`
     when none is given."""
     now = config.user.local(now or datetime.now(UTC))
     since = config.user.local(since or now - DAY)
@@ -209,9 +209,9 @@ def _status(_: argparse.Namespace, config: Config) -> int:
     """Print the status file with the record of the pass, and with the streaks and the homes
     not on the bus as they are now.
 
-    The file's own streaks are a copy from the last pass that ended, and `jbus alarm` counts
-    after it. A pass writes the record at its start, so this prints a first pass that never
-    ended too.
+    The file's own streaks are a copy from the last pass that ended, and `jbus alarm` keeps
+    counting after that pass. A pass writes the record at its start, so this also prints a
+    first pass that never ended.
     """
     if not config.status_path.is_file() and not config.pass_path.is_file():
         raise Refused(f"refused: no status at {config.status_path}: no pass has run")
@@ -237,7 +237,7 @@ def _digest(args: argparse.Namespace, config: Config) -> int:
 
 
 def _events(args: argparse.Namespace, config: Config) -> int:
-    """Print the project's event log, one JSON object a line, oldest first. It writes nothing.
+    """Print the project's event log, one JSON object per line, oldest first. It writes nothing.
 
     `--since` is a time as ISO 8601 writes it, a day alone included: one with no zone is in the
     user's zone.

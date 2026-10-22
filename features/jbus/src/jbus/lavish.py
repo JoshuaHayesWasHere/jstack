@@ -51,8 +51,9 @@ def sessions() -> list[dict[str, Any]]:
 
 
 def picked(user: jsettings.Settings, ref: str) -> queue.Said:
-    """Read the user's send `<session key>/<entry id>` from Lavish's state file now. Return
-    its text on one line, its time in the user's zone, and the page's file.
+    """Read the entry `<session key>/<entry id>` that the user sent, in Lavish's state file
+    as it is now. Return its text on one line, its time in the user's zone, and the page's
+    file.
 
     It refuses an entry whose role is not the user's, and an entry the file does not have.
     The refusal names the one thing that is missing.

@@ -2,7 +2,7 @@
 
 The config holds a webhook's key, so neither a person nor a skill writes it. `add` reads the
 file as text and writes it back with one table after its last byte. Every other table keeps
-the same bytes. First `add` keeps the file as it was, beside it, as
+the same bytes. First `add` saves a copy of the file as it was, beside it, as
 `config.toml.<time>.bak`, and both stay mode 600. The table has `name`, `checkout` and
 `projectId`, and no webhook. The new project uses the `webhook_url` and `webhook_key` at the
 top of the config when the config has them. With none there, a pass POSTs nothing for it.
@@ -11,10 +11,10 @@ The file must load as a pass loads it (`jbus.load`). `add` refuses a config that
 refuses, before it writes anything, with the line `jbus.load` gives.
 
 `add` answers with one line, or raises `jbus.Refused` with one line. It refuses a second run
-with the same name, checkout and id as `HAS`, which a caller may read as done before. It
-refuses a name or a checkout the config has with anything else different, and its line names
-what the two share. No line holds the value of any key, the values the caller gave included,
-so a line of this command is safe in any log.
+with the same name, checkout and id with the line `HAS`, which a caller may read as already
+done. It also refuses a name or a checkout that the config already has with any other field
+different, and its line names what the two share. No line holds the value of any key, the
+values the caller gave included, so a line of this command is safe in any log.
 
 `add --scratch` writes a scratch home's table in place of a repo's: `name`, `kind =
 "scratch"` and `projectId`, and no checkout, since it has no repo (`jbus.Scratch`). `add`
@@ -26,10 +26,10 @@ project, and nobody restarts a unit.
 
 `missing` finds the homes that `add` did not record: each folder of the homes' state root
 that holds a home's `home-id` and is the home of no project of the config. A home adds its
-repo at its start. `missing` names a home that started before that rule, or one whose add
-`add` refused. The pass says the list when it changes, and `jbus status` and the view's
-machine row show it. A party's folder, `_<name>` (an expert's), is no repo's home, and
-`missing` never names it. A folder that is a link to a project's home counts as that home.
+repo at its start. `missing` names a home that started before that rule, or one that `add`
+refused to add. The pass prints the list when it changes, and `jbus status` and the view's
+machine row show it. A party's folder, `_<name>` (an expert's), is not the home of a repo,
+and `missing` never names it. A folder that is a link to a project's home counts as that home.
 """
 
 from __future__ import annotations

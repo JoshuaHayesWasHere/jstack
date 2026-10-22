@@ -77,13 +77,13 @@ class Half:
     """A `Half` is the state of a project's pass that its steps, the dispatch and its second
     half read.
 
-    `first_half` makes it when the pass starts, and the pass fills it in as it runs its fixed steps
-    in order, so a step reads what they set before its slot (`verbs.SLOTS`). `held` is the keys of
-    the questions on record, or None where `questions.json` does not parse. `turns` is set when the
-    project may launch: T3 Code and GitHub answered and the queue parses. `blind` marks a pass that
-    cannot tell which slugs were removed, since `removed.json` does not parse. Such a pass reads no
-    brief, acts on no thread or pull request, and leaves the list of what waits as it was. It still
-    counts its crews out.
+    `first_half` makes it when the pass starts. The pass fills it in as it runs its fixed steps in
+    order, so a step reads what the fixed steps had set when its slot comes (`verbs.SLOTS`). `held`
+    is the keys of the questions on record, or None where `questions.json` does not parse. `turns`
+    is set when the project may launch: T3 Code and GitHub answered and the queue parses. `blind`
+    marks a pass that cannot tell which slugs were removed, since `removed.json` does not parse.
+    Such a pass reads no brief, acts on no thread or pull request, and leaves the list of what waits
+    as it was. It still counts its crews at work.
 
     The second half fills in the rest: whether it `derived` the table and `read` every
     brief, the `states` it judged, the `table` its steps read, and what `changed` where it
@@ -199,14 +199,14 @@ def poll(
 ) -> int:
     """Run one pass over every project. A second pass that finds the lock held prints `busy`.
 
-    Every project's first half runs before any launch, so the pass counts the crews out over
-    all of them. Every project's second half runs after the launches.
+    Every project's first half runs before any launch, so the pass counts the crews at work
+    across all of them. Every project's second half runs after the launches.
 
     When a project raises, the pass says so, keeps the error as its `last_error`, still runs the
     others and writes the status file, and returns 1. It launches nothing, since it does not
-    know that project's crews out. A pass in which nothing raised ends the `pass` streak that
-    `jbus alarm` counts, and the `stale` streak that `jbus alarm --stale` counts. When the pass
-    cannot write its record, it says so and does everything else as it would with one.
+    know how many crews that project has at work. A pass in which nothing raised ends the
+    `pass` streak that `jbus alarm` counts, and the `stale` streak that `jbus alarm --stale`
+    counts. A pass that cannot write its record says so, and does everything else as usual.
 
     When the config still has a key that nothing reads, each pass says so in one line until the
     user removes the key. The pass ends by writing the status file (`record.write_status`).

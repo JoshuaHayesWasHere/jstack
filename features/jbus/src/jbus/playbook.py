@@ -5,7 +5,7 @@ skills each call it, and none keeps its own block that reads the `Playbook:` lin
 `features/repo-guards/tests/test_one_way.py` fails on a skill that carries such a block
 again. The playbook's name is the first word of the first `Playbook:` line in the file's head
 (`jbriefs.parse.playbook_named`), or the name `--name` gives. A home and an expert get the
-name that way, in place of a line.
+name with `--name`, in place of a line.
 
 With the name `none`, or no name, it prints nothing. Otherwise it opens the playbook of that
 name that `skills.json` lists in the repo this package is in. The skills are in that repo
@@ -111,8 +111,8 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
 
 
 def _named(cited: str) -> str:
-    """Return the name of the principle a citation names: for `principles/<name>.md`, the
-    stub each layout has for the principle, it is `<name>`."""
+    """Return the name of the principle a citation names. Each layout has a stub for the
+    principle at `principles/<name>.md`, and a citation of that stub gives `<name>`."""
     return cited.removeprefix("principles/").removesuffix(".md")
 
 

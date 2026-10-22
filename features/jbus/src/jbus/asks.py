@@ -1,10 +1,10 @@
 """Declare `jbus queue`: the verbs on the queue's table, and what they ask of the other modules.
 
-The table and its verbs are in `jbus.queue`, which asks nobody. A removal or an approval needs
-to know things from T3 Code, GitHub, the launches and the words that jbus kept, and
-`jbus.queue` gets them as a `queue.Asks`. `_asks` makes one for a project, out of the modules
-that know those things, and each of those modules depends on the queue. So this module
-declares the verb, above them all, and `jbus.queue` does not.
+The table and its verbs are in `jbus.queue`, which calls no other module for a fact. A
+removal or an approval needs facts from T3 Code, GitHub, the launch records and the words that
+jbus recorded, and `jbus.queue` gets them as a `queue.Asks`. `_asks` builds one for a project
+with the modules that read those facts, and each of those modules imports the queue. So this
+module, which imports all of them, declares the verb, and `jbus.queue` does not.
 """
 
 from __future__ import annotations
@@ -46,10 +46,10 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
 
     `out` asks T3 Code and GitHub now for a thread that is at work, an open pull request, or a
     merged one. A thread that ended or settled is not out. Where `out` cannot ask either of
-    them, it says so, and nothing is known. `launched` reads the launch records. A record at
-    `intent` is a launch that T3 Code has not answered yet. A record written since this began
-    is a pass that launched the slug after `out` asked. The event holds the row as it was,
-    and it waits in the outbox: jbus starts no POST for it.
+    them, it says so, and the answer is unknown. `launched` reads the launch records. A record
+    at `intent` is a launch that T3 Code has not answered yet. A record written after this
+    call began means that a pass launched the slug after `out` asked. The event carries the
+    row as it was, and jbus leaves it in the outbox and starts no POST for it.
     """
     run = wake.Pass(config, project, datetime.now(UTC))
     began = time.time()
@@ -169,9 +169,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
 
 
 def _item(state: Path, slug: str, given: str) -> str:
-    """Pick the work item to link a row that is added to. It is the one `--item` names, which
-    must be one the row can link to; else the one the row has; else the one a pass linked to
-    its slug; else one that this function reserves for it now (`jbus.item`)."""
+    """Pick the work item to link a row that is added to. The first choice is the item that
+    `--item` names, which must be one the row can link to. Next is the item the row has, then
+    the item a pass linked to its slug. Last, this function reserves a new item for the row
+    now (`jbus.item`)."""
     if given:
         item.linkable(state, given, slug)
         return given
@@ -185,8 +186,8 @@ def _item(state: Path, slug: str, given: str) -> str:
 
 def _verify(state: Path, slug: str, given: str | None) -> int:
     """Print, as JSON, the row's approval record and the brief that this verb checks against
-    it: the stored brief, or the file `--brief` names. Exit 0 when the go holds for that
-    brief."""
+    it: the stored brief, or the file `--brief` names. Exit 0 when the approval still applies
+    to that brief."""
     try:
         row = next((row for row in queue.load(state) if row["slug"] == slug), None)
     except queue.Unparsable as error:

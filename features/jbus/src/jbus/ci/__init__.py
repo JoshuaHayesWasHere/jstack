@@ -1,9 +1,9 @@
-"""`jbus ci`: count what a project's CI costs, keep the numbers, and hold them to nine targets.
+"""`jbus ci`: count what a project's CI costs, keep the numbers, and compare them to nine targets.
 
 `jbus ci` asks GitHub for the Actions jobs and pull requests of the last `--days` days
 (`jbus.ci.collect`). It keeps each job once in `ci.jsonl` and each pull request in
 `ci-prs.jsonl` of the project's state (`jbus.ci.ledger`). Then it prints the nine targets
-(`jbus.ci.numbers`), each with how it was counted. The `ci` panel of `jbus view` shows the
+(`jbus.ci.numbers`), each with how it counts. The `ci` panel of `jbus view` shows the
 same ledger.
 
 `--report` also writes `reports/ci-week-<date>.md` in the project's home over the last

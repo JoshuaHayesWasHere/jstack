@@ -1,19 +1,19 @@
 """Find the launched threads that T3 Code's list leaves out: archived, missing, or not yet listed.
 
-`t3_thread_list` lists the threads that are not archived, and has no way to ask for the rest.
-So when a home tidies up by archiving a finished thread, a pass no longer reads that thread,
-though the thread still belongs to its row. `ask` reads each launched thread that the list
-does not have by its id, with `t3_thread_read`, which also answers for an archived thread:
+`t3_thread_list` lists the threads that are not archived, and cannot list the rest. So when
+a home archives a finished thread to tidy up, a pass no longer reads that thread, though the
+thread still belongs to its row. `ask` reads each launched thread that is not in the list by
+its id, with `t3_thread_read`, which also answers for an archived thread:
 
 - archived: the thread is the row's, put away like a settled one (`World.archived`);
 - not found: T3 Code has no such thread (`World.missing`);
-- there and not archived: a launch that the list has not caught up with, which `ask` leaves
-  as it is;
+- found and not archived: a launch that the list does not show yet, which `ask` leaves as
+  it is;
 - no answer: the row stays as the last pass judged it, not confirmed (`World.unasked`).
 
 `ask` keeps an answer of archived or missing in `unlisted.json`, by thread id, and does not
-ask about that thread again. An archived thread that is unarchived appears in the list again,
-and the list wins.
+ask about that thread again. When the user unarchives a thread, it appears in the list
+again, and the pass goes by the list.
 """
 
 from __future__ import annotations

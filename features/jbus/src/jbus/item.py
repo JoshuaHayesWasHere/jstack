@@ -12,19 +12,19 @@ line, verb, ...}`. In it, `id` is the item's id and the line's number among the 
 lines (`w3.2`), `where` is one of `Where`, and `line` says what happened. A `proposed` line
 adds the item's `project`, `title` and `owner`, and its `slug` where it has one.
 
-The state of an item is the fold of its lines by `MOVES` (`fold`). `MOVES` is one table that
-holds every move there is. `write` refuses a move that is not in it, with a sentence, and
-writes nothing. An item leaves `waiting_on_you` for the state it entered it from, which the
-fold keeps (`Item.back`). A writer may name the last line it saw (`seen`), and `write`
+The state of an item is the fold of its lines by `MOVES` (`fold`). `MOVES` is one table of
+every move there is. `write` refuses a move that is not in it, with a sentence, and writes
+nothing. When an item leaves `waiting_on_you`, it goes back to the state it entered it from,
+which the fold records (`Item.back`). A writer may name the last line it saw (`seen`), and `write`
 refuses the line where the item moved since.
 
 Each line is also a quiet event of its own kind, `item.<verb>`, in `events.jsonl`
 (`wake.Box.record`), so the view's feed and `jbus events` show it.
 
-The pass moves an item by its row (`follow`). It takes the row's go (`approved`) and the value
-`work.py` judged for the row this pass, and maps them to a state by `AIM`. It writes a line
-only where that state is not the item's, and only for a move the facts show, so a pass with
-nothing new writes nothing. `work.py` remains the one judge of the row.
+The pass moves an item by its row (`follow`). It reads the row's approval (`approved`) and the
+value `work.py` judged for the row this pass, and maps them to a state by `AIM`. It writes a
+line only where that state is not the item's, and only for a move the facts show, so a pass
+with nothing new writes nothing. Only `work.py` judges the row.
 
 `risk` is `review` where a person must look before anything is done, and `routine` otherwise.
 
@@ -99,7 +99,8 @@ class Verb(StrEnum):
 
 class Steer(StrEnum):
     """A `Steer` is what a steer does, the `action` of a `steered` line: a message to the
-    item's home, a hold of its go, or a new brief that sends the item back to `proposed`."""
+    item's home, a hold on its approval, or a new brief that sends the item back to
+    `proposed`."""
 
     MESSAGE = "message"
     HOLD = "hold"
@@ -206,12 +207,12 @@ config."""
 
 @dataclass(frozen=True)
 class Item:
-    """An `Item` is one item, as its lines fold. `risk` is `routine` until a caller asks `risk`
-    for it. `back` is the state the item entered `waiting_on_you` from, and None in any other
-    state. `redirect` is the id of the redirect that no approval by the item's id has followed
-    yet (an `approved` line with `by_id`, which only `approve` writes), and empty where there
-    is none. No rule, no word from chat, no approval of the row and no pass approves such an
-    item (`jbus.steer`, `planned`)."""
+    """An `Item` is one item, folded from its lines. `risk` is `routine` until a caller asks
+    `risk` for it. `back` is the state the item entered `waiting_on_you` from, and None in any
+    other state. `redirect` is the id of a redirect that has had no approval by the item's id
+    since (an `approved` line with `by_id`, which only `approve` writes). It is empty where
+    there is none. While it is set, no rule, no word from chat, no approval of the row and no
+    pass approves the item (`jbus.steer`, `planned`)."""
 
     id: str
     project: str
@@ -242,8 +243,8 @@ def refusal(item: Item | None, move: Move, name: str = "") -> str:
 
 def move_of(line: dict[str, Any]) -> Move:
     """Return the move a line makes: its steer's action for a `steered` line, else its verb.
-    For a `steered` line with no action, that is the verb alone, which `MOVES` has no row
-    for."""
+    For a `steered` line with no action, the move is the verb alone, and `MOVES` has no row
+    for it."""
     verb, action = Verb(line["verb"]), line.get("action")
     if verb is Verb.STEER and action in set(Steer):
         return Steer(action)
@@ -285,8 +286,8 @@ def advance(item: Item | None, line: dict[str, Any]) -> Item:
 
 
 def fold(lines: Iterable[dict[str, Any]]) -> dict[str, Item]:
-    """Return every item, by its id, as its lines fold. Skip a line that is not a move: `write`
-    writes none, so jbus did not write it."""
+    """Return every item, by its id, folded from its lines. Skip a line that is not a move:
+    `write` never writes such a line, so jbus did not write it."""
     items: dict[str, Item] = {}
     for line in lines:
         try:
@@ -374,7 +375,8 @@ def write(
 ) -> dict[str, Any]:
     """Append one line, and its event. Return the line.
 
-    A `proposed` line makes the item `item` names, which `reserve` gave, or mints one. Any
+    A `proposed` line makes the item that `item` names, an id that `reserve` gave, or mints a
+    new one. Any
     other line names the item. `write` refuses it, with a sentence, where `MOVES` has no such
     move, where the item's last line is not `seen` when that is given, and, for a link, where
     the item is linked already or another item has the slug. A refused line writes nothing.
@@ -388,9 +390,9 @@ def write(
 def _current(lines: list[dict[str, Any]], name: str, move: Move, seen: str | None) -> Item:
     """Return the item to make a move on, or `Refused` for an item that does not exist, one
     whose last line is not `seen` where that is given, and one whose state has no such move.
-    This function checks a stale `seen` first, and refuses it with the line that came after
-    it, printed as `shown` prints a line. So the writer of a steer that a move to `done` or
-    `dropped` made stale hears of that move."""
+    This function checks for a stale `seen` first. It refuses that with the line that came
+    after `seen`, printed as `shown` prints a line. So when a move to `done` or `dropped`
+    makes a steer stale, the writer of that steer learns of the move."""
     current = fold(lines).get(name)
     if current is None:
         raise Refused(refusal(None, move, name))
@@ -466,8 +468,8 @@ def _put(
 
 
 def told(box: wake.Box, made: dict[str, Any]) -> None:
-    """Write a line's quiet event in `events.jsonl`. It goes after the line, so an event that
-    cannot be written takes no line back."""
+    """Write a line's quiet event in `events.jsonl`. This function writes it after the line, so
+    when the event cannot be written, the line still stands."""
     verb, name, slug = Verb(made["verb"]), made["item"], made.get("slug", "")
     did = f"{verb} ({made['action']})" if verb is Verb.STEER else str(verb)
     said = f"item {box.project.name}: {name} {did}" + (f", {slug}" if slug else "")
@@ -476,9 +478,9 @@ def told(box: wake.Box, made: dict[str, Any]) -> None:
 
 def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
     """Return `review` for a merge `jmerge` holds (the value `hold`), and for an open gate of
-    the item's that has a `Holds:` line or words that name a secret or the config. Such a gate
-    is what a wait on the config is, since the `config` items of what waits on the user name no
-    row. Return `routine` for anything else."""
+    the item's that has a `Holds:` line or words that name a secret or the config. A wait on
+    the config shows up only as such a gate, since the `config` items of what waits on the
+    user name no row. Return `routine` for anything else."""
     if value == "hold":
         return Risk.REVIEW
     for gate in gates:
@@ -488,7 +490,7 @@ def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
 
 
 def judged(state: Path, item: Item) -> Item:
-    """Return the item with its risk, from what the last pass left of its row."""
+    """Return the item with its risk, from its row as the last pass left it."""
     if not item.slug:
         return item
     value = work.last(state).get(item.slug, "")
@@ -498,7 +500,7 @@ def judged(state: Path, item: Item) -> Item:
 
 def planned(item: Item | None, go: bool, value: str | None) -> list[Verb]:
     """Return the verbs a pass writes for an item, in order. They follow from its row's go and
-    the value `work.py` judged for the row this pass (None where it judged none it confirmed).
+    the value `work.py` judged for the row this pass (None where it confirmed no value).
 
     A pass approves an item that is proposed or held where the row has a go, except an item
     that was redirected and has not been approved by its id since. Then the pass moves the item
@@ -538,9 +540,9 @@ def follow(run: wake.Pass, rows: list[queue.Row]) -> int:
     none, and drop the item of a row that was removed. This is the pass's step. Return how many
     lines it wrote.
 
-    A row has an item before the item's first line where `jbus queue add` reserved one and
-    has not proposed it yet. The pass proposes that item, so the row has one item whoever
-    writes first. Skip a line that `write` refused because another writer moved the item
+    A row can have an item with no line yet, where `jbus queue add` reserved the item and has
+    not proposed it. The pass proposes that item, so the row has one item whichever writer
+    comes first. Skip a line that `write` refused because another writer moved the item
     first: the next pass sees what that writer wrote.
     """
     state, box = run.state, run.box

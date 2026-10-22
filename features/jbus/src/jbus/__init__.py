@@ -11,19 +11,19 @@ level through it, and `current_kind` reads a kind of event through it. A third l
 started a POST for what asked nothing of the user. What was of that level is `quiet` now, and
 jbus reads it as `quiet`.
 
-`IGNORED` is the keys of a project's table that nothing reads any more. A config that still
-has one loads, and `Config.ignored` names each, so that a pass can say so until the user
-removes it. A webhook URL and key in any top-level table, whether jbus reads that table or
-nothing reads it any more, are secret while they are in the file. `Config.tabled` keeps them,
-for `secrets` alone.
+`IGNORED` is the keys of a project's table that nothing reads any more. `load` still loads a
+config that has one, and `Config.ignored` names each such key, so that a pass can say so
+until the user removes it. A webhook URL and key in any top-level table, whether jbus reads
+that table or nothing reads it any more, are secret while they are in the file.
+`Config.tabled` holds them, and only `secrets` reads them there.
 
 A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the
-top-level webhook. It is the monitor of every project: jbus posts it each event, for the user
-of each project. It is also the pair of every project that has neither key of its own. A
-project with both keys of its own keeps them whole, and jbus posts its events there as well
-(`wake.Box`), once where the two pairs are the same. `load` refuses a project with only one
+top-level webhook. It receives the events of every project: jbus posts it each event, for the
+user of each project. Every project that has neither key of its own also uses it as its pair.
+A project with both keys of its own uses them as they are, and jbus posts its events there as
+well (`wake.Box`), once where the two pairs are the same. `load` refuses a project with only one
 of the two keys, because half a pair beside the top-level one would post with the wrong key.
-The top-level pair is secret whether a project takes it or not.
+The top-level pair is secret whether a project uses it or not.
 
 A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the
 second target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to
@@ -31,19 +31,20 @@ several places. jbus posts it no event, only each item that blocks as it opens, 
 and each refresh (`wake.Box.blocking`). `load` refuses half of that pair as it refuses half
 of the other, and both are secret.
 
-A `[[project]]` table whose `kind` is `scratch` is no repo. It is a scratch home, for
+A `[[project]]` table whose `kind` is `scratch` is not a repo. It is a scratch home, for
 throwaway questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is
 the one place that turns a table into a project. It sorts a scratch table into
 `Config.scratch` and never into `Config.projects`, so no step that takes a `Project` (the
 queue, `jmerge`, the sweep, CI, the readers, the snapshot) ever gets one. A name belongs to
-one home across both lists. `load` refuses a scratch table with a name that a project has, or
-keeps its state under, and also a repo table that comes after a scratch home of its name.
+one home across both lists. `load` refuses a scratch table whose name a project has or keeps
+its state under. It also refuses a repo table that comes after a scratch home of the same
+name.
 
-`END_TURN` is how every message to a crew ends, as does the message that continues a reviewer
-or wakes it. Nothing wakes a turn that ended while its own check, or a reviewer's proof, ran,
-when that run ends. So the push, the Result, the pull request or the Review that the turn was
-to make never come. The message therefore says to wait for that run in the turn, whenever the
-run started.
+`END_TURN` is the ending of every message to a crew, and of the message that continues or
+wakes a reviewer. When a turn ends while its own check or a reviewer's proof still runs,
+nothing wakes the thread once that run ends. Then the push, the Result, the pull request or
+the Review that the turn was to make never comes. So the message says to wait for that run
+in the turn, whenever the run started.
 """
 
 from __future__ import annotations
@@ -78,7 +79,8 @@ END_TURN = (
 
 
 class Refused(Exception):
-    """jbus will not start, or will not run a verb. The message is the one line to print."""
+    """`Refused` means jbus will not start, or will not run a verb. The message is the one line
+    to print."""
 
 
 @dataclass(frozen=True)
@@ -104,8 +106,8 @@ class Project:
 @dataclass(frozen=True)
 class Scratch:
     """A `Scratch` is a scratch home: a name, and the T3 Code project its threads run in. It
-    has no repo, so it has no checkout, no webhook and no migrations, and nothing of it can
-    push, open a pull request or launch a crew."""
+    has no repo, so it has no checkout, no webhook and no migrations. It pushes nothing,
+    opens no pull request and launches no crew."""
 
     name: str
     project_id: str
@@ -176,7 +178,7 @@ class Config:
 
     def secrets(self) -> tuple[str, ...]:
         """Return every string that must not leave this machine in a list, a digest or a line:
-        what `secrets` gives for each webhook, and the stored token's `CREDENTIALS`. The
+        what `secrets` returns for each webhook, and the stored token's `CREDENTIALS`. The
         token's other strings, such as `Bearer` and its scope, are not secret."""
         stored = read_json(self.token_path, {})
         token = stored.get("token") if isinstance(stored, dict) else None
@@ -202,8 +204,8 @@ class Config:
 def old_names() -> dict[str, str]:
     """Return each name that changed, with the name it has now: `WAS`, and each of `NAMED_AFTER`
     as jbus wrote it under the user's name of the settings. A name that is a level now, as
-    `user` is with the default settings, is no old name. This function reads the settings
-    file, so a caller with many names to read calls it once and gives the map to the two
+    `user` is with the default settings, is not an old name. This function reads the settings
+    file, so a caller with many names to read calls it once and passes the map to the two
     functions below."""
     try:
         name = jsettings.load().user.lower()
@@ -222,10 +224,10 @@ def current_level(name: str, names: dict[str, str]) -> str:
 def current_kind(name: str, names: dict[str, str]) -> str:
     """Return a kind of event by the name it has now. `names` is `old_names`.
 
-    `wake.Box` reads the outbox, the keys of what it sent, and the log through here, and
-    nothing writes an old name. It maps no old name of a level to a kind: a key of `sent.json` may
-    begin with any word, the user's name among them. A module that looks one key up in
-    `sent.json` reads the file as it is, since none looks up a kind that changed.
+    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function,
+    and nothing writes an old name. It maps no old name of a level to a kind, because a key of
+    `sent.json` may begin with any word, the user's name among them. A module that looks one
+    key up in `sent.json` reads the file as it is, since none looks up a kind that changed.
     """
     now = names.get(name, name)
     return name if now in LEVELS else now
@@ -283,7 +285,7 @@ BLOCKING = ("blocking_url", "blocking_key")
 def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
     """Return the key of the table's pair that is missing beside the other, or None. A URL with
     an empty key counts as a missing key, since it would post with no key. An empty URL beside
-    a key is no webhook, and loads."""
+    a key is not a webhook, and `load` accepts it."""
     url, key = pair
     present = [name for name in pair if name in table]
     if len(present) == 1:
@@ -403,11 +405,12 @@ def read_json(path: Path, default: Any) -> Any:
 
 
 def secrets(*found: Project | Hook | Any, part: int = URL_PART) -> tuple[str, ...]:
-    """Return what is secret of each webhook, and of each other string given, the longest first.
+    """Return the secret strings of each webhook and of each other string given, the longest
+    first.
 
     A webhook's URL and its key are secret whole. So are the URL's host, path and query, except
-    a part shorter than `part`, since taking `/` out of a text hides nothing. An error that
-    quotes the URL is different, and there a part of two characters counts.
+    a part shorter than `part`, since taking `/` out of a text hides nothing. For an error that
+    quotes the URL, the caller passes a `part` of 2, so a part of two characters counts too.
     """
     whole: set[str] = set()
     parts: set[str] = set()

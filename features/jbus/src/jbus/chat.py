@@ -3,7 +3,7 @@ relay's key: `{project, item, verb, words, by, message, seen_event}` on a card
 (`jbus.cards.card`). `decide` decides each one as `jbus item approve` or `jbus item steer`
 decides it, from `chat`. Sous Chef makes a decision as itself, or the user makes it. A user's
 decision comes with the chat message the user said it in and the words quoted from that
-message. Nothing reads those back, and jbus keeps them with `checked: false`.
+message. jbus keeps those with `checked: false`, and no code reads them back.
 """
 
 from __future__ import annotations
@@ -31,10 +31,10 @@ def decide(body: Body, now: datetime | None = None) -> tuple[int, Body]:
     Sous Chef steers as itself and approves nothing. The user's decision comes with `message`,
     the chat message's id or link, and `words`, the words quoted from it. jbus keeps those
     unchecked (`steer.chat`), and takes an approval from chat only for a routine item that the
-    words name. Anyone else gets 403. A decision that jbus refuses gets 409 with its sentence,
-    and so does a verb the item's card does not offer now (`cards.actions`). The user decides
-    a review item, a merge, a secret or the config in the view, and such an item takes no
-    message or hold from chat either.
+    words name. A decision by anyone else gets 403. A decision that jbus refuses gets 409 with
+    its sentence, and so does a verb the item's card does not offer now (`cards.actions`). The
+    user decides a review item, a merge, a secret or the config in the view, so jbus takes no
+    message or hold from chat for such an item either.
     """
     wrong = [key for key in TEXT if not isinstance(body.get(key), str) or not body[key].strip()]
     wrong += [key for key in ("words", "message") if not isinstance(body.get(key, ""), str)]

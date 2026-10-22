@@ -3,13 +3,13 @@
 `plan.md` holds what the user decided: one section for each entry, `## <slug>: <one line>`,
 with its "Done when" list and the user's words under `Decisions:`. It holds no status. An
 entry is often several briefs, and each brief is a row of the queue that names its entry
-(`queue.entry`). So `status` counts what an entry's work has come to from its rows at each
+(`queue.entry`). So `status` works out the progress of an entry's work from its rows at each
 read, in the words of the row statuses. No model types the status, and nothing here writes
 it down.
 
 An entry with no row has only what the home wrote of it: its `Stage:` line, which says where
 the planning is (`proposed`, `planned`, `parked` or `scouting`). A plan from before has
-`Status:` lines, which someone typed. jbus passes over such a line where the entry has rows,
+`Status:` lines, which someone typed. jbus ignores such a line where the entry has rows,
 and shows it as typed where the entry has none.
 
 An entry whose rows are all over (`queue.over`) is finished, and `close` moves its section,
@@ -71,7 +71,7 @@ def rows_of(slug: str, rows: list[queue.Row]) -> list[queue.Row]:
 
 
 def status(entry: Entry, rows: list[queue.Row]) -> str:
-    """Return what the entry's work has come to. `rows` are the rows of the entry.
+    """Return the progress of the entry's work. `rows` are the rows of the entry.
 
     With rows, it counts them: the finished ones first, `4 of 7 merged`, then each open row
     that has a pull request, by its number, `#383 at pr`, then the rest by status,
@@ -170,7 +170,7 @@ def _plan(args: argparse.Namespace, config: Config) -> int:
     """`jbus plan`: show each entry of a home's plan with its status, counted from the queue
     now. `jbus plan close <entry>` moves a finished entry's section to `plan-done.md`.
 
-    The home skill is every repo's, so with no `--project` the verb reads the plan of the repo
+    Every repo has the home skill, so with no `--project` the verb reads the plan of the repo
     it runs in, and refuses a repo the config does not name."""
     project = verbs.here(config, args.project)
     where = path(config.home(project), args.scope)

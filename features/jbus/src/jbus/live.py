@@ -1,5 +1,5 @@
-"""Say whether a thread that is out is alive, in one word worked out from what T3 Code says
-of it.
+"""Say whether a launched thread that is still out is alive, in one word that `judge` works
+out from what T3 Code says about it.
 
 `judge` does all of the work. It reads no clock and no file: the pass gives it the thread's
 status, the minutes since the thread last wrote an item, how many runs are queued behind

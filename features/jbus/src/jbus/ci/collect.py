@@ -52,7 +52,8 @@ class Unavailable(Exception):
 
 
 class Gh(Protocol):
-    """`pages` returns the list a path gives, under `key` where each page is an object."""
+    """A `Gh` asks GitHub. `pages` returns the list GitHub gives for a path, under `key` where
+    each page is an object."""
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]: ...
 
@@ -124,8 +125,7 @@ def _time(text: str | None) -> datetime | None:
 
 def pull_for(run: dict[str, Any], job: dict[str, Any], pulls: list[dict[str, Any]]) -> int | None:
     """Return the pull request a job ran for: the one its run names, the one a push to main
-    merged, or the one whose branch the run is of and which was open when GitHub created the
-    job."""
+    merged, or the one that was open on the run's branch when GitHub created the job."""
     named = run.get("pull_requests") or []
     if named:
         return int(named[0]["number"])

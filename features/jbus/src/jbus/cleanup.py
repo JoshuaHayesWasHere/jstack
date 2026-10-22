@@ -1,19 +1,20 @@
 """`jbus cleanup <brief>`: print the brief of the cleanup row that a `Review: after` review
-owes.
+needs.
 
-A brief whose `Review:` line says `after` merges on its check alone (`jmerge.ready.after`).
-Its review's findings do not block the merge, and a row of their own fixes them later. The
-reviewer runs this command once it has written its section, and pipes what it prints into
-`jbus queue add cleanup-<slug>`. That command queues the row without approving it, so the
-row waits for the user's go like any other.
+The pull request of a brief whose `Review:` line says `after` merges on its check alone
+(`jmerge.ready.after`). Its review's findings do not block the merge, and a row of their
+own fixes them later. The reviewer runs this command once it has written its section, and
+pipes what it prints into `jbus queue add cleanup-<slug>`. That command queues the row
+without approving it, so the row waits for the user's go like any other.
 
 The command prints that row's brief, `cleanup-<slug>`, when the last round's verdict is
 `findings`. The brief lists each finding that would have gone to the crew, with its
 path:line, the pull request, and the merge commit GitHub gives for it. Where the pull request
-has not merged yet, it gives the head the review saw instead. Where the review owes no row,
+has not merged yet, it gives the head the review saw instead. Where the review needs no row,
 the command prints nothing and ends 1 with the reason on one line. That is when the brief
 does not say `after` or `twice`, when the review is clean or has no verdict, or when the row
-is already in the queue. A `queue add` on a row that is already there would take its go back.
+is already in the queue. A `queue add` on a row that is already there would withdraw its
+approval.
 
 A brief that says `twice` answers its first review in one fix round. The row's brief lists
 the findings of its second review (`ready.second_review`): each one of severity `warning`
@@ -57,9 +58,9 @@ def slug_of(slug: str) -> str:
 
 def filed(text: str) -> tuple[list[findings.Finding], int]:
     """Return the findings the brief's cleanup row lists, and the count of those it drops.
-    For an `after` brief they are its sent findings, with none dropped. For a `twice` brief
-    they are its second review's findings of severity `warning` or `error`, with the count of
-    its `info` ones."""
+    For an `after` brief they are the findings its triage sends, with none dropped. For a
+    `twice` brief they are its second review's findings of severity `warning` or `error`,
+    with the count of its `info` ones."""
     said = ready.said_of(text)
     if said.mode == ready.AFTER:
         return (findings.triage(text).sent() if said.verdict == "findings" else []), 0
@@ -81,7 +82,7 @@ def brief(
     kept: tuple[list[findings.Finding], int],
 ) -> str:
     """Return the cleanup row's brief for the brief `text` of `slug`, or nothing where the
-    row files no finding. `said` is `ready.said_of(text)` and `kept` is `filed(text)`, which
+    row would list no finding. `said` is `ready.said_of(text)` and `kept` is `filed(text)`, which
     the caller reads once each. `merge` is the merge commit, or nothing while the pull request
     is open."""
     sent, dropped = kept
@@ -125,8 +126,8 @@ def brief(
 
 
 def _shown(one: findings.Finding, twice: bool) -> str:
-    """Return one finding's line. A `twice` row's line carries the severity that put the
-    finding in the row, and an `after` row's line is as it always was."""
+    """Return one finding's line. A `twice` row's line includes the finding's severity,
+    which is why the finding is in the row. An `after` row's line keeps its old form."""
     place = f"{one.path}:{one.line}" if one.line is not None else one.path
     severity = f"{one.severity} " if twice else ""
     risk = f" (risk: {one.risk})" if one.risk else ""

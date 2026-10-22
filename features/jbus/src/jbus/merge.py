@@ -1,6 +1,6 @@
 """Merging is `jmerge`'s job and nobody else's: jbus runs the command and reads its lines.
 
-jbus runs it only when the project's home is off, which is a `home-thread` file that is
+jbus runs it only when the project's home is off, that is, when its `home-thread` file is
 missing or empty. A home that is on merges by itself, and two merges at once would race. The
 pass holds the pass lock around the run, so two passes never run it together either.
 
@@ -17,10 +17,10 @@ jbus runs for it is `SWEEP`, which has `--check`.
 
 When no rule of `rules` names a pull request's reason, the pull request is on no step, and
 the view shows it in the Unknown lane. `unplaced` then sends the row's home one queued
-message for each row and reason text, since the fix is a rule, and a home briefs rules. The
-message is a quiet event. The row is not the user's, so it is not in `waiting-on-user.json`.
-Two reasons put a pull request on no step by design and tell nobody (`OFF_STEP`): another
-home's pull request and a draft.
+message for each row and reason text, since the fix is a new rule, and a home writes the brief
+for a rule. The message is a quiet event. The row is not the user's, so it is not in
+`waiting-on-user.json`. Two reasons leave a pull request on no step by design, and jbus tells
+nobody of them (`OFF_STEP`): another home's pull request and a draft.
 """
 
 from __future__ import annotations
@@ -77,13 +77,13 @@ _GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
 
 def rules() -> tuple[tuple[str, str], ...]:
     """Return the `(step, pattern)` of each reason `jmerge` writes, in the order `step` tries
-    them: `ELSEWHERE` first, then each `ready.Reason` in the order `ready` declares it, with its
-    pattern matched from the start of the reason.
+    them: `ELSEWHERE` first, then each `ready.Reason` in the order `ready` declares it. Each
+    pattern matches from the start of the reason.
 
-    `ELSEWHERE` holds what `jmerge` writes from outside `ready` (its run, its proof and its
-    range-diff), and what an older `jmerge` wrote, which a log still holds. It comes first so
-    that `ready.MAIN_CHANGED` with `it needs a rebase`, which `jmerge` says of a guarded path,
-    is on the rebase step."""
+    `ELSEWHERE` has the reasons `jmerge` writes from outside `ready` (its run, its proof and its
+    range-diff), and the reasons an older `jmerge` wrote, which a log may still have. It comes
+    first so that a `ready.MAIN_CHANGED` reason with `it needs a rebase` is on the rebase step.
+    `jmerge` gives that reason for a guarded path."""
     return ELSEWHERE + tuple((one.step, "^" + one.pattern) for one in ready.reasons().values())
 
 
@@ -106,7 +106,7 @@ class Said(list[str]):
     printed them.
 
     `failed` is true when `jmerge` did not run to its end. Then a pull request with no line is
-    one `jmerge` did not get to, not one it ran past with nothing to say.
+    one `jmerge` did not get to, not one it read and had nothing to say about.
     """
 
     failed = False
@@ -136,11 +136,11 @@ def merge(run: Pass) -> Said:
 
     Every line is a quiet event, a `hold` line too. `waiting` lists a hold that is the
     user's, and the user learns of the hold when it joins that list, once for the pull
-    request and not once for each head. `expedite` takes a hold a crew can lift first.
-    A `jmerge` that did not run is a failure of the `jmerge` streak, and one that ran ends
-    the streak. One that stopped after it printed a line ends the streak too, as it always
-    did, and the pass says so. The lines it returns are then `failed`, which keeps what jbus
-    knew of the rows `jmerge` did not reach.
+    request and not once for each head. `expedite` deals first with a hold that a crew can
+    lift. A `jmerge` that did not run is a failure of the `jmerge` streak, and one that ran
+    ends the streak. One that stopped after it printed a line ends the streak too, as it
+    always did, and the pass says so. The `Said` this returns is then `failed`, so jbus keeps
+    what it knew of the rows `jmerge` did not reach.
     """
     home = home_thread(run)
     if home:
@@ -198,7 +198,8 @@ def sweep(run: Pass) -> tuple[bool, str]:
 def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, thread: str) -> None:
     """Tell the home that a row's pull request is on no step, once for each row and each
     thing `jmerge` said of it, `<word>: <reason>`. `thread` is the home's thread, or empty
-    where the project has no home. A message that fails to send goes again on the next pass."""
+    where the project has no home. When a message fails to send, the next pass sends it
+    again."""
     reason = said.partition(": ")[2]
     if not reason or step(said) or reason in OFF_STEP:
         return

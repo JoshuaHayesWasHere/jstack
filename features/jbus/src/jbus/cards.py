@@ -1,10 +1,12 @@
 """Make each line of a work item's log a card for Sous Chef's chat (`card`). A card is one
 body of the kind `item`, and its `id` is the project and the line's id. So the relay sends
-each card once, and Sous Chef replaces the item's card with the newest. A pass posts the
-lines that have no card yet (`post`) to each webhook route that is the relay (`relayed`). On
-a route's first pass, it posts one card for each live item instead of the whole log.
+each card once, and Sous Chef replaces the item's card with the newest. A pass posts a card
+for each line that has none yet (`post`) to each webhook route that is the relay
+(`relayed`). On a route's first pass, it posts one card for each live item instead of the
+whole log.
 
-A card's `actions` are what the relay's `POST /item` takes back from the chat (`jbus.chat`).
+A card's `actions` are the decisions that the relay's `POST /item` accepts from the chat
+(`jbus.chat`).
 """
 
 from __future__ import annotations
@@ -80,9 +82,10 @@ def last(line: dict[str, Any], user: jsettings.Settings) -> str:
 
 
 def view_link(project: str, name: str) -> str:
-    """Return the item's page in jbus view. It is at the first origin `JBUS_VIEW_ORIGINS`
-    gives, which is the proxy in front of the view; else at the first name `JBUS_VIEW_NAMES`
-    gives; else at the address `JBUS_VIEW_HOST` gives; else at 127.0.0.1, at the view's port."""
+    """Return the item's page in jbus view. The page is at the first origin in
+    `JBUS_VIEW_ORIGINS`, which is the proxy in front of the view. Without one, it is at the
+    first name in `JBUS_VIEW_NAMES`, then at the address in `JBUS_VIEW_HOST`, and last at
+    127.0.0.1, at the view's port."""
     page = f"/#/{project}/item/{name}"
     origins = [one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(",")]
     origin = next((one for one in origins if one), "")
@@ -129,9 +132,9 @@ def relayed(route: wake.Route) -> bool:
 def cards(
     state: Path, lines: list[dict[str, Any]], user: jsettings.Settings, after: int | None
 ) -> list[dict[str, Any]]:
-    """Return the cards owed after the first `after` of the log's `lines`, in order. With None,
-    no card has gone out yet, so return one for each live item, at its last line, and not the
-    whole log."""
+    """Return the cards still to post after the first `after` of the log's `lines`, in order.
+    With None, no card has gone out yet, so return one card for each live item, at its last
+    line, and not one for each line of the log."""
     risks: dict[str, Risk] = {}
     found: dict[str, Item] = {}
     made: list[tuple[Item, dict[str, Any]]] = []
@@ -152,10 +155,10 @@ def cards(
 
 
 def post(run: wake.Pass) -> int:
-    """Post each card owed to each route that is the relay, in order, as the pass's step, and
-    keep in the route's `cards.json` how many lines of the log have their card. When a POST
-    fails, this function posts nothing more to that route in this pass, and the next pass
-    posts from that card again. Return how many cards went."""
+    """Post each card still to post to each route that is the relay, in order, as the pass's
+    step. Record in the route's `cards.json` how many lines of the log have their card. When a
+    POST fails, this function posts nothing more to that route in this pass, and the next pass
+    starts again from that card. Return how many cards it posted."""
     state, sent = run.state, 0
     for route in run.box.routes:
         if not relayed(route):

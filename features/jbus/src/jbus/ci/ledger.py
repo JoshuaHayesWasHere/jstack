@@ -47,7 +47,7 @@ TELEMETRY = (
 @contextmanager
 def locked(state: Path) -> Iterator[None]:
     """Hold the state directory's collection lock, so a second `jbus ci` waits for the first
-    and then finds its jobs kept, instead of racing it to the same files."""
+    and then finds its jobs kept, instead of writing the same files at the same time."""
     state.mkdir(parents=True, exist_ok=True)
     with (state / LOCK).open("a") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)

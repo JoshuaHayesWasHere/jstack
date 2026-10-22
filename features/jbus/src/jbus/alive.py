@@ -52,14 +52,15 @@ def stale(
     now: datetime | None = None,
     say: Callable[[str], None] = print,
 ) -> int:
-    """Look for a pass that ended within `limit`. A timer of its own runs this look, so jbus
-    also sees a `jbus.timer` that is stopped or a `jbus.service` that never starts:
-    `jbus-failed.service` runs only when a pass fails.
+    """Look for a pass that ended within `limit`. A timer of its own runs this look. So jbus
+    also sees a `jbus.timer` that is stopped or a `jbus.service` that never starts, which
+    `jbus-failed.service` does not see, since it runs only when a pass fails.
 
     The last pass is the `ended` of `pass.json`, or its `started` while a pass runs or after
-    one that died. Past the limit, and also with no record at all, the look counts a failure
-    of the `stale` streak, which alerts once, at the first failure (`alert.sound`). The next
-    pass in which nothing raised ends the streak and says that it recovered (`poll`).
+    one that died. When the last pass is past the limit, or there is no record at all, the
+    look counts a failure of the `stale` streak. That streak alerts once, at its first failure
+    (`alert.sound`). The next pass in which nothing raised ends the streak and says that it
+    recovered (`poll`).
     """
     now = now or datetime.now(UTC)
     kept = record.read(config)

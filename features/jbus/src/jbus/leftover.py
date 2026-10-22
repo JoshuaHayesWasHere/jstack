@@ -1,8 +1,8 @@
 """A task that ended with something left goes to its home: jbus tells the home once, and the
 home closes it.
 
-A leftover is a row whose thread ended, or whose pull request merged, with a last Result
-whose `Left:` line is not `none`, and that no thread is at work on (`ended`). A row whose
+A leftover is a row whose thread ended or whose pull request merged, and whose last Result
+has a `Left:` line that is not `none`. No thread is at work on it (`ended`). A row whose
 thread ended or hung with no Result at all is a leftover too, once its crew had its
 carry-ons (`watch.unwritten`). Its `left` text is that reason, and its message says to carry
 the thread on, to remove the row, or to end it with a Result.
@@ -18,33 +18,33 @@ then.
 
 The home is the one the brief's `Home:` line names. Its thread is the first word of that
 home's `home-id`, which jbus reads on each pass. That rule is `jbriefs.home`, which a
-crewmate and `jmerge` ask too.
+crewmate and `jmerge` also use.
 
 `leftover.json` in a project's state directory is the record, a `Record` for each slug:
 
-- `left` is the `Left:` text the record is of. A Result with another text starts a new
+- `left` is the `Left:` text the record is for. A Result with another text starts a new
   record.
 - `thread` and `told` are the home's thread the message went to and when it went, or empty
-  while it has not gone.
+  until jbus sends it.
 - `why` is why the row is the user's at once, or empty. The reasons are that its home has no
   thread, that T3 Code does not list that thread as not settled, or that the message did not
   go.
-- `stalled` is when jbus said the row to the user as a stall, or empty. A new `Left:` text
-  keeps it, so jbus says a row once.
+- `stalled` is when jbus reported the row to the user as a stall, or empty. A new `Left:`
+  text keeps it, so jbus reports a row once.
 - `busy` is true when a thread was at work on the row in the last pass, so the row waits on
   that thread.
 
 `his` says whose a leftover is: the home's while `his` returns nothing, and the user's with
-the reason `his` gives. A leftover is the user's by `why`, while no home was told, or once
-`CLOSE_MINUTES` have passed since jbus told the home. jbus says that last case once, as a
-`stall` event (`stall.unclosed`). The list of what waits on the user (`waiting.left`) and
-the view read the same record. The pass that writes the list judges every row on it, so
-each record the list reads has `told` or `why`.
+the reason `his` gives. A leftover is the user's when it has a `why`, while no home was
+told, or once `CLOSE_MINUTES` have passed since jbus told the home. jbus reports that last
+case once, as a `stall` event (`stall.unclosed`). The list of what waits on the user
+(`waiting.left`) and the view read the same record. The pass that writes the list judges
+every row on it, so each record the list reads has `told` or `why`.
 
-A pass that could not list the threads that are out judges no home's thread. A row whose
+A pass that could not list the threads that are not settled judges no home's thread. A row whose
 home was told stays as it was, and any other row is the user's until a pass can list them.
 
-The timers of what blocks (`waiting.cadence`) are set here beside `CLOSE_MINUTES`. jbus
+This module sets the timers of what blocks (`waiting.cadence`) beside `CLOSE_MINUTES`. jbus
 reminds the user once of an item that still blocks `REMIND_MINUTES` after it opened, and
 posts the whole list of what blocks every `REFRESH_MINUTES`.
 """
@@ -239,8 +239,8 @@ def _judge(
     record: Record,
     out: set[str] | None,
 ) -> Record:
-    """Return a leftover's record after this pass, with whose thread has it, and send the
-    message once."""
+    """Return a leftover's record after this pass, which says whether its home or the user
+    has it, and send the message once."""
     thread = thread_of(home_of(run.home, brief))
     if not thread:
         return replace(record, why=NO_HOME)
@@ -309,7 +309,7 @@ def tell(
 
 
 def said(state: Path, slug: str, at: datetime) -> None:
-    """Record that jbus said a row to the user as a stall."""
+    """Record that jbus reported a row to the user as a stall."""
     records = read(state)
     if slug in records:
         stamp = at.astimezone(UTC).isoformat(timespec="seconds")
