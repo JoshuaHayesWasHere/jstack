@@ -2,7 +2,7 @@
 
 One command runs it, from the root of the repo:
 
-    uv run python evals/skill-cut/eval.py --base main --variant HEAD
+    uv run python features/evals/evals/skill-cut/eval.py --base main --variant HEAD
 
 It reads every file under test from the two revisions with `git show <rev>:<path>`, never
 from the working tree, and runs each case of `cases/` three times in each of three arms: base,
@@ -42,8 +42,8 @@ from math import comb
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-REPO = HERE.parents[1]
-sys.path[:0] = [str(REPO / "src")]
+REPO = HERE.parents[3]
+sys.path[:0] = [str(REPO / "features" / "jleak" / "src")]
 
 
 def _scorer():
@@ -549,7 +549,7 @@ def report() -> None:
     lines = [
         "# skill-cut eval: results",
         "",
-        "Written by `uv run python evals/skill-cut/eval.py`. Do not edit by hand.",
+        "Written by `uv run python features/evals/evals/skill-cut/eval.py`, never by hand.",
         "",
         f"Base: `{ran['base']}`. Variant: `{ran['variant']}`. Candidate: `{ran['model']}` at "
         f"`{ran['effort']}` effort, no tools. Judge: `{ran['judge']}` at `{ran['effort']}`, only "

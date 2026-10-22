@@ -22,7 +22,7 @@ SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
 OWNED = "src/ skills/ playbooks/ templates/ hooks/ docs/ scripts/".split()
-ALSO = ("evals/", ".claude/", ".cursor/", "install.sh")
+ALSO = (".claude/", ".cursor/", "install.sh")
 
 README = """\
 # A map

@@ -161,7 +161,6 @@ The other 31 are loaded by name. `/setup-pstack` runs `install.sh --setup` on th
 |---|---|
 | `features/` | Each feature in a folder of its own, `features/<name>/`: its skills, playbooks, templates, hooks, tests and docs. `~/.{claude,agents,codex}/skills/<name>` link into the layout the install assembles from them. |
 | `templates/` | The systemd units of `jbus`. |
-| `playbooks/` | The numbered steps for one kind of task. |
 | `features/principles/` | One skill per working principle, `principle-<name>`, which a playbook step names where it relies on it. |
 | `src/` | The nine commands, one package each. |
 | `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |

@@ -44,14 +44,17 @@ The `lead` family reads only the interrogate step and its reference, and the `st
 From the root of the repo, on a machine with `claude` and the private patterns of `jleak`:
 
 ```sh
-uv run python evals/skill-cut/eval.py --base main --variant HEAD
+uv run python features/evals/evals/skill-cut/eval.py --base main --variant HEAD
 ```
 
 It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (a failed call leaves nothing, and no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`. It makes 3 x 3 calls per case (about 400 for the committed cases), six at a time. A cut branch commits the run it adds.
 
-`uv run python evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed. A run is scored only against the cases it was answered against: its `run.json` holds a hash of `cases/`, and `--run` refuses a run whose cases have changed since. A change to a case is a new case set, and a new run from base.
+`uv run python features/evals/evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed.
+A run is scored only against the cases it was answered against: its `run.json` holds a hash of `cases/`, and `--run` refuses a run whose cases have changed since.
+A change to a case is a new case set, and a new run from base.
 
-`uv run python evals/skill-cut/eval.py cases <staging dir>` rebuilds `cases/lead/` from the JSON files the extraction wrote (one per pull request, `<slug>.json`), with the private patterns taken out. The extraction itself read each reviewer thread with `t3_thread_read`, and the intent from `/tmp/pr-review-<slug>.*/intent`, which a reboot empties: the committed cases are the record.
+`uv run python features/evals/evals/skill-cut/eval.py cases <staging dir>` rebuilds `cases/lead/` from the JSON files the extraction wrote (one per pull request, `<slug>.json`), with the private patterns taken out.
+The extraction itself read each reviewer thread with `t3_thread_read`, and the intent from `/tmp/pr-review-<slug>.*/intent`, which a reboot empties: the committed cases are the record.
 
 ## Limits
 

@@ -7,7 +7,6 @@ from jdrift.explained import COMMENT as CARD
 from testing.layouts import assembled
 from testing.paths import REPO, playbooks
 
-PLAYBOOKS = REPO / "playbooks"
 TEMPLATE = "features/skill-library/templates/playbook.md"
 IN_THE_LAYOUT = "templates/playbook.md"
 EM_DASH = "\N{EM DASH}"
@@ -150,8 +149,9 @@ def design_problems(text):
     return []
 
 
-def test_the_directory_holds_playbooks_and_nothing_else():
-    assert sorted(PLAYBOOKS.iterdir()) == [path for path in FILES if path.parent == PLAYBOOKS]
+def test_each_playbooks_directory_holds_playbooks_and_nothing_else():
+    for folder in sorted({path.parent for path in FILES}):
+        assert sorted(folder.iterdir()) == [path for path in FILES if path.parent == folder]
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda path: path.stem)

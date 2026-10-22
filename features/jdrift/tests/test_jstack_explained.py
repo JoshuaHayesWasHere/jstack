@@ -252,14 +252,15 @@ def test_a_card_has_the_words_of_its_own_file(tree):
 def test_a_playbook_added_to_the_tree_gets_its_card_and_its_link_with_no_edit_to_the_page(
     tmp_path,
 ):
-    for folder in ("features", "playbooks"):
-        shutil.copytree(REPO / folder, tmp_path / folder)
+    shutil.copytree(REPO / "features", tmp_path / "features")
     (tmp_path / "docs").mkdir()
     page = Path(shutil.copy(PAGE, tmp_path / "docs"))
     feature = (tmp_path / "features" / "crew" / "playbooks" / "feature.md").read_text()
     tile = CARD.search(feature).group(1).split(" | ")[0]
     card = f"<!-- card: {tile} | 99 | A thing that is `made up`. -->"
-    (tmp_path / "playbooks" / "made-up.md").write_text(CARD.sub(card, feature))
+    (tmp_path / "features" / "crew" / "playbooks" / "made-up.md").write_text(
+        CARD.sub(card, feature)
+    )
     before = read(build(REPO))
     text = build(tmp_path)
     assert page.read_text() == PAGE.read_text()
