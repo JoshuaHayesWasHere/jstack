@@ -1,4 +1,4 @@
-"""The crew skill's generated files: a lock file a rebase stops on is made again."""
+"""The crew skill's generated files: the crewmate makes again a lock file that a rebase stops on."""
 
 import os
 import shutil
@@ -31,7 +31,7 @@ LIBRARY = '[project]\nname = "{}"\nversion = "1"\nrequires-python = ">=3.12"\n'
 
 
 class Locked(PullRequest):
-    """A pull request and a default branch that each added a dependency, and locked it."""
+    """A pull request and a default branch that each added a dependency and locked it."""
 
     def __init__(self, tmp_path):
         self.stub = tmp_path / "stub"

@@ -1,5 +1,5 @@
-"""The crew skill's rebase: the ref of the head before it, the push, the lines it dropped,
-and a review that is running."""
+"""The crew skill's rebase: the ref of the head before it, the push, the lines it dropped, and
+a review that is running."""
 
 import re
 import shutil
@@ -32,7 +32,7 @@ REVIEWING = "a review of {} is running: rebase after its section is written"
 
 
 def kept_at(pr, before, slug="a-task"):
-    """The commit the backup ref of a head is at, as the main checkout sees it."""
+    """The commit that the backup ref of a head points at, as the main checkout sees it."""
     return git(pr.stub.parent / "main", "rev-parse", f"refs/jstack/pre-rebase/{slug}/{before[:12]}")
 
 
@@ -75,7 +75,7 @@ def test_the_ref_of_a_head_before_a_rebase_outlives_the_branch_the_sweep_removes
 
 
 def rebased(tmp_path):
-    """A pull request rebased for a conflict, not yet pushed."""
+    """A pull request that the crewmate rebased for a conflict and has not pushed yet."""
     pr = PullRequest(tmp_path, None, "other.txt")
     asked(pr, "CONFLICTING")
     before = pr.head()
@@ -138,7 +138,7 @@ class Overlap(PullRequest):
         asked(self, "CONFLICTING")
 
     def resolve(self, text):
-        """Rebase, settle the one file the rebase stops on as the crewmate would, and give
+        """Rebase, settle the one file that the rebase stops on as the crewmate would, and return
         the head before the rebase."""
         before = self.head()
         assert stays(self, "mergeable") == [STOPPED, "shared.txt"]

@@ -1,5 +1,5 @@
-"""What the tests of the crew skill share: its sections, the `sh` block under a heading,
-and the pull requests and briefs they run the blocks over."""
+"""What the tests of the crew skill share: its sections, the `sh` block under a heading, and
+the pull requests and briefs that the tests run the blocks over."""
 
 import json
 import os
@@ -50,7 +50,8 @@ Branch: alpha   Pull request: https://example.test/pull/1
 
 
 def said(tmp_path, heading, about, brief, notes=None, cwd=None):
-    """What one of the skill's blocks prints for a brief, and for the repo's notes if any."""
+    """What one of the skill's blocks prints for a brief, and for the repo's notes if there are
+    any."""
     (tmp_path / "tasks").mkdir(exist_ok=True)
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     if notes is not None:
@@ -72,7 +73,7 @@ def with_field(line):
 
 
 def reviewed(findings, endings=""):
-    """The brief once a reviewer wrote its section, and the crewmate its `Finding:` lines."""
+    """The brief once a reviewer has written its section and the crewmate its `Finding:` lines."""
     listed = "".join(f"- {finding}\n" for finding in findings) or "none\n"
     review = f"\n## Review\nVerdict: findings\nFindings:\n{listed}Dropped: 0\nSent to: mcp:1\n"
     return BRIEF + endings + review
@@ -154,7 +155,7 @@ GUARDED = "skills/crew/SKILL.md"
 
 
 def held_open(go):
-    """A check that runs until the test touches `go`, and a minute at most, so a test that
+    """A check that runs until the test touches `go`, for a minute at most, so a test that
     fails before the touch leaves no detached check behind it."""
     return f"n=0; while ! [ -f {go} ] && [ $n -lt 600 ]; do sleep 0.1; n=$((n + 1)); done"
 
@@ -247,9 +248,9 @@ class PullRequest:
 
 
 def covers(main, brief, head):
-    """What `jmerge` makes of a head the brief says nothing of: the commit its review covers,
-    and whether the review carries over to the head, by the range-diff run in the main
-    checkout once it has fetched."""
+    """What `jmerge` makes of a head that the brief says nothing of: the commit its review
+    covers, and whether the review carries over to the head. The range-diff decides, run in
+    the main checkout once it has fetched."""
     assert ready.short_of(brief, head) == ""
     covered = ready.to_range_diff(ready.rebase_of(brief, head), brief, head)
     git(main, "fetch", "-q", "origin")
@@ -359,7 +360,7 @@ class Failed(PullRequest):
         (self.stub / "view.json").write_text(json.dumps(view))
 
     def says(self, here):
-        """What the block prints, told what the check command did in this worktree."""
+        """What the block prints when it is told what the check command did in this worktree."""
         text = block("Stay on the pull request", "run rerun").replace("<slug>", "alpha")
         text, filled = re.subn(
             r"^here='<[^>]*>'$", f"here='{here}'" if here else r"\g<0>", text, flags=re.M
@@ -387,8 +388,8 @@ class Failed(PullRequest):
 
 
 class Link(PullRequest):
-    """The second link of a stack: its worktree started from the branch of the link under it,
-    which has since been squash-merged, and that branch is kept on the remote."""
+    """The second link of a stack. Its worktree started from the branch of the link under it,
+    which has since been squash-merged, and the remote keeps that branch."""
 
     def __init__(self, tmp_path, base, edits="mine.txt", under_moved=False):
         self.stub = tmp_path / "stub"

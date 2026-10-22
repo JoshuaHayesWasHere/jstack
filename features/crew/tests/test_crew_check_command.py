@@ -1,4 +1,5 @@
-"""The crew skill's "Do the task": the check command under a test slot, waited on in the turn."""
+"""The crew skill's "Do the task" runs the check command under a test slot and waits for it in
+the turn."""
 
 import fcntl
 import json
@@ -15,9 +16,10 @@ from testing.paths import REPO
 
 
 def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
-    """The check block of "Do the task" run once in a worktree of its own, as an agent runs
-    it, waiting `limit` seconds at most: what it printed, its exit code and how long it took.
-    `then` is called once the block has printed its first line, while it still waits."""
+    """Run the check block of "Do the task" once in a worktree of its own, as an agent runs it,
+    waiting `limit` seconds at most. It returns what the block printed, its exit code and how
+    long it took. The test calls `then` once the block has printed its first line, while the
+    block still waits."""
     repo, home, stub = tmp_path / "repo", tmp_path / "home", tmp_path / "stub"
     if not repo.exists():
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -64,7 +66,7 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_e
 
 def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check(tmp_path):
     """The block runs what the repo's notes name, `make check-fast BASE=origin/main` on the
-    fast track, under a test slot, and nothing else: a `make` on the path records each run."""
+    fast track, under a test slot, and nothing else. A `make` on the path records each run."""
     notes = "- Check command: `make check-fast BASE=origin/main`, while the fast track holds.\n"
     command = briefs.check_command(notes)
     locks = tmp_path / "home" / ".local" / "state" / "locks"
@@ -85,7 +87,7 @@ def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check
 
 
 def ended(tmp_path):
-    """Wait, as a turn between two calls would, for the check to end with nobody calling."""
+    """Wait for the check to end with nobody calling, as a turn would between two calls."""
     found = tmp_path / "repo" / ".git" / "crew-check" / "exit"
     for _ in range(600):
         if found.exists():
@@ -95,8 +97,9 @@ def ended(tmp_path):
 
 
 def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
-    """A check longer than one call: each call waits its whole limit and says to call again,
-    a second call joins the check the first started, and the last one has its exit code."""
+    """A check that takes longer than one call. Each call waits its whole limit and says to
+    call again, a second call joins the check that the first started, and the last call gets
+    its exit code."""
     runs, go = tmp_path / "runs", tmp_path / "go"
     command = f"echo ran >> {runs}; {held_open(go)}; echo all passed"
 
@@ -117,8 +120,8 @@ def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
 
 
 def test_a_check_that_ended_between_calls_is_told_once_and_then_runs_afresh(tmp_path):
-    """The answer of a check that ended with no call waiting is given once: a failure that
-    was a flake is run again by calling again, with nothing in the worktree changed."""
+    """The block gives the answer of a check that ended with no call waiting once. Calling
+    again runs a failure that was a flake again, with nothing in the worktree changed."""
     runs = tmp_path / "runs"
     command = f"echo ran >> {runs}; sleep 1; [ $(wc -l < {runs}) -gt 1 ]"
 
@@ -169,7 +172,7 @@ def slot_script(text, home):
 
 
 def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
-    """The full run is the crewmate's: the block that read the brief and the notes has gone.
+    """The full run is the crewmate's, and the block that read the brief and the notes is gone.
     The two blocks that take a slot each run their command, with a slot free."""
     blocks = FENCED.findall(sections()["Do the task"])
     assert [text for text in blocks if "full run" in text.lower() or "Review:" in text] == []
@@ -184,9 +187,9 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
 
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
-    """The thread's turn then ends with the one line, and jbus wakes it: the file has it. The
-    lanes are the 4 full and 3 short slots 24 processors and 62 GiB derive, whatever
-    `TEST_SLOTS` the machine sets."""
+    """The thread's turn then ends with the one line, and jbus wakes it, because the file has
+    the thread. The lanes are the 4 full and 3 short slots that 24 processors and 62 GiB
+    give, whatever `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
@@ -256,7 +259,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
 
 def test_a_failed_check_on_the_pull_request_runs_the_check_block_it_names(tmp_path):
     """The `failed` answer of "The checks" names the section whose block runs the check
-    command: that block holds a test slot and ends with the command's exit code."""
+    command. That block holds a test slot and ends with the command's exit code."""
     (answer,) = [
         line
         for line in sections()["Stay on the pull request"].splitlines()

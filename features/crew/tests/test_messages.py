@@ -1,5 +1,5 @@
-"""A thread messages its home only when the home must act. Where a shell block decides
-whether a message goes, and to whom, the block is lifted from its skill and run here."""
+"""A thread messages its home only when the home must act. Where a shell block decides whether
+a message goes, and to whom, the test lifts the block from its skill and runs it here."""
 
 import pytest
 
@@ -41,7 +41,7 @@ class Threads(Scene):
         self.request.write_text(f"# {SLUG}: a question\nHome: {THREAD}\n\n{REPORT}")
 
     def says(self, skill, about, slug_as="<slug>"):
-        """What the skill's block prints for this slug, run as the skill says to."""
+        """What the skill's block prints for this slug, run as the skill says to run it."""
         block = the_block(skill, about)
         assert slug_as in block or slug_as == "$S"
         text = block.replace(slug_as, SLUG) if slug_as != "$S" else f"S={SLUG}\n{block}"

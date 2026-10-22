@@ -1,5 +1,5 @@
-"""The crew skill's "The review" and "A second pass": each finding's ending, the Fixed:
-line, and the scoped review of a fix."""
+"""The crew skill's "The review" and "A second pass": each finding's ending, the Fixed: line,
+and the scoped review of a fix."""
 
 import os
 import re
@@ -103,7 +103,7 @@ def test_every_finding_has_its_ending_before_the_fixed_line_is_written(brief, sa
 
 
 def by(who, findings, head="a" * 40):
-    """A section one reviewer of several wrote: its `By:` line and the head it saw."""
+    """A section that one reviewer of several wrote: its `By:` line and the head it saw."""
     listed = "".join(f"- {finding}\n" for finding in findings) or "- none\n"
     return (
         f"\n## Review\nBy: {who}\nVerdict: findings\nHead: {head}\nFindings:\n{listed}Dropped: 0\n"
@@ -349,7 +349,7 @@ ALL_INFO = "Fixed: none needed, every finding is info and left for a follow-up\n
 
 
 def declined(findings=INFO):
-    """The `Finding:` lines of info findings a crewmate declines, in the skill's own words."""
+    """The `Finding:` lines of info findings that a crewmate declines, in the skill's own words."""
     found = re.findall(r"`(Finding: not fixed, <[^>]+>, because info: [^`]+)`", as_read(SKILL))
     (shape,) = set(found)
     words = [finding.split(" ", 2)[2] for finding in findings]

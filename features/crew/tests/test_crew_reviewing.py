@@ -1,7 +1,7 @@
-"""The crew's rebase waits while a review of its head is running: `reviewing()`, in the blocks
-of "A link that moved" and "A conflict". It counts reviewers as `jmerge` does: once a
-`Reviewer:` line carries its number, the numbered seats and their sections alone. Run as an
-agent runs it, over briefs as the skills write them."""
+"""The crew's rebase waits while a review of its head is running. `reviewing()` decides, in the
+blocks of "A link that moved" and "A conflict". It counts reviewers as `jmerge` does: once a
+`Reviewer:` line carries its number, it counts only the numbered seats and their sections.
+The tests run it as an agent runs it, over briefs as the skills write them."""
 
 import re
 import subprocess
@@ -23,7 +23,7 @@ def section(by):
 
 
 def functions():
-    """Each copy of `reviewing()` the crew skill gives, as an agent reads it."""
+    """Each copy of `reviewing()` that the crew skill gives, as an agent reads it."""
     found = [
         match[0]
         for block in blocks("crew")
@@ -57,8 +57,8 @@ def test_two_reviewers_one_written_is_a_review_running_and_both_is_none(reviewin
 
 
 def test_a_stalled_review_run_again_on_numbered_seats_waits_on_those_alone(reviewing):
-    """The Codex reviewer that never wrote is a launch the numbered ones replaced: the rebase
-    waits for #2 and not for it, and the old Cursor section fills no seat."""
+    """The Codex reviewer that never wrote is a launch that the numbered ones replaced. The
+    rebase waits for #2 and not for the Codex one, and the old Cursor section fills no seat."""
     stalled = RESULT + TWO + section(CURSOR) + SEATS
     assert reviewing(stalled) == "running"
     assert reviewing(stalled + section(f"{SONNET} #1")) == "running"
@@ -82,8 +82,9 @@ def test_a_scoped_reviewer_is_waited_on_beside_the_seats(reviewing):
 
 
 def test_a_seat_that_wrote_twice_does_not_stand_for_the_scoped_pass(reviewing):
-    """The scoped pass of #166: sections #1, #2 and #1 again, with a scoped reviewer out, is
-    a scoped pass still running: only a section with a `Scope:` line is the scoped one's."""
+    """The scoped pass of #166: sections #1, #2 and #1 again, with a scoped reviewer out, mean
+    that a scoped pass is still running. Only a section with a `Scope:` line belongs to the
+    scoped reviewer."""
     both = RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #2")
     scoped = both + f"Scoped reviewer: mcp:s-3, of {SAW}\n" + section(f"{SONNET} #1")
     assert reviewing(scoped) == "running"
@@ -91,7 +92,7 @@ def test_a_seat_that_wrote_twice_does_not_stand_for_the_scoped_pass(reviewing):
 
 
 def test_a_seat_that_wrote_twice_does_not_stand_for_a_seat_that_has_not(reviewing):
-    """Review 1 of #166: two sections of #1 and none of #2 is a review still running."""
+    """Review 1 of #166: two sections of #1 and none of #2 mean a review is still running."""
     brief = RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #1")
     assert reviewing(brief) == "running"
     assert reviewing(brief + section(f"{SONNET} #2")) == "idle"
