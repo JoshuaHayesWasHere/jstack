@@ -32,7 +32,8 @@ def headings(text):
 
 
 def build(template, drop=()):
-    """A pull request body from the template: every placeholder filled, `drop` left out."""
+    """A pull request body made from the template, with every placeholder filled and `drop`
+    left out."""
     sections = re.split(r"^(?=## )", template, flags=re.M)
     kept = [s for s in sections if not any(s.startswith(f"## {name}\n") for name in drop)]
     return PLACEHOLDER.sub("The check command printed 3 passed.", "".join(kept))

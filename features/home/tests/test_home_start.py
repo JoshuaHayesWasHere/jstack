@@ -1,6 +1,6 @@
-"""`features/home/hooks/home-start.sh` in every repo: where it prints, where it prints nothing, and
-that the home skill's first step and the nohome skill agree with it. Every test runs the hook, and
-takes the blocks from the skill that gives them."""
+"""The tests cover `features/home/hooks/home-start.sh` in every repo: where it prints, where it
+prints nothing, and whether the home skill's first step and the nohome skill agree with it. Every
+test runs the hook and takes the blocks from the skill that gives them."""
 
 import json
 import os
@@ -135,7 +135,7 @@ def test_a_repo_with_a_home_gets_the_line_it_got(scene):
 
 
 def first_step(typed=""):
-    """Step 1 of the home skill's start, with what was typed after `/home` filled in."""
+    """Step 1 of the home skill's start, with what the user typed after `/home` filled in."""
     found = block("home", "first home")
     assert "<the text after /home>" in found
     return found.replace("<the text after /home>", typed)

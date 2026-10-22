@@ -1,10 +1,9 @@
 """One sentence per line, for new prose. The tests run
-`features/writing/scripts/prose_lint.py <base>` as `make check-fast` runs it, with
-`python3 -I -S`, in a repo made from `features/writing/tests/fixtures/prose/`, with a pull
-request's commit on top of it. A prose
-line the commit adds or changes fails when it holds more than one sentence, and the lint never
-judges a line the commit leaves alone. `sentences`, the one function that says what a sentence
-is, has tests of its own."""
+`features/writing/scripts/prose_lint.py <base>` with `python3 -I -S`, as `make check-fast` runs
+it. They run it in a repo made from `features/writing/tests/fixtures/prose/`, with a pull
+request's commit on top of it. A prose line the commit adds or changes fails when it holds more
+than one sentence. The lint never judges a line the commit leaves alone. `sentences`, the one
+function that says what a sentence is, has tests of its own."""
 
 import importlib.util
 import shutil

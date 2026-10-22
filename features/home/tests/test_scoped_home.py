@@ -1,7 +1,7 @@
-"""A scoped home: `/home <scope>` starts a home beside the repo's root home, with its handoff, plan,
-log and `home-id` in a directory of its own under the repo's, and the notes, briefs, requests and
-pages shared. Each test takes every block from the home skill and runs it in a temporary repo that
-has both homes."""
+"""A scoped home: `/home <scope>` starts a home beside the repo's root home. Its handoff, plan, log
+and `home-id` are in a directory of its own under the repo's. It shares the notes, briefs, requests
+and pages with the root home. Each test takes every block from the home skill and runs it in a
+temporary repo that has both homes."""
 
 import os
 import re
@@ -234,7 +234,7 @@ def test_a_scoped_home_writes_the_thread_line_in_the_shared_directory(homes, kin
 
 
 def of_this_home():
-    """Every block of the home skill that names `$M`, but the one that sets it and step 3 of
+    """Every block of the home skill that names `$M`, except the one that sets it and step 3 of
     the start, which sets its own."""
     setting = (block("home", 'echo "no home:'), about_the_home_id("home"))
     named = [text for text in blocks("home") if re.search(r"\$\{?M\b", text)]

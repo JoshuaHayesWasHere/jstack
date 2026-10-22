@@ -115,14 +115,15 @@ class Scene:
         }
 
     def asked(self, playbook, thread=THREAD):
-        """What the block of an ask prints for the thread that is the expert, or was."""
+        """What the block of an ask prints for the thread that is the expert, or that was."""
         if not (self.folder / "home-id").exists():
             self.run("id", threadId=thread)
         return self.run("playbook", threadId=thread, playbook=playbook)
 
     def taken(self, thread, posts_into, **filled):
         """What the block says after the call that takes the webhook over. In the list that
-        call reads, the kept webhook posts into `posts_into`, or the list does not have it."""
+        call reads, the webhook the call kept posts into `posts_into`, or the list does not have
+        that webhook."""
         id = (self.folder / "webhook").read_text().split()[0]
         tasks = [{"scheduledTaskId": id, "boundThreadId": posts_into, "webhookUrl": ADDRESS}]
         reply = json.dumps({"tasks": tasks if posts_into else []})
@@ -130,7 +131,7 @@ class Scene:
         return self.run("taken", **asked)
 
     def starts(self, thread=THREAD):
-        """The blocks of a start, in its order, with what a `create` returns kept."""
+        """Run the blocks of a start in its order, and keep what a `create` returns."""
         self.run("read")
         self.run("id", threadId=thread)
         (said,) = self.run("webhook", threadId=thread)
@@ -521,7 +522,7 @@ def test_the_thread_a_roll_over_launches_starts_on_the_same_folder(scene):
 
 def started(scene, t3, thread):
     """An expert's start, with the calls it makes to a made-up T3 Code: the pin, and the unpin
-    of the thread that this one takes over from, which the block of step 3 names."""
+    of the thread that this one takes over from. The block of step 3 names that thread."""
     pin, unpin = (
         call
         for call in calls.CALLS

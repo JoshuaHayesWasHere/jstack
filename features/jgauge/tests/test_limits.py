@@ -1,6 +1,6 @@
-"""`features/jgauge/hooks/limits.sh`: the file it writes from what Claude Code passes a status
-line, which `room` reads back, and every input on which it leaves the file alone.
-Every test runs the script."""
+"""The tests of `features/jgauge/hooks/limits.sh`. They cover the file the script writes from
+what Claude Code passes a status line, which `room` reads back. They also cover every input on
+which the script leaves the file alone. Every test runs the script."""
 
 import json
 import os

@@ -39,8 +39,8 @@ class Pattern:
 
 @dataclass(frozen=True)
 class Text:
-    """Outbound text. `where` is a file or a field, and each line has the number it is
-    printed with: its place in a file, or 0 for the file's own name."""
+    """A piece of outbound text. `where` is a file or a field, and each line has the number jleak
+    prints it with: its place in a file, or 0 for the file's own name."""
 
     where: str
     lines: tuple[tuple[int, str], ...]
@@ -61,8 +61,8 @@ class Finding:
 
 
 class Invalid(Exception):
-    """The private patterns cannot be used. The error holds the reason as jleak prints
-    it, and the reason never holds a pattern's value, since the value is private."""
+    """jleak cannot use the private patterns. The error holds the reason as jleak prints it, and the
+    reason never holds a pattern's value, since the value is private."""
 
 
 class Missing(Invalid):
@@ -139,10 +139,9 @@ def load(file: Path) -> tuple[Pattern, ...]:
 
 
 def example(home: Path) -> str:
-    """The file as the install makes it. What the install can know without asking is
-    a pattern from the start: the home directory, and the shapes of a thread id and of a
-    tailnet's names and addresses. A name it cannot know is an example to fill in, behind a
-    `#`."""
+    """The file as the install makes it. The install writes a pattern for what it can know without
+    asking: the home directory, and the shapes of a thread id and of a tailnet's names and
+    addresses. For a name it cannot know, it writes an example to fill in, behind a `#`."""
     return f"""# What must never leave this machine for a public repo. jleak reads this file,
 # and the hooks that call it refuse a push or a pull request that matches. It is yours:
 # the install makes it once and never writes it again. Keep it out of every repo.

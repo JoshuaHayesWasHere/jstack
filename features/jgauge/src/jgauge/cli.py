@@ -60,8 +60,8 @@ def _interval(asked: str) -> float:
 
 
 def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, str]) -> int:
-    """Run the `room` look until it says `go` or the limit passes, with the last look at the
-    limit itself. Print what the last look said, with its notes, and exit 0 on `go` and
+    """Look with `room` until it says `go` or the limit passes, and look a last time at the
+    limit itself. Print what the last look said, with its notes. Exit 0 on `go`, and
     `NO_ROOM` otherwise."""
     until = time.monotonic() + limit
     while True:
@@ -79,8 +79,8 @@ def _wait_for_room(look: list[str], limit: float, every: float, env: dict[str, s
 def _pool(role: str) -> str:
     """The role's pools in the form `room.sh` reads from `POOL`: commas join the instances of a
     line, and a space separates one line from the next. The value is empty where the role
-    inherits. It is also empty where the map cannot be used, and a note says so: `room.sh` then
-    reads the built-in instance's file."""
+    inherits. It is also empty where `pool.selections` refuses the role map, and the function
+    then prints a note on stderr: `room.sh` reads the built-in instance's file instead."""
     try:
         chosen = pool.selections(role)
     except jroles.Refused as refused:

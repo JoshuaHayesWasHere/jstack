@@ -120,9 +120,10 @@ def test_a_log_with_other_columns_is_not_appended_to(machine, capsys):
 
 
 def fixture(log, at):
-    """Six rows on 24 cores, where room's line is a 1-minute load of 48 (200% of 24): over the
-    line with CPU pressure low, at the line under 10 (both counted), over the line with CPU
-    pressure high, just under the line, CPU pressure not read, and quiet."""
+    """Six rows on 24 cores, where room's line is a 1-minute load of 48 (200% of 24). One row is
+    over the line with CPU pressure low, and one is at the line with CPU pressure under 10: the
+    report counts both. One is over the line with CPU pressure high, and one is just under the
+    line. One has no CPU pressure reading, and the last is quiet."""
     log.parent.mkdir(parents=True, exist_ok=True)
     loads = [
         ("49.00", "5.00"),

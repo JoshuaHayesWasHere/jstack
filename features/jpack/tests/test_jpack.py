@@ -1,4 +1,4 @@
-"""A context pack checked with no model. The tests run `jpack lint`, `jpack verify`
+"""The tests check a context pack with no model. They run `jpack lint`, `jpack verify`
 and `jpack stale` on a made-up pack in a temporary git repo, the template's own example note
 among them. They also run the day's stale check of a jbus pass on a project whose checkout has a
 pack."""

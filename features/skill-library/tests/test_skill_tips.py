@@ -1,6 +1,6 @@
-"""`features/skill-library/hooks/skill-tips.sh`: the one line it gives for a prompt that
-matches a skill, and every case where it prints nothing. Every test runs the hook: a copy beside
-a temporary `skills/`, or the repo's own."""
+"""`features/skill-library/hooks/skill-tips.sh` gives one line for a prompt that matches a skill.
+The tests check that line and every case where the hook prints nothing. Every test runs the hook:
+a copy beside a temporary `skills/`, or the repo's own."""
 
 import json
 import os
@@ -84,7 +84,7 @@ class Scene:
         return self.send(json.dumps(fields).encode(), **how)
 
     def tip(self, prompt, **how):
-        """The line the user is shown in a terminal for this prompt, or None for no tip."""
+        """The line the terminal shows the user for this prompt, or None for no tip."""
         said = self.type(prompt, **how)
         if not said:
             return None
@@ -219,7 +219,7 @@ def test_in_t3_code_the_line_goes_to_the_agent_to_pass_on_and_not_to_act_on(scen
 
 
 def without(tmp_path, *missing):
-    """A PATH with what the hook runs, but for these commands."""
+    """A PATH with every command the hook runs except these."""
     bin = tmp_path / "bin"
     bin.mkdir()
     for name in ["sh", "cat", "awk", "git", "jq", "dirname", "mkdir"]:

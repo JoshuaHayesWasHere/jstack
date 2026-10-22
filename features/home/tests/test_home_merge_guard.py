@@ -36,7 +36,7 @@ def writes(text):
 
 
 def scanned():
-    """Each file of `SCANNED`, but a feature's tests, which set the switch as a user does, and
+    """Each file of `SCANNED` except a feature's tests, which set the switch as a user does, and
     the home's docs, which say who writes it."""
     for top in SCANNED:
         assert (REPO / top).exists(), f"{top} is scanned and is not in the repo"

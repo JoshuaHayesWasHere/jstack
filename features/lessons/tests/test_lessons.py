@@ -258,7 +258,7 @@ WRITE_TOOLS = ["Edit", "NotebookEdit", "Write"]
 
 
 def write_tools(tools):
-    """The write tools an agent type has, from how the Agent tool words its tools."""
+    """The write tools an agent type has, read from the Agent tool's list of its tools."""
     named = set(tools.removeprefix("All tools except ").split(", "))
     if tools == "*":
         return WRITE_TOOLS
@@ -268,7 +268,7 @@ def write_tools(tools):
 
 
 def launch_problems(call):
-    """What lets a subagent started with `call`, an Agent call, change a file."""
+    """What lets a subagent change a file when `call` starts it. `call` is an Agent call."""
     kind = call.get("subagent_type", "general-purpose")
     if kind not in AGENT_TYPES:
         return [f"{kind} is no agent type in testing/tests/fixtures/claude/agent-types.txt"]
@@ -279,7 +279,7 @@ def launch_problems(call):
 
 
 def reviewer_launch():
-    """The one JSON block of the reflect skill: the Agent call a reviewer is started with."""
+    """The one JSON block of the reflect skill: the Agent call that starts a reviewer."""
     (body,) = re.findall(r"^```json\n(.*?)^```$", SKILLS["reflect"].read_text(), re.M | re.S)
     return json.loads(body)
 

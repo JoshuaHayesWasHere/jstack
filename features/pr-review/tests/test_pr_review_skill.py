@@ -269,8 +269,8 @@ CONFIG = "<what t3_thread_configuration printed, or nothing where this session h
 
 
 def by(reviewer, asked, roles=None, thread=None):
-    """The `By:` line Start's first block prints for a message. It comes from the thread's
-    own configuration where that is given, and else from a role map, or from none."""
+    """The `By:` line Start's first block prints for a message. The block takes it from the thread's
+    own configuration when the thread gives one, and otherwise from a role map, or from neither."""
     config = reviewer.state / "config"
     if roles is not None:
         (config / "jstack").mkdir(parents=True, exist_ok=True)
@@ -298,7 +298,8 @@ SONNET = "review: claudeAgent claude-sonnet-5-5 effort=high\n" * 2
 
 
 def test_two_reviewers_of_one_model_write_two_by_lines_told_apart_by_their_number(reviewer):
-    """The user's word of 2026-10-20: two Sonnet 5.5 reviewers on High, one model twice."""
+    """The user's word of 2026-10-20 asks for two Sonnet 5.5 reviewers on High, the same model
+    twice."""
     one = {"modelSelection": {"instanceId": "claudeAgent", "model": "claude-sonnet-5-5"}}
     one["modelSelection"]["options"] = [{"id": "effort", "value": "high"}]
     first = by(reviewer, "/pr-review run a-task 1", SONNET, one)
@@ -575,7 +576,8 @@ def test_the_prompt_is_the_interrogate_template_filled_with_what_this_review_rea
 
 
 def test_the_two_questions_are_the_ones_the_interrogate_skill_reads_out_of_this_block(reviewer):
-    """Interrogate's own step 3 reads questions 4 and 5 out of this skill, by where they start."""
+    """Interrogate's own step 3 finds questions 4 and 5 in this skill by the place where each one
+    starts, and reads them out."""
     text = (INTERROGATE / "SKILL.md").read_text()
     (reads,) = [body for kind, body in FENCED.findall(text) if kind == "sh" and "asked=" in body]
     home = reviewer.state / "user"
@@ -697,10 +699,8 @@ def test_a_review_waits_when_the_machine_cannot_be_read(reviewer):
 def test_a_review_with_no_room_waits_inside_its_call_and_goes_on_when_the_machine_has_some(
     reviewer,
 ):
-    """The
-    reviewer sends the block once while the machine is busy, and the machine has room half a
-    second later. The same call goes on to the prompt, so the reviewer does not wait some way of
-    its own."""
+    """The reviewer sends the block once while the machine is busy, and the machine has room half a
+    second later. The same call goes on to the prompt, so the reviewer needs no wait of its own."""
     reviewer.machine(pressure="25.00")
     room = threading.Timer(0.5, reviewer.machine)
     room.start()
@@ -768,9 +768,9 @@ def test_a_section_that_was_not_run_is_replaced_by_the_same_reviewers_clean_run_
 def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_names_whom_it_told(
     reviewer,
 ):
-    """The
-    path of "No room": the reviewer sends the block, the wait ends with no room, the thread it
-    tells is the one on the brief's `Thread:` line, and the section says the review was not run."""
+    """The path of "No room": the reviewer sends the block, and the wait ends with no room. The
+    reviewer tells the thread on the brief's `Thread:` line, and the section says the review was not
+    run."""
     reviewer.machine(pressure="25.00")
     (why,), code = reviewer(fill=SOON)
     assert code == 75
@@ -983,8 +983,9 @@ def held_open(go):
 
 
 def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_path):
-    """A proof longer than one call: each call waits its whole limit and says to send the
-    block again, a second call joins the proof the first started, and the last has its exit."""
+    """A proof longer than one call. Each call waits its whole limit and says to send the block
+    again, a second call joins the proof the first one started, and the last call gives its exit
+    code."""
     runs, go = tmp_path / "runs", tmp_path / "go"
     script = f"echo ran >> {runs}\n" + held_open(go) + "echo the fact holds\n"
 
@@ -1026,9 +1027,8 @@ def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path
 
 
 def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):
-    """The block gives
-    the answer of a proof that ended with no call waiting once. A proof that the reviewer sends
-    again, after fixing it, runs afresh."""
+    """When a proof ends while no call waits on it, the block gives its answer once. A proof that
+    the reviewer sends again, after fixing it, runs afresh."""
     runs = tmp_path / "runs"
     script = f"echo ran >> {runs}\nsleep 1\n[ $(wc -l < {runs}) -gt 1 ]\n"
 
@@ -1317,9 +1317,8 @@ def test_the_count_dropped_is_a_line_of_the_review_section(reviewer):
 
 
 def branch_of_the_task(reviewer, where, *changed, result=""):
-    """The brief in the state `jmerge` reads, and a branch `a-task` of the
-    worktree's repo that changes the files named, which the skill's block asks
-    `jmerge --scope` about."""
+    """The brief in the state `jmerge` reads, and a branch `a-task` of the worktree's repo that
+    changes the files named. The skill's block asks `jmerge --scope` about that branch."""
     work = reviewer.work
     brief = reviewer.brief.read_text() + (f"Where: {where}\n" if where else "") + result
     tasks = reviewer.state / "home" / ".local" / "state" / "home" / work.name / "tasks"
@@ -1530,8 +1529,8 @@ def test_the_home_is_told_only_when_it_left_its_thread_id(reviewer):
 def test_the_findings_go_to_the_thread_line_with_a_home_or_with_none(
     reviewer, thread, home, goes, told
 ):
-    """Step 4 of "After the review", then the block that finds a home: with no `Thread:` line
-    and an empty or missing `home-id`, nobody is found, and the section says `not sent`."""
+    """Step 4 of "After the review", then the block that finds a home. With no `Thread:` line and an
+    empty or missing `home-id`, the block finds nobody, and the section says `not sent`."""
     reviewer.brief.write_text(BRIEF.replace("Thread: mcp:1\n", thread))
     if home is not None:
         (reviewer.state / "home-id").write_text(home)
@@ -1555,8 +1554,8 @@ def reviewed(verdict, findings="- none\n"):
 
 
 def where(reviewer, verdict=VERDICT, mergeable="MERGEABLE", checks=(), **more):
-    """What step 4 of "After the review" prints for a pass with this verdict, over the brief
-    on disk and what GitHub says of the pull request."""
+    """What step 4 of "After the review" prints for a pass with this verdict. It reads the brief on
+    disk and what GitHub says of the pull request."""
     (reviewer.stub / "view.json").write_text(
         json.dumps({"mergeable": mergeable, "headRefOid": HEAD, "statusCheckRollup": list(checks)})
     )
@@ -1627,8 +1626,8 @@ def asked_to_rebase(tmp_path, monkeypatch, slug, head):
 def test_a_clean_later_pass_is_sent_when_jbus_asked_for_a_rebase_at_this_head(
     reviewer, tmp_path, monkeypatch, slug, head, goes
 ):
-    """jbus asks once for a head, also while GitHub says MERGEABLE, and the crewmate puts the
-    rebase off until the review that is running has sent its message."""
+    """jbus asks for a rebase once for a head, also while GitHub says MERGEABLE. The crewmate puts
+    the rebase off until the review that is running has sent its message."""
     state = asked_to_rebase(tmp_path, monkeypatch, slug, head)
     reviewer.brief.write_text(BRIEF + DONE + SECOND)
     assert where(reviewer, "clean", JBUS_STATE_DIR=state).split(": ")[0] == goes
@@ -1645,9 +1644,9 @@ CHECKS = [
 
 @pytest.mark.parametrize(("checks", "goes"), CHECKS)
 def test_a_clean_later_pass_is_sent_while_a_check_is_red(reviewer, checks, goes):
-    """A red pull request's crewmate is
-    told to rebase when main moves, and puts that off under a review that is running. A check
-    that is still running is no reason to rebase, since the watch wakes the crewmate."""
+    """When main moves, jbus tells the crewmate of a red pull request to rebase, and the crewmate
+    puts the rebase off while a review is running. A check that is still running is no reason to
+    rebase, since the watch wakes the crewmate."""
     reviewer.brief.write_text(BRIEF + DONE + SECOND)
     assert where(reviewer, "clean", checks=checks).split(": ")[0] == goes
 
@@ -1684,9 +1683,9 @@ def who_merges(reviewer):
 def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
     reviewer, switch, scope
 ):
-    """A home that
-    merges hears `fixed and green` from the crewmate, and the crewmate parks a scoped home's
-    pull request as a gate: both need the wake, by the crew skill's check."""
+    """A home that merges hears `fixed and green` from the crewmate. For a scoped home, the crewmate
+    parks the pull request as a gate instead. The crew skill's check says that each of these needs
+    the wake."""
     (reviewer.state / "home-thread").write_text(switch)
     home = ""
     if scope:
@@ -1705,9 +1704,9 @@ def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
 
 
 def later_pass(made, result, first, files=("a.txt",), run=None):
-    """What `jmerge` says of a pull request whose first review had a finding, fixed at the
-    head, with the lines the crewmate wrote then, and after them whatever a later pass
-    left. The crewmate writes nothing after that pass."""
+    """What `jmerge` says of a pull request whose first review had a finding that the head fixes.
+    The brief has the lines the crewmate wrote then, and after them whatever a later pass left. The
+    crewmate writes nothing after that pass."""
     done = f"Finding: fixed, it is wrong\nFixed: {made.head}\n{result}"
     made.home.open_pull_request(made.head, checks=(guarded.STARTED,), files=list(files))
 
@@ -1909,10 +1908,10 @@ def test_a_home_with_no_slug_is_told_of_the_briefs_that_are_not_of_the_past(tmp_
 
 
 def rebased(reviewer, why="the task replaces it", line=True):
-    """A worktree whose rebase took main's line out of n.txt, with the head from before
-    the rebase kept as the crew skill keeps it, and a brief whose crewmate says why at the
-    rebased head. The crew skill's rebase writes no `Rebase:` line, so `line=False` is the
-    brief a crew writes."""
+    """A worktree whose rebase took main's line out of n.txt, and a brief whose crewmate says why at
+    the rebased head. The worktree keeps the head from before the rebase where the crew skill keeps
+    it. The crew skill's rebase writes no `Rebase:` line, so `line=False` is the brief a crew
+    writes."""
     work = reviewer.work
 
     def commit(text):

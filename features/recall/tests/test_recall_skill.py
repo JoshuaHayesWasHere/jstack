@@ -1,5 +1,5 @@
-"""The recall skill's blocks: they list the transcripts of a directory and what the home wrote,
-in the window, and say so when there is none."""
+"""The recall skill's blocks list the transcripts of a directory that fall in the window, and
+what the home wrote in it. They say so when there is none."""
 
 from skill_blocks import aged, block, home, outside, repo, run, transcripts
 

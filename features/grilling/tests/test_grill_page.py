@@ -324,7 +324,8 @@ def on_a_page():
 
 
 def a_path_of(tmp_path, *commands):
-    """A `PATH` of one directory that holds these commands and no other, so no `lavish-axi`."""
+    """A `PATH` of one directory that holds these commands and no other, so it has no
+    `lavish-axi`."""
     only = tmp_path / "only"
     only.mkdir()
     for command in commands:

@@ -1,5 +1,5 @@
-"""The interrogate skill: it prints the repo's root, and reads two questions out of the
-pr-review skill from it."""
+"""The interrogate skill: it prints the repo's root. From that root it reads two questions out
+of the pr-review skill."""
 
 import pytest
 

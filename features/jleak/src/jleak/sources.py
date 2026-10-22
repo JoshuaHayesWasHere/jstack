@@ -9,12 +9,13 @@ A `git push` sends a ref's name and every commit the destination does not have y
 `pushed` gives the name, and for each such commit its message, the lines it adds and the name
 of each file it creates. `pushed` asks the destination itself, by its URL, what it has. The
 checkout's own record of a remote says only what some remote had, under a name that may point
-elsewhere by now. The push does not send anew a line that was already there or that a commit
-takes out, so `pushed` does not give it, and for a merge it gives only what the merge adds.
+elsewhere by now. The push does not send anew a line that was already there, or one that a
+commit takes out, so `pushed` does not give it. For a merge, `pushed` gives only what the merge
+adds.
 
 `command` reads a command as the shell would. It joins a line that ends in a backslash to the
-next, cuts the command into words and takes their quotes off, and splits it into simple
-commands at `;`, `&&`, `|` and a new line. For a simple command that runs `gh pr create`,
+next. It cuts the command into words, takes their quotes off, and splits it into simple commands
+at `;`, `&&`, `|` and a new line. For a simple command that runs `gh pr create`,
 `edit`, `comment` or `review`, it gives each of that command's words, since a title or a body
 can be any of them, and the command's body file. For one that runs `git ... push`, it gives a
 finding when the push would skip the `pre-push` hook. It reads nothing else in the command: not
@@ -224,9 +225,9 @@ def _sent(words: list[str], here: bool, cwd: Path) -> Iterator[Text]:
 
 
 def command(typed: str, cwd: Path) -> tuple[list[Finding], list[Text]]:
-    """What a command breaks by itself, and the text it sends to a pull request. When a
-    command cannot be cut into words, this gives it whole if it names `gh` and `pr`, and gives
-    a finding if it names a push and a way around the hook."""
+    """What a command breaks by itself, and the text it sends to a pull request. When this cannot
+    cut a command into words, it gives the command whole if it names `gh` and `pr`, and it gives a
+    finding if the command names a push and a way around the hook."""
     try:
         simple = _simple(typed)
     except ValueError:

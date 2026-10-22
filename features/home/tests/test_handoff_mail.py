@@ -1,9 +1,9 @@
-"""A handoff does not lose a message sent to the home: a thread that handed off sends on to the next
-home what still reaches it. No party keeps a file for the home. The user's word reaches the home by
-`jbus word`, so a home's start does not read a `to-<repo>.md` left beside the home, a handoff does
-not name it, and the handoff tells no party the new id. Each test takes every block from the skill
-that gives it and runs it in a temporary state directory, and checks each call, the skill's own
-JSON, against the tool's schema."""
+"""A handoff does not lose a message sent to the home. A thread that handed off sends the next home
+each message that still reaches it. No party keeps a file for the home. The user's word reaches the
+home by `jbus word`. So a home's start does not read a `to-<repo>.md` left beside the home, a
+handoff does not name it, and the handoff tells no party the new id. Each test takes every block
+from the skill that gives it and runs it in a temporary state directory. The test checks each call,
+the skill's own JSON, against the tool's schema."""
 
 import json
 import os

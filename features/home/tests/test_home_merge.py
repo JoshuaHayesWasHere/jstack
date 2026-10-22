@@ -51,8 +51,8 @@ BORDERS = run("SUCCESS", "borders")
 
 
 def rollup(checks):
-    """A pull request's checks as GitHub lists them: `checks`, and a passed `borders`, the
-    other check jmerge requires, where `checks` has no run of it."""
+    """A pull request's checks as GitHub lists them: `checks`, plus a passed `borders` where
+    `checks` has no run of it. `borders` is the other check jmerge requires."""
     listed = list(checks)
     named = {one.get("name") or one.get("context") for one in listed}
     return listed if "borders" in named else [*listed, BORDERS]
@@ -309,8 +309,8 @@ class Home:
 
 
 def pushed_on(home):
-    """Make three commits on a branch from where it left main, each on top of the one before, and
-    give back a function that puts their real ids in a text in place of `REVIEWED`, `PUSHED` and
+    """Make three commits on a branch from where it left main, each on top of the one before.
+    Return a function that puts their real ids in a text in place of `REVIEWED`, `PUSHED` and
     `LATER`. A fix is the commit on top of the reviewed head."""
     git(home.main, "update-ref", "refs/remotes/origin/main", "HEAD")
     git(home.main, "checkout", "-q", "-b", "alpha")
@@ -752,7 +752,8 @@ def test_a_pull_request_that_waits_is_not_a_failure(home):
 
 
 def test_outside_a_repo_it_fails_and_prints_no_line(home, tmp_path):
-    """Outside a repo `$H` names no repo, and the switch is read from the directory above."""
+    """Outside a repo `$H` names no repo, and the command reads the switch from the directory
+    above."""
     (home.state.parent / "home-thread").write_text(f"{ME}\n")
     assert home.run(cwd=tmp_path) == []
     assert home.code != 0
@@ -857,12 +858,12 @@ TRACKED = """\
 
 
 class Merged:
-    """A main checkout with a crewmate's worktree, its branch pushed and its pull request
-    reviewed clean at that head: ready, unless the test says otherwise.
+    """A main checkout with a crewmate's worktree. The crewmate pushed its branch, and its pull
+    request has a clean review at that head, so it is ready unless the test says otherwise.
 
-    The origin is a copy of the template's, which has the commit `Home` copied on its `main`,
-    and the checkout gets what `git push -u origin main` would write: the remote, `main`'s
-    upstream and the ref of `origin/main`. So it is built on a `Home` nothing has changed yet.
+    The origin is a copy of the template's origin, whose `main` has the commit that `Home` copied.
+    The checkout gets what `git push -u origin main` would write: the remote, `main`'s upstream
+    and the ref of `origin/main`. So `Merged` is built on a `Home` that nothing has changed yet.
     """
 
     def __init__(self, home, tmp_path):
@@ -1317,8 +1318,9 @@ def test_the_sweep_keeps_that_branch_until_no_pull_request_is_based_on_it(merged
 
 
 class Rebased:
-    """A ready pull request whose default branch moved under it, and whose crewmate rebased
-    the branch onto it and pushed: the main checkout holds the branch before and after."""
+    """A ready pull request whose default branch moved on, and whose crewmate rebased the
+    branch onto the new tip and pushed. The main checkout has the branch from before and after
+    the rebase."""
 
     def __init__(self, merged, theirs):
         self.merged = merged
@@ -1341,8 +1343,8 @@ class Rebased:
         merged.home.open_pull_request(self.head)
 
     def says(self, line, *flags, reviewed="clean", more="", saw=None):
-        """What `jmerge` prints for a Result with this `Rebase:` line, and a review of the
-        head before the rebase unless the test says which head it saw."""
+        """What `jmerge` prints for a Result with this `Rebase:` line. The brief has a review
+        of the head before the rebase, unless the test says which head the review saw."""
         result = f"Rebase: {line}\n{more}".format(before=self.before, head=self.head)
         text = brief(review(reviewed, saw or self.before), result)
         (self.merged.home.tasks / "alpha.md").write_text(text)

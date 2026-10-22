@@ -29,7 +29,7 @@ def patterns(jstack_config):
 
 
 class Pushed:
-    """A repo on `main` with one clean commit pushed to a bare remote, and the hook linked."""
+    """A repo on `main` with one clean commit, pushed to a bare remote, and with the hook linked."""
 
     def __init__(self, tmp_path):
         self.remote, self.repo = tmp_path / "remote.git", tmp_path / "repo"

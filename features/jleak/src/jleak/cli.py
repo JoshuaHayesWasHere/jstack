@@ -51,8 +51,8 @@ def parser() -> argparse.ArgumentParser:
 
 
 def patterns(args: argparse.Namespace) -> tuple[jleak.Pattern, ...]:
-    """The built-in patterns and the private ones. Raises Invalid when the private ones cannot
-    be used, and Missing only with `--strict`."""
+    """The built-in patterns and the private ones. Raises Invalid when jleak cannot use the private
+    ones, and Missing only with `--strict`."""
     config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     try:
         private = jleak.load(args.patterns or jleak.path(config))

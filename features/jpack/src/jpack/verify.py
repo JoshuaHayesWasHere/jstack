@@ -2,7 +2,7 @@
 
 For each citation it reads the subject repo at the cited commit, and checks that the commit is
 there, the path is in it, the file has the cited lines, and the quote that follows the citation
-is on them, with white space read as one space. A citation that quotes nothing is a fault,
+is on them, reading each run of white space as one space. A citation that quotes nothing is a fault,
 since the line alone proves nothing the note claims. A scout or a crewmate writes the notes,
 and this check reads them from outside, so it can fail them.
 """

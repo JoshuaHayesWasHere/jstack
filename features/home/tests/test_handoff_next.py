@@ -1,5 +1,5 @@
 """The end of a handoff: a repo's home writes a note of ten lines at most, starts the next home,
-then renames and settles itself, and any other thread starts nothing. A party's home starts its next
+then renames and settles itself. Any other thread starts nothing. A party's home starts its next
 thread on the model the role map gives its role. The tests run the handoff skill's own shell block
 in a temporary repo and check the skill's own JSON blocks against the tools."""
 
@@ -145,7 +145,8 @@ def test_the_launch_takes_a_seed_written_from_the_template():
 
 
 def filled_in(text=None):
-    """The template as a home fills it in: each label with an entry, and the guide line gone."""
+    """The template as a home fills it in: the home gives each label an entry and deletes the
+    guide line."""
     lines = (text or template("handoff.md")).splitlines()
     return "".join(f"{line.split(' <')[0]} none\n" for line in lines if not line.startswith("<"))
 

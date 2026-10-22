@@ -1,7 +1,7 @@
 """Helpers that the tests of a skill's shell blocks share. They lift each block out of the skill
-as an agent reads it, run it under a home directory and in a repository of the test's own, and
-link the skill where a user has it. The tests of each skill's own feature import these by the
-module's bare name."""
+as an agent reads it, and run it under a home directory and in a repository of the test's own.
+They also link the skill where a user has it. The tests of each skill's own feature import these
+by the module's bare name."""
 
 import os
 import re
@@ -22,7 +22,8 @@ FROM_ROOT = re.compile(r"`((?:playbooks|principles|skills)/[^`<>*\s]+\.md)`")
 
 
 def blocks(text, language):
-    """The body of every fenced block of `language` in a skill, indent taken off, in order."""
+    """The body of every fenced block of `language` in a skill, in order, with the indent taken
+    off."""
     found = re.findall(rf"^([ \t]*)```{language}\n(.*?)^\1```$", text, re.M | re.S)
     return [textwrap.dedent(body) for _, body in found]
 

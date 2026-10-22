@@ -1,5 +1,6 @@
-"""The note lint: `features/jpack/src/jpack/lint-notes.sh` is run here on a made-up expert's
-folder in a temporary directory, by itself and by the block the `expert-study` playbook gives.
+"""The note lint: these tests run `features/jpack/src/jpack/lint-notes.sh` on a made-up expert's
+folder in a temporary directory, by itself and through the block the `expert-study` playbook
+gives.
 """
 
 import re

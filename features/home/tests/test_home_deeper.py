@@ -1,8 +1,8 @@
-"""A home writing a brief or a scout's request asks for the deeper version of research, perf,
-analysis and outcome work itself. The step is a shell block in the home skill's "Handing a task to a
-crewmate", and the test takes it from the skill and runs it. For those kinds the block prints its
-own copy of the four questions of `/sharpen`, each with the line of the brief its answer goes on.
-For a mechanical fix, a docs change or a bug fix with a known cause it prints `skip`."""
+"""When a home writes a brief or a scout's request for research, perf, analysis or outcome work, the
+home itself asks for the deeper version. The step is a shell block in the home skill's "Handing a
+task to a crewmate", and the test takes it from the skill and runs it. For those kinds the block
+prints its own copy of the four questions of `/sharpen`, each with the line of the brief its answer
+goes on. For a mechanical fix, a docs change or a bug fix with a known cause it prints `skip`."""
 
 import re
 import subprocess

@@ -5,8 +5,9 @@ recorded in the span.
 
 The log is one TSV file under a header of COLUMNS. The sampler leaves a field empty when it
 cannot read it (no /proc/pressure/io, a kernel with no `full` line for cpu), and does not crash.
-The log holds 30 days at most: once its first row is older than that, the sampler writes it
-again with the last 29 days, so it rewrites the file about once a day and not on every sample.
+The log holds 30 days at most. Once its first row is older than that, the sampler writes the
+log again with the last 29 days. The sampler thus rewrites the file about once a day, not on
+every sample.
 The sampler rewrites a log from before the two /tmp columns once, with those fields empty in
 its old rows.
 
@@ -57,7 +58,7 @@ def proc() -> Path:
 
 
 def tmpfs() -> Path:
-    """The filesystem whose file slots are counted, room.sh's `TMPFS`."""
+    """The filesystem whose file slots room.sh counts, its `TMPFS`."""
     return Path(os.environ.get("TMPFS") or "/tmp")
 
 
@@ -67,7 +68,7 @@ def jbus_state() -> Path:
 
 
 def room_line(name: str) -> int:
-    """One of room's lines, read from its `<name>=` in room.sh, which holds the one copy.
+    """One of room's lines, which the function reads from its `<name>=` in room.sh, the one copy.
     `LOAD` is a percent of the cores, `CPU` and `PRESSURE` are shares of time, `MEMORY` is in
     GB, and `CUSHION` and `SLOTS` are percents. `CUSHION` is the user's `headroom`, which
     `jgauge room` passes to room.sh, so the value here is its default."""
@@ -142,8 +143,8 @@ def _widen(log: Path) -> None:
 
 def _prune(log: Path, now: int) -> None:
     """Write the log again with the rows of the last PRUNED_TO_DAYS. It picks the rows by their
-    time and not by their place in the file, so a clock that went back loses no row it should
-    keep."""
+    time and not by their place in the file. After the clock goes back, the log still keeps
+    every row it should."""
     since = now - PRUNED_TO_DAYS * DAY
     part = log.with_name(f".{log.name}.part")
     with log.open() as old, part.open("w") as new:
@@ -309,9 +310,9 @@ def _peaks(rows: list[list[str]], at: dict[str, int]) -> list[str]:
 
 
 def _stalls(start: int, until: int) -> str:
-    """What jbus recorded in the span as a held-up thread or row: its `stall` events, the
-    threads it woke from a wait for a test slot and how many of them waited over STALL_MINUTES,
-    and the rows its gate held for lack of room."""
+    """What jbus recorded in the span as a held-up thread or row. That is its `stall` events,
+    the threads it woke from a wait for a test slot (with how many of them waited over
+    STALL_MINUTES), and the rows its gate held back because they had no room."""
     stalls = waits = timed = long = longest = rooms = 0
     files = sorted(jbus_state().glob("*/events.jsonl"))
     for path in files:

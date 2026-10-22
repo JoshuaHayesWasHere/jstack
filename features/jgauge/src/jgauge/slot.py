@@ -4,20 +4,20 @@ A slot is a `flock` on `~/.local/state/locks/test-slot.<n>.lock`. This process h
 the command, so the slot is free again when the command ends or when this process dies.
 
 There are two lanes. The full lane is for a whole suite and has N slots, `test_slots` in
-`jgauge.sizes`, which derives the count from the machine unless `--slots`, `TEST_SLOTS` or the
-local machine file sets it. The short lane is for a run of a second or a minute, a reviewer's
-proof or a crewmate's targeted tests. It has slots of its own, `short_slots` there, as
-`test-slot-short.<n>.lock`, so it never waits behind a full suite. This process stops a
-command in the short lane at its time limit, so a full suite cannot keep a short slot. A short
-command runs in a process group of its own, and the stop and every signal go to the whole
-group: a `sh -c` wrapper does not leave its pytest running once the slot is free. Since that
-group is out of the terminal's group, an interrupt reaches the command only through this
-process, which passes it on.
+`jgauge.sizes`. That module derives the count from the machine unless `--slots`, `TEST_SLOTS`
+or the local machine file sets it. The short lane is for a run of a second or a minute, such as
+a reviewer's proof or a crewmate's targeted tests. It has slots of its own, `short_slots` in the
+same module, with the lock files `test-slot-short.<n>.lock`, so it never waits behind a full
+suite. This process stops a command in the short lane at its time limit, so a full suite cannot
+keep a short slot. A short command runs in a process group of its own, and the stop and every
+signal go to the whole group: a `sh -c` wrapper does not leave its pytest running once the slot
+is free. Since that group is out of the terminal's group, an interrupt reaches the command only
+through this process, which passes it on.
 
 A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
-and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`)
-and ends 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the lane
-is free, and the thread runs its command again, which takes the slot and leaves the file.
+and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`) and
+exits with code 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the
+lane is free, and the thread runs its command again, which takes the slot and leaves the file.
 """
 
 from __future__ import annotations

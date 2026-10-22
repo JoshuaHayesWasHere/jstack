@@ -1,7 +1,7 @@
-"""The root home's side of a scoped home: it makes a scope by one block, reads each scope's handoff
-and open plan entries when the user asks for status, and before a launch runs `jmerge --claims` in
-place of reading every brief, to name the overlaps. The tests take every block and the command from
-the home skill and run them in a temporary repo."""
+"""The root home's side of a scoped home. The root home makes a scope with one block. When the user
+asks for status, it reads each scope's handoff and open plan entries. Before a launch it runs
+`jmerge --claims` to name the overlaps, in place of reading every brief. The tests take every block
+and the command from the home skill and run them in a temporary repo."""
 
 import json
 import os

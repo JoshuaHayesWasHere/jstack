@@ -111,7 +111,8 @@ def uv(stub):
 
 
 def ran(env, script=None):
-    """What `jgauge room` says on that machine, or a changed copy of its file run as it is."""
+    """What `jgauge room` says on that machine. With `script`, a changed copy of room's file,
+    the function runs that script as it is instead."""
     command = ["sh", "-c", script] if script else [str(BIN / "jgauge"), "room"]
     return subprocess.run(command, env=env, capture_output=True, text=True, check=True)
 
@@ -453,7 +454,8 @@ def waited(env, limit, every="0.05"):
 
 
 def test_a_machine_rewritten_while_its_stubs_run_is_never_seen_half_written(tmp_path):
-    """A wait looks at the machine while a timer writes it anew, as the tests below do."""
+    """The tests below have a wait look at the machine while a timer writes it anew. This test
+    checks that a reader of the stubs never sees a stub half written."""
     machine(tmp_path, **IDLE)
     stub, stop, seen = tmp_path / "stub", threading.Event(), []
 
@@ -856,8 +858,8 @@ def test_a_pool_with_one_instance_full_goes_and_says_which_has_room(
 
 
 def test_a_pool_with_every_instance_full_waits_and_names_each_and_the_first_reset(tmp_path):
-    """Room holds back an instance full on both windows until the later reset, and names that
-    reset."""
+    """Room holds back an instance that is full on both windows until the later reset, and
+    names that reset."""
     both = {"five_hour": ("100", 2 * HOUR + 59), "seven_day": ("100", 50 * HOUR + 59)}
     env = ledgers(pooled(machine(tmp_path, **IDLE), POOLED), both, CAPPED_WEEK)
     assert says(env) == (

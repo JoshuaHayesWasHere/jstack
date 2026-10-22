@@ -4,7 +4,8 @@ A review's step 5 (blast-radius) leaves a `Proof:` line in its `## Review` secti
 `jmerge` merges a guarded path only where that line proves the one safety fact at the head.
 `jmerge --accept`, the user's hand-merge, lifts a hold, and it asks for the same fact.
 A design call (`/architect`) leaves a `Design:` line in the brief, and `jbus queue add` queues
-no brief that has none. A row already approved is grandfathered and launches.
+no brief that has none. jbus still launches a row approved before then: that row is
+grandfathered.
 
 The tests run `jmerge` against `test_home_merge`'s fake `gh` and real origin, and they run the
 pass as `features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code
@@ -324,7 +325,7 @@ def test_the_proof_line_the_review_template_shows_is_the_one_the_gate_reads(code
 
 
 def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused():
-    """Step 5 of the review says how the form is filled, and gives one fact each way."""
+    """Step 5 of the review says how the reviewer fills in the form, and gives one fact each way."""
     root = REPO
     template = (root / "features" / "pr-review" / "templates" / "review.md").read_text()
     (form,) = [line.split("Proof: ")[1] for line in template.splitlines() if "Proof: " in line]
@@ -372,7 +373,7 @@ def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(proven_mer
 
 
 def held(proven_merged):
-    """A pull request that `jmerge` holds for the user, and says so in a pass of its own."""
+    """A pull request that `jmerge` holds for the user. `jmerge` says so in a pass of its own."""
     proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
     assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
     assert proven_merged.untouched()
@@ -483,7 +484,7 @@ def test_a_merged_hold_is_taken_off_the_record_and_the_others_stay(proven_merged
 
 
 def test_the_waiting_line_is_read_off_what_jmerge_itself_prints(proven_merged):
-    """`stall.hand_merge` is given the real `jmerge --accept 7 --check`, not a stub of it."""
+    """The test gives `stall.hand_merge` the real `jmerge --accept 7 --check`, not a stub of it."""
     held(proven_merged)
 
     def asked(*command):
@@ -625,8 +626,8 @@ UNDESIGNED = brief("alpha").replace("Design: none, a test\n", "")
 
 
 def test_queue_add_refuses_a_brief_with_no_design_line():
-    """A lint runs when a row is first queued: `jbus queue add` is the command that refuses a
-    brief."""
+    """A lint runs when `jbus queue add` first queues a row, and that command is the one that
+    refuses a brief."""
     assert parse.NO_DESIGN in parse.faults(UNDESIGNED)
     assert parse.faults(brief("alpha")) == []
 
@@ -636,7 +637,8 @@ def launched(kitchen):
 
 
 def test_an_approved_row_whose_brief_has_no_design_line_is_grandfathered_and_launches(kitchen):
-    """A lint added after a row's go does not refuse it: it launches, and no gate is sent."""
+    """A lint added after the user gave a row its go does not refuse the row: jbus launches it
+    and sends no gate."""
     kitchen.config(max_running=6)
     queued_before(kitchen, "alpha", UNDESIGNED)
     add(kitchen, "beta", priority=2)

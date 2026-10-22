@@ -46,7 +46,7 @@ _COMMIT = re.compile(r"(?:`|\bat )(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}(?![0-9A-Za-z]
 
 
 class Refused(Exception):
-    """A folder or a repo that cannot be read as a pack: the command exits 2."""
+    """A folder or a repo that jpack cannot read as a pack: the command exits 2."""
 
 
 @dataclass(frozen=True)

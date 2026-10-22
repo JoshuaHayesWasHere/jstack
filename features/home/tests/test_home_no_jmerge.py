@@ -53,8 +53,8 @@ cat "$OPEN"
 
 
 def blocks(skill, read=Path.read_text):
-    """Each `sh` block of a skill, with the line it starts on: of the file alone, or with
-    `as_read`, of the skill as an agent reads it."""
+    """Each `sh` block of a skill, with the line it starts on. The line counts lines of the
+    file alone, or with `as_read`, lines of the skill as an agent reads it."""
     text = read(skill)
     return [
         (text.count("\n", 0, found.start(1)) + 1, textwrap.dedent(found.group(1)))
@@ -110,7 +110,8 @@ class Repo:
             (self.state / "home-thread").write_text(held)
 
     def sh(self, *texts, me=ME):
-        """Run blocks in one call, as a home would, each placeholder in quotes filled in."""
+        """Fill in each placeholder in quotes, and run the blocks in one call, as a home
+        would."""
         script = FILLED.sub(f"'{me}'", "\n".join(texts))
         ran = subprocess.run(
             ["sh", "-c", script],
@@ -133,7 +134,7 @@ class Repo:
         return ran.stdout.splitlines()
 
     def calls(self):
-        """What `jmerge` was run with, a line for each run."""
+        """The arguments the blocks gave `jmerge`, a line for each run."""
         try:
             return (self.stub / "calls").read_text().splitlines()
         except FileNotFoundError:
@@ -147,9 +148,9 @@ class Repo:
         return self.sh(*first(HOME), step.replace(line, f"flags='{' '.join(flags)}'"), me=me)
 
     def log(self, *lines):
-        """Write lines that `jmerge`, run by jbus, prints, as jbus keeps them: it appends each to
-        the log with a date, and keeps a `wait` or `hold` line as the last one said of its pull
-        request."""
+        """Write lines that `jmerge` prints when jbus runs it, the way jbus keeps them. jbus
+        appends each line to the log with a date. It also keeps a `wait` or `hold` line as the
+        last line `jmerge` printed about that line's pull request."""
         with (self.state / "merge.log").open("a") as log:
             log.writelines(f"2026-10-12 13:40 {line}\n" for line in lines)
         last = self.state / "merge.log.last"
@@ -449,9 +450,9 @@ def mine(repo, me):
 
 
 def test_a_brief_has_one_home_whoever_asks(repo):
-    """For a thread that is no home now, `jmerge --home` leaves every brief to another home, a brief
-    that names the thread included. Such a thread has an id that is in no `home-id`, or handed off
-    and has a `Was home:` id."""
+    """For a thread that is no home now, `jmerge --home` leaves every brief to another home,
+    including a brief that names the thread. Such a thread has an id that is in no `home-id`, or
+    it handed off and has a `Was home:` id."""
     scope = repo.state / "billing"
     scope.mkdir()
     (scope / "home-id").write_text("mcp:scoped\n")

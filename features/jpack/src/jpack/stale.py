@@ -1,10 +1,10 @@
 """The stale check: which notes cite a file that changed since the commit they were checked at.
 
 A note is stale when a path it cites differs between the citation's commit and the revision the
-check reads, `HEAD` unless told otherwise. The check then prints
+check reads: `HEAD`, unless `--rev` names another. The check then prints
 `stale <note>: <path> changed since <sha>`. The note's stale days count from the first commit
-after its pin that changed a path it cites, by that commit's committer date, which on a squash
-merge is when the change landed. A note stale for more than `DAYS` days also gets one
+after its pin that changed a path it cites. The count uses that commit's committer date, which
+on a squash merge is when the change merged. A note stale for more than `DAYS` days also gets one
 `prune <note>` line. The check keeps nothing between runs: rechecking a note moves its pin, and
 its days start again from the next change. The check edits no pack.
 """

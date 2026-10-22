@@ -1,6 +1,7 @@
-"""Every repo with a home is a jbus project. A home's start adds its repo with the one block that
-adds a repo, new-home's step 3, which never writes `home-thread`: jbus merges for every project.
-Each pass, `jbus status` and the view's machine row name a home whose repo is no jbus project.
+"""Every repo with a home is a jbus project. A home's start adds its repo with new-home's step 3,
+the one block that adds a repo. That block never writes `home-thread`, so jbus merges for every
+project. On each pass, `jbus status` and the view's machine row name a home whose repo is no jbus
+project.
 
 The tests run the skill's blocks as the home skill says, in one call with the block at the top, the
 block that finds this home and the block that reads jbus. They run on a made-up home directory, with
@@ -30,7 +31,7 @@ OFF = "homes not on the bus"
 
 class Machine:
     """A home directory with the skills, `~/repos/Winnie` and its started home, jbus's config
-    for another project, and a `jbus` that notes what `home-thread` held when it was asked to
+    for another project, and a `jbus` that notes what `home-thread` held when a block asked it to
     add a project."""
 
     def __init__(self, tmp_path):

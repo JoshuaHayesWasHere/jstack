@@ -3,7 +3,7 @@ of time into the ledger (`jroles.ledger`), so a launch can skip an account befor
 is capped.
 
 The accounts are the Claude homes of the provider inventory (`jroles.inventory`), and the
-command reads each as its instance. For each home it reads the first of these sources that
+command treats each home as an instance. For each home it reads the first of these sources that
 answers:
 
 1. `GET https://api.anthropic.com/api/oauth/usage` with the home's own access token, from
@@ -15,14 +15,16 @@ answers:
 
 The command never refreshes, writes or prints a token, and it never writes either file. A
 refresh token rotates, and a refresh here would race the sessions signed in with it. When no
-source answers for a home, the command writes nothing for it, so its last line stays and a
-capped account is never read as free; it prints `stale <instance>: <why>`. When it reads a
-home, it sets the time of the home's file to now, also when no line changed, so `--check` can
-tell a reader that stopped from an account that is idle.
+source answers for a home, the command writes nothing for it and prints
+`stale <instance>: <why>`. The home's last line then stays, so a launch never reads a capped
+account as free. When the command reads a home, it sets the time of the home's file to now,
+also when no line changed. `--check` can then tell a reader that stopped from an account that
+is idle.
 
 The endpoint returns a slightly different reset on each call (21:29:59.74, then 21:30:00.31).
 The command floors it to the second, as the other writers do, and the ledger's merge takes
-resets a few minutes apart as one window. A window with no reset is not open, and gives no line.
+resets a few minutes apart as one window. A window with no reset is not open, and the command
+writes no line for it.
 """
 
 from __future__ import annotations
@@ -63,7 +65,7 @@ class Home:
 
 
 class Stale(Exception):
-    """No source of a home answered. The message says why, one reason for each source."""
+    """No source of a home answered. The message gives one reason for each source."""
 
 
 def homes(home: Path | None = None) -> list[Home]:
@@ -116,7 +118,8 @@ Fetch = Callable[[str, str], object]
 
 
 def fetch(url: str, token: str) -> object:
-    """The endpoint's answer, as JSON. The token goes in the header and nowhere else."""
+    """The endpoint's answer, as JSON. The function sends the token in the header and nowhere
+    else."""
     asked = urllib.request.Request(
         url,
         headers={

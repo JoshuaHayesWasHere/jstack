@@ -7,8 +7,9 @@ The counting rule (features/jgauge/docs/meter-findings.md has the observations b
 - Claude Code writes a line with a `stop_reason` when the message finishes, and that line has
   its final counts. A message with such a line is final.
 - A message with no such line has only the output count as it started: a floor.
-  Its input and cache counts are still exact. The floor is a flagged count, kept apart from
-  the final output, never added to it and never estimated upward.
+  Its input and cache counts are still exact. The reader flags the floor and keeps it apart
+  from the final output. It never adds the floor to the final output and never estimates it
+  upward.
 - A message whose model is `<synthetic>` is the harness's own text, not a call.
 """
 
@@ -31,7 +32,7 @@ class TranscriptError(Exception):
 
 
 def read_text(path: Path) -> str:
-    """A transcript's text. Raises `TranscriptError` if it cannot be read."""
+    """A transcript's text. Raises `TranscriptError` if the function cannot read the file."""
     try:
         return path.read_text(encoding="utf-8", errors="replace")
     except FileNotFoundError as error:
@@ -41,7 +42,8 @@ def read_text(path: Path) -> str:
 
 
 def lines(path: Path) -> list[dict]:
-    """A transcript's lines. A line still being written does not parse and is skipped."""
+    """A transcript's lines. The function skips a line that does not parse, such as one that
+    Claude Code is still writing."""
     return parse(read_text(path), path)
 
 

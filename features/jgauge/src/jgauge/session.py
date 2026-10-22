@@ -20,7 +20,7 @@ SUMMED = (*transcript.empty_totals(), "total")
 
 
 def _row(path: Path, role: str, seen: set[str]) -> dict:
-    """One transcript's counts. A message id already in `seen` is not counted again."""
+    """One transcript's counts. The function does not count a message id already in `seen` again."""
     entries = transcript.lines(path)
     found = [call for call in transcript.calls(entries) if call.id not in seen]
     seen.update(call.id for call in found)
@@ -69,7 +69,7 @@ def _sum(rows: list[dict]) -> dict:
 
 
 def of_transcript(path: Path) -> dict:
-    """A session's cost. Raises `TranscriptError` if its transcript cannot be read."""
+    """A session's cost. Raises `TranscriptError` if it cannot read the session's transcript."""
     rows = _rows(path, set())
     return {"transcript": str(path), "rows": rows, "total": _sum(rows)}
 

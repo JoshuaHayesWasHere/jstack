@@ -85,9 +85,9 @@ def a_gate_in(sends, entry):
 
 
 def about_the_home_id(skill):
-    """The one block the skill gives that touches the root home's `home-id`. For the home
-    skill, the one that writes a home's own: step 3 of its start. For the handoff skill, the
-    one that removes a home's own: its step 6."""
+    """The one block the skill gives that touches the root home's `home-id`. In the home skill
+    it is the block that writes a home's own id, step 3 of its start. In the handoff skill it is
+    the block that removes that id, its step 6."""
     own = {"home": '> "$M/home-id"', "handoff": 'rm -f "$M/home-id"'}
     return block(skill, own.get(skill, 'jbus home "$B"'))
 
@@ -147,14 +147,14 @@ class Scene:
         return ran
 
     def which_home(self, typed="", checkout=None):
-        """What step 1 of a home's start prints for what was typed after `/home`, in lines."""
+        """What step 1 of a home's start prints for what the user typed after `/home`, in lines."""
         first = block("home", "title: home:")
         assert TYPED in first
         ran = self.run("home", first.replace(TYPED, typed), checkout or self.main, None)
         return ran.stdout.splitlines()
 
     def home_starts(self, thread=THREAD, typed=""):
-        """Steps 1 and 3 of a home's start. What step 3 printed."""
+        """Run steps 1 and 3 of a home's start, and return what step 3 printed."""
         which, *_ = self.which_home(typed)
         third = about_the_home_id("home")
         assert "<threadId>" in third and WHICH in third
@@ -164,7 +164,7 @@ class Scene:
         return done.stdout
 
     def home_hands_off(self, thread=THREAD, checkout=None, note=NOTE):
-        """Steps 2 and 3 of a handoff: the note written where none is, then the close."""
+        """Run steps 2 and 3 of a handoff: write the note where none is, then close."""
         for own in (self.home_dir, *self.home_dir.iterdir()):
             ids = own / "home-id"
             mine = ids.is_file() and ids.read_text().split() == [thread]
