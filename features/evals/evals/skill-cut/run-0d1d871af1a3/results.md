@@ -1,8 +1,8 @@
 # skill-cut eval: results
 
-Written by `uv run python features/evals/skill-cut/eval.py`. Do not edit by hand.
+Written by `uv run python features/evals/evals/skill-cut/eval.py`. Do not edit by hand.
 
-Base: `5a9a4d0401065b73a16dbd3183670901b6cbc80d`. Variant: `0d1d871af1a35a48b7d5727cd67cecabc63cf162`. Candidate: `claude-opus-5-5` at `medium` effort, no tools. Judge: `claude-sonnet-5-5` at `medium`, only for an answer the key cannot settle. Trials: 3 a case and arm.
+Base: `3ab67eb47ac97dc407a4687631301cc255990256`. Variant: `0d1d871af1a35a48b7d5727cd67cecabc63cf162`. Candidate: `claude-opus-5-5` at `medium` effort, no tools. Judge: `claude-sonnet-5-5` at `medium`, only for an answer the key cannot settle. Trials: 3 a case and arm.
 
 Files that differ between the two revisions: `principles/migrate-callers-then-delete-legacy-apis.md`, `principles/type-system-discipline.md`, `skills/interrogate/references/lead-judgment.md`. The diff is `variant.patch`.
 
@@ -10,33 +10,33 @@ Files that differ between the two revisions: `principles/migrate-callers-then-de
 
 | Case | Base | Base again | Variant | Spread of trials, base / again / variant |
 |---|---|---|---|---|
-| `brief-lint-approval-binding` | 0.706 | 0.745 | 0.745 | 0.12 / 0.06 / 0.06 |
+| `brief-lint-approval-binding` | 0.765 | 0.725 | 0.745 | 0.00 / 0.06 / 0.06 |
 | `brief-size-and-playbook-checked` | 1.000 | 1.000 | 1.000 | 0.00 / 0.00 / 0.00 |
-| `ci-self-hosted` | 0.385 | 0.385 | 0.385 | 0.00 / 0.00 / 0.00 |
-| `deeper-home-step` | 0.590 | 0.615 | 0.590 | 0.08 / 0.15 / 0.08 |
-| `deeper-proves-it` | 0.795 | 0.795 | 0.538 | 0.15 / 0.15 / 0.00 |
-| `deeper-skill` | 0.923 | 0.897 | 0.923 | 0.00 / 0.08 / 0.00 |
-| `exec-removal-jstack` | 0.567 | 0.500 | 0.433 | 0.20 / 0.30 / 0.30 |
-| `gate-silent-default` | 0.848 | 0.818 | 0.818 | 0.09 / 0.00 / 0.00 |
-| `home-on-bus` | 0.788 | 0.667 | 0.697 | 0.09 / 0.09 / 0.09 |
-| `jv-shell` | 0.824 | 0.784 | 0.824 | 0.00 / 0.06 / 0.00 |
-| `jv-threads` | 0.778 | 0.711 | 0.822 | 0.13 / 0.07 / 0.07 |
-| `one-review-thread` | 0.667 | 0.700 | 0.667 | 0.10 / 0.00 / 0.10 |
-| `pstack-autopilot-ketchup` | 0.519 | 0.481 | 0.444 | 0.11 / 0.11 / 0.00 |
-| `pstack-depth-style` | 0.800 | 0.867 | 0.800 | 0.00 / 0.10 / 0.00 |
+| `ci-self-hosted` | 0.385 | 0.513 | 0.564 | 0.00 / 0.38 / 0.54 |
+| `deeper-home-step` | 0.538 | 0.564 | 0.538 | 0.15 / 0.08 / 0.15 |
+| `deeper-proves-it` | 0.846 | 0.718 | 0.795 | 0.00 / 0.08 / 0.15 |
+| `deeper-skill` | 0.923 | 0.923 | 0.923 | 0.15 / 0.00 / 0.00 |
+| `exec-removal-jstack` | 0.500 | 0.433 | 0.333 | 0.20 / 0.20 / 0.10 |
+| `gate-silent-default` | 0.848 | 0.879 | 0.848 | 0.09 / 0.09 / 0.09 |
+| `home-on-bus` | 0.758 | 0.697 | 0.788 | 0.09 / 0.09 / 0.09 |
+| `jv-shell` | 0.784 | 0.745 | 0.804 | 0.06 / 0.18 / 0.06 |
+| `jv-threads` | 0.778 | 0.756 | 0.889 | 0.13 / 0.20 / 0.07 |
+| `one-review-thread` | 0.700 | 0.633 | 0.700 | 0.00 / 0.10 / 0.00 |
+| `pstack-autopilot-ketchup` | 0.519 | 0.519 | 0.556 | 0.11 / 0.22 / 0.22 |
+| `pstack-depth-style` | 0.833 | 0.800 | 0.833 | 0.10 / 0.00 / 0.10 |
 | `pstack-rebase-cap` | 0.727 | 0.697 | 0.667 | 0.00 / 0.09 / 0.09 |
-| `pstack-trigger-effort` | 0.750 | 0.694 | 0.667 | 0.00 / 0.08 / 0.17 |
-| `standing-undo` | 0.750 | 0.750 | 0.750 | 0.00 / 0.00 / 0.00 |
+| `pstack-trigger-effort` | 0.750 | 0.667 | 0.639 | 0.00 / 0.25 / 0.25 |
+| `standing-undo` | 0.750 | 0.722 | 0.750 | 0.00 / 0.08 / 0.00 |
 
-Mean over 17 cases: base 0.730, base again 0.712, variant 0.692. Noise floor (base against base again): 0.018, so the variant is held to 0.712 or above: it is not. Variant against base over the cases: 2 higher, 8 tied, 7 lower, sign test p 0.180: no loss under 0.05. **Regresses.**
+Mean over 17 cases: base 0.730, base again 0.705, variant 0.728. Noise floor (base against base again): 0.024, so the variant is held to 0.705 or above: it is. Variant against base over the cases: 5 higher, 7 tied, 5 lower, sign test p 1.000: no loss under 0.05. **Does not regress.**
 
 Readings, not counted by the rule (mean over the cases): agreement on sent, noted and dismissed, three ways; the share of the findings the crewmate fixed that the answer sent; findings sent per answer.
 
 | Arm | Three ways | Fixed ones sent | Sent per answer |
 |---|---|---|---|
-| base | 0.651 | 0.910 | 8.88 |
-| base-again | 0.633 | 0.889 | 8.86 |
-| variant | 0.629 | 0.900 | 9.06 |
+| base | 0.654 | 0.896 | 8.84 |
+| base-again | 0.636 | 0.900 | 9.06 |
+| variant | 0.653 | 0.921 | 9.25 |
 
 ## Family `steps`: each case, the mean of its trials, and the spread of trials
 
