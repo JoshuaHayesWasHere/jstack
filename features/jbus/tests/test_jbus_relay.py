@@ -315,11 +315,17 @@ def test_a_target_that_is_not_set_fails_the_start(hooks, tmp_path, key, value, w
 
 def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
     sous_chef, _, _ = hooks
+    sous_chef.hold = 0.5
     sent = body(event("gate", "user"))
     first = Relay(env_for(hooks), tmp_path / "state").up()
 
-    assert first.send(sent)[0] == 202
-    until(lambda: len(sous_chef.posts) == 2)
+    code, taken = first.send(sent)
+    assert code == 202
+    done = [
+        f"relay: sent event {taken['id']} to sous-chef ({route})"
+        for route in ("everything", "blocking")
+    ]
+    until(lambda: all(line in first.said() for line in done))
     assert first.send(sent)[0] == 202
     first.stop()
     again = Relay(env_for(hooks), tmp_path / "state").up()
