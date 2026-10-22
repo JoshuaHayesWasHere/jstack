@@ -36,7 +36,7 @@ jstack does not run without a **hard** need.
 | Need | Level | Notes |
 |---|---|---|
 | Linux | hard | The only platform. |
-| T3 Code, the nightly build | hard | Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.1.2-nightly.20261022.3526`. |
+| T3 Code, the nightly build | hard | [T3 Code](https://github.com/pingdotgg/t3code) is the desktop app the threads run in, with Claude Code as their agent. Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.1.2-nightly.20261022.3526`. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
@@ -58,7 +58,8 @@ jstack runs without it.
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 | `lavish-axi` | No visual pages. A scout writes its report with no page, and a round of questions is asked as text. |
 
-The install writes outside jstack's own folders for each harness it supports.
+The threads run on Claude Code, and the install also links the skills for Codex and Cursor.
+It writes outside jstack's own folders for each of the three.
 `jinstall --uninstall` takes each of these away again:
 
 - Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line and the attribution keys in `~/.claude/settings.json`.
@@ -73,7 +74,7 @@ The install writes outside jstack's own folders for each harness it supports.
 
 In this tutorial we install jstack, point it at a repo of yours, and merge one pull request that its threads wrote.
 
-1. Install the latest release and set it up. You need nothing but `curl` and a shell.
+1. Install the latest release and set it up. The install script itself needs only `curl` and a shell.
 
 	```sh
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
@@ -110,24 +111,28 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	Every other `missing` or `old` line has an entry in [Troubleshooting](features/jinstall/docs/troubleshooting/the-doctor.md).
 
 4. Pick the repo that you want work done in.
-	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, because `jmerge` merges only once that check passes.
-	GitHub's [quickstart for GitHub Actions](https://docs.github.com/en/actions/writing-workflows/quickstart) shows how to make a workflow, and a job named `check` gives the check its name.
-	To wait on other checks too, list their names, one a line, in `~/.local/state/home/<repo>/required-checks` ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
-	Then add the repo's main checkout to T3 Code as a project.
+	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
+	GitHub's [quickstart for GitHub Actions](https://docs.github.com/en/actions/writing-workflows/quickstart) shows how to make a workflow: a job named `check` gives the check its name.
+	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
-5. Open a new thread in that project.
-	The thread becomes the repo's home by itself, and you see a short status of the repo.
-	If you see no status, type the command below.
+5. Open T3 Code, start a thread in any project, and type the command below with the path of the repo's main checkout.
 
 	```text
-	/home
+	/new-home <path>
 	```
 
+	You see one line for each part of the repo's first home: `done`, `already`, or `needs you` with what to do.
+	It makes the state directory, `~/.local/state/home/<repo>`, where `<repo>` is the checkout's folder name.
+	It adds the repo to T3 Code as a project and to the `jbus` config, and links jleak's git hooks, which refuse a push that leaks what must stay private and strip AI co-author lines from commits.
+	A `needs you` line asks for what only you know, such as the repo's local check command, which goes in `fresh-check` there (`make check`, where the repo has that target).
+	Last, it starts the home thread, and you see a short status of the repo there.
+	Once that home ends, the next thread you open in the project becomes the home by itself.
+
 6. Tell the home one small task.
-	You see it ask you about the plan, write a brief, and start a crewmate thread, which shows up in T3 Code's thread list in its own worktree.
+	You see it ask you about the plan, write a brief, and start a crewmate thread, which shows up in T3 Code's thread list with a worktree of its own.
 
 7. Watch the crewmate.
-	You see it do the task, run the repo's check command, open a pull request, and start a reviewer.
+	You see it do the task, run the check command of `fresh-check`, open a pull request, and start a reviewer thread.
 	Then it fixes what the review found, and says that the pull request is fixed and green.
 
 8. Merge. In the repo's main checkout, run `jmerge`.
@@ -138,14 +143,13 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 	You see `merged` or `wait` and the reason for each open pull request.
 	`jmerge` merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
+	No person has to approve on GitHub: the reviewer thread's review is the review.
 
 Nothing merges by itself until you choose who does it.
 Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.
-Or let one home merge: the home writes its own thread id into `~/.local/state/home/<repo>/home-id` when it starts, and you copy that id into `home-thread` beside it.
+Or let one home merge: the home writes its thread id into `home-id` in the state directory when it starts, and you write that id, on one line, into a file `home-thread` beside it.
 [Configuration](features/jinstall/docs/configuration.md#switches-for-one-repo) has both.
-
-jleak's git hooks, which refuse a push that leaks what must stay private and strip AI co-author trailers from commits, go into each repo jstack works in.
-`/new-home` adds them to the repo it sets up, and `jinstall --repo` adds them to any other ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
+To add jleak's git hooks to another repo, run `jinstall --repo` in it ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.
 
@@ -188,11 +192,11 @@ Each `SKILL.md` is the full text of what its thread does.
 | `home` | `/home`, `/home <scope>` | Becomes the repo's home, or the home of one scope. It reads the handoff, the plan and the notes, plans with you, writes each brief and launches its crewmate. It does none of the work itself. |
 | `crew` | `/crew <slug>` | Becomes a crewmate. It does the task in `tasks/<slug>.md` in its own worktree, opens the pull request when the brief says so, appends its Result to the brief, and stays on the pull request. |
 | `scout` | `/scout <slug>` | Becomes a scout. It answers the questions in `scouts/<slug>.md`, appends its report, and writes a crewmate's brief or a visual page when the request asks for one. It changes nothing in the repo. |
-| `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the pull request's diff itself, judges what it found, and one command proves the one fact the change is safe because of. It runs no test suite, and jbus archives it once the pull request merges or closes. |
+| `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the diff, judges what it found, and proves with one command the fact the change is safe because of. It runs no test suite. |
 | `handoff` | `/handoff` | Closes a home. It updates the plan and the notes, archives the old handoff, and writes a one-page handoff for the next home. |
 | `nohome` | `/nohome`, `/nohome repo`, `/nohome on`, `/nohome merge`, `/nohome merge on` | Opts this thread, or every new thread in the repo, out of the automatic home, or switches it back on. With `merge` it switches the repo's automatic merge off or on. |
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
-| `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. For a brief, a scout's request or a plain question it runs `jbriefs pick` and names the role to type (`/crew <slug>`, `/scout <slug>` or `/home`), the playbook and the skills the words call for, each with its file. "Get set up" points at the Quickstart above. |
+| `poteto-help` | `/poteto-help <question>`, `/poteto-help <slug>` | Answers a help question and starts no work. It names the role to type, the playbook and the skills that fit a brief or a question, each with its file. "Get set up" points at the Quickstart above. |
 
 The others are loaded by name.
 `/setup-pstack` runs `jinstall --setup` and the doctor on this machine, or `install.sh --setup` in a checkout, and reports what is left for you.
