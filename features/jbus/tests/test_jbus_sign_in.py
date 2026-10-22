@@ -1,11 +1,10 @@
-"""The reminder that jbus's sign-in to T3 Code runs out (`jbus.signin`): a `sign-in` event for
-the user on the first pass 7 days out or fewer, once a day from 3 days out, and once more
-when it has run out, and once when a renewal lands. It is posted to the top-level webhook,
+"""jbus reminds the user that its sign-in to T3 Code runs out (`jbus.signin`). It queues a `sign-in`
+event for the user on the first pass 7 days out or fewer, then once a day from 3 days out, once more
+when the sign-in has run out, and once when a renewal lands. jbus posts it to the top-level webhook,
 once for the machine, and not to a project's own.
 
-Every test runs the real pass against the faked T3 Code server and webhooks of
-`test_jbus_kitchen`, with a fake clock: each pass is given its time. Nothing reaches the
-network.
+Every test runs the real pass against the faked T3 Code server and webhooks of `test_jbus_kitchen`,
+with a fake clock that gives each pass its time. Nothing reaches the network.
 """
 
 import json
@@ -31,7 +30,7 @@ def top():
 
 
 def expiring(kitchen, at):
-    """The token as `jbus t3 login` stores it, running out at `at`."""
+    """Store the token as `jbus t3 login` stores it, running out at `at`."""
     stored = {
         "server": kitchen.t3.url,
         "token": {"access_token": TOKEN, "expires_in": int((at - NOW).total_seconds())},
@@ -42,7 +41,7 @@ def expiring(kitchen, at):
 
 @pytest.fixture
 def machine(kitchen, top):
-    """Two projects, each with a webhook of its own, and a top-level one beside them."""
+    """Set up two projects, each with a webhook of its own, and a top-level webhook beside them."""
     side = kitchen.second("side")
     kitchen.config(webhook_url=top.url + "/wake", webhook_key=KEY)
     expiring(kitchen, EXPIRES)
@@ -54,7 +53,8 @@ def said(top):
 
 
 def at_et(day, hour=9):
-    """A time on a day of October 2026, at `hour` in the user's zone, ET, four hours behind."""
+    """Return a time on a day of October 2026, at `hour` in the user's zone, ET, which is four
+    hours behind UTC."""
     return datetime(2026, 10, day, hour + 4, 0, tzinfo=UTC)
 
 
@@ -68,7 +68,8 @@ EXPIRED = f"sign-in: jbus's T3 sign-in expired {STAMP}, no days left: run jbus t
 def test_the_countdown_says_seven_days_out_then_each_of_the_last_days_and_the_end(
     kitchen, top, machine
 ):
-    """A pass at 9:00 and one at 15:00 ET of each day, from 8 days out to a day after the end."""
+    """The test runs a pass at 9:00 and one at 15:00 ET on each day, from 8 days out to a day
+    after the end."""
     told = []
     for day in range(12, 22):
         for hour in (9, 15):

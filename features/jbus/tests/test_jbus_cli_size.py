@@ -1,11 +1,13 @@
-"""`jbus.cli` is the spine of a pass and the command's entry point, and it stops growing.
+"""`jbus.cli` runs a pass and is the command's entry point, and this test keeps the file from
+growing.
 
-A feature adds a verb (`verbs.Verb`) or a step (`verbs.Step`) in its own module, and no line
-in `jbus.cli`: so the file has at most `LINES` lines, and the modules it imports from jbus
-are `IMPORTS` or fewer. `IMPORTS` is what it imported once its second half became slots of
-steps, seven fewer than before; a name may leave it, and none may join it, as no verb joins
-`verbs.FIRST`. A name that leaves `jbus.cli` leaves `IMPORTS` in the same change, so it
-cannot join again unseen.
+A feature adds a verb (`verbs.Verb`) or a step (`verbs.Step`) in its own module, and adds no line to
+`jbus.cli`. So the file has at most `LINES` lines, and the modules it imports from jbus are
+`IMPORTS` or fewer. `IMPORTS` lists what `jbus.cli` imported after the second half of its pass
+became steps in slots. That is seven modules fewer than before. A change may remove a name from
+`IMPORTS` but not add one, just as no change adds a verb to `verbs.FIRST`. A change that removes a
+name from `jbus.cli` also removes it from `IMPORTS`, so this test catches a change that adds the
+name back.
 """
 
 import ast
@@ -37,7 +39,7 @@ SOURCE = Path(cli.__file__)
 
 
 def imported(source: str) -> list[str]:
-    """Every module of jbus the source imports, by its name under `jbus`."""
+    """Return every module of jbus that the source imports, by its name under `jbus`."""
     names = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom) and node.module == "jbus":

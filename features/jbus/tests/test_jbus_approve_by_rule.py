@@ -1,9 +1,9 @@
-"""A home may approve a follow-up by a standing rule, with the parent row named.
+"""A home may approve a follow-up by a standing rule, and the approval names the parent row.
 
-`queue approve --rule <n> --follows <parent slug>` is the fourth basis. It rests on a rule of
-the home's `standing.md`, which jbus reads itself, and on a parent row the user gave his own
-word for. The row says he did not speak of it. Every test runs the real command against the
-faked T3 Code server of `test_jbus_kitchen`.
+`queue approve --rule <n> --follows <parent slug>` is the fourth basis. This basis has two parts.
+The first is a rule of the home's `standing.md`, which jbus reads itself. The second is a parent row
+that the user approved in their own words. The row says that the user did not mention the follow-up.
+Every test runs the real command against the faked T3 Code server of `test_jbus_kitchen`.
 """
 
 import json
@@ -65,7 +65,8 @@ def cell(kitchen, slug):
 
 
 def old_string(kitchen, slug):
-    """The row as one approved before the record: it holds only a typed string."""
+    """Make the row look like one approved before approval records existed: it holds only a typed
+    string."""
     table = json.loads((kitchen.state / "queue.json").read_text())
     for row in table:
         if row["slug"] == slug:

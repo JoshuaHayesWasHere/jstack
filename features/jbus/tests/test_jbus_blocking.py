@@ -1,14 +1,19 @@
-"""What blocks, and the second target that is posted it.
+"""These tests cover what blocks, and the second target that jbus posts the blocking items to.
 
-An item blocks when it is open and nothing can move without the user (`waiting.blocking`).
-The second target, the config's top-level `blocking_url` and `blocking_key`, is posted the
-items that open in a pass (`kind: "events"`), one reminder for each item still open
-`REMIND_MINUTES` after it opened (`kind: "reminder"`), and on the pass that begins each
-`REFRESH_MINUTES` every open item, oldest first, also none (`kind: "refresh"`). It is its own
-route: its own outbox, gap, streak and status. Every other body says `kind: "events"`.
+An item blocks when it is open and nothing can move without the user (`waiting.blocking`). The
+second target is the config's top-level `blocking_url` and `blocking_key`. jbus posts three kinds of
+body to it:
 
-Every test runs the real pass against the faked T3 Code server and webhooks of
-`test_jbus_kitchen`. Nothing reaches the network.
+- The items that open in a pass (`kind: "events"`).
+- One reminder for each item still open `REMIND_MINUTES` after it opened (`kind: "reminder"`).
+- Every open item, oldest first, on the pass that begins each `REFRESH_MINUTES`, even when no item
+  is open (`kind: "refresh"`).
+
+The second target is a route of its own, with its own outbox, gap, streak and status. Every other
+body says `kind: "events"`.
+
+Every test runs the real pass against the faked T3 Code server and webhooks of `test_jbus_kitchen`.
+Nothing reaches the network.
 """
 
 from datetime import timedelta
@@ -37,13 +42,13 @@ def later(minutes):
 
 
 def relayed(kitchen, second):
-    """The kitchen's config with the second target set, and a first pass."""
+    """Write the kitchen's config with the second target set, and run a first pass."""
     kitchen.config(blocking_url=second.url + "/relay", blocking_key=SECOND_KEY)
     kitchen.poll()
 
 
 def hold(kitchen, *numbers):
-    """The pull requests `jmerge` holds for the user, by number: 9, 10 or both."""
+    """Have `jmerge` hold pull requests for the user, by number: 9, 10 or both."""
     lines = {9: NINE, 10: TEN}
     for number in numbers:
         kitchen.brief(f"held{number}", RESULT)
@@ -270,7 +275,7 @@ def test_a_defaulted_gate_is_no_stall_while_two_threads_of_its_slug_are_at_work(
 
 
 def judged(kitchen, listed, rows=None, world=None, had=None):
-    """`waiting.blocking` over a made-up list, with the second target set."""
+    """Return what `waiting.blocking` gives over a made-up list, with the second target set."""
     config = jbus.load()
     run = wake.Pass(config, config.project("demo"), later(1))
     return waiting.blocking(run, listed, rows, world, had)

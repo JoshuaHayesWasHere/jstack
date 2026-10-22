@@ -1,9 +1,10 @@
-"""A row whose thread ended, or hung, with nothing written is not left `stale` for nobody:
-its home is told what to do, once, as a leftover's is, and the row drops out of `stale` when
-it is handled. It waits on the user only where it has no home or the home did not close it.
+"""A row whose thread ended, or hung, with nothing written does not stay `stale` with nobody to
+handle it. jbus tells its home what to do, once, as it does for a leftover, and the row drops out
+of `stale` when the home handles it. The row waits on the user only where it has no home or the
+home did not close it.
 
-Run as `test_jbus_leftover.py` runs: the real pass, against a faked T3 Code server,
-`gh` and `jmerge`, over briefs that are made up."""
+Like `test_jbus_leftover.py`, the tests run the real pass against a faked T3 Code server, `gh`
+and `jmerge`, over briefs that are made up."""
 
 from datetime import timedelta
 
@@ -28,8 +29,8 @@ def slots(kitchen):
 
 
 def lost(kitchen, status="completed", quiet=40):
-    """A row jbus launched, whose thread went `status` `quiet` minutes ago with nothing
-    written."""
+    """Make a row that jbus launched, whose thread took the status `status` `quiet` minutes ago
+    and wrote nothing."""
     add(kitchen, "alpha")
     assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - 90 * MIN)
     (thread,) = kitchen.t3.threads
@@ -75,7 +76,7 @@ def test_a_thread_that_hung_with_nothing_written_is_told_to_its_home_to_interrup
 
 
 def test_a_thread_that_ended_a_moment_ago_is_still_its_crews_to_carry_on(kitchen):
-    """The carry-on that jbus sends a crew whose thread ended is what handles it first."""
+    """When a crew's thread ends, jbus handles the row first by sending the crew a carry-on."""
     thread = lost(kitchen, quiet=3)
     at = home(kitchen)["threadId"]
     kitchen.poll(NOW)

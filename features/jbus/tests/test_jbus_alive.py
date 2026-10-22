@@ -1,10 +1,10 @@
-"""A jbus that is dead or failing gets noticed: one project cannot end the pass, the status
-file is always written, a `jmerge` command cannot hang, the third failed unit in a row
-alerts through the webhook and the desk, once, and every hour the first pass queues a
-heartbeat, which is quiet: it starts no POST.
+"""When jbus is dead or failing, the user finds out. A failure in one project does not stop the
+pass, and the pass always writes the status file. A `jmerge` command cannot hang. When the unit
+fails for the third time in a row, jbus alerts once, through the webhook and the desk. Every hour,
+the first pass queues a heartbeat, which is quiet: it starts no POST.
 
-Every test runs the real pass or the real command against the faked T3 Code server and
-webhook of `test_jbus_kitchen`. Nothing reaches the network.
+Every test runs the real pass or the real command against the faked T3 Code server and webhook of
+`test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
@@ -24,7 +24,8 @@ FAILED = (
 
 
 def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_written(kitchen):
-    """`broken` keeps its state where a file is, so its pass raises; `demo` comes after it."""
+    """The state path of `broken` is a file, so its part of the pass raises. `demo` comes after
+    it."""
     assert (
         kitchen.main(
             "gate",
@@ -97,7 +98,8 @@ def test_the_third_alarm_in_a_row_alerts_once_and_never_shows_the_webhook(kitche
 
 
 def test_an_alert_the_webhook_did_not_take_waits_and_a_pass_keeps_the_streaks(kitchen):
-    """The command as the unit runs it. What it could not send goes with the next flush."""
+    """The test runs the command as the unit runs it. What the command could not send goes out
+    with the next flush."""
     kitchen.webhook.status = 500
     assert [kitchen.main("alarm") for _ in range(2)] == [
         (0, "pass failed: 1 in a row\n"),
@@ -139,8 +141,9 @@ def stale(now, limit="2h"):
 
 
 def test_no_pass_for_two_hours_alerts_once_and_the_next_pass_says_it_recovered(kitchen):
-    """The watcher is `jbus alarm --stale 2h`, run by its own timer: it reads the end of the
-    last pass from `pass.json`, and the pass after the outage ends its streak."""
+    """Its own timer runs the watcher, `jbus alarm --stale 2h`. The watcher reads the end of the
+    last pass from `pass.json`, and the first pass after the outage ends the alarm's stale
+    streak."""
     kitchen.poll(NOW)
     assert stale(NOW + timedelta(hours=1, minutes=59)) == ["pass seen: last ended 11:00 ET"]
     assert kitchen.webhook.posts == [] and kitchen.log("notify") == []

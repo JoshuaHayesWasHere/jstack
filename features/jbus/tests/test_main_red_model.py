@@ -1,10 +1,12 @@
-"""The exhaustive check of main.json's red-main contract (`features/jbus/tests/main_red_model.py`):
-every order of events within its bounds, with the real `mainmoved.tell` and `rows.red`.
+"""These tests run the exhaustive check of main.json's red-main contract
+(`features/jbus/tests/main_red_model.py`). The check walks every order of events within its
+bounds, with the real `mainmoved.tell` and `rows.red`.
 
-Each property is walked in the world where it must hold, and fails there with its trace.
-The findings the walk found first (F1, a lost send; F2 and F3, a tip no pass saw) are the
-worlds of the tests that walk every order or a lost send.
-The skill that reruns this is `features/jbus/project-skill/verify-main-red/SKILL.md`."""
+Each test checks one property in the world where that property must hold, and fails there with
+its trace. The first walks found three faults: F1, a lost send, and F2 and F3, each a tip that no
+pass saw. The tests that walk every order, or that walk with lost sends, use the worlds where
+those faults came up. The skill that reruns this is
+`features/jbus/project-skill/verify-main-red/SKILL.md`."""
 
 import json
 from unittest import mock
@@ -26,8 +28,8 @@ def holds(options, prop):
 
 
 def test_the_walk_reaches_every_event_the_model_has():
-    """A check that never reached a lost send, a held merge, a refused check or a rerun
-    that passes proves nothing about them."""
+    """If a check never reached a lost send, a held merge, a refused check or a rerun that
+    passes, it proves nothing about them."""
     found = walk(EVERY)
     kinds = {"jmerge merges", "jmerge holds", "another merge", "no send", "rerun passes"}
     kinds |= {f"settles {answer}" for answer in ("green", "failed", "cancelled", "refused")}
@@ -61,9 +63,9 @@ def test_s2_a_green_tip_ends_the_red_in_every_order():
 
 @pytest.mark.parametrize("pull", [False, True])
 def test_a_trace_starts_from_its_own_red_pull_request_whatever_order_the_key_has(pull):
-    """A trace's start line says whether the red pull request was open, read from the state
-    and not from where `State.key` puts it, so a key with its fields in another order still
-    gives each trace its own start."""
+    """A trace's start line says whether the red pull request was open. The walk reads that from
+    the state, not from where `State.key` puts it, so a key with its fields in another order
+    still gives each trace its own start."""
 
     def reordered(self):
         return json.dumps([self.checks, self.record, self.sent, self.looked, self.pull])

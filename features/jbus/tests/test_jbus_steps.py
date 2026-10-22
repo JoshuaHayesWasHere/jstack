@@ -1,18 +1,17 @@
-"""A feature declares the step it adds to a pass, and `first_half` and `second_half` run each
-slot's steps by rank. Run as `test_jbus_guarded_ask.py` runs: the real pass, against
-the fakes.
+"""A feature declares the step it adds to a pass, and `first_half` and `second_half` run each slot's
+steps by rank. Like `test_jbus_guarded_ask.py`, the tests run the real pass against the fakes.
 
-`ORDER` is the order `first_half` called its tellers in before any was a step, written out
-once, here, with each step added since in its slot by rank. `BEFORE` is what one pass's
-first half called, and the events the pass queued, over the fixtures the other tests build,
-recorded on the code before the move. Two calls moved with it, and `moved` moves them:
-`questions.closed_in_files` runs in the first slot, before `merge.merge` and `queue.load`,
-which touch no question; `watch.gone`, which only reads, runs after the tellers slot, beside
-`expedite.tell`.
+`ORDER` is the order in which `first_half` called its tellers before any of them was a step. It is
+written out once, here, with each step added since then placed in its slot by rank. `BEFORE` is what
+the first half of one pass called, and the events the pass queued, over the fixtures the other tests
+build. It was recorded on the code before the move. Two calls changed place in that move, and
+`moved` puts them in their new places. `questions.closed_in_files` runs in the first slot, before
+`merge.merge` and `queue.load`, which touch no question. `watch.gone`, which only reads, runs after
+the tellers slot, beside `expedite.tell`.
 
-`AFTER` is what the second half called, recorded the same way on the code before its calls
-were steps, and `EVENING` the same for a pass late enough in the day to send the snapshot
-and run the sweep it leaves owed. None of its calls moved.
+`AFTER` is what the second half called, recorded the same way on the code before its calls were
+steps. `EVENING` is the same for a pass late enough in the day to send the snapshot and to run the
+sweep that is still owed. None of the second half's calls moved.
 """
 
 import importlib
@@ -269,7 +268,7 @@ SECOND = (
 
 
 def moved(before):
-    """The calls recorded before the move, with the two that moved where they are now."""
+    """Return the calls recorded before the move, with the two that moved put where they are now."""
     calls = before.split()
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
@@ -280,7 +279,8 @@ def moved(before):
 
 
 def traced(kitchen, monkeypatch, *more, at=NOW + timedelta(hours=1)):
-    """One pass, what each of its halves called, in order, and the events it queued."""
+    """Run one pass, and return what each of its halves called, in order, and the events it
+    queued."""
     calls = {"first_half": [], "second_half": []}
     inside = []
     for module, name in (*CALLED, *SECOND, *more):
@@ -412,8 +412,7 @@ STEPS = (verbs.Step("tellers", 85, "madeup.step", lambda half: step(half), ("cli
 
 @pytest.fixture
 def made_up(tmp_path, monkeypatch):
-    """A module of jbus that no file of jbus names, with one step, between two of the
-    tellers."""
+    """Add a module of jbus that no file of jbus names, with one step between two of the tellers."""
     (tmp_path / "madeup.py").write_text(MADE_UP)
     monkeypatch.setattr(jbus, "__path__", [*jbus.__path__, str(tmp_path)])
     yield importlib.import_module("jbus.madeup")
@@ -455,8 +454,8 @@ STEPS = (verbs.Step("close", 35, "late.step", lambda half: step(half), ("rows",)
 
 @pytest.fixture
 def late(tmp_path, monkeypatch):
-    """A module of jbus that no file of jbus names, with one step of the second half,
-    between `waiting.cadence` and `chores.began`."""
+    """Add a module of jbus that no file of jbus names, with one step of the second half between
+    `waiting.cadence` and `chores.began`."""
     (tmp_path / "late.py").write_text(LATE)
     monkeypatch.setattr(jbus, "__path__", [*jbus.__path__, str(tmp_path)])
     yield importlib.import_module("jbus.late")

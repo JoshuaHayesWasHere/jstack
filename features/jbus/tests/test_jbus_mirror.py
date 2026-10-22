@@ -1,7 +1,7 @@
-"""`jbus.mirror` reads the briefs, the requests and the gates: each new section is one event,
-a Result that changes goes again, and what is piped to jbus and written in the brief goes
-once. Run as `test_jbus_kitchen.py` runs: the real pass and the real command, against
-the fakes.
+"""`jbus.mirror` reads the briefs, the requests and the gates. Each new section is one event, and a
+Result that changes goes out again. What a thread pipes to jbus and also writes in the brief goes
+out once. Like `test_jbus_kitchen.py`, the tests run the real pass and the real command against the
+fakes.
 """
 
 import json
@@ -117,8 +117,9 @@ OLD_REPORT = "Thread: mcp:an-old-scout\n\n## Report\nStatus: done\nNoticed: an o
 
 
 def _restore(kitchen):
-    """What a backup put back: briefs and requests no row of this project's queue names, each
-    finished long ago, with a gate left in a Result."""
+    """Put back what a backup would: two briefs and a scout's request that no row of this
+    project's queue names. Each of them finished long ago, and the Result of one brief has a gate
+    left in it."""
     gate = GATE.format(n="<n>", asked="main fails make check at 198ea14?", status="open", slug="x")
     kitchen.brief("crew-testing", OLD.replace("Left: none\n", f"crew-testing: gate\n{gate}"))
     kitchen.brief("docs-sweep-2", OLD)
@@ -126,8 +127,8 @@ def _restore(kitchen):
 
 
 def test_a_restored_tree_is_recorded_and_sends_nothing_old(kitchen):
-    """A project jbus knows, past its first pass, gets back from a backup briefs, requests,
-    Results, Reviews, Reports and gates it never saw: none of them is news."""
+    """A project that jbus knows is past its first pass. A backup then puts back briefs,
+    requests, Results, Reviews, Reports and gates that jbus never saw. None of them is news."""
     kitchen.quiet()
     _restore(kitchen)
     kitchen.poll()
@@ -160,9 +161,10 @@ def test_a_gate_a_live_thread_writes_after_a_restore_goes_once(kitchen):
 
 
 def test_a_scout_a_home_launched_has_its_report_sent_though_no_row_names_it(kitchen):
-    """A home writes `scouts/<slug>.md`, launches the scout from it and adds its `Thread:`
-    line; no queue row names it. A pass reads the request before the Report is in it, and that
-    is what tells it from a request a backup put back with its Report."""
+    """A home writes `scouts/<slug>.md`, launches the scout from that file and adds the scout's
+    `Thread:` line to it. No queue row names the file. A pass reads the request before the Report
+    is in it. That is how jbus tells it apart from a request that a backup put back with its
+    Report."""
     kitchen.quiet()
     request = kitchen.brief("look", "Thread: mcp:a-live-scout\n", kind="scouts")
     kitchen.poll()

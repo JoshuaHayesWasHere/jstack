@@ -1,10 +1,11 @@
-"""Each verb of `jbus` is declared beside its feature, and the command is built from them.
+"""Each feature declares its verbs of `jbus` beside its own code, and jbus builds the command from
+those declarations.
 
-`fixtures/jbus-help/` holds what `jbus --help` and each `jbus <verb> --help` printed before
-a verb was declared anywhere but in `jbus.cli`, at 80 columns and with no colour: `jbus.txt`
-is `jbus --help` with the verbs there were then, `verbs.FIRST`, so a verb added since does not
-change it and `jbus-queue-add.txt` is `jbus queue add --help`. The tests run the real
-command and hold it to those files, byte for byte.
+`fixtures/jbus-help/` holds what `jbus --help` and each `jbus <verb> --help` printed before any
+feature declared a verb outside `jbus.cli`, at 80 columns and with no colour. `jbus.txt` is `jbus
+--help` with the verbs there were then, `verbs.FIRST`, so a verb added since does not change it.
+`jbus-queue-add.txt` is `jbus queue add --help`. The tests run the real command and hold it to those
+files, byte for byte.
 """
 
 import argparse
@@ -26,8 +27,8 @@ PAGES = sorted(path.stem for path in HELP.glob("*.txt"))
 
 
 def helped(page, monkeypatch):
-    """What `--help` prints for a page, `jbus-queue-add` being `jbus queue add --help`, with
-    the verbs of `verbs.FIRST` alone."""
+    """Return what `--help` prints for a page, with only the verbs of `verbs.FIRST`.
+    `jbus-queue-add` is the page of `jbus queue add --help`."""
     monkeypatch.setattr(cli, "DECLARED", {name: cli.DECLARED[name] for name in verbs.FIRST})
     monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("NO_COLOR", "1")
@@ -44,7 +45,7 @@ def test_help_prints_what_it_printed_before_the_verbs_moved(page, monkeypatch):
 
 
 def listed(page):
-    """The verbs a help page lists, in its order."""
+    """Return the verbs a help page lists, in its order."""
     return re.search(r"\{([a-z0-9,]+)\}", page).group(1).split(",")
 
 
@@ -63,7 +64,7 @@ def test_the_verbs_there_were_are_listed_first_and_each_has_its_help_kept(monkey
 
 
 def fresh(tmp_path, run, **modules):
-    """A fresh Python that imports jbus with `modules` beside its own, then runs `run`."""
+    """Run a fresh Python that imports jbus with `modules` beside its own, then runs `run`."""
     for name, source in modules.items():
         (tmp_path / f"{name}.py").write_text(source)
     code = f"import jbus\njbus.__path__.append({str(tmp_path)!r})\n{run}\n"
@@ -152,8 +153,8 @@ SHORT = {
 
 @pytest.mark.parametrize("page", [page for page in PAGES if page != "jbus"])
 def test_an_option_typed_short_is_taken_where_it_was_before_the_verbs_moved(page, monkeypatch):
-    """`SHORT` is the pages whose parser took a short option before the verbs moved. It names
-    no verb added since."""
+    """`SHORT` lists the pages whose parser took a short option before the verbs moved out of
+    `jbus.cli`. It names no verb added since."""
     monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("NO_COLOR", "1")
     out = io.StringIO()
@@ -167,7 +168,8 @@ def test_an_option_typed_short_is_taken_where_it_was_before_the_verbs_moved(page
 
 
 def test_a_gate_from_a_repo_the_config_does_not_name_is_refused(kitchen, tmp_path):
-    """The skills are every repo's: a crewmate elsewhere does not speak as this project."""
+    """Every repo has the same skills, so jbus refuses a gate that a crewmate sends from a repo
+    the config does not name, and does not file it under this project."""
     other = tmp_path / "another-repo"
     kitchen.git("init", "-q", str(other), cwd=tmp_path)
     kitchen.monkeypatch.chdir(other)
@@ -184,9 +186,9 @@ def test_a_gate_from_a_repo_the_config_does_not_name_is_refused(kitchen, tmp_pat
 
 
 def test_the_words_python_3_12_3_hands_back_are_the_verbs_words():
-    """That argparse fills `words` with nothing when it reads the number, and hands the words
-    back unparsed: a plain string left over is a word, and so is all after `--`. An option
-    left over is still not one."""
+    """argparse fills `words` with nothing when it reads the number, and hands the words back
+    unparsed. A plain string left over is a word, and so is everything after `--`. An option left
+    over is still not a word."""
     args = argparse.Namespace(words=[])
     assert verbs.words_left(args, ["fine", "--strange", "--", "-x", "y"]) == ["--strange"]
     assert args.words == ["fine", "-x", "y"]

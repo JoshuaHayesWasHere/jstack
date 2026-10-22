@@ -1,12 +1,12 @@
-/* The probe the page test adds to the page: it counts the words on the first screen, the view's
-   and the shell's apart, measures
-   what a thumb can hit and what is cut off, opens every drawer, picks a row in the drawer of the
-   queue as a flow, answers the gates it is told to, one by one or as a batch, and writes what it
-   found into a pre the browser prints. In a frame, which is how the test gets a screen as narrow as a phone,
-   the pre goes into the page that holds the frame. */
+/* The probe that the page test adds to the page. It counts the words on the first screen, the
+   view's words and the shell's words apart. It measures how big each tap target is and what is cut
+   off. It opens every drawer, picks a row in the drawer of the queue as a flow, and answers the
+   gates it is told to, one by one or as a batch. Then it writes what it found into a pre that the
+   browser prints. In a frame, which is how the test gets a screen as narrow as a phone, the pre
+   goes into the page that holds the frame. */
 window.__errs = [];
-/* Each change to the page, from the start: when, and the part it is in, the nearest element
-   with an id, or a row of every project by its key. */
+/* Record each change to the page from the start: when it came, and the part it is in. The part
+   is the nearest element with an id, or a row of every project by its key. */
 window.__changes = [];
 new MutationObserver(function (records) {
   records.forEach(function (r) {
@@ -20,16 +20,18 @@ window.addEventListener("error", function (e) { window.__errs.push(String(e.mess
 window.addEventListener("unhandledrejection", function (e) {
   window.__errs.push("rejection: " + String(e.reason && e.reason.message || e.reason));
 });
-/* A walk the test asks for, 2.5 s after the page loads: one step each 0.5 s, and what the page
-   shows after each. A step is `open:<target>`, tapped where a person would, in the drawer when
-   one is open; `back` and `forward`, the browser's; `esc`; `arrow`, the drawer's back arrow;
-   `close`; `crumb:<n>`, the nth link of the drawer's breadcrumbs; `hash:<address>`; `tap:<selector>`,
-   a click on what the page drew; `key:<key>:<selector>`, the key pressed on what the selector
-   finds, focused first, or with no selector on what has the focus; `focus:<selector>`, the focus
-   put there as a keyboard would; `hover:<selector>`, the pointer moved onto it; `cancel`, the
-   close request a phone's back gesture sends; `cancel-hard`, the second one in a row, which
-   cannot be refused and shuts the drawer; or `look`. After each it writes down what the page
-   shows, with the peek, `peek`. */
+/* A walk that the test asks for, 2.5 s after the page loads. It takes one step each 0.5 s and
+   records what the page shows after each step. `open:<target>` taps where a person would, in the
+   drawer when one is open. `back` and `forward` move through the browser's history. `esc` presses
+   Escape. `arrow` taps the drawer's back arrow. `close` taps the drawer's close button. `crumb:<n>`
+   taps the nth link of the drawer's breadcrumbs. `hash:<address>` sets the page's hash to the
+   address. `tap:<selector>` clicks on what the page drew. `key:<key>:<selector>` focuses what the
+   selector finds and presses the key on it, or, with no selector, presses the key on what has the
+   focus. `focus:<selector>` puts the focus there as a keyboard would. `hover:<selector>` moves the
+   pointer onto it. `cancel` sends the close request that a phone's back gesture sends.
+   `cancel-hard` sends a second one in a row, which the page cannot refuse and which shuts the
+   drawer. `look` does nothing but look. After each step, the walk writes down what the page shows,
+   with the peek, `peek`. */
 window.__walked = [];
 window.addEventListener("load", function () { if (window.__walk) setTimeout(function () {
   function text(el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; }
@@ -98,8 +100,8 @@ window.addEventListener("load", function () { setTimeout(function () {
   function written(el) { return el.textContent.replace(/\s+/g, " ").trim(); }
   function shown(el) { return el.checkVisibility({ checkOpacity: false, checkVisibilityCSS: true }); }
   function box(el) { var b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]; }
-  /* Each thing to tap that is under 44px one way, and each thing that runs past the screen or
-     holds more than it shows. */
+  /* Find each thing to tap that is under 44px one way, and each thing that runs past the screen
+     or holds more than it shows. */
   function small(root) {
     return all("button, a[href]", root).filter(shown).filter(function (el) { var b = el.getBoundingClientRect(); return b.width < 43.5 || b.height < 43.5; })
       .map(function (el) { var b = el.getBoundingClientRect(); return (el.className || el.tagName) + " " + written(el).slice(0, 30) + " " + Math.round(b.width) + "x" + Math.round(b.height); });
@@ -110,12 +112,13 @@ window.addEventListener("load", function () { setTimeout(function () {
       return b.width > 0 && (b.right > vw + 0.5 || b.left < -0.5 || (hides && el.scrollWidth > el.clientWidth + 1));
     }).map(function (el) { return (el.className || el.tagName) + " " + written(el).slice(0, 30); });
   }
-  /* What a voice says of it past its name: the description, or the label of one that shows no words. */
+  /* What a screen reader says of it after its name: the description, or the label of one that
+     shows no words. */
   function called(el) { return el.getAttribute("aria-description") || el.getAttribute("aria-label"); }
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
   var main = document.querySelector("main"), dead = document.getElementById("dead");
   var out = {
-    /* The view's words, and apart from them the shell's: the header. */
+    /* The view's words, and apart from them the words of the shell, which is the header. */
     words: words(document.querySelector("main")),
     shell: words(document.querySelector("header")),
     bottom: Math.round(main.getBoundingClientRect().bottom),
@@ -172,7 +175,8 @@ window.addEventListener("load", function () { setTimeout(function () {
     out.opened[out.opened.length - 1].closed = !drawer.open;
     drawer.close();
   }
-  /* The drawer of the queue as a flow: its columns and where each stands, then a row picked. */
+  /* The drawer of the queue as a flow: its columns and where each one stands, then a row that the
+     probe picks. */
   function flow() {
     var dw = document.getElementById("dw");
     function slugs(q) { return all(q, dw).map(function (r) { return text(r.querySelector(".lb")); }); }
@@ -192,9 +196,10 @@ window.addEventListener("load", function () { setTimeout(function () {
     out.taps = [tap(row), tap("#dw .now [data-pick]"), tap("#dw .now [data-pick]"), tap(row)];
     drawer.close();
   }
-  /* The gates. Each of `ways` opens one gate, picks a card or types words where it is told to,
-     and taps the one button. `batch` ticks every gate that can be ticked and taps the batch's
-     button. After each tap the probe waits for the server's answer and reads the drawer. */
+  /* Answer the gates. Each of `ways` opens one gate, picks a card or types words where the test
+     tells it to, and taps the one button. `batch` ticks every gate that can be ticked and taps
+     the batch's button. After each tap, the probe waits for the server's answer and reads the
+     drawer. */
   function go(target) { var b = document.createElement("button"); b.setAttribute("data-open", target); document.body.appendChild(b); b.click(); b.remove(); }
   function gate() {
     var dw = document.getElementById("dw");

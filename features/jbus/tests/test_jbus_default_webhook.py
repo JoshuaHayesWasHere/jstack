@@ -1,9 +1,9 @@
-"""A `webhook_url` and `webhook_key` above the first `[[project]]` are the webhook of every
-project that has none of its own. A project's own pair wins whole, and half a pair of its own
-is refused.
+"""A `webhook_url` and `webhook_key` above the first `[[project]]` are the webhook of every project
+that has none of its own. jbus uses a project's own pair whole, never mixed with the top-level pair,
+and refuses a project with only half a pair of its own.
 
-Every test loads a config written into the made-up config directory of `test_jbus_kitchen`
-with the real `jbus.load`, and `project add` is the real command.
+Every test writes a config into the made-up config directory of `test_jbus_kitchen` and loads it
+with the real `jbus.load`. `project add` is the real command.
 """
 
 import json

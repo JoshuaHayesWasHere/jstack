@@ -1,7 +1,7 @@
 """`jbus noticed`: each `Noticed` line of the briefs and the scout requests is one record in
-`noticed.json`, found by a pass and marked once, taken or dropped, by a home. Run as
-`test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
-server, `gh` and `jmerge`."""
+`noticed.json`. A pass finds it, and a home marks it once, as taken or dropped. Like
+`test_jbus.py`, the tests run the real command and the real pass against a faked T3 Code server,
+`gh` and `jmerge`."""
 
 import json
 from datetime import timedelta
@@ -65,8 +65,9 @@ def say(kitchen, *argv):
 
 
 def launched(kitchen, *slugs, kind="tasks"):
-    """Briefs or requests a pass reads before anything is written in them, as it reads a brief
-    or request out in a thread: a file it never read is one a backup put back."""
+    """Have a pass read briefs or requests before anything is written in them, as it reads a
+    brief or request that is out in a thread. A file that a pass never read is one that a backup
+    put back."""
     for slug in slugs:
         kitchen.brief(slug, kind=kind)
 
@@ -250,9 +251,9 @@ def test_bare_follow_up_lines_and_a_nested_item_are_read_as_the_crew_skill_write
 
 
 def test_a_restored_file_no_row_names_is_dropped_and_a_queued_brief_is_new(kitchen):
-    """A project past its first pass gets back from a backup a brief and a request a pass never
-    read: their lines are from before. A brief a row of the queue names is out, and its lines
-    are new however soon after the launch they are written."""
+    """A project is past its first pass. A backup then puts back a brief and a request that no
+    pass ever read, so their lines are from before. A brief that a row of the queue names is out,
+    and its lines are new even when the crew writes them right after the launch."""
     kitchen.poll(NOW - timedelta(hours=1))
     assert kitchen.main("queue", "add", "live", "--priority", "1", stdin=complete("live"))[0] == 0
     kitchen.brief("restored", RESULT + LISTED)

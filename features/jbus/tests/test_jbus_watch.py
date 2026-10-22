@@ -1,7 +1,7 @@
-"""`jbus.watch` reads what changed since the last pass: a merge, a thread past its time or
-ended with no Result, a check on main that failed or was cancelled, a revert, and a
-condition jbus cannot judge, each said once. Run as `test_jbus_kitchen.py` runs: the
-real pass, against the fakes.
+"""`jbus.watch` reads what changed since the last pass, and reports each change once: a merge, a
+thread past its time or ended with no Result, a check on main that failed or was cancelled, a
+revert, and a condition jbus cannot judge. Like `test_jbus_kitchen.py`, the tests run the real pass
+against the fakes.
 """
 
 from datetime import timedelta
@@ -32,7 +32,7 @@ def test_a_merge_first_seen_days_later_is_still_sent_once(kitchen):
 
 
 def test_a_first_pass_that_could_not_ask_t3_code_is_not_the_first_whole_pass(kitchen):
-    """What was already merged stays unsent until one pass has asked everything."""
+    """jbus sends nothing of what was already merged until one pass has asked everything."""
     kitchen.brief("alpha", RESULT)
     kitchen.brief("beta", RESULT)
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
@@ -132,8 +132,8 @@ FULL_JOB = "https://example.test/o/r/actions/runs/77/job/901"
 
 
 def main_after_alpha(kitchen, conclusion):
-    """Alpha merged at a commit on main whose `full` job ended `conclusion`, over a green one,
-    and the log of that job, with two failed tests in pytest's summary."""
+    """Merge alpha at a commit on main whose `full` job ended `conclusion`, on top of a green
+    commit. The log of that job has two failed tests in pytest's summary."""
     kitchen.brief("alpha", RESULT)
     kitchen.quiet()
     red, green, done = "d" * 40, "f" * 40, {"status": "completed"}
@@ -259,7 +259,8 @@ def test_a_check_on_main_that_failed_beside_a_cancelled_one_is_a_failed_check(ki
 
 
 def cancelled_on_main(kitchen, check_runs):
-    """A merge whose commit on main has these check runs, and a push run that ended cancelled."""
+    """Make a merge whose commit on main has these check runs, and a push run that ended
+    cancelled."""
     kitchen.brief("alpha", RESULT)
     kitchen.quiet()
     sha = "d" * 40
@@ -402,9 +403,9 @@ def test_a_sign_in_that_no_longer_works_is_a_gate_once_a_day(kitchen):
 
 
 def main_of(kitchen, *checks):
-    """Alpha merged at the oldest of `checks`, one commit each over a green base, oldest
-    first, each a minute apart and newer than the merge. A check is `failure` or `success`
-    for the `full` job. The commits' shas are `1` * 40, `2` * 40, and so on."""
+    """Make one commit for each of `checks` on top of a green base, oldest first, a minute apart
+    and newer than the merge, and merge alpha at the oldest one. Each check is `failure` or
+    `success` for the `full` job. The commits' shas are `1` * 40, `2` * 40, and so on."""
     kitchen.brief("alpha", RESULT)
     kitchen.quiet()
     shas = [str(n) * 40 for n in range(1, len(checks) + 1)]
@@ -476,7 +477,7 @@ BROWSER_LOG = (
 
 
 def browser_run(number=88, conclusion="failure", ago=timedelta(minutes=40), **more):
-    """A run of browser.yml that ended `ago` before the pass, by default the nightly one."""
+    """Return a run of browser.yml that ended `ago` before the pass, by default the nightly one."""
     return {
         "id": number,
         "status": "completed",
@@ -491,7 +492,7 @@ def browser_run(number=88, conclusion="failure", ago=timedelta(minutes=40), **mo
 
 
 def browser_runs(kitchen, *runs):
-    """The workflow's runs, newest first as GitHub lists them, and a failed job and its log
+    """Set the workflow's runs, newest first as GitHub lists them, and a failed job and its log
     for the run 88."""
     kitchen.quiet()
     kitchen.set("browser-runs.json", list(runs))

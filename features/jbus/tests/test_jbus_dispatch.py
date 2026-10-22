@@ -1,6 +1,6 @@
-"""`jbus.dispatch` launches an approved row only on a machine with room, says a spell with no
-room once, and writes the thread it launched or adopted on the one `Thread:` line of the
-brief. Run as `test_jbus_kitchen.py` runs: the real pass, against the fakes.
+"""`jbus.dispatch` launches an approved row only on a machine with room, and reports each spell with
+no room once. It writes the thread it launched or adopted on the one `Thread:` line of the brief.
+Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
 import os
@@ -167,7 +167,7 @@ def test_a_plan_limit_that_is_not_known_launches_and_is_a_note_once_a_day(kitche
 
 
 def where_the_findings_go(kitchen, slug):
-    """What step 4 of the pr-review skill's "After the run" prints for the brief on disk."""
+    """Return what step 4 of the pr-review skill's "After the run" prints for the brief on disk."""
     skill = as_read(REPO / "features/pr-review/SKILL.md")
     (found,) = [text for text in skill.split("```") if "crewmate $thread" in text]
     script = textwrap.dedent(found.removeprefix("sh\n")).replace("<slug>", slug)
@@ -220,8 +220,8 @@ def test_a_launched_or_adopted_thread_is_the_one_thread_line_in_the_head_of_the_
 
 
 def test_a_launch_whose_brief_never_got_its_line_gets_it_on_the_next_pass(kitchen):
-    """A pass that ended between the launch record and the line, and a slug launched before
-    jbus wrote the line at all."""
+    """The test covers two cases: a pass that ended between writing the launch record and writing
+    the line, and a slug that jbus launched before it wrote the line at all."""
     queued(kitchen, "alpha")
     kitchen.poll()
     brief = kitchen.home / "tasks/alpha.md"

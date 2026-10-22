@@ -1,10 +1,9 @@
-"""jbus decides what is worth a word: each event kind has one loudness, the webhook is
-posted to only for an event the user must act on, the POST carries the lines for the chat
-as they are to be posted, and a failure that repeats is told once and once more when it
-ends.
+"""jbus decides which events are worth telling the user. Each event kind has one loudness, and jbus
+posts to the webhook only for an event the user must act on. The POST carries the lines for the chat
+as they are to be posted. When a failure repeats, jbus tells it once, and once more when it ends.
 
-Every test runs the real pass, the real command or the real `alert` functions against the
-faked T3 Code server and webhook of `test_jbus_kitchen`. Nothing reaches the network.
+Every test runs the real pass, the real command or the real `alert` functions against the faked T3
+Code server and webhook of `test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import ast
@@ -94,12 +93,12 @@ PASSED_AS = {
 
 
 def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
-    """Every kind a file of jbus sends, by how the call that sends it names it.
+    """Return every kind that a file of jbus sends, named as the sending call names it.
 
     A call that sends is `<...>.find(slug, kind, ...)`, `<...>.send(slug, kind, ...)`,
-    `<...>box.record(kind, ...)` or `event(project, slug, kind, ...)`. A kind is a string, a
-    name the module sets to one, or a name `PASSED_AS` knows. Any other is refused: nothing
-    here could say what it is.
+    `<...>box.record(kind, ...)` or `event(project, slug, kind, ...)`. A kind is a string, a name
+    the module sets to a string, or a name that `PASSED_AS` knows. This refuses any other kind,
+    since nothing here could say what it is.
     """
     tree = ast.parse(source.read_text())
     constants = {
@@ -160,8 +159,8 @@ def unknown(directory: pathlib.Path) -> set[str]:
 
 
 def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
-    """The one kind sent that the table lacks is `word`, which `word.py` logs by
-    `Box.record`, and `record` does not hold to the table."""
+    """`word` is the one kind that jbus sends and the table lacks. `word.py` logs it by
+    `Box.record`, and `record` does not check the kind against the table."""
     sent = sent_in(SRC)
     assert sent[("stall.py", "EVENT")] == {"waiting-on-user"}
     assert sent[("waiting.py", "EVENT")] == {"waiting"}
@@ -307,7 +306,7 @@ def test_a_line_is_owed_until_it_is_told_so_one_that_was_never_queued_is_given_a
 
 
 def test_an_alarm_that_cannot_queue_its_alert_alerts_again_on_the_next_one(kitchen, monkeypatch):
-    """The third alarm is stopped where it queues the line, as a process that is killed is."""
+    """The test stops the third alarm where it queues the line, as a kill stops a process."""
     alarm(NOW), alarm(later(1))
     with monkeypatch.context() as stopped:
         stopped.setattr(alert, "deliver", lambda *_, **__: (_ for _ in ()).throw(KeyboardInterrupt))
@@ -355,7 +354,7 @@ def test_jbus_status_prints_the_streaks_as_they_are_and_not_as_the_last_pass_lef
 
 
 def test_a_later_streak_that_makes_the_same_lines_is_told_again(kitchen):
-    """The line has the minute and no day: the same streak a day later is the same text."""
+    """The line has the minute and no day, so the same streak a day later makes the same text."""
     for day in range(2):
         for minute in range(3):
             alarm(later(24 * 60 * day + minute))
