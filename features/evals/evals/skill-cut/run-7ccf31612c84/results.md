@@ -1,6 +1,6 @@
 # skill-cut eval: results
 
-Written by `uv run python features/evals/evals/skill-cut/eval.py`. Do not edit by hand.
+Written by `uv run python features/evals/evals/skill-cut/eval.py`, never by hand.
 
 Base: `3ab67eb47ac97dc407a4687631301cc255990256`. Variant: `7ccf31612c849282c3194c9578e1e5410509eaf3`. Candidate: `claude-opus-5-5` at `medium` effort, no tools. Judge: `claude-sonnet-5-5` at `medium`, only for an answer the key cannot settle. Trials: 3 a case and arm.
 

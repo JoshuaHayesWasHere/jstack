@@ -549,7 +549,7 @@ def report() -> None:
     lines = [
         "# skill-cut eval: results",
         "",
-        "Written by `uv run python features/evals/evals/skill-cut/eval.py`. Do not edit by hand.",
+        "Written by `uv run python features/evals/evals/skill-cut/eval.py`, never by hand.",
         "",
         f"Base: `{ran['base']}`. Variant: `{ran['variant']}`. Candidate: `{ran['model']}` at "
         f"`{ran['effort']}` effort, no tools. Judge: `{ran['judge']}` at `{ran['effort']}`, only "
