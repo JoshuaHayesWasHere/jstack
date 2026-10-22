@@ -695,6 +695,12 @@ def test_every_path_is_owned_by_a_feature():
     ] == []
 
 
+def test_every_root_the_ownership_test_reads_holds_a_file():
+    """A move that empties a root folder drops it here too, or the ownership test reads a
+    folder that is gone and names it as covered."""
+    assert [root for root in (*OWNED, *ALSO) if not tracked(root)] == []
+
+
 def test_every_test_file_the_map_names_is_there():
     named = [test for _, tests in select.features().values() for test in tests]
 
