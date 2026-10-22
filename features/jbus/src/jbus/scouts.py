@@ -273,6 +273,18 @@ def _launched(state: Path, slug: str, launch: dict[str, Any] | None) -> None:
                     row["launch"] = launch
 
 
+def _intent(state: Path, home: Path, slug: str, launch: dict[str, Any]) -> bool:
+    """Record `launch` as the row's launch only while its go holds for the request on disk, read
+    under the table's lock, and say whether it did: an `add` since the pass looked replaces the
+    request, and a go holds for the one request approved."""
+    with _changing(state) as rows:
+        row = next((one for one in rows if one["slug"] == slug), None)
+        if row is None or state_of(row, _read(request_path(home, slug))) != "approved":
+            return False
+        row["launch"] = launch
+        return True
+
+
 def arguments(run: Any, slug: str, routed: pool.Route | None) -> dict[str, Any]:
     """Return the arguments for `t3_thread_launch`: a thread titled `scout: <slug>` in the
     project's own checkout, with no worktree and no branch, told `/scout <slug>`."""
@@ -355,7 +367,9 @@ def _launch(half: Any) -> None:
             run.say(f"wait scout {slug}: no room: {why}")
             return
         launch = {"state": "intent", "at": run.now.isoformat()}
-        _launched(run.state, slug, launch)
+        if not _intent(run.state, run.home, slug, launch):
+            run.say(f"wait scout {slug}: its request changed after its go: approve it again")
+            continue
         try:
             reply = client.call("t3_thread_launch", arguments(run, slug, routed))
         except T3Refused as error:
