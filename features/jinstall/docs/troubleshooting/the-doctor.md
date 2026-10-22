@@ -1,6 +1,7 @@
 # The doctor
 
-Start with the doctor. It writes nothing, and it prints one line for each thing jstack needs:
+Start with the doctor.
+It writes nothing, and it prints one line for each thing jstack needs:
 
 ```sh
 jinstall --doctor
