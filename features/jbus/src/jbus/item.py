@@ -81,8 +81,8 @@ class State(StrEnum):
 
 
 class Verb(StrEnum):
-    """A `Verb` is what a line does to its item. Its value is the line's `verb`, and the kind
-    of the line's event after `item.`."""
+    """A `Verb` is what a line does to its item. Its value is the line's `verb`. It is also
+    the part of the line's event kind that follows `item.`."""
 
     PROPOSE = "proposed"
     LINK = "linked"
@@ -303,7 +303,7 @@ def path(state: Path) -> Path:
 
 def read(state: Path) -> list[dict[str, Any]]:
     """Return every line of the log, oldest first. Skip a line that does not parse, such as one
-    that a write left half written when it died."""
+    that a writer left half written when its process died."""
     try:
         text = path(state).read_text()
     except FileNotFoundError:

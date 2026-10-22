@@ -27,7 +27,7 @@ crewmate and `jmerge` also use.
 - `thread` and `told` are the home's thread the message went to and when it went, or empty
   until jbus sends it.
 - `why` is why the row is the user's at once, or empty. The reasons are that its home has no
-  thread, that T3 Code does not list that thread as not settled, or that the message did not
+  thread, that T3 Code lists that thread as settled or does not list it, or that the message did not
   go.
 - `stalled` is when jbus reported the row to the user as a stall, or empty. A new `Left:`
   text keeps it, so jbus reports a row once.

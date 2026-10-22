@@ -408,9 +408,9 @@ def secrets(*found: Project | Hook | Any, part: int = URL_PART) -> tuple[str, ..
     """Return the secret strings of each webhook and of each other string given, the longest
     first.
 
-    A webhook's URL and its key are secret whole. So are the URL's host, path and query, except
-    a part shorter than `part`, since taking `/` out of a text hides nothing. For an error that
-    quotes the URL, the caller passes a `part` of 2, so a part of two characters counts too.
+    A webhook's whole URL and its whole key are secret. So are the URL's host, path and query,
+    except a part shorter than `part`, since taking `/` out of a text hides nothing. For an error
+    that quotes the URL, the caller passes a `part` of 2, so a part of two characters counts too.
     """
     whole: set[str] = set()
     parts: set[str] = set()

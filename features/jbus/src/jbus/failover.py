@@ -177,18 +177,18 @@ def _over(run: Pass, world: World) -> dict[str, set[str]]:
     settles them by (`threads.finished`): a crew whose task merged or ended clean, a reviewer
     whose task is over and whose brief's last Review has a verdict, and a scout whose Report
     is written and waits on nobody. A verdict alone is not enough for a reviewer: jbus
-    launches a scoped or second-pass reviewer because a verdict is written, and that reviewer
+    launches a scoped or second-pass reviewer because a reviewer wrote a verdict, and that reviewer
     still has its own pass to do."""
     done = threads.finished(run, world)
     return {"crew": done["crew: "], "reviewer": done["review: "], "scout": done["scout: "]}
 
 
 def limit_of(client: Client, thread: dict[str, Any], run: Pass) -> tuple[ledger.Cap, str] | None:
-    """Return the usage limit the thread's last run ended on and the instance that run was on,
-    or None. It reads both from the last items the thread wrote. The cap is on the run's
-    instance, not on the thread's instance now: a thread moved by hand after the failure is
-    on another one. When the text gives a reset, it reads that reset relative to the time the
-    run ended, not to the time of the pass."""
+    """Return the usage limit the thread's last run ended on and the instance that run was on, or
+    None. It reads both from the last items the thread wrote. The cap is on the run's instance, not
+    on the thread's instance now: a thread that the user moved by hand after the failure is on
+    another one. When the text gives a reset, it reads that reset relative to the time the run
+    ended, not to the time of the pass."""
     items = thread.get("itemCount")
     asked = {
         "threadId": thread["threadId"],

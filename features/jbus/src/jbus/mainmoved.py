@@ -14,8 +14,8 @@ and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip fol
 It keeps the last tip whose check passed as `green`.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
-order. A tip that failed or passed before a pass saw it still counts, even with a newer tip
-on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks at it
+order. A tip still counts when it failed or passed before any pass looked at it, even with a
+newer tip on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks at it
 again until the check of a later tip ends. A tip's check is main's own, which `tell` reads as
 `main_check` reads it. Each pass asks again about a failed check at main's tip, or at the
 red tip kept as `broken`: a rerun that passes on that same commit ends the red there.

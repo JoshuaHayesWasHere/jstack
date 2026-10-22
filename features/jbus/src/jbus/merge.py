@@ -1,8 +1,8 @@
 """Merging is `jmerge`'s job and nobody else's: jbus runs the command and reads its lines.
 
-jbus runs it only when the project's home is off, that is, when its `home-thread` file is
-missing or empty. A home that is on merges by itself, and two merges at once would race. The
-pass holds the pass lock around the run, so two passes never run it together either.
+jbus runs it only when the project's home is off, that is, when its `home-thread` file is missing or
+empty. A home that is switched on does its own merging, and two merges at once would race. The pass
+holds the pass lock around the run, so two passes never run it together either.
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request.
 `stall` and `watch` read the `Line` it returns, not the text. `rebase` still reads the text

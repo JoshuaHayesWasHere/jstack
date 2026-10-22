@@ -99,8 +99,8 @@ def status(config: Config) -> dict[str, Any]:
 def _turned(
     config: Config, project: Project, start: datetime, word: str, pulls: dict[str, str]
 ) -> list:
-    """Return each change of a row to `word` at or after `since`, and skip a line that is not
-    one."""
+    """Return each change of a row to `word` at or after `since`. Skip a line of the file
+    that is not such a change."""
     try:
         lines = queue.transitions_path(config.state(project)).read_text().splitlines()
     except OSError:

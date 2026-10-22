@@ -302,7 +302,8 @@ def mirrored_choice(
 def room(run: Pass, instance: str | None) -> tuple[str, list[str]]:
     """Return why a launch has no room, or nothing when it has room, together with the
     notes that `jgauge room` gave. `jgauge room` reads the plan's limits for `instance`, the
-    instance the launch goes to, or for the built-in one where the launch inherits.
+    instance the launch goes to. When the launch names no instance and takes the default, it
+    reads the limits of the built-in one.
 
     A check that did not run, or that said neither `go` nor `wait: `, also counts as no room.
     """

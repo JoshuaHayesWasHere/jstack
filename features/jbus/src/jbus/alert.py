@@ -132,8 +132,8 @@ def failed(
 
 
 def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
-    """Record a try that succeeded. Return the recovered line of a streak that alerted, until
-    `told`.
+    """Record a try that succeeded. For a streak that alerted, return the recovered line on
+    each call until `told` records it.
 
     A streak that had not alerted ends here, with no line.
     """

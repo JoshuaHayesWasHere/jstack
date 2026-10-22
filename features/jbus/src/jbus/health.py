@@ -9,8 +9,8 @@ with.
   user's home, the ledger, the relay's state). They are over at `FULL` (80%) or more. A
   filesystem that counts no inodes (btrfs) has no inode number.
 - `timeout jbus` and `timeout jmerge` count the passes systemd stopped at `jbus.service`'s
-  TimeoutStartSec, and the `jmerge` runs a pass stopped at `JMERGE_TIMEOUT`, in the journal
-  of `jbus.service` over the last `TIMEOUT_MINUTES`. One is an incident. A pass that systemd
+  TimeoutStartSec, and the runs of `jmerge` that a pass stopped at `JMERGE_TIMEOUT`. Both read the
+  journal of `jbus.service` over the last `TIMEOUT_MINUTES`. One is an incident. A pass that systemd
   stopped cannot say so itself, so the journal is the one place that shows both.
 - `relay`, `relay heartbeat`, `relay silent` and `relay errors` exist only where the config
   posts to the relay: a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env
