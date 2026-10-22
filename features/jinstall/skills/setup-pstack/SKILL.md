@@ -9,7 +9,9 @@ card: "Run the pipeline | 9 | Sets this machine up for jstack in one pass, throu
 
 `/setup-pstack` sets this machine up for jstack, or checks it again, from any thread. It is typed, never loaded by itself. The name is pstack's, and the work is jstack's: pstack's skill of this name writes a Cursor rule of models and budgets, and here the role map is `~/.config/jstack/roles`, written with every role `inherit`, so no role runs above medium effort.
 
-The skill does no step of its own. `install.sh --setup` in the checkout this skill is linked from, or `jinstall --setup` where the skill comes from a release, which has no checkout, holds the one list of what a machine needs, the same list the doctor reads, and does each step once: it says `already` for what is there, writes each config that is not there and never one that is, links the skills, hooks, commands and units, and names the one command for each thing only the user can do. A second run writes nothing, so this skill can be typed again at any time.
+The skill does no step of its own.
+`install.sh --setup` in the checkout this skill is linked from, or `jinstall --setup` where the skill comes from a release, which has no checkout, holds the one list of what a machine needs, the same list the doctor reads, and does each step once: it says `already` for what is there, writes each config that is not there and never one that is, links the skills, hooks, commands and units, and names the one command for each thing only the user can do.
+A second run writes nothing, so this skill can be typed again at any time.
 
 This thread changes nothing else. It writes no config by hand, runs none of the commands it reports, starts no thread and asks for no secret: a sign-in, a webhook and its key stay the user's.
 

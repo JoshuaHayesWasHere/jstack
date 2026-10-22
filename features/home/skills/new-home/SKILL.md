@@ -11,7 +11,8 @@ card: "Run the pipeline | 8 | Sets up a repo's first home in five steps: its sta
 
 A repo's first home needs five things, and a first home has no thread to type `/home` in until the second is there. This skill does the five in order, each once. For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`. Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
 
-This thread does not become the home. It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, the git hooks are linked by `jinstall --repo`, and the four switches of a repo are the user's.
+This thread does not become the home.
+It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, the git hooks are linked by `jinstall --repo`, and the four switches of a repo are the user's.
 
 ## 1. The repo and its state directory
 
@@ -192,4 +193,6 @@ The line is `5 home thread: done, [home: <repo>](t3-thread://v1/<its threadId>)`
 
 ## The end
 
-Give the user the lines, in order: step 1's, step 2's, step 3's two, each of step 4's and step 5's, then the `switches` line. Add nothing a line does not say. This thread is done: the home is the thread step 5 names.
+Give the user the lines, in order: step 1's, step 2's, step 3's two, each of step 4's and step 5's, then the `switches` line.
+Add nothing a line does not say.
+This thread is done: the home is the thread step 5 names.

@@ -63,7 +63,8 @@ commit 1a2b3c4 notes.md:12: home-path
 jleak: 3 findings, so the push is refused
 ```
 
-The install links it at `.git/hooks/pre-push` of each repo jstack works in ("Which repos get the git hooks"). A repo's worktrees run the same hook.
+The install links it at `.git/hooks/pre-push` of each repo jstack works in ("Which repos get the git hooks").
+A repo's worktrees run the same hook.
 
 `features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on Claude Code's shell commands.
 It runs `jleak --command` and refuses, with exit code 2:
@@ -73,7 +74,8 @@ It runs `jleak --command` and refuses, with exit code 2:
 
 It reads the command as the shell would, so a word in a commit message or in another program's arguments is not taken for a push or a body file. It refuses a body that is piped in, since it cannot read one. It does not see a body that the command builds from a variable, or a command inside a quoted string.
 
-The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is in the repos jstack works in alone. A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
+The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is in the repos jstack works in alone.
+A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
 
 ## AI trailers
 
