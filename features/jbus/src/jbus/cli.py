@@ -1,16 +1,15 @@
 """The one entry point: `jbus poll`, `jbus queue show|add|approve|hold|remove|apply`, `jbus
-plan [close <entry>]`, `jbus scout add|approve|show`, `jbus gate <slug>`, `jbus answer
-<number>`, `jbus done <slug>`, `jbus status`, `jbus events`, `jbus digest`, `jbus alarm`, `jbus
-view`, `jbus word`, `jbus project add`, and `jbus t3 login|launch-test`.
+plan [close <entry>]`, `jbus gate <slug>`, `jbus answer <number>`, `jbus done <slug>`, `jbus
+status`, `jbus events`, `jbus digest`, `jbus alarm`, `jbus view`, `jbus word`, `jbus project
+add`, and `jbus t3 login|launch-test`.
 
 `jbus poll` is one pass over every project in the config, under one lock: it runs `jmerge`
 where the home is off, reads what the threads wrote down, asks T3 Code and GitHub what is
 out, sends a line for each finding, ties each crew to its thread (the link, the relay and
 the settle), tells a crew whose pull request `jmerge` calls stale or conflicting to rebase,
 and one whose pull request is short of something it can fix what to do (`expedite`),
-launches the rows of the queue that were approved and the scouts whose request was
-(`scouts`), rewrites the table's derived columns (with why each row waits, and a line for
-each change of status), says what waits on the user
+launches the rows of the queue that were approved, rewrites the table's derived columns
+(with why each row waits, and a line for each change of status), says what waits on the user
 (`stall`), again each hour, and rewrites the one list of it (`waiting`).
 A row that ended with something left is sent to its home to close, once (`leftover`): it
 waits on that home, and on the user only where it has no home or the home did not close it.

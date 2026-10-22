@@ -27,6 +27,9 @@ A scout's request goes out on a path of its own, so research someone asks for, a
 ```
 jbus scout add <slug> < request.md
 jbus scout approve <slug> --sha <sha12> --word <id>
+jbus scout approve <slug> --sha <sha12> --answer <number>
+jbus scout approve <slug> --sha <sha12> --message <thread id>/<message id>
+jbus scout approve <slug> --sha <sha12> --page <session key>/<entry id>
 jbus scout show
 ```
 
