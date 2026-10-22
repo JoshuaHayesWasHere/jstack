@@ -49,7 +49,8 @@ They do not fall back to the defaults.
 
 `~/.config/jstack/roles` names the model each role's thread is launched on.
 It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<level>] [fast=<on|off>]`, with `#` for a comment.
-A Claude line takes `effort=low` or `effort=medium`, and a `review` line also `effort=high`. Only a Cursor line takes `fast=`.
+A Claude line takes `effort=low` or `effort=medium`, and a `review` line also `effort=high`.
+Only a Cursor line takes `fast=`.
 [jroles](../../jroles/docs/jroles.md) has every provider's levels.
 It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
 The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../../jroles/docs/jroles.md#pools)).
@@ -68,7 +69,11 @@ The instances a line names are the role's pool, in order: a launch goes to the f
 
 ## jbus
 
-`~/.config/jbus/config.toml` lists the repos `jbus` looks after. `jbus` does not run without it, and nothing else needs it. `jinstall --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`. The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read. `JBUS_CONFIG_DIR` names another directory for it.
+`~/.config/jbus/config.toml` lists the repos `jbus` looks after.
+`jbus` does not run without it, and nothing else needs it.
+`jinstall --setup` writes it once, where there is none, mode 600, with no project: `server` from the sign-in beside it when there is one, else `http://127.0.0.1:3773`, and `dispatch = false`, so nothing launches until you set it to `true`.
+The file holds a webhook's key, so its mode must be 600: `jbus` refuses a file that group or others can read.
+`JBUS_CONFIG_DIR` names another directory for it.
 
 ```toml
 server = "http://127.0.0.1:<port>"
@@ -162,7 +167,8 @@ Each instance the file declares must also be an instance of T3 Code, with the sa
 You add it in T3 Code's settings, which T3 keeps in `~/.t3/userdata/settings.json`.
 A new Claude home needs its login once: run `CLAUDE_CONFIG_DIR=~/.claude-work claude` and sign in to that account.
 
-The doctor compares each declared instance with what T3's settings list, and reads those settings only. It prints these lines:
+The doctor compares each declared instance with what T3's settings list, and reads those settings only.
+It prints these lines:
 
 | Line | Meaning |
 |---|---|

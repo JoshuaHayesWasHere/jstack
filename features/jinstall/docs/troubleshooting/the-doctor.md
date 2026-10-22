@@ -6,7 +6,10 @@ Start with the doctor. It writes nothing, and it prints one line for each thing 
 jinstall --doctor
 ```
 
-Each line is `<state> <level> <name>[ -> <detail>]`. The state is `ok`, `missing` or `old`. The level is `hard` or `optional`. `jinstall --check` prints the same lines for the parts the install puts, and the entries below serve both.
+Each line is `<state> <level> <name>[ -> <detail>]`.
+The state is `ok`, `missing` or `old`.
+The level is `hard` or `optional`.
+`jinstall --check` prints the same lines for the parts the install puts, and the entries below serve both.
 
 `jinstall --setup` walks the same needs once, in order, and mends what it can.
 It prints `done <name>` for what it wrote, `already <name>` for what was there, and `needs you <name> -> <command>` for what only you can do: run that command, then `--setup` again.
@@ -23,7 +26,8 @@ A word in angle brackets stands for a value on your machine.
 | `doctor: ok` | Every hard need is `ok`. The doctor exits 0, also when an optional line is not `ok`. | Nothing. |
 | `doctor: not ok, <n> hard` | `<n>` hard lines are not `ok`. The doctor exits 1. | Fix each `hard` line that does not start with `ok`. |
 
-`jinstall` and `jinstall --check` have no last line. They exit 1 when any line they print is not `ok`.
+`jinstall` and `jinstall --check` have no last line.
+They exit 1 when any line they print is not `ok`.
 
 ## Lines from the install itself
 
