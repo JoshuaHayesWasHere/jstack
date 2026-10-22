@@ -8,7 +8,7 @@ import json
 import pytest
 
 from jbriefs import parse
-from jbus import queue
+from jbus import dispatch, queue, scouts
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import brief
 
@@ -154,6 +154,16 @@ def test_a_request_a_home_wrote_itself_is_not_taken_over(kitchen):
     assert said.startswith("refused: scouts/alpha.md is there already and jbus did not add it")
 
 
+def test_a_request_that_cannot_be_written_leaves_no_row(kitchen):
+    (kitchen.home / "scouts").rmdir()
+    (kitchen.home / "scouts").write_text("a file, where the requests' directory goes\n")
+
+    with pytest.raises(OSError):
+        add(kitchen, "alpha")
+
+    assert scouts.load(kitchen.state) == []
+
+
 def test_approval_takes_the_word_and_the_sha_of_the_request_shown(kitchen):
     add(kitchen, "alpha")
 
@@ -199,6 +209,24 @@ def test_a_request_changed_after_its_go_does_not_launch(kitchen):
     path = kitchen.home / "scouts" / "alpha.md"
     path.write_text(path.read_text().replace("What calls X?", "What calls Y?"))
 
+    said = kitchen.poll()
+
+    assert launches(kitchen) == []
+    assert shown(kitchen)["alpha"][0] == "changed"
+    assert any(line.startswith("wait scout alpha: its request changed") for line in said)
+
+
+def test_a_request_added_again_while_the_pass_looks_for_room_does_not_launch(kitchen):
+    add(kitchen, "alpha")
+    approve(kitchen, "alpha")
+    changed = request("alpha").replace("What calls X?", "What calls Y?")
+    room = dispatch.room
+
+    def adding_meanwhile(*args, **kwargs):
+        scouts.add(kitchen.state, kitchen.home, "alpha", changed)
+        return room(*args, **kwargs)
+
+    kitchen.monkeypatch.setattr(dispatch, "room", adding_meanwhile)
     said = kitchen.poll()
 
     assert launches(kitchen) == []
