@@ -1,15 +1,15 @@
-"""`jmerge`'s fresh check takes a green marker of the merge tree it would test as its pass.
+"""`jmerge`'s fresh check treats a green marker for the tree it would test as a pass.
 
-A pull request whose check is stale is tested on its head merged over today's main. Where a
-green run of the check already ran the whole suite on that same tree, and left the marker
-`green-tree-<tree>`, the suite is not run again: the pull request merges on that run, and
-the line that says so names the tree and the run, in `merge.log` and in what jbus logs of
-the line. A marker of another tree, one a red run left, or none, is no proof, and the check
-runs as it always did.
+When a pull request's check is stale, `jmerge` merges the pull request's head over today's
+main and tests the result. A green run of the check may already have run the whole suite on
+that same tree and left the marker `green-tree-<tree>`. Then the suite does not run again,
+and the pull request merges on that run. The line that says so names the tree and the run,
+both in `merge.log` and in what jbus logs. A marker for another tree, a marker from a red
+run, or a missing marker does not count as a pass, and the check runs as before.
 
-The command is run against a real origin with a fake `gh`
-(`features/jmerge/tests/test_jmerge_fresh.py`) that also answers the API's list of artifacts
-and its runs from files."""
+The tests run the command against a real origin with a fake `gh`
+(`features/jmerge/tests/test_jmerge_fresh.py`). The fake also answers the API's list of
+artifacts and its list of runs from files."""
 
 import json
 
@@ -49,7 +49,8 @@ def tree(kitchen, head, tip):
 
 
 def marked(kitchen, of, conclusion="success"):
-    """A run of the repo's own check that left the marker of this tree and ended so."""
+    """A run of the repo's own check that left the marker of this tree and ended with
+    `conclusion`."""
     stub = kitchen.home.stub
     run = {"id": RUN, "repository_id": 1, "head_repository_id": 1}
     listed = {"artifacts": [{"name": f"green-tree-{of}", "expired": False, "workflow_run": run}]}
@@ -108,7 +109,8 @@ def test_a_skip_is_remembered_and_said_the_same_way_on_a_later_run(kitchen):
 
 
 def test_a_marker_of_another_tree_is_no_proof_and_the_check_runs(kitchen):
-    """The pull request's own check ran on its head merged over the main it had then."""
+    """The pull request's own check ran on its head merged over main as main was when the check
+    started."""
     checked = fresh.Checked(kitchen, fresh.BOTH)
     before = fresh.git(kitchen.origin, "rev-parse", "refs/heads/main~1")
     marked(kitchen, tree(kitchen, checked.head, before))
@@ -135,9 +137,10 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
 
 
 def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
-    """A pass that ran stands over a main that moved off its tests
-    (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not: its marker names the tree
-    it was taken on, and the new main makes another, which has none."""
+    """A pass that ran still counts after main gains commits that do not touch the pull
+    request's tests (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not count then.
+    A skip's marker names the tree that the skip was taken on, and the new main makes another
+    tree, which has no marker."""
     kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)
     stub = kitchen.home.stub
     (stub / "gh").write_text(fresh.GH.replace('case "$1 $2" in\n', 'case "$1 $2" in\n' + ASKED))

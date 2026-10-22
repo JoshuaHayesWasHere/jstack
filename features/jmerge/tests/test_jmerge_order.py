@@ -1,15 +1,15 @@
-"""A queue row can hold its pull request back from a merge: `jbus queue hold` takes the go
-back, and `jbus queue add --merge-after a,b` names the rows whose pull requests merge
+"""A queue row can hold its pull request back from a merge. `jbus queue hold` withdraws the
+row's go, and `jbus queue add --merge-after a,b` names the rows whose pull requests merge
 first. `jmerge` reads both from the project's `queue.json` (`jmerge.rows`).
 
-The command is run as `test_home_merge` runs it, against its fake `gh` and a real origin.
-Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed head, and the
-user's home has a jbus config whose project is this checkout.
+The tests run the command as `test_home_merge` runs it, against its fake `gh` and a real
+origin. Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed head,
+and the user's home has a jbus config whose project is this checkout.
 
-A red main is the other word the project's state has of a pull request: while jbus's
-`main.json` names a red tip (`broken`, at a tip that is not green), only the fix of that
-main, the brief `main-red-<sha12>`, merges, and every other pull request waits for a green
-one."""
+The project's state can also hold a pull request back because main is red. jbus's `main.json`
+names a red tip when its `broken` field contains a tip that is not green. While `main.json`
+names a red tip, only the fix of that main, the brief `main-red-<sha12>`, merges, and every
+other pull request waits until main is green."""
 
 import json
 
@@ -35,8 +35,8 @@ def row(slug, status="pr", pr="", **more):
 
 
 def queue_of(home, rows, more=""):
-    """The jbus config naming this checkout as a project, and that project's queue. `more` is
-    lines of the project's table, such as its migration directory."""
+    """The jbus config that names this checkout as a project, and that project's queue. `more`
+    contains lines of the project's table, such as its migration directory."""
     config = home.user / ".config" / "jbus"
     config.mkdir(parents=True, exist_ok=True)
     (config / "config.toml").write_text(
@@ -52,7 +52,8 @@ def queue_of(home, rows, more=""):
 
 @pytest.fixture
 def two(merged):
-    """`alpha` and `beta`, both reviewed clean at the pushed head and green."""
+    """Open `alpha` and `beta`, which both have a clean review at the pushed head and a green
+    check."""
     home = merged.home
     (home.tasks / "beta.md").write_text(
         merge.brief(merge.review("clean", merged.head))
@@ -182,7 +183,7 @@ def commit_migration(repo, name):
 
 def listing(home, *pulls):
     """What GitHub lists: each pull request `(number, url, branch, files, mergeable)` at the one
-    head the fake `gh` merges, a file `(path, kind)` as GitHub gives it."""
+    head that the fake `gh` merges, with each file `(path, kind)` as GitHub gives it."""
     head = (home.stub / "head").read_text().strip()
     template = json.loads((home.stub / "list.json").read_text())[0]
     listed = []
@@ -212,7 +213,7 @@ def adds(*names):
 @pytest.fixture
 def lined(merged):
     """The repo has `0004_start` on main. `alpha` (#7), `beta` (#8) and `gamma` (#9) are
-    reviewed clean and green at one head, whose tree holds the migration `alpha` adds."""
+    reviewed clean and green at one head, whose tree contains the migration that `alpha` adds."""
     home, tree = merged.home, merged.tree
     commit_migration(home.main, "0004_start")
     merge.git(home.main, "push", "-q", "origin", "main")
@@ -367,7 +368,7 @@ def test_each_wait_a_migration_gives_lands_on_its_step_and_not_in_unknown(reason
 
 
 def mark(home, number, **fields):
-    """Change one listed pull request's fields as GitHub gives them."""
+    """Change the fields of one listed pull request as GitHub gives them."""
     listed = json.loads((home.stub / "list.json").read_text())
     for one in listed:
         if one["number"] == number:
@@ -430,14 +431,16 @@ RED_LINE = f"wait 7 {merge.URL}: main is red at cccccccccccc, its fix merges fir
 
 
 def record(red="", green=""):
-    """`mainmoved`'s record of main: the tip, its check, the red tip kept and the last green."""
+    """The record that `mainmoved` keeps of main: the tip, the tip's check, the red tip that the
+    record keeps, and the last green tip."""
     if red:
         return {"main": red, "check": "failed", "broken": red, "green": green}
     return {"main": green, "check": "green", "green": green}
 
 
 def main_says(home, **word):
-    """jbus's word on the default branch's check, `main.json` beside the project's queue."""
+    """What jbus recorded about the check of the default branch, in `main.json` beside the
+    project's queue."""
     state = home.user / ".local" / "state" / "jbus" / "demo"
     state.mkdir(parents=True, exist_ok=True)
     (state / "main.json").write_text(json.dumps(record(**word)) if word else "{}")
@@ -446,8 +449,8 @@ def main_says(home, **word):
 
 @pytest.fixture
 def fix_and_other(two):
-    """`alpha` (#7) is an ordinary pull request and `beta` (#8) is the fix jbus filed for
-    the red main at `cccccccccccc`: its brief is `main-red-cccccccccccc`."""
+    """`alpha` (#7) is an ordinary pull request, and `beta` (#8) is the fix that jbus filed for
+    the red main at `cccccccccccc`, with the brief `main-red-cccccccccccc`."""
     (two.home.tasks / "beta.md").rename(two.home.tasks / f"{FIX}.md")
     queue_of(two.home, [row("alpha", pr="#7"), row(FIX, pr="#8")])
     return two

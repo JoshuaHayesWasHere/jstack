@@ -1,4 +1,4 @@
-"""The crew skill's "End": who is told, and when a thread settles or stays."""
+"""The crew skill's "End" decides whom the thread tells, and when the thread settles or stays."""
 
 import os
 import subprocess
@@ -13,7 +13,7 @@ DONE = "Status: done\nBranch: alpha   Pull request: none\nLeft: none\n"
 
 class NoPullRequest:
     """A crewmate's worktree on its own branch, in a clone whose remote has a default branch,
-    and the brief the crewmate wrote its Result into."""
+    and the brief that the crewmate wrote its Result into."""
 
     def __init__(self, tmp_path, result=DONE):
         origin = tmp_path / "origin.git"
@@ -101,8 +101,8 @@ RESUMED = "\n## Result, follow-up (2026-10-11, the word to resume)\n"
 
 
 def paused(pull="none", more=""):
-    """A brief whose crewmate paused, as `features/crew/playbooks/pause-safely.md` step 4 writes
-    its Result."""
+    """A brief whose crewmate paused, with the Result that step 4 of
+    `features/crew/playbooks/pause-safely.md` writes."""
     said = PAUSED.format(pull).replace("Status: paused", f"Status: paused{more}")
     return f'# alpha: a task\nTask: "do it"\n\n## Result\n{said}'
 

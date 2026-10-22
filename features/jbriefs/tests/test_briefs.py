@@ -201,7 +201,7 @@ RESULT_TEMPLATE = REPO / "features" / "crew" / "templates" / "result.md"
 
 
 def reported(line):
-    """The steps jbriefs reads from a Result that has `line` under its `Changed:` line."""
+    """The steps that jbriefs reads from a Result that has `line` under its `Changed:` line."""
     text = BRIEF + RESULT.replace("Changed: one file.\n", f"Changed: one file.\n{line}\n")
     (result,) = parse.brief("alpha", text).results
     return result.playbook
@@ -272,7 +272,8 @@ def test_the_last_results_playbook_line_is_its_own():
 def written(*, by_a_scout):
     """A brief in the template's shape with every field filled in, as a scout or a home writes it.
 
-    A scout's findings are filled with what a result holds, to show they are not read as one.
+    The scout's findings contain what a result contains, to show that jbriefs does not read them
+    as a result.
     """
     filled = {
         "Sources:": "Sources: https://github.com/someone/demo/pull/3, the part on retries",
@@ -428,7 +429,8 @@ def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until
 
 
 def test_a_brief_with_no_proves_it_line_is_launched_as_before_and_one_under_its_head_is_not_read():
-    """Briefs queued before the line was asked for have none: they are grandfathered."""
+    """Briefs queued before the template asked for the line have no such line, and jbus
+    launches them anyway."""
     assert parse.brief("alpha", BRIEF).proof is None
     assert parse.proven(BRIEF) == ""
     under = BRIEF + RESULT + "Proves it: reviewed by crewmate\n"
@@ -483,7 +485,7 @@ class Thread(NamedTuple):
 
 
 class Page(HTMLParser):
-    """The rendered page as a browser reads it: its links, and each thread a brief names."""
+    """The rendered page as a browser reads it: its links, and each thread that a brief names."""
 
     def __init__(self, html: str):
         super().__init__()
@@ -684,8 +686,9 @@ def test_the_templates_have_a_size_line_and_the_brief_is_refused_until_it_is_fil
 
 
 def test_every_crewmate_playbook_on_disk_is_a_name_the_parser_takes_and_no_other():
-    """A brief names a playbook a crewmate runs: not a scout's, a home's or an expert's, and
-    not `opening-a-pr`, which is the last step of every other one."""
+    """A brief may name only a playbook that a crewmate runs. That rules out a scout's, a
+    home's or an expert's playbook, and `opening-a-pr`, which is the last step of every other
+    one."""
     taken = set()
     for path in skills.listed("playbook").values():
         by = next(line for line in path.read_text().splitlines() if line.startswith("Run by: "))

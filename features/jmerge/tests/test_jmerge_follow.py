@@ -1,6 +1,7 @@
-"""A merge that changes pyproject.toml's package list reinstalls the tool uv has as an editable
-install of the main checkout, once, and says so on its `merged` line: run as
-`tests/test_home_merge.py` runs `jmerge`, against its fake `gh` and a temporary origin."""
+"""When a merge changes the package list of pyproject.toml, `jmerge` reinstalls the tool that uv
+installed, in editable mode, from the main checkout. It does so once, and says so on its
+`merged` line. The tests run `jmerge` as `tests/test_home_merge.py` runs it, against its fake
+`gh` and a temporary origin."""
 
 import json
 import shlex
@@ -25,10 +26,11 @@ LISTED = '[project]\nname = "demo-tool"\n\n[tool.hatch.build.targets.wheel]\npac
 
 
 class Tooled:
-    """A merged pull request whose checkout is a Python project, `demo-tool`, that uv has as
-    an editable tool of this checkout; its main lists the package `src/a`, and the pull
-    request's head lists `moved`. A `uv` in front of the real one keeps each `uv tool install`
-    and `uv sync` it is asked for, and runs neither."""
+    """A merged pull request whose checkout is a Python project, `demo-tool`, that uv has
+    installed as an editable tool from this checkout. Its main lists the package `src/a`, and
+    the pull request's head lists `moved`. A stand-in `uv`, found on the path before the real
+    one, records each `uv tool install` and `uv sync` that `jmerge` asks it to run, and runs
+    neither."""
 
     def __init__(self, merged, tmp_path, monkeypatch, moved):
         self.merged, self.stub = merged, merged.home.stub
@@ -103,13 +105,14 @@ LINKED = "[the install](../../install.sh)\n"
 
 
 class Skilled:
-    """A merged pull request whose checkout is a jstack checkout the machine's install was
-    made from: the Claude Code layout's `source` links to it, and the layout is as the install
-    assembles it from main, but with `stale`, which leaves out the skill's `SKILL.md`. Its main
-    has the skill `demo` at `skills/demo/`, and an `install.sh` that keeps each run and changes
-    nothing. With `moved`, the pull request's head moves the skill to `features/demo/`, and
-    changes `skills.json` as the generator would; each path of `touched` it writes a line to,
-    `more` or the text it gives, a file it adds or one it changes."""
+    """A merged pull request whose checkout is the jstack checkout that the machine's install
+    was made from. The `source` of the Claude Code layout links to it. The layout matches what
+    the install assembles from main, but with `stale` set it leaves out the skill's
+    `SKILL.md`. Its main has the skill `demo` at `skills/demo/`, and an `install.sh` that
+    records each run and changes nothing. With `moved`, the pull request's head moves the
+    skill to `features/demo/` and changes `skills.json` as the generator would. For each path
+    in `touched`, the head adds or changes a file and writes one line into it. That line is
+    `more`, or the text that `touched` gives for the path."""
 
     def __init__(self, merged, moved=False, touched=(), stale=False):
         self.merged, self.stub = merged, merged.home.stub
