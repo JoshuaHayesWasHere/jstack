@@ -1070,8 +1070,8 @@ class Read:
     def machine(self, make: Callable[[Read], Any]) -> Any:
         """What `make` gives of the machine, which is the same for every project.
 
-        The view works it out the first time that any `Read` sharing `shared` with this one
-        asks. One answer of `/stack.json` reads every project with one `shared`."""
+        Several `Read`s can share one `shared`. The view works the answer out the first time
+        any of them asks. One answer of `/stack.json` reads every project with one `shared`."""
         if make not in self._shared:
             self._shared[make] = make(self)
         return self._shared[make]
@@ -1393,11 +1393,10 @@ def summary(read: Read) -> dict[str, Any]:
     `needs` and nothing else. It also has the new noticed lines, counted apart because they
     are no wait. It has the project's open tasks by step in the order of the line, what
     merged today, and its health. The threads are the ones out, or None where the last pass
-    left no list. Blind is what the project's page cannot say now. It leaves out what the
+    left no list. `blind` is what the project's page cannot say now. It leaves out what the
     page never can say. It also leaves out a source the view could not read, because that
-    source is in unwell. Unwell is each source of the project that is not ok, except one that
-    a session writes. A source or a blind spot
-    of the machine is on no project's row."""
+    source is in `unwell`. `unwell` is each source of the project that is not ok, except one
+    that a session writes. A source or a blind spot of the machine is on no project's row."""
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]

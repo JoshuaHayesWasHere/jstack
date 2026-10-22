@@ -17,7 +17,7 @@ def a_brief(scene, slug, title, task):
 
 def needing(scene):
     """One item of each of the six kinds, over two projects, each with a time of its own:
-    a setup 7 h old, an approval with a brief and a row behind it, a question that holds, a
+    a setup 7 hours old, an approval with a brief and a row behind it, a question that holds, a
     leftover, a row at a gate of `pantry`, and a held pull request."""
     stacked(scene)
     a_brief(scene, "tea-kettle", "boil the water first", "Boil the water. Then pour it.")

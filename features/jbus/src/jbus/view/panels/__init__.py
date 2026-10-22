@@ -73,7 +73,7 @@ class Panel:
 
 def names(here: Path = HERE) -> tuple[str, ...]:
     """The name of each panel under `here` now, in order: every folder that holds the two files.
-    There is no name where the directory cannot be listed."""
+    Where the directory cannot be listed, there are no names."""
     try:
         return tuple(
             sorted(

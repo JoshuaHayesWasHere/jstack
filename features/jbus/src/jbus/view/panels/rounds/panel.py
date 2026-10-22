@@ -1,6 +1,7 @@
-"""The rounds of each task: its brief's `## Review` sections in order, each with its verdict, its
-head and its count of findings, whether the task needed a second or a scoped pass, how many
-wakes the crewmate had, and how many rebases the branch had.
+"""The rounds of each task. They are its brief's `## Review` sections in order, each with its
+verdict, its head and its count of findings. For the task as a whole, the panel also gives whether
+it needed a second or a scoped pass, how many wakes the crewmate had, and how many rebases the
+branch had.
 
 `jmerge`'s own reader, `ready.said_of`, reads the sections, and the merge goes by that reader.
 A section has no time of its own. A round has a time only where the event log has a `review`

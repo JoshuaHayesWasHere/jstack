@@ -15,9 +15,10 @@ the page makes before it passes the write on. So a test may do something first, 
 write from reaching any server. The browser opens no window under 500 pixels wide. So for the
 phone, the proxy gives it a page that has the real one in a frame of the phone's size.
 
-In place of the probe, the proxy can add axe, `AXE`. That is the engine, vendored for these tests
-alone in `fixtures/jbus-view/axe.min.js`, and `axe-run.js`. The script runs the engine over the
-view and over every drawer it opens, and measures the focus ring of everything a key reaches.
+In place of the probe, the proxy can add axe, `AXE`, which is two files. One is the engine,
+vendored for these tests alone in `fixtures/jbus-view/axe.min.js`. The other is `axe-run.js`,
+which runs the engine over the view and over every drawer it opens, and measures the focus ring
+of everything a key reaches.
 
 These tests start a browser, so each of their modules is marked `browser`: `make check` leaves
 them out, and `make check-browser` runs them, nightly and on a release. Where the directory of
