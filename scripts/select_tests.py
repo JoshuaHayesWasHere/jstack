@@ -211,8 +211,9 @@ def spelled(node):
 
 
 def read(tree):
-    """What a module's source says: the names it imports, the words of its string constants,
-    whether it imports by name, the names of its functions' arguments, and the paths it spells."""
+    """Return what this script reads from a module's tree: the names the module imports, the
+    words of its string constants, whether it imports by name, the names of its functions'
+    arguments, and the paths it spells."""
     names, words, dynamic, args, paths = set(), set(), False, set(), set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

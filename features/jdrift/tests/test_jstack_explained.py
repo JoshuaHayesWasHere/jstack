@@ -4,14 +4,13 @@ nothing from outside the page.
 The tests read the page with an HTML parser and check it against the repo itself. They check
 that the step numbers of its lead drawing run from 1 to 10. They check the rules file of each
 command against the tree. They check each attribute that loads a file against the page's own
-anchors. They compare
-none of the page's sentences with anything.
+anchors. They compare none of the page's sentences with anything.
 
 Nobody writes the cards of the skills, playbooks and principles, or the links above them, by
 hand: `python -m jdrift.explained` builds them from a card line in each file. So the tests check
 the ids of those cards against the directories on the page that `python -m jdrift.explained`
-builds from the tree. They do not
-use the committed page, which the docs sweep brings up to date and no task edits.
+builds from the tree. They do not use the committed page, which the docs sweep brings up to
+date and no task edits.
 """
 
 import re

@@ -1269,8 +1269,8 @@ def test_a_finding_outside_the_diff_is_dropped_and_counted(reviewer, findings, d
 
 
 def test_what_the_lead_set_aside_is_no_finding_to_whoever_counts_the_section(reviewer):
-    """The lead puts
-    the lines it dismissed under `Dropped:`, where the crew skill stops counting."""
+    """The lead puts the lines it dismissed under `Dropped:`, where the crew skill stops
+    counting."""
     template = REVIEW.read_text()
     labels = [line.split(":")[0] for line in template.splitlines()]
     after = labels[labels.index("Dropped") :]

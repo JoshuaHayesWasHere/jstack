@@ -411,8 +411,8 @@ def _filled(said: str) -> bool:
 
 
 def _shaped(lines: str) -> None:
-    """Return `Refused`, with what is wrong, for lines that are not one filled-in gate of the
-    template."""
+    """Raise `Refused`, with what is wrong, for lines that are not one filled-in gate of the
+    template, and return None for lines that are."""
     rows = lines.splitlines()
     if not rows or not _HEAD.match(rows[0]):
         what = "the first line is not '## Gate <n>: ' and the question"
@@ -659,10 +659,10 @@ def listed(item: dict[str, Any]) -> bool:
 
 @dataclass(frozen=True)
 class Carried:
-    """The outcome of sending one answer to its asker. `told` says the answer went, and
-    `thread` is the thread that should get the answer, if it had one. `error` is what T3 Code said
-    when it did not take the answer, and `refused` says that T3 Code answered and refused the
-    answer."""
+    """A Carried says how the send of one answer to its asker went. `told` says the answer went,
+    and `thread` is the thread that should get the answer, if it had one. `error` is what T3 Code
+    said when it did not take the answer, and `refused` says that T3 Code answered and refused
+    the answer."""
 
     message: str = ""
     thread: str = ""

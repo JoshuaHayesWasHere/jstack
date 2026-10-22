@@ -30,9 +30,9 @@ does (`dispatch.mirrored`). For that pass it skips an instance that is not mirro
 with no other instance left gets nothing and waits for a later pass. A replay skips the
 check.
 
-`failover` moves a thread only on a cap, and the move is final. It never moves a thread back
-once the old instance is free, since each move is a handoff that loses context. A thread
-moves again only when its new instance caps.
+`failover` moves a thread only on a cap, and the thread stays on its new instance until that
+instance caps. `failover` never moves a thread back once the old instance is free, since each
+move is a handoff that loses context.
 
 `movers` picks the threads of the project that failed and are not settled. It finds a crew
 (`crew: `), a reviewer (`review: `) or a scout (`scout: `) by the thread's title. It also

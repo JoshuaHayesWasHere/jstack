@@ -144,7 +144,7 @@ def _widen(log: Path) -> None:
 
 
 def _prune(log: Path, now: int) -> None:
-    """Write the log again with only the rows of the last 29 days (`PRUNED_TO_DAYS`). The
+    """Write the log again with only the rows of the last `PRUNED_TO_DAYS` days. The
     function picks the rows by their time and not by their place in the file. After the clock
     goes back, the log still keeps every row it should."""
     since = now - PRUNED_TO_DAYS * DAY
@@ -314,8 +314,8 @@ def _peaks(rows: list[list[str]], at: dict[str, int]) -> list[str]:
 def _stalls(start: int, until: int) -> str:
     """What jbus recorded in the span as a held-up thread or row. These are its `stall`
     events, the threads it woke from a wait for a test slot, and the rows its gate held back
-    because they had no room. The report also counts the threads that waited over 5 minutes
-    (`STALL_MINUTES`)."""
+    because they had no room. The report also counts the threads that waited over
+    `STALL_MINUTES` minutes."""
     stalls = waits = timed = long = longest = rooms = 0
     files = sorted(jbus_state().glob("*/events.jsonl"))
     for path in files:
