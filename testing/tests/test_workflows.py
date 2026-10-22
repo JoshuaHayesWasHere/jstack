@@ -117,10 +117,8 @@ def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_a_train_an
 def worked(expression, values):
     """What an expression gives with these values for the names in it, worked out here.
 
-    It reads `&&`, `||`, `==`, `!=`, a string in single quotes, and `!cancelled()`, which is true:
-    the run it works out is one nobody cancelled.
+    It reads `&&`, `||`, `==`, `!=` and a string in single quotes.
     """
-    expression = expression.replace("!cancelled()", "True")
     for name in sorted(values, key=len, reverse=True):
         expression = expression.replace(name, repr(values[name]))
     return eval(expression.replace("&&", " and ").replace("||", " or "), {"__builtins__": {}})
@@ -623,10 +621,13 @@ def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_
     time, on 4 workers under a quota of 4 CPUs."""
     found, _ = steps(CHECK.read_text(), "full")
     (summary,) = [step for step in found if step.get("name") == "suite summary"]
-    assert [o for o in OUTCOMES if worked(summary["if"], {"steps.suite.outcome": o})] == [
+    ran = {"!cancelled()": True}
+    assert [o for o in OUTCOMES if worked(summary["if"], ran | {"steps.suite.outcome": o})] == [
         "success",
         "failure",
     ]
+    cancelled = {"!cancelled()": False}
+    assert not any(worked(summary["if"], cancelled | {"steps.suite.outcome": o}) for o in OUTCOMES)
     assert summary["continue-on-error"] is True
     bin = tmp_path / "bin"
     bin.mkdir()
