@@ -1,10 +1,12 @@
-"""`jmerge` judges a pull request's green against what main changed since its check started:
-its own files and CI's (`features/jmerge/tests/test_jmerge_fresh.py`), and since pstack #613
-a caller of its files or something they depend on, in files it does not change. Such a pull
-request waits for a fresh check, which runs the repo's command on the head merged over
-today's main and merges on a pass.
+"""`jmerge` judges a pull request's passing check against what main changed since the check
+started. A change to main counts when it touches the pull request's files or CI's files
+(`features/jmerge/tests/test_jmerge_fresh.py`). Since pstack #613, a change to main also counts
+when it adds a caller of those files, or of something they depend on, in a file that the pull
+request does not change. Such a pull request waits for a fresh check. The check runs the repo's
+command on the head merged over today's main, and the pull request merges when the check passes.
 
-The command is run against a real origin, as in `features/jmerge/tests/test_jmerge_fresh.py`."""
+The tests run the command against a real origin, as
+`features/jmerge/tests/test_jmerge_fresh.py` does."""
 
 import pytest
 
@@ -44,7 +46,8 @@ def test_main_changing_what_a_changed_file_depends_on_makes_its_check_stale(kitc
 
 
 def test_main_adding_a_caller_of_the_module_a_rename_left_makes_its_check_stale(kitchen):
-    """A rename is the change most likely to break a caller: one of the old module counts."""
+    """A rename is the change most likely to break a caller, so a caller of the old module
+    counts."""
     kitchen.crew("two", 7, {"src/pkg/core.py": None, "src/pkg/engine.py": CORE}, renamed=True)
     (kitchen.home.stub / "left-7").write_text("src/pkg/core.py\n")
     kitchen.pulls["two"] |= {
@@ -70,9 +73,10 @@ def test_main_changing_only_unrelated_files_leaves_the_check_standing(kitchen):
 
 
 def test_the_fresh_check_runs_on_the_merge_result_and_catches_a_caller_main_added(kitchen):
-    """The patch renames f, main adds a caller of f: each passes alone, the merge breaks.
-    The fresh check runs on the merge, fails, and the pull request waits. Once the patch
-    keeps a name the caller can call, the check passes over the same main and it merges."""
+    """The patch renames f, and main adds a caller of f. Each passes alone, and the merge
+    breaks. The fresh check runs on the merge, fails, and the pull request waits. Once the
+    patch keeps a name that the caller can call, the check passes over the same main and the
+    pull request merges."""
     (kitchen.home.state / "fresh-check").write_text("python3 check.py\n")
     kitchen.on_main({"check.py": IMPORT})
     tree = kitchen.tmp / "trees" / "two"

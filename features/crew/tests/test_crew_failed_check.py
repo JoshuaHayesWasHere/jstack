@@ -1,4 +1,5 @@
-"""The crew skill's "A failed check": the change's own, a stale base, or a flake."""
+"""The crew skill's "A failed check" tells the change's own failure from a stale base or a
+flake."""
 
 import re
 
@@ -9,8 +10,9 @@ from testing.paths import REPO
 
 
 def in_the_template(line):
-    """Whether a line a block printed is the template's line of that label, with each of the
-    template's `<...>` filled in and its note of when the line is there left off."""
+    """Whether a line that a block printed is the template's line of that label. The block must
+    fill in each of the template's `<...>`, and must leave off the template's note of when the
+    line appears."""
     template = (REPO / "features" / "crew" / "templates" / "result.md").read_text()
     (written,) = [text for text in template.splitlines() if text.split()[0] == line.split()[0]]
     shape, holes = written.split("   <")[0], 1

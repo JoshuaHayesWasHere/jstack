@@ -1,4 +1,4 @@
-"""The crew skill's "A conflict": when a default branch that moved is rebased onto."""
+"""The crew skill's "A conflict": when a crewmate rebases onto a default branch that moved."""
 
 import os
 import subprocess
@@ -82,7 +82,8 @@ def test_a_conflict_that_does_not_resolve_is_reported_and_then_its_changes_are(t
 
 
 def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
-    """Nothing refuses a rebased head, so neither waits: the second pass reviews what it gets."""
+    """Nothing refuses a rebased head, so neither the rebase nor the second pass waits, and the
+    second pass reviews the head it is given."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     saw = pr.head()
     pr.commit(pr.work, "wider.txt", "the fix\n", "the fix")
@@ -129,16 +130,18 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
 
 
 def main_adds(pr, other, name):
-    """Main lands a file, as a pull request that took the next migration number would."""
+    """A commit on main adds a file, as a pull request that took the next migration number
+    would."""
     pr.commit(other, name, "theirs\n", f"main adds {name}")
     git(other, "push", "-q", "origin", "HEAD:main")
     return git(other, "rev-parse", "HEAD")
 
 
 def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_path):
-    """Upstream's cap: past merge prep, trunk forcing a third rebase is held and reported.
-    The block counts the rebases it made after the `Fixed:` line, writes the stop line in
-    place of the third, and `jmerge` reads that line for the head it holds."""
+    """This test covers upstream's cap on rebases. Past merge prep, when a change on trunk
+    forces a third rebase, the block does not make it and reports it instead. The block
+    counts the rebases it made after the `Fixed:` line and writes the stop line instead of
+    making the third, and `jmerge` reads that line for the head it holds."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)
@@ -183,9 +186,10 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
 
 
 def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path):
-    """A migration whose number main took is rebased with the block run with `stale`, which is
-    what the `renumber` message of `expedite` says to run: GitHub reports no conflict, and each
-    such rebase after the `Fixed:` line is counted, so the third is held and `jmerge` waits."""
+    """When main has taken a migration's number, the crewmate rebases by running the block with
+    `stale`, as the `renumber` message of `expedite` says to. GitHub reports no conflict. The
+    block counts each such rebase after the `Fixed:` line, so it stops at the third rebase,
+    and `jmerge` waits."""
     pr = PullRequest(tmp_path, "MERGEABLE", "0005_other.up.sql")
     asked(pr, "MERGEABLE")
     state = tmp_path / "home"
@@ -210,7 +214,8 @@ def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path)
 
 
 def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):
-    """A follow-up with no `Fixed:` line of its own counts its rebases, and holds the third."""
+    """A follow-up with no `Fixed:` line of its own counts its rebases, and stops before it
+    makes the third."""
     pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)
@@ -240,8 +245,8 @@ def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_
 def test_a_rebase_that_wrote_no_line_is_one_jmerge_carries_the_review_over(
     main_edits, fixed, tmp_path
 ):
-    """The Result is as it was before the rebase: no `Rebase:` line, and a `Fixed:` line
-    that names the commit it named then."""
+    """The Result is as it was before the rebase: no `Rebase:` line, and a `Fixed:` line that
+    names the commit it named then."""
     pr = PullRequest(tmp_path, "CONFLICTING", main_edits)
     saw = pr.head()
     pr.commit(pr.work, "mine.txt", "the task\n", "more of the task")

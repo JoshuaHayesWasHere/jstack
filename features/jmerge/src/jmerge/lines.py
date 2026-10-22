@@ -1,9 +1,10 @@
-"""The lines `jmerge` prints about a pull request, and the one parser of them.
+"""The lines that `jmerge` prints about a pull request, and the one parser of them.
 
 `jmerge` prints each line with a formatter here (`waits`, `merged`, `ready`), and jbus reads
-them back with `parse`, or `one` for a single line, so a printer and its reader cannot drift
-apart. A line with no number after its word, such as `wait: could not ask GitHub`, is about
-no pull request, and `parse` skips it.
+the lines back with `parse`, or with `one` for a single line. So the format that `jmerge`
+prints and the format that jbus parses come from one module and always match. A line with
+no number after its word, such as `wait: could not ask GitHub`, is about no pull request,
+and `parse` skips it.
 """
 
 from __future__ import annotations
@@ -22,12 +23,12 @@ GATE_OK = "gate: ok"
 
 @dataclass(frozen=True)
 class Line:
-    """A line `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
+    """A line that `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
 
-    `word` is `merged`, `wait` or `hold`, or the `refused` of an accept. `name` is the word
-    after the number, the pull request's URL or the merged slug with no comma after it,
-    and `reason` is what follows its colon. A line with no name has neither, and one with
-    no colon has no reason.
+    `word` is `merged`, `wait` or `hold`, or `refused` when `jmerge` refuses an accept.
+    `name` is the word after the number. It is the pull request's URL, or the merged slug
+    without the comma that follows it. `reason` is what follows the colon. A line with no
+    name has neither a `name` nor a `reason`, and a line with no colon has no `reason`.
     """
 
     word: Word
@@ -37,7 +38,8 @@ class Line:
 
 
 def one(text: str) -> Line | None:
-    """The `Line` a line of `jmerge` is, or nothing where it is not about a pull request."""
+    """The `Line` parsed from one line of `jmerge`'s output, or None when the line is not about
+    a pull request."""
     found = LINE.match(text.strip())
     if not found:
         return None
@@ -54,18 +56,21 @@ def parse(text: str) -> list[Line]:
 
 
 def waits(verb: Literal["wait", "hold"], number: int, url: str, why: str) -> str:
-    """The line of a pull request that does not merge on this run, and why."""
+    """The line for a pull request that does not merge on this run, with the reason it does not
+    merge."""
     return f"{verb} {number} {url}: {why}"
 
 
 def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str], url: str) -> str:
-    """The line of a pull request this run merged, with how to revert it last."""
+    """The line for a pull request that this run merged, with the command that reverts the merge
+    at the end of the line."""
     revert = f"revert: gh pr revert {shlex.quote(url)}"
     return ", ".join([f'merged {number} {slug} {commit} "{title}"', *notes, revert])
 
 
 def ready(number: int, head: str, branch: str, slug: str, notes: Sequence[str]) -> str:
-    """The line of a pull request that `--check` finds would merge, with what it notes."""
+    """The line of a pull request that `--check` finds ready to merge, with the notes that
+    `--check` adds."""
     return ", ".join([f"ready {number} {head} {branch} {slug}", *filter(None, notes)])
 
 
@@ -80,13 +85,14 @@ UNFOLLOWED = re.compile(
 
 
 def reinstalled(tool: str, main: object) -> str:
-    """The note of a merge after which the tool was installed again from the main checkout."""
+    """The note of a merge after which `jmerge` installed the tool again from the main checkout."""
     return f"reinstalled the tool {tool} from {main}: its package list changed"
 
 
 def not_reinstalled(tool: str, why: str) -> str:
-    """The note of a merge that moved a package of the tool, which could not be installed
-    again: every command of it may fail on an import until it is."""
+    """The note of a merge that moved a package of the tool, after which `jmerge` could not
+    install the tool again. Every command of the tool may fail on an import until someone
+    installs it again."""
     return NOT_REINSTALLED.format(tool=tool, why=why)
 
 
@@ -97,11 +103,12 @@ def installed(main: object) -> str:
 
 def not_installed(why: str) -> str:
     """The note of a merge that changed what the install assembles, after which the install
-    failed: a skill it moved or removed may be linked to a file that is gone until it runs."""
+    failed. Until the install runs again, a skill that the merge moved or removed may be
+    linked to a file that no longer exists."""
     return NOT_INSTALLED.format(why=why)
 
 
 def unfollowed(text: str) -> str:
-    """The `not_reinstalled` and `not_installed` notes of a `merged` line, or nothing where
-    it has neither."""
+    """The `not_reinstalled` and `not_installed` notes of a `merged` line, or an empty string
+    when the line has neither note."""
     return "; ".join(found[0] for found in UNFOLLOWED.finditer(text))
