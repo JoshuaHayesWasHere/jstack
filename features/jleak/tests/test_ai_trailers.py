@@ -118,6 +118,7 @@ def test_codex_gives_the_same_input_and_is_refused_the_same_way():
         f"git commit -m 'feat: a thing' -m '{HUMAN}'",
         f"git commit -m 'feat: pair with Jane' --trailer '{HUMAN}'",
         "git commit -m 'docs: say why Claude Code reads the settings'",
+        "git commit -m 'docs: drop the Generated with Claude Code footer from pull request bodies'",
         f"gh pr create --title 'feat: a thing' --body 'a body\n\n{HUMAN}'",
         f"echo '{CLAUDE}'",
         f"gh pr view 12 --json body | grep '{CLAUDE}'",
@@ -201,6 +202,7 @@ def test_the_git_hook_takes_out_every_line_and_names_each(repo):
         "no newline at the end",
         "trailing spaces   \n\n\n",
         "docs: why Claude Code reads the co-authored-by line\n",
+        "docs: drop the Generated with Claude Code footer\n\nIt said Generated with Claude Code.\n",
     ],
 )
 def test_the_git_hook_leaves_a_clean_message_byte_for_byte(tmp_path, message):
