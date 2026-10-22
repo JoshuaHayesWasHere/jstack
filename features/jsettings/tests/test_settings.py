@@ -153,7 +153,7 @@ def test_with_no_file_a_word_is_users_at_a_time_of_the_machines_zone_and_approve
     assert kitchen.main("queue", "approve", "alpha", "--word", kept, "--sha", sha)[0] == 0
     ran = jsettings.DEFAULTS.stamp(NOW)
     assert rows(kitchen)["alpha"]["approved"] == (
-        f"his word, {at} (time typed); run {ran} by the demo home"
+        f"your word, {at} (time typed); run {ran} by the demo home"
     )
     kitchen.poll()
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]

@@ -18,7 +18,7 @@ KEY, ENTRY = "27362329dd06edc4", "send-3"
 REF = f"{KEY}/{ENTRY}"
 PAGE = "/home/user/.local/state/home/demo/reports/grill-demo.html"
 PICKED_AT = "2026-10-12 10:30 ET"
-PICKED = f"his pick on a Lavish page, {PICKED_AT}, grill-demo.html; run {RAN} by the demo home"
+PICKED = f"your pick on a Lavish page, {PICKED_AT}, grill-demo.html; run {RAN} by the demo home"
 PICKS = "1. Ship it: as recommended\n2. Order: as recommended"
 
 

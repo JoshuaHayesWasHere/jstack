@@ -25,7 +25,7 @@ function wordRow(w, hit) {
   var rests = w.rests && wordEntry(w.rests);
   return h + taskBtn(w.slug) + ' ' + (w.basis ? '<span class="chip plain">' + esc(w.basis === "rule" ? "by rule " + w.ref : "by " + w.basis) + '</span>' : gap("no record")) +
     (w.basis ? '<br><span class="tag">Rests on</span> &quot;' + esc(w.words) + '&quot;' + (rests ? " " + openBtn("words:" + w.rests, "see it") : "") +
-      '<br><span class="src">' + (w.basis === "rule" ? "A follow-up of " + esc(w.follows) + "; he did not speak of this row" : w.basis === "page" ? esc(picked(w).replace(/^y/, "Y")) : "Said " + esc(whenSaid(w.said_at)) + (w.said_in ? " in " + esc(w.said_in) : "") + (w.checked ? "" : " (time typed)")) + '. Run ' + esc(whenSaid(w.ran_at)) + ' by ' + esc(w.who) + '.</span>'
+      '<br><span class="src">' + (w.basis === "rule" ? "A follow-up of " + esc(w.follows) + "; you did not speak of this row" : w.basis === "page" ? esc(picked(w).replace(/^y/, "Y")) : "Said " + esc(whenSaid(w.said_at)) + (w.said_in ? " in " + esc(w.said_in) : "") + (w.checked ? "" : " (time typed)")) + '. Run ' + esc(whenSaid(w.ran_at)) + ' by ' + esc(w.who) + '.</span>'
       : '<br>' + esc(w.line) + (w.words ? '<br><span class="src">The row holds &quot;' + esc(w.words) + '&quot;.</span>' : "")) + '</li>';
 }
 function dWords(arg) {

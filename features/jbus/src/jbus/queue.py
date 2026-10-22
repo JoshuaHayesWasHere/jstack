@@ -257,13 +257,13 @@ class Approval:
     def line(self) -> str:
         if self.basis == RULE:
             parent = f"rule {self.ref}, follow-up of {self.follows}"
-            return f"{parent}; run {self.ran_at} by {self.who()}; he did not speak of this row"
+            return f"{parent}; run {self.ran_at} by {self.who()}; you did not speak of this row"
         ran = f"run {self.ran_at} by {self.who()}"
         if self.basis == PAGE:
-            return f"his pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
+            return f"your pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
         typed = "" if self.checked else " (time typed)"
         where = f", in {self.said_in}" if self.said_in else ""
-        return f"his word, {self.said_at}{typed}{where}; {ran}"
+        return f"your word, {self.said_at}{typed}{where}; {ran}"
 
 
 def record(row: Row) -> Approval | None:
@@ -646,7 +646,7 @@ def _parent(batch: _Batch, slug: str, follows: str) -> None:
     if behind:
         raise Refused(
             f"{cannot} {follows}: {', '.join(behind)} follow {slug}, and a chain is one step: "
-            f"take his word for {slug}"
+            f"take the user's word for {slug}"
         )
     row = next((row for row in batch.rows if row["slug"] == follows), None)
     here = row is not None
@@ -661,8 +661,8 @@ def _parent(batch: _Batch, slug: str, follows: str) -> None:
     if made and made.basis == RULE:
         raise Refused(
             f"{cannot} {follows}: {follows} was approved by rule {made.ref} as a follow-up of "
-            f"{made.follows}, and a chain is one step: follow {made.follows}, or take his word "
-            f"for {slug}"
+            f"{made.follows}, and a chain is one step: follow {made.follows}, or take the user's "
+            f"word for {slug}"
         )
     if not row.get("approved"):
         raise Refused(f"{cannot} {follows}: {follows} has no approval")

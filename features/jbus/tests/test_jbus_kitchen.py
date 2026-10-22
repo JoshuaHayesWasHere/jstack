@@ -49,7 +49,7 @@ SELECTION = {
 }
 SAID, SAID_AT, RAN = "said-by-user", "2026-10-11 17:58 ET", "2026-10-12 11:00 ET"
 SESSION = "a-home-session"
-GO = f"his word, {SAID_AT} (time typed); run {RAN} by the demo home"
+GO = f"your word, {SAID_AT} (time typed); run {RAN} by the demo home"
 
 
 def iso(moment):
