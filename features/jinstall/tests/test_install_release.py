@@ -1,7 +1,7 @@
-"""A release: the wheel `uv build` makes from this checkout, installed as `uv tool install`
-does with no checkout above it, and `jinstall` run from it under a HOME of the test's own. It
-assembles each harness's layout from the source tree the wheel carries, as `install.sh` does
-from a checkout (`test_install`)."""
+"""A release: the wheel that `uv build` makes from this checkout, installed as
+`uv tool install` installs it, with no checkout above it. The tests run `jinstall` from it,
+under a HOME of the test's own. It assembles each harness's layout from the source tree that
+the wheel carries, as `install.sh` does from a checkout (`test_install`)."""
 
 import functools
 import http.server
@@ -54,9 +54,10 @@ def wheel(tmp_path_factory):
 
 
 class Release:
-    """A release: the wheel `uv build` makes from this checkout, as `uv tool install <wheel>`
-    leaves it in a tool directory of its own under the test's temporary directory, so no
-    checkout of jstack is on any parent path of the tool, its source or the HOME it runs under."""
+    """A release: the wheel that `uv build` makes from this checkout, as
+    `uv tool install <wheel>` leaves it. It sits in a tool directory of its own under the
+    test's temporary directory. So no checkout of jstack is on any parent path of the tool,
+    of its source, or of the HOME it runs under."""
 
     def __init__(self, root, wheel):
         self.root, self.tools, self.bin = root, root / "tools", root / "bin"
@@ -131,7 +132,8 @@ def test_with_no_checkout_above_it_a_release_reads_its_playbooks_and_skills_from
 
 
 def release_parts(home, source):
-    """The line of each part a release puts, after its state: each layout's, then the rest."""
+    """The line of each part that a release puts, after its state: each layout's line, then
+    the rest."""
     settings = home / ".claude" / "settings.json"
     names = layout.skills(source)
     return [
@@ -260,7 +262,7 @@ def test_a_releases_outbound_hook_checks_a_push_on_the_tools_own_python_with_no_
 
 @pytest.fixture(scope="module")
 def dist(tmp_path_factory):
-    """What a release's assets are: `make dist` into a directory of the test's own."""
+    """A release's assets, which `make dist` writes into a directory of the test's own."""
     out = tmp_path_factory.mktemp("assets") / "dist"
     made = subprocess.run(
         ["make", "-s", "-C", str(REPO), "dist", f"DIST={out}"], capture_output=True, text=True
@@ -271,7 +273,7 @@ def dist(tmp_path_factory):
 
 @pytest.fixture
 def served(tmp_path):
-    """A web server for a directory, standing in for GitHub's release downloads."""
+    """A web server for a directory, in place of GitHub's release downloads."""
     root = tmp_path / "served"
     root.mkdir()
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(root))

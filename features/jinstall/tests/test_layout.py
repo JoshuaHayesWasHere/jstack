@@ -1,6 +1,7 @@
 """`jinstall.layout`: each harness's layout, as the install assembles it from a source tree.
-Each test assembles from this checkout, or from a copy of its files that the test changes, and
-places the layout where it reads it as an agent does."""
+Each test assembles a layout from this checkout, or from a copy of its files that the test
+changes. The test then places the layout where an agent reads it, and reads it as the agent
+does."""
 
 import importlib
 import json
