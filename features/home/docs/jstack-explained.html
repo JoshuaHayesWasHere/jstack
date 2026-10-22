@@ -347,20 +347,20 @@
 <li class="step op"><b><span class="n">3</span>The queue and the approval</b><small>The brief waits as a row of the queue. The operator approves that exact brief, named by its sha.</small><span class="chip op">the operator</span></li>
 <li class="step cmd"><b><span class="n">4</span>Launch</b><small><code>jbus</code> launches an approved row once its <code>depends</code> are merged and <code>jgauge room</code> prints <code>go</code>.</small><span class="chip cmd">a command, no model</span></li>
 <li class="step model"><b><span class="n">5</span>The worktree</b><small>A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook.</small><span class="chip model">a model: the crewmate</span></li>
-<li class="step cmd"><b><span class="n">6</span>The check</b><small>The repo's check command runs once in full under a test slot, and CI runs it again on the pull request the crewmate opens.</small><span class="chip cmd">a command, no model</span></li>
-<li class="step model"><b><span class="n">7</span>The review</b><small>A reviewer in a fresh thread: two readers who do not see each other, a lead, and one safety fact proven by running code.</small><span class="chip model">a model: the reviewer</span></li>
+<li class="step cmd"><b><span class="n">6</span>The check</b><small>The repo's check command runs once, under a test slot. CI runs the repo's checks on the pull request the crewmate opens, and <code>jmerge</code> waits for the check named <code>check</code>, or for the checks the repo lists in <code>required-checks</code>.</small><span class="chip cmd">a command, no model</span></li>
+<li class="step model"><b><span class="n">7</span>The review</b><small>One fresh thread per pull request, with no reviewer subagents: it reads the diff itself, judges what it found, and proves one safety fact by running code. It fixes nothing.</small><span class="chip model">a model: the reviewer</span></li>
 <li class="step model"><b><span class="n">8</span>The findings</b><small>The crewmate ends every finding with a <code>Finding:</code> line, fixed or not fixed and why, then writes one <code>Fixed:</code> line.</small><span class="chip model">a model: the crewmate</span></li>
-<li class="step cmd"><b><span class="n">9</span><code>jmerge</code></b><small>Merges what is reviewed, fixed and green at the head that was checked. For the rest it prints <code>wait</code> or <code>hold</code> and the reason.</small><span class="chip cmd">a command, no model</span></li>
+<li class="step cmd"><b><span class="n">9</span><code>jmerge</code></b><small>Merges what is reviewed, fixed and green at the head that was checked. For the rest it prints <code>wait</code> or <code>hold</code> and the reason. <code>jbus</code> runs it on each pass, or a home runs it while <code>home-thread</code> holds that home's id.</small><span class="chip cmd">a command, no model</span></li>
 <li class="step cmd"><b><span class="n">10</span>The sweep</b><small><code>jmerge --sweep</code> removes the worktree and the branches a finished thread left, and prints what it kept and why.</small><span class="chip cmd">a command, no model</span></li>
 </ol>
 <div class="aside">
   <div class="box plain"><span class="tag">before step 2, sometimes</span><b>A scout goes first</b><small>When the home cannot write the brief from what it knows, a scout reads the code and the docs and writes down what it found. The home itself never reads the code.</small></div>
-  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>A thread that meets a question only the operator can answer takes a default, carries on, and parks the question in <code>gates.md</code>.</small></div>
+  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>A thread that meets a question only the operator can answer takes a default, carries on, and parks the question with <code>jbus gate</code>, which numbers it until the operator answers.</small></div>
   <div class="box plain"><span class="tag">at step 9, rarely</span><b>A hold</b><small>A pull request that touches a protected path is never merged by a plain <code>jmerge</code>. It is the operator's to accept.</small></div>
 </div>
 <details>
   <summary>With a home thread and no queue</summary>
-  <p>A repo can run with a home thread, with <code>jbus</code> and its queue, or with both. With a home thread alone, steps 3 and 4 happen in the thread: the operator says yes to the plan entry there, and the home launches the crewmate itself after <code>jgauge room</code> prints <code>go</code>. With <code>jbus</code> alone, nothing is launched that is not an approved row of the queue.</p>
+  <p>A repo can run with a home thread, with <code>jbus</code> and its queue, or with both. With a home thread alone, steps 3 and 4 happen in the thread: the operator says yes to the plan entry there, and the home launches the crewmate itself after <code>jgauge room</code> prints <code>go</code>. With <code>jbus</code> alone, nothing is launched that is not an approved row of the queue. A release install writes a <code>jbus</code> config with <code>dispatch = false</code>, so <code>jbus</code> launches nothing until the operator sets it up.</p>
 </details>
 <details>
   <summary>The same task, file by file and message by message</summary>
@@ -370,16 +370,16 @@
 
 <section id="first-day">
 <h2>How to use it: your first day</h2>
-<p class="lead">Three things to do, then watch.</p>
+<p class="lead">Three things to do, then choose who merges.</p>
 <ol class="track four">
-  <li class="step op"><b><span class="n">1</span>Start a home</b><small>Open a thread in the repo's main checkout, or type <code>/home</code>.</small><span class="chip plain">back: where things stand</span></li>
+  <li class="step op"><b><span class="n">1</span>Start a home</b><small>In T3 Code, type <code>/new-home &lt;path&gt;</code> with the path of the repo's main checkout. Once that home ends, the next thread you open in the project becomes the home by itself, or you type <code>/home</code> in one.</small><span class="chip plain">back: where things stand</span></li>
   <li class="step op"><b><span class="n">2</span>Plan one task</b><small>Say what you want. The home asks until the shape is settled.</small><span class="chip plain">back: a plan entry and its brief</span></li>
   <li class="step op"><b><span class="n">3</span>Approve it</b><small>Read the brief and say yes.</small><span class="chip plain">back: a crewmate you can watch and steer</span></li>
-  <li class="step cmd"><b><span class="n">4</span>Watch it merge</b><small>Nothing to do: build, review, fixes and merge run by themselves.</small><span class="chip plain">back: one <code>merged</code> line</span></li>
+  <li class="step cmd"><b><span class="n">4</span>Merge it</b><small>Build, review and fixes run by themselves, and nothing merges until you choose who runs <code>jmerge</code>. Run it in the main checkout, or let the <code>jbus</code> timer run it on each pass, or put one home's id in <code>home-thread</code>.</small><span class="chip plain">back: one <code>merged</code> line</span></li>
 </ol>
 <details>
   <summary>Before the first day</summary>
-  <p>Install once: sync the Python project, run <code>install.sh</code> to link the skills, wire the two hooks, and put the commands on <code>PATH</code>. The README's Install section has each step.</p>
+  <p>Install once. The README's Quickstart gives the <code>curl</code> line that fetches the latest release's <code>install.sh</code> and pipes it to <code>sh</code>. The script installs <code>uv</code> where it is missing, installs the nine commands as the <code>uv</code> tool <code>jstack</code>, and runs <code>jinstall --setup</code>. That links the skills for Claude Code, Codex and Cursor, adds the hooks, and prints a <code>needs you</code> line for each thing only you can do, such as <code>gh auth login</code>. Run <code>jinstall --setup</code> again until no such line is left, then <code>jinstall --check</code>.</p>
 </details>
 <details>
   <summary>Ending the day</summary>
@@ -393,7 +393,7 @@
 <div class="cards">
   <article class="card op"><h4 class="t">An approval</h4><p>A brief is ready, or it changed after your go, or an approved task depends on one you have not approved.</p><p class="when">You give: a yes to that exact brief.</p></article>
   <article class="card op"><h4 class="t">A gate</h4><p>A thread met a question only you can answer. It took a default and carried on. The home shows open gates at its start, on a status request, and when the planned work is done.</p><p class="when">You give: keep the default, or change it.</p></article>
-  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;your name&gt; --at "&lt;date and time&gt;"</code>. Add <code>--check</code> to see what it would do. It is refused without the review's proven safety fact.</p></article>
+  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "&lt;date and time&gt;"</code>, where <code>&lt;user&gt;</code> is the <code>user</code> of your jstack config. Add <code>--check</code> to see what it would do. It is refused without the review's proven safety fact.</p></article>
 </div>
 <details>
   <summary>If the operator is away</summary>
@@ -416,7 +416,7 @@
 
 <section id="skills">
 <h2>Skills</h2>
-<p class="lead">A text a thread loads by name and follows. Seven groups, by what they are for.</p>
+<p class="lead">A text a thread loads by name and follows. Seven groups, by what they are for. Some names, such as <code>poteto-help</code> and <code>setup-pstack</code>, come from pstack, the agent skills by Lauren Tan for Cursor that jstack takes its principles from.</p>
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
@@ -454,7 +454,7 @@
 <!-- built: end -->
 </div></div>
 </div>
-<div class="group"><h3>Run the pipeline <small>Seven skills make a thread a role. Each is the full text of what that thread does.</small></h3><div class="cards">
+<div class="group"><h3>Run the pipeline <small>Five make a thread a role: <code>home</code>, <code>crew</code>, <code>scout</code>, the reviewer of <code>pr-review</code>, and <code>expert</code>. Each is the full text of what that thread does. The others close a home, set one up or switch it off, answer a help question, set up the machine, and make a bot's page.</small></h3><div class="cards">
 <!-- built: skill cards, Run the pipeline -->
 <article class="card" id="skill-home"><h4>/home</h4><p>Makes this thread the repo's home. It reads the last home's note and what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work.</p><p class="when">Reach for it when you start or continue work in a repo.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">the start hook</span></div></article>
 <article class="card" id="skill-crew"><h4>/crew</h4><p>Makes a thread a crewmate. It does the one task of one brief in its own worktree, opens the pull request, writes its Result into the brief and stays on the pull request.</p><p class="when">Reach for it when a brief is written and approved. It is typed as <code>/crew &lt;slug&gt;</code>.</p><div class="who"><span class="chip model">a home</span><span class="chip cmd">jbus</span></div></article>
@@ -666,6 +666,7 @@
 <!-- built: end -->
 </div>
 <p class="sub">Work on jstack itself</p>
+<p class="lead after">To change jstack, start with <code>CONTRIBUTING.md</code> at the root of its repo: it says how to set up a checkout, run the checks, and open a pull request.</p>
 <div class="cards">
 <!-- built: playbook cards, Work on jstack itself -->
 <article class="card" id="playbook-authoring-a-playbook"><h4>authoring-a-playbook</h4><p>For: Writing a new file in <code>playbooks/</code>, when a kind of task comes back and no playbook covers it.</p></article>
@@ -705,16 +706,16 @@
   <li class="step cmd"><b><span class="n">4</span>Launch</b><small><code>jbus</code> <code>jgauge room</code></small></li>
   <li class="step cmd"><b><span class="n">9</span>Merge</b><small><code>jmerge</code></small></li>
   <li class="step cmd"><b><span class="n">10</span>Sweep</b><small><code>jmerge --sweep</code></small></li>
-  <li class="step plainstep"><b>Off the path</b><small><code>jroles</code> <code>jdrift</code> <code>jbriefs</code></small></li>
+  <li class="step plainstep"><b>Off the path</b><small><code>jroles</code> <code>jdrift</code> <code>jbriefs</code> <code>jinstall</code> <code>jleak</code> <code>jpack</code></small></li>
 </ol>
 <div class="cards wide">
-<article class="card cmd" id="command-jmerge"><h4>jmerge <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether an open pull request merges, waits or is held.</dd><dt>Rules in</dt><dd><code>features/jmerge/src/jmerge/ready.py</code></dd><dt>Run by</dt><dd>the home, or <code>jbus</code> when no home is listening</dd></dl><details><summary>What ready means</summary><ul><li>A brief names the pull request, and its base is the default branch.</li><li>The review is written, every finding has its <code>Finding:</code> line and the Result has its <code>Fixed:</code> line.</li><li>The check named <code>check</code> passed at the head, and that green still covers today's default branch.</li><li>A rebase kept every line.</li><li>A protected path (secrets, keys) is a hold. A guarded path (the workflows, <code>skills/</code>, the merge rules themselves) merges only with the review's proven safety fact.</li></ul></details></article>
-<article class="card cmd" id="command-jbus"><h4>jbus <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which approved rows of the queue launch on this pass, and what is told to whom. It makes no judgment call: what no rule covers becomes one <code>gate</code> line.</dd><dt>Rules in</dt><dd><code>features/jbus/src/jbus/dispatch.py</code></dd><dt>Run by</dt><dd>a timer, one pass a minute</dd></dl><details><summary>One pass</summary><ul><li>Runs <code>jmerge</code> when the home is off.</li><li>Reads the briefs, the scout requests and <code>gates.md</code>, and makes one event for each new Result, Review, Report and gate.</li><li>Asks for the threads and the pull requests, and ties each crewmate to its thread.</li><li>Launches the approved rows, lowest priority number first.</li><li>Says what waits on the operator, and sends what it found to the project's webhook.</li></ul></details></article>
+<article class="card cmd" id="command-jmerge"><h4>jmerge <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether an open pull request merges, waits or is held.</dd><dt>Rules in</dt><dd><code>features/jmerge/src/jmerge/ready.py</code></dd><dt>Run by</dt><dd><code>jbus</code> on each pass, or a home while <code>home-thread</code> holds its id, or the operator by hand</dd></dl><details><summary>What ready means</summary><ul><li>A brief names the pull request, and its base is the default branch.</li><li>The review is written, every finding has its <code>Finding:</code> line and the Result has its <code>Fixed:</code> line.</li><li>The check named <code>check</code>, or each check the repo's <code>required-checks</code> file lists, passed at the head, and that green still covers today's default branch.</li><li>A rebase kept every line.</li><li>A protected path (secrets, keys, the merge rules' own lists) is a hold. A guarded path merges only with the review's proven safety fact, and <code>guarded.txt</code> lists none.</li></ul></details></article>
+<article class="card cmd" id="command-jbus"><h4>jbus <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which approved rows of the queue launch on this pass, and what is told to whom. It makes no judgment call: what no rule covers becomes one <code>gate</code> line.</dd><dt>Rules in</dt><dd><code>features/jbus/src/jbus/dispatch.py</code></dd><dt>Run by</dt><dd>a timer, one pass a minute</dd></dl><details><summary>One pass</summary><ul><li>Runs <code>jmerge</code>, unless <code>home-thread</code> holds a home's id.</li><li>Reads the briefs and the scout requests, and makes one event for each new Result, Review, Report and gate.</li><li>Asks for the threads and the pull requests, and ties each crewmate to its thread.</li><li>Launches the approved rows, lowest priority number first.</li><li>Says what waits on the operator, and sends what it found to the project's webhook.</li></ul></details></article>
 <article class="card cmd" id="command-jgauge-room"><h4>jgauge room <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether the machine and the plan have room for one more thread. It prints <code>go</code>, or <code>wait:</code> and the first reading with no room.</dd><dt>Rules in</dt><dd><code>features/jgauge/src/jgauge/room.sh</code></dd><dt>Run by</dt><dd>the home before a launch, a crewmate before a review, <code>jbus</code> before each launch</dd></dl><details><summary>The readings</summary><ul><li>CPU pressure, the share of the last minute something waited for a core, and the one-minute load against the cores as a backstop.</li><li>The memory available, and memory pressure.</li><li>The plan's five-hour and weekly limits.</li><li>A machine reading it cannot read is a <code>wait</code>. A plan limit it cannot read stops nothing.</li></ul></details></article>
 <article class="card cmd" id="command-jroles"><h4>jroles <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which model a launched thread of a role runs on: <code>crew</code>, <code>scout</code>, <code>review</code> or <code>home</code>. With no line for the role, the launch inherits its launcher's model.</dd><dt>Rules in</dt><dd><code>features/jroles/src/jroles/cli.py</code></dd><dt>Run by</dt><dd>any thread, before it launches one of that role</dd></dl><details><summary>The role map</summary><ul><li>One line a role in the operator's <code>jstack/roles</code> config file: <code>&lt;role&gt;: &lt;provider&gt; &lt;model&gt;</code>.</li><li><code>&lt;role&gt;: inherit</code> is the same as no line.</li><li>A map it cannot use is said on stderr, and the launch inherits.</li></ul></details></article>
-<article class="card cmd" id="command-jdrift"><h4>jdrift <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which of the files taken from the upstream skill stack are <code>same</code>, <code>changed</code> or <code>gone</code> since the pinned commit, and which upstream files are <code>new</code>.</dd><dt>Rules in</dt><dd><code>features/jdrift/src/jdrift/cli.py</code></dd><dt>Run by</dt><dd>the operator, as <code>make pstack-drift</code></dd></dl><details><summary>What it reads</summary><ul><li>The pin and the map of taken files are in <code>THIRD_PARTY.md</code>.</li><li>It changes nothing in the repo, and no model reads anything.</li></ul></details></article>
+<article class="card cmd" id="command-jdrift"><h4>jdrift <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which of the files taken from the upstream skill stack are <code>same</code>, <code>changed</code> or <code>gone</code> since the pinned commit, and which upstream files are <code>new</code>.</dd><dt>Rules in</dt><dd><code>features/jdrift/src/jdrift/cli.py</code></dd><dt>Run by</dt><dd>whoever works on jstack, as <code>make pstack-drift</code> in a checkout</dd></dl><details><summary>What it reads</summary><ul><li>The pin and the map of taken files are in <code>THIRD_PARTY.md</code>.</li><li>It changes nothing in the repo, and no model reads anything.</li></ul></details></article>
 </div>
-<p class="lead after"><code>jbriefs</code> is the sixth command. It decides nothing: it prints every brief of every home on one page.</p>
+<p class="lead after">Four more commands decide nothing on the path. <code>jbriefs</code> writes every brief of every home on one page. <code>jinstall</code> installs, checks and removes jstack. <code>jleak</code> refuses a push or a pull request that leaks what must stay private, and keeps AI co-author trailers out of commits. <code>jpack</code> checks a context pack. The README's Reference links a page for each of the nine.</p>
 </section>
 
 <section id="mindset">

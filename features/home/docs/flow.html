@@ -139,8 +139,8 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>features/home/hooks/home-start.sh</code>, which prints <code>features/home/templates/hook-message.md</code>. Runs steps 12 and 13 once, then reports in six lines.</small></div><i class="ar b"></i></div>
-      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;notes.md</b><small>read</small></div><div class="box file"><b>home-thread</b><small>written: this thread's id</small></div></div>
+      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>features/home/hooks/home-start.sh</code>, which prints <code>features/home/templates/hook-message.md</code>. Writes its thread id into <code>home-id</code>, runs steps 12 and 13 once, then reports in six lines.</small></div><i class="ar b"></i></div>
+      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;notes.md</b><small>read</small></div><div class="box file"><b>home-id</b><small>written: this thread's id</small></div><div class="box file"><b>home-thread</b><small>read: the merge switch, which only you write</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -168,7 +168,7 @@
 
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">4</span>Brief and launch</b><small>Launches when the machine has room. A file another brief names never stops a launch: <code>jmerge --claims</code> names the overlap, and the second to merge rebases. <code>t3_thread_launch</code>: a new thread in a new worktree, with the message <code>/crew &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the brief, shaped as <code>features/jbriefs/templates/brief.md</code>, then its <code>Thread:</code> line</small></div><div class="box file"><b>plan.md</b><small>the entry says <code>with crewmate</code></small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the brief, shaped as <code>features/jbriefs/templates/brief.md</code>, then its <code>Thread:</code> line</small></div><div class="box file"><b>the jbus queue</b><small>a row for the brief, in jbus's own state, by <code>jbus queue add --entry &lt;entry&gt;</code>. <code>plan.md</code> gets no status: <code>jbus plan</code> counts it from the rows.</small></div><i class="ar r"></i></div>
       <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>Reads the brief and <code>notes.md</code>, nothing else. Then the playbook the brief's <code>Playbook:</code> line names, such as <code>features/crew/playbooks/bug-fix.md</code>.</small></div></div>
       <div class="cell g"></div>
     </div>
@@ -181,8 +181,8 @@
     </div>
 
     <div class="row rev">
-      <div class="cell h"><div class="box plain"><b>Park the gate</b><small>Numbers it and shows the open gates at its start, on status, and when the planned work is done.</small></div><i class="ar l"></i></div>
-      <div class="cell s"><div class="box file"><b>gates.md</b><small>written by the home only</small></div><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: gate</b><small>then the lines of <code>features/home/templates/gates.md</code>, filled in</small></div><i class="ar l"></i></div>
+      <div class="cell h"><div class="box plain"><b>Show the gate</b><small>Reads the open gates from <code>jbus</code> and shows them at its start, on status, and when the planned work is done.</small></div><i class="ar l"></i></div>
+      <div class="cell s"><div class="box"><b><code>jbus gate &lt;slug&gt;</code></b><small>the lines of <code>features/home/templates/gates.md</code>, filled in. <code>jbus</code> numbers the question and keeps it until you answer.</small></div><div class="box msg"><span class="tag">Message, only with no jbus</span><b>&lt;slug&gt;: gate</b><small>then the same lines, to the home</small></div><i class="ar l"></i></div>
       <div class="cell c"><div class="box plain"><b>A question only you can answer</b><small>Takes a default and carries on. A scout does the same.</small></div></div>
       <div class="cell g"></div>
     </div>
@@ -197,7 +197,7 @@
     <div class="row rev">
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Result</code>, shaped as <code>features/crew/templates/result.md</code></small></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">8</span>Write the Result</b><small>No message: the home hears of a pull request once, at step 11. No watch is armed, and the turn ends.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">8</span>Write the Result</b><small>No message: the home hears of a pull request at step 11 at most. No watch is armed, and the turn ends.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -224,27 +224,27 @@
 
     <div class="row rev">
       <div class="cell h"></div>
-      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>Second reviewer:</code> and a second <code>## Review</code></small></div><i class="ar l"></i></div>
-      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>A second pass, and the last</b><small>Only when the fix changed a file no finding named. The message is <code>/pr-review run &lt;slug&gt; again</code>.</small></div></div>
+      <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>Second reviewer:</code>, or <code>Scoped reviewer:</code>, and a second <code>## Review</code></small></div><i class="ar l"></i></div>
+      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>A second pass, and the last</b><small>Under <code>Review: twice</code>, a second review of the fixed head, unless the fix round wrote <code>Fixed: none needed</code>. The message is <code>/pr-review run &lt;slug&gt; again</code>. Under <code>Review: review</code>, a scoped pass of the fix alone, only when the fix changed a file outside <code>tests/</code>.</small></div></div>
       <div class="cell g"></div>
     </div>
 
     <div class="row rev">
       <div class="cell h"><div class="box plain"><b>Woken by the message</b><small>It runs no watch and polls nothing.</small></div><i class="ar l"></i></div>
       <div class="cell s"><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</b></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green, and only while a home merges. While <code>jbus</code> merges, nothing is sent.</small></div></div>
       <div class="cell g"></div>
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">12</span>Merge</b><small><code>jmerge --home &lt;threadId&gt;</code>, with no model. It merges what is reviewed, fixed and green, and prints <code>wait</code> and the reason for the rest. The home tells you.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>plan.md</b><small>the entry says <code>done</code></small></div><div class="box file"><b>merge.log</b><small>what was merged, dated</small></div></div>
+      <div class="cell h"><div class="box"><b><span class="n">12</span>Merge</b><small><code>jmerge</code>, with no model, run by <code>jbus</code> on each pass. While <code>home-thread</code> holds this home's id, <code>jbus</code> runs none, and the home runs <code>jmerge --home &lt;threadId&gt;</code> on the <code>fixed and green</code> line. It merges what is reviewed, fixed and green, and prints <code>wait</code> and the reason for the rest. The home tells you.</small></div><i class="ar r"></i></div>
+      <div class="cell s"><div class="box file"><b>merge.log</b><small>what was merged, dated. No plan entry is changed.</small></div></div>
       <div class="cell c"><div class="box plain"><b>Worktree and branches removed</b><small>By <code>jmerge</code>, when clean. T3 Code settles the thread when its linked pull request merges.</small></div></div>
       <div class="cell g"><div class="box"><b>Merged</b><small>A squash, at the exact head that was checked.</small></div></div>
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small><code>jmerge --sweep</code>, once at each start. It removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
+      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small><code>jmerge --sweep</code>, once at each start, while the home merges. It removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>merge.log</b><small>what was swept, dated</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
@@ -252,7 +252,7 @@
 
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">14</span><code>/handoff</code></b><small>Files what was learned, launches the next home with <code>/home &lt;seed&gt;</code>, the seed shaped as <code>features/home/templates/handoff-seed.md</code>, then renames and settles itself.</small></div><i class="ar r"></i></div>
-      <div class="cell s"><div class="box file"><b>handoff.md</b><small>shaped as <code>features/home/templates/handoff.md</code>, ending in <code>Was home:</code>. The old one moves to <code>log/</code>.</small></div><div class="box file"><b>home-thread</b><small>removed</small></div></div>
+      <div class="cell s"><div class="box file"><b>handoff.md</b><small>shaped as <code>features/home/templates/handoff.md</code>, ending in <code>Was home:</code>. The old one moves to <code>log/</code>.</small></div><div class="box file"><b>home-id</b><small>removed. <code>home-thread</code> is left as it is.</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -266,11 +266,11 @@
   <table>
     <thead><tr><th>The message</th><th>From, to</th><th>Sent when</th></tr></thead>
     <tbody>
-      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The home merges on it.</td></tr>
+      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. Sent only while a home merges, and the home merges on it.</td></tr>
       <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to its home</td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It waits for your word.</td></tr>
       <tr><td>The task ended with no pull request</td><td>Crewmate, to its home</td><td>Its Result names none. At most five lines.</td></tr>
       <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end. Once more only if a page's feedback changed the report.</td></tr>
-      <tr><td><code>&lt;slug&gt;: gate</code></td><td>Crewmate or scout, to its home</td><td>It took a default on a question only you can answer, and carried on.</td></tr>
+      <tr><td><code>&lt;slug&gt;: gate</code></td><td>Crewmate or scout, to its home</td><td>It took a default on a question only you can answer, and carried on, on a machine with no <code>jbus</code>. With <code>jbus</code>, the gate goes to <code>jbus gate</code> and no message is sent.</td></tr>
       <tr><td>A review's findings</td><td>Reviewer, to the crewmate</td><td>After its one run. To the home only when the brief has no <code>Thread:</code> line.</td></tr>
     </tbody>
   </table>
@@ -290,7 +290,7 @@
       <tr><td><code>features/scout/templates/scout-request.md</code></td><td>3</td><td>Home</td><td><code>scouts/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>features/scout/templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
       <tr><td><code>features/jbriefs/templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
-      <tr><td><code>features/home/templates/gates.md</code></td><td>6</td><td>The thread that asks, then the home</td><td>A gate, as it is sent and as the home keeps it in <code>gates.md</code></td></tr>
+      <tr><td><code>features/home/templates/gates.md</code></td><td>6</td><td>The thread that asks</td><td>A gate, as <code>jbus gate</code> takes it</td></tr>
       <tr><td><code>features/pr-review/templates/pr-body.md</code></td><td>7</td><td>Crewmate</td><td>The pull request's body</td></tr>
       <tr><td><code>features/crew/templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
       <tr><td><code>features/skill-library/templates/skill-artifacts.md</code></td><td>8</td><td>Crewmate, and a scout</td><td>The artifact each name on a <code>Skills:</code> line leaves under <code>Skills run:</code> in the Result or the Report</td></tr>
@@ -307,21 +307,21 @@
 
 <section>
   <h2>The root home and a scoped home</h2>
-  <p class="lead">A repo has one root home, and may have scoped homes beside it, each for one goal. Briefs, requests and notes are shared. A handoff, a plan and the gates are a home's own.</p>
+  <p class="lead">A repo has one root home, and may have scoped homes beside it, each for one goal. Briefs, requests and notes are shared. A handoff and a plan are a home's own, and <code>jbus</code> keeps each home's gates.</p>
   <div class="dirs">
     <h3>~/.local/state/home/&lt;repo&gt;/</h3>
     <p class="who">The repo's directory, shared by every home of the repo</p>
-    <div class="files"><code>notes.md</code><code>tasks/&lt;slug&gt;.md</code><code>scouts/&lt;slug&gt;.md</code><code>reports/</code><code>merge.log</code><code>off</code></div>
+    <div class="files"><code>notes.md</code><code>tasks/&lt;slug&gt;.md</code><code>scouts/&lt;slug&gt;.md</code><code>reports/</code><code>merge.log</code><code>off</code><code>home-thread</code><code>required-checks</code></div>
     <div class="own">
       <div>
         <h3>./</h3>
         <p class="who">The root home's own. Started with <code>/home</code>, or by the hook.</p>
-        <div class="files"><code>handoff.md</code><code>plan.md</code><code>gates.md</code><code>home-thread</code><code>log/</code></div>
+        <div class="files"><code>handoff.md</code><code>plan.md</code><code>home-id</code><code>log/</code></div>
       </div>
       <div>
         <h3>&lt;scope&gt;/</h3>
         <p class="who">A scoped home's own. Started with <code>/home &lt;scope&gt;</code>.</p>
-        <div class="files"><code>handoff.md</code><code>plan.md</code><code>gates.md</code><code>home-thread</code><code>log/</code></div>
+        <div class="files"><code>handoff.md</code><code>plan.md</code><code>home-id</code><code>log/</code></div>
       </div>
     </div>
   </div>
@@ -329,7 +329,7 @@
     <li>Only the root home makes a scope, and only on your word.</li>
     <li>No home writes another home's directory.</li>
     <li>A scoped home's slugs and branches start with its prefix.</li>
-    <li>Each home merges its own pull requests. <code>jmerge --all</code> takes the others too, on your word.</li>
+    <li><code>jbus</code> runs <code>jmerge</code> as the root home, so it merges no scoped home's pull request. While <code>home-thread</code> holds a home's id, that home merges its own instead. <code>jmerge --all</code> takes the other homes' pull requests too, on your word.</li>
     <li>Homes do not message each other, but for a decision that crosses scopes.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
     <li>A scoped home whose plan has no open entry closes at its handoff: no next home is started.</li>
@@ -339,23 +339,24 @@
 
 <section>
   <h2><code>jmerge</code>: the merge, with no model</h2>
-  <p class="lead">One command does the merge, the sweep and the launch check. The home runs it and relays what it printed.</p>
+  <p class="lead">One command does the merge, the sweep and the launch check. <code>jbus</code> runs the merge on each pass. While <code>home-thread</code> holds a home's id, that home runs it instead and relays what it printed.</p>
   <table>
     <thead><tr><th>Run as</th><th>When</th><th>Prints</th><th>Changes</th></tr></thead>
     <tbody>
-      <tr><td><code>jmerge --home &lt;threadId&gt;</code></td><td>On a <code>fixed and green</code> message, on status, at a home's start</td><td><code>merged</code> or <code>wait</code> and the reason, one line per open pull request</td><td>Merges, pulls the main checkout, removes the worktree and both branches, sets the plan entry to done</td></tr>
+      <tr><td><code>jmerge</code></td><td>Each <code>jbus</code> pass, or by hand in the main checkout</td><td><code>merged</code>, <code>wait</code> or <code>hold</code> and the reason, one line per open pull request</td><td>Merges, pulls the main checkout, removes the worktree and both branches. It writes no plan.</td></tr>
+      <tr><td><code>jmerge --home &lt;threadId&gt;</code></td><td>While <code>home-thread</code> holds that home's id: on a <code>fixed and green</code> message, on status, at the home's start</td><td>As the first row, for that home's pull requests</td><td>As the first row</td></tr>
       <tr><td><code>jmerge --check</code></td><td>To see what is ready</td><td><code>ready</code> in place of merging</td><td>Nothing</td></tr>
       <tr><td><code>jmerge --all</code></td><td>Only on your word</td><td>As the first row</td><td>Merges the pull requests of the repo's other homes too</td></tr>
       <tr><td><code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "YYYY-MM-DD HH:MM &lt;zone&gt;"</code></td><td>Only on your word, for a pull request it holds</td><td><code>accepted</code>, then as the first row, or <code>refused</code> and the reason</td><td>Merges that pull request at the head the hold was said at, when its review proved its safety fact there</td></tr>
       <tr><td><code>jmerge --land &lt;name&gt;</code></td><td>Only on your word, for a stack</td><td>As the first row</td><td>Merges the pull requests of that stack too, each once its base is the default branch</td></tr>
-      <tr><td><code>jmerge --sweep</code></td><td>Once at a home's start, after the merge</td><td><code>removed</code> or <code>kept</code> and the reason</td><td>Removes the worktree, the branches and the gate's ref of each finished thread whose work is all merged or pushed</td></tr>
+      <tr><td><code>jmerge --sweep</code></td><td>Once at a home's start, after the merge, while that home merges</td><td><code>removed</code> or <code>kept</code> and the reason</td><td>Removes the worktree, the branches and the gate's ref of each finished thread whose work is all merged or pushed</td></tr>
       <tr><td><code>jmerge --sweep --check</code></td><td>To see both lists</td><td><code>removable</code> in place of <code>removed</code></td><td>Nothing</td></tr>
       <tr><td><code>jmerge --claims</code></td><td>Before every launch</td><td>One line per brief that still holds files, across the homes of the repo</td><td>Nothing</td></tr>
       <tr><td><code>jmerge --scope &lt;slug&gt;</code></td><td>Before a pull request opens, and in its review</td><td>Each changed file the brief's <code>Where:</code> does not cover</td><td>Nothing</td></tr>
       <tr><td><code>jmerge --checks [&lt;pr&gt;]</code></td><td>On each wake about a pull request's checks, and before a review is launched</td><td>Its checks in one line: <code>passed</code>, <code>failed</code>, <code>wait</code> or <code>unrun</code></td><td>Nothing</td></tr>
     </tbody>
   </table>
-  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, its findings are handled (<code>Fixed:</code>), a wider fix has had its second pass, the check named <code>check</code> has passed at its head, that check covers today's main, and GitHub says the pull request can merge. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
+  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, its findings are handled (<code>Fixed:</code>), a wider fix has had its second pass, the check named <code>check</code>, or each check the repo's <code>required-checks</code> file lists, has passed at its head, that check covers today's main, and GitHub says the pull request can merge. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
 </section>
 
 <section>
