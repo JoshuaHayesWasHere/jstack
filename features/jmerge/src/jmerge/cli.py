@@ -1525,7 +1525,7 @@ class Sweep:
 
 
 def _job(repo: str, job: str) -> dict:
-    """A job as GitHub gives it, or {} where GitHub gives none."""
+    """A job as GitHub gives it, or an empty dict where GitHub gives none."""
     given = _run(Path.cwd(), "gh", "api", f"repos/{repo}/actions/jobs/{job}")
     try:
         found = json.loads(given.stdout) if not given.returncode else {}

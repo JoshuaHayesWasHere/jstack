@@ -1,9 +1,9 @@
 """A project's integration branches are the branches that its state's `integration` file
 names, one to a line. `jmerge` merges a pull request into one of them as it merges one into
-the default branch. It judges whether the pull request's check is stale and whether the
-branch is red against that branch, and squashes the pull request into it. The pull request
-that lands an integration branch on the default branch merges with a merge commit, and
-`jmerge` keeps the branch. With no such file, `jmerge` holds a pull request into another
+the default branch. It judges against that branch whether the pull request's check is stale
+and whether the branch is red, and it squashes the pull request into that branch. The pull
+request that lands an integration branch on the default branch merges with a merge commit,
+and `jmerge` keeps the branch. With no such file, `jmerge` holds a pull request into another
 branch, as before (`tests/test_home_merge.py`).
 
 The tests run the command against a real origin and a fake `gh` whose merge goes into the

@@ -29,14 +29,14 @@ is in such a replaced section keeps its id and counts for nothing (`Finding.supe
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
 <reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from before
-the ids answered. `triage` gives such answers, in order, to the findings that have no bucket
-and no answer by id, as the crew's count matched them. Only an **Act on** finding blocks a
-merge. A finding from before the buckets blocks too, as every finding did then, and so does a
-finding on one of `RISKS`, whatever its bucket. A decline of a blocking finding counts only
-when its reason cites a `path:line`, a command in backticks, or a gate that the Result names
-(`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier finding. A
-decline of a finding on one of `RISKS` counts only on a gate, which asks the user with the
-default "fix it". Severity is a field and decides nothing.
+the ids answered. Some findings have no bucket and no answer by id. `triage` gives the answers
+with no id to those findings in order, as the crew's count matched them. Only an **Act on**
+finding blocks a merge. A finding from before the buckets blocks too, as every finding did
+then, and so does a finding on one of `RISKS`, whatever its bucket. A decline of a blocking
+finding counts only when its reason cites a `path:line`, a command in backticks, or a gate
+that the Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gave for
+an earlier finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks
+the user with the default "fix it". Severity is a field and decides nothing.
 
 The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
 declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the

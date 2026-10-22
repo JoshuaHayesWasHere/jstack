@@ -26,9 +26,9 @@ class Line:
     """A line that `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
 
     `word` is `merged`, `wait` or `hold`, or `refused` when `jmerge` refuses an accept.
-    `name` is the word after the number, which is the pull request's URL or the merged slug
-    with no comma after it. `reason` is what follows the colon. A line with no name has
-    neither field, and a line with no colon has no reason.
+    `name` is the word after the number. It is the pull request's URL, or the merged slug
+    without the comma that follows it. `reason` is what follows the colon. A line with no
+    name has neither a `name` nor a `reason`, and a line with no colon has no `reason`.
     """
 
     word: Word

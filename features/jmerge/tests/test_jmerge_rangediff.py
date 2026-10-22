@@ -653,8 +653,8 @@ def mains(path):
 class Shaped:
     """The shape of Winnifred #154: two directories of many files, a pull request that adds a
     line to each, and a main that added one to each since. The rebase kept every line of
-    both, except for main's lines that `edits` then changes, by editing a line in place or
-    by removing it."""
+    both. The exception is main's lines that `edits` changes after the rebase, by editing a
+    line in place or by removing it."""
 
     def __init__(self, proven_merged, edits):
         main, tree = proven_merged.home.main, proven_merged.tree
@@ -895,7 +895,7 @@ def test_a_ci_fix_that_changed_the_content_waits_for_one_scoped_review(proven_me
 def test_a_push_no_review_saw_and_no_line_names_waits_for_a_scoped_review(
     proven_merged, rules, line
 ):
-    """It is no rebase, because the head adds a commit to the ones the review saw."""
+    """The push is not a rebase, because the head adds a commit to the ones the review saw."""
     fix = CiFix(proven_merged, {15: "what the check asked for"}, line=line)
     assert guarded.jmerge(proven_merged, rules) == [fix.waits()]
     assert guarded.merges(proven_merged) == []

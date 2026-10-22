@@ -6,9 +6,10 @@ The tests run the command as `test_home_merge` runs it, against its fake `gh` an
 origin. Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed head,
 and the user's home has a jbus config whose project is this checkout.
 
-The project's state can also hold a pull request back because main is red. jbus's
-`main.json` names a red tip when its `broken` field holds a tip that is not green. While it
-does, only the fix of that main, the brief `main-red-<sha12>`, merges, and every other pull
+The project's state can also hold a pull request back because main is red. jbus's `main.json`
+names a red tip when its `broken` field holds a tip that is not green. While `main.json` names
+a red tip, only the fix of that main, the brief `main-red-<sha12>`, merges, and every other
+pull
 request waits until main is green."""
 
 import json

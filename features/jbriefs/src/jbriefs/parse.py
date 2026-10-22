@@ -411,9 +411,9 @@ def check_command(notes: str) -> str:
 def check_asked(text: str, notes: str) -> str:
     """One line on why a brief's `Done when:` asks for the wrong check, or nothing.
 
-    The notes name the repo's check command on a `Check command:` line. A `Done when:` item
-    that asks for a bare `make check`, while that command is another one, sends a crewmate
-    to run the full suite instead.
+    The notes name the repo's check command on a `Check command:` line. When that command is
+    not a bare `make check`, a `Done when:` item that asks for a bare `make check` sends a
+    crewmate to run the full suite instead of the named command.
     """
     command = check_command(notes)
     if not command or _BARE_CHECK.fullmatch(command):
@@ -573,9 +573,9 @@ def faults(text: str) -> list[str]:
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
     filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their own checks.
     Those checks report a missing line, and for `Skills` the check reports instead that a
-    brief with no line names no skill. A brief with no fault is complete. The check runs when
-    a row is first queued and not again at a launch, so a brief that already has a go
-    launches without it (`jbus.queue`).
+    brief with no line names no skill. A brief with no fault is complete. This check runs
+    when a row is first queued and does not run again at a launch, so a brief that already
+    has a go launches without being checked again (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []

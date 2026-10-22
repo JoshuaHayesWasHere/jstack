@@ -19,9 +19,9 @@ every row, so a slug that starts with `FIX` is a fix. A file that is missing or 
 means nothing is known, and `jmerge` then merges as it did before. When a pass of `tell` has
 not yet sent its message, it keeps the record's commit so that the next pass looks at that
 commit again. It also adds `fixed`, the green tip (`owed`). So a main that turns green while
-T3 Code cannot be reached is green here at once. A pass whose message `rebase.held` kept back
-does the same. Older records, written before the file kept `broken`, name a failed tip only by
-its `check`, and that tip is red too.
+T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's
+message, that pass does the same. Older records, written before the file kept `broken`, name a
+failed tip only by its `check`, and that tip is red too.
 """
 
 from __future__ import annotations

@@ -139,8 +139,8 @@ class Overlap(PullRequest):
         asked(self, "CONFLICTING")
 
     def resolve(self, text):
-        """Rebase, resolve the conflict in the one file that the rebase stops on as the crewmate
-        would, and return the head before the rebase."""
+        """Rebase, and resolve the conflict as the crewmate would. The conflict is in the one file
+        that the rebase stops on. Return the head from before the rebase."""
         before = self.head()
         assert stays(self, "mergeable") == [STOPPED, "shared.txt"]
         (self.work / "shared.txt").write_text(text)

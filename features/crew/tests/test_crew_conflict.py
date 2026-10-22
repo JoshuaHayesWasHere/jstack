@@ -130,17 +130,17 @@ def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
 
 
 def main_adds(pr, other, name):
-    """Main lands a file, as a pull request that took the next migration number would."""
+    """Main lands a file, as a pull request would that took the next migration number."""
     pr.commit(other, name, "theirs\n", f"main adds {name}")
     git(other, "push", "-q", "origin", "HEAD:main")
     return git(other, "rev-parse", "HEAD")
 
 
 def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_path):
-    """This test covers upstream's cap on rebases. Past merge prep, when trunk forces a third
-    rebase, the block holds that rebase and reports it. The block counts the rebases it made
-    after the `Fixed:` line, writes the stop line instead of making the third, and `jmerge`
-    reads that line for the head it holds."""
+    """This test covers upstream's cap on rebases. Past merge prep, when a change on trunk
+    forces a third rebase, the block does not make it and reports it instead. The block
+    counts the rebases it made after the `Fixed:` line and writes the stop line instead of
+    making the third, and `jmerge` reads that line for the head it holds."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)

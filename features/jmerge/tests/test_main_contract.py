@@ -3,8 +3,8 @@
 
 1. Each formatter's line parses back to the fields it was given, for every reason that
    `ready` names, and `merge.step` puts each reason on the step that declares it.
-2. A table of records gives the `Main` that a reader acts on. Every record that the real
-   `mainmoved.tell` writes, over every order of events that the red-main model walks, is a
+2. A table of records gives the `Main` that a reader acts on. Over every order of events
+   that the red-main model walks, every record that the real `mainmoved.tell` writes is a
    `Record`.
 3. A real `jmerge` that could not ask GitHub prints a line that is about no pull request,
    and a jbus pass reports it as a `jmerge` that did not run.

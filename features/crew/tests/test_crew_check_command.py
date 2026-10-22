@@ -189,9 +189,9 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
     """When every slot is taken, the blocks register the thread in the file, and the thread's
-    turn ends with the one line. jbus wakes the thread later because the file lists it. The
-    lanes are the 4 full and 3 short slots that a machine with 24 processors and 62 GiB
-    gets, whatever `TEST_SLOTS` the machine sets."""
+    turn ends after the blocks print their one line. jbus wakes the thread later because the
+    file lists it. The lanes are the 4 full and 3 short slots that a machine with 24
+    processors and 62 GiB gets, whatever `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))

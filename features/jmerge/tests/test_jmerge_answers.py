@@ -3,8 +3,8 @@ where a `Second pass:` or `Scoped review:` line says that the fix still needs a 
 tests run through `ready.short_of`, the reader that the merge goes by, over briefs as the
 skills write them.
 
-The first three are the briefs that the review-determinism-risks scout reproduced, which
-`short_of` called ready before this change."""
+The first three tests use the briefs that the review-determinism-risks scout reproduced.
+Before this change, `short_of` called those briefs ready."""
 
 import pytest
 

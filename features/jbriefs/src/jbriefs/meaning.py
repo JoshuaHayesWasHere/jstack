@@ -92,7 +92,8 @@ Meaning = list[list]
 
 
 def tokens(line: str) -> Line:
-    """A line's tokens, sorted: the exact ones marked with `EXACT`, the words bare."""
+    """A line's tokens, sorted. The exact tokens carry an `EXACT` mark, and the other words
+    carry none."""
     found = [EXACT + span.strip() for span in _SPAN.findall(line)]
     line = _SPAN.sub(" ", line)
     found += [EXACT + url.rstrip(".,;:*") for url in _URL.findall(line)]
@@ -111,7 +112,7 @@ def tokens(line: str) -> Line:
 
 
 def _lines(lines: list[str]) -> list[str]:
-    """A field's lines as the lines it means: one for each item, or all of it as one."""
+    """The lines of a field: one line for each list item, or the whole field as one line."""
     items: list[str] = []
     text: list[str] = []
     for line in lines:

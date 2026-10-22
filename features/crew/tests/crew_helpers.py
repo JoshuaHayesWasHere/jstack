@@ -466,8 +466,9 @@ STOPPED = "the rebase stopped: resolve these, then git rebase --continue"
 
 
 def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh"):
-    """What a block of "Stay on the pull request" prints in a crewmate's worktree, with the
-    slug filled in, the home's state beside it, and `stale` given where the test gives it."""
+    """What a block of "Stay on the pull request" prints in a crewmate's worktree. The test
+    fills in the slug, puts the home's state beside the worktree, and passes `stale` where
+    the test gives it."""
     state = state or pr.stub.parent / "home"
     (state / "tasks").mkdir(parents=True, exist_ok=True)
     if brief is not None:

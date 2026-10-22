@@ -92,8 +92,8 @@ SEATS = "Reviewer: mcp:sonnet-a #1\nReviewer: mcp:sonnet-b #2\n"
 
 def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
     """Two Sonnet reviewers write the same model and effort, so the number tells them apart.
-    A brief with only one numbered review waits, and a brief with both passes (question 38:
-    `jmerge` once read two Cursor reviews as one)."""
+    A brief with only one numbered review waits, and a brief with both numbered reviews
+    passes. Question 38 records that `jmerge` once read two Cursor reviews as one."""
     one = RESULT + SEATS + section(f"{SONNET} #1", "clean")
     assert ready.short_of(one, SAW) == ready.NO_VERDICT
     both = one + section(f"{SONNET} #2", "clean")

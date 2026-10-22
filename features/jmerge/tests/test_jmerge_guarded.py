@@ -531,8 +531,8 @@ def test_the_rules_are_asked_about_before_a_merge_can_pull_their_checkout(
     proven_merged, monkeypatch
 ):
     """In jmerge's own repo the main checkout holds the rules, and the pull after any merge
-    brings rules that were behind up to date. If `jmerge` asked about them only then, it
-    would judge with the old rules as if they were the new ones."""
+    brings rules that were behind up to date. If `jmerge` asked about the rules only after
+    that pull, it would judge with the old rules as if they were the new ones."""
     here = repo(proven_merged, monkeypatch, [])
     here.own = True
     pulled = proven_merged.home.stub / "merged"

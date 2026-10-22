@@ -454,15 +454,15 @@ def asks_no_ruling(text: str) -> bool:
 
 
 def _first_head(said: Said) -> str:
-    """The head of a brief's first review, which is the first section that ran. A section that
-    wrote `Verdict: not run` and ran again at a later head is still the first."""
+    """The head of a brief's first review. The first review is the first section that ran, so
+    a section that wrote `Verdict: not run` and ran again at a later head is still the first."""
     return next((one.head for one in said.triage.sections if one.ran and one.head), "")
 
 
 def second_review(text: str) -> tuple[str, ...]:
     """The heads of a `twice` brief's second review, or none for a brief in another mode. They
-    are the heads that a section ran at, other than the head of the first review, which are
-    the heads that the fix pushed. `jbus cleanup` files the second review's findings as a
+    are the heads that a section ran at, except the head of the first review. These are the
+    heads that the fix pushed. `jbus cleanup` files the second review's findings as a
     cleanup row, and nobody answers them."""
     said = said_of(text)
     if said.mode != TWICE:
