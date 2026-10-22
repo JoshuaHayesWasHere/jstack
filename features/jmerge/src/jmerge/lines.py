@@ -1,4 +1,4 @@
-"""The lines `jmerge` prints about a pull request, and the one parser of them.
+"""The lines that `jmerge` prints about a pull request, and the one parser of them.
 
 `jmerge` prints each line with a formatter here (`waits`, `merged`, `ready`), and jbus reads
 them back with `parse`, or `one` for a single line, so a printer and its reader cannot drift
@@ -22,12 +22,12 @@ GATE_OK = "gate: ok"
 
 @dataclass(frozen=True)
 class Line:
-    """A line `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
+    """A line that `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
 
     `word` is `merged`, `wait` or `hold`, or the `refused` of an accept. `name` is the word
-    after the number, the pull request's URL or the merged slug with no comma after it,
-    and `reason` is what follows its colon. A line with no name has neither, and one with
-    no colon has no reason.
+    after the number, which is the pull request's URL or the merged slug with no comma after
+    it. `reason` is what follows the colon. A line with no name has neither field, and a
+    line with no colon has no reason.
     """
 
     word: Word
@@ -37,7 +37,8 @@ class Line:
 
 
 def one(text: str) -> Line | None:
-    """The `Line` a line of `jmerge` is, or nothing where it is not about a pull request."""
+    """The `Line` that a line of `jmerge` is, or nothing where the line is not about a pull
+    request."""
     found = LINE.match(text.strip())
     if not found:
         return None
@@ -59,7 +60,7 @@ def waits(verb: Literal["wait", "hold"], number: int, url: str, why: str) -> str
 
 
 def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str], url: str) -> str:
-    """The line of a pull request this run merged, with how to revert it last."""
+    """The line of a pull request that this run merged, with how to revert it at the end."""
     revert = f"revert: gh pr revert {shlex.quote(url)}"
     return ", ".join([f'merged {number} {slug} {commit} "{title}"', *notes, revert])
 
@@ -80,13 +81,13 @@ UNFOLLOWED = re.compile(
 
 
 def reinstalled(tool: str, main: object) -> str:
-    """The note of a merge after which the tool was installed again from the main checkout."""
+    """The note of a merge after which `jmerge` installed the tool again from the main checkout."""
     return f"reinstalled the tool {tool} from {main}: its package list changed"
 
 
 def not_reinstalled(tool: str, why: str) -> str:
-    """The note of a merge that moved a package of the tool, which could not be installed
-    again: every command of it may fail on an import until it is."""
+    """The note of a merge that moved a package of the tool, after which the tool could not be
+    installed again. Every command of the tool may fail on an import until it is."""
     return NOT_REINSTALLED.format(tool=tool, why=why)
 
 
@@ -97,11 +98,12 @@ def installed(main: object) -> str:
 
 def not_installed(why: str) -> str:
     """The note of a merge that changed what the install assembles, after which the install
-    failed: a skill it moved or removed may be linked to a file that is gone until it runs."""
+    failed. Until it runs, a skill that the merge moved or removed may be linked to a file
+    that is gone."""
     return NOT_INSTALLED.format(why=why)
 
 
 def unfollowed(text: str) -> str:
     """The `not_reinstalled` and `not_installed` notes of a `merged` line, or nothing where
-    it has neither."""
+    the line has neither."""
     return "; ".join(found[0] for found in UNFOLLOWED.finditer(text))

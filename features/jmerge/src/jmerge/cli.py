@@ -425,13 +425,14 @@ class Gated(NamedTuple):
 
 
 class Gate:
-    """The repo's merge gate: the command in its state's `merge-gate` file, run before every
-    merge in a checkout of the head, with the merge base and the head as its last two
-    arguments and as `BASE` and `HEAD`. It is run on every judgement, and its answer is kept
-    for that run only: a fix outside git is seen on the next. A run starts no gate once its
-    gates took `BUDGET`, so that one more, stopped at `TIMEOUT`, still ends inside the time
-    jbus gives `jmerge`. A gate runs holding `<state>/gate.lock`, so a run that overlaps
-    another, a hand run beside jbus's, waits and never removes the checkout under it."""
+    """The repo's merge gate: the command in its state's `merge-gate` file. `jmerge` runs it
+    before every merge, in a checkout of the head, with the merge base and the head as its
+    last two arguments and as `BASE` and `HEAD`. It runs on every judgement, and `jmerge`
+    keeps its answer for that run only, so the next run sees a fix made outside git. A run
+    starts no gate once its gates have taken `BUDGET`, so that one more gate, stopped at
+    `TIMEOUT`, still ends inside the time jbus gives `jmerge`. A gate runs holding
+    `<state>/gate.lock`, so a run that overlaps another, such as a hand run beside jbus's,
+    waits and never removes the checkout under it."""
 
     TIMEOUT = 10 * 60
     BUDGET = 5 * 60
@@ -764,8 +765,9 @@ class Repo:
         return branch, "" if branch else asked_why(asked, "it named no default branch")
 
     def based_on(self, branch: str) -> str:
-        """GitHub retargets an open pull request based on a branch deleted after its own pull
-        request merged, so deleting it would change a stack's order:
+        """GitHub retargets an open pull request whose base branch is deleted after that
+        branch's own pull request merged, so deleting the branch would change a stack's
+        order:
         https://github.blog/changelog/2020-05-19-pull-request-retargeting/
         """
         asked = _run(
@@ -1074,9 +1076,10 @@ class Repo:
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
-        """Main's red hold for a pull request into main, and for one into an integration
-        branch that branch's own: its tip's latest checks, asked of GitHub once a run. A
-        branch GitHub gives no answer for is not known to be red, as a main jbus never judged."""
+        """The red hold of main for a pull request into main, and, for a pull request into an
+        integration branch, the hold of that branch. It reads the latest checks of the tip,
+        and asks GitHub once a run. When GitHub gives no answer for a branch, the branch is
+        not known to be red, as with a main that jbus never judged."""
         if one.base == default:
             return rows.red(self.main_state, slug)
         if one.base not in self.reds:
@@ -1373,7 +1376,7 @@ class Sweep:
 
     def _safe(self, commit: str, head: str, pull: str) -> bool:
         """GitHub keeps a pull request's head as `refs/pull/<number>/head` after its branch is
-        deleted, so a merged head no longer here is fetched from there:
+        deleted, so `jmerge` fetches from there a merged head that is no longer here:
         https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/checking-out-pull-requests-locally
         """
         if commit == head or self._within(commit, self.tip):
@@ -1519,7 +1522,7 @@ class Sweep:
 
 
 def _job(repo: str, job: str) -> dict:
-    """A job as GitHub gives it, or {} where it gives none."""
+    """A job as GitHub gives it, or {} where GitHub gives none."""
     given = _run(Path.cwd(), "gh", "api", f"repos/{repo}/actions/jobs/{job}")
     try:
         found = json.loads(given.stdout) if not given.returncode else {}

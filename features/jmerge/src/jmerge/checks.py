@@ -28,9 +28,9 @@ def failed_jobs(rollup: list[dict]) -> list[tuple[str, str, str]]:
 
 
 def never_started(rollup: list[dict], job_of: Callable[[str, str], dict]) -> frozenset[str]:
-    """The address of each failed check whose job GitHub says ran no step: `job_of` gives a
-    job as GitHub does, by repo and number, or {} where GitHub will not give it, which counts
-    as a job that ran."""
+    """The address of each failed check whose job, as GitHub says, ran no step. `job_of` gives a
+    job as GitHub does, by repo and number, or {} where GitHub does not give it, and such a
+    job counts as one that ran."""
     return frozenset(
         url for url, repo, job in failed_jobs(rollup) if job_of(repo, job).get("steps") == []
     )
