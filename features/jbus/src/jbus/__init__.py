@@ -5,7 +5,7 @@ directory. Every other module takes a `Config` or a `Project` and reads no path 
 
 A level of loudness and one kind of event had one person's name until the name became a
 setting (`jsettings.Settings`). `NAMED_AFTER` holds those two by the names they have now.
-jbus wrote each of them with the name in that setting, in lower case, where it writes `user` now.
+In those old names jbus wrote the person's name, in lower case, where it now writes `user`.
 `old_names` is the map from every old name to the name it has now. `current_level` reads a
 level through it, and `current_kind` reads a kind of event through it. A third level, `chef`,
 started a POST for an event that asked nothing of the user. An event of that level is `quiet`

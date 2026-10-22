@@ -2,11 +2,11 @@
 GitHub both answered (a pass with a world) records that a whole pass has run (`chores.began`). Then
 the pass sends the day's snapshot, and runs the sweep that is due.
 
-Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the
-last Result of each brief written in `SNAPSHOT_DAYS`. It then prunes what it sent of the
-pull requests merged `wake.PRUNE_AFTER` ago, and forgets the log's lines older than
-`wake.LOG_KEEP`. Last, it records that the day's look at what `jmerge` would sweep is due.
-Each pass runs that look again until `jmerge` has run.
+Once a day, at or after `wake.SNAPSHOT_AT`, a pass sends the snapshot: the table, and the last
+Result of each brief written in `SNAPSHOT_DAYS`. For each pull request that merged
+`wake.PRUNE_AFTER` ago, it then prunes the record of what it sent. It forgets the log's lines older
+than `wake.LOG_KEEP`. Last, it records that the day's look at what `jmerge` would sweep is due. Each
+pass runs that look again until `jmerge` has run.
 """
 
 from __future__ import annotations
