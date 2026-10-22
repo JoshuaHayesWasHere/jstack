@@ -560,6 +560,8 @@ def test_each_hook_entry_a_page_shows_is_the_one_the_install_writes():
 def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prints_its_own(
     tmp_path,
 ):
+    """The status line runs as the built-in account's, `~/.claude` in a scratch home. The session's
+    own `CLAUDE_CONFIG_DIR` and providers.json would send limits.sh to another instance's file."""
     (script,) = blocks(section(page("configuration.md"), "The limits file"), "sh")
     assert sum("<checkout>" in line for line in script) == 1
     path = tmp_path / "statusline.sh"
@@ -571,12 +573,18 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
         f'"five_hour": {{"used_percentage": 23.5, "resets_at": {reset}}}, '
         f'"seven_day": {{"used_percentage": 41.2, "resets_at": {reset}}}}}}}'
     )
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key != "CLAUDE_CONFIG_DIR" and not key.startswith(("XDG_", "LIMITS"))
+    }
+    env |= {"HOME": str(tmp_path / "home"), "LIMITS": str(limits)}
     ran = subprocess.run(
         ["sh", str(path)],
         input=given,
         capture_output=True,
         text=True,
-        env=os.environ | {"LIMITS": str(limits)},
+        env=env,
     )
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "Opus\n", "")
     assert limits.read_text() == f"five_hour 23.5 {reset}\nseven_day 41.2 {reset}\n"
