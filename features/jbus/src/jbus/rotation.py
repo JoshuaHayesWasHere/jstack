@@ -2,10 +2,9 @@
 keeps it from one pass to the next.
 
 Each pass is a new process, so jbus keeps the place in a file, `rotation.json` in the state
-directory: `{"next": "<project name>"}`. Only a pass that launched something writes the file,
-and it names the project after the last one that launched. If the file is missing, cannot be
-read, or names a project the config no longer has, the turns start at the config's first
-project.
+directory: `{"next": "<project name>"}`. Only a pass that launched something writes the file, and it
+names the project after the last one that launched. If the file is missing, cannot be read, or names
+a project that the config no longer has, the turns start at the config's first project.
 """
 
 from __future__ import annotations

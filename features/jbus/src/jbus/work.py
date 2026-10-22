@@ -5,7 +5,7 @@ facets of one row of the queue or of one thread that belongs to no row, and `jud
 `State`. The facets are:
 
 - `Row`: whether the queue has the row, and how its go stands.
-- `Thread`: the row's thread as T3 Code has it, with its liveness (`jbus.live`). When T3 Code
+- `Thread`: the row's thread as T3 Code reports it, with its liveness (`jbus.live`). When T3 Code
   does not list the thread, the facet is `archived` if T3 Code reads it back as archived,
   `missing` if T3 Code has no such thread, and `starting` if T3 Code has the thread and does not
   list it yet. So a launch is not lost because its thread left the list.
@@ -21,13 +21,13 @@ facets of one row of the queue or of one thread that belongs to no row, and `jud
 Each value of `VALUES` but `unknown` is one `Pattern`. A pattern is a set of what each facet may be,
 with who holds the work in that state and the one thing it waits for. No two patterns match one set
 of facts. When no pattern matches a set of facts, the state is `unknown` and carries those facts, so
-jbus reports what nobody foresaw as it is. A pattern needs the sources of the facets it narrows: T3
-Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those sources has not answered,
-`judge` passes over the pattern. When a source has not answered and no pattern matches, the state is
-the last one a pass judged (`Facts.last`), marked not confirmed.
+jbus reports what nobody foresaw as it is. A pattern needs the sources of the facets that it
+narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those sources has
+not answered, `judge` passes over the pattern. When a source has not answered and no pattern
+matches, the state is the last state that a pass judged (`Facts.last`), marked not confirmed.
 
 `status` gives the row's `status` column, one of `queue.STATUSES`, as a projection of the
-state, so every reader of the queue goes on reading the words it read before. `write` keeps
+state, so every reader of the queue still finds the same words as before. `write` keeps
 every state of a pass, whole, in `work.json` in the project's state directory, and the view
 draws that file.
 """
@@ -141,10 +141,10 @@ SOURCE = {"thread": T3, "launch": T3, "pull": GITHUB}
 
 @dataclass(frozen=True)
 class Facts:
-    """What a pass knows of one piece of work, one value of each facet.
+    """`Facts` are what a pass knows of one piece of work: one value of each facet.
 
-    `last` is no facet: it is the value the last pass judged, or nothing when no pass did.
-    `seen` is no facet either. It is the status T3 Code gave a thread when jbus does not know
+    `last` is no facet: it is the value that the last pass judged, or nothing when no pass did.
+    `seen` is no facet either. It is the status that T3 Code gave a thread when jbus does not know
     that status. The thread's `thread` facet is then `none`, and its state is `unknown`
     (`unforeseen`)."""
 
@@ -165,8 +165,8 @@ class Facts:
 
 @dataclass(frozen=True)
 class Pattern:
-    """One value, the facts that make it, and what it means. A facet the pattern does not
-    name may be anything. `lane` is the step of the view's line where the view draws it."""
+    """A `Pattern` is one value, the facts that make it, and what it means. A facet the pattern does
+    not name may be anything. `lane` is the step of the view's line where the view draws it."""
 
     value: str
     name: str
@@ -185,7 +185,7 @@ class Pattern:
 
     @functools.cached_property
     def needs(self) -> frozenset[str]:
-        """Return the sources of the facets the pattern narrows, which are the ones that must
+        """Return the sources of the facets that the pattern narrows, which are the ones that must
         have answered. The property works them out once, since a pass judges every row
         against every pattern."""
         return frozenset(
@@ -375,8 +375,8 @@ BY_VALUE = {pattern.value: pattern for pattern in (*PATTERNS, UNKNOWN)}
 
 @dataclass(frozen=True)
 class State:
-    """The one state of a piece of work: its value, who holds it, the one thing it waits for,
-    whether this pass confirmed it, and the facts `judge` judged it from."""
+    """A `State` is the one state of a piece of work: its value, who holds it, the one thing it
+    waits for, whether this pass confirmed it, and the facts from which `judge` judged it."""
 
     value: str
     who: str
@@ -418,15 +418,15 @@ def every() -> Iterator[Facts]:
 def status(state: State) -> str:
     """Return the row's `status`, one of `queue.STATUSES`, as the state projects it.
 
-    A gate comes first, then the pull request. A row whose pull request is open is `pr`, and
-    one whose pull request merged is `merged`, whatever the thread does. A thread in a status
-    jbus does not know makes the row `stale`, for somebody to look at. A hung turn makes it
-    `stale` too. A thread that ended with nothing written makes the row `stale` when it
-    completed or was archived, and `failed` when it failed. The row is `launched` while no
-    thread is there for a launch, and `queued` once the thread was settled. A thread that left
-    T3 Code's list changes nothing for a row that ended: it counts only for a row with nothing
-    written. The state knows no clock. A `stale` row with nothing written becomes `left` once
-    the pass finds its thread quiet for long enough, which `watch.unwritten` decides.
+    A gate comes first, then the pull request. A row whose pull request is open is `pr`, and one
+    whose pull request merged is `merged`, whatever the thread does. A thread in a status that jbus
+    does not know makes the row `stale`, for somebody to look at. A hung turn makes it `stale` too.
+    A thread that ended with nothing written makes the row `stale` when it completed or was
+    archived, and `failed` when it failed. The row is `launched` while no thread is there for a
+    launch, and `queued` once the thread was settled. A thread that left T3 Code's list changes
+    nothing for a row that ended: it counts only for a row with nothing written. The state knows no
+    clock. A `stale` row with nothing written becomes `left` once the pass finds its thread quiet
+    for long enough, which `watch.unwritten` decides.
     """
     facts, value = state.facts, state.value
     if value == "asking":
@@ -467,7 +467,7 @@ def without_t3(answered: Answered) -> Answered:
 
 
 def unforeseen(facts: Facts) -> State:
-    """Return the state of work whose thread is in a status jbus does not know. It is
+    """Return the state of work whose thread is in a status that jbus does not know. It is
     `unknown`, whatever the other facets say, since the work's `thread` facet is not what T3
     Code said."""
     return _state(UNKNOWN, facts, True)
@@ -478,7 +478,8 @@ AT_WORK = (Thread.STARTING, Thread.MOVING, Thread.QUIET)
 
 @dataclass(frozen=True)
 class Holder:
-    """Who holds a state, the one thing it waits for, and the lane the view draws it on."""
+    """A `Holder` names who holds a state, the one thing it waits for, and the lane on which
+    the view draws it."""
 
     who: str
     waits: str
@@ -538,7 +539,7 @@ def path(state_dir: Path) -> Path:
 
 
 def last(state_dir: Path) -> dict[str, str]:
-    """Return the value the last pass judged for each key of `work.json`."""
+    """Return the value that the last pass judged for each key of `work.json`."""
     kept = read(state_dir)
     return {
         one["key"]: one["value"]

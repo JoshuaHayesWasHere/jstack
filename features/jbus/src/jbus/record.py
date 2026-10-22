@@ -62,8 +62,8 @@ def read(config: Config) -> dict[str, Any]:
 
 
 def _kept(config: Config, key: str = "projects") -> dict[str, Any]:
-    """Return what earlier passes left under `key` for each project the config still names:
-    what they saw, or, under `silent`, the source they could not ask."""
+    """Return what earlier passes left under `key` for each project that the config still
+    names: what they saw, or, under `silent`, the source that they could not ask."""
     projects = read(config).get(key)
     names = {project.name for project in config.projects}
     if not isinstance(projects, dict):
@@ -73,8 +73,8 @@ def _kept(config: Config, key: str = "projects") -> dict[str, Any]:
 
 @dataclass
 class Record:
-    """The record of one pass. It has when the pass began, by both clocks, and what the passes
-    before it saw."""
+    """A `Record` is the record of one pass: the time the pass began, by both clocks, and what
+    the passes before it saw."""
 
     config: Config
     now: datetime
@@ -181,8 +181,8 @@ def rows(
 ) -> dict[str, dict[str, Any]]:
     """Return each open row of the queue as T3 Code and GitHub described it to this pass.
 
-    `live` is the liveness of the row's one thread, where `out` has it. `gone` marks a row whose
-    launched thread T3 Code no longer lists and that wrote nothing (`watch.gone`).
+    `live` is the liveness of the row's one thread, where `out` has it. `gone` marks a row that
+    wrote nothing and whose launched thread is no longer on T3 Code's list (`watch.gone`).
     """
     live = {one["id"]: one["live"] for one in out or []}
     seen = {}
@@ -215,8 +215,8 @@ def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[st
 
 
 def status(config: Config, now: datetime) -> dict[str, Any]:
-    """Return what the status file holds. Most of it is read back from what the pass left.
-    The rest is the homes not on the bus, which no pass leaves (`project.missing`), and each
+    """Return what the status file holds. Most of it comes back from the files the pass left.
+    The rest is the homes not on the bus, which no pass writes (`project.missing`), and each
     scratch home, with the thread in its `home-id` and none of a repo's fields."""
     expires = t3.expiry(config.token_path)
     projects = {}

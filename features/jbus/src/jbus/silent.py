@@ -26,7 +26,8 @@ PAGE_MINUTES = leftover.REMIND_MINUTES + 30
 
 
 def when(value: Any) -> datetime | None:
-    """Return the time `value` gives in ISO form with its zone, or None when it gives none."""
+    """Return the time that `value` gives in ISO form with its zone, or None when `value`
+    gives none."""
     if not isinstance(value, str):
         return None
     try:
@@ -64,7 +65,7 @@ def unheard_line(id: str, body: Body) -> str | None:
 
 @dataclass(frozen=True)
 class Watch:
-    """The relay's record of what blocks.
+    """A `Watch` is the relay's record of what blocks.
 
     `items` holds each item by its page id. A page id is a hash of the item's project, its
     key and the time it began to block, so an item that closes and opens again gets a new

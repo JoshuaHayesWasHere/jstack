@@ -10,13 +10,13 @@ left. jbus sends it:
 - once a day from `DAILY` days out, the day it runs out included;
 - once more, on the first pass after it has run out.
 
-A pass sends the reminder for the mark it falls in, and none for a mark already behind it:
-a first pass 2 days out sends that day's reminder and not the week's. jbus stores the last
-expiry it saw, and the marks it has sent for that expiry, in `sign-in.json` in its state. So
-when the user adds, removes or moves a project in the config, jbus repeats no mark. An expiry
-later than the last one seen is a renewal. jbus reports the renewal once, with the new
-expiry, and starts the count over. The first expiry jbus sees is not a renewal. When jbus
-cannot read the file, it does not treat the expiry it finds as a renewal either.
+A pass sends the reminder for its current mark, and none for a mark already behind it: a first pass
+2 days out sends that day's reminder and not the week's. jbus stores the last expiry it saw, and the
+marks it has sent for that expiry, in `sign-in.json` in its state. So when the user adds, removes or
+moves a project in the config, jbus repeats no mark. An expiry later than the last one seen is a
+renewal. jbus reports the renewal once, with the new expiry, and starts the count over. The first
+expiry jbus sees is not a renewal. When jbus cannot read the file, it does not treat the expiry that
+it finds as a renewal either.
 
 The sign-in is the machine's, so jbus gives the reminder once, not once for each project. It
 queues the reminder in the box of the config's first project, as an event of the machine
@@ -62,7 +62,7 @@ def _days(expires: datetime, now: datetime, user: jsettings.Settings) -> int:
 
 
 def due(expires: datetime, now: datetime, user: jsettings.Settings) -> tuple[str, str] | None:
-    """Return the mark a pass at `now` falls in, with its line, or None if it falls in none."""
+    """Return the current mark for a pass at `now`, with its line, or None if there is none."""
     stamp = user.stamp(expires)
     if now >= expires:
         return "passed", f"{KIND}: {WHOSE} expired {stamp}, no days left: run jbus t3 login"
@@ -109,8 +109,8 @@ def remind(config: Config, now: datetime) -> None:
 
 
 def plan(config: Config, now: datetime) -> str:
-    """Return what `jbus status` says of the reminder: the webhook it goes to, and the days
-    still ahead."""
+    """Return what `jbus status` says of the reminder: the webhook that receives it, and the
+    days still ahead."""
     expires = t3.expiry(config.token_path)
     if expires is None:
         return "none: no sign-in is stored"

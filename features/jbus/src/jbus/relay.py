@@ -1,11 +1,11 @@
 """`jbus relay`: take what jbus posts on 127.0.0.1 and send it on to Sous Chef. The relay never
 drops a body without a line in the journal.
 
-The relay listens on `RELAY_PORT` (4390) of 127.0.0.1. When the port is 0, it picks a free port.
-It names the port it bound in the line `relay: listening on 127.0.0.1:<port>`. It takes a POST whose
-`X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body it takes
-gets an id: the body's own `id` when that is a short name, and otherwise a hash of the body, so a
-body posted twice has one id.
+The relay listens on `RELAY_PORT` (4390) of 127.0.0.1. When the port is 0, it picks a free port. It
+names the port that it bound in the line `relay: listening on 127.0.0.1:<port>`. It takes a POST
+whose `X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body that it
+takes gets an id: the body's own `id` when that is a short name, and otherwise a hash of the body,
+so a body posted twice has one id.
 
 Each route of `ROUTES` picks the part of the body that it sends. Before the relay answers 202, it
 writes the picked part to the route's spool, with `relay: {"id", "route"}` added to its keys. Each
@@ -38,7 +38,7 @@ value, and exits 2, which `jbus-relay.service` does not restart. The relay keeps
 `RELAY_STATE`, ~/.local/state/jbus-relay: `spool/<route>/`, `sent/<route>`, `dead/<route>/`,
 `watch.json` and `heartbeat.json`.
 
-The heartbeat is `heartbeat.json`. The relay writes it every `BEAT_SECONDS`, on each body it
+The heartbeat is `heartbeat.json`. The relay writes it every `BEAT_SECONDS`, on each body that it
 takes, and when a route begins or stops failing. It holds these keys:
 
 - `beat`: when the relay wrote it.
@@ -49,7 +49,7 @@ takes, and when a route begins or stops failing. It holds these keys:
   to fail, why, and how many bodies wait. The relay keeps a route's entry across a restart while
   the route still holds a body. When a target refuses a body for good and no body waits behind
   it, the route's entry ends.
-- `refused`: each body a target refused for good in the last day, with its route, when, why and
+- `refused`: each body that a target refused for good in the last day, with its route, when, why and
   its file in `dead/`, kept across a restart.
 
 The relay draws no conclusion from the heartbeat: `jbus health` reads it and pages
@@ -149,8 +149,8 @@ def as_spooled(data: bytes) -> bytes:
 
 
 def home_assistant(data: bytes) -> bytes:
-    """Return a spooled page as Home Assistant's `notify` service takes it: its line and
-    nothing else."""
+    """Return a spooled page in the form that Home Assistant's `notify` service accepts: the
+    page's line and nothing else."""
     return json.dumps({"message": json.loads(data)["page"]}).encode()
 
 
@@ -282,8 +282,8 @@ def _sync(folder: Path) -> None:
 
 
 class Lane:
-    """One route, with its spool, the ids it sent, and the thread that posts the spool in
-    order."""
+    """A `Lane` is one route, with its spool, the ids that it sent, and the thread that posts
+    the spool in order."""
 
     def __init__(
         self,
@@ -370,8 +370,8 @@ class Lane:
                 self.unheard(self._id(path), json.loads(path.read_bytes()))
 
     def take(self, id: str, body: Body) -> bool:
-        """Spool what the route picks of the body. Return False when the route picks nothing or
-        already has the id."""
+        """Spool the part of the body that the route picks. Return False when the route picks
+        nothing or already has the id."""
         picked = self.route.pick(body)
         if picked is None:
             return False
@@ -476,8 +476,8 @@ def notify(line: str, say: Say) -> None:
 
 
 class Pager:
-    """The second way to page: the `page` route to Home Assistant, with `notify-send` beside
-    it."""
+    """A `Pager` is the second way to page. It sends each page on the `page` route to Home
+    Assistant, and also runs `notify-send`."""
 
     def __init__(self, config: Settings, say: Say) -> None:
         self.say = say
@@ -490,7 +490,8 @@ class Pager:
         threading.Thread(target=notify, args=(line, self.say), daemon=True).start()
 
     def unheard(self, id: str, body: Body) -> None:
-        """Page case (a) of the module: Sous Chef did not take a body that blocks."""
+        """Page for case (a) of the module's docstring, in which Sous Chef did not take a body
+        that blocks."""
         line = silent.unheard_line(id, body)
         if line is not None:
             self.page(f"unheard-{id}", line)
@@ -542,7 +543,7 @@ class Relay:
 
     def ack(self, id: str) -> int | None:
         """Mark as seen the items that came with the event id, and return how many there are.
-        Return None for an id the relay does not hold."""
+        Return None for an id that the relay does not hold."""
         with self.lock:
             pages = self.watch.ids.get(id)
             if pages is None:
@@ -568,7 +569,7 @@ class Relay:
         return recent
 
     def _failing(self) -> None:
-        """Mark as failing each route the last heartbeat names as failing, while the route
+        """Mark as failing each route that the last heartbeat names as failing, while the route
         still holds a body. A restart does not end a failure, and the route keeps the time its
         failure began."""
         try:

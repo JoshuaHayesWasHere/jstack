@@ -7,7 +7,7 @@ the user's account. So a relayed remark is never the user's word. The message na
 the kind of remark, the login and the link, and says it is reviewer or bot output. The
 user's word reaches a crew only from `jbus word` or in the crew's own thread.
 
-For each open pull request of a slug jbus launched, `tell` reads GitHub's three lists of
+For each open pull request of a slug that jbus launched, `tell` reads GitHub's three lists of
 remarks. It sends the slug's crew each remark whose author is the repo's owner, one message
 each. jbus asks GitHub for the owner on every pass, with `gh api repos/{owner}/{repo}`,
 and writes the owner nowhere in the tree. When GitHub gives no answer, jbus relays nothing.

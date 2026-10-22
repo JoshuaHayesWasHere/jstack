@@ -16,9 +16,9 @@ closes it, and nothing else does either.
 - `built_on` and `undo`: what the thread built on the default, and how to take it back;
 - `context`: what the user needs to know to answer, from the gate's `Context:` line, or
   nothing;
-- `options`: every option the thread weighed, in the order of its `Option:` lines. Each is an
-  `Option`: its short `name`, what `follows` from it, whether it is the `default` the thread
-  took, and whether it is the one the thread `recommended`. A record written before gates had
+- `options`: every option that the thread weighed, in the order of its `Option:` lines. Each is an
+  `Option`: its short `name`, what `follows` from it, whether it is the `default` that the
+  thread took, and whether it is the one the thread `recommended`. A record written before gates had
   options has none;
 - `holds` and `fail_safe`: the case of `HOLDS` that the gate's `Holds:` line names, for a
   default that is irreversible or slow to revert, and the fail-safe that its `Fail-safe:` line
@@ -33,7 +33,7 @@ closes it, and nothing else does either.
   the user's words, who gave them and when. `where` is where the command ran, and `keeps`
   marks an answer that is the default. `told` is when jbus sent a differing answer to the
   asker. For an answer given as
-  `--message`, `ref` is the `<thread id>/<message id>` jbus read from T3 Code, `said_in` is
+  `--message`, `ref` is the `<thread id>/<message id>` that jbus read from T3 Code, `said_in` is
   that thread's title, and `checked` is true. For an answer typed with `--by` and `--at`,
   those three are empty and false. When a home closed the question in its file, the answer
   has the file's `Status:` line as its `words`, the file as `where`, and no `by` and no `at`,
@@ -51,7 +51,7 @@ differs as it carries any other.
 
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
 question waits for the user. Its `Holds:` line names the case, one of `HOLDS`, and its
-`Fail-safe:` line names the dry-run, plan or bundle the user answers on. Silence never closes
+`Fail-safe:` line names the dry-run, plan or bundle on which the user answers. Silence never closes
 such a gate. `jbus gate` refuses a `Holds:` line with no filled `Fail-safe:` line, an unknown
 case, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
 
@@ -76,8 +76,8 @@ When the same slug asks the same question again, it is the same record (`mirror.
 closed. If the record is still open, jbus replaces its default, undo and built-on lines, its context
 and its options with the new ones, because a thread parks the same gate again at a later head.
 
-A gate proposes two options or more: one of them is the default the thread took, and it is the one
-the thread recommends (`_proposed`). `jbus gate` refuses a gate that breaks this rule, and says
+A gate proposes two options or more: one of them is the default that the thread took, and it is the
+one the thread recommends (`_proposed`). `jbus gate` refuses a gate that breaks this rule, and says
 `not sent` with the whole form of an `Option:` line, so a thread whose skill is older than options
 can mend its lines from the refusal alone. A question that is open with no options was asked before
 that rule. A pass asks its thread, once, to pipe the same gate again with options (`propose`). It
@@ -313,10 +313,10 @@ def _count(number: int, noun: str) -> str:
 def _proposed(lines: str) -> tuple[Option, ...]:
     """Return the options of a gate's lines, or `Refused` with what they lack.
 
-    The user picks among what the thread weighed, so a gate has two options or more, each
-    under a name of its own. One of them is the default the thread took, and at most one is
-    the thread's pick. A name that ends in parentheses is a mark the thread misspelled. If
-    jbus kept such a name, the option would have no mark. The default the thread took is the
+    The user picks among the options that the thread weighed, so a gate has two options or more,
+    each under a name of its own. One of them is the default that the thread took, and at most one
+    is the thread's pick. A name that ends in parentheses is a mark that the thread misspelled. If
+    jbus kept such a name, the option would have no mark. The default that the thread took is the
     one it recommends, because a pass may close the question by silence, with that default.
     """
     read, unread = mirror.options(lines)
@@ -434,7 +434,7 @@ def _shaped(lines: str) -> None:
 
 
 def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[Question, bool]:
-    """Keep the gate a thread piped, and return its record and whether the record is new.
+    """Store the gate that a thread piped, and return its record and whether the record is new.
 
     `ask` refuses lines that are not one filled-in gate of the template (`_shaped`). Lines
     with no `Default:` line come from a thread that waits, and no record would say what an
@@ -606,7 +606,8 @@ def silent(run: Pass) -> None:
 
 def _quiet(one: Question, now: datetime) -> bool:
     """Return whether silence closes the question now. A gate that holds waits for the user,
-    and a link's conflict asks its home and not the user, so silence never closes either."""
+    and a question about a link's conflict goes to its home and not to the user, so silence
+    never closes either."""
     if one.answer or one.holds or one.question.endswith(LINK):
         return False
     try:
@@ -658,7 +659,7 @@ def listed(item: dict[str, Any]) -> bool:
 @dataclass(frozen=True)
 class Carried:
     """The outcome of sending one answer to its asker. `told` says the answer went, and
-    `thread` is the thread the answer was for, if it had one. `error` is what T3 Code said
+    `thread` is the thread that should get the answer, if it had one. `error` is what T3 Code said
     when it did not take the answer, and `refused` says that T3 Code answered and refused the
     answer."""
 
@@ -770,7 +771,7 @@ def propose(run: Pass, client: Client) -> None:
     lists. It writes a quiet event instead, once, and the question stays open as it is. When
     T3 Code did not answer a list or a send, jbus tries it again on the next pass.
 
-    jbus records on the question that it asked the thread (`proposed`). It does not record
+    jbus records in the question's record (`proposed`) that it asked the thread. It does not record
     this among the keys of what it sent, because a snapshot drops those keys for a slug whose
     pull request merged long ago, while the question may still be open.
     """

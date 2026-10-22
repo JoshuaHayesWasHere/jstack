@@ -18,7 +18,8 @@ if TYPE_CHECKING:
 
 def judged(half: Half) -> None:
     """Judge the state of each row of the queue, once (`work.judge`). A row waits on another row
-    until that row is merged or ended `done`. `dispatch` launches by the same rule (`watch.final`).
+    until that row is merged or ended `done`. `dispatch` uses the same rule to decide what to launch
+    (`watch.final`).
 
     When GitHub is silent and T3 Code answers, the steps that list the threads out did not run,
     since those steps need a world and the pass has none. This function then lists the threads out
@@ -63,7 +64,7 @@ def derive(half: Half) -> None:
 
 def unplaced(half: Half) -> None:
     """Tell the home of each row whose pull request is open and on no step (`merge.unplaced`).
-    `unplaced` goes by what `jmerge` said of that pull request in this pass."""
+    `unplaced` uses what `jmerge` said of that pull request in this pass."""
     run, world, states = half.run, half.seen.world, half.states
     for row in half.table or []:
         slug = row["slug"]
@@ -78,7 +79,7 @@ def unplaced(half: Half) -> None:
 
 def keep_work(half: Half) -> None:
     """Write `work.json`. The file holds the state of every row, and of every thread out that
-    belongs to no row, each with who holds it (`work.holder`). When the pass has no list of the
+    belongs to no row, and says who holds each one (`work.holder`). When the pass has no list of the
     threads out, the file keeps the threads of the last pass, which this pass has not confirmed."""
     run, rows, states = half.run, half.table or [], half.states
     held = leftover.read(run.state)

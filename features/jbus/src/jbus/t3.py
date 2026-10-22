@@ -1,14 +1,14 @@
 """jbus talks to the T3 Code server as an outside MCP client, with the sign-in and eight tools.
 
-`login` registers jbus with the server, sends the user to its approval page, and keeps the
-token the server gives, with the time it gave it. `expiry` says when that token runs out.
-`Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test scans
-this package for any other tool name.
+`login` registers jbus with the server, sends the user to its approval page, keeps the token that
+the server issues, and records when the server issued it. `expiry` says when that token runs out.
+`Client` then calls the tools in `TOOLS` at `<server>/mcp`, and no other tool: a test scans this
+package for any other tool name.
 
 Three of the eight tools change a thread, and `Client.call` allows each of them in one form
 only (`_held`):
 
-- `t3_thread_organize`, to settle or archive a thread it names.
+- `t3_thread_organize`, to settle or archive a thread that the call names.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
   its role's pool, with its model and options as they were (`jbus.failover`).
 - `t3_thread_send`, as a queued message with a retry key, to a thread that a brief's `Thread:`
@@ -210,9 +210,9 @@ def expiry(token_path: Path) -> datetime | None:
 
 @dataclass(frozen=True)
 class Message:
-    """One message of a thread, as T3 Code has it. `title` is the thread's title. `kind` is
-    the item's `type`, `by` is its `createdBy` and `source` is its `creationSource`. A message
-    that an agent or jbus sent into a thread is a `user_message` too, by `agent`."""
+    """A `Message` is one message of a thread, as T3 Code stores it. `title` is the thread's title.
+    `kind` is the item's `type`, `by` is its `createdBy` and `source` is its `creationSource`. A
+    message that an agent or jbus sent into a thread is a `user_message` too, by `agent`."""
 
     thread: str
     id: str
@@ -230,7 +230,8 @@ class Message:
 
 
 class Client:
-    """One MCP session at `<server>/mcp`. `call` is the only way jbus reaches a tool."""
+    """A `Client` is one MCP session at `<server>/mcp`. `call` is the only way jbus reaches a
+    tool."""
 
     def __init__(self, server: str, token_path: Path, *, timeout: float = 60) -> None:
         self.url = f"{server}/mcp"

@@ -1,19 +1,19 @@
 """Each feature's module declares the verbs of the command that belong to that feature.
 
-A module declares what it adds to `jbus` at its top level, as `VERBS = (Verb(...),)`. A `Verb`
-holds the name typed after `jbus`, the line `jbus --help` gives it, a function that adds its
-arguments to its parser, and the function that runs it. `declared` imports every module of
-jbus and gathers the verbs, and `jbus.cli.main` builds its parsers from what `declared`
-returns. So a new verb is a `Verb` in a new module, with no line anywhere else. When two
-modules declare the same name, importing `jbus.cli` raises a `ValueError` that names both.
+A module declares what it adds to `jbus` at its top level, as `VERBS = (Verb(...),)`. A `Verb` holds
+the name typed after `jbus`, the line that `jbus --help` shows for it, a function that adds its
+arguments to its parser, and the function that runs it. `declared` imports every module of jbus and
+gathers the verbs, and `jbus.cli.main` builds its parsers from what `declared` returns. So a new
+verb is a `Verb` in a new module, with no line anywhere else. When two modules declare the same
+name, importing `jbus.cli` raises a `ValueError` that names both.
 
 A module declares a step of a pass the same way, as `STEPS = (Step(...),)`. A `Step` holds the slot
-of `jbus.cli.first_half` or `jbus.cli.second_half` it runs in, its rank in that slot, its name, the
-function that runs it, and what the pass must have for it to run. `ranked` gathers the steps and
-orders each slot's steps by rank. Each half runs a slot's steps at that slot's place in the half. So
-a new step is a `Step` in its feature's module, with no line in `jbus.cli`. `jbus steps` prints the
-order. When two modules declare the same rank in one slot, importing `jbus.cli` raises a
-`ValueError` that names both.
+of `jbus.cli.first_half` or `jbus.cli.second_half` in which it runs, its rank in that slot, its
+name, the function that runs it, and what the pass must have for it to run. `ranked` gathers the
+steps and orders each slot's steps by rank. Each half runs a slot's steps at that slot's place in
+the half. So a new step is a `Step` in its feature's module, with no line in `jbus.cli`.
+`jbus steps` prints the order. When two modules declare the same rank in one slot, importing
+`jbus.cli` raises a `ValueError` that names both.
 
 A chore is work for the machine as a whole: it runs once a pass and for no project. A module
 declares it as `CHORES = (Chore(...),)`, with its rank, its name, and the function that runs
@@ -23,7 +23,7 @@ launches, inside `guarded` under the chore's name. The chores are the sign-in re
 the sending of the scratch homes' words. A scratch home is no project of a pass. When two
 modules declare the same rank, `chores` raises a `ValueError`.
 
-`project` and `here` are the two ways a verb finds the project it is for.
+`project` and `here` are the two ways a verb finds its project.
 
 This module imports none of jbus's features, so that each of them can import it.
 """
@@ -62,7 +62,8 @@ FIRST = (
 
 @dataclass(frozen=True)
 class Verb:
-    """One verb. `run` takes what was parsed and the config, and returns the exit code.
+    """A `Verb` is one verb of the command. `run` takes what was parsed and the config, and returns
+    the exit code.
 
     `abbrev` lets the user type an option short, as `--he` for `--help`. It is on by default,
     as argparse has it, and off for the verbs that turned it off before verbs were declared.
@@ -91,7 +92,7 @@ SLOTS = {
 
 @dataclass(frozen=True)
 class Step:
-    """One step of a pass. `run` takes the pass's `jbus.cli.Half`.
+    """A `Step` is one step of a pass. `run` takes the pass's `jbus.cli.Half`.
 
     `rank` orders the steps of one slot, in steps of 10. `needs` is what the pass must have
     for the step to run, out of `NEEDS`:
@@ -114,7 +115,8 @@ class Step:
 
 @dataclass(frozen=True)
 class Chore:
-    """One chore of a pass: the machine's own work, run once a pass after the launches."""
+    """A `Chore` is one chore of a pass: work for the machine as a whole, run once a pass
+    after the launches."""
 
     rank: int
     name: str
@@ -122,7 +124,7 @@ class Chore:
 
 
 def chores(paths: Iterable[str]) -> tuple[Chore, ...]:
-    """Return every chore the modules under `paths` declare, by rank."""
+    """Return every chore that the modules under `paths` declare, by rank."""
     found: dict[int, tuple[Chore, str]] = {}
     for module in pkgutil.iter_modules(paths, f"{jbus.__name__}."):
         if module.name.endswith(".__main__"):
@@ -141,10 +143,10 @@ def nothing(parser: argparse.ArgumentParser) -> None:
 
 
 def declared(paths: Iterable[str]) -> dict[str, Verb]:
-    """Return every verb the modules under `paths` declare, by its name, in the order
-    `jbus --help` lists them. The verbs of `FIRST` come first, in their order there, which is
-    the order they had when one function listed them all. Every other verb follows by its
-    name. No new verb goes into `FIRST`.
+    """Return every verb that the modules under `paths` declare, by its name, in the order in which
+    `jbus --help` lists them. The verbs of `FIRST` come first, in the order that `FIRST` gives them,
+    which is the order that they had when one function listed them all. Every other verb follows by
+    its name. No new verb goes into `FIRST`.
 
     A folder declares its verbs in its `__init__`. `__main__` runs the command, and
     `declared` does not import it.
@@ -162,14 +164,14 @@ def declared(paths: Iterable[str]) -> dict[str, Verb]:
 
 
 def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:
-    """Return every step the modules under `paths` declare, by its slot in the order of
+    """Return every step that the modules under `paths` declare, by its slot in the order of
     `SLOTS`, and within a slot by rank.
 
-    `ranked` raises a `ValueError` that names the module for a slot that is not one of
-    `SLOTS`, for a rank another module took in the same slot, and for a need the step's slot
-    cannot supply. What a slot supplies is the second item of its pair in `SLOTS`. The first
-    slot runs before the pass knows whether it is blind or what T3 Code and GitHub said, so it
-    supplies `client` alone."""
+    `ranked` raises a `ValueError` that names the module for a slot that is not one of `SLOTS`, for
+    a rank that another module took in the same slot, and for a need that the step's slot cannot
+    supply. What a slot supplies is the second item of its pair in `SLOTS`. The first slot runs
+    before the pass knows whether it is blind or what T3 Code and GitHub said, so it supplies
+    `client` alone."""
     found: dict[tuple[str, int], tuple[Step, str]] = {}
     for module in pkgutil.iter_modules(paths, f"{jbus.__name__}."):
         if module.name.endswith(".__main__"):
@@ -192,8 +194,8 @@ def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:
 
 
 def project(config: jbus.Config, name: str | None) -> jbus.Project:
-    """Return the named project, the only project, or the one whose repo this directory is
-    in."""
+    """Return the named project, the only project, or the one whose repo contains this
+    directory."""
     if name is None and len(config.projects) > 1:
         asked = subprocess.run(
             ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -210,7 +212,7 @@ def project(config: jbus.Config, name: str | None) -> jbus.Project:
 def here(config: jbus.Config, name: str | None) -> jbus.Project:
     """Return the project a thread acts for: the named one, or the one whose repo this is.
 
-    Every repo uses the crew and scout skills, so `here` refuses a gate from a repo the config
+    Every repo uses the crew and scout skills, so `here` refuses a gate from a repo that the config
     does not name, rather than send it as another project's gate.
     """
     if name is not None:
@@ -228,7 +230,7 @@ def here(config: jbus.Config, name: str | None) -> jbus.Project:
 
 
 def parser(found: dict[str, Verb], description: str | None) -> argparse.ArgumentParser:
-    """Build the parser of `jbus`, with a parser for each verb `declared` found."""
+    """Build the parser of `jbus`, with a parser for each verb that `declared` found."""
     made = argparse.ArgumentParser(prog="jbus", description=description, allow_abbrev=False)
     made.add_argument("--project", help="the project's name in the config, when it has several")
     commands = made.add_subparsers(dest="command", required=True)

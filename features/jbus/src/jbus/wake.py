@@ -2,15 +2,15 @@
 that ask something of the user.
 
 An event is one JSON object, `{"project", "slug", "event", "line", "text", "loud"}`. `line` is the
-finding in one line, and `text` is what made it. `loud` is whom the event is for, and jbus looks it
-up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at import from the `EVENTS` that each
-of its modules declares at its top, so a new kind is a line in its own module and none here. There
-are two levels. `user` is an escalation: a new question, a hold or an approval for the user to give,
-an alert, a stall. Such an event waits in the outbox for the next POST. It also has `say`, the line
-to post in the chat as it is. That line begins with the project, since the user acts in that
-project's home. `quiet` is everything else, a fact for the record: jbus writes it to the log and
-never posts it. The caller that queues an event may give it the lower level: a `waiting` event that
-asks nothing new of the user is `quiet`.
+finding in one line, and `text` is what made it. `loud` says who should see the event, and jbus
+looks it up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at import from the `EVENTS`
+that each of its modules declares at its top, so a new kind is a line in its own module and none
+here. There are two levels. `user` is an escalation: a new question, a hold or an approval for the
+user to give, an alert, a stall. Such an event waits in the outbox for the next POST. It also has
+`say`, the line to post in the chat as it is. That line begins with the project, since the user acts
+in that project's home. `quiet` is everything else, a fact for the record: jbus writes it to the log
+and never posts it. The caller that queues an event may give it the lower level: a `waiting` event
+that asks nothing new of the user is `quiet`.
 
 `Box` keeps a project's outbox and the keys of everything it has sent, so a finding goes
 once. It takes a short lock for each change, because `jbus gate` and `jbus done` add an event
@@ -22,15 +22,16 @@ the same pair. Each route has its own outbox, five-minute gap and `last_error`, 
 the project's state for its own webhook, and `top-level/` inside it for the other. So a webhook that
 is down neither holds back nor repeats what jbus posts to the other.
 
-Every body has a top-level `kind`, which jbus-relay routes on: `events` for what an outbox of events
-posts, and `reminder` and `refresh` for the timers of what blocks (`waiting.cadence`). The second
-target, the config's `blocking` pair, is a route of its own beside those (`Box.blocking`). Its
-outbox, in `blocking/`, holds whole bodies, not events, and no event goes there. Each pass queues to
-it one `events` body that lists the items that began to block in that pass, with `items` beside
-`say` and `events`. It also queues a reminder or a refresh as each falls due. The flush keeps the
-five-minute gap for the `events` body. A reminder or a refresh waits on no gap, and sends along
-whatever waits before it, so the bodies go in order. A retry after a failed POST waits on the gap,
-whatever it carries. A refresh that waits replaces the one before it, which is out of date.
+Every body has a top-level `kind`, and jbus-relay routes each body by it: `events` for what an
+outbox of events posts, and `reminder` and `refresh` for the timers of what blocks
+(`waiting.cadence`). The second target, the config's `blocking` pair, is a route of its own beside
+those (`Box.blocking`). Its outbox, in `blocking/`, holds whole bodies, not events, and no event
+goes there. Each pass queues to it one `events` body that lists the items that began to block in
+that pass, with `items` beside `say` and `events`. It also queues a reminder or a refresh as each
+falls due. The flush keeps the five-minute gap for the `events` body. A reminder or a refresh waits
+on no gap, and sends along whatever waits before it, so the bodies go in order. A retry after a
+failed POST waits on the gap, whatever it carries. A refresh that waits replaces the one before it,
+which is out of date.
 
 The log is `events.jsonl`. jbus adds a line for each event as it queues it,
 `{"at", "id", "event", "slug", "loud", "line", "text"}`, and one for each POST a webhook took,
@@ -42,8 +43,8 @@ carry nothing extra for the log. `Box.log` reads the two kinds of line back as o
 `jbus events` and the view read a quiet event from there. `Box.record` adds a line for what jbus
 keeps and never posts, such as the user's word to a home (`jbus.word`): that line is in the log and
 in no outbox. The log never decides what is sent or what counts as sent. jbus leaves out a line it
-cannot write, except one that is in no outbox: that line waits in `unlogged.json` for the next line
-jbus can write.
+cannot write, except one that is in no outbox: that line waits in `unlogged.json` until jbus can
+write its next line.
 """
 
 from __future__ import annotations
@@ -134,7 +135,7 @@ def _events(name: str, source: str) -> dict[str, Loud]:
 
 
 def declared(paths: Iterable[str]) -> dict[str, Loud]:
-    """Return every kind the modules under `paths` declare, each at its level. A module
+    """Return every kind that the modules under `paths` declare, each at its level. A module
     declares what it sends at its top, written out as `EVENTS = {"<kind>": "<level>"}`.
     `declared` reads that off the module's source and imports nothing, so it can read a
     module that imports this one. If two modules declare the same kind, it raises a
@@ -166,11 +167,11 @@ def event(
     loud: Loud | None = None,
     machine: bool = False,
 ) -> dict:
-    """Return one event, at its kind's level or at `loud`, a lower one. A kind `LOUDNESS`
-    does not name raises a `KeyError`, and a level above the kind's raises a `ValueError`.
-    The event's chat line names the project, since one webhook gets every project's events.
-    A line that begins `<kind> <project>:` already names it, and goes unchanged. So does the
-    line of an event of the `machine`, which belongs to no project."""
+    """Return one event, at its kind's level or at `loud`, a lower one. A kind that `LOUDNESS` does
+    not name raises a `KeyError`, and a level above the kind's raises a `ValueError`. The event's
+    chat line names the project, since one webhook gets every project's events. A line that begins
+    `<kind> <project>:` already names it, and goes unchanged. So does the line of an event of the
+    `machine`, which belongs to no project."""
     level = LOUDNESS[kind]
     if loud is not None and LEVELS.index(loud) < LEVELS.index(level):
         raise ValueError(f"{kind} is {level}: it cannot be sent as {loud}")
@@ -207,7 +208,7 @@ def _key(key: str, names: dict[str, str]) -> str:
 
 
 def _loud(one: dict[str, Any]) -> Loud:
-    """Return whom an event is for. An older event that never recorded it gets its kind's level."""
+    """Return an event's level: its `loud`, or its kind's level for an older event with none."""
     return one.get("loud") or LOUDNESS.get(one.get("event", ""), "quiet")
 
 
@@ -245,8 +246,7 @@ class Route:
 
 
 class Box:
-    """A `Box` holds a project's outboxes, the keys of what it has sent, and when it last
-    posted.
+    """A `Box` holds a project's outboxes, the keys of what it has sent, and when it last posted.
 
     `wake.json` holds the marks: `began`, `posted`, the day of the last `snapshot`, the
     day whose sweep has not run yet (`sweep_owed`), the last `sweep`, and why the last POST
@@ -288,8 +288,8 @@ class Box:
 
     @property
     def machine_route(self) -> Route:
-        """Return the route an event of the machine waits in: the top-level webhook's, or the
-        project's own where the top-level one is not a route of its own."""
+        """Return the route in which an event of the machine waits: the top-level webhook's, or
+        the project's own where the top-level one is not a route of its own."""
         return next((route for route in self.routes if route.top), self.routes[0])
 
     @staticmethod
@@ -360,9 +360,9 @@ class Box:
     def _log(self, owed: bool = False, **record: Any) -> None:
         """Add one line to the log, which only its owner reads. The caller holds the lock.
 
-        jbus leaves out a line it cannot write, and the outbox and the POST go on without
-        it. A line that is `owed`, which is in no outbox, waits in `unlogged.json`, and jbus
-        writes it before the next line it can write.
+        jbus leaves out a line that it cannot write, and the outbox and the POST go on without it. A
+        line that is `owed`, which is in no outbox, waits in `unlogged.json`, and jbus writes it
+        before the next line that it can write.
         """
         record = {"at": _at(self.clock()), **record}
         waiting = read_json(self.state / UNLOGGED, [])
@@ -699,7 +699,7 @@ Reason = Changed | Depends | Slot
 
 @dataclass
 class Pass:
-    """A `Pass` is one pass over one project: what every step of it shares.
+    """A `Pass` is one pass over one project, with the state that all its steps share.
 
     `find` sends a finding, once per key. What no rule covers is a `condition`, a quiet
     event that asks the user nothing. `gate` records one for a slug, and the rest of the

@@ -25,43 +25,43 @@ rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head
 the lines back, or says for each file why the lines are gone. The scoped review then rules on those
 reasons.
 
-`deliver` is the one function that sends these messages. `stall` calls it too, for a line this
+`deliver` is the one function that sends these messages. `stall` calls it too, for a line that this
 module does not read: a guarded pull request with a fix that no review has proved (`unproven`),
 under the key `proof|<slug>|<head 12>`. `post` sends the message without writing the event, and
 `expedite` calls `post` and writes an event of its own.
 
 Each of these messages names a head. jbus sends each with `mode: queue`, so the crew reads it in a
 turn of its own, after the turn that is running. In two cases the crew would read the message after
-the head it names is gone: the crew's thread is at work, or the pull request has moved to a new head
-since the pass listed it. In both cases `held` delays the message to a later pass. A pass sends
+the head that it names is gone: the crew's thread is at work, or the pull request has moved to a new
+head since the pass listed it. In both cases `held` delays the message to a later pass. A pass sends
 other messages first, so `held` asks T3 Code and GitHub again just before the send. A thread that
 got one of these messages earlier in the same pass counts as at work, so a pass sends a thread at
-most one of them. jbus writes no mark for a message it delayed, so the next pass decides again from
-the head and the reasons as they are then.
+most one of them. jbus writes no mark for a message that it delayed, so the next pass decides again,
+using the head and the reasons as they are then.
 
 `mainmoved` calls `held` too. Between them, the two modules tell a crew to rebase a given head only
 once. The first of the two to tell the head also writes the key of the other. The rebase message
-writes the `mainmoved` key for the commit main is at, and `mainmoved` writes this module's key for
-the head it told.
+writes the `mainmoved` key for the commit that main points to, and `mainmoved` writes this module's
+key for the head that it told.
 
 T3 Code has no watch that wakes a crew. Instead `github` sends the crew a message, through
-`deliver`, for each thing GitHub says the crew must act on. There are three such things.
+`deliver`, for each thing on GitHub that needs action from the crew. There are three such things.
 
 The first is a check that ran and failed at a head, under the key `failed|<slug>|<head 12>`. When
 the crew reruns the head once, the check runs again in a later attempt of its workflow run. If it
 fails there, `github` sends one more message, under `refailed|<slug>|<head 12>`. A check that failed
 with no step run means CI started no job. No push repairs that, so `github` sends nothing for it. A
-head that already got the rebase message gets no message for its failed check, since a rebase is
-what that check asks for.
+head that already got the rebase message gets no message for its failed check, since a rebase is the
+fix that the failed check needs.
 
 The second is a conflict with the base at a head. Before the reviewer writes the review, `github`
 sends a message under the key `conflict|<slug>|<head 12>`. After the review is written, `github`
 sends the rebase message instead, whatever `jmerge` says first. `github` does not wait for `jmerge`
-here, because a red check hides the conflict from the line `jmerge` prints.
+here, because a red check hides the conflict from the line that `jmerge` prints.
 
 The third is a head at which every check passed, under the key `green|<slug>|<head 12>`. `github`
-sends it only where the crew owes a line on green and no reviewer the crew launched is still out
-(`owed`). `github` sends nothing for a green pull request when the crew owes nothing.
+sends it only where the crew owes a line on green and no reviewer that the crew launched is still
+out (`owed`). `github` sends nothing for a green pull request when the crew owes nothing.
 """
 
 from __future__ import annotations
@@ -164,8 +164,8 @@ _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
 
 @dataclass(frozen=True)
 class Ask:
-    """An `Ask` is one message that a `wait` line of `jmerge` asks for. It holds the message and the
-    head the message is about."""
+    """An `Ask` is one message that jbus sends because of a `wait` line of `jmerge`. It holds the
+    message and the head that the message is about."""
 
     kind: str
     did: str
@@ -178,8 +178,8 @@ class Ask:
 
 
 def content(line: str) -> tuple[int, str, Ask] | None:
-    """Return the number of the pull request, the reason `jmerge` gives, and the scoped review to
-    ask for. `content` reads a line that waits on a scoped review."""
+    """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
+    that jbus requests. `content` reads a line that waits on a scoped review."""
     found = _WAIT.match(line)
     named = found and _CONTENT.search(found[2])
     if not found or not named:
@@ -189,8 +189,8 @@ def content(line: str) -> tuple[int, str, Ask] | None:
 
 
 def unproven(old: str, new: str) -> Ask:
-    """Return the scoped review to ask for when no review has proved a fix. Its two ranges are the
-    patch up to the head the last review saw and the patch up to the current head."""
+    """Return the scoped review that jbus requests when no review has proved a fix. Its two ranges
+    are the patch up to the head that the last review saw and the patch up to the current head."""
     return Ask("proof", *_scoped(UNPROVEN, old, new), new.rpartition("..")[2])
 
 
@@ -203,7 +203,7 @@ def _scoped(why: str, old: str, new: str) -> tuple[str, str, str]:
 
 
 def drops(line: str) -> tuple[int, str, str] | None:
-    """Return the number of the pull request, the text `jmerge` prints after it, and the first
+    """Return the number of the pull request, the text that `jmerge` prints after it, and the first
     twelve characters of the head. `drops` reads a line that waits on a drop nobody explained."""
     found = DROPS.match(line)
     return (int(found[1]), found[2], found[3]) if found else None
@@ -217,7 +217,7 @@ def stale(line: str) -> tuple[int, str] | None:
 
 
 def asks(line: str) -> tuple[int, str, Ask] | None:
-    """Return what a line of `jmerge` asks its crew for, or None where it asks for nothing."""
+    """Return the `Ask` that a line of `jmerge` needs, or None when the line needs no message."""
     found = stale(line)
     dropped = None if found else drops(line)
     if dropped:
@@ -276,13 +276,13 @@ def _brief(run: Pass, slug: str) -> str:
 def owed(run: Pass, brief: str, head: str) -> bool:
     """Say whether the crew owes a line on green.
 
-    The crew never owes it while a reviewer it launched has not yet written a `## Review`, since the
-    reviewer's findings decide the line. Otherwise the crew owes the line in two cases. In the
-    first, the brief's first `Review:` line says `none`, and the brief has no `Reviewer: none` line
-    and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew writes the
+    The crew never owes it while a reviewer that it launched has not yet written a `## Review`,
+    since the reviewer's findings decide the line. Otherwise the crew owes the line in two cases. In
+    the first, the brief's first `Review:` line says `none`, and the brief has no `Reviewer: none`
+    line and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew writes the
     `Reviewer: none` line when it sends its message. Each of the other three lines comes with a gate
-    or a message that already tells of the pull request. In the second case, the pull request is
-    fixed and a home merges, and that home hears of the fix only on green. A brief that says
+    or a message that already tells of the pull request. In the second case, the crew has fixed the
+    pull request and a home merges, and that home hears of the fix only on green. A brief that says
     `Review: after` merges on green whatever its review says. So while a home merges, the crew of
     such a brief owes the line whether its reviewer is out or not.
     """
@@ -317,10 +317,10 @@ def _asked(kind: str, message: str, head: str) -> Ask:
 
 def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
     """Return the failed checks at the pull request's head, among the checks that ran, as `{reason}`
-    or nothing. Also return the highest attempt of the workflow runs they failed in. When GitHub
-    says a check's job ran no step, the check never started: CI started no job, and the crew's
-    `unrun` parks that case. When GitHub will not give a check's job, the check counts as run, at
-    its first attempt."""
+    or nothing. Also return the highest attempt of the workflow runs in which they failed. When
+    GitHub says a check's job ran no step, the check never started: CI started no job, and the
+    crew's `unrun` parks that case. When GitHub will not give a check's job, the check counts as
+    run, at its first attempt."""
     if checks(pull) != "failed":
         return "", 0
     names, attempt = [], 1
@@ -354,13 +354,13 @@ def post(
     """Send the crew of a pull request one message. Return the slug, the head and the message sent,
     or nothing when no message went.
 
-    `post` sends only for a pull request that is open under a slug jbus launched, since jbus has no
-    crew on any other. The key `<kind>|<slug>|<head 12>` is the retry key at T3 Code. `post` sends
-    no message whose key is already in `sent.json`. The event that `deliver` queues writes the key
-    there, and any other caller writes the key itself. `mainmoved` also writes the key, for a head
-    it told. No message goes while `held` delays it. When a rebase message goes, `post` writes the
-    `mainmoved` key for the commit the default branch is at, so jbus does not also tell of that
-    move.
+    `post` sends only for a pull request that is open under a slug that jbus launched, since jbus
+    has no crew on any other. The key `<kind>|<slug>|<head 12>` is the retry key at T3 Code. `post`
+    sends no message whose key is already in `sent.json`. The event that `deliver` queues writes the
+    key there, and any other caller writes the key itself. `mainmoved` also writes the key, for a
+    head that it told. No message goes while `held` delays it. When a rebase message goes, `post`
+    writes the `mainmoved` key for the commit that the default branch points to, so jbus does not
+    also tell of that move.
     """
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
     head = world.open[slug].get("headRefOid", "") if slug else ""
@@ -422,8 +422,8 @@ def held(run: Pass, client: Client, world: World, slug: str, number: int, head: 
     turn, and that turn may move the head. The pass listed the thread's status before it sent its
     other messages, such as a relay of findings or an answer, so `held` asks T3 Code again. A thread
     that this pass already sent such a message to is on `Pass.told`. It counts as at work, even if
-    T3 Code does not say so yet. The head is the one the pass listed, and a push since then may have
-    replaced it. So `held` asks GitHub again, and no message names a head that GitHub does not
+    T3 Code does not say so yet. The head is the one that the pass listed, and a push since then may
+    have replaced it. So `held` asks GitHub again, and no message names a head that GitHub does not
     confirm.
     """
     busy = slug in run.told or _live(world.threads.get(slug, []))

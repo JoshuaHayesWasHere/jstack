@@ -97,7 +97,7 @@ def _take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None) 
 
 
 def _commit(tree: Path, message: str) -> None:
-    """Commit what is staged, unless gitleaks finds a secret in it or is not there to read it."""
+    """Commit what is staged, unless gitleaks finds a secret in it or is not on PATH."""
     gitleaks = shutil.which("gitleaks")
     scanned = (
         subprocess.run(
@@ -138,7 +138,8 @@ def snapshot(
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a snapshot that did not finish. The first failure in a row alerts, once."""
+    """Count a snapshot that did not finish. The first failure in a row raises an alert,
+    once."""
     now = now or datetime.now(UTC)
     say("snapshot failed")
     return alert.sound(config, alert.SNAPSHOT, ALARM, AFTER, now, say)

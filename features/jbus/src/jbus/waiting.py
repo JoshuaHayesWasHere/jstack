@@ -4,15 +4,15 @@ state directory.
 Each pass rewrites the list. An item is one thing only the user can do,
 `{"kind", "key", "line", "since"}` plus the fields its kind adds. The kinds are `KINDS`:
 
-- `gate`: an open question jbus holds (`questions`), with `source` `jbus` and a line that says
-  `question <n>`, the number `jbus answer` takes. A `gate` is also an open gate in the home's
-  `gates.md` or in a scoped home's, with its `number`, `question`, `default`, the `home` it is in
-  (nothing for the repo's own) and the `slug` that asked. When jbus holds a gate from a `gates.md`
-  as a question, open or closed, the item is that question, and this module skips the copy of the
-  gate in the file;
+- `gate`: an open question that jbus holds (`questions`), with `source` `jbus` and a line that says
+  `question <n>`, which is the number that `jbus answer` takes. A `gate` is also an open gate in the
+  home's `gates.md` or in a scoped home's, with its `number`, `question`, `default`, the `home` it
+  is in (nothing for the repo's own) and the `slug` that asked. When jbus holds a gate from a
+  `gates.md` as a question, open or closed, the item is that question, and this module skips the
+  copy of the gate in the file;
 - `row`: a row of the queue at `gate` that has no open pull request, with its `slug`. The line is
-  the condition jbus recorded for the row. jbus records a condition about a pull request once, for
-  its crew or its message, and the row is at `gate` for that one pass;
+  the condition that jbus recorded for the row. jbus records a condition about a pull request once,
+  for its crew or its message, and the row is at `gate` for that one pass;
 - `left`: a row whose thread ended with a Result that leaves something, with its `slug`. The line is
   the row's `why`. It stays one item until the Result leaves nothing or the row is gone. A row that
   merged with something left is listed while its thread is not at work, starting with the pass after
@@ -21,7 +21,7 @@ Each pass rewrites the list. An item is one thing only the user can do,
   after its `why`, when it has no home to tell or its home has not closed it in time;
 - `approve`: a row with no approval, or a row whose brief changed after its approval, with its
   `slug`. The line is the command that approves it;
-- `hold`: a pull request `jmerge` holds, with its `number` and `url`;
+- `hold`: a pull request that `jmerge` holds, with its `number` and `url`;
 - `config`: a webhook that is not set, or no sign-in to T3 Code.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
@@ -32,19 +32,20 @@ removal does not change the list and sends no event.
 found a root with the same key as an item, `keep` lays the root's fields over the item's, since the
 root's line says more and the root has `unblocks`. A row to approve is listed once, as `approve`,
 also when it is at `gate` for its changed brief. A pass that could not ask about a kind keeps the
-items of that kind it had.
+items of that kind that it had.
 
-When a pass writes a list with other keys than the list it found, it sends one `waiting` event. The
-event gives how many items wait, the new ones by name (`short`), and each line, marked `+` for a new
-item and `-` for one that is gone. The event goes to the chat only when the list gained an item that
-`asks` something new of the user. Such an item is a hold, an approval or a config item, and this
-event is the only message that tells the user of them. It is also a gate in a home's `gates.md`. A
-config item is a condition of jbus's own, and it still asks: with no sign-in to T3 Code jbus has
-stopped, and only the user can sign in. Any other change is `quiet`. That covers a pass that only
-took items off, and a question jbus holds, since its own `gate` event told the user when jbus asked
-it. It also covers a row jbus put at `gate`, since that is jbus's own condition. The first pass that
-writes the list sends no event. Neither the file nor the event holds a webhook URL, key or token,
-since `redact` takes each one out of what a pass found before the pass compares it with the file.
+When a pass writes a list with other keys than the list that it found, it sends one `waiting` event.
+The event gives how many items wait, the new ones by name (`short`), and each line, marked `+` for a
+new item and `-` for one that is gone. The event goes to the chat only when the list gained an item
+that `asks` something new of the user. Such an item is a hold, an approval or a config item, and
+this event is the only message that tells the user of them. It is also a gate in a home's
+`gates.md`. A config item is a condition of jbus's own, and it still asks: with no sign-in to T3
+Code jbus has stopped, and only the user can sign in. Any other change is `quiet`. That covers a
+pass that only took items off, and a question that jbus holds, since its own `gate` event told the
+user when jbus asked it. It also covers a row that jbus put at `gate`, since that is jbus's own
+condition. The first pass that writes the list sends no event. Neither the file nor the event holds
+a webhook URL, key or token, since `redact` takes each one out of what a pass found before the pass
+compares it with the file.
 
 What blocks is a part of this list, and `blocking` is the one function that decides it. An item
 blocks when it is open and nothing can move without the user. That is the design's Blocking test
@@ -57,24 +58,24 @@ blocks when it is open and nothing can move without the user. That is the design
 - (b) an `approve` item, which is a row whose `brief_sha` is empty because nobody approved it or
   because its brief changed after the go, and a row of the queue that waits with no brief in
   `briefs/<slug>.md`;
-- (c) a `hold`, a pull request `jmerge` holds;
+- (c) a `hold`, which is a pull request that `jmerge` holds;
 - (d) a stall, which is any of these: a `left` item, a leftover that is the user's because its home
   did not close it in `CLOSE_MINUTES` or it has no home; a `config` item; a streak of `alert` that
   alerted, of this project or of the pass, except the second target's own; and a gate that has a
   default, whose slug wrote no event for `CLOSE_MINUTES` and has no thread at work.
 
-None of these blocks: a gate with a default whose thread still writes, a `row` jbus put at `gate`,
-and a leftover its home has.
+None of these blocks: a gate with a default whose thread still writes, a `row` that jbus put at
+`gate`, and a leftover that is still with its home.
 
 `cadence` keeps `blocking.json`, `{"open", "reminded", "period"}`, and queues the second target's
 bodies (`wake.Box.post`). It queues a body for the items that opened in a pass, one `reminder` for
 each item still open `REMIND_MINUTES` after it opened, and a `refresh` of every open item, oldest
 first. The `refresh` goes on the pass that begins a new `REFRESH_MINUTES` period, also when no item
 is open. A body names an item by its key, the key the list uses, so it names a question by its
-number. A pass that cannot judge a stall, or that is blind, closes nothing it had.
+number. A pass that cannot judge a stall, or that is blind, closes no item that it had open.
 
 The file once had another name (`jbus.old_names`). Where there is no file of the current name,
-`read` takes a file of the old name, and reads each line by the name its event has now. `keep`
+`read` takes a file of the old name, and reads each line by the name that its event has now. `keep`
 removes the old file once it has written the new one.
 """
 
@@ -115,10 +116,10 @@ EVENT = "waiting"
 
 @dataclass(frozen=True)
 class Kind:
-    """A `Kind` is a kind of what waits on the user, with the way the page shows it. `label` heads
-    the kind's list in the drawer of what waits on the user, and `verb` is the button on an item of
-    the kind. `shown` is the kind's place in that drawer, while a pass lists the kinds in the order
-    of `KINDS`."""
+    """A `Kind` is one kind of item that waits on the user, together with how the page shows that
+    kind. `label` heads the kind's list in the drawer of what waits on the user, and `verb` is the
+    button on an item of the kind. `shown` is the kind's place in that drawer, whereas a pass lists
+    the kinds in the order of `KINDS`."""
 
     name: str
     label: str
@@ -177,8 +178,8 @@ def shown() -> list[dict[str, Any]]:
 
 
 def kind(key: str) -> str:
-    """Return the kind a key names. `#<n>` is a hold, and any other key names its kind before its
-    colon."""
+    """Return the kind that a key names. A key `#<n>` names a hold, and any other key names its kind
+    before its colon."""
     if key.startswith("#"):
         return "hold"
     named = key.partition(":")[0].removeprefix("re-")
@@ -197,8 +198,8 @@ def short(one: Item) -> str:
 def read(state: Path) -> list[Item] | None:
     """Return the list as the last pass left it, or None where no pass has written one.
 
-    A list from before items had a kind names each item by `root`, and `read` takes that name as the
-    item's key.
+    A list written before items had a kind uses `root` as each item's name, and `read` takes that
+    name as the item's key.
     """
     kept = None
     for file in (path(state), *_named_before(state)):
@@ -222,7 +223,7 @@ def read(state: Path) -> list[Item] | None:
 
 def approve(name: str, slug: str, sha: str, user: jsettings.Settings) -> str:
     """Return the command that records the user's go for the brief whose sha256 starts with `sha`,
-    with the three things the go is based on."""
+    with the three things that the go is based on."""
     return f"jbus --project {name} queue approve {slug} --sha {sha} with {queue.BASIS}"
 
 
@@ -269,15 +270,15 @@ def unapproved(run: Pass, rows: list[queue.Row]) -> list[Item]:
 
 
 def asks(one: Item) -> bool:
-    """Say whether an item the list gained asks something new of the user."""
+    """Say whether an item that the list gained asks something new of the user."""
     if one["kind"] == "gate":
         return not questions.listed(one)
     return one["kind"] in ASKS
 
 
 def gated(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
-    """Return the rows at `gate` that have no open pull request and that this pass recorded a
-    condition for. When a reply from T3 Code is lost, a row stays at `gate` for one pass with no
+    """Return the rows at `gate` that have no open pull request and for which this pass recorded a
+    condition. When a reply from T3 Code is lost, a row stays at `gate` for one pass with no
     condition recorded, and that row asks nothing of the user."""
     return [
         {
@@ -294,8 +295,9 @@ def gated(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
 
 def left(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
     """Return the rows whose Result leaves something that no thread is at work on
-    (`leftover.ended`), except a row its home has. For any other row that has a record, the line
-    says why the row is the user's."""
+    (`leftover.ended`). Leave out a row whose leftover record says that its home still has it. When
+    a row's record gives a reason why the row is the user's, the item's line ends with that reason.
+    """
     held = leftover.read(run.state)
     found = []
     for slug, why in leftover.ended(run, world, rows):
@@ -309,16 +311,16 @@ def left(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
 
 def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> list[Item]:
     """Return the open pull requests `jmerge` holds. `holds` goes by what `jmerge` printed in this
-    pass, or, where the home merges, by the last line `jmerge` logged for each pull request. A pull
-    request that is still open and that `jmerge` said nothing about keeps the hold it had, since
-    `jmerge` did not run.
+    pass, or, where the home merges, by the last line that `jmerge` logged for each pull request. A
+    pull request that is still open and that `jmerge` said nothing about keeps the hold that it had,
+    since `jmerge` did not run.
 
     A pass that could not ask T3 Code or GitHub has no `world`, and trusts `jmerge`. It counts a
     pull request that `jmerge` holds in this pass as open. A pull request that `jmerge` said nothing
-    about keeps the hold it had. So the list gets a hold even when nothing but `jmerge` answers.
-    `keep` calls `holds` only when `jmerge` ran in the pass. Nothing ever removes the last lines a
-    home logged, and with no `world` nothing says which of those lines are about a pull request that
-    is still open.
+    about keeps the hold that it had. So the list gets a hold even when nothing but `jmerge`
+    answers. `keep` calls `holds` only when `jmerge` ran in the pass. Nothing ever removes the last
+    lines that a home logged, and with no `world` nothing says which of those lines are about a pull
+    request that is still open.
     """
     lines = [line.strip() for line in pulls]
     if merge.home_thread(run):
@@ -362,25 +364,25 @@ def keep(
     derived: bool,
     read_all: bool,
 ) -> list[Item]:
-    """Rewrite the list, and send one event when its keys are not the ones it had. The event is for
-    the chat when the list gained an item that `asks` something new of the user, and `quiet` for any
-    other change.
+    """Rewrite the list, and send one event when its keys are not the keys that the list had. The
+    event is for the chat when the list gained an item that `asks` something new of the user, and
+    `quiet` for any other change.
 
-    `roots` is what `stall.tell` gives. `derived` says the rows' statuses are this pass's, and
-    `read_all` says that `dispatch` read every row of the queue in this pass.
+    `roots` is the list that `stall.tell` returns. `derived` says the rows' statuses are this
+    pass's, and `read_all` says that `dispatch` read every row of the queue in this pass.
 
     `dispatch` records a condition for a row only in a pass in which it reads that row with a slot
-    free. Some passes record no condition for a row that the list has at `gate`. If the row is not
-    launched and `dispatch` did not say what else it waits for, the row stays at `gate` through such
-    a pass. In that pass `dispatch` did not read the row, or the pass was full and `dispatch` held
-    the row's gate back (`Pass.held`) or recorded `Slot` for it.
+    free. Some passes record no condition for a row that is at `gate` on the list. If the row is not
+    launched and `dispatch` gave no other reason for it to wait, the row stays at `gate` through
+    such a pass. In that pass `dispatch` did not read the row, or the pass was full and `dispatch`
+    held the row's gate back (`Pass.held`) or recorded `Slot` for it.
     """
     was = read(run.state)
     before = {one["key"]: one for one in was or []}
 
     def had(of: str) -> list[Item]:
-        """Return the items the list had of a kind this pass cannot judge, without the `unblocks`
-        field of a root, since `stall` gives the roots."""
+        """Return the items that the list had of a kind this pass cannot judge, without the
+        `unblocks` field of a root, since `stall` gives the roots."""
         kept = (one for one in before.values() if one["kind"] == of)
         return [{name: value for name, value in one.items() if name != "unblocks"} for one in kept]
 
@@ -436,7 +438,7 @@ def keep(
 
 
 def paused(text: str) -> str:
-    """Return the always-pause name a text falls under, or nothing."""
+    """Return the always-pause name that matches a text, or nothing."""
     return next((name for name, rule in PAUSE.items() if re.search(rule, text, re.I)), "")
 
 
@@ -463,9 +465,9 @@ def _at_work(world: World, slug: str) -> bool:
 def _why(
     run: Pass, one: Item, world: World | None, last: dict[str, datetime]
 ) -> tuple[str, str] | None:
-    """Return the case of the Blocking test that an item of the list falls under, and why, or None
-    where the item does not block. `("?", "")` is a stall this pass cannot judge, since the pass has
-    no `world`."""
+    """Return the case of the Blocking test that an item of the list meets, and why, or None where
+    the item does not block. `("?", "")` is a stall this pass cannot judge, since the pass has no
+    `world`."""
     kind = one["kind"]
     if kind == "hold":
         return "c", "a pull request jmerge holds"
@@ -579,9 +581,9 @@ def _body(run: Pass, kind: str, items: list[Item]) -> dict[str, Any]:
 
 
 def _opened(one: Item, had: dict[str, Item], last: str | None, now: datetime) -> str:
-    """Return when an item began to block. That is the time the last pass recorded, or, for an item
-    new to the list since that pass, its own `since`, or else this pass. A gate that turns into a
-    stall begins to block now, not when the crew asked it."""
+    """Return when an item began to block. That is the time that the last pass recorded, or, for an
+    item new to the list since that pass, its own `since`, or else this pass. A gate that turns into
+    a stall begins to block now, not when the crew asked it."""
     if one["key"] in had:
         return had[one["key"]].get("opened") or had[one["key"]]["since"]
     if last is None or datetime.fromisoformat(one["since"]) > datetime.fromisoformat(last):

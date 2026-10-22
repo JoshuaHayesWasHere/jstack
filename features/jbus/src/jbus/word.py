@@ -9,15 +9,16 @@ list of `Word`:
   often the command runs.
 - `words`, `by`, `at`: what the user said, who said it, and when.
 - `ref`, `said_in`, `checked`: for a word given as `--message`, the `<thread id>/<message id>`
-  jbus read from T3 Code, that thread's title, and true, since the words and the time are the
+  that jbus read from T3 Code, that thread's title, and true, since the words and the time are the
   message's own. A word typed with `--by` and `--at` has no `ref`, no `said_in`, and `checked`
   false.
 - `kept_at`: when `jbus word` recorded the word.
-- `thread` and `sent_at`: the home's thread the word went to, and when. Both are empty while
-  the word waits.
-- `skipped`: why jbus posted the word to nobody, for a word recorded from or by the home it is
-  for. `thread` is then that home's thread and `sent_at` the time the word was kept, so the
-  word is done, and nobody tells the home what it recorded itself. `skipped` is empty for
+- `thread` and `sent_at`: the home's thread that received the word, and when. Both are empty
+  while the word waits.
+- `skipped`: why jbus posted the word to nobody. It is set for a word that was said in, or
+  recorded by, the home that the word is for. `thread` is then that home's thread, and
+  `sent_at` is the time when jbus kept the word. So the word is done, and nobody tells the home
+  what it recorded itself. `skipped` is empty for
   every other word.
 - `waits`: why the word has not gone yet, as the log last said it.
 
@@ -30,12 +31,12 @@ handed off and has no `home-id` has no thread to send to, so a word for it waits
 like any other word. A word that could not go waits in the file, and each pass tries it again
 (`deliver`). A home with no `home-id`, or one that handed off, gets the word on the pass after the
 next home's start wrote its id there. The retry key is `word|<project>|<id>|<thread>`, and jbus
-writes `sent_at` only after T3 Code said yes.
+writes `sent_at` only after T3 Code accepted the message.
 
 No part of a word is an event. A word is in no outbox, so no POST to a project's webhook or to
 the top-level one carries it, and whoever ran the command hears nothing back. The log still has
 a line for it (`wake.Box.record`), which `jbus events` prints. The line holds the words, `by`,
-`at`, and `to`, which is the thread the word went to, or nothing while the word waits or when
+`at`, and `to`, which is the thread that received the word, or nothing while the word waits or when
 jbus posted it to nobody. A word that T3 Code refuses gets such a line too, and waits like any
 other.
 
@@ -350,11 +351,12 @@ def _deliver(half: Half) -> None:
 def scratch(
     config: Config, client: Client | None, now: datetime, say: Callable[[str], None]
 ) -> None:
-    """Run the whole pass of each scratch home, as a chore of the pass: send the home's
-    waiting words to its thread. A scratch home is no project of the pass (`jbus.load`), so
-    this is no step of a pass. For a scratch home whose `words.json` does not parse,
-    `scratch` says so and raises no gate, since a scratch home has no webhook to send a gate
-    to."""
+    """For each scratch home, send its waiting words to its thread. That is all the work a
+    scratch home gets from jbus, and `jbus.cli.poll` runs it once a pass as a chore. A
+    scratch home is not one of the projects that a pass works through (`jbus.load`), so this
+    cannot be one of a project's steps. When a scratch home's `words.json` does not
+    parse, `scratch` says so and raises no gate, since a scratch home has no webhook that
+    could take a gate."""
     for one in config.scratch:
         run = Pass(config, one.addressee(), now, say)
         try:
