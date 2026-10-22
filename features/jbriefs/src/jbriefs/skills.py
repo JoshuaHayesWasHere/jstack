@@ -220,9 +220,9 @@ _NAMES = "(name a skill or principle that skills.json lists, without its path, o
 
 
 def unknown(text: str) -> str:
-    """One line on why a brief's `Skills:` line names something that is no skill or principle,
-    or nothing. The line names the bad name. A brief with no `Skills:` line names no skill,
-    and passes."""
+    """Why a brief's `Skills:` line names something that is no skill or principle, in one line
+    that names it, or an empty string when every name resolves. A brief with no `Skills:`
+    line names no skill, and passes."""
     line = _head(text)
     if line is None or _none(line):
         return ""

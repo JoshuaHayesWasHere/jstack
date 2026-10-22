@@ -13,13 +13,13 @@ green. `green` is the tip whose check passed, or the green tip kept before. A ti
 check has not ended, or was cancelled, changes neither.
 
 Two readers go through `read`. A launch names `green` on the brief's `Green main:` line
-(`jbus.dispatch`), and while `red` is set `jmerge` merges no pull request but the fix's
+(`jbus.dispatch`), and while `red` is set, `jmerge` merges no pull request but the fix's
 (`jmerge.rows`). The fix is the brief `main-red-<sha12>` that `jbus.watch` files ahead of
 every row, so a slug that starts with `FIX` is a fix. A file that is missing or cannot be read
 means nothing is known, and `jmerge` then merges as it did before. When a pass of `tell` has
 not yet sent its message, it keeps the record's commit so that the next pass looks at that
-commit again. It also adds `fixed`, the green tip (`owed`). So a main that turns green while
-T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's
+commit again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green
+while T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's
 message, that pass does the same. Older records, written before the file kept `broken`, name a
 failed tip only by its `check`, and that tip is red too.
 """
@@ -144,8 +144,8 @@ def record(
 
 
 def owed(was: Record, fixed: str) -> Record:
-    """The record that a pass leaves when it has not yet sent its message: the last record,
-    with main green at `fixed` for its readers."""
+    """The record that a pass leaves when it has not yet sent its message. It is the last
+    record with `fixed` added, so that its readers see main as green at `fixed`."""
     return {**was, "fixed": fixed}
 
 

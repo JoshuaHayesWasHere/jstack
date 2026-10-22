@@ -87,7 +87,8 @@ def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check
 
 
 def ended(tmp_path):
-    """Wait for the check to end with nobody calling, as a turn would between two calls."""
+    """Wait for the check to end while no call to the block is running, as happens in a turn
+    between two calls."""
     found = tmp_path / "repo" / ".git" / "crew-check" / "exit"
     for _ in range(600):
         if found.exists():

@@ -51,7 +51,8 @@ class Scene:
         self.pulls = 0
 
     def tree(self, branch, at=None):
-        """A worktree where T3 Code makes one, on a new branch named for it."""
+        """Make a worktree in the directory where T3 Code makes its worktrees, on a new branch
+        named after the worktree."""
         at = at or self.trees / branch
         git(self.main, "worktree", "add", "-q", "-b", branch, str(at))
         return at

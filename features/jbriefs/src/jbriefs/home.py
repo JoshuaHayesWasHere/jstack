@@ -35,7 +35,7 @@ def _read(file: Path) -> str:
 
 
 def ids(directory: Path) -> tuple[str, str]:
-    """The id in the directory's `home-id`, its first word, and the id on the `Was home:` line
+    """Two ids: the first word of the directory's `home-id`, and the id on the `Was home:` line
     of its `handoff.md`. Either is empty where there is none."""
     was = WAS.search(_read(directory / "handoff.md"))
     return (_read(directory / "home-id").split()[:1] or [""])[0], was[1] if was else ""

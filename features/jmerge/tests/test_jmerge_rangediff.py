@@ -686,8 +686,8 @@ class Shaped:
         self.proven_merged = proven_merged
 
     def brief(self, told, more=""):
-        """The brief with the `Rebase:` line of #154, which names directories in free text, or with
-        no `Rebase:` line."""
+        """The brief with no `Rebase:` line, or with the `Rebase:` line of #154, which names
+        directories in free text."""
         line = (
             "Rebase: patch changed in api/pkg/store (exports now a typed read in main's audit "
             f"trail, #146), client activity, before {self.before}, head {self.head}\n"

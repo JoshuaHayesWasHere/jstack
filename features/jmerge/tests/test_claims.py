@@ -1,5 +1,6 @@
-"""One command, `jmerge --claims`, prints the files that each brief still out claims. The homes
-of a repo read that list before a launch. The tests run the command as a home runs `jmerge`,
+"""One command, `jmerge --claims`, prints the files that each brief claims while it is still
+out. The homes of a repo read that list before a launch. The tests run the command as a home
+runs `jmerge`,
 against a fake `gh` and a temporary state directory."""
 
 import json

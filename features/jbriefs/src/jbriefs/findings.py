@@ -245,7 +245,8 @@ class Finding:
 
     @property
     def superseded(self) -> bool:
-        """Whether every line that raised it is in a section that its reviewer wrote again."""
+        """Whether each line that raised this finding is in a section that its reviewer wrote
+        again."""
         return all(one.section in self.stale for one in self.raised)
 
     @property
@@ -284,9 +285,9 @@ class Finding:
 
     @property
     def blocks(self) -> bool:
-        """Whether it holds the merge until the crew answers it. An Act on finding holds it, as
-        every finding from before the buckets does, and so does a finding on one of `RISKS`
-        in any bucket."""
+        """Whether this finding holds the merge until the crew answers it. A finding in the
+        `Act on` bucket holds it, as every finding from before the buckets does, and so does
+        a finding on one of `RISKS` in any bucket."""
         return self.sent and (self.bucket == ACT_ON or bool(self.risk))
 
     @property
@@ -323,8 +324,8 @@ class Triage:
     roster: Roster = field(default_factory=lambda: Legacy(0))
 
     def blocking(self) -> tuple[Finding, ...]:
-        """The findings that hold the merge, each Act on finding with no answer that counts, in
-        the order of their ids."""
+        """The findings that hold the merge: each finding in the `Act on` bucket with no answer
+        that counts, in the order of their ids."""
         return tuple(one for one in self.findings if one.blocks and not one.ended)
 
     def sent(self) -> list[Finding]:
@@ -518,10 +519,10 @@ def _answers(text: str) -> tuple[dict[str, Answer], list[Answer]]:
 
 
 def _judge(findings: list[Finding], text: str) -> None:
-    """Refuse the answers that do not count. A decline of an Act on finding does not count
-    when it cites nothing, gives an earlier finding's reason, or leaves a risky finding with
-    no gate. This function applies the old rule to an answer with no id, which is an answer
-    to a finding from before the ids."""
+    """Refuse the answers that do not count. A decline of a finding in the `Act on` bucket
+    does not count when it cites nothing, gives an earlier finding's reason, or leaves a
+    risky finding with no gate. This function applies the old rule to an answer with no id,
+    which is an answer to a finding from before the ids."""
     gates = set(re.findall(r"Gate: question (\d+)\b", text))
     given: dict[str, str] = {}
     for one in findings:
