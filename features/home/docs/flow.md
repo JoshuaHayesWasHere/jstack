@@ -59,6 +59,7 @@ The second review's `warning` and `error` findings come to you as the same kind 
 A brief that says `Review: review` has every finding answered before the merge.
 There, a fix that changes a file outside `tests/` gets one more review, of the fix alone, and that review is the last.
 A fix that changes only files under `tests/` gets no second review, and the pull request's checks stand behind it.
+A blocking finding that the crewmate declines gets that review all the same, even when nothing was pushed.
 
 A pull request that prints `wait` is not a failure and asks nothing of you. `jmerge` prints the first thing it is short of, such as a check that has not passed, and a later run merges it once the reason is gone.
 
