@@ -1,4 +1,4 @@
-"""The Words panel: his answers, his words and each approval, newest first."""
+"""The Words panel: your answers, your words and each approval, newest first."""
 
 import json
 import types

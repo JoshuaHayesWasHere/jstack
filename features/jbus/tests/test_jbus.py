@@ -96,7 +96,7 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
 
 
 def test_no_page_of_docs_jbus_holds_a_url_a_key_or_a_token():
-    pages = sorted((REPO / "features/jbus/docs/jbus").glob("*.md"))
+    pages = sorted((REPO / "features/jbus/docs").rglob("*.md"))
     assert len(pages) > 10
     allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
     for path in pages:

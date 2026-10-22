@@ -40,12 +40,12 @@ fail=
 [ "$code" = 0 ] || fail="$fail; the first --setup exited $code"
 [ "$second" = 0 ] || fail="$fail; the second --setup exited $second"
 [ "$(tail -n 1 /tmp/doctor)" = "doctor: ok" ] || fail="$fail; the doctor is not ok"
-grep -v '^already \|^needs you ' /tmp/second && fail="$fail; the second run wrote something"
+grep -v '^already \|^needs you \|^missing optional ' /tmp/second && fail="$fail; the second run wrote something"
 diff /tmp/before /tmp/after || fail="$fail; the second run changed the files under HOME"
 [ "$record" = "$(cat "$HOME/.local/state/jstack/created" "$HOME/.local/state/jstack/seeded" | sha256sum)" ] ||
     fail="$fail; the records changed"
-left=$(sed -n '/^needs you state repo /d; s/^needs you .* -> //p' /tmp/second | sort | paste -sd, -)
-[ "$left" = "claude,jbus t3 login" ] || fail="$fail; needs you left: $left"
+left=$(sed -n 's/^needs you .* -> //p' /tmp/second | sort | paste -sd, -)
+[ "$left" = "claude" ] || fail="$fail; needs you left: $left"
 if [ -n "$fail" ]; then
     echo "fresh host: failed${fail}"
     exit 1

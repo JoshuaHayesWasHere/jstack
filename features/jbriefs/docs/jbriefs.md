@@ -1,6 +1,18 @@
 # jbriefs
 
-`jbriefs` writes one HTML page of every home under `~/.local/state/home/`: each repo's handoff, its open plan entries, and every brief with its result. It prints the page's path. It reads the files alone, and asks neither T3 Code nor GitHub.
+`jbriefs` shows you, on one HTML page, what every home on this machine is doing: each repo's handoff, its open plan entries, and every brief with its result.
+It reads the files under `~/.local/state/home/` alone, and asks neither T3 Code nor GitHub.
+The crew, scout and pr-review skills also run it to read a brief's skills and findings.
+
+## See every home's work
+
+1. Run `jbriefs`.
+   It writes the page and prints its path.
+2. Open that path in a browser.
+
+To write the page somewhere else, run `jbriefs --out <path>`.
+
+## Arguments
 
 | Argument | What it does |
 |---|---|
@@ -31,7 +43,7 @@ The lines after the role line:
 - `named <skill>: ...`: each skill the text names as `/<name>` or as `skills/<name>`, read from a brief's or a request's head (no Result or Review under it) and from other text whole. A path such as `/tmp/x` names none.
 - `unknown <name>: ...`: a name from a `Playbook:` line, a `/<name>` or a `skills/<name>` that is no file here. It is printed, never dropped.
 
-Every path it prints is from the root of the jstack checkout.
+Every path it prints is from the root of jstack's source tree: the checkout it runs from, or the `share/jstack` folder of a release.
 
 ## What an approval binds to
 
@@ -42,14 +54,16 @@ The checks of `jbriefs.parse.faults` run when a row is first queued; a row with 
 
 ## Skills a brief names
 
-A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in a Grok Bot brief, which pstack drives, and in T3, which jstack drives.
-The names are listed in `skills.json` at the repo root, and the resolver reads them from there, not from the directories.
+A brief's `Skills:` line names skills and principles by pstack's names, so that a name reads the same in pstack and in jstack.
+The names are listed in `skills.json` at the root of jstack's source tree, and the resolver reads them from there, not from the directories.
 The canonical form of a skill is its directory under `skills/`, `architect`; of a principle, its directory under `features/principles/skills/`, `principle-model-the-domain`.
 Three aliases resolve too: an item's `pstack_name` in `skills.json`, where pstack names it otherwise; a principle's name from before it took pstack's prefix, `model-the-domain`; and `arena` and `swarm`, pstack skills that jstack keeps as playbooks.
 A brief writes the canonical form, the one the resolver reads at once: `principle-build-the-lever`, not `build-the-lever`, which it reaches only after looking for an item of that name.
 The two spellings are one name, on the `Skills:` line and under the Result's `Skills run:` alike, and `jmerge`'s wait names a skill as the brief spelled it.
 A pstack skill jstack did not take, `poteto-mode` and the `Not taken:` line of `THIRD_PARTY.md`, is no name.
 `features/jbriefs/src/jbriefs/skills.py` is the one resolver: `jbus queue add` refuses a brief that names anything else when its row is first queued (a row with a go is grandfathered, and launches), `jbriefs --skills` loads the files, and `jmerge` waits on a pull request whose Results leave a named skill with no artifact.
+
+## Reference for jstack developers
 
 ### skills.json
 
@@ -63,7 +77,7 @@ Its `items` are sorted by kind, then name, and each has these keys:
 | `name` | The canonical name a `Skills:` line uses; for a template, its path under `templates/`. |
 | `kind` | `skill`, `principle`, `playbook` or `template`. |
 | `path` | The file it loads, from the repo root. |
-| `source` | `pstack` for pstack's item of the same name, brought over one to one; `adapted` for one built from pstack's item with other material beside it, or from a pstack item of another name; `josh` for jstack's own, with no pstack skill or principle behind it. |
+| `source` | `pstack` for pstack's item of the same name, brought over one to one; `adapted` for one built from pstack's item with other material beside it, or from a pstack item of another name; `jstack` for jstack's own, with no pstack skill or principle behind it. |
 | `pstack_name` | Only where pstack's name for it differs from `name`: an alias the resolver maps to `name`. |
 | `description` | A skill's frontmatter `description`, or the paragraph under a principle's title. |
 | `nameable` | Only on a playbook a `Skills:` line may name, because its feature lists it as `nameable`. |
@@ -71,4 +85,4 @@ Its `items` are sorted by kind, then name, and each has these keys:
 `jbriefs.skills.where(kind, name)` is the one way the runtime finds any of these files, as `where("template", "gates.md")`: no module reads a path of the checkout from its own place in it.
 The source is read from the `Upstream map:` block of `THIRD_PARTY.md`, the paths each file was written from, so there is no second list to keep.
 `THIRD_PARTY.md` says what changed in each, and how deep: one brought over one to one still has jstack's frontmatter and pointers.
-`josh` means only that no pstack skill or principle is behind the item, and it may still borrow a passage: `crew` and `pr-review` take theirs from pstack's `interrogate` reference files, which the map lists, and `grilling` is from Matt Pocock, as `THIRD_PARTY.md` says.
+`jstack` means only that no pstack skill or principle is behind the item, and it may still borrow a passage: `crew` and `pr-review` take theirs from pstack's `interrogate` reference files, which the map lists, and `grilling` is from Matt Pocock, as `THIRD_PARTY.md` says.

@@ -38,7 +38,9 @@ The user's answer on a Lavish page is their go for the rows it names, and it is 
 jbus --project <project> queue approve <slug> --sha <sha12> --page <session key>/<entry id>
 ```
 
-jbus refuses a state file that is not there, a session or an entry the file does not have, and an entry whose role is not the user's, each in one line. The row then reads `his pick on a Lavish page, <time>, <page file name>; run <time> by the <repo> home`. Where the block prints `no entry`, the page gave no go jbus can read: ask the user for their word another way.
+jbus refuses a state file that is not there, a session or an entry the file does not have, and an entry whose role is not the user's, each in one line.
+The row then reads `your pick on a Lavish page, <time>, <page file name>; run <time> by the <repo> home`.
+Where the block prints `no entry`, the page gave no go jbus can read: ask the user for their word another way.
 
 ### A follow-up approved by a standing rule
 
@@ -48,4 +50,6 @@ A row of the queue launches on the user's own word, and `jbus queue approve` nam
 jbus --project <project> queue approve <slug> --sha <sha12> --rule 6 --follows <parent>
 ```
 
-It is never for new work: new work waits for the user's go, however small it is and whatever entry it is filed under. A follow-up finishes or repairs what the parent row asked for, and asks for no outcome the parent did not. jbus does not judge that, the home does. jbus refuses a parent that is no row of this queue, one with no approval, and one that was itself approved by a rule: a chain is one step, so a follow-up of a follow-up names the first parent or waits for the user. The row then reads `rule 6, follow-up of <parent>; run <time> by the <repo> home; he did not speak of this row`, the page marks it, and the digest counts it for the user: that is how they audit it, so a doubtful one is a gate and not a rule approval.
+It is never for new work: new work waits for the user's go, however small it is and whatever entry it is filed under.
+A follow-up finishes or repairs what the parent row asked for, and asks for no outcome the parent did not. jbus does not judge that, the home does. jbus refuses a parent that is no row of this queue, one with no approval, and one that was itself approved by a rule: a chain is one step, so a follow-up of a follow-up names the first parent or waits for the user.
+The row then reads `rule 6, follow-up of <parent>; run <time> by the <repo> home; you did not speak of this row`, the page marks it, and the digest counts it for the user: that is how they audit it, so a doubtful one is a gate and not a rule approval.

@@ -100,7 +100,7 @@ FEATURES = [
     GOOD | {"statusLine": {}},
     GOOD | {"gitHooks": [{"name": "pre-commit", "script": "hooks/p.sh"}]},
     GOOD | {"upstream": [{"from": "elsewhere/x", "to": "x", "source": "pstack"}]},
-    GOOD | {"upstream": [{"from": "pstack/x", "to": "x", "source": "josh"}]},
+    GOOD | {"upstream": [{"from": "pstack/x", "to": "x", "source": "jstack"}]},
     GOOD | {"units": ["foo.service"]},
     GOOD | {"owns": [""]},
     GOOD | {"nameable": ["Foo Run"]},

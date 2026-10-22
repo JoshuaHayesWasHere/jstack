@@ -1,5 +1,9 @@
 # Machine-sized limits: three derived counts, everything else stays put
 
+> This page is the design record of the change that derived the machine's sizes, written for jstack's developers on its owner's machines.
+> It does not describe your machine.
+> [The limits and how to change them](../jgauge/change-a-limit.md) describes each limit for any install, and how to change it.
+
 ## Problem
 
 jstack's limits were sized by hand for adalaide (12 cores) and nudged for yelena (24 cores, 62 GB), and the owner wants machine-neutral defaults derived from what the code can measure, machine values only in local config, and one inventory, `features/jgauge/docs/limits.md`.

@@ -1,6 +1,22 @@
 # jleak
 
-`jleak` finds what must not leave this machine for a public repo, before it leaves.
+`jleak` keeps what is private to your machine out of what you push and post.
+Your home path, your name and the names of your private repos are patterns in a file of your own, and `jleak` refuses a push or a pull request command whose text matches one, or matches the shape of a key.
+It also keeps AI co-author trailers out of your commits and pull requests ("AI trailers").
+
+## Before your first push
+
+- **Fill in your patterns.**
+  The install makes `${XDG_CONFIG_HOME:-~/.config}/jstack/outbound.toml` once, with your home path in it, and your name, your machine's name and your private repos as examples behind a `#`.
+  Take the `#` off each line you need, and put in your own names.
+- **With no patterns file, the hooks refuse.**
+  While the file is missing, the `pre-push` hook refuses every push.
+  The Claude Code hook then refuses every `gh pr create`, `gh pr edit`, `gh pr comment` and `gh pr review`, and every `git push` that skips the `pre-push` hook.
+  `jleak` run by hand checks only the built-in patterns, and says so on stderr.
+- **Know which repos get the git hooks.**
+  The install links `pre-push` and `commit-msg` into jstack's own checkout when it runs from one, into the checkout of each project of `jbus`'s config, and into each repo you set up with `jinstall --repo`.
+  To add them to another repo, run `jinstall --repo` in it.
+  The Claude Code hooks are in your own settings, so they read the commands of every repo on the machine ("Which repos get the git hooks").
 
 ## The private patterns
 
@@ -15,7 +31,9 @@ private-repo = '\b(?:a-private-repo|another-one)\b'
 
 The file is one table, `[patterns]`. Each key is a pattern's name: lower case, with digits and `-`, and not the name of a built-in pattern. Each value is a string, a regular expression of Python's `re`. A pattern is held against one line at a time, in the case it is written in. Start it with `(?i)` for any case.
 
-`sh install.sh` makes the file once and never writes it again. As made, it holds your home directory and the shapes of a thread id and of a tailnet's names and addresses. Your name, the machine's name and the names of your private repos are examples behind a `#`: fill them in.
+The install (`jinstall`, or `jinstall --setup`) makes the file once and never writes it again.
+As made, it holds your home directory and the shapes of a thread id and of a tailnet's names and addresses.
+Your name, the machine's name and the names of your private repos are examples behind a `#`: fill them in.
 
 The tree holds only the built-in patterns, which are the shapes of keys: `private-key`, `github-token`, `aws-access-key`, `slack-token` and `anthropic-key`.
 
@@ -63,7 +81,8 @@ commit 1a2b3c4 notes.md:12: home-path
 jleak: 3 findings, so the push is refused
 ```
 
-`sh install.sh` links it at `.git/hooks/pre-push` of the main checkout. The repo's worktrees run the same hook.
+The install links it at `.git/hooks/pre-push` of each repo jstack works in ("Which repos get the git hooks").
+A repo's worktrees run the same hook.
 
 `features/jleak/hooks/outbound-command.sh` is a `PreToolUse` hook on Claude Code's shell commands.
 It runs `jleak --command` and refuses, with exit code 2:
@@ -73,7 +92,8 @@ It runs `jleak --command` and refuses, with exit code 2:
 
 It reads the command as the shell would, so a word in a commit message or in another program's arguments is not taken for a push or a body file. It refuses a body that is piped in, since it cannot read one. It does not see a body that the command builds from a variable, or a command inside a quoted string.
 
-The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is this checkout's alone. A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
+The `PreToolUse` entry is in your own settings, so the hook reads the commands of every repo on the machine, and the `pre-push` link is in the repos jstack works in alone.
+A `gh pr comment` in a private repo that names that repo is refused once its name is a pattern.
 
 ## AI trailers
 
@@ -107,4 +127,12 @@ jleak: took out of the commit message: Co-Authored-By: Claude Opus 5.5 <noreply@
 ```
 
 It never stops a commit, even when it cannot clean the message.
-`sh install.sh` links it at `.git/hooks/commit-msg` of the main checkout, beside `pre-push`, and the repo's worktrees run it too.
+The install links it at `.git/hooks/commit-msg` of each repo jstack works in, beside `pre-push`, and a repo's worktrees run it too.
+
+## Which repos get the git hooks
+
+The install links both git hooks into jstack's own checkout, the checkout of each project of `jbus`'s config, and each repo set up with `jinstall --repo`.
+`/new-home` runs `jinstall --repo` for the repo it sets up.
+To add them to any other repo, run `jinstall --repo` in it, or `jinstall --repo <path>` from anywhere.
+Each hook links to its script in the release's source or the checkout, and a release's script runs jleak on the release's own Python, so the hooks need no checkout.
+A hook of the repo's own is never written over: its line in `jinstall --check` names the file and the line that runs this hook from it, as [jinstall's page](../../jinstall/docs/jinstall.md#git-hooks-in-your-repos) shows.

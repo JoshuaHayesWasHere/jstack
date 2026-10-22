@@ -1,20 +1,24 @@
 # The doctor
 
-Start with the doctor. It writes nothing, and it prints one line for each thing jstack needs:
+Start with the doctor.
+It writes nothing, and it prints one line for each thing jstack needs:
 
 ```sh
-sh install.sh --doctor
+jinstall --doctor
 ```
 
-Each line is `<state> <level> <name>[ -> <detail>]`. The state is `ok`, `missing` or `old`. The level is `hard` or `optional`. `sh install.sh --check` prints the same lines for the parts the install puts, and the entries below serve both.
+Each line is `<state> <level> <name>[ -> <detail>]`.
+The state is `ok`, `missing` or `old`.
+The level is `hard` or `optional`.
+`jinstall --check` prints the same lines for the parts the install puts, and the entries below serve both.
 
-`sh install.sh --setup` walks the same needs once, in order, and mends what it can.
+`jinstall --setup` walks the same needs once, in order, and mends what it can.
 It prints `done <name>` for what it wrote, `already <name>` for what was there, and `needs you <name> -> <command>` for what only you can do: run that command, then `--setup` again.
 [Setup](setup.md) has its lines.
 
 Find your line in the tables, on this page and on the pages below.
 A word in angle brackets stands for a value on your machine.
-`<home>` is your home directory and `<checkout>` is the path of the jstack checkout.
+`<home>` is your home directory.
 
 ## The last line and the exit code
 
@@ -23,17 +27,16 @@ A word in angle brackets stands for a value on your machine.
 | `doctor: ok` | Every hard need is `ok`. The doctor exits 0, also when an optional line is not `ok`. | Nothing. |
 | `doctor: not ok, <n> hard` | `<n>` hard lines are not `ok`. The doctor exits 1. | Fix each `hard` line that does not start with `ok`. |
 
-`install.sh` and `install.sh --check` have no last line. They exit 1 when any line they print is not `ok`.
+`jinstall` and `jinstall --check` have no last line.
+They exit 1 when any line they print is not `ok`.
 
-## Lines from the script itself
+## Lines from the install itself
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard python -> 3.12 or newer, or uv, which brings one` | The script found no Python 3.12 and no `uv`, so it ran nothing. | Install `uv`. |
-| `usage: install.sh [--check \| --uninstall \| --doctor \| --setup]` | The argument is not one of the four. The script exits 2. | Run it with one argument or none. |
-| `install.sh: <checkout> is a linked worktree, and HOME is your own: install from the main checkout` | A plain install from a worktree would point every skill at that worktree. Nothing was written. | Run `sh install.sh` in the main checkout. |
-| `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout` | The same, for `--setup`. Nothing was written. | Run `sh install.sh --setup` in the main checkout. |
-| `install.sh: <name>: <error>` | On stderr. The install could not put the part `<name>`. The part's own line says what is there now. | Find the part's line in the tables below. |
+| `missing hard uv -> https://docs.astral.sh/uv/getting-started/installation/` | The release's `install.sh` found no `uv`, and could not install it. Nothing else ran. | Install `uv` from the page the line names, then run the `curl` line again. |
+| `jinstall: no checkout above it and no source in <path>` | The `jinstall` that ran is not a release's command, and no checkout of jstack is around it. Nothing ran. | Install the release again, as [jinstall](../jinstall.md#install) shows. |
+| `install.sh: <name>: <error>` | On stderr. The install could not put the part `<name>`. The part's own line says what is there now. The release's `jinstall` prints it with the same `install.sh:` start. | Find the part's line in the tables below. |
 
 ## Every other page
 
@@ -53,5 +56,11 @@ A word in angle brackets stands for a value on your machine.
 - [The skill links](the-skill-links.md)
 - [The status line](the-status-line.md)
 - [A launch waits on a usage limit](../../../jroles/docs/troubleshooting/a-launch-waits-on-a-usage-limit.md)
+
+## Working on jstack
+
+These pages are for a checkout of jstack, where `sh install.sh` takes the place of `jinstall`:
+
+- [The lines of a checkout](working-on-jstack.md)
 - [A test of `make check` failed on a bound](../../../repo-guards/docs/troubleshooting/a-test-of-make-check-failed-on-a-bound.md)
 - [`make check-fast` stopped before the tests](../../../repo-guards/docs/troubleshooting/make-check-fast-stopped-before-the-tests.md)

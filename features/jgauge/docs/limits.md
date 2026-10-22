@@ -1,5 +1,9 @@
 # Limits
 
+> This page is the record of the measurements behind jstack's defaults, taken on its owner's machine, and it names that machine's setup.
+> It does not describe your machine.
+> [The limits and how to change them](jgauge/change-a-limit.md) describes each limit for any install, and how to change it.
+
 Every number in jstack that caps work, where it is set, what it protects, and the measurement it rests on.
 The machine is yelena: 24 processors (Intel Core Ultra 7 270K Plus, no SMT), 62 GiB, a btrfs root with no inode limit, and `/tmp` a 32 GB tmpfs of 1,048,576 file slots.
 The measurements are of 2026-10-20 unless a row says otherwise, and "the busy night" is 2026-10-19 22:00 to 2026-10-20 01:00 ET.

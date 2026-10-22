@@ -353,3 +353,78 @@ def test_install_sh_run_from_no_checkout_and_no_release_says_how_to_get_one(tmp_
         assert ran.returncode == 1
         assert ran.stdout.startswith("missing hard a checkout of jstack around ")
         assert "releases/latest/download/install.sh | sh" in ran.stdout
+
+
+def block_of(skill):
+    """The one shell block of a SKILL.md, as an agent runs it."""
+    (found,) = re.findall(r"^```sh\n(.*?)^```$", skill.read_text(), re.M | re.S)
+    return found
+
+
+def test_setup_pstack_on_a_release_runs_jinstall_setup_and_the_doctor_and_reports(
+    released, tmp_path
+):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    assert released.run(home, "jinstall", **env).returncode == 0
+    skill = home / ".claude" / "skills" / "setup-pstack" / "SKILL.md"
+    assert not (laid(home) / "source" / "install.sh").exists()
+
+    done = subprocess.run(
+        ["sh", "-c", block_of(skill)],
+        env=released.uv_env | {"HOME": str(home)} | env,
+        cwd=home,
+        capture_output=True,
+        text=True,
+    )
+
+    said = done.stdout.splitlines()
+    assert (done.returncode, done.stderr) == (0, "")
+    assert said[0] == f"release: {released.bin / 'jinstall'}"
+    assert "already commands jstack" in said
+    assert re.fullmatch(
+        r"setup: \d+ done, \d+ already, \d+ needs you, \d+ optional left, exit [01]", said[-2]
+    )
+    assert re.fullmatch(r"doctor: (ok|not ok, \d+ hard)", said[-1])
+
+
+def test_a_repo_a_release_set_up_strips_an_ai_trailer_from_a_commit_with_no_checkout(
+    released, tmp_path
+):
+    home = tmp_path / "home"
+    env = stand_ins(tmp_path)
+    env["PATH"] = f"{released.bin}:{env['PATH']}"
+    assert released.run(home, "jinstall", **env).returncode == 0
+    repo = home / "repos" / "scratch"
+    subprocess.run(["git", "init", "-q", "-b", "main", str(repo)], check=True)
+
+    set_up = released.run(home, "jinstall", "--repo", str(repo), **env)
+
+    hooks = repo / ".git" / "hooks"
+    assert (set_up.returncode, set_up.stderr) == (0, "")
+    assert set_up.stdout.splitlines() == [
+        f"ok optional hook {hooks / 'pre-push'} pre-push",
+        f"ok optional hook {hooks / 'commit-msg'} commit-msg",
+    ]
+    for name in ("pre-push", "commit-msg"):
+        script = released.source / "features" / "jleak" / "hooks" / f"{name}.sh"
+        assert os.readlink(hooks / name) == str(script)
+    narrow = tmp_path / "narrow"
+    narrow.mkdir()
+    for program in ("git", "readlink"):
+        (narrow / program).symlink_to(shutil.which(program))
+    named = ["-c", "user.name=Sam Doe", "-c", "user.email=sam@example.test"]
+    trailer = "Co-Authored-By: Claude <noreply@anthropic.com>"
+    made = subprocess.run(
+        ["git", "-C", str(repo), *named, "commit", "--allow-empty", "-m", f"Add\n\n{trailer}"],
+        env={"HOME": str(home), "PATH": str(narrow)},
+        capture_output=True,
+        text=True,
+    )
+    assert made.returncode == 0, made.stderr
+    assert "took out of the commit message" in made.stderr
+    message = subprocess.run(
+        ["git", "-C", str(repo), "log", "-1", "--format=%B"], capture_output=True, text=True
+    ).stdout
+    assert message.strip() == "Add"
