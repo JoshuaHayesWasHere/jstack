@@ -1,6 +1,8 @@
 # T3 Code tool schemas
 
-One file per T3 Code tool that a skill calls with JSON, in a block or as an object written in a line: the tool's input schema (its `parameters`), as the tool gives it. `features/repo-guards/tests/test_tool_calls.py` validates every such call in `skills/*/SKILL.md` against the schema of the tool the block is for. CI has no T3 Code, which is why the schemas are copies.
+One file per T3 Code tool that a skill calls with JSON, in a block or as an object written in a line: the tool's input schema (its `parameters`), as the tool gives it.
+`features/repo-guards/tests/test_tool_calls.py` validates every such call in `skills/*/SKILL.md` against the schema of the tool the block is for.
+CI has no T3 Code, which is why the schemas are copies.
 
 | File | Tool | Called from |
 |---|---|---|

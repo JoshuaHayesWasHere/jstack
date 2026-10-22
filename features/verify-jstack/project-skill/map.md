@@ -37,7 +37,9 @@ Read this index before a drive, then use the matching feature file as the recipe
 
 Each feature file starts with an H1 title and one paragraph on what the user sees. Under that paragraph come two lists, before the first H2 section, each a label line with one `- ` line under it for each entry, up to a blank line or the next label:
 
-- `Paths:` the repo paths the feature owns, each in backticks on a line of its own, in the pattern syntax of `features/jmerge/src/jmerge/ci-paths.txt` (`features/jgauge/` a directory, `features/jgauge/hooks/limits.sh` a file, `/install.sh` a file at the root, `*` within one part). A feature owns its own code and the code that code imports, so a change to either runs its tests. A path may be owned by more than one feature.
+- `Paths:` the repo paths the feature owns, each in backticks on a line of its own, in the pattern syntax of `features/jmerge/src/jmerge/ci-paths.txt` (`features/jgauge/` a directory, `features/jgauge/hooks/limits.sh` a file, `/install.sh` a file at the root, `*` within one part).
+  A feature owns its own code and the code that code imports, so a change to either runs its tests.
+  A path may be owned by more than one feature.
 - `Tests:` the test files that read the feature in a way no import and no string shows, each in backticks on a line of its own, `tests/test_<name>.py`, or `Tests: none` on one line. The tests that import a module the feature owns are not listed: `scripts/select_tests.py` follows the imports.
 
 `scripts/select_tests.py <base> <head>` reads the two lists of every file, and the `Cross-cutting:` list below, to name the tests a diff needs.
