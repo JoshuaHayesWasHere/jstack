@@ -13,7 +13,7 @@ import re
 
 from jinstall.kinds import GitHook, HookGroup, StatusLine
 from jinstall.machine import Machine
-from jinstall.needs import needs
+from jinstall.needs import Level, needs
 from testing.paths import REPO
 
 PAGE = REPO / "docs" / "configuration.md"
@@ -81,3 +81,67 @@ def test_each_git_hook_the_install_links_has_its_line_under_the_table():
         assert f"`{hook.script}`" in line, f"no line under the table names {hook.name}"
     named = set(re.findall(r"`\.git/hooks/([^`]+)`", under))
     assert named == {hook.name for hook in git}
+
+
+def hard_coded(machine):
+    """The hook needs `needs()` hard-coded on origin/migration (needs.py:203-237), in its
+    order, as (name, level, kind): what the manifests must give the install, one for one."""
+    settings = machine.home / ".claude" / "settings.json"
+    codex = machine.home / ".codex" / "hooks.json"
+    pushed = machine.checkout / ".git" / "hooks" / "pre-push"
+    return [
+        (
+            f"hook {settings} SessionStart",
+            Level.HARD,
+            HookGroup(settings, "SessionStart", "startup", "hooks/home-start.sh"),
+        ),
+        (
+            f"hook {settings} UserPromptSubmit",
+            Level.HARD,
+            HookGroup(settings, "UserPromptSubmit", None, "hooks/skill-tips.sh"),
+        ),
+        (
+            f"hook {settings} PostToolUse",
+            Level.HARD,
+            HookGroup(settings, "PostToolUse", None, "hooks/home-gauge.sh"),
+        ),
+        (
+            f"hook {settings} PreToolUse",
+            Level.HARD,
+            HookGroup(settings, "PreToolUse", None, "hooks/home-gauge.sh"),
+        ),
+        (
+            f"hook {codex} SessionStart",
+            Level.HARD,
+            HookGroup(codex, "SessionStart", "startup", "hooks/home-start.sh", harness="codex"),
+        ),
+        (
+            f"hook {settings} PreToolUse",
+            Level.HARD,
+            HookGroup(settings, "PreToolUse", "Bash", "hooks/outbound-command.sh", refuses=True),
+        ),
+        (
+            f"hook {pushed} pre-push",
+            Level.HARD,
+            GitHook("pre-push", "features/jleak/hooks/pre-push.sh"),
+        ),
+        (f"statusline {settings}", Level.OPTIONAL, StatusLine(settings)),
+    ]
+
+
+def test_the_install_builds_from_the_manifests_the_hook_needs_it_hard_coded():
+    """The same needs, and in each file the groups of each event in the same order, which is
+    the order a fresh install writes them in."""
+    machine = Machine.here(REPO)
+    hooked = (HookGroup, StatusLine, GitHook)
+    built = [(n.name, n.level, n.kind) for n in needs(machine) if isinstance(n.kind, hooked)]
+    expected = hard_coded(machine)
+    assert sorted(built, key=str) == sorted(expected, key=str)
+
+    def by_entry(found):
+        each = {}
+        for name, _, kind in found:
+            each.setdefault(name, []).append(kind)
+        return each
+
+    assert by_entry(built) == by_entry(expected)
