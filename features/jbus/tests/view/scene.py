@@ -532,11 +532,11 @@ def tasks(state):
 
 
 def stacked(scene):
-    """Beside `demo`, two small made-up projects of the state directory. `pantry` has one
-    task running, one at a gate and one merged today, a gate it asks and a noticed line, in
-    a repo of its own. `larder` has an empty queue. Beside them are a directory with no
-    queue, which is no project, and a retired project. jbus no longer looks after the
-    retired project, and the view never reads it."""
+    """Beside `demo`, two small made-up projects of the state directory. `pantry` is in a
+    repo of its own. It has one task running, one at a gate and one merged today, and it also
+    has a gate it asks and a noticed line. `larder` has an empty queue. Beside them are a
+    directory with no queue, which is no project, and a retired project. jbus no longer looks
+    after the retired project, and the view never reads it."""
     pantry, larder = scene.state_dir / "pantry", scene.state_dir / "larder"
     for made in (pantry, larder, scene.home_dir / "pantry", scene.home_dir / "larder"):
         made.mkdir()

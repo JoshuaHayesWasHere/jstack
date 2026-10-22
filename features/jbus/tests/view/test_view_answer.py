@@ -1,5 +1,5 @@
-"""The one write of `jbus view`, the user's answer to a question, and how the server sends it
-on."""
+"""The one write of `jbus view`, which is the user's answer to a question, and how the server
+sends that answer on."""
 
 import json
 from datetime import timedelta

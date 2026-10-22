@@ -40,7 +40,8 @@ sends an answer that does not keep the default to the thread that asked, once, i
 request (`questions.carry`). Where the user's answer does not reach that thread, the
 server closes the record all the same. The server's reply says why, and the next pass sends
 the user's answer. The server returns `closed` and
-`refused`, each a list by number with one sentence, `say`. It refuses a question that was
+`refused`. Each is a list with one entry for each number, and each entry has one sentence,
+`say`. It refuses a question that was
 answered before, and gives that question's `first` answer. The status is 200 where a
 question closed and 409 where none did.
 

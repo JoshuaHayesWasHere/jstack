@@ -5,17 +5,16 @@ From that list the panel builds the page's two queues, as closed records (`_NEED
 words and with no command line in them. `needs` is what only the user can move and nothing else
 will: a gate that holds (`Holds:`) or has no default, an approval, a held merge, a row at a gate,
 a leftover, a setup. `proceeds` is a gate whose default is already taken. It closes with that
-default after 2 hours of silence (`questions.QUIET`), or, for a gate of a home's `gates.md`,
+default after 2 hours of silence (`questions.QUIET`). A gate of a home's `gates.md` instead
 stands as it is. A link's conflict is a question for its home, not for the user, so it is on
 neither queue.
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
 page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
 last `seen` at. Every other need has those two empty. Where a proposed item's row waits for its
-approval, the panel leaves the item to that row, since a go by the item's id is no go of the
-row. But for a row whose
-item was redirected, the item's id is the only thing that approves it (`jbus.steer.approvable`).
-So the item's need then takes the row's place."""
+approval, the panel leaves the item to that row. A go by the item's id is no go of the row. But
+for a row whose item was redirected, the item's id is the only thing that approves it
+(`jbus.steer.approvable`). So the item's need then takes the row's place."""
 
 from __future__ import annotations
 

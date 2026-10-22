@@ -83,10 +83,10 @@ class Writes:
     config: Callable[[], jbus.Config]
 
     def _carry(self, name: str, closed: questions.Question, now: datetime) -> tuple[bool, str, str]:
-        """Send the thread that asked one answer that differs from the default, as a pass
-        would. It returns whether the answer went, and the reason where it did not, with no
-        secret in it. It also returns what will send the answer later. For a slug that was
-        removed from the queue, nothing sends it later."""
+        """Send one answer that differs from the default to the thread that asked the
+        question, as a pass would. It returns whether the answer went, and the reason where it
+        did not, with no secret in it. It also returns what will send the answer later. For a
+        slug that was removed from the queue, nothing sends it later."""
         pass_ = "the next pass sends it"
         hidden: tuple[str, ...] = ()
         try:

@@ -205,7 +205,7 @@ SOURCES = (
 
 
 def blind(read: Read) -> list[Spot]:
-    """How many tasks are not confirmed because the last pass could not ask a source."""
+    """How many tasks the last pass could not confirm, because it could not ask a source."""
     tasks, unconfirmed = read.tasks, read.unconfirmed
     if not unconfirmed or not tasks:
         return []

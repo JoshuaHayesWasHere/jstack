@@ -8,8 +8,8 @@ path under `repos/<owner>/<name>/` and nothing more: no method, no field and no 
 call cannot write. The token stays inside `gh`. The server takes only named fields from an
 answer, never a title, a body, a diff or a log.
 
-When GitHub does not answer, the server keeps that missing answer as long as it keeps one
-that came. So it does not ask GitHub on every request while GitHub is down.
+When GitHub does not answer, the server keeps that failure for as long as it would keep an
+answer that did come. So it does not ask GitHub on every request while GitHub is down.
 
 No request waits on GitHub for more than `PATIENCE` seconds. The server runs `gh` in a
 thread of its own, one at a time for each question. A request still waiting after that time

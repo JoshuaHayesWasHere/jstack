@@ -317,8 +317,8 @@ class Proxy:
 
             def do_POST(self):
                 """A write of the page. The proxy writes it down as the browser sent it. Then
-                it passes the write on under the server's own name, the way the server's own
-                page would send it."""
+                it passes the write on with the server's own address as its `Host` and
+                `Origin`, the way the server's own page would send it."""
                 body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
                 proxy.writes.append(
                     {
@@ -549,7 +549,7 @@ def walked(scene, tmp_path, route, walk):
 
 def gated(scene):
     """Three questions of one crewmate, each with its options, the first with a context and
-    one more option. The answer is their numbers."""
+    one more option. It returns the numbers of the three questions."""
     (scene.home / "tasks").mkdir()
     (scene.home / "tasks" / "alpha.md").write_text("# alpha\nThread: mcp:crew-alpha\n")
     lines = PIPED.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")

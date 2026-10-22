@@ -28,9 +28,9 @@ FLOWS = {5: (3, 2), 25: (6, 5, 4, 3, 2, 2, 2, 1), 60: (20, 14, 8, 6, 4, 3, 2, 2,
 def flowing(scene, sizes):
     """A queue with the given number of rows in each wave, in the queue's order. They are
     behind a row at a gate, and beside a row that runs. The first row of wave 1 waits on the
-    row at the gate. Each of
-    the other rows waits on the row in the same place in the wave before, and every second
-    row also waits on the next row of that wave. It gives back the rows of each wave."""
+    row at the gate. Each of the other rows waits on the row in the same place in the wave
+    before. Every second row also waits on the next row of that wave before. It gives back the
+    rows of each wave."""
     names = slugs()
     gate, runs = next(names), next(names)
     rows = [

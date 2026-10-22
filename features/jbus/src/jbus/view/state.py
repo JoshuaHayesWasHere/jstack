@@ -51,10 +51,10 @@ for `REVIEW_MINUTES`, with no reviewer's thread listed, says so.
 jbus has stopped when the timer is not active, or when the last pass ended more than
 `QUIET` seconds ago and systemd does not say that a pass is running now. A pass that starts
 and fails each minute has stopped too, because only the end of a pass counts, and its start
-does not. Each source says who
-writes it. What jbus writes stands as the last pass left it, and what the server reads
-itself is as it is now. A session's status line writes the limits file, so the file is old
-whenever no session ran. The file gives its age, and its age is no fault of jbus.
+does not. Each source says who writes it. A source that jbus writes stands as the last pass
+left it. A source that the server reads itself is as it is now. A session's status line writes
+the limits file, so the file is old whenever no session ran. The file gives its age, and its age
+is no fault of jbus.
 
 A pass that could not ask T3 Code or GitHub derives no row, and `pass.json` names the
 source under `silent`. While `pass.json` names one, every task of that project says so in
@@ -852,9 +852,9 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
 
 
 def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
-    """Mark each open task that cannot move with what blocks it. Mark each task that other
-    tasks wait behind with those tasks: the ones that depend on it, and the ones behind
-    those. A task is behind a row until jbus has that row as merged or done, whatever the
+    """Mark each open task that cannot move with what blocks it. Where other tasks
+    wait behind a task, mark that task with them: the ones that depend on it, and the ones
+    behind those. A task is behind a row until jbus has that row as merged or done, whatever the
     row's state is. `blockers` has those rows, followed by the ones the log has as merged."""
     by_slug = {task["slug"]: task for task in tasks + ended}
     behind: dict[str, set[str]] = {}
