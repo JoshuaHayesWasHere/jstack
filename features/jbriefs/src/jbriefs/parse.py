@@ -539,7 +539,8 @@ def covers(patterns: tuple[str, ...], path: str) -> bool:
 
 
 def wheres(text: str) -> str:
-    """One line on why a brief's `Where:` line names no path, with the line, or nothing.
+    """One line on why a brief's `Where:` line names no path, quoting the `Where:` line, or
+    nothing.
 
     `_filled` handles a brief with no line, or with the template's own text.
     """

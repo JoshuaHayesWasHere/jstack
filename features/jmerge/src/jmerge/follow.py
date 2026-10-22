@@ -1,26 +1,27 @@
-"""The tool installed from the main checkout follows a merge that moves one of its packages,
-and the install made from the checkout follows a merge that changes what it assembles.
+"""After a merge, `jmerge` reinstalls the tool from the main checkout when the merge moved one
+of the tool's packages, and runs the install again when the merge changed what it
+assembles.
 
 uv's editable install of a checkout puts one path on the tool's `sys.path` for each package
 root that its pyproject.toml listed when uv built it, and a pull does not build it again. A
 merge that moves a package to another root leaves every command of the tool failing on an
-import, as #189 did when jsettings went to `features/jsettings/src`. So after the pull,
-where the package list (`[tool.hatch.build.targets.wheel].packages`) has changed and uv's
-tool of the project's name is an editable install of this checkout, this module installs
-the tool again and syncs the checkout's own environment. `jinstall --check` says `stale` of
-a tool that this step missed. Nothing runs for a list that did not change, or for a tool
-installed from elsewhere.
+import, as #189 did when jsettings went to `features/jsettings/src`. So after the pull, this
+module installs the tool again and syncs the checkout's own environment, when two things
+hold. The package list (`[tool.hatch.build.targets.wheel].packages`) has changed, and uv's
+tool of the project's name is an editable install of this checkout. `jinstall --check` says
+`stale` of a tool that this step missed. Nothing runs for a list that did not change, or for
+a tool installed from elsewhere.
 
 Each harness's layout links every skill file to its place in the checkout, and a pull does
 not assemble it again. A merge that moves or removes a skill leaves its links dangling, as
 #202 did with pr-review. A merge that adds a skill or a file to one, or edits a file that the
 layout writes, leaves the layout short or stale. So after the pull, `sh install.sh` runs once
-in the checkout where a layout on this machine was assembled from it and differs from what
+in the checkout when a layout on this machine was assembled from it and differs from what
 the checkout now assembles (`layout.Layout.probe`, the answer that `install.sh --check`
-gives). The layouts decide, not the merge's paths. An edit that a link makes live runs
-nothing, and a layout that a failed install left stale is installed again after the next
-merge. Nothing runs where every layout matches what the checkout makes, or on a machine
-installed from elsewhere.
+gives). This module compares the layouts, not the merge's paths. An edit to a file that a
+link already points at needs no install, so nothing runs for it. A layout that a failed
+install left stale is installed again after the next merge. Nothing runs where every layout
+matches what the checkout makes, or on a machine installed from elsewhere.
 """
 
 from __future__ import annotations

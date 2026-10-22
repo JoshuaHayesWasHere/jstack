@@ -1,15 +1,15 @@
-"""The fresh check of `jmerge` takes a green marker of the merge tree it would test as its pass.
+"""`jmerge`'s fresh check counts a green marker of the tree it would test as a pass.
 
-`jmerge` tests a pull request whose check is stale on its head merged over today's main.
-Where a green run of the check already ran the whole suite on that same tree, and left the
-marker `green-tree-<tree>`, the suite does not run again. The pull request merges on that
-run, and the line that says so names the tree and the run, in `merge.log` and in what jbus
-logs of the line. A marker of another tree, one that a red run left, or no marker, is no
-proof, and the check runs as it always did.
+When a pull request's check is stale, `jmerge` merges the pull request's head over today's
+main and tests the result. A green run of the check may already have run the whole suite on
+that same tree and left the marker `green-tree-<tree>`. Then the suite does not run again,
+and the pull request merges on that run. The line that says so names the tree and the run,
+both in `merge.log` and in what jbus logs. A marker of another tree, a marker that a red run
+left, or no marker at all is no proof, and the check runs as it always did.
 
 The tests run the command against a real origin with a fake `gh`
-(`features/jmerge/tests/test_jmerge_fresh.py`) that also answers the API's list of artifacts
-and its runs from files."""
+(`features/jmerge/tests/test_jmerge_fresh.py`). The fake also answers the API's list of
+artifacts and its list of runs from files."""
 
 import json
 

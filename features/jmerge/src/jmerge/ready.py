@@ -433,8 +433,8 @@ def said_of(text: str) -> Said:
 
 def _mode(line: str) -> str:
     """A brief's review mode, from its first `Review:` line: `none`, `after`, `twice`, or
-    `review` for any other word, which older briefs, from before the reviewer stopped
-    running tests, use."""
+    `review`. Any other word reads as `review`. Older briefs, written before the reviewer
+    stopped running tests, use other words."""
     said = _second(line)
     return said if said in (NONE, AFTER, TWICE) else REVIEW
 

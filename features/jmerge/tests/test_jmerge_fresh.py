@@ -520,8 +520,8 @@ def test_a_resolution_that_dropped_a_line_the_pull_request_added_waits_on_its_cr
 
 
 def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
-    """It waits for its crew whatever a check would find, so `jmerge` runs no check while it
-    waits."""
+    """While the pull request waits for its crew, `jmerge` runs no check, because a check
+    could not end the wait."""
     (notes.home.state / "fresh-check").write_text("true\n")
     notes.crew("two", 7, {"n.txt": "one\ntwo\nthree\nours\n"})
     notes.rebase(
@@ -634,9 +634,9 @@ def test_lines_are_counted_as_text_with_blank_ones_and_trailing_space_left_out()
 
 
 class Checked:
-    """A repo that asks for a fresh check, with a pull request under which main changed a
-    file. Main changed other lines, so the two merge. The command is a script that counts
-    its runs."""
+    """A repo that asks for a fresh check, and a pull request with a file that main also
+    changed since the check. Main changed other lines of the file, so the pull request and
+    main merge cleanly. The command is a script that counts its runs."""
 
     def __init__(self, kitchen, script, path="b.txt", ours=LINES + "ours\n"):
         self.kitchen = kitchen

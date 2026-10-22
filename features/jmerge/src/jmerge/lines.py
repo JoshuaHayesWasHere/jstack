@@ -98,8 +98,8 @@ def installed(main: object) -> str:
 
 def not_installed(why: str) -> str:
     """The note of a merge that changed what the install assembles, after which the install
-    failed. Until it runs, a skill that the merge moved or removed may be linked to a file
-    that is gone."""
+    failed. Until the install runs again, a skill that the merge moved or removed may be
+    linked to a file that no longer exists."""
     return NOT_INSTALLED.format(why=why)
 
 

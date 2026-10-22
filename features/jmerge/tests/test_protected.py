@@ -293,8 +293,8 @@ def test_jmerge_merges_a_pull_request_that_only_comes_near_one(merged, path):
 
 
 def renamed(merged, new, old=None):
-    """A ready pull request with one rename. GitHub lists it under the file's current path, and
-    gives the path it left only when asked for the pull request's files."""
+    """A ready pull request that renames one file. GitHub lists the file under its new path,
+    and gives its old path only to a caller that asks for the pull request's files."""
     merged.home.open_pull_request(merged.head, files=["a.txt", new], renamed=True)
     if old is not None:
         (merged.home.stub / "left").write_text(f"{old}\n")

@@ -175,9 +175,9 @@ class Numbered:
     """A brief with a `Reviewer: <threadId> #<n>` line. The round waits for each number that
     those lines name. The numbers are a set, so a seat launched again does not count twice.
     The unnumbered `Reviewer:` lines are a launch that the numbered ones replaced, and the
-    round no longer waits for them. The sections with no number do not count as the round's
-    word, but their findings still need answers. A section that carries a seat's number
-    fills that seat, at any head."""
+    round no longer waits for them. Sections with no number do not count toward the round,
+    but their findings still need answers. A section with a seat's number counts for that
+    seat, at any head."""
 
     seats: frozenset[int]
 
@@ -384,10 +384,10 @@ def _raised(text: str, section: int, by: str, head: str, dismissed: bool) -> Rai
 
 
 def _sections(text: str) -> list[Section]:
-    """Each `## Review` section, read as the crew's count and `jmerge` read it. Its list runs
-    from `Findings:` to `Dropped:` or the next heading. A line in the list that starts `- `
-    and is not `- none` is a finding, and the lines under `Dismissed:` that start `- ` are
-    its dismissed findings."""
+    """Each `## Review` section, parsed the way the crew's count and `jmerge` parse it. Its
+    list runs from `Findings:` to `Dropped:` or the next heading. A line in the list that
+    starts `- ` and is not `- none` is a finding, and the lines under `Dismissed:` that start
+    `- ` are its dismissed findings."""
     found: list[dict] = []
     listing = dismissing = False
     for at, line in enumerate(text.splitlines()):
@@ -520,7 +520,8 @@ def _answers(text: str) -> tuple[dict[str, Answer], list[Answer]]:
 def _judge(findings: list[Finding], text: str) -> None:
     """Refuse the answers that do not count. A decline of an Act on finding does not count
     when it cites nothing, gives an earlier finding's reason, or leaves a risky finding with
-    no gate. An answer with no id, to a finding from before the ids, is read as it was then."""
+    no gate. This function applies the old rule to an answer with no id, which is an answer
+    to a finding from before the ids."""
     gates = set(re.findall(r"Gate: question (\d+)\b", text))
     given: dict[str, str] = {}
     for one in findings:
@@ -635,10 +636,11 @@ def _shown(one: Finding) -> list[str]:
 
 
 def left(said: Triage) -> str:
-    """The one line that the crew's count prints, which says what the crew does next with the
-    findings. It waits for a reviewer, answers the findings that have no answer, or writes the
-    `Fixed:` line that the line names. A fix answers the findings of the last round, the
-    sections at the head of the last section."""
+    """The one line that the crew's count prints to say what the crew does next with the
+    findings. The line tells the crew to wait for a reviewer, to answer the findings that
+    have no answer, or to write a `Fixed:` line, and names that line. A fix answers the
+    findings of the last round. The last round is the set of sections at the head of the
+    last section."""
     sent = said.sent()
     if not said.sections:
         return "wait: the review is not written in the brief yet"
@@ -689,10 +691,10 @@ def _last_round(said: Triage) -> set[int]:
 
 
 def rounds(said: Triage) -> str:
-    """The one line that the crew's second pass reads of the review. It gives how many sections
-    ran, the head the last of them saw, every head a section names, and the blocking declines
-    that no scoped pass has ruled on. It joins each list with commas, and writes `-` for an
-    empty one."""
+    """The one line that the crew's second pass reads about the review. It gives how many
+    sections ran, the head the last of them saw, every head a section names, and the
+    blocking declines that no scoped pass has ruled on. It joins each list with commas, and
+    writes `-` for an empty one."""
     ran = [one for one in said.sections if one.ran]
     saw = next((one.head for one in reversed(ran) if one.head), "-")
     heads = ",".join(dict.fromkeys(one.head for one in said.sections if one.head)) or "-"
