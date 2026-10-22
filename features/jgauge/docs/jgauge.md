@@ -72,11 +72,11 @@ A plan limit it cannot read stops nothing: `jgauge room` then prints `go` with a
 
 | Flag | What it does |
 |---|---|
-| `--wait <seconds>` | Looks again until the answer is `go` or that long has passed, then prints the last answer and exits 0 on `go` and 75 on a `wait: `. |
-| `--every <seconds>` | With `--wait`, sets the pause between two looks, 15 seconds with none. |
-| `--light` | Skips the load and the CPU pressure and keeps every other reading. A review asks it so, since a review is about 2% of one core and its proof runs in the short test lane. |
-| `--role <role>` | Reads the plan limits of each instance of that role's pool, from its ledger file `<LIMITS>.<id>` ([jroles](../../jroles/docs/jroles.md#the-ledger)), and waits on them only while every instance of a line's pool is full. The `wait: ` names each one and the first reset, and with one full and another free it prints `go` with a `note: ` naming both. With no `--role` it reads the crew's pool, and a role with no pool reads `claudeAgent`'s file, the one `LIMITS` names. |
-| `--instance <id>` | Reads that one instance's file in place of a pool: `jbus` asks it for the instance a launch goes to. |
+| `jgauge room --wait <seconds>` | Looks again until the answer is `go` or that long has passed, then prints the last answer and exits 0 on `go` and 75 on a `wait: `. |
+| `jgauge room --wait <seconds> --every <seconds>` | With `--wait`, sets the pause between two looks, 15 seconds with none. |
+| `jgauge room --light` | Skips the load and the CPU pressure and keeps every other reading. A review asks it so, since a review is about 2% of one core and its proof runs in the short test lane. |
+| `jgauge room --role <role>` | Reads the plan limits of each instance of that role's pool, from its ledger file `<LIMITS>.<id>` ([jroles](../../jroles/docs/jroles.md#the-ledger)), and waits on them only while every instance of a line's pool is full. The `wait: ` names each one and the first reset, and with one full and another free it prints `go` with a `note: ` naming both. With no `--role` it reads the crew's pool, and a role with no pool reads `claudeAgent`'s file, the one `LIMITS` names. |
+| `jgauge room --instance <id>` | Reads that one instance's file in place of a pool: `jbus` asks it for the instance a launch goes to. |
 
 `features/jgauge/src/jgauge/room.sh` is the one copy of the room check.
 

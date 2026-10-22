@@ -124,7 +124,8 @@ A move happens only on a cap, and it is sticky: a thread stays on the account it
 With both capped the thread is sent nothing: `jbus` says so once, as a `stall`, and the first pass after the first reset sends it on.
 `jbus failover --replay <items.json> --thread <id>` replays a recorded cap on one live thread through the same move, with the reset as far from now as it was from the recording, and keeps the cap out of the ledger; `jbus failover --replay <items.json> --thread <id> --dry-run` prints the move and writes nothing.
 
-For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_work with headroom`, or `jroles: crew on claudeAgent_work: claudeAgent is capped until 2026-10-18T20:00:00+00:00`. While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_work are both capped until ...`) and exits 75: the launch waits for the first reset.
+For a pool of more than one, and for any launch a cap moved, stderr says which instance it chose and why: `jroles: crew on claudeAgent: the first of claudeAgent,claudeAgent_work with headroom`, or `jroles: crew on claudeAgent_work: claudeAgent is capped until 2026-10-18T20:00:00+00:00`.
+While every instance of the pool is capped it prints nothing, says so on stderr (`jroles: crew waits: claudeAgent and claudeAgent_work are both capped until ...`) and exits 75: the launch waits for the first reset.
 
 A pool grows by one line of the provider inventory, `~/.config/jstack/providers.json` ([configuration](../../jinstall/docs/configuration.md#provider-instances)), and one more id on the role line.
 Each id must be the provider's built-in instance or one the inventory declares under the line's provider: any other refuses the line, so a Claude pool never names a Codex or a Cursor instance.

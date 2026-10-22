@@ -7,9 +7,9 @@ It calls no model and writes nothing.
 ## Check a pack
 
 1. Go to the checkout of the repo the pack is about.
-2. Run `jpack lint docs/context`, then `jpack verify docs/context`.
+2. Run `jpack lint <repo>/docs/context`, then `jpack verify <repo>/docs/context`.
 3. Fix each line they print in the note it names, by a pull request to the pack.
-4. To find the notes that cite a file changed since their pin, run `jpack stale docs/context`.
+4. To find the notes that cite a file changed since their pin, run `jpack stale <repo>/docs/context`.
 
 ## The verbs
 
