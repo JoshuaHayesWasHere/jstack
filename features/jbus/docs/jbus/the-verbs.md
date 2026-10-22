@@ -5,7 +5,7 @@
 Without it, `jbus gate`, `jbus answer`, `jbus done` and `jbus plan` speak for the project whose repo they are run in.
 `jbus events`, `jbus t3 launch-test`, `jbus failover` and the `jbus queue` verbs take the config's one project, or with several the one whose repo they are run in.
 
-Each verb `jbus --help` prints is in one of the three tables below.
+Each verb that jbus's help lists is in one of the three tables below.
 
 ## The verbs you type
 
