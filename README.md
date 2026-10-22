@@ -9,7 +9,7 @@ You answer the questions only you can answer, and the rest goes on without you.
 
 **Status: experimental.** Commands, flags, files and skills can change with no notice and no migration.
 
-It is for a developer who runs Claude Code on Linux and wants more than one agent at work on a repo at a time.
+It is for a developer who uses Claude Code and wants more than one agent at work on a repo at a time.
 Every thread spends tokens on your own Claude plan: one task is at least a crewmate thread and a reviewer thread, and `jgauge session` prints what a thread cost.
 It runs on Linux only.
 
@@ -60,7 +60,7 @@ jstack runs without it.
 
 The threads run on Claude Code, and the install also links the skills for Codex and Cursor.
 It writes outside jstack's own folders for each of the three.
-`jinstall --uninstall` takes each of these away again:
+`jinstall --uninstall` takes its links, hook entries, keys and units away again:
 
 - Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line and the attribution keys in `~/.claude/settings.json`.
 - Codex: a link for each skill in `~/.codex/skills`, and hook entries in `~/.codex/hooks.json`.
