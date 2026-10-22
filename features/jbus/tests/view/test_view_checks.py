@@ -1,4 +1,4 @@
-"""The Checks panel: what GitHub is asked for, and when, and the runners."""
+"""The Checks panel: what the server asks GitHub for, and when, and the runners."""
 
 import threading
 import time

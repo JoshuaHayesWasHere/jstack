@@ -1,11 +1,12 @@
-"""The bus: what the outbox and the wakes count, what was sent today by kind and loudness,
-and the last events of the log. The outbox itself is never opened.
+"""The bus: what the outbox and the wakes count, what jbus sent today by kind and loudness, and
+the last events of the log. The panel never opens the outbox itself.
 
-`top_level` is the same count for the top-level webhook, the monitor of every project, where
-the project posts to it beside its own webhook: its outbox, its failed wakes, its last error
-and its last POST. It is None where the project has one webhook. `blocking` is the same for
-the second target, the webhook of what blocks, and None where the config sets none: its
-outbox holds bodies, not events."""
+`top_level` is the same count for the top-level webhook, which monitors every project. It is
+there where the project posts to that webhook beside its own. The count is that webhook's outbox,
+its failed wakes, its last error and its last POST. It is None where the project has one webhook.
+`blocking` is the same count for the second target. That target is the webhook that jbus tells
+what blocks. `blocking` is None where the config sets no such webhook, and its outbox holds
+bodies, not events."""
 
 from __future__ import annotations
 
@@ -39,7 +40,7 @@ NOT_KEPT = (Spot("the time each step of a pass took is not kept", 510),)
 
 
 def sent(read: Read) -> list[Any] | None:
-    """The keys `sent.json` keeps, or None where it holds no list."""
+    """The keys that `sent.json` holds, or None where it holds no list."""
     kept = read_json(read.state / "sent.json", None)
     return kept if isinstance(kept, list) else None
 

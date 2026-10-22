@@ -23,14 +23,14 @@ FONT = 'src: url("/font.woff2") format("woff2");'
 
 
 def unreached(seen, names):
-    """The panels that nothing on the first screen and nothing in a drawer opens: no
-    `data-open` the browser found names them."""
+    """The panels that nothing on the first screen and nothing in a drawer opens: the
+    browser found no `data-open` that names them."""
     opened = {one["target"].partition(":")[0] for one in seen["opened"]}
     return sorted(set(names) - opened)
 
 
 def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_server(scene):
-    """Nothing but its one font, from its own server."""
+    """The page loads nothing but its one font, from its own server."""
     served = Served(scene)
     try:
         _, headers, page = served.ask("/")
@@ -62,8 +62,8 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
 
 
 def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp_path):
-    """The scene has a question jbus holds, which is what opens the drawer of a gate, and a
-    work item linked to a task, whose drawer opens the item's."""
+    """The scene has a question jbus holds, which opens the drawer of a gate. It also has a
+    work item linked to a task, and the task's drawer opens the item's drawer."""
     gated(scene)
     made = {"id": "w1.1", "item": "w1", "at": iso(ago(minutes=9)), "by": "Josh", "where": "chat"}
     made |= {"line": "proposed", "verb": "proposed", "project": "demo", "slug": "jam-jar"}
@@ -107,10 +107,10 @@ def test_an_approval_by_a_pick_on_a_lavish_page_says_so_with_the_pages_file(scen
 def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_lines(
     scene, tmp_path
 ):
-    """Two folders are added to a copy of the package, and no other file of it is edited
-    (`test_view_panels.py` compares the trees). `sample` adds a line to the task drawer that
-    opens it, and a count beside the Needs you queue. Nothing opens `lost`, and the drawer of
-    `thrown` throws."""
+    """The test adds two folders to a copy of the package and edits no other file of it
+    (`test_view_panels.py` compares the trees). `sample` adds a count beside the Needs you
+    queue, and a line to the task drawer. That line opens the `sample` drawer. Nothing opens
+    `lost`, and the drawer of `thrown` throws."""
     process = Process(scene)
     panel(process, "sample")
     panel(process, "lost", DRAWN + "panel({ drawer: drawn });\n")
@@ -154,8 +154,9 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
 
 
 def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_path):
-    """A round has a time where the event log has a `review` event of its head, and says no
-    time is kept where it has none. A task whose brief cannot be read says that instead."""
+    """A round shows a time where the event log has a `review` event for the round's head. Where the
+    log has none, the round says no time is kept. A task whose brief the view cannot read says
+    that instead."""
     _, first, fixed = rounded(scene)
     served = Served(scene)
     try:
@@ -179,8 +180,9 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
 
 
 def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_path, monkeypatch):
-    """The task drawer's Usage line is filled by an ask of its own. A transcript that is not
-    there is said, and an ask the server does not answer is said too, never left waiting."""
+    """The task drawer fills its Usage line with a request of its own. The line says when a
+    transcript is not there. When the server does not answer the request, the line says
+    so rather than wait."""
     monkeypatch.setattr(usage, "PROJECTS", tmp_path / "projects")
     monkeypatch.setattr(usage, "_kept", {})
     served = Served(scene)

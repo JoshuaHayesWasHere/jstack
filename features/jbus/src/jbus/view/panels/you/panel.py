@@ -1,20 +1,20 @@
-"""What waits on the user: the list the last pass left, with the gates as they are now, and
-every gate of the home's `gates.md` that jbus does not hold as a question.
+"""What waits on the user: the list the last pass left, with the gates as they are now, and every
+gate of the home's `gates.md` that jbus does not hold as a question.
 
-From that list the panel builds the page's two queues, as closed records (`_NEED`) in the
-words of a person and with no command line in them. `needs` is what only the user can move
-and nothing else will: a gate that holds (`Holds:`) or has no default, an approval, a held
-merge, a row at a gate, a leftover, a setup. `proceeds` is a gate whose default is taken
-already: it closes with that default after 2 hours of silence (`questions.QUIET`), or, for
-a gate of a home's `gates.md`, stands as it is. A link's conflict asks its home and not the
-user, so it is on neither.
+From that list the panel builds the page's two queues, as closed records (`_NEED`), in a person's
+words and with no command line in them. `needs` is what only the user can move and nothing else
+will: a gate that holds (`Holds:`) or has no default, an approval, a held merge, a row at a gate,
+a leftover, a setup. `proceeds` is a gate whose default is already taken. It closes with that
+default after 2 hours of silence (`questions.QUIET`). A gate of a home's `gates.md` instead
+stands as it is. A link's conflict is a question for its home, not for the user, so it is on
+neither queue.
 
-A work item that is proposed is a need too, of the kind `ITEM`, approved by its id on the
-page (`_items`): its `item` and the line it was last `seen` at go with it, as a steer names
-them, and every other need has the two empty. One whose row waits for its approval is left
-to that row, since a go by the item's id is no go of the row. But a row whose item was
-redirected is approved by nothing but the item's id (`jbus.steer.approvable`): then the
-item's need stands in the row's place."""
+A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
+page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
+last `seen` at. Every other need has those two empty. Where a proposed item's row waits for its
+approval, the panel leaves the item to that row. A go by the item's id is no go of the row. But
+for a row whose item was redirected, the item's id is the only thing that approves it
+(`jbus.steer.approvable`). So the item's need then takes the row's place."""
 
 from __future__ import annotations
 
@@ -100,9 +100,9 @@ SOURCES = (
 
 
 def _gates(state: Path, home: Path) -> list[dict[str, Any]]:
-    """Every gate of the home's `gates.md` and of each scoped home's, open or not, but for
-    one jbus holds as a question: that one is on the waiting list while it is open. A gate
-    that a slug removed from the queue asked is left out too."""
+    """Every gate of the home's `gates.md` and of each scoped home's, open or not, except one
+    that jbus holds as a question, which is on the waiting list while it is open. The panel also
+    leaves out a gate whose slug was removed from the queue."""
     held = {one.key for one in questions.load(state)}
     gone = queue.removed_slugs(state)
     found = []
@@ -125,9 +125,9 @@ def _gates(state: Path, home: Path) -> list[dict[str, Any]]:
 
 
 def _question(one: questions.Question | None, home: Path, threads: Any) -> dict[str, Any]:
-    """What an item of the list has of the question jbus holds for it: whether it can be
-    answered on the page, what the gate wrote, and who asked. An item that is no question
-    of jbus's, as a gate of a home's `gates.md`, has each of them empty."""
+    """What an item of the list has of the question jbus holds for it: whether the user can
+    answer it on the page, what the gate wrote, and who asked. An item that is not one of jbus's
+    questions, such as a gate of a home's `gates.md`, has all three empty."""
     thread, role = asker(home, one.slug, threads) if one else ("", "")
     return {
         "answerable": one is not None,
@@ -151,11 +151,11 @@ def _question(one: questions.Question | None, home: Path, threads: Any) -> dict[
 def _waiting(
     state: Path, home: Path, left: list[Any] | None, words: dict[str, str], threads: Any = None
 ) -> list[dict[str, Any]]:
-    """The list of what waits on the user, as the last pass left it, with the gates as they
-    are now, in jbus's questions and in `gates.md`: a gate keeps the `since` the pass gave
-    it, a new question has the time it was asked, and a new gate of a file has none. A
-    leftover of a task that ended has the words its task says (`words`), not the pass's.
-    A question jbus holds has what the page needs to answer it (`_question`)."""
+    """The list of what waits on the user, as the last pass left it, with the gates as they are
+    now in jbus's questions and in `gates.md`. A gate keeps the `since` that the pass gave it, a
+    new question has the time it was asked, and a new gate of a file has no time. A leftover of a
+    task that ended has its task's words (`words`), not the pass's. A question that jbus holds
+    has what the page needs to answer it (`_question`)."""
     kept = [one for one in left or [] if one["kind"] in waiting.kinds()]
     since = {one["key"]: one.get("since") for one in kept}
     asked = questions.load(state)
@@ -203,8 +203,8 @@ def _cut(given: str, cap: int = LINE) -> str:
 
 
 def _brief(read: Read, slug: str) -> tuple[str, str]:
-    """The title line of the brief `slug` has in the project's `briefs/`, and the first
-    sentence of its `Task:` line, both empty where it has none."""
+    """The title line of the brief that `slug` has in the project's `briefs/`, and the first
+    sentence of its `Task:` line, both empty where there is no such brief."""
     try:
         brief = queue.brief(read.state, slug) if _SLUG.fullmatch(slug) else None
     except ValueError:
@@ -227,9 +227,9 @@ def _after(line: str, slug: str) -> str:
 
 def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
     """Which queue an item is on: `needs`, `proceeds`, or None for one that asks the user
-    nothing. Only a gate has a default to go ahead on. A question jbus holds closes by
-    silence unless it holds for the answer; a gate of a home's file has no timer, and goes
-    ahead on its default where it has one."""
+    nothing. Only a gate has a default to go ahead on. A question that jbus holds closes when the
+    user stays silent, unless its gate has a `Holds:` line. A gate of a home's file has no timer,
+    and goes ahead on its default where it has one."""
     if waits["kind"] != "gate":
         return NEEDS
     if one is None:
@@ -240,8 +240,9 @@ def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
 
 
 def _route(project: str, waits: dict[str, Any], slug: str) -> str:
-    """The hash route of the drawer that shows an item whole: the gate's own for a question
-    jbus holds, and for any other the list of its kind, at the item."""
+    """The hash route of the drawer that shows an item in full. For a question that jbus holds,
+    it is the gate's own route. For any other item, it is the list of the item's kind, opened at
+    the item."""
     here = quote(project, safe="")
     if waits["answerable"]:
         return f"#/{here}/gate/{quote(waits['number'], safe='')}"
@@ -308,13 +309,14 @@ def _need(
 
 
 def _approves(waits: dict[str, Any]) -> str:
-    """The slug of the row a need of the kind `approve` asks a go for, and else nothing."""
+    """For a need of the kind `approve`, the slug of a row: the need asks the user's go for
+    that row. For any other need, nothing."""
     return (waits["slug"] or waits["key"].rpartition(":")[2]) if waits["kind"] == "approve" else ""
 
 
 def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict[str, Any]]:
-    """A need for each proposed item that only its id can approve: one whose row does not
-    wait for a go, as one with no row, and one that was redirected."""
+    """A need for each proposed item that the user can approve only by its id. Such an item is
+    one whose row does not wait for a go, such as one with no row, or one that was redirected."""
     lines = item.read(read.state)
     made = []
     for one in found.values():

@@ -1,11 +1,13 @@
-"""The two writes of `jbus view`, `POST /answer` and `POST /steer`, and what every answer
-of the server is (`Answer`). The package's docstring says what each write takes and gives.
-A steer's `action` may also be `APPROVE`, the user's go for the item by its id, which
-`jbus.steer.approve` decides as `jbus item approve` does: it has no words to have, and it is
-how the page's Approve of a proposed item writes.
+"""The two writes of `jbus view`, `POST /answer` and `POST /steer`, and the type of every
+answer the server gives (`Answer`). The package's docstring says what each write takes and
+gives.
 
-`Writes` is the part of `jbus.view.App` that writes: what it reads, `sources`, `clock`
-and `config`, is the app's.
+A steer's `action` may also be `APPROVE`, the user's go for the item named by its id.
+`jbus.steer.approve` decides it, as `jbus item approve` does. An approval has no words, and
+the page approves a proposed item with this write.
+
+`Writes` is the part of `jbus.view.App` that writes. What it reads, `sources`, `clock` and
+`config`, belongs to the app.
 """
 
 from __future__ import annotations
@@ -52,8 +54,8 @@ NOT_FOUND = said(404, {"error": "not found"})
 
 
 def reader(sources: Sources) -> jbus.Config:
-    """A `Config` for what only reads the state: the projects the state directory names,
-    no server, no webhook, and no config directory."""
+    """A `Config` for code that only reads the state. It has the projects the state
+    directory names, and no server, no webhook and no config directory."""
     nowhere = Path(os.devnull)
     return jbus.Config(
         server="",
@@ -81,9 +83,10 @@ class Writes:
     config: Callable[[], jbus.Config]
 
     def _carry(self, name: str, closed: questions.Question, now: datetime) -> tuple[bool, str, str]:
-        """Send one answer that differs to the thread that asked, as a pass would. The
-        answer is whether it went, and where it did not, why, with no secret in it, and
-        what sends it later: nothing does for a slug that was removed from the queue."""
+        """Send one answer that differs from the default to the thread that asked the
+        question, as a pass would. It returns whether the answer went, and the reason where it
+        did not, with no secret in it. It also returns what will send the answer later. For a
+        slug that was removed from the queue, nothing sends it later."""
         pass_ = "the next pass sends it"
         hidden: tuple[str, ...] = ()
         try:
@@ -112,7 +115,7 @@ class Writes:
     def _close(
         self, name: str, number: int, option: str, words: str, now: datetime
     ) -> tuple[bool, dict[str, Any]]:
-        """Close one question. The answer is whether it closed, and what the page is told."""
+        """Close one question. It returns whether the question closed, and what to tell the page."""
         user, state_dir = self.sources.user, self.sources.state(name)
         held = {one.number: one for one in questions.load(state_dir)}
         one = held.get(number)
@@ -183,7 +186,7 @@ class Writes:
         }
 
     def _answer(self, name: str, body: bytes) -> Answer:
-        """Close each question the body numbers with the user's answer."""
+        """Close each question whose number the body gives, with the user's answer."""
         try:
             asked = json.loads(body)
             numbers, option, words = asked["numbers"], asked.get("option"), asked.get("words")
@@ -211,8 +214,8 @@ class Writes:
         return said(200 if closed else 409, clean(answer, (state.repo(self.sources, name),)))
 
     def _steer(self, name: str, body: bytes) -> Answer:
-        """Steer one item, through `steer.steer`, or approve it, through `steer.approve`, by the
-        user of the settings, in the view."""
+        """Steer one item through `steer.steer`, or approve it through `steer.approve`. Either
+        call names the user of the settings as the one who acts, and the view as the place."""
         try:
             asked = json.loads(body)
             id, action, seen = asked["item"], asked["action"], asked["seen_event"]
@@ -281,8 +284,8 @@ class Writes:
         return self._steered(name, 200, id, say, now)
 
     def _message(self, name: str, line: str, now: datetime) -> str:
-        """Send a message steer's line to the item's home, as the command does. The answer
-        says whether it went, and where it did not, why, with no secret in it."""
+        """Send the line of a message steer to the item's home, as the command does. It
+        returns whether the line went, and the reason where it did not, with no secret in it."""
         hidden: tuple[str, ...] = ()
         state_dir = self.sources.state(name)
         try:

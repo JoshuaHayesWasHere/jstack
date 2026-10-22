@@ -1,79 +1,87 @@
-"""What `/state.json` holds: the bus as one dict, read from what the passes left.
+"""What `/state.json` holds: the bus as one dict, read from the files the passes left.
 
-The dict is a frame and what each panel adds to it. A panel is one folder of `panels/`,
-and its `panel.py` has its data: the function that builds its keys, the shape they are
-cut to, and the sources it reads. This module has what the panels share. `Read` is one
-project at one moment, with each file read once: the queue, what the last pass left, the
-logs. `Source` and `Spot` are what a panel declares. `build` puts the frame (`FRAME`) and
-the panels of the first screen together, and `Read.asked` answers for one panel by itself.
+The dict is a frame plus the keys each panel adds to it. A panel is one folder of `panels/`,
+and its `panel.py` has its data: the function that builds its keys, the shape the keys are
+cut to, and the sources the panel reads. This module has what the panels share. `Read` is
+one project at one moment, and it reads each file once: the queue, what the last pass left,
+and the logs. `Source` and `Spot` are what a panel declares. `build` puts the frame
+(`FRAME`) and the panels of the first screen together, and `Read.asked` gives the answer
+of one panel on its own.
 
-Each time it is called it reads the files the panels name of the project's state directory
-and of its home's, `pass.json` and `status.json` beside them, what systemd says of the
-timer and the service, and the machine: its load, memory, pressure, the file slots of
-`/tmp` and the plan's limits. It reads no config of jbus: the projects are the directories
-of the state directory that hold a `queue.json`, and a project's home is the directory of
-its name. It also reads `leftover.json` where a pass wrote one (`jbus.leftover`). It never
-opens the outbox or the stored token, and it writes nothing. The one
-setting it takes is the user's time zone (`jsettings`), which a time with no zone is in.
+Each call reads the files that the panels name in the project's state directory and in
+its home's directory, and `pass.json` and `status.json` beside them. It also reads what
+systemd says of the timer and the service, and the machine's state: its load, memory,
+pressure, the file slots of `/tmp` and the plan's limits. It reads no config of jbus. The
+projects are the directories of the state directory that have a `queue.json`, and a
+project's home is the directory of its name. It also reads `leftover.json` where a pass
+wrote one (`jbus.leftover`). It never opens the outbox or the stored token, and it writes
+nothing. The one setting it takes is the user's time zone (`jsettings`), and it reads a
+time with no zone as a time in that zone.
 
 The line is `STEPS`, twelve steps from Queued to Merged. Each open row of the queue is a
-task on one step, held by the user, a crewmate, a reviewer, the check runner, jbus, its home
-or another task. The view works no state out: the last pass judged each row once
-(`jbus.work`) and wrote it to `work.json`, and a task is drawn as that file has it, its
-value, its holder, what it waits for and the step of the line it is on. A row that merged
-or is done and leaves nothing is off the line (`queue.over`). The words a state is said in
-are the view's: the reason `jmerge` gave, the rows in front of it, the line of its gate,
-the note a Result leaves, whole, and since when its home has a leftover.
+task on one step. The holder of the task is the user, a crewmate, a reviewer, the check
+runner, jbus, its home or another task. The view works out no state. The last pass judged
+each row once (`jbus.work`) and wrote it to `work.json`, and the page draws a task as that
+file has it: its value, its holder, what it waits for and the step of the line it is on. A
+row that merged or is done and leaves nothing is off the line (`queue.over`). The view
+writes the words for a state itself: the reason `jmerge` gave, the rows in front of the
+task, the line of its gate, the whole note a Result leaves, and since when its home has a
+leftover.
 
-What the pass could not work out it did not guess, and neither does the view. A value is
-`unknown` for a set of facts no state holds for, and a row `work.json` does not have is
-`unknown` too. An unknown task is on no step of the line: its step is `UNKNOWN`, which the
-dict has under `unknown`, a lane of its own that the page draws only while a task is on it.
-Nobody is said to hold it, and it says the facts it has.
+The view does not guess what the pass could not work out, and the pass did not guess
+either. A value is `unknown` for a set of facts that no state covers, and a row that
+`work.json` does not have is `unknown` too. An unknown task is on no step of the line. Its
+step is `UNKNOWN`, and the dict has that step under `unknown`. It is a lane of its own,
+and the page draws it only while a task is on it. The view names no holder for the task,
+and gives the facts it has.
 
-A task is in one state, `state`, and that is what the page says of it: its kind (the value
-of `work.json`), its name, the one sentence of it, and the one thing it waits for. Only open
-work is in `tasks`. A row the pass judged merged or done while its row is not over is in
-`ended`. A task that cannot move says what holds it in `blocked`, and how many tasks wait
-behind it in `blocks`. A task the last pass did not confirm says so in `unconfirmed`.
+A task is in one state, `state`, and the page says that state: its kind (the value of
+`work.json`), its name, its one sentence, and the one thing it waits for. Only open work is
+in `tasks`. The pass may judge a row merged or done while the queue does not yet count the
+row as over. Such a row is in `ended`. A task that cannot move names the task that blocks it in
+`blocked`, and `blocks` has how many tasks wait behind it. A task that the last pass did
+not confirm says so in `unconfirmed`.
 
-`threads` is every thread the last pass saw that is not settled, a crew's, a scout's, a
-reviewer's, a home's or any other, each with its liveness (`jbus.live`), or null where the
-pass left no list: that is a blind spot, never a count of none. A task says
-its own thread's under `seen.live`. A pull request that has had no review for `REVIEW_MINUTES`,
-with no reviewer's thread listed, says so.
+`threads` is every thread that the last pass saw and that is not settled: a crew's, a
+scout's, a reviewer's, a home's or any other, each with its liveness (`jbus.live`). It is
+null where the pass left no list. A null is a blind spot, never a count of none. A task
+gives its own thread's liveness under `seen.live`. A pull request that has had no review
+for `REVIEW_MINUTES`, with no reviewer's thread listed, says so.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than
-`QUIET` seconds ago and systemd does not say one is running now. A pass that starts and
-dies each minute has stopped too: a start is no end. Each source says who
-writes it: what jbus writes stands as the last pass left it, and what the server reads
-itself is as it is now. The limits file is written by a session's status line, so it is
-old whenever no session ran: it says its age, and is no fault of jbus.
+`QUIET` seconds ago and systemd does not say that a pass is running now. A pass that starts
+and fails each minute has stopped too, because only the end of a pass counts, and its start
+does not. Each source says who writes it. A source that jbus writes stands as the last pass
+left it. A source that the server reads itself is as it is now. A session's status line writes
+the limits file, so the file is old whenever no session ran. The file gives its age, and its age
+is no fault of jbus.
 
 A pass that could not ask T3 Code or GitHub derives no row, and `pass.json` names the
-source under `silent`. While it does, every task of that project says so in `unconfirmed`:
-since which pass its row is not confirmed, and which source did not answer. The plan's
-limits file is a source too, with the time it was last written. A limit in it whose reset
-time has passed is from a window that is over: its use is not known, and is never given
-as a number.
+source under `silent`. While `pass.json` names one, every task of that project says so in
+`unconfirmed`: since which pass its row is not confirmed, and which source did not answer.
+The plan's limits file is a source too, with the time a session last wrote it. A limit in
+it whose reset time has passed is from a window that is over. Its use is not known, and the
+view never gives it as a number.
 
 `waiting` is the list of what waits on the user. An item that is a question jbus holds is
-`answerable`, and has what its gate wrote, so that the page can answer it: its `context`,
-its `options` (each one's `name`, what `follows` from it, whether it is the `default` that
-was taken and whether the thread `recommended` it), what was `built_on` the default and
-how to `undo` it, and who asked: the `slug`, the `thread` an answer goes to and that
-thread's `role` (`asker`). A gate that lives only in a home's `gates.md` is not answerable.
+`answerable`. It has what its gate wrote, so that the page can answer it. That is its
+`context` and its `options`. Each option has its `name`, what `follows` from it, whether it
+is the `default` that the thread took, and whether the thread `recommended` it. The item
+also has what the thread `built_on` the default and how to `undo` it. Last, it has who
+asked: the `slug`, the `thread` an answer goes to and that thread's `role` (`asker`). A
+gate that is only in a home's `gates.md` is not answerable.
 
-`items` is each live work item of the project (`jbus.item`) and the `ENDED` that ended
-last, in the order of its number: its
-`id`, `slug`, `title`, `state`, `owner`, `risk` and `last_event`, which a steer names as the
-line it saw, and its last `ITEM_LINES` lines, oldest first.
+`items` is each live work item of the project (`jbus.item`) and the `ENDED` items that
+ended last, in the order of their numbers. Each has its `id`, `slug`, `title`, `state`,
+`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A steer names
+the `last_event` as the line it saw.
 
-`jbus.code` says which code of the view answers: when the server started, and whether a
-file it runs is newer on disk than that.
+`jbus.code` says which code of the view serves requests: when the server started, and whether a
+file it runs is newer on disk than that start.
 
-The dict has the keys `keys` gives and no other, each built from named fields and cut to
-its panel's shape. Every time in it is UTC, as ISO 8601 writes it.
+The dict has the keys that `keys` gives and no other. The view builds each key from named
+fields and cuts it to its panel's shape. Every time in the dict is UTC, in the
+ISO 8601 form.
 """
 
 from __future__ import annotations
@@ -207,7 +215,7 @@ BLOCKED = {
 
 @dataclass(frozen=True)
 class Step:
-    """One step of the line: its lane, who holds a task there, and what it waits for."""
+    """One step of the line: its lane, who has a task on it, and what the task waits for."""
 
     key: str
     name: str
@@ -236,7 +244,7 @@ STEP = {step.key: step for step in (*STEPS, UNKNOWN)}
 
 @dataclass(frozen=True)
 class Sources:
-    """Where everything is read from. Only a test names another place than the machine's."""
+    """The places the view reads from. Only a test names a place other than the machine's."""
 
     state_dir: Path
     home_dir: Path
@@ -257,9 +265,11 @@ def iso(moment: datetime) -> str:
 
 
 def when(given: Any, user: jsettings.Settings = jsettings.DEFAULTS) -> str | None:
-    """A time as a file has it, as UTC: a time ISO 8601 writes, seconds since 1970, or a
-    stamp of a pass, `YYYY-MM-DD HH:MM` with or without the word of its zone, which is a
-    time in the user's zone. None for any other."""
+    """A time as a file has it, given as UTC, or None for any other value.
+
+    A file may have a time as ISO 8601 writes it, seconds since 1970, or the stamp of a
+    pass. A stamp is `YYYY-MM-DD HH:MM`, with or without the word of its zone, and it is a
+    time in the user's zone."""
     try:
         if isinstance(given, int | float) and not isinstance(given, bool):
             return iso(datetime.fromtimestamp(given, UTC))
@@ -279,8 +289,9 @@ def text(given: Any, cap: int = LINE) -> str:
 
 
 def by_rule(row: queue.Row) -> dict[str, str] | None:
-    """The rule and the parent of a row a home approved by a standing rule, which is the mark
-    the page puts on it, or None for a row the user gave his own word for, or none."""
+    """The rule and the parent of a row that a home approved by a standing rule. The page
+    marks the row with them. The function gives None for a row the user gave their own word
+    for, and for a row with no approval."""
     made = queue.record(row)
     if not made or made.basis != queue.RULE:
         return None
@@ -292,7 +303,8 @@ def count(given: Any) -> int:
 
 
 def projects(sources: Sources) -> list[str]:
-    """The projects jbus looks after, by what it left: each directory with a `queue.json`."""
+    """The projects jbus looks after, as the files it left show: each directory with a
+    `queue.json`."""
     try:
         found = [
             path.name for path in sources.state_dir.iterdir() if (path / "queue.json").is_file()
@@ -303,9 +315,10 @@ def projects(sources: Sources) -> list[str]:
 
 
 def repo(sources: Sources, name: str) -> str:
-    """The project's repo on GitHub, `<owner>/<name>`: the one of the newest pull request
-    `jmerge` logged a `wait` or a `hold` for, by the URL that names it in the line. Nothing
-    where it has logged none. A URL inside a line's reason names no repo."""
+    """The project's repo on GitHub, `<owner>/<name>`, or nothing where `jmerge` logged no
+    such line. The function finds the newest pull request for which `jmerge` logged a `wait`
+    or a `hold`, and takes that pull request's repo. It reads the repo from the URL that names
+    the pull request in that line. A URL inside a line's reason names no repo."""
     for logged in reversed(_lines(sources.home(name) / "merge.log") or []):
         stamped = _LOGGED.match(logged)
         line = merge.parse(stamped[2]) if stamped else None
@@ -316,8 +329,9 @@ def repo(sources: Sources, name: str) -> str:
 
 
 def pulls(sources: Sources, name: str) -> dict[str, int | None]:
-    """Each slug of the project's queue, with the number of its pull request or None: the
-    one its row names, or the one `merge.log` says merged for it where the row names none."""
+    """Each slug of the project's queue, with the number of its pull request or None. The
+    number is the one the slug's row names. Where the row names none, the number is the one of
+    the pull request that `merge.log` says merged for the slug."""
     landed = _landed(_lines(sources.home(name) / "merge.log") or [], sources.user)
     return {
         row["slug"]: number
@@ -347,7 +361,7 @@ def _lines(path: Path) -> list[str] | None:
 
 
 def _records(path: Path) -> list[dict[str, Any]] | None:
-    """The lines of a `.jsonl` file that are a record. A line that is not is left out."""
+    """The lines of a `.jsonl` file that are a record. It leaves out every other line."""
     lines = _lines(path)
     if lines is None:
         return None
@@ -368,7 +382,8 @@ def _table(path: Path) -> dict[str, Any] | None:
 
 
 def _history(lines: list[str], user: jsettings.Settings) -> dict[int, list[dict[str, str]]]:
-    """What `jmerge` logged of each pull request, oldest first: when, the word, the step."""
+    """What `jmerge` logged of each pull request, oldest first: the time, the word and the
+    step of each line."""
     found: dict[int, list[dict[str, str]]] = {}
     for logged in lines:
         stamped = _LOGGED.match(logged)
@@ -389,7 +404,7 @@ def _history(lines: list[str], user: jsettings.Settings) -> dict[int, list[dict[
 
 
 def _stay(history: list[dict[str, str]], step: str) -> tuple[str | None, int]:
-    """Since when a pull request is on its step, and how many times it came to it."""
+    """Since when a pull request is on its step, and how many times it came to that step."""
     since, visits, last = None, 0, ""
     for one in history:
         if one["step"] == step and last != step:
@@ -399,7 +414,7 @@ def _stay(history: list[dict[str, str]], step: str) -> tuple[str | None, int]:
 
 
 def _landed(lines: list[str], user: jsettings.Settings) -> dict[str, tuple[int, str]]:
-    """The pull request `jmerge` logged as merged for each slug, and when: its last one."""
+    """The last pull request that `jmerge` logged as merged for each slug, and when."""
     found = {}
     for logged in lines:
         stamped = _LOGGED.match(logged)
@@ -423,8 +438,8 @@ def _said(
 
 
 def _whole(state: Path, home: Path, slug: str) -> tuple[str, str]:
-    """What the last Result of a slug's brief has on its `Status:` line and on its `Left:`
-    line, whole, or nothing for a brief that cannot be read."""
+    """The whole `Status:` line and the whole `Left:` line of the last Result of a slug's
+    brief, or nothing for a brief the view cannot read."""
     if not _SLUG.fullmatch(slug):
         return "", ""
     for path in (home / "tasks" / f"{slug}.md", state / "briefs" / f"{slug}.md"):
@@ -438,10 +453,13 @@ def _whole(state: Path, home: Path, slug: str) -> tuple[str, str]:
 
 @dataclass(frozen=True)
 class Held:
-    """What `leftover.json` has of a row that ended with something left: the `Left:` line
-    whole, when its home was told as the user reads a time, or nothing while it was not,
-    the same time as the dict has one, why the row is the user's, or nothing while its
-    home has it, and whether a thread was at work on it in the last pass."""
+    """What `leftover.json` has of a row that ended with something left.
+
+    `note` is the whole `Left:` line. `told` is the time when jbus told the row's home,
+    written as the user reads a time. It is nothing while jbus has not told the home. `since`
+    is the same time as `told`, in the form the answer's dicts give a time. `his` is why the
+    row is the user's, or nothing while the row is its home's. `busy` is whether a thread was
+    at work on the row in the last pass."""
 
     note: str
     told: str
@@ -457,7 +475,7 @@ def _held(record: leftover.Record, now: datetime, user: jsettings.Settings) -> H
 
 
 def _how(row: queue.Row, merged: bool) -> tuple[str, int | None]:
-    """How a row that ended did so, in a few words, and its pull request's number."""
+    """How a row ended, in a few words, and the number of its pull request."""
     number = _number(row)
     if merged:
         return f"its pull request{'' if number is None else f' #{number}'} is merged", number
@@ -469,16 +487,17 @@ def _how(row: queue.Row, merged: bool) -> tuple[str, int | None]:
 def _leftover(
     row: queue.Row, value: str, merged: bool, result: tuple[str, str], his: str = ""
 ) -> tuple[str, str, str]:
-    """What is said of a row that ended with something left, or whose pull request closed:
-    its name, its sentence and what it waits for.
+    """What the view says of a row that ended with something left, or whose pull request
+    closed: its name, its sentence and what it waits for.
 
-    Where its last Result says `Status: done`, its reason is a note and no pull request of
-    its is left unmerged, the work is finished: it says how the work ended, the note its
-    crewmate left, whole as the brief has it, and the two things that end it. Any other
-    such row is not closed: it says the note or the reason the row has, and that its brief
-    does not say the work is finished where a `Status:` was read that is not `done`. `his`
-    is why a row with a home to tell waits on the user all the same (`leftover.his`), and is
-    said after the note.
+    The work is finished where the row's last Result says `Status: done`, its reason is a
+    note, and none of its pull requests is left unmerged. The sentence then says how the work
+    ended. It also gives the crewmate's whole note, as the brief has it. It also gives the
+    two things that end the work. Any other such row is not closed, and its sentence gives
+    the note or the reason the row has. Where the view read a `Status:` that is not `done`,
+    the sentence also says that the brief does not say the work is finished. A row with a
+    home to tell may still wait on the user, and `his` says why (`leftover.his`). The
+    sentence gives that reason after the note.
     """
     status, whole = result
     why = text(row.get("why"))
@@ -499,8 +518,9 @@ def _leftover(
 
 
 def _homes(row: queue.Row, merged: bool, held: Held) -> str:
-    """What is said of a row that ended with something left and that its home has: how it
-    ended, the note whole, since when the home has it, and that the home closes it."""
+    """What the view says of a row that ended with something left, when the row is its
+    home's to close: how the row ended, the whole note, since when the home has had it, and
+    that the home closes it."""
     ended = _how(row, merged)[0]
     note = text(held.note, NOTE).rstrip(". ")
     return f"{ended}. Its crewmate left a note: {note}. jbus told its home {held.told}. {CLOSES}"
@@ -508,9 +528,11 @@ def _homes(row: queue.Row, merged: bool, held: Held) -> str:
 
 @dataclass(frozen=True)
 class About:
-    """What the view has of a row beside its state, to say it in words: the rows in front
-    of it that are not merged or done, the line of its gate in the list the last pass left,
-    what its brief's last Result says, and what `leftover.json` has of it."""
+    """What the view knows of a row besides its state, to put the state in words.
+
+    It has four things. They are the rows in front of the row that are not merged or done,
+    and the line of the row's gate in the list the last pass left. They are also what the
+    row's brief's last Result says, and what `leftover.json` has of the row."""
 
     blockers: list[str]
     asked: str
@@ -519,9 +541,10 @@ class About:
 
 
 def _saying(row: queue.Row, line: dict[str, Any] | None, about: About) -> dict[str, str]:
-    """The state of a row as the page says it: the value, the holder and what it waits for
-    are the pass's, from `work.json` (`line`), and the words are worked out here. A row the
-    last pass did not judge is `unknown`, with what its row says."""
+    """The state of a row as the page says it. The value, the holder and what the row waits
+    for come from the pass, in `work.json` (`line`). This function works out the words. A
+    row that the last pass did not judge is `unknown`, and gets what its row in the queue
+    says."""
     why = text(row.get("why"))
     status = text(row.get("status")) or "queued"
     says = f"the row says {status}" + (", approved" if row.get("approved") else "")
@@ -587,14 +610,14 @@ def _tasks(
     unconfirmed: dict[str, Any] | None = None,
     held: dict[str, leftover.Record] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """The open work of the queue, each row in the state the last pass judged for it
-    (`judged`, the rows of `work.json` by slug), and the rows that ended while their row
-    says another thing.
+    """The open work of the queue, and the rows that ended while their row in the queue
+    says another thing. Each row is in the state that the last pass judged for it. `judged`
+    is the rows of `work.json` by slug.
 
     `out` is the threads the last pass listed (`_threads`), or None where it left no list.
     `held` is the record `leftover.json` has of each row that ended with something left.
-    `unconfirmed` is what every one of them says while the last pass could not ask, and a
-    row whose state the last pass did not confirm says so by itself."""
+    `unconfirmed` is what every row says while the last pass could not ask a source. A row
+    whose state the last pass did not confirm says so by itself."""
     crews: dict[str, list[dict[str, Any]]] = {}
     for one in out or []:
         if one["role"] == "crew":
@@ -709,12 +732,14 @@ def _tasks(
 def waves(order: list[str], front: dict[str, list[str]]) -> dict[str, tuple[int, str]]:
     """The wave of each queued row, and the one row it waits on last.
 
-    `order` is the queue's slugs, the rows the log has as merged last as in `blockers`, and
-    `front` has each queued row with the rows in front of it that are not merged or done. A
-    row `front` does not have is out, and counts as 0. The wave is 0 with nothing in front,
-    and otherwise one more than the highest wave in front. The row it waits on last is the
-    one of that highest wave, the first in the queue among equals. A row met again while its
-    own wave is worked out counts as 0, so rows that depend on each other end.
+    `order` is the queue's slugs, followed by the rows that the log has as merged, as in
+    `blockers`. `front` has each queued row with the rows in front of it that are not merged
+    or done. A row that `front` does not have is out, and its wave is 0. A row with nothing
+    in front has wave 0, and any other row has one more than the highest wave in front of
+    it. The row it waits on last is the one with that highest wave, and among equals the
+    first in the queue. While the function works out a row's wave, the row may come up again
+    in front of itself. It then counts as 0, so that the count ends for rows that depend on
+    each other.
     """
     place = {slug: at for at, slug in enumerate(order)}
     found: dict[str, int] = {}
@@ -762,12 +787,15 @@ THREAD = {
 
 
 def request(home: Path, slug: str) -> dict[str, str]:
-    """What a scout's request says of its work, from `scouts/<slug>.md` under the home, which
-    the view only reads: `researching` while it has no `## Report`, `reported` where the
-    `Status:` of its last Report is `done`, `blocked` where it says so, `not done` for any
-    other, as the scout skill holds a Report that is not done unfinished, and `missing` where
-    there is no request to read. `status` is that line's words and `asks` the request's title.
-    A gate a scout wrote in its Report is part of it: its own `Status:` is not the Report's."""
+    """What a scout's request says of its work, from `scouts/<slug>.md` under the home. The
+    view only reads the file.
+
+    The state is `researching` while the request has no `## Report`, and `reported` where
+    the `Status:` of its last Report is `done`. It is `blocked` where that line says so, and
+    `not done` for any other line, because the scout skill counts a Report that is not done
+    as unfinished. It is `missing` where there is no request to read. `status` is the words
+    of that line, and `asks` is the request's title. A gate that a scout wrote in its Report
+    is part of the Report. The gate's own `Status:` line is not the Report's."""
     try:
         whole = (home / SCOUTS / f"{slug}.md").read_text(errors="replace")
     except (OSError, ValueError):
@@ -789,8 +817,10 @@ def request(home: Path, slug: str) -> dict[str, str]:
 
 def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[str, Any]] | None:
     """Every thread the last pass listed as not settled, or None where it left no list.
-    `out` is one a turn may be under way in: any but one that ended. `today` is one that is
-    out or last wrote since `day` began, and a scout's has what its `request` says."""
+
+    `out` marks a thread in which a turn may be under way. That is any thread except one
+    that ended. `today` marks a thread that is out, or that last wrote since `day` began. A
+    scout's thread also has what its `request` says."""
     if not isinstance(left, list):
         return None
     found = []
@@ -821,10 +851,11 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
 
 
 def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
-    """Mark each open task that cannot move with what holds it, and each task others wait
-    behind with which do: the ones that depend on it, and the ones behind those. A task is
-    behind a row until that row says merged or done, as jbus holds it, whatever the row's state
-    is: `blockers` has those rows, the ones the log has as merged last."""
+    """Mark each open task that cannot move with what blocks it. Where other tasks
+    wait behind a task, mark that task with them: the ones that depend on it, and the ones
+    behind those. A task stays behind a row until jbus records that row as merged or done. The
+    row's state does not change that. `blockers` has those rows, followed by the ones the log
+    has as merged."""
     by_slug = {task["slug"]: task for task in tasks + ended}
     behind: dict[str, set[str]] = {}
     for task in tasks:
@@ -857,7 +888,8 @@ def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
 
 def _events(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """The events of the log, oldest first, each as its time, kind, loudness, slug and line.
-    The loudness is by the name it has now: a line from before `chef` went is `quiet`."""
+    The loudness has its current name. A line from before jbus dropped the name `chef` is
+    `quiet`."""
     names = old_names()
     return [
         {
@@ -880,12 +912,12 @@ def threads_seen(sources: Sources, name: str) -> Any:
 
 
 def asker(home: Path, slug: str, threads: Any) -> tuple[str, str]:
-    """The thread an answer to a question of the slug goes to, and that thread's role.
+    """The thread that an answer to a question of the slug goes to, and that thread's role.
 
     The thread is the one `questions` sends to, on the `Thread:` line of the slug's brief or
-    request. Its role is the one the last pass listed it with (`threads`), or the one its
-    file gives it: a brief is a crew's and a request a scout's. Both are nothing for a slug
-    with no such line."""
+    request. Its role is the one the last pass listed it with (`threads`). Where the pass did
+    not list it, its file gives the role: a brief is a crew's and a request is a scout's.
+    Both the thread and the role are nothing for a slug with no such line."""
     thread = questions.thread_of(home, slug)
     if not thread:
         return "", ""
@@ -925,16 +957,18 @@ def _source(
 ) -> dict[str, Any]:
     """One source and the one word for how it is: `ok`, or `missing`, `unreadable` or `stale`.
 
-    A source with a path that is not there is missing, and any other that was not read is
-    unreadable. A source is stale only where it is given `fresh`, the seconds it may be
-    old: a file changes when something happens, so an old one says nothing, and whether
-    the two files a pass writes are late is what `stopped` says. `gates.md` is read where a
-    home still writes one, and a home that has none lacks nothing: jbus holds its gates.
+    A source with a path that is not there is missing, and any other source the view could
+    not read is unreadable. A source is stale only where the caller gives `fresh`, the
+    seconds it may be old. A file changes when something happens, so an old file says
+    nothing by itself. `stopped` says whether the two files a pass writes are late. The view
+    reads `gates.md` where a home still writes one, and a home with none lacks nothing,
+    because jbus keeps its gates.
 
-    GitHub's answer is renewed each minute, and a `gh` that fails overwrites it with an
-    error. So it is `GITHUB_FRESH` old, and stale, only when the server kept an answer
-    while a slow `gh` had not come back. The limits file is stale when it is `old`: a
-    limit in it has reset since it was written."""
+    The server asks GitHub again each minute, and a `gh` that fails overwrites the answer
+    with an error. GitHub's answer can only reach `GITHUB_FRESH` seconds old when a `gh` is
+    slow to return, and the server keeps the old answer meanwhile. Only then is it stale.
+    The limits file is stale when it is `old`, which means a limit in it has reset since a
+    session wrote it."""
     word = "ok" if read else "missing" if path is not None and not path.exists() else "unreadable"
     word = "stale" if read and old else word
     if read and at and fresh is not None:
@@ -945,10 +979,11 @@ def _source(
 
 @dataclass(frozen=True)
 class Source:
-    """One source a panel reads: its name, who writes it (`jbus`, the `server` itself or a
-    `session`), and how it is now, as the arguments `_source` takes beside `now`. The list
-    of the sources is in the order of `rank`. A `machine` source is the same for every
-    project, so the overview says it once, on the machine row, and on no project's row."""
+    """One source a panel reads: its name, who writes it, and how it is now. The writer is
+    `jbus`, the `server` itself or a `session`. The fields are the arguments `_source` takes
+    besides `now`. The list of the sources is in the order of `rank`. A `machine` source is
+    the same for every project, so the overview gives it once, on the machine row, and on no
+    project's row."""
 
     name: str
     by: str
@@ -959,8 +994,9 @@ class Source:
 
 @dataclass(frozen=True)
 class Spot:
-    """One thing a panel cannot say, a line of `blind`, which opens the panel that says it.
-    The lines are in the order of `rank`. A `machine` one is the same for every project."""
+    """One thing a panel cannot say, which is a line of `blind`. On the page, a click on
+    the line opens the panel that gives it. The lines are in the order of `rank`. A
+    `machine` line is the same for every project."""
 
     line: str
     rank: int = 1000
@@ -968,8 +1004,8 @@ class Spot:
 
 
 def kept(name: str, value: Callable[[Read], Any], rank: int = 1000) -> Source:
-    """A file of the project's state directory, which jbus writes. It was read where
-    `value` gives anything but None."""
+    """A file of the project's state directory, which jbus writes. Where `value` gives
+    anything but None, the view read the file."""
 
     def seen(read: Read) -> dict[str, Any]:
         path = read.state / name
@@ -998,11 +1034,12 @@ MERGE_LOG = Source("merge.log", "jbus", _merges, 130)
 
 
 class Read:
-    """What one answer is built from: one project at one moment, each file read once.
+    """What the view builds one answer from: one project at one moment. It reads each file
+    once.
 
-    A panel's `build` takes it. What more than one panel reads is a property here, and its
-    source is one of the six above. What one panel works out and another needs is asked
-    with `panel`, and `once` keeps what a panel works out for its own functions.
+    A panel's `build` gets it as its argument. What more than one panel reads is a property
+    here, and its source is one of the six above. A panel calls `panel` to get what another
+    panel works out. `once` keeps what a panel works out for its own functions.
     """
 
     def __init__(
@@ -1024,25 +1061,27 @@ class Read:
         self._shared: dict[Any, Any] = {} if shared is None else shared
 
     def once(self, make: Callable[[Read], Any]) -> Any:
-        """What `make` gives of this, worked out the first time it is asked."""
+        """What `make` gives of this `Read`. The view works it out the first time a caller
+        asks."""
         if make not in self._kept:
             self._kept[make] = make(self)
         return self._kept[make]
 
     def machine(self, make: Callable[[Read], Any]) -> Any:
-        """What `make` gives of the machine, which is the same for every project: worked out
-        the first time any `Read` that shares `shared` with this one asks, as one answer of
-        `/stack.json` reads every project with one `shared`."""
+        """What `make` gives of the machine, which is the same for every project.
+
+        Several `Read`s can share one `shared`. The view works the answer out the first time
+        any of them asks. One answer of `/stack.json` reads every project with one `shared`."""
         if make not in self._shared:
             self._shared[make] = make(self)
         return self._shared[make]
 
     def panel(self, name: str) -> dict[str, Any]:
-        """What the panel `name` builds, before it is cut to its shape."""
+        """What the panel `name` builds, before the view cuts it to its shape."""
         return self.once(next(one for one in self.panels if one.name == name).data.build)
 
     def table(self, file: str) -> dict[str, Any] | None:
-        """A file of the project's state directory that holds one dict, or None."""
+        """A file of the project's state directory that contains one dict, or None."""
         return self._file(_table, file)
 
     def records(self, file: str) -> list[dict[str, Any]] | None:
@@ -1056,7 +1095,7 @@ class Read:
 
     @cached_property
     def table_of_rows(self) -> list[queue.Row] | None:
-        """The rows of `queue.json`, or None where it could not be read."""
+        """The rows of `queue.json`, or None where the view could not read it."""
         return _rows(self.state) if self.name else None
 
     @cached_property
@@ -1106,7 +1145,8 @@ class Read:
 
     @cached_property
     def unconfirmed(self) -> dict[str, Any] | None:
-        """What every task says while the last pass could not ask a source, or None."""
+        """The line every task shows while the last pass could not ask a source, or None where
+        it could ask every source."""
         silent = self.record.get("silent") if isinstance(self.record.get("silent"), dict) else {}
         unasked = text(silent.get(self.name), 40)
         if not unasked:
@@ -1119,7 +1159,7 @@ class Read:
 
     @cached_property
     def work(self) -> dict[str, Any] | None:
-        """What the last pass judged, `work.json`, or None where it could not be read."""
+        """What the last pass judged, `work.json`, or None where the view could not read it."""
         return work.read(self.state) if self.name else None
 
     @cached_property
@@ -1165,7 +1205,7 @@ class Read:
 
     @property
     def ended(self) -> list[dict[str, Any]]:
-        """The rows that ended while they say another thing."""
+        """The rows that ended, though the queue still gives each of them another state."""
         return self._open[1]
 
     @cached_property
@@ -1183,7 +1223,7 @@ class Read:
         return self._how(named.values())
 
     def read_by(self, panel: panels.Panel) -> list[dict[str, Any]]:
-        """The sources the panel names, and how each is now. No other source is looked at."""
+        """The sources the panel names, and how each is now. It looks at no other source."""
         return self._how({one.name: one for one in panel.sources}.values())
 
     def _how(self, named: Any) -> list[dict[str, Any]]:
@@ -1197,7 +1237,7 @@ class Read:
 
     def answer(self) -> dict[str, Any]:
         """What `/state.json` holds: the frame, and what each panel of the first screen
-        builds, cut to its shape."""
+        builds, cut to the panel's shape."""
         keys(self.panels)
         parts = {
             "at": iso(self.now),
@@ -1217,7 +1257,7 @@ class Read:
 
     def asked(self, name: str) -> dict[str, Any] | None:
         """What `/panel/<name>.json` holds: what the panel builds, cut to its shape, and how
-        each source it names is now. None for a name no folder has."""
+        each source it names is now. It is None for a name that no folder has."""
         panel = next((one for one in self.panels if one.name == name), None)
         if panel is None:
             return None
@@ -1230,8 +1270,8 @@ class Read:
 
 
 def items(state: Path) -> list[dict[str, Any]]:
-    """`items`: each work item of the project, as its log folds, with its risk and its last
-    lines."""
+    """`items`: each work item of the project as the view builds it from its log, with its
+    risk and its last lines."""
     lines = item.read(state)
     found = sorted(item.fold(lines).values(), key=lambda one: item._number(one.id))
     ended = {one.id for one in found if one.state not in item.LIVE}
@@ -1264,7 +1304,7 @@ def items(state: Path) -> list[dict[str, Any]]:
 
 def keys(found: tuple[panels.Panel, ...] | None = None) -> tuple[str, ...]:
     """The keys of `/state.json`: the frame's, then each key of the shape of a panel that is
-    on the first screen. A key two of them give is refused."""
+    on the first screen. It refuses a key that two of them give."""
     owner = dict.fromkeys(FRAME, "the frame")
     for panel in panels.found() if found is None else found:
         for key in panel.shape if panel.first else ():
@@ -1281,10 +1321,12 @@ def build(
     runs: Callable[[str], dict[str, Any]],
     code: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """The state of one project, `name`, or of none where the state directory has none.
+    """The state of one project, `name`, or of no project where the state directory has no
+    such project.
 
-    `runs` gives the repo's last workflow runs, as `github.GitHub.runs` does. `code` is
-    which code answers, as the server's `Code.said` gives it: it goes under `jbus`.
+    `runs` gives the repo's last workflow runs, as `github.GitHub.runs` does. `code` says
+    which code serves requests, as the server's `Code.said` gives it, and the function puts
+    it under `jbus`.
     """
     return Read(sources, name, now, runs, code).answer()
 
@@ -1312,8 +1354,8 @@ SUMMARY = {
 
 
 def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The records of the user's queue, oldest `since` first and one with no time last, the
-    project and the key breaking a tie."""
+    """The records of the user's queue, oldest `since` first and a record with no time last.
+    Where two records tie, the project and then the key decide the order."""
     return sorted(
         needs,
         key=lambda one: (one["since"] is None, one["since"] or "", one["project"], one["key"]),
@@ -1321,9 +1363,11 @@ def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> list[dict[str, str]]:
-    """What is broken in a project, each as a plain reason and the drawer that has it: its
-    checks that failed or could not be read, its bus when a wake failed, and its sources
-    that could not be read. Nothing is said of what is well, or merely quiet."""
+    """What is broken in a project, each as a plain reason and the drawer that has it.
+
+    It names the checks that failed or that the view could not read, the bus when a wake
+    failed, and the sources the view could not read. It says nothing of what is well, and
+    nothing of what is only quiet."""
     found = []
     if checks["error"]:
         found.append({"what": "CI not read", "open": "checks"})
@@ -1343,14 +1387,17 @@ def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> li
 
 
 def summary(read: Read) -> dict[str, Any]:
-    """One project as the overview has it: how many things need the user (`waits`, the
-    count of the project's `needs` and nothing else), the new noticed lines (counted apart:
-    they are no wait), its open tasks by step, in the order of the line, what merged today,
-    and its health. The threads are the ones
-    out, or None where the last pass left no list. Blind is what the project's page cannot
-    say now, without what it never can and without a source that could not be read, which is
-    in unwell. Unwell is each source of the project that is not ok, but for one a session
-    writes. What is the machine's, a source or a blind spot, is on no project's row."""
+    """One project as the overview has it.
+
+    It has how many things need the user. That is `waits`, the count of the project's
+    `needs` and nothing else. It also has the new noticed lines, counted apart because they
+    are no wait. It has the project's open tasks by step in the order of the line, what
+    merged today, and its health. The threads are the ones that are out, or None where
+    the last pass left no list. `blind` is what the project's page cannot say now. It leaves
+    out what the page never can say. It also leaves out a source the view could not read,
+    because that source is in `unwell`. `unwell` is each source of the project that is not ok,
+    except one that a session writes. A source or a blind spot of the machine is on no
+    project's row."""
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
@@ -1396,18 +1443,20 @@ def stack(
     found: tuple[panels.Panel, ...] | None = None,
     names: list[str] | None = None,
 ) -> dict[str, Any]:
-    """What `/stack.json` holds: the machine once, the steps of the line and the roles of a
-    thread (`threads.ROLES`), a summary of each project of `names`, or of each the state
-    directory has, and the user's two queues across them: `needs`, oldest first, and
-    `proceeds`, the soonest to go ahead first.
+    """What `/stack.json` holds.
 
-    The machine is what one jbus and one room serve every project with: the pass and the
-    timer, the room and the plan's use, and the runner units. Each project is read as
-    `/state.json` reads it, by a `Read` of its own, and every `Read` shares one `machine`, so
-    systemd, the room script and the runner units are asked once for the answer, however
-    many projects there are. `runs` is asked once for each repo, and keeps its answer.
-    The machine says each of its own sources that is not ok, but for one a session writes,
-    under `unwell`: no project's row says it.
+    It has the machine once, the steps of the line and the roles of a thread
+    (`threads.ROLES`). It has a summary of each project of `names`, or of each project the
+    state directory has. It has the user's two queues across the projects: `needs`, oldest
+    first, and `proceeds`, the soonest to go ahead first.
+
+    The machine is what one jbus and one room provide for every project: the pass and the
+    timer, the room and the plan's use, and the runner units. A `Read` of its own reads each
+    project as `/state.json` reads it, and every `Read` shares one `machine`. So one answer
+    asks systemd, the room script and the runner units once each, however many projects
+    there are. It calls `runs` once for each repo, and `runs` keeps its answer. Under `unwell`, the
+    machine lists each of its own sources that is not ok, except one that a session writes.
+    No project's row gives those sources.
     """
     found = panels.found() if found is None else found
     keys(found)

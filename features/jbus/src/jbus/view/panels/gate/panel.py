@@ -1,5 +1,5 @@
-"""One gate that jbus holds, answered on the page. It draws an item of the list the you
-panel gives, and has no data of its own: the answer is the server's one write."""
+"""One gate that jbus holds, which the user answers on the page. It draws an item of the list
+that the you panel gives, and has no data of its own: the answer is the server's one write."""
 
 from __future__ import annotations
 

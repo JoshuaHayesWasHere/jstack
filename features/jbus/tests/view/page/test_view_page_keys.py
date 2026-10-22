@@ -70,9 +70,9 @@ def every_kind(scene):
 
 
 def a_day(scene, day):
-    """The scene of a day, and how long the page runs before axe does: `busy` is every kind,
-    `stopped` a jbus whose timer is not active, so half the page is frozen, and `gone` a
-    server that stopped answering after its first answer."""
+    """The scene of a day, and how long the page runs before axe does. `busy` has every
+    kind. `stopped` has a jbus whose timer is not active, so half the page does not change.
+    `gone` has a server that stopped answering after its first answer."""
     if day == "busy":
         every_kind(scene)
     if day == "stopped":
@@ -99,9 +99,9 @@ def a_day(scene, day):
 def test_axe_finds_no_serious_issue_in_any_view_or_drawer(
     scene, tmp_path, route, day, screen, theme
 ):
-    """axe runs in the page over the view, then over every drawer the view or a drawer opens,
-    at a desk and on a phone, where the sidebar is a row of chips. Each thing that takes the
-    focus draws a ring when it has it."""
+    """axe runs in the page over the view, then over every drawer the view or a drawer
+    opens. It runs at a desk and on a phone, where the sidebar is a row of chips. Each thing
+    that takes the focus draws a ring when it has it."""
     when = {"budget": 60000, "screen": screen} | a_day(scene, day)
     seen = look(scene, tmp_path, route=route, fragment=f"theme={theme}", script=AXE, **when)
     assert seen["theme"] == theme
