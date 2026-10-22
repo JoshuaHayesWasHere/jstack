@@ -1230,7 +1230,7 @@ def test_a_push_hook_of_the_users_own_is_left_alone(user):
     script = checkout / "features" / "jleak" / "hooks" / "pre-push.sh"
     assert line_for(said, "pre-push") == [
         f"old {part} -> a hook of the repo's own, which the install does not write over: "
-        f"run sh '{script}' \"$@\" from it"
+        f"to run jstack's as well, add sh '{script}' \"$@\" to it"
     ]
     user.start("--uninstall", checkout=checkout).wait()
     assert own.read_text() == "#!/bin/sh\n"
@@ -1263,7 +1263,7 @@ def test_a_repo_that_points_git_at_other_hooks_is_told_so(tmp_path):
     assert line_for(said, "pre-push") == [
         f"old hard hook {main / '.git' / 'hooks' / 'pre-push'} pre-push"
         " -> core.hooksPath is set, so git runs /elsewhere/hooks/pre-push, which the install"
-        f" does not write over: run sh '{script}' \"$@\" from it"
+        f" does not write over: to run jstack's as well, add sh '{script}' \"$@\" to it"
     ]
     assert not (main / ".git" / "hooks" / "pre-push").is_symlink()
 
