@@ -31,7 +31,7 @@ COMMENT = (
     "principle is a name a brief's Skills: line may use, and so is a playbook marked "
     "nameable. source: `pstack` is pstack's item of the same name, brought over one to one; "
     "`adapted` is built from pstack's item with other material, or from a pstack item of "
-    "another name, which `pstack_name` gives; `josh` is jstack's own, with no pstack skill or "
+    "another name, which `pstack_name` gives; `jstack` is jstack's own, with no pstack skill or "
     "principle behind it, though it may borrow a passage from a pstack reference file. "
     "THIRD_PARTY.md says what each took and what changed. hooks: each hook script, the "
     "harnesses that run it, which the install links into each harness's layout, and each "
@@ -57,13 +57,13 @@ def _source(name: str, upstream: tuple[str, ...]) -> dict[str, str]:
     """The source of the item `name`, from the pstack paths in `upstream`. An item that
     comes only from the pstack item of the same name is `pstack`, and one that comes from that item
     and from any other upstream path is `adapted`. An item from one pstack item of another name is
-    `adapted`, with that item as its `pstack_name`. An item from no pstack item is `josh`."""
+    `adapted`, with that item as its `pstack_name`. An item from no pstack item is `jstack`."""
     items = [hit["name"] for path in upstream if (hit := _UPSTREAM_SKILL.fullmatch(path))]
     if name in items:
         return {"source": "pstack" if len(upstream) == 1 else "adapted"}
     if len(items) == 1:
         return {"source": "adapted", "pstack_name": items[0]}
-    return {"source": "adapted" if items else "josh"}
+    return {"source": "adapted" if items else "jstack"}
 
 
 def _entry(item: Item, upstream: tuple[str, ...]) -> dict[str, object]:

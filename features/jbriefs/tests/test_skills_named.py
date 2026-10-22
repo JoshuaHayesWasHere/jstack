@@ -307,13 +307,25 @@ def test_skills_json_is_what_the_generator_writes_and_lists_every_skill_and_prin
     on_disk = set(skill_folders())
     named = {item["name"] for item in listed if item["kind"] in ("skill", "principle")}
     assert named == on_disk
-    assert {item["source"] for item in listed} <= {"pstack", "adapted", "josh"}
+    assert {item["source"] for item in listed} <= {"pstack", "adapted", "jstack"}
     stale = subprocess.run(
         [sys.executable, "scripts/generate-jstack-trees.py", "--check"],
         cwd=REPO,
         capture_output=True,
     )
     assert stale.returncode == 0, stale.stderr
+
+
+def test_a_skills_json_written_when_jstacks_own_items_were_josh_still_lists_them():
+    """The generator once wrote `josh` for the source that is now `jstack`, and the fixture tree
+    still holds the old value. Nothing reads `source`, so the old list gives its files the same."""
+    tree = REPO / "testing" / "tests" / "fixtures" / "skills" / "named-tree"
+    items = json.loads((tree / skills.CATALOG).read_text())["items"]
+    assert {item["source"] for item in items} == {"josh"}
+    assert skills.where("skill", "fake-skill", tree) == tree / "skills/fake-skill/SKILL.md"
+    assert skills.listed("principle", tree) == {
+        "principle-fake": tree / "principles/principle-fake.md"
+    }
 
 
 def test_a_name_skills_json_does_not_list_is_refused_and_an_alias_is_its_canonical_name(
