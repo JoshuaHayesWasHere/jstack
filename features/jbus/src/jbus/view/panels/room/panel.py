@@ -78,7 +78,8 @@ def _number_in(path: Path, pattern: str) -> float | None:
 
 
 def _plan(limits: Path, now: datetime, user: jsettings.Settings) -> dict[str, Any]:
-    """The plan's limits as the limits file has them, each with when the file was written.
+    """The plan's limits as the limits file has them, each with the time the file was last
+    written.
 
     A limit whose reset time has passed belongs to a window that is over: its `used` is None, and
     it says when the status line last wrote the file."""

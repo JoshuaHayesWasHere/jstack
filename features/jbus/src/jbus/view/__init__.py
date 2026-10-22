@@ -318,9 +318,9 @@ class Code:
         return {"started": self.started, "stale": bool(self.newer()), "error": self.error}
 
     def _trial(self) -> str:
-        """Why the code on disk does not start, or nothing where it starts. A child of this
-        interpreter tries it with one import of the module `jbus view` starts through, and
-        writes nothing."""
+        """Why the code on disk does not start, or nothing where it starts. To try it, a child of
+        this interpreter imports the module that `jbus view` starts through. The child writes
+        nothing."""
         try:
             tried = subprocess.run(
                 [sys.executable, "-c", STARTS],

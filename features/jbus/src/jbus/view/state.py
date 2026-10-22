@@ -316,10 +316,9 @@ def projects(sources: Sources) -> list[str]:
 
 def repo(sources: Sources, name: str) -> str:
     """The project's repo on GitHub, `<owner>/<name>`, or nothing where `jmerge` logged no
-    such line. The repo is the one of the newest pull request that `jmerge` logged a `wait`
-    or a `hold` for. The function reads it from the URL that names the pull request in that
-    line. A URL inside
-    a line's reason names no repo."""
+    such line. The function finds the newest pull request for which `jmerge` logged a `wait`
+    or a `hold`, and takes that pull request's repo. It reads the repo from the URL that names
+    the pull request in that line. A URL inside a line's reason names no repo."""
     for logged in reversed(_lines(sources.home(name) / "merge.log") or []):
         stamped = _LOGGED.match(logged)
         line = merge.parse(stamped[2]) if stamped else None
@@ -854,8 +853,9 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
 def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
     """Mark each open task that cannot move with what blocks it. Where other tasks
     wait behind a task, mark that task with them: the ones that depend on it, and the ones
-    behind those. A task is behind a row until jbus has that row as merged or done, whatever the
-    row's state is. `blockers` has those rows, followed by the ones the log has as merged."""
+    behind those. A task stays behind a row until jbus records that row as merged or done. The
+    row's state does not change that. `blockers` has those rows, followed by the ones the log
+    has as merged."""
     by_slug = {task["slug"]: task for task in tasks + ended}
     behind: dict[str, set[str]] = {}
     for task in tasks:
@@ -1392,11 +1392,12 @@ def summary(read: Read) -> dict[str, Any]:
     It has how many things need the user. That is `waits`, the count of the project's
     `needs` and nothing else. It also has the new noticed lines, counted apart because they
     are no wait. It has the project's open tasks by step in the order of the line, what
-    merged today, and its health. The threads are the ones out, or None where the last pass
-    left no list. `blind` is what the project's page cannot say now. It leaves out what the
-    page never can say. It also leaves out a source the view could not read, because that
-    source is in `unwell`. `unwell` is each source of the project that is not ok, except one
-    that a session writes. A source or a blind spot of the machine is on no project's row."""
+    merged today, and its health. The threads are the ones that are out, or None where
+    the last pass left no list. `blind` is what the project's page cannot say now. It leaves
+    out what the page never can say. It also leaves out a source the view could not read,
+    because that source is in `unwell`. `unwell` is each source of the project that is not ok,
+    except one that a session writes. A source or a blind spot of the machine is on no
+    project's row."""
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
@@ -1451,9 +1452,9 @@ def stack(
 
     The machine is what one jbus and one room provide for every project: the pass and the
     timer, the room and the plan's use, and the runner units. A `Read` of its own reads each
-    project as `/state.json` reads it, and every `Read` shares one `machine`. So the answer
-    asks systemd, the room script and the runner units once, however many projects there
-    are. It calls `runs` once for each repo, and `runs` keeps its answer. Under `unwell`, the
+    project as `/state.json` reads it, and every `Read` shares one `machine`. So one answer
+    asks systemd, the room script and the runner units once each, however many projects
+    there are. It calls `runs` once for each repo, and `runs` keeps its answer. Under `unwell`, the
     machine lists each of its own sources that is not ok, except one that a session writes.
     No project's row gives those sources.
     """

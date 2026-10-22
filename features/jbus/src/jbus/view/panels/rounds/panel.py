@@ -3,10 +3,11 @@ verdict, its head and its count of findings. For the task as a whole, the panel 
 it needed a second or a scoped pass, how many wakes the crewmate had, and how many rebases the
 branch had.
 
-`jmerge`'s own reader, `ready.said_of`, reads the sections, and the merge goes by that reader.
-A section has no time of its own. A round has a time only where the event log has a `review`
-event of the slug for the same head that the round's section names. Where the panel cannot read
-a brief, it says so and gives no count at all: it never shows that task as a task with no review.
+`jmerge`'s own reader, `ready.said_of`, reads the sections. The merge decides by what that
+reader returns. A section has no time of its own. A round has a time only where the event log
+has a `review` event of the slug for the same head that the round's section names. Where the
+panel cannot read a brief, it says so and gives no count at all: it never shows that task as a
+task with no review.
 """
 
 from __future__ import annotations
