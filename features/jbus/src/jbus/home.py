@@ -2,11 +2,12 @@
 request belongs to.
 
 The file is `<state>/tasks/<slug>.md` or `<state>/scouts/<slug>.md`, and its state is the directory
-two levels above it. The command reads the `home-id` of the file's home now and prints the thread in
-that file. It prints nothing where that home has no thread: between a handoff and the next start, or
-in a repo with no home. With `--directory` it prints the home's directory instead, and a home
-compares that directory with its own. A file that does not exist names no home, so the command
-counts it as the root home's. The rule is `jbriefs.home`, which the skills, jbus and `jmerge` share.
+two levels above it. The command reads the `home-id` of the home of the brief or request now, and
+prints the thread that the `home-id` names. It prints nothing where that home has no thread: between
+a handoff and the next start, or in a repo with no home. With `--directory` it prints the home's
+directory instead, and a home compares that directory with its own. A file that does not exist names
+no home, so the command counts it as the root home's. The rule is `jbriefs.home`, which the skills,
+jbus and `jmerge` share.
 """
 
 from __future__ import annotations

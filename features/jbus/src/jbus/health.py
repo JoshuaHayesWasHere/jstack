@@ -243,7 +243,7 @@ def instances(say: Callable[[str], None]) -> tuple[str, ...]:
 def gather(
     config: jbus.Config, now: datetime, say: Callable[[str], None], senses: Senses
 ) -> Machine:
-    """Take one look at the machine through `senses`."""
+    """Read the machine's state once, through `senses`."""
     wired = posts_to_relay(config)
     paths = [config.state_dir, config.home_dir, *(p.checkout for p in config.projects)]
     paths += [Path(tempfile.gettempdir()), Path.home(), ledger.path().parent]

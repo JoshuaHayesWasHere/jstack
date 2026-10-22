@@ -51,8 +51,8 @@ class Unavailable(Exception):
 
 
 class Gh(Protocol):
-    """A `Gh` asks GitHub. `pages` returns the list GitHub gives for a path, under `key` where
-    each page is an object."""
+    """A `Gh` asks GitHub. `pages` returns the list GitHub gives for a path. When each page is
+    an object, the list is under `key` in it."""
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]: ...
 
@@ -227,8 +227,8 @@ def pulls(gh: Gh, repo: str, since: datetime) -> list[dict[str, Any]]:
 
 
 def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
-    """Keep the jobs of the last `days` days that the ledger does not have yet, and the pull
-    requests."""
+    """Add to the ledger the jobs of the last `days` days that it does not have yet. Also keep
+    the pull requests."""
     with ledger.locked(state):
         return _collect(gh, repo, state, now, days)
 

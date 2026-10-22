@@ -11,15 +11,15 @@ The command prints that row's brief, `cleanup-<slug>`, when the last round's ver
 The brief lists each finding that would have gone to the crew, with its path:line, the pull request,
 and the pull request's merge commit as GitHub gives it. Where the pull request has not merged yet,
 the brief gives the head the review saw instead. Where the review needs no row, the command prints
-nothing and ends 1 with the reason on one line. That is when the brief does not say `after` or
-`twice`, when the review is clean or has no verdict, or when the row is already in the queue. A
-`queue add` on a row that is already there would withdraw its approval.
+nothing but the reason, on one line, and exits with status 1. That is when the brief does not say
+`after` or `twice`, when the review is clean or has no verdict, or when the row is already in the
+queue. A `queue add` on a row that is already there would withdraw its approval.
 
-A brief that says `twice` answers its first review in one fix round. The row's brief lists
-the findings of its second review (`ready.second_review`): each one of severity `warning`
-or `error`, whatever its bucket. The command drops the `info` findings and counts them.
-Until the reviewer writes that second review, the command prints `FIRST`, because the first
-review goes to the crew.
+For a brief that says `twice`, the crew answers the first review in one fix round. The row's brief
+lists the findings of the second review (`ready.second_review`): each one of severity `warning` or
+`error`, whatever its bucket. The command drops the `info` findings and counts them. Until the
+reviewer writes that second review, the command prints `FIRST`, because the first review goes to the
+crew.
 """
 
 from __future__ import annotations

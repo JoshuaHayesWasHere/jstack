@@ -60,7 +60,8 @@ STEP = re.compile(r"^[0-9]+\. ")
 
 def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> list[str]:
     """Return what `jbus playbook` prints for `role`. `text` is the brief, request or plan,
-    and `name` is the playbook's name where the caller gives one in place of its line."""
+    and `name` is the playbook's name when the caller gives one in place of the text's
+    `Playbook:` line."""
     name = name or briefs.playbook_named(text)
     if name in ("", "none"):
         return []
