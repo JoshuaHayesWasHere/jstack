@@ -3,9 +3,9 @@
 The work is a brief (a file under `tasks/`), a scout's request (a file under `scouts/`), or
 text with no file, which goes to the home. Everything comes from the tree this module is in.
 The role comes from the file's place. The playbook comes from the file's `Playbook:` line or
-from the `Run by:` rows of `playbooks/`. The other skills come from the `tip:` phrases of
-`skills/*/SKILL.md`, by the rule of `features/skill-library/hooks/skill-tips.sh`, and last
-from each skill the text names. No table here names a skill.
+from the `Run by:` rows of `playbooks/`. The other skills come first from the `tip:` phrases
+of `skills/*/SKILL.md`, by the rule of `features/skill-library/hooks/skill-tips.sh`. Last
+come the skills that the text names. No table here names a skill.
 """
 
 from __future__ import annotations

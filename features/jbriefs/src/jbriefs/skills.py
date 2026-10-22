@@ -262,8 +262,8 @@ def owed(name: str, table: dict[str, str] | None = None) -> str:
 
 def _ends() -> frozenset[str]:
     """The labels that end a `Skills run:` section, read from the templates of the Result and
-    of the scout's report. They are every other field of those two, so an artifact may hold
-    a line of its own such as `Candidate A: ...`."""
+    of the scout's report. They are all the other fields of those two templates, so an
+    artifact may hold a line of its own such as `Candidate A: ...`."""
     return frozenset(
         found["label"]
         for name in ("result.md", "scout-report.md")

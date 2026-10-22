@@ -65,7 +65,7 @@ def integration(kitchen, *branches):
 
 
 def into(kitchen, slug, number, files, base=TRAIN):
-    """Open a crewmate's pull request into `base` that is ready, and return its head."""
+    """Open a crewmate's pull request into `base`, ready to merge, and return its head."""
     head = kitchen.crew(slug, number, files)
     kitchen.pulls[slug]["baseRefName"] = base
     kitchen.brief(slug, head)

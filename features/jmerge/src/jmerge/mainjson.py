@@ -71,7 +71,8 @@ class Main:
 
 
 def of(record: object) -> Main:
-    """What a `main.json` record says of main, or nothing known where the value is not a record."""
+    """What a `main.json` record says of main. It says nothing known where the value is not a
+    record."""
     if not isinstance(record, dict):
         return Main()
     keys = ("main", "check", "broken", "green", "fixed")

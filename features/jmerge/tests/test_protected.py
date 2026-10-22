@@ -1,10 +1,11 @@
 """A pull request that changes a protected path is the user's to merge, so `jmerge` prints it
 as `hold` and merges nothing. The patterns are the ones in
 `features/jmerge/src/jmerge/protected.txt`, read as the command reads them, and the tests
-run the command itself against a fake `gh`. The command reads a guarded list's patterns the
-same way, but those patterns hold no pull request. `test_jmerge_guarded` tests the gate that
-a pull request changing a guarded path merges under. This file reads its guarded list from
-`test_jmerge_guarded`, because the shipped `features/jmerge/src/jmerge/guarded.txt` is empty."""
+run the command itself against a fake `gh`. The command reads the patterns of a guarded list
+the same way, but a guarded pattern does not hold a pull request. A pull request that
+changes a guarded path merges under a gate, which `test_jmerge_guarded` tests. This file
+reads its guarded list from `test_jmerge_guarded`, because the shipped
+`features/jmerge/src/jmerge/guarded.txt` is empty."""
 
 import re
 import shutil

@@ -83,9 +83,9 @@ def test_a_scoped_reviewer_is_waited_on_beside_the_seats(reviewing):
 
 
 def test_a_seat_that_wrote_twice_does_not_stand_for_the_scoped_pass(reviewing):
-    """The scoped pass of #166: sections #1, #2 and #1 again, with a scoped reviewer out, mean
-    that a scoped pass is still running. Only a section with a `Scope:` line belongs to the
-    scoped reviewer."""
+    """The scoped pass of #166. The brief has sections by #1, #2 and #1 again, and a scoped
+    reviewer is out. A scoped pass is still running, because only a section with a `Scope:`
+    line belongs to the scoped reviewer."""
     both = RESULT + SEATS + section(f"{SONNET} #1") + section(f"{SONNET} #2")
     scoped = both + f"Scoped reviewer: mcp:s-3, of {SAW}\n" + section(f"{SONNET} #1")
     assert reviewing(scoped) == "running"

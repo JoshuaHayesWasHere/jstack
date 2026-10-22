@@ -240,7 +240,8 @@ class Finding:
 
     @property
     def standing(self) -> list[Raised]:
-        """The lines that raised it in sections that still count, or all of them where none does."""
+        """The lines that raised this finding in sections that still count, or all of its lines
+        when no such section exists."""
         return [one for one in self.raised if one.section not in self.stale] or self.raised
 
     @property

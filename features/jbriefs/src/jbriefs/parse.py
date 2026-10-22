@@ -166,7 +166,7 @@ class Proof:
     """A brief's `Proves it:` line, which names something outside the agent that shows the task
     is done.
 
-    `kind` is the first thing the line names that is not the agent's own word, and `fault`
+    `kind` is the first thing the line names that is not the agent's own claim, and `fault`
     says why the line names nothing of the sort. One of the two is set.
     """
 
@@ -187,8 +187,8 @@ def proof(said: str) -> Proof:
     that on their own name something outside the agent: a test's path or name, a runner, a
     make target, CI, a named judge or the user. A command in backticks that names no agent
     counts too, so a test that the crewmate runs is still a test. `_SELF` lists the agent's
-    own word. `_LOOSE` lists words that count only when no agent is named, because "the
-    agent tests it" is the agent's own word.
+    own claims. `_LOOSE` lists words that count only when no agent is named, because "the
+    agent tests it" is the agent's own claim.
     """
     said = said.strip()
     if not said:
