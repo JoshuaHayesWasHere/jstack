@@ -2,7 +2,7 @@
 
 `jinstall` installs, checks and removes jstack on a machine.
 A release installs it as a command, and it acts on the source the release's wheel carries, with no checkout.
-In a checkout, `sh install.sh` runs the same code, before any command is on `PATH`.
+To work on jstack itself from a checkout, see [Working on jstack](#working-on-jstack).
 
 ## Install
 
@@ -20,8 +20,6 @@ uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@v<version>
 jinstall --setup
 ```
 
-From a checkout, `sh install.sh --setup` does the same for the checkout, and installs the commands as an editable install of it.
-
 ## The verbs
 
 | Verb | What it does |
@@ -31,27 +29,36 @@ From a checkout, `sh install.sh --setup` does the same for the checkout, and ins
 | `jinstall --setup` | Walks every need once, in order: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. One line a hook. |
-| `jinstall --uninstall` | Takes away what it put, and keeps what is yours. |
+| `jinstall --uninstall` | Takes away what it put, and keeps what is yours. It keeps the tool it runs from: `uv tool uninstall jstack` removes it after. |
 
-`--setup` links each skill into `~/.{claude,agents,codex}/skills`, adds the hooks to `~/.claude/settings.json` and `~/.codex/hooks.json`, and sets a status line that writes the limits file, unless you have a status line of your own.
-Where no file is, it writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the `jbus` units.
+`--setup` puts every part [What the install writes](#what-the-install-writes) lists.
+Where no file is, it also writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`), and then links the units.
 Run each command a `needs you` line names, such as `gh auth login`, then run it again.
 A `missing optional` line, such as the relay or the backup, is a layer you may leave off.
 A second run writes nothing.
 
-## A release and a checkout
+## What the install writes
 
-| | A release | A checkout |
+A path that starts with `~` is under your home directory.
+`--uninstall` takes away each one while it is still as the install wrote it.
+
+| Path | What the install puts there | When |
 |---|---|---|
-| Runs as | `jinstall [<verb>]` | `sh install.sh [<verb>]`, or `jinstall` of an editable install |
-| The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
-| Units link to | `<tool venv>/share/jstack/templates/` | `<checkout>/templates/` |
-| The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
-| Also checked | nothing more | the generated files are current (`generated files are current`) |
-| The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |
+| `~/.local/share/uv/tools/jstack`, and the nine commands in `~/.local/bin` | The tool itself, which `uv tool install` puts, not `jinstall` | Before `jinstall` runs |
+| `~/.local/share/jstack/harness/<harness>/` | One layout of the skills, playbooks, templates and hooks for each harness: `claude-code`, `codex` and `cursor` ([The layouts](#the-layouts)). It is under `$XDG_DATA_HOME` when that is set. | Always |
+| `~/.claude/skills/<skill>` | A link for each skill, into Claude Code's layout | Always |
+| `~/.codex/skills/<skill>` | A link for each skill, into Codex's layout | Always |
+| `~/.agents/skills/<skill>` | A link for each skill, into Cursor's layout | Always |
+| `~/.claude/settings.json` | The hook entries, the status line, and the keys that turn off the AI co-author trailer | Always. A status line of your own stays. |
+| `~/.codex/hooks.json` | Codex's hook entries | Always |
+| `~/.cursor/cli-config.json` | The keys that turn off Cursor's AI co-author trailer | Once Cursor's CLI has made the file |
+| `settings.json` of each Claude home that `~/.config/jstack/providers.json` declares | The keys that turn off the AI co-author trailer | Once the home has the file |
+| `~/.config/jstack/outbound.toml` | jleak's private patterns file, made once from jleak's example, for you to fill in ([jleak](../../jleak/docs/jleak.md#the-private-patterns)) | Where there is none |
+| `~/.config/systemd/user/<unit>` | A link for each unit of `jbus`, `jgauge` and `jroles`. The install enables the timers, and the CI report, relay and backup units only where their config asks for them. | Once the `jbus` config is there |
+| `<repo>/.git/hooks/pre-push` and `commit-msg` | jleak's git hooks, in each repo jstack works in, which `~/.local/state/jstack/repos` lists ([Git hooks in your repos](#git-hooks-in-your-repos)) | For each repo you set up with `jinstall --repo` or `/new-home` |
+| `~/.config/jstack/config.toml`, `~/.config/jstack/roles`, `~/.config/jbus/config.toml` | Your three configs, with defaults ([Configuration](configuration.md)) | `--setup` only, where there is none |
 
-A release's `--uninstall` keeps the tool it runs from: `uv tool uninstall jstack` removes it after.
-A new release replaces its source in place, so the layouts' links stay where they are.
+The install leaves every other key of a settings file as it was.
 
 ## The layouts
 
@@ -60,25 +67,15 @@ It assembles one layout for each harness at `~/.local/share/jstack/harness/<harn
 `~/.claude/skills` links each skill into Claude Code's layout, `~/.codex/skills` into Codex's, and `~/.agents/skills` into Cursor's.
 A layout holds `skills/<name>/`, `playbooks/`, `principles/`, `templates/`, the hooks of its harness in `hooks/`, a `README.md`, and `source`, a link to the checkout or the release.
 `skills/` and `templates/` are siblings, so `realpath ~/.claude/skills/<name>/../../templates` finds the templates.
-Each file of a skill is a link to its file in the source, so an edit in a checkout is live with no install.
-A new skill appears on the next install, once `python3 scripts/generate-jstack-trees.py` has listed it in `skills.json`.
+Each file of a skill is a link to its file in the source.
+A new release replaces the source in place, so the links stay where they are.
 A Markdown file with a link to a file the layout leaves out, such as a page of `docs/`, is written with that link pointed at GitHub, and the install's `--check` names it stale once its source changes.
 The `README.md` of each layout names, for each skill, the tools and paths it asks for that the harness leaves out: Codex and Cursor have none of Claude Code's own tools, its home folder or its settings file.
 `--check` prints one line for each layout, `ok` when it is as the install assembles it, and `old` with the first file that is stale.
 
-## The checkout's own skills
-
-A skill for working on jstack itself, such as `verify-jstack`, lives in its feature and is named in that feature's `feature.json` under `projectSkills`.
-An install from a checkout links each one as `<checkout>/.claude/skills/<name>` for Claude Code and `<checkout>/.cursor/skills/<name>` for Cursor, which is where each reads a repo's own skills.
-git tracks neither folder, so a checkout has them once `install.sh` has run in it.
-The next install unlinks a link there whose skill no feature declares any more.
-`--check` prints one line for each link: `ok`, `missing`, or `old` with where it points.
-An install from a release makes none, and neither does a run under a HOME that is not your own for a checkout outside that HOME.
-A linked worktree gets none: `install.sh` refuses to run from one under your own HOME, so a worktree reads a project skill from its feature's folder.
-
 ## Hook entries
 
-The install writes one entry for each hook that `skills.json` lists, and `install.sh --uninstall` removes them: you write none of them by hand.
+The install writes one entry for each hook that `skills.json` lists, and `jinstall --uninstall` removes them: you write none of them by hand.
 [The catalog](../../../CATALOG.md#hooks) lists every hook, and each feature's own page shows its entry as the install writes it.
 Each harness reads its entries from one file: Claude Code from `~/.claude/settings.json`, and Codex from `~/.codex/hooks.json`.
 Each entry runs the script from that harness's layout, `<layout>/hooks/<script>`.
@@ -91,16 +88,15 @@ The install leaves every other key of those files as it was.
 
 jleak's `pre-push` and `commit-msg` hooks go into every repo jstack works in:
 
-- the checkout jstack is installed from, when it is installed from one;
 - the checkout of each project of `jbus`'s config, which `/new-home` adds;
 - each repo you set up with `jinstall --repo`, which the install keeps in `~/.local/state/jstack/repos`.
 
-To add the hooks to another repo, run `jinstall --repo` in it, or `jinstall --repo <path>` (`sh install.sh --repo <path>` from a checkout).
+To add the hooks to another repo, run `jinstall --repo` in it, or `jinstall --repo <path>`.
 `/new-home` runs it for the repo it sets up.
 A plain install, `--setup` and `--uninstall` then cover the repo with the rest, and `--check` and the doctor print one line for each of its hooks.
 
-The hook in jstack's own checkout is `hard`, and a hook in any other repo is `optional`, so a repo with hooks of its own never makes the install, `--check` or the doctor fail, while `--repo` exits 1 until the repo runs jstack's hook.
-A hook links to its script in the release's source, or in the checkout, so it runs with no checkout: a release's script runs jleak on the release's own Python.
+A hook in your repo is `optional`, so a repo with hooks of its own never makes the install, `--check` or the doctor fail, while `--repo` exits 1 until the repo runs jstack's hook.
+A hook links to its script in the release's source, and runs jleak on the release's own Python.
 
 A hook of the repo's own is never written over: a file, a link to anything but jleak's script, or a folder that `core.hooksPath` names.
 Its line says `old` and names the file, with the line that runs jstack's hook from it:
@@ -136,19 +132,35 @@ A declared home with no `settings.json` yet gets none, since `jroles mirror` lin
 `--uninstall` takes out only a key that still holds the install's value.
 A setting alone does not stop an agent that types the trailer into its own commit, so jleak's [AI trailer guards](../../jleak/docs/jleak.md#ai-trailers) refuse the command and clean the message.
 
-## Releasing
+## Working on jstack
 
-A release is cut from a clean `main` that is `origin/main`, by one command:
+This section is for a checkout of jstack's repo.
+[Contributing](../../../CONTRIBUTING.md) has the setup, the checks, and how a release is cut.
+In a checkout, `sh install.sh` runs the same code as `jinstall`, before any command is on `PATH`, and takes the same verbs.
+`sh install.sh --setup` installs the commands as an editable install of the checkout.
+[The lines of a checkout](troubleshooting/working-on-jstack.md) has the lines only a checkout prints.
 
-```sh
-make release
-```
+### A release and a checkout
 
-It checks that `v<version>`, the version of `pyproject.toml`, is the version of `plugin.json` too (`make release-tag`), then tags it and pushes the tag.
-Where the push fails, it drops the tag again, so the next `make release` starts clean.
-The tag runs `.github/workflows/release.yml`.
-It checks that the tag is the version of both `pyproject.toml` and `plugin.json` (`make release-tag`), then runs `make check` and `make dist`.
-It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.
-The release's assets are what `make dist` writes: the wheel, the sdist, and `install.sh` with the version written in.
+| | A release | A checkout |
+|---|---|---|
+| Runs as | `jinstall [<verb>]` | `sh install.sh [<verb>]`, or `jinstall` of an editable install |
+| The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
+| Units link to | `<tool venv>/share/jstack/templates/` | `<checkout>/templates/` |
+| The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
+| Also checked | nothing more | the generated files are current (`generated files are current`) |
+| The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |
 
-A version bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, the same version in `plugin.json`, and `make trees`, which copies it into the harness.
+In a checkout, each file of a skill links to its file there, so an edit is live with no install.
+A new skill appears on the next install, once `make trees` has listed it in `skills.json`.
+jleak's git hooks also go into the checkout that jstack is installed from, where each is a `hard` need.
+
+### The checkout's own skills
+
+A skill for working on jstack itself, such as `verify-jstack`, lives in its feature and is named in that feature's `feature.json` under `projectSkills`.
+An install from a checkout links each one as `<checkout>/.claude/skills/<name>` for Claude Code and `<checkout>/.cursor/skills/<name>` for Cursor, which is where each reads a repo's own skills.
+git tracks neither folder, so a checkout has them once `install.sh` has run in it.
+The next install unlinks a link there whose skill no feature declares any more.
+`--check` prints one line for each link: `ok`, `missing`, or `old` with where it points.
+An install from a release makes none, and neither does a run under a HOME that is not your own for a checkout outside that HOME.
+A linked worktree gets none: `install.sh` refuses to run from one under your own HOME, so a worktree reads a project skill from its feature's folder.
