@@ -429,7 +429,8 @@ def test_the_template_has_a_proves_it_line_after_done_when_that_is_refused_until
 
 
 def test_a_brief_with_no_proves_it_line_is_launched_as_before_and_one_under_its_head_is_not_read():
-    """Briefs queued before the line was asked for have no such line, and are grandfathered."""
+    """Briefs queued before the template asked for the line have no such line, and are
+    grandfathered."""
     assert parse.brief("alpha", BRIEF).proof is None
     assert parse.proven(BRIEF) == ""
     under = BRIEF + RESULT + "Proves it: reviewed by crewmate\n"

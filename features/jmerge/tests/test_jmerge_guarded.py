@@ -1,13 +1,14 @@
 """`jmerge` itself merges a pull request that changes a guarded path, under a stricter gate than
 any other. The gate asks for a check with a start time, a review finished at the head, a
-rebase where main changed one of its paths since the check started, a `jmerge` whose own
-rules are main's, and the review's one safety fact proven at the head (`test_gate_skills`).
-A pull request that changes a secret path is still the user's, and jbus sends it as a gate.
+rebase where main changed one of its paths since the check started, a `jmerge` that runs the
+rules on main, and the review's one safety fact proven at the head (`test_gate_skills`). A
+pull request that changes a secret path is still the user's, and jbus sends it as a gate.
 
 The tests run the command against the fake `gh` and real origin of `test_home_merge`, from a
 copy of the package that is a git checkout of its own, as the installed one is. The copy's
 `guarded.txt` is the list this file writes, `LISTED`. The shipped list has been empty since
-2026-10-12, so the tests check the gate over a list that has lines, as a restored list would."""
+2026-10-12, so the tests check the gate against a list with entries, like one that has been
+restored."""
 
 import shutil
 import sys
@@ -529,8 +530,8 @@ def test_the_rules_are_asked_about_before_a_merge_can_pull_their_checkout(
     proven_merged, monkeypatch
 ):
     """In jmerge's own repo the main checkout holds the rules, and the pull after any merge
-    brings rules that were behind up to date. If `jmerge` asked about them only then, old
-    code would pass for new."""
+    brings rules that were behind up to date. If `jmerge` asked about them only then, it
+    would judge with the old rules as if they were the new ones."""
     here = repo(proven_merged, monkeypatch, [])
     here.own = True
     pulled = proven_merged.home.stub / "merged"

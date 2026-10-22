@@ -1,4 +1,4 @@
-"""The crew skill's "End" decides who is told, and when a thread settles or stays."""
+"""The crew skill's "End" decides whom the thread tells, and when the thread settles or stays."""
 
 import os
 import subprocess

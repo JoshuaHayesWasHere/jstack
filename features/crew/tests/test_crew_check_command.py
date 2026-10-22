@@ -120,8 +120,9 @@ def test_the_check_is_waited_on_in_the_turn_and_never_started_twice(tmp_path):
 
 
 def test_a_check_that_ended_between_calls_is_told_once_and_then_runs_afresh(tmp_path):
-    """The block gives the answer of a check that ended with no call waiting once. Calling
-    again runs a failure that was a flake again, with nothing in the worktree changed."""
+    """When a check ends while no call is waiting, the block reports its answer once. The next
+    call runs the check again, so a failure that was a flake gets a fresh run, with nothing
+    in the worktree changed."""
     runs = tmp_path / "runs"
     command = f"echo ran >> {runs}; sleep 1; [ $(wc -l < {runs}) -gt 1 ]"
 
@@ -187,9 +188,10 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
 
 
 def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_path, monkeypatch):
-    """The thread's turn then ends with the one line, and jbus wakes it, because the file has
-    the thread. The lanes are the 4 full and 3 short slots that 24 processors and 62 GiB
-    give, whatever `TEST_SLOTS` the machine sets."""
+    """When every slot is taken, the blocks register the thread in the file, and the thread's
+    turn ends with the one line. jbus wakes the thread later because the file lists it. The
+    lanes are the 4 full and 3 short slots that 24 processors and 62 GiB give, whatever
+    `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))

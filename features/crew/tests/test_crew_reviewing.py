@@ -1,7 +1,7 @@
 """The crew's rebase waits while a review of its head is running. `reviewing()` decides, in the
 blocks of "A link that moved" and "A conflict". It counts reviewers as `jmerge` does: once a
-`Reviewer:` line carries its number, it counts only the numbered seats and their sections.
-The tests run it as an agent runs it, over briefs as the skills write them."""
+`Reviewer:` line has a number, it counts only the numbered seats and their sections. The
+tests run it as an agent runs it, over briefs as the skills write them."""
 
 import re
 import subprocess

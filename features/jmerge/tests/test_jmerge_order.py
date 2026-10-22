@@ -1,12 +1,12 @@
-"""A queue row can hold its pull request back from a merge. `jbus queue hold` takes the go
-back, and `jbus queue add --merge-after a,b` names the rows whose pull requests merge first.
-`jmerge` reads both from the project's `queue.json` (`jmerge.rows`).
+"""A queue row can hold its pull request back from a merge. `jbus queue hold` withdraws the
+row's go, and `jbus queue add --merge-after a,b` names the rows whose pull requests merge
+first. `jmerge` reads both from the project's `queue.json` (`jmerge.rows`).
 
 The tests run the command as `test_home_merge` runs it, against its fake `gh` and a real
 origin. Two pull requests are open, `alpha` (#7) and `beta` (#8), on the one reviewed head,
 and the user's home has a jbus config whose project is this checkout.
 
-A red main is the other thing the project's state says of a pull request. While jbus's
+The project's state can also hold a pull request back because main is red. While jbus's
 `main.json` names a red tip (`broken`, at a tip that is not green), only the fix of that
 main, the brief `main-red-<sha12>`, merges, and every other pull request waits for a green
 one."""
@@ -438,7 +438,8 @@ def record(red="", green=""):
 
 
 def main_says(home, **word):
-    """jbus's word on the check of the default branch, `main.json` beside the project's queue."""
+    """What jbus recorded about the check of the default branch, in `main.json` beside the
+    project's queue."""
     state = home.user / ".local" / "state" / "jbus" / "demo"
     state.mkdir(parents=True, exist_ok=True)
     (state / "main.json").write_text(json.dumps(record(**word)) if word else "{}")

@@ -114,7 +114,8 @@ def test_a_branch_somebody_pushed_to_since_the_rebase_started_is_not_pushed_over
 
 
 class Overlap(PullRequest):
-    """A pull request and a default branch that both changed one file since it started."""
+    """A pull request and a default branch that both changed the same file since the pull
+    request started."""
 
     def __init__(self, tmp_path, start, ours, theirs):
         self.stub = tmp_path / "stub"
@@ -138,8 +139,8 @@ class Overlap(PullRequest):
         asked(self, "CONFLICTING")
 
     def resolve(self, text):
-        """Rebase, settle the one file that the rebase stops on as the crewmate would, and return
-        the head before the rebase."""
+        """Rebase, resolve the conflict in the one file that the rebase stops on as the crewmate
+        would, and return the head before the rebase."""
         before = self.head()
         assert stays(self, "mergeable") == [STOPPED, "shared.txt"]
         (self.work / "shared.txt").write_text(text)

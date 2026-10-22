@@ -1,6 +1,7 @@
-"""A review carries over a rebase that changed no content, and a rebase that changed content
-waits for one scoped review. `git range-diff` gives the verdict, read in real repos: a
-branch reviewed at one head, a default branch that moved, and the branch rebased onto it.
+"""A review still counts after a rebase that changed no content, and a rebase that changed
+content waits for one scoped review. `git range-diff` gives the verdict, which the tests read
+in real repos: a branch reviewed at one head, a default branch that moved, and the branch
+rebased onto it.
 
 The tests then run `jmerge` as `features/jmerge/tests/test_jmerge_guarded.py` runs it,
 against the fake `gh` and real origin of `test_home_merge`. They run it for a pull request
@@ -357,8 +358,8 @@ class Rebased:
         self.brief(guarded.proven("clean", self.before))
 
     def brief(self, review, more="", did=f"changed in {FILE}"):
-        """The brief with the `Rebase:` line that a crewmate wrote before the review followed the
-        patch, or with no such line where `did` is None."""
+        """The brief with the `Rebase:` line that a crewmate wrote before the review of the
+        rebased patch, or with no such line where `did` is None."""
         line = f"Rebase: patch {did}, before {self.before}, head {self.head}\n" if did else ""
         (self.proven_merged.home.tasks / "alpha.md").write_text(merge.brief(review, line + more))
 
@@ -540,7 +541,8 @@ def test_a_review_of_the_rebased_head_ends_the_wait_and_its_findings_are_still_t
 def test_a_covered_commit_that_cannot_be_had_waits_and_is_never_merged(
     proven_merged, rules, line, gone
 ):
-    """`None` is a commit that git has and cannot read as a commit: the tree of the head."""
+    """Here the covered commit is `None`, the head's tree, an object that git has but cannot
+    read as a commit."""
     rebased = Rebased(proven_merged, {8: "theirs 8"})
     gone = gone or merge.git(proven_merged.tree, "rev-parse", "HEAD^{tree}")
     verdict = "findings" if line else "clean"
@@ -651,8 +653,8 @@ def mains(path):
 class Shaped:
     """The shape of Winnifred #154: two directories of many files, a pull request that adds a
     line to each, and a main that added one to each since. The rebase kept every line of
-    both, except what `edits` does to main's lines after it, a line edited in place or one
-    removed."""
+    both, except for main's lines that `edits` then changes, by editing a line in place or
+    by removing it."""
 
     def __init__(self, proven_merged, edits):
         main, tree = proven_merged.home.main, proven_merged.tree
@@ -753,9 +755,9 @@ TOLD = f"Rebase: patch changed in {FILE}, before {BEFORE}, head {FIRST}\n"
 
 
 def test_a_rebase_after_one_an_older_brief_told_of_is_compared_with_a_commit_a_review_covers():
-    """The line moved `Fixed:` to the head of a rebase that no review saw, so `jmerge` does not
-    compare from that head but from the commit before it. A review of that head makes it one
-    to compare from."""
+    """The brief moved its `Fixed:` line to the head of a rebase that no review saw. So
+    `jmerge` compares from the commit before that head, not from the head itself. A review
+    of that head makes it one to compare from."""
     result = TOLD + FIXED.format(FIRST)
     text = merge.brief(merge.review("findings", REVIEWED), result)
     assert ready.rebase_of(text, FIRST) == ready.Rebase("changed", (FILE,), BEFORE, FIRST)

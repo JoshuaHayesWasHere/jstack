@@ -1,8 +1,8 @@
 """A repo's merge gate is the one-line command in a `merge-gate` file of its state. `jmerge`
 runs it before every merge, once every other reason is clear, in a checkout of the head,
 with the merge base and the head as its last two arguments and as `BASE` and `HEAD`. A
-non-zero exit is a hold whose line quotes the gate's first line, and `merge.log` keeps the
-whole output. A repo with no such file merges as before
+non-zero exit holds the pull request, and the hold line quotes the first line of the gate's
+output. `merge.log` keeps the whole output. A repo with no such file merges as before
 (`features/jmerge/tests/test_jmerge_fresh.py`).
 
 The tests run the command against a real origin and a fake `gh`, as
@@ -37,8 +37,8 @@ def kitchen(tmp_path):
 
 
 def gate(kitchen, code=0, say=""):
-    """Name in the repo's `merge-gate` file a gate script that records how it was called, says
-    `say` and exits `code`, and return the directory it records in."""
+    """Write a gate script that records how it was called, prints `say` and exits with `code`.
+    Name the script in the repo's `merge-gate` file, and return the directory it records in."""
     record = kitchen.tmp / "record"
     record.mkdir(exist_ok=True)
     script = kitchen.tmp / "gate.sh"
@@ -201,9 +201,9 @@ def test_jbus_tells_the_crew_of_each_gate_hold():
 
 
 def test_a_gate_ends_before_jbus_stops_the_jmerge_that_runs_it():
-    """A run starts no gate once its gates have taken their budget, so the budget plus one
-    more gate's limit stays under what a pass gives `jmerge`. `jmerge` stops and holds a gate
-    that runs over its limit, so the gate is not killed along with `jmerge`."""
+    """A run starts no new gate once its gates have used up their budget. So the budget plus
+    one gate's time limit is less than the time that a pass gives `jmerge`. `jmerge` stops
+    and holds a gate that runs over its limit, so the gate is not killed along with `jmerge`."""
     assert cli.Gate.BUDGET + cli.Gate.TIMEOUT < wake.JMERGE_TIMEOUT
 
 

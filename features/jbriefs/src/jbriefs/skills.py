@@ -1,5 +1,5 @@
-"""The skills that a brief names on its `Skills:` line. This module resolves each name to the
-one file it loads, and holds each to the artifact that a Result owes for it.
+"""The skills that a brief names on its `Skills:` line. This module resolves each name to the one
+file it loads, and checks that a Result gives the artifact that each name requires.
 
 This is the one resolver. `jbus queue add` refuses a name it does not resolve
 (`parse.CHECKS`) when a row is first queued. The crew and scout skills load the files it
@@ -113,7 +113,7 @@ def packaged() -> Path | None:
 @cache
 def root() -> Path:
     """Where every path of `skills.json` is read from: the checkout this package runs from, or
-    else the source tree that a release carries beside it."""
+    else the source tree that a release installs beside it."""
     found = checkout() or packaged()
     if found is None:
         here, copy = Path(__file__).resolve(), Path(sys.prefix) / PACKAGED
@@ -163,8 +163,8 @@ def _listed() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
 
 def resolve(said: str) -> Named:
     """The file that a name loads, from `skills.json`. That is the item of that name, or the
-    one that pstack calls so. For an old principle name it is the principle that took the
-    prefix, and for a pstack skill kept as a playbook it is the playbook."""
+    item whose `pstack_name` is that name. For an old principle name it is the principle that
+    took the prefix, and for a pstack skill kept as a playbook it is the playbook."""
     if not _NAME.fullmatch(said):
         return Named(said, None)
     by_name, by_alias = _listed()
@@ -251,7 +251,8 @@ def artifacts(path: Path | None = None) -> dict[str, str]:
 
 
 def owed(name: str, table: dict[str, str] | None = None) -> str:
-    """The artifact that a name owes: its own line of the map, or else the default line."""
+    """The artifact that a Result must give for a name: its own line of the map, or else the
+    default line."""
     table = artifacts() if table is None else table
     return table.get(name) or table[DEFAULT]
 
@@ -316,7 +317,8 @@ def missing(text: str) -> tuple[str, ...]:
     empty one or a placeholder, spelled as the brief spells them and in the line's order. The
     match goes by canonical name, so `build-the-lever` in the brief and
     `principle-build-the-lever` under `Skills run:` are one name. The queue and the launch
-    refuse a name that resolves to no file (`unknown`), so it owes nothing here."""
+    refuse a name that resolves to no file (`unknown`), so this function asks no artifact
+    for it."""
     have = run(text)
     return tuple(
         one.said for one in named(text) if one.path is not None and hollow(have.get(one.name, ""))
@@ -343,7 +345,8 @@ def shown(text: str) -> str:
 
 def load(text: str) -> str:
     """What the crew and scout skills print at their start: each named file in full, under a
-    line that names them, then the artifact each owes. Nothing where no skill is named."""
+    line that names them, then the artifact that a Result must give for each. Nothing where
+    no skill is named."""
     names = named(text)
     if not names:
         return ""

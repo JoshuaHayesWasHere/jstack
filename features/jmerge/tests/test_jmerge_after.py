@@ -34,8 +34,9 @@ def test_an_after_brief_with_no_review_is_short_of_nothing_and_a_review_brief_is
 
 
 def test_findings_that_land_on_an_after_brief_change_nothing_jmerge_reads():
-    """No `Fixed:` line, no answered findings, and a decline on a risk that the scoped pass
-    overruled. Each would hold a `Review: review` brief, and none of them holds this one."""
+    """The brief has no `Fixed:` line and no answered findings, and the scoped pass overruled a
+    decline on a risk. Each of these would hold a `Review: review` brief, and none of them
+    holds this one."""
     bare = brief("after", "Reviewer: mcp:9\n")
     found = bare + review()
     risky = review(found=("error a.py:3 a leak (bucket: Act on) (risk: data)",))

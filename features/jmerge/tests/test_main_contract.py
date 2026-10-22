@@ -31,8 +31,8 @@ GREEN, RED, NEWER = "a" * 40, "b" * 40, "d" * 40
 
 def _filled(template):
     """A reason with each value it names filled in. Each value is a word with no space or
-    comma, as a user, a head or a path is, except what a stale check needs, which is
-    `ready`'s own."""
+    comma, as a user, a head or a path is, except the values that a stale check needs, which
+    come from `ready` itself."""
     filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
     return template.format(**{name: filled.get(name, "x1") for name in fields})
@@ -167,7 +167,8 @@ def _sources():
 
 def _keys(tree):
     """Each key that a record is written with, in a dict display or in a subscript assigned
-    to. The type holds a read of a `Record` to its keys, so this does not count reads."""
+    to. The type checker already limits reads of a `Record` to its keys, so this does not
+    count reads."""
     for node in ast.walk(tree):
         if isinstance(node, ast.Dict):
             yield from node.keys

@@ -1,7 +1,8 @@
-"""A brief whose role map lists two reviewers gets a `## Review` section from each, both of one
-head, and `jmerge` reads them as one round. The round waits for every reviewer that the
-`Reviewer:` lines name, and its verdict is the worst of its sections. The tests run through
-`ready.short_of`, the reader that the merge goes by, over briefs as the skills write them."""
+"""A brief whose role map lists two reviewers gets a `## Review` section from each, both
+written at the same head, and `jmerge` reads them as one round. The round waits for every
+reviewer that the `Reviewer:` lines name, and its verdict is the worst of its sections. The
+tests run through `ready.short_of`, the reader that the merge goes by, over briefs as the
+skills write them."""
 
 from jmerge import ready
 
@@ -91,8 +92,8 @@ SEATS = "Reviewer: mcp:sonnet-a #1\nReviewer: mcp:sonnet-b #2\n"
 
 def test_two_reviewers_of_one_model_are_two_reviewers_by_their_numbers():
     """Two Sonnet reviewers write the same model and effort, so the number tells them apart.
-    One numbered review alone waits, and both pass (question 38: `jmerge` once read two
-    Cursor reviews as one)."""
+    A brief with only one numbered review waits, and a brief with both passes (question 38:
+    `jmerge` once read two Cursor reviews as one)."""
     one = RESULT + SEATS + section(f"{SONNET} #1", "clean")
     assert ready.short_of(one, SAW) == ready.NO_VERDICT
     both = one + section(f"{SONNET} #2", "clean")

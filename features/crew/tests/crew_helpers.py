@@ -31,7 +31,7 @@ def sections():
 
 
 def block(heading, about):
-    """The one `sh` block under a heading that has a word in it, as an agent reads it."""
+    """The one `sh` block under the heading that contains `word`, as an agent reads it."""
     (found,) = [text for text in FENCED.findall(sections()[heading]) if about in text]
     return textwrap.dedent(found)
 
@@ -83,7 +83,8 @@ TWO = ["warning a.py:3 it runs twice", "info b.py the file as a whole"]
 
 
 class Fix:
-    """A crewmate's worktree at the head a review saw, then at the head its fix pushed."""
+    """A crewmate's worktree at the head that a review saw, then at the head that the crewmate
+    pushed with its fix."""
 
     def __init__(
         self,
@@ -248,9 +249,9 @@ class PullRequest:
 
 
 def covers(main, brief, head):
-    """What `jmerge` makes of a head that the brief says nothing of: the commit its review
-    covers, and whether the review carries over to the head. The range-diff decides, run in
-    the main checkout once it has fetched."""
+    """How `jmerge` judges a head that the brief does not mention: which commit its review
+    covers, and whether that review carries over to the head. A range-diff decides, which
+    `jmerge` runs in the main checkout after the checkout has fetched."""
     assert ready.short_of(brief, head) == ""
     covered = ready.to_range_diff(ready.rebase_of(brief, head), brief, head)
     git(main, "fetch", "-q", "origin")
@@ -325,7 +326,8 @@ ROLLUPS = {
 
 
 def stub_gh(stub, head, rollup, state="OPEN"):
-    """A stub `gh` that says this of the pull request, or fails when there is no rollup."""
+    """A stub `gh` that prints this rollup for the pull request, or fails when there is no
+    rollup."""
     stub.mkdir()
     (stub / "gh").write_text(GH)
     (stub / "gh").chmod(0o755)
@@ -360,7 +362,8 @@ class Failed(PullRequest):
         (self.stub / "view.json").write_text(json.dumps(view))
 
     def says(self, here):
-        """What the block prints when it is told what the check command did in this worktree."""
+        """What the block prints when the test tells it what the check command did in this
+        worktree."""
         text = block("Stay on the pull request", "run rerun").replace("<slug>", "alpha")
         text, filled = re.subn(
             r"^here='<[^>]*>'$", f"here='{here}'" if here else r"\g<0>", text, flags=re.M

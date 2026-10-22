@@ -1,8 +1,8 @@
-"""`jmerge` merges a pull request only when its green still covers today's main. When a pull
-request's check started before main changed one of its files, or a file that CI reads, the
-pull request waits for a fresh check. Where the repo asks for it, that check is the repo's
-own command on the head merged over today's main, and otherwise it is a rebase. A rebase
-that dropped a line waits for its crew to say why
+"""`jmerge` merges a pull request only when its passing check still applies to today's main.
+When a pull request's check started before main changed one of its files, or a file that CI
+reads, the pull request waits for a fresh check. Where the repo asks for it, that check is
+the repo's own command on the head merged over today's main, and otherwise it is a rebase.
+A rebase that dropped a line waits for its crew to say why
 (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after
 its merge.
 
@@ -156,9 +156,9 @@ class Kitchen:
         return git(main, "rev-parse", "HEAD")
 
     def rebase(self, slug, theirs, resolved, before=None):
-        """Main changes under the pull request, and its crewmate rebases onto it, resolves the
-        conflict this way, pushes, and says that the patch changed in those files. The
-        check ran again on the rebased head."""
+        """Main changes after the pull request's check, and its crewmate rebases onto main,
+        resolves the conflict this way, pushes, and says that the patch changed in those
+        files. The check ran again on the rebased head."""
         was = self.pulls[slug]["headRefOid"]
         tree = self.tmp / "trees" / slug
         self.on_main(theirs)
@@ -265,7 +265,7 @@ def test_a_file_main_renamed_is_changed_under_the_pull_request_that_changes_it(k
 
 
 def test_a_file_the_pull_request_renamed_is_one_of_its_paths(kitchen):
-    """GitHub lists a rename under its new path alone, so `jmerge` asks for the path it left."""
+    """GitHub lists a rename under its new path alone, so `jmerge` asks for the file's old path."""
     kitchen.crew("two", 7, {"b.txt": None, "c.txt": LINES}, renamed=True)
     (kitchen.home.stub / "left-7").write_text("b.txt\n")
     kitchen.pulls["two"] |= {"files": [merge.file("c.txt", renamed=True)], "changedFiles": 1}
@@ -300,8 +300,8 @@ SELECTED = {
 
 @pytest.fixture
 def selected(tmp_path):
-    """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
-    over the main that changed its module, `src/demo/two.py`, which
+    """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed on
+    a main from before main changed the module `src/demo/two.py`, which
     `testing/tests/test_two.py` imports. No test file is one that every change selects."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py")
@@ -342,7 +342,7 @@ def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests
 
 def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_path):
     """In main's checkout `two.py` imports nothing. Over the head, `testing/tests/test_two.py`
-    reaches `one.py` too, so main's change to it meets the pull request's tests."""
+    also imports `one.py`, so the pull request's tests run main's change to `one.py`."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
@@ -479,7 +479,8 @@ def notes(tmp_path):
 
 
 def unsaid(notes):
-    """How the wait on a drop ends: its crew has not said why, at the head it is at."""
+    """Why a pull request held on a drop still waits: at its current head, its crew has not
+    said why the rebase dropped the line."""
     return f"with no Dropped on rebase line at {notes.pulls['two']['headRefOid'][:12]}"
 
 
@@ -537,8 +538,8 @@ def test_a_pull_request_held_on_a_drop_starts_no_fresh_check(notes):
 
 
 def test_a_line_the_pull_request_deletes_is_not_one_the_rebase_dropped(notes):
-    """Main moved the line, so its diff adds it, and the pull request's own patch removes that
-    same line. The head is right not to have it."""
+    """Main moved the line, so main's diff adds the line at its new place, and the pull
+    request's own patch removes that same line. The head is right not to have it."""
     notes.crew("two", 7, {"n.txt": "one\nthree\n"})
     notes.rebase("two", {"n.txt": "two\none\nthree\n"}, {"n.txt": "one\nthree\n"})
     (said,) = notes.run()
@@ -794,7 +795,8 @@ def test_a_fresh_check_another_run_is_making_is_not_started_again(kitchen):
 
 def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen, monkeypatch):
     """A jmerge that is stopped leaves its command running. The command holds the lock too, so
-    the next run starts no second command under it. Here a part of it outlives the check."""
+    the next run starts no second command under it. Here a background process of the
+    command keeps running after the check ends."""
     checked = Checked(kitchen, "sleep 3 > /dev/null 2>&1 &")
     home = kitchen.home
     here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state))
@@ -844,9 +846,9 @@ def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(ki
 
 
 def settled(kitchen, before=None, limit=60.0):
-    """Wait for a fresh check that a run started on its own to end. It ends when it records
-    something new over what `fresh.json` had `before`, and then lets go of `fresh.lock`,
-    which it holds until its marker is pushed."""
+    """Wait until the fresh check that a run started in the background ends. The check ends
+    when it records something newer than what `fresh.json` had `before`, and then releases
+    `fresh.lock`, which it holds until its marker is pushed."""
     fresh = cli.Fresh(kitchen.home.main, kitchen.home.state)
     end = time.monotonic() + limit
     while fresh.known() == (before or {}):
@@ -867,7 +869,7 @@ def known(kitchen):
 
 
 def recorded(kitchen, number, limit=60.0):
-    """Wait for a fresh check that a run started on its own to record what it found."""
+    """Wait until the fresh check that a run started in the background records what it found."""
     end = time.monotonic() + limit
     while str(number) not in cli.Fresh(kitchen.home.main, kitchen.home.state).known():
         assert time.monotonic() < end, "the fresh check recorded nothing"
@@ -937,8 +939,8 @@ def test_a_marker_the_origin_refuses_leaves_the_check_passed_and_the_note_says_w
 
 
 def test_a_sweep_deletes_a_marker_on_the_origin_that_is_more_than_seven_days_old(kitchen):
-    """Another clone pushed the old marker, so its commit is not in the main checkout. The desk
-    that sweeps need not be the one that marked."""
+    """Another clone pushed the old marker, so its commit is not in the main checkout. The
+    clone that sweeps need not be the clone that pushed the marker."""
     main, other = kitchen.home.main, kitchen.tmp / "other"
     git(kitchen.tmp, "clone", "-q", str(kitchen.origin), str(other))
     aged = {}
@@ -1026,8 +1028,8 @@ def test_the_check_is_a_transient_user_unit_with_the_runs_environment(kitchen, m
 def test_where_systemd_cannot_start_a_unit_the_check_is_a_process_of_its_own(
     kitchen, no_user_units, monkeypatch
 ):
-    """That is, outside a unit. Inside a unit, such as a pass, a plain process would end with
-    the unit."""
+    """That is, when the check runs outside a systemd unit. Inside a unit, such as a pass, a
+    plain process would end with the unit."""
     (no_user_units / "systemd-run").write_text("#!/bin/sh\necho no user manager >&2\nexit 1\n")
     checked = Checked(kitchen, f"sleep 1; {BOTH}")
     monkeypatch.setenv("INVOCATION_ID", "the pass's own")

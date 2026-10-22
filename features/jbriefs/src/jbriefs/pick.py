@@ -30,7 +30,8 @@ _ALONGSIDE = "tests/"
 
 @dataclass(frozen=True)
 class Role:
-    """Who takes a piece of work: the skill, what it is typed with, and the `Run by:` runner."""
+    """Who takes a piece of work: the skill, the kind of input it is typed with, and the
+    `Run by:` runner."""
 
     skill: str
     runner: str
@@ -84,8 +85,9 @@ class Line:
 
 
 def work(path: Path | None, text: str) -> Work:
-    """The work as its role sees it. A file's role follows its directory: `tasks/` is a
-    crewmate's and `scouts/` a scout's. Any other file, and text with no file, is the home's."""
+    """The work, with the role that takes it. A file's role follows its directory: `tasks/` is
+    a crewmate's and `scouts/` a scout's. Any other file, and text with no file, is the
+    home's."""
     if path is None:
         return Work(HOME, "", text, from_file=False)
     return Work(PLACES.get(path.parent.name, HOME), path.stem, text, from_file=True)
@@ -141,7 +143,8 @@ def said(lines: list[str], label: str) -> str | None:
 def _in_scope(path: str, scope: str, root: Path) -> bool:
     """Whether a path that the brief changes is one that a row's scope is for. A directory
     scope covers what is under it. A file name covers that file, and anything under a
-    directory whose entries are each such a file, as `skills/` is to `SKILL.md`."""
+    directory whose subdirectories hold such a file, as `skills/` holds a `SKILL.md` in
+    each `<name>/`."""
     if scope.endswith("/"):
         return path.startswith(scope) or f"/{scope}" in path
     if path == scope or path.endswith(f"/{scope}"):
@@ -164,9 +167,9 @@ def at(name: str, root: Path | None = None) -> str:
 
 
 def best(lines: list[str], role: Role, found: list[Row], root: Path | None = None) -> Line:
-    """The row of the role's runner that fits the brief best. First comes a row whose asked
-    lines the brief has, the most of them first. Next comes a row whose scope covers every
-    path the brief changes. Last comes the role's own default row."""
+    """The row of the role's runner that fits the brief best. First comes a row whose requested
+    lines the brief has, the row with the most of them first. Next comes a row whose scope
+    covers every path the brief changes. Last comes the role's own default row."""
     mine = [row for row in found if row.runner == role.runner]
     asked = [
         r for r in mine if r.asks and all(any(ln.startswith(a) for ln in lines) for a in r.asks)

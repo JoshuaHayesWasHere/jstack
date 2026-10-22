@@ -1,5 +1,5 @@
 """A thread messages its home only when the home must act. Where a shell block decides whether
-a message goes, and to whom, the test lifts the block from its skill and runs it here."""
+a message goes, and to whom, the test copies the block out of its skill and runs it here."""
 
 import pytest
 

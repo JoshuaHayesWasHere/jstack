@@ -1,4 +1,4 @@
-"""The crew skill's "The review" and "A second pass": each finding's ending, the Fixed: line,
+"""The crew skill's "The review" and "A second pass": how each finding ends, the Fixed: line,
 and the scoped review of a fix."""
 
 import os

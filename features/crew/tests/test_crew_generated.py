@@ -1,4 +1,4 @@
-"""The crew skill's generated files: the crewmate makes again a lock file that a rebase stops on."""
+"""The crew skill's generated files: the crewmate regenerates a lock file that a rebase stops on."""
 
 import os
 import shutil

@@ -1,5 +1,5 @@
 """`jmerge` waits until every blocking finding has its answer, on every path, and not only
-where a `Second pass:` or `Scoped review:` line says that a review of the fix is owed. The
+where a `Second pass:` or `Scoped review:` line says that the fix still needs a review. The
 tests run through `ready.short_of`, the reader that the merge goes by, over briefs as the
 skills write them.
 

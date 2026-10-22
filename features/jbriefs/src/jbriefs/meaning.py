@@ -31,17 +31,17 @@ pair when their exact tokens are the same and their words are the same, except t
 of `NEAR` letters or more may be within `EDITS` edits of the approved word, which is how a
 fixed typo passes. So a typo, a change of formatting, punctuation or case, and lines put in
 another order keep the go. A line added, removed or changed in a field of `MEANING`, or a
-changed path, number or value, asks again.
+changed path, number or value, needs a new approval.
 
 An approval recorded before the title and Task were read has neither in its fingerprint
 (`LEGACY`), and holds for any title and Task. The comparison skips the fields it recorded
 that are no longer part of the meaning.
 
 Its limit is that it compares words, not meaning. A reword that swaps one content word for
-another ("must" for "may", "all" for "any") asks again, by design, because a check with no
-model cannot tell a harmless synonym from a change of intent. And two words of five letters
-or more within two edits of each other count as one word, which is the cost of keeping the
-go of a fixed typo. That covers "files" and "fixes", and opposites too, "include" and
+another ("must" for "may", "all" for "any") needs a new approval, by design, because a check
+with no model cannot tell a harmless synonym from a change of intent. And two words of five
+letters or more within two edits of each other count as one word, which is the cost of keeping
+the go of a fixed typo. That covers "files" and "fixes", and opposites too, "include" and
 "exclude", "import" and "export", "maximum" and "minimum", so such a swap keeps the go.
 """
 

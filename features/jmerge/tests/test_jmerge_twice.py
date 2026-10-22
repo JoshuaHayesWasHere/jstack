@@ -94,8 +94,8 @@ def test_a_first_section_that_did_not_run_is_not_the_first_review():
 
 
 def test_a_twice_brief_asks_no_scoped_review_and_no_ruling_on_a_decline():
-    """A fix outside `tests/` and a decline would make a `Review: review` brief owe a scoped
-    pass that rules on them. For a twice brief, the second review is all it owes."""
+    """A fix outside `tests/` and a decline would make a `Review: review` brief need a scoped
+    pass that rules on them. A twice brief needs only the second review."""
     declined = "Finding F1: not fixed, the loop, because a.py:3 reads it once\n"
     owed = "Scoped review: needed since " + HEAD + ", fix outside tests\n"
     text = brief(result=declined + f"Fixed: {FIX}\n" + owed) + review(HEAD) + review(FIX, ())
@@ -114,8 +114,8 @@ def test_a_twice_brief_still_owes_its_skills_and_the_crews_own_drop_lines():
 
 
 def written(kitchen, slug, head, second):
-    """The brief as a twice crewmate leaves it: its first review answered at the head its fix
-    pushed, and the second review of that head as `second` says."""
+    """The brief as a twice crewmate leaves it: its first review answered at the head that its
+    fix pushed, and the second review of that head, written as `second` says."""
     pull = kitchen.pulls[slug]
     first = review("f" * 40)
     (kitchen.home.tasks / f"{slug}.md").write_text(

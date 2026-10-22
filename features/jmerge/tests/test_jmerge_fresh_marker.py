@@ -1,11 +1,11 @@
-"""`jmerge`'s fresh check counts a green marker of the tree it would test as a pass.
+"""`jmerge`'s fresh check treats a green marker for the tree it would test as a pass.
 
 When a pull request's check is stale, `jmerge` merges the pull request's head over today's
 main and tests the result. A green run of the check may already have run the whole suite on
 that same tree and left the marker `green-tree-<tree>`. Then the suite does not run again,
 and the pull request merges on that run. The line that says so names the tree and the run,
-both in `merge.log` and in what jbus logs. A marker of another tree, a marker that a red run
-left, or no marker at all is no proof, and the check runs as it always did.
+both in `merge.log` and in what jbus logs. A marker for another tree, a marker from a red
+run, or a missing marker does not count as a pass, and the check runs as before.
 
 The tests run the command against a real origin with a fake `gh`
 (`features/jmerge/tests/test_jmerge_fresh.py`). The fake also answers the API's list of
@@ -136,7 +136,7 @@ def test_no_marker_runs_the_check_and_a_failure_there_still_waits(kitchen):
 
 
 def test_a_skip_never_stands_over_a_main_that_moved_and_the_new_tree_is_checked(tmp_path):
-    """A pass that ran still counts over a main that moved off its tests
+    """A pass that ran still counts after main gains commits that do not touch its tests
     (`features/jmerge/tests/test_jmerge_fresh.py`). A skip does not. Its marker names the
     tree it was taken on, and the new main makes another tree, which has no marker."""
     kitchen = fresh.Kitchen(tmp_path, fresh.SELECTED)

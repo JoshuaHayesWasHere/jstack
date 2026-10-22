@@ -42,8 +42,8 @@ def test_a_brief_that_came_in_the_launch_message_is_the_brief_the_skill_reads(ki
 
 
 def where_the_findings_go(home):
-    """What step 4 of "After the review" in the pr-review skill prints, then whom its "Telling
-    the home" finds, for the brief `alpha` in a home's state directory."""
+    """What step 4 of "After the review" in the pr-review skill prints, and then which home the
+    skill's "Telling the home" finds, for the brief `alpha` in a home's state directory."""
     skill = as_read(REPO / "features" / "pr-review" / "SKILL.md")
     printed = []
     for heading, about in (

@@ -4,15 +4,15 @@ one rule.
 A repo's state directory holds the root home's files, and a directory beside them for each
 scoped home. A scope is such a directory whose `home-id` holds an id or whose `handoff.md`
 has a `Was home:` line. A brief names its home on a `Home:` line in its head, before its
-first `## ` heading. It names the home by the scope's name, which is what a home writes. A
-brief written before that names it by a thread id that is in a `home-id` or on a
-`Was home:` line. A brief with no such line, or one that names the root's ids or no scope,
-belongs to the root (`home_of`).
+first `## ` heading. A home writes the scope's name there. A brief from before homes wrote
+scope names gives a thread id that is in a `home-id` or on a `Was home:` line. A brief with
+no such line, or one that names the root's ids or no scope, belongs to the root
+(`home_of`).
 
-A home's thread is the first word of its `home-id`, read again each time someone asks. A
-home that handed off has no thread until the next home's start writes its own id there. An
-id equal to the one on its handoff's `Was home:` line counts as none (`thread_of`). A
-`Was home:` line with no id on it counts as no line.
+A home's thread is the first word of its `home-id`, read again on each call. A home that
+handed off has no thread until the next home's start writes its own id there. An id equal
+to the one on its handoff's `Was home:` line counts as none (`thread_of`). A `Was home:`
+line with no id on it counts as no line.
 
 `jbus home` asks this module for the skills, `jbus.leftover` and `jbus.word` ask it for
 what jbus sends, and `jmerge` asks it whose a pull request is. No other copy of the rule
@@ -62,9 +62,9 @@ def scopes(state: Path) -> list[tuple[Path, str, str]]:
 
 
 def home_of(state: Path, brief: str) -> Path:
-    """The directory of the home a brief belongs to. That is the scope its `Home:` line names,
-    by its name or by either of its ids, the last one by name where two match, and `state`
-    for any other brief."""
+    """The directory of the home that a brief belongs to. That is the scope that its `Home:`
+    line names, by name or by either of its ids. Where two scopes match, it is the last one
+    in name order. For any other brief it is `state`."""
     name = named(brief)
     if not name or name in ids(state):
         return state
@@ -76,6 +76,6 @@ def home_of(state: Path, brief: str) -> Path:
 
 def thread_of(directory: Path) -> str:
     """The thread of the home whose directory this is now, or nothing when the directory has no
-    `home-id` or the id there is the one that handed off."""
+    `home-id` or the id there belongs to the home that handed off."""
     now, was = ids(directory)
     return "" if was == now else now

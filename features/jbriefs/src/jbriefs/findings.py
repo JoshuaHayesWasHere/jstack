@@ -18,14 +18,14 @@ merges two reviewers' findings of one head into one finding when they name the s
 lines at most `NEAR` apart, and the same principle, and both raised it. When one reviewer
 raised a finding and another dismissed it there, `triage` keeps the two apart and prints the
 dismissal beside the finding (`Finding.contradicts`). The `By:` line names a reviewer. Its
-last word is the reviewer's number, `#<n>`, the line of the role map's review list that the
-reviewer was launched for, so two reviewers of one model count as two (`Section.seat`). The
-`Reviewer:` lines say whom a round waits for (`Roster`). Once one of them carries a number,
-the round waits for the numbered lines alone, and the unnumbered lines before them are a
-launch that the numbered ones replaced. When a reviewer writes a section again at the same
-head, the new section takes the place of the earlier one. `triage` merges lines as if the
-earlier section were still there, so no id moves. A finding whose every line is in such a
-replaced section keeps its id and counts for nothing (`Finding.superseded`).
+last word is the reviewer's number, `#<n>`. The number is the line of the role map's review
+list that the crew launched the reviewer for, so two reviewers of one model count as two
+(`Section.seat`). The `Reviewer:` lines say whom a round waits for (`Roster`). Once one of
+them carries a number, the round waits for the numbered lines alone, and the unnumbered lines
+before them are a launch that the numbered ones replaced. When a reviewer writes a section
+again at the same head, the new section takes the place of the earlier one. `triage` merges
+lines as if the earlier section were still there, so no id moves. A finding whose every line
+is in such a replaced section keeps its id and counts for nothing (`Finding.superseded`).
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
 <reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from before
@@ -151,10 +151,10 @@ _SEAT = re.compile(r"\s#(\d+)$")
 
 @dataclass(frozen=True)
 class Legacy:
-    """A brief in which no `Reviewer:` line carries a number, read as briefs were read before
-    the numbers. `named` holds the lines that name a thread. The round waits for them only
-    where more than one is named, and counts them against the distinct `By:` texts of the
-    sections."""
+    """A brief in which no `Reviewer:` line has a number, which this module reads the way it
+    read briefs before the numbers. `named` holds the lines that name a thread. The round
+    waits for them only where more than one is named, and counts them against the distinct
+    `By:` texts of the sections."""
 
     named: int
 
@@ -278,8 +278,8 @@ class Finding:
 
     @property
     def sent(self) -> bool:
-        """Whether the crew was sent the finding and owes it an answer. The reviewer sends the
-        findings of a section that still counts."""
+        """Whether the reviewer sent the finding to the crew, so that the crew must answer it. The
+        reviewer sends the findings of a section that still counts."""
         return not self.superseded and self.bucket in SENT
 
     @property
@@ -471,7 +471,7 @@ def _near(one: Raised, other: Raised) -> int | None:
 def _same(finding: Finding, one: Raised) -> int | None:
     """How far `one` is from a finding it would merge into, or None when it would merge into
     none. It merges into another reviewer's finding of the same head and place when both
-    were raised, both carry a bucket, and the merged finding holds at most one line from each
+    were raised, both have a bucket, and the merged finding holds at most one line from each
     reviewer."""
     lead = finding.lead
     if lead.legacy or one.legacy or not one.head:
@@ -588,8 +588,9 @@ def triage(text: str) -> Triage:
 
 
 def listed(said: Triage) -> list[str]:
-    """The triaged list as `jbriefs --findings` prints it. It prints each finding by id, a
-    dismissal that contradicts it beside it, and under each one who raised it and its answer."""
+    """The triaged list as `jbriefs --findings` prints it. It prints each finding by its id,
+    and beside the finding any dismissal that contradicts it. Under each finding it prints
+    who raised it and its answer."""
     beside: dict[str, list[Finding]] = {}
     for one in said.findings:
         if one.contradicts:

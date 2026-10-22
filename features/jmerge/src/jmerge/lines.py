@@ -1,9 +1,10 @@
 """The lines that `jmerge` prints about a pull request, and the one parser of them.
 
 `jmerge` prints each line with a formatter here (`waits`, `merged`, `ready`), and jbus reads
-them back with `parse`, or `one` for a single line, so a printer and its reader cannot drift
-apart. A line with no number after its word, such as `wait: could not ask GitHub`, is about
-no pull request, and `parse` skips it.
+the lines back with `parse`, or with `one` for a single line. So the format that `jmerge`
+prints and the format that jbus parses come from one module and always match. A line with
+no number after its word, such as `wait: could not ask GitHub`, is about no pull request,
+and `parse` skips it.
 """
 
 from __future__ import annotations
@@ -24,10 +25,10 @@ GATE_OK = "gate: ok"
 class Line:
     """A line that `jmerge` prints about a pull request: `<word> <number> <name>: <reason>`.
 
-    `word` is `merged`, `wait` or `hold`, or the `refused` of an accept. `name` is the word
-    after the number, which is the pull request's URL or the merged slug with no comma after
-    it. `reason` is what follows the colon. A line with no name has neither field, and a
-    line with no colon has no reason.
+    `word` is `merged`, `wait` or `hold`, or `refused` when `jmerge` refuses an accept.
+    `name` is the word after the number, which is the pull request's URL or the merged slug
+    with no comma after it. `reason` is what follows the colon. A line with no name has
+    neither field, and a line with no colon has no reason.
     """
 
     word: Word
@@ -37,8 +38,8 @@ class Line:
 
 
 def one(text: str) -> Line | None:
-    """The `Line` that a line of `jmerge` is, or nothing where the line is not about a pull
-    request."""
+    """The `Line` parsed from one line of `jmerge`'s output, or nothing where the line is not
+    about a pull request."""
     found = LINE.match(text.strip())
     if not found:
         return None
@@ -66,7 +67,8 @@ def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str]
 
 
 def ready(number: int, head: str, branch: str, slug: str, notes: Sequence[str]) -> str:
-    """The line of a pull request that `--check` finds would merge, with what it notes."""
+    """The line of a pull request that `--check` finds ready to merge, with the notes that
+    `--check` adds."""
     return ", ".join([f"ready {number} {head} {branch} {slug}", *filter(None, notes)])
 
 
@@ -87,7 +89,8 @@ def reinstalled(tool: str, main: object) -> str:
 
 def not_reinstalled(tool: str, why: str) -> str:
     """The note of a merge that moved a package of the tool, after which the tool could not be
-    installed again. Every command of the tool may fail on an import until it is."""
+    installed again. Every command of the tool may fail on an import until the tool is
+    installed again."""
     return NOT_REINSTALLED.format(tool=tool, why=why)
 
 

@@ -1,6 +1,6 @@
 """One command, `jmerge --sweep`, lists and removes what a finished thread left, and the home
-skill tells a home to run it at its start. The test lifts the line from the skill and runs it
-in a temporary repo, with a real `git worktree` for every line of both lists."""
+skill tells a home to run it at its start. The test copies the line out of the skill and runs
+it in a temporary repo, with a real `git worktree` for every line of both lists."""
 
 import json
 import os

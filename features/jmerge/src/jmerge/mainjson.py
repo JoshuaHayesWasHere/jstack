@@ -1,25 +1,27 @@
 """`main.json` holds what jbus last knew of the check of the default branch, and this module
 is the one place that writes down its shape.
 
-That file is the one record of main's red tip. `broken` is the tip whose check failed, kept
-until a green tip follows, and `check` is what the tip at `main` says. `jbus.mainmoved.tell`
-is its only writer. It writes the file each pass, whether or not a pull request merged
-lately, and builds each record with `record`. It also keeps `green` there, the last tip
-whose check passed, and `pending`, the tips whose check has not ended. It looks at every tip
-that main went through since its last pass. So a tip that failed under a newer tip still
-pending is `broken`, and a tip that passed after `broken` ends it. `red` here is therefore
-`broken` while the tip is not green, and `green` is the tip where the check passed, or the
-one kept before. A tip whose check has not ended, or was cancelled, changes neither.
+That file is the one record of main's red tip. `broken` is the tip whose check failed, and
+the file keeps it until a green tip follows. `check` is what the check of the tip at `main`
+says. `jbus.mainmoved.tell` is the file's only writer. It writes the file each pass, whether
+or not a pull request merged lately, and builds each record with `record`. It also keeps
+`green` there, the last tip whose check passed, and `pending`, the tips whose check has not
+ended. Each pass looks at every tip that main went through since the last pass. When a tip's
+check failed and a newer tip's check is still pending, the failed tip is `broken`. When a
+later tip's check passes, that ends `broken`. So `red` here is `broken` while the tip is not
+green. `green` is the tip whose check passed, or the green tip kept before. A tip whose
+check has not ended, or was cancelled, changes neither.
 
 Two readers go through `read`. A launch names `green` on the brief's `Green main:` line
 (`jbus.dispatch`), and while `red` is set `jmerge` merges no pull request but the fix's
 (`jmerge.rows`). The fix is the brief `main-red-<sha12>` that `jbus.watch` files ahead of
 every row, so a slug that starts with `FIX` is a fix. A file that is missing or cannot be
 read means nothing is known, and `jmerge` then merges as it did before. A pass of `tell`
-that still owes a message keeps the record's commit to look at again and adds `fixed`, the
-green tip (`owed`). So a main that turns green while T3 Code cannot be reached is green here
-at once. A pass whose message `rebase.held` kept back does the same. A record from before
-the file kept `broken` names a failed tip by its `check` alone, and that tip is red too.
+that has not yet sent its message keeps the record's commit, so that the next pass looks at
+it again, and adds `fixed`, the green tip (`owed`). So a main that turns green while T3 Code
+cannot be reached is green here at once. A pass whose message `rebase.held` kept back does
+the same. Older records, written before the file kept `broken`, name a failed tip only by
+its `check`, and that tip is red too.
 """
 
 from __future__ import annotations
@@ -69,7 +71,7 @@ class Main:
 
 
 def of(record: object) -> Main:
-    """What a `main.json` record says of main, or nothing known where it is no record."""
+    """What a `main.json` record says of main, or nothing known where the value is not a record."""
     if not isinstance(record, dict):
         return Main()
     keys = ("main", "check", "broken", "green", "fixed")
@@ -91,15 +93,15 @@ def _raw(state: Path) -> object:
 
 
 def read(state: Path) -> Main:
-    """The word kept in the project's `state`, or nothing known."""
+    """What `main.json` in the project's `state` says of main, or nothing known."""
     return of(_raw(state))
 
 
 def typed(raw: object) -> Record | None:
     """A record as its writer reads it back, with each key of the right type and no other key.
 
-    `typed` drops a key of the wrong type on its own, so a `held` that cannot be read does
-    not take the red tip with it. None where the value is no record at all."""
+    `typed` drops each key of the wrong type and keeps the rest, so an unreadable `held`
+    does not also lose the red tip. None where the value is no record at all."""
     if not isinstance(raw, dict):
         return None
     kept = {key: raw[key] for key in _TEXTS if isinstance(raw.get(key), str)}
@@ -142,8 +144,8 @@ def record(
 
 
 def owed(was: Record, fixed: str) -> Record:
-    """The record that a pass leaves when it still owes a send: the last record, with main green
-    at `fixed` for its readers."""
+    """The record that a pass leaves when it has not yet sent its message: the last record,
+    with main green at `fixed` for its readers."""
     return {**was, "fixed": fixed}
 
 

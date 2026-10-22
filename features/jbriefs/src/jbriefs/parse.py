@@ -163,7 +163,8 @@ class Result:
 
 @dataclass(frozen=True)
 class Proof:
-    """A brief's `Proves it:` line, which says what outside the agent shows the task is done.
+    """A brief's `Proves it:` line, which names something outside the agent that shows the task
+    is done.
 
     `kind` is the first thing the line names that is not the agent's own word, and `fault`
     says why the line names nothing of the sort. One of the two is set.
@@ -182,12 +183,12 @@ class Proof:
 def proof(said: str) -> Proof:
     """Judge what a `Proves it:` line says, without its label.
 
-    It reads three tables in turn, and the first match decides. `_NAMED` lists what names a
-    thing outside the agent by itself: a test's path or name, a runner, a make target, CI,
-    a named judge or the user. A command in backticks that names no agent counts too, so a
-    test that the crewmate runs is still a test. `_SELF` lists the agent's own word. `_LOOSE`
-    lists what holds only when no agent is named, because "the agent tests it" is the
-    agent's own word.
+    It reads three tables in turn, and the first match decides. `_NAMED` lists the words
+    that on their own name something outside the agent: a test's path or name, a runner, a
+    make target, CI, a named judge or the user. A command in backticks that names no agent
+    counts too, so a test that the crewmate runs is still a test. `_SELF` lists the agent's
+    own word. `_LOOSE` lists words that count only when no agent is named, because "the
+    agent tests it" is the agent's own word.
     """
     said = said.strip()
     if not said:
@@ -389,8 +390,9 @@ def _filled(text: str, label: str) -> str:
 def proven(text: str) -> str:
     """One line on why a brief's `Proves it:` line proves nothing, or nothing.
 
-    A brief with no such line gets nothing here. At a launch, such a brief was written
-    before the line was asked for, and `faults` says the line is missing.
+    A brief with no such line gets nothing here. A brief that reaches a launch with no such
+    line was written before the template asked for the line, and `faults` reports that the
+    line is missing.
     """
     found = proves_it(text)
     return found.why if found else ""
@@ -568,10 +570,11 @@ def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
-    filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their checks, which
-    say when the line is missing, or, for `Skills`, that a brief with none names no skill. A
-    brief with no fault is complete. The check runs when a row is first queued and not again
-    at a launch, so a brief that already has a go is grandfathered (`jbus.queue`).
+    filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their own checks.
+    Those checks report a missing line, and for `Skills` the check reports instead that a
+    brief with no line names no skill. A brief with no fault is complete. The check runs when
+    a row is first queued and not again at a launch, so a brief that already has a go is
+    grandfathered (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []

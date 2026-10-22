@@ -82,8 +82,8 @@ def test_a_conflict_that_does_not_resolve_is_reported_and_then_its_changes_are(t
 
 
 def test_a_conflict_is_rebased_while_a_second_pass_is_still_needed(tmp_path):
-    """Nothing refuses a rebased head, so neither waits, and the second pass reviews the head
-    it gets."""
+    """Nothing refuses a rebased head, so neither the rebase nor the second pass waits, and the
+    second pass reviews the head it is given."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     saw = pr.head()
     pr.commit(pr.work, "wider.txt", "the fix\n", "the fix")
@@ -137,9 +137,9 @@ def main_adds(pr, other, name):
 
 
 def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_path):
-    """Upstream's cap: past merge prep, a third rebase that trunk forces is held and reported.
-    The block counts the rebases it made after the `Fixed:` line, writes the stop line
-    instead of making the third, and `jmerge` reads that line for the head it holds."""
+    """Upstream's cap: past merge prep, when trunk forces a third rebase, the block holds it
+    and reports it. The block counts the rebases it made after the `Fixed:` line, writes the
+    stop line instead of making the third, and `jmerge` reads that line for the head it holds."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)
@@ -184,10 +184,10 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
 
 
 def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path):
-    """The crewmate rebases a migration whose number main took by running the block with
-    `stale`, which is what the `renumber` message of `expedite` says to run. GitHub reports
-    no conflict, and the block counts each such rebase after the `Fixed:` line, so it holds
-    the third and `jmerge` waits."""
+    """When main has taken a migration's number, the crewmate rebases by running the block with
+    `stale`, as the `renumber` message of `expedite` says to. GitHub reports no conflict. The
+    block counts each such rebase after the `Fixed:` line, so it holds the third and `jmerge`
+    waits."""
     pr = PullRequest(tmp_path, "MERGEABLE", "0005_other.up.sql")
     asked(pr, "MERGEABLE")
     state = tmp_path / "home"
