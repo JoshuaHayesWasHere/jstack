@@ -226,9 +226,9 @@ def _after(line: str, slug: str) -> str:
 
 def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
     """Which queue an item is on: `needs`, `proceeds`, or None for one that asks the user
-    nothing. Only a gate has a default to go ahead on. A question that jbus holds closes after
-    silence unless it holds for the answer. A gate of a home's file has no timer, and goes ahead
-    on its default where it has one."""
+    nothing. Only a gate has a default to go ahead on. A question that jbus holds closes when the
+    user stays silent, unless its gate has a `Holds:` line. A gate of a home's file has no timer,
+    and goes ahead on its default where it has one."""
     if waits["kind"] != "gate":
         return NEEDS
     if one is None:

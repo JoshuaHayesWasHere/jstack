@@ -38,8 +38,8 @@ MIDDLE = (900, 900)
 
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
     """The screen is a desk's, as high as the Needs you queue, `NEEDS`. Here that queue has
-    the four rows of the scene. In progress starts below it, with a row for each of the 28
-    open tasks."""
+    the four rows of the scene. The In progress section starts below that queue, with a row
+    for each of the 28 open tasks."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
     screen = (DESK[0], DESK[1] + NEEDS)

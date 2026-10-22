@@ -453,7 +453,8 @@ def look(
 ):
     """Open the page in the browser and give back what the probe found.
 
-    The server is one this starts over the scene, or the one that listens on `port`. The
+    The page comes from the server that listens on `port`, or else from a new server
+    that this function starts over the scene. The
     page is the scene's project, `#/demo`, or the `route` given, such as `#/` for every
     project. `fragment` is more of the address after it, such as `theme=dark`. `alter` gets
     the count of each answer of `/stack.json` and its body, and gives back the body the page

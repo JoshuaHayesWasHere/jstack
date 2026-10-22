@@ -290,7 +290,8 @@ class Code:
         self.error = ""
 
     def newer(self) -> frozenset[tuple[Path, int]]:
-        """Each file the server runs that is newer on disk than its start, with its time."""
+        """Each file the server runs whose copy on disk is newer than the server's start, with
+        the file's time."""
         files = {Path(file) for file in self.loaded()}
         files = {file for file in files if file.is_relative_to(self.root)}
         try:
@@ -578,7 +579,8 @@ class Doors:
                 return
 
     def open(self) -> None:
-        """Open `127.0.0.1`, which must open, and the second address when there is one."""
+        """Open `127.0.0.1`, and the second address when there is one. Opening `127.0.0.1` must
+        succeed."""
         if self.host is not None:
             try:
                 everywhere = ipaddress.ip_address(self.host).is_unspecified
@@ -613,9 +615,9 @@ class Doors:
             self._open.clear()
 
     def serve(self) -> int:
-        """Open the listeners and serve until something stops the process, or until the code
-        on disk is newer than the running code and starts. Then the server ends with
-        `NEWER_CODE`."""
+        """Open the listeners and serve until something stops the process. The server also
+        stops when the code on disk is newer than the running code, and that newer code
+        starts. Then the server ends with `NEWER_CODE`."""
         self.open()
         for address, port in self.addresses():
             print(f"jbus view: listening on {address}:{port}", flush=True)

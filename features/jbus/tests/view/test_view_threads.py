@@ -1,4 +1,5 @@
-"""The threads out: each one's liveness, the scouts' requests, and a thread that is gone."""
+"""The threads that are out: each one's liveness, the scouts' requests, and a thread that is
+gone."""
 
 import json
 

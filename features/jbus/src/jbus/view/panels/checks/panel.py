@@ -1,5 +1,6 @@
-"""The repo's checks: its last workflow runs on GitHub, how many commits of main `checks.json`
-records as green, and the runner units of this machine. The server asks GitHub for the runs.
+"""The repo's checks: its last workflow runs on GitHub, the count of main's commits that
+`checks.json` records as green, and the runner units of this machine. The server asks GitHub
+for the runs.
 
 The runners are the units that `systemctl --user list-units 'actions-runner-*'` lists. The server
 asks for them on each request, read-only, and each has the state systemd gives it. The card says

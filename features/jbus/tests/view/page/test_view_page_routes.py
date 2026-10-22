@@ -287,8 +287,8 @@ def test_an_address_read_and_written_again_names_the_same_view(
     """The page reads where it is from the address alone. It builds each link it draws from
     what it read. `#/` is every project, `#/<project>` is one project, and `#/help` is the
     glossary over every project. A part that is no name (`%E0`) is a project, kept as it was
-    written. The page rewrites an old `?project=` link to its route. Following the link to
-    where the page is opens the same view again."""
+    written. The page rewrites an old `?project=` link to its route. A link to the page's own
+    address opens the same view again."""
     said_by_him(scene)
     first, again = walked(scene, tmp_path, route, ["look", f"tap:{tap}"])
     assert (first["hash"], first["title"], first["crumbs"]) == (hash, title, crumbs)

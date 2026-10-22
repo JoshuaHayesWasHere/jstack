@@ -121,9 +121,9 @@ def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_stat
 
 def test_the_policy_of_the_page_is_the_string_it_was_at_the_commit_before(served):
     """The page has every panel's script inline, so the policy allows no script from a server.
-    `POLICY` here is a copy of the string at the commit `BEFORE`, plus the one widening since,
-    `WIDENED`: the page's font from its own server. That copy is the test. On a checkout
-    with no history, such as a runner's, it is the whole test. Where git has the commit,
+    `POLICY` here is a copy of the string at the commit `BEFORE`, plus `WIDENED`. That is the
+    one widening since then: the page's font from its own server. That copy is the test. On a
+    checkout with no history, such as a runner's, it is the whole test. Where git has the commit,
     the test also compares the copy, with the widening taken out, to the file at that commit."""
     assert view.POLICY == POLICY
     assert served.ask("/")[1]["Content-Security-Policy"] == POLICY

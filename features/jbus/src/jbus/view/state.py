@@ -457,9 +457,10 @@ class Held:
     """What `leftover.json` has of a row that ended with something left.
 
     `note` is the whole `Left:` line. `told` is when jbus told the row's home, as the user
-    reads a time, or nothing while jbus has not told it. `since` is the same time as the
-    dict has one. `his` is why the row is the user's, or nothing while the row is its home's.
-    `busy` is whether a thread was at work on the row in the last pass."""
+    reads a time, or nothing while jbus has not told it. `since` is the same time as `told`,
+    in the form the answer's dicts give a time. `his` is why the row is the user's, or nothing
+    while the row is its home's. `busy` is whether a thread was at work on the row in the last
+    pass."""
 
     note: str
     told: str

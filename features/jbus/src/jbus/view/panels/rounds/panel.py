@@ -54,8 +54,8 @@ def brief(read: Read, slug: str) -> tuple[str | None, str]:
 
 
 def _times(read: Read, slug: str) -> dict[str, list[str]]:
-    """The time of each `review` event of the slug, by the head its section names, oldest
-    first."""
+    """The time of each `review` event of the slug, oldest first, keyed by the head that the
+    event's section names."""
     found: dict[str, list[str]] = {}
     for one in read.logged or []:
         at = when(one.get("at"))
