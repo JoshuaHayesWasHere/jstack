@@ -690,11 +690,12 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
 
 
 def _merge_after(batch: _Batch, verb: Add) -> None:
-    """Refuse an order that jmerge could not keep. Such an order has a row merge after itself, after
-    a slug that was removed or that has no row in the table, or after a row that in turn merges
-    after it or depends on it, which would leave both waiting for ever. This check does not
-    refuse a loop of `depends` alone: the stall check names it. Rows of the batch count as
-    they are when the verb runs."""
+    """Refuse an order that jmerge could not keep. There are three such orders. In the first, a row
+    merges after itself. In the second, a row merges after a slug that was removed or that has no
+    row in the table. In the third, a row merges after a row that in turn merges after it or depends
+    on it, which would leave both rows waiting for ever. This check does not refuse a loop of
+    `depends` alone: the stall check names it. Rows of the batch count as they are when the verb
+    runs."""
     edges = {
         row["slug"]: [
             *((slug, True) for slug in row.get("merge_after", [])),

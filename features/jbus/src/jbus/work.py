@@ -21,10 +21,11 @@ one `State`. The facets are:
 Each value of `VALUES` but `unknown` is one `Pattern`. A pattern is a set of what each facet may be,
 with who holds the work in that state and the one thing the work waits for. No two patterns match
 one set of facts. When no pattern matches a set of facts, the state is `unknown` and carries those
-facts, so jbus reports what nobody foresaw as it is. A pattern needs the sources of the facets that
-it narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those sources has
-not answered, `judge` passes over the pattern. When a source has not answered and no pattern
-matches, the state is the last state that a pass judged (`Facts.last`), marked not confirmed.
+facts, so jbus reports a case that no pattern covers as it is. A pattern needs the sources of the
+facets that it narrows: T3 Code for `Thread` and `Launch`, and GitHub for `Pull`. While one of those
+sources has not answered, `judge` passes over the pattern. When a source has not answered and no
+pattern matches, the state is the last state that a pass judged (`Facts.last`), marked not
+confirmed.
 
 `status` gives the row's `status` column, one of `queue.STATUSES`, as a projection of the
 state, so every reader of the queue still finds the same words as before. `write` keeps

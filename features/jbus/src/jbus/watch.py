@@ -324,7 +324,8 @@ def _stale(run: Pass, slug: str, thread: dict[str, Any]) -> str:
 
 
 def left(result: str) -> str:
-    """Return what a Result leaves in a few words, or nothing: `Status: done` and `Left: none`."""
+    """Return, in a few words, what a Result leaves undone. Return nothing when the Result says
+    `Status: done` and `Left: none`."""
     status, rest = said_on(result, "Status"), said_on(result, "Left")
     if rest and rest != "none":
         return f"left: {cut(rest, WORDS)}"

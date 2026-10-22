@@ -24,7 +24,7 @@ closes it, and nothing else does either.
   default that is irreversible or slow to revert, and the fail-safe that its `Fail-safe:` line
   names. Both are empty for a gate whose thread acted on its default at once, and for a record
   written before gates had them;
-- `proposed`: the time a pass asked the thread of a question with no options to pipe the
+- `proposed`: for a question with no options, the time a pass asked its thread to pipe the
   options, or found that T3 Code no longer lists that thread. It is empty until a pass does
   either;
 - `asked_at`: when `jbus gate` took the question;
