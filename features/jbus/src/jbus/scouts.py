@@ -106,11 +106,14 @@ def _read(file: Path) -> str | None:
         return None
 
 
-def labels() -> tuple[str, ...]:
-    """Return the labels a request must have: each one the template has, less `OPTIONAL`."""
+def template() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return the labels a request must have, each one the template has less `OPTIONAL`, and
+    the template's own placeholders, each `<...>` span of it with a space in it."""
     text = skills.where("template", TEMPLATE).read_text()
     named = (label for label, _ in parse.fields(text) if label not in (parse.TITLE, ""))
-    return tuple(label for label in named if label not in OPTIONAL)
+    return tuple(label for label in named if label not in OPTIONAL), tuple(
+        dict.fromkeys(_PLACEHOLDER.findall(text))
+    )
 
 
 def faults(slug: str, text: str) -> list[str]:
@@ -118,7 +121,7 @@ def faults(slug: str, text: str) -> list[str]:
 
     A request is in the template's shape when its first line is `# <slug>: <what to find out>`,
     each label of `labels` has a field whose lines are filled in (not the template's own
-    `<...>`), its `Questions:` has at least one item, and its `Out of bounds:` starts
+    placeholders), its `Questions:` has at least one item, and its `Out of bounds:` starts
     `read-only`. It has no line that only a crewmate's brief has, and its `Request:` line is no
     longer than `jbriefs.parse.LONGEST`.
     """
@@ -128,7 +131,8 @@ def faults(slug: str, text: str) -> list[str]:
     if not title.startswith(f"{slug}: ") or not title.removeprefix(f"{slug}: ").strip():
         found.append(f"first line is not # {slug}: <what to find out>")
     fields = {label: lines for label, lines in reversed(held)}
-    for label in labels():
+    labels, placeholders = template()
+    for label in labels:
         if label not in fields:
             found.append(f"no {label}: line")
             continue
@@ -137,7 +141,7 @@ def faults(slug: str, text: str) -> list[str]:
         lines = [line for line in (first.strip(), *items) if line]
         if not lines or (label == "Questions" and not items):
             found.append(f"{label}: line is empty")
-        elif any(_PLACEHOLDER.search(line) for line in lines):
+        elif any(held in line for held in placeholders for line in lines):
             found.append(f"{label}: line is the template's own text")
         elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
             found.append(f"Out of bounds: line does not start {READ_ONLY}")
@@ -211,8 +215,8 @@ def add(state: Path, home: Path, slug: str, text: str) -> str:
             raise jbus.Refused(f"refused: scout {slug} is out already, and its request stays")
         if row is None:
             rows.append(row := {"slug": slug})
-    file.parent.mkdir(parents=True, exist_ok=True)
-    file.write_text(text)
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(text)
     sha = queue.brief_sha(text)
     kept = queue.record(row)
     go = "waits for a go"

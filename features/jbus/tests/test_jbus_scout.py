@@ -93,7 +93,10 @@ def test_a_request_with_a_crewmates_line_is_refused_and_names_the_line(kitchen, 
             "no Questions: line",
         ),
         (
-            request("alpha").replace("Questions:\n- What", "Questions:\n- <a question>\n- What"),
+            request("alpha").replace(
+                "Questions:\n- What",
+                "Questions:\n- <a question the report must answer, with where to start looking>\n- What",
+            ),
             "Questions: line is the template's own text",
         ),
         (
@@ -112,6 +115,12 @@ def test_a_request_not_in_the_templates_shape_is_refused(kitchen, broken, fault)
     assert code == 1
     assert f"- {fault}" in said
     assert not (kitchen.home / "scouts" / "alpha.md").exists()
+
+
+def test_angle_brackets_that_are_not_the_templates_own_text_are_taken(kitchen):
+    asked = "find out why a < b and c > d fails in Map<String, Int> handling"
+
+    assert add(kitchen, "alpha", request("alpha", asked=asked))[0] == 0
 
 
 def test_a_request_line_over_the_limit_is_refused(kitchen):
