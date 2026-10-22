@@ -10,9 +10,9 @@ noting`) and 31 (`utilize`, `leverage`, `facilitate`, `numerous`, `in the event 
 
 A Python file is read with `tokenize` for its comments and with `ast` for the docstrings of
 its module, classes and functions, a shell file for its lines that start with `#`, and a
-script for its `//` and `/* */` comments past its strings and regular expressions. A shebang
-is no comment. Before a rule is matched, text in backticks or in double quotes is blanked: it
-is code, output or a quote, and not this repo's prose. "stands as" is no fancy "is" here: the
+script for its `//` and `/* */` comments past its strings and regular expressions. Before a
+rule is matched, text in backticks, or in double quotes on one line, is blanked: it is code,
+output or a quote, and not this repo's prose. "stands as" is no fancy "is" here: the
 repo says it for "remains".
 
 With no file named it reads every Python, shell and script file under `features/*/src`,
@@ -40,8 +40,8 @@ RULES = tuple(
             r"|showcas(e|es|ed|ing)|tapestry|testament|underscor(e|es|ed|ing)|vibrant)\b",
         ),
         (8, "a fancy is", r"\b(serves? as|served as|serving as|boasts?|boasted|boasting)\b"),
-        (13, "em or en dash", "[—–]"),
-        (19, "curly quote", "[‘’“”]"),
+        (13, "em or en dash", "[\u2014\u2013]"),
+        (19, "curly quote", "[\u2018\u2019\u201c\u201d]"),
         (
             20,
             "chatbot phrase",
@@ -60,7 +60,7 @@ RULES = tuple(
         ),
     )
 )
-QUOTED = re.compile(r"(`+)[\s\S]*?\1|\"[^\"]*\"")
+QUOTED = re.compile(r"(`+)[\s\S]*?\1|\"[^\"\n]*\"")
 DELIMITER = re.compile(r"^[rRbBuUfF]*(\"\"\"|'''|\"|')|(\"\"\"|'''|\"|')$")
 DOCUMENTED = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 SCOPE = ("features/*/src", "features/*/tests", "scripts", "testing")
@@ -72,11 +72,7 @@ AFTER_A_MARK_A_REGEX = {"", *"([{,;:=!&|?+-*%<>~^"}
 def python_blocks(text):
     """Each comment, and each docstring as it is written in the source, of a Python file."""
     tokens = tokenize.generate_tokens(io.StringIO(text).readline)
-    found = [
-        (token.start[0], token.string)
-        for token in tokens
-        if token.type == tokenize.COMMENT and not (token.start[0] == 1 and token.string[:2] == "#!")
-    ]
+    found = [(token.start[0], token.string) for token in tokens if token.type == tokenize.COMMENT]
     for node in ast.walk(ast.parse(text)):
         if isinstance(node, DOCUMENTED) and ast.get_docstring(node, clean=False) is not None:
             written = node.body[0].value
@@ -85,11 +81,11 @@ def python_blocks(text):
 
 
 def shell_blocks(text):
-    """Each line of a shell file that starts with `#`, a shebang left out."""
+    """Each line of a shell file that starts with `#`."""
     return [
         (at, line.strip())
         for at, line in enumerate(text.splitlines(), 1)
-        if line.lstrip().startswith("#") and not (at == 1 and line.startswith("#!"))
+        if line.lstrip().startswith("#")
     ]
 
 

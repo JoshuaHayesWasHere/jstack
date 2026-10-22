@@ -1,6 +1,6 @@
 """The mechanical unslop rules in comments and docstrings: `features/writing/scripts/
-comment_lint.py` is run here as `make check-fast` runs it, with `python3 -I -S`, on files
-written to a temporary directory. It warns on one hit of each rule it holds, says nothing of
+comment_lint.py` is run here with `python3 -I -S`, which holds it to the standard library, on
+files written to a temporary directory. It warns on one hit of each rule it holds, says nothing of
 the text it lets through, and exits 0 either way."""
 
 import subprocess
@@ -9,7 +9,7 @@ import sys
 from testing.paths import REPO
 
 SCRIPT = REPO / "features" / "writing" / "scripts" / "comment_lint.py"
-DASH, EN_DASH, LEFT, RIGHT = "—", "–", "“", "”"
+DASH, EN_DASH, LEFT, RIGHT = "\u2014", "\u2013", "\u201c", "\u201d"
 
 HITS = f'''"""Additionally, the helper serves as a cache {DASH} for now.
 
