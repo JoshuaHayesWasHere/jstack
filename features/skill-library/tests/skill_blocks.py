@@ -75,8 +75,8 @@ def transcripts(home, directory):
 
 
 def linked(home, name, to=None):
-    """A skill linked as a user's install links it: a link from `~/.claude/skills` into the
-    harness copy."""
+    """Link a skill from `~/.claude/skills` into the harness copy, the same link that a user's
+    install makes."""
     link = home / ".claude" / "skills" / name
     link.parent.mkdir(parents=True, exist_ok=True)
     link.symlink_to(to or COPY / "skills" / name)
@@ -84,8 +84,8 @@ def linked(home, name, to=None):
 
 def prints_the_root_and_names_only_files_under_it(name, repo, home):
     """Check a skill that names files outside its own directory, by paths from the repo's
-    root. With the skill linked as a user's install links it, its block prints that root, and
-    every file the skill names is under it."""
+    root. The test links the skill the way a user's install does. The skill's block then prints
+    that root, and every file the skill names is under the root."""
     linked(home, name)
     (root,) = run(block(name, "no root:"), repo, home)
     assert root == str(COPY)
