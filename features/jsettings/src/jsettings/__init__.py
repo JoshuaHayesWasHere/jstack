@@ -1,21 +1,22 @@
-"""jsettings: who jstack works for, in which time zone, and how full an account may get before a
-launch passes it by, read the same way by every command.
+"""jsettings: who jstack works for, in which time zone, and how full an account may get before
+a launch passes it by. Every command reads these settings the same way.
 
-One file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the role map, with four
-keys, each optional:
+The settings live in one file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the
+role map. It has four keys, and each is optional:
 
-- `user`: the one name that accepts a hold and approves a launch, and the name printed for
-  whoever that is. Default `user`.
-- `timezone`: an IANA name, as `America/New_York` is, for every time printed and taken.
-  Default the machine's own zone.
-- `timezone_label`: the word after such a time. Default what the zone prints for that time.
+- `user`: the one name that accepts a hold and approves a launch, and the name the commands
+  print for whoever that is. The default is `user`.
+- `timezone`: an IANA name, such as `America/New_York`, for every time that a command prints or
+  reads. The default is the machine's own zone.
+- `timezone_label`: the word after such a time. The default is what the zone prints for that
+  time.
 - `headroom`: the share of a usage window, in percent, at which a new launch counts a provider
-  instance as full and goes to the next of its pool. Default 90. A move off a running thread
-  still waits for a real cap, 100.
+  instance as full and goes to the next instance of its pool. The default is 90. A move off a
+  running thread still waits for a real cap, 100.
 
-With no file every key has its default, and nothing here writes the file. `load` is the one
-reader: it gives the `Settings`, or raises `Invalid` with the one line that says why a file
-that is there cannot be used.
+With no file, every key has its default, and nothing in this module writes the file. `load` is
+the one reader. It returns the `Settings`, or raises `Invalid` with the one line that says why
+it cannot use a file that is there.
 """
 
 from __future__ import annotations
@@ -36,12 +37,14 @@ _AT = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)")
 
 
 class Invalid(ValueError):
-    """The config file is there and cannot be used. The message is the one line to print."""
+    """The config file is there, and `load` cannot use it. The message is the one line to
+    print."""
 
 
 @dataclass(frozen=True)
 class Settings:
-    """`zone` is None for the machine's own zone, and `label` is empty for what the zone prints."""
+    """`zone` is None for the machine's own zone, and `label` is empty when the word is what
+    the zone prints."""
 
     user: str = "user"
     zone: ZoneInfo | None = None
@@ -49,7 +52,8 @@ class Settings:
     headroom: float = HEADROOM
 
     def local(self, moment: datetime) -> datetime:
-        """The moment in the zone. One with no zone of its own is taken as a time there."""
+        """The moment in the zone. A moment with no zone of its own is read as a time in this
+        zone."""
         if self.zone is None:
             return moment.astimezone()
         return moment.astimezone(self.zone) if moment.tzinfo else moment.replace(tzinfo=self.zone)
@@ -68,7 +72,8 @@ class Settings:
         return f"{self.local(moment):%Y-%m-%d %H:%M} {self.word(moment)}"
 
     def _said(self, at: str) -> tuple[datetime | None, str]:
-        """The time an `--at` names and the word after it, or no time where it names none."""
+        """The time that an `--at` names and the word after it, or no time when it names
+        none."""
         found = _AT.fullmatch(at)
         try:
             return (
@@ -78,14 +83,16 @@ class Settings:
             return None, ""
 
     def form(self, at: str = "") -> str:
-        """How `--at` is written, with the word the zone has at the time this `--at` names, or
-        now where it names none: the word a refusal asks for is one `takes` takes."""
+        """The form of an `--at`, with the word that the zone has at the time this `--at`
+        names, or at the current time when it names none. So the word that a refusal asks for
+        is one that `takes` accepts."""
         return f"<YYYY-MM-DD HH:MM {self.word(self._said(at)[0] or datetime.now())}>"
 
     def takes(self, at: str) -> bool:
-        """Whether `--at` is a time as `stamp` writes it, with the word the zone has then.
+        """Whether `--at` is a time as `stamp` writes it, with the word that the zone has at
+        that time.
 
-        An hour the clocks go through twice has two words, and either is taken.
+        An hour that the clocks go through twice has two words, and `takes` accepts either.
         """
         said, word = self._said(at)
         if said is None:
@@ -102,7 +109,7 @@ def path() -> Path:
 
 
 def load(file: Path | None = None) -> Settings:
-    """The settings of the file, or the defaults where there is no file."""
+    """The settings of the file, or the defaults when there is no file."""
     file = file or path()
     try:
         raw = tomllib.loads(file.read_text())
