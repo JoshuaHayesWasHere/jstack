@@ -1,33 +1,35 @@
-"""The skills a brief names on its `Skills:` line: each name resolved to the one file it
-loads, and each held to the artifact a Result owes for it.
+"""The skills that a brief names on its `Skills:` line. This module resolves each name to the
+one file it loads, and holds each to the artifact that a Result owes for it.
 
 This is the one resolver. `jbus queue add` refuses a name it does not resolve
-(`parse.CHECKS`) when a row is first queued, the crew and scout skills load the files it
-names (`jbriefs --skills`), and `jmerge` holds a pull request whose Results leave a named
-skill with no artifact (`jmerge.ready.short_of`).
+(`parse.CHECKS`) when a row is first queued. The crew and scout skills load the files it
+names (`jbriefs --skills`). `jmerge` holds a pull request whose Results leave a named skill
+with no artifact (`jmerge.ready.short_of`).
 
-The names are listed in `skills.json` at the repo root, which
-`scripts/generate-jstack-trees.py` writes from `features/` and the files they own, and nothing
-else edits: `make check` fails when it is stale. A name is a skill or a principle, and its
-canonical form is the skill's or the principle's directory name: `architect`,
-`principle-model-the-domain`. The file is also what any reader outside this repo (another
-provider, another machine) takes the set from.
+`skills.json` at the repo root lists the names. `scripts/generate-jstack-trees.py` writes
+it from `features/` and the files they own, nothing else edits it, and `make check` fails
+when it is stale. A name is a skill or a principle, and its canonical form is the
+directory name of the skill or the principle: `architect`, `principle-model-the-domain`.
+Any reader outside this repo (another provider, another machine) also takes the set from
+this file.
 
-The names are pstack's, so that a name in a brief resolves the same way in Grok Bot, which
+The names are pstack's, so a name in a brief resolves the same way in Grok Bot, which
 pstack drives, and in T3, which jstack drives. Three kinds of alias resolve. An entry's
-`pstack_name`, where pstack's name for it differs, is that entry. A principle's name before
-it took pstack's prefix, `model-the-domain`, is that principle. A pstack skill that jstack
-keeps as a playbook, one its feature marks `nameable`, is that playbook. Any other spelling,
-a path, a `/` in front or a capital letter, is no name, and so is a pstack skill jstack did
-not take (`poteto-mode`, and the `Not taken:` line of `THIRD_PARTY.md`).
+`pstack_name`, where pstack's name for it differs, resolves to that entry. A principle's
+name from before it took pstack's prefix, `model-the-domain`, resolves to that principle. A
+pstack skill that jstack keeps as a playbook, one that its feature marks `nameable`,
+resolves to that playbook. Any other spelling is no name: a path, a `/` in front, or a
+capital letter. Neither is a pstack skill that jstack did not take (`poteto-mode`, and the
+`Not taken:` line of `THIRD_PARTY.md`).
 
-`skills.json` also lists every playbook and template, and `where(kind, name)` is the one way
-the runtime finds any of these files: no module reads a path of the checkout from its own
-place in it. A release has no checkout: its wheel carries the source tree beside the
-packages' environment, `skills.json` with it, and `root()` is that tree.
+`skills.json` also lists every playbook and template, and `where(kind, name)` is the one
+way the runtime finds any of these files. No module reads a path of the checkout from its
+own place in it. A release has no checkout. Its wheel carries the source tree, `skills.json`
+included, beside the packages' environment, and `root()` is that tree.
 
-`features/skill-library/templates/skill-artifacts.md` says what each one leaves under
-`Skills run:` in a Result: one item, `- <name>: <the artifact>`, its further lines indented.
+`features/skill-library/templates/skill-artifacts.md` says what each name leaves under
+`Skills run:` in a Result: one item, `- <name>: <the artifact>`, with its further lines
+indented.
 """
 
 from __future__ import annotations
@@ -60,15 +62,15 @@ _HOLLOW = frozenset(("none", "n/a", "na", "tbd", "todo", "tba", "-", "--", "..."
 
 @dataclass(frozen=True)
 class Named:
-    """One name of a `Skills:` line: as it was written, and the file it resolves to, or
-    None where it resolves to none."""
+    """One name of a `Skills:` line, as it was written, and the file it resolves to, or None
+    where it resolves to none."""
 
     said: str
     path: Path | None
 
     @property
     def name(self) -> str:
-        """The canonical name: the skill's or the principle's directory, or the playbook's file
+        """The canonical name: the directory of the skill or the principle, or the playbook's file
         without `.md`."""
         if self.path is None:
             return self.said
@@ -90,9 +92,9 @@ class Named:
 @cache
 def checkout() -> Path | None:
     """The checkout this package runs from: the nearest directory above it with both a
-    `pyproject.toml` and a `skills.json`, wherever the package sits in it, so another
-    project's `pyproject.toml` above an installed copy is not taken for it. None for a
-    release, which has no checkout above it."""
+    `pyproject.toml` and a `skills.json`, wherever the package sits in it. So it does not
+    mistake another project's `pyproject.toml` above an installed copy for the checkout. It
+    is None for a release, which has no checkout above it."""
     here = Path(__file__).resolve()
     return next(
         (up for up in here.parents if (up / MARKER).is_file() and (up / CATALOG).is_file()), None
@@ -100,18 +102,18 @@ def checkout() -> Path | None:
 
 
 def packaged() -> Path | None:
-    """The source tree a release's wheel installs under the environment this runs in,
-    `PACKAGED` (its shared data, which scripts/jtrees/outputs/pyproject.py writes into
-    pyproject.toml), whose `skills.json` gives each path from the tree itself, as in a
-    checkout. None where it is not there."""
+    """The source tree that a release's wheel installs under the environment this code runs
+    in, `PACKAGED`. That is the wheel's shared data, which scripts/jtrees/outputs/pyproject.py
+    writes into pyproject.toml. Its `skills.json` gives each path from the tree itself, as
+    in a checkout. None where the tree is not there."""
     copy = Path(sys.prefix) / PACKAGED
     return copy if (copy / CATALOG).is_file() else None
 
 
 @cache
 def root() -> Path:
-    """Where every path of `skills.json` is read from: the checkout this package runs from,
-    else the source tree a release carries beside it."""
+    """Where every path of `skills.json` is read from: the checkout this package runs from, or
+    else the source tree that a release carries beside it."""
     found = checkout() or packaged()
     if found is None:
         here, copy = Path(__file__).resolve(), Path(sys.prefix) / PACKAGED
@@ -123,8 +125,8 @@ def root() -> Path:
 
 
 def _items(at: Path) -> tuple[dict[str, Any], ...]:
-    """The items of the `skills.json` at `at`, read again whenever the file changes, so a
-    long-running server sees a regenerated list."""
+    """The items of the `skills.json` at `at`. It reads the file again whenever the file
+    changes, so a long-running server sees a regenerated list."""
     path = at / CATALOG
     return _read(path, path.stat().st_mtime_ns)
 
@@ -136,14 +138,15 @@ def _read(path: Path, changed: int) -> tuple[dict[str, Any], ...]:
 
 def listed(kind: str, at: Path | None = None) -> dict[str, Path]:
     """Every file of `kind` (`skill`, `principle`, `playbook` or `template`) that the
-    `skills.json` of the checkout `at`, this one by default, lists, by name."""
+    `skills.json` of the checkout `at` lists, by name. `at` is this checkout by default."""
     at = root() if at is None else at
     return {item["name"]: at / item["path"] for item in _items(at) if item["kind"] == kind}
 
 
 def where(kind: str, name: str, at: Path | None = None) -> Path:
-    """The file of `name` of `kind`, from `skills.json`: a template by its path under
-    `templates/`, as `where("template", "gates.md")`. LookupError for one it does not list."""
+    """The file of `name` of `kind`, from `skills.json`. A template goes by its path under
+    `templates/`, as in `where("template", "gates.md")`. Raises LookupError for a file that
+    the list does not have."""
     found = listed(kind, at).get(name)
     if found is None:
         raise LookupError(f"{CATALOG} lists no {kind} {name}")
@@ -159,9 +162,9 @@ def _listed() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
 
 
 def resolve(said: str) -> Named:
-    """The file a name loads, from `skills.json`: the item of that name, or the one pstack
-    names so; for an old principle name, the principle that took the prefix; for a pstack
-    skill kept as a playbook, the playbook."""
+    """The file that a name loads, from `skills.json`. That is the item of that name, or the
+    one that pstack calls so. For an old principle name it is the principle that took the
+    prefix, and for a pstack skill kept as a playbook it is the playbook."""
     if not _NAME.fullmatch(said):
         return Named(said, None)
     by_name, by_alias = _listed()
@@ -180,8 +183,8 @@ def resolve(said: str) -> Named:
 
 
 def _none(line: str) -> bool:
-    """Whether a `Skills:` line names nothing: its first word is `none`, as in `none.` or
-    `none, <why>`, the form a `Design:` line takes."""
+    """Whether a `Skills:` line names nothing, which it does when its first word is `none`, as
+    in `none.` or `none, <why>`, the form a `Design:` line takes."""
     first = line.split(maxsplit=1)[0] if line.strip() else ""
     return first.rstrip(".,;:").lower() == "none"
 
@@ -197,8 +200,8 @@ def _head(text: str) -> str | None:
 
 
 def named(text: str) -> tuple[Named, ...]:
-    """Each name on the brief's `Skills:` line, resolved, once each and in order. A brief
-    with no line, or one that says `none`, names none."""
+    """Each name on the brief's `Skills:` line, resolved, once each and in order. A brief with
+    no line, or with a line that says `none`, names none."""
     line = _head(text)
     if not line or _none(line):
         return ()
@@ -215,8 +218,8 @@ _NAMES = "(name a skill or principle that skills.json lists, without its path, o
 
 
 def unknown(text: str) -> str:
-    """Why a brief's `Skills:` line names something that is no skill or principle, in one
-    line that names it, or nothing. A brief with no line names none, and passes."""
+    """One line on why a brief's `Skills:` line names something that is no skill or principle,
+    naming it, or nothing. A brief with no line names none, and passes."""
     line = _head(text)
     if line is None or _none(line):
         return ""
@@ -248,15 +251,15 @@ def artifacts(path: Path | None = None) -> dict[str, str]:
 
 
 def owed(name: str, table: dict[str, str] | None = None) -> str:
-    """The artifact a name owes: its own line of the map, else the default line."""
+    """The artifact that a name owes: its own line of the map, or else the default line."""
     table = artifacts() if table is None else table
     return table.get(name) or table[DEFAULT]
 
 
 def _ends() -> frozenset[str]:
-    """The labels that end a `Skills run:` section: every other field of the Result and of
-    the scout's report, read from their templates, so an artifact may hold a line such as
-    `Candidate A: ...` of its own."""
+    """The labels that end a `Skills run:` section, read from the templates of the Result and
+    of the scout's report. They are every other field of those two, so an artifact may hold
+    a line of its own such as `Candidate A: ...`."""
     return frozenset(
         found["label"]
         for name in ("result.md", "scout-report.md")
@@ -266,9 +269,9 @@ def _ends() -> frozenset[str]:
 
 
 def run(text: str) -> dict[str, str]:
-    """Every artifact the `Skills run:` sections of a brief's Results hold, by canonical
+    """Every artifact that the `Skills run:` sections of a brief's Results hold, by canonical
     name. A section ends at a `## ` heading or at another field of the Result (`_ends`). A
-    later Result's item for a name takes the place of an earlier one's."""
+    later Result's item for a name replaces an earlier one's."""
     found: dict[str, str] = {}
     inside = False
     current = ""
@@ -298,7 +301,7 @@ def run(text: str) -> dict[str, str]:
 
 
 def hollow(artifact: str) -> bool:
-    """Whether an artifact says nothing: empty, a placeholder, or a word that stands for none."""
+    """Whether an artifact says nothing: it is empty, a placeholder, or a word that means none."""
     said = artifact.strip()
     return (
         not said
@@ -309,11 +312,11 @@ def hollow(artifact: str) -> bool:
 
 
 def missing(text: str) -> tuple[str, ...]:
-    """The names on the brief's `Skills:` line its Results leave with no artifact, an empty
-    one or a placeholder, as the brief spells them and in the line's order. The match is by
-    canonical name, so `build-the-lever` in the brief and `principle-build-the-lever` under
-    `Skills run:` are one name. A name that resolves to no file is the queue's and the
-    launch's to refuse (`unknown`), and owes nothing here."""
+    """The names on the brief's `Skills:` line that its Results leave with no artifact, an
+    empty one or a placeholder, spelled as the brief spells them and in the line's order. The
+    match goes by canonical name, so `build-the-lever` in the brief and
+    `principle-build-the-lever` under `Skills run:` are one name. The queue and the launch
+    refuse a name that resolves to no file (`unknown`), so it owes nothing here."""
     have = run(text)
     return tuple(
         one.said for one in named(text) if one.path is not None and hollow(have.get(one.name, ""))
@@ -321,8 +324,8 @@ def missing(text: str) -> tuple[str, ...]:
 
 
 def shown(text: str) -> str:
-    """What the reviewer reads of the artifacts: each named skill's, as `run` reads it, or
-    that it has none. Nothing where the brief names none."""
+    """What the reviewer reads of the artifacts: the artifact of each named skill, as `run`
+    reads it, or a line that it has none. Nothing where the brief names no skill."""
     have = run(text)
     out = []
     for one in named(text):
@@ -339,8 +342,8 @@ def shown(text: str) -> str:
 
 
 def load(text: str) -> str:
-    """What the crew and scout skills print at their start: each named file in full, under
-    a line that names them, then the artifact each owes. Nothing where none is named."""
+    """What the crew and scout skills print at their start: each named file in full, under a
+    line that names them, then the artifact each owes. Nothing where no skill is named."""
     names = named(text)
     if not names:
         return ""

@@ -1,7 +1,7 @@
 """Read a home's state directory: its handoff, its plan entries, its briefs and their results.
 
-The shapes are the ones the `home`, `crew` and `handoff` skills write. Everything
-here comes from the files alone; nothing asks T3 or the forge.
+The shapes are the ones that the `home`, `crew` and `handoff` skills write. Everything here
+comes from the files alone, and nothing asks T3 or the forge.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ _PLAYBOOK = "(name a file in playbooks/, without its .md, or none)"
 @dataclass(frozen=True)
 class Entry:
     """One `## <slug>: <one line>` section of plan.md. `status` is what its `Stage:` line
-    says, or the `Status:` line of a plan from before."""
+    says, or what the `Status:` line of an older plan says."""
 
     slug: str
     title: str
@@ -89,8 +89,8 @@ class PullRequest:
 
 @dataclass(frozen=True)
 class Step:
-    """One step a Result's `Playbook:` line reports: `skip` is the reason it was not done,
-    and empty for a step that was."""
+    """One step that a Result's `Playbook:` line reports. `skip` is the reason the crewmate did
+    not do it, and is empty for a step that was done."""
 
     number: int
     skip: str = ""
@@ -98,8 +98,8 @@ class Step:
 
 @dataclass(frozen=True)
 class Steps:
-    """A Result's `Playbook:` line: the playbook's name, or `none`, and each step's report.
-    `fault` is why the line is not in the template's shape, and empty when it is."""
+    """A Result's `Playbook:` line: the playbook's name, or `none`, and the report on each step.
+    `fault` says why the line is not in the template's shape, and is empty when it is."""
 
     name: str
     steps: tuple[Step, ...] = ()
@@ -107,8 +107,8 @@ class Steps:
 
 
 def steps(said: str) -> Steps:
-    """Read what a `Playbook:` line says, the label left off: the name, then `; ` and each
-    step as `<n> done` or `<n> skip: <reason>`, numbered 1 to the last in order."""
+    """Read what a `Playbook:` line says, without its label. It holds the name, then `; ` and
+    each step as `<n> done` or `<n> skip: <reason>`, numbered in order from 1 to the last."""
     name, *parts = [part.strip() for part in said.split(";")]
     if not name or name.startswith("<"):
         return Steps(name, fault="names no playbook")
@@ -131,7 +131,7 @@ def steps(said: str) -> Steps:
 
 @dataclass(frozen=True)
 class Result:
-    """One `## Result` section a crewmate appended to its brief."""
+    """One `## Result` section that a crewmate appended to its brief."""
 
     heading: str
     text: str
@@ -156,17 +156,17 @@ class Result:
 
     @property
     def playbook(self) -> Steps | None:
-        """The steps the `Playbook:` line reports, or None for a Result with no such line."""
+        """The steps that the `Playbook:` line reports, or None for a Result with no such line."""
         found = _REPORTED.search(self.text)
         return steps(found["said"]) if found else None
 
 
 @dataclass(frozen=True)
 class Proof:
-    """A brief's `Proves it:` line: what outside the agent shows the task is done.
+    """A brief's `Proves it:` line, which says what outside the agent shows the task is done.
 
-    `kind` is the first thing it names that is not the agent's own word, and `fault` is
-    why it names nothing of the sort. One of the two is set.
+    `kind` is the first thing the line names that is not the agent's own word, and `fault`
+    says why the line names nothing of the sort. One of the two is set.
     """
 
     said: str
@@ -175,18 +175,19 @@ class Proof:
 
     @property
     def why(self) -> str:
-        """One line on why the proof does not hold, or nothing when it does."""
+        """One line on why the proof does not hold, or nothing when it holds."""
         return f"brief's Proves it: line {self.fault} {_PROVES}" if self.fault else ""
 
 
 def proof(said: str) -> Proof:
-    """Judge what a `Proves it:` line says, the label left off.
+    """Judge what a `Proves it:` line says, without its label.
 
-    Three tables are read in turn, and the first match decides. `_NAMED` is what names a
+    It reads three tables in turn, and the first match decides. `_NAMED` lists what names a
     thing outside the agent by itself: a test's path or name, a runner, a make target, CI,
-    a named judge or the user, and so is a command in backticks that names no agent. So a
-    test the crewmate runs is still a test. `_SELF` is the agent's own word. `_LOOSE` is
-    what holds only with no agent named: "the agent tests it" is the agent's word.
+    a named judge or the user. A command in backticks that names no agent counts too, so a
+    test that the crewmate runs is still a test. `_SELF` lists the agent's own word. `_LOOSE`
+    lists what holds only when no agent is named, because "the agent tests it" is the
+    agent's own word.
     """
     said = said.strip()
     if not said:
@@ -229,10 +230,11 @@ def _template(said: str) -> bool:
 
 
 def sized(text: str) -> str:
-    """Why a brief's `Size:` line names no t-shirt size, in one line, or nothing.
+    """One line on why a brief's `Size:` line names no t-shirt size, or nothing.
 
-    The size is what the feature playbook's step 4 reads to decide on a design read, so a
-    brief with no line is refused: it would count as S, as every brief did before the line.
+    Step 4 of the feature playbook reads the size to decide on a design read. So this check
+    refuses a brief with no line, which would otherwise count as S, as every brief did
+    before the line existed.
     """
     said = _head(text, "Size:")
     if said is None:
@@ -249,8 +251,8 @@ def sized(text: str) -> str:
 
 
 def crewmates(name: str) -> bool:
-    """Whether `playbooks/<name>.md` is one a brief may name: its `Run by:` line says a
-    crewmate runs it, and not the one that is never picked for a brief."""
+    """Whether a brief may name `playbooks/<name>.md`. Its `Run by:` line must say a crewmate
+    runs it, and it must not be the playbook that is never picked for a brief."""
     try:
         text = skills.where("playbook", name).read_text()
     except (LookupError, OSError):
@@ -260,17 +262,18 @@ def crewmates(name: str) -> bool:
 
 
 def playbook_named(text: str) -> str:
-    """The name a brief's, a request's or a plan's `Playbook:` line gives: the first word of
-    the first such line of its head, or nothing for a head with none or an empty one.
-    `jbus playbook` opens the file it names, and this is the one reader of the line."""
+    """The name that the `Playbook:` line of a brief, a request or a plan gives. It is the
+    first word of the first such line of its head, or nothing for a head with no such line
+    or an empty one. `jbus playbook` opens the file it names, and this function is the one
+    reader of the line."""
     said = _head(text, "Playbook:")
     return said.split()[0] if said else ""
 
 
 def playbook(text: str) -> str:
-    """Why a brief's `Playbook:` line names no playbook, in one line, or nothing.
+    """One line on why a brief's `Playbook:` line names no playbook, or nothing.
 
-    The name is the line's first word, as `jbus playbook` reads it, and it is a crewmate's
+    The name is the line's first word, as `jbus playbook` reads it. It must be a crewmate's
     file of `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
     """
     said = _head(text, "Playbook:")
@@ -298,10 +301,10 @@ _DESIGN = re.compile(r"[\w/~-]{2,}\.[A-Za-z0-9]{2,}")
 def designed(text: str) -> str:
     """Why a brief has no design call, or nothing.
 
-    The first `Design:` line of its head says it: the path of the design it was written
-    from, a file with its extension, or `none, <why>`. A `none` with no reason says
-    nothing, and neither does a word that names no file (`TBD`, `n/a`) or the template's
-    own line, left as it was.
+    The first `Design:` line of its head gives the call: the path of the design the brief
+    was written from, a file with its extension, or `none, <why>`. A `none` with no reason
+    gives no call. Neither does a word that names no file (`TBD`, `n/a`), or the template's
+    own line left unchanged.
     """
     said = _head(text, "Design:")
     if said is None:
@@ -329,10 +332,10 @@ def fields(text: str) -> list[tuple[str, list[str]]]:
     """A brief as its fields, in order: each label with the lines it holds.
 
     A line of the head (the lines above the first `## `) that starts `<Label>: ` starts a
-    field, and the text after the label is its first line. Every other line goes on with
-    the field above it, so a `Done when:` list and a re-wrapped line are one field. The
-    `# <slug>: <title>` line is `TITLE`, text above any label is the label `""`, and the
-    first `## ` and all under it are `REST`.
+    field, and the text after the label is the field's first line. Every other line
+    continues the field above it, so a `Done when:` list and a re-wrapped line each make one
+    field. The `# <slug>: <title>` line is `TITLE`, text above any label goes under the label
+    `""`, and the first `## ` and everything under it are `REST`.
     """
     found: list[tuple[str, list[str]]] = []
     head = True
@@ -359,12 +362,13 @@ _CHOICES = ("Pull request", "Review")
 
 
 def _filled(text: str, label: str) -> str:
-    """Why the brief's `<label>:` field is not filled in, in one line, or nothing.
+    """One line on why the brief's `<label>:` field is not filled in, or nothing.
 
-    Its first line, or an item of a list under it, that is still the template's whole
-    placeholder (`<...>`, its quote or list marker left off), or a field of `_CHOICES` still
-    offering its choices (`review | none`), is not filled in. A line that only starts with
-    `<` (`<200 ms`) is filled in, and so is a field with the template's notes left under it.
+    A field is not filled in when its first line, or an item of a list under it, is still
+    the template's whole placeholder (`<...>`, without its quote or list marker). A field of
+    `_CHOICES` that still offers its choices (`review | none`) is not filled in either. A
+    line that only starts with `<` (`<200 ms`) is filled in, and so is a field that still
+    has the template's notes under it.
     """
     held = [lines for name, lines in fields(text) if name == label]
     if not held:
@@ -383,10 +387,10 @@ def _filled(text: str, label: str) -> str:
 
 
 def proven(text: str) -> str:
-    """Why a brief's `Proves it:` line proves nothing, in one line, or nothing.
+    """One line on why a brief's `Proves it:` line proves nothing, or nothing.
 
-    A brief with no such line says nothing here: at a launch it was written before the line
-    was asked for, and `faults` says it is missing.
+    A brief with no such line gets nothing here. At a launch, such a brief was written
+    before the line was asked for, and `faults` says the line is missing.
     """
     found = proves_it(text)
     return found.why if found else ""
@@ -397,17 +401,17 @@ _BARE_CHECK = re.compile(r"\bmake check(?![-\w])")
 
 
 def check_command(notes: str) -> str:
-    """The repo's check command, as its notes name it on a `Check command:` line, or nothing."""
+    """The repo's check command, as the `Check command:` line of its notes names it, or nothing."""
     named = _CHECK_COMMAND.search(notes)
     return named["command"].strip() if named else ""
 
 
 def check_asked(text: str, notes: str) -> str:
-    """Why a brief's `Done when:` asks for the wrong check, in one line, or nothing.
+    """One line on why a brief's `Done when:` asks for the wrong check, or nothing.
 
     The notes name the repo's check command on a `Check command:` line. A `Done when:` item
-    that asks for a bare `make check` while that command is another one sends a crewmate to
-    run the full suite in its place.
+    that asks for a bare `make check`, while that command is another one, sends a crewmate
+    to run the full suite instead.
     """
     command = check_command(notes)
     if not command or _BARE_CHECK.fullmatch(command):
@@ -437,10 +441,10 @@ def _head_lines(text: str, label: str) -> str | None:
 
 
 def _path(word: str, ticked: bool) -> str:
-    """The path or glob a word names under the repo, or nothing.
+    """The path or glob that a word names under the repo, or nothing.
 
-    A word in backticks is one if it is a single token that is not an option, a URL or a
-    path that leaves the repo. A word between commas needs more to be told from prose: a
+    A word in backticks names one if it is a single token that is not an option, a URL or a
+    path that leaves the repo. A word between commas needs more to tell it from prose: a
     `/`, a glob, or a file extension.
     """
     if word.strip() in (".", "./"):
@@ -470,7 +474,7 @@ def _items(line: str) -> list[str]:
 
 
 def _expanded(word: str) -> tuple[str, ...]:
-    """A word with its brace sets spelled out, the innermost first: `a{b,c}.py` is two."""
+    """A word with its brace sets spelled out, the innermost first: `a{b,c}.py` gives two."""
     found = _BRACES.search(word)
     if found is None:
         return (word,)
@@ -481,14 +485,14 @@ def _expanded(word: str) -> tuple[str, ...]:
 
 
 def where(text: str) -> tuple[str, ...]:
-    """The paths and globs the head's `Where:` line names, in its order, each once.
+    """The paths and globs that the head's `Where:` line names, in its order, each once.
 
-    An item in backticks or between commas that names a path under the repo is kept. A
-    `path:line` or `path:a-b` keeps its path, a directory loses its closing `/`, and prose
-    in parentheses is dropped, commas in it included. A brace set is spelled out, so
-    `src/{a,b}.py` is two paths, and its commas do not end an item. A bare word is read
-    when it is the first of its item (`docs/ pages tied to`) or has a `/` (`plus
-    templates/x.service`). A line that names none gives an empty tuple.
+    It keeps an item in backticks or between commas that names a path under the repo. A
+    `path:line` or `path:a-b` keeps its path, a directory loses its closing `/`, and it drops
+    prose in parentheses, the commas in it included. It spells out a brace set, so
+    `src/{a,b}.py` gives two paths, and the commas of a brace set do not end an item. It
+    reads a bare word when the word is the first of its item (`docs/ pages tied to`) or has
+    a `/` (`plus templates/x.service`). A line that names no path gives an empty tuple.
     """
     line = _head_lines(text, "Where")
     if line is None:
@@ -508,7 +512,7 @@ def where(text: str) -> tuple[str, ...]:
 
 
 def _glob(pattern: str) -> re.Pattern[str]:
-    """A glob as a regex over a whole path: `*` stays in a name, `**` crosses `/`."""
+    """A glob as a regex over a whole path. A `*` matches within one name, and `**` crosses `/`."""
     out, at = "", 0
     while at < len(pattern):
         if pattern.startswith("**/", at):
@@ -525,7 +529,7 @@ def _glob(pattern: str) -> re.Pattern[str]:
 
 
 def covers(patterns: tuple[str, ...], path: str) -> bool:
-    """Whether a changed file is one of the paths and globs `where` gave, or is under one.
+    """Whether a changed file is one of the paths and globs that `where` gave, or is under one.
     `.` is the whole repo."""
     if "." in patterns:
         return True
@@ -535,9 +539,9 @@ def covers(patterns: tuple[str, ...], path: str) -> bool:
 
 
 def wheres(text: str) -> str:
-    """Why a brief's `Where:` line names no path, in one line with the line, or nothing.
+    """One line on why a brief's `Where:` line names no path, with the line, or nothing.
 
-    A brief with no line, or with the template's own text, is left to `_filled`.
+    `_filled` handles a brief with no line, or with the template's own text.
     """
     line = _head_lines(text, "Where")
     if line is None or _filled(text, "Where") or where(text):
@@ -562,11 +566,11 @@ _SAYS_MISSING = ("Design", "Size", "Skills")
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
-    It is each field `REQUIRED` filled in, then, for a field that is, every check of it
-    (`CHECKS`). `Design`, `Size` and `Skills` are left to their checks, which say when the
-    line is missing or, for `Skills`, that a brief with none names no skill. A brief with no
-    fault is complete. It runs when a row is first queued and not again at a launch: a brief
-    with a go is grandfathered (`jbus.queue`).
+    It checks that each field of `REQUIRED` is filled in, then runs every check of each
+    filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their checks, which
+    say when the line is missing, or, for `Skills`, that a brief with none names no skill. A
+    brief with no fault is complete. The check runs when a row is first queued and not again
+    at a launch, so a brief that already has a go is grandfathered (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []
@@ -581,7 +585,7 @@ def faults(text: str) -> list[str]:
 
 @dataclass(frozen=True)
 class Brief:
-    """One `tasks/<slug>.md`: the brief the home wrote, then the crewmate's results."""
+    """One `tasks/<slug>.md`: the brief that the home wrote, then the crewmate's results."""
 
     slug: str
     title: str

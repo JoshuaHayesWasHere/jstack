@@ -1,8 +1,7 @@
 """Render the homes as one HTML page.
 
-The page is a single file: the only things it fetches are DaisyUI and Tailwind
-from the CDN, and its one script copies a thread's id. Every word that comes
-from a state file is escaped on the way in.
+The page is a single file. It fetches only DaisyUI and Tailwind from the CDN, and its one
+script copies a thread's id. The renderer escapes every word that comes from a state file.
 """
 
 from __future__ import annotations

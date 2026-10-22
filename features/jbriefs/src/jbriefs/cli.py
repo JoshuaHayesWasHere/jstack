@@ -12,7 +12,7 @@ DEFAULT_STATE = Path.home() / ".local" / "state" / "home"
 
 
 def default_out() -> Path:
-    """Under the cache, never the state directory: the homes own that."""
+    """A path under the cache, never in the state directory, which belongs to the homes."""
     cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
     return Path(cache) / "jbriefs" / "briefs.html"
 

@@ -1,53 +1,57 @@
-"""A brief's review findings and the crew's answers to them: the one parser.
+"""A brief's review findings and the crew's answers to them. This module is their one parser.
 
-Every `## Review` section of a brief, one from each reviewer the role map lists and one
-for each later pass, holds a list of findings under `Findings:` and the ones its lead
-dismissed under `Dismissed:`. A finding line is the one pr-review's `templates/review.md` gives,
+A brief has one `## Review` section from each reviewer the role map lists, and one more for
+each later pass. Each section lists findings under `Findings:` and lists the ones its lead
+dismissed under `Dismissed:`. A finding line has the shape that pr-review's
+`templates/review.md` gives,
 
     - <severity> <file>:<line> <what is wrong> (principle: <name>) (bucket: Act on)
 
-with an optional `(risk: <area>)` tag, and a dismissed one ends `(dismissed: <reason>)`.
-A line with no `(bucket: ...)` tag was written before buckets were (`Raised.legacy`).
+with an optional `(risk: <area>)` tag. A dismissed line ends `(dismissed: <reason>)`. A line
+with no `(bucket: ...)` tag dates from before the buckets existed (`Raised.legacy`).
 
-`triage` reads them all into `Finding`s, each with an id, `F1`, `F2`, ..., given in the
-order the lines stand in the brief. Reviewers write no id: two of them write at once and
-would take the same one. The brief only grows, and a line takes the id of an earlier
-finding or the next one, so a finding keeps its id whatever is written after it. Two
-reviewers' findings of one head are one finding (`_same`): the same file, lines at most
-`NEAR` apart, the same principle, both raised. A finding one reviewer raised and another
-dismissed there is kept as two, the dismissal printed beside it (`Finding.contradicts`).
-A reviewer is its `By:` line, whose last word is its number, `#<n>`, the line of the role
-map's review list it was launched for: two reviewers of one model are two (`Section.seat`).
-The `Reviewer:` lines say whom a round waits for (`Roster`): once one carries its number, the
-numbered ones alone, and the unnumbered lines before them are a launch they replaced.
-A section a reviewer wrote again at the same head takes the place of its earlier one: which
-lines merge is decided as if it had not, so no id moves, and a finding every line of which is
-in such a section keeps its id and counts for nothing (`Finding.superseded`).
+`triage` reads them all into `Finding`s. It gives each an id, `F1`, `F2`, ..., in the order
+the lines appear in the brief. Reviewers write no id, because two of them write at once and
+would take the same one. The brief only grows, and a line takes the id of an earlier finding
+or the next free one, so a finding keeps its id whatever the brief adds after it. `_same`
+merges two reviewers' findings of one head into one finding when they name the same file,
+lines at most `NEAR` apart, and the same principle, and both raised it. When one reviewer
+raised a finding and another dismissed it there, `triage` keeps the two apart and prints the
+dismissal beside the finding (`Finding.contradicts`). The `By:` line names a reviewer. Its
+last word is the reviewer's number, `#<n>`, the line of the role map's review list that the
+reviewer was launched for, so two reviewers of one model count as two (`Section.seat`). The
+`Reviewer:` lines say whom a round waits for (`Roster`). Once one of them carries a number,
+the round waits for the numbered lines alone, and the unnumbered lines before them are a
+launch that the numbered ones replaced. When a reviewer writes a section again at the same
+head, the new section takes the place of the earlier one. `triage` merges lines as if the
+earlier section were still there, so no id moves. A finding whose every line is in such a
+replaced section keeps its id and counts for nothing (`Finding.superseded`).
 
 The crew answers by id, `Finding F2: fixed, ...` or `Finding F2: not fixed, ..., because
-<reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from
-before the ids answered: such answers go, in order, to the findings with no bucket that have
-no answer by id, as the crew's count matched them. Only an **Act on** finding blocks a
-merge, and one from before the buckets does, as every finding did, and so does a finding on
-one of `RISKS`, whatever its bucket. Its decline counts only
-with a reason that cites a `path:line`, a command in backticks, or a gate the Result names
-(`Gate: question <n>`); a reason given for an earlier finding is refused; and a finding on
-one of `RISKS` declined counts only on a gate, which asks the user with the default "fix
-it". Severity is a field and decides nothing.
+<reason>` (`ANSWER`). An answer with no id, `Finding: fixed, ...`, is how a brief from before
+the ids answered. Such answers go, in order, to the findings with no bucket and no answer by
+id, as the crew's count matched them. Only an **Act on** finding blocks a merge. A finding
+from before the buckets blocks too, as every finding did then, and so does a finding on one
+of `RISKS`, whatever its bucket. A decline of a blocking finding counts only when its reason
+cites a `path:line`, a command in backticks, or a gate that the Result names
+(`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier finding.
+A decline of a finding on one of `RISKS` counts only on a gate, which asks the user with the
+default "fix it". Severity is a field and decides nothing.
 
-A blocking finding the crew declined by id is ruled on by the scoped pass, a section with a
-`Scope:` line: `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the disproof>` for
-each it does not uphold (`Ruling`). The last ruling of an id is its word, and one not upheld
-stands until the crew answers the finding `fixed`: a decline written again after it is still
-not upheld (`Finding.state`). A scoped section its reviewer wrote again at the same head
-rules on nothing: the section that took its place is the whole word, so a scoped pass
-rules on every blocking decline, an earlier ruling included. A scoped section is a pass of
-its own, so at the head of the first review it takes the place of no section but another
-scoped one by the same reviewer.
+The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the
+crew declined by id. It writes `Declines: upheld F2, F4`, and
+`Declines: not upheld F3: <the disproof>` for each decline it does not uphold (`Ruling`).
+The last ruling of an id is the one that counts. A decline that the pass did not uphold
+stays overruled until the crew answers the finding `fixed`, and a decline written again
+after the ruling is still not upheld (`Finding.state`). A scoped section that its reviewer
+wrote again at the same head rules on nothing, because the section that took its place says
+all that pass says. So a scoped pass rules on every blocking decline, those with an earlier
+ruling included. A scoped section is a pass of its own: at the head of the first review it
+takes the place of no section but another scoped one by the same reviewer.
 
-`jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its
-second pass (`jbriefs --findings --left` and `--rounds`) and jbus's ask (`expedite`) read
-the brief through this module and nowhere else.
+`jmerge` (`ready.said_of`, `short_of`), the crew skill's count of the findings and its second
+pass (`jbriefs --findings --left` and `--rounds`), and jbus's ask (`expedite`) read the brief
+through this module and nowhere else.
 """
 
 from __future__ import annotations
@@ -111,7 +115,7 @@ class Raised:
 
 @dataclass(frozen=True)
 class Ruling:
-    """What a scoped pass said of one decline: upheld, or not upheld for `why`."""
+    """What a scoped pass said of one decline: upheld, or not upheld because of `why`."""
 
     upheld: bool
     why: str = ""
@@ -119,11 +123,12 @@ class Ruling:
 
 @dataclass(frozen=True)
 class Section:
-    """One `## Review` section: who wrote it, its verdict's first word, its head, the
-    findings it lists (`found` counts them) and the ones it dismissed. `scoped` is a scoped
-    pass, which has a `Scope:` line, `rulings` its word on each decline by id, and `line`
-    the index of its heading among the brief's lines. `by` is the whole `By:` text, the
-    number included, and `seat` that number, or None for a `By:` line with none."""
+    """One `## Review` section: who wrote it, the first word of its verdict, its head, the
+    findings it lists (`found` counts them) and the ones it dismissed. `scoped` is true for a
+    scoped pass, which has a `Scope:` line, and `rulings` holds that pass's ruling on each
+    decline by id. `line` is the index of the section's heading among the brief's lines.
+    `by` is the whole `By:` text, the number included, and `seat` is that number, or None for
+    a `By:` line that has no number."""
 
     by: str = ""
     verdict: str = ""
@@ -146,9 +151,10 @@ _SEAT = re.compile(r"\s#(\d+)$")
 
 @dataclass(frozen=True)
 class Legacy:
-    """A brief none of whose `Reviewer:` lines carries a number, read as before the numbers:
-    `named` lines that name a thread, against the distinct `By:` texts of the sections, and
-    only where more than one is named."""
+    """A brief in which no `Reviewer:` line carries a number, read as briefs were read before
+    the numbers. `named` holds the lines that name a thread. The round waits for them only
+    where more than one is named, and counts them against the distinct `By:` texts of the
+    sections."""
 
     named: int
 
@@ -166,11 +172,12 @@ class Legacy:
 
 @dataclass(frozen=True)
 class Numbered:
-    """A brief with a `Reviewer: <threadId> #<n>` line: the round waits for each number
-    those lines name, a set, so a seat launched again does not count twice. The unnumbered
-    `Reviewer:` lines are a launch these replaced and are waited on no more, and the
-    sections with no number are not the round's word: their findings still need their
-    answers. A seat is written by a section that carries its number, at any head."""
+    """A brief with a `Reviewer: <threadId> #<n>` line. The round waits for each number that
+    those lines name. The numbers are a set, so a seat launched again does not count twice.
+    The unnumbered `Reviewer:` lines are a launch that the numbered ones replaced, and the
+    round no longer waits for them. The sections with no number do not count as the round's
+    word, but their findings still need answers. A section that carries a seat's number
+    fills that seat, at any head."""
 
     seats: frozenset[int]
 
@@ -189,7 +196,7 @@ Roster = Legacy | Numbered
 
 
 def roster(text: str) -> Roster:
-    """Whom the round waits for, from the `Reviewer:` lines that name a thread."""
+    """Whom the round waits for, read from the `Reviewer:` lines that name a thread."""
     named = [
         line.strip()
         for line in text.splitlines()
@@ -201,7 +208,7 @@ def roster(text: str) -> Roster:
 
 @dataclass(frozen=True)
 class Answer:
-    """The crew's answer to a finding: fixed, or not fixed for `reason`."""
+    """The crew's answer to a finding: fixed, or not fixed because of `reason`."""
 
     fixed: bool
     what: str
@@ -211,8 +218,8 @@ class Answer:
 
 @dataclass
 class Finding:
-    """One finding of the triaged list, with its id: the lines that raised it, one per
-    reviewer, and the answer it has."""
+    """One finding of the triaged list, with its id, the lines that raised it (one per
+    reviewer), and the answer it has."""
 
     id: str
     raised: list[Raised]
@@ -233,12 +240,12 @@ class Finding:
 
     @property
     def standing(self) -> list[Raised]:
-        """The lines that raised it in sections that stand, or all of them where none does."""
+        """The lines that raised it in sections that still count, or all of them where none does."""
         return [one for one in self.raised if one.section not in self.stale] or self.raised
 
     @property
     def superseded(self) -> bool:
-        """Whether every line that raised it is in a section its reviewer wrote again."""
+        """Whether every line that raised it is in a section that its reviewer wrote again."""
         return all(one.section in self.stale for one in self.raised)
 
     @property
@@ -271,14 +278,15 @@ class Finding:
 
     @property
     def sent(self) -> bool:
-        """Whether the crew was sent it, and owes it an answer: a finding of a section that
-        stands, in the list the reviewer sends."""
+        """Whether the crew was sent the finding and owes it an answer. The reviewer sends the
+        findings of a section that still counts."""
         return not self.superseded and self.bucket in SENT
 
     @property
     def blocks(self) -> bool:
-        """Whether it holds the merge until it is answered: an Act on finding, which every
-        finding from before the buckets is, and a finding on one of `RISKS` in any bucket."""
+        """Whether it holds the merge until the crew answers it. An Act on finding holds it, as
+        every finding from before the buckets does, and so does a finding on one of `RISKS`
+        in any bucket."""
         return self.sent and (self.bucket == ACT_ON or bool(self.risk))
 
     @property
@@ -291,10 +299,10 @@ class Finding:
 
     @property
     def state(self) -> str:
-        """Where a blocking finding stands: `open` until an answer counts, then `fixed`, or
-        for a decline by id `unruled` until a scoped pass rules on it, then `upheld` or
-        `overruled`. A finding that does not block, or one answered with no id, is `fixed`
-        once it has an answer that counts: nothing rules on it."""
+        """The state of a blocking finding. It is `open` until an answer counts, and then
+        `fixed`. A decline by id is `unruled` until a scoped pass rules on it, and then
+        `upheld` or `overruled`. A finding that does not block, or one answered with no id,
+        is `fixed` once it has an answer that counts, because nothing rules on it."""
         if not self.ended:
             return OPEN
         if self.answer.fixed or not self.answer.by_id or not self.blocks:
@@ -315,21 +323,21 @@ class Triage:
     roster: Roster = field(default_factory=lambda: Legacy(0))
 
     def blocking(self) -> tuple[Finding, ...]:
-        """The findings that hold the merge: each Act on finding with no answer that
-        counts, in the order of their ids."""
+        """The findings that hold the merge, each Act on finding with no answer that counts, in
+        the order of their ids."""
         return tuple(one for one in self.findings if one.blocks and not one.ended)
 
     def sent(self) -> list[Finding]:
         return [one for one in self.findings if one.sent]
 
     def declines(self, state: str) -> tuple[Finding, ...]:
-        """The blocking findings in `state`, `UNRULED` or `OVERRULED`, in the order of their
-        ids."""
+        """The blocking findings whose `state` is `UNRULED` or `OVERRULED`, in the order of
+        their ids."""
         return tuple(one for one in self.findings if one.blocks and one.state == state)
 
 
 def _tags(text: str) -> tuple[str, dict[str, str]]:
-    """The text of a finding line with its tags taken off its end, and the tags."""
+    """The text of a finding line with the tags taken off its end, and the tags."""
     tags: dict[str, str] = {}
     text = text.rstrip()
     while text.endswith(")"):
@@ -350,7 +358,7 @@ def _bucket(said: str | None, dismissed: bool) -> str:
 
 
 def _raised(text: str, section: int, by: str, head: str, dismissed: bool) -> Raised:
-    """One line of a section's list, past its `- `."""
+    """One line of a section's list, after its `- `."""
     rest, tags = _tags(text)
     if dismissed and "dismissed" not in tags:
         what, _, reason = rest.rpartition(": ")
@@ -376,10 +384,10 @@ def _raised(text: str, section: int, by: str, head: str, dismissed: bool) -> Rai
 
 
 def _sections(text: str) -> list[Section]:
-    """Each `## Review` section, as the crew's count and `jmerge` read it: its list runs
-    from `Findings:` to `Dropped:` or the next heading, a line in it that starts `- ` and is
-    not `- none` is a finding, and the lines under `Dismissed:` that start `- ` are its
-    dismissed findings."""
+    """Each `## Review` section, read as the crew's count and `jmerge` read it. Its list runs
+    from `Findings:` to `Dropped:` or the next heading. A line in the list that starts `- `
+    and is not `- none` is a finding, and the lines under `Dismissed:` that start `- ` are
+    its dismissed findings."""
     found: list[dict] = []
     listing = dismissing = False
     for at, line in enumerate(text.splitlines()):
@@ -446,9 +454,10 @@ def _sections(text: str) -> list[Section]:
 
 
 def _near(one: Raised, other: Raised) -> int | None:
-    """How far apart two findings of one place are, or None where they are not of one place:
-    the same file, both of a line at most `NEAR` apart or both of the file as a whole, and
-    the same principle, which a finding tagged `none` has with nothing."""
+    """How far apart two findings of one place are, or None when they are not of one place.
+    Two findings are of one place when they name the same file, both name lines at most
+    `NEAR` apart or both name the whole file, and both name the same principle. A finding
+    tagged `none` shares its principle with no other."""
     if one.path in ("", "-") or one.path != other.path:
         return None
     if not one.category or one.category.lower() == "none" or one.category != other.category:
@@ -460,9 +469,10 @@ def _near(one: Raised, other: Raised) -> int | None:
 
 
 def _same(finding: Finding, one: Raised) -> int | None:
-    """How far `one` is from a finding it would be merged into, or None where it is not:
-    another reviewer's finding of the same head and place, both raised and both written
-    with a bucket, and one line from each reviewer at most."""
+    """How far `one` is from a finding it would merge into, or None when it would merge into
+    none. It merges into another reviewer's finding of the same head and place when both
+    were raised, both carry a bucket, and the merged finding holds at most one line from each
+    reviewer."""
     lead = finding.lead
     if lead.legacy or one.legacy or not one.head:
         return None
@@ -478,8 +488,8 @@ def _same(finding: Finding, one: Raised) -> int | None:
 
 
 def _superseded(sections: list[Section]) -> set[int]:
-    """The sections a later one by the same reviewer at the same head, and of the same kind,
-    a scoped pass or not, took the place of."""
+    """The sections that a later section took the place of. The later one has the same
+    reviewer, the same head, and the same kind, a scoped pass or not."""
     last = {(one.by, one.head, one.scoped): n for n, one in enumerate(sections) if one.by}
     return {
         number
@@ -489,7 +499,7 @@ def _superseded(sections: list[Section]) -> set[int]:
 
 
 def _answers(text: str) -> tuple[dict[str, Answer], list[Answer]]:
-    """The answers by id, the last for each id, and the answers with no id, in order."""
+    """The last answer for each id, and the answers with no id, in order."""
     by_id: dict[str, Answer] = {}
     old: list[Answer] = []
     for line in text.splitlines():
@@ -508,9 +518,9 @@ def _answers(text: str) -> tuple[dict[str, Answer], list[Answer]]:
 
 
 def _judge(findings: list[Finding], text: str) -> None:
-    """Refuse the answers that do not count: an Act on finding's decline that cites
-    nothing, that gives an earlier finding's reason, or that leaves a risky finding with no
-    gate. An answer with no id, to a finding from before the ids, is read as it was."""
+    """Refuse the answers that do not count. A decline of an Act on finding does not count
+    when it cites nothing, gives an earlier finding's reason, or leaves a risky finding with
+    no gate. An answer with no id, to a finding from before the ids, is read as it was then."""
     gates = set(re.findall(r"Gate: question (\d+)\b", text))
     given: dict[str, str] = {}
     for one in findings:
@@ -532,7 +542,8 @@ def _judge(findings: list[Finding], text: str) -> None:
 
 
 def triage(text: str) -> Triage:
-    """The brief's findings, merged, given their ids, contradicted and answered."""
+    """The brief's findings, merged, given their ids, set beside their contradictions, and
+    answered."""
     sections = _sections(text)
     stale = _superseded(sections)
     findings: list[Finding] = []
@@ -576,8 +587,8 @@ def triage(text: str) -> Triage:
 
 
 def listed(said: Triage) -> list[str]:
-    """The triaged list as `jbriefs --findings` prints it: each finding by id, a dismissal
-    that contradicts one beside it, and under each who raised it and its answer."""
+    """The triaged list as `jbriefs --findings` prints it. It prints each finding by id, a
+    dismissal that contradicts it beside it, and under each one who raised it and its answer."""
     beside: dict[str, list[Finding]] = {}
     for one in said.findings:
         if one.contradicts:
@@ -624,10 +635,10 @@ def _shown(one: Finding) -> list[str]:
 
 
 def left(said: Triage) -> str:
-    """What the crew is to do next with the findings, the one line its count prints: wait
-    for a reviewer, answer the findings that have no answer, or write the `Fixed:` line it
-    names. The findings of the last round, the sections at the head of the last one, are the
-    ones a fix answers."""
+    """The one line that the crew's count prints, which says what the crew does next with the
+    findings. It waits for a reviewer, answers the findings that have no answer, or writes the
+    `Fixed:` line that the line names. A fix answers the findings of the last round, the
+    sections at the head of the last section."""
     sent = said.sent()
     if not said.sections:
         return "wait: the review is not written in the brief yet"
@@ -678,9 +689,10 @@ def _last_round(said: Triage) -> set[int]:
 
 
 def rounds(said: Triage) -> str:
-    """What the crew's second pass reads of the review, one line: how many sections ran, the
-    head the last of them saw, every head a section names, and the blocking declines no
-    scoped pass has ruled on, each list joined by commas, or `-` for none."""
+    """The one line that the crew's second pass reads of the review. It gives how many sections
+    ran, the head the last of them saw, every head a section names, and the blocking declines
+    that no scoped pass has ruled on. It joins each list with commas, and writes `-` for an
+    empty one."""
     ran = [one for one in said.sections if one.ran]
     saw = next((one.head for one in reversed(ran) if one.head), "-")
     heads = ",".join(dict.fromkeys(one.head for one in said.sections if one.head)) or "-"
