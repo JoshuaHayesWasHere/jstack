@@ -15,7 +15,7 @@ from testing.layouts import assembled
 from testing.paths import REPO
 
 THREAD = "mcp:thread-one"
-SCANNED = ["features", ".cursor", "install.sh"]
+SCANNED = ["features", "install.sh"]
 NAMED = r"[^\s|;&<>()]*home-thread"
 WRITES = [
     re.compile(rf"(?<!\w)>>?\s*{NAMED}"),

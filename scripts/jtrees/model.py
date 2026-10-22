@@ -62,6 +62,7 @@ class Feature:
     hooks: tuple[Hook, ...] = ()
     status_line: str = ""
     git_hooks: tuple[tuple[str, str], ...] = ()
+    project_skills: tuple[tuple[str, str], ...] = ()
     nameable: tuple[str, ...] = ()
 
     @property

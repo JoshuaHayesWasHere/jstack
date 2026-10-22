@@ -73,6 +73,12 @@ Preconditions:
 - **Uninstall.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --uninstall`. Every line starts with `removed`, and it exits 0. Run it again: it prints nothing.
 - **Proof.** Run `record install-skills sh -c '(cd "$HOME" && find . | sort) | diff "$VERIFY_JSTACK_SANDBOX/before.txt" -'`. It prints nothing and exits 0. The `record` file holds every line of each run.
 
+The checkout's own skills, from a clone inside the sandbox's HOME, since a run under a HOME that is not yours links none into a checkout outside it:
+
+- Clone and install: run `git clone -q "$VERIFY_JSTACK_REPO" "$HOME/jstack" && cd "$HOME/jstack"`, then `record project-skills sh install.sh`.
+- See each project skill resolve: `record project-skills sh -c 'readlink -f .claude/skills/verify-jstack/SKILL.md .claude/skills/verify-main-red/SKILL.md .cursor/skills/verify-jstack/SKILL.md'` prints each one's `SKILL.md` in its feature's folder.
+- See git track none of it: `record project-skills git ls-files .claude .cursor` prints nothing, and `git status --short --ignored .claude .cursor` prints `!! .claude/` and `!! .cursor/`.
+
 From a wheel, in a second sandbox, so that no checkout is above its HOME or its tool:
 
 - **Build and install the wheel.** Run `record install-skills uv build --wheel --out-dir "$VERIFY_JSTACK_SANDBOX/dist" "$VERIFY_JSTACK_REPO"`, then `record install-skills uv tool install "$VERIFY_JSTACK_SANDBOX"/dist/*.whl`. The tool's commands land in `$HOME/.local/bin`.

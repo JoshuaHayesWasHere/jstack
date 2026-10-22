@@ -17,7 +17,7 @@ import pytest
 from testing.paths import REPO
 
 SCRIPTS = REPO / "features" / "verify-jstack" / "project-skill" / "scripts"
-PAGES = REPO / ".claude" / "skills" / "verify-jstack" / "features"
+PAGES = REPO / "testing" / "verify"
 BUILT = Path(sys.executable).parent
 FEATURES = sorted(
     [path.stem for path in PAGES.glob("*.md") if path.stem != "README"]

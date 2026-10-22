@@ -21,7 +21,7 @@ Paths:
 Tests: none
 
 The red wait itself, `main.json` as `mainmoved.tell` writes it and `rows.red` reads it, is checked over every order of events by `features/jbus/tests/test_main_red_model.py`, which its imports select.
-`.cursor/skills/verify-main-red/SKILL.md` says how to run it and read what it finds.
+`features/jbus/project-skill/verify-main-red/SKILL.md`, which the install links as the checkout's `.claude/skills/verify-main-red` and `.cursor/skills/verify-main-red`, says how to run it and read what it finds.
 
 ## Sub-features
 

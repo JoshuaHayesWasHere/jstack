@@ -1,7 +1,7 @@
 # jstack verification map
 
 This page is the index for verifying what a user of jstack can see.
-The feature files are each feature's `features/<name>/verify.md`, and the pages still in `.claude/skills/verify-jstack/features/`.
+The feature files are each feature's `features/<name>/verify.md`, and the pages of the shared test tooling in `testing/verify/`.
 Read this index before a drive, then use the matching feature file as the recipe.
 
 ## Baseline preconditions
@@ -67,7 +67,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 These have their `Paths:` and `Tests:` lines and no recipe yet:
 
-- [The check CI runs](../../../.claude/skills/verify-jstack/features/ci-check.md), not driven yet.
+- [The check CI runs](../../../testing/verify/ci-check.md), not driven yet.
 - [A crewmate does one task](../../../features/crew/verify.md), not driven yet.
 - [The pages under docs](../../../features/repo-guards/verify.md), not driven yet.
 - [The evals](../../../features/evals/verify.md), not driven yet.

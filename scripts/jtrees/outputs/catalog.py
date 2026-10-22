@@ -35,7 +35,9 @@ COMMENT = (
     "THIRD_PARTY.md says what each took and what changed. hooks: each hook script, the "
     "harnesses that run it, which the install links into each harness's layout, and each "
     "settings entry the install writes for it. statusLine: the script the install sets as "
-    "Claude Code's status line. gitHooks: each hook the install links into a main checkout."
+    "Claude Code's status line. gitHooks: each hook the install links into a main checkout. "
+    "projectSkills: each skill of this repo's own, which the install links into a checkout's "
+    ".claude/skills and .cursor/skills by its name."
 )
 _UPSTREAM_SKILL = re.compile(r"pstack/skills/(?P<name>[^/]+)/SKILL\.md")
 
@@ -127,11 +129,23 @@ def git_hooks(tree: Tree) -> list[dict[str, str]]:
     ]
 
 
+def project_skills(tree: Tree) -> list[dict[str, str]]:
+    """Each project skill a feature declares, by name, which the install links into the
+    checkout's `.claude/skills/<name>` and `.cursor/skills/<name>`."""
+    found = [
+        {"name": name, "path": path}
+        for feature in tree.features
+        for name, path in feature.project_skills
+    ]
+    return sorted(found, key=lambda one: one["name"])
+
+
 def text(tree: Tree) -> bytes:
     listed: dict[str, object] = {"$comment": COMMENT, "items": entries(tree), "hooks": hooks(tree)}
     line = status_line(tree)
     listed |= {"statusLine": line} if line else {}
     listed["gitHooks"] = git_hooks(tree)
+    listed["projectSkills"] = project_skills(tree)
     return (json.dumps(listed, indent=2) + "\n").encode()
 
 

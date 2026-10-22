@@ -1,1 +1,0 @@
-../../../features/jbus/project-skill/verify-main-red/SKILL.md
