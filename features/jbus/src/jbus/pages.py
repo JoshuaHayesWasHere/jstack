@@ -2,10 +2,10 @@
 
 Run in this repo's root, it writes the built part of one page: the text between
 `<!-- built: events -->` and the `<!-- built: end -->` after it, in
-`features/jbus/docs/jbus/events-and-the-webhook.md`, the table of the kinds of event, one row a level, its
-kinds sorted, read off `wake.LOUDNESS`. The rest of the page is hand-written and is left as it
-is. A second run changes nothing. The index of `features/jbus/docs/jbus.md` is written from the tree by
-`scripts/generate-jstack-trees.py`, which needs no import of jbus.
+`features/jbus/docs/jbus/events-and-the-webhook.md`, the table of the kinds of event, one row a
+level, its kinds sorted, read off `wake.LOUDNESS`. The rest of the page is hand-written and is left
+as it is. A second run changes nothing. The index of `features/jbus/docs/jbus.md` is written from
+the tree by `scripts/generate-jstack-trees.py`, which needs no import of jbus.
 
 With `--check` it writes nothing, says whether a committed page is behind the tree, and exits
 1 when one is.

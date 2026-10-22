@@ -1,7 +1,7 @@
 """`jbus.threads` carries what a thread could not: findings the reviewer could not deliver go
 to the brief's thread once, an open pull request is linked to its thread, and the threads of
 a finished task, and a scout's once its page is done with, are settled once each. Run as
-`features/jbus/tests/test_jbus_kitchen.py` runs: the real pass, against the fakes.
+`test_jbus_kitchen.py` runs: the real pass, against the fakes.
 """
 
 import hashlib

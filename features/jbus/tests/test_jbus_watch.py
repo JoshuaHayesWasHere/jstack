@@ -1,6 +1,6 @@
 """`jbus.watch` reads what changed since the last pass: a merge, a thread past its time or
 ended with no Result, a check on main that failed or was cancelled, a revert, and a
-condition jbus cannot judge, each said once. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the
+condition jbus cannot judge, each said once. Run as `test_jbus_kitchen.py` runs: the
 real pass, against the fakes.
 """
 
@@ -469,8 +469,8 @@ def test_a_red_tip_that_turns_green_leaves_its_row_and_says_so_once(kitchen):
 
 BROWSER_JOB = "https://example.test/o/r/actions/runs/88/job/911"
 BROWSER_LOG = (
-    "2026-10-18T07:09:02.0000000Z FAILED features/jbus/tests/test_jbus_view_page.py::test_one - AssertionError\n"
-    "2026-10-18T07:09:02.0000000Z FAILED features/jbus/tests/test_jbus_view_page.py::test_two[desk] - KeyError\n"
+    "2026-10-18T07:09:02.0000000Z FAILED tests/test_jbus_view_page.py::test_one - AssertionError\n"
+    "2026-10-18T07:09:02.0000000Z FAILED tests/test_jbus_view_page.py::test_two[desk] - KeyError\n"
     "2026-10-18T07:09:03.0000000Z ===== 2 failed, 92 passed in 400.00s =====\n"
 )
 
@@ -511,9 +511,9 @@ def test_a_red_browser_run_files_one_unapproved_brief_naming_its_failed_tests(ki
     text = brief.read_text()
     for said in (
         BROWSER_JOB,
-        "features/jbus/tests/test_jbus_view_page.py::test_one",
-        "features/jbus/tests/test_jbus_view_page.py::test_two[desk]",
-        "\nWhere: `features/jbus/tests/test_jbus_view_page.py`\n",
+        "tests/test_jbus_view_page.py::test_one",
+        "tests/test_jbus_view_page.py::test_two[desk]",
+        "\nWhere: `tests/test_jbus_view_page.py`\n",
         "\nPlaybook: bug-fix\n",
         "\nSize: S\n",
         "https://example.test/o/r/actions/runs/88",
@@ -630,7 +630,7 @@ def test_a_run_whose_log_or_jobs_github_would_not_give_is_filed_on_a_later_pass_
     kitchen.set("logs.json", {"911": BROWSER_LOG})
     kitchen.poll(NOW + timedelta(minutes=3))
     text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
-    assert "features/jbus/tests/test_jbus_view_page.py::test_one" in text
+    assert "tests/test_jbus_view_page.py::test_one" in text
 
 
 def test_a_run_whose_log_stays_unreadable_for_an_hour_is_filed_without_names(kitchen):

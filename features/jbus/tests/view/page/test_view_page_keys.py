@@ -54,7 +54,7 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
     assert seen["stack"]["shown"], "the glossary is over every project"
 
 
-AXE = REPO / "tests" / "fixtures" / "jbus-view"
+AXE = REPO / "features" / "jbus" / "tests" / "fixtures" / "jbus-view"
 
 
 AXE = (AXE / "axe.min.js").read_text() + "\n" + (AXE / "axe-run.js").read_text()

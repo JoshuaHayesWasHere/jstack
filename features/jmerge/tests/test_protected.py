@@ -62,7 +62,7 @@ GUARDED_PATHS = [
         "features/jmerge/src/jmerge/ci-paths.txt",
         "src/jmerge/ready.py",
     ),
-    ("features/jbus/src/jbus/", "features/jbus/src/jbus/dispatch.py", "src/jbusx.py"),
+    ("src/jbus/", "src/jbus/dispatch.py", "src/jbusx.py"),
     ("skills/", "skills/home/SKILL.md", "skills.md"),
     ("skills/", "plugins/one/skills/x.md", "myskills/home/SKILL.md"),
 ]
@@ -132,8 +132,8 @@ def test_each_guarded_pattern_names_its_path_and_holds_nothing(pattern, guarded,
 
 
 OTHER_SHAPES = [
-    ("features/jbus/src/jbus/merge.py", "features/jbus/src/jbus/merge.py", "docs/src/jbus/merge.py"),
-    ("features/jbus/src/jbus/merge.py", "features/jbus/src/jbus/merge.py", "features/jbus/src/jbus/merge.py/x"),
+    ("src/jbus/merge.py", "src/jbus/merge.py", "docs/src/jbus/merge.py"),
+    ("src/jbus/merge.py", "src/jbus/merge.py", "src/jbus/merge.py/x"),
     ("deploy/*.yml", "deploy/prod.yml", "deploy/envs/prod.yml"),
     ("deploy/*.yml", "deploy/a.yml", "docs/deploy/a.yml"),
     ("/Makefile", "Makefile", "docs/Makefile"),

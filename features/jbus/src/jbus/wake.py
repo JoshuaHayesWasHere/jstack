@@ -736,7 +736,8 @@ class Pass:
     ) -> subprocess.CompletedProcess[str]:
         """Run a command in the project's main checkout. One that is missing, or outlasts
         `timeout` seconds, fails like any. `JMERGE_TIMEOUT` is jmerge's: over the fresh
-        check's own limit and under the unit's TimeoutStartSec (`features/jbus/tests/test_jbus.py`)."""
+        check's own limit and under the unit's TimeoutStartSec
+        (`features/jbus/tests/test_jbus.py`)."""
         try:
             return subprocess.run(
                 command, cwd=self.project.checkout, capture_output=True, text=True, timeout=timeout

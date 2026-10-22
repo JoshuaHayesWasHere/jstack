@@ -330,7 +330,7 @@ def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_chec
         env={
             **os.environ,
             "H": str(fix.state),
-            "T": str(REPO / "templates"),
+            "T": str(REPO / "features" / "crew" / "templates"),
             "PATH": path,
         },
         check=True,

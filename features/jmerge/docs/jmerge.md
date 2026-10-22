@@ -76,7 +76,7 @@ For a pull request into an integration branch it asks the same of that branch, a
 ## Migrations
 
 A numbered migration takes its number when the branch is cut and needs it when the branch lands, so two pull requests that were ready together take the same next number, and the one that merges second breaks main or needs a hand renumber.
-A repo that sets `migrations = "db/migrations"` in its project table in `~/.config/jbus/config.toml` ([Configuration](../../../docs/configuration.md#jbus)) has `jmerge` give the number at merge time.
+A repo that sets `migrations = "db/migrations"` in its project table in `~/.config/jbus/config.toml` ([Configuration](../../jinstall/docs/configuration.md#jbus)) has `jmerge` give the number at merge time.
 A pull request adds a migration when GitHub lists a file it adds directly in that directory.
 `0005_insulin.up.sql` and `0005_insulin.down.sql` are one migration, `0005_insulin`.
 A repo with no `migrations` key, and a pull request that adds none, is held for nothing here.
@@ -250,7 +250,7 @@ jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zone>"
 ```
 
 `<zone>` is your `timezone_label`, or the word your time zone prints, such as `CEST`.
-[Configuration](../../../docs/configuration.md#jstack) has both keys.
+[Configuration](../../jinstall/docs/configuration.md#jstack) has both keys.
 
 It lifts the hold at the head the hold was said at, which `jmerge` keeps in `holds.json` in the state directory. It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head. `--by` takes the `user` of `~/.config/jstack/config.toml` and nothing else, which is `user` where that file names none. It writes an `accepted` line with who and when to `merge.log`, and then judges the pull request as any other: the guarded gate and `merge-off` apply. `jmerge --accept <number> --check` says what it would do.
 

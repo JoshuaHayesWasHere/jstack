@@ -15,7 +15,7 @@ The alert goes out after 3 failures in a row, and for `snapshot` and `stale` aft
 A pass goes on past a project that raises.
 It prints `pass failed <project>: <error>`, launches nothing in that pass, runs the other projects, and then `jbus poll` exits 1.
 jbus stops a `jmerge` it runs after 17 minutes and any other command after 300 seconds, and the unit stops a pass after 20 minutes (`TimeoutStartSec=20min`), so a command that hangs cannot hold every later pass.
-A fresh check runs outside the pass ([jmerge](../../features/jmerge/docs/jmerge.md)), and a pass does not wait on one.
+A fresh check runs outside the pass ([jmerge](../../../jmerge/docs/jmerge.md)), and a pass does not wait on one.
 A pass that finds the lock held prints `busy` and ends.
 
 `jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites. It has the time of the last pass, when the sign-in runs out, `sign_in_reminder`, the days the sign-in reminder is due ([Set up jbus](set-up-jbus.md)), the open failure streaks, the homes not on the bus ([Add a project](add-a-project.md)), and each project's last error and the number of events in its outbox. A project posted to the top-level webhook beside its own also has `top_level`, the same three counts for that webhook, and with a second target set it has `blocking`, the same for that one. The view's Bus card shows each outbox. It says what a webhook that is down cannot. The first pass of each hour queues a quiet `heartbeat` event from the same file.

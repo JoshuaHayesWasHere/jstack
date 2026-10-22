@@ -1,6 +1,6 @@
 """A message that names a head goes only while that is still the pull request's head and
 its crew's thread is not at work, and one conflict is one message. Run as
-`features/jbus/tests/test_jbus_guarded_ask.py` runs: the real pass, against the fakes, over commits that
+`test_jbus_guarded_ask.py` runs: the real pass, against the fakes, over commits that
 are really there."""
 
 from datetime import timedelta

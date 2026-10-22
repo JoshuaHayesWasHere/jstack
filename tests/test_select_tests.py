@@ -21,7 +21,7 @@ SCRIPT = REPO / "scripts" / "select_tests.py"
 SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
-OWNED = "src/ templates/ docs/ scripts/".split()
+OWNED = "scripts/".split()
 ALSO = (".claude/", ".cursor/", "install.sh")
 
 README = """\
@@ -546,6 +546,7 @@ def whole(tmp_path):
     map = REPO / select.MAP
     repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
     shutil.copy2(REPO / "conftest.py", repo.put("conftest.py"))
+    shutil.copy2(REPO / select.CROSS, repo.put(select.CROSS))
     for page in REPO.glob(f"features/*/{select.PAGE}"):
         shutil.copy2(page, repo.put(page.relative_to(REPO).as_posix()))
     tests = [*(REPO / "tests").rglob("*"), *REPO.glob("features/*/tests/**/*")]

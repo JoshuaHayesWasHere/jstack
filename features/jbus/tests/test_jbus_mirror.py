@@ -1,6 +1,6 @@
 """`jbus.mirror` reads the briefs, the requests and the gates: each new section is one event,
 a Result that changes goes again, and what is piped to jbus and written in the brief goes
-once. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the real pass and the real command, against
+once. Run as `test_jbus_kitchen.py` runs: the real pass and the real command, against
 the fakes.
 """
 

@@ -268,7 +268,12 @@ def test_systemd_reads_the_units_with_no_complaint(tmp_path):
     jbus_bin.write_text("#!/bin/sh\n")
     jbus_bin.chmod(0o755)
     ran = subprocess.run(
-        ["systemd-analyze", "--user", "verify", *(str(REPO / "features" / "jbus" / "units" / u) for u in UNITS)],
+        [
+            "systemd-analyze",
+            "--user",
+            "verify",
+            *(str(REPO / "features" / "jbus" / "units" / u) for u in UNITS),
+        ],
         capture_output=True,
         text=True,
         env={**os.environ, "HOME": str(tmp_path)},

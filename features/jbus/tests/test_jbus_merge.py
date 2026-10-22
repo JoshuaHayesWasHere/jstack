@@ -1,6 +1,6 @@
 """`jbus.merge` leaves the merge to a home that merges, asks `jmerge` once a day what a sweep
 would remove and never runs one that removes, and says a `jmerge` that cannot read its
-protected paths once a day. Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the real pass, against
+protected paths once a day. Run as `test_jbus_kitchen.py` runs: the real pass, against
 the fakes.
 """
 

@@ -1,6 +1,6 @@
 """A pull request short of something its crew can fix: jbus tells the crew what to do, once
 per reason and head, and the desk hears only when that did not work. Run as
-`features/jbus/tests/test_jbus_guarded_ask.py` runs: the real pass, against the fakes, with the lines
+`test_jbus_guarded_ask.py` runs: the real pass, against the fakes, with the lines
 `jmerge` prints, over commits that are really there."""
 
 import os
@@ -320,7 +320,7 @@ def reviewer_says(tmp_path, asked, brief):
     (tmp_path / "tasks").mkdir(exist_ok=True)
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     script = block("### Start", "case $asked").replace("<slug>", "alpha").replace(ASKED, asked)
-    env = {**os.environ, "H": str(tmp_path), "T": str(REPO / "templates")}
+    env = {**os.environ, "H": str(tmp_path), "T": str(REPO / "features" / "crew" / "templates")}
     ran = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True, check=True)
     return ran.stdout.splitlines()
 

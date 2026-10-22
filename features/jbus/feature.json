@@ -3,7 +3,7 @@
   "name": "jbus",
   "description": "Does a home's routine work from a timer, so a repo can run with no home thread.",
   "packages": [
-    "features/jbus/src/jbus"
+    "src/jbus"
   ],
   "commands": {
     "jbus": "jbus.cli:main"
@@ -23,8 +23,8 @@
     "units/jbus.timer"
   ],
   "docs": [
-    "features/jbus/docs/jbus.md",
-    "features/jbus/docs/chef.md"
+    "docs/jbus.md",
+    "docs/chef.md"
   ],
   "owns": [
     ".cursor/skills/verify-main-red/SKILL.md"

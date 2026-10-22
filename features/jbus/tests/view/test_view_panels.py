@@ -38,7 +38,7 @@ BEFORE = "edd7c43d"
 WIDENED = " font-src 'self';"
 
 
-def differs(copy, real=REPO / "src"):
+def differs(copy, real=REPO / "features" / "jbus" / "src"):
     """Each file of the copy that the checkout does not have as it is, from the copy's top."""
     found = []
     for path in sorted(copy.rglob("*")):

@@ -1,7 +1,7 @@
 ## A scratch home
 
 A scratch home is a home with no repo, for throwaway questions and drafts.
-It runs in T3 Code's "No project", whose workspace is `~/.t3/scratch`, and it is a jbus project of the kind `scratch` ([A scratch home](../../../../docs/jbus/a-scratch-home.md)).
+It runs in T3 Code's "No project", whose workspace is `~/.t3/scratch`, and it is a jbus project of the kind `scratch` ([A scratch home](../../../jbus/docs/jbus/a-scratch-home.md)).
 None of the rest of this skill is for it: it has no plan, no brief, no crewmate, no gate and no merge.
 
 ### How it starts

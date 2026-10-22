@@ -25,7 +25,9 @@ from test_jbus_kitchen import FIXTURE, NOW, REPO
 
 
 def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
-    source = "\n".join(path.read_text() for path in sorted((REPO / "features/jbus/src/jbus").rglob("*.py")))
+    source = "\n".join(
+        path.read_text() for path in sorted((REPO / "features/jbus/src/jbus").rglob("*.py"))
+    )
     gauge = REPO / "features/jgauge/src/jgauge"
     counted = "\n".join(path.read_text() for path in sorted(gauge.rglob("*.py")))
     counted += "\n" + (REPO / "features/jbriefs/src/jbriefs/parse.py").read_text()
@@ -71,7 +73,7 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
         REPO / "README.md",
         REPO / "features/jbus/docs/jbus.md",
         REPO / "features/jbus/docs/chef.md",
-        REPO / "docs/configuration.md",
+        REPO / "features/jinstall/docs/configuration.md",
     ]
     allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
     told = subprocess.run(
@@ -102,7 +104,7 @@ def test_no_page_of_docs_jbus_holds_a_url_a_key_or_a_token():
 
 
 def test_the_example_config_ships_with_dispatch_on_and_only_placeholders():
-    page = (REPO / "docs/configuration.md").read_text()
+    page = (REPO / "features/jinstall/docs/configuration.md").read_text()
     (example,) = [
         one for one in re.findall(r"```toml\n(.*?)```", page, re.S) if "[[project]]" in one
     ]

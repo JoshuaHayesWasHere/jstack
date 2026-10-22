@@ -31,7 +31,7 @@ Three of them change a thread, and jbus sends each in one form only.
 
 A turn that ends on a usage limit fails again on the instance it ran on until the limit resets, so a plain carry-on is spent for nothing.
 `features/jbus/src/jbus/failover.py` reads the limit from the last items of the thread's failed run, with `t3_thread_read`: the window and the reset from the `system_notice` whose itemId ends `:<five_hour|seven_day>:<reset>`, and where no item has one, from the text (`You've hit your weekly limit · resets Oct 18, 4pm (America/New_York)`, `weekly` the seven-day window and any other the five-hour one), read at the time the run ended.
-It writes that window at 100% until the reset to the ledger of the instance the run was on ([jroles](../../features/jroles/docs/jroles.md#the-ledger)), by the ledger's one rule, so the same failure read again changes nothing.
+It writes that window at 100% until the reset to the ledger of the instance the run was on ([jroles](../../../jroles/docs/jroles.md#the-ledger)), by the ledger's one rule, so the same failure read again changes nothing.
 
 It then asks `jroles.pool.choose` where the thread goes: the first instance of its pool with headroom.
 The pool is the first line of the role map that names the thread's instance, its own role's lines first (`crew`, `review`, `scout`, `home`) and then every other role's, and the thread's instance alone where no line names it.

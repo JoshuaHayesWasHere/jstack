@@ -20,29 +20,30 @@ at most `EVENTS` events, and zero or one open red pull request that jbus launche
 
 What one step is, in the code:
 
-- **pass**: one run of `tell`, under the pass lock (`features/jbus/src/jbus/cli.py:215-219`), so no two
-  passes overlap and a pass is one indivisible step. In a pass, jmerge reads `main.json`
-  before `tell` writes it (`features/jbus/src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs later in
-  the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:229-237`): a merge in a pass is the
-  event `lands, jmerge merges` followed by the event `pass`, and reads the record the last
-  pass wrote, as a merge between passes does.
+- **pass**: one run of `tell`, under the pass lock (`features/jbus/src/jbus/cli.py:215-219`), so no
+  two passes overlap and a pass is one indivisible step. In a pass, jmerge reads `main.json`
+  before `tell` writes it (`features/jbus/src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs
+  later in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:229-237`): a merge in a
+  pass is the event `lands, jmerge merges` followed by the event `pass`, and reads the record the
+  last pass wrote, as a merge between passes does.
 - **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`.
   It may fall between any two passes, and it sees a whole record, never a half-written
-  one: `write_json` writes a temporary file and `os.replace`s it (`features/jbus/src/jbus/__init__.py:
-  434-444`). It is allowed only where `rows.red(mainjson.read(state), "beta")` is empty
-  (`features/jmerge/src/jmerge/rows.py:84-87`).
+  one: `write_json` writes a temporary file and `os.replace`s it
+  (`features/jbus/src/jbus/__init__.py:434-444`). It is allowed only where
+  `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py:84-87`).
 - **lands, another merge**: a merge that does not ask `rows.red`: the fix `main-red-<sha12>`,
   a merge by hand, or `--accept`. Always allowed.
 - **settles**: a pending tip's check ends, as `watch._check` answers
-  (`features/jbus/src/jbus/watch.py:797-828`): `green`, `failed`, `cancelled` (a later attempt that was
-  cancelled too) or `refused` (a run GitHub did not start again). `main_check` asks without
+  (`features/jbus/src/jbus/watch.py:797-828`): `green`, `failed`, `cancelled` (a later attempt that
+  was cancelled too) or `refused` (a run GitHub did not start again). `main_check` asks without
   `again` (`features/jbus/src/jbus/mainmoved.py:77-86`), so the last two reach `tell` through
   `checks.json`, where watch's retro writes them (`_check(..., again=True)`). A tip whose
   check never ends is a tip no `settles` event reaches: it stays `pending`.
 - **rerun passes**: the newest tip's check failed, and a rerun of it on the same tip, with
   no new commit, passes: that tip's check is `green` from then on.
 - T3 Code's answer to a send is a choice of the pass: it answers, it loses the send
-  (`T3Error`, `features/jbus/src/jbus/mainmoved.py:201-204`) or it refuses it (`T3Refused`, 196-200).
+  (`T3Error`, `features/jbus/src/jbus/mainmoved.py:201-204`) or it refuses it (`T3Refused`,
+  196-200).
 
 What is stubbed, and only this: `mainmoved.main_check` returns the tip's check from the
 model (it would ask GitHub), GitHub's list of main's commits is the model's tips, each the
@@ -56,8 +57,9 @@ conflicts or that GitHub has not judged, more than one open pull request, a red 
 with no thread (a gate), a remote that cannot be read, `checks.json`'s cache, and more tips
 or events than the bounds. A pass covers the model within the bounds, not the whole system.
 
-Run it as `uv run pytest features/jbus/tests/test_main_red_model.py -q`, or `--runxfail` to print the
-traces of the findings; `uv run python features/jbus/tests/main_red_model.py` prints every trace.
+Run it as `uv run pytest features/jbus/tests/test_main_red_model.py -q`, or `--runxfail` to print
+the traces of the findings; `uv run python features/jbus/tests/main_red_model.py` prints every
+trace.
 """
 
 from __future__ import annotations

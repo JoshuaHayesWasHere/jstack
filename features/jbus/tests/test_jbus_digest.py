@@ -1,7 +1,7 @@
 """`waiting-on-user.json` is the one list of what waits on the user, and `jbus digest --json`
 prints what a model used to read, with no model.
 
-Run as `features/jbus/tests/test_jbus_kitchen.py` runs: the real command and the real pass, against a faked T3
+Run as `test_jbus_kitchen.py` runs: the real command and the real pass, against a faked T3
 Code server, `gh`, `jmerge` and webhook. Nothing reaches the network.
 """
 

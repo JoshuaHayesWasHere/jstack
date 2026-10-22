@@ -1,6 +1,6 @@
 """A thread whose last turn failed on a usage limit goes on, once, on the next instance of its
 role's pool with headroom, with its model and options, and the limit is in the ledger for the
-instance the run was on. Run as `features/jbus/tests/test_jbus_resume.py` runs: the real pass against the
+instance the run was on. Run as `test_jbus_resume.py` runs: the real pass against the
 fakes, with a clock the test moves.
 
 The replays are the caps of 2026-10-16 and 2026-10-17. On the 16th at 22:15 ET a home failed

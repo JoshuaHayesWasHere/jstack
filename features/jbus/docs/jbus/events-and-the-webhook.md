@@ -31,4 +31,4 @@ jbus sends what waits for a project at most once in five minutes, in POSTs of at
 The key goes in two headers of each POST, `Authorization: Bearer` and `X-Automation-Key`.
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
 With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
-Once a day, too, it runs the stale check of a project's context pack, where its main checkout has `<repo>/docs/context/notes/`, and logs the `stale` and `prune` lines as one `pack` event when there are any ([context.md](../../features/jpack/docs/context.md)).
+Once a day, too, it runs the stale check of a project's context pack, where its main checkout has `<repo>/docs/context/notes/`, and logs the `stale` and `prune` lines as one `pack` event when there are any ([context.md](../../../jpack/docs/context.md)).

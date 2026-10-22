@@ -296,7 +296,7 @@ def test_a_second_project_is_asked_for_by_name(tmp_path, monkeypatch):
 
 def test_the_tests_of_the_view_hold_no_url_a_key_or_a_token():
     allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
-    for path in sorted((REPO / "tests" / "view").rglob("*.py")):
+    for path in sorted((REPO / "features" / "jbus" / "tests" / "view").rglob("*.py")):
         text = path.read_text()
         for host in re.findall(r"https?://([^\s\"'`)>/]*)", text):
             assert allowed.match(host) or host == "", f"{path.name}: {host}"

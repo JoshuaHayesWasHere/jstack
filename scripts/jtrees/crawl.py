@@ -34,6 +34,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         ".gitignore",
         "LICENSE",
         "SECURITY.md",
+        "THIRD_PARTY.md",
         "Makefile",
         "pyproject.toml",
         "uv.lock",
@@ -61,14 +62,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "SHARED-DELETE": (
         "README.md",
         "CATALOG.md",
-        "CHANGELOG.md",
-        "CONTRIBUTING.md",
-        "THIRD_PARTY.md",
         "skills.json",
-        "docs/configuration.md",
-        "docs/troubleshooting.md",
-        "features/jgauge/tests/fixtures/README.md",
-        ".claude/skills/verify-jstack/features/README.md",
         ".cursor/skills/verify-jstack",
     ),
 }

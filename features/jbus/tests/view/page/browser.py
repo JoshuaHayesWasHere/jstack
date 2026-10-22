@@ -5,11 +5,11 @@ A view's first screen is held to `WORDS`, and every project's to `EVERY`. The sh
 it, the header and the sidebar, is counted apart and held to `SHELL`: the same on every view,
 it grows by one name and one count for each project.
 
-Each test starts the real server over a made-up state directory, as the tests of `features/jbus/tests/view/`
-do, and puts a small proxy in front of it. The proxy adds a probe to the page: it counts the
-words on the first screen, opens every drawer, and writes what it found into the page, which
-the browser then prints. The proxy can also stop passing requests on, which is how the page
-meets a server that is gone, and it writes down each write the page makes before it passes it
+Each test starts the real server over a made-up state directory, as the tests of
+`features/jbus/tests/view/` do, and puts a small proxy in front of it. The proxy adds a probe to the
+page: it counts the words on the first screen, opens every drawer, and writes what it found into the
+page, which the browser then prints. The proxy can also stop passing requests on, which is how the
+page meets a server that is gone, and it writes down each write the page makes before it passes it
 on: a test may do something first, or have the write meet no server. The browser opens no
 window under 500 wide, so for the phone the proxy gives it a page that holds the real one in a
 frame of the phone's size.

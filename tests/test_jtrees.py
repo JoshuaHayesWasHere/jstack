@@ -275,11 +275,16 @@ def test_two_moves_of_different_features_from_one_base_merge_with_no_conflict(co
 
 
 def test_a_page_added_to_the_jbus_folder_without_the_index_is_stale(copy):
-    (copy / "docs" / "jbus" / "a-new-page.md").write_text("# A new page\n\nIts words.\n")
+    (copy / "features" / "jbus" / "docs" / "jbus" / "a-new-page.md").write_text(
+        "# A new page\n\nIts words.\n"
+    )
     ran = generate(copy, "--check")
     assert ran.stderr.splitlines()[0] == "stale: features/jbus/docs/jbus.md"
     generate(copy)
-    assert "- [A new page](jbus/a-new-page.md)\n" in (copy / "docs" / "jbus.md").read_text()
+    assert (
+        "- [A new page](jbus/a-new-page.md)\n"
+        in (copy / "features" / "jbus" / "docs" / "jbus.md").read_text()
+    )
 
 
 @pytest.mark.parametrize(
@@ -394,7 +399,7 @@ def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command()
         one["path"] for one in layout.hooks(REPO)
     ]
     assert {path.split("/", 1)[0] for path in paths} <= set(shared)
-    assert {"skills.json", "plugin.json", "docs"} <= set(shared)
+    assert {"skills.json", "plugin.json"} <= set(shared)
     assert "features/jinstall/src/jinstall" in wheel["packages"]
     assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
 

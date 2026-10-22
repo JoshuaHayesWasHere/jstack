@@ -1,7 +1,7 @@
 """What waits on the user: a pass follows each approved row that cannot move to its root, sends
 one `waiting-on-user` event per root per hour, and keeps the roots in the list that `jbus
 queue show` prints (`features/jbus/tests/test_jbus_digest.py` has the list's other kinds). Run as
-`features/jbus/tests/test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
+`test_jbus.py` runs: the real command and the real pass, against a faked T3 Code
 server, `gh`, `jmerge` and webhook."""
 
 import json

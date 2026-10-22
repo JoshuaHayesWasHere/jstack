@@ -2,7 +2,7 @@
 project and is the next launch there, `main.json` (`mainmoved`'s record) keeps the last tip
 of main that was green and the red tip that is not, `jmerge` reads that file
 (`features/jmerge/tests/test_jmerge_order.py`), and a launched brief names the green sha on a
-`Green main:` line. Run as `features/jbus/tests/test_jbus_watch.py` runs: the real pass, against the fakes.
+`Green main:` line. Run as `test_jbus_watch.py` runs: the real pass, against the fakes.
 """
 
 import json

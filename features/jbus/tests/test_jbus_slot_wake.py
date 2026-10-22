@@ -1,5 +1,5 @@
 """A thread that waits on a test slot is woken when a slot of its lane is free: the oldest
-waiter, once for each free slot, and once for each wait. Run as `features/jbus/tests/test_jbus_kitchen.py`
+waiter, once for each free slot, and once for each wait. Run as `test_jbus_kitchen.py`
 runs: the real pass, against the fakes, and slots that are lock files in a directory of the
 kitchen's own."""
 

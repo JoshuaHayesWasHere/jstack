@@ -4,7 +4,7 @@ Every number in jstack that caps work, where it is set, what it protects, and th
 The machine is yelena: 24 processors (Intel Core Ultra 7 270K Plus, no SMT), 62 GiB, a btrfs root with no inode limit, and `/tmp` a 32 GB tmpfs of 1,048,576 file slots.
 The measurements are of 2026-10-20 unless a row says otherwise, and "the busy night" is 2026-10-19 22:00 to 2026-10-20 01:00 ET.
 
-Three of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](../../../docs/configuration.md#the-machines-sizes)).
+Three of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](../../jinstall/docs/configuration.md#the-machines-sizes)).
 `jgauge sizes` prints the three as their callers get them, and room's lines.
 A local value goes in `~/.config/jstack/machine.toml`, or `max_running` in `~/.config/jbus/config.toml`, and nowhere in jstack.
 Every other number here is a design choice, a share of the machine that means the same on any machine, or a limit of another system, and says so.

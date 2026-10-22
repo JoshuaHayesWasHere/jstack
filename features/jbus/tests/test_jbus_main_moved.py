@@ -2,7 +2,7 @@
 is red is told once to rebase and carry on, so one that main broke does not sit idle after
 main is fixed. A main that moved from green to green tells nobody. A conflict is told once
 per head by `rebase.github`, and not here (`test_jbus_github.py`).
-Run as `features/jbus/tests/test_jbus_unlock.py` runs: the real pass, against the fakes, with the kitchen's
+Run as `test_jbus_unlock.py` runs: the real pass, against the fakes, with the kitchen's
 own origin as the remote whose main moves."""
 
 import json
@@ -360,7 +360,8 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
 @pytest.mark.xfail(
     strict=True,
     reason="a fix row approved once main is green again still launches: watch._retro says it "
-    "green again and leaves it (features/jbus/src/jbus/watch.py:1090-1093), and dispatch launches it",
+    "green again and leaves it (features/jbus/src/jbus/watch.py:1090-1093), and dispatch "
+    "launches it",
 )
 def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(launched):
     """As main-red-b66eaae4c2ca was: its tip's check failed, a rerun passed, and the row was

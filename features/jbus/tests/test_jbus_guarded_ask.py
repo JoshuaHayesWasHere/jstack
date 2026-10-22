@@ -1,6 +1,6 @@
 """A guarded pull request whose fix was pushed after its last review has no proof at its
 head, and `jmerge` waits on it. jbus asks its crew for the one scoped review that proves it,
-once per head. Run as `features/jbus/tests/test_jbus_rereview.py` runs: the real pass, against the fakes,
+once per head. Run as `test_jbus_rereview.py` runs: the real pass, against the fakes,
 with the line `jmerge` prints for such a pull request, over commits that are really there."""
 
 import subprocess
@@ -15,7 +15,7 @@ from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
 
 URL = "https://example.test/pull/7"
-PATH = "features/jbus/src/jbus/alert.py"
+PATH = "src/jbus/alert.py"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
 
 

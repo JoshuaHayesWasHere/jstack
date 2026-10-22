@@ -1,9 +1,9 @@
 """`jbus ci` keeps CI's jobs and counts the nine targets of the plan from them.
 
 The numbers are checked against a recording of GitHub's Actions API for jstack, 2026-10-14 to
-2026-10-17 (`features/jbus/tests/fixtures/ci/jstack`, replayed by `ci_replay`), through the collector as
-`jbus ci` runs it, and equal the figures the plan was written from: where one does not, the
-test says by how much and why.
+2026-10-17 (`features/jbus/tests/fixtures/ci/jstack`, replayed by `ci_replay`), through the
+collector as `jbus ci` runs it, and equal the figures the plan was written from: where one does not,
+the test says by how much and why.
 """
 
 import configparser

@@ -2,7 +2,7 @@
 
 jstack runs with none of these files. Each one changes a default or switches on an optional layer. This page lists every file you write, each key in it, the default, and the command or script that reads it.
 
-`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found. [Troubleshooting](troubleshooting.md) has each line the doctor prints for a file it does not take.
+`sh <checkout>/install.sh --doctor` reads the jstack config, the `jbus` config, the provider inventory, the hook entries, the limits file and the state tree's remote, and says what it found. [Troubleshooting](troubleshooting/the-doctor.md) has each line the doctor prints for a file it does not take.
 
 | File | Sets | Written by |
 |---|---|---|
@@ -37,7 +37,7 @@ headroom = 90
 | `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take, whose own message `--message` asks for, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `install.sh --doctor` |
 | `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
-| `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](../features/jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
+| `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next of its pool, and `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. A number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 
 Each value but `headroom` is one word with no space and no comma.
 A file with any other key, or with a `timezone` that is not an IANA name, is refused.
@@ -49,7 +49,7 @@ They do not fall back to the defaults.
 `~/.config/jstack/roles` names the model each role's thread is launched on.
 It has one line a role, `<role>: <provider> <model> [<instanceId>[,<instanceId>...]] [effort=<low|medium>]`, with `#` for a comment.
 It is the one source of every launch's model: `jbus` launches a crew on the `crew` line, and the skills run `jroles` for the rest.
-The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../features/jroles/docs/jroles.md#pools)).
+The instances a line names are the role's pool, in order: a launch goes to the first of them with headroom in the ledger, and a pool grows by one line of `providers.json` and one more id on the line ([pools](../../jroles/docs/jroles.md#pools)).
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
@@ -60,7 +60,7 @@ The instances a line names are the role's pool, in order: a launch goes to the f
 | `expert` | `inherit` | The model of an expert's thread. | `jroles`. No skill asks for it yet. |
 
 `inherit` is the model of the thread that launches.
-[jroles](../features/jroles/docs/jroles.md) has the providers and an example.
+[jroles](../../jroles/docs/jroles.md) has the providers and an example.
 `install.sh --setup` writes the file once, where there is none, with every role `inherit`.
 
 ## jbus
@@ -94,7 +94,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
 | `webhook_url` | Empty | The top-level webhook, the monitor of every project: `jbus` POSTs it every project's events for you, and it is the URL of every project that has no `webhook_url` and no `webhook_key` of its own. |
 | `webhook_key` | Empty | The key that goes with the top-level `webhook_url`. Set both or neither: half a pair is refused. |
-| `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](jbus/what-blocks.md) has the bodies. |
+| `blocking_url` | Empty | The second target, the webhook of what blocks, for jbus-relay to fan out. `jbus` POSTs it each item that blocks as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh, and no event. With none set, `jbus` POSTs nothing more. [jbus](../../jbus/docs/jbus/what-blocks.md) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, in the same two headers. Set both or neither: half a pair is refused. Both are secret like the webhook's. |
 
 The model a crew is launched on is not a key here: `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source. A `modelSelection` key left from before is not read.
@@ -106,16 +106,16 @@ Each `[[project]]` table is one repo:
 | `name` | None, required | The project's name in `jbus --project <name>` and in every event. |
 | `checkout` | None, required | The path of the repo's main checkout. A leading `~` is your home directory. |
 | `projectId` | None, required | The T3 Code project that the launches go to. |
-| `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key: no repo step is run for it ([A scratch home](jbus/a-scratch-home.md)). Any other value is refused. |
+| `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key: no repo step is run for it ([A scratch home](../../jbus/docs/jbus/a-scratch-home.md)). Any other value is refused. |
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
 | `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. A table with only one of the two is refused. |
-| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](../features/jmerge/docs/jmerge.md#migrations)). A directory that is absolute or has `..` in it is refused. With none, no pull request is held for its migrations. |
+| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](../../jmerge/docs/jmerge.md#migrations)). A directory that is absolute or has `..` in it is refused. With none, no pull request is held for its migrations. |
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. Any other value is refused. |
 
-To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](jbus/add-a-project.md) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
+To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` and do not edit the file by hand: [jbus](../../jbus/docs/jbus/add-a-project.md) says what it writes. A table that still has `loud` loads, `jbus` does not read it, and each pass says to remove it.
 
-`jbus t3 login` writes the sign-in beside the config, as `t3.json`. You do not write that file. [jbus](jbus/set-up-jbus.md) has the setup steps, and [The Chef](chef.md) says what to put behind `webhook_url`.
+`jbus t3 login` writes the sign-in beside the config, as `t3.json`. You do not write that file. [jbus](../../jbus/docs/jbus/set-up-jbus.md) has the setup steps, and [The Chef](../../jbus/docs/chef.md) says what to put behind `webhook_url`.
 
 Two more paths change what `jbus` does:
 
@@ -153,17 +153,17 @@ The doctor compares each declared instance with what T3's settings list, and rea
 | `ok hard layout <harness> <folder>` | The layout of Claude Code, Codex or Cursor is as the install assembles it from the checkout. For Codex and Cursor it says how many skills name a tool or path that harness leaves out, which the layout's `README.md` lists. |
 | `old hard layout <harness> <folder> -> stale: <path>` | A file of the layout is missing, differs, or was not made by the install, or a skill was added since: run `install.sh`. |
 
-Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](../features/jroles/docs/jroles.md#mirrors)).
+Each Claude instance whose home is not `~/.claude` is a mirror of it, kept by `jroles mirror` and its timer: every entry is shared but the login and the per-session state, and `.claude.json` keeps its own account keys ([mirrors](../../jroles/docs/jroles.md#mirrors)).
 The instance ids and the homes come from this file alone, so a machine with a second account needs one line here and its login, and nothing else.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
 
-`install.sh` assembles one layout for each harness under `~/.local/share/jstack/harness/` ([The layouts](../features/jinstall/docs/jinstall.md#the-layouts)), and links every skill of a layout into its harness's root: `~/.claude/skills` for Claude Code, `~/.codex/skills` for Codex, and `~/.agents/skills` for Cursor.
+`install.sh` assembles one layout for each harness under `~/.local/share/jstack/harness/` ([The layouts](jinstall.md#the-layouts)), and links every skill of a layout into its harness's root: `~/.claude/skills` for Claude Code, `~/.codex/skills` for Codex, and `~/.agents/skills` for Cursor.
 Cursor reads `~/.claude/skills` and `~/.agents/skills`, so the doctor's lines for `~/.agents/skills` are the Cursor check.
 
 ## Hook entries
 
 `install.sh` writes every hook entry, and you write none of them by hand.
-[The catalog](../CATALOG.md#hooks) lists each hook with the feature that declares it, and [jinstall](../features/jinstall/docs/jinstall.md#hook-entries) says which file of each harness its entry goes in.
+[The catalog](../../../CATALOG.md#hooks) lists each hook with the feature that declares it, and [jinstall](jinstall.md#hook-entries) says which file of each harness its entry goes in.
 
 ## The machine's sizes
 
@@ -183,18 +183,18 @@ test_slots = 3
 
 A key that is not one of these, or a value that is not a whole number of 1 or more, is refused with one line.
 The crew cap's local home is `max_running` in jbus's config ([jbus](#jbus)), where it was before.
-[Limits](../features/jgauge/docs/limits.md) lists every limit of jstack, the ones that are not sizes of the machine too, with what each protects and the measurement it rests on.
+[Limits](../../jgauge/docs/limits.md) lists every limit of jstack, the ones that are not sizes of the machine too, with what each protects and the measurement it rests on.
 
 ## The limits file
 
-The limits files are the ledger ([jroles](../features/jroles/docs/jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
+The limits files are the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger)): how much of each provider instance's five-hour and weekly limits is used.
 `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_claude_prime`.
-`jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](../features/jgauge/docs/jgauge.md)).
+`jgauge limits` writes them ahead of time: `jgauge-limits.timer` runs it every two minutes, and it reads every Claude account of `providers.json`, and `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](../../jgauge/docs/jgauge.md)).
 `features/jgauge/hooks/limits.sh` writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 An account the inventory does not declare writes nothing.
 `jbus` writes a file at 100% until the reset when a turn ends on that instance's usage limit.
 All three merge by the ledger's rule, so a reading that fails or comes late never lowers a share of the same window.
-`jgauge room` reads the file of each instance of the role's pool ([jroles](../features/jroles/docs/jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
+`jgauge room` reads the file of each instance of the role's pool ([jroles](../../jroles/docs/jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
 `LIMITS` names another path for the built-in instance's file, and the others are beside it.
 
 | Row | Meaning |
@@ -221,7 +221,7 @@ printf '%s' "$input" | jq -r '.model.display_name'
 
 ## The state tree's remote
 
-The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](jbus/back-up-the-homes-state.md)). The remote is a private repository of yours, which nothing else pushes to:
+The homes' state tree, `~/.local/state/home`, is a git repo, and `jbus snapshot` commits it and pushes it to `origin` ([Back up the homes' state](../../jbus/docs/jbus/back-up-the-homes-state.md)). The remote is a private repository of yours, which nothing else pushes to:
 
 ```sh
 git -C ~/.local/state/home remote add origin <url>
@@ -232,7 +232,7 @@ With no `origin` a snapshot keeps its commit and fails, and the failure alerts o
 ## Switches for one repo
 
 These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the directory name of the repo's main checkout.
-[State](../features/home/docs/state.md) lists the other files there, which the threads write.
+[State](../../home/docs/state.md) lists the other files there, which the threads write.
 
 | File | Default | Holds | What it switches | Read by |
 |---|---|---|---|---|

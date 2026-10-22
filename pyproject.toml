@@ -60,7 +60,6 @@ packages = [
 # generated: source by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 "skills.json" = "share/jstack/skills.json"
 "plugin.json" = "share/jstack/plugin.json"
-"docs" = "share/jstack/docs"
 "features" = "share/jstack/features"
 # end generated
 

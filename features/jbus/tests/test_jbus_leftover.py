@@ -1,7 +1,7 @@
 """A task that ended with something left is sent to its home to close, and waits on the user
 only where it has no home or the home did not close it.
 
-Run as `features/jbus/tests/test_jbus_row_ends.py` runs: the real pass, against a faked T3 Code server,
+Run as `test_jbus_row_ends.py` runs: the real pass, against a faked T3 Code server,
 `gh` and `jmerge`, over briefs that are made up. The view is the real server over what
 those passes left, asked over HTTP."""
 

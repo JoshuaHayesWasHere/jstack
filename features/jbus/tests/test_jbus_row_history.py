@@ -1,5 +1,5 @@
 """A row of the queue says why it waits and since when, and each change of its status is
-kept. Run as `features/jbus/tests/test_jbus_queue.py` runs: the real command and the real pass, in a
+kept. Run as `test_jbus_queue.py` runs: the real command and the real pass, in a
 temporary state directory, against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
