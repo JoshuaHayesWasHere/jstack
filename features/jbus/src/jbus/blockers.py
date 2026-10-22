@@ -206,7 +206,11 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
         if why:
             asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
             said = f"{(asked or one['line']).rstrip('.?')}, {why}"
-            decide(run.box, one.get("slug") or "", one["key"], said, _reply(run.project, one))
+            key, slug = one["key"], one.get("slug") or one["key"]
+            if one["kind"] == "config":
+                key = f"{key}|{hashlib.sha256(one['line'].encode()).hexdigest()[:12]}"
+                slug = "config"
+            decide(run.box, slug, key, said, _reply(run.project, one))
 
 
 def _raise(half: Half) -> None:
