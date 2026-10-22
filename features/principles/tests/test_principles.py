@@ -4,6 +4,7 @@ import sys
 
 import pytest
 
+from jbriefs import skills
 from jdrift.explained import COMMENT as CARD
 from testing.paths import REPO
 
@@ -14,7 +15,7 @@ PRINCIPLES = REPO / "features" / "principles" / "skills"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
 PSTACK_COMMIT = "99743e9c151c8537cbbf1f98bb38f34ef3368453"
 EM_DASH = "\N{EM DASH}"
-FILES = sorted(PRINCIPLES.glob("principle-*/SKILL.md"))
+FILES = sorted(skills.listed("principle").values())
 
 
 def named(path):

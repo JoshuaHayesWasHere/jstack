@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -227,7 +228,7 @@ def test_each_link_of_a_page_goes_to_a_file_that_is_there():
         f"{page.relative_to(REPO)}: {target}"
         for page in pages
         for target in LINK.findall(page.read_text())
-        if "://" not in target and not (page.parent / target).exists()
+        if not urlparse(target).scheme and not (page.parent / target).exists()
     ]
 
     assert len(pages) > len(FEATURES) // 2

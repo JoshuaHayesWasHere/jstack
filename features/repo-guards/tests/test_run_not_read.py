@@ -354,19 +354,31 @@ def moved_from(since, repo):
     return found
 
 
+def renames(since, repo):
+    """{new path: path at the commit} for each file git finds renamed since then, over the whole
+    tree: a move out of a test path the commit had but the worktree no longer lists is one too."""
+    found = {}
+    for line in git("diff", "--name-status", "--find-renames", since, repo=repo).splitlines():
+        status, *names = line.split("\t")
+        if status.startswith("R"):
+            found[names[1]] = names[0]
+    return found
+
+
 def changed_tests(since, repo=REPO):
     """{module: test names} added or changed since the commit, the worktree's own edits in, but
     this module's: its strings are the modules its tests hand the lint, not words they match."""
     roots = collected(repo)
     paths = git("diff", "--name-only", since, "--", *roots, repo=repo).splitlines()
     paths += git("ls-files", "--others", "--exclude-standard", "--", *roots, repo=repo).splitlines()
+    renamed = renames(since, repo)
     changed = {}
     for path in sorted(set(paths)):
         module = module_of(path, roots)
         if not module or not (repo / path).exists() or repo / path == Path(__file__):
             continue
         try:
-            before = dumped_tests(git("show", f"{since}:{path}", repo=repo))
+            before = dumped_tests(git("show", f"{since}:{renamed.get(path, path)}", repo=repo))
         except subprocess.CalledProcessError:
             before = {}
         if not before:
@@ -751,6 +763,31 @@ def test_a_test_under_any_test_path_counts_and_one_moved_into_a_feature_is_not_a
     )
     (error,) = errors(tree(tmp_path), changed_tests(since, tmp_path))
     assert error.startswith("features/area/tests/test_new.py:4 test_new reads")
+
+
+def test_a_file_moved_out_of_a_test_path_the_base_had_is_judged_by_its_old_content(tmp_path):
+    words = 'def test_words():\n    assert "go" in Path("skills/x/SKILL.md").read_text()\n'
+    git("init", "-q", repo=tmp_path)
+    (tmp_path / "pyproject.toml").write_text('[tool.pytest.ini_options]\ntestpaths = ["tests"]\n')
+    (tmp_path / "skills" / "x").mkdir(parents=True)
+    (tmp_path / "skills" / "x" / "SKILL.md").write_text("go\n")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_old.py").write_text(
+        f"from pathlib import Path\nimport a\n\n\n{words}\n\ndef test_edited():\n    assert 1\n"
+    )
+    git("add", ".", repo=tmp_path)
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base", repo=tmp_path)
+    since = git("rev-parse", "HEAD", repo=tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.pytest.ini_options]\ntestpaths = ["features/area/tests"]\n'
+    )
+    (tmp_path / "features" / "area" / "tests").mkdir(parents=True)
+    git("mv", "tests/test_old.py", "features/area/tests/test_old.py", repo=tmp_path)
+    (tmp_path / "features" / "area" / "tests" / "test_old.py").write_text(
+        f"from pathlib import Path\nimport b\n\n\n{words}\n\ndef test_edited():\n    assert 2\n"
+    )
+    assert changed_tests(since, tmp_path) == {"test_old": {"test_edited"}}
+    assert not list(errors(tree(tmp_path), changed_tests(since, tmp_path)))
 
 
 def test_the_branch_is_compared_with_the_base_make_is_given(tmp_path, monkeypatch):
