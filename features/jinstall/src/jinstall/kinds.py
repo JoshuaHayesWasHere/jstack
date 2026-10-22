@@ -418,13 +418,12 @@ class GitHook:
     `needs()` lists this need only with a checkout, since a release has no repo of its own.
     due: `.git` is a directory, and HOME is the account's own or holds the checkout. A
       directory `.git` means the main checkout, since a linked worktree runs the hooks of its
-      main checkout. A
-      run under another HOME, a sandbox's or a test's, leaves a checkout outside that HOME as
-      it is.
+      main checkout. When a sandbox or a test runs the install under another HOME, the run
+      leaves a checkout outside that HOME as it is.
     old: the path is a link to anywhere else.
-    foreign: `not a link`, which is a hook of the user's own, or
-      `core.hooksPath is set, so git runs no hook of .git/hooks`. A put repairs neither
-      case.
+    foreign: the path is a hook of the user's own, and the detail is `not a link`. Or git
+      runs no hook from the folder, and the detail is
+      `core.hooksPath is set, so git runs no hook of .git/hooks`. A put repairs neither case.
     drop: unlink the path only when it points at the script."""
 
     name: str
@@ -623,7 +622,9 @@ class Commands:
         return [str(root) for root in roots if root not in paths]
 
     def _typed(self, machine: Machine, *also: Path) -> Found:
-        """ok when typing each name runs the file in `tool_bin()` or one of `also`."""
+        """The probe answers ok when typing each name runs the file in `tool_bin()` or in one
+        of `also`. Otherwise it answers foreign: the name is not on PATH, or another file
+        shadows it."""
         for name in self.names:
             typed = machine.which(name)
             if typed is None:

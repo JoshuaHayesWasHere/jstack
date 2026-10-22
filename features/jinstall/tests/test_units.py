@@ -27,8 +27,8 @@ def unit(name):
 
 
 def anchors(name, page):
-    """The sections of `page` in the docs that `%Y/../docs/` names, which sit beside the
-    folder of `name`."""
+    """The sections of `page` in the docs folder that `%Y/../docs/` names. `%Y` is systemd's
+    specifier for the unit file's folder, so the docs folder is beside the folder of `name`."""
     docs = PATHS[name].parent.parent / "docs"
     headings = re.findall(r"^#+ (.+)$", (docs / page).read_text(), re.M)
     return {re.sub(r"[^\w\- ]", "", heading.lower()).replace(" ", "-") for heading in headings}
