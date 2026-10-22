@@ -19,7 +19,17 @@ import pytest
 
 from jinstall import layout
 from jinstall.harnesses import HARNESSES
-from test_install import INSTALL, ROOTS, SCRUBBED, SYSTEMCTL, laid, layouts, line_for, lines_of
+from test_install import (
+    INSTALL,
+    ROOTS,
+    SCRUBBED,
+    SYSTEMCTL,
+    hook_parts,
+    laid,
+    layouts,
+    line_for,
+    lines_of,
+)
 from testing.paths import REPO
 
 PACKAGES = ("jbriefs", "jbus", "jdrift", "jgauge", "jinstall", "jleak", "jmerge", "jpack")
@@ -128,12 +138,7 @@ def release_parts(home, source):
         *layouts(home),
         *(f"hard {home / root / name}" for root in ROOTS for name in names),
         f"optional patterns {home / '.config' / 'jstack' / 'outbound.toml'}",
-        f"hard hook {settings} PreToolUse",
-        f"hard hook {settings} PostToolUse",
-        f"hard hook {settings} SessionStart",
-        f"hard hook {home / '.codex' / 'hooks.json'} SessionStart",
-        f"hard hook {settings} PreToolUse",
-        f"hard hook {settings} UserPromptSubmit",
+        *hook_parts(home, source),
         "hard commands jstack",
         f"optional statusline {settings}",
     ]
