@@ -17,6 +17,7 @@ from pathlib import Path
 import jleak
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import (
+    Attribution,
     Carried,
     Commands,
     Generated,
@@ -139,6 +140,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                                               skills.json, in a checkout
       hard      commands <tool>               Commands
       optional  statusline ~/.claude/settings.json  StatusLine, the status line of skills.json
+      hard      attribution <file>            Attribution, the keys that turn off the AI
+                                              co-author trailer, in each Claude home's
+                                              settings.json (~/.claude and each declared
+                                              home) and in each harness's settings file
       optional  units ~/.config/systemd/user  Units
     """
     repo, home = machine.checkout, machine.home
@@ -260,6 +265,10 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                 StatusLine(settings, f"hooks/{line['name']}"),
             )
         )
+    found += [
+        Need(f"attribution {file}", Level.HARD, Attribution(file, wanted, made))
+        for file, wanted, made in _attribution(home, providers)
+    ]
     names = sorted(templates(machine))
     units = Units(
         machine.config_home() / "systemd" / "user",
@@ -269,6 +278,26 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     )
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)
+
+
+def _attribution(home: Path, providers: dict) -> list[tuple[Path, dict, bool]]:
+    """Each settings file that gets the keys that turn off the AI co-author trailer, with the
+    keys and whether the install makes the file when it is not there. Every Claude home gets
+    Claude Code's keys: `~/.claude`, made, and each home the inventory declares, only while its
+    settings.json is there. A home whose settings.json is a link to `~/.claude`'s, as
+    `jroles mirror` makes it, reads and writes that one file."""
+    found = []
+    for harness in HARNESSES:
+        if not harness.attribution:
+            continue
+        files = [home / harness.settings]
+        if harness is CLAUDE_CODE:
+            files += [each / "settings.json" for each in claude_homes(providers, home)]
+        made = harness is CLAUDE_CODE
+        found += [
+            (file, harness.attribution, made and file == files[0]) for file in dict.fromkeys(files)
+        ]
+    return found
 
 
 def _project(repo: Path, local: tuple[dict, ...]) -> list[Need]:

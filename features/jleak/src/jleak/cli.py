@@ -58,7 +58,9 @@ def parser() -> argparse.ArgumentParser:
     way.add_argument(
         "--trailers", action="store_true", help="what a PreToolUse hook is given, for AI trailers"
     )
-    way.add_argument("--commit-msg", metavar="FILE", type=Path, help="what a commit-msg hook is given")
+    way.add_argument(
+        "--commit-msg", metavar="FILE", type=Path, help="what a commit-msg hook is given"
+    )
     made.add_argument("files", nargs="*", metavar="FILE", help="a file, or - for the piped text")
     return made
 
@@ -114,7 +116,9 @@ def refuse_trailers(given: str) -> int:
         return 0
     many = "" if len(found) == 1 else "s"
     again = "drop the line and commit again"
-    print(f"jleak: {len(found)} AI trailer{many}, so the command is refused: {again}", file=sys.stderr)
+    print(
+        f"jleak: {len(found)} AI trailer{many}, so the command is refused: {again}", file=sys.stderr
+    )
     return 2
 
 

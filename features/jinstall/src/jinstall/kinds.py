@@ -328,13 +328,20 @@ class HookGroup:
         return ({} if self.matcher is None else {"matcher": self.matcher}) | {"hooks": [hook]}
 
     def _groups(self, value: dict) -> list | None:
-        """The event's groups, or None when `value` does not have the shape of a hooks file."""
+        """The event's groups, or None when `value` does not have the shape of a hooks file: a
+        `hooks` object whose every event is a list of groups, each with a list of hooks."""
         hooks = value.get("hooks", {})
-        groups = hooks.get(self.event, []) if isinstance(hooks, dict) else None
-        shaped = isinstance(groups, list) and all(
-            isinstance(group, dict) and isinstance(group.get("hooks", []), list) for group in groups
+        if not isinstance(hooks, dict):
+            return None
+        shaped = all(
+            isinstance(groups, list)
+            and all(
+                isinstance(group, dict) and isinstance(group.get("hooks", []), list)
+                for group in groups
+            )
+            for groups in hooks.values()
         )
-        return groups if shaped else None
+        return hooks.get(self.event, []) if shaped else None
 
     def _names(self, hook: object) -> bool:
         command = hook.get("command") if isinstance(hook, dict) else None
@@ -561,6 +568,64 @@ class StatusLine:
             return Dropped()
         if rewrite(machine, self.file, change):
             return Dropped(removed=(f"statusline {self.file}",))
+        return Dropped()
+
+
+@dataclass(frozen=True)
+class Attribution:
+    """The keys of a harness's settings file that turn off its AI co-author trailer, as the
+    harness's row gives them (`Harness.attribution`). The install sets these keys and touches
+    no other key of the file.
+    due: the file is there, or `made`, which the main Claude home's settings.json is. Another
+      Claude home with no settings.json is a mirror that `jroles mirror` has not linked yet, and
+      a machine with no `~/.cursor/cli-config.json` has not run Cursor's CLI.
+    missing: none of the keys is in the file.
+    old: a key is not set, or is set to another value: the detail names the first.
+    foreign: the file is not one JSON object, and the detail is `not a settings file`.
+    drop: take out each key that holds exactly the install's value."""
+
+    file: Path
+    wanted: dict
+    made: bool = False
+
+    def _there(self, machine: Machine) -> dict | None:
+        was = machine.read_object(self.file)
+        return was.value if isinstance(was, JsonObject) else None
+
+    def probe(self, machine: Machine) -> Found:
+        value = self._there(machine)
+        if value is None:
+            return Found.foreign("not a settings file")
+        if not any(key in value for key in self.wanted):
+            return Found.missing()
+        for key, want in self.wanted.items():
+            if key not in value:
+                return Found.old(f"{key} is not set")
+            if value[key] != want:
+                return Found.old(f"{key} is {json.dumps(value[key])}")
+        return Found.ok()
+
+    def due(self, machine: Machine) -> bool:
+        return self.made or self.file.exists()
+
+    def put(self, machine: Machine) -> None:
+        def change(value: dict) -> bool:
+            value.update(copy.deepcopy(self.wanted))
+            return True
+
+        rewrite(machine, self.file, change)
+
+    def drop(self, machine: Machine) -> Dropped:
+        def change(value: dict) -> bool:
+            ours = [key for key, want in self.wanted.items() if value.get(key, None) == want]
+            for key in ours:
+                del value[key]
+            return bool(ours)
+
+        if self._there(machine) is None:
+            return Dropped()
+        if rewrite(machine, self.file, change):
+            return Dropped(removed=(f"attribution {self.file}",))
         return Dropped()
 
 

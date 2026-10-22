@@ -117,6 +117,8 @@ def lines_of(state, parts, home):
 
 
 GENERATED = "ok hard generated files are current"
+OFF = {"attribution": {"commit": "", "pr": ""}, "includeCoAuthoredBy": False}
+CURSOR_OFF = {"attribution": {"attributeCommitsToAgent": False, "attributePRsToAgent": False}}
 UV = """#!/bin/sh
 echo "$*" >> "$UV_LOG"
 tools=$UV_TOOL_DIR
@@ -161,11 +163,17 @@ class User:
         self.bin = self.home / ".local" / "bin"
         self.units = self.home / ".config" / "systemd" / "user"
         self.patterns = self.home / ".config" / "jstack" / "outbound.toml"
+        self.providers = self.home / ".config" / "jstack" / "providers.json"
+        self.cursor = self.home / ".cursor" / "cli-config.json"
         self.layout = laid(self.home)
         self.START = group("home-start.sh", self.home)
         self.CODEX_START = group("home-start.sh", self.home, harness="codex")
         self.GAUGE = group("home-gauge.sh", self.home, matcher=None)
         self.OUTBOUND = group("outbound-command.sh", self.home, matcher="Bash", refuses=True)
+        self.TRAILER = group("ai-trailer.sh", self.home, matcher="Bash", refuses=True)
+        self.CODEX_TRAILER = group(
+            "ai-trailer.sh", self.home, matcher="Bash", refuses=True, harness="codex"
+        )
         limits = self.layout / "hooks" / "limits.sh"
         self.STATUS = {"type": "command", "command": f"sh '{limits}'"}
         self.home.mkdir()
@@ -253,6 +261,7 @@ class User:
             *hook_parts(self.home, REPO),
             "hard commands jstack",
             f"optional statusline {self.settings}",
+            f"hard attribution {self.settings}",
         ]
 
     def every(self, state, *more):
@@ -304,6 +313,13 @@ def user(tmp_path):
     return User(tmp_path)
 
 
+def pre_tool_use(file, script):
+    """The one PreToolUse group of `file` whose command runs `script`."""
+    groups = json.loads(file.read_text())["hooks"]["PreToolUse"]
+    (found,) = [one for one in groups if f"/{script}'" in one["hooks"][0]["command"]]
+    return found
+
+
 def line_for(said, part):
     return [line for line in said if f" {part}" in line]
 
@@ -316,6 +332,7 @@ def test_it_puts_every_part_and_says_ok_for_each(user):
     assert json.loads(user.settings.read_text()) == {
         "hooks": user.written(),
         "statusLine": user.STATUS,
+        **OFF,
     }
     assert json.loads(user.codex.read_text()) == {"hooks": user.written("codex")}
     assert sorted(path.name for path in user.bin.iterdir()) == sorted(NAMES)
@@ -414,7 +431,11 @@ def test_a_hook_already_in_a_hooks_file_is_kept(user):
     assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.codex.read_text()) == {
-        "hooks": {"SessionStart": [other, user.CODEX_START], "Stop": stop}
+        "hooks": {
+            "SessionStart": [other, user.CODEX_START],
+            "Stop": stop,
+            "PreToolUse": [user.CODEX_TRAILER],
+        }
     }
     before = user.codex.read_text()
     user.run()
@@ -432,7 +453,10 @@ def test_an_entry_for_another_checkout_is_old_and_replaced(user):
     assert line_for(user.run("--check")[1], part) == [f"old hard {part} -> {was}"]
     assert user.run()[0] == 0
     assert json.loads(user.codex.read_text()) == {
-        "hooks": {"SessionStart": [{"matcher": "startup", "hooks": [beside]}, user.CODEX_START]}
+        "hooks": {
+            "SessionStart": [{"matcher": "startup", "hooks": [beside]}, user.CODEX_START],
+            "PreToolUse": [user.CODEX_TRAILER],
+        }
     }
 
 
@@ -449,7 +473,7 @@ def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touc
     assert line_for(said, part) == [f"old hard {part} -> {by_hand}"]
     assert line_for(said, "statusline") == []
     assert user.run()[0] == 0
-    assert json.loads(user.settings.read_text()) == written | {"hooks": user.written()}
+    assert json.loads(user.settings.read_text()) == written | {"hooks": user.written()} | OFF
     assert user.run("--uninstall")[0] == 0
     assert json.loads(user.settings.read_text()) == {
         "model": "one",
@@ -498,6 +522,7 @@ def test_a_settings_file_that_is_a_link_is_written_where_it_points(user, tmp_pat
     assert json.loads(kept.read_text()) == {
         "hooks": {"Stop": stop, **user.written()},
         "statusLine": user.STATUS,
+        **OFF,
     }
     assert sorted(path.name for path in kept.parent.iterdir()) == ["settings.json"]
     assert user.run("--uninstall")[0] == 0
@@ -1003,7 +1028,7 @@ def test_uninstall_keeps_private_patterns_the_user_added_to(user):
 
 def test_the_command_hook_the_install_writes_refuses_through_its_exit_code(user):
     user.run()
-    _, written = json.loads(user.settings.read_text())["hooks"]["PreToolUse"]
+    written = pre_tool_use(user.settings, "outbound-command.sh")
     assert written == user.OUTBOUND
     asked = {"tool_name": "Bash", "tool_input": {"command": "git push --no-verify"}, "cwd": "/"}
     done = subprocess.run(
@@ -1018,9 +1043,28 @@ def test_the_command_hook_the_install_writes_refuses_through_its_exit_code(user)
     assert done.stderr.splitlines()[0] == "command:1: push-no-verify"
 
 
+@pytest.mark.parametrize("harness", ["claude-code", "codex"])
+def test_the_trailer_hook_the_install_writes_for_each_harness_refuses_an_ai_trailer(user, harness):
+    user.run()
+    file = user.settings if harness == "claude-code" else user.codex
+    written = pre_tool_use(file, "ai-trailer.sh")
+    assert written == (user.TRAILER if harness == "claude-code" else user.CODEX_TRAILER)
+    trailer = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+    for command, code in ((f"git commit -m x -m '{trailer}'", 2), ("git commit -m x", 0)):
+        asked = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": "/"}
+        done = subprocess.run(
+            written["hooks"][0]["command"],
+            shell=True,
+            input=json.dumps(asked),
+            capture_output=True,
+            text=True,
+        )
+        assert done.returncode == code, done.stderr
+
+
 def test_the_gauge_hook_the_install_writes_denies_a_tool_call_past_the_ceiling(user, tmp_path):
     user.run()
-    written, _ = json.loads(user.settings.read_text())["hooks"]["PreToolUse"]
+    written = pre_tool_use(user.settings, "home-gauge.sh")
     assert written == user.GAUGE
     main, transcript = tmp_path / "demo", tmp_path / "session-1.jsonl"
     subprocess.run(["git", "init", "-q", main], check=True)
@@ -1061,10 +1105,14 @@ def test_a_machine_with_the_gauge_only_after_a_tool_call_gets_it_before_one_too(
     user.settings.write_text(json.dumps(written))
     part = f"hook {user.settings} PreToolUse"
     code, said = user.run("--check")
-    assert (code, line_for(said, part)) == (1, [f"missing hard {part}", f"ok hard {part}"])
+    assert (code, line_for(said, part)) == (
+        1,
+        [f"missing hard {part}", f"missing hard {part}", f"ok hard {part}"],
+    )
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
         user.OUTBOUND,
+        user.TRAILER,
         user.GAUGE,
     ]
     assert user.run("--check") == (0, user.every("ok"))
@@ -1194,3 +1242,108 @@ def test_a_push_that_fails_leaves_no_tag_and_a_second_make_release_pushes_it(tmp
     assert release(work).returncode == 0
     version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
     assert tags(work) == tags(origin) == [f"v{version}"]
+
+
+def test_a_settings_file_with_no_attribution_gets_it_and_keeps_every_other_key(user):
+    written = {"model": "one", "env": {"A": "1"}, "permissions": {"allow": ["Bash(ls)"]}}
+    user.write(user.settings, written)
+    part = f"attribution {user.settings}"
+    assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
+    assert line_for(user.run()[1], part) == [f"ok hard {part}"]
+    assert (
+        json.loads(user.settings.read_text())
+        == written
+        | {
+            "hooks": user.written(),
+            "statusLine": user.STATUS,
+        }
+        | OFF
+    )
+
+
+@pytest.mark.parametrize(
+    ("there", "detail"),
+    [
+        (
+            {"attribution": {"commit": "", "pr": ""}, "includeCoAuthoredBy": None},
+            "includeCoAuthoredBy is null",
+        ),
+        (
+            {"attribution": {"commit": "Co-Authored-By: Claude"}},
+            'attribution is {"commit": "Co-Authored-By: Claude"}',
+        ),
+        ({"includeCoAuthoredBy": True}, "attribution is not set"),
+    ],
+)
+def test_a_differing_value_is_reported_by_check_and_set_by_a_run(user, there, detail):
+    user.write(user.settings, {"model": "one", **there})
+    part = f"attribution {user.settings}"
+    code, said = user.run("--check")
+    assert (code, line_for(said, part)) == (1, [f"old hard {part} -> {detail}"])
+    assert json.loads(user.settings.read_text()) == {"model": "one", **there}
+    assert line_for(user.run()[1], part) == [f"ok hard {part}"]
+    value = json.loads(user.settings.read_text())
+    assert (value["model"], value["attribution"], value["includeCoAuthoredBy"]) == (
+        "one",
+        OFF["attribution"],
+        False,
+    )
+
+
+def test_uninstall_takes_out_only_the_attribution_the_install_set(user):
+    user.write(user.settings, {"attribution": {"commit": "mine", "pr": ""}})
+    user.run()
+    user.write(user.settings, json.loads(user.settings.read_text()) | {"includeCoAuthoredBy": True})
+    assert user.run("--uninstall")[0] == 0
+    assert json.loads(user.settings.read_text()) == {"includeCoAuthoredBy": True}
+
+
+def declare(user, home):
+    user.write(
+        user.providers,
+        {
+            "claudeAgent": {"driver": "claudeAgent", "enabled": True},
+            "prime": {"driver": "claudeAgent", "enabled": True, "config": {"homePath": home}},
+        },
+    )
+
+
+def test_a_declared_claude_home_with_its_own_settings_gets_the_attribution_too(user):
+    declare(user, "~/.claude_prime")
+    prime = user.home / ".claude_prime" / "settings.json"
+    user.write(prime, {"model": "two"})
+    part = f"attribution {prime}"
+    assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
+    assert line_for(user.run()[1], part) == [f"ok hard {part}"]
+    assert json.loads(prime.read_text()) == {"model": "two", **OFF}
+
+
+def test_a_declared_home_whose_settings_link_to_the_main_ones_shares_that_one_file(user):
+    declare(user, "~/.claude_prime")
+    prime = user.home / ".claude_prime" / "settings.json"
+    prime.parent.mkdir(parents=True)
+    prime.symlink_to(user.settings)
+    user.run()
+    assert line_for(user.run("--check")[1], f"attribution {prime}") == [
+        f"ok hard attribution {prime}"
+    ]
+    assert prime.is_symlink()
+    assert json.loads(user.settings.read_text())["attribution"] == OFF["attribution"]
+
+
+def test_a_declared_home_with_no_settings_yet_is_left_to_the_mirror(user):
+    declare(user, "~/.claude_prime")
+    (user.home / ".claude_prime").mkdir()
+    assert line_for(user.run()[1], ".claude_prime") == []
+    assert not (user.home / ".claude_prime" / "settings.json").exists()
+
+
+def test_cursors_cli_config_gets_its_attribution_only_once_cursor_has_made_it(user):
+    assert line_for(user.run()[1], f"attribution {user.cursor}") == []
+    assert not user.cursor.exists()
+    mine = {"permissions": {"allow": ["Shell(ls)"], "deny": []}, "editor": {"vimMode": True}}
+    user.write(user.cursor, mine)
+    part = f"attribution {user.cursor}"
+    assert line_for(user.run("--check")[1], part) == [f"missing hard {part}"]
+    assert line_for(user.run()[1], part) == [f"ok hard {part}"]
+    assert json.loads(user.cursor.read_text()) == mine | CURSOR_OFF

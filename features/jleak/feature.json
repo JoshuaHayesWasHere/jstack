@@ -1,7 +1,7 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "jleak",
-  "description": "Finds what must not leave the machine for a public repo, before a push or a pull request.",
+  "description": "Finds what must not leave the machine for a public repo, before a push or a pull request, and keeps AI co-author trailers out of commits and pull requests.",
   "packages": [
     "src/jleak"
   ],
@@ -20,12 +20,26 @@
         "claude-code"
       ],
       "refuses": true
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash",
+      "script": "hooks/ai-trailer.sh",
+      "harnesses": [
+        "claude-code",
+        "codex"
+      ],
+      "refuses": true
     }
   ],
   "gitHooks": [
     {
       "name": "pre-push",
       "script": "hooks/pre-push.sh"
+    },
+    {
+      "name": "commit-msg",
+      "script": "hooks/commit-msg.sh"
     }
   ]
 }

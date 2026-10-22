@@ -72,7 +72,7 @@
         "required": ["name", "script"],
         "additionalProperties": false,
         "properties": {
-          "name": {"enum": ["pre-push"]},
+          "name": {"enum": ["pre-push", "commit-msg"]},
           "script": {"type": "string", "pattern": "^hooks/[a-z0-9-]+\\.sh$"}
         }
       }

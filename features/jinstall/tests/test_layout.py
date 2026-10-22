@@ -70,14 +70,14 @@ def test_a_layout_holds_each_skill_playbook_principle_template_and_its_own_hooks
             assert entry.source.exists(), path
 
 
-def test_only_claude_code_and_codex_run_the_session_start_hook_and_only_claude_code_the_rest():
+def test_codex_runs_only_the_session_start_and_trailer_hooks_and_cursor_runs_none():
     held = {
         harness.name: sorted(
             path for path in layout.assemble(REPO, harness).entries if path.startswith("hooks/")
         )
         for harness in HARNESSES
     }
-    assert held["codex"] == ["hooks/home-start.sh"]
+    assert held["codex"] == ["hooks/ai-trailer.sh", "hooks/home-start.sh"]
     assert held["cursor"] == []
     assert "hooks/limits.sh" in held["claude-code"]
     assert "hooks/pre-push.sh" not in held["claude-code"]
