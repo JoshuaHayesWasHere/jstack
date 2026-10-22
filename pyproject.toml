@@ -68,7 +68,7 @@ packages = [
 [tool.pytest.ini_options]
 # generated: paths by scripts/generate-jstack-trees.py from features/*/feature.json; edit those, then rerun
 testpaths = [
-    "tests",
+    "testing/tests",
     "features/architect/tests",
     "features/automate-me/tests",
     "features/crew/tests",
@@ -112,7 +112,7 @@ pythonpath = [
     "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
-    "tests",
+    "testing/tests",
     "features/architect/tests",
     "features/automate-me/tests",
     "features/crew/tests",
@@ -182,7 +182,7 @@ src = [
     "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
-    "tests",
+    "testing/tests",
     "features/architect/tests",
     "features/automate-me/tests",
     "features/crew/tests",

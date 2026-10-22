@@ -110,11 +110,6 @@
           "source": {"enum": ["pstack", "adapted"]}
         }
       }
-    },
-    "owns": {
-      "description": "Until the feature's files move into its folder: each repo-root path or glob it owns. dir/** is the whole tree, and * does not cross a /.",
-      "type": "array",
-      "items": {"type": "string", "minLength": 1}
     }
   }
 }

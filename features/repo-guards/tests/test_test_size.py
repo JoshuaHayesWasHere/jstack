@@ -72,7 +72,7 @@ def test_no_two_test_files_have_one_name():
 def test_each_folder_of_the_tests_is_a_package():
     folders = {
         path.parent
-        for root in (REPO / "tests", *REPO.glob("features/*/tests"))
+        for root in (REPO / "testing" / "tests", *REPO.glob("features/*/tests"))
         for path in root.rglob("*.py")
         if path.parent != root and "fixtures" not in path.relative_to(REPO).parts
     }

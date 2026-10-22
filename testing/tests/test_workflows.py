@@ -1201,3 +1201,14 @@ def test_make_release_tags_a_clean_main_that_is_origins_and_refuses_anything_els
     done = make(repo, "release")
     assert done.returncode == 0, done.stderr
     assert tags() == [f"v{VERSION}", f"v{VERSION}^{{}}"]
+
+
+def test_each_check_jmerge_requires_is_a_job_of_a_pull_request_and_borders_fails_on_a_warning():
+    from jmerge import ready
+
+    pulled = {"check": CHECK, "borders": BORDERS}
+    assert set(ready.REQUIRED) == set(pulled)
+    for name, workflow in pulled.items():
+        assert name in jobs(workflow.read_text())
+    (*_, lint), _ = steps(BORDERS.read_text(), "borders")
+    assert lint["run"].startswith("python3 scripts/lint-borders.py --hard ")

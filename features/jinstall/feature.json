@@ -10,8 +10,5 @@
   },
   "docs": [
     "docs/jinstall.md"
-  ],
-  "owns": [
-    "install.sh"
   ]
 }

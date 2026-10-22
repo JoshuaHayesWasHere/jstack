@@ -251,7 +251,7 @@ def test_a_turn_with_no_content_is_left_out_of_the_digest(machine, tmp_path):
 
 AGENT_TYPES = dict(
     re.fullmatch(r"(\S+) \(Tools: (.*)\)", line).groups()
-    for line in (REPO / "tests/fixtures/claude/agent-types.txt").read_text().splitlines()
+    for line in (REPO / "testing/tests/fixtures/claude/agent-types.txt").read_text().splitlines()
 )
 WRITE_TOOLS = ["Edit", "NotebookEdit", "Write"]
 
@@ -270,7 +270,7 @@ def launch_problems(call):
     """What lets a subagent started with `call`, an Agent call, change a file."""
     kind = call.get("subagent_type", "general-purpose")
     if kind not in AGENT_TYPES:
-        return [f"{kind} is no agent type in tests/fixtures/claude/agent-types.txt"]
+        return [f"{kind} is no agent type in testing/tests/fixtures/claude/agent-types.txt"]
     found = [f"{kind} has the {tool} tool" for tool in write_tools(AGENT_TYPES[kind])]
     if call.get("isolation"):
         found.append("a worktree of its own hides what it writes from the worktree check")
@@ -313,7 +313,7 @@ EVERY_WRITE_TOOL = [
         ({"subagent_type": "statusline-setup"}, ["statusline-setup has the Edit tool"]),
         (
             {"subagent_type": "reviewer"},
-            ["reviewer is no agent type in tests/fixtures/claude/agent-types.txt"],
+            ["reviewer is no agent type in testing/tests/fixtures/claude/agent-types.txt"],
         ),
         (
             {"subagent_type": "Explore", "isolation": "worktree"},

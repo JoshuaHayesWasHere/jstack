@@ -37,7 +37,7 @@ def test_a_test_in_a_features_own_folder_gets_the_isolation_and_the_shared_helpe
     copy.mkdir()
     for name in ("conftest.py", "pyproject.toml"):
         shutil.copy2(REPO / name, copy / name)
-    for name in ("src", "testing", "tests"):
+    for name in ("src", "testing"):
         (copy / name).symlink_to(REPO / name)
     (copy / "features").mkdir()
     for feature in (REPO / "features").iterdir():

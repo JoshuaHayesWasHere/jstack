@@ -51,8 +51,6 @@ def reasons() -> dict[str, Reason]:
 
 
 OTHER_HOME = Reason("", "another home's")
-# The checks a pull request must pass, each by its latest run: the suite, and the border lint
-# (borders.yml). The first is the one whose start a fresh check is read against.
 REQUIRED = ("check", "borders")
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")

@@ -38,7 +38,7 @@ from pathlib import Path
 
 DESK_SHARE = 4
 """A desk run's workers are a quarter of the processors, at least two: the Makefile's
-`PER_CORE` of `1 / 4` and its floor of 2, which tests/test_check_command.py holds to this by
+`PER_CORE` of `1 / 4` and its floor of 2, which testing/tests/test_check_command.py holds to this by
 running `make`. A worker keeps 0.86 of a core busy (yelena, 2026-10-20: 456 to 483 s of CPU
 for a 89 to 94 s run at 6 workers), so the full slots, counted from this share, fill the
 machine once and no more."""

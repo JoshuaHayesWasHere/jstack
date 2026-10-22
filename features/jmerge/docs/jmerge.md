@@ -154,7 +154,7 @@ It needs no package, so it runs before `uv sync`, and the same two commits give 
 When `$GITHUB_STEP_SUMMARY` is set it adds one line to it, `check-fast selection=<all|some> files=<n> of=<total> changed=<n> imports=<n> names=<n> features=<n> cross-cutting=<n> forced-by=<path or ->`: a collector reads the choice of every run from that line.
 A test module that marks itself `browser` is never printed: `make check-browser` runs it nightly and on a release.
 A test the selection missed fails the `full` job on main after the merge.
-`tests/test_select_tests.py` fails when a path is owned by no feature, or a test file is selected by no change.
+`testing/tests/test_select_tests.py` fails when a path is owned by no feature, or a test file is selected by no change.
 
 ## Merge gate
 

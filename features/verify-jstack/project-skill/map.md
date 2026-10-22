@@ -43,7 +43,7 @@ Each feature file starts with an H1 title and one paragraph on what the user see
 `scripts/select_tests.py <base> <head>` reads the two lists of every file, and the `Cross-cutting:` list below, to name the tests a diff needs.
 A changed path selects the tests that import the module it is, or a module beside it, through any chain of imports, and the tests that spell its path.
 An edit to a feature file selects that feature's tests: its `Tests:` and every test that imports a module the feature owns, not `all`.
-`tests/test_select_tests.py` fails when a path under `src/`, `templates/`, `docs/`, `scripts/` or `.cursor/`, or `install.sh`, is owned by no feature, when one of those folders holds no file, when a `Paths:`, `Tests:` or `Cross-cutting:` line holds two entries, when a `Tests:` list names a file that is not there, when a `Tests:` list names a test an import or a name already selects, when a test file is selected by no change and is not cross-cutting, and when importing the test files loads a module the script's import graph does not show.
+`testing/tests/test_select_tests.py` fails when a path under `src/`, `templates/`, `docs/`, `scripts/` or `.cursor/`, or `install.sh`, is owned by no feature, when one of those folders holds no file, when a `Paths:`, `Tests:` or `Cross-cutting:` line holds two entries, when a `Tests:` list names a file that is not there, when a `Tests:` list names a test an import or a name already selects, when a test file is selected by no change and is not cross-cutting, and when importing the test files loads a module the script's import graph does not show.
 A test that runs a package of `src/` in a process of its own, and does not import it, is taken to import every module of the package when a string in it is the package name.
 A feature that no recipe drives yet has the two lists and its H1 paragraph, and each of its four sections says `Not driven yet.`, with `Needs: \`home\`` under the third, which every sandbox has, so that Doctor passes it.
 
@@ -106,8 +106,8 @@ No recipe drives these yet: `jgauge session`, `jgauge run` and `jgauge test-slot
 A test file that reads the whole tree, and not the paths of one feature (it globs the repo, or every skill and every page at once), is cross-cutting: every diff runs it, and no `Tests:` line needs to name it.
 
 Cross-cutting:
-- `tests/test_check_command.py`
-- `tests/test_daemons.py`
+- `testing/tests/test_check_command.py`
+- `testing/tests/test_daemons.py`
 - `features/repo-guards/tests/test_docs_true.py`
 - `features/repo-guards/tests/test_docs_tree.py`
 - `features/home/tests/test_home_merge_guard.py`
@@ -117,8 +117,8 @@ Cross-cutting:
 - `features/repo-guards/tests/test_playbook_wiring.py`
 - `features/repo-guards/tests/test_readme_current.py`
 - `features/repo-guards/tests/test_run_not_read.py`
-- `tests/test_select_tests.py`
+- `testing/tests/test_select_tests.py`
 - `features/repo-guards/tests/test_skill_frontmatter.py`
 - `features/repo-guards/tests/test_test_size.py`
 - `features/repo-guards/tests/test_tool_calls.py`
-- `tests/test_workflows.py`
+- `testing/tests/test_workflows.py`

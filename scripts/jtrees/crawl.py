@@ -25,9 +25,11 @@ PLUGIN_SCHEMA = "schemas/agent-plugins-1.0.0.plugin.schema.json"
 PRINCIPLE = "principle-"
 SKILL = "SKILL.md"
 
-# The paths no feature owns: the repo's own build, CI and generator (INFRA), and the shared
-# files the generator writes or a later unit deletes (SHARED-DELETE). Kept here and not in a
-# manifest, since a manifest is a feature's.
+# The paths no feature owns: the repo's own build, CI, generator, lints and tests, and the entry
+# points a user or a harness looks for where they are, each a link into a feature's folder but
+# install.sh (INFRA); and the shared files the generator writes or a later unit deletes
+# (SHARED-DELETE). Kept here and not in a manifest, since a feature owns its folder and nothing
+# else. Each row outside lint-borders.py's LAYOUT is a path that may stay outside it.
 REPO_OWNERS: dict[str, tuple[str, ...]] = {
     "INFRA": (
         ".github/**",
@@ -42,22 +44,18 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         "schemas/**",
         "scripts/generate-jstack-trees.py",
         "scripts/jtrees/**",
+        "scripts/lint-borders.py",
+        "scripts/check-jstack-docs.py",
         "scripts/green_tree.py",
         "scripts/fresh-host.sh",
         "scripts/select_tests.py",
         "scripts/hot_files.py",
         "conftest.py",
         "testing/**",
-        "tests/test_test_plugins.py",
-        "tests/test_jtrees*.py",
-        "tests/test_select_tests.py",
-        "tests/test_workflows.py",
-        "tests/test_check_command.py",
-        "tests/daemons.py",
-        "tests/test_daemons.py",
-        "tests/repo_template.py",
-        "tests/test_hot_files.py",
+        "install.sh",
+        ".claude/skills/verify-jstack/SKILL.md",
         ".claude/skills/verify-jstack/features/ci-check.md",
+        ".cursor/skills/verify-main-red/SKILL.md",
     ),
     "SHARED-DELETE": (
         "README.md",
@@ -143,12 +141,6 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
         )
         for one in manifest.get("hooks", ())
     )
-    owns = tuple(manifest.get("owns", ()))
-    try:
-        rows = tuple(pattern(one) for one in owns)
-    except ValueError as error:
-        faults.append(f"{where}: owns {error}")
-        return None
     return Feature(
         name=name,
         description=manifest["description"],
@@ -161,8 +153,6 @@ def _feature(root: Path, folder: Path, rules: dict[str, Any], faults: list[str])
             (one["name"], placed(one["script"])) for one in manifest.get("gitHooks", ())
         ),
         nameable=tuple(manifest.get("nameable", ())),
-        owns=owns,
-        _owns=rows,
     )
 
 

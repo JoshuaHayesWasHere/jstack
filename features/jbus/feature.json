@@ -25,8 +25,5 @@
   "docs": [
     "docs/jbus.md",
     "docs/chef.md"
-  ],
-  "owns": [
-    ".cursor/skills/verify-main-red/SKILL.md"
   ]
 }

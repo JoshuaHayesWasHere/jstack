@@ -1,9 +1,5 @@
 {
   "$schema": "../../schemas/feature.schema.json",
   "name": "repo-guards",
-  "description": "The tests that hold the repo's skills, docs and code to its own rules.",
-  "owns": [
-    "scripts/check-jstack-docs.py",
-    "scripts/lint-borders.py"
-  ]
+  "description": "The tests that hold the repo's skills, docs and code to its own rules."
 }
