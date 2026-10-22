@@ -168,8 +168,12 @@ def test_a_guarded_path_with_every_gate_met_is_merged_at_the_head_it_was_judged_
     assert pulled == commit
     head, origin = proven_merged.head, proven_merged.origin
     assert merges(proven_merged) == [
-        f"pr merge 7 --squash --match-head-commit {head} --repo {origin}"
+        f"pr merge 7 --squash --match-head-commit {head} --subject {merge.TITLE} (#7)"
+        f" --body-file - --repo {origin}"
     ]
+    assert merge.git(origin, "rev-parse", f"{commit}^{{tree}}") == merge.git(
+        origin, "rev-parse", f"{head}^{{tree}}"
+    )
 
 
 def guarded(why, path=SKILL):

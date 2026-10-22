@@ -68,6 +68,15 @@ jobs:
       - name: make check-fast
         id: suite
         run: make check-fast BASE=HEAD^1
+      # A pull request whose title, body or any commit from base to head credits an AI tool as a
+      # co-author fails here, with each line named. It runs whatever the suite said, so a red
+      # suite does not hide it. The commits come from GitHub's compare API, not this checkout's
+      # two commits of history.
+      - name: no AI co-author trailer
+        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run python scripts/no_ai_trailers.py
       # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
       # tree, and a fast run leaves none, since a marker says the full suite passed. A later
       # run of the same tree, main's after a squash merge or jmerge's fresh check, skips the
