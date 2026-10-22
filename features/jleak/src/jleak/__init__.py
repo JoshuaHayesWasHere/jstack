@@ -42,8 +42,8 @@ class Pattern:
 
 @dataclass(frozen=True)
 class Text:
-    """A piece of outbound text. `where` is a file or a field, and each line has the number jleak
-    prints it with: its place in a file, or 0 for the file's own name."""
+    """A piece of outbound text. `where` is a file or a field. Each line has a number, which
+    jleak prints beside the line: the line's place in a file, or 0 for the file's own name."""
 
     where: str
     lines: tuple[tuple[int, str], ...]

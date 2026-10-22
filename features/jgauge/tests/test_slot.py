@@ -59,7 +59,8 @@ def slots(tmp_path):
         (state / f"release.{name}").touch()
 
     def hold(*numbers):
-        """Take those slots as another holder would, until `free`."""
+        """Take those slots as another holder would. The slots stay taken until the test
+        calls `free`."""
         locks.mkdir(parents=True, exist_ok=True)
         for n in numbers:
             fd = os.open(locks / f"test-slot.{n}.lock", os.O_RDWR | os.O_CREAT)

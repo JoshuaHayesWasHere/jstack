@@ -2,12 +2,12 @@
 `jpack verify <pack> [--repo <checkout>]` and
 `jpack stale <pack> [--repo <checkout>] [--rev <rev>] [--days <n>]`.
 
-`lint` runs the one shell lint on the pack's notes. `verify` checks that each cited line is
-in the repo and says what the note quotes. `stale` lists the notes that cite a file changed since
-their pin, and the ones stale long enough to prune. Each command prints one line for each
-thing it finds and exits 1. For a pack in order it prints nothing and exits 0, and it exits 2
-for a folder or a repo it cannot read. The repo is the checkout the pack is in, unless `--repo`
-names another. No model reads anything, and jpack writes nothing.
+`lint` runs the one shell lint on the pack's notes. `verify` checks that each cited line is in the
+repo and that the line says what the note quotes. `stale` lists the notes that cite a file changed
+since their pin, and the ones stale long enough to prune. Each command prints one line for each
+thing it finds and exits 1. For a pack in order it prints nothing and exits 0, and it exits 2 for a
+folder or a repo it cannot read. The repo is the checkout the pack is in, unless `--repo` names
+another. No model reads anything, and jpack writes nothing.
 """
 
 from __future__ import annotations

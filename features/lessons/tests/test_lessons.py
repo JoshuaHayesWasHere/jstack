@@ -258,7 +258,8 @@ WRITE_TOOLS = ["Edit", "NotebookEdit", "Write"]
 
 
 def write_tools(tools):
-    """The write tools an agent type has, read from the Agent tool's list of its tools."""
+    """The write tools that an agent type has. `tools` is the agent type's list of tools, as
+    the Agent tool gives it."""
     named = set(tools.removeprefix("All tools except ").split(", "))
     if tools == "*":
         return WRITE_TOOLS

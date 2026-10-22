@@ -28,7 +28,7 @@ def given():
 
 
 def call(key, role="crew"):
-    """The one tool call the home skill gives as a JSON block that has `key`, for `role`."""
+    """The one tool call for `role` that the home skill gives as a JSON block with `key`."""
     found = [sent for sent in given() if key in sent]
     found = [
         sent

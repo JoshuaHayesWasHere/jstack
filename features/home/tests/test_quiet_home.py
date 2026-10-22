@@ -1,11 +1,11 @@
 """A home plans, assigns and starts. A crewmate tells the home of finished work only while the home
 is the one that merges.
 
-Before any line about its pull request, a crewmate asks who merges, with the test that the home
-skill's "Who merges" section makes. A crewmate pipes a gate to `jbus gate` and does not send it to
-the home, and `features/jbus/tests/test_gates.py` has the home read it back from jbus. Each test
-takes every block from its skill and runs it. The test runs the gate's block against the real
-`jbus` in a temporary state directory."""
+Before any line about its pull request, a crewmate asks who merges. It asks with the same check that
+the home skill's "Who merges" section makes. A crewmate pipes a gate to `jbus gate` and does not
+send it to the home, and `features/jbus/tests/test_gates.py` has the home read it back from jbus.
+Each test takes every block from its skill and runs it. The test runs the gate's block against the
+real `jbus` in a temporary state directory."""
 
 import json
 import os
@@ -42,7 +42,7 @@ Undo: remove the flag and its test"""
 
 
 class Quiet(Scene):
-    """A scene whose blocks find only the `jbus` put in its own `bin`."""
+    """A scene whose blocks find only the `jbus` that the scene puts in its own `bin`."""
 
     def __init__(self, tmp_path):
         super().__init__(tmp_path)

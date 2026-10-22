@@ -1,7 +1,7 @@
 """The end of a handoff: a repo's home writes a note of ten lines at most, starts the next home,
 then renames and settles itself. Any other thread starts nothing. A party's home starts its next
-thread on the model the role map gives its role. The tests run the handoff skill's own shell block
-in a temporary repo and check the skill's own JSON blocks against the tools."""
+thread on the model that the role map gives the thread's role. The tests run the handoff skill's own
+shell block in a temporary repo and check the skill's own JSON blocks against the tools."""
 
 import json
 import re
@@ -39,9 +39,9 @@ def scene(tmp_path):
 
 
 def hands_off(scene, thread, checkout=None):
-    """What the handoff's close prints when `thread` runs it as step 3 says, after the test writes
-    the note. The test gives the close no reply from `list_scheduled_tasks`, so the output has no
-    lines about the scheduled tasks."""
+    """What the handoff's close prints when `thread` runs the close. The test first writes the
+    note, and `thread` then runs the close the way step 3 says to. The test gives the close no
+    reply from `list_scheduled_tasks`, so the output has no lines about the scheduled tasks."""
     ran = scene.home_hands_off(thread, checkout)
     assert ran.returncode == 0
     return "".join(line for line in ran.stdout.splitlines(True) if not line.startswith("not read:"))

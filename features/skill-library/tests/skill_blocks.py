@@ -29,8 +29,8 @@ def blocks(text, language):
 
 
 def block(skill, marker):
-    """The one `sh` block that has `marker` in it, in the skill named `skill` as an agent
-    reads it."""
+    """The one `sh` block that has `marker` in it, in the skill named `skill`. The function
+    reads the skill as an agent reads it."""
     (found,) = [b for b in blocks(as_read(SKILLS[skill] / "SKILL.md"), "sh") if marker in b]
     return found
 

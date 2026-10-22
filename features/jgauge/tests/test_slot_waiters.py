@@ -1,6 +1,6 @@
 """A thread that finds every slot taken registers as a waiter in the slot queue's file, and
 says so in one line, instead of waiting in the call. The tests run as `test_slot.py` does: the
-real `jgauge test-slot`, against lock files in a home of its own."""
+real `jgauge test-slot`, against lock files in a temporary home that each test makes."""
 
 import fcntl
 import json
@@ -21,8 +21,8 @@ NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 
 @pytest.fixture
 def machine(tmp_path, monkeypatch):
-    """A home of its own, whose lock files a test can hold, on 24 processors and 62 GiB, so 3
-    short slots, and no limits file."""
+    """A temporary home for one test, with lock files that the test can hold. The machine has
+    24 processors and 62 GiB, so it has 3 short slots. The home has no limits file."""
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     home = tmp_path / "home"

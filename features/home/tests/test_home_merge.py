@@ -861,8 +861,9 @@ TRACKED = """\
 
 
 class Merged:
-    """A main checkout with a crewmate's worktree. The crewmate pushed its branch, and its pull
-    request has a clean review at that head, so it is ready unless the test says otherwise.
+    """A main checkout with a crewmate's worktree. The crewmate pushed its branch, and the pull
+    request has a clean review at the head it pushed, so the pull request is ready unless the test
+    says otherwise.
 
     The origin is a copy of the template's origin, whose `main` has the commit that `Home` copied.
     The checkout gets what `git push -u origin main` would write: the remote, `main`'s upstream
@@ -1361,8 +1362,8 @@ CHANGED = "patch changed in a.txt, before {before}, head {head}"
 
 def scoped(merged, rebased):
     """The line of a pull request whose rebase changed what its patch says. The pull request
-    waits for one review of the range-diff. The diff compares each head from the commit where it
-    branched from main."""
+    waits for one review of the range-diff. The range-diff compares the commits of each head,
+    counted after the commit where that head forks from main."""
     tip = git(merged.home.main, "rev-parse", "origin/main")
     return (
         f"wait 7 {URL}: the rebase changed the content after its review; scoped review of "

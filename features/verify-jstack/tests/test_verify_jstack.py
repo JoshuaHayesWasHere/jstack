@@ -1,6 +1,6 @@
 """The verify-jstack skill's scripts. `launch.sh` says `ready:` only when a drive can run.
-`doctor.sh` fails a feature whose seed the sandbox lacks. `record.sh` writes what a stand-in set up
-at the top of the evidence. Every test but the last runs the scripts, under a temporary
+`doctor.sh` fails a feature whose seed the sandbox lacks. At the top of the evidence, `record.sh`
+writes what a stand-in set up. Every test but the last runs the scripts, under a temporary
 `TMPDIR`. The last follows each link of the pages to the file it names."""
 
 import os

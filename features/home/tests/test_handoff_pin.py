@@ -38,8 +38,9 @@ def call(skill, tool, **holding):
 class T3:
     """What T3 Code keeps of threads and scheduled tasks, following the rules the skills rely on.
     T3 Code keeps a pin once, and a settle clears it. When a thread settles itself, T3 Code settles
-    it once the thread's turn ends without being cut off. T3 Code binds a task to the thread that
-    calls. Each run of a task that is on makes active again the thread that the task posts into."""
+    the thread at the end of its turn, unless something cut the turn off. T3 Code binds a task to
+    the thread that calls. Each run of a task that is on makes the thread that the task posts into
+    active again."""
 
     def __init__(self):
         self.threads = {}
@@ -149,8 +150,8 @@ class Home(Scene):
 
     def takes(self, thread):
         """Run the first steps of a home's start in the order the skill gives. The home writes
-        its id, pins itself, then takes over or deletes the last home's tasks. Once the calls are
-        made, return what the block says about the tasks."""
+        its id, pins itself, then takes over or deletes the last home's tasks. After the home makes
+        those calls, return what the block says about the tasks."""
         self.t3.threads.get(thread) or self.t3.thread(thread)
         self.home_starts(thread)
         self.t3.call(thread, call("home", "t3_thread_organize", action="pin"))
@@ -179,9 +180,9 @@ class Home(Scene):
         return [*self.takes(thread), self.looks(thread)]
 
     def listed_at_handoff(self, thread, reply=None):
-        """Run the handoff's close once the note is there, with a reply from
-        `list_scheduled_tasks`. Return the lines the close printed about the tasks. They come
-        after the lines that say whether to launch."""
+        """Give the handoff's close a reply from `list_scheduled_tasks`, and run the close once
+        the note is there. Return the lines the close printed about the tasks. They come after
+        the lines that say whether to launch."""
         if not (self.home_dir / "handoff.next.md").exists():
             (self.home_dir / "handoff.next.md").write_text(NOTE)
         found = block("handoff", "Scheduled task \\(").replace("<threadId>", thread)
@@ -194,10 +195,10 @@ class Home(Scene):
 
     def hands_off(self, thread, next, steps=4):
         """Run the first `steps` of the four steps a handoff ends with, then cut the turn off. The
-        four steps write the handoff and remove `home-id`, launch, rename and settle. The next home
-        starts while `thread` is still in its turn, and it checks `thread` after that turn ends.
-        Return what the next home's start blocks said, or nothing when `thread` is not the
-        home."""
+        first step writes the handoff and removes `home-id`. The other three launch, rename and
+        settle. The next home starts while `thread` is still in its turn, and the next home checks
+        `thread` after that turn ends. Return what the next home's start blocks said, or nothing
+        when `thread` is not the home."""
         if not self.home_hands_off(thread).stdout.startswith("the home"):
             return None
         said = self.takes(next) if steps > 1 else []

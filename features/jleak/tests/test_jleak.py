@@ -1,8 +1,8 @@
 """`jleak`: what it prints for text that matches a pattern, and its exit code.
 
 Every test runs the command. The private patterns are a file the test writes in its own config
-directory, with made-up words in it. A test that needs a key a built-in pattern matches
-builds that key while it runs, so this file holds no such key.
+directory, with made-up words in it. A test that needs a key that a built-in pattern matches
+builds that key while the test runs, so this file holds no such key.
 """
 
 import os

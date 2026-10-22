@@ -1,6 +1,7 @@
-"""The tests cover `jgauge context` and `hooks/home-gauge.sh`: the count the hook tells a home and
-when it tells it, the tool calls the hook refuses once a home is past its ceiling, and the record
-the hook leaves. Every hook test runs the hook on a made-up transcript."""
+"""The tests cover `jgauge context` and `hooks/home-gauge.sh`. They check the count that the hook
+tells a home, and when the hook tells the home that count. They check the tool calls that the hook
+refuses once a home is past its ceiling, and the record that the hook leaves. Every hook test runs
+the hook on a made-up transcript."""
 
 import json
 import os

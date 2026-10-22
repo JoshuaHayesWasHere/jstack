@@ -36,8 +36,8 @@ def git(repo, *args):
 
 @pytest.fixture
 def repo(tmp_path):
-    """A repo whose `main` holds the old page at `docs/old.md`, checked out on a branch `pr`
-    made from `main`."""
+    """A repo whose `main` holds the old page at `docs/old.md`. The repo has a branch `pr`,
+    made from `main`, and has it checked out."""
     (tmp_path / "docs").mkdir()
     shutil.copy(OLD, tmp_path / "docs" / "old.md")
     git(tmp_path, "init", "-q", "-b", "main")

@@ -271,8 +271,9 @@ def bus(tmp_path, monkeypatch):
 
 
 def rows(bus, *made):
-    """Add rows to the queue with the real verb, each `(slug, status, pr, why)`, then give them the
-    columns a pass would have derived."""
+    """Add rows to the queue with the real verb, one for each entry of `made`. Each entry is a
+    tuple `(slug, status, pr, why)`: a slug, a status, a pull request and a reason. Then give the
+    rows the columns that a pass would have derived."""
     for slug, *_ in made:
         added = bus.kitchen.main("queue", "add", slug, "--priority", "1", stdin=complete(slug))
         assert added[0] == 0, added

@@ -1,7 +1,7 @@
-"""The tests of `features/jgauge/hooks/limits.sh`. Claude Code passes a status line its input,
-the script writes a file from that input, and `room` reads the file back. The tests cover that
-file. They also cover every input on
-which the script leaves the file alone. Every test runs the script."""
+"""The tests of `features/jgauge/hooks/limits.sh`. Claude Code gives the status line script its
+input on stdin. The script writes a file from that input, and `room` reads the file back. The
+tests cover that file. They also cover every input on which the script leaves the file alone.
+Every test runs the script."""
 
 import json
 import os
@@ -23,7 +23,8 @@ SOON, LATER, WEEK = NOW + 3600, NOW + 5 * 3600, NOW + 90 * 3600
 
 
 def handed(**windows):
-    """What Claude Code gives a status line on stdin, with these windows as `used, resets_at`."""
+    """What Claude Code gives a status line on stdin. Each window in `windows` is a pair of the
+    share used and the reset time, `used, resets_at`."""
     return json.dumps(
         {
             "session_id": "0b1f6c1e-aaaa-4bbb-8ccc-1234567890ab",
@@ -259,8 +260,8 @@ def inventory(tmp_path, env, prime_home):
 
 @pytest.mark.parametrize("prime_home", ["~/.claude_prime", "{home}/.claude_prime/"])
 def test_a_second_account_writes_its_own_file_and_leaves_the_first_alone(tmp_path, env, prime_home):
-    """Each account's status line writes the file of the instance whose home is its
-    CLAUDE_CONFIG_DIR, so one account's limits never count as another's."""
+    """Each account's status line writes the file of one instance: the instance whose home is
+    the account's CLAUDE_CONFIG_DIR. So one account's limits never count as another's."""
     home = tmp_path / "home"
     named = inventory(tmp_path, {**env, "HOME": str(home)}, prime_home.format(home=home))
     write(handed(five_hour=(12, SOON), seven_day=(30, WEEK)), named)

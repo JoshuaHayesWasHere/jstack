@@ -2,7 +2,7 @@
 
 A review's step 5 (blast-radius) writes a `Proof:` line in its `## Review` section.
 `jmerge` merges a pull request that changes a guarded path only when that line proves, at the
-pull request's head, the one fact the change is safe because of. `jmerge --accept`, the user's
+pull request's head, the one fact that makes the change safe. `jmerge --accept`, the user's
 hand-merge, lifts a hold, and it asks for the same fact. A design call (`/architect`) writes a
 `Design:` line in the brief, and `jbus queue add` queues no brief without that line. jbus
 still launches a row that the user approved before this rule, and the tests call that row
@@ -375,8 +375,8 @@ def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(proven_mer
 
 
 def held(proven_merged):
-    """A pull request that `jmerge` holds for the user. A pass of `jmerge` prints its `hold`
-    line."""
+    """A pull request that `jmerge` holds for the user. A pass of `jmerge` prints the pull
+    request's `hold` line."""
     proven_merged.home.open_pull_request(proven_merged.head, files=["a.txt", SECRET])
     assert proven_merged.run() == [f"hold 7 {merge.URL}: {HOLD}"]
     assert proven_merged.untouched()
@@ -437,9 +437,9 @@ def test_a_proof_carries_over_a_rebase_jmerge_compared_and_found_clean(proven_me
 
 
 def test_accept_asks_a_rebase_that_dropped_a_line_for_a_proof_at_the_rebased_head(proven_merged):
-    """`jmerge` holds a line that the rebase dropped when the review of the rebased head did
-    not rule on that drop. `--accept` asks for a proof at the rebased head itself, so the proof
-    of the commit before the rebase does not count."""
+    """The rebase dropped a line, and the review of the rebased head did not rule on that line.
+    So `jmerge` holds the pull request. `--accept` asks for a proof at the rebased head itself,
+    so the proof of the commit before the rebase does not count."""
     rebased = rangediff.Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"})
     ack = (
         f"Dropped on rebase: {rangediff.FILE}, 1 of main's, 0 of its own, "

@@ -1,8 +1,9 @@
-"""`/make-bot-ui`: the tool accepts the call in its `schedule_task` block. The server that comes
-with the skill signs each request with an HMAC, under the header, prefix and encoding that the
-call's `signature` field names.
+"""`/make-bot-ui`: T3 Code's `schedule_task` tool accepts the call in the skill's block. The
+server that comes with the skill signs each request with an HMAC, under the header, prefix and
+encoding that the call's `signature` field names.
 The tests run the server as the skill runs it, against a stand-in webhook on 127.0.0.1. The
-server sends both key headers and the signature, and tries once within its timeout. It logs the
+server sends the key in two headers, `Authorization` and `X-Automation-Key`. It also sends the
+signature, and it tries once within its timeout. It logs the
 body of a failed request. It binds 127.0.0.1 and the address it is given, never every address."""
 
 import hashlib

@@ -67,8 +67,9 @@ def block(which):
 
 
 class Scene:
-    """A user's home directory with the skill linked as `install.sh` links it, a made-up
-    expert's folder, and a directory outside any repo for the blocks to run from."""
+    """A user's home directory, a made-up expert's folder, and a directory outside any repo for
+    the blocks to run from. The skill is linked into the home directory the way `install.sh`
+    links it."""
 
     def __init__(self, tmp_path, repo=None):
         self.user = tmp_path / "user"
@@ -122,9 +123,10 @@ class Scene:
         return self.run("playbook", threadId=thread, playbook=playbook)
 
     def taken(self, thread, posts_into, **filled):
-        """What the block says after the call that takes the webhook over. The call reads a list
-        of webhooks. When `posts_into` is set, the kept webhook in that list posts into
-        `posts_into`. When `posts_into` is empty, the list does not have the webhook."""
+        """What the block says after the call that takes the webhook over. The test gives the
+        block a reply of `list_scheduled_tasks`. When `posts_into` is set, the reply lists the
+        webhook whose id the expert's folder keeps, and that webhook posts into `posts_into`.
+        When `posts_into` is empty, the reply lists no webhook."""
         id = (self.folder / "webhook").read_text().split()[0]
         tasks = [{"scheduledTaskId": id, "boundThreadId": posts_into, "webhookUrl": ADDRESS}]
         reply = json.dumps({"tasks": tasks if posts_into else []})
@@ -340,8 +342,8 @@ def test_the_skills_calls_rename_pin_and_keep_a_webhook_and_settle_nothing():
 
 
 def made(tmp_path, playbooks):
-    """A repo that holds the skill, with these playbooks, each given as a name and the text that
-    follows its `Run by:`."""
+    """A repo that holds the skill and the playbooks in `playbooks`. `playbooks` maps the name of
+    each playbook to the text that follows its `Run by:`."""
     repo = tmp_path / "repo"
     (repo / "templates").mkdir(parents=True)
     (repo / "skills" / "expert").mkdir(parents=True)
@@ -523,8 +525,9 @@ def test_the_thread_a_roll_over_launches_starts_on_the_same_folder(scene):
 
 
 def started(scene, t3, thread):
-    """An expert's start, with the calls it makes to a made-up T3 Code. It pins `thread`, and
-    it unpins the thread that `thread` takes over from, which the block of step 3 names."""
+    """An expert's start, with the calls it makes to a made-up T3 Code. It pins `thread`. It
+    also unpins the earlier thread that `thread` takes over from. The block of step 3 names
+    that earlier thread."""
     pin, unpin = (
         call
         for call in calls.CALLS

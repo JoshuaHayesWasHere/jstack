@@ -2,8 +2,8 @@
 hand recounts.
 
 The fixtures are trimmed copies of the real transcripts (features/jgauge/tests/fixtures/README.md).
-The expected numbers come from a recount by hand of the untrimmed files: each one is a count
-read from a file, and this file computes none of them.
+The expected numbers come from a recount by hand of the untrimmed files. Each expected number
+was counted from one of those transcript files, and this test file computes none of them.
 """
 
 from pathlib import Path

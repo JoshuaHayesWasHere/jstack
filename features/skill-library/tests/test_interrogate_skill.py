@@ -17,7 +17,8 @@ __all__ = ["home", "repo"]
 
 
 def stand_in(tmp_path, home, text):
-    """A repo whose pr-review skill has `text` in "The review", with interrogate linked to it."""
+    """A repo whose pr-review skill has `text` in "The review". The user's home links the
+    interrogate skill to the repo's interrogate folder."""
     skills = tmp_path / "other" / "skills"
     (skills / "interrogate").mkdir(parents=True)
     (skills / "pr-review").mkdir()

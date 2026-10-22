@@ -41,7 +41,7 @@ def named(path):
 
 def as_read(path):
     """A skill's text as an agent reads it: each file beside it that a line says to read now
-    follows that line. A file the line names that is not there fails the test."""
+    follows that line. The test fails when a file that such a line names is not there."""
     out = []
     for line in path.read_text().splitlines(keepends=True):
         out += [line, *("\n" + found.read_text() for found in beside(line, path))]
@@ -72,8 +72,9 @@ PROPOSED = "Option: tea (default, recommended): the cups stay\nOption: coffee: t
 
 def a_gate_in(sends, entry):
     """A skill's gate block with a gate in it, as a thread fills it in. The entry takes the place of
-    the block's one line, the thread fills the `Context:` line, and the `Option:` line appears
-    twice: once as the block writes it, with both marks kept, and once with no mark."""
+    the block's one line, and the thread fills the `Context:` line. The `Option:` line appears
+    twice. The first copy is as the block writes it, with the block's two marks kept, and the
+    second has no mark."""
     assert FILLED in sends
     (context,) = [line for line in sends.splitlines() if line.startswith("Context: <")]
     (option,) = [line for line in sends.splitlines() if line.startswith("Option: <")]
@@ -129,11 +130,10 @@ class Scene:
         git(self.main, "worktree", "add", "-q", str(self.worktree))
 
     def run(self, skill, block, checkout, thread=""):
-        """Run a block as the skill says to: in one call with the block at the top, and for a
-        home with the block that finds this home. In a session with no tool that gives an id, a
-        home with no id is the root. `thread=None` leaves the block that finds the home out, as
-        the start's first steps do.
-        """
+        """Run a block as the skill says to: in one call with the block at the top. For a home, the
+        call also has the block that finds this home. In a session with no tool that gives an id, a
+        home with no id is the root. `thread=None` leaves the block that finds the home out, as the
+        start's first steps do."""
         top = paths(skill)
         if skill == "home" and thread is not None:
             top = f"{top}\n{finds_this_home(thread)}"

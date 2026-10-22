@@ -1,7 +1,7 @@
 """A repo has one merger. jbus runs `jmerge` while `home-thread` is empty or missing, so no skill
 step may run it then. The tests take every `sh` block of a skill that runs `jmerge` to merge, land
-or sweep, and run it with the blocks its skill says to run first, against a stub `jmerge` that
-records its calls."""
+or sweep. Each test runs such a block after the blocks that its skill says to run first. The
+blocks run against a stub `jmerge` that records its calls."""
 
 import json
 import os

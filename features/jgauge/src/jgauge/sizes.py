@@ -1,13 +1,14 @@
 """The machine's sizes: how many full test slots, how many short ones, and the crew cap.
 
-Three numbers in jstack are sizes of the machine and not design choices. Each has a default,
-which this module derives from whole-machine facts, and one local home where the owner may set
-it:
+Three numbers in jstack are sizes of the machine and not design choices. This module derives
+a default for each from whole-machine facts. Each number also has one local home, a file where
+the owner may set it:
 
 - `test_slots`, read by `jgauge test-slot` and by `jbus poll` for its waiters, set in
   `~/.config/jstack/machine.toml`;
 - `short_slots`, read the same way for the short lane, set in the same file;
-- `max_running`, the crew cap that `jbus` dispatch reads, set in `~/.config/jbus/config.toml`,
+- `max_running`, the crew cap that `jbus` reads when it dispatches, set in
+  `~/.config/jbus/config.toml`,
   where it lived before this module. jbus parses that file and passes the raw value here, so
   this module checks the value and gives its default.
 
@@ -152,9 +153,9 @@ def derive(name: Name, machine: Machine) -> int:
     64 cores.
     `short_slots`: one for each `SHORT_PER_CORES` processors, from 2 to 8. A short run holds
     one for at most 120 s, beside the full lane.
-    `max_running`: one crew for each processor, since a crew's heavy work runs under the
-    slots, as long as each crew has `CREW_GIB` of memory. That gives 24 on yelena's 24 cores and
-    62 GiB.
+    `max_running`: one crew for each processor, as long as each crew has `CREW_GIB` of memory.
+    One crew per processor is enough because a crew's heavy work runs under the slots. That
+    gives 24 on yelena's 24 cores and 62 GiB.
     """
     cores, memory = machine.cores, machine.memory_gib
     if name is Name.TEST_SLOTS:
@@ -190,7 +191,8 @@ def path() -> Path:
 
 
 def count(value: object, said: str, name: Name) -> int:
-    """`value` as a count, or `Refused` naming `said`, the flag, variable or file it came from.
+    """`value` as a count. Otherwise the function raises `Refused`, which names `said`: the
+    flag, variable or file that `value` came from.
     A TOML integer of 1 or more is a valid count, and so is a string of decimal digits, since
     `--slots` and `TEST_SLOTS` arrive as strings. The function refuses a bool, a float or a word."""
     if isinstance(value, int) and not isinstance(value, bool) and value >= 1:
@@ -201,8 +203,8 @@ def count(value: object, said: str, name: Name) -> int:
 
 
 def read_file(file: Path | None = None) -> dict[Name, int]:
-    """The counts the machine file sets, after checking the whole file, or none where there is
-    no file."""
+    """The counts that the machine file sets, or none where there is no file. The function
+    checks the whole file before it returns any count."""
     file = file or path()
     try:
         raw = tomllib.loads(file.read_text())

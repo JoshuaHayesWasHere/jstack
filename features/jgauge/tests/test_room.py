@@ -44,9 +44,10 @@ def table(slots, used):
 
 
 def put(path, text, mode=0o644):
-    """Write the file whole: first to a file beside it, then rename it into place, so a reader or
-    an exec of it sees the old file or the new one, never one half written or open for writing.
-    Leave a file that already holds that text as it is."""
+    """Write the file whole. Write the text to a temporary file beside the target, then rename
+    the temporary file into place over the target. A reader or an exec of the target then sees
+    the old file or the new one, never one half written or open for writing. Leave a target
+    that already holds that text as it is."""
     if path.exists() and path.read_text() == text:
         return
     part = path.with_name(f".{path.name}.part")
@@ -104,8 +105,8 @@ def machine(where, load, cores, memory, pressure, plan=FRESH, slots=EMPTY, cpu="
 
 
 def uv(stub):
-    """A `uv` that drops `run --project <path>` and runs the rest of the command, unchanged
-    and found on PATH."""
+    """A `uv` stand-in that drops `run --project <path>`. It runs the rest of the command as
+    given, and it finds that command on PATH."""
     (stub / "uv").write_text(
         '#!/bin/sh\n[ "$1 $2" = "run --project" ] || exit 64\nshift 3\nexec "$@"\n'
     )
@@ -404,7 +405,7 @@ def test_the_one_window_a_file_gives_still_waits_past_the_cushion(tmp_path):
 
 
 def test_the_cushion_is_the_users_headroom_and_the_reason_gives_it(tmp_path):
-    """`jgauge room` passes `room.sh` the headroom from the line of the user's settings that
+    """`jgauge room` passes `room.sh` the headroom from the user's settings, from the line that
     picks a launch's pool. Run alone, the script falls back to the same default."""
     assert check().count("CUSHION=${HEADROOM:-90}\n") == 1
     assert f"{jsettings.DEFAULTS.headroom:g}" == "90"
@@ -812,7 +813,8 @@ def test_a_name_that_is_no_instance_is_a_wait(tmp_path):
 
 
 def pooled(env, *lines):
-    """The role map of the machine `env` points at: `crew:` and then each line as written."""
+    """The role map of the machine that `env` points at: `crew:` and then each line as
+    written."""
     roles = Path(env["XDG_CONFIG_HOME"]) / "jstack" / "roles"
     roles.parent.mkdir(parents=True, exist_ok=True)
     roles.write_text("".join(f"{line}\n" for line in lines))
@@ -891,8 +893,8 @@ def test_a_full_instance_beside_one_the_ledger_does_not_know_goes_and_says_both(
 
 
 def test_the_pool_read_is_the_one_of_the_role_asked_about(tmp_path):
-    """`--role` takes that role's line, room reads the crew's line when no role is given, and
-    `--instance` reads the one instance it names whatever the map says."""
+    """`--role` takes that role's line, and room reads the crew's line when no role is given.
+    `--instance` reads the one instance that the flag names, whatever the map says."""
     env = ledgers(machine(tmp_path, **IDLE), CAPPED, FRESH)
     pooled(env, "crew: inherit", f"scout: claudeAgent claude-opus-5-5 claudeAgent,{PRIME}")
     room = [str(BIN / "jgauge"), "room"]

@@ -1,7 +1,7 @@
 """A scoped home: `/home <scope>` starts a home beside the repo's root home. Its handoff, plan, log
-and `home-id` are in a directory of its own under the repo's. It shares the notes, briefs, requests
-and pages with the root home. Each test takes every block from the home skill and runs it in a
-temporary repo that has both homes."""
+and `home-id` are in a directory of its own under the repo's state directory. It shares the notes,
+briefs, requests and pages with the root home. Each test takes every block from the home skill and
+runs it in a temporary repo that has both homes."""
 
 import os
 import re

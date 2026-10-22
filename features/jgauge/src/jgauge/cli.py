@@ -161,7 +161,8 @@ def cmd_test_slot(args: argparse.Namespace) -> int:
 
 
 def cmd_sizes(args: argparse.Namespace) -> int:
-    """Print the three machine sizes as their callers get them, then room's lines."""
+    """Print the three machine sizes as their callers get them. After the sizes, print room's
+    lines."""
     jbus_config = Path(os.environ.get("JBUS_CONFIG_DIR") or Path.home() / ".config" / "jbus")
     try:
         found = sizes.every(jbus_config / "config.toml")

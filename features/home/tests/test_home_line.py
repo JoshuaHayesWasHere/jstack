@@ -1,5 +1,5 @@
-"""The `Home:` line: a brief or a scout's request names its home by its scope, and never by a
-thread. A thread reads the id in that home's `home-id` each time it sends, so a new home
+"""The `Home:` line: a brief or a scout's request names its home by the home's scope, and never
+by a thread. A thread reads the id in that home's `home-id` each time it sends, so a new home
 rewrites no brief. Each test takes every block from the skill that gives it."""
 
 import os

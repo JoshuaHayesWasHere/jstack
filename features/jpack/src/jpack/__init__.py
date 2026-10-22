@@ -16,17 +16,17 @@ A source with a date and no commit (a doc, a link, a command that was run) has n
 the lint requires it to name a revision, and nothing here reads it. `verify` also reports a
 source that names a commit and has no citation, since nothing could check what it claims.
 
-The lint is the one shell copy, `lint-notes.sh` beside this file, for an expert's folder and
-for a pack. It checks that every note has a line in the index and lists at least one source,
-and that each source names the revision it was read at. The index is `notes/INDEX.md` in an
-expert's folder, and `INDEX.md` at the top of a pack, where it is at most 40 lines that are
-not blank. A revision is a date written YYYY-MM-DD, or a commit id of 7 to 40 characters from
-0-9 and a-f with a digit among them, inside backticks or as the word right after `at`. It is a
-word of its own, outside double quotes, so a date or a number inside a path or a link is not
-a revision, and neither is a bare number. A source has a revision when it names one, or when
-the note names one for all its sources, on a line between its title and the first of its four
-parts. The lint prints one line for each thing wrong, `<note>: <what>`, and exits 1. For a
-folder in order it prints nothing and exits 0, and for a folder with no `notes/` it exits 2.
+The lint is the one shell copy, `lint-notes.sh` beside this file, for an expert's folder and for a
+pack. It checks that every note has a line in the index and lists at least one source, and that each
+source names the revision it was read at. The index is `notes/INDEX.md` in an expert's folder, and
+`INDEX.md` at the top of a pack, where it is at most 40 lines that are not blank. A revision is a
+date written YYYY-MM-DD, or a commit id of 7 to 40 characters from 0-9 and a-f with a digit among
+them. The lint reads a revision inside backticks, or as the word right after `at`. A revision is a
+word of its own, outside double quotes, so a date or a number inside a path or a link is not a
+revision, and neither is a bare number. A source has a revision when it names one, or when the note
+names one for all its sources, on a line between its title and the first of its four parts. The lint
+prints one line for each thing wrong, `<note>: <what>`, and exits 1. For a folder in order it prints
+nothing and exits 0, and for a folder with no `notes/` it exits 2.
 """
 
 from __future__ import annotations

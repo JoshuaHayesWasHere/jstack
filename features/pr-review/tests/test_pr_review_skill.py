@@ -682,8 +682,8 @@ def test_a_review_waits_when_the_machine_has_no_room_and_goes_when_it_has(review
 @pytest.mark.parametrize("readings", [{"load": "11.00"}, {"load": "30.00", "cores": "24"}])
 def test_a_review_is_not_held_by_load_and_builds_its_prompt_at_once(reviewer, readings):
     """A review takes about 2% of one core, and its proof runs in the short test lane.
-    So a load over the line at which a launch waits does not hold a review back, and the first
-    check of the machine says `go`."""
+    So a review does not wait when the load is over the threshold at which a launch waits, and
+    the first check of the machine says `go`."""
     reviewer.machine(**readings)
     printed, code = reviewer(fill=SOON)
     assert (code, len(printed)) == (0, 1), printed
@@ -1013,8 +1013,9 @@ def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_pat
 
 
 def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path):
-    """The block records the proof's pid itself, so a proof that the system starts late runs
-    as of the first call, and no second call may start another."""
+    """The block records the proof's pid itself. So when the system starts a proof late, the
+    block counts that proof as running from the first call, and no second call may start
+    another."""
     delayed = proof.stub / "setsid"
     delayed.write_text(f'#!/bin/sh\nsleep 11\nexec {shutil.which("setsid")} "$@"\n')
     delayed.chmod(0o755)
@@ -1030,8 +1031,8 @@ def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path
 
 
 def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):
-    """When a proof ends while no call waits on it, the block gives its answer once. When the
-    reviewer fixes the proof and sends the block again, the proof runs afresh."""
+    """When a proof ends while no call waits on it, the block gives the proof's answer once.
+    When the reviewer fixes the proof and sends the block again, the proof runs afresh."""
     runs = tmp_path / "runs"
     script = f"echo ran >> {runs}\nsleep 1\n[ $(wc -l < {runs}) -gt 1 ]\n"
 
@@ -1608,8 +1609,9 @@ def test_a_clean_later_pass_is_sent_while_github_does_not_say_mergeable(reviewer
 
 
 def asked_to_rebase(tmp_path, monkeypatch, slug, head):
-    """Run a pass of the real jbus that tells the crewmate of a stale pull request at this
-    head to rebase, and return the directory where jbus keeps its state."""
+    """Run a pass of the real jbus. The pass tells the crewmate to rebase, because the
+    crewmate's pull request is stale at this head. Return the directory where jbus keeps its
+    state."""
     kitchen = Kitchen(tmp_path / "kitchen", monkeypatch)
     add(kitchen, slug)
     kitchen.poll(NOW - timedelta(minutes=30))
@@ -1648,9 +1650,9 @@ CHECKS = [
 
 @pytest.mark.parametrize(("checks", "goes"), CHECKS)
 def test_a_clean_later_pass_is_sent_while_a_check_is_red(reviewer, checks, goes):
-    """When main moves, jbus tells the crewmate of a red pull request to rebase, and the crewmate
-    puts the rebase off while a review is running. A check that is still running is no reason to
-    rebase, since the watch wakes the crewmate."""
+    """When main moves and a crewmate's pull request is red, jbus tells that crewmate to rebase. The
+    crewmate puts the rebase off while a review is running. A check that is still running is no
+    reason to rebase, since the watch wakes the crewmate."""
     reviewer.brief.write_text(BRIEF + DONE + SECOND)
     assert where(reviewer, "clean", checks=checks).split(": ")[0] == goes
 
@@ -1688,8 +1690,8 @@ def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
     reviewer, switch, scope
 ):
     """A home that merges hears `fixed and green` from the crewmate. For a scoped home, the crewmate
-    parks the pull request as a gate instead. The crew skill's check says that the crewmate
-    must be woken for either one."""
+    parks the pull request as a gate instead. The crew skill's check says that jbus must wake
+    the crewmate in both cases."""
     (reviewer.state / "home-thread").write_text(switch)
     home = ""
     if scope:

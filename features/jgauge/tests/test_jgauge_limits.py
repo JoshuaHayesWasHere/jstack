@@ -31,8 +31,8 @@ def usage(five, week, five_at=FIVE, week_at=WEEK):
 
 
 class Endpoint:
-    """A fake usage endpoint: an answer or a status for each token, and every token the command
-    sent it."""
+    """A fake usage endpoint. It holds an answer or a status for each token, and it records
+    every token that the command sends to it."""
 
     def __init__(self):
         self.answers = {}
@@ -63,7 +63,7 @@ class Endpoint:
 
 class Machine:
     """A HOME with `~/.claude` and `~/.claude_prime` signed in, the inventory that names them, and
-    the ledger under it."""
+    the ledger under the HOME."""
 
     def __init__(self, root: Path, endpoint: Endpoint):
         self.home = root / "home"
@@ -149,7 +149,7 @@ class Machine:
         return self.file(instance).read_text().splitlines()
 
     def untouched(self):
-        """Each credentials file and `.claude.json`, its bytes and its time."""
+        """The bytes and the modification time of each credentials file and `.claude.json`."""
         files = [
             path
             for home, config, _ in self.homes.values()
@@ -283,8 +283,8 @@ def test_with_no_inventory_the_built_in_home_alone_is_read(machine):
 
 
 def test_a_reading_merges_by_the_ledgers_rule_and_never_lowers_a_cap_of_the_same_window(machine):
-    """jbus wrote a share of 100 percent until the reset. The endpoint's lower share of the
-    same window does not replace it."""
+    """jbus wrote a share of 100 percent for the window that ends at the reset. The endpoint's
+    lower share of the same window does not replace that cap."""
     machine.ledger.parent.mkdir(parents=True)
     machine.ledger.write_text(f"five_hour 100 {FIVE_AT}\n")
     machine.answer("claudeAgent", usage(99.0, 36.0))
@@ -298,9 +298,9 @@ def test_a_reading_merges_by_the_ledgers_rule_and_never_lowers_a_cap_of_the_same
     "given", ["2026-10-20T21:29:59.919173+00:00", "2026-10-20T21:30:00.310194+00:00"]
 )
 def test_a_cap_another_writer_floored_to_the_second_is_the_same_window_and_stands(machine, given):
-    """`hooks/limits.sh` and jbus write a reset to the second, and the endpoint's reset comes a
-    second either side of it. The two resets are one window, and the lower share never
-    replaces the cap."""
+    """`hooks/limits.sh` and jbus round a reset down to the second before they write it. The
+    endpoint's reset can be up to one second earlier or later than that written reset. The two
+    resets are one window, and the lower share never replaces the cap."""
     machine.ledger.parent.mkdir(parents=True)
     machine.ledger.write_text("five_hour 100 1792531799\n")
     machine.answer("claudeAgent", usage(63.0, 36.0, five_at=given))

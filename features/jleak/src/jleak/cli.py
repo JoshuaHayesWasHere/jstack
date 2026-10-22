@@ -20,8 +20,9 @@ It prints one line for each finding, `<file or field>:<line>: <pattern's name>`,
        also exits 2, since 2 is the code on which Claude Code refuses the command.
 
 With no private patterns file, jleak checks the built-in patterns and says so on stderr.
-Both hooks pass `--strict`, and with it a missing private patterns file exits 2. Without that,
-a hook that checked no private pattern would let every private name through.
+Both hooks pass `--strict`. With `--strict`, jleak exits 2 when the private patterns file is
+missing. Without that, a hook that checked no private pattern would let every private name
+through.
 """
 
 import argparse
@@ -52,8 +53,8 @@ def parser() -> argparse.ArgumentParser:
 
 def patterns(args: argparse.Namespace) -> tuple[jleak.Pattern, ...]:
     """The built-in patterns and the private ones. Raises Invalid when jleak cannot use the private
-    ones. With `--strict`, a Missing private patterns file also raises Invalid. Without it,
-    the function says so on stderr and gives the built-in patterns alone."""
+    ones. With `--strict`, a private patterns file that is `Missing` also raises Invalid.
+    Without `--strict`, the function says so on stderr and gives the built-in patterns alone."""
     config = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     try:
         private = jleak.load(args.patterns or jleak.path(config))
