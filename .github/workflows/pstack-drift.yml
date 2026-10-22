@@ -18,10 +18,9 @@ env:
 
 jobs:
   drift:
-    # The repo's variable RUNS_ON names the runner, and the local ephemeral one it is with none,
-    # as for the check.
-    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
-    timeout-minutes: 10
+    # GitHub's hosted runner, as for the check. It took 14 seconds on 2026-10-22.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -31,9 +30,10 @@ jobs:
           version: ${{ env.UV_VERSION }}
       - run: uv sync --locked
       - name: make pstack-drift
-        # jdrift keeps its clone of pstack under the cache directory. On a runner that is kept
-        # between jobs that is the user's own, which outlives the job: the runner's temporary
-        # directory does not.
+        # jdrift keeps its clone of pstack under the cache directory, which is the runner's
+        # temporary directory here and never a home. GitHub's hosted runner is thrown away after
+        # the job, so its home would do as well; the line keeps a runner that is kept between
+        # jobs, a fork's own included, from growing a clone in a home that outlives the job.
         env:
           XDG_CACHE_HOME: ${{ runner.temp }}
         run: |

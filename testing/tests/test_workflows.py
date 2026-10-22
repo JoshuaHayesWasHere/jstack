@@ -9,11 +9,9 @@ while that branch is red, so jmerge has a check to read on the branch's tip.
 The test reads the workflow file as YAML with two small readers, `mapping` and `block`, which handle
 only mappings by their indentation, a scalar, and a list in brackets.
 
-Every job takes its runner from one repo variable, and takes the repo's local ephemeral runner,
-`jstack-ephemeral`, when the repo does not set that variable. No job runs on GitHub's runners, since
-every CI job runs locally. The two quick jobs of a pull request, its `check` and `borders`, run
-instead on infra's fast lane, `[self-hosted, jstack-fast]`, under the lane's 10 minute timeout. The
-browser workflow names Google Chrome as its test browser on every runner, and the check names none.
+Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
+of the owner's machine or reads a repo variable for it. Each job has a cap that a hung run meets.
+The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
 check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, and by hand,
 but never on a pull request or a push to main. Every workflow gets read access to the contents and
@@ -55,11 +53,7 @@ BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
 BORDERS = WORKFLOWS / "borders.yml"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
-PICK = (
-    "${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON)"
-    " || vars.RUNS_ON || 'jstack-ephemeral' }}"
-)
-FAST = "[self-hosted, jstack-fast]"
+HOSTED = "ubuntu-24.04"
 
 
 def scalar(text):
@@ -123,7 +117,7 @@ def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_a_train_an
 def worked(expression, values):
     """What an expression gives with these values for the names in it, worked out here.
 
-    It reads `&&`, `||`, `==`, `!=` and a string in single quotes, as `picked` does.
+    It reads `&&`, `||`, `==`, `!=` and a string in single quotes.
     """
     for name in sorted(values, key=len, reverse=True):
         expression = expression.replace(name, repr(values[name]))
@@ -170,56 +164,22 @@ def jobs(text):
     return found
 
 
-def test_a_pull_requests_quick_jobs_run_on_the_fast_lane_and_every_other_on_the_repos_pick():
+def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
-        "borders.yml": {"borders": FAST},
-        "browser.yml": {"browser": PICK},
-        "check.yml": {"check": FAST, "full": PICK},
-        "pstack-drift.yml": {"drift": PICK},
-        "release.yml": {"release": PICK},
+        "borders.yml": {"borders": HOSTED},
+        "browser.yml": {"browser": HOSTED},
+        "check.yml": {"check": HOSTED, "full": HOSTED},
+        "pstack-drift.yml": {"drift": HOSTED},
+        "release.yml": {"release": HOSTED},
     }
 
 
-def picked(expression, variable):
-    """What a `runs-on` expression gives for one value of the repo's variable, worked out here.
-
-    It reads the little of GitHub's expressions the pick uses: `&&` and `||`, which give one
-    of their operands as Python's `and` and `or` do, `startsWith`, `fromJSON`, a string in
-    single quotes, and a variable, which is the empty string when the repo has none.
-    """
-    assert expression.startswith("${{ ") and expression.endswith(" }}"), expression
-    names = {
-        "__builtins__": {},
-        "startsWith": lambda text, start: text.startswith(start),
-        "fromJSON": json.loads,
-        "RUNS_ON": variable,
-    }
-    inner = expression[4:-3].replace("vars.RUNS_ON", "RUNS_ON")
-    return eval(inner.replace("&&", " and ").replace("||", " or "), names)
-
-
-def test_the_runner_is_the_local_one_with_no_variable_and_a_label_or_a_list_of_them_with_one():
-    for runs_on in {
-        runs_on
-        for found in map(jobs, map(Path.read_text, WORKFLOWS.glob("*.yml")))
-        for runs_on in found.values()
-        if runs_on != FAST
-    }:
-        assert picked(runs_on, "") == "jstack-ephemeral"
-        assert picked(runs_on, "jstack") == "jstack"
-        assert picked(runs_on, '["one", "two"]') == ["one", "two"]
-
-
-def test_no_file_under_github_names_a_runner_of_its_own_but_the_fast_lanes_jobs():
-    named = [
-        path.name
-        for path in sorted(WORKFLOWS.parent.rglob("*"))
-        if path.is_file() and "self-hosted" in path.read_text()
-    ]
-    assert named == ["borders.yml", "check.yml"]
-    for name in named:
-        lines = (WORKFLOWS / name).read_text().splitlines()
-        assert [line for line in lines if "self-hosted" in line] == [f"    runs-on: {FAST}"]
+def test_no_file_under_github_names_a_runner_of_the_owners_machine_or_its_variable():
+    for path in sorted(WORKFLOWS.parent.rglob("*")):
+        if path.is_file():
+            text = path.read_text()
+            for name in ("self-hosted", "jstack-fast", "jstack-ephemeral", "RUNS_ON"):
+                assert name not in text, (path.name, name)
 
 
 def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fork_with_secrets():
@@ -413,15 +373,30 @@ def cap(text, job):
     return None
 
 
-def test_a_fast_lane_job_stops_before_the_lanes_ten_minutes_and_full_after_twenty_five():
+CAPS = {
+    ("borders.yml", "borders"): "5",
+    ("browser.yml", "browser"): "15",
+    ("check.yml", "check"): "30",
+    ("check.yml", "full"): "30",
+    ("pstack-drift.yml", "drift"): "5",
+    ("release.yml", "release"): "30",
+}
+
+
+def test_every_job_has_a_cap_that_stops_a_hung_run():
     text = "jobs:\n  other:\n    steps:\n      - timeout-minutes: 1\n  check:\n"
     text += "    timeout-minutes: 25\n"
     assert (cap(text, "check"), cap(text, "other")) == ("25", None)
-    assert (cap(CHECK.read_text(), "check"), cap(CHECK.read_text(), "full")) == ("9", "25")
-    assert cap(BORDERS.read_text(), "borders") == "5"
+    caps = {
+        (path.name, job): cap(path.read_text(), job)
+        for path in sorted(WORKFLOWS.glob("*.yml"))
+        for job in jobs(path.read_text())
+    }
+    assert caps == CAPS
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
+ZSH = "sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh"
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml"'
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 
@@ -442,22 +417,23 @@ def ran_on(job):
 
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
-    assert jobs(CHECK.read_text()) == {"check": FAST, "full": PICK}
+    assert jobs(CHECK.read_text()) == {"check": HOSTED, "full": HOSTED}
     assert (ran_on("check"), ran_on("full")) == (["pull_request"], ["push", "workflow_dispatch"])
 
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
     found, keys = steps(CHECK.read_text(), "check")
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:5] == [
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:6] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
+        ZSH,
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
         "make check-fast BASE=HEAD^1",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found[:5])
-    assert found[4]["id"] == "suite"
+    assert all("if" not in step for step in found[:6])
+    assert found[5]["id"] == "suite"
 
 
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
@@ -535,6 +511,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "python3 scripts/green_tree.py",
         "astral-sh/setup-uv",
         "uv sync --locked",
+        ZSH,
         SUITE,
         "|",
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
@@ -542,12 +519,13 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         'echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload'
         ' ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"',
     ]
-    checkout, ask, setup, sync, suite, *_ = found
+    checkout, ask, setup, sync, zsh, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
-    assert [step["if"] for step in (setup, sync, suite)] == [
+    assert [step["if"] for step in (setup, sync, zsh, suite)] == [
         OR_THE_DESKS,
         OR_THE_DESKS,
+        UNLESS_GREEN,
         UNLESS_GREEN,
     ]
     assert suite["id"] == "suite"
@@ -561,7 +539,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
 def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
     found, _ = steps(CHECK.read_text(), "full")
-    _, _, setup, sync, suite, *_ = found
+    _, _, setup, sync, _, suite, *_ = found
     assert (sync["run"], suite["run"]) == ("uv sync --locked", SUITE)
     ran = {
         (marker, by): [
@@ -643,10 +621,13 @@ def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_
     time, on 4 workers under a quota of 4 CPUs."""
     found, _ = steps(CHECK.read_text(), "full")
     (summary,) = [step for step in found if step.get("name") == "suite summary"]
-    assert [o for o in OUTCOMES if worked(summary["if"], {"steps.suite.outcome": o})] == [
+    ran = {"!cancelled()": True}
+    assert [o for o in OUTCOMES if worked(summary["if"], ran | {"steps.suite.outcome": o})] == [
         "success",
         "failure",
     ]
+    cancelled = {"!cancelled()": False}
+    assert not any(worked(summary["if"], cancelled | {"steps.suite.outcome": o}) for o in OUTCOMES)
     assert summary["continue-on-error"] is True
     bin = tmp_path / "bin"
     bin.mkdir()
@@ -1016,7 +997,6 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
     assert found[-1] == {"name": "make check-browser", "run": "make check-browser"}
     for job in ("check", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
-    assert cap(BROWSER.read_text(), "browser") == "30"
 
 
 PIN = "${{ env.UV_VERSION }}"
@@ -1073,6 +1053,7 @@ def test_a_release_checks_the_tag_then_the_tree_builds_installs_the_wheel_and_th
     named = [step.get("name") for step in found if step.get("name")]
     assert named == [
         "make release-tag",
+        "zsh",
         "make check",
         "make dist",
         "jinstall --check",

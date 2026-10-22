@@ -22,10 +22,10 @@ env:
 
 jobs:
   release:
-    # The runner is the repo's to name, as in check.yml: its variable RUNS_ON, or the local
-    # ephemeral runner, never GitHub's.
-    runs-on: ${{ startsWith(vars.RUNS_ON, '[') && fromJSON(vars.RUNS_ON) || vars.RUNS_ON || 'jstack-ephemeral' }}
-    timeout-minutes: 25
+    # GitHub's hosted runner, as in check.yml. It runs the whole suite, as check.yml's `full`
+    # does, and its cap is full's.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,6 +38,10 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: make release-tag TAG="$TAG"
       - run: uv sync --locked
+      # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
+      # shell may be zsh, and GitHub's image has no zsh.
+      - name: zsh
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
       - name: make check
         run: make check
       - name: make dist
