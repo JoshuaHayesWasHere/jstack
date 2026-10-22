@@ -126,7 +126,7 @@ def test_the_squash_lands_the_title_and_the_branchs_messages_with_no_ai_trailer(
         f" --body-file - --repo {kitchen.origin}"
     ]
     assert message(kitchen) == (
-        f"feat: alpha (#7)\n\n* alpha\n\n* feat: one\n\nWhy one.\n\n* fix: two\n\n{HUMAN}\n"
+        f"feat: alpha (#7)\n\n* alpha\n\n* feat: one\n\nWhy one.\n\n* fix: two\n\n{HUMAN}"
     )
     assert trailers.found(message(kitchen)) == []
 
@@ -141,4 +141,4 @@ def test_the_landing_of_a_train_is_a_merge_commit_whose_body_is_the_title(kitche
     assert kitchen.calls() == [
         f"pr merge 9 --merge --match-head-commit {head} --body-file - --repo {kitchen.origin}"
     ]
-    assert message(kitchen) == f"Merge pull request #9\n\nfeat: {TRAIN}\n"
+    assert message(kitchen) == f"Merge pull request #9\n\nfeat: {TRAIN}"

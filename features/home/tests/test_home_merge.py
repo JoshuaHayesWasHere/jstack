@@ -1190,7 +1190,8 @@ def test_github_is_asked_about_the_repo_of_origin(merged):
     assert calls(merged.home) == [
         f"pr list --state open --json {LIST} {about}",
         f"repo view {merged.origin} --json defaultBranchRef --jq .defaultBranchRef.name",
-        f"pr merge 7 --squash --match-head-commit {merged.head} {about}",
+        f"pr merge 7 --squash --match-head-commit {merged.head} --subject {TITLE} (#7)"
+        f" --body-file - {about}",
         f"pr view 7 --json mergeCommit --jq .mergeCommit.oid {about}",
         f"pr list --base alpha --state open --json number {about}",
     ]

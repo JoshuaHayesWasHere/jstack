@@ -34,6 +34,7 @@ from jmerge import (
     ready,
     rows,
     sweep,
+    trailers,
 )
 from jmerge.asked import why as asked_why
 
@@ -50,10 +51,12 @@ JUDGED_AGAIN_AT_MOST = 2
 TIMEOUT_SECONDS = 120
 
 
-def _run(cwd: Path, *command: str) -> subprocess.CompletedProcess[str]:
+def _run(cwd: Path, *command: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
     limit = float(os.environ.get("JMERGE_TIMEOUT") or TIMEOUT_SECONDS)
     try:
-        return subprocess.run(command, cwd=cwd, capture_output=True, text=True, timeout=limit)
+        return subprocess.run(
+            command, cwd=cwd, input=stdin, capture_output=True, text=True, timeout=limit
+        )
     except subprocess.TimeoutExpired:
         said = f"timed out after {limit:g} s: {shlex.join(command)}"
         return subprocess.CompletedProcess(command, 124, "", said)
@@ -1194,6 +1197,20 @@ class Repo:
         stale = "(stale info)" in ran.stderr
         return f"{gone} ({'it is not at the merged head on the origin' if stale else _said(ran)})"
 
+    def messages(self, one: ready.PullRequest) -> list[str] | None:
+        """The message of each commit on the branch and not on its base, oldest first, as
+        GitHub's default squash body lists them, and None when git cannot read them."""
+        base = f"refs/remotes/origin/{one.base}"
+        fetched = _run(
+            self.main, "git", "fetch", "-q", "origin", one.head, f"+refs/heads/{one.base}:{base}"
+        )
+        if fetched.returncode:
+            return None
+        ran = _run(self.main, "git", "log", "--reverse", "--format=%B%x00", one.head, "--not", base)
+        if ran.returncode:
+            return None
+        return [message.strip() for message in ran.stdout.split("\0") if message.strip()]
+
     def merge(
         self,
         one: ready.PullRequest,
@@ -1221,6 +1238,14 @@ class Repo:
                 return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
             rebase, judged = again_judged.note, again_judged.judged
         landing = one.base == self.trunk and one.branch in self.integration
+        if landing:
+            subject, body = (), one.title
+        else:
+            messages = self.messages(one)
+            if messages is None:
+                return lines.waits("wait", number, one.url, ready.NO_MESSAGES)
+            subject = ("--subject", f"{one.title} (#{number})")
+            body = "\n\n".join(f"* {trailers.strip(message)}" for message in messages)
         ran = _run(
             self.main,
             "gh",
@@ -1230,7 +1255,11 @@ class Repo:
             "--merge" if landing else "--squash",
             "--match-head-commit",
             one.head,
+            *subject,
+            "--body-file",
+            "-",
             *self.about,
+            stdin=trailers.strip(body) + "\n",
         )
         if ran.returncode:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {_said(ran)}")

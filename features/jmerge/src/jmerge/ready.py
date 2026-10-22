@@ -60,6 +60,7 @@ GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
 RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
 MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
+NO_MESSAGES = Reason("check", "its commit messages could not be read for the squash")
 KEPT = "every line kept"
 PASSED = "passed"
 FAILED = "failed"

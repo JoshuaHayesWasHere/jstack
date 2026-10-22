@@ -120,7 +120,8 @@ def test_it_squashes_into_that_branch_and_the_merged_line_names_it(kitchen):
     commit = tip(kitchen, TRAIN)
     assert said.startswith(f'merged 6 one {commit} "feat: one", into {TRAIN}, ')
     assert kitchen.calls() == [
-        f"pr merge 6 --squash --match-head-commit {head} --repo {kitchen.origin}"
+        f"pr merge 6 --squash --match-head-commit {head} --subject feat: one (#6)"
+        f" --body-file - --repo {kitchen.origin}"
     ]
     assert git(kitchen.origin, "show", f"refs/heads/{TRAIN}:a.txt") == ("ours\n" + LINES).strip()
     assert tip(kitchen, "main") == main
@@ -188,7 +189,7 @@ def test_the_landing_of_the_train_on_main_is_a_merge_commit_and_keeps_the_branch
     commit = tip(kitchen, "main")
     assert said.startswith(f'merged 9 {TRAIN} {commit} "feat: {TRAIN}", ')
     assert kitchen.calls() == [
-        f"pr merge 9 --merge --match-head-commit {head} --repo {kitchen.origin}"
+        f"pr merge 9 --merge --match-head-commit {head} --body-file - --repo {kitchen.origin}"
     ]
     assert git(kitchen.origin, "rev-list", "--parents", "-n", "1", commit).split()[1:] == [
         main,
