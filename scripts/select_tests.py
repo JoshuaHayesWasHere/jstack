@@ -24,8 +24,11 @@ A changed file that is no module (a doc, a skill, a hook) selects the test files
 path, in the test file itself or in a test module it imports. A test spells a path with the parts of
 a string or of a chain of `/` joins. The parts start at the file name and go up through the
 directories until no other tracked file has the same ending: `crew` and `SKILL.md` spell
-`features/crew/SKILL.md`. A changed fixture selects the tests that spell it or the nearest directory
-above it. When no test spells either, the fixture selects `all`.
+`features/crew/SKILL.md`. A file may include another: a line of a skill or a page that says to read
+`$T/../skills/<its folder>/<name>.md` now includes that file beside it, and the tests read the
+skill with it folded in. So a changed file that is included selects the tests that spell each file
+that includes it, up the chain of includes. A changed fixture selects the tests that spell it or
+the nearest directory above it. When no test spells either, the fixture selects `all`.
 
 The map of verify-jstack's features, with each `features/<name>/verify.md`, adds more
 selections. A feature file names the paths a feature owns (`Paths:`, in jmerge's pattern
@@ -86,6 +89,7 @@ BACKTICKED = re.compile(r"`([^`]+)`")
 LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
+INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 
 
 class Unread(Exception):
@@ -357,6 +361,33 @@ def spelled_by():
     return found
 
 
+@cache
+def included():
+    """Each file another tracked file includes, with the files that include it. A file includes
+    the file beside it that one of its lines says to read now, in the shape `INCLUDE` matches:
+    the tests read a skill with each such file folded in."""
+    found = {}
+    for path in sorted(tracked()):
+        if path.endswith(".md") and (ROOT / path).is_file():
+            folder = Path(path).parent
+            for line in (ROOT / path).read_text().splitlines():
+                for skill, name in INCLUDE.findall(line):
+                    if skill == folder.name and name != "SKILL.md":
+                        found.setdefault((folder / name).as_posix(), set()).add(path)
+    return found
+
+
+def includers(path):
+    """The files that include this path, and the files that include those, up the chain."""
+    found, todo = set(), [path]
+    while todo:
+        for one in included().get(todo.pop(), ()):
+            if one not in found:
+                found.add(one)
+                todo.append(one)
+    return found
+
+
 def readers(path):
     """The test files that spell this path, in a path of their own or of a module they import."""
     return set(spelled_by().get(called(path), ()))
@@ -531,7 +562,8 @@ def selection(changed):
         else:
             if SOURCE.match(path):
                 found["imports"] |= test_files(importers(users(path)))
-            found["names"] |= readers(path)
+            for one in {path} | includers(path):
+                found["names"] |= readers(one)
     where = pages()
     for name, (owned, listed_tests) in features().items():
         if any(owns(owned, path) for path in changed):

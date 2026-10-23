@@ -16,6 +16,7 @@ import sys
 
 import pytest
 
+from test_home_thread import named
 from testing.paths import REPO, sources
 
 SCRIPT = REPO / "scripts" / "select_tests.py"
@@ -274,6 +275,46 @@ def test_a_skill_selects_the_tests_that_name_its_directory_and_not_the_other_ski
         "testing/tests/test_tree.py",
         "testing/tests/test_two.py",
     ]
+
+
+INCLUDED = {
+    "skills/three/SKILL.md": "First read `$T/../skills/three/part.md` now.\n",
+    "skills/three/part.md": "Then read `$T/../skills/three/deep.md` now.\n",
+    "skills/three/deep.md": "deep\n",
+    "skills/three/alone.md": "alone\n",
+    "testing/tests/test_three.py": "S = Path('skills') / 'three' / 'SKILL.md'\n",
+}
+
+
+@pytest.mark.parametrize("path", ["skills/three/part.md", "skills/three/deep.md"])
+def test_a_file_a_skill_includes_selects_the_tests_that_read_the_skill_however_deep(tmp_path, path):
+    repo = Repo(tmp_path, files={**FILES, **INCLUDED})
+
+    assert repo.selected(repo.change([path])) == [
+        "testing/tests/test_three.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
+def test_a_file_beside_a_skill_that_no_line_includes_selects_as_before(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **INCLUDED})
+
+    assert repo.selected(repo.change(["skills/three/alone.md"])) == ["testing/tests/test_tree.py"]
+
+
+def test_the_selector_follows_the_includes_the_tests_fold_in():
+    """`as_read` folds in each file beside a skill that a line of it says to read now. The
+    selector must find the same files, or a change to one runs none of the tests that read it."""
+    folded = {
+        (path, found.relative_to(REPO).as_posix())
+        for path in select.tracked()
+        if path.endswith(".md") and (REPO / path).is_file()
+        for found in named(REPO / path)
+    }
+    found = {(includer, path) for path, by in select.included().items() for includer in by}
+
+    assert folded
+    assert found == folded
 
 
 def test_a_file_no_feature_owns_and_no_test_names_selects_the_cross_cutting_alone(repo):

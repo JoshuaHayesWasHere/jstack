@@ -60,6 +60,8 @@ The Python code is one `uv` project.
 `make check` is the one check command.
 It runs the lint and the tests above, in that order, and stops at the first that fails.
 `make check-fast` runs the lint and only the tests a change reaches.
+A test reaches a file it imports, a file whose path it spells, and a file that a file it reads includes.
+A skill or page includes the file beside it that one of its lines says to read now (``read `$T/../skills/<its folder>/<name>.md` now``), so a change to that file runs the tests that read the skill, up the chain of includes.
 
 When a check fails, [A test of `make check` failed on a bound](features/repo-guards/docs/troubleshooting/a-test-of-make-check-failed-on-a-bound.md) and [`make check-fast` stopped before the tests](features/repo-guards/docs/troubleshooting/make-check-fast-stopped-before-the-tests.md) have the common causes.
 
