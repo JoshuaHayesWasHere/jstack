@@ -393,7 +393,7 @@
 <div class="cards">
   <article class="card op"><h4 class="t">An approval</h4><p>A brief is ready, or it changed after your go, or an approved task depends on one you have not approved.</p><p class="when">You give: a yes to that exact brief.</p></article>
   <article class="card op"><h4 class="t">A gate</h4><p>A thread met a question only you can answer. It took a default and carried on. The home shows open gates at its start, on a status request, and when the planned work is done.</p><p class="when">You give: keep the default, or change it.</p></article>
-  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "&lt;date and time&gt;"</code>, where <code>&lt;user&gt;</code> is the <code>user</code> of your jstack config. Add <code>--check</code> to see what it would do. <code>jmerge</code> refuses it without the review's proven safety fact.</p></article>
+  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "&lt;date and time&gt;"</code>, where <code>&lt;user&gt;</code> is the <code>user</code> of your jstack config. Add <code>--check</code> to see what it would do. <code>jmerge</code> refuses the accept unless the review proved its safety fact.</p></article>
 </div>
 <details>
   <summary>If the operator is away</summary>

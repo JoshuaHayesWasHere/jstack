@@ -31,7 +31,7 @@ It pauses only before a force-push to a shared branch, a deploy, deleting data, 
 A question only you can answer becomes a **gate**.
 The thread takes a default, carries on, and asks you.
 Your answer closes the gate, and with no answer the gate keeps its default.
-Nine commands do the routine work with no model, such as `jmerge`, which merges, and `jpack`, which checks context packs.
+Nine commands do the routine work with no model, such as `jmerge`, which merges.
 [Reference](#reference) lists them all.
 
 ## Requirements
@@ -118,7 +118,8 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 4. Pick the repo that you want work done in.
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
-	A job named `check` in a workflow under `.github/workflows/` that runs `on: pull_request` gives the check its name.
+	Add a workflow under `.github/workflows/` that runs `on: pull_request`, with a job named `check`.
+	The job's name is the check's name.
 	GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to write one.
 	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
@@ -151,7 +152,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	You see `merged` or `wait` and the reason for each open pull request.
 	`jmerge` merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
 	No person has to approve on GitHub.
-	The reviewer thread's review is the review.
+	The reviewer thread's review stands in for an approval.
 
 Nothing merges by itself until you choose who does it.
 Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.
