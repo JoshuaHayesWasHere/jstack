@@ -83,7 +83,7 @@ A rule approval is never for new work.
 New work waits for the user's go, however small it is and whatever entry holds it.
 A follow-up finishes or repairs what the parent row asked for, and asks for no outcome the parent did not.
 The home judges that, and jbus does not.
-jbus refuses a parent that is not a row of this queue, a parent with no approval, and a parent that a rule approved.
+`jbus` refuses a parent that is not a row of this queue, a parent with no approval, and a parent that a rule approved.
 A chain has one step, so a follow-up of a follow-up names the first parent or waits for the user.
 The row then reads `rule 6, follow-up of <parent>; run <time> by the <repo> home; you did not speak of this row`, the page marks it, and the digest counts it for the user.
 That is how the user audits a rule approval, so the home makes a doubtful follow-up a gate and not a rule approval.
