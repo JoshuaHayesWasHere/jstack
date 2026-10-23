@@ -11,8 +11,8 @@ only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
 of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for the
-workflow `macos`: it runs the whole suite on each pull request to learn what fails on macOS, and
-it never fails a run or a check, since jbus and jmerge read every check of a pull request.
+workflow `macos`: it runs the whole suite on each pull request on macOS on Apple Silicon, and its
+check fails when the suite does, so the home can name it in `required-checks`.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
@@ -443,24 +443,26 @@ def test_macos_runs_on_every_pull_request_and_on_nothing_else():
     }
 
 
-def test_the_macos_job_never_fails_a_run_or_a_check_and_no_merge_waits_on_it():
-    """jbus and jmerge read every check of a pull request, so a red `macos` would read as a failed
-    pull request and wake its crew. A job's own `continue-on-error` keeps the run green but still
-    reports the job's check as failed, so every step carries the flag too. A job that meets its
-    cap is cancelled, which reads as failed, so the suite's step stops before the job's cap."""
-    from jmerge import checks, ready
+def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
+    """macOS on Apple Silicon is supported, so `macos` is a required check: the home's
+    `required-checks` names it beside `check` and `borders`, and jmerge waits on it. A job's or a
+    step's `continue-on-error` reports the check as passed whatever the suite did, so neither the
+    job nor any step that sets up or runs the suite carries it. Only the step that lists the
+    failed tests does, which runs after the suite and changes nothing it decided."""
+    from jmerge import ready
 
-    passed = {"name": "check", "status": "COMPLETED", "conclusion": "SUCCESS"}
-    red = {"name": "macos", "status": "COMPLETED", "conclusion": "FAILURE"}
-    assert (checks.checks([passed]), checks.checks([passed, red])) == ("passed", "failed")
+    rollup = [
+        {"name": name, "status": "COMPLETED", "conclusion": "SUCCESS"}
+        for name in ("check", "borders")
+    ] + [{"name": "macos", "status": "COMPLETED", "conclusion": "FAILURE"}]
+    assert ready.waiting(rollup, ready.required_of("check\nborders\nmacos\n")) == ("macos",)
     text = MAC.read_text()
-    assert job_value(text, "macos", "continue-on-error") is True
+    assert job_value(text, "macos", "continue-on-error") is None
     found, _ = steps(text, "macos")
-    assert found and all(step.get("continue-on-error") is True for step in found)
+    assert [step.get("name") for step in found if "continue-on-error" in step] == ["failed tests"]
     (suite,) = [step for step in found if step.get("id") == "suite"]
     assert suite["run"] == SUITE
     assert int(suite["timeout-minutes"]) < int(cap(text, "macos"))
-    assert "macos" not in ready.REQUIRED
 
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
