@@ -15,7 +15,8 @@ service, and prints one line for each blocker of that home:
 - `fix <key>`: a blocker the home fixes. It writes a brief whose head has `Fix of: <key>` and a
   `When green:` line, and queues it with `jbus queue add`. `try <n> of <cap>` counts the fixes
   queued for the key so far.
-- `wait <key>`: a fix of the key is queued and not over.
+- `wait <key>`: a fix of the key is at work: its row is not over, not stuck and its check has
+  not failed. A fix that failed is no fix at work, so the next try is briefed, or the cap raised.
 - `decision <key>`: the key had its cap of fixes and still blocks, raised to the user.
 
 A fix's own blockers count against the key it fixes: a fix whose check fails is the same blocker
@@ -306,7 +307,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
     open_fixes: dict[str, list[str]] = {}
     for row in mine:
         fixes = head(texts[row["slug"]], FIX_OF)
-        if fixes:
+        if fixes and row.get("status") not in STUCK and row.get("checks") != "failed":
             open_fixes.setdefault(fixes, []).append(row["slug"])
     said, seen = [], set()
     cap = run.user.retry_cap
