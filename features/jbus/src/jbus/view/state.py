@@ -1364,7 +1364,7 @@ SUMMARY = {
     "merged": None,
     "threads": [THREAD],
     "homes": [GROUP],
-    "broken": [{"what": None, "open": None}],
+    "broken": [{"what": None, "open": None, "since": None}],
     "unplaced": [None],
     "health": {
         "checks": {"running": None, "waiting": None, "failed": None, "error": None},
@@ -1386,30 +1386,49 @@ def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def broken(
-    checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any], unasked: str = ""
-) -> list[dict[str, str]]:
-    """What is broken in a project, each as a plain reason and the drawer that has it.
+    checks: dict[str, Any],
+    bus: dict[str, Any],
+    unwell: list[dict[str, Any]],
+    main: dict[str, Any] | None = None,
+    unconfirmed: dict[str, Any] | None = None,
+) -> list[dict[str, str | None]]:
+    """What is broken in a project, each as a plain reason, the drawer that has it, and
+    `since`, when it broke, or None where nothing kept says.
 
-    It names the checks that failed or that the view could not read, the bus when a wake
-    failed, the sources the view could not read, and `unasked`, the source the last pass
-    could not ask. It says nothing of what is well, and nothing of what is only quiet."""
-    found = []
+    It names main when its tip is red, since main moved there, the checks that failed, since
+    the oldest of those runs, or that the view could not read, the bus when a wake of the
+    route in effect failed, since its streak began, or when events wait in a route the project
+    no longer takes, the sources the view could not read, since the oldest was written, and
+    the source the last pass could not ask, since it was last confirmed (`unconfirmed`).
+    Each reads its source as it is now, so a reason goes once its source works again. It says
+    nothing of what is well, and nothing of what is only quiet."""
+    found: list[dict[str, str | None]] = []
+    if main and main["red"]:
+        found.append({"what": f"main red {main['red'][:7]}", "open": "pulse", "since": main["at"]})
     if checks["error"]:
-        found.append({"what": "CI not read", "open": "checks"})
+        found.append({"what": "CI not read", "open": "checks", "since": None})
     elif checks["failed"]:
-        found.append({"what": f"CI {checks['failed']} failed", "open": "checks"})
+        what = f"CI {checks['failed']} failed"
+        found.append({"what": what, "open": "checks", "since": checks.get("since")})
     if bus["failed_wakes"] or bus["last_error"]:
         what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
-        found.append({"what": what, "open": "bus"})
+        found.append({"what": what, "open": "bus", "since": bus.get("since")})
+    elif bus.get("stranded"):
+        held = bus["stranded"]
+        what = f"{held} wake{'' if held == 1 else 's'} stranded in an outbox"
+        found.append({"what": what, "open": "bus", "since": None})
     if unwell:
+        times = [one["at"] for one in unwell if one.get("at")]
         found.append(
             {
                 "what": f"{len(unwell)} source{'' if len(unwell) == 1 else 's'} unread",
                 "open": "pulse",
+                "since": min(times) if times else None,
             }
         )
-    if unasked:
-        found.append({"what": f"{unasked} did not answer", "open": "pulse"})
+    if unconfirmed and unconfirmed.get("source"):
+        what = f"{unconfirmed['source']} did not answer"
+        found.append({"what": what, "open": "pulse", "since": unconfirmed.get("since")})
     return found
 
 
@@ -1423,8 +1442,10 @@ def summary(read: Read) -> dict[str, Any]:
     the last pass left no list. `blind` is what the project's page cannot say now. It leaves
     out what the page never can say. It also leaves out a source the view could not read,
     because that source is in `unwell`. `unwell` is each source of the project that is not ok,
-    except one that a session writes. A source or a blind spot of the machine is on no
-    project's row."""
+    except one that a session writes and one that is missing. A missing file is one jbus has
+    not written for the project, as `ci.jsonl` where no `jbus ci` runs: the pulse lists it,
+    and it is no fault. A file that is there and cannot be read is. A source or a blind spot of
+    the machine is on no project's row."""
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
@@ -1436,15 +1457,21 @@ def summary(read: Read) -> dict[str, Any]:
         if not spot.machine
     ]
     unwell = [
-        {"name": one["name"], "state": one["state"]}
+        one
         for one in read.listed
-        if one["state"] != "ok" and one["by"] != "session" and one["name"] not in machine
+        if one["state"] not in ("ok", "missing")
+        and one["by"] != "session"
+        and one["name"] not in machine
     ]
     failed = {key: len(at) for key, at in checks["now"].items()} | {"error": checks["error"]}
+    runs = [checks["runs"][at]["created"] for at in checks["now"]["failed"]]
+    main = read.panel("pulse")["main"]
     return {
         "name": read.name,
         "repo": read.where,
-        "broken": broken(failed, bus, unwell, (read.unconfirmed or {}).get("source", "")),
+        "broken": broken(
+            failed | {"since": min(runs, default=None)}, bus, unwell, main, read.unconfirmed
+        ),
         "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
         "waits": len(read.panel("you")["needs"]),
         "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
@@ -1458,7 +1485,7 @@ def summary(read: Read) -> dict[str, Any]:
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
             "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
             "blind": len(own),
-            "unwell": unwell,
+            "unwell": [{"name": one["name"], "state": one["state"]} for one in unwell],
         },
     }
 

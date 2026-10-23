@@ -285,7 +285,8 @@ def test_passes_that_fail_and_a_red_main_are_on_the_first_screen(scene, tmp_path
     assert seen["header"]["machine"]["text"] == "3 passes failed"
     rows = {row["name"]: row["why"] for row in seen["stack"]["rows"]}
     assert re.fullmatch(r"main red badc0de since \d\d:\d\d", rows["demo"]), rows["demo"]
-    assert all(re.search(r"(since \d\d:\d\d|since not known)$", why) for why in rows.values())
+    assert rows["larder"] == "CI not read, since not known, 1 source unread, since not known"
+    assert rows["pantry"] == ""
 
 
 KIND_HEADINGS = (

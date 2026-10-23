@@ -531,6 +531,7 @@
     if (!m) return;
     var e = machineEdges(m), r = m.room, word = "Machine ok", cls = "";
     if (e.stopped) { word = "jbus stopped"; cls = "bad"; }
+    else if (m.jbus.failed) { word = plural(m.jbus.failed, "pass", "passes") + " failed"; cls = "bad"; }
     else if (e.room) { word = "Machine: room " + (r.answer === "wait" ? "full" : "not known"); cls = "op"; }
     else if (e.runners) { word = "Machine: runners down"; cls = "op"; }
     else if (e.plan) { word = "Machine: plan at its limit"; cls = "op"; }
@@ -553,8 +554,10 @@
     var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
     if (document.title !== named) document.title = named;
   }
+  function brokeSince(b) { var at = ms(b.since); return b.what + (at == null ? ", since not known" : " since " + day(at)); }
+  function passWord(end) { var j = jb(); return j && j.failed ? plural(j.failed, "pass", "passes") + " failed" : end == null ? "" : "last pass " + hm(end); }
   function projectRow(p) {
-    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; }), p.unplaced.length ? ["cannot place " + p.unplaced.join(", ")] : []).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
+    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(brokeSince), p.unplaced.length ? ["cannot place " + p.unplaced.join(", ")] : []).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
     if (p.waits) says.push(p.waits + " need you");
     if (why) says.push(why);
     return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
@@ -608,9 +611,10 @@
   }
   function hk(text, open, tone) { return '<button type="button" class="hk' + (tone ? " " + tone : "") + '" data-open="' + esc(open) + '">' + esc(text) + '</button>'; }
   function healthLine(sm) {
-    var h = sm.health, parts = sm.broken.map(function (b) { return hk(b.what, b.open, "bad"); }), t = jb(), end = t && ms(t.last_end);
+    var h = sm.health, parts = sm.broken.map(function (b) { return hk(brokeSince(b), b.open, "bad"); }), t = jb(), end = t && ms(t.last_end);
+    if (t && t.failed) parts.unshift(hk(passWord(end), "pulse", "bad"));
     if (h.blind) parts.push(hk(plural(h.blind, "blind spot", "blind spots"), "blind", "op"));
-    var well = !parts.length, line = well ? ['<span class="hh">All well' + (end == null ? "" : " &middot; last pass " + hm(end)) + '</span>'] : parts;
+    var well = !parts.length, line = well ? ['<span class="hh">All well' + (end == null ? "" : " &middot; " + passWord(end)) + '</span>'] : parts;
     if (h.threads) line.push(hk(plural(h.threads, "thread", "threads") + " out", "threads"));
     return line.join(" &middot; ");
   }
