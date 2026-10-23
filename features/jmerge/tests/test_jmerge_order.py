@@ -341,6 +341,17 @@ def test_a_file_outside_the_directory_or_not_added_is_no_migration(lined):
     assert [line.split()[0] for line in lined.run("--check")] == ["ready"] * 2
 
 
+def test_ready_pull_requests_listed_newest_first_merge_lowest_number_first(lined):
+    listing(
+        lined.home,
+        (9, GAMMA_URL, "gamma", [("c.txt", "MODIFIED")], "MERGEABLE"),
+        (8, BETA_URL, "beta", [("b.txt", "MODIFIED")], "MERGEABLE"),
+        (7, merge.URL, "alpha", [("a.txt", "MODIFIED")], "MERGEABLE"),
+    )
+    assert starts(lined.run("--check")) == ["ready 7", "ready 8", "ready 9"]
+    assert merged_numbers(lined.run()) == [7, 8, 9]
+
+
 def test_pull_requests_with_no_declared_order_go_by_number_and_an_order_runs_through_a_row():
     from jmerge import rows as jrows
 
