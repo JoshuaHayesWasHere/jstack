@@ -1,7 +1,7 @@
 """The merge flow's TLA+ spec in `features/jmerge/spec/`: TLC checks that today's code breaks its
 rules, the design holds all four, and each canary, the design with one fix taken out, breaks the
-rule on that fix. The run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's
-conditions, and the design's `Rejudge`, each name a file and line, as the statechart tool checks."""
+rule on that fix. The run is `flow_canaries.py`, and it skips where no Java runs TLC. The code
+model's conditions, and the design's `Rejudge`, each name a file and line."""
 
 import importlib
 import re
