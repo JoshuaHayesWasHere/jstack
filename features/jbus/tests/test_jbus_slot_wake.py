@@ -234,5 +234,6 @@ def test_a_waiter_t3_code_will_not_send_to_is_dropped_with_one_line(kitchen, slo
     said = kitchen.poll()
     (line,) = [line for line in about(said, thread) if "is gone" in line]
     assert "was not found" in line and not any("could not be told" in one for one in said)
-    assert waiters.read(slot.locks_dir()) == [] and sends(kitchen) == []
+    assert waiters.read(slot.locks_dir()) == [] and told(kitchen) == [thread]
     assert about(kitchen.poll(NOW + timedelta(minutes=1)), thread) == []
+    assert told(kitchen) == [thread]

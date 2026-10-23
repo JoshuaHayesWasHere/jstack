@@ -192,5 +192,6 @@ def test_a_crew_t3_code_will_not_send_to_is_dropped_with_one_line(capped, capsys
     said = capped.poll(UNTIL + timedelta(minutes=1))
     (line,) = [line for line in about(said, thread) if "is gone" in line]
     assert "was not found" in line and not any("could not be told" in one for one in said)
-    assert waits.read(waits.where()) == [] and sends(capped) == []
+    assert waits.read(waits.where()) == [] and told(capped) == [thread]
     assert about(capped.poll(UNTIL + timedelta(minutes=3)), thread) == []
+    assert told(capped) == [thread]

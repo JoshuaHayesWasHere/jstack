@@ -6,7 +6,8 @@ which `jgauge test-slot --thread` writes) and ends its turn. Nothing in T3 Code 
 thread, so each pass of `jbus poll` resumes it, in `wake`:
 
 - `wake` drops a waiter whose thread is gone, settled, archived or ended (`dead`). A thread
-  that ended its turn to wait has the status `completed`, and counts as alive.
+  that ended its turn to wait has the status `completed`, and counts as alive. A wait whose
+  read or send T3 Code answers with a gone thread is dropped with one line, and not tried again.
 - `wake` drops a woken waiter that jbus told long ago and that has done nothing since.
 - For each lane that has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already. A woken waiter claims its slot for
@@ -66,7 +67,7 @@ def dead(run: Pass, client: Client, waiter: Waiter | Wait) -> bool:
         read = client.call("t3_thread_read", {"threadId": waiter.thread, "limit": 1})
     except T3Refused as error:
         if GONE.search(str(error)):
-            return True
+            return _gone(run, waiter, error)
         run.say(f"wait {waiter.thread}: its {_kind(waiter)} wait could not be checked ({error})")
         return False
     except T3Error as error:
@@ -78,6 +79,13 @@ def dead(run: Pass, client: Client, waiter: Waiter | Wait) -> bool:
 
 def _kind(waiter: Waiter | Wait) -> str:
     return "pool" if isinstance(waiter, Wait) else "slot"
+
+
+def _gone(run: Pass, waiter: Waiter | Wait, error: T3Error) -> bool:
+    run.say(
+        f"wait {waiter.thread}: its {_kind(waiter)} wait is dropped, its thread is gone ({error})"
+    )
+    return True
 
 
 def wake(run: Pass, client: Client) -> None:
@@ -122,7 +130,8 @@ def wake_capped(run: Pass, client: Client) -> None:
 
 
 def tell_capped(run: Pass, client: Client, one: Wait) -> bool:
-    """Send the thread its wake, and say whether T3 Code took it."""
+    """Send the thread its wake, and say whether the wait is done: T3 Code took the message, or
+    said the thread is gone."""
     message = CAPPED.format(role=one.role, until=one.until, thread=one.thread)
     client.recipients = client.recipients | {one.thread}
     asked = {
@@ -133,6 +142,11 @@ def tell_capped(run: Pass, client: Client, one: Wait) -> bool:
     }
     try:
         client.call("t3_thread_send", asked)
+    except T3Refused as error:
+        if GONE.search(str(error)):
+            return _gone(run, one, error)
+        run.say(f"wait {one.thread}: it could not be told the {one.role} pool is free ({error})")
+        return False
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told the {one.role} pool is free ({error})")
         return False
@@ -167,6 +181,13 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
     }
     try:
         client.call("t3_thread_send", asked)
+    except T3Refused as error:
+        if GONE.search(str(error)):
+            _gone(run, one, error)
+            waiters.forget(slot.locks_dir(), {one.id})
+            return
+        run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
+        return
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
         return
