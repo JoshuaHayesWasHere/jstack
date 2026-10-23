@@ -39,7 +39,8 @@ Prefer a tool that the repo's developers can install and run, and tell the user 
 - **Honest about scope.** Say what is verified, under which bounds and assumptions, and what is left out. A pass covers the model or the bound, not the whole system.
 - **Readable without the tool.** State the property and the harm in one plain sentence each. Tell a counterexample as a short sequence of steps in the code's words.
 - **Cheap to rerun.** One command, a reproducible tool version, and a run short enough that the next agent will use it on every relevant change.
-- **Kept in step with the code.** Record which files and functions each check covers, and the commit at which you last confirmed that the verification describes them.
+- **Kept in step with the code.**
+  Record which files and functions each check covers, and the commit at which you last confirmed that the verification describes them.
   When the covered code changes after that commit, the next agent can see that the verification needs another look.
 
 ## Generate the verify skill
