@@ -4,6 +4,7 @@ it as the reviewer does: `jbus cleanup <brief>`, piped into `jbus queue add clea
 run --project ... jbus` is the real command from this checkout, over a made-up config and state.
 `gh` gives the merge commit, or nothing."""
 
+import json
 import os
 import subprocess
 import sys
@@ -115,6 +116,18 @@ def test_findings_on_an_after_brief_make_exactly_one_row_that_waits_for_the_go(r
     assert f"{PULL}, merged as {MERGE}" in stored
     assert reviewer.run().strip() == cleanup.THERE.format(slug="cleanup-alpha")
     assert len(reviewer.rows()) == 1
+
+
+def test_a_parent_row_removed_from_the_queue_still_gets_its_cleanup_row(reviewer):
+    reviewer.merged(MERGE)
+    reviewer.brief()
+    reviewer.state.mkdir(parents=True)
+    queue.removed_path(reviewer.state).write_text(
+        json.dumps({"alpha": {"at": "2026-10-23 10:00 EDT", "by": "user"}})
+    )
+    reviewer.run()
+    (row,) = reviewer.rows()
+    assert (row["slug"], row["depends"]) == ("cleanup-alpha", [])
 
 
 def test_an_open_pull_request_names_the_head_its_review_saw(reviewer):
