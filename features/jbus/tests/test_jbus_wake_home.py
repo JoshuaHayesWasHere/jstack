@@ -190,18 +190,118 @@ def test_status_names_each_project_s_wake(kitchen):
     assert kitchen.status()["projects"]["demo"]["wake"] == "both"
 
 
-def test_a_flip_of_wake_keeps_the_wakes_that_wait_for_a_route_it_leaves(kitchen):
+def test_a_flip_of_wake_moves_the_wakes_that_wait_for_a_route_it_leaves(kitchen):
     homed(kitchen, url="", project_wake=None)
     kitchen.t3.refuse_send = True
     kitchen.poll(NOW)
     assert waiting(kitchen)
     kitchen.config(project_wake="webhook")
-    kitchen.poll(later(5))
-    assert any(one["event"] == "decision" for one in waiting(kitchen))
+    said = kitchen.poll(later(5))
+    assert waiting(kitchen) == []
+    assert any("decision alpha" in json.dumps(post) for post in kitchen.webhook.posts)
+    assert "moved demo: 1 events for the user from the home thread outbox" in said
     kitchen.t3.refuse_send = False
     kitchen.config(project_wake="home")
     kitchen.poll(later(10))
-    assert any("decision alpha" in one["message"] for one in wakes(kitchen))
+    assert wakes(kitchen) == []
+
+
+def own(kitchen):
+    """What waits for the project's own webhook."""
+    return jbus.read_json(kitchen.state / "outbox.json", [])
+
+
+def sent_events(kitchen):
+    """Each event the home thread was sent, by its line, in order."""
+    return [
+        one["line"]
+        for given in wakes(kitchen)
+        for one in json.loads(given["message"].split("```json\n", 1)[1].split("\n```", 1)[0])[
+            "events"
+        ]
+    ]
+
+
+def test_decisions_queued_for_a_refusing_webhook_reach_the_home_thread_once_wake_is_home(kitchen):
+    """2026-10-23: decisions waited for the own webhook under `wake = "webhook"`, the webhook
+    refused them, and `wake = "home"` left them in that outbox for good."""
+    homed(kitchen, project_wake="webhook")
+    decide_again(kitchen)
+    kitchen.webhook.status = 400
+    kitchen.poll(NOW)
+    assert wakes(kitchen) == [] and len(own(kitchen)) == 2
+    kitchen.config(project_wake="home")
+    said = kitchen.poll(later(5))
+    lines = sent_events(kitchen)
+    assert lines.count("decision alpha: which one?") == 1
+    assert lines.count("decision beta: ?") == 1
+    assert own(kitchen) == [] and waiting(kitchen) == []
+    assert "moved demo: 2 events for the user from the webhook outbox to the home thread" in said
+    again = kitchen.poll(later(10))
+    assert sent_events(kitchen) == lines
+    assert not any(one.startswith("moved demo") for one in again)
+
+
+def test_a_move_queues_an_event_once_where_it_already_waits(kitchen):
+    homed(kitchen, project_wake="both")
+    kitchen.t3.refuse_send = True
+    kitchen.webhook.status = 400
+    kitchen.poll(NOW)
+    assert len(waiting(kitchen)) == 1 and len(own(kitchen)) == 1
+    kitchen.config(project_wake="home")
+    kitchen.t3.refuse_send = False
+    kitchen.poll(later(5))
+    assert sent_events(kitchen).count("decision alpha: which one?") == 1
+
+
+def test_an_event_left_unposted_while_a_route_works_is_told_once_on_the_desk(kitchen):
+    homed(kitchen, project_wake="webhook")
+    kitchen.webhook.status = 400
+    kitchen.poll(NOW)
+    kitchen.config(project_wake="both")
+    said = []
+    for number in range(1, 6):
+        said += kitchen.poll(later(5 * number))
+    told = [one for one in said if one.startswith("unposted demo:")]
+    assert len(told) == 1 and "decision alpha: which one?" in told[0]
+    desk = [one for one in kitchen.log("notify") if "unposted demo:" in one]
+    assert desk == [f"jbus | {told[0]}"]
+
+
+def test_an_event_that_waits_out_the_gap_is_not_told_as_unposted(kitchen):
+    homed(kitchen, url="", project_wake=None)
+    kitchen.poll(NOW)
+    decide_again(kitchen)
+    said = []
+    for number in range(1, 5):
+        said += kitchen.poll(later(number))
+    assert not any(one.startswith("unposted") for one in said)
+    kitchen.poll(later(5))
+    assert "decision beta: ?" in sent_events(kitchen)
+
+
+def test_an_event_another_route_took_is_not_told_as_unposted(kitchen):
+    homed(kitchen, project_wake="both")
+    kitchen.webhook.status = 400
+    said = []
+    for number in range(5):
+        said += kitchen.poll(later(5 * number))
+    assert "decision alpha: which one?" in sent_events(kitchen)
+    assert not any(one.startswith("unposted") for one in said)
+
+
+def test_status_names_an_outbox_outside_the_routes_in_effect_with_its_count(kitchen):
+    homed(kitchen, project_wake="webhook")
+    decide_again(kitchen)
+    kitchen.poll(NOW)
+    kitchen.webhook.status = 400
+    decide(kitchen)
+    kitchen.config(project_wake="home")
+    code, said = kitchen.main("status")
+    assert code == 0
+    assert json.loads(said)["stranded"] == {"demo": {"webhook": 1}}
+    kitchen.poll(later(5))
+    assert json.loads(kitchen.main("status")[1])["stranded"] == {}
 
 
 def test_the_relay_health_check_counts_no_top_level_pair_while_wake_is_home(kitchen):
