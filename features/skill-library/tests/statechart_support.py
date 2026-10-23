@@ -22,13 +22,35 @@ from testing.paths import REPO
 SCRIPTS = REPO / "features" / "skill-library" / "skills" / "statechart" / "scripts"
 
 
-PACKAGE = SCRIPTS / "statechart"
-SRC = PACKAGE.parent
+SRC = SCRIPTS
+
+
+def module_of(path):
+    """The dotted name of one module of the port, from its file under `scripts/`."""
+    return ".".join(path.relative_to(SCRIPTS).with_suffix("").parts)
 
 
 sys.path.insert(0, str(SRC))
-lib = importlib.import_module("statechart.lib")
-statechart_tools = importlib.import_module("statechart.tools")
+PORT = [
+    SCRIPTS / "statechart" / "__init__.py",
+    SCRIPTS / "statechart" / "lib.py",
+    SCRIPTS / "statechart" / "tools.py",
+    SCRIPTS / "statechart" / "mapping.py",
+    SCRIPTS / "statechart" / "cli.py",
+    SCRIPTS / "statechart" / "chart_to_tla.py",
+    SCRIPTS / "statechart" / "tlc_to_chart.py",
+    SCRIPTS / "statechart" / "compare_charts.py",
+]
+MODULES = {
+    "statechart": SCRIPTS / "statechart" / "__main__.py",
+    "chart-to-tla": SCRIPTS / "statechart" / "chart_to_tla.py",
+    "tlc-to-chart": SCRIPTS / "statechart" / "tlc_to_chart.py",
+    "compare-charts": SCRIPTS / "statechart" / "compare_charts.py",
+}
+for module in PORT:
+    importlib.import_module(module_of(module))
+lib = importlib.import_module(module_of(SCRIPTS / "statechart" / "lib.py"))
+statechart_tools = importlib.import_module(module_of(SCRIPTS / "statechart" / "tools.py"))
 ChartError = lib.ChartError
 parse_dot = lib.parse_dot
 parse_mermaid = lib.parse_mermaid
@@ -41,14 +63,6 @@ uncited_conditions = lib.uncited_conditions
 
 
 FIXTURES = Path(__file__).parent / "statechart"
-
-
-MODULES = {
-    "statechart": "statechart.cli",
-    "chart-to-tla": "statechart.chart_to_tla",
-    "tlc-to-chart": "statechart.tlc_to_chart",
-    "compare-charts": "statechart.compare_charts",
-}
 
 
 TIMED = re.compile(r"^(  TLC ran \d+ times? in )\d+\.\d s\.$", re.M)
@@ -72,7 +86,7 @@ def run_env(env=None):
 def node(script, args, cwd, env=None):
     """Runs one command as `node()` ran pstack's scripts: the time TLC took reads N s."""
     r = subprocess.run(
-        [sys.executable, "-m", MODULES[script], *args],
+        [sys.executable, "-m", module_of(MODULES[script]), *args],
         cwd=cwd,
         env=run_env(env),
         capture_output=True,
