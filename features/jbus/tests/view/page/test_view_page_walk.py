@@ -36,8 +36,12 @@ def faults(key, made, answer, rows, overview):
                 found.append(f"{slug}: a row of In progress is {drawn}")
             elif drawn and rows[slug]["state"] != task["state"]["name"]:
                 found.append(f"{slug}: reads {rows[slug]['state']!r}")
-        if want.unplaced and "place" not in overview:
-            found.append(f"the overview row says nothing of what it cannot place: {overview!r}")
+        unplaced = [
+            slug for (value, _), slug in made.rows.items() if value == name and slug in tasks
+        ]
+        named = "place" in overview and all(slug in overview for slug in unplaced)
+        if want.unplaced and not (unplaced and named):
+            found.append(f"the overview row does not name what it cannot place: {overview!r}")
     elif kind == "thread":
         for (value, thread), slug in made.rows.items():
             if thread != name or slug not in rows:
