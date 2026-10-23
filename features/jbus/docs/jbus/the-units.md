@@ -24,6 +24,6 @@ Once the config that asked for an optional unit is gone, the next install turns 
 `jinstall --check` and `jinstall --doctor` print one `units` line, and [The jbus units](../troubleshooting/the-jbus-units.md) says what each form of it means.
 
 Each unit's `Documentation=` names the page of these docs for what it runs, such as [Set up jbus](set-up-jbus.md) for `jbus.timer`.
-It finds the page by where the unit's file is (`%Y`).
+`%Y`, the folder of the unit's file, gives the page's path.
 `systemctl --user show -p Documentation <unit>` prints that page.
 A unit copied in place of the link loses that, and `jinstall --check` reports the copy as old.

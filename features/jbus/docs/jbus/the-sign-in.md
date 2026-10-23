@@ -18,7 +18,8 @@ jbus counts the days by the calendar of your zone, up to the day the sign-in run
 | The first pass after it ran out | `sign-in: jbus's T3 sign-in expired <YYYY-MM-DD HH:MM zone>, no days left: run jbus t3 login` |
 | The first pass after `jbus t3 login` stored a token that runs out later | `sign-in: jbus's T3 sign-in was renewed, and now expires <YYYY-MM-DD HH:MM zone>` |
 
-A pass sends the line for the row of the table that applies now, and none for a row whose time has passed.
+Each row of the table is a mark.
+A pass sends the line for the mark it is in, and none for a mark already behind it.
 The renewal starts the count over for the new expiry.
 `~/.local/state/jbus/sign-in.json` keeps the expiry jbus saw last and the marks it has sent for it, so a project added or moved in the config sends nothing again.
 `sign_in_reminder` in `jbus status` names the webhook the reminder goes to and the days still ahead, or says `none: no top-level webhook, and <project> has none of its own`.

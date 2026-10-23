@@ -16,7 +16,8 @@ A party's folder, `_<name>`, such as an expert's, is no repo's home, and jbus do
 A folder that is a link to a project's home is that home.
 The pass says `homes not on the bus: <names>` in the journal when the list changes, and `jbus status` prints the list as `homes_off_bus`.
 While there is one, the view's machine row shows a Homes item with the count, and the names in its tip.
-jbus adds none of them: `jbus project add` adds one, or the home's next start does.
+jbus adds none of them.
+`jbus project add` adds one, or the home's next start does.
 
 - `<name>` is the repo's folder name, which is also the name of its directory under `~/.local/state/home`.
 - `--checkout` is the path of the repo's main checkout.
