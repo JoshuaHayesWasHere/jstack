@@ -325,6 +325,71 @@ def test_a_target_that_is_not_set_fails_the_start(hooks, tmp_path, key, value, w
     assert HA_TOKEN not in said and hooks[2].base not in said
 
 
+PAGER = ("PAGER_HA_URL", "PAGER_HA_TOKEN", "PAGER_HA_SERVICE")
+NO_PAGER = "relay: no pager set; when Sous Chef is silent the relay runs notify-send only"
+
+
+def without_pager(hooks, value: str | None = None) -> dict[str, str]:
+    """The env of `env_for` with each pager key left out, or set to `value`."""
+    env = {k: v for k, v in env_for(hooks).items() if k not in PAGER}
+    return env if value is None else {**env, **dict.fromkeys(PAGER, value)}
+
+
+@pytest.mark.parametrize("value", [None, "", "  "])
+def test_no_pager_keys_starts_and_relays_with_no_pager_lane(hooks, tmp_path, value):
+    sous_chef, _, _ = hooks
+    relay = Relay(without_pager(hooks, value), tmp_path / "state").up()
+
+    _, said = relay.send(body(event("gate", "user")))
+
+    until(lambda: sous_chef.bodies("blocking") and sous_chef.bodies("everything"))
+    assert sous_chef.bodies("blocking")[0]["relay"]["id"] == said["id"]
+    until(lambda: (relay.state / "heartbeat.json").exists())
+    assert "page" not in json.dumps(beat(relay)) and "pager" not in json.dumps(beat(relay))
+    assert relay.heard().count(NO_PAGER) == 1
+    assert not any((relay.state / where / "page").exists() for where in ("spool", "sent", "dead"))
+    relay.stop()
+
+
+def test_all_three_pager_keys_set_the_pager_and_say_nothing_of_its_absence(relay):
+    assert NO_PAGER not in relay.heard()
+    assert (relay.state / "spool" / "page").is_dir()
+
+
+@pytest.mark.parametrize(
+    "given",
+    [("PAGER_HA_URL",), ("PAGER_HA_TOKEN", "PAGER_HA_SERVICE"), ("PAGER_HA_SERVICE",)],
+)
+def test_a_partial_pager_fails_the_start_and_names_each_missing_key(hooks, tmp_path, given):
+    env = {k: v for k, v in env_for(hooks).items() if k not in PAGER or k in given}
+
+    started = Relay(env, tmp_path / "state")
+    code = started.process.wait(timeout=10)
+    said = started.process.stdout.read()
+
+    assert code == 2
+    for key in PAGER:
+        assert (f"target pager: {key} is missing" in said) == (key not in given)
+    assert HA_TOKEN not in said and hooks[2].base not in said and HA_SERVICE not in said
+
+
+def test_a_down_sous_chef_with_no_pager_runs_notify_send_and_sends_no_page(hooks, tmp_path):
+    sous_chef, _, pager = hooks
+    sous_chef.answer = 503
+    relay = Relay(without_pager(hooks), tmp_path / "state").up()
+
+    _, first = relay.send(body(event("gate", "user")))
+    until(lambda: relay.notified())
+    failed = relay.said().count("(blocking) failed for event")
+    until(lambda: relay.said().count("(blocking) failed for event") >= failed + 2)
+
+    line = f"jstack: gate alpha: something, blocking 0 min, event {first['id']}"
+    assert relay.notified() == [f"-u critical jbus page {line}"]
+    assert relay.said().count("relay: paged") == 1
+    assert pager.arrived == 0 and not (relay.state / "spool" / "page").exists()
+    relay.stop()
+
+
 def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
     sous_chef, _, _ = hooks
     sous_chef.hold = 0.5
