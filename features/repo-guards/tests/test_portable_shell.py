@@ -8,8 +8,6 @@ the reviewer's tests start their checks on.
 
 import os
 import re
-import shutil
-import stat
 import subprocess
 
 import pytest
@@ -40,7 +38,7 @@ GNU_ONLY = [
     (r"\bnproc\b", "macOS has no nproc: `getconf _NPROCESSORS_ONLN`"),
     (
         r"(?<![\w.:])flock\s+(-\w+\s+)*(?!\$\w+,)\S",
-        "macOS has no flock: `perl -MFcntl=:flock -e '$^F = 255; open my $l, \">>\", shift "
+        'macOS has no flock: `perl -MFcntl=:flock -e \'$^F = 255; open my $l, ">>", shift '
         "or die; flock $l, LOCK_EX or die; exec @ARGV or die' <lock file> <command>`",
     ),
     (
@@ -61,7 +59,10 @@ GNU_ONLY = [
     ),
     (r"(^|[;&|(`]\s*|\$\(\s*|=\S*\s+)timeout\s", f"macOS has no timeout: {PERL_TIMEOUT}"),
     (r"\bsha256sum\b", "macOS has no sha256sum: `shasum -a 256`"),
-    (r"(?<!command -v )\bxdg-open\b", "macOS opens a file with `open`: `$(command -v xdg-open || echo open)`"),
+    (
+        r"(?<!command -v )\bxdg-open\b",
+        "macOS opens a file with `open`: `$(command -v xdg-open || echo open)`",
+    ),
 ]
 
 EXEMPT = {
@@ -131,7 +132,7 @@ def test_a_date_d_planted_in_a_skill_block_is_found_with_its_portable_form(tmp_p
 def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
     hook = tmp_path / "features" / "demo" / "hooks" / "stamp"
     hook.parent.mkdir(parents=True)
-    hook.write_text("#!/bin/sh\n# GNU's readlink -f is not used here\nhere=$(readlink -f \"$0\")\n")
+    hook.write_text('#!/bin/sh\n# GNU\'s readlink -f is not used here\nhere=$(readlink -f "$0")\n')
     assert gnu_only(tmp_path) == [
         "features/demo/hooks/stamp:3: use `realpath`, the form the rest of jstack uses"
     ]
@@ -146,7 +147,7 @@ def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
         ("flock ~/x.lock make", "perl -MFcntl=:flock -e '...' ~/x.lock make"),
         ("ls | xargs -0r git add", "ls | xargs -0 git add"),
         ("sed -i 's/a/b/' f", "sed -i.bak 's/a/b/' f && rm f.bak"),
-        ("out=$(timeout 9 sh -c x)", "echo 'it ran over its timeout and was stopped'"),
+        ("out=$(timeout 9 sh -c x)", "out=$(perl -e 'alarm shift; exec @ARGV' 9 sh -c x)"),
         ("sha256sum f | cut -c1-12", "shasum -a 256 f | cut -c1-12"),
         ("cores=$(nproc)", "cores=$(getconf _NPROCESSORS_ONLN)"),
     ],
@@ -181,19 +182,18 @@ def bsd_tools(where):
         for name in os.listdir(folder):
             real = os.path.join(folder, name)
             link = where / name
-            if name in ABSENT or link.exists() or not os.access(real, os.X_OK):
+            if name in ABSENT or link.exists() or os.path.isdir(real):
                 continue
-            if os.path.isdir(real):
+            if not os.access(real, os.X_OK):
                 continue
             if name in REFUSED:
+                refuse = f'echo "bsd {name}: no $one" >&2; exit 64'
                 link.write_text(
                     "#!/bin/sh\n"
-                    'for one in "$@"; do\n'
-                    f'    case $one in {REFUSED[name]}) echo "bsd {name}: no $one" >&2; exit 64 ;; esac\n'
-                    "done\n"
+                    f'for one in "$@"; do case $one in {REFUSED[name]}) {refuse} ;; esac; done\n'
                     f'exec {real} "$@"\n'
                 )
-                link.chmod(link.stat().st_mode | stat.S_IXUSR)
+                link.chmod(0o755)
             else:
                 link.symlink_to(real)
     return where
@@ -210,4 +210,3 @@ def test_the_bsd_tools_refuse_the_gnu_forms_and_pass_the_rest(tmp_path):
     assert runs("setsid true").returncode == 127
     assert runs("date +%F").returncode == 0
     assert runs("perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' true").returncode == 0
-    assert shutil.which("date", path=str(tools))
