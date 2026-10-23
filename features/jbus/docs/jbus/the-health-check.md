@@ -1,7 +1,8 @@
 # The health check
 
-A failure no thread trips on goes unseen unless something looks at the machine as one.
-`jbus health` takes that look and prints it, and every `jbus poll` takes the same look as its first step and pages what it finds.
+A failure that no thread runs into stays unseen unless something checks the machine as a whole.
+`jbus health` runs those checks and prints them.
+Every `jbus poll` runs the same checks as its first step and pages what it finds.
 
 ```sh
 jbus health
@@ -39,29 +40,34 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 | `capped <instance>` | The windows of the instance that are full, and until when. | 100% of a window |
 
 The mounts are those the stack writes: jbus's state and the homes, each project's checkout, the temp directory, your home directory, the ledger, and the relay's state.
-A pass that systemd stops cannot say so itself, so the journal of `jbus.service` is where both timeouts are read.
+A pass that systemd stops cannot say so itself, so jbus reads both timeouts from the journal of `jbus.service`.
 
 The relay is optional, and a machine with none has only the `relay` line above, `not watched`.
 The relay is watched only where the config posts to it: a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
 `RELAY_PORT` and `RELAY_STATE` are read from the relay's own env file, `~/.config/jbus-relay/env`, since `jbus.service` does not load it.
 jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears a body at least that often.
-While the relay's unit is not active or its heartbeat is stale, silence and errors are not judged: the unit and the heartbeat say it.
-Silence runs from the last body heard, which a restart keeps, so a relay that restarts often still goes silent.
+While the relay's unit is not active or its heartbeat is stale, jbus does not judge silence and errors.
+The `relay` and `relay heartbeat` lines already report the fault.
+Silence counts from the last body the relay heard.
+A restart keeps that time, so a relay that restarts often still goes silent.
 
 The instances are the built-in one and each instance a role's pool names ([jroles](../../../jroles/docs/jroles.md)).
-Their numbers are the ledger, which the threads' status lines and their usage-limit failures write.
+Their numbers come from the ledger, which the threads' status lines and their usage-limit failures write.
 
 ## Incidents and pages
 
 A check over its limit is an incident, under the key `health <check>`.
 An incident is paged once when it starts and once when a reading under the limit ends it, through the same streaks as every other alert (`streaks.json`).
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
-It goes to the desktop with `notify-send` and, as an event of the machine, to the top-level webhook once, not once a project, where you set one.
+It goes to the desktop with `notify-send`.
+If you set a top-level webhook, the page also goes there as an event of the machine, once and not once for each project.
 A check that could not be read leaves its incident as it is.
-An incident whose check is not taken any more, a mount or an instance gone or a relay the config no longer posts to, ends with no page.
+When jbus stops taking a check, because a mount or an instance is gone or the config no longer posts to the relay, the check's incident ends with no page.
 
 ## The pause
 
 `capped <instance>` is the instance that launches skip ([jroles](../../../jroles/docs/jroles.md#pools)).
-While it holds, a new launch goes to the next instance of the pool, and with every instance capped none starts and the page says until when.
-At the reset launches go back to it by themselves, and the recovered page says so in one line, `launches on <instance> resume`, also in the pass's journal.
+While the cap holds, a new launch goes to the next instance of the pool.
+With every instance capped, no launch starts, and the page says until when.
+At the reset, launches go back to the instance by themselves.
+The recovered page says so in one line, `launches on <instance> resume`, and the pass's journal has the same line.

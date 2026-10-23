@@ -30,7 +30,8 @@ dispatch = false
 
 The setup also linked jbus's systemd units and turned on `jbus.timer`, so a pass runs every minute from now on.
 With `dispatch = false` and no project, a pass does nothing.
-If T3 Code listens on another address, `jq -r .origin ~/.t3/userdata/server-runtime.json` prints it: put that address in `server`.
+If T3 Code listens on another address, `jq -r .origin ~/.t3/userdata/server-runtime.json` prints it.
+Put that address in `server`.
 
 ## 2. Sign jbus in to T3 Code
 
@@ -74,9 +75,11 @@ Its third line says so: `3 jbus project: done, one [[project]] table, ...`.
 ### From a shell: `jbus project add`
 
 You need the id of the repo's T3 Code project.
-To find it in the app, open a thread in that project and ask it for the project's id: the thread reads it with T3 Code's `t3_project_list` tool.
+To find it in the app, open a thread in that project and ask it for the project's id.
+The thread reads the id with T3 Code's `t3_project_list` tool.
 The `t3` command has no way to list projects.
-As a fallback from a shell, read T3 Code's own store, which this command does not change, and whose layout T3 Code may change in a later version:
+As a fallback, read T3 Code's own store from a shell.
+This command does not change the store, and T3 Code may change its layout in a later version:
 
 ```sh
 sqlite3 -readonly ~/.t3/userdata/statev2.sqlite "select project_id, workspace_root from projection_projects where deleted_at is null"
@@ -130,7 +133,8 @@ jbus poll
 ```
 
 Before step 4 it printed `dispatch is off in the config: nothing is launched`, and now it does not.
-On the first pass it may also print a `waiting-on-user` line that asks for `webhook_url`: that is the Chef, which is optional ([The Chef](../chef.md)).
+On the first pass it may also print a `waiting-on-user` line that asks for `webhook_url`.
+That line is about the Chef, which is optional ([The Chef](../chef.md)).
 
 Then read what the last pass left:
 

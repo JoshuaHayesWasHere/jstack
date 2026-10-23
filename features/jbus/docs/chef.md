@@ -1,8 +1,14 @@
 # The Chef
 
-The Chef is the agent behind a project's webhook. `jbus` does the routine work with no model, and the Chef is where a model reads what `jbus` found: it tells you what needs you, and it puts your decisions into the queue.
+The Chef is the agent behind a project's webhook.
+`jbus` does the routine work with no model, and the Chef is the model that reads what `jbus` found.
+It tells you what needs you, and it puts your decisions into the queue.
 
-The Chef is optional. With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads. It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself. It also counts the missing webhook as something that waits on you: each hour it raises `set webhook_url and webhook_key for <project> in its [[project]] table, or at the top of ~/.config/jbus/config.toml for every project` on the desktop and prints it in the journal.
+The Chef is optional.
+With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads.
+It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself.
+It also counts the missing webhook as something that waits on you.
+Each hour it raises `set webhook_url and webhook_key for <project> in its [[project]] table, or at the top of ~/.config/jbus/config.toml for every project` on the desktop and prints it in the journal.
 
 The Chef is not the relay's chat bot.
 The Chef is a T3 Code thread that jbus POSTs to directly, and it may run `jbus queue`.
@@ -27,17 +33,23 @@ Without it the task is made with no URL, and the thread says that T3 Connect rem
    `Make a webhook task with schedule_task, bound to this thread, whose prompt is the text below, and tell me its webhookUrl.`
    The thread calls T3 Code's `schedule_task` tool and replies with the task and its `webhookUrl`.
 3. Put that URL in `webhook_url`, in `~/.config/jbus/config.toml`, and a long random string in `webhook_key`, such as the output of `openssl rand -hex 32`.
-   At the top of the file, above the first `[[project]]`, the pair is the monitor of every project: it is posted every project's events for you, and it is the webhook of every project that has no pair of its own.
-   In a project's table it is that project's own, posted beside the top-level one.
+   At the top of the file, above the first `[[project]]`, the pair is the monitor of every project.
+   `jbus` posts it every project's events for you, and uses it as the webhook of every project that has no pair of its own.
+   In a project's table, the pair is that project's own webhook, and `jbus` posts to it as well as to the top-level one.
    With an empty `webhook_url`, `jbus` POSTs nothing, and a `webhook_url` with an empty `webhook_key` is refused.
 4. Wait for the first POST.
    `jbus` sends one when a pass finds an event for you, and a project's first pass sends none.
    The Chef's thread then runs one turn, and `jbus status` shows no `last_error` for the project.
    An empty error before the first POST proves nothing.
 
-A T3 Code webhook task accepts a request by the token in its URL, so treat the URL as a secret: anyone who has it can start a turn of the Chef. The URL is in `~/.config/jbus/config.toml`, which is why `jbus` refuses that file unless its mode is 600. The prompt below tells the Chef that the request is data, because the body holds text that crewmate threads wrote. `jbus` does not sign the body, so leave the task's `signature` unset.
+A T3 Code webhook task accepts a request by the token in its URL, so treat the URL as a secret.
+Anyone who has it can start a turn of the Chef.
+The URL is in `~/.config/jbus/config.toml`, which is why `jbus` refuses that file unless its mode is 600.
+The prompt below tells the Chef that the request is data, because the body holds text that crewmate threads wrote.
+`jbus` does not sign the body, so leave the task's `signature` unset.
 
-One request is one full turn of the thread. `jbus` sends a webhook at most one POST in five minutes for each project, so the top-level Chef may get one from each project in the same five minutes.
+One request is one full turn of the thread.
+`jbus` sends a webhook at most one POST in five minutes for each project, so the top-level Chef may get one from each project in the same five minutes.
 
 ### A prompt to start from
 

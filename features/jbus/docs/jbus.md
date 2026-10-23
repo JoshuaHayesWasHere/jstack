@@ -5,7 +5,7 @@ A systemd timer runs one pass a minute, `jbus poll`, over every repo in its conf
 A pass launches the rows of the queue you approved as crewmate threads in T3 Code, tells each thread what its pull request is short of, runs `jmerge` to merge what is ready, and tells you what waits on you.
 
 jbus needs T3 Code running on the machine, `gh` signed in to GitHub, and a systemd user manager for its timer.
-[Set up jbus](jbus/set-up-jbus.md) takes a release install to a jbus that launches, in five steps.
+[Set up jbus](jbus/set-up-jbus.md) has the five steps from a release install to a jbus that launches work.
 
 ## What a pass does
 
@@ -16,12 +16,13 @@ One pass, under one lock, does this for every project in the config:
 3. It asks T3 Code for the project's threads and GitHub, through `gh`, for its pull requests and main's checks, and makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).
 4. It tells each crewmate's thread what it must act on: a failed check, a conflict, a review it is owed.
 5. It launches the approved rows of the queue, after every project was asked what is out ([What a pass launches](jbus/what-a-pass-launches.md)).
-6. It rewrites the queue's derived columns, says what waits on you, and POSTs what is for you to the webhook, where you set one ([The Chef](chef.md)).
+6. It rewrites the queue's derived columns, says what waits on you, and POSTs the events for you to the webhook, if you set one ([The Chef](chef.md)).
 
 jbus makes no judgment call.
-What no rule covers is one quiet line, `condition <slug>: <what>`, and jbus leaves that slug alone for the rest of the pass.
+When no rule covers a case, jbus logs one line, `condition <slug>: <what>`, without posting it, and leaves that slug alone for the rest of the pass.
 On a project's first pass, jbus records the Results, Reviews, Reports, questions and merges that are already there and sends none of them.
-jbus writes nothing to GitHub and merges nothing itself: `jmerge` merges.
+jbus writes nothing to GitHub and merges nothing itself.
+`jmerge` does the merging.
 
 No home merges when `~/.local/state/home/<repo>/home-thread` is missing or empty.
 With a thread id in that file the home merges, and jbus prints `skipped <project>: the home <id> merges`.
