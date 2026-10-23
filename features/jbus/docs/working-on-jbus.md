@@ -1,7 +1,8 @@
 # Working on jbus
 
 These pages are reference for changing jbus itself, in a checkout of jstack.
-They name the modules, constants and tests behind what a pass does, and an install of jstack needs none of them.
+They name the modules, constants and tests behind what a pass does.
+An install of jstack needs none of them.
 [jbus](jbus.md) is the page for an install.
 
 <!-- generated: pages by scripts/generate-jstack-trees.py from the headings of features/jbus/docs/working-on-jbus/; do not edit, rerun it -->

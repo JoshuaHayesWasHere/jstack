@@ -201,7 +201,7 @@
 <body>
 <main>
 <h1>jstack, explained</h1>
-<p class="lead">The pipeline between the operator, the agents and the codebase. Follow one task from 1 to 10.</p>
+<p class="lead">This page shows how jstack connects the operator, the agents and the codebase. Follow one task from step 1 to step 10.</p>
 
 <div class="key">
   <span><i class="sw op"></i> the operator</span>
@@ -250,7 +250,7 @@
 <path class="thin" d="M234,272 L251,272"/>
 <g class="file"><title>plan.md, in the record on disk</title><rect x="267" y="153" width="54" height="22" rx="4"/><text class="ft" x="294" y="168">plan</text></g>
 <g class="file"><title>tasks/&lt;slug&gt;.md, in the record on disk</title><rect x="361" y="153" width="54" height="22" rx="4"/><text class="ft" x="388" y="168">brief</text></g>
-<g class="n op"><title>1. The operator says what is wanted</title><rect x="160" y="34" width="80" height="44" rx="7"/><text class="t" x="200" y="55">plan entry</text><text class="s" x="200" y="69">operator</text><circle class="b" cx="160" cy="34" r="9.5"/><text class="bn" x="160" y="38">1</text></g>
+<g class="n op"><title>1. The operator says what they want</title><rect x="160" y="34" width="80" height="44" rx="7"/><text class="t" x="200" y="55">plan entry</text><text class="s" x="200" y="69">operator</text><circle class="b" cx="160" cy="34" r="9.5"/><text class="bn" x="160" y="38">1</text></g>
 <g class="n model"><title>2. The home writes the brief into the record</title><rect x="254" y="250" width="80" height="44" rx="7"/><text class="t" x="294" y="271">brief</text><text class="s" x="294" y="285">home</text><circle class="b" cx="254" cy="250" r="9.5"/><text class="bn" x="254" y="254">2</text></g>
 <g class="n op"><title>3. The operator approves that brief in the queue</title><rect x="348" y="34" width="80" height="44" rx="7"/><text class="t" x="388" y="55">approval</text><text class="s" x="388" y="69">operator</text><circle class="b" cx="348" cy="34" r="9.5"/><text class="bn" x="348" y="38">3</text></g>
 <g class="n cmd"><title>4. jbus launches it once jgauge room says go</title><rect x="442" y="142" width="80" height="44" rx="7"/><text class="t" x="482" y="163">launch</text><text class="s" x="482" y="177">jbus</text><circle class="b" cx="442" cy="142" r="9.5"/><text class="bn" x="442" y="146">4</text></g>
@@ -268,7 +268,7 @@
 <g class="art"><rect x="908" y="350" width="88" height="32" rx="4"/><text class="at" x="952" y="370">main</text></g>
 <g class="gate"><title>A gate: a question only the operator can answer. The thread takes a default and carries on</title><polygon points="1071.56,56 1115.56,32 1159.56,56 1115.56,80"/><text x="1115.56" y="60">gate</text></g>
 <g class="chip any"><rect x="1082.56" y="260" width="66" height="24" rx="12"/><text x="1115.56" y="276">any step</text></g>
-<g class="chip scout"><title>A scout researches a question before a brief is written</title><rect x="170" y="260" width="60" height="24" rx="12"/><text x="200" y="276">scout</text></g>
+<g class="chip scout"><title>A scout researches a question before the home writes a brief</title><rect x="170" y="260" width="60" height="24" rx="12"/><text x="200" y="276">scout</text></g>
 <g class="ico" transform="translate(16 22)"><circle cx="10" cy="6" r="5"/><path d="M1 22c0-6 4-9 9-9s9 3 9 9"/></g>
 </svg>
 <svg class="tall" viewBox="-3 0 368 672" role="img" aria-labelledby="sys-tall-t">
@@ -306,7 +306,7 @@
 <path class="thin" d="M228,92 L228,113"/>
 <g class="file"><title>plan.md, in the record on disk</title><rect x="113" y="125" width="48" height="22" rx="4"/><text class="ft" x="137" y="140">plan</text></g>
 <g class="file"><title>tasks/&lt;slug&gt;.md, in the record on disk</title><rect x="113" y="181" width="48" height="22" rx="4"/><text class="ft" x="137" y="196">brief</text></g>
-<g class="n op"><title>1. The operator says what is wanted</title><rect x="8" y="60" width="76" height="40" rx="7"/><text class="t" x="46" y="79">plan entry</text><text class="s" x="46" y="93">operator</text><circle class="b" cx="8" cy="60" r="9.5"/><text class="bn" x="8" y="64">1</text></g>
+<g class="n op"><title>1. The operator says what they want</title><rect x="8" y="60" width="76" height="40" rx="7"/><text class="t" x="46" y="79">plan entry</text><text class="s" x="46" y="93">operator</text><circle class="b" cx="8" cy="60" r="9.5"/><text class="bn" x="8" y="64">1</text></g>
 <g class="n model"><title>2. The home writes the brief into the record</title><rect x="190" y="116" width="76" height="40" rx="7"/><text class="t" x="228" y="135">brief</text><text class="s" x="228" y="149">home</text><circle class="b" cx="190" cy="116" r="9.5"/><text class="bn" x="190" y="120">2</text></g>
 <g class="n op"><title>3. The operator approves that brief in the queue</title><rect x="8" y="172" width="76" height="40" rx="7"/><text class="t" x="46" y="191">approval</text><text class="s" x="46" y="205">operator</text><circle class="b" cx="8" cy="172" r="9.5"/><text class="bn" x="8" y="176">3</text></g>
 <g class="n cmd"><title>4. jbus launches it once jgauge room says go</title><rect x="99" y="228" width="76" height="40" rx="7"/><text class="t" x="137" y="247">launch</text><text class="s" x="137" y="261">jbus</text><circle class="b" cx="99" cy="228" r="9.5"/><text class="bn" x="99" y="232">4</text></g>
@@ -324,7 +324,7 @@
 <g class="art"><rect x="278" y="514" width="78" height="28" rx="4"/><text class="at" x="317" y="532">main</text></g>
 <g class="gate"><title>A gate: a question only the operator can answer. The thread takes a default and carries on</title><polygon points="8,640 46,618 84,640 46,662"/><text x="46" y="644">gate</text></g>
 <g class="chip any"><rect x="195" y="628" width="66" height="24" rx="12"/><text x="228" y="644">any step</text></g>
-<g class="chip scout"><title>A scout researches a question before a brief is written</title><rect x="198" y="68" width="60" height="24" rx="12"/><text x="228" y="84">scout</text></g>
+<g class="chip scout"><title>A scout researches a question before the home writes a brief</title><rect x="198" y="68" width="60" height="24" rx="12"/><text x="228" y="84">scout</text></g>
 </svg>
 </figure>
 
@@ -342,25 +342,25 @@
 <h2>The ten steps</h2>
 <p class="lead">The same numbers as the picture, one line each.</p>
 <ol class="track">
-<li class="step op"><b><span class="n">1</span>Plan entry</b><small>The operator says what is wanted. The home writes one entry per pull request in <code>plan.md</code>, with a "Done when" list.</small><span class="chip op">the operator, with the home</span></li>
+<li class="step op"><b><span class="n">1</span>Plan entry</b><small>The operator says what they want. The home writes one entry per pull request in <code>plan.md</code>, with a "Done when" list.</small><span class="chip op">the operator, with the home</span></li>
 <li class="step model"><b><span class="n">2</span>Brief</b><small>The home writes <code>tasks/&lt;slug&gt;.md</code>: the task, where it may work, its <code>Proves it:</code>, <code>Design:</code>, <code>Review:</code> and <code>Playbook:</code> lines.</small><span class="chip model">a model: the home</span></li>
 <li class="step op"><b><span class="n">3</span>The queue and the approval</b><small>The brief waits as a row of the queue. The operator approves that exact brief, named by its sha.</small><span class="chip op">the operator</span></li>
 <li class="step cmd"><b><span class="n">4</span>Launch</b><small><code>jbus</code> launches an approved row once its <code>depends</code> are merged and <code>jgauge room</code> prints <code>go</code>.</small><span class="chip cmd">a command, no model</span></li>
 <li class="step model"><b><span class="n">5</span>The worktree</b><small>A new thread in its own worktree, on a branch named for the slug, works the brief by its playbook.</small><span class="chip model">a model: the crewmate</span></li>
 <li class="step cmd"><b><span class="n">6</span>The check</b><small>The repo's check command runs once, under a test slot. CI runs the repo's checks on the pull request the crewmate opens, and <code>jmerge</code> waits for the check named <code>check</code>, or for the checks the repo lists in <code>required-checks</code>.</small><span class="chip cmd">a command, no model</span></li>
-<li class="step model"><b><span class="n">7</span>The review</b><small>One fresh thread per pull request, with no reviewer subagents: it reads the diff itself, judges what it found, and proves one safety fact by running code. It fixes nothing.</small><span class="chip model">a model: the reviewer</span></li>
+<li class="step model"><b><span class="n">7</span>The review</b><small>One fresh thread reviews each pull request, with no reviewer subagents. It reads the diff itself, judges what it found, and proves one safety fact by running code. It fixes nothing.</small><span class="chip model">a model: the reviewer</span></li>
 <li class="step model"><b><span class="n">8</span>The findings</b><small>The crewmate ends every finding with a <code>Finding:</code> line, fixed or not fixed and why, then writes one <code>Fixed:</code> line.</small><span class="chip model">a model: the crewmate</span></li>
 <li class="step cmd"><b><span class="n">9</span><code>jmerge</code></b><small>Merges what is reviewed, fixed and green at the head that was checked. For the rest it prints <code>wait</code> or <code>hold</code> and the reason. <code>jbus</code> runs it on each pass, or a home runs it while <code>home-thread</code> holds that home's id.</small><span class="chip cmd">a command, no model</span></li>
 <li class="step cmd"><b><span class="n">10</span>The sweep</b><small><code>jmerge --sweep</code> removes the worktree and the branches a finished thread left, and prints what it kept and why.</small><span class="chip cmd">a command, no model</span></li>
 </ol>
 <div class="aside">
   <div class="box plain"><span class="tag">before step 2, sometimes</span><b>A scout goes first</b><small>When the home cannot write the brief from what it knows, a scout reads the code and the docs and writes down what it found. The home itself never reads the code.</small></div>
-  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>A thread that meets a question only the operator can answer takes a default, carries on, and parks the question with <code>jbus gate</code>, which numbers it until the operator answers.</small></div>
-  <div class="box plain"><span class="tag">at step 9, rarely</span><b>A hold</b><small>A pull request that touches a protected path is never merged by a plain <code>jmerge</code>. It is the operator's to accept.</small></div>
+  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>When a thread gets a question only the operator can answer, it takes a default and keeps working. It records the question with <code>jbus gate</code>, which numbers it and keeps it until the operator answers.</small></div>
+  <div class="box plain"><span class="tag">at step 9, rarely</span><b>A hold</b><small>A plain <code>jmerge</code> never merges a pull request that touches a protected path. Only the operator can accept it.</small></div>
 </div>
 <details>
   <summary>With a home thread and no queue</summary>
-  <p>A repo can run with a home thread, with <code>jbus</code> and its queue, or with both. With a home thread alone, steps 3 and 4 happen in the thread: the operator says yes to the plan entry there, and the home launches the crewmate itself after <code>jgauge room</code> prints <code>go</code>. With <code>jbus</code> alone, nothing is launched that is not an approved row of the queue. A release install writes a <code>jbus</code> config with <code>dispatch = false</code>, so <code>jbus</code> launches nothing until the operator sets it up.</p>
+  <p>A repo can run with a home thread, with <code>jbus</code> and its queue, or with both. With a home thread alone, steps 3 and 4 happen in the thread. The operator says yes to the plan entry there, and the home launches the crewmate itself after <code>jgauge room</code> prints <code>go</code>. With <code>jbus</code> alone, <code>jbus</code> launches only the approved rows of the queue. A release install writes a <code>jbus</code> config with <code>dispatch = false</code>, so <code>jbus</code> launches nothing until the operator sets it up.</p>
 </details>
 <details>
   <summary>The same task, file by file and message by message</summary>
@@ -375,11 +375,11 @@
   <li class="step op"><b><span class="n">1</span>Start a home</b><small>In T3 Code, type <code>/new-home &lt;path&gt;</code> with the path of the repo's main checkout. Once that home ends, the next thread you open in the project becomes the home by itself, or you type <code>/home</code> in one.</small><span class="chip plain">back: where things stand</span></li>
   <li class="step op"><b><span class="n">2</span>Plan one task</b><small>Say what you want. The home asks until the shape is settled.</small><span class="chip plain">back: a plan entry and its brief</span></li>
   <li class="step op"><b><span class="n">3</span>Approve it</b><small>Read the brief and say yes.</small><span class="chip plain">back: a crewmate you can watch and steer</span></li>
-  <li class="step cmd"><b><span class="n">4</span>Merge it</b><small>Build, review and fixes run by themselves, and nothing merges until you choose who runs <code>jmerge</code>. Run it in the main checkout, or let the <code>jbus</code> timer run it on each pass once the repo is a project in its config, or put one home's id in <code>home-thread</code>.</small><span class="chip plain">back: one <code>merged</code> line</span></li>
+  <li class="step cmd"><b><span class="n">4</span>Merge it</b><small>The build, the review and the fixes run by themselves. Nothing merges until you choose who runs <code>jmerge</code>. Run it in the main checkout, or let the <code>jbus</code> timer run it on each pass once the repo is a project in its config, or put one home's id in <code>home-thread</code>.</small><span class="chip plain">back: one <code>merged</code> line</span></li>
 </ol>
 <details>
   <summary>Before the first day</summary>
-  <p>Install once. The README's Quickstart gives the <code>curl</code> line that fetches the latest release's <code>install.sh</code> and pipes it to <code>sh</code>. The script installs <code>uv</code> where it is missing, installs the nine commands as the <code>uv</code> tool <code>jstack</code>, and runs <code>jinstall --setup</code>. That links the skills for Claude Code, Codex and Cursor, adds the hooks, and prints a <code>needs you</code> line for each thing only you can do, such as <code>gh auth login</code>. Run <code>jinstall --setup</code> again until no such line is left, then <code>jinstall --check</code>.</p>
+  <p>Install once. The README's Quickstart gives the <code>curl</code> line that fetches the latest release's <code>install.sh</code> and pipes it to <code>sh</code>. The script installs <code>uv</code> where it is missing, installs the nine commands as the <code>uv</code> tool <code>jstack</code>, and runs <code>jinstall --setup</code>. Setup links the skills for Claude Code, Codex and Cursor, adds the hooks, and prints a <code>needs you</code> line for each thing only you can do, such as <code>gh auth login</code>. Run <code>jinstall --setup</code> again until no such line is left, then <code>jinstall --check</code>.</p>
 </details>
 <details>
   <summary>Ending the day</summary>
@@ -389,11 +389,11 @@
 
 <section id="asked">
 <h2>How to use it: what you are asked for, and when</h2>
-<p class="lead">Three things come to you. Everything else reversible is done without asking.</p>
+<p class="lead">Three things come to you. Without asking the operator, the threads do everything else that is reversible.</p>
 <div class="cards">
   <article class="card op"><h4 class="t">An approval</h4><p>A brief is ready, or it changed after your go, or an approved task depends on one you have not approved.</p><p class="when">You give: a yes to that exact brief.</p></article>
   <article class="card op"><h4 class="t">A gate</h4><p>A thread met a question only you can answer. It took a default and carried on. The home shows open gates at its start, on a status request, and when the planned work is done.</p><p class="when">You give: keep the default, or change it.</p></article>
-  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "&lt;date and time&gt;"</code>, where <code>&lt;user&gt;</code> is the <code>user</code> of your jstack config. Add <code>--check</code> to see what it would do. It is refused without the review's proven safety fact.</p></article>
+  <article class="card op"><h4 class="t">A held pull request</h4><p><code>jmerge</code> printed <code>hold</code>: the change touches a protected path, or a review did not uphold a line dropped in a rebase.</p><p class="when">You give: <code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "&lt;date and time&gt;"</code>, where <code>&lt;user&gt;</code> is the <code>user</code> of your jstack config. Add <code>--check</code> to see what it would do. <code>jmerge</code> refuses <code>--accept</code> unless the review proved the fact that makes the change safe.</p></article>
 </div>
 <details>
   <summary>If the operator is away</summary>
@@ -401,10 +401,10 @@
   <thead><tr><th>Asked for</th><th>When</th><th>If the operator is away</th></tr></thead>
   <tbody>
     <tr><td>An approval</td><td>Before a task launches</td><td>That task does not launch. Other tasks go on.</td></tr>
-    <tr><td>A gate</td><td>At any step of any thread</td><td>Nothing waits. The default stands until it is changed, and the gate says how to undo it.</td></tr>
+    <tr><td>A gate</td><td>At any step of any thread</td><td>Nothing waits. The default stands until the operator changes it, and the gate says how to undo it.</td></tr>
     <tr><td>A held pull request</td><td>At the merge</td><td>The pull request stays open. Nothing else is held up unless it depends on it.</td></tr>
-    <tr><td>One of the four pauses</td><td>Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside</td><td>The thread waits in its own thread. These are the only things a thread asks first.</td></tr>
-    <tr><td>A pull request with no review</td><td>Its brief says <code>Review: none</code></td><td>It is never merged by itself. It waits for the operator's word.</td></tr>
+    <tr><td>One of the four pauses</td><td>Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside</td><td>The thread asks in its own thread and waits for the operator's answer. These are the only things a thread asks first.</td></tr>
+    <tr><td>A pull request with no review</td><td>Its brief says <code>Review: none</code></td><td>It never merges by itself. It waits for the operator's word.</td></tr>
   </tbody>
 </table>
 </details>
@@ -416,7 +416,7 @@
 
 <section id="skills">
 <h2>Skills</h2>
-<p class="lead">A text a thread loads by name and follows. Seven groups, by what they are for. Some names, such as <code>poteto-help</code> and <code>setup-pstack</code>, come from pstack, the agent skills by Lauren Tan for Cursor that jstack takes its principles from.</p>
+<p class="lead">A skill is a text that a thread loads by name and follows. The skills fall into seven groups, by what they are for. Some names, such as <code>poteto-help</code> and <code>setup-pstack</code>, come from pstack. pstack is Lauren Tan's set of agent skills for Cursor, and jstack takes its principles from it.</p>
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
@@ -525,7 +525,7 @@
 
 <section id="playbooks">
 <h2>Playbooks</h2>
-<p class="lead">The numbered steps for one kind of task. Four groups, by who runs it.</p>
+<p class="lead">A playbook is the numbered steps for one kind of task. The playbooks fall into four groups, by who runs them.</p>
 <div class="map three">
 <div class="tile"><b>The home runs it</b>
 <small>Plan a batch</small><div class="names">
@@ -666,7 +666,7 @@
 <!-- built: end -->
 </div>
 <p class="sub">Work on jstack itself</p>
-<p class="lead after">To change jstack, start with <code>CONTRIBUTING.md</code> at the root of its repo: it says how to set up a checkout, run the checks, and open a pull request.</p>
+<p class="lead after">To change jstack, start with <code>CONTRIBUTING.md</code> at the root of its repo. It says how to set up a checkout, run the checks, and open a pull request.</p>
 <div class="cards">
 <!-- built: playbook cards, Work on jstack itself -->
 <article class="card" id="playbook-authoring-a-playbook"><h4>authoring-a-playbook</h4><p>For: Writing a new file in <code>playbooks/</code>, when a kind of task comes back and no playbook covers it.</p></article>
@@ -710,9 +710,9 @@
 </ol>
 <div class="cards wide">
 <article class="card cmd" id="command-jmerge"><h4>jmerge <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether an open pull request merges, waits or is held.</dd><dt>Rules in</dt><dd><code>features/jmerge/src/jmerge/ready.py</code></dd><dt>Run by</dt><dd><code>jbus</code> on each pass, or a home while <code>home-thread</code> holds its id, or the operator by hand</dd></dl><details><summary>What ready means</summary><ul><li>A brief names the pull request, and its base is the default branch.</li><li>The review is written, every finding has its <code>Finding:</code> line and the Result has its <code>Fixed:</code> line.</li><li>The check named <code>check</code>, or each check the repo's <code>required-checks</code> file lists, passed at the head, and that green still covers today's default branch.</li><li>A rebase kept every line.</li><li>A protected path (secrets, keys, the merge rules' own lists) is a hold. A guarded path merges only with the review's proven safety fact, and <code>guarded.txt</code> lists none.</li></ul></details></article>
-<article class="card cmd" id="command-jbus"><h4>jbus <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which approved rows of the queue launch on this pass, and what is told to whom. It makes no judgment call: what no rule covers becomes one <code>gate</code> line.</dd><dt>Rules in</dt><dd><code>features/jbus/src/jbus/dispatch.py</code></dd><dt>Run by</dt><dd>a timer, one pass a minute</dd></dl><details><summary>One pass</summary><ul><li>Runs <code>jmerge</code>, unless <code>home-thread</code> holds a home's id.</li><li>Reads the briefs and the scout requests, and makes one event for each new Result, Review, Report and gate.</li><li>Asks for the threads and the pull requests, and ties each crewmate to its thread.</li><li>Launches the approved rows, lowest priority number first.</li><li>Says what waits on the operator, and sends what it found to the project's webhook.</li></ul></details></article>
+<article class="card cmd" id="command-jbus"><h4>jbus <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which approved rows of the queue launch on this pass, and what is told to whom. It makes no judgment call. A case that no rule covers becomes one <code>gate</code> line.</dd><dt>Rules in</dt><dd><code>features/jbus/src/jbus/dispatch.py</code></dd><dt>Run by</dt><dd>a timer, one pass a minute</dd></dl><details><summary>One pass</summary><ul><li>Runs <code>jmerge</code>, unless <code>home-thread</code> holds a home's id.</li><li>Reads the briefs and the scout requests, and makes one event for each new Result, Review, Report and gate.</li><li>Asks for the threads and the pull requests, and ties each crewmate to its thread.</li><li>Launches the approved rows, lowest priority number first.</li><li>Says what waits on the operator, and sends what it found to the project's webhook.</li></ul></details></article>
 <article class="card cmd" id="command-jgauge-room"><h4>jgauge room <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Whether the machine and the plan have room for one more thread. It prints <code>go</code>, or <code>wait:</code> and the first reading with no room.</dd><dt>Rules in</dt><dd><code>features/jgauge/src/jgauge/room.sh</code></dd><dt>Run by</dt><dd>the home before a launch, a crewmate before a review, <code>jbus</code> before each launch</dd></dl><details><summary>The readings</summary><ul><li>CPU pressure, the share of the last minute something waited for a core, and the one-minute load against the cores as a backstop.</li><li>The memory available, and memory pressure.</li><li>The plan's five-hour and weekly limits.</li><li>A machine reading it cannot read is a <code>wait</code>. A plan limit it cannot read stops nothing.</li></ul></details></article>
-<article class="card cmd" id="command-jroles"><h4>jroles <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which model a launched thread of a role runs on: <code>crew</code>, <code>scout</code>, <code>review</code> or <code>home</code>. With no line for the role, the launch inherits its launcher's model.</dd><dt>Rules in</dt><dd><code>features/jroles/src/jroles/cli.py</code></dd><dt>Run by</dt><dd>any thread, before it launches one of that role</dd></dl><details><summary>The role map</summary><ul><li>One line a role in the operator's <code>jstack/roles</code> config file: <code>&lt;role&gt;: &lt;provider&gt; &lt;model&gt;</code>.</li><li><code>&lt;role&gt;: inherit</code> is the same as no line.</li><li>A map it cannot use is said on stderr, and the launch inherits.</li></ul></details></article>
+<article class="card cmd" id="command-jroles"><h4>jroles <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which model a launched thread of a role runs on: <code>crew</code>, <code>scout</code>, <code>review</code> or <code>home</code>. With no line for the role, the launch inherits its launcher's model.</dd><dt>Rules in</dt><dd><code>features/jroles/src/jroles/cli.py</code></dd><dt>Run by</dt><dd>any thread, before it launches one of that role</dd></dl><details><summary>The role map</summary><ul><li>One line a role in the operator's <code>jstack/roles</code> config file: <code>&lt;role&gt;: &lt;provider&gt; &lt;model&gt;</code>.</li><li><code>&lt;role&gt;: inherit</code> is the same as no line.</li><li>When it cannot use a map, it says so on stderr, and the launch inherits.</li></ul></details></article>
 <article class="card cmd" id="command-jdrift"><h4>jdrift <span class="chip cmd">no model</span></h4><dl><dt>Decides</dt><dd>Which of the files taken from the upstream skill stack are <code>same</code>, <code>changed</code> or <code>gone</code> since the pinned commit, and which upstream files are <code>new</code>.</dd><dt>Rules in</dt><dd><code>features/jdrift/src/jdrift/cli.py</code></dd><dt>Run by</dt><dd>whoever works on jstack, as <code>make pstack-drift</code> in a checkout</dd></dl><details><summary>What it reads</summary><ul><li>The pin and the map of taken files are in <code>THIRD_PARTY.md</code>.</li><li>It changes nothing in the repo, and no model reads anything.</li></ul></details></article>
 </div>
 <p class="lead after">Four more commands decide nothing on the path. <code>jbriefs</code> writes every brief of every home on one page. <code>jinstall</code> installs, checks and removes jstack. <code>jleak</code> refuses a push or a pull request that leaks what must stay private, and keeps AI co-author trailers out of commits. <code>jpack</code> checks a context pack. The README's Reference links a page for each of the nine.</p>
@@ -724,7 +724,7 @@
 <div class="rulecards">
 <article class="card"><h4 class="t"><span class="n">1</span>Disk is the record, and a thread is disposable.</h4><p>A thread can end at any time. The next one starts from the files in the state directory, so nothing that matters lives in a chat.</p><div class="leanrow"><code>handoff</code><code>session-pickup</code><code>pause-safely</code></div></article>
 <article class="card"><h4 class="t"><span class="n">2</span>Judgment in threads, repeatable steps in commands.</h4><p>A model plans, writes and reviews. Whatever has the same answer every time is a command with no model, whose rules are one file.</p><div class="leanrow"><code>jmerge</code><code>jbus</code><code>jgauge room</code></div></article>
-<article class="card"><h4 class="t"><span class="n">3</span>A gate takes a default, so work never waits.</h4><p>A question only the operator can answer is parked with the default that was taken, what rests on it and how to undo it. The thread carries on.</p><div class="leanrow"><code>crew</code><code>scout</code><code>home</code></div></article>
+<article class="card"><h4 class="t"><span class="n">3</span>A gate takes a default, so work never waits.</h4><p>When a question only the operator can answer comes up, the thread takes a default and keeps working. It records the question in a gate, with that default, the work that depends on it, and how to undo it.</p><div class="leanrow"><code>crew</code><code>scout</code><code>home</code></div></article>
 <article class="card"><h4 class="t"><span class="n">4</span>A test must execute something.</h4><p>A test runs the shell a skill tells an agent to run, parses a block out of it, or runs the script. Finding a sentence in a file is not a test.</p><div class="leanrow"><code>tdd</code><code>blast-radius</code><code>correct</code></div></article>
 </div>
 <div class="group"><h3>Before the code: get the shape right</h3><div class="principles">

@@ -1,23 +1,31 @@
 # Limits
 
-> This page is the record of the measurements behind jstack's defaults, taken on its owner's machine, and it names that machine's setup.
+> This page records the measurements that set jstack's defaults.
+> The owner took them on their own machine, and the page names that machine's setup.
 > It does not describe your machine.
 > [The limits and how to change them](jgauge/change-a-limit.md) describes each limit for any install, and how to change it.
 
-Every number in jstack that caps work, where it is set, what it protects, and the measurement it rests on.
-The machine is yelena: 24 processors (Intel Core Ultra 7 270K Plus, no SMT), 62 GiB, a btrfs root with no inode limit, and `/tmp` a 32 GB tmpfs of 1,048,576 file slots.
-The measurements are of 2026-10-20 unless a row says otherwise, and "the busy night" is 2026-10-19 22:00 to 2026-10-20 01:00 ET.
+This page lists every number in jstack that caps work: where it is set, what it protects, and the measurement behind it.
+The machine is yelena: 24 processors (Intel Core Ultra 7 270K Plus, no SMT), 62 GiB, and a btrfs root with no inode limit.
+Its `/tmp` is a 32 GB tmpfs of 1,048,576 file slots.
+The measurements are from 2026-10-20 unless a row says otherwise.
+"The busy night" is 2026-10-19 22:00 to 2026-10-20 01:00 ET.
 
 Three of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](../../jinstall/docs/configuration.md#the-machines-sizes)).
-`jgauge sizes` prints the three as their callers get them, and room's lines.
-A local value goes in `~/.config/jstack/machine.toml`, or `max_running` in `~/.config/jbus/config.toml`, and nowhere in jstack.
-Every other number here is a design choice, a share of the machine that means the same on any machine, or a limit of another system, and says so.
+`jgauge sizes` prints the three values as their callers get them, then prints the lines of `jgauge room`.
+Put a local value in `~/.config/jstack/machine.toml`, or, for `max_running`, in `~/.config/jbus/config.toml`.
+Never put it in jstack's source.
+Every other number here is a design choice, a share of the machine that means the same on any machine, or a limit of another system.
+Each row says which.
 
-A row whose Where is a `path:line` of this repo has, as its Value, text on that line, and `features/jgauge/tests/test_limits_doc.py` holds the file to the value; the line number is where it was when this page was written.
+When a row's Where is a `path:line` of this repo, its Value is text on that line.
+`features/jgauge/tests/test_limits_doc.py` checks that the file still holds the value.
+The line number is where the value was when this page was written.
 
 ## The measurements
 
-The suite is jstack's own, 6,646 tests, run as the check command runs it, `pytest -n 6 --dist worksteal -m "not browser"`, each copy in a worktree of its own, with the heavy-suite lock held so that nothing else heavy ran.
+The suite is jstack's own, 6,646 tests, run the way the check command runs it: `pytest -n 6 --dist worksteal -m "not browser"`.
+Each copy ran in its own worktree and held the heavy-suite lock, so that nothing else heavy ran.
 
 | Suites at once | Wall per suite | CPU per suite | CPU pressure, some avg60, at most | 1-minute load, at most | `/tmp` files used, at most |
 |---|---|---|---|---|---|
@@ -27,34 +35,53 @@ The suite is jstack's own, 6,646 tests, run as the check command runs it, `pytes
 | 5 | 135 and 137 s | 560 and 565 s | 30 | 34 | 343,000 to 344,000 (33%) |
 | 6 | 195 to 198 s, one test flaked | 607 to 622 s | 55 | 52 | 382,000 (36%) |
 
-A worker keeps 0.86 of a core busy alone (483 s of CPU over a 94 s run at 6 workers), and a suite peaks at 1.0 to 1.1 GB of memory and about 45,000 `/tmp` files.
+One worker keeps 0.86 of a core busy (483 s of CPU over a 94 s run at 6 workers).
+A suite peaks at 1.0 to 1.1 GB of memory and about 45,000 `/tmp` files.
 Memory pressure was 0 in every run, and the idle machine had 49 GiB available.
-Four suites at once give 2.0 suites a minute and five give 2.2, at 50% more time a suite and CPU pressure 30; six give 1.85 and pass room's CPU line.
-An agent's `claude` process is 0.31 GB and about 1% of a core: seven of them were 2.2 GB and 8% of a core in all.
+Four suites at once finish 2.0 suites a minute.
+Five finish 2.2 suites a minute, but each suite takes 50% longer and CPU pressure reaches 30.
+Six finish 1.85 suites a minute, and CPU pressure goes over room's CPU line.
+An agent's `claude` process is 0.31 GB and about 1% of a core.
+Seven of them together used 2.2 GB and 8% of a core.
 
 On the busy night jbus ran 170 passes, 29 s each on average and 51.5 s at most.
 Threads waited 29 times for a full test slot and 9 times for a short one, and jbus raised 17 `stall` events.
-One row, `hot-semantic-lines`, was held by room for 7 passes, 23:32 to 23:38, at a load of 29 to 35 on 24 cores, under the load line of 85% the machine had then.
-`jgauge sample` had no rows for that night: its timer started on 2026-10-20 at 07:30.
+`jgauge room` kept one row, `hot-semantic-lines`, waiting for 7 passes, from 23:32 to 23:38.
+The load was 29 to 35 on 24 cores, and the load line was 85% at the time.
+`jgauge sample` had no rows for that night, because its timer started on 2026-10-20 at 07:30.
 
-The runners are infra's: 7 full runners of 4 CPUs and 4 GB, `jstack`, `infra`, `Winnifred` and `caveman`, and 2 fast ones, all under the system slice `gh-runner.slice`, capped at 20 CPUs and 32 GiB with CPUWeight 50, half a desk's weight.
+The CI runners belong to infra.
+There are 7 full runners of 4 CPUs and 4 GB, for `jstack`, `infra`, `Winnifred` and `caveman`, and 2 fast runners.
+All of them run under the system slice `gh-runner.slice`.
+infra caps that slice at 20 CPUs and 32 GiB, and gives it CPUWeight 50, half the weight of a desk.
 
 ## The load runs at these limits
 
-Two runs on 2026-10-20, each sampled every 15 s by `jgauge sample` of this change, with `/tmp`'s file slots, and read with `jgauge sample --report --since --until`.
+Two runs on 2026-10-20 tested these limits.
+During each run, the version of `jgauge sample` that this change built took a sample every 15 s, including `/tmp`'s file slots.
+`jgauge sample --report --since --until` then read the samples.
 
 | Run | Rows | CPU pressure, at most | At or over room's 40 | Memory pressure, at most | `/tmp` used, at most | 1-minute load, at most | jbus events |
 |---|---|---|---|---|---|---|---|
 | Every full and short slot kept busy, 12:20:47 to 12:53:42 | 132 | 52.15 | 13 rows | 0 | 43.1% | 56.1 | 0 stalls, 25 slot waits, 0 rows gated |
 | Real crews alone, 12:55:26 to 13:30:17 | 139 | 39.97 | 0 rows | 0 | 39.9% | 53.6 | 1 stall, 20 slot waits, 0 rows gated |
 
-In the first run four loopers kept the 4 full slots busy with whole suites and three kept the 3 short slots busy with targeted runs, each giving way for 3 minutes to any thread that waited on its lane.
-With those alone, from 12:22 to 12:36, CPU pressure stayed at 30 to 33.
-It went over 40 only after jbus launched 10 real crews in two passes, at 12:36:59 and 12:38:21, whose start-up, CI runs and checks came on top, in two spells of about 1 and 2 minutes; room then held the next launch for two passes.
-All 40 suites passed, at 135 to 183 s each, and 10 of the 224 short runs ended with one test in error; the one whose output was kept was a race in the tests, a copy of a template repo while git's maintenance holds `objects/maintenance.lock`.
-In the second run 23 to 35 agent processes ran, about 19 crews were out, and no row waited on the crew cap or on room.
-Threads waited for a test slot in 69 of the 139 samples, and while 4 or more waited, CPU pressure was 31 at the median and 40 at most, so the slots waited on the CPU and not on a count set too low.
-The stall was a review that had not been written, not the machine.
+In the first run, four loops kept the 4 full slots busy with whole suites.
+Three more loops kept the 3 short slots busy with targeted runs.
+Each loop paused for 3 minutes whenever a thread waited on its lane.
+While only the loops ran, from 12:22 to 12:36, CPU pressure stayed at 30 to 33.
+It went over 40 only after jbus launched 10 real crews in two passes, at 12:36:59 and 12:38:21.
+The crews' start-up, CI runs and checks added to the load, and CPU pressure stayed over 40 twice, for about 1 and 2 minutes.
+`jgauge room` then made the next launch wait for two passes.
+All 40 suites passed, at 135 to 183 s each, and 10 of the 224 short runs ended with one test in error.
+The one error whose output was kept was a race in the tests.
+A test copied a template repo while git's maintenance held `objects/maintenance.lock`.
+In the second run, 23 to 35 agent processes and about 19 crews ran.
+No row waited on the crew cap or on `jgauge room`.
+Threads waited for a test slot in 69 of the 139 samples.
+While 4 or more threads waited, CPU pressure was 31 at the median and 40 at most.
+The threads were waiting for CPU time, and the slot count was not too low.
+The one stall came from a review that the reviewer had not written, and the machine did not cause it.
 
 ## The machine's sizes
 
@@ -71,7 +98,8 @@ The stall was a review that had not been written, not the machine.
 
 ## Room
 
-`jgauge room` asks these before a launch and a review, in `features/jgauge/src/jgauge/room.sh`.
+`jgauge room` checks these lines before a launch and before a review.
+They are set in `features/jgauge/src/jgauge/room.sh`.
 
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|
@@ -86,7 +114,8 @@ The stall was a review that had not been written, not the machine.
 
 ## The plan's pools
 
-The pool logic is `account-failover`'s, `account-limits`' and `jgauge-pool-limits-2`'s: this page records its numbers and moves none.
+The pool logic comes from the tasks `account-failover`, `account-limits` and `jgauge-pool-limits-2`.
+This page records the pool numbers and changes none of them.
 
 | Limit | Where | Value | Set by, for | Protects | Its yelena basis | Now |
 |---|---|---|---|---|---|---|

@@ -1,6 +1,7 @@
 # jdrift lists what changed upstream
 
-`jdrift` (`make pstack-drift`) lists what changed in pstack since the pin in `THIRD_PARTY.md`, for each file this repo took from it, and `jdrift.explained` reads the skills, playbooks and principles that `features/home/docs/jstack-explained.html` explains.
+`jdrift` (`make pstack-drift`) lists what changed in pstack since the pin in `THIRD_PARTY.md`, for each file this repo took from pstack.
+`jdrift.explained` reads the skills, playbooks and principles that `features/home/docs/jstack-explained.html` explains.
 
 Paths:
 - `features/jdrift/src/jdrift/`
