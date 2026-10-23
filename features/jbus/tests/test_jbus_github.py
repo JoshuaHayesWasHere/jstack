@@ -298,7 +298,7 @@ def test_a_gated_line_of_an_old_head_does_not_hold_back_green_at_a_new_one(launc
 
 
 def test_a_gated_line_of_this_head_holds_back_green(launched):
-    here = f"Stale base: at {HEAD}, check\n"
+    here = f"Stuck: at {HEAD}, check\n"
     brief = launched.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
     result(launched, here)
@@ -353,3 +353,16 @@ def test_a_stale_base_whose_rerun_passes_is_told_nothing_more(launched):
     passes(launched, 6, 9)
     assert reruns(launched) == ["run rerun 5 --failed"]
     assert keys(launched) == ["failed|alpha|cccccccccccc"]
+
+
+def test_a_stale_base_whose_rerun_passes_is_told_green_when_the_home_is_owed_the_line(launched):
+    brief = launched.home / "tasks" / "alpha.md"
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
+    launched.set("jmerge.txt", "")
+    launched.set("open.json", [on(launched, "train/macos", [failed()])])
+    launched.poll(NOW)
+    result(launched, STALE)
+    passes(launched, 3)
+    launched.set("open.json", [on(launched, "train/macos", None)])
+    passes(launched, 6, 9)
+    assert keys(launched) == ["failed|alpha|cccccccccccc", "green|alpha|cccccccccccc"]

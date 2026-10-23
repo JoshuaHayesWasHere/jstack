@@ -341,9 +341,10 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     The crew never owes the line while a reviewer that it launched has not yet written a
     `## Review`, since the reviewer's findings decide the line. Otherwise the crew owes the line in
     two cases. In the first, the brief's first `Review:` line says `none`, and the brief has no
-    `Reviewer: none` line and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew
-    writes the `Reviewer: none` line when it sends its message. Each of the other three lines comes
-    with a gate or a message that already tells of the pull request. In the second case, the crew
+    `Reviewer: none` line and no `Unrun:` or `Stuck:` line at this head. The crew writes the
+    `Reviewer: none` line when it sends its message. Each of the other two lines comes with a gate
+    that already tells of the pull request. A `Stale base:` line comes with no gate: a head that
+    turns green after jbus's rerun is owed the line like any other. In the second case, the crew
     has fixed the pull request and a home merges, and that home hears of the fix only on green. A
     brief that says `Review: after` merges on green whatever its review says. So while a home
     merges, the crew of such a brief owes the line whether its reviewer is out or not.
@@ -354,7 +355,7 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     launched = len(_LAUNCHED.findall(brief))
     if launched > len(_REVIEWED.findall(brief)):
         return False
-    gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
+    gated = re.search(rf"^(?:Unrun|Stuck): at {re.escape(head)},", brief, re.M)
     reviewer = launched or _OWED.search(brief) or _REVIEWED.search(brief) or gated
     unsaid = not reviewer and mode and mode[1] == "none"
     return bool(unsaid or (merge.home_thread(run) and _FIXED.search(brief)))
