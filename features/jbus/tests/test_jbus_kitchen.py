@@ -646,9 +646,17 @@ class Kitchen:
         }
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
-    def config(self, url=None, **top):
-        """Write the config. A top-level key given as None stays out of the file."""
-        top = {"dispatch": True, "max_running": 1, "runtimeMode": "full-access", **top}
+    def config(self, url=None, project_wake=None, **top):
+        """Write the config. A top-level key given as None stays out of the file. Wakes go to
+        the webhook alone unless a test says otherwise: `wake=None` leaves the setting out, so
+        jbus takes its default, the home thread. `project_wake` sets demo's own `wake`."""
+        top = {
+            "dispatch": True,
+            "max_running": 1,
+            "runtimeMode": "full-access",
+            "wake": "webhook",
+            **top,
+        }
         lines = [f"server = {json.dumps(self.t3.url)}"]
         for key, value in top.items():
             if value is None:
@@ -666,6 +674,7 @@ class Kitchen:
             f"projectId = {json.dumps(PROJECT)}",
             f"webhook_url = {json.dumps(self.webhook.url + '/wake' if url is None else url)}",
             f"webhook_key = {json.dumps(KEY)}",
+            *([f"wake = {json.dumps(project_wake)}"] if project_wake else []),
         ]
         for side in self.sides:
             lines += [
