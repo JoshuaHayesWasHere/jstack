@@ -312,7 +312,8 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
     scene, served
 ):
     """A scope is retired when its handoff says it closed and no home was started for it since:
-    its `home-id` names no thread. Its gates go with it, so neither queue lists them. A scope
+    its `home-id` names no thread. Its open gates go with it, so neither queue lists them, and its
+    answered ones stay on the record of gates. A scope
     started again after it closed is live. A file gate has no timer, so its default says it
     stands until the home of its file closes it."""
     homes = {name: scene.home / name for name in ("shelf", "old-shelf", "back-shelf")}
@@ -326,6 +327,9 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
         (homes[name] / "gates.md").write_text(
             GATE.format(n=number, asked=f"which {name} jar?", status="open", default="the jam")
             + GATE.format(n=number + 10, asked=f"is {name} full?", status="open", default="")
+            + GATE.format(
+                n=number + 20, asked=f"was {name} swept?", status="answered: yes", default=""
+            )
         )
     stack = served.json("/stack.json")
     proceeds = {one["what"]: one["default"] for one in stack["proceeds"]}
@@ -337,4 +341,6 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
     asks = [one["what"] for one in stack["needs"] if one["kind"] == "gate"]
     assert sorted(asks) == ["is back-shelf full?", "is shelf full?"]
     gates = served.json("/state.json?project=demo")["gates"]
-    assert not [one for one in gates if one["home"] == "old-shelf"]
+    assert [one["question"] for one in gates if one["home"] == "old-shelf"] == [
+        "was old-shelf swept?"
+    ]
