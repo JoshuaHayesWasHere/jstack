@@ -49,8 +49,8 @@ MODULES = {
 }
 for module in PORT:
     importlib.import_module(module_of(module))
-lib = importlib.import_module(module_of(SCRIPTS / "statechart" / "lib.py"))
-statechart_tools = importlib.import_module(module_of(SCRIPTS / "statechart" / "tools.py"))
+lib = importlib.import_module("statechart.lib")
+statechart_tools = importlib.import_module("statechart.tools")
 ChartError = lib.ChartError
 parse_dot = lib.parse_dot
 parse_mermaid = lib.parse_mermaid
