@@ -1,0 +1,16 @@
+TLC on OutputFolder.tla with OutputFolder.cfg:
+  ChartsOneSpec holds.
+  KeepsYourFiles holds.
+  NeverLosesChart holds.
+  ExitTwoLeavesFolder holds.
+  OverlapNeverRefuses holds.
+  TLC ran 6 times in 4.6 s.
+
+Chart: 19 states and 63 transitions from 4294 model states.
+It has 2 parallel regions, of 4 and 15 states. Proof: their 110 arrows together make exactly the 47 states and 407 labeled steps of OutputFolder-statechart/tlc/regions-proof.mmd, and the 63 drawn arrows make only steps among them. OutputFolder-statechart/tlc/regions-all.mmd has all 110 arrows.
+19 work, 0 break a rule.
+
+No state breaks a rule.
+
+Wrote chart.mmd, chart.png, stories.md, summary.json in OutputFolder-statechart.
+exit 0
