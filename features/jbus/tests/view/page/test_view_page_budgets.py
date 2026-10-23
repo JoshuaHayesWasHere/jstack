@@ -198,10 +198,10 @@ KNOWN = {
         ("twice", "jv-one-place", [(scene, wide) for scene, wide in EVERY if wide != 390]),
         ("hung", "jv-needs-from-work", EVERY),
         ("waits", "jv-needs-from-work", EVERY),
-        ("drawers", "jv-triage", EVERY),
-        ("header", "jv-triage", [("busy", 390), ("many", 390)]),
-        ("crumb", "jv-triage", EVERY),
-        ("words", "jv-triage", EVERY),
+        ("drawers", "jv-homes-map", EVERY),
+        ("header", "jv-homes-map", [("busy", 390), ("many", 390)]),
+        ("crumb", "jv-homes-map", EVERY),
+        ("words", "jv-homes-map", EVERY),
     )
     for scene, wide in broken
 }
@@ -225,12 +225,18 @@ def cases(budget, scenes=("busy", "many"), widths=tuple(SCREENS)):
 @pytest.fixture(scope="module")
 def views(tmp_path_factory):
     """The looks of a scene at a width, each made once in the module, by the first test that
-    asks for it."""
+    asks for it. A look that breaks fails the test as itself, and not as the assertion a known
+    failure expects."""
     made = {}
 
     def view(scene, wide):
         if (scene, wide) not in made:
-            made[scene, wide] = looked(tmp_path_factory.mktemp(f"{scene}-{wide}"), scene, wide)
+            try:
+                made[scene, wide] = looked(tmp_path_factory.mktemp(f"{scene}-{wide}"), scene, wide)
+            except AssertionError as broke:
+                pytest.fail(
+                    f"the looks of {scene} at {wide} broke, and no budget was read: {broke}"
+                )
         return made[scene, wide]
 
     return view
@@ -328,10 +334,10 @@ def test_the_header_of_a_phone_is_no_taller_than_56_px(views, scene, wide):
 
 def touches(crumb, tag):
     """Whether the last link of a breadcrumb and the tag after it share a line with less
-    than `GAP` px between them."""
+    than `GAP` px between them, or overlap."""
     left, top, wide, high = crumb
     beside = top < tag[1] + tag[3] and tag[1] < top + high
-    return beside and -GAP < tag[0] - (left + wide) < GAP
+    return beside and tag[0] - (left + wide) < GAP
 
 
 @pytest.mark.parametrize(("scene", "wide"), cases("crumb"))

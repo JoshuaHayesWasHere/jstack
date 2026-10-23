@@ -297,7 +297,7 @@ window.addEventListener("load", function () { setTimeout(function () {
   }
   /* With `__hops`, each thing to tap on the first screen, tapped once from where the page
      started: what it opened, and the drawer's words when it opened one. A link is followed by
-     its address and a button by what it opens, so each starts from the same page. */
+     its address and a button is tapped where the page drew it, so each starts from the same page. */
   function hops(then) {
     var from = location.hash, goes = [];
     all("[data-open], a[href^='#']").filter(function (el) { return !drawer.contains(el) && seen(el); }).forEach(function (el) {
@@ -307,7 +307,8 @@ window.addEventListener("load", function () { setTimeout(function () {
     out.hops = [];
     (function hop(n) {
       if (n >= goes.length) return then();
-      if (goes[n].charAt(0) === "#") location.hash = goes[n]; else go(goes[n]);
+      var real = goes[n].charAt(0) === "#" ? null : all('[data-open="' + CSS.escape(goes[n]) + '"]').filter(function (el) { return !drawer.contains(el); })[0];
+      if (goes[n].charAt(0) === "#") location.hash = goes[n]; else if (real) real.click(); else go(goes[n]);
       setTimeout(function () {
         out.hops.push({ to: goes[n], hash: location.hash, open: drawer.open, title: drawer.open ? text(document.getElementById("dw-title")) : "", said: drawer.open ? text(document.getElementById("dw")) : "" });
         if (drawer.open) { document.getElementById("dw-close").click(); drawer.close(); }
