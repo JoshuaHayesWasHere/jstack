@@ -33,8 +33,8 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:887-888
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:89
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:918-919
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
@@ -45,10 +45,10 @@ CrewFix(p) ==
     /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:247, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
-    \* features/crew/the-checks.md:44,71: a failure over a base that moved reads as `stale`:
+    \* features/crew/the-checks.md:46,73: a failure over a base that moved reads as `stale`:
     \* no rerun, no commit, no rebase, and the crew waits for a message nothing sends.
     /\ ~ranRed[p]
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:327-356, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:324-356, no room
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ full' \in BOOLEAN                    \* a turn may leave processes running; nothing stops them
@@ -57,7 +57,7 @@ CrewFix(p) ==
 \* You approve the main-red row jbus filed, and its crew fixes main.
 ApproveMainFix ==
     /\ mainRed
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:327-356, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:324-356, no room
     /\ mainRed' = FALSE
     /\ redBy' = "none"
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, outsideLeft, full>>

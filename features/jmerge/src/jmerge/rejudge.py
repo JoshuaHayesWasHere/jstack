@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -28,12 +29,15 @@ from jmerge import ready
 
 NAME = "base-merges.json"
 SHA = 12
+REFUSED = re.compile(r"\(HTTP 4\d\d\)")
 
 
 class BaseMerge:
     """The branch updates `jmerge` asked GitHub for, one record for a pull request, kept in
     `base-merges.json` in the project's state: the head, the base tip, and what GitHub said. A
-    record of the same head and tip is said again and not asked again."""
+    record of the same head and tip is said again and not asked again. A failure to ask, such as
+    a `gh` that did not run, a 5xx or a rate limit, keeps no record, so the next run asks again:
+    only GitHub's answer of its own, a merge or a 4xx refusal, is kept."""
 
     def __init__(self, main: Path, state: Path, about: list[str], run: bool) -> None:
         self.main = main
@@ -56,20 +60,23 @@ class BaseMerge:
         values = {"base": one.base, "tip": tip[:SHA]}
         if not self.run:
             return ready.BASE_MERGE_DUE.format(**values)
-        why = self.ask(one)
+        why, answered = self.ask(one)
         said = (
             ready.BASE_MERGE_REFUSED.format(**values, why=why)
             if why
             else ready.BASE_MERGE_ASKED.format(**values)
         )
+        if not answered:
+            return said
         now = datetime.now().astimezone()
         record = {"head": one.head, "tip": tip, "said": said, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
         known = {**self.known(), str(one.number): record}
         self.path.write_text(json.dumps(known, indent=2) + "\n")
         return said
 
-    def ask(self, one: ready.PullRequest) -> str:
-        """Ask GitHub to merge the base into the branch, and return nothing, or why it did not."""
+    def ask(self, one: ready.PullRequest) -> tuple[str, bool]:
+        """Ask GitHub to merge the base into the branch. Return nothing, or why it did not, and
+        whether GitHub answered: `gh api` ends its error line with `(HTTP <status>)`."""
         path = f"repos/{{owner}}/{{repo}}/pulls/{one.number}/update-branch"
         ran = subprocess.run(
             ["gh", "api", "-X", "PUT", path, "-f", f"expected_head_sha={one.head}"],
@@ -79,10 +86,11 @@ class BaseMerge:
             env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
         )
         if not ran.returncode:
-            return ""
+            return "", True
         try:
             message = json.loads(ran.stdout).get("message")
         except (ValueError, AttributeError):
             message = None
         lines = (ran.stderr or ran.stdout).strip().splitlines()
-        return str(message or (lines[-1] if lines else f"gh exited {ran.returncode}"))
+        why = str(message or (lines[-1] if lines else f"gh exited {ran.returncode}"))
+        return why, bool(REFUSED.search(ran.stderr))

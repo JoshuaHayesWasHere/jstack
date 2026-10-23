@@ -40,6 +40,12 @@ UPDATE = """\
         fi
         if [ -e "$STUB/refuse" ]; then
             echo '{"message":"merge conflict between base and head"}'
+            echo "gh: merge conflict between base and head (HTTP 422)" >&2
+            exit 1
+        fi
+        if [ -e "$STUB/down" ]; then
+            echo '{"message":"Server Error"}'
+            echo "gh: Server Error (HTTP 502)" >&2
             exit 1
         fi
         tree=$(git -C "$ORIGIN" merge-tree --write-tree refs/heads/main "$head") || exit 1
@@ -196,6 +202,37 @@ def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
     replay.run()
     assert replay.run()[-1] == f"wait 333 {url(333)}: {refused.format(tip=later[:12])}"
     assert replay.updated() == ["333", "333"]
+
+
+def test_a_failure_to_ask_github_is_asked_again_on_the_next_run(tmp_path):
+    """A 5xx is no answer of GitHub's own: it keeps no record, and the next run asks again."""
+    replay = Replay(tmp_path, fresh=False)
+    (replay.kitchen.home.stub / "down").write_text("")
+    replay.crew("one", 333, {"one.txt": "ours\n"})
+    replay.main_at(WHOLE_TREE, BROKE, "failed")
+    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    down = f"GitHub did not merge main at {fix[:12]} into it: Server Error"
+    assert replay.run() == [f"wait 333 {url(333)}: {down}"]
+    assert replay.run() == [f"wait 333 {url(333)}: {down}"]
+    (replay.kitchen.home.stub / "down").unlink()
+    assert replay.run() == [f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}"]
+    assert replay.updated() == ["333", "333", "333"]
+    replay.passes(1)
+    assert merged(replay.said) == [333]
+
+
+def test_a_red_pull_request_short_of_anything_else_keeps_its_line_and_asks_nothing(replay):
+    """The change's one safety fact: only a pull request whose single shortfall is its failed
+    check is judged again. One whose queue row is held waits as before, with no fresh check and
+    no update asked of GitHub."""
+    order.queue_of(replay.kitchen.home, [order.row("one", pr="#333", held=True)])
+    replay.crew("one", 333, {"one.txt": "ours\n"})
+    replay.main_at(WHOLE_TREE, BROKE, "failed")
+    replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+    assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
+    order.queue_of(replay.kitchen.home, [order.row("one", pr="#333")])
+    assert replay.run() == [f"wait 333 {url(333)}: {ready.FRESH_QUEUED}"]
 
 
 def test_a_red_base_is_not_judged_again_until_it_is_green(replay):
