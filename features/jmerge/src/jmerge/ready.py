@@ -193,6 +193,7 @@ _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
 _FRESH_KEPT = ", kept over {tip}: main's change since meets none of its tests"
 _FRESH_SKIPPED = "fresh: skipped, tree {tree} passed in {at}, on {head} over {tip}"
+_RELATED_NOTE = "fresh: none, main changed related {paths}; no fresh-check file"
 
 
 @dataclass(frozen=True)
@@ -1048,9 +1049,17 @@ def short_on_main(
 ) -> str:
     if not stale:
         return ""
-    more = _MORE.format(more=len(stale) - 5) if len(stale) > 5 else ""
-    paths = " ".join(stale[:5]) + more
+    paths = _first_five(stale)
     return MAIN_CHANGED.format(default=default, paths=paths, since=user.clock(since), needs=needs)
+
+
+def related_note(stale: tuple[str, ...]) -> str:
+    return _RELATED_NOTE.format(paths=_first_five(stale))
+
+
+def _first_five(paths: tuple[str, ...]) -> str:
+    more = _MORE.format(more=len(paths) - 5) if len(paths) > 5 else ""
+    return " ".join(paths[:5]) + more
 
 
 def fresh_note(command: str, head: str, tip: str) -> str:

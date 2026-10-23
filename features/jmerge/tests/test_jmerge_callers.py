@@ -26,7 +26,7 @@ RELATED = "fresh: none, main changed related {}; no fresh-check file"
 def merged_over(kitchen, path, *flags, verb="merged"):
     """The pull request merges on its green check, and its line says what main changed."""
     (said,) = kitchen.run(*flags)
-    assert said.startswith(f"{verb} 7 two "), said
+    assert said.split()[:2] == [verb, "7"], said
     assert RELATED.format(path) in said, said
     return said
 

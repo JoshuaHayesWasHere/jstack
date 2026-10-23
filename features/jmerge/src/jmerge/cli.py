@@ -953,9 +953,8 @@ class Repo:
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", "", ""
         tip, paths = moved
-        stale = ready.stale_paths(one.files, left, paths, self.ci) or self.related(
-            one, left, tip, paths
-        )
+        own = ready.stale_paths(one.files, left, paths, self.ci)
+        stale = own or self.related(one, left, tip, paths)
         if not stale:
             return "", tip, ""
         path = ready.guarded_path(one, self.guarded, left)
@@ -963,6 +962,8 @@ class Repo:
             short = ready.short_on_main(stale, one.started, one.base, "a rebase", user=self.user)
             return f"guarded (touches {path}), {short}", "", ""
         asks = self.fresh is not None and self.fresh.command
+        if not asks and not own:
+            return "", tip, ready.related_note(stale)
         found = self.fresh.of(one.number, one.head, tip, files) if asks else None
         if found is None:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
