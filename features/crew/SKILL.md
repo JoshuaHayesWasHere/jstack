@@ -129,6 +129,7 @@ Once the pull request is open:
    esac
    ```
 
+   It waits four minutes before it prints `stay`, so give the call a time limit of 6 minutes (`timeout: 360000` in Claude Code), and never send it to the background.
    On `end your turn`, end it.
    On `stay`, the project's webhook is failing, so a wake this turn waits for may never come: do not end your turn.
    The block has waited four minutes: run the block of "The checks", do what it prints, and then run this block again, in this turn, until it prints `end your turn` or the pull request has merged or closed.
