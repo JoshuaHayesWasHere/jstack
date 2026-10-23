@@ -29,8 +29,8 @@ From the top, the page has these parts:
 
 | Part | What it shows |
 |---|---|
-| Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a setup. A gate with a default, or one that closes after 2 hours of silence, is in the folded list "Will proceed on default" under it, with the time it goes ahead. Its "Accept default" is the one filled button of the page. It waits 10 seconds, and Undo stops it. Only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page the new noticed lines are a token beside the queue, labelled "not counted". With nothing waiting, it says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
-| Projects | One link for each project, to its page: a name, a dot (amber when something of it needs you, red when something is broken, hollow otherwise), a plain reason only when broken ("CI 3 failed", "bus outbox 2", "1 source unread"), and the count of open tasks and of merges of today. A healthy project says nothing else. |
+| Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here, such as a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover or a setup. A gate with a default, or one that closes after 2 hours of silence, is in the folded list "Will proceed on default" under the queue, with the time it goes ahead. Its "Accept default" is the one filled button of the page. It waits 10 seconds, and Undo stops it. Only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page, a token beside the queue shows the new noticed lines, labelled "not counted". With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
+| Projects | One link for each project, to its page. The link has a name, a dot, a reason when something is broken, and the counts of open tasks and of today's merges. The dot is amber when something of the project needs you, red when something is broken, and hollow otherwise. The reason is plain, such as "CI 3 failed", "bus outbox 2" or "1 source unread". A healthy project shows nothing else. |
 
 The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine's state in a few words: "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red.
 Those words link to the pulse drawer, which lists the machine's parts.
@@ -41,9 +41,9 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 | Part | What it shows |
 |---|---|
 | Needs you | The same queue, of this project. |
-| In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: thread hung or quiet, a check failed, behind another task, not confirmed since a time. One click on the heading shows the queue as a flow. |
+| In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting, such as a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
-| Health | One line, each part a link to its drawer: "All well" and the time of the last pass, or each thing that is broken. The threads out and the blind spots are here too, and the rows the view cannot place are named. |
+| Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
 
 ### Every view is a link
 
@@ -55,7 +55,7 @@ Each view has its own address, a hash, so a pasted link opens it directly, and t
 | `#/<project>` | One project's page. |
 | `#/<project>/task/<slug>` | That page with the drawer of one task open. |
 | `#/help` | The glossary over the page, every term of it. |
-| `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/demo/gate/3`, `#/demo/you/gate` or `#/demo/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
+| `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/demo/gate/3`, `#/demo/you/gate` or `#/demo/steps/queued`. The parts after the panel are its `data-open` argument, with each `:` written as a `/`. |
 
 `&theme=light` or `&theme=dark` after any of them sets the theme.
 The page rewrites an old link, `?project=<project>` or `#/<project>&open=<drawer>`, to the link's new address.
