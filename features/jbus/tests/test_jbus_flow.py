@@ -345,7 +345,6 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
     said = measure.ci(found)["o/demo"]
     assert (said["runs"], said["failure"], said["reruns"], said["jobs"]) == (5, 3, 1, 1)
     assert said["queue_hours"] == 0.2 and said["queue_self_hosted_hours"] == 0.2
-    assert said["run_queue_p90_s"] == 126.0 and said["run_queue_median_s"] == 0.0
 
 
 def test_each_workflow_of_main_is_red_on_its_own_and_one_left_red_is_said():

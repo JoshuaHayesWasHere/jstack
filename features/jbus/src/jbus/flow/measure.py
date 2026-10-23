@@ -702,8 +702,9 @@ def _no_job(run: Run) -> bool:
 
 def ci(found_runs: list[Run]) -> dict:
     """Return, for each repo, its runs, their conclusions, reruns, and the queue and run time
-    of their jobs, on GitHub's runners and on self-hosted ones. A run's own queue, from its
-    creation to its start, is there without `--jobs`, for the runs of one attempt."""
+    of their jobs, on GitHub's runners and on self-hosted ones. A run's own `run_started_at` is its
+    creation, not a runner's start, so a job's queue is known only with `--jobs`, or from the
+    jobs `jbus ci` kept (`ledger_jobs`)."""
     said = {}
     by: defaultdict[str, list[Run]] = defaultdict(list)
     for run in found_runs:
@@ -713,7 +714,6 @@ def ci(found_runs: list[Run]) -> dict:
         queued = [q for one in each for q in one.queued]
         hosted = [q for one in each for q, h in zip(one.queued, one.hosted, strict=True) if h]
         ran = [r for one in each for r in one.ran]
-        waited = [one.waited for one in each if one.waited is not None]
         said[repo] = {
             "runs": len(each),
             "failure": ends.get("failure", 0),
@@ -724,9 +724,6 @@ def ci(found_runs: list[Run]) -> dict:
             "queue_median_s": _quantile(queued, 0.5),
             "queue_p90_s": _quantile(queued, 0.9),
             "queue_self_hosted_hours": round((sum(queued) - sum(hosted)) / 3600, 1),
-            "run_queue_hours": round(sum(waited) / 3600, 1),
-            "run_queue_median_s": _quantile(waited, 0.5),
-            "run_queue_p90_s": _quantile(waited, 0.9),
             "run_hours": round(sum(ran) / 3600, 1),
             "run_median_s": _quantile(ran, 0.5),
         }

@@ -257,15 +257,15 @@ def text(said: dict[str, Any]) -> str:
         f"({bus['gap_hours']} h), GitHub unreachable {bus['github_unreachable_hours']} h, "
         f"{bus['webhook_failures']} webhook failures",
         "",
-        "GitHub runs (failure / cancelled / reruns; run queue total, median, 90th; job queue "
-        "with --jobs; run total):",
+        "GitHub runs (failure / cancelled / reruns; job queue total, median, 90th, with --jobs; "
+        "run total):",
     ]
     for repo, one in said["ci"].items():
         out.append(
             f"  {repo}: {one['runs']} runs, {one['failure']} / {one['cancelled']} / "
-            f"{one['reruns']}; queue {one['run_queue_hours']} h, {one['run_queue_median_s']} s, "
-            f"{one['run_queue_p90_s']} s; jobs {one['queue_hours']} h (self-hosted "
-            f"{one['queue_self_hosted_hours']} h); run {one['run_hours']} h"
+            f"{one['reruns']}; queue {one['queue_hours']} h, {one['queue_median_s']} s, "
+            f"{one['queue_p90_s']} s (self-hosted {one['queue_self_hosted_hours']} h); run "
+            f"{one['run_hours']} h"
         )
     for name, one in said["ci_ledger"].items():
         out.append(f"  {name}, jobs `jbus ci` kept from {one['from']} to {one['to']}:")

@@ -162,14 +162,6 @@ class Run:
     ran: tuple[float, ...] = ()
     hosted: tuple[bool, ...] = ()
 
-    @property
-    def waited(self) -> float | None:
-        """Return the seconds from the run's creation to the start of its last attempt: its
-        queue, as the run's own times give it, with no call per job."""
-        if self.started is None or self.attempt > 1:
-            return None
-        return max(0.0, (self.started - self.created).total_seconds())
-
 
 def when(text: str) -> datetime | None:
     """Return the ISO 8601 time, aware, or None for an empty or odd string."""
