@@ -13,7 +13,6 @@ It is for a developer who uses Claude Code and wants more than one agent at work
 Every thread spends tokens on your own Claude plan.
 One task takes at least two threads, a crewmate and a reviewer.
 `jgauge session` prints what a thread cost.
-It runs on Linux only.
 
 ![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](features/home/docs/flow.svg)
 
@@ -40,7 +39,7 @@ jstack runs only when every **hard** need is met.
 
 | Need | Level | Notes |
 |---|---|---|
-| Linux | hard | The only platform. |
+| Linux or macOS | hard | A Mac with Apple Silicon. On Windows, inside WSL2. |
 | T3 Code | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Stable or nightly, `0.1.2-nightly.20261022.3526` or newer, which stable `0.1.2` meets. jstack is tested on that nightly, and on stable `0.1.2` by its source, which holds that nightly. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |

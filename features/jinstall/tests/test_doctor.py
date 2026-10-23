@@ -229,6 +229,9 @@ def test_a_release_ranks_after_each_of_its_prereleases(tmp_path):
     )
 
 
+T3_MISSING = "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
+
+
 @pytest.mark.parametrize(
     ("platform", "lines"),
     [
@@ -236,30 +239,28 @@ def test_a_release_ranks_after_each_of_its_prereleases(tmp_path):
             "linux",
             [
                 "ok hard platform -> linux",
-                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)",
+                f"{T3_MISSING} (on Arch: t3code-bin)",
             ],
         ),
         (
             "darwin",
             [
                 "ok hard platform -> darwin",
-                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
-                " (on a Mac with Apple Silicon: brew install --cask t3-code)",
+                f"{T3_MISSING} (on a Mac with Apple Silicon: brew install --cask t3-code)",
             ],
         ),
         (
             "win32",
             [
                 "missing hard platform -> this is win32: run jstack inside WSL2",
-                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
-                " (run jstack inside WSL2)",
+                f"{T3_MISSING} (run jstack inside WSL2)",
             ],
         ),
         (
             "freebsd14",
             [
                 "missing hard platform -> this is freebsd14: jstack runs on Linux and macOS",
-                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)",
+                f"{T3_MISSING} (on Arch: t3code-bin)",
             ],
         ),
     ],

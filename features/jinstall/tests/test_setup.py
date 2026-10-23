@@ -234,7 +234,12 @@ def test_a_backup_with_no_gitleaks_names_the_command_that_gets_it_on_the_platfor
     state = tmp_path / "state"
     answers = {"rev-parse": Ran(0, f"{state}\n"), "remote": Ran(0, "git@example.com:me/s\n")}
     here = Machine(
-        REPO, tmp_path, {"PATH": str(programs)}, lambda args: answers[args[3]], tmp_path, platform=platform
+        REPO,
+        tmp_path,
+        {"PATH": str(programs)},
+        lambda args: answers[args[3]],
+        tmp_path,
+        platform=platform,
     )
     assert StateRepo(state).ask(here) == ask
 
@@ -375,7 +380,10 @@ def narrow_path(tmp_path, **stubs):
 JINSTALL = """#!/bin/sh
 echo "$*" >> "$JINSTALL_LOG"
 case "$1" in
---setup) printf 'already platform\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'; exit 1 ;;
+--setup)
+    printf 'already platform\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'
+    exit 1
+    ;;
 --doctor) printf 'ok hard platform -> linux\ndoctor: not ok, 1 hard\n'; exit 1 ;;
 esac
 exit 2

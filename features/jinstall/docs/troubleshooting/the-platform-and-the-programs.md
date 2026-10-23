@@ -2,8 +2,9 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard linux -> this is <platform>` | jstack runs on Linux only. | Use a Linux machine. |
-| `missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. | Install T3 Code, the stable or the nightly build, and open the app once. |
+| `missing hard platform -> this is win32: run jstack inside WSL2` | jstack does not run on Windows itself. | Install WSL2 and run jstack inside its Linux distribution. |
+| `missing hard platform -> this is <platform>: jstack runs on Linux and macOS` | jstack runs on Linux and on macOS, and on no other platform. | Use a Linux machine or a Mac with Apple Silicon. |
+| `missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (<where>)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. `<where>` is `on Arch: t3code-bin`, or on macOS `on a Mac with Apple Silicon: brew install --cask t3-code`. | Install T3 Code, the stable or the nightly build, and open the app once. T3 Code has no `t3` command for an Intel Mac, so jstack does not run there. |
 | `old hard t3 -> t3 --version did not answer: open the app once` | The `t3` command is there and printed no version. | Open T3 Code once, then run the doctor again. |
 | `old hard t3 -> <version>, needs 0.1.2-nightly.20261022.3526 or newer` | The build, stable, nightly or preview, is older than the oldest one jstack supports, and may lack tools that jstack calls, such as `t3_thread_launch`. A release ranks after each of its own nightlies, so stable `0.1.2` meets it. | Update T3 Code to stable `0.1.2` or a newer build. |
 | `missing hard claude` | Claude Code is not on `PATH`. | Install Claude Code. |
@@ -23,16 +24,17 @@
 ## Where to get each program
 
 Each program's own page has the install steps for every platform it supports.
-On a machine with `pacman`, `jinstall --setup` names the Arch package as `yay -S <package>`, and on any other machine it names the program.
-The last column gives the Arch package as one example.
+On macOS, `jinstall --setup` names the Homebrew command, `brew install <formula>`.
+On a Linux machine with `pacman`, it names the Arch package as `yay -S <package>`, and on any other Linux machine it names the program.
+On Windows, it says to run jstack inside WSL2, and there each program is installed in the Linux distribution.
 
-| Program | Install page | Arch package |
-|---|---|---|
-| T3 Code, stable or nightly | [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | `t3code-bin`, or `t3code-nightly-bin` for the nightly |
-| Claude Code, `claude` | [Set up Claude Code](https://code.claude.com/docs/en/setup) | `claude-code` |
-| `uv` | [Installing uv](https://docs.astral.sh/uv/getting-started/installation/) | `uv` |
-| `git` | [git downloads](https://git-scm.com/downloads) | `git` |
-| `jq` | [Download jq](https://jqlang.org/download/) | `jq` |
-| `gh`, the GitHub CLI | [GitHub CLI installation](https://github.com/cli/cli#installation) | `github-cli` |
-| `gitleaks`, for the backup only | [Installing gitleaks](https://github.com/gitleaks/gitleaks#installing) | `gitleaks` |
-| `lavish-axi`, optional | `npm install -g lavish-axi`, from [kunchenguid/lavish-axi](https://github.com/kunchenguid/lavish-axi) | none, it comes from npm |
+| Program | Install page | Homebrew, on macOS | Arch package |
+|---|---|---|---|
+| T3 Code, stable or nightly | [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | `brew install --cask t3-code`, on Apple Silicon | `t3code-bin`, or `t3code-nightly-bin` for the nightly |
+| Claude Code, `claude` | [Set up Claude Code](https://code.claude.com/docs/en/setup) | `brew install --cask claude-code` | `claude-code` |
+| `uv` | [Installing uv](https://docs.astral.sh/uv/getting-started/installation/) | `brew install uv` | `uv` |
+| `git` | [git downloads](https://git-scm.com/downloads) | `brew install git` | `git` |
+| `jq` | [Download jq](https://jqlang.org/download/) | `brew install jq` | `jq` |
+| `gh`, the GitHub CLI | [GitHub CLI installation](https://github.com/cli/cli#installation) | `brew install gh` | `github-cli` |
+| `gitleaks`, for the backup only | [Installing gitleaks](https://github.com/gitleaks/gitleaks#installing) | `brew install gitleaks` | `gitleaks` |
+| `lavish-axi`, optional | `npm install -g lavish-axi`, from [kunchenguid/lavish-axi](https://github.com/kunchenguid/lavish-axi) | none, it comes from npm | none, it comes from npm |

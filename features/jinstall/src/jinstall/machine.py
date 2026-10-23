@@ -20,6 +20,7 @@ import os
 import pwd
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -81,7 +82,9 @@ class Machine:
     with `home` to tell the user's real HOME from a sandbox's or a test's.
 
     `checkout` is the git checkout that jstack's install runs from, or None for a release. A
-    release's source is `release`, the tree its wheel installed (`jbriefs.skills.packaged`)."""
+    release's source is `release`, the tree its wheel installed (`jbriefs.skills.packaged`).
+
+    `platform` is Python's `sys.platform`: `linux`, `darwin` for macOS, `win32` for Windows."""
 
     checkout: Path | None
     home: Path
@@ -89,6 +92,7 @@ class Machine:
     run: Callable[[Sequence[str]], Ran]
     account: Path
     release: Path | None = None
+    platform: str = sys.platform
 
     @property
     def source(self) -> Path:

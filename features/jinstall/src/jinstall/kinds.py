@@ -141,10 +141,21 @@ def unseed(machine: Machine, path: Path, word: str) -> Dropped:
 SEEDED = "# Written once by install.sh --setup. Edit it: setup never writes over it.\n"
 
 
-def get(machine: Machine, package: str, command: str) -> str:
-    """How to get a program. On Arch, where pacman is on PATH, it is `yay -S <package>`, and
-    elsewhere it is the program's name."""
-    return f"yay -S {package}" if machine.which("pacman") else command
+WSL2 = "run jstack inside WSL2"
+WINDOWS = ("win32", "cygwin")
+
+
+def get(machine: Machine, command: str, arch: str = "", brew: str = "") -> str:
+    """How to get a program on this machine. On macOS it is `brew install <formula>`, where the
+    formula is `brew`, `--cask <name>` for an app, or else the command's name. On Windows it is
+    WSL2, since jstack runs inside it there. On Arch, where pacman is on PATH, it is
+    `yay -S <package>`, where the package is `arch` or else the command's name. Anywhere else it
+    is the program's name."""
+    if machine.platform == "darwin":
+        return f"brew install {brew or command}"
+    if machine.platform in WINDOWS:
+        return WSL2
+    return f"yay -S {arch or command}" if machine.which("pacman") else command
 
 
 GENERATE = "scripts/generate-jstack-trees.py"
@@ -931,12 +942,13 @@ class Program:
     version: tuple[str, ...] = ("--version",)
     floor: tuple[int, ...] | None = None
     hint: str = ""
-    package: str = ""
+    arch: str = ""
+    brew: str = ""
 
     def ask(self, machine: Machine) -> str:
-        """The hint where there is one, or else the Arch package. The package is the
-        command's name unless `package` names another."""
-        return self.hint or get(machine, self.package or self.command, self.command)
+        """The hint where there is one, or else how to get the program on this machine, by its
+        Arch package `arch` and its Homebrew formula `brew` (`get`)."""
+        return self.hint or get(machine, self.command, self.arch, self.brew)
 
     def probe(self, machine: Machine) -> Found:
         if machine.which(self.command) is None:
@@ -978,16 +990,17 @@ class T3Code:
       every MCP tool that jstack calls in the shape it calls them."""
 
     floor: str
-    hint: str = "T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)"
 
     def ask(self, machine: Machine) -> str:
-        return get(machine, "t3code-bin", "t3")
+        return get(machine, "t3", arch="t3code-bin", brew="--cask t3-code")
 
     def probe(self, machine: Machine) -> Found:
         written = machine.home / ".t3" / "bin" / "t3"
         command = written if os.access(written, os.X_OK) else machine.which("t3")
         if command is None:
-            return Found.missing(self.hint)
+            return Found.missing(
+                f"T3 Code 0.1.2 or newer, stable or nightly ({self.where(machine)})"
+            )
         ran = machine.run([str(command), "--version"])
         said = T3_VERSION.search(ran.out)
         if ran.code != 0 or said is None:
@@ -995,6 +1008,15 @@ class T3Code:
         if _t3_order(said[0]) < _t3_order(self.floor):
             return Found.old(f"{said[0]}, needs {self.floor} or newer")
         return Found.ok(said[0])
+
+    @staticmethod
+    def where(machine: Machine) -> str:
+        """Where to get T3 Code on this machine. Its `t3` command has no build for Intel Macs."""
+        if machine.platform == "darwin":
+            return f"on a Mac with Apple Silicon: {get(machine, 't3', brew='--cask t3-code')}"
+        if machine.platform in WINDOWS:
+            return WSL2
+        return "on Arch: t3code-bin"
 
 
 @dataclass(frozen=True)
@@ -1012,16 +1034,16 @@ class GhSignIn:
 
 
 @dataclass(frozen=True)
-class Linux:
-    """The probe answers ok on Linux. Anywhere else it answers missing, with the platform as
-    the detail."""
-
-    platform: str = sys.platform
+class Platform:
+    """ok on Linux and on macOS, with the platform as the detail. missing anywhere else: on
+    Windows the detail says to run jstack inside WSL2."""
 
     def probe(self, machine: Machine) -> Found:
-        if self.platform.startswith("linux"):
-            return Found.ok()
-        return Found.missing(f"this is {self.platform}")
+        if machine.platform.startswith("linux") or machine.platform == "darwin":
+            return Found.ok(machine.platform)
+        if machine.platform in WINDOWS:
+            return Found.missing(f"this is {machine.platform}: {WSL2}")
+        return Found.missing(f"this is {machine.platform}: jstack runs on Linux and macOS")
 
 
 def _said(error: Exception) -> str:
@@ -1142,7 +1164,7 @@ class StateRepo:
         add = f"git -C {self.path} remote add origin <url>"
         found = self.probe(machine)
         if found.state is State.OLD:
-            return get(machine, "gitleaks", "gitleaks")
+            return get(machine, "gitleaks")
         if found.detail == "not a git repo":
             return f"git init {self.path} && {add}"
         return add
