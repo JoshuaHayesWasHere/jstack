@@ -740,19 +740,24 @@ class Repo:
             "--limit",
             "1000",
             "--json",
-            "number,url",
+            "number,url,files",
             *self.about,
         )
         try:
-            open_pulls = {str(one["url"]): int(one["number"]) for one in json.loads(asked.stdout)}
-        except (ValueError, KeyError, TypeError):
-            open_pulls = None
+            listed = json.loads(asked.stdout)
+            open_pulls = {str(one["url"]): int(one["number"]) for one in listed}
+            files = {
+                str(one["url"]): [str(each["path"]) for each in one.get("files") or []]
+                for one in listed
+            }
+        except (ValueError, KeyError, TypeError, AttributeError):
+            open_pulls, files = None, {}
         if asked.returncode or open_pulls is None:
             print(f"wait: could not ask GitHub{asked_why(asked)}", flush=True)
             return 1
         homes = self.homes.known
         for brief in sorted((self.state / "tasks").glob("*.md")):
-            claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes)
+            claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes, files)
             if claim:
                 print(claim.line(), flush=True)
         return 0
