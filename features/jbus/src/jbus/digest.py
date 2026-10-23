@@ -93,11 +93,9 @@ def since(given: str | None, user: jsettings.Settings) -> datetime | None:
 
 def status(config: Config) -> dict[str, Any]:
     """Return what `jbus status` prints: the status file, the record of the pass, the streaks
-    as they are now, the outboxes outside the routes in effect that hold events now, and the homes
-    that are not on the bus now."""
+    as they are now, and the homes that are not on the bus now."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
-        "stranded": record.stranded(config),
         "homes_off_bus": project.missing(config),
         "pass": record.read(config),
     }
@@ -228,8 +226,9 @@ def build(
 
 
 def _status(_: argparse.Namespace, config: Config) -> int:
-    """Print the status file and the record of the pass. Print the streaks, and the homes
-    that are not on the bus, as they stand now.
+    """Print the status file and the record of the pass. Print the streaks, the outboxes outside
+    the routes in effect that hold events (`record.stranded`), and the homes that are not on the
+    bus, as they stand now. The view never reads an outbox, so only this command counts them.
 
     The file's own streaks are a copy from the last pass that ended, and `jbus alarm` keeps
     counting after that pass. A pass writes the record at its start, so this also prints a
@@ -237,7 +236,8 @@ def _status(_: argparse.Namespace, config: Config) -> int:
     """
     if not config.status_path.is_file() and not config.pass_path.is_file():
         raise Refused(f"refused: no status at {config.status_path}: no pass has run")
-    print(json.dumps(status(config), indent=2, sort_keys=True))
+    told = status(config) | {"stranded": record.stranded(config)}
+    print(json.dumps(told, indent=2, sort_keys=True))
     return 0
 
 
