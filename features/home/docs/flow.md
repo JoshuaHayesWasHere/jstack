@@ -39,7 +39,7 @@ Until you choose, run `jmerge` in the repo's main checkout.
 ## What you are asked for
 
 Three things come to you.
-The threads do everything else that is reversible without asking.
+Without asking you, the threads do everything else that is reversible.
 
 - **An approval.** You give a yes to that exact brief.
 - **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.
@@ -47,7 +47,7 @@ The threads do everything else that is reversible without asking.
   `jmerge` printed `hold`.
   You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](../../jinstall/docs/configuration.md#jstack).
   Add `--check` to see what it would do.
-  `jmerge` refuses the accept unless the review proved its safety fact.
+  `jmerge` refuses `--accept` unless the review proved the fact that makes the change safe.
   [jmerge](../../jmerge/docs/jmerge.md) has the rest.
 
 | Asked for | When | If you are away |

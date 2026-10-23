@@ -39,7 +39,7 @@ In a checkout that is not installed, run a command as `uv run --project <checkou
 |---|---|
 | `features/` | Each feature in a folder of its own, `features/<name>/`: its skills, playbooks, templates, hooks, units, its command's package, tests and docs. `~/.{claude,agents,codex}/skills/<name>` link into the layout the install assembles from them. |
 | `features/principles/` | One skill per working principle, `principle-<name>`, which a playbook step names where it relies on it. |
-| `install.sh` | Installs jstack from this checkout, or, piped to `sh` from a release, from that release. |
+| `install.sh` | Installs jstack from this checkout. Piped to `sh` from a release, it installs that release. |
 | `THIRD_PARTY.md` | The files taken from other projects, with their sources and licenses. |
 | `testing/` | The shared test tooling, and in `testing/verify/` its verify page. |
 

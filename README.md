@@ -31,8 +31,7 @@ It pauses only before a force-push to a shared branch, a deploy, deleting data, 
 A question only you can answer becomes a **gate**.
 The thread takes a default, carries on, and asks you.
 Your answer closes the gate, and with no answer the gate keeps its default.
-Nine commands do the routine work with no model, such as `jmerge`, which merges.
-[Reference](#reference) lists them all.
+Nine commands do the routine work with no model, and [Reference](#reference) lists them all.
 
 ## Requirements
 
