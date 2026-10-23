@@ -117,7 +117,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `blocking_key` | Empty | The key that goes with `blocking_url`, which `jbus` sends in the same two headers as a project's `webhook_key`. Set both or neither, because `jbus` refuses half a pair. Keep both secret, like the webhook's pair. |
 
 The model of a crew's launch is not a key here.
-`jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source.
+`jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source of a launch's model.
 `jbus` does not read a `modelSelection` key left from before.
 
 Each `[[project]]` table is one repo:
@@ -131,7 +131,7 @@ Each `[[project]]` table is one repo:
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
 | `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. `jbus` refuses a table with only one of the two. |
-| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](../../jmerge/docs/jmerge.md#migrations)). `jbus` refuses a directory that is absolute or has `..` in it. With none, `jmerge` holds no pull request for its migrations. |
+| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives. When such a pull request lands, `jmerge` gives a numbered migration its number ([jmerge](../../jmerge/docs/jmerge.md#migrations)). `jbus` refuses a directory that is absolute or has `..` in it. With none, `jmerge` holds no pull request for its migrations. |
 | `ci_report` | Off | `true` turns on the project's weekly CI report, which `jbus-ci.timer` writes each Monday at 09:00. The install enables that timer only while a project asks ([Measure the CI](../../jbus/docs/jbus/measure-the-ci.md#the-weeks-report)). `jbus` refuses a value that is not `true` or `false`. |
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. `jbus` refuses any other value. |
 
@@ -198,7 +198,8 @@ It prints these lines:
 
 [The provider instances](troubleshooting/the-provider-instances.md) says what to do for each line.
 
-Each Claude instance whose home is not `~/.claude` is a mirror of `~/.claude`, which `jroles mirror` and its timer keep in step.
+Each Claude instance whose home is not `~/.claude` is a mirror of `~/.claude`.
+`jroles mirror` and its timer keep each mirror up to date.
 The mirror shares every entry except the login and the per-session state, and its `.claude.json` keeps its own account keys ([mirrors](../../jroles/docs/jroles.md#mirrors)).
 jstack takes the instance ids and the homes from this file alone, so a second account needs its line here, the same instance in T3 Code, and its login.
 The doctor prints `ok optional mirror <home>` for each, `missing` while the home is not there, and `old` with the first entry that differs.
@@ -249,7 +250,7 @@ All three writers merge their readings by the ledger's rule, so a reading that f
 
 Each file has these rows, and it has no row for a window that is not open.
 Without the file, `jgauge room` still prints `go` when the machine has room.
-It cannot hold a launch back for the plan, and it says so in a `note: ` line on stderr.
+It cannot hold a launch back for the plan's limits, and it says so in a `note: ` line on stderr.
 
 If you have a status line of your own, `jinstall` leaves it alone, and `jgauge limits` still writes the file.
 To have the status line write it too, pipe the status line's input to jgauge's `limits.sh` from your own command.

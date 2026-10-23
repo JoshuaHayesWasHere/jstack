@@ -115,7 +115,7 @@ To check the checkout's own skills, clone inside the sandbox's HOME, because a r
 
 To install from a wheel, use a second sandbox, so that no checkout is above its HOME or its tool:
 
-- **Build and install the wheel.** Run `record install-skills uv build --wheel --out-dir "$VERIFY_JSTACK_SANDBOX/dist" "$VERIFY_JSTACK_REPO"`, then `record install-skills uv tool install "$VERIFY_JSTACK_SANDBOX"/dist/*.whl`. The tool's commands land in `$HOME/.local/bin`.
+- **Build and install the wheel.** Run `record install-skills uv build --wheel --out-dir "$VERIFY_JSTACK_SANDBOX/dist" "$VERIFY_JSTACK_REPO"`, then `record install-skills uv tool install "$VERIFY_JSTACK_SANDBOX"/dist/*.whl`. `uv` puts the tool's commands in `$HOME/.local/bin`.
 - **Install from it.** Run `record install-skills "$HOME/.local/bin/jinstall"`, then `record install-skills "$HOME/.local/bin/jinstall" --check`. Every line starts with `ok`, and there is no `generated files` line and no `pre-push` line.
 - **See every link resolve into the wheel.**
   Run the loop of the checkout's recipe with `"$UV_TOOL_DIR"/jstack/share/jstack` in place of `$VERIFY_JSTACK_REPO`.
@@ -155,7 +155,9 @@ A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a
 - **Install from it.** Run `record install-skills sh install.sh`. Every layout line is `ok`, and `readlink -f "$HOME/.claude/skills/pr-review/SKILL.md"` is `<the clone>/skills/pr-review/SKILL.md`.
 - **Merge the move.** Run `git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413`, then `record install-skills git pull -q --ff-only`.
 - **See it stale.** Run `record install-skills sh install.sh --check`. The three layout lines are `old hard layout <harness> <layout> -> stale: skills/pr-review/SKILL.md, and 7 more`, and `record install-skills sh -c 'find -L "$HOME"/.claude/skills/ -type l; echo checked'` lists each file of `pr-review` before `checked`.
-- **Run what `jmerge` runs after it.** Run `record install-skills sh install.sh`, then the `find` again. It prints only `checked`, and the layout lines of `--check` are `ok`.
+- **Run what `jmerge` runs after the merge.**
+  Run `record install-skills sh install.sh`, then the `find` again.
+  It prints only `checked`, and the layout lines of `--check` are `ok`.
 
 ## Gotchas
 
@@ -163,7 +165,7 @@ A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a
   `env.sh` puts this checkout's commands first, and the doctor then says `jbriefs is shadowed`.
 - This recipe is safe only because `env.sh` sets HOME to the sandbox and puts the stand-in `systemctl` first on PATH.
   Run the doctor first.
-  With the real HOME, a plain `install.sh` from a linked worktree is refused, and one from a main checkout installs for real.
+  With the real HOME, `install.sh` refuses a plain install from a linked worktree, and a plain install from a main checkout writes to your real HOME.
 - The stand-in `systemctl` starts nothing.
   The recipe proves the links and the calls, not that systemd runs a pass.
 - `uv tool install` is the real one.

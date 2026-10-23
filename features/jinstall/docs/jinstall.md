@@ -42,7 +42,7 @@ A second run writes nothing.
 ## What the install writes
 
 A path that starts with `~` is under your home directory.
-`--uninstall` removes each one that is still as the install wrote it.
+`--uninstall` removes each path in the table below that is still as the install wrote it.
 
 | Path | What the install puts there | When |
 |---|---|---|
@@ -65,7 +65,7 @@ The install leaves every other key of a settings file as it was.
 ## The layouts
 
 The repo keeps each skill once, in its feature.
-The install assembles one layout for each harness at `~/.local/share/jstack/harness/<harness>/`, or under `$XDG_DATA_HOME`: `claude-code`, `codex` and `cursor`.
+The install assembles one layout for each harness, `claude-code`, `codex` and `cursor`, at `~/.local/share/jstack/harness/<harness>/`, or under `$XDG_DATA_HOME` when that is set.
 `~/.claude/skills` links each skill into Claude Code's layout, `~/.codex/skills` into Codex's, and `~/.agents/skills` into Cursor's.
 A layout holds `skills/<name>/`, `playbooks/`, `principles/`, `templates/`, the hooks of its harness in `hooks/`, a `README.md`, and `source`, a link to the checkout or the release.
 `skills/` and `templates/` are siblings, so `realpath ~/.claude/skills/<name>/../../templates` finds the templates.
