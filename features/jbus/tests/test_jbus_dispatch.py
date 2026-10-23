@@ -354,3 +354,26 @@ def test_ten_pull_requests_of_a_hundred_files_each_are_compared_in_well_under_a_
     assert kitchen.lines("overlap") == [
         f"overlap b2: shares src/shared/x.py with b7, by both diffs; {SHARED}"
     ]
+
+
+def test_a_glob_where_shares_the_files_it_matches_and_a_dot_where_shares_every_file(kitchen):
+    kitchen.set(
+        "claims.txt",
+        "alpha out root Where: `src/*/x.py`, `docs/**/*.md`\n"
+        "beta pull request 8 root Where: `src/beta/` Diff: `src/a/x.py`, `src/a/y.py`\n"
+        "gamma pull request 9 root Where: `lib/` Diff: `docs/deep/er/g.md`, `docs/g.txt`\n",
+    )
+    kitchen.poll()
+    assert kitchen.lines("overlap") == [
+        f"overlap alpha: shares src/a/x.py with beta, by beta's diff; {SHARED}",
+        f"overlap alpha: shares docs/deep/er/g.md with gamma, by gamma's diff; {SHARED}",
+    ]
+    kitchen.set(
+        "claims.txt",
+        "delta out root Where: `.`\n"
+        "epsilon pull request 10 root Where: `lib/e.py` Diff: `src/e.py`\n",
+    )
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kitchen.lines("overlap")[2:] == [
+        f"overlap delta: shares lib/e.py with epsilon; {SHARED}"
+    ]
