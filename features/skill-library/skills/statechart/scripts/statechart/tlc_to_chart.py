@@ -18,6 +18,7 @@ from statechart.lib import (
     call,
     compare_charts,
     escape_mermaid_quotes,
+    extended_modules,
     group_class_def,
     group_color_problem,
     is_record,
@@ -457,7 +458,9 @@ def chart(args):
     rules = {}
     for f in args["specs"]:
         with open(f, encoding="utf-8") as handle:
-            for name, sentence in rule_sentences(handle.read()).items():
+            texts = [handle.read(), *extended_modules(f)]
+        for text in texts:
+            for name, sentence in rule_sentences(text).items():
                 rules.setdefault(name, sentence)
 
     reader_actions = set(getattr(mapping, "reader_actions", None) or [])

@@ -13,7 +13,8 @@ A line is judged in its place in the file at HEAD, read whole, so it knows what 
 in. These are not prose and are never judged: a line in a code fence, in the front matter, in
 an HTML comment, of a table (with or without a leading `|`), a heading (`#` or setext), and a
 field (`Key: value`, as a brief's `Task:` or `Done when:`) with the list items and indented
-lines under it up to a blank line.
+lines under it up to a blank line. Nor is a page that a `.gitattributes` at HEAD marks
+`linguist-generated`, which a tool wrote.
 
 `sentences` decides what a sentence is, and nothing else does: a `.`, `!` or `?`, with any
 closing quote, bracket or emphasis after it, then a space and a word that starts with a
@@ -162,12 +163,31 @@ def git(*args):
     return ran.stdout
 
 
+def generated(paths):
+    """The paths a `.gitattributes` at HEAD marks `linguist-generated`: a tool writes them."""
+    if not paths:
+        return set()
+    said = git("check-attr", "-z", "--source", "HEAD", "linguist-generated", "--", *paths)
+    fields = said.split("\0")
+    return {
+        fields[i]
+        for i in range(0, len(fields) - 2, 3)
+        if fields[i + 2] not in ("unspecified", "unset", "false")
+    }
+
+
 def faults(base):
     """Each added prose line of more than one sentence, as `(path, number, line)`."""
     diff = git("diff", "--unified=0", "--find-renames", "--no-ext-diff", f"{base}...HEAD", "--")
     found, moved = [], removed(diff)
-    for path, numbers in added(diff).items():
-        if not path.startswith(FOLDERS) or not path.endswith(".md"):
+    pages = {
+        path: numbers
+        for path, numbers in added(diff).items()
+        if path.startswith(FOLDERS) and path.endswith(".md")
+    }
+    written = generated(list(pages))
+    for path, numbers in pages.items():
+        if path in written:
             continue
         lines = git("show", f"HEAD:{path}").splitlines()
         judged = prose(lines)

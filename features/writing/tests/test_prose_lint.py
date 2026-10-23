@@ -172,6 +172,17 @@ def test_a_skill_under_features_is_judged(repo):
     assert said[0].startswith("features/new/SKILL.md:1: ")
 
 
+def test_a_page_git_marks_generated_is_not_judged(repo):
+    """A page a tool writes, such as a statechart's stories.md, is marked linguist-generated in a
+    .gitattributes, and only the pages without the mark are judged."""
+    change(repo, "features/new/out/stories.md", lambda _: "One. Two.\n")
+    change(repo, "features/new/notes.md", lambda _: "One. Two.\n")
+    change(repo, "features/new/.gitattributes", lambda _: "out/** linguist-generated\n")
+    code, said = check(repo)
+    assert code == 1
+    assert [line.split(":")[0] for line in said[:-1]] == ["features/new/notes.md"]
+
+
 def test_only_markdown_of_the_five_folders_is_judged(repo):
     change(repo, "src/notes.md", lambda _: "One. Two.\n")
     change(repo, "templates/new.txt", lambda _: "One. Two.\n")

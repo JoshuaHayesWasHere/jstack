@@ -4,6 +4,7 @@ chart's colors."""
 
 import inspect
 import json
+import os
 import re
 from dataclasses import dataclass
 
@@ -205,6 +206,34 @@ def rule_sentences(tla):
     return out
 
 
+def extended_modules(spec):
+    """The text of each module in the folder of `spec` that it extends, and of each module that
+    one extends, nearest first. A standard module, such as Naturals, has no file there."""
+    folder = os.path.dirname(os.path.abspath(spec))
+    texts, seen, todo = [], {os.path.basename(spec)}, [spec]
+    while todo:
+        with open(todo.pop(0), encoding="utf-8") as handle:
+            code = re.sub(r"\\\*.*", " ", re.sub(r"\(\*[\s\S]*?\*\)", " ", handle.read()))
+        m = re.search(r"\bEXTENDS\s+(\w+(?:\s*,\s*\w+)*)", code, A)
+        for name in re.split(r"\s*,\s*", m.group(1)) if m else []:
+            path = os.path.join(folder, f"{name}.tla")
+            if f"{name}.tla" not in seen and os.path.exists(path):
+                seen.add(f"{name}.tla")
+                todo.append(path)
+                with open(path, encoding="utf-8") as handle:
+                    texts.append(handle.read())
+    return texts
+
+
+def shared_variables(spec):
+    """The variables of the modules beside `spec` that it extends."""
+    return [
+        name
+        for text in extended_modules(spec)
+        for name in tla_variables(split_comments_keeping_offsets(text)[0])
+    ]
+
+
 def tla_variables(code):
     return [
         name
@@ -329,12 +358,13 @@ def conjuncts(bare, start, to, line_start):
     return [(a, cuts[i] if i < len(cuts) else to) for i, a in enumerate(starts)]
 
 
-def uncited_conditions(text):
+def uncited_conditions(text, shared=()):
     """Each condition of an action that no comment ties to code by a file and line: a conjunct
-    that changes nothing and reads a variable that the action does not change."""
+    that changes nothing and reads a variable that the action does not change. `shared` names
+    the variables of the modules that the text extends."""
     code, notes = split_comments_keeping_offsets(text)
     bare = re.sub(r'"(?:[^"\\\n]|\\.)*"', lambda m: " " * len(m.group()), code)
-    variables = set(tla_variables(bare))
+    variables = set(tla_variables(bare)) | set(shared)
     starts = [0, *(m.start() + 1 for m in re.finditer(r"\n", bare))]
 
     def line_of(at):

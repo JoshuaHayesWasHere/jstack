@@ -1,0 +1,39 @@
+---
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  %% second model (against): the design
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef plainFixed fill:#f4f6f7,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef plainPath fill:#f4f6f7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group0Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Fine" as legendGroup0
+    state "Wrong today" as legendWrong
+    state "Fixed by the design" as legendFixed
+  }
+  class legendGroup0 group0
+  class legendWrong plainWrong
+  class legendFixed plainFixed
+  state "Child a working, crew out,<br/>quiet for its patience" as g0 {
+    state "nothing for you" as s0
+    state "the root nudged a once" as s1
+  }
+  state "Child a working, crew out:<br/>nothing for you" as s2
+  state "Child a working: nothing<br/>for you" as s3
+  state "No child yet: nothing for<br/>you" as s4
+  [*] --> s4
+  s4 --> s3 : 1. the root makes child a
+  s3 --> s2 : 2. child a launches a crew
+  s2 --> s0 : 3. the root's check runs
+  s2 --> s1 : in the design, the root's<br/>check nudges a quiet child
+  class s0 group0Wrong
+  class s1 plainFixed
+  class s2 plainPath
+  class s3 plainPath
+  class s4 group0Path
