@@ -1,26 +1,43 @@
 # Machine-sized limits: three derived counts, everything else stays put
 
-> This page is the design record of the change that derived the machine's sizes, written for jstack's developers on its owner's machines.
+> This page is the design record of the change that derived the machine's sizes.
+> It is written for jstack's developers and covers the owner's machines.
 > It does not describe your machine.
 > [The limits and how to change them](../jgauge/change-a-limit.md) describes each limit for any install, and how to change it.
 
 ## Problem
 
-jstack's limits were sized by hand for adalaide (12 cores) and nudged for yelena (24 cores, 62 GB), and the owner wants machine-neutral defaults derived from what the code can measure, machine values only in local config, and one inventory, `features/jgauge/docs/limits.md`.
+The owner set jstack's limits by hand for adalaide (12 cores), then adjusted them a little for yelena (24 cores, 62 GB).
+The owner wants three things:
+
+- defaults derived from what the code can measure
+- machine values only in local config
+- one inventory of the limits, `features/jgauge/docs/limits.md`
+
 Most of the numbers are not machine sizes at all.
-Room's six lines in `features/jgauge/src/jgauge/room.sh` (`LOAD=200`, `CPU=40`, `MEMORY=6`, `PRESSURE=10`, `CUSHION=100`, `SLOTS=85`) are a share of the cores, pressure shares of time, a floor and percents, which mean the same on any machine.
+Room's six lines in `features/jgauge/src/jgauge/room.sh` are `LOAD=200`, `CPU=40`, `MEMORY=6`, `PRESSURE=10`, `CUSHION=100` and `SLOTS=85`.
+`LOAD` is a share of the cores, `CPU` and `PRESSURE` are shares of time, `MEMORY` is a floor, and `CUSHION` and `SLOTS` are percents.
+Each means the same on any machine.
 The Makefile already sizes `TEST_WORKERS` from the run's own processors.
-Only three numbers are sizes of the machine: the full test slots (`slot.DEFAULT = 3`, with `TEST_SLOTS=4` in the owner's zshenv), the short test slots (`SHORT_SLOTS = 3`), and the crew cap (`MAX_RUNNING = 24`, and `max_running = 24` in `~/.config/jbus/config.toml`).
+Only three numbers are sizes of the machine:
 
-The constraints that shape the answer:
+- the full test slots (`slot.DEFAULT = 3`, with `TEST_SLOTS=4` in the owner's zshenv)
+- the short test slots (`SHORT_SLOTS = 3`)
+- the crew cap (`MAX_RUNNING = 24`, and `max_running = 24` in `~/.config/jbus/config.toml`)
 
-- room.sh stays `sh room.sh`, run by `jgauge room`, by the jbus view and by the tests, and it stays the one copy of its logic.
+The design must meet these constraints:
+
+- room.sh stays a script that `jgauge room`, the jbus view and the tests run as `sh room.sh`.
+  It stays the only implementation of the room check.
 - The Makefile runs in CI containers with `make`, `sh` and `uv`, and no jstack venv.
 - `--slots` and `TEST_SLOTS` stay overrides.
-- `jbus.service` (no shell profile) and every desk or agent shell reach the same slot count, or callers lock different ranges of `test-slot.<n>.lock`.
+- `jbus.service`, which reads no shell profile, and every desk or agent shell must get the same slot count.
+  Otherwise callers lock different ranges of `test-slot.<n>.lock`.
 - The live key `max_running` in jbus's config keeps working.
-- A bad local value refuses in one line, and a fact that cannot be read falls back to a safe value.
-- The worker-budget test in `testing/tests/test_check_command.py` pins `slot.DEFAULT == 3` against 3 runners of quota 4, while the machine has 7 full and 2 fast runners inside infra's slice of 20 CPUs at CPUWeight 50.
+- jstack refuses a bad local value and prints one line.
+  For a fact it cannot read, it uses a safe value.
+- The worker-budget test in `testing/tests/test_check_command.py` asserts `slot.DEFAULT == 3` and assumes 3 runners of quota 4.
+  The machine actually has 7 full and 2 fast runners inside infra's slice of 20 CPUs at CPUWeight 50.
 
 ## Usage (caller's view)
 
@@ -32,14 +49,15 @@ max_running 24  ~/.config/jbus/config.toml (derived: 24)
 room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=100 SLOTS=85  features/jgauge/src/jgauge/room.sh
 ```
 
-To change a machine size, the owner edits one file, which takes these two keys and refuses any other:
+To change a machine size, the owner edits one file.
+`jgauge` accepts these two keys in it and refuses any other:
 
 ```toml
 # ~/.config/jstack/machine.toml
 test_slots = 5
 ```
 
-`jgauge test-slot` (`features/jgauge/src/jgauge/slot.py`):
+`jgauge test-slot` calls `sizes.resolve` like this, in `features/jgauge/src/jgauge/slot.py`:
 
 ```python
 def count(asked: str | None) -> int:
@@ -49,13 +67,13 @@ def count(asked: str | None) -> int:
         raise BadCount(str(error)) from error
 ```
 
-`jbus.load` (`features/jbus/src/jbus/__init__.py`), which keeps the live key:
+`jbus.load`, in `features/jbus/src/jbus/__init__.py`, calls `sizes.resolve` like this and still reads the live key `max_running`:
 
 ```python
 cap = sizes.resolve(sizes.Name.MAX_RUNNING, written=raw.get("max_running"), written_in=path)
 ```
 
-The test that replaces the worker budget runs `make` and holds the derivation to it:
+The test that replaces the worker budget runs `make` and checks the derived slot count against the Makefile's worker count:
 
 ```python
 @pytest.mark.parametrize("cores", [1, 2, 4, 8, 12, 24, 64])
@@ -69,12 +87,15 @@ def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores)
 
 `features/jgauge/src/jgauge/sizes.py` holds the three sizes and nothing else.
 Its types are `Name` (a `StrEnum` of the three keys), `Machine(cores, memory_gib, fell_back)` and `Limit(name, value, came_from, where, derived)`.
-`resolve` is the only maker of a `Limit`, so every value a caller holds is 1 or more.
-Nothing is cached and nothing is written, so a count edited by hand applies to the next take, and two readers at once change nothing.
+Only `resolve` creates a `Limit`, so every value a caller holds is 1 or more.
+`sizes.py` caches nothing and writes nothing.
+So a count that you edit by hand applies the next time a caller takes a slot.
+Two callers that read at the same time cannot change each other's result.
 
-A default reads whole-machine facts only: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`.
+The derivation reads only whole-machine facts: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`.
 It never reads the caller's cgroup quota, affinity or `nproc`, which differ between `jbus.service`, a `systemd-run` scope, an agent's slice and a CI container on the same machine.
-The Makefile's workers do read the quota, on purpose: a run's workers are sized to the run, and a machine's slots to the machine.
+The Makefile does read the quota when it sizes its workers, on purpose.
+The Makefile sizes a run's workers to the run, and `sizes.py` sizes a machine's slots to the machine.
 
 | cores | 2 | 8 | 12 | 24 | 64 |
 |---|---|---|---|---|---|
@@ -83,65 +104,92 @@ The Makefile's workers do read the quota, on purpose: a run's workers are sized 
 | `short_slots = clamp(c // 8, 2, 8)` | 2 | 2 | 2 | 3 | 8 |
 | `max_running = max(1, min(c, GiB // 2))` | 2 | 8 | 12 | 24 | 64 |
 
-The memory column is 4, 16, 32, 62 and 128 GiB.
-Four full slots of six workers on yelena is 24 workers at the measured 0.86 of a core, about 21 cores busy.
-Measured at four suites at once that held CPU pressure at 17 to 29, under room's line of 40, at 2.0 suites a minute; five gained 10% at pressure 30, and six took 195 s a suite at pressure 55 and flaked a test.
-The count is 4 on most machines of 8 cores or more, and 5 on 10, 11 or 15 cores, because the desk share is a quarter: the slots fill the machine once, whatever its size.
-The crew cap derives the 24 the owner set by hand, so no yelena number lives in jstack.
+The table assumes 4, 16, 32, 62 and 128 GiB of memory for the five core counts.
+On yelena, four full slots of six workers each make 24 workers.
+At the measured 0.86 of a core per worker, they keep about 21 cores busy.
+In the measurements, four suites at once held CPU pressure at 17 to 29, under room's line of 40, at 2.0 suites a minute.
+Five suites at once gave 10% more throughput at CPU pressure 30.
+Six took 195 s a suite at CPU pressure 55, and one test failed intermittently.
+The count is 4 on most machines of 8 cores or more, because the desk share is a quarter of the cores.
+On 10, 11 or 15 cores it is 5, because the floor of 2 workers or the rounding leaves room for one more slot.
+On any machine, all the full slots at once run at most one desk worker per processor.
+The crew cap derives the same 24 that the owner set by hand, so jstack's source contains no number specific to yelena.
 
-Each key has one local home.
-`test_slots` and `short_slots` live in `~/.config/jstack/machine.toml`, beside jsettings' `config.toml` and not in it, so that file's strict three keys stay who the user is and the time zone.
-`max_running` stays in jbus's config, where it lives today: jbus hands the raw value to `resolve`, which checks it as it checks any count.
-The order is `--slots`, then `TEST_SLOTS` (both for the full lane only), then the local home, then the derivation.
-`jgauge sizes` prints the derived value beside an override, and a `note:` when `TEST_SLOTS` is set, since `jbus.service` does not see it.
+Each key is set in one local file.
+`test_slots` and `short_slots` go in `~/.config/jstack/machine.toml`, beside jsettings' `config.toml` and not in it.
+That way `config.toml` keeps its strict three keys, which name the user and set the time zone.
+`max_running` stays in jbus's config, where it is today.
+jbus passes the raw value to `resolve`, which checks it as it checks any count.
+The order is `--slots`, then `TEST_SLOTS` (both for the full lane only), then the key's local file, then the derived value.
+`jgauge sizes` prints the derived value beside an override.
+It also prints a `note:` when `TEST_SLOTS` is set, since `jbus.service` does not see that variable.
 
-Shell callers get nothing new: room.sh keeps its six lines and the Makefile its share and quota reading.
-The one copy across the language line is `DESK_SHARE = 4`, which the test above holds to the Makefile's `1 / 4` by running `make`.
-`sample.load_line()` becomes `sample.room_line(name)`, the parser of room.sh's `NAME=` lines, which `jgauge sizes` uses too.
-`sample.PRESSURE_LINE = 10.0` stays: it is the report's own line for "CPU pressure is low", compared with `cpu_some_avg60`, and not a copy of room's memory `PRESSURE`.
+Shell callers get nothing new.
+room.sh keeps its six lines, and the Makefile still sets workers as a share of the processors and still reads the CPU quota.
+One value is kept in both Python and the Makefile: `DESK_SHARE = 4`, which the test above checks against the Makefile's `1 / 4` by running `make`.
+`sample.load_line()` becomes `sample.room_line(name)`, which parses room.sh's `NAME=` lines, and `jgauge sizes` uses it too.
+`sample.PRESSURE_LINE = 10.0` stays.
+It is the report's own threshold for "CPU pressure is low", compared with `cpu_some_avg60`, and not a copy of room's memory `PRESSURE`.
 
-`features/jgauge/docs/limits.md` is hand-written, one row per limit, with where it is set, its value, who set it for which machine, what it protects and the measurement it rests on.
-A test keeps it true: each row that names a constant, a room.sh line or a `sizes.Name` gives the value the code has now.
+`features/jgauge/docs/limits.md` is hand-written, with one row per limit.
+Each row gives where the limit is set, its value, who set it for which machine, what it protects, and the measurement behind it.
+A test checks that each row that names a constant, a room.sh line or a `sizes.Name` gives the value the code has now.
 
-The public surface is `resolve`, `Name`, `Refused`, `every` for the one command, and `derive`, `desk_workers` and `Machine` for tests.
-Behind it are the `/proc` reads with their fallbacks, the precedence, the TOML file, the validation and the derivation.
+The public names are `resolve`, `Name`, `Refused`, `every` for `jgauge sizes`, and `derive`, `desk_workers` and `Machine` for tests.
+Inside the module are the `/proc` reads with their fallbacks, the precedence, the TOML file, the validation and the derivation.
 
 ## Synthesis decision
 
-The arena ran twice, each round with two runners on one prompt and one judge.
-Round one gave two candidates of one shape: a stdlib registry of every number (room's six included) that room.sh and the Makefile run through `python3 -I limits.py` and `eval`, with a generated doc table.
-My scores and the judge's agreed: b was the base for its whole-machine slot count, a for keeping live callers working, and both were bigger than the task.
-That shape costs a Python start on every room look, a Python on PATH for room.sh, and six numbers moved that are not sizes.
-My own whole-shape alternative for step 7, keeping room.sh and the Makefile as they are and deriving only the three sizes, scored higher on blast radius and size, so the frame had missed a shape and round two ran with it in the task.
-Both round-two runners took that shape.
-Round-two a derived 3 full slots on yelena from a three-quarter budget of the cores, and b derived 4, the measured knee, and named every test the change breaks.
-The judge and I picked round-two b, with two grafts and one cut:
+The design comparison (the `arena` playbook) ran in two rounds.
+In each round, two runners answered one prompt and one judge scored them.
+Round one gave two candidates with the same design.
+Both were a stdlib registry of every number, and room.sh and the Makefile read it through `python3 -I limits.py` and `eval`.
+The registry included room's six thresholds.
+A generated table documented the registry.
+My scores and the judge's agreed.
+We took candidate b as the starting point for its whole-machine slot count.
+We took candidate a as the starting point for keeping live callers working.
+Both did more than the task needed.
+That design starts Python on every room check, needs Python on PATH for room.sh, and moves six numbers that are not sizes.
+My own alternative for step 7 kept room.sh and the Makefile as they are and derived only the three sizes.
+It scored higher on blast radius (how much else a change can break) and on size.
+The task as written had left that design out, so round two ran with that design in the task.
+Both round-two runners took that design.
+Round-two a derived 3 full slots on yelena from a budget of three quarters of the cores.
+Round-two b derived 4, the measured knee, and named every test the change breaks.
+The judge and I picked round-two b, took two parts from round-two a, and dropped one part of round-two b:
 
-- Grafts from round-two a: `Limit.derived`, so `jgauge sizes` shows the derived value beside an override, and the doc test that checks each row's value against its source.
-- Rejected from round-two b: folding `sample.PRESSURE_LINE` into room's `CPU` line, since it is a different line with a different meaning.
+- We took two parts from round-two a: `Limit.derived`, so that `jgauge sizes` shows the derived value beside an override, and the doc test that checks each row's value against its source.
+- We cut one part of round-two b: folding `sample.PRESSURE_LINE` into room's `CPU` line, since it is a different line with a different meaning.
 
 ## Tradeoffs accepted
 
-- We accept `max_running` in a different file from the slot counts in exchange for no migration of a live key and one home per key.
-- We accept `TEST_SLOTS` still beating the file in exchange for keeping a one-run override, with a `note:` from `jgauge sizes` for a profile that sets it.
-- We accept one hand-kept copy, `DESK_SHARE`, across the Python and Makefile line in exchange for a Makefile that needs no Python in CI.
-- We accept leaving the runners out of the slot formula: infra's slice bounds them and gives way to the desk at CPUWeight 50, and room's CPU pressure line is the backstop.
-- We accept the suite's measured costs (0.86 of a core a worker, 1.1 GB, 45,000 /tmp files) as the reasoning in comments, re-measured when the suite changes.
+- We accept `max_running` in a different file from the slot counts in exchange for no migration of a live key and one file per key.
+- We accept that `TEST_SLOTS` still overrides the file, in exchange for keeping a one-run override, with a `note:` from `jgauge sizes` for a profile that sets it.
+- We accept one value, `DESK_SHARE`, kept by hand in both Python and the Makefile, in exchange for a Makefile that needs no Python in CI.
+- We accept leaving the runners out of the slot formula.
+  infra's slice caps them, and at CPUWeight 50 it yields CPU to the desk, and room's CPU pressure line catches any overload that is left.
+- We accept recording the suite's measured costs (0.86 of a core a worker, 1.1 GB, 45,000 /tmp files) in code comments as the reason for the numbers, and we measure them again when the suite changes.
 - We accept reading two `/proc` files on each `resolve` in exchange for no cache that goes stale.
 
 ## Alternatives considered
 
-- A registry of every number run by the shell callers through Python (round one): it puts a Python boundary in front of two shell callers that need none and moves six numbers that are not sizes.
-- All three keys in `machine.toml` with jbus's `max_running` as an alias: two homes for one value need a rule for when they differ.
-- A slot count written by jbus into a state file that every caller reads: a second writer of shared state, and a desk caller that breaks where jbus is not running.
+- A registry of every number, which the shell callers run through Python (round one): it makes two shell callers that need no Python start Python, and it moves six numbers that are not sizes.
+- All three keys in `machine.toml`, with jbus's `max_running` as an alias: two places for one value need a rule for when they differ.
+- A slot count written by jbus into a state file that every caller reads: it adds a second writer of shared state, and a desk caller breaks where jbus is not running.
 - Slots derived from the caller's cgroup quota: `jbus.service`, a scope and a container on one machine would count differently.
-- Three slots, from a budget of three quarters of the cores (round-two a): it leaves the knee for less throughput and was not what the owner chose; the load run decides if four holds with crews and runners beside it.
+- Three slots, from a budget of three quarters of the cores (round-two a): it gives less throughput than four slots, the measured knee of the curve, and the owner did not choose it.
+  The load run shows whether four slots still work with crews and runners running beside them.
 
 ## Open questions and risks
 
-- Does four hold with 24 crews and the runners busy at once: the load run of this task answers it, and `test_slots = 3` in the local file is the one-line way back.
-- Should `max_running` have a ceiling that is not the machine's, given that 64 cores would derive 64 crews and only room's checks would hold them?
+- Do four slots still work with 24 crews and the runners busy at once?
+  This task's load run tests that.
+  To go back to three slots, set `test_slots = 3` in the local file.
+- Should `max_running` have a ceiling that does not come from the machine?
+  On 64 cores the formula gives 64 crews, and only `jgauge room` would limit how many launch.
 
 ## Next implementation step
 
-Implement `Machine.here`, `derive`, `count` and `resolve` in `features/jgauge/src/jgauge/sizes.py` with tests over a fake `PROC` tree, then switch `slot.count`, `slot.short` and `jbus.load` to `resolve`.
+Implement `Machine.here`, `derive`, `count` and `resolve` in `features/jgauge/src/jgauge/sizes.py`, with tests over a fake `PROC` tree.
+Then switch `slot.count`, `slot.short` and `jbus.load` to `resolve`.
