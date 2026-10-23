@@ -41,7 +41,7 @@ from jinstall.kinds import (
     Roles,
     StateRepo,
     StatusLine,
-    T3Nightly,
+    T3Code,
     Units,
     claude_homes,
     dead,
@@ -65,7 +65,7 @@ from jinstall.repos import GitHook, checkouts
 from jroles import ledger
 from jroles.inventory import claude_instances
 
-T3_FLOOR: str | None = None
+T3_FLOOR = "0.1.2-nightly.20261022.3526"
 UV_FLOOR: tuple[int, ...] | None = None
 
 
@@ -101,7 +101,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
 
     Needs that the install only probes:
       hard      linux                         Linux
-      hard      t3                            T3Nightly(T3_FLOOR)
+      hard      t3                            T3Code(T3_FLOOR)
       hard      claude                        Program("claude", package="claude-code")
       hard      uv                            Program("uv", floor=UV_FLOOR)
       hard      git                           Program("git", floor=(2, 31))
@@ -169,7 +169,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     relay = machine.config_home() / "jbus-relay" / "env"
     found = [
         Need("linux", Level.HARD, Linux()),
-        Need("t3", Level.HARD, T3Nightly(T3_FLOOR)),
+        Need("t3", Level.HARD, T3Code(T3_FLOOR)),
         Need("claude", Level.HARD, Program("claude", package="claude-code")),
         Need("uv", Level.HARD, Program("uv", floor=UV_FLOOR)),
         Need("git", Level.HARD, Program("git", floor=(2, 31))),
