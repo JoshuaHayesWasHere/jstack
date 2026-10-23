@@ -1,6 +1,6 @@
 # What blocks
 
-Of what waits on you, an item blocks when it is open and nothing can move without you.
+An item that waits on you blocks when it is open and nothing can move without you.
 One function decides it, `waiting.blocking` in `features/jbus/src/jbus/waiting.py`, and the second target, the reminder and the refresh all read it:
 
 | Case | What blocks | From |
@@ -10,35 +10,52 @@ One function decides it, `waiting.blocking` in `features/jbus/src/jbus/waiting.p
 | c | A pull request `jmerge` holds | `waiting-on-user.json` |
 | d | A leftover whose home did not close it in 30 minutes or has none, a config item, an alert that stands, of the project or of the pass, or a gate with a default whose slug has had no event for 30 minutes (`CLOSE_MINUTES`) with no thread at work | `waiting-on-user.json`, `streaks.json`, `events.jsonl` |
 
-A gate with a default whose thread still writes does not block, nor does a row jbus put at `gate`, nor a leftover its home has.
+These do not block: a gate with a default whose thread still writes, a row that jbus put at `gate`, and a leftover that its home has.
 
-Two timers sit beside `CLOSE_MINUTES` in `features/jbus/src/jbus/leftover.py`.
-An item that still blocks `REMIND_MINUTES` (15) after it began to block gets one reminder, and never a second: jbus keeps the key of each item it reminded of in `~/.local/state/jbus/<project>/blocking.json`, a question by its number (`gate:q<n>`), a hold by its pull request (`#<n>`) and anything else by its kind and slug.
-An item that closes before then gets none.
-Every `REFRESH_MINUTES` (60), on the pass that begins the hour, jbus posts every open item, oldest first, whether or not anything changed: an empty list is the all-clear.
-The first pass after the second target is set posts no opening body for what blocks already.
-A gate's context counts for the always-pause words as its question does, and a slug's thread is at work when any of its threads is, a crewmate beside its reviewer included.
+`features/jbus/src/jbus/leftover.py` sets two more timers beside `CLOSE_MINUTES`.
+An item that still blocks `REMIND_MINUTES` (15) after it began to block gets one reminder, and never a second.
+An item that closes within those 15 minutes gets no reminder.
+jbus keeps the key of each item it reminded of in `~/.local/state/jbus/<project>/blocking.json`: a question by its number (`gate:q<n>`), a hold by its pull request (`#<n>`), and anything else by its kind and slug.
+Every `REFRESH_MINUTES` (60), on the pass that begins the hour, jbus posts every open item, oldest first, whether or not anything changed.
+An empty list means nothing blocks.
+Once you set the second target, the first pass posts no opening body for the items that already block.
+jbus checks a gate's context for the `PAUSE` words of case a, as it checks the gate's question.
+A slug's thread is at work when any of its threads is at work, the crewmate's or its reviewer's.
 
 These go to the second target, `blocking_url` and `blocking_key` at the top of the config ([Configuration](../../../jinstall/docs/configuration.md)).
-It is a route of its own, with its outbox, gap, last error, failure streak and status in `blocking/` inside the project's state, so one that is down holds back no other webhook.
-It is posted no event, and nothing quiet.
-With no such pair nothing more is posted.
+The second target is a route of its own, so when it is down it holds back no other webhook.
+Its outbox, gap, last error, failure streak and status are in `blocking/` inside the project's state.
+jbus posts it no events, quiet or not.
+With no such pair, jbus posts nothing more.
 Every body has a top-level `kind`, which the relay routes on:
 
 | `kind` | Sent to | Body |
 |---|---|---|
-| `events` | Every webhook | `{"kind", "say", "events"}`, the events of [Events and the webhook](events-and-the-webhook.md). The second target's has `events` empty, `items` the items that began to block in that pass, batched, and `project` and `at`. It waits on the five-minute gap. |
+| `events` | Every webhook | `{"kind", "say", "events"}`, the events of [Events and the webhook](events-and-the-webhook.md). The body for the second target has an empty `events`, `items` with the items that began to block in that pass, batched, and `project` and `at`. It waits on the five-minute gap. |
 | `reminder` | The second target | `{"kind", "project", "at", "say", "items"}`, the items due a reminder in that pass. It waits on no gap. |
 | `refresh` | The second target | The same, with every open item, oldest first, or none, and `say` is `<project>: nothing blocks`. It waits on no gap, and a newer refresh takes the place of one still in the outbox. |
 
-An item is `{"project", "key", "case", "why", "kind", "line", "since", "opened"}`, with `slug`, `number`, `url`, `question` and `default` where it has them. `case` is the letter above and `why` says it in words. A body that fails stays in the outbox and goes again, in order, once the five-minute gap has passed: a retry waits on the gap whatever it carries. With no second target, jbus judges nothing and writes no `blocking.json`, so the first pass that has the pair reminds of what is already 15 minutes old. The stall that jbus says again each hour (`waiting-on-user`) is quiet and posted nowhere, so the refresh does not double it.
+An item is `{"project", "key", "case", "why", "kind", "line", "since", "opened"}`, with `slug`, `number`, `url`, `question` and `default` where it has them.
+`case` is the letter above, and `why` says it in words.
+A body that fails stays in the outbox and goes again, in order, once the five-minute gap has passed.
+A retry waits on the gap whatever it carries.
+With no second target, jbus judges nothing and writes no `blocking.json`.
+So the first pass that has the pair reminds you of each item that has blocked for 15 minutes already.
+The stall that jbus says again each hour (`waiting-on-user`) is quiet and posted nowhere, so the refresh does not double it.
 
-Where you run [the relay](the-relay.md), an optional server for a chat bot of your own, it pages a second way when the chat bot is silent.
-Nothing from the chat bot is needed to tell, and the page fires in two cases:
+Where you run [the relay](the-relay.md), an optional server for a chat bot of your own, the relay also pages you when the chat bot is silent.
+The relay needs nothing from the chat bot to tell that it is silent, and it pages in two cases:
 
 - **The chat bot did not take it.**
-  A POST on the relay's `blocking` route that fails or times out pages at once, with the event id, for each body that waits on that route, once for each event.
-  A timeout can be a body the chat bot got all the same, so this case may page once too often, never too few.
-- **It still blocks long after its reminder.** An item that a `reminder` or a `refresh` still lists 45 minutes after it began to block (30 minutes after its one reminder; the body's `at` against the item's `opened`) pages once, by its `key` and when it opened. The relay learns that an item closed only from a refresh that leaves it out, so this case fires on the refresh: between 45 minutes and about an hour and three quarters after the item began to block, and not in the first hour after jbus has the second target, which posts no refresh before its hour turns. An item a refresh dropped before then pages nothing, and one that closes and opens again is a new item.
+  When a POST on the relay's `blocking` route fails or times out, the relay pages at once, with the event id.
+  It pages for each body that waits on that route, once for each event.
+  The chat bot may have got a body whose POST timed out, so this case may page once too often, but never too few times.
+- **It still blocks long after its reminder.**
+  If a `reminder` or a `refresh` still lists an item 45 minutes after it began to block, the relay pages once for it, by its `key` and when it opened.
+  That is 30 minutes after its one reminder, measured from the item's `opened` to the body's `at`.
+  The relay learns that an item closed only from a refresh that leaves it out, so this case fires on a refresh.
+  It fires between 45 minutes and about an hour and three quarters after the item began to block.
+  It does not fire in the first hour after you set the second target, because jbus posts no refresh until the next hour begins.
+  An item that a refresh dropped before then pages nothing, and an item that closes and opens again is a new item.
 
 An item the chat bot has acknowledged (a POST of its event id to the relay's `/ack`) does not page in the second case.

@@ -1,7 +1,7 @@
 # The units
 
 `jinstall` links each systemd unit of `features/jbus/units/` into `~/.config/systemd/user/`, reloads systemd, and enables the timers that run jbus.
-In a release the links point into the tool's own copy, `<tool venv>/share/jstack/features/jbus/units/`, and in a checkout into the checkout.
+In a release the links point into the tool's own copy, `<tool venv>/share/jstack/features/jbus/units/`, and in a checkout they point into the checkout.
 Each unit runs `~/.local/bin/jbus`.
 
 | Unit | Runs | When | Enabled by the install |
@@ -16,12 +16,14 @@ Each unit runs `~/.local/bin/jbus`.
 | `jbus-view.service` | `jbus view` | Always on | Never: `systemctl --user enable --now jbus-view.service` starts it |
 
 `jbus.service` stops a pass after 20 minutes (`TimeoutStartSec=20min`).
-`jbus-stale.timer` catches a timer that stopped, which fails no pass ([When jbus fails](when-jbus-fails.md)).
-`jbus-snapshot.timer` is [Back up the homes' state](back-up-the-homes-state.md), `jbus-ci.timer` is [Measure the CI](measure-the-ci.md), `jbus-relay.service` is [The relay](the-relay.md), and `jbus-view.service` is [The view](the-view.md).
+`jbus-stale.timer` catches a timer that stopped.
+A stopped timer starts no pass, so no failed pass reports it ([When jbus fails](when-jbus-fails.md)).
+[Back up the homes' state](back-up-the-homes-state.md) covers `jbus-snapshot.timer`, [Measure the CI](measure-the-ci.md) covers `jbus-ci.timer`, [The relay](the-relay.md) covers `jbus-relay.service`, and [The view](the-view.md) covers `jbus-view.service`.
 
-An optional unit is turned off again by the next install once the config that asked for it is gone.
+Once the config that asked for an optional unit is gone, the next install turns the unit off again.
 `jinstall --check` and `jinstall --doctor` print one `units` line, and [The jbus units](../troubleshooting/the-jbus-units.md) says what each form of it means.
 
-Each unit's `Documentation=` names the page of these docs for what it runs, such as [Set up jbus](set-up-jbus.md) for `jbus.timer`, by where its file is (`%Y`).
+Each unit's `Documentation=` names the page of these docs for what it runs, such as [Set up jbus](set-up-jbus.md) for `jbus.timer`.
+It finds the page by where the unit's file is (`%Y`).
 `systemctl --user show -p Documentation <unit>` prints that page.
 A unit copied in place of the link loses that, and `jinstall --check` reports the copy as old.
