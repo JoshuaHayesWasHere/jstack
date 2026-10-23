@@ -1,7 +1,7 @@
 name: macos
 
-# The whole suite on macOS on Apple Silicon, on each pull request, to learn what fails there
-# before the port lands (the owner's word, 2026-10-22: "informational until the port lands").
+# The whole suite on macOS on Apple Silicon, on each pull request. macOS on Apple Silicon is
+# supported, so the check is required: the home's required-checks names it, and jmerge waits on it.
 # It is a workflow of its own and not a job of check.yml: a run of check.yml has no conclusion
 # until its last job ends, and jmerge counts a green-tree marker only from a run that concluded
 # success (features/jmerge/src/jmerge/green.py), so a slow macOS job there would hold up every
@@ -21,32 +21,25 @@ env:
   UV_VERSION: "0.13.2"
 
 jobs:
-  # It never fails a run or a check. jbus and jmerge read every check of a pull request, not
-  # only the required ones, and a job's own continue-on-error still reports its check as
-  # failed, so each step carries the flag as well. A job cancelled at its cap reads as failed
-  # too, so the suite's step stops first. What failed is in the job's summary, and in one
-  # warning with the count. No merge waits on it: it is in no required-checks.
-  # The suite took 36 minutes there on its first run, 2026-10-22, with 1172 tests failing.
+  # Its check fails when the suite fails. Only the step that lists the failed tests, in the
+  # job's summary and in one warning with the count, carries continue-on-error. The suite's step
+  # stops before the job's cap, so a hung suite still gets its list.
+  # The suite took 36 minutes there on its first run, 2026-10-22.
   macos:
     runs-on: macos-15
-    continue-on-error: true
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        continue-on-error: true
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        continue-on-error: true
         with:
           version: ${{ env.UV_VERSION }}
       - run: uv sync --locked
-        continue-on-error: true
       # GitHub's macOS image has gh and jq, and zsh is the system's shell. This installs gh or
       # jq where a later image drops one. The suite fakes gitleaks, as it does on Linux. Its only
       # bash is /bin/bash, 3.2, and test_portable_shell reads each block with a bash 5 first.
       - name: tools
-        continue-on-error: true
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: >-
@@ -54,7 +47,6 @@ jobs:
           { [ -x "$(brew --prefix)/bin/bash" ] || brew install bash; } && zsh --version
       - name: make check
         id: suite
-        continue-on-error: true
         timeout-minutes: 55
         run: make check JUNIT="$RUNNER_TEMP/junit.xml"
       - name: failed tests
