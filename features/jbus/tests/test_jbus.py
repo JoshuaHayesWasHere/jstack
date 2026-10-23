@@ -78,7 +78,9 @@ def test_nothing_in_the_repo_holds_a_url_a_key_or_a_token(tmp_path):
         REPO / "features/jbus/docs/chef.md",
         REPO / "features/jinstall/docs/configuration.md",
     ]
-    allowed = re.compile(r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|[^/]*[<{$].*)")
+    allowed = re.compile(
+        r"^(127\.0\.0\.1|localhost|example\.(com|test|invalid)|docs\.github\.com|[^/]*[<{$].*)"
+    )
     told = subprocess.run(
         ["sh"],
         input=(REPO / "install.sh").read_text(),

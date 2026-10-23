@@ -112,7 +112,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 4. Pick the repo that you want work done in.
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
-	A job named `check` in a workflow under `.github/workflows/` that runs `on: pull_request` gives the check its name: GitHub's guide "Quickstart for GitHub Actions" shows how to write one.
+	A job named `check` in a workflow under `.github/workflows/` that runs `on: pull_request` gives the check its name: GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to write one.
 	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
 5. Open T3 Code, start a thread in any project, and type the command below with the path of the repo's main checkout.

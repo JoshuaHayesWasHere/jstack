@@ -78,7 +78,8 @@ A linked worktree has no such link, and reads the skill from `features/verify-js
 5. Open the pull request against `main`.
 	The template gives the body its headings: Why, What changed, Scope, Tradeoffs, Blast radius and Verification.
 
-A maintainer approves the first CI run of a pull request from a new contributor.
+A maintainer approves each CI run of a pull request from a fork, since the repo asks approval for every outside contributor.
+So a run waits for that approval each time you push, the fixes of a review included.
 The maintainer reviews the pull request and leaves the findings as comments on it.
 Push the fixes to the same branch.
 The maintainer merges it once the findings are fixed and `check` and `borders` pass.
