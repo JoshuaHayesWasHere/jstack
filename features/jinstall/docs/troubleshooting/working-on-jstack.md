@@ -1,7 +1,7 @@
 # The lines of a checkout
 
 This page is for working on jstack, in a checkout of its repo.
-There `sh install.sh` runs the install, and takes the verbs of `jinstall`: `sh install.sh --doctor`, `--check`, `--setup`, `--repo [<path>]` and `--uninstall`.
+In a checkout, `sh install.sh` runs the install and takes the verbs of `jinstall`: `sh install.sh --doctor`, `--check`, `--setup`, `--repo [<path>]` and `--uninstall`.
 Wherever another troubleshooting page says to run `jinstall`, a checkout runs `sh install.sh` with the same flag.
 The lines below print only in a checkout.
 [Contributing](../../../../CONTRIBUTING.md) has the setup.
@@ -48,10 +48,10 @@ A skill for working on jstack, such as `verify-jstack`, is linked into the check
 | `missing hard <checkout>/<folder>/<name>` | The link for one of the checkout's own skills is not there. `<folder>` is `.claude/skills` or `.cursor/skills`. | Run `sh install.sh`. |
 | `old hard <checkout>/<folder>/<name> -> <path>, a skill no feature declares` | The link is left from a skill whose feature no longer names it under `projectSkills`. | Run `sh install.sh`. It removes the link. |
 | `old hard <checkout>/<folder>/<name> -> <path>` | The link points somewhere else. | Run `sh install.sh`. It points the link at the skill's feature. |
-| `old hard <checkout>/<folder>/<name> -> not a link` | A file or a directory is where the link goes. The install never replaces it. | Move it away, then run `sh install.sh`. |
+| `old hard <checkout>/<folder>/<name> -> not a link` | A file or a directory is in the link's place. The install never replaces it. | Move it away, then run `sh install.sh`. |
 
 ## A host with nothing on it
 
 `scripts/fresh-host.sh` runs `--setup` on a fresh host: a throwaway `archlinux` container with the checkout's `HEAD` cloned in, `uv`, `git` and `jq` installed, and stand-ins for `t3`, `claude`, `gh`, `lavish-axi` and `systemctl`.
-It fails unless the doctor then says `doctor: ok`, a second `--setup` writes nothing, and the only `needs you` line left is `claude`.
+It passes only when the doctor then says `doctor: ok`, a second `--setup` writes nothing, and the only `needs you` line left is `claude`.
 It starts a container, so run it under the heavy-suite lock: `flock ~/.local/state/locks/heavy-suite.lock sh scripts/fresh-host.sh`.
