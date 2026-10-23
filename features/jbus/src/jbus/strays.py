@@ -28,9 +28,9 @@ stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each 
 KILL to one still running `GRACE` seconds later, for a process that has the same start time.
 
 For each task with a process stopped, `stop` says one line, which the unit's journal keeps, with
-the count and the commands. It also adds one `Left running:` line to the end of the brief, under
-its last Result, or under the scout's last Report. Where there is no Result or Report yet, the
-line waits in `left-running.json` and goes in once one is written.
+the count and the commands. It also adds one `Left running:` line at the end of the brief's last
+Result, or of the scout's last Report, above a Review or any other section after it. Where there
+is no Result or Report yet, the line waits in `left-running.json` and goes in once one is written.
 """
 
 from __future__ import annotations
@@ -178,9 +178,12 @@ def _asked(path: Path) -> str:
                     continue
                 if not isinstance(entry, dict) or entry.get("type") != "user":
                     continue
-                content = (entry.get("message") or {}).get("content")
+                message = entry.get("message")
+                content = message.get("content") if isinstance(message, dict) else None
                 if isinstance(content, list):
-                    content = " ".join(str(one.get("text", "")) for one in content)
+                    content = " ".join(
+                        str(one.get("text", "")) for one in content if isinstance(one, dict)
+                    )
                 return str(content or "")
     except OSError:
         pass
@@ -322,13 +325,17 @@ def _note(run: Pass, notes: dict[str, str]) -> None:
     for name, line in waiting.items():
         file = Path(name)
         try:
-            text = file.read_text()
+            text = file.read_text(errors="replace")
         except OSError:
             continue
-        if not re.search(r"^## (Result|Report)", text, re.M):
+        found = list(re.finditer(r"^## (Result|Report)", text, re.M))
+        if not found:
             kept[name] = line
             continue
-        file.write_text(text + ("" if text.endswith("\n") else "\n") + line + "\n")
+        after = re.search(r"^## ", text[found[-1].end() :], re.M)
+        end = found[-1].end() + after.start() if after else len(text)
+        head, rest = text[:end].rstrip("\n"), text[end:]
+        file.write_text(f"{head}\n{line}\n" + (f"\n{rest}" if rest else ""))
     if kept or path.exists():
         write_json(path, kept)
 
