@@ -49,6 +49,10 @@ CI_PATHS = PACKAGE / "ci-paths.txt"
 INTEGRATION = "integration"
 REQUIRED_CHECKS = "required-checks"
 JUDGED_AGAIN_AT_MOST = 2
+LANDED = {
+    "--merge": "landed with a merge commit",
+    "--squash": "landed as a squash: each unit's pull request into {branch} is its own record",
+}
 TIMEOUT_SECONDS = 120
 
 
@@ -1233,6 +1237,32 @@ class Repo:
             return None
         return [message.strip() for message in ran.stdout.split("\0") if message.strip()]
 
+    @functools.cached_property
+    def landing(self) -> tuple[str, str]:
+        """The flag of `gh pr merge` that lands an integration branch, read once a run from what
+        the repo allows: a merge commit where it allows one, else a squash. With neither, or
+        when GitHub does not say, the flag is empty and the reason says why:
+        https://docs.github.com/en/rest/repos/repos#get-a-repository"""
+        ran = subprocess.run(
+            ["gh", "api", "repos/{owner}/{repo}"],
+            cwd=self.main,
+            capture_output=True,
+            text=True,
+            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+        )
+        try:
+            said = json.loads(ran.stdout) if not ran.returncode else None
+        except ValueError:
+            said = None
+        if not isinstance(said, dict):
+            return "", f"{ready.NO_SETTINGS}: {_said(ran)}"
+        if said.get("allow_merge_commit") is True:
+            return "--merge", ""
+        if said.get("allow_squash_merge") is True:
+            return "--squash", ""
+        allowed = "rebase merges" if said.get("allow_rebase_merge") is True else "no merge method"
+        return "", ready.LANDING_UNALLOWED.format(allowed=allowed)
+
     def merge(
         self,
         one: ready.PullRequest,
@@ -1260,7 +1290,10 @@ class Repo:
                 return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
             rebase, judged = again_judged.note, again_judged.judged
         landing = one.base == self.trunk and one.branch in self.integration
-        if landing:
+        method, why = self.landing if landing else ("--squash", "")
+        if not method:
+            return lines.waits("wait", number, one.url, why)
+        if method == "--merge":
             subject, body = (), one.title
         else:
             messages = self.messages(one)
@@ -1274,7 +1307,7 @@ class Repo:
             "pr",
             "merge",
             number,
-            "--merge" if landing else "--squash",
+            method,
             "--match-head-commit",
             one.head,
             *subject,
@@ -1290,6 +1323,8 @@ class Repo:
         notes = [rebase] if rebase else []
         if self.trunk and one.base != self.trunk:
             notes.insert(0, f"into {one.base}")
+        if landing:
+            notes.insert(0, LANDED[method].format(branch=one.branch))
         asked = _run(
             self.main,
             "gh",
@@ -1606,7 +1641,7 @@ def parser() -> argparse.ArgumentParser:
         "branch nor one the integration file in the repo's state names is never merged, and "
         "one whose brief has a Stack: line only with --land. One into an integration branch "
         "is judged against that branch, and the one that lands it on the default branch "
-        "merges with a merge commit. "
+        "merges with a merge commit where the repo allows one, else as a squash. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
         "(features/jmerge/src/jmerge/ci-paths.txt), or a caller of its files or something "
