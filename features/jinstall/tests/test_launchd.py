@@ -340,22 +340,25 @@ def test_a_pass_that_ends_well_tells_nobody(tmp_path):
     assert (code, asked) == (0, ["jbus poll"])
 
 
+def outlived(session):
+    """Whether a process of `session` is still there a few seconds on. Kill any that is."""
+    for _ in range(500):
+        if subprocess.run(["pgrep", "-s", str(session)], capture_output=True).returncode:
+            return False
+        time.sleep(0.01)
+    subprocess.run(["pkill", "-KILL", "-s", str(session)])
+    return True
+
+
 def left_running(program, env):
-    """Run the agent once in a process group of its own, and say whether a process of that
-    group outlives it by more than a few seconds. Kill any that does."""
+    """Run the agent once in a session of its own, and say whether a process of that session
+    outlives it."""
     run = subprocess.Popen(
         program, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True
     )
     with run.stdout:
         run.wait(timeout=30)
-        for _ in range(500):
-            try:
-                os.killpg(run.pid, 0)
-            except ProcessLookupError:
-                return False
-            time.sleep(0.01)
-        os.killpg(run.pid, signal.SIGKILL)
-        return True
+        return outlived(run.pid)
 
 
 def test_a_pass_stopped_at_any_point_of_its_start_timeout_leaves_no_process_behind(tmp_path):
@@ -366,6 +369,25 @@ def test_a_pass_stopped_at_any_point_of_its_start_timeout_leaves_no_process_behi
     with ThreadPoolExecutor(8) as runs:
         left = sum(runs.map(lambda _: left_running(program, env), range(1000)))
     assert left == 0
+
+
+def test_an_agent_launchd_stops_mid_pass_leaves_no_process_behind(tmp_path):
+    """launchd stops a job with a TERM to its process group, and the watcher of the start
+    timeout goes with the rest of the agent."""
+    program, env = agent_made(tmp_path, "jbus.timer", {"jbus": "sleep 30"})
+    run = subprocess.Popen(
+        program, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True
+    )
+    with run.stdout:
+        calls = tmp_path / "calls"
+        for _ in range(500):
+            if calls.exists():
+                break
+            time.sleep(0.01)
+        time.sleep(0.5)
+        os.killpg(run.pid, signal.SIGTERM)
+        run.wait(timeout=30)
+        assert not outlived(run.pid)
 
 
 @pytest.mark.parametrize(("exit", "code"), [(2, 0), (1, 1)])
