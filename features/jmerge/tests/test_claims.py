@@ -118,6 +118,14 @@ def test_a_claims_line_reads_back_as_the_paths_it_holds(claims):
     assert beta is None
 
 
+def test_a_diff_path_with_parentheses_or_a_space_reads_back_whole(claims):
+    claims.write("alpha", result=result(PULLS.format(12)))
+    changed = ["client/src/routes/(app)/calendar/+page.svelte", "docs/a file.md"]
+    claims.open(12, files={12: changed})
+    (line,) = claims.run()
+    assert rules.held(line).diff == tuple(changed)
+
+
 def test_a_brief_whose_pull_request_is_no_longer_open_claims_nothing(claims):
     claims.write("alpha", result=result(PULLS.format(12)))
     claims.write("beta")

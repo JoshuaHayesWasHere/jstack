@@ -48,7 +48,15 @@ def held(line: str) -> Held | None:
     if not cut:
         head, diff = rest, ""
     where = parse.where(head[head.index("Where:") :]) if "Where:" in head else ()
-    return Held(slug, where, parse.where(f"Where: {diff}") if diff else ())
+    return Held(slug, where, _paths(diff))
+
+
+def _paths(diff: str) -> tuple[str, ...]:
+    """Read back the paths `Claim.line` wrote after `Diff:`, each whole: a changed file is no
+    prose, so a `(app)` or a space in it is part of the path. A directory loses its closing
+    `/`, as `jbriefs.parse.where` drops it."""
+    inner = diff.strip().removeprefix("`").removesuffix("`")
+    return tuple(path.rstrip("/") for path in inner.split("`, `") if path) if inner else ()
 
 
 def _where(text: str) -> str:
