@@ -43,7 +43,7 @@ The relay sends two routes, both to the relay's webhook, and each POST says whic
 | Route | What it sends |
 |---|---|
 | `everything` | Every body as it came. |
-| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends the whole of a `reminder` or a `refresh`. It also sends the whole of an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`. It then cuts `say` to the `say` lines of those events. The relay does not send a body with none of these on this route. |
+| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends the whole of a `reminder` or a `refresh`. It also sends the whole of an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user`, the level a decision, a sign-in or an alert has unless its caller gave it the lower one. It then cuts `say` to the `say` lines of those events. The relay does not send a body with none of these on this route. |
 
 Each body the relay takes has an id.
 The id is the body's own `id` when that is a short name of letters, digits, `.`, `_` and `-`.
