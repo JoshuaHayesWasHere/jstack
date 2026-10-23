@@ -116,8 +116,8 @@ from jbus.live import LIVENESS, OUT
 from jbus.threads import OTHER, REPORT, ROLES
 from jbus.threads import shown as shown_roles
 from jbus.view import panels
-from jbus.view.homes import GROUP, Homes
 from jbus.view.clean import ANY, HOST, keep
+from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
 
 APPROVAL = 400

@@ -15,12 +15,20 @@ pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAU
 GROUPS = """window.__errs = [];
 window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
 window.addEventListener("load", function () { setTimeout(function () {
-  var all = function (sel, el) { return [].slice.call((el || document).querySelectorAll(sel)); };
-  var out = { errors: window.__errs, rows: all("#prog li").length, groups: all("#prog .pgg").map(function (s) {
+  var all = function (sel, el) {
+    return [].slice.call((el || document).querySelectorAll(sel));
+  };
+  var text = function (el) { return el.textContent; };
+  var row = function (l) {
+    return { key: l.getAttribute("data-key"), chips: all(".chip", l).map(text) };
+  };
+  var group = function (s) {
     var h = s.querySelector(".pgh");
     return { home: s.getAttribute("data-key"), head: h.hidden ? null : h.textContent,
-      rows: all("li", s).map(function (l) { return { key: l.getAttribute("data-key"), chips: all(".chip", l).map(function (c) { return c.textContent; }) }; }) };
-  }) };
+      rows: all("li", s).map(row) };
+  };
+  var out = { errors: window.__errs, rows: all("#prog li").length };
+  out.groups = all("#prog .pgg").map(group);
   var pre = document.createElement("pre");
   pre.id = "probe";
   pre.textContent = JSON.stringify(out);
