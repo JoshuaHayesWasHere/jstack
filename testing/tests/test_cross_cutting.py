@@ -8,10 +8,11 @@ so a change to one of them does not select it, and main goes red after the merge
 `test_view_sources.py` reads.
 
 A test reads the real tree when it calls `glob`, `rglob`, `iterdir` or `walk` on a path built from
-`REPO` or `ROOT`, when it iterates what `sources()`, `skills()` or `playbooks()` of `testing.paths`
-found there, or when it runs `git ls-files` with `REPO`. A path the test builds from `tmp_path` is
-no read of the tree. Nor is a helper whose result the test only looks one name up in, such as
-`skills()["home"]`: the test spells the name, and the script follows it.
+`REPO`, `ROOT` or `assembled()` (this checkout placed as a layout), when it iterates what
+`sources()`, `skills()` or `playbooks()` of `testing.paths` found there, or when it runs
+`git ls-files` with `REPO`. A path the test builds from `tmp_path` is no read of the tree. Nor
+is a helper whose result the test only looks one name up in, such as `skills()["home"]`: the
+test spells the name, and the script follows it.
 """
 
 import ast
@@ -28,6 +29,7 @@ SPEC.loader.exec_module(select)
 
 ROOTS = {"REPO", "ROOT"}
 HELPERS = {"sources", "skills", "playbooks"}
+LAYOUTS = {"assembled"}
 READS = {"glob", "rglob", "iterdir", "walk"}
 WRAPPERS = {"sorted", "list", "tuple", "set", "Path"}
 
@@ -91,6 +93,8 @@ class Reader:
         function = node.func
         if isinstance(function, ast.Name) and function.id in HELPERS:
             return all(self.real(one) for one in node.args)
+        if isinstance(function, ast.Name) and function.id in LAYOUTS:
+            return True
         if isinstance(function, ast.Name) and function.id in WRAPPERS and node.args:
             return self.real(node.args[0])
         return isinstance(function, ast.Attribute) and self.real(function.value)
@@ -163,8 +167,17 @@ def test_every_test_file_that_reads_the_real_tree_is_cross_cutting():
         "SKILLS = [folder / 'SKILL.md' for folder in skills().values()]\n",
         "listed = subprocess.run(['git', '-C', REPO, 'ls-files'], capture_output=True)\n",
         "for at, dirs, files in os.walk(ROOT / 'features'):\n    pass\n",
+        "SKILLS = assembled() / 'skills'\nfiles = sorted(SKILLS.glob('*/SKILL.md'))\n",
     ],
-    ids=["a glob of the root", "a folder of tests", "sources", "skills", "git ls-files", "a walk"],
+    ids=[
+        "a glob of the root",
+        "a folder of tests",
+        "sources",
+        "skills",
+        "git ls-files",
+        "a walk",
+        "a layout",
+    ],
 )
 def test_a_read_of_the_checkout_is_a_read_of_the_tree(source):
     assert reads(source)
@@ -178,8 +191,16 @@ def test_a_read_of_the_checkout_is_a_read_of_the_tree(source):
         "SKILL = skills()['home'] / 'SKILL.md'\n",
         "SKILLS = skills()\nLOG = SKILLS['show-me-your-work'] / 'log.sh'\n",
         "for node in ast.walk(tree):\n    pass\n",
+        "SKILL = assembled() / 'skills' / 'home' / 'SKILL.md'\n",
     ],
-    ids=["tmp_path", "a REPO of its own", "one skill", "a name only indexed", "ast.walk"],
+    ids=[
+        "tmp_path",
+        "a REPO of its own",
+        "one skill",
+        "a name only indexed",
+        "ast.walk",
+        "one file of a layout",
+    ],
 )
 def test_a_read_of_a_folder_the_test_made_or_of_one_named_file_is_not(source):
     assert reads(source) == []

@@ -119,6 +119,7 @@ Cross-cutting:
 - `features/home/tests/test_flow_doc.py`
 - `features/home/tests/test_home_merge.py`
 - `features/home/tests/test_home_merge_guard.py`
+- `features/home/tests/test_home_no_jmerge.py`
 - `features/home/tests/test_home_thread.py`
 - `features/jbus/tests/test_jbus.py`
 - `features/jdrift/tests/test_jstack_explained.py`
