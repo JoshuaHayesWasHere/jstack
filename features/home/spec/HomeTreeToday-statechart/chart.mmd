@@ -1,0 +1,56 @@
+---
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  %% second model (against): the design
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef plainFixed fill:#f4f6f7,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group0Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Fine" as legendGroup0
+    state "Wrong today" as legendWrong
+    state "Fixed by the design" as legendFixed
+  }
+  class legendGroup0 group0
+  class legendWrong plainWrong
+  class legendFixed plainFixed
+  state "Child a working, crew out,<br/>quiet for its patience" as g0 {
+    state "nothing for you" as s0
+    state "the root nudged a once" as s1
+  }
+  state "Child a working, pull<br/>request ready" as g1 {
+    state "jbus merging child a's<br/>pull request" as s2
+    state "nothing for you" as s3
+    state "the root merging child a's<br/>pull request" as s4
+  }
+  state "Child a retired, crew out:<br/>nothing for you" as s5
+  state "Child a working, crew out:<br/>nothing for you" as s6
+  state "Child a working, pull<br/>request open: nothing for<br/>you" as s7
+  state "Child a working: nothing<br/>for you" as s8
+  state "No child yet: nothing for<br/>you" as s9
+  [*] --> s9
+  s9 --> s8 : the root makes child a
+  s8 --> s6 : child a launches a crew
+  s6 --> s7 : child a's crew opens its pull<br/>request
+  s6 --> s5 : you retire child a
+  s6 --> s0 : the root's check runs
+  s7 --> s3 : child a's pull request is<br/>green and reviewed
+  s3 --> s4 : the root reads main to merge<br/>child a's pull request
+  s6 --> s1 : in the design, the root's<br/>check nudges a quiet child
+  s3 --> s2 : in the design, jbus reads main<br/>to merge child a's pull<br/>request
+  s6 --> s6 : in the design, you retire<br/>child a cannot happen
+  class s5 group0Wrong
+  class s0 group0Wrong
+  class s1 plainFixed
+  class s6 plain
+  class s7 plain
+  class s2 plainFixed
+  class s3 plain
+  class s4 group0Wrong
+  class s8 plain
+  class s9 group0

@@ -1244,7 +1244,9 @@ def group(v):
 
 
 NOTE = """---- MODULE Note ----
-VARIABLES screen, text
+VARIABLES
+    screen,  \\* what the app shows
+    text     \\* the note
 vars == <<screen, text>>
 Init == screen = "Editing" /\\ text = "draft"
 TypeOK == screen \\in {"Editing", "Saving", "Saved"}

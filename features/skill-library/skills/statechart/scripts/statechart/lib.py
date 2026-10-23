@@ -225,6 +225,15 @@ def extended_modules(spec):
     return texts
 
 
+def shared_variables(spec):
+    """The variables of the modules beside `spec` that it extends."""
+    return [
+        name
+        for text in extended_modules(spec)
+        for name in tla_variables(split_comments_keeping_offsets(text)[0])
+    ]
+
+
 def tla_variables(code):
     return [
         name
