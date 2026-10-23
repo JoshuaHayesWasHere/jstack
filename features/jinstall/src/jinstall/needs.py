@@ -32,8 +32,8 @@ from jinstall.kinds import (
     Kind,
     Limits,
     Link,
-    Linux,
     Patterns,
+    Platform,
     Program,
     ProviderInstance,
     ProviderInventory,
@@ -41,7 +41,7 @@ from jinstall.kinds import (
     Roles,
     StateRepo,
     StatusLine,
-    T3Nightly,
+    T3Code,
     Units,
     claude_homes,
     dead,
@@ -65,7 +65,7 @@ from jinstall.repos import GitHook, checkouts
 from jroles import ledger
 from jroles.inventory import claude_instances
 
-T3_FLOOR: str | None = None
+T3_FLOOR = "0.1.2-nightly.20261022.3526"
 UV_FLOOR: tuple[int, ...] | None = None
 
 
@@ -100,13 +100,13 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     layout's line says why.
 
     Needs that the install only probes:
-      hard      linux                         Linux
-      hard      t3                            T3Nightly(T3_FLOOR)
-      hard      claude                        Program("claude", package="claude-code")
+      hard      platform                      Platform, ok on Linux and macOS
+      hard      t3                            T3Code(T3_FLOOR)
+      hard      claude                        Program("claude", arch="claude-code", ...)
       hard      uv                            Program("uv", floor=UV_FLOOR)
       hard      git                           Program("git", floor=(2, 31))
       hard      jq                            Program("jq", floor=(1, 6))
-      hard      gh                            Program("gh", package="github-cli")
+      hard      gh                            Program("gh", arch="github-cli")
       hard      gh sign-in                    GhSignIn
       optional  jbus config <path>            JbusConfig, seeded
       optional  jbus sign-in <path>           JbusSignIn
@@ -168,13 +168,17 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     state = _state_tree(machine)
     relay = machine.config_home() / "jbus-relay" / "env"
     found = [
-        Need("linux", Level.HARD, Linux()),
-        Need("t3", Level.HARD, T3Nightly(T3_FLOOR)),
-        Need("claude", Level.HARD, Program("claude", package="claude-code")),
+        Need("platform", Level.HARD, Platform()),
+        Need("t3", Level.HARD, T3Code(T3_FLOOR)),
+        Need(
+            "claude",
+            Level.HARD,
+            Program("claude", arch="claude-code", brew="--cask claude-code"),
+        ),
         Need("uv", Level.HARD, Program("uv", floor=UV_FLOOR)),
         Need("git", Level.HARD, Program("git", floor=(2, 31))),
         Need("jq", Level.HARD, Program("jq", floor=(1, 6))),
-        Need("gh", Level.HARD, Program("gh", package="github-cli")),
+        Need("gh", Level.HARD, Program("gh", arch="github-cli")),
         Need("gh sign-in", Level.HARD, GhSignIn()),
         Need(f"jbus config {jbus}", Level.OPTIONAL, JbusConfig(jbus)),
         Need(

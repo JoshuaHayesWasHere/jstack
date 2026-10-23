@@ -39,8 +39,8 @@ jstack runs only when every **hard** need is met.
 
 | Need | Level | Notes |
 |---|---|---|
-| Linux | hard | Or Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). macOS on Apple Silicon is in progress. |
-| T3 Code, the nightly build | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.1.2-nightly.20261022.3526`. |
+| Linux or macOS | hard | Apple Silicon, or [WSL2](features/jinstall/docs/windows-wsl2.md). |
+| T3 Code | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Stable or nightly, `0.1.2-nightly.20261022.3526` or newer, which stable `0.1.2` meets. jstack is tested on that nightly, and on stable `0.1.2` by its source, which holds that nightly. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
