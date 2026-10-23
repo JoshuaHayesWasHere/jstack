@@ -14,7 +14,6 @@ from testing.paths import sources
 CAP = 800
 OVER = {
     "jbus/questions.py": 860,
-    "jbus/wake.py": 901,
     "jmerge/ready.py": 1062,
     "jinstall/kinds.py": 1098,
     "jbus/watch.py": 1112,
