@@ -15,7 +15,9 @@ whose source it names, as a link belongs to the install whose layout it points i
 
 Every agent runs its command through `/bin/sh`, which first prints `jstack: started <epoch>`.
 launchd keeps no journal of an agent, so it writes what the agent says to `log`, and the marker
-lets a reader keep the runs of a time window, as `journalctl --since` does (`recent`).
+lets a reader keep the runs of a time window, as `journalctl --since` does. What a reader needs
+of an agent, its label, its log and how to read both, is jbus's (`jbus.launchd`), which this
+module uses.
 """
 
 import plistlib
@@ -24,14 +26,8 @@ import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
-PREFIX = "jstack."
-NOT_LOADED = (3, 113)
-"""What `launchctl print` and `bootout` exit with for a service the domain does not have: 113,
-or 3 (ESRCH) on older releases."""
-STARTED = "jstack: started "
-TIMED_OUT = "jstack: Failed with result 'timeout'"
-"""What the shell says when it stops a command at its start timeout: the words systemd's journal
-gives, which `jbus.health` counts."""
+from jbus.launchd import STARTED, TIMED_OUT, label, log
+
 HOMEBREW = "/opt/homebrew/bin"
 """Where Homebrew puts its programs on Apple Silicon, `gh` and `jq` among them, which the PATH of
 each agent has after `~/.local/bin`."""
@@ -82,16 +78,6 @@ class Agent:
     script: str
     environment: dict[str, str] = field(default_factory=dict)
     schedule: dict = field(default_factory=dict)
-
-
-def label(unit: str) -> str:
-    """The agent's label, `jstack.<the unit's stem>`: `jstack.jbus` for jbus.timer."""
-    return PREFIX + unit.rsplit(".", 1)[0]
-
-
-def log(home: Path, name: str) -> Path:
-    """Where launchd writes what the agent of label `name` says."""
-    return home / "Library" / "Logs" / "jstack" / f"{name}.log"
 
 
 def read_unit(path: Path) -> dict[tuple[str, str], list[str]]:
@@ -260,29 +246,3 @@ def made_from(said: str) -> str | None:
     if start < 0:
         return None
     return said[start + len(MADE) :].partition("; it rewrites")[0]
-
-
-def parse_print(said: str) -> dict[str, str]:
-    """The `key = value` lines of `launchctl print`, at any depth, the first of each key."""
-    found: dict[str, str] = {}
-    for line in said.splitlines():
-        key, sep, value = line.strip().partition(" = ")
-        if sep and not value.endswith("{"):
-            found.setdefault(key, value)
-    return found
-
-
-def recent(lines: list[str], after: float) -> list[str]:
-    """The lines of each run that started at `after` or later, by the start marker that opens
-    each run. The markers are not among them."""
-    kept, started = [], None
-    for line in lines:
-        if line.startswith(STARTED):
-            try:
-                started = int(line.removeprefix(STARTED))
-            except ValueError:
-                started = None
-            continue
-        if started is not None and started >= after:
-            kept.append(line)
-    return kept

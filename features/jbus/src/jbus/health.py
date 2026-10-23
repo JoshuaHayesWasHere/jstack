@@ -62,9 +62,8 @@ from typing import Any
 import jbus
 import jroles
 import jsettings
-from jbus import alert, read_json, verbs, wake
+from jbus import alert, launchd, read_json, verbs, wake
 from jbus import relay as relaying
-from jinstall import launchd
 from jroles import ledger, pool
 
 FULL = 80

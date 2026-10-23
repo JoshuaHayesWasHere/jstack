@@ -9,10 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from jbus import health
+from jbus import health, launchd
 from jbus.view.panels.checks import panel as checks
 from jbus.view.panels.pulse import panel as pulse
-from jinstall import launchd
 from testing.paths import REPO
 
 LAUNCHCTL = REPO / "features" / "verify-jstack" / "project-skill" / "scripts" / "fake-launchctl"
@@ -129,3 +128,9 @@ def test_the_runners_are_the_runner_agents_launchd_lists(fake):
         {"unit": "actions.runner.me-jstack.mac-1", "active": "active", "sub": "running"},
         {"unit": "actions.runner.me-jstack.mac-2", "active": "inactive", "sub": "dead"},
     ]
+
+
+def test_a_reader_keeps_the_runs_of_its_window_by_their_start_markers():
+    lines = ["before", f"{launchd.STARTED}100", "old", f"{launchd.STARTED}200", "new", "newer"]
+    assert launchd.recent(lines, 150) == ["new", "newer"]
+    assert launchd.recent(lines, 50) == ["old", "new", "newer"]

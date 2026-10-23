@@ -1,6 +1,6 @@
 """Whether the bus is alive: the timer and the service as systemd reports them, the last pass,
 the status file, and which code of the view answers. On macOS launchd runs the timer and the
-service as one agent (`jinstall.launchd`), and `launchd` gives its answer in systemd's words.
+service as one agent (`jbus.launchd`), and `launchd` gives its answer in systemd's words.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than `QUIET`
 seconds ago and systemd does not report a pass running now. A pass that starts and crashes each
@@ -16,6 +16,7 @@ import sys
 from datetime import datetime
 from typing import Any
 
+from jbus import launchd as agents
 from jbus.view.clean import ANY
 from jbus.view.state import (
     PASS_FILE,
@@ -30,7 +31,6 @@ from jbus.view.state import (
     text,
     when,
 )
-from jinstall import launchd as agents
 from jmerge import mainjson
 
 FIRST = True

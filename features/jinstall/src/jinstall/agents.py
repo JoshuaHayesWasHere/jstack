@@ -5,6 +5,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from jbus.launchd import NOT_LOADED
 from jinstall import launchd
 from jinstall.kinds import Found, Kind, split
 from jinstall.machine import Dropped, Machine, Refused
@@ -85,7 +86,7 @@ class Agents:
         ran = machine.launchctl("print", self._service(machine, agent))
         if ran is None or ran.code is None:
             return None
-        if ran.code == 0 or ran.code in launchd.NOT_LOADED:
+        if ran.code == 0 or ran.code in NOT_LOADED:
             return ran.code == 0
         said = ran.out.strip().splitlines()
         return f"launchctl print {self._service(machine, agent)}: {said[-1] if said else ran.code}"

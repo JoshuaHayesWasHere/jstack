@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from jbus.launchd import STARTED, TIMED_OUT, label
 from jinstall import launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
@@ -64,7 +65,7 @@ class Mac(User):
         return line_for(report.lines, self.line)
 
     def plist(self, name):
-        return self.agents / f"{launchd.label(name)}.plist"
+        return self.agents / f"{label(name)}.plist"
 
     def calls(self, word):
         return [line for line in self.said(self.launchctl_log) if line.startswith(word)]
@@ -87,13 +88,13 @@ def test_setup_writes_and_bootstraps_each_agent_and_a_second_run_writes_nothing(
 
     assert line_for(setup(mac.machine()).lines, mac.line) == [f"done {mac.line}"]
     assert sorted(path.name for path in mac.agents.iterdir()) == sorted(
-        f"{launchd.label(name)}.plist" for name in TIMERS
+        f"{label(name)}.plist" for name in TIMERS
     )
     assert mac.bootstraps() == wanted(mac, TIMERS)
     assert all(line.split()[1] == GUI for line in mac.calls("bootstrap"))
     for name in TIMERS:
         said = plistlib.loads(mac.plist(name).read_bytes())
-        assert said["Label"] == launchd.label(name)
+        assert said["Label"] == label(name)
         assert launchd.made_from(mac.plist(name).read_text()) == str(REPO)
 
     before, calls = mac.snapshot(), len(mac.said(mac.launchctl_log))
@@ -146,7 +147,7 @@ def test_uninstall_boots_out_each_agent_and_removes_its_plist(mac):
         f"removed agent {path}" for path in wanted(mac, TIMERS)
     ]
     assert sorted(line.split()[-1] for line in mac.calls("bootout")) == sorted(
-        f"{GUI}/{launchd.label(name)}" for name in TIMERS
+        f"{GUI}/{label(name)}" for name in TIMERS
     )
     assert not mac.agents.exists() or not list(mac.agents.iterdir())
     assert not list(mac.loaded.iterdir())
@@ -204,7 +205,6 @@ def test_a_sandbox_never_runs_the_systems_launchctl(tmp_path, monkeypatch):
     assert asked == [["launchctl", "print", GUI]]
 
 
-# The templates' own values, read from the files by hand: each timer's schedule.
 SCHEDULES = {
     "jbus.timer": {"StartInterval": 60},
     "jbus-stale.timer": {"StartInterval": 900},
@@ -218,6 +218,7 @@ SCHEDULES = {
     "jbus-relay.service": {"RunAtLoad": True, "KeepAlive": {"SuccessfulExit": False}},
     "jbus-view.service": {"RunAtLoad": True, "KeepAlive": True},
 }
+"""Each agent's schedule, read from its template by hand."""
 
 
 def test_every_template_has_its_schedule_carried_over(tmp_path):
@@ -254,7 +255,7 @@ def agent_runs(tmp_path, name, programs):
 def test_a_pass_that_fails_tells_the_chef_as_its_on_failure_unit_does(tmp_path):
     code, out, asked = agent_runs(tmp_path, "jbus.timer", {"jbus": '[ "$1" = alarm ] || exit 3'})
     assert (code, asked) == (3, ["jbus poll", "jbus alarm"])
-    assert out.startswith(launchd.STARTED)
+    assert out.startswith(STARTED)
 
 
 def test_a_pass_that_ends_well_tells_nobody(tmp_path):
@@ -288,8 +289,8 @@ def test_a_command_past_its_start_timeout_is_stopped_and_says_so_as_systemd_does
         ["/bin/sh", "-c", agent.script], capture_output=True, text=True, timeout=10
     )
     assert done.returncode != 0
-    assert done.stdout.splitlines()[1:] == [launchd.TIMED_OUT, "told"]
-    assert "Failed with result 'timeout'" in launchd.TIMED_OUT
+    assert done.stdout.splitlines()[1:] == [TIMED_OUT, "told"]
+    assert "Failed with result 'timeout'" in TIMED_OUT
 
 
 def test_a_unit_key_with_no_launchd_form_is_refused(tmp_path):
@@ -297,9 +298,3 @@ def test_a_unit_key_with_no_launchd_form_is_refused(tmp_path):
     unit.write_text("[Service]\nExecStart=/bin/true\nMemoryMax=1G\n")
     with pytest.raises(ValueError, match="MemoryMax"):
         launchd.read_unit(unit)
-
-
-def test_a_reader_keeps_the_runs_of_its_window_by_their_start_markers():
-    lines = ["before", f"{launchd.STARTED}100", "old", f"{launchd.STARTED}200", "new", "newer"]
-    assert launchd.recent(lines, 150) == ["new", "newer"]
-    assert launchd.recent(lines, 50) == ["old", "new", "newer"]
