@@ -1395,16 +1395,18 @@ def broken(
     """What is broken in a project, each as a plain reason, the drawer that has it, and
     `since`, when it broke, or None where nothing kept says.
 
-    It names main when its tip is red, since main moved there, the checks that failed, since
-    the oldest of those runs, or that the view could not read, the bus when a wake of the
-    route in effect failed, since its streak began, or when events wait in a route the project
-    no longer takes, the sources the view could not read, since the oldest was written, and
-    the source the last pass could not ask, since it was last confirmed (`unconfirmed`).
-    Each reads its source as it is now, so a reason goes once its source works again. It says
-    nothing of what is well, and nothing of what is only quiet."""
+    It names main when its tip is red, since main moved there, or with no time once main
+    moved past the red tip, since `main.json` keeps the time of the last move only. It names
+    the checks that failed, since the oldest of those runs, or that the view could not read,
+    the bus when a wake of the route in effect failed, since its streak began, or when events
+    wait in a route the project no longer takes, the sources the view could not read, since
+    the oldest was written, and the source the last pass could not ask, since it was last
+    confirmed (`unconfirmed`). Each reads its source as it is now, so a reason goes once its
+    source works again. It says nothing of what is well, and nothing of what is only quiet."""
     found: list[dict[str, str | None]] = []
     if main and main["red"]:
-        found.append({"what": f"main red {main['red'][:7]}", "open": "pulse", "since": main["at"]})
+        since = main["at"] if main["red"] == main["sha"] else None
+        found.append({"what": f"main red {main['red'][:7]}", "open": "pulse", "since": since})
     if checks["error"]:
         found.append({"what": "CI not read", "open": "checks", "since": None})
     elif checks["failed"]:

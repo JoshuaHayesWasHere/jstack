@@ -107,6 +107,17 @@ def test_main_red_names_its_tip_on_every_row_since_main_moved_there(tmp_path, mo
     assert row(stack)["broken"] == []
 
 
+def test_a_red_tip_main_moved_past_is_red_since_a_time_not_known(tmp_path, monkeypatch):
+    """`at` is when main moved to its tip. Once main moved past the red tip, `at` is the later
+    move, which says nothing of when the red began."""
+    scene = Scene(tmp_path, monkeypatch)
+    red, later = "badc0de" + "1" * 33, "c0ffee" * 6 + "abcd"
+    kept = {"at": iso(ago(minutes=3)), "main": later, "check": "pending", "broken": red}
+    scene.write("main.json", kept)
+    stack, _ = answers(scene)
+    assert row(stack)["broken"][0] == {"what": "main red badc0de", "open": "pulse", "since": None}
+
+
 def test_ci_that_failed_is_red_since_its_oldest_failed_run(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     scene.github([("oat-bowl", "completed", "success"), ("oat-milk", "completed", "failure")])
