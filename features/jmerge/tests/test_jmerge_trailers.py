@@ -4,7 +4,8 @@ body, with every AI co-author trailer line taken out and every human co-author l
 to GitHub, the body is every commit message as it is, trailers and all.
 
 The landing of an integration branch is a merge commit, whose body is the pull request's
-title, as GitHub's default has it.
+title, as GitHub's default has it. In a repo that allows only squashes it is a squash, whose
+message `jmerge` writes as it writes any squash's.
 
 The tests run the command against a real origin and a fake `gh` whose merge writes the subject
 and the body it was given, read from standard input as `--body-file -` says, as the merged
@@ -14,7 +15,7 @@ import pytest
 
 from jmerge import trailers
 from test_jmerge_fresh import LINES, Kitchen, git, url
-from test_jmerge_integration import TRAIN, integration
+from test_jmerge_integration import TRAIN, allows, integration
 
 CLAUDE = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
@@ -39,6 +40,7 @@ case "$1 $2" in
     "pr list")
         if [ "$3" = "--base" ]; then echo "[]"; else cat "$STUB/list.json"; fi ;;
     "repo view") echo main ;;
+    "api repos/{owner}/{repo}") cat "$STUB/repo.json" ;;
     "api repos/{owner}/{repo}/commits/"*) echo '{"check_runs": []}' ;;
     "pr merge")
         base=$(jq -r --argjson n "$3" \
@@ -95,6 +97,7 @@ def test_only_the_ai_lines_go_and_a_human_co_author_stays_where_it_was():
 def kitchen(tmp_path):
     kitchen = Kitchen(tmp_path, {"a.txt": LINES, "b.txt": LINES, "Makefile": "check:\n"})
     (kitchen.home.stub / "gh").write_text(GH)
+    allows(kitchen, merge=True, squash=True, rebase=True)
     return kitchen
 
 
@@ -143,6 +146,24 @@ def test_the_landing_of_a_train_is_a_merge_commit_whose_body_is_the_title(kitche
         f"pr merge 9 --merge --match-head-commit {head} --body-file - --repo {kitchen.origin}"
     ]
     assert message(kitchen) == f"Merge pull request #9\n\nfeat: {TRAIN}"
+
+
+def test_the_squash_landing_of_a_train_lands_the_title_and_its_messages_with_no_ai_trailer(
+    kitchen,
+):
+    git(kitchen.home.main, "push", "-q", "origin", f"main:{TRAIN}")
+    kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
+    head = commit(kitchen, TRAIN, {"b.txt": "one\n"}, f"feat: one (#6)\n\n{HUMAN}\n{CLAUDE}")
+    integration(kitchen, TRAIN)
+    allows(kitchen, merge=False, squash=True, rebase=False)
+    (said,) = kitchen.run()
+    assert said.startswith(f"merged 9 {TRAIN} ")
+    assert kitchen.calls() == [
+        f"pr merge 9 --squash --match-head-commit {head} --subject feat: {TRAIN} (#9)"
+        f" --body-file - --repo {kitchen.origin}"
+    ]
+    assert message(kitchen) == f"feat: {TRAIN} (#9)\n\n* {TRAIN}\n\n* feat: one (#6)\n\n{HUMAN}"
+    assert trailers.found(message(kitchen)) == []
 
 
 def test_a_branch_whose_messages_cannot_be_read_waits_and_is_never_merged(kitchen):

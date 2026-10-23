@@ -36,9 +36,9 @@ Run `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zone>"` from t
 
 ## What a merge does
 
-For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (a merge commit for the landing of an integration branch, see "Integration branches"), then `git pull --ff-only` in the main checkout.
+For each ready pull request it runs `gh pr merge <number> --squash --match-head-commit <head>` (for the landing of an integration branch, a merge commit or a squash as the repo allows, see "Integration branches"), then `git pull --ff-only` in the main checkout.
 It writes the squash commit's message itself: the subject is the pull request's title and ` (#<number>)`, and the body lists the branch's commit messages as GitHub's default does, each with every AI co-author trailer line taken out (`jmerge.trailers`).
-The landing's merge commit keeps GitHub's subject, and its body is the title.
+The landing's merge commit keeps GitHub's subject, and its body is the title; a landing that is a squash gets the squash's message.
 It removes the crewmate's worktree and its local and remote branch when the worktree is clean and the branch is at the merged head.
 It writes no plan: `jbus plan` counts an entry's status from its queue rows.
 It needs `gh` and `git`.
@@ -216,8 +216,13 @@ A repo whose CI runs on pushes to the default branch alone has no check run on a
 
 The landing is the pull request whose head is an integration branch and whose base is the default branch.
 It needs a brief whose Result names it, and it is judged as any other.
-It merges with a merge commit, `gh pr merge <number> --merge --match-head-commit <head>`, so the train's commits keep their history on main.
-Its branch is never removed: the `merged` line says `kept: <branch> is an integration branch`, and `--sweep` keeps it with the same reason.
+It lands the way the repo allows merges, which `jmerge` reads once a run (`gh api repos/{owner}/{repo}`, its `allow_merge_commit` and `allow_squash_merge`).
+Where the repo allows merge commits, it merges with one, `gh pr merge <number> --merge --match-head-commit <head>`, so the train's commits keep their history on main, and the `merged` line says `landed with a merge commit`.
+Where it allows squashes only, it squashes, `gh pr merge <number> --squash --match-head-commit <head>`, with the subject and the cleaned body of any squash ("What a merge does").
+Main then gets one commit for the train, and each unit's pull request into the branch stays its own record: the `merged` line says `landed as a squash: each unit's pull request into <branch> is its own record`.
+A repo that allows neither waits, `the repo allows rebase merges only, not a merge commit or a squash` (`LANDING_UNALLOWED`, on the `hold` step).
+When GitHub does not give the settings, it waits too, `the repo's merge settings could not be read: <what gh said>` (`NO_SETTINGS`, on the `check` step).
+Its branch is never removed, whichever way it landed: the `merged` line says `kept: <branch> is an integration branch`, and `--sweep` keeps it with the same reason.
 A repo set on GitHub to delete a head branch after its merge would still lose it there, and that setting is the repo's, not `jmerge`'s.
 
 `--sweep` counts a pull request merged into an integration branch as merged.
