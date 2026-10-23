@@ -18,6 +18,14 @@ AT = "2026-10-12 10:55 ET"
 WORDS = "hold every merge until I say"
 SAID = ("--by", "user", "--at", AT, "hold", "every", "merge", "until", "I", "say")
 ID = "fb958f86caaf"
+
+
+def thread(digit):
+    """Return a made-up T3 Code thread id, `mcp:<uuid>` with every digit `digit`."""
+    return "mcp:" + "-".join(digit * size for size in (8, 4, 4, 4, 12))
+
+
+HOME, WAS, CREW, NOBODY = thread("a"), thread("b"), thread("c"), thread("0")
 OTHER = "39c1c8882b2f"
 MESSAGE = (
     "jbus: this is user's own word, said 2026-10-12 10:55 ET and carried to this home by "
@@ -135,15 +143,19 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
 
 
 def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
-    (kitchen.home / "home-id").write_text("home-1\n")
-    assert kitchen.main("word", "--to", "demo", "--from", "home-1", *SAID) == (
+    (kitchen.home / "home-id").write_text(f"{HOME}\n")
+    assert kitchen.main("word", "--to", "demo", "--from", HOME, *SAID) == (
         0,
-        kept_not_posted(kitchen, "it was recorded by this project's home thread home-1"),
+        kept_not_posted(
+            kitchen, f"it was recorded by this project's home thread {HOME}", thread=HOME
+        ),
     )
-    again = kitchen.main("word", "--to", "demo", "--from", "home-1", *SAID)
+    again = kitchen.main("word", "--to", "demo", "--from", HOME, *SAID)
     assert again == (
         0,
-        kept_not_posted(kitchen, "it was recorded by this project's home thread home-1"),
+        kept_not_posted(
+            kitchen, f"it was recorded by this project's home thread {HOME}", thread=HOME
+        ),
     )
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == [] and kitchen.webhook.posts == []
@@ -163,7 +175,8 @@ def test_a_word_recorded_anywhere_else_is_posted_to_the_home_once(kitchen):
 
 def test_a_word_recorded_by_a_thread_that_is_not_the_home_is_posted_to_the_home(kitchen):
     (kitchen.home / "home-id").write_text("home-1\n")
-    assert kitchen.main("word", "--to", "demo", "--from", "crew-1", *SAID) == (
+    kitchen.t3.thread("crew", threadId=CREW)
+    assert kitchen.main("word", "--to", "demo", "--from", CREW, *SAID) == (
         0,
         f"sent: demo, to home-1, word {ID}\n",
     )
@@ -171,9 +184,10 @@ def test_a_word_recorded_by_a_thread_that_is_not_the_home_is_posted_to_the_home(
 
 
 def test_a_word_from_a_home_that_handed_off_waits_for_the_next_home(kitchen):
-    (kitchen.home / "home-id").write_text("home-0\n")
-    (kitchen.home / "handoff.md").write_text("# Handoff\nWas home: home-0\n")
-    code, out = kitchen.main("word", "--to", "demo", "--from", "home-0", *SAID)
+    (kitchen.home / "home-id").write_text(f"{WAS}\n")
+    (kitchen.home / "handoff.md").write_text(f"# Handoff\nWas home: {WAS}\n")
+    kitchen.t3.thread("home", threadId=WAS)
+    code, out = kitchen.main("word", "--to", "demo", "--from", WAS, *SAID)
     assert (code, out.startswith("waits: demo,")) == (0, True)
     (kitchen.home / "home-id").write_text("home-1\n")
     kitchen.poll(NOW + timedelta(minutes=5))
@@ -182,12 +196,13 @@ def test_a_word_from_a_home_that_handed_off_waits_for_the_next_home(kitchen):
 
 def test_all_skips_only_the_recording_homes_own_copy(kitchen):
     side = kitchen.second()
-    (kitchen.home / "home-id").write_text("home-1\n")
+    (kitchen.home / "home-id").write_text(f"{HOME}\n")
     (side.home / "home-id").write_text("home-2\n")
-    code, out = kitchen.main("word", "--all", "--from", "home-1", *SAID)
+    code, out = kitchen.main("word", "--all", "--from", HOME, *SAID)
     assert code == 0
+    why = f"it was recorded by this project's home thread {HOME}"
     assert out.splitlines() == [
-        kept_not_posted(kitchen, "it was recorded by this project's home thread home-1").strip(),
+        kept_not_posted(kitchen, why, thread=HOME).strip(),
         f"sent: other, to home-2, word {OTHER}",
     ]
     assert [(one["threadId"], one["message"]) for one in sends(kitchen)] == [
@@ -195,6 +210,39 @@ def test_all_skips_only_the_recording_homes_own_copy(kitchen):
     ]
     kitchen.poll(NOW + timedelta(minutes=5))
     assert len(sends(kitchen)) == 1
+
+
+@pytest.mark.parametrize("given", ["home-jstack", "home-1", "mcp:home", HOME[len("mcp:") :], ""])
+def test_a_from_that_is_not_a_thread_id_is_refused_and_nothing_is_kept_or_sent(kitchen, given):
+    """2026-10-23: the jstack home recorded the user's word with `--from home-jstack`, and jbus
+    posted the word into that home, which had already acted on it."""
+    (kitchen.home / "home-id").write_text(f"{HOME}\n")
+    assert kitchen.main("word", "--to", "demo", "--from", given, *SAID) == (
+        1,
+        f'refused: --from is a T3 Code thread id, mcp:<uuid>, not "{given}"\n',
+    )
+    assert not (kitchen.state / "words.json").exists()
+    assert [tool for tool, _ in kitchen.t3.calls if tool == "t3_thread_send"] == []
+
+
+def test_a_from_that_names_a_thread_t3_code_does_not_have_is_refused(kitchen):
+    (kitchen.home / "home-id").write_text(f"{HOME}\n")
+    assert kitchen.main("word", "--to", "demo", "--from", NOBODY, *SAID) == (
+        1,
+        f"refused: --from {NOBODY} is no thread of T3 Code, and not this home's\n",
+    )
+    assert not (kitchen.state / "words.json").exists()
+    assert [tool for tool, _ in kitchen.t3.calls if tool == "t3_thread_send"] == []
+
+
+def test_a_from_t3_code_gives_no_answer_about_goes_on_the_shape_alone_and_says_so(kitchen):
+    (kitchen.home / "home-id").write_text(f"{HOME}\n")
+    kitchen.t3.lose_read = True
+    assert kitchen.main("word", "--to", "demo", "--from", NOBODY, *SAID) == (
+        0,
+        f"unchecked: --from {NOBODY} has the shape of a thread id, and T3 Code gave no answer "
+        f"on whether it has that thread\nsent: demo, to {HOME}, word {ID}\n",
+    )
 
 
 @pytest.mark.parametrize(

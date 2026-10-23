@@ -33,6 +33,8 @@ When Sous Chef relays the user's word to this home, the home records it with `jb
 The home passes its own thread as `--from "$ME"`, so jbus keeps the word and posts nothing back into this thread.
 Without `--from`, jbus sends the word here as a queued message, and this home has already acted on it.
 The block that finds this home sets `$ME` to its id, and the block that reads jbus ("Gates") sets `$P` to the project.
+That id is the one line of this home's `home-id`, `mcp:<uuid>`, which the block checks `$ME` against, so pass `"$ME"` as it is and never type a name such as `home-<repo>` in its place.
+jbus refuses a `--from` that is not shaped `mcp:<uuid>`, or that T3 Code says is no thread, and keeps and sends nothing for it.
 Run this in the same call as the block at the top and those two:
 
 ```sh
