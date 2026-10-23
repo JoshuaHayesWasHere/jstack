@@ -307,7 +307,7 @@ def test_the_selector_follows_the_includes_the_tests_fold_in():
     selector must find the same files, or a change to one runs none of the tests that read it."""
     folded = {
         (path, found.relative_to(REPO).as_posix())
-        for path in tracked()
+        for path in select.tracked()
         if path.endswith(".md") and (REPO / path).is_file()
         for found in named(REPO / path)
     }
