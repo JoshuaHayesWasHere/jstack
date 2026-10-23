@@ -289,6 +289,16 @@ def test_the_journal_gives_no_room_caps_and_the_passes():
     assert cap["by_account"] == {"claudeAgent_x": 0.5} and cap["rows_held"] == 1
 
 
+def test_a_journal_that_runs_past_the_window_counts_no_pass_after_it():
+    later = (
+        JOURNAL
+        + "\n"
+        + "\n".join(f"2026-10-20T{hour}:00:01-04:00 host {STARTING}" for hour in ("13", "14", "15"))
+    )
+    inside = measure.jbus_down(records.journal(JOURNAL), at(-1), at(2))
+    assert measure.jbus_down(records.journal(later), at(-1), at(2)) == inside
+
+
 def run(number, when, conclusion, *, branch="main", event="push", minutes=5, attempt=1):
     return {
         "id": number,

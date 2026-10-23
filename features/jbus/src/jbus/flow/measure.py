@@ -579,7 +579,9 @@ def slots(projects: Iterable[Project], since: datetime, until: datetime) -> dict
 def jbus_down(lines: list[Line], since: datetime, until: datetime) -> dict:
     """Return the passes that failed, and the gaps of more than ten minutes between passes."""
     starts = sorted(
-        line.at for line in lines if line.text.startswith("Starting jbus") and since <= line.at
+        line.at
+        for line in lines
+        if line.text.startswith("Starting jbus") and since <= line.at <= until
     )
     failed = [
         line.at

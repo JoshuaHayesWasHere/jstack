@@ -133,7 +133,6 @@ class Project:
     pages: list[tuple[datetime, str]] = field(default_factory=list)
     approvals: dict[str, datetime] = field(default_factory=dict)
     first: datetime | None = None
-    last: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -206,7 +205,6 @@ def events(name: str, lines: Iterable[str]) -> Project:
         if at is None or "event" not in record:
             continue
         project.first = min(project.first or at, at)
-        project.last = max(project.last or at, at)
         _event(project, at, record)
     return project
 
