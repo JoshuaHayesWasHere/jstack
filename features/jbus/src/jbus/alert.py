@@ -296,7 +296,7 @@ def tell(run: wake.Pass, key: str, line: str | None) -> None:
 def flush(run: wake.Pass, client: Client | None = None) -> int:
     """Send what waits for the project to each of its routes, and count each route's streak by how
     the send went. Then tell the project's home thread of a webhook streak whose page is due
-    (`page`). Return how many events the project's first route took.
+    (`page`). Return how many events went, the most that any one route took.
 
     This function sends to the project's first route first, so that an alert from that route's
     streak goes to the others in the same pass. It sends to the second target before them all, with
@@ -314,7 +314,7 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
         run.box.flush_blocking(run.now, run.say, went=ended.append)
         _count(run, blocking(name), ended)
     sent = 0
-    for number, route in enumerate(run.box.routes):
+    for route in run.box.routes:
         went: list[str] = []
         post = None
         if route.home:
@@ -323,7 +323,7 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
                 continue
             post = functools.partial(_send, run, client, thread)
         took = run.box.flush(run.now, run.say, route=route, went=went.append, post=post)
-        sent = took if number == 0 else sent
+        sent = max(sent, took)
         _count(run, key_of(name, route), went)
     if not any(route.home for route in run.box.routes):
         retire(state, home(name))

@@ -17,7 +17,10 @@ A webhook that refuses keeps the `error` text of its JSON body, with no URL and 
 A webhook streak of `webhook <project>` or `top-level webhook <project>` is also told on a path that needs no webhook: jbus sends its alert line, with the last error, to the project's home thread through T3 Code.
 It sends it at the 3rd failure, the 30th, and every 120th after that, so a webhook that stays down is told again and not once.
 A send that T3 Code refused goes again on the next pass, and a project whose home has no thread gets none: the journal still has the line.
-`jbus wakes`, run in a repo's checkout, prints `wakes fail: <the alert line>` and exits 1 while a webhook of the repo's project has alerted, and `wakes go: no webhook of <project> is failing` otherwise.
+`jbus wakes`, run in a repo's checkout, prints `wakes fail: <the alert line>` and exits 1 while the route the wakes of the repo's project depend on has alerted.
+That route is the home thread where the project's `wake` picks it, and a webhook where `wake` is `webhook`.
+Otherwise it prints `wakes go: the home thread of <project> is not failing`, or `the webhook of <project>` where `wake` is `webhook`.
+A webhook beside the home thread that has alerted gets a line of its own, `webhook fails (optional): <the alert line>`, and does not make it exit 1.
 A crewmate runs it before it ends a turn on its pull request, and stays in its turn while wakes fail (the crew skill, "Stay on the pull request").
 
 A pass goes on past a project that raises.
