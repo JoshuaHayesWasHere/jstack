@@ -112,10 +112,12 @@ def counts(path: Path, since: datetime) -> Counter[tuple[str, str]]:
             one = json.loads(each)
             at = datetime.fromisoformat(one["at"])
             kind, name = one["kind"], one["name"]
+            if not (isinstance(kind, str) and isinstance(name, str)):
+                continue
+            if at >= since:
+                found[(kind, name)] += 1
         except (ValueError, TypeError, KeyError):
             continue
-        if at >= since:
-            found[(kind, name)] += 1
     return found
 
 
