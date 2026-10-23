@@ -322,7 +322,7 @@ def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
     code, taken = first.send(sent)
     assert code == 202
     done = [
-        f"relay: sent event {taken['id']} to sous-chef ({route})"
+        f"relay: sent event {taken['id']} to webhook ({route})"
         for route in ("everything", "blocking")
     ]
     until(lambda: all(line in first.said() for line in done))
