@@ -620,6 +620,7 @@ class Repo:
         return self.numbers_on.get(base)
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
+        listed = sorted(listed, key=lambda one: one.number)
         settings = self.migrations
         mine = {
             one.number: one
