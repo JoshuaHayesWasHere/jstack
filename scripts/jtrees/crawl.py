@@ -37,6 +37,7 @@ REPO_OWNERS: dict[str, tuple[str, ...]] = {
         ".gitignore",
         "LICENSE",
         "SECURITY.md",
+        "CONTRIBUTING.md",
         "THIRD_PARTY.md",
         "Makefile",
         "pyproject.toml",

@@ -110,7 +110,7 @@ Preconditions:
 - **Try a crewmate's line**: pipe in a request with a `Task:` line, as `printf '# beta: x\nTask: "do it"\n' | record scout-path jbus --project demo scout add beta`.
   It exits 1 and names `a Task: line, which only a crewmate's brief has`, and no `scouts/beta.md` is written.
 - **Keep a word, and approve**: run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `record scout-path jbus --project demo scout approve alpha --sha <the 12 characters> --word <the id>`.
-  It prints `approved alpha: request <12 characters>, his word, ...`.
+  It prints `approved alpha: request <12 characters>, your word, ...`.
 - **Pass**: run `record scout-path jbus poll`.
   It prints `launched scout alpha: mcp:sandbox-thread-1`.
 - **Check the launch itself**: run `record scout-path jq -c 'select(.tool == "t3_thread_launch") | .arguments' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.

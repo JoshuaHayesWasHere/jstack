@@ -63,15 +63,20 @@ HARD = {
     "`gh`, signed in": ("gh", "gh sign-in"),
 }
 OPTIONAL = {
-    "`jbus`, with its config, its systemd timer and a webhook": (
-        "jbus config",
-        "jbus sign-in",
-        "units",
-    ),
+    "`jbus`, with its config, its sign-in and a webhook": ("jbus config", "jbus sign-in"),
+    "systemd `--user`": ("units",),
     "The limits file, `~/.local/state/claude/limits`": ("limits", "statusline"),
+    "The backup: a private remote and `gitleaks`": ("state repo",),
     "`lavish-axi`": ("lavish-axi",),
 }
-NO_REQUIREMENT = ("config", "roles", "patterns", "provider inventory", "state repo")
+NO_REQUIREMENT = (
+    "config",
+    "roles",
+    "patterns",
+    "provider inventory",
+    "ci report",
+    "relay",
+)
 OF_THE_CHECKOUT = ("generated files are current",)
 LAYOUTS = ("layout claude-code", "layout codex", "layout cursor")
 NAMED = (
@@ -330,7 +335,7 @@ def codes(text):
 
 
 def test_the_flow_page_has_the_ten_steps_and_the_asks_of_the_explained_page():
-    explained = (REPO / "features/jdrift/docs/jstack-explained.html").read_text()
+    explained = (REPO / "features/home/docs/jstack-explained.html").read_text()
     steps = re.findall(
         r'<li class="step \w+"><b><span class="n">(\d+)</span>(.*?)</b><small>(.*?)</small>',
         explained,
@@ -413,20 +418,20 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
         "jinstall --doctor",
         "jmerge",
     ]
-    assert blocks(said, "text") == [["/home"]]
+    assert blocks(said, "text") == [["/new-home <path>"]]
     helped = subprocess.run(
         [sys.executable, "-m", "jmerge", "--help"], capture_output=True, text=True, cwd=tmp_path
     )
     assert helped.returncode == 0 and helped.stdout.startswith("usage: jmerge")
-    skill = (REPO / "features" / "home" / "skills" / "home" / "SKILL.md").read_text()
-    assert re.search(r"\A---\n(?:.*\n)*?name: home\n", skill)
+    skill = (REPO / "features" / "home" / "skills" / "new-home" / "SKILL.md").read_text()
+    assert re.search(r"\A---\n(?:.*\n)*?name: new-home\n", skill)
     user = Doctored(tmp_path)
     for line in typed[2:5]:
         code, printed, err = user.run_with_stderr(*line.split()[1:])
         assert (code, err) == (0, ""), line
         ends = ("ok ", "missing optional ")
         if "--setup" in line:
-            ends = ("done ", "already ", "needs you ")
+            ends = ("done ", "already ", "needs you ", "missing optional ")
         assert all(each.startswith(ends) for each in printed[:-1]), line
     assert printed[-1] == "doctor: ok"
 
@@ -563,9 +568,11 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
     """The status line runs as the built-in account's, `~/.claude` in a scratch home. The session's
     own `CLAUDE_CONFIG_DIR` and providers.json would send limits.sh to another instance's file."""
     (script,) = blocks(section(page("configuration.md"), "The limits file"), "sh")
-    assert sum("<checkout>" in line for line in script) == 1
+    layout = tmp_path / "data" / "jstack" / "harness" / "claude-code" / "hooks"
+    layout.mkdir(parents=True)
+    (layout / "limits.sh").symlink_to(REPO / "features" / "jgauge" / "hooks" / "limits.sh")
     path = tmp_path / "statusline.sh"
-    path.write_text("\n".join(script).replace("<checkout>", str(REPO)) + "\n")
+    path.write_text("\n".join(script) + "\n")
     limits = tmp_path / "limits"
     reset = int(time.time()) + 3600
     given = (
@@ -578,7 +585,11 @@ def test_the_status_line_the_configuration_page_shows_writes_the_limits_and_prin
         for key, value in os.environ.items()
         if key != "CLAUDE_CONFIG_DIR" and not key.startswith(("XDG_", "LIMITS"))
     }
-    env |= {"HOME": str(tmp_path / "home"), "LIMITS": str(limits)}
+    env |= {
+        "HOME": str(tmp_path / "home"),
+        "LIMITS": str(limits),
+        "XDG_DATA_HOME": str(tmp_path / "data"),
+    }
     ran = subprocess.run(
         ["sh", str(path)],
         input=given,

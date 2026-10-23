@@ -1,5 +1,5 @@
 [Unit]
-Description=jbus relay: what jbus posts, sent on to Sous Chef, paged when it is silent (loopback only)
+Description=jbus relay: what jbus posts, sent on to your chat bot's webhook, paged when it is silent (loopback only, optional)
 Documentation=file:%Y/../docs/jbus/the-relay.md#the-relay
 
 [Service]

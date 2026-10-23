@@ -32,7 +32,7 @@ STANDING = f"""# demo: standing rules
 ## How he wants the work
 8. Real fixes.
 """
-BY_RULE = f"rule 6, follow-up of alpha; run {RAN} by the demo home; he did not speak of this row"
+BY_RULE = f"rule 6, follow-up of alpha; run {RAN} by the demo home; you did not speak of this row"
 
 
 @pytest.fixture
@@ -143,7 +143,7 @@ def test_a_parent_approved_by_rule_is_refused_and_the_refusal_names_its_own_pare
     assert follow(kitchen, "beta", "alpha")[0] == 0
     assert refusal(kitchen, "gamma", "--rule", "6", "--follows", "beta") == (
         "refused: gamma cannot follow beta: beta was approved by rule 6 as a follow-up of alpha, "
-        "and a chain is one step: follow alpha, or take his word for gamma"
+        "and a chain is one step: follow alpha, or take the user's word for gamma"
     )
     assert follow(kitchen, "gamma", "alpha")[0] == 0
 
@@ -385,6 +385,6 @@ def test_a_row_that_another_row_follows_is_not_approved_by_rule_itself(kitchen):
     assert (code, said.strip()) == (
         1,
         "refused: beta cannot follow alpha: gamma follow beta, and a chain is one step: take "
-        "his word for beta",
+        "the user's word for beta",
     )
     assert rows(kitchen)["beta"]["approval"] == word

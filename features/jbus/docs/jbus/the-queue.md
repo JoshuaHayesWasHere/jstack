@@ -1,10 +1,54 @@
 # The queue
 
+The queue holds the rows jbus may launch, one row for each brief.
+A pass launches a row only once you approve it.
+
+## Approve a row
+
+A home or the Chef adds the row with its brief.
+To approve it from a shell:
+
+1. Read what waits on you:
+
+   ```sh
+   jbus queue show
+   ```
+
+   Above the table, a row that waits for your go has its own line, with the brief's sha in it:
+
+   ```text
+   approve alpha: jbus --project demo queue approve alpha --sha 52e43397dc8c with --word <id>, --answer <number>, --message <thread id>/<message id> or --page <session key>/<entry id>
+   ```
+
+2. Read the brief you approve, `~/.local/state/jbus/<project>/briefs/<slug>.md`.
+   The sha is of that file.
+3. Say your go, so jbus has your words to keep:
+
+   ```sh
+   jbus word --to demo --by <user> --at "<YYYY-MM-DD HH:MM zone>" go alpha
+   ```
+
+   Its line ends with the word's id, such as `word 6f6dcb57a29b`.
+   `<user>` is the `user` of your jstack config, and the word also goes to the project's home.
+4. Approve the row on that word, with the command the first line gave:
+
+   ```sh
+   jbus --project demo queue approve alpha --sha 52e43397dc8c --word 6f6dcb57a29b
+   ```
+
+   The table's `approved` column now says `your word, <time> (time typed); run <time> by <who>`.
+
+The next pass with room launches the row and prints `launched alpha: <thread id>`.
+To take the go back before it launches, run `jbus queue hold alpha`.
+A message of yours in a T3 Code thread is a basis too, with `--message <thread id>/<message id>` in place of `--word`, and so is an answer to a question, with `--answer <number>` ([The bases](#the-bases)).
+
+## The table
+
 The queue table is `~/.local/state/jbus/<project>/queue.json`, and `jbus queue show` prints it as Markdown. It prints the rows still open: a row that is `merged` or `done` with no reason to wait is left out, and a last line counts them, `<n> finished rows not shown: jbus queue show --all`, or `1 finished row not shown: jbus queue show --all` for one. `jbus queue show --all` prints every row. `add`, `approve`, `hold` and `remove` print the open rows after they run, with the same last line. Each column has one writer.
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | The Chef, through four verbs: `add`, `approve`, `hold` and `remove`. Only `add` writes `entry`, `item` and `merge_after`; `hold` sets `held` and `approve` clears it. |
+| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | `jbus queue add`, `approve`, `hold` and `remove`, run by a home, the Chef or you. The Chef runs no `remove`, which is your word. Only `add` writes `entry`, `item` and `merge_after`; `hold` sets `held` and `approve` clears it. |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line. Under each `add` comes its brief, between two marker lines:
@@ -58,6 +102,8 @@ A row that was never approved is not held, and its pull request is judged as any
 
 An approval names its brief. `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown. `approve` is refused unless the stored brief has that sha: `refused: <slug>'s brief is <sha12>, not <given>`.
 
+### The bases
+
 An approval also names the words of yours it rests on. `jbus queue approve` takes one basis, `--word <id>`, `--answer <number>`, `--message <thread id>/<message id>` or `--page <session key>/<entry id>`:
 
 | Basis | What it names |
@@ -65,7 +111,7 @@ An approval also names the words of yours it rests on. `jbus queue approve` take
 | `--word <id>` | A word `jbus word` kept in the project's `words.json`. |
 | `--answer <number>` | The answer `jbus answer` closed a question of the project's `questions.json` with. An open question, or one its home closed in a `gates.md`, is refused. |
 | `--message <thread id>/<message id>` | A message of yours in a T3 Code thread, which jbus reads then, as `jbus word --message` does. |
-| `--page <session key>/<entry id>` | What you sent from a Lavish page: the entry of that session's `chat` with that `id`, which jbus reads then from Lavish's state file, `state.json` under `LAVISH_AXI_STATE_DIR` or `~/.lavish-axi`, and never writes. The record keeps its `text` as the words, its `at` as when, and the page's file as where, and the row reads `his pick on a Lavish page, <time>, <page file name>`. A state file that is not there, a session or an entry it does not have, and an entry whose `role` is not `user` are each refused in one line, and so is a reference with no `/`. The grilling skill prints the reference of a page's last send. |
+| `--page <session key>/<entry id>` | What you sent from a page of Lavish, an optional tool: the entry of that session's `chat` with that `id`, which jbus reads then from Lavish's state file, `state.json` under `LAVISH_AXI_STATE_DIR` or `~/.lavish-axi`, and never writes. The record keeps its `text` as the words, its `at` as when, and the page's file as where, and the row reads `your pick on a Lavish page, <time>, <page file name>`. A state file that is not there, a session or an entry it does not have, and an entry whose `role` is not `user` are each refused in one line, and so is a reference with no `/`. The grilling skill prints the reference of a page's last send. |
 
 It takes no name and no time. With no basis, with two, or with `--by` or `--at`, it is `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id> or --page <session key>/<entry id>, or --rule <n> with --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
 
@@ -78,7 +124,10 @@ jbus queue approve <slug> --sha <sha12> --rule <n> --follows <parent slug>
 `--rule` and `--follows` go together, and with none of the bases above: any other mix is the refusal above. jbus checks two things and judges nothing else. Whether the brief is a follow-up in substance is the home's call, and the mark on the row and the count in the digest are how you audit it.
 
 - **The rule** is rule `<n>` of the home's `standing.md`, in the home's state directory: the line that starts `<n>. `, read up to the next numbered line or heading. jbus reads the file and never writes it. With no such rule it is `refused: <path> has no rule <n>`.
-- **The parent** is a row of the same queue, or one that was removed after it merged, with an approval of its own by `--word`, `--answer`, `--message` or `--page`, or the typed string of an older row. A parent that is no row is `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with none is `refused: <slug> cannot follow <parent>: <parent> has no approval`. A row that another row already follows is refused too, since a rule approval would write over the word its follow-ups rest on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take his word for <slug>`. A chain is one step: a parent that was itself approved by rule is `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take his word for <slug>`.
+- **The parent** is a row of the same queue, or one that was removed after it merged, with an approval of its own by `--word`, `--answer`, `--message` or `--page`, or the typed string of an older row.
+  A parent that is no row is `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with none is `refused: <slug> cannot follow <parent>: <parent> has no approval`.
+  A row that another row already follows is refused too, since a rule approval would write over the word its follow-ups rest on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take the user's word for <slug>`.
+  A chain is one step: a parent that was itself approved by rule is `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take the user's word for <slug>`.
 
 The row's `approval` is the record of it:
 
@@ -92,7 +141,14 @@ The row's `approval` is the record of it:
 | `brief_sha` | The sha256 of the brief at the go, as `--sha` named it. |
 | `meaning`, `scope` | The brief's meaning fingerprint at the go, and the sha256 of it. The go holds for any brief that means the same (below). |
 
-`jbus queue show` prints it in the `approved` column as `his word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false. `<who>` is `the <directory> home` for a session, and `a shell in <directory>` where no session ran it. The view's row says the same line. A row approved by rule prints `rule <n>, follow-up of <parent>; run <ran_at> by <who>; he did not speak of this row`, and the view's row says the same and carries a `by rule <n>` mark. `jbus queue hold <parent>` takes the go of its queued follow-ups back with the parent's, and prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`; so does `jbus queue remove` of a parent that did not merge. `jbus digest --json` lists each such row under its project's `by_rule`, as `{"slug", "rule", "follows", "at"}`, for the approvals run at or after `--since`: the length of that list is the count of rows that launched without your word for them. A row approved before this holds only the typed string: it keeps its go and still launches, and prints `<the string> (typed, not checked)`. No time is read out of such a string, so the view gives no time from approval to merge for it.
+`jbus queue show` prints it in the `approved` column as `your word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false.
+`<who>` is `the <directory> home` for a session, and `a shell in <directory>` where no session ran it.
+The view's row says the same line.
+A row approved by rule prints `rule <n>, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and the view's row says the same and carries a `by rule <n>` mark.
+`jbus queue hold <parent>` takes the go of its queued follow-ups back with the parent's, and prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`; so does `jbus queue remove` of a parent that did not merge.
+`jbus digest --json` lists each such row under its project's `by_rule`, as `{"slug", "rule", "follows", "at"}`, for the approvals run at or after `--since`: the length of that list is the count of rows that launched without your word for them.
+A row approved before this holds only the typed string: it keeps its go and still launches, and prints `<the string> (typed, not checked)`.
+No time is read out of such a string, so the view gives no time from approval to merge for it.
 
 The sha leaves out the `Home:`, `Thread:` and `Green main:` lines of the brief's head, the lines above its first `## `. They say whom the brief is sent to and where main last passed, not what it asks for. The stored brief is kept whole, those lines included. A launch sends the brief without the three lines, writes its own `Green main: <sha>` under the brief's first line (the last tip of main whose check passed, `green` in `main.json`; no line where none is known) for the crew to rebase onto where main is red, in the brief it sends and in the home's `tasks/<slug>.md`, and jbus writes the launch's own `Thread:` line.
 
@@ -142,4 +198,5 @@ The removal is one line of `transitions.jsonl`, with the row as it was, and one 
 
 A thread that ended or was settled stops no removal.
 
-If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse: every `queue` verb is refused until you mend the file, and a pass sends `gate <project>: removed.json does not parse`. Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request but through `jmerge`, and leaves `waiting-on-user.json` as it was.
+If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse: every `queue` verb is refused until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
+Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request but through `jmerge`, and leaves `waiting-on-user.json` as it was.

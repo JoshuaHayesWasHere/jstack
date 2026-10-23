@@ -117,7 +117,8 @@ def steer(
         raise Refused("refused: a steer names who steers, with --by")
     if basis is None and user.user.casefold().startswith(by.strip().casefold()):
         raise Refused(
-            f"refused: a steer by {user.user} rests on his word: --message, --word or --answer"
+            f"refused: a steer by {user.user} rests on the user's word: "
+            "--message, --word or --answer"
         )
     if basis is not None and by != user.user:
         raise Refused(f"refused: --{basis.kind} is {user.user}'s word, so --by is {user.user}")

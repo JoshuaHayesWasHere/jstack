@@ -239,7 +239,7 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--rule", metavar="N", help="a rule of the home's standing.md, with --follows"
     )
     approve.add_argument(
-        "--follows", metavar="SLUG", help="the row he approved that this one follows up"
+        "--follows", metavar="SLUG", help="the row the user approved that this one follows up"
     )
     approve.add_argument("--by", help=argparse.SUPPRESS)
     approve.add_argument("--at", help=argparse.SUPPRESS)

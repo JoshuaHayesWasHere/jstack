@@ -1,6 +1,17 @@
 # jpack
 
-`jpack` checks a context pack with no model: what a pack is, where it lives and who writes it is in [context.md](context.md). Run it from the checkout of the repo the pack is about. It writes nothing.
+`jpack` checks a repo's context pack, the notes a home reads about that repo at its start, so that a note never cites a line that is not there or quotes words the line does not hold.
+It calls no model and writes nothing.
+[Context packs](context.md) says what a pack is, where it lives and who writes it.
+
+## Check a pack
+
+1. Go to the checkout of the repo the pack is about.
+2. Run `jpack lint <repo>/docs/context`, then `jpack verify <repo>/docs/context`.
+3. Fix each line they print in the note it names, by a pull request to the pack.
+4. To find the notes that cite a file changed since their pin, run `jpack stale <repo>/docs/context`.
+
+## The verbs
 
 | Verb | What it does |
 |---|---|
@@ -14,4 +25,6 @@
 | `jpack stale --rev <rev>` | Reads `<rev>` as now, in place of `HEAD`. |
 | `jpack stale --days <n>` | Days a note is stale before it is listed `prune` (14). |
 
-Each prints one line per thing it found and exits 1, prints nothing and exits 0 for a pack in order, and exits 2 for a folder with no `notes/` or a pack in no git checkout.
+Each verb prints one line for each fault it finds and exits 1.
+For a pack in order it prints nothing and exits 0.
+It exits 2 for a folder with no `notes/` or a pack in no git checkout.

@@ -12,11 +12,11 @@ It pages nothing.
 It exits 1 when a check is over its limit, and 0 when none is.
 
 ```text
-ok   health disk /home: 2% of its space used (26.5 of 1858.2 GiB), alerts at 80%
-ok   health inodes /tmp: 29% of its inodes used (300,419 of 1,048,576), alerts at 80%
+ok   health disk /home: 41% of its space used (190.2 of 465.6 GiB), alerts at 80%
+ok   health inodes /tmp: 3% of its inodes used (31,207 of 1,048,576), alerts at 80%
 ok   health timeout jbus: jbus.service stopped at its 20min start timeout 0 times in the last 60 min, alerts at 1
 ok   health relay: the config posts nothing to 127.0.0.1, not watched
-over health capped claudeAgent: five_hour full until 2026-10-20 13:30 ET, pauses its launches at 100% of a window; launches skip claudeAgent until then
+over health capped claudeAgent: five_hour full until 2026-10-22 13:30 CEST, pauses its launches at 100% of a window; launches skip claudeAgent until then
 ```
 
 The first word is `ok`, `over`, or `?` for a check that could not be read.
@@ -41,6 +41,7 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 The mounts are those the stack writes: jbus's state and the homes, each project's checkout, the temp directory, your home directory, the ledger, and the relay's state.
 A pass that systemd stops cannot say so itself, so the journal of `jbus.service` is where both timeouts are read.
 
+The relay is optional, and a machine with none has only the `relay` line above, `not watched`.
 The relay is watched only where the config posts to it: a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
 `RELAY_PORT` and `RELAY_STATE` are read from the relay's own env file, `~/.config/jbus-relay/env`, since `jbus.service` does not load it.
 jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears a body at least that often.
@@ -53,9 +54,9 @@ Their numbers are the ledger, which the threads' status lines and their usage-li
 ## Incidents and pages
 
 A check over its limit is an incident, under the key `health <check>`.
-Sous Chef is paged once when it starts and once when a reading under the limit ends it, through the same streaks as every other alert (`streaks.json`).
+An incident is paged once when it starts and once when a reading under the limit ends it, through the same streaks as every other alert (`streaks.json`).
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
-It goes to the desk and, as an event of the machine, to the top-level webhook once, not once a project.
+It goes to the desktop with `notify-send` and, as an event of the machine, to the top-level webhook once, not once a project, where you set one.
 A check that could not be read leaves its incident as it is.
 An incident whose check is not taken any more, a mount or an instance gone or a relay the config no longer posts to, ends with no page.
 

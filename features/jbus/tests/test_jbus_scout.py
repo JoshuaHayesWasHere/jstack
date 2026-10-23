@@ -175,7 +175,7 @@ def test_approval_takes_the_word_and_the_sha_of_the_request_shown(kitchen):
     code, said = approve(kitchen, "alpha")
 
     assert code == 0, said
-    assert said.startswith(f"approved alpha: request {sha12(kitchen, 'alpha')}, his word, ")
+    assert said.startswith(f"approved alpha: request {sha12(kitchen, 'alpha')}, your word, ")
     assert shown(kitchen)["alpha"][0] == "approved"
 
 

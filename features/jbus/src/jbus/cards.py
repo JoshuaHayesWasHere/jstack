@@ -75,7 +75,7 @@ def actions(item: Item) -> list[str]:
 
 def last(line: dict[str, Any], user: jsettings.Settings) -> str:
     """Return the line as one sentence for the card, such as
-    "Approved in jbus view by Josh, 11:52 EDT"."""
+    "Approved in jbus view by you, 11:52 EDT"."""
     where = Where(line["where"])
     said = f"{SAID[move_of(line)]}{SAID_IN.get(where, '')} by {line['by']}"
     return f"{said}, {user.clock(datetime.fromisoformat(line['at']))}"

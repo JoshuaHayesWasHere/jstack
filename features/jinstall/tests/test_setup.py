@@ -5,6 +5,7 @@ name set."""
 
 import os
 import re
+import shutil
 import stat
 import subprocess
 import tomllib
@@ -56,30 +57,36 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
     ]
     assert said[8:14] == [
         f"done jbus config {user.jbus_config}",
-        f"needs you jbus sign-in {user.token} -> jbus t3 login",
+        f"missing optional jbus sign-in {user.token} -> jbus t3 login",
         f"done config {user.config}",
         f"done roles {user.roles}",
         "already lavish-axi",
-        f"needs you state repo {user.state} -> git init {user.state}"
+        f"missing optional state repo {user.state} -> git init {user.state}"
         f" && git -C {user.state} remote add origin <url>",
     ]
-    assert said[14:16] == [
-        "needs you provider inventory -> run infra's install",
-        f"needs you limits {user.limits} -> jgauge limits",
+    assert said[14:18] == [
+        f"missing optional ci report {user.jbus_config}"
+        f" -> ci_report = true in a [[project]] of {user.jbus_config}",
+        f"missing optional relay {user.relay_env}"
+        f" -> write the relay's keys to {user.relay_env}, as the relay's page says",
+        "missing optional provider inventory -> run infra's install",
+        f"missing optional limits {user.limits} -> jgauge limits",
     ]
     parts = [*user.parts(), f"optional units {user.units}"]
-    assert said[16] == "already generated files are current"
-    assert said[17:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
+    assert said[18] == "already generated files are current"
+    assert said[19:] == [f"done {part.split(' ', 1)[1]}" for part in parts]
     assert user.doctor()[1][-1] == "doctor: ok"
     assert user.run("--check") == (0, user.every("ok", f"optional units {user.units}"))
 
 
 def test_it_walks_every_need_the_doctor_lists_once_and_in_order(user):
     said = user.setup()[1]
-    words = ("done ", "already ", "needs you ")
+    words = ("done ", "already ", "needs you ", "missing optional ")
     assert all(line.startswith(words) for line in said)
     heads = [line.split(" -> ")[0] for line in said]
-    named = [head.split(" ", 2 if head.startswith("needs") else 1)[-1] for head in heads]
+    named = [
+        head.split(" ", 2 if head.startswith(("needs", "missing")) else 1)[-1] for head in heads
+    ]
     doctored = [line.split(" -> ")[0].split(" ", 2)[2] for line in user.doctor()[1][:-1]]
     assert named == doctored
 
@@ -121,8 +128,8 @@ def test_a_second_run_says_only_already_and_needs_you_and_writes_nothing(user):
     before, created, seeded = user.snapshot(), user.created.read_bytes(), user.seeded.read_bytes()
     code, said = user.setup()
     assert code == 0
-    assert {line.split(" ")[0] for line in said} == {"already", "needs"}
-    assert line_for(said, "limits") == [f"needs you limits {user.limits} -> jgauge limits"]
+    assert {line.split(" ")[0] for line in said} == {"already", "missing"}
+    assert line_for(said, "limits") == [f"missing optional limits {user.limits} -> jgauge limits"]
     assert user.snapshot() == before
     assert (user.created.read_bytes(), user.seeded.read_bytes()) == (created, seeded)
 
@@ -213,7 +220,9 @@ def test_setup_from_a_linked_worktree_under_the_accounts_own_home_is_refused(tmp
 def test_usage_names_setup(user):
     code, said, err = user.run_with_stderr("--setup", "--check")
     assert (code, said) == (2, [])
-    assert err == "usage: install.sh [--check | --uninstall | --doctor | --setup]\n"
+    assert (
+        err == "usage: install.sh [--check | --uninstall | --doctor | --setup | --repo [<path>]]\n"
+    )
     assert os.listdir(user.home) == []
 
 
@@ -241,9 +250,12 @@ def test_the_skill_runs_the_setup_of_the_checkout_it_is_linked_from_and_reports(
     said = done.stdout.splitlines()
     assert (done.returncode, done.stderr) == (0, "")
     assert said[0] == f"checkout: {REPO}"
-    probed, harness, units, left = 16, 1, 1, 4
+    probed, harness, units, left = 18, 1, 1, 6
     count = probed + harness + len(user.parts()) + units - left
-    assert said[-2:] == [f"setup: 0 done, {count} already, 4 needs you, exit 0", "doctor: ok"]
+    assert said[-2:] == [
+        f"setup: 0 done, {count} already, 0 needs you, 6 optional left, exit 0",
+        "doctor: ok",
+    ]
     assert user.snapshot() == before
 
 
@@ -254,3 +266,77 @@ def test_a_zone_the_loader_would_not_take_is_left_out_and_the_pass_goes_on(user,
     assert code == 0
     assert tomllib.loads(user.config.read_text()) == {"user": "Sam"}
     assert said[-1] == f"done units {user.units}"
+
+
+def no_checkout_behind(home, tmp_path):
+    """A HOME whose setup-pstack link leads to a layout whose source has no install.sh, as a
+    release's does."""
+    source = tmp_path / "share" / "jstack"
+    layout = tmp_path / "layout"
+    source.mkdir(parents=True)
+    (layout / "skills" / "setup-pstack").mkdir(parents=True)
+    (layout / "source").symlink_to(source)
+    (home / ".claude" / "skills").mkdir(parents=True)
+    (home / ".claude" / "skills" / "setup-pstack").symlink_to(layout / "skills" / "setup-pstack")
+
+
+def narrow_path(tmp_path, **stubs):
+    """A PATH of the programs the skill's block runs, and a stand-in for each of `stubs`."""
+    narrow = tmp_path / "narrow"
+    narrow.mkdir()
+    for program in ("realpath", "awk", "tail", "cat"):
+        (narrow / program).symlink_to(shutil.which(program))
+    for name, text in stubs.items():
+        (narrow / name).write_text(text)
+        (narrow / name).chmod(0o755)
+    return narrow
+
+
+JINSTALL = """#!/bin/sh
+echo "$*" >> "$JINSTALL_LOG"
+case "$1" in
+--setup) printf 'already linux\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'; exit 1 ;;
+--doctor) printf 'ok hard linux\ndoctor: not ok, 1 hard\n'; exit 1 ;;
+esac
+exit 2
+"""
+
+
+def test_the_skill_on_a_release_runs_jinstall_setup_then_the_doctor(tmp_path):
+    home = tmp_path / "home"
+    no_checkout_behind(home, tmp_path)
+    narrow = narrow_path(tmp_path, jinstall=JINSTALL)
+    log = tmp_path / "jinstall.log"
+    env = {"HOME": str(home), "PATH": str(narrow), "JINSTALL_LOG": str(log)}
+
+    done = subprocess.run(
+        ["/bin/sh", "-c", skill_block()], env=env, cwd=home, capture_output=True, text=True
+    )
+
+    assert (done.returncode, done.stderr) == (0, "")
+    assert done.stdout.splitlines() == [
+        f"release: {narrow / 'jinstall'}",
+        "already linux",
+        "done patterns x",
+        "needs you gh sign-in -> gh auth login",
+        "setup: 1 done, 1 already, 1 needs you, 0 optional left, exit 1",
+        "doctor: not ok, 1 hard",
+    ]
+    assert log.read_text() == "--setup\n--doctor\n"
+
+
+def test_the_skill_with_no_checkout_and_no_jinstall_names_the_release_install(tmp_path):
+    home = tmp_path / "home"
+    no_checkout_behind(home, tmp_path)
+    env = {"HOME": str(home), "PATH": str(narrow_path(tmp_path))}
+
+    done = subprocess.run(
+        ["/bin/sh", "-c", skill_block()], env=env, cwd=home, capture_output=True, text=True
+    )
+
+    said = done.stdout.splitlines()
+    assert said[0].startswith("not set up: ")
+    assert said[1] == (
+        "needs you: curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/"
+        "download/install.sh | sh"
+    )

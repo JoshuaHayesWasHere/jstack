@@ -151,7 +151,7 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "name": "foo-run",
         "kind": "playbook",
         "path": "features/foo/playbooks/foo-run.md",
-        "source": "josh",
+        "source": "jstack",
         "nameable": True,
     }
     assert items["template", "foo.md"]["path"] == "features/foo/templates/foo.md"
@@ -407,13 +407,13 @@ def test_the_wheel_carries_the_source_as_shared_data_and_jinstall_as_a_command()
     assert project["project"]["scripts"]["jinstall"] == "jinstall.cli:main"
 
 
-def test_every_path_the_readmes_table_of_the_repo_names_is_in_the_repo():
-    """Somebody writes the rows below "| Path | Holds |" by hand, and no run of the generator
-    updates them. So each path in the Path column must be in the checkout. Each name that a row
-    gives in backticks must be there too, as a path from the root or from the row's own
+def test_every_path_the_contributing_pages_table_of_the_repo_names_is_in_the_repo():
+    """Somebody writes the rows below "| Path | Holds |" of CONTRIBUTING.md by hand, and no run of
+    the generator updates them. So each path in the Path column must be in the checkout. Each name
+    that a row gives in backticks must be there too, as a path from the root or from the row's own
     folder. A name with `~`, `<`, `{` or a space is a
     pattern, and one with no `/` and no `.` is a command."""
-    lines = (REPO / "README.md").read_text().splitlines()
+    lines = (REPO / "CONTRIBUTING.md").read_text().splitlines()
     rows = []
     for line in lines[lines.index("| Path | Holds |") + 2 :]:
         if not line.startswith("|"):

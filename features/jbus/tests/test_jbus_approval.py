@@ -21,7 +21,7 @@ from test_jbus_queue import NO_BASIS, add, brief, rows, sha12
 HOME, MESSAGE = "mcp:a-home", "a-message-of-his"
 REF = f"{HOME}/{MESSAGE}"
 HEARD_AT = "2026-10-12 10:30 ET"
-HEARD = f"his word, {HEARD_AT}, in home: demo; run {RAN} by the demo home"
+HEARD = f"your word, {HEARD_AT}, in home: demo; run {RAN} by the demo home"
 
 
 def go(kitchen, slug, *basis):
@@ -207,6 +207,21 @@ def test_a_row_that_holds_only_the_old_string_loads_launches_and_says_it_was_typ
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
 
 
+def test_a_row_stored_with_the_old_line_says_the_new_one_and_still_launches(kitchen):
+    """A row approved before the line said "your word" keeps "his word" in its `approved`
+    column. jbus reads the line from the record, so the row says the new line and keeps its go."""
+    add(kitchen, "alpha", approve=False)
+    assert go(kitchen, "alpha", "--word", kitchen.word())[0] == 0
+    table = json.loads((kitchen.state / "queue.json").read_text())
+    table[0]["approved"] = GO.replace("your word", "his word")
+    jbus.write_json(kitchen.state / "queue.json", table)
+    assert cell(kitchen, "alpha") == GO
+    (task,) = viewed(kitchen)["tasks"]
+    assert task["approved"] == GO
+    kitchen.poll()
+    assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
+
+
 def test_the_views_row_says_the_line_queue_show_prints_and_takes_the_time_from_the_record(kitchen):
     kitchen.t3.says(HOME, MESSAGE, "yes, launch alpha")
     add(kitchen, "alpha", approve=False)
@@ -231,7 +246,7 @@ def test_the_line_names_a_home_or_a_shell_by_where_and_whether_a_session_ran_it(
     kitchen.monkeypatch.chdir(desk)
     argv = ("--project", "demo", "queue", "approve", "alpha", "--word", kitchen.word())
     assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
-    typed = f"his word, {SAID_AT} (time typed); run {RAN} by"
+    typed = f"your word, {SAID_AT} (time typed); run {RAN} by"
     assert rows(kitchen)["alpha"]["approved"] == f"{typed} the elsewhere home"
     kitchen.monkeypatch.delenv("CLAUDE_CODE_SESSION_ID")
     assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
@@ -295,7 +310,7 @@ def test_a_word_given_as_a_message_is_kept_with_the_messages_own_words_and_time(
     add(kitchen, "alpha", approve=False)
     assert go(kitchen, "alpha", "--word", kept.id)[0] == 0
     row = rows(kitchen)["alpha"]
-    assert row["approved"] == f"his word, {HEARD_AT}, in Sous Chef; run {RAN} by the demo home"
+    assert row["approved"] == f"your word, {HEARD_AT}, in Sous Chef; run {RAN} by the demo home"
     assert (row["approval"]["basis"], row["approval"]["checked"]) == ("word", True)
 
 

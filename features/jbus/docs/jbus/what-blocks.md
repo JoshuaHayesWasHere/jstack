@@ -23,7 +23,7 @@ These go to the second target, `blocking_url` and `blocking_key` at the top of t
 It is a route of its own, with its outbox, gap, last error, failure streak and status in `blocking/` inside the project's state, so one that is down holds back no other webhook.
 It is posted no event, and nothing quiet.
 With no such pair nothing more is posted.
-Every body has a top-level `kind`, which jbus-relay routes on:
+Every body has a top-level `kind`, which the relay routes on:
 
 | `kind` | Sent to | Body |
 |---|---|---|
@@ -33,9 +33,12 @@ Every body has a top-level `kind`, which jbus-relay routes on:
 
 An item is `{"project", "key", "case", "why", "kind", "line", "since", "opened"}`, with `slug`, `number`, `url`, `question` and `default` where it has them. `case` is the letter above and `why` says it in words. A body that fails stays in the outbox and goes again, in order, once the five-minute gap has passed: a retry waits on the gap whatever it carries. With no second target, jbus judges nothing and writes no `blocking.json`, so the first pass that has the pair reminds of what is already 15 minutes old. The stall that jbus says again each hour (`waiting-on-user`) is quiet and posted nowhere, so the refresh does not double it.
 
-When Sous Chef is silent, the relay pages a second way ([The relay](the-relay.md)). Nothing from Sous Chef is needed to tell, and it fires in two cases:
+Where you run [the relay](the-relay.md), an optional server for a chat bot of your own, it pages a second way when the chat bot is silent.
+Nothing from the chat bot is needed to tell, and the page fires in two cases:
 
-- **Sous Chef did not take it.** A POST on the relay's `blocking` route that fails or times out pages at once, with the event id, for each body that waits on that route, once for each event. A timeout can be a body Sous Chef got all the same, so this case may page once too often, never too few.
+- **The chat bot did not take it.**
+  A POST on the relay's `blocking` route that fails or times out pages at once, with the event id, for each body that waits on that route, once for each event.
+  A timeout can be a body the chat bot got all the same, so this case may page once too often, never too few.
 - **It still blocks long after its reminder.** An item that a `reminder` or a `refresh` still lists 45 minutes after it began to block (30 minutes after its one reminder; the body's `at` against the item's `opened`) pages once, by its `key` and when it opened. The relay learns that an item closed only from a refresh that leaves it out, so this case fires on the refresh: between 45 minutes and about an hour and three quarters after the item began to block, and not in the first hour after jbus has the second target, which posts no refresh before its hour turns. An item a refresh dropped before then pages nothing, and one that closes and opens again is a new item.
 
-An item Sous Chef has acknowledged (a POST of its event id to the relay's `/ack`) does not page in the second case.
+An item the chat bot has acknowledged (a POST of its event id to the relay's `/ack`) does not page in the second case.

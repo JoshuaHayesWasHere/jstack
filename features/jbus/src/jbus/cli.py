@@ -23,7 +23,7 @@ webhook is posted only what the user must act on: a new question, a hold or an a
 that is theirs, an alert, a stall. Everything else is quiet: it is in the log, which
 `jbus events` prints and the view shows. A failure that repeats is told once, and once
 when it ends (`alert`).
-`jbus word` is the user's word down to a home: it keeps what he said for one project or for
+`jbus word` is the user's word down to a home: it keeps what the user said for one project or for
 all, and sends it to the thread in each home's `home-id` as a queued message, at once and
 then on each pass until it went (`word`). It is no event, so no webhook is posted it.
 Once a day it asks `jmerge` what a sweep would remove, and again on each pass until

@@ -58,14 +58,23 @@ UNITS = [
     "jroles-mirror.timer",
 ]
 TIMERS = [
-    "jbus-ci.timer",
-    "jbus-snapshot.timer",
     "jbus-stale.timer",
     "jbus.timer",
     "jgauge-limits.timer",
     "jgauge-sample.timer",
     "jroles-mirror.timer",
 ]
+OPTED = ["jbus-ci.timer", "jbus-relay.service", "jbus-snapshot.timer"]
+"""The units only some machines run: each is enabled once the config that asks for it is
+there, and every other timer is enabled on every machine."""
+RELAY_KEYS = (
+    "RELAY_INBOUND_KEY=an-inbound-key\n"
+    "GROK_WEBHOOK_URL=http://127.0.0.1:9/hook\n"
+    "GROK_WEBHOOK_KEY=a-webhook-key\n"
+    "PAGER_HA_URL=http://127.0.0.1:9\n"
+    "PAGER_HA_TOKEN=a-token\n"
+    "PAGER_HA_SERVICE=mobile_app_phone\n"
+)
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
 
 
@@ -306,6 +315,35 @@ class User:
     def with_jbus(self):
         self.write(self.jbus / "config.toml", "")
         return f"optional units {self.units}"
+
+    def as_owner(self):
+        """The owner's machine: a project that asks for the week's CI report, the relay's keys
+        under their older names, and a state tree that backs up to a remote. gitleaks is a
+        stand-in on PATH."""
+        checkout = self.home / "repo"
+        checkout.mkdir()
+        self.write(
+            self.jbus / "config.toml",
+            'server = "http://127.0.0.1:1"\n[[project]]\nname = "jstack"\n'
+            f'checkout = "{checkout}"\nprojectId = "p"\nci_report = true\n',
+        )
+        (self.jbus / "config.toml").chmod(0o600)
+        self.write(self.relay_env, RELAY_KEYS)
+        state = self.home / ".local" / "state" / "home"
+        state.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", str(state)], check=True)
+        origin = "https://github.com/someone/state.git"
+        subprocess.run(["git", "-C", str(state), "remote", "add", "origin", origin], check=True)
+        self.script("gitleaks", "#!/bin/sh\nexit 0\n")
+        return f"optional units {self.units}"
+
+    @property
+    def relay_env(self):
+        return self.home / ".config" / "jbus-relay" / "env"
+
+    def enabled(self, name):
+        target = "default.target" if name.endswith(".service") else "timers.target"
+        return (self.units / f"{target}.wants" / name).is_symlink()
 
 
 @pytest.fixture
@@ -577,12 +615,46 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
     for timer in TIMERS:
         wanted = user.units / "timers.target.wants" / timer
         assert os.readlink(wanted) == str(template(timer))
-    ran = [line for line in user.said(user.systemctl_log) if "show" not in line]
+    ran = [line for line in user.said(user.systemctl_log) if not re.search("show|is-enabled", line)]
     enabled = [f"--user enable --now {timer}" for timer in TIMERS]
     assert ran[: 1 + len(TIMERS)] == ["--user daemon-reload", *enabled]
     before = user.snapshot()
     assert user.run() == (0, user.every("ok", units))
     assert user.snapshot() == before
+
+
+def test_a_strangers_machine_enables_no_ci_relay_or_snapshot_unit_and_nothing_fails(user):
+    units = user.with_jbus()
+    assert user.run() == (0, user.every("ok", units))
+    assert [name for name in [*TIMERS, *OPTED] if user.enabled(name)] == TIMERS
+    ran = user.said(user.systemctl_log)
+    assert not [line for line in ran if "able --now" in line and line.split()[-1] in OPTED]
+    assert all((user.units / name).is_symlink() for name in OPTED)
+
+
+def test_the_owners_machine_enables_the_ci_relay_and_snapshot_units(user):
+    units = user.as_owner()
+    assert user.run() == (0, user.every("ok", units))
+    assert all(user.enabled(name) for name in [*TIMERS, *OPTED])
+    relay = user.units / "default.target.wants" / "jbus-relay.service"
+    assert os.readlink(relay) == str(template("jbus-relay.service"))
+    before = user.snapshot()
+    assert user.run() == (0, user.every("ok", units))
+    assert user.snapshot() == before
+
+
+def test_a_unit_whose_config_is_gone_is_disabled_and_one_whose_config_is_wrong_is_left_on(user):
+    units = user.as_owner()
+    user.run()
+    user.write(user.relay_env, RELAY_KEYS.replace("a-token", "REPLACE_ME"))
+    assert user.run("--check") == (0, user.every("ok", units))
+    assert user.enabled("jbus-relay.service")
+    user.relay_env.unlink()
+    off = f"old {units} -> jbus-relay.service is enabled, and nothing asks for it"
+    assert line_for(user.run("--check")[1], "units") == [off]
+    assert user.run() == (0, user.every("ok", units))
+    assert not user.enabled("jbus-relay.service") and user.enabled("jbus-ci.timer")
+    assert os.readlink(user.units / "jbus-relay.service") == str(template("jbus-relay.service"))
 
 
 def test_units_stay_due_after_the_jbus_config_is_gone_and_say_what_they_lack(user):
@@ -702,7 +774,8 @@ def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(u
     }
     assert all(line.startswith("removed ") for line in said)
     assert user.listing() == []
-    assert {f"--user disable --now {t}" for t in TIMERS} <= set(user.said(user.systemctl_log))
+    disabled = {f"--user disable --now {t}" for t in [*TIMERS, *OPTED]}
+    assert disabled <= set(user.said(user.systemctl_log))
     assert user.said(user.uv_log)[-1] == "tool uninstall jstack"
     assert user.run("--uninstall") == (0, [])
     assert user.listing() == []
@@ -1154,7 +1227,11 @@ def test_a_push_hook_of_the_users_own_is_left_alone(user):
     own.write_text("#!/bin/sh\n")
     done = user.start(checkout=checkout)
     said = done.communicate()[0].splitlines()
-    assert line_for(said, "pre-push") == [f"old {part} -> not a link"]
+    script = checkout / "features" / "jleak" / "hooks" / "pre-push.sh"
+    assert line_for(said, "pre-push") == [
+        f"old {part} -> a hook of the repo's own, which the install does not write over: "
+        f"to run jstack's as well, add sh '{script}' \"$@\" to it"
+    ]
     user.start("--uninstall", checkout=checkout).wait()
     assert own.read_text() == "#!/bin/sh\n"
 
@@ -1182,9 +1259,11 @@ def test_a_repo_that_points_git_at_other_hooks_is_told_so(tmp_path):
         return Ran(0, "/elsewhere/hooks\n") if "core.hooksPath" in args else Ran(None, "")
 
     said = run_install(machine(main, home, account=home, run=run), write=True).lines
+    script = main / "features" / "jleak" / "hooks" / "pre-push.sh"
     assert line_for(said, "pre-push") == [
         f"old hard hook {main / '.git' / 'hooks' / 'pre-push'} pre-push"
-        " -> core.hooksPath is set, so git runs no hook of .git/hooks"
+        " -> core.hooksPath is set, so git runs /elsewhere/hooks/pre-push, which the install"
+        f" does not write over: to run jstack's as well, add sh '{script}' \"$@\" to it"
     ]
     assert not (main / ".git" / "hooks" / "pre-push").is_symlink()
 

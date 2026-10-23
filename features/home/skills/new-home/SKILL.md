@@ -11,7 +11,8 @@ card: "Run the pipeline | 8 | Sets up a repo's first home in five steps: its sta
 
 A repo's first home needs five things, and a first home has no thread to type `/home` in until the second is there. This skill does the five in order, each once. For each it tells the user one line, as the step prints it or says it: `done`, `already`, or `needs you: <a command or one sentence>`. Run again on a repo where some of it is done, it does what is missing and says `already` for the rest.
 
-This thread does not become the home. It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, and the four switches of a repo are the user's.
+This thread does not become the home.
+It starts no crewmate and no scout, makes no scheduled task and no webhook, and writes no file but the two of step 1: jbus's config is written by `jbus project add`, the git hooks are linked by `jinstall --repo`, and the four switches of a repo are the user's.
 
 ## 1. The repo and its state directory
 
@@ -92,9 +93,21 @@ case $C$P in
         'refused: no config at '*) echo "3 jbus project: needs you: set jbus up once for the machine, as features/jbus/docs/jbus.md \"Set up jbus\" says, then type /new-home ${C##*/} again" ;;
         *) echo "3 jbus project: needs you: jbus project add said \"$said\"" ;;
         esac
+    fi
+    if ! command -v jinstall > /dev/null; then
+        echo "3 git hooks: needs you: sh install.sh in the checkout that holds this skill, jinstall is not on PATH"
+    elif hooked=$(jinstall --repo "$C" 2>&1); then
+        echo "3 git hooks: done, $(printf '%s\n' "$hooked" | grep -c '^ok ') ok in $C/.git/hooks"
+    else
+        echo "3 git hooks: needs you: jinstall --repo $C said:"
+        printf '%s\n' "$hooked" | grep -v '^ok '
     fi ;;
 esac
 ```
+
+`jinstall --repo` links jleak's `pre-push` and `commit-msg` hooks into the repo's main checkout, and keeps the repo in the list `jinstall --check` and the doctor read.
+A run on a repo that has them already links nothing and says `done` all the same.
+A hook of the repo's own is never written over: the `needs you` line names it, with the line that runs jstack's hook from it.
 
 `jbus project add` is the only thing that writes the config: it keeps the file as it was beside it, leaves every other table as it is, writes no webhook, and prints no value of any key. Never open, print or edit that file here. The project's name in jbus is the repo's folder name, which is also the name of its state directory. Each pass of jbus is a new run that loads the config, so the next pass works the new project and no unit is restarted: the `done` line says so.
 
@@ -180,4 +193,6 @@ The line is `5 home thread: done, [home: <repo>](t3-thread://v1/<its threadId>)`
 
 ## The end
 
-Give the user the lines, in order: step 1's, step 2's, step 3's, each of step 4's and step 5's, then the `switches` line. Add nothing a line does not say. This thread is done: the home is the thread step 5 names.
+Give the user the lines, in order: step 1's, step 2's, step 3's two, each of step 4's and step 5's, then the `switches` line.
+Add nothing a line does not say.
+This thread is done: the home is the thread step 5 names.

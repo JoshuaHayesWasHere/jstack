@@ -19,10 +19,10 @@ from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import (
     Attribution,
     Carried,
+    CiReport,
     Commands,
     Generated,
     GhSignIn,
-    GitHook,
     GoneLink,
     HomeSkills,
     HookGroup,
@@ -37,6 +37,7 @@ from jinstall.kinds import (
     Program,
     ProviderInstance,
     ProviderInventory,
+    RelayKeys,
     Roles,
     StateRepo,
     StatusLine,
@@ -60,6 +61,7 @@ from jinstall.machine import Machine
 from jinstall.mirrored import Mirrored
 from jinstall.mirrored import declared as mirrors
 from jinstall.project import ProjectLink, StrayProjectLink, stray
+from jinstall.repos import GitHook, checkouts
 from jroles import ledger
 from jroles.inventory import claude_instances
 
@@ -92,7 +94,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     one listing of each skills root for GoneLink, and the provider inventory. The inventory
     names the instances and the Claude homes to probe.
 
-    A release has no checkout, so its list has neither the generated line nor the git hook.
+    A release has no checkout, so its list has no generated line and no project skill.
     An inventory that the function cannot read names no instance or home, and its own line
     says why. A skills.json that the function cannot read names no skill and no hook, and each
     layout's line says why.
@@ -112,7 +114,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       optional  config <path>                 JstackConfig, seeded
       optional  roles <path>                  Roles, seeded
       optional  lavish-axi                    Program("lavish-axi", hint="npm install -g ...")
-      optional  state repo <path>             StateRepo
+      optional  state repo <path>             StateRepo, the backup
+      optional  ci report <path>              CiReport, of the jbus config
+      optional  relay <path>                  RelayKeys, the relay's env file
       optional  provider inventory            ProviderInventory
       hard      provider <id>                 ProviderInstance, for each declared instance
       hard      skills <home>                 HomeSkills, for each declared Claude home
@@ -136,15 +140,19 @@ def needs(machine: Machine) -> tuple[Need, ...]:
       hard      hook <file> <event>           HookGroup, for each entry of each hook of
                                               skills.json, in the file its harness reads
                                               (`Harness.hooks`)
-      hard      hook <checkout>/.git/hooks/<name> <name>  GitHook, for each git hook of
-                                              skills.json, in a checkout
+      hard      hook <repo>/.git/hooks/<name> <name>  GitHook, for each git hook of
+                                              skills.json in each repo jstack works in
+                                              (`repos.checkouts`): hard in its own checkout,
+                                              optional in any other repo
       hard      commands <tool>               Commands
       optional  statusline ~/.claude/settings.json  StatusLine, the status line of skills.json
       hard      attribution <file>            Attribution, the keys that turn off the AI
                                               co-author trailer, in each Claude home's
                                               settings.json (~/.claude and each declared
                                               home) and in each harness's settings file
-      optional  units ~/.config/systemd/user  Units
+      optional  units ~/.config/systemd/user  Units, which enables the ci, relay and
+                                              snapshot units only while the ci report, relay
+                                              and state repo needs above are ok (`OPTED`)
     """
     repo, home = machine.checkout, machine.home
     try:
@@ -158,6 +166,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     config = machine.config_home() / "jstack" / "config.toml"
     roles = config.with_name("roles")
     state = _state_tree(machine)
+    relay = machine.config_home() / "jbus-relay" / "env"
     found = [
         Need("linux", Level.HARD, Linux()),
         Need("t3", Level.HARD, T3Nightly(T3_FLOOR)),
@@ -177,6 +186,8 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         Need(f"roles {roles}", Level.OPTIONAL, Roles(roles)),
         Need("lavish-axi", Level.OPTIONAL, Program("lavish-axi", hint="npm install -g lavish-axi")),
         Need(f"state repo {state}", Level.OPTIONAL, StateRepo(state)),
+        Need(f"ci report {jbus}", Level.OPTIONAL, CiReport(jbus)),
+        Need(f"relay {relay}", Level.OPTIONAL, RelayKeys(relay)),
     ]
     inventory = machine.config_home() / "jstack" / "providers.json"
     providers = declared(inventory, home)
@@ -245,15 +256,15 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for hook in hooked
         for one in hook["events"]
     ]
-    if repo is not None:
-        found += [
-            Need(
-                f"hook {repo / '.git' / 'hooks' / one['name']} {one['name']}",
-                Level.HARD,
-                GitHook(one["name"], one["path"]),
-            )
-            for one in pushed
-        ]
+    found += [
+        Need(
+            f"hook {hook.path()} {hook.name}",
+            Level.HARD if each == repo else Level.OPTIONAL,
+            hook,
+        )
+        for each in checkouts(machine, jbus)
+        for hook in (GitHook(each, one["name"], one["path"]) for one in pushed)
+    ]
     commands = _commands(machine)
     found.append(Need(f"commands {commands.tool}", Level.HARD, commands))
     settings = files[CLAUDE_CODE.name]
@@ -270,11 +281,14 @@ def needs(machine: Machine) -> tuple[Need, ...]:
         for file, wanted, made in _attribution(home, providers)
     ]
     names = sorted(templates(machine))
+    opted = {"jbus-ci.timer": CiReport(jbus), "jbus-relay.service": RelayKeys(relay)}
+    opted["jbus-snapshot.timer"] = StateRepo(state)
     units = Units(
         machine.config_home() / "systemd" / "user",
         tuple(names),
-        tuple(name for name in names if name.endswith(".timer")),
+        tuple(name for name in names if name.endswith(".timer") and name not in opted),
         jbus,
+        tuple((name, need) for name, need in opted.items() if name in names),
     )
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)

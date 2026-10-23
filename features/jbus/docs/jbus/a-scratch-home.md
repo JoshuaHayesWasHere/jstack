@@ -7,7 +7,7 @@ Nothing in it pushes, opens a pull request or launches a crew.
 
 ## Add it
 
-Find the id T3 Code gives its "No project": `t3_project_list`, the entry whose `workspaceRoot` is `~/.t3/scratch`.
+Find the id T3 Code gives its "No project", the project whose folder is `~/.t3/scratch`, as step 3 of [Set up jbus](set-up-jbus.md#3-add-your-first-project) finds a repo's.
 Then add the home, with a name you pick:
 
 ```sh
@@ -18,11 +18,10 @@ The table it writes has `name`, `kind = "scratch"` and `projectId`, and no check
 It is refused as a repo's table is: `refused: the config already has this project` for the same name and id, and `refused: the config already has a project of that name` for a name a project or another scratch home has.
 The command takes `--checkout` for a repo or `--scratch` for a scratch home, one of the two and not both.
 
-## The one place it is skipped
+## How a pass treats it
 
-`jbus.load` reads each `[[project]]` table, and sorts one whose `kind` is `scratch` into the config's scratch homes and never into its projects.
-Every step of a repo takes a project, so none of them is ever given a scratch home, and no step checks for one.
-A `kind` that is neither `repo` nor `scratch` is refused, and a table with no `kind` is a repo, as every table before this was.
+A table whose `kind` is `scratch` is a scratch home, and never one of the config's projects, so no step of a repo runs for it.
+A `kind` that is neither `repo` nor `scratch` is refused, and a table with no `kind` is a repo.
 
 ## Its thread, and your word
 

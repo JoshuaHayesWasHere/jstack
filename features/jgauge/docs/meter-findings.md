@@ -1,5 +1,8 @@
 # What `jgauge` reads from a transcript
 
+> This page is the research behind `jgauge`'s counting rule, recorded with one version of Claude Code for jstack's developers.
+> [jgauge](jgauge.md#how-it-counts-tokens) states the rule.
+
 `jgauge` counts tokens from the transcripts Claude Code writes.
 Claude Code does not document their shape, and it can change between versions.
 This page records what two probe sessions showed, and why the counting rule in `features/jgauge/src/jgauge/transcript.py` is what it is.

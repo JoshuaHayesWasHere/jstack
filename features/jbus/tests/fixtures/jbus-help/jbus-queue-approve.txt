@@ -14,5 +14,5 @@ options:
                         the user's own message in T3 Code
   --page SESSION/ENTRY  the user's own send from a Lavish page
   --rule N              a rule of the home's standing.md, with --follows
-  --follows SLUG        the row he approved that this one follows up
+  --follows SLUG        the row the user approved that this one follows up
   --sha SHA             the first 12 of that brief's sha256
