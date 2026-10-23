@@ -1,15 +1,16 @@
 # What `jgauge` reads from a transcript
 
-> This page is the research behind `jgauge`'s counting rule, recorded with one version of Claude Code for jstack's developers.
+> This page records the research for `jgauge`'s counting rule.
+> It was recorded with one version of Claude Code, for jstack's developers.
 > [jgauge](jgauge.md#how-it-counts-tokens) states the rule.
 
 `jgauge` counts tokens from the transcripts Claude Code writes.
-Claude Code does not document their shape, and it can change between versions.
-This page records what two probe sessions showed, and why the counting rule in `features/jgauge/src/jgauge/transcript.py` is what it is.
+Claude Code does not document the transcript format, and the format can change between versions.
+This page records what two probe sessions showed, and the reasons for the counting rule in `features/jgauge/src/jgauge/transcript.py`.
 
 The two sessions were recorded on 2026-10-09 with Claude Code 2.1.296.
-Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-jstack-check/`, and `features/jgauge/tests/fixtures/README.md` says what was kept.
-`features/jgauge/tests/test_probes.py` holds `jgauge session` to a recount made by hand from the untrimmed files.
+Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-jstack-check/`, and `features/jgauge/tests/fixtures/README.md` lists what the trimmed copies kept.
+`features/jgauge/tests/test_probes.py` checks `jgauge session` against a recount made by hand from the untrimmed files.
 
 | Session | What ran |
 |---|---|
@@ -23,13 +24,19 @@ Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-jstack-check
 ~/.claude/projects/<project>/<session_id>/subagents/agent-<agent_id>.jsonl
 ```
 
-The subagents of a session are in that one `subagents/` directory, also a subagent that another subagent started. An agent that a workflow started is one level below, in `subagents/workflows/<workflow id>/`. `jgauge session` searches the whole directory.
+A session's subagents are all in that one `subagents/` directory, including a subagent that another subagent started.
+An agent that a workflow started is one level below, in `subagents/workflows/<workflow id>/`.
+`jgauge session` searches the whole directory.
 
 Every line has `sessionId`, `timestamp` and `version`, the version of Claude Code that wrote it. A subagent's line also has `agentId`.
 
 ## A subagent's own transcript gives a floor for output
 
-An `assistant` line holds `message.id`, `message.model` and `message.usage`. A message has one line per content block, and every such line has the same `message.id`. A line written before the message finished has a null `stop_reason`, and its `output_tokens` is the count as the message started. That count is a floor. The input and cache counts are the same on every line of a message.
+An `assistant` line has `message.id`, `message.model` and `message.usage`.
+A message has one line per content block, and every such line has the same `message.id`.
+A line written before the message finished has a null `stop_reason`, and its `output_tokens` is the count when the message started.
+That count is a floor, the least the final count can be.
+The input and cache counts are the same on every line of a message.
 
 In both probe sessions, no subagent's last message has a finished line in the subagent's own transcript:
 
@@ -78,6 +85,10 @@ In a session's own transcript, a finished message has a line with a `stop_reason
 
 - It reads transcripts and nothing else. It reads no hook payload, no `.meta.json` file and no `toolUseResult`.
 - It takes input, cache read, cache write and the model of each call from the transcript, once per `message.id`.
-- It takes the output of a call from the line with a `stop_reason`. A call with no such line has a floor. `jgauge` keeps the floor apart from the final output, adds it into the total as the least that the call's output can be, and says under the table how many calls and tokens are floors.
-- It does not read the starter's `toolUseResult.usage`, so the last call of a subagent stays a floor. In the first probe session `jgauge session` counts 3 output tokens for the scout, not 184.
+- It takes the output of a call from the line with a `stop_reason`.
+  For a call with no such line, it has only a floor.
+  `jgauge` keeps the floor apart from the final output, and adds it to the total as the least that the call's output can be.
+  A note under the table says how many calls and tokens are floors.
+- It does not read the starter's `toolUseResult.usage`, so it counts only the floor for the last call of a subagent.
+  In the first probe session, `jgauge session` counts 3 output tokens for the scout, not 184.
 - It estimates nothing.
