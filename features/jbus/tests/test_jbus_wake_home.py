@@ -199,7 +199,9 @@ def test_a_flip_of_wake_moves_the_wakes_that_wait_for_a_route_it_leaves(kitchen)
     said = kitchen.poll(later(5))
     assert waiting(kitchen) == []
     assert any("decision alpha" in json.dumps(post) for post in kitchen.webhook.posts)
-    assert "moved demo: 1 events for the user from the home thread outbox" in said
+    assert (
+        "moved demo: 1 events for the user from the home thread outbox to the webhook," in said[0]
+    )
     kitchen.t3.refuse_send = False
     kitchen.config(project_wake="home")
     kitchen.poll(later(10))
@@ -236,7 +238,9 @@ def test_decisions_queued_for_a_refusing_webhook_reach_the_home_thread_once_wake
     assert lines.count("decision alpha: which one?") == 1
     assert lines.count("decision beta: ?") == 1
     assert own(kitchen) == [] and waiting(kitchen) == []
-    assert "moved demo: 2 events for the user from the webhook outbox to the home thread" in said
+    assert (
+        "moved demo: 2 events for the user from the webhook outbox to the home thread," in said[0]
+    )
     again = kitchen.poll(later(10))
     assert sent_events(kitchen) == lines
     assert not any(one.startswith("moved demo") for one in again)

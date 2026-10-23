@@ -93,9 +93,11 @@ def since(given: str | None, user: jsettings.Settings) -> datetime | None:
 
 def status(config: Config) -> dict[str, Any]:
     """Return what `jbus status` prints: the status file, the record of the pass, the streaks
-    as they are now, and the homes that are not on the bus now."""
+    as they are now, the outboxes outside the routes in effect that hold events now, and the homes
+    that are not on the bus now."""
     return read_json(config.status_path, {}) | {
         "streaks": alert.streaks(config.state_dir),
+        "stranded": record.stranded(config),
         "homes_off_bus": project.missing(config),
         "pass": record.read(config),
     }

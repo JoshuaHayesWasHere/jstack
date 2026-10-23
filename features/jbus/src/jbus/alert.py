@@ -300,12 +300,15 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
 
     This function sends to the project's first route first, so that an alert from that route's
     streak goes to the others in the same pass. It sends to the second target before them all, with
-    its own streak, for the same reason. For a route the project's `wake` leaves out, it ends that
-    route's streak with no line and keeps what waits for it, which goes if `wake` picks the route
-    again. For a top-level pair or a second target the config does not have any more, it also drops
-    what waited for it, and if the pair comes back later, its route gets only what is new.
+    its own streak, for the same reason. Before them all, what waits for a route the project's
+    `wake` leaves out moves to the routes in effect (`moved`), and that route's streak ends with
+    no line.
+    For a top-level pair or a second target the config does not have any more, it drops what waited
+    for it, and if the pair comes back later, its route gets only what is new. Last, it tells once
+    of each event for the user that waits unposted while a route takes posts (`unposted`).
     """
     state, name = run.config.state_dir, run.project.name
+    moved(run)
     if run.box.blocking is None:
         retire(state, blocking(name))
         run.box.drop(wake.BLOCKING)
@@ -313,7 +316,7 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
         ended: list[str] = []
         run.box.flush_blocking(run.now, run.say, went=ended.append)
         _count(run, blocking(name), ended)
-    sent = 0
+    sent, taken, working = 0, set(), None
     for route in run.box.routes:
         went: list[str] = []
         post = None
@@ -322,8 +325,12 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
             if not thread:
                 continue
             post = functools.partial(_send, run, client, thread)
+        before = run.box.ids(route)
         took = run.box.flush(run.now, run.say, route=route, went=went.append, post=post)
         sent = max(sent, took)
+        taken |= before - run.box.ids(route)
+        if working is None and not run.box.waiting(route) and not any(went[-1:]):
+            working = route
         _count(run, key_of(name, route), went)
     if not any(route.home for route in run.box.routes):
         retire(state, home(name))
@@ -332,7 +339,35 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
         if tuple(run.box.top) in (("", ""), (run.project.webhook_url, run.project.webhook_key)):
             run.box.drop(wake.TOP_LEVEL)
     page(run, client)
+    unposted(run, taken, working)
     return sent
+
+
+def moved(run: wake.Pass) -> None:
+    """Move what waits for a route the project's `wake` leaves out to the routes in effect
+    (`wake.Box.rehome`), and say in one journal line how many moved, from where and to where."""
+    old, count = run.box.rehome()
+    if old:
+        where = " and the ".join(route.name for route in old)
+        to = " and the ".join(route.name for route in run.box.routes)
+        outboxes = "outboxes" if len(old) > 1 else "outbox"
+        run.say(
+            f"moved {run.project.name}: {count} events for the user from the {where} {outboxes} "
+            f"to the {to}, which `wake` picks now"
+        )
+
+
+def unposted(run: wake.Pass, taken: set[str], working: wake.Route | None) -> None:
+    """Tell on the desk and in the journal, once, of each event for the user that still waits
+    after `wake.AFTER` passes in which a route in effect, `working`, took posts. `working` is the
+    first route that waits for nothing after its flush and whose last POST did not fail."""
+    for one in run.box.unposted(taken, working is not None):
+        line = (
+            f"unposted {run.project.name}: an event for the user waits after {wake.AFTER} passes "
+            f"while the {working.name} takes posts: {one.get('say') or one['line']}"
+        )
+        run.say(line)
+        wake.notify(line)
 
 
 def _thread(run: wake.Pass, route: wake.Route) -> str:
