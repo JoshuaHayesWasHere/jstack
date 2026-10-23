@@ -54,7 +54,7 @@ Three things come to you. Everything else that is reversible is done without ask
 | An approval | Before a task launches | That task does not launch. Other tasks go on. |
 | A gate | At any step of any thread | Nothing waits. The default stands until you change it. |
 | A held pull request | At the merge | The pull request stays open. Nothing else is held up unless it depends on it. |
-| One of the four pauses | Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside | The thread waits in its own thread. These are the only things a thread asks first. |
+| One of the four pauses | Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside | The thread asks in its own thread and waits for your answer. These are the only things a thread asks first. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
 A brief that says `Review: after` merges once its check passes, and its review's findings come to you as a cleanup row, `cleanup-<slug>`, that waits for your go.

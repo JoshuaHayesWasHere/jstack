@@ -403,7 +403,7 @@
     <tr><td>An approval</td><td>Before a task launches</td><td>That task does not launch. Other tasks go on.</td></tr>
     <tr><td>A gate</td><td>At any step of any thread</td><td>Nothing waits. The default stands until the operator changes it, and the gate says how to undo it.</td></tr>
     <tr><td>A held pull request</td><td>At the merge</td><td>The pull request stays open. Nothing else is held up unless it depends on it.</td></tr>
-    <tr><td>One of the four pauses</td><td>Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside</td><td>The thread waits in its own thread. These are the only things a thread asks first.</td></tr>
+    <tr><td>One of the four pauses</td><td>Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside</td><td>The thread asks in its own thread and waits for the operator's answer. These are the only things a thread asks first.</td></tr>
     <tr><td>A pull request with no review</td><td>Its brief says <code>Review: none</code></td><td>It never merges by itself. It waits for the operator's word.</td></tr>
   </tbody>
 </table>
@@ -416,7 +416,7 @@
 
 <section id="skills">
 <h2>Skills</h2>
-<p class="lead">A skill is a text that a thread loads by name and follows. The skills fall into seven groups, by what they are for. Some names, such as <code>poteto-help</code> and <code>setup-pstack</code>, come from pstack, the agent skills by Lauren Tan for Cursor that jstack takes its principles from.</p>
+<p class="lead">A skill is a text that a thread loads by name and follows. The skills fall into seven groups, by what they are for. Some names, such as <code>poteto-help</code> and <code>setup-pstack</code>, come from pstack. pstack is Lauren Tan's set of agent skills for Cursor, and jstack takes its principles from it.</p>
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
@@ -724,7 +724,7 @@
 <div class="rulecards">
 <article class="card"><h4 class="t"><span class="n">1</span>Disk is the record, and a thread is disposable.</h4><p>A thread can end at any time. The next one starts from the files in the state directory, so nothing that matters lives in a chat.</p><div class="leanrow"><code>handoff</code><code>session-pickup</code><code>pause-safely</code></div></article>
 <article class="card"><h4 class="t"><span class="n">2</span>Judgment in threads, repeatable steps in commands.</h4><p>A model plans, writes and reviews. Whatever has the same answer every time is a command with no model, whose rules are one file.</p><div class="leanrow"><code>jmerge</code><code>jbus</code><code>jgauge room</code></div></article>
-<article class="card"><h4 class="t"><span class="n">3</span>A gate takes a default, so work never waits.</h4><p>A thread parks a question only the operator can answer, with the default it took, what rests on that default and how to undo it. Then the thread carries on.</p><div class="leanrow"><code>crew</code><code>scout</code><code>home</code></div></article>
+<article class="card"><h4 class="t"><span class="n">3</span>A gate takes a default, so work never waits.</h4><p>When a question only the operator can answer comes up, the thread takes a default and keeps working. It records the question in a gate, with that default, the work that depends on it, and how to undo it.</p><div class="leanrow"><code>crew</code><code>scout</code><code>home</code></div></article>
 <article class="card"><h4 class="t"><span class="n">4</span>A test must execute something.</h4><p>A test runs the shell a skill tells an agent to run, parses a block out of it, or runs the script. Finding a sentence in a file is not a test.</p><div class="leanrow"><code>tdd</code><code>blast-radius</code><code>correct</code></div></article>
 </div>
 <div class="group"><h3>Before the code: get the shape right</h3><div class="principles">

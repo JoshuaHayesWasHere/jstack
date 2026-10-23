@@ -152,7 +152,7 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	You see `merged` or `wait` and the reason for each open pull request.
 	`jmerge` merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
 	No person has to approve on GitHub.
-	The reviewer thread's review stands in for an approval.
+	The reviewer thread's review counts as the approval.
 
 Nothing merges by itself until you choose who does it.
 Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.

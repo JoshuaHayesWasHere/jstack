@@ -114,4 +114,4 @@ It checks that the tag is the version of both `pyproject.toml` and `plugin.json`
 It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.
 The release's assets are what `make dist` writes: the wheel, the sdist, and `install.sh` with the version written in.
 
-A version bump is an ordinary pull request: `uv version --bump <major|minor|patch>`, the same version in `plugin.json`, and `make trees`, which copies it into the harness.
+A version bump is an ordinary pull request: run `uv version --bump <major|minor|patch>`, write the same version in `plugin.json`, and run `make trees`, which copies it into the harness.
