@@ -52,6 +52,8 @@ It writes no plan, because `jbus plan` works out an entry's status from its queu
 It needs `gh` and `git`.
 
 It prints one line per open pull request, and appends the lines to `merge.log`.
+It takes the open pull requests lowest number first, the oldest first, so an older pull request is not passed over by newer ones that became ready with it.
+The migration order ("Migrations") and `merge_after` still come before the number.
 When a `wait` or `hold` line repeats from run to run, it logs the line only once.
 
 | The line | Means |
