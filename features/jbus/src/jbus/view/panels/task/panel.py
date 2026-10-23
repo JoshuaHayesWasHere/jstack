@@ -43,6 +43,7 @@ _TASK = {
     "checks": None,
     "updated": None,
     "thread": None,
+    "gone": None,
     "depends": [{"slug": None, "state": None}],
     "history": [{"at": None, "word": None, "step": None, "reason": None}],
     "events": [_EVENT],

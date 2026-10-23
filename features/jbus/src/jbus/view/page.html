@@ -551,7 +551,7 @@
     if (document.title !== named) document.title = named;
   }
   function projectRow(p) {
-    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; })).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
+    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; }), p.unplaced.length ? ["cannot place " + p.unplaced.join(", ")] : []).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
     if (p.waits) says.push(p.waits + " need you");
     if (why) says.push(why);
     return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
@@ -567,6 +567,7 @@
     function liveness(who, word) { if (word === "hung") add(who + " hung", "bad"); else if (word === "quiet") add(who + " quiet", "user"); }
     if (live !== t.state.kind) liveness("thread", live);
     (S.threads || []).forEach(function (r) { if (r.role === "reviewer" && r.slug === t.slug && r.out && r.live !== t.state.kind) liveness("reviewer", r.live); });
+    if (t.gone) add("crewmate gone", "bad");
     if (t.seen.check && /fail/.test(t.seen.check.state)) add("check failed", "bad");
     if (t.state.kind === "behind") add("behind " + (t.waits_on || (t.blockers[0] && t.blockers[0].what) || "another task"), "plain");
     if (t.unconfirmed) add(t.unconfirmed.since ? "not confirmed since " + hm(ms(t.unconfirmed.since)) : "not confirmed", "gap");

@@ -167,6 +167,10 @@ LOST = {
 UNKNOWN_WAITS = work.UNKNOWN.waits
 NOT_CONFIRMED = "not confirmed: the last pass judged it from what it could not ask"
 PULLED = frozenset(str(one) for one in work.STEPPED)
+GONE = frozenset(
+    str(one)
+    for one in (work.Thread.FAILED, work.Thread.SETTLED, work.Thread.ARCHIVED, work.Thread.MISSING)
+)
 BROKEN, ASKS, WORKS, WAITS, QUEUED, OVER = range(6)
 RANK = {
     "hung": BROKEN,
@@ -673,6 +677,7 @@ def _tasks(
             if waited >= REVIEW_MINUTES and NO_REVIEW in said["say"]:
                 said |= {"say": NO_REVIEWER, "waits": "its crewmate to start a reviewer"}
         crew = crews[slug][0] if len(crews.get(slug, [])) == 1 else {}
+        thread = line["facts"].get("thread") if line else None
         doubt = unconfirmed
         if doubt is None and line is not None and line.get("confirmed") is False:
             doubt = {"since": None, "source": "", "line": NOT_CONFIRMED}
@@ -701,6 +706,7 @@ def _tasks(
                 "checks": text(row.get("checks"), 20),
                 "updated": when(row.get("updated"), user),
                 "thread": text(row.get("thread"), 80),
+                "gone": who == "crew" and thread in GONE,
                 "depends": depends,
                 "history": logged[-HISTORY:],
                 "events": [one for one in events if one["slug"] == slug][-TASK_EVENTS:],
@@ -1363,12 +1369,14 @@ def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
-def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> list[dict[str, str]]:
+def broken(
+    checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any], unasked: str = ""
+) -> list[dict[str, str]]:
     """What is broken in a project, each as a plain reason and the drawer that has it.
 
     It names the checks that failed or that the view could not read, the bus when a wake
-    failed, and the sources the view could not read. It says nothing of what is well, and
-    nothing of what is only quiet."""
+    failed, the sources the view could not read, and `unasked`, the source the last pass
+    could not ask. It says nothing of what is well, and nothing of what is only quiet."""
     found = []
     if checks["error"]:
         found.append({"what": "CI not read", "open": "checks"})
@@ -1384,6 +1392,8 @@ def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> li
                 "open": "pulse",
             }
         )
+    if unasked:
+        found.append({"what": f"{unasked} did not answer", "open": "pulse"})
     return found
 
 
@@ -1418,7 +1428,7 @@ def summary(read: Read) -> dict[str, Any]:
     return {
         "name": read.name,
         "repo": read.where,
-        "broken": broken(failed, bus, unwell),
+        "broken": broken(failed, bus, unwell, (read.unconfirmed or {}).get("source", "")),
         "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
         "waits": len(read.panel("you")["needs"]),
         "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
