@@ -3,6 +3,7 @@ in every scene while each canary, the design with one guard taken out, breaks it
 is `canaries.py`, as the spec's README gives it, and it skips where no Java runs TLC. The code
 model's conditions each name a file and line, as the statechart tool checks."""
 
+import importlib
 import subprocess
 import sys
 
@@ -24,17 +25,17 @@ STATECHART = REPO / "features" / "skill-library" / "skills" / "statechart" / "sc
 sys.path.insert(0, str(STATECHART))
 sys.path.insert(0, str(SPEC))
 
-import canaries  # noqa: E402
-from statechart.lib import shared_variables, uncited_conditions  # noqa: E402
-from statechart.tools import find_java  # noqa: E402
+canaries = importlib.import_module("canaries")
+lib = importlib.import_module("statechart.lib")
+find_java = importlib.import_module("statechart.tools").find_java
 
 
 def test_every_condition_of_the_code_model_names_its_file_and_line():
     """The statechart tool lists no condition of HomeTreeToday.tla that no comment ties to code."""
     today = SPEC / "HomeTreeToday.tla"
-    shared = shared_variables(today)
+    shared = lib.shared_variables(today)
     assert len(shared) == 14
-    assert uncited_conditions(today.read_text(), shared) == []
+    assert lib.uncited_conditions(today.read_text(), shared) == []
 
 
 @pytest.mark.skipif(not find_java(), reason="no Java to run TLC")

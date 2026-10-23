@@ -9,6 +9,7 @@ statechart skill's pinned tla2tools.jar, downloaded to the cache on the first ru
 JAVA, else a java on PATH. Each run has a copy of this folder of its own, so TLC writes nothing
 here."""
 
+import importlib
 import shutil
 import subprocess
 import sys
@@ -21,7 +22,7 @@ sys.path.insert(
     0, str(HERE.parents[2] / "features" / "skill-library" / "skills" / "statechart" / "scripts")
 )
 
-from statechart.tools import NoTlc, find_tlc  # noqa: E402
+tools = importlib.import_module("statechart.tools")
 
 # A scene is the children the root makes in one run, the calls they raise, and whether the
 # routes move. Two siblings that both raise calls are too many states for one run.
@@ -87,7 +88,7 @@ def config(scene, rules, modes, drop=None):
     return "\n".join(lines) + "\n"
 
 
-def tlc(tools, module, cfg):
+def tlc(found, module, cfg):
     """TLC's output for `module` with the config `cfg`, run in a copy of this folder."""
     with tempfile.TemporaryDirectory(prefix="home-tree-") as folder:
         work = Path(folder)
@@ -96,11 +97,11 @@ def tlc(tools, module, cfg):
         (work / "run.cfg").write_text(cfg)
         ran = subprocess.run(
             [
-                tools.java,
+                found.java,
                 "-XX:+UseParallelGC",
                 f"-Djava.io.tmpdir={work}",
                 "-cp",
-                tools.jar,
+                found.jar,
                 "tlc2.TLC",
                 "-workers",
                 "auto",
@@ -149,14 +150,14 @@ def runs():
 
 def main():
     try:
-        tools = find_tlc()
-    except NoTlc as e:
+        tlc_tools = tools.find_tlc()
+    except tools.NoTlc as e:
         print(e, file=sys.stderr)
         return 2
     wrong = 0
     for label, module, cfg, rule, want in runs():
         started = time.monotonic()
-        out = tlc(tools, module, cfg)
+        out = tlc(tlc_tools, module, cfg)
         got = verdict(out, rule)
         took = time.monotonic() - started
         mark = "ok" if got == want else "WRONG"
