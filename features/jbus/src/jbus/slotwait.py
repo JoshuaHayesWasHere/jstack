@@ -23,8 +23,8 @@ A crew that finds every instance of the review pool capped registers in `pool-wa
 (`jroles.waits`, which `jroles review --thread` writes) with the time the cap ends, and ends its
 turn. `wake_capped` wakes it the same way: it drops a wait whose thread is `dead`, and once the
 cap's end has passed it sends the thread one message in mode queue, keyed by the wait. The wait
-leaves the file only after T3 Code took the message, so a send that got no answer is sent again
-with the same key, and the thread's next wait has a key of its own.
+leaves the file as soon as T3 Code took the message, and only then, so a send that got no answer
+is sent again with the same key, and the thread's next wait has a key of its own.
 """
 
 from __future__ import annotations
@@ -113,18 +113,16 @@ def wake_capped(run: Pass, client: Client) -> None:
     """Drop the pool waits whose threads cannot be woken, and wake each one whose cap has ended."""
     at = waits.where()
     held = waits.read(at)
-    gone: set[str] = set()
-    for one in held:
-        if dead(run, client, one):
-            gone.add(one.id)
-        elif one.due(run.now):
-            gone |= tell_capped(run, client, one)
+    gone = {one.id for one in held if dead(run, client, one)}
     if gone:
         waits.forget(at, gone)
+    for one in held:
+        if one.id not in gone and one.due(run.now) and tell_capped(run, client, one):
+            waits.forget(at, {one.id})
 
 
-def tell_capped(run: Pass, client: Client, one: Wait) -> set[str]:
-    """Send the thread its wake, and return the wait's id once T3 Code took it."""
+def tell_capped(run: Pass, client: Client, one: Wait) -> bool:
+    """Send the thread its wake, and say whether T3 Code took it."""
     message = CAPPED.format(role=one.role, until=one.until, thread=one.thread)
     client.recipients = client.recipients | {one.thread}
     asked = {
@@ -137,14 +135,14 @@ def tell_capped(run: Pass, client: Client, one: Wait) -> set[str]:
         client.call("t3_thread_send", asked)
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told the {one.role} pool is free ({error})")
-        return set()
+        return False
     line = (
         f"pool-wake: woke {one.thread}, the {one.role} pool was capped until {one.until},"
         f" after {waited(one, run.now)} min"
     )
     run.find("", "pool-wake", line, key=one.id)
     run.say(line)
-    return {one.id}
+    return True
 
 
 def waited(one: Waiter | Wait, now: datetime) -> int:

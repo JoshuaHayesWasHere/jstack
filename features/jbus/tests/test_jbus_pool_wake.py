@@ -155,3 +155,15 @@ def test_a_lost_wake_is_tried_again_with_the_same_key(capped, capsys):
 def test_no_waits_is_a_pass_that_sends_nothing(kitchen):
     kitchen.poll(datetime(2026, 10, 12, 16, 0, tzinfo=UTC))
     assert sends(kitchen) == [] and kitchen.lines("pool-wake") == []
+
+
+def test_a_crew_that_waits_again_once_its_wait_is_due_has_a_new_wait_jbus_keeps(capped, capsys):
+    """The crew's wake goes out, and the crew finds the pool capped again and registers before
+    the pass is done with the wait it was woken for: the new wait is its own and stays."""
+    thread, _ = crew(capped, capsys)
+    (first,) = waits.read(waits.where())
+    later = UNTIL + timedelta(minutes=40)
+    again = waits.register(waits.where(), thread, "review", later, UNTIL + timedelta(minutes=1))
+    assert again.id != first.id
+    waits.forget(waits.where(), {first.id})
+    assert [one.id for one in waits.read(waits.where())] == [again.id]

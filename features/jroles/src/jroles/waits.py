@@ -18,8 +18,10 @@ replaces the whole file with a rename, so a reader never sees half a list. A wai
 - `id` names this wait, and keys its wake, so a retry of the wake is still one message.
 
 Registering is idempotent: a thread that registers again for a role it still waits on keeps its
-wait and its id, with the newer `until`. A thread that finds headroom leaves the file (`drop`),
-and so does a wait that jbus woke (`forget`), so the thread's next wait gets a message of its own.
+wait and its id, with the newer `until`. A wait that is due already is the one jbus woke or is
+waking, so a thread that registers then gets a new wait, with an id of its own. A thread that finds
+headroom leaves the file (`drop`), and so does a wait that jbus woke (`forget`), so the thread's
+next wait gets a message of its own.
 """
 
 from __future__ import annotations
@@ -106,7 +108,7 @@ def register(at: Path, thread: str, role: str, until: datetime, now: datetime) -
         mine = next((one for one in waits if (one.thread, one.role) == (thread, role)), None)
         others = [one for one in waits if one is not mine]
         moment = until.astimezone(UTC).isoformat()
-        if mine:
+        if mine and not mine.due(now):
             wait = replace(mine, until=moment)
         else:
             since = now.astimezone(UTC).isoformat(timespec="seconds")
