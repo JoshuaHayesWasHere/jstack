@@ -1,7 +1,7 @@
 # The queue
 
 The queue holds the rows jbus may launch, one row for each brief.
-A pass launches a row only once you approve it.
+A pass launches a row only after you approve it.
 
 ## Approve a row
 
@@ -128,9 +128,10 @@ In `--merge-after`, `add` refuses a slug that is the row itself, that has no row
 It also refuses a slug whose row merges after this one or depends on it, since neither row would ever merge.
 `remove` refuses a row that another row merges after, as it refuses one that another row depends on.
 `--entry` is optional too, and names the plan entry the row is work for, where that is not the row's own slug.
-An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after` anew and keeps the row's entry unless `--entry` is given.
+An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after` anew and keeps the row's entry unless you give `--entry`.
 `--entry <the row's own slug>` makes the row its own entry again.
-`jbus queue add <slug> --item <id>` links the row to the work item `--item` names, and with no `--item` a new row gets an item of its own, with source `cli` ([Work items](work-items.md)).
+`jbus queue add <slug> --item <id>` links the row to the work item `--item` names ([Work items](work-items.md)).
+With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.
 A row keeps its item, and `add` refuses an `--item` that names another.
 `hold` takes a row's approval back, which stops both its launch and its merge.
@@ -185,7 +186,7 @@ The row's `approval` field records the approval:
 | --- | --- |
 | `basis`, `ref` | `word`, `answer` or `message`, and the id, the number or the `<thread id>/<message id>`. By rule: `rule`, and the rule's number. |
 | `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the rule's text as `standing.md` had it then, and the other two are empty, since you said nothing of the row. |
-| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. By rule it is `true`, since jbus read the rule itself. |
+| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. For a row approved by rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
 | `brief_sha` | The sha256 of the brief at the go, as `--sha` named it. |
@@ -202,7 +203,7 @@ It prints their slugs on a line above the table, `held <parent>, and <slugs> wit
 The length of that list is the count of rows that launched without your word for them.
 A row approved before these records existed holds only the typed string.
 It keeps its go, still launches, and prints `<the string> (typed, not checked)`.
-No time is read out of such a string, so the view gives no time from approval to merge for it.
+jbus reads no time out of such a string, so the view gives no time from approval to merge for it.
 
 The sha leaves out the `Home:`, `Thread:` and `Green main:` lines of the brief's head, the lines above its first `## `.
 They say whom the brief is sent to and where main last passed, not what it asks for.
@@ -226,7 +227,7 @@ The fingerprint reads six fields (`MEANING` in `features/jbriefs/src/jbriefs/mea
 It leaves out every other (`NOT_MEANING`): `Skills`, `Decisions`, `Design`, `Proves it`, `Review`, `Playbook`, `Pull request`, `Stack`, `Read`, `Change`, `Rests on`, `Sources`, `Ruled out`, `Home` and `Thread`, a field the template does not name, and anything under a `## ` in the brief.
 These say how the work is done or who runs it, not what it is for.
 A field starts at a line `<Label>: ` of the head, and runs to the next one.
-Each field is normalised in these steps:
+The fingerprint normalises each field in these steps:
 
 1. A list field, such as `Done when:`, is one line for each `- ` item, with the lines an item is wrapped over joined. Any other field is one line.
 2. Every code span in backticks, every URL, and every word with a `/`, a `.` inside it or a digit is kept exactly as written, since such a word is a path, a file name or a number.
@@ -234,16 +235,25 @@ Each field is normalised in these steps:
    A `n't` is a word of its own, `not`.
    So `shouldn't` becomes the two words `should` and `not`, and the fingerprint never takes a negation for a typo.
    A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
-4. The words and exact tokens of a line are sorted, and so are the lines of a field.
+4. The fingerprint sorts the words and exact tokens of a line, and the lines of a field.
 5. The value of `Size` is kept whole, lowercased and with its white space collapsed.
 6. The fields go in a fixed order, the six above as listed, each present even where the brief has none of it.
 
 Two fingerprints mean the same when each field has the same number of lines in both.
 Each approved line must also pair with a line of the new brief that has the same exact tokens and the same words.
 A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go.
-So a typo, a change of formatting, punctuation or case, and lines put in another order keep the go.
-An edit only to the fields the fingerprint leaves out keeps it too.
-Each of these asks you again: a line added, taken out or changed in the six fields, a changed path, number or value, and one of the six fields added.
+These edits keep the go:
+
+- a fixed typo
+- a change of formatting, punctuation or case
+- lines put in another order
+- an edit only to the fields the fingerprint leaves out
+
+These edits ask you for a new go:
+
+- a line added to, taken out of or changed in the six fields
+- a changed path, number or value
+- one of the six fields added
 
 The fingerprint compares words, not meaning.
 A reword that swaps one content word for another, `must` for `may` or `all` for `any`, asks you again, by design.

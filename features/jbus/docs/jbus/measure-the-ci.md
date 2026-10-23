@@ -25,7 +25,7 @@ It keeps what it collects in two files in the project's state directory:
 A line also has a field for each change meant to move a number.
 A field is empty when the run did not give it.
 
-- `full` and `tree`: one suite per tree.
+- `full` and `tree`, which belong to the change that runs one suite per tree.
 - `selection` and `reason`: what a check that runs part of the suite ran, `all` or how many files, and why.
 - `slowest_s` and `tail_s`: the slowest file, and the wall time less the summed test time over the workers.
 - `cpu_pressure`, `cgroup_pressure` and `workers`: the first line of `/proc/pressure/cpu`, the first line of the job's `cpu.pressure`, and the worker count.
@@ -39,7 +39,7 @@ Where `GITHUB_STEP_SUMMARY` is set, `--notice` also writes the fields there as a
 
 ### The nine targets
 
-Each target is counted over the period, from job-level rows only.
+`jbus ci` counts each target over the period, from job-level rows only.
 A job counts once, and a run never does.
 Four targets count only the jobs of self-hosted runners, whose `kind` is `local`: queue, wasted-minute share, own-cause reds and time-to-green.
 Queue, wasted-minute share and time-to-green also show the figure for GitHub-hosted runners beside the self-hosted one.

@@ -62,11 +62,12 @@ Each view has its own address, a hash, so a pasted link opens it directly, and t
 The page rewrites an old link, `?project=<project>` or `#/<project>&open=<drawer>`, to the link's new address.
 
 A drawer's head says once how fresh it is, as the header does for the page.
-It gives the time the drawer was read, or, while jbus is stopped, the time of the last pass it shows.
-Where the server reads the drawer's data itself (the room, the checks, the gates), the head says so.
+It gives the time the server read the drawer, or, while jbus is stopped, the time of the last pass the drawer shows.
+The server reads the data of some drawers itself, such as the room, the checks and the gates, and their heads say so.
 The page draws no badge, fold button or `?` beside a part.
-Each part has one plain heading, and every term, shape, mark and count is in the glossary at `#/help`, which the header's `?` and the key <kbd>?</kbd> open.
-Hovering a shape, a mark or a count, or reaching a token by Tab, still says what it means beside it.
+Each part has one plain heading.
+Every term, shape, mark and count is in the glossary at `#/help`, which the header's `?` and the key <kbd>?</kbd> open.
+When you hover over a shape, a mark or a count, or reach a token by Tab, the page shows its meaning beside it.
 The bus drawer lists the last 10 events of `events.jsonl`, with a link to the last 40.
 
 A drawer opened from a drawer opens over it.
@@ -88,9 +89,9 @@ An answer to a gate goes to the one project whose page it is, as `POST /answer?p
 
 ### Answer a question on the page
 
-The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked.
+The "Waits on you" drawer lists each open gate with every option its thread proposed, and marks the default the thread took.
 A gate that jbus holds as a question opens from its row.
-A gate that is only in a home's `gates.md` is listed, and cannot be answered on the page.
+The drawer also lists a gate that is only in a home's `gates.md`, but you cannot answer that gate on the page.
 
 An opened gate shows who asked, the context, the default taken, what was built on it, how to undo it, one card for each option, a text box and one button.
 A line above the button says what will be sent and to which thread, or that nothing is sent.
@@ -100,7 +101,7 @@ There are three ways to close the gate:
 |---|---|---|
 | Nothing. The view selects the default when the gate opens. | Accept the default | Closes the question. It sends nothing, because the thread already took the default. |
 | Pick another card. | Send this option | Closes the question and sends the option's name to the thread that asked. |
-| Type in the box, with or without another card picked. | Send my words | Closes the question and sends the option's name, where you picked another, with your words after it. |
+| Type in the box, with or without another card picked. | Send my words | Closes the question and sends your words to the thread that asked. If you picked another card, the option's name comes before your words. |
 
 A question with no options on record opens with no cards.
 You can still accept the default or send your own words.
@@ -112,7 +113,7 @@ To pick another option or to use your own words, open that gate by itself.
 The view records the answer as `jbus answer` records it, by the user of your settings, at the server's clock, in `jbus view`.
 An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send.
 If T3 Code refuses the message or does not reply, the view still closes the question, the page says why the answer was not sent, and the next pass sends it.
-A question is answered once.
+You can answer a question only once.
 The view refuses a second answer, and the page shows the first one.
 
 There is no sign-in.

@@ -3,7 +3,7 @@
 This page is reference for working on the page of `jbus view` ([The view](../jbus/the-view.md)).
 
 The page follows the system's light or dark setting.
-The header's button overrides it (Auto, Light, Dark), and `&theme=` in the address forces one.
+The header's button overrides it with Auto, Light or Dark, and `&theme=` in the address forces one.
 Light is a canvas of `#FAF7F2`, with white cards.
 Dark is `#14191A` with `#1C2324` cards.
 Each colour is one token named for its role: `canvas`, `surface`, `sunk`, `ink`, `ink-2`, `ink-3`, `line` for a control's border, `hair` for a divider, `brand` and `on-brand` for the filled button, `due` and `missed` with their tints, and `focus`.

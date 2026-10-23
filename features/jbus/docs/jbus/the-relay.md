@@ -24,8 +24,8 @@ Remove it first, and `jinstall --check` says when it is gone.
 
 | Key | What it is |
 |---|---|
-| `RELAY_INBOUND_KEY` | The key a POST to the relay gives in `X-Automation-Key`. Any other is refused with 401. |
-| `RELAY_WEBHOOK_URL`, `RELAY_WEBHOOK_KEY` | Your chat bot's webhook and its key, sent in `Authorization: Bearer` and `X-Automation-Key`. An env file written before these names gives them as `GROK_WEBHOOK_URL` and `GROK_WEBHOOK_KEY`, which the relay reads where the new name is not set. |
+| `RELAY_INBOUND_KEY` | The key a POST to the relay gives in `X-Automation-Key`. The relay refuses any other key with 401. |
+| `RELAY_WEBHOOK_URL`, `RELAY_WEBHOOK_KEY` | Your chat bot's webhook and its key, sent in `Authorization: Bearer` and `X-Automation-Key`. An env file written before these names existed gives them as `GROK_WEBHOOK_URL` and `GROK_WEBHOOK_KEY`, which the relay reads where the new name is not set. |
 | `RELAY_PORT` | The port, 4390 when it is not set. |
 | `RELAY_STATE` | Where the spool is, `~/.local/state/jbus-relay` when it is not set. |
 | `RELAY_TIMEOUT_SECONDS`, `RELAY_RETRY_SECONDS` | How long a POST may take, 15 seconds, and how long a route waits after one that failed, 300 seconds. |
@@ -43,7 +43,7 @@ The relay sends two routes, both to the relay's webhook, and each POST says whic
 | Route | What it sends |
 |---|---|
 | `everything` | Every body as it came. |
-| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends the whole of a `reminder` or a `refresh`. It also sends the whole of an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`, and cuts `say` to the `say` lines of those events. The relay does not send a body with none of these on this route. |
+| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends the whole of a `reminder` or a `refresh`. It also sends the whole of an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`. It then cuts `say` to the `say` lines of those events. The relay does not send a body with none of these on this route. |
 
 Each body the relay takes has an id.
 The id is the body's own `id` when that is a short name of letters, digits, `.`, `_` and `-`.
@@ -130,7 +130,7 @@ The relay answers with one of these:
 - 400 for a body that lacks a field.
 - 403 for a `by` that is neither `Sous Chef` nor the user, or for a decision by the user that lacks `message` or `words`.
 - 404 for a project the config does not have.
-- 409 with `{"refused"}`, the sentence, for a decision jbus refuses.
+- 409 for a decision jbus refuses, with jbus's sentence in `{"refused"}`.
 - 503 when the config cannot be read.
 
 The next pass sends a message steer to the item's home.
