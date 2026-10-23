@@ -149,4 +149,4 @@ It takes a name only from its own routes and panels and a project only from its 
 So a line holds no row text, slug, thread id or address, and nothing of it leaves the machine.
 Like the other writes, a count is taken only from the view's own origin.
 Past 256 KiB the file keeps only its newest lines, up to half that size.
-`jbus view usage [--since <time>] [--project <project>]` prints how many of each kind and name it holds, over the last 7 days by default.
+`jbus view usage [--since <time>]` prints how many of each kind and name it holds, over the last 7 days by default.

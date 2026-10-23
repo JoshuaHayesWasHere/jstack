@@ -124,13 +124,6 @@ def test_jbus_view_usage_counts_each_route_drawer_and_click_in_its_window(
         ["drawer", "task", "1"],
         ["click", "task", "1"],
     ]
-    assert cli.main(["view", "usage", "--since", since, "--project", "demo"]) == 0
-    out = capsys.readouterr().out.splitlines()
-    assert [line.split()[:2] for line in out[1:]] == [
-        ["route", "project"],
-        ["drawer", "task"],
-        ["click", "task"],
-    ]
 
 
 def test_jbus_view_usage_over_no_file_says_nothing_was_counted(scene, monkeypatch, capsys):

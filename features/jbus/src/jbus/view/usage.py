@@ -99,9 +99,9 @@ def append(path: Path, one: Line) -> None:
         fresh.replace(path)
 
 
-def counts(path: Path, since: datetime, project: str | None = None) -> Counter[tuple[str, str]]:
+def counts(path: Path, since: datetime) -> Counter[tuple[str, str]]:
     """How many lines of the file since `since` have each kind and name. It skips a line it
-    cannot read, and with `project`, a line of another project."""
+    cannot read."""
     try:
         text = path.read_text()
     except OSError:
@@ -114,7 +114,7 @@ def counts(path: Path, since: datetime, project: str | None = None) -> Counter[t
             kind, name = one["kind"], one["name"]
         except (ValueError, TypeError, KeyError):
             continue
-        if at >= since and (project is None or one.get("project") == project):
+        if at >= since:
             found[(kind, name)] += 1
     return found
 
@@ -123,7 +123,6 @@ def arguments(shown: argparse.ArgumentParser) -> None:
     shown.add_argument(
         "--since", help="count from this time, the user's zone with none (default: 7 days ago)"
     )
-    shown.add_argument("--project", help="count only what was opened on this project")
 
 
 def report(path: Path, user: jsettings.Settings, now: datetime, args: argparse.Namespace) -> int:
@@ -134,7 +133,7 @@ def report(path: Path, user: jsettings.Settings, now: datetime, args: argparse.N
     if at is None:
         raise Refused(f"refused: --since {given!r} is not a time")
     since = datetime.fromisoformat(at)
-    found = counts(path, since, args.project)
+    found = counts(path, since)
     print(f"jbus view usage: {sum(found.values())} since {user.stamp(since)}, from {path}")
     order: dict[str, Any] = {kind: n for n, kind in enumerate(KINDS)}
     ranked = sorted(found.items(), key=lambda kv: (order.get(kv[0][0], 9), -kv[1], kv[0][1]))

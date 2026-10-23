@@ -697,7 +697,7 @@ def _port(shown: argparse.ArgumentParser) -> None:
         "what",
         nargs="?",
         choices=("usage",),
-        help="usage: count what the page opened, each route, drawer and first click",
+        help="with usage, count each route, drawer and first click the page opened",
     )
     shown.add_argument("--port", type=int, default=PORT, help="the one port it listens on")
     usage.arguments(shown)
