@@ -44,7 +44,8 @@ In a checkout that is not installed, run a command as `uv run --project <checkou
 | `testing/` | The shared test tooling, and in `testing/verify/` its verify page. |
 
 `README.md` and `CATALOG.md` hold blocks that `scripts/generate-jstack-trees.py` writes.
-Edit the source, such as a `feature.json`, and run `make trees`, never the block itself.
+Edit the source, such as a `feature.json`, then run `make trees`.
+Never edit the block itself.
 
 ## Run the checks
 
@@ -64,7 +65,8 @@ When a check fails, [A test of `make check` failed on a bound](features/repo-gua
 
 `features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
-`verify-jstack` (`features/verify-jstack/project-skill/`, which `install.sh` links as the checkout's `.claude/skills/verify-jstack` and `.cursor/skills/verify-jstack`, both untracked) drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
+`verify-jstack` drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
+Its folder is `features/verify-jstack/project-skill/`, which `install.sh` links as the checkout's `.claude/skills/verify-jstack` and `.cursor/skills/verify-jstack`, both untracked.
 A linked worktree has no such link, and reads the skill from `features/verify-jstack/project-skill/`, the folder `skills.json` names under `projectSkills`.
 
 ## Open a pull request
@@ -73,13 +75,14 @@ A linked worktree has no such link, and reads the skill from `features/verify-js
 2. Make the change, with a test where the repo has tests for that code.
 3. Run `make check`, and fix what it finds.
 4. Commit with a message that says what the change does.
-	Leave out any `Co-authored-by` line that credits an AI tool: CI fails a pull request that carries one, in its title, its body or any commit.
+	Leave out any `Co-authored-by` line that credits an AI tool.
+	CI fails a pull request that carries one in its title, its body or any commit.
 	In a checkout, the `commit-msg` hook that `install.sh` links strips such a line for you.
 5. Open the pull request against `main`.
 	The template gives the body its headings: Why, What changed, Scope, Tradeoffs, Blast radius and Verification.
 
 A maintainer approves each CI run of a pull request from a fork, since the repo asks approval for every outside contributor.
-So a run waits for that approval each time you push, the fixes of a review included.
+A run waits for that approval each time you push, also when you push the fixes of a review.
 The maintainer reviews the pull request and leaves the findings as comments on it.
 Push the fixes to the same branch.
 The maintainer merges it once the findings are fixed and `check` and `borders` pass.
@@ -98,14 +101,14 @@ A pull request into `main` needs `check` and `borders` to pass before it merges.
 
 ## Release
 
-A release is cut from a clean `main` that is `origin/main`, by one command:
+One command cuts a release from a clean `main` that is `origin/main`:
 
 ```sh
 make release
 ```
 
 It checks that `v<version>`, the version of `pyproject.toml`, is the version of `plugin.json` too (`make release-tag`), then tags it and pushes the tag.
-Where the push fails, it drops the tag again, so the next `make release` starts clean.
+If the push fails, it drops the tag again, so the next `make release` starts clean.
 The tag runs `.github/workflows/release.yml`.
 It checks that the tag is the version of both `pyproject.toml` and `plugin.json` (`make release-tag`), then runs `make check` and `make dist`.
 It installs the wheel in a `HOME` of its own and runs `jinstall --check`, and only then makes the GitHub release.

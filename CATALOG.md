@@ -1,12 +1,13 @@
 # Catalog
 
-What every feature holds, joined into one place.
+This page lists what every feature holds, in one place.
 Each feature declares its own in `features/<name>/feature.json` and the files under its folder, and `python3 scripts/generate-jstack-trees.py` writes the two tables below from them.
-No feature owns this page, so a new skill, playbook or hook changes its own feature and the generated files alone.
+No feature owns this page.
+A new skill, playbook or hook changes only its own feature and the generated files.
 
 ## Every skill, principle and playbook
 
-Each feature's own, with a link to each file.
+This table lists each feature's skills, principles and playbooks, with a link to each file.
 [Playbooks, principles and templates](features/home/docs/playbooks.md) says how a brief names one.
 
 <!-- generated: catalog by scripts/generate-jstack-trees.py from features/*/feature.json; do not edit, rerun it -->
@@ -44,7 +45,7 @@ Each feature's own, with a link to each file.
 
 ## Hooks
 
-Each hook, status line and git hook the install adds, and the feature whose `feature.json` declares it.
+This table lists each hook, status line and git hook that the install adds, and the feature whose `feature.json` declares it.
 The feature's own docs say what its script does and show the entry the install writes.
 [jinstall](features/jinstall/docs/jinstall.md#hook-entries) says which file of each harness the entries go in.
 
