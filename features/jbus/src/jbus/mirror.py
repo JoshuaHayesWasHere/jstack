@@ -22,7 +22,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from jbus import noticed, queue, read_json, verbs, write_json
-from jbus.wake import Pass
+from jbus.passes import Pass
 
 EVENTS = {
     "gate": "quiet",

@@ -53,8 +53,8 @@ failed check, so `rebase.github` does not say it again.
 from __future__ import annotations
 
 from jbus import dispatch, read_json, rebase, verbs, write_json
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import World, _api, _check, checks
 from jmerge import mainjson
 from jmerge.mainjson import SETTLED

@@ -24,6 +24,7 @@ from jbus import (
     dispatch,
     item,
     lavish,
+    passes,
     questions,
     queue,
     steer,
@@ -52,7 +53,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     call began means that a pass launched the slug after `out` asked. The event carries the
     row as it was, and jbus leaves it in the outbox and starts no POST for it.
     """
-    run = wake.Pass(config, project, datetime.now(UTC))
+    run = passes.Pass(config, project, datetime.now(UTC))
     began = time.time()
 
     def launched(slug: str) -> str:

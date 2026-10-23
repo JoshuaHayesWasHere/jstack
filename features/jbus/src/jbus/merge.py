@@ -30,8 +30,9 @@ import re
 import subprocess
 
 from jbus import alert
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
-from jbus.wake import JMERGE_TIMEOUT, Pass
+from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
 from jmerge import ready
 from jmerge.lines import Line as Line

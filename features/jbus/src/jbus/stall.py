@@ -46,8 +46,9 @@ from typing import TYPE_CHECKING, Any
 from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched, thread_of
 from jbus.merge import parse
+from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
-from jbus.wake import Changed, Depends, Pass, cut, notify
+from jbus.wake import cut, notify
 from jbus.watch import World
 from jmerge.lines import READY
 

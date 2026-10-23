@@ -36,8 +36,8 @@ from datetime import datetime
 from typing import Any
 
 from jbus import END_TURN, verbs
+from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import ENDED
 from jgauge import slot, waiters
 from jgauge.waiters import Waiter

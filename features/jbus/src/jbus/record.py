@@ -37,7 +37,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from jbriefs.home import thread_of
-from jbus import Config, alert, project, read_json, signin, t3, wake, write_json
+from jbus import Config, alert, passes, project, read_json, signin, t3, wake, write_json
 from jbus.queue import Row
 from jbus.watch import NEVER, World, checks
 
@@ -233,7 +233,7 @@ def alerts(config: Config, now: datetime) -> list[str]:
     return [
         line
         for one in config.projects
-        for _, line in alert.failing(wake.Pass(config, one, now, lambda _: None))
+        for _, line in alert.failing(passes.Pass(config, one, now, lambda _: None))
     ]
 
 
@@ -318,7 +318,7 @@ def silent(halves: list[Half]) -> dict[str, str]:
     }
 
 
-def heartbeat(run: wake.Pass, last: dict[str, Any]) -> None:
+def heartbeat(run: passes.Pass, last: dict[str, Any]) -> None:
     """Say what the status file said, once per project, on the first pass of each hour.
 
     The line is quiet: it goes to the log, and jbus never posts it. The hour is UTC's, so the

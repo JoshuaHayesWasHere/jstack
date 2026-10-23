@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import wake, word
+from jbus import passes, wake, word
 from test_jbus_kitchen import NOW, sends
 
 AT = "2026-10-12 10:55 ET"
@@ -267,7 +267,7 @@ def test_a_word_a_pass_sent_meanwhile_is_not_written_back_as_waiting(kitchen):
     """The command read the word unsent, and a pass sent it before the command's own send failed."""
     (kitchen.home / "home-id").write_text("home-1\n")
     config = jbus.load()
-    run = wake.Pass(config, config.project("demo"), NOW, lambda _: None)
+    run = passes.Pass(config, config.project("demo"), NOW, lambda _: None)
     held = word.keep(run, WORDS, "user", AT)
     assert "word demo: sent to home-1" in kitchen.poll()
     assert word._change(run, held, waits=word.NO_ANSWER) is False

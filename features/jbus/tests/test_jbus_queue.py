@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbus import cli, queue, wake
+from jbus import cli, passes, queue, wake
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
@@ -941,14 +941,14 @@ def test_a_changed_brief_is_recorded_with_the_sha_it_has_now(kitchen):
     add(kitchen, "alpha")
     changed = widened("alpha")
     add(kitchen, "alpha", approve=False, text=changed)
-    assert reasons(kitchen) == {"alpha": wake.Changed(sha12(changed))}
+    assert reasons(kitchen) == {"alpha": passes.Changed(sha12(changed))}
 
 
 def test_a_row_that_depends_is_recorded_with_the_slugs_that_are_not_merged(kitchen):
     add(kitchen, "delta", depends="alpha,beta,gamma")
     kitchen.brief("alpha", RESULT)
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
-    assert reasons(kitchen) == {"delta": wake.Depends(("beta", "gamma"))}
+    assert reasons(kitchen) == {"delta": passes.Depends(("beta", "gamma"))}
 
 
 def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_a_slot(kitchen):
@@ -957,7 +957,7 @@ def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_a_slot(kitchen)
     add(kitchen, "alpha", priority=1)
     add(kitchen, "beta", priority=2)
     add(kitchen, "gamma", priority=3, approve=False)
-    assert reasons(kitchen) == {"alpha": wake.Slot(), "beta": wake.Slot()}
+    assert reasons(kitchen) == {"alpha": passes.Slot(), "beta": passes.Slot()}
 
 
 def test_a_row_with_no_room_and_every_row_after_it_wait_for_a_slot(kitchen):
@@ -965,7 +965,7 @@ def test_a_row_with_no_room_and_every_row_after_it_wait_for_a_slot(kitchen):
     add(kitchen, "alpha", priority=1)
     add(kitchen, "beta", priority=2)
     kitchen.machine(load="30.00")
-    assert reasons(kitchen) == {"alpha": wake.Slot(), "beta": wake.Slot()}
+    assert reasons(kitchen) == {"alpha": passes.Slot(), "beta": passes.Slot()}
     assert kitchen.t3.launches == []
 
 
