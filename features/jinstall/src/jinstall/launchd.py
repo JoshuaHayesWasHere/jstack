@@ -161,6 +161,9 @@ def _environment_file(path: str) -> list[str]:
     ]
 
 
+KILL_WATCH = 'kill -KILL -- "-$watch" 2> /dev/null'
+
+
 def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str:
     """The shell that runs the service as systemd would: the start marker, the environment
     file, the command (stopped at the start timeout), the failure service's command when the
@@ -170,7 +173,10 @@ def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str
     The start timeout's watcher gets a process group of its own (`set -m`), and the whole group
     is killed once the command ends. A sleep it forks as the KILL lands is in that group too:
     the kernel restarts a fork that a signal to its group interrupts, and no shell can catch a
-    KILL, so nothing of the watcher outlives the agent to hold its output open."""
+    KILL, so nothing of the watcher outlives the agent to hold its output open. launchd stops a
+    job with a TERM to the job's process group, which the watcher has left, so the shell kills the
+    watcher's group on a TERM too: its trap is set once, before the watcher is forked, and a TERM
+    that lands before `watch` is set is only noted, and acted on once it is."""
     said = shlex.quote(str(log(home, name)))
     lines = [
         f'[ "$(wc -c < {said} 2> /dev/null || echo 0)" -lt {LOG_CAP} ] || : > {said}',
@@ -190,12 +196,15 @@ def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str
         lines += [
             f"{command} &",
             "pid=$!",
+            "watch= stop=",
+            f"trap 'stop=1; [ -z \"$watch\" ] || {{ {KILL_WATCH}; exit 143; }}' TERM",
             "set -m",
             f'(sleep {seconds(timeout)}; kill "$pid" 2> /dev/null && echo "{TIMED_OUT}") &',
             "watch=$!",
             "set +m",
+            f'[ -z "$stop" ] || {{ {KILL_WATCH}; exit 143; }}',
             'wait "$pid"; code=$?',
-            'kill -KILL -- "-$watch" 2> /dev/null',
+            KILL_WATCH,
         ]
     if failure is not None:
         lines.append(f'[ "$code" -eq 0 ] || {_command(units[failure], home)}')
