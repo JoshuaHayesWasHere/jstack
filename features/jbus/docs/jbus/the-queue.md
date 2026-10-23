@@ -22,7 +22,7 @@ To approve it from a shell:
 
 2. Read the brief you approve, `~/.local/state/jbus/<project>/briefs/<slug>.md`.
    The sha is of that file.
-3. Give your go with `jbus word`, so jbus keeps your words:
+3. Record your go with `jbus word`, so jbus keeps your words:
 
    ```sh
    jbus word --to demo --by <user> --at "<YYYY-MM-DD HH:MM zone>" go alpha
@@ -54,7 +54,7 @@ Each column has one writer.
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | `jbus queue add`, `approve`, `hold` and `remove`, run by a home, the Chef or you. The Chef runs no `remove`, which is your word. Only `add` writes `entry`, `item` and `merge_after`. `hold` sets `held`, and `approve` clears it. |
+| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | `jbus queue add`, `approve`, `hold` and `remove`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item` and `merge_after`. `hold` sets `held`, and `approve` clears it. |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line.
@@ -116,10 +116,10 @@ When the row had a go and its brief changed, `add` prints a line above the table
 The line ends `, its go holds` or `, its go does not hold for it: approve it again` ([What an approval is bound to](#what-an-approval-is-bound-to)).
 
 `--priority` is an integer, and the lowest launches first.
-`--depends` is optional: the slugs that must end before this row launches.
+`--depends` is optional, and names the slugs that must end before this row launches.
 A slug ends by a merge, or by a row that ended `done` with no pull request.
 Such a row's thread ended, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL.
-`--merge-after` is optional too: the slugs whose pull requests merge before this row's.
+`--merge-after` is optional too, and names the slugs whose pull requests merge before this row's.
 It gates the merge and not the launch, so the row launches and its crew works at once.
 `jmerge` leaves its pull request with `wait <number> <url>: merges after <slug> (#<n>), not merged yet` until every row it names is `merged` or `done`.
 For a row with no pull request open, `no pull request yet` takes the place of `#<n>`.
@@ -127,11 +127,11 @@ The order is a column of the row, so a home that declares one writes it here and
 In `--merge-after`, `add` refuses a slug that is the row itself, that has no row, or that was removed.
 It also refuses a slug whose row merges after this one or depends on it, since neither row would ever merge.
 `remove` refuses a row that another row merges after, as it refuses one that another row depends on.
-`--entry` is optional too: the slug of the plan entry the row is work for, where that is not the row's own slug.
+`--entry` is optional too, and names the plan entry the row is work for, where that is not the row's own slug.
 An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after` anew and keeps the row's entry unless `--entry` is given.
 `--entry <the row's own slug>` makes the row its own entry again.
 `jbus queue add <slug> --item <id>` links the row to the work item `--item` names, and with no `--item` a new row gets an item of its own, with source `cli` ([Work items](work-items.md)).
-An item that is not there, or that is another row's, is refused, and nothing is queued.
+`add` refuses an item that is not there, or that is another row's, and queues nothing.
 A row keeps its item, and `add` refuses an `--item` that names another.
 `hold` takes a row's approval back, which stops both its launch and its merge.
 A held row that was never launched does not launch.
@@ -175,7 +175,7 @@ The home decides whether the brief is really a follow-up, and you audit that cal
 - **The parent** is a row of the same queue, or one that was removed after it merged.
   It must have an approval of its own, by `--word`, `--answer`, `--message` or `--page`, or as the typed string of an older row.
   A parent that is no row gets `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with no approval gets `refused: <slug> cannot follow <parent>: <parent> has no approval`.
-  A row that another row already follows is refused too, since a rule approval would write over the word its follow-ups rest on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take the user's word for <slug>`.
+  `approve` also refuses a rule approval for a row that another row already follows, since it would write over the word the follow-ups are based on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take the user's word for <slug>`.
   A chain is one step.
   A parent that was itself approved by rule gets `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take the user's word for <slug>`.
 

@@ -107,7 +107,7 @@ The body is one JSON object:
 
 | Field | What it is |
 |---|---|
-| `project`, `item` | The card's `project` and `item`: an item's id is its project's own, so both are named. |
+| `project`, `item` | The card's `project` and `item`. An item's id is unique only within its project, so the body names both. |
 | `verb` | One of the card's `actions`: `approve`, `message` or `hold`. The relay takes the button press that sent a hold as its confirmation. |
 | `words` | What was said: the message for `message`, why for `hold`, the user's words for `approve`. |
 | `by` | Who decided. It is the user (`user` in `~/.config/jstack/config.toml`), or the literal `Sous Chef` for a steer of the chat bot's own, whatever the chat bot's name is. |
@@ -115,13 +115,15 @@ The body is one JSON object:
 | `seen_event` | The `id` of the card the decision was made on. |
 
 The relay records the decision as `jbus item approve` or `jbus item steer` does, with `where: chat`, in the project's state, and writes one line of the item's log.
-The chat bot steers only as itself, and the relay refuses an approval by it.
+When the chat bot steers by itself, `by` is `Sous Chef`, and the relay refuses an approval with that `by`.
 Only the user approves.
-A decision by the user is based on the chat message, kept as the line's `ref` with the quoted words as `said` and `checked: false`, since nothing reads them back from the chat.
-An approval from chat is taken only where its words name the item, by its id or its slug, and the item is routine.
-A verb the item's card does not offer now is refused with 409 and the view's link.
+A decision by the user is based on the chat message.
+The relay keeps the message as the line's `ref`, with the quoted words as `said` and `checked: false`, since nothing reads the words back from the chat.
+The relay takes an approval from chat only where its words name the item, by its id or its slug, and the item is routine.
+The relay refuses a verb the item's card does not offer now, with 409 and the view's link.
 A review item (a merge, a secret, the config) takes no approval, message or hold from chat, and a done or dropped one takes none.
-A card whose line is no longer the item's last is refused, with the line that came after, so a card acted on twice moves the item once.
+The relay refuses a decision on a card whose line is no longer the item's last, and quotes the line that came after.
+So a card acted on twice moves the item once.
 The relay answers with one of these:
 
 - 200 with `{"id", "item", "line"}`, the line written.
