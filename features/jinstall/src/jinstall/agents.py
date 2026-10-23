@@ -140,7 +140,9 @@ class Agents:
             return
         self._launchctl(machine, "bootout", self._service(machine, agent))
         until = time.monotonic() + GONE_WAIT
-        while self._loaded(machine, agent) is True and time.monotonic() < until:
+        while self._loaded(machine, agent) is True:
+            if time.monotonic() > until:
+                raise Refused(f"launchd still has {agent.label} {GONE_WAIT:g} s after its bootout")
             time.sleep(0.1)
 
     def _remove(self, machine: Machine, agent: launchd.Agent) -> None:

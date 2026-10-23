@@ -25,6 +25,7 @@ import re
 import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 from jbus.launchd import STARTED, TIMED_OUT, label, log
 
@@ -42,7 +43,7 @@ CALENDAR = re.compile(r"(?:(?P<day>[A-Z][a-z]{2}) )?\*-\*-\* (?P<h>\d\d):(?P<m>\
 CARRIED = {
     ("Service", "ExecStart"): "the command",
     ("Service", "Environment"): "EnvironmentVariables",
-    ("Service", "EnvironmentFile"): "read by the shell before the command",
+    ("Service", "EnvironmentFile"): "read line by line by the shell, which runs none of it",
     ("Service", "Restart"): "KeepAlive: always, or only after a failed exit",
     ("Service", "RestartSec"): "ThrottleInterval",
     ("Service", "RestartPreventExitStatus"): "the shell exits 0 for it: no restart",
@@ -130,6 +131,36 @@ def _command(unit: dict, home: Path) -> str:
     return shlex.join(shlex.split(start.replace("%h", str(home))))
 
 
+ENVIRONMENT_FILE = r"""{
+    sub(/^[ \t\r]+/, ""); sub(/[ \t\r]+$/, "")
+    at = index($0, "="); if (!at) next
+    key = substr($0, 1, at - 1); value = substr($0, at + 1)
+    sub(/^[ \t]+/, "", key); sub(/[ \t]+$/, "", key)
+    if (key !~ /^[A-Za-z_][A-Za-z0-9_]*$/) next
+    sub(/^[ \t]+/, "", value); sub(/[ \t]+$/, "", value)
+    gsub("^[\"" q "]+|[\"" q "]+$", "", value)
+    print key "\t" value
+}"""
+"""The awk that reads an `EnvironmentFile=` as systemd and `jbus.relay.env_file` read it: one
+`KEY=value` a line, the key a variable name, the value trimmed and with its quotes left out. It
+prints `KEY<tab>value`, and the shell exports each value as it is, so no line of the file runs."""
+
+
+def _environment_file(path: str) -> list[str]:
+    """The lines that export each variable of the env file at `path`, or stop the run, as
+    systemd does, when there is no such file."""
+    return [
+        f'[ -r {path} ] || {{ echo "jstack: {path} cannot be read"; exit 1; }}',
+        "tab=$(printf '\\t')",
+        f"pairs=$(awk -v q=\"'\" '{ENVIRONMENT_FILE}' {path})",
+        'while IFS="$tab" read -r key value; do',
+        '    [ -z "$key" ] || export "$key=$value"',
+        "done << THE_PAIRS_END_HERE",
+        "$pairs",
+        "THE_PAIRS_END_HERE",
+    ]
+
+
 def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str:
     """The shell that runs the service as systemd would: the start marker, the environment
     file, the command (stopped at the start timeout), the failure service's command when the
@@ -141,7 +172,7 @@ def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str
         f'echo "{STARTED}$(date +%s)"',
     ]
     for each in service.get(("Service", "EnvironmentFile"), []):
-        lines.append(f"set -a; . {shlex.quote(each.replace('%h', str(home)))}; set +a")
+        lines += _environment_file(shlex.quote(each.replace("%h", str(home))))
     command = _command(service, home)
     timeout = _one(service, ("Service", "TimeoutStartSec"))
     failure = _one(service, ("Unit", "OnFailure"))
@@ -225,7 +256,8 @@ def agents(templates: dict[str, Path], home: Path) -> dict[str, Agent]:
 
 
 def text(agent: Agent, home: Path, source: Path) -> str:
-    """The plist of `agent`, with the comment that names `source`."""
+    """The plist of `agent`, with the comment that names `source`, percent-encoded so that no
+    `--` of a path ends the comment."""
     said = str(log(home, agent.label))
     value = {
         "Label": agent.label,
@@ -236,7 +268,8 @@ def text(agent: Agent, home: Path, source: Path) -> str:
         **agent.schedule,
     }
     head, _, rest = plistlib.dumps(value, sort_keys=True).decode().partition("<plist")
-    named = f"{MADE}{source}; it rewrites this file, and an edit is lost -->\n"
+    where = quote(str(source)).replace("-", "%2D")
+    named = f"{MADE}{where}; it rewrites this file, and an edit is lost -->\n"
     return f"{head}{named}<plist{rest}"
 
 
@@ -245,4 +278,4 @@ def made_from(said: str) -> str | None:
     start = said.find(MADE)
     if start < 0:
         return None
-    return said[start + len(MADE) :].partition("; it rewrites")[0]
+    return unquote(said[start + len(MADE) :].partition("; it rewrites")[0])

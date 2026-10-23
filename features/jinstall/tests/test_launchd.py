@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from jbus import relay
 from jbus.launchd import STARTED, TIMED_OUT, label
 from jinstall import launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
@@ -273,6 +274,29 @@ def test_the_relay_reads_its_env_file_and_an_exit_2_is_no_failure_to_restart(tmp
         code,
         ["jbus relay", "port 4999"],
     )
+
+
+def test_the_relay_gets_each_line_of_its_env_file_as_the_relay_reads_it_and_runs_none(tmp_path):
+    env = tmp_path / "home" / ".config" / "jbus-relay" / "env"
+    env.parent.mkdir(parents=True)
+    env.write_text(
+        "RELAY_WEBHOOK_URL=https://bot.example/hook?a=1&b=2\n"
+        "RELAY_WEBHOOK_KEY=ab cd$HOME\n"
+        "  RELAY_PORT = '4999'  \n"
+        '# a comment=1\nexport SKIPPED=1\nQUOTED="x y"\nBACK=a\\tb\n'
+    )
+    names = " ".join(relay.env_file(env))
+    line = f'for n in {names} SKIPPED; do printf "%s=[%s]\\n" "$n" "$(printenv "$n")"; done'
+    code, out, asked = agent_runs(tmp_path, "jbus-relay.service", {"jbus": f"{line}; exit 0"})
+    said = [one for one in out.splitlines() if "=[" in one]
+    assert said == [f"{k}=[{v}]" for k, v in relay.env_file(env).items()] + ["SKIPPED=[]"]
+    assert (code, asked) == (0, ["jbus relay"])
+
+
+def test_a_relay_with_no_env_file_fails_to_start_as_under_systemd(tmp_path):
+    code, out, asked = agent_runs(tmp_path, "jbus-relay.service", {"jbus": "exit 0"})
+    assert (code, asked) == (1, [])
+    assert "cannot be read" in out
 
 
 def test_a_command_past_its_start_timeout_is_stopped_and_says_so_as_systemd_does(tmp_path):
