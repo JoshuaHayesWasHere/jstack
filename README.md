@@ -10,7 +10,9 @@ You answer the questions only you can answer, and the rest goes on without you.
 **Status: experimental.** Commands, flags, files and skills can change with no notice and no migration.
 
 It is for a developer who uses Claude Code and wants more than one agent at work on a repo at a time.
-Every thread spends tokens on your own Claude plan: one task is at least a crewmate thread and a reviewer thread, and `jgauge session` prints what a thread cost.
+Every thread spends tokens on your own Claude plan.
+One task takes at least two threads, a crewmate and a reviewer.
+`jgauge session` prints what a thread cost.
 It runs on Linux only.
 
 ![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](features/home/docs/flow.svg)
@@ -22,15 +24,18 @@ It runs on Linux only.
 
 [How a task flows](features/home/docs/flow.md) has every step of the picture, and what you are asked for along the way.
 
-What lasts is on disk, in a state directory outside the repo, so a thread can end at any time and the next one starts from those files.
+Each thread keeps its records in a state directory outside the repo.
+A thread can end at any time, and the next one starts from those files.
 A thread does reversible work without asking.
 It pauses only before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside.
-A question only you can answer becomes a **gate**: the thread takes a default, carries on, and asks you, and the gate closes when you answer or keeps its default.
-Nine commands do the routine work with no model, from `jmerge`, which merges, to `jpack`, which checks context packs: [Reference](#reference) lists them all.
+A question only you can answer becomes a **gate**.
+The thread takes a default, carries on, and asks you.
+Your answer closes the gate, and with no answer the gate keeps its default.
+Nine commands do the routine work with no model, and [Reference](#reference) lists them all.
 
 ## Requirements
 
-jstack does not run without a **hard** need.
+jstack runs only when every **hard** need is met.
 `jinstall --doctor` checks each one.
 
 | Need | Level | Notes |
@@ -54,7 +59,7 @@ jstack runs without it.
 |---|---|
 | `jbus`, with its config, its sign-in and a webhook | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself or hand the merge to a home. With no webhook, `jbus` works and sends no event, and asks you each hour to set `webhook_url` and `webhook_key`. |
 | systemd `--user` | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
-| The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so a launch is held back for the machine alone. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
+| The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 | `lavish-axi` | No visual pages. A scout writes its report with no page, and a round of questions is asked as text. |
 
@@ -112,7 +117,9 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 4. Pick the repo that you want work done in.
 	It needs a GitHub remote that `gh` can push to, and a CI check named `check` that runs on each pull request, since `jmerge` merges only once that check passes.
-	A job named `check` in a workflow under `.github/workflows/` that runs `on: pull_request` gives the check its name: GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to write one.
+	Add a workflow under `.github/workflows/` that runs `on: pull_request`, with a job named `check`.
+	The job's name is the check's name.
+	GitHub's guide [Quickstart for GitHub Actions](https://docs.github.com/en/actions/get-started/quickstart) shows how to write one.
 	To wait on other checks too, list their names, one a line, in `required-checks` in the state directory of step 5 ([What ready means](features/jmerge/docs/jmerge.md#what-ready-means)).
 
 5. Open T3 Code, start a thread in any project, and type the command below with the path of the repo's main checkout.
@@ -143,11 +150,14 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 
 	You see `merged` or `wait` and the reason for each open pull request.
 	`jmerge` merges each one that is reviewed, fixed and green, then removes its worktree and its branch.
-	No person has to approve on GitHub: the reviewer thread's review is the review.
+	No person has to approve on GitHub.
+	The reviewer thread's review counts as the approval.
 
 Nothing merges by itself until you choose who does it.
 Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.
-Or let one home merge: the home writes its thread id into `home-id` in the state directory when it starts, and you write that id, on one line, into a file `home-thread` beside it.
+Or let one home merge.
+The home writes its thread id into `home-id` in the state directory when it starts.
+Write that id, on one line, into a file `home-thread` beside it.
 [Configuration](features/jinstall/docs/configuration.md#switches-for-one-repo) has both.
 To add jleak's git hooks to another repo, run `jinstall --repo` in it ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
 
@@ -184,7 +194,7 @@ Each command has one page.
 
 `features/` holds every skill, and [the catalog](CATALOG.md) lists each one by its feature.
 Several names come from pstack, the agent skills by Lauren Tan for Cursor that jstack takes its principles from: `poteto-help`, `setup-pstack` and the `jdrift` command, which lists what changed in pstack's files.
-Eight skills run the flow, `poteto-help` as the way in.
+Eight skills run the flow, and `poteto-help` is the way in.
 Each `SKILL.md` is the full text of what its thread does.
 
 | Skill | Typed as | What the thread does |
@@ -192,7 +202,7 @@ Each `SKILL.md` is the full text of what its thread does.
 | `home` | `/home`, `/home <scope>` | Becomes the repo's home, or the home of one scope. It reads the handoff, the plan and the notes, plans with you, writes each brief and launches its crewmate. It does none of the work itself. |
 | `crew` | `/crew <slug>` | Becomes a crewmate. It does the task in `tasks/<slug>.md` in its own worktree, opens the pull request when the brief says so, appends its Result to the brief, and stays on the pull request. |
 | `scout` | `/scout <slug>` | Becomes a scout. It answers the questions in `scouts/<slug>.md`, appends its report, and writes a crewmate's brief or a visual page when the request asks for one. It changes nothing in the repo. |
-| `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the diff, judges what it found, and proves with one command the fact the change is safe because of. It runs no test suite. |
+| `pr-review` | `/pr-review`, `/pr-review <slug>` | Launches one review thread in the crewmate's worktree. It reads the diff, judges what it found, and proves with one command the fact that makes the change safe. It runs no test suite. |
 | `handoff` | `/handoff` | Closes a home. It updates the plan and the notes, archives the old handoff, and writes a one-page handoff for the next home. |
 | `nohome` | `/nohome`, `/nohome repo`, `/nohome on`, `/nohome merge`, `/nohome merge on` | Opts this thread, or every new thread in the repo, out of the automatic home, or switches it back on. With `merge` it switches the repo's automatic merge off or on. |
 | `new-home` | `/new-home <repo>` | Sets up a repo's first home, from any thread: its state directory, its T3 Code project, its table in the config of `jbus`, what it lacks for a merge, and its home thread. It does only what is missing. |
@@ -200,12 +210,15 @@ Each `SKILL.md` is the full text of what its thread does.
 
 The others are loaded by name.
 `/setup-pstack` runs `jinstall --setup` and the doctor on this machine, or `install.sh --setup` in a checkout, and reports what is left for you.
-`/expert <name>` makes a thread the expert of one subject, and the rest are tools, such as `/architect`, `/create-formal-verification-skill`, `/unslop` and `/technical-writing`.
+`/expert <name>` makes a thread the expert of one subject.
+The rest are tools, such as `/architect`, `/create-formal-verification-skill`, `/unslop` and `/technical-writing`.
 `THIRD_PARTY.md` lists where each came from.
 
 ## Contributing
 
-The repo takes issues and pull requests: [CONTRIBUTING.md](CONTRIBUTING.md) says how to report a bug, open a pull request, and run the checks, and [SECURITY.md](SECURITY.md) says how to report a vulnerability.
+The repo takes issues and pull requests.
+[CONTRIBUTING.md](CONTRIBUTING.md) says how to report a bug, open a pull request, and run the checks.
+[SECURITY.md](SECURITY.md) says how to report a vulnerability.
 
 ## License
 
