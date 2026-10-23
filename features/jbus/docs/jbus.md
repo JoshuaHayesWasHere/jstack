@@ -1,7 +1,7 @@
 # jbus
 
 jbus does a home's routine work with no model.
-It keeps the work you approve moving through launch, review and merge while no thread is open.
+The work you approve then goes through launch, review and merge while no thread is open.
 A systemd timer runs one pass a minute, `jbus poll`, over every repo in its config.
 A pass launches the rows of the queue you approved as crewmate threads in T3 Code, tells each thread what its pull request is short of, runs `jmerge` to merge what is ready, and tells you what waits on you.
 
