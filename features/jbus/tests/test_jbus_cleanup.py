@@ -103,9 +103,11 @@ def reviewer(tmp_path):
 def test_findings_on_an_after_brief_make_exactly_one_row_that_waits_for_the_go(reviewer):
     reviewer.merged(MERGE)
     reviewer.brief()
-    reviewer.run()
+    said = reviewer.run()
     (row,) = reviewer.rows()
     assert (row["slug"], row["priority"], row["approved"]) == ("cleanup-alpha", 50, "")
+    assert row["depends"] == ["alpha"], "the cleanup starts from a main that has its parent"
+    assert said.startswith("added cleanup-alpha: priority 50, depends alpha, brief ")
     stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
     assert "src/a.py:12" in stored and "src/b.py:3" in stored
     assert "src/c.py" not in stored
