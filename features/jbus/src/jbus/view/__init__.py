@@ -26,7 +26,8 @@ The routes that read are `routes()`, all `GET`:
 
 The two writes are `WRITES`, `POST /answer` and `POST /steer`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
-have, gets 404.
+have, gets 404. One more write, `POST /usage`, names no project: it counts a route, a drawer
+or a first click of the page, and `jbus view usage` prints the counts (`usage`).
 
 The body of `/answer` is JSON. Its `numbers` are the questions to close. When it closes one
 question only, it also has the name of the `option` picked and the user's own `words`. The
@@ -73,7 +74,7 @@ origin in `JBUS_VIEW_ORIGINS` is one too, with the scheme's default port or no p
 an origin, as `https://<host name>`, belongs to a proxy that passes the `Host` header on.
 At the start, the server refuses an origin unless it is `http://` or `https://` followed by
 a host and an optional port (`origin`). Either write is 403 too unless its `Origin` header
-is the server's own address. For one of the server's names, the own address is
+is the server's own address, and so is a count. For one of the server's names, the own address is
 `http://<Host>`, with the name that the `Host` header gives. For the host of an origin, the
 own address is exactly that origin. So
 only the server's own page can write. No answer has a CORS header. The server sends each
@@ -132,7 +133,7 @@ from urllib.parse import parse_qs
 import jbus
 import jsettings
 from jbus import Refused, digest, record, verbs
-from jbus.view import panels, state
+from jbus.view import panels, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
 from jbus.view.state import Sources
@@ -170,6 +171,7 @@ FIXED = (
     "/healthz",
 )
 BODY = 65536
+POSTS = (*WRITES, usage.USAGE)
 POLICY = (
     "default-src 'none'; font-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
@@ -424,8 +426,21 @@ class App(Writes):
             return NOT_FOUND
         return said(200, clean(self.github.pull(repo, task[1], pulls[task[1]]), (repo,)))
 
+    def _count(self, body: bytes) -> Answer:
+        """One line of what the page opened (`usage`), written from names the server has."""
+        drawers = (panel.name for panel in self.panels)
+        try:
+            one = usage.line(body, drawers, state.projects(self.sources), self.clock())
+        except Refused as error:
+            return said(400, {"error": str(error).removeprefix("refused: ")})
+        self.sources.state_dir.mkdir(parents=True, exist_ok=True)
+        usage.append(self.sources.state_dir / usage.FILE, one)
+        return said(200, {"counted": True})
+
     def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
-        """One of the two writes: an answer, or a steer."""
+        """One of the writes: an answer, a steer, or a count of what the page opened."""
+        if path == usage.USAGE:
+            return self._count(body)
         name = self._project(query)
         if path not in WRITES or not name:
             return NOT_FOUND
@@ -484,7 +499,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path, _, query = self.path.partition("?")
-        if path not in WRITES:
+        if path not in POSTS:
             self._refuse()
             return
         if not self._known():
@@ -508,7 +523,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(answer)
 
     def _refuse(self) -> None:
-        only = "POST" if self.path.partition("?")[0] in WRITES else "GET"
+        only = "POST" if self.path.partition("?")[0] in POSTS else "GET"
         self._send(said(405, {"error": f"this address only takes {only}"}), allow=only)
 
     def __getattr__(self, name: str) -> Any:
@@ -648,19 +663,24 @@ def origin(text: str) -> str:
     return f"{scheme}://{host}" if str(port) == DEFAULT[scheme] else f"{scheme}://{host}:{port}"
 
 
-def doors(port: int = PORT) -> Doors:
-    """The server the environment sets up: `JBUS_VIEW_HOST`, `JBUS_VIEW_NAMES` and
-    `JBUS_VIEW_ORIGINS`, over the state directories `jbus` itself uses."""
+def _sources() -> Sources:
+    """The state directories `jbus` itself uses, and the user of jstack's settings."""
     home = Path.home()
     try:
         user = jsettings.load()
     except jsettings.Invalid as error:
         raise Refused(f"refused: {error}") from error
-    sources = Sources(
+    return Sources(
         state_dir=Path(os.environ.get("JBUS_STATE_DIR") or home / ".local" / "state" / "jbus"),
         home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
         user=user,
     )
+
+
+def doors(port: int = PORT) -> Doors:
+    """The server the environment sets up: `JBUS_VIEW_HOST`, `JBUS_VIEW_NAMES` and
+    `JBUS_VIEW_ORIGINS`, over the state directories `jbus` itself uses."""
+    sources = _sources()
     names = tuple(name.strip() for name in os.environ.get("JBUS_VIEW_NAMES", "").split(","))
     origins = (one.strip() for one in os.environ.get("JBUS_VIEW_ORIGINS", "").split(","))
     return Doors(
@@ -673,7 +693,22 @@ def doors(port: int = PORT) -> Doors:
 
 
 def _port(shown: argparse.ArgumentParser) -> None:
+    shown.add_argument(
+        "what",
+        nargs="?",
+        choices=("usage",),
+        help="usage: count what the page opened, each route, drawer and first click",
+    )
     shown.add_argument("--port", type=int, default=PORT, help="the one port it listens on")
+    usage.arguments(shown)
+
+
+def _run(args: argparse.Namespace) -> int:
+    """Serve the page, or with `usage`, print what it opened."""
+    if args.what != "usage":
+        return doors(args.port).serve()
+    sources = _sources()
+    return usage.report(sources.state_dir / usage.FILE, sources.user, datetime.now(UTC), args)
 
 
 VERBS = (
@@ -681,7 +716,7 @@ VERBS = (
         "view",
         "serve the bus as a page, read-only",
         _port,
-        lambda args, _: doors(args.port).serve(),
+        lambda args, _: _run(args),
         abbrev=False,
         config=False,
     ),

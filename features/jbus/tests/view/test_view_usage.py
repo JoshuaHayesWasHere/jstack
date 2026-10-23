@@ -72,7 +72,7 @@ def test_only_the_servers_own_page_counts(served, scene):
     body = {"kind": "drawer", "name": "task", "project": "demo"}
     assert served.write(body, origin=EVIL, path="/usage")[0] == 403
     assert served.write(body, origin="", path="/usage")[0] == 403
-    assert served.ask("/usage")[0] == 405
+    assert served.ask("/usage")[0] == served.ask("/answer")[0] == 404
     assert lines(scene) == []
 
 
@@ -80,7 +80,10 @@ def test_past_its_cap_the_file_drops_its_oldest_lines(served, scene, monkeypatch
     monkeypatch.setattr(usage, "CAP", 2000)
     monkeypatch.setattr(usage, "KEEP", 1000)
     path = scene.state_dir / usage.FILE
-    old = [{"at": f"2026-10-01T00:00:{n:02}+00:00", "kind": "route", "name": "stack"} for n in range(40)]
+    old = [
+        {"at": f"2026-10-01T00:00:{n:02}+00:00", "kind": "route", "name": "stack"}
+        for n in range(40)
+    ]
     path.write_text("".join(json.dumps(one | {"project": None}) + "\n" for one in old))
     assert path.stat().st_size > 2000
     body = {"kind": "drawer", "name": "task", "project": "demo"}

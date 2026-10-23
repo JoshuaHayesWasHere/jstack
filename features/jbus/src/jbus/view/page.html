@@ -798,6 +798,7 @@
   }
   function openDrawer(target, focus) {
     var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
+    count("drawer", kind);
     if (!p || !p.drawer) { mark(null); show({}, missing(kind, arg)); return; }
     if (p.first) {
       mark(p, null);
@@ -885,6 +886,12 @@
   document.addEventListener("change", function (e) { if (e.target.id === "pick") location.hash = href(e.target.value); });
   window.addEventListener("scroll", hidePeek, true);
   document.addEventListener("click", function (e) {
+    if (clicked || !e.target.closest) return;
+    var b = e.target.closest("[data-open]"), row = e.target.closest("#rows .proj");
+    clicked = true;
+    count("click", b ? b.getAttribute("data-open").split(":")[0] : row ? "project" : e.target.closest("#helpme") ? "help" : "other");
+  }, true);
+  document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
   });
   document.addEventListener("keydown", function (e) {
@@ -895,7 +902,8 @@
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  var gAt = 0, CHORD_MS = 1500;
+  var gAt = 0, CHORD_MS = 1500, clicked = false;
+  function count(kind, what) { if (!gone) ask("/usage", { kind: kind, name: what, project: PROJECT || "" }).catch(function () {}); }
   function typing(el) { return el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(el.type)) || !!el.isContentEditable; }
   function nextProject() {
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
@@ -979,6 +987,7 @@
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
     if (PROJECT !== was) {
+      count("route", PROJECT ? "project" : "stack");
       S = null; NOSUCH = ""; turnOf += 1;
       shutDrawer(first); render();
       pending = top();
