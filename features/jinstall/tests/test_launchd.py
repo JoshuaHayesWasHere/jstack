@@ -8,7 +8,10 @@ and boots out as launchd does and runs no agent."""
 
 import os
 import plistlib
+import signal
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
@@ -301,9 +304,10 @@ def test_a_source_path_with_dashes_and_percents_is_named_in_a_comment_the_plist_
         assert launchd.made_from(said) == source
 
 
-def agent_runs(tmp_path, name, programs):
-    """Run the agent of unit `name` as launchd would, with `programs` as the commands in
-    ~/.local/bin, each a line of sh. Return its exit code and what each command was asked."""
+def agent_made(tmp_path, name, programs):
+    """The program and environment launchd runs the agent of unit `name` with, with
+    `programs` as the commands in ~/.local/bin, each a line of sh that is told what it was
+    asked in tmp_path/calls first."""
     home = tmp_path / "home"
     (home / ".local" / "bin").mkdir(parents=True)
     calls = tmp_path / "calls"
@@ -313,12 +317,15 @@ def agent_runs(tmp_path, name, programs):
         path.chmod(0o755)
     agent = launchd.agents(unit_templates(REPO), home)[name]
     said = plistlib.loads(launchd.text(agent, home, REPO).encode())
-    done = subprocess.run(
-        said["ProgramArguments"],
-        env={**said["EnvironmentVariables"], "HOME": str(home)},
-        capture_output=True,
-        text=True,
-    )
+    return said["ProgramArguments"], {**said["EnvironmentVariables"], "HOME": str(home)}
+
+
+def agent_runs(tmp_path, name, programs):
+    """Run the agent of unit `name` as launchd would, with `programs` as in `agent_made`.
+    Return its exit code and what each command was asked."""
+    program, env = agent_made(tmp_path, name, programs)
+    done = subprocess.run(program, env=env, capture_output=True, text=True)
+    calls = tmp_path / "calls"
     return done.returncode, done.stdout, calls.read_text().splitlines() if calls.exists() else []
 
 
@@ -331,6 +338,34 @@ def test_a_pass_that_fails_tells_the_chef_as_its_on_failure_unit_does(tmp_path):
 def test_a_pass_that_ends_well_tells_nobody(tmp_path):
     code, _, asked = agent_runs(tmp_path, "jbus.timer", {"jbus": "exit 0"})
     assert (code, asked) == (0, ["jbus poll"])
+
+
+def left_running(program, env):
+    """Run the agent once in a process group of its own, and say whether a process of that
+    group outlives it by more than a few seconds. Kill any that does."""
+    run = subprocess.Popen(
+        program, env=env, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True
+    )
+    with run.stdout:
+        run.wait(timeout=30)
+        for _ in range(500):
+            try:
+                os.killpg(run.pid, 0)
+            except ProcessLookupError:
+                return False
+            time.sleep(0.01)
+        os.killpg(run.pid, signal.SIGKILL)
+        return True
+
+
+def test_a_pass_stopped_at_any_point_of_its_start_timeout_leaves_no_process_behind(tmp_path):
+    """The watcher of the start timeout is stopped as soon as the command ends, and a stop that
+    lands while it starts its timer leaves no timer running to hold the agent's output open.
+    That race lands in about 1 run in 100, so the agent is run many times."""
+    program, env = agent_made(tmp_path, "jbus.timer", {"jbus": "exit 0"})
+    with ThreadPoolExecutor(8) as runs:
+        left = sum(runs.map(lambda _: left_running(program, env), range(1000)))
+    assert left == 0
 
 
 @pytest.mark.parametrize(("exit", "code"), [(2, 0), (1, 1)])
