@@ -1241,3 +1241,64 @@ def group(v):
         assert r.returncode == 1, mapping
         assert r.stdout == "", mapping
         assert re.search(error, r.stderr)
+
+
+NOTE = """---- MODULE Note ----
+VARIABLES screen, text
+vars == <<screen, text>>
+Init == screen = "Editing" /\\ text = "draft"
+TypeOK == screen \\in {"Editing", "Saving", "Saved"}
+\\* You never see "Saved" while the note is still a draft.
+NoFalseSaved == ~(screen = "Saved" /\\ text = "draft")
+====
+"""
+
+
+def note_model(name, give_up):
+    steps = (
+        """GiveUp == screen = "Saving" /\\ text = "draft" /\\ screen' = "Saved" /\\ UNCHANGED text
+Next == Save \\/ Confirm \\/ GiveUp"""
+        if give_up
+        else "Next == Save \\/ Confirm"
+    )
+    return f"""---- MODULE {name} ----
+EXTENDS Note
+Save == screen = "Editing" /\\ screen' = "Saving" /\\ UNCHANGED text
+Confirm == screen = "Saving" /\\ screen' = "Saved" /\\ text' = "stored"
+{steps}
+Spec == Init /\\ [][Next]_vars
+====
+"""
+
+
+@needs_tlc
+@pytest.mark.timeout(300)
+def test_from_spec_reads_the_rules_and_variables_of_a_local_module_both_models_extend(tmp_path):
+    """from-spec reads the rule sentences and the variables of a module beside the spec that the
+    spec extends, so a code model and its spec can share one module of rules"""
+    write(tmp_path / "Note.tla", NOTE)
+    write(tmp_path / "NoteCode.tla", note_model("NoteCode", True))
+    write(tmp_path / "NoteAgreed.tla", note_model("NoteAgreed", False))
+    for name in ("NoteCode", "NoteAgreed"):
+        write(
+            tmp_path / f"{name}.cfg",
+            f"\\* module: {name}\nSPECIFICATION Spec\nINVARIANT TypeOK\nINVARIANT NoFalseSaved\n",
+        )
+    write(
+        tmp_path / "NoteCode.map.py",
+        'def state(v):\n    return f\'{v["screen"]}, {v["text"]}\'\n\n\n'
+        'def step(a):\n    return {"Save": "you press Save", "Confirm": "the server stores it",'
+        ' "GiveUp": "the save gives up"}[a]\n',
+    )
+    r = node(
+        "statechart",
+        ["from-spec", "NoteCode.tla", "--against", "NoteAgreed.tla"]
+        + ["--expect-broken", "NoFalseSaved"],
+        tmp_path,
+    )
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert '\nRule broken: You never see "Saved" while the note is still a draft.\n' in r.stdout
+    summary = json.loads(read(tmp_path / "NoteCode-statechart" / "summary.json"))
+    assert summary["uncited"]["NoteCode.tla"] == [
+        {"line": 5, "action": "GiveUp", "condition": 'text = "draft"'},
+    ]
