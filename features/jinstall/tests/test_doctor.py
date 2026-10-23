@@ -11,16 +11,19 @@ import shutil
 import subprocess
 import sys
 import time
+from dataclasses import replace
 
 import pytest
 
-from jinstall.kinds import Linux, Program, T3Nightly
+from jinstall.__main__ import doctor
+from jinstall.kinds import Program, T3Code
+from jinstall.needs import T3_FLOOR
 from test_install import REPO, Machine, Ran, User, line_for, machine
 
-NIGHTLY = "0.0.46-nightly.20261010.2935"
+T3_STABLE = "0.1.2"
 TOKEN = "gho_a_token_the_doctor_never_prints"
 PROGRAMS = {
-    "t3": f"echo 't3 v{NIGHTLY}'",
+    "t3": f"echo 't3 v{T3_STABLE}'",
     "claude": "echo '2.1.296 (Claude Code)'",
     "git": "[ \"$1\" = --version ] && exec echo 'git version 2.51.0'; exec "
     + shlex.quote(shutil.which("git"))
@@ -82,8 +85,8 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
     assert said[:8] == [
-        "ok hard linux",
-        f"ok hard t3 -> {NIGHTLY}",
+        f"ok hard platform -> {sys.platform}",
+        f"ok hard t3 -> {T3_STABLE}",
         "ok hard claude",
         "ok hard uv",
         "ok hard git -> 2.51.0",
@@ -114,13 +117,10 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
 def test_with_a_hard_need_missing_and_one_old_the_doctor_counts_them_and_exits_1(user):
     user.run()
     user.program("gh", "exit 1")
-    user.program("t3", "echo 't3 v0.0.45'")
+    user.program("t3", "echo 't3 v0.1.1'")
     code, said = user.doctor()
     assert (code, said[-1]) == (1, "doctor: not ok, 2 hard")
-    assert line_for(said, "hard t3") == [
-        "old hard t3 -> 0.0.45 is the stable build,"
-        " needs the nightly build (on Arch: t3code-nightly-bin)"
-    ]
+    assert line_for(said, "hard t3") == [f"old hard t3 -> 0.1.1, needs {T3_FLOOR} or newer"]
     assert line_for(said, "gh sign-in") == ["missing hard gh sign-in -> gh auth login"]
 
 
@@ -181,34 +181,97 @@ def test_a_t3_code_that_does_not_answer_is_old(user):
 def test_t3_code_is_asked_through_the_command_it_writes_into_its_own_home(user):
     path = user.without("t3")
     assert line_for(user.doctor(path=path)[1], "hard t3") == [
-        "missing hard t3 -> the nightly build (on Arch: t3code-nightly-bin)"
+        "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)"
     ]
     written = user.home / ".t3" / "bin" / "t3"
-    user.write(written, f"#!/bin/sh\necho 't3 v{NIGHTLY}'\n")
+    user.write(written, f"#!/bin/sh\necho 't3 v{T3_STABLE}'\n")
     written.chmod(0o755)
-    assert line_for(user.doctor(path=path)[1], "hard t3") == [f"ok hard t3 -> {NIGHTLY}"]
+    assert line_for(user.doctor(path=path)[1], "hard t3") == [f"ok hard t3 -> {T3_STABLE}"]
 
 
-def test_a_nightly_before_the_floor_is_old_once_a_floor_is_written_down(tmp_path):
-    said = Ran(0, "t3 v0.0.46-nightly.20261010.2935\n")
+@pytest.mark.parametrize(
+    "says",
+    ["0.1.2", "0.1.2-nightly.20261022.3526", "0.1.3-nightly.20261023.3553", "0.1.3"],
+)
+def test_t3_code_at_or_after_the_floor_is_ok_stable_or_nightly(user, says):
+    user.program("t3", f"echo 't3 v{says}'")
+    assert user.line("hard t3") == f"ok hard t3 -> {says}"
+
+
+@pytest.mark.parametrize(
+    "says",
+    [
+        "0.1.1",
+        "0.0.45",
+        "0.1.2-nightly.20261021.3457",
+        "0.1.2-preview.20261022.3516",
+        "0.1.2-beta",
+    ],
+)
+def test_t3_code_before_the_floor_is_old_and_a_preview_is_never_the_stable_build(user, says):
+    user.program("t3", f"echo 't3 v{says}'")
+    assert user.line("hard t3") == f"old hard t3 -> {says}, needs {T3_FLOOR} or newer"
+
+
+def test_a_release_ranks_after_each_of_its_prereleases(tmp_path):
+    said = Ran(0, "t3 v0.1.2\n")
     here = machine(REPO, tmp_path, tmp_path, run=lambda args: said)
     (tmp_path / ".t3" / "bin").mkdir(parents=True)
     (tmp_path / ".t3" / "bin" / "t3").write_text("")
     (tmp_path / ".t3" / "bin" / "t3").chmod(0o755)
-    after = T3Nightly("0.0.46-nightly.20261011.1").probe(here)
+    assert T3Code("0.1.2-nightly.20261231.9999").probe(here).state.value == "ok"
+    assert T3Code("0.1.2-preview.20261231.9999").probe(here).state.value == "ok"
+    assert T3Code("0.1.2").probe(here).state.value == "ok"
+    after = T3Code("0.1.3-nightly.20261023.1").probe(here)
     assert (after.state.value, after.detail) == (
         "old",
-        "0.0.46-nightly.20261010.2935, needs 0.0.46-nightly.20261011.1 or newer",
+        "0.1.2, needs 0.1.3-nightly.20261023.1 or newer",
     )
-    assert T3Nightly("0.0.46-nightly.20261010.2935").probe(here).state.value == "ok"
-    assert T3Nightly("0.0.45-nightly.20261201.1").probe(here).state.value == "ok"
 
 
-def test_a_platform_that_is_not_linux_is_missing(tmp_path):
-    here = machine(REPO, tmp_path, tmp_path)
-    found = Linux("darwin").probe(here)
-    assert (found.state.value, found.detail) == ("missing", "this is darwin")
-    assert Linux("linux").probe(here).state.value == "ok"
+T3_MISSING = "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
+
+
+@pytest.mark.parametrize(
+    ("platform", "lines"),
+    [
+        (
+            "linux",
+            [
+                "ok hard platform -> linux",
+                f"{T3_MISSING} (on Arch: t3code-bin)",
+            ],
+        ),
+        (
+            "darwin",
+            [
+                "ok hard platform -> darwin",
+                f"{T3_MISSING} (on a Mac with Apple Silicon: brew install --cask t3-code)",
+            ],
+        ),
+        (
+            "win32",
+            [
+                "missing hard platform -> this is win32: run jstack inside WSL2",
+                f"{T3_MISSING} (run jstack inside WSL2)",
+            ],
+        ),
+        (
+            "freebsd14",
+            [
+                "missing hard platform -> this is freebsd14: jstack runs on Linux and macOS",
+                f"{T3_MISSING} (on Arch: t3code-bin)",
+            ],
+        ),
+    ],
+)
+def test_the_platform_is_ok_on_linux_and_macos_and_windows_is_sent_to_wsl2(
+    tmp_path, platform, lines
+):
+    here = replace(machine(REPO, tmp_path / "home", tmp_path / "account"), platform=platform)
+    said = doctor(here)
+    assert list(said.lines[:2]) == lines
+    assert said.code == 1
 
 
 def test_a_program_with_no_floor_is_not_run(tmp_path):

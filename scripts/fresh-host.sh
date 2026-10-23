@@ -10,7 +10,7 @@ docker run --rm -i -v "$work:/src:ro" archlinux:latest sh -eu << 'IN_THE_CONTAIN
 pacman -Sy --noconfirm --needed uv git jq findutils diffutils > /dev/null
 stand=/opt/stand-in
 mkdir -p "$stand"
-printf '#!/bin/sh\necho "t3 v0.0.46-nightly.20261015.3158"\n' > "$stand/t3"
+printf '#!/bin/sh\necho "t3 v0.1.2"\n' > "$stand/t3"
 printf '#!/bin/sh\necho "2.1.296 (Claude Code)"\n' > "$stand/claude"
 printf '#!/bin/sh\n[ "$1 $2" = "auth token" ] && echo gho_stand_in\n' > "$stand/gh"
 printf '#!/bin/sh\nexit 0\n' > "$stand/lavish-axi"
@@ -45,10 +45,10 @@ diff /tmp/before /tmp/after || fail="$fail; the second run changed the files und
 [ "$record" = "$(cat "$HOME/.local/state/jstack/created" "$HOME/.local/state/jstack/seeded" | sha256sum)" ] ||
     fail="$fail; the records changed"
 left=$(sed -n 's/^needs you .* -> //p' /tmp/second | sort | paste -sd, -)
-[ "$left" = "claude" ] || fail="$fail; needs you left: $left"
+[ -z "$left" ] || fail="$fail; needs you left: $left"
 if [ -n "$fail" ]; then
     echo "fresh host: failed${fail}"
     exit 1
 fi
-echo "fresh host: ok, doctor: ok, the second run wrote nothing, left: $left"
+echo "fresh host: ok, doctor: ok, the second run wrote nothing and left nothing for you"
 IN_THE_CONTAINER
