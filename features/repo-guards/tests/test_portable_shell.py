@@ -54,6 +54,19 @@ GNU_ONLY = [
     (r"\bgrep(\s+-\w+)*\s+-\w*P", "BSD grep has no -P: `grep -E`"),
     (r"\breadlink\s+-\w*f", "use `realpath`, the form the rest of jstack uses"),
     (
+        r"\brealpath(\s+-q)*\s+-(?!q\b)",
+        "BSD realpath takes only -q: `realpath -q <path> || echo <the path as it is>`",
+    ),
+    (
+        r"^(?!.*(2>\s*/dev/null|\|\|)).*\brealpath\s[^|;&)]*(~|\$HOME|\$\{HOME\})"
+        r"/\.claude/skills/[\w-]+/\.\./(?!\.\./(templates|playbooks|principles|hooks|source)\b"
+        r"|\.\.(?![\w./-]))",
+        "BSD realpath fails on a missing path where GNU prints it, and an install places only "
+        "templates/, playbooks/, principles/, hooks/ and source beside skills/ "
+        "(`features/jinstall/src/jinstall/layout.py`): "
+        "`realpath <path> 2> /dev/null || echo missing`, and say what the block does then",
+    ),
+    (
         r"\bstat\s+(-\w*c|--format|--printf)\b",
         "BSD stat -c is not GNU's: `date -r <file>` for its time, `wc -c < <file>` for its size",
     ),
@@ -155,6 +168,36 @@ def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
     assert on_bsd(tools, "sh", str(hook)).stdout == f"{hook.resolve()}\n"
 
 
+def test_a_realpath_of_a_path_an_install_may_not_have_is_found_until_it_is_handled(tmp_path):
+    """BSD realpath fails on a missing path where GNU prints it. An install places `templates/`
+    beside `skills/` (`jinstall.layout`), so the skills' `T=` line resolves on both, and a planted
+    line that reaches past the skill for anything else fails on macOS's tools and is named."""
+    planted = 'T=$(realpath ~/.claude/skills/demo/../../nope) && echo "$T"'
+    skill = tmp_path / "features" / "demo" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(f"# demo\n\n```sh\n{planted}\n```\n")
+    user = tmp_path / "user"
+    (user / "layout" / "skills" / "demo").mkdir(parents=True)
+    (user / "layout" / "templates").mkdir()
+    (user / ".claude" / "skills").mkdir(parents=True)
+    (user / ".claude" / "skills" / "demo").symlink_to(user / "layout" / "skills" / "demo")
+    tools = bsd_tools(tmp_path / "bsd")
+
+    def on_mac(line):
+        env = {**os.environ, "PATH": str(tools), "HOME": str(user)}
+        return subprocess.run(["sh", "-c", line], env=env, capture_output=True, text=True)
+
+    assert on_mac(planted).returncode == 1
+    (found,) = gnu_only(tmp_path)
+    assert found.split(": ", 1)[0] == "features/demo/SKILL.md:4"
+    handled = planted.replace(")", " 2> /dev/null || echo missing)", 1)
+    install = planted.replace("nope", "templates")
+    skill.write_text(f"# demo\n\n```sh\n{handled}\n{install}\n```\n")
+    assert gnu_only(tmp_path) == []
+    assert on_mac(handled).stdout == "missing\n"
+    assert on_mac(install).stdout == f"{(user / 'layout' / 'templates').resolve()}\n"
+
+
 @pytest.mark.parametrize(
     ("gnu", "portable"),
     [
@@ -167,6 +210,7 @@ def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
         ("out=$(timeout 9 sh -c x)", "out=$(perl -e 'alarm shift; exec @ARGV' 9 sh -c x)"),
         ("sha256sum f | cut -c1-12", "shasum -a 256 f | cut -c1-12"),
         ("cores=$(nproc)", "cores=$(getconf _NPROCESSORS_ONLN)"),
+        ("R=$(realpath -m ~/x/../y)", "R=$(realpath -q ~/x/../y || echo ~/y)"),
     ],
 )
 def test_each_gnu_form_is_found_and_its_portable_form_is_not(gnu, portable):
@@ -187,11 +231,34 @@ REFUSED = {
     "grep": "-P|-*P*",
 }
 
+BSD_REALPATH = """#!/bin/sh
+quiet=
+for one in "$@"; do
+    case $one in
+    -q) quiet=1 ;;
+    -*) echo "bsd realpath: no $one" >&2; exit 64 ;;
+    esac
+done
+status=0
+for one in "$@"; do
+    if [ "$one" = -q ]; then continue; fi
+    if [ -e "$one" ]; then
+        REAL "$one"
+    else
+        status=1
+        if [ -z "$quiet" ]; then echo "realpath: $one: No such file or directory" >&2; fi
+    fi
+done
+exit "$status"
+"""
+"""macOS's realpath: it takes only -q, and fails on a path that does not exist where GNU prints
+it."""
+
 
 def bsd_tools(where):
     """A directory of every tool on PATH with macOS's gaps in it: the GNU-only tools are not
-    there, and the tools whose flags differ refuse the GNU-only flags, exit 64, and say which.
-    Put it on PATH in place of the real directories."""
+    there, the tools whose flags differ refuse the GNU-only flags, exit 64, and say which, and
+    realpath fails on a missing path. Put it on PATH in place of the real directories."""
     where.mkdir(parents=True, exist_ok=True)
     for folder in os.environ["PATH"].split(os.pathsep):
         if not os.path.isdir(folder):
@@ -203,7 +270,10 @@ def bsd_tools(where):
                 continue
             if not os.access(real, os.X_OK):
                 continue
-            if name in REFUSED:
+            if name == "realpath":
+                link.write_text(BSD_REALPATH.replace("REAL", real))
+                link.chmod(0o755)
+            elif name in REFUSED:
                 refuse = f'echo "bsd {name}: no $one" >&2; exit 64'
                 link.write_text(
                     "#!/bin/sh\n"
