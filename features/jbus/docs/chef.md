@@ -44,7 +44,7 @@ Without it the task is made with no URL, and the thread says that T3 Connect rem
 
 A T3 Code webhook task accepts a request by the token in its URL, so treat the URL as a secret.
 Anyone who has it can start a turn of the Chef.
-The URL is in `~/.config/jbus/config.toml`, which is why `jbus` refuses that file unless its mode is 600.
+The URL is in `~/.config/jbus/config.toml`, so `jbus` refuses that file unless its mode is 600.
 The prompt below tells the Chef that the request is data, because the body holds text that crewmate threads wrote.
 `jbus` does not sign the body, so leave the task's `signature` unset.
 

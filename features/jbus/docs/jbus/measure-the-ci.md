@@ -4,7 +4,13 @@
 It works for any repo of the config.
 It needs nothing from the repo's workflows, since the fields a job adds with `--notice` are optional.
 `jbus --project <name> ci` collects and prints the nine targets, each with how it was counted.
-It asks GitHub, read-only through `gh api`, for the workflow runs of the last `--days` days (14), the jobs of each run that has finished and not been kept, and the pull requests with their timelines.
+It asks GitHub, read-only through `gh api`, for three things:
+
+- the workflow runs of the last `--days` days, 14 by default
+- the jobs of each run that has finished and is not stored yet
+- the pull requests, with their timelines
+
+
 It keeps what it collects in two files in the project's state directory:
 
 - `ci.jsonl`, one line per job, written once.
@@ -16,7 +22,14 @@ It keeps what it collects in two files in the project's state directory:
   A job cancelled while it waited has no runner and no start, and `jbus ci` keeps it and counts it.
 - `ci-prs.jsonl`, one line per pull request, rewritten each run, with the times its branch was force-pushed.
 
-A line also has a field for each change meant to move a number, and the field is empty when the run did not give it: `full` and `tree` (one suite per tree), `selection` and `reason` (what a check that runs part of the suite ran, `all` or how many files, and why), `slowest_s` and `tail_s` (the slowest file, and the wall time less the summed test time over the workers), `cpu_pressure`, `cgroup_pressure` and `workers` (the first line of `/proc/pressure/cpu`, of the job's `cpu.pressure`, and the worker count) and `tmp_inode_pct`.
+A line also has a field for each change meant to move a number.
+A field is empty when the run did not give it.
+
+- `full` and `tree`: one suite per tree.
+- `selection` and `reason`: what a check that runs part of the suite ran, `all` or how many files, and why.
+- `slowest_s` and `tail_s`: the slowest file, and the wall time less the summed test time over the workers.
+- `cpu_pressure`, `cgroup_pressure` and `workers`: the first line of `/proc/pressure/cpu`, the first line of the job's `cpu.pressure`, and the worker count.
+- `tmp_inode_pct`.
 
 A job gives these fields while it runs, and `jbus ci --notice` is the only way to give them.
 `jbus ci --notice full=true workers=4 cpu_pressure="$(head -n 1 /proc/pressure/cpu)"` prints a `::notice title=jstack-ci::` annotation holding the fields as JSON, and the collector reads it back from the job's check run.
@@ -28,8 +41,8 @@ Where `GITHUB_STEP_SUMMARY` is set, `--notice` also writes the fields there as a
 
 Each target is counted over the period, from job-level rows only.
 A job counts once, and a run never does.
-Four targets count the jobs of self-hosted runners alone, `local`: queue, wasted-minute share, own-cause reds and time-to-green.
-Queue, wasted-minute share and time-to-green show the GitHub-hosted runners' figure beside theirs.
+Four targets count only the jobs of self-hosted runners, whose `kind` is `local`: queue, wasted-minute share, own-cause reds and time-to-green.
+Queue, wasted-minute share and time-to-green also show the figure for GitHub-hosted runners beside the self-hosted one.
 On a repo that runs on GitHub-hosted runners alone, these four targets read `no data`.
 The other five count every pull request, push to main or job, whatever runner it ran on.
 Flaky tests reads a red job's failing tests from the log of a self-hosted job only, so on a hosted-only repo it counts 0.

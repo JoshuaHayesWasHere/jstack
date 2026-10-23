@@ -112,10 +112,13 @@ When a row's go still holds for its new brief, `add` refuses the row only for a 
 `jbus queue show` ends with two notes, when it has rows for them.
 Under the line `grandfathered, approved before a lint that refuses the brief now; the go stands:` it lists each grandfathered row, with the faults a check finds in its stored brief now.
 The line `re-asked, the go does not hold for the stored brief: <slugs>` names each row a pass gates as `brief changed after approval`.
-When the row had a go and its brief changed, `add` prints a line above the table, `added <slug>: priority <n>, brief <sha12>`, that ends `, its go holds` or `, its go does not hold for it: approve it again` (see [What an approval is bound to](#what-an-approval-is-bound-to)).
+When the row had a go and its brief changed, `add` prints a line above the table, `added <slug>: priority <n>, brief <sha12>`.
+The line ends `, its go holds` or `, its go does not hold for it: approve it again` ([What an approval is bound to](#what-an-approval-is-bound-to)).
 
 `--priority` is an integer, and the lowest launches first.
-`--depends` is optional: the slugs that must end before this row launches, each by a merge or by a row that ended `done` with no pull request (its thread ended, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL).
+`--depends` is optional: the slugs that must end before this row launches.
+A slug ends by a merge, or by a row that ended `done` with no pull request.
+Such a row's thread ended, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL.
 `--merge-after` is optional too: the slugs whose pull requests merge before this row's.
 It gates the merge and not the launch, so the row launches and its crew works at once.
 `jmerge` leaves its pull request with `wait <number> <url>: merges after <slug> (#<n>), not merged yet` until every row it names is `merged` or `done`.
@@ -256,14 +259,19 @@ It keeps its go while its stored brief has the sha its row holds, line for line,
 That sha is the `brief_sha` of the text, or, for a row approved before the sha left the two lines out, the sha256 of the whole text.
 When such a row is queued again with the same text, it moves to that text's `brief_sha`.
 
-`jbus queue verify <slug>` prints, as JSON, what another reader needs to check that the brief it holds is the one you approved: the row's `approval` record (its basis, its reference and your words, the `brief_sha` and the `meaning` and `scope` at the go), and the brief checked, with its `brief_sha`, `meaning`, `scope` and whether the go `holds` for it. The brief checked is the stored one, or the file `--brief <path>` names. It exits 0 when the go holds, and 1 when it does not or there is no such row.
+`jbus queue verify <slug>` prints, as JSON, what another reader needs to check that a brief is the one you approved.
+It prints the row's `approval` record: its basis, its reference and your words, and the `brief_sha`, `meaning` and `scope` at the go.
+It also prints the brief it checked, with its `brief_sha`, `meaning` and `scope`, and whether the go `holds` for it.
+The brief checked is the stored one, or the file `--brief <path>` names.
+It exits 0 when the go holds, and 1 when it does not or there is no such row.
 
 `jbus queue remove` takes a row out of the queue permanently, and a batch takes the same line without `jbus queue`.
 A removal is your word, so `--by` is your name.
 
 One file tells a pass which slugs are gone permanently.
 `~/.local/state/jbus/<project>/removed.json` names each removed slug, with who said so and when.
-From then on a pass sends no event for that slug, whatever its brief in the home's `tasks/`, its thread or a gate it asked says, and it tells no thread of that slug to carry on.
+From then on a pass sends no event for that slug, whatever its brief in the home's `tasks/`, its thread or a gate it asked says.
+A pass also tells no thread of that slug to carry on.
 A pass still settles a thread of the slug whose brief has a done Result with nothing left, or whose pull request merged.
 A thread that ended with no Result stays open in T3 Code until you settle it.
 A pull request opened for the slug later is still a pull request, so `jmerge` judges it, and jbus tells its crew what it is short of.

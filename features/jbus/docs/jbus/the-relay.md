@@ -15,9 +15,10 @@ With a port of 0 it picks a free port, and its line `relay: listening on 127.0.0
 It sends each body posted to it on to the relay's webhook, `RELAY_WEBHOOK_URL`, with the key `RELAY_WEBHOOK_KEY`.
 When your chat bot is silent, it also pages you through the fallback pager.
 Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads.
-The install links `features/jbus/units/jbus-relay.service` on every machine, and enables and starts it only once that file holds every key the relay needs.
-With no file it leaves the unit off, and nothing alerts.
-A file that would stop the relay at start leaves the unit as it was, and the doctor's `relay` line names each key and why.
+The install links `features/jbus/units/jbus-relay.service` on every machine.
+It enables and starts the unit only once `~/.config/jbus-relay/env` holds every key the relay needs.
+With no env file, the install leaves the unit off, and nothing alerts.
+If the env file would stop the relay at start, the install leaves the unit as it was, and the doctor's `relay` line names each key and why.
 The install does not replace a hand-made `jbus-relay.service` that differs.
 Remove it first, and `jinstall --check` says when it is gone.
 
@@ -42,16 +43,20 @@ The relay sends two routes, both to the relay's webhook, and each POST says whic
 | Route | What it sends |
 |---|---|
 | `everything` | Every body as it came. |
-| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends a `reminder` or a `refresh` whole. It also sends whole an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`, with `say` cut to the `say` lines of those events. A body with none of these is not sent on this route. |
+| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends the whole of a `reminder` or a `refresh`. It also sends the whole of an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`, and cuts `say` to the `say` lines of those events. The relay does not send a body with none of these on this route. |
 
-Each body the relay takes has an id: its own `id` when that is a short name of letters, digits, `.`, `_` and `-`, else a hash of the body, so the same body posted twice has one id.
+Each body the relay takes has an id.
+The id is the body's own `id` when that is a short name of letters, digits, `.`, `_` and `-`.
+Otherwise it is a hash of the body, so the same body posted twice has one id.
 Each route writes what it sends to `spool/<route>/` before the relay answers 202 with `{"id"}`.
 A thread for each route posts its spool in order, outside the request path, so a webhook that is slow or down never holds back the next body.
 A body that was sent is added to `sent/<route>`, with the time, and leaves the spool.
 One that failed stays, and the journal says `relay: POST to webhook (<route>) failed for event <id>: <why>`.
 It goes again after `RELAY_RETRY_SECONDS`, or when the next body comes.
-A refused key or address (401, 403, 404 or 407) is a failure like any other, so the body stays until the setting is mended, and so does a 408 or a 429.
-Any other 4xx means the body would never be taken, so it moves to `dead/<route>/`, with a journal line that says `refused for good` and names the file, and the bodies behind it go on.
+A refused key or address (401, 403, 404 or 407) is a failure like any other, so the body stays until the setting is mended.
+A 408 or a 429 also leaves the body in the spool.
+Any other 4xx means the body would never be taken, so the relay moves it to `dead/<route>/`.
+The journal line says `refused for good` and names the file, and the bodies behind it go on.
 A body's own `id` that a route sent is never spooled again.
 A hashed id is not spooled again while the route holds it or sent it in the last `RELAY_DEDUP_SECONDS`.
 That case is jbus posting a body again after it lost the answer.
@@ -60,14 +65,24 @@ jbus's bodies carry no time, so the same alert said again later has the same has
 A body that went and was not yet written to `sent/` when the relay stopped goes once more after its start.
 
 The pager is a third route, `page`, spooled as the others are, with the pager as its target.
-The relay pages in the two cases of [What blocks](what-blocks.md), and the page's body is `{"message"}`, one line: the project, the item's `line`, how long it has blocked, and for a body your chat bot did not take, its event id, as `demo: gate 33: tea or coffee?, blocking 47 min`.
+The relay pages in the two cases of [What blocks](what-blocks.md).
+The page's body is `{"message"}`, one line, such as `demo: gate 33: tea or coffee?, blocking 47 min`.
+The line holds the project, the item's `line` and how long it has blocked, and, for a body your chat bot did not take, its event id.
 A URL in the line that carries a key, as a query or a user, is cut to `<url>`.
 A page's id is kept permanently, so it goes once, also across a restart.
-One the pager did not take goes again as any route's does, and one it refused permanently (a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`) stays in `dead/page/` and is not paged again.
+A page the pager did not take goes again, as on any route.
+A page the pager refused permanently, with a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`, stays in `dead/page/` and is not paged again.
 The relay also shows the line on the desktop with `notify-send -u critical`, once, when the page is spooled.
 `watch.json` in the state holds what the relay knows of what blocks: the items of each project, the ones seen, and the event id that carried each.
 
-The relay writes `heartbeat.json` in its state each minute and on each body it takes: when it beat, when it started, when it last heard a body, `RELAY_SILENT_MINUTES`, each route whose POSTs fail, since when, why, and how many bodies wait, and each body refused permanently in the last day, with its file in `dead/`.
+The relay writes `heartbeat.json` in its state each minute and on each body it takes.
+The file holds these:
+
+- when the relay beat, when it started, and when it last heard a body
+- `RELAY_SILENT_MINUTES`
+- each route whose POSTs fail, with since when, why, and how many bodies wait
+- each body refused permanently in the last day, with its file in `dead/`
+
 The relay judges none of it.
 `jbus health` reads the file and pages ([The health check](the-health-check.md)).
 

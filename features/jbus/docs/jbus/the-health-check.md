@@ -68,7 +68,7 @@ The incident of such a check ends with no page.
 
 ## The pause
 
-`capped <instance>` is the instance that launches skip ([jroles](../../../jroles/docs/jroles.md#pools)).
+`capped <instance>` names the instance that new launches skip ([jroles](../../../jroles/docs/jroles.md#pools)).
 While the cap holds, a new launch goes to the next instance of the pool.
 With every instance capped, no launch starts, and the page says until when.
 At the reset, launches go back to the instance by themselves.

@@ -32,7 +32,8 @@ From the top, the page has these parts:
 | Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here, such as a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover or a setup. A gate with a default, or one that closes after 2 hours of silence, is in the folded list "Will proceed on default" under the queue, with the time it goes ahead. Its "Accept default" is the one filled button of the page. It waits 10 seconds, and Undo stops it. Only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page, a token beside the queue shows the new noticed lines, labelled "not counted". With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
 | Projects | One link for each project, to its page. The link has a name, a dot, a reason when something is broken, and the counts of open tasks and of today's merges. The dot is amber when something of the project needs you, red when something is broken, and hollow otherwise. The reason is plain, such as "CI 3 failed", "bus outbox 2" or "1 source unread". A healthy project shows nothing else. |
 
-The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine's state in a few words: "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red.
+The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine's state.
+The state is "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red.
 Those words link to the pulse drawer, which lists the machine's parts.
 When jbus has stopped or the server does not answer, one line under the header says so once.
 
@@ -41,7 +42,7 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 | Part | What it shows |
 |---|---|
 | Needs you | The same queue, of this project. |
-| In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting, such as a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
+| In progress | One row for each open task, and one for each scout or reviewer thread with no task. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting, such as a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
 
@@ -75,7 +76,9 @@ Close goes to the page under every drawer.
 The head also has breadcrumbs for All, the project and the drawer itself.
 Each breadcrumb links to that page, and does not go back in the browser's history.
 
-A link to a project the state directory does not have, a retired one included, says there is no such project. A link to a task the project does not have, or to a drawer of something that is not there now, opens a drawer that says which name was not found, and where.
+A link to a project the state directory does not have, a retired one included, says there is no such project.
+A link can also name a task the project does not have, or a drawer of something that is not there now.
+Such a link opens a drawer that says which name was not found, and where.
 
 The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one.
 To build its reply, `/stack.json` runs the machine's checks (systemd, the room script, the runner units) once, however many projects there are.
@@ -113,7 +116,8 @@ A question is answered once.
 The view refuses a second answer, and the page shows the first one.
 
 There is no sign-in.
-The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or steer for you.
+The page is reachable only on the addresses the view listens on.
+The view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or steer for you.
 Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`.
 A client that is not a browser can set the `Origin` header to anything.
 The server reads jbus's config and the sign-in to T3 Code only for a write that has an answer or a message to send, and it sends neither to the page.
@@ -126,7 +130,8 @@ A steer of one goes to `POST /steer?project=<project>`, with the body `{item, ac
 The view decides nothing about the steer.
 It calls `jbus.steer`, as `jbus item steer` does, by the user of your settings, in the view.
 The steer's line records the words typed in the view as what it is based on, with the basis `view`, the server's clock, and `checked` false, since they were typed.
-A steer whose `seen_event` is not the item's last line gets 409, and its sentence quotes the line that came after, so a second POST of the same steer gets 409 and is not written.
+A steer whose `seen_event` is not the item's last line gets 409, and its sentence quotes the line that came after.
+So a second POST of the same steer gets 409, and the view does not write it.
 A hold with no `confirm` gets 400, an item the project does not have gets 404, and any other refusal of `jbus.steer` gets 409.
 The answer is `{at, item, say, state, last_event}`, read from the record after the write.
 A message goes to the item's home in the same request.
