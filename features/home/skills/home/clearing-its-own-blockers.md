@@ -2,7 +2,7 @@
 
 No bot outside watches the homes or the queue.
 Each home clears its own blockers, and raises to the user only what the user has to decide.
-What is raised goes on the jbus relay to Sous Chef (the brief's Chief Keef), and Sous Chef pages the user: jbus posts a webhook only a `decision`, a `sign-in` and an `alert` that stands.
+What is raised goes on the jbus relay to the user's chat bot (Sous Chef, the brief's Chief Keef), which pages the user: jbus posts a webhook only a `decision`, a `sign-in` and an `alert` that stands.
 Everything else, a merge, a stale thread, a retro, a gate, a stall, is quiet, and the user reads it in the digest.
 
 Each time this home wakes (its start, a thread's message, an audit tick), run this from the main checkout, after the block at the top and the block that finds this home:
