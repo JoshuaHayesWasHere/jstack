@@ -18,7 +18,7 @@
 | `missing hard gh sign-in -> gh auth login` | `gh auth token` exited non-zero. | Run `gh auth login`. |
 | `missing optional lavish-axi -> npm install -g lavish-axi` | `lavish-axi` is not on `PATH`. It is Lavish, a local editor that opens an HTML page in your browser for you to mark up, and hands your notes back to the agent. Without it, a scout writes no visual page, and a question round comes as text. | Run `npm install -g lavish-axi`, or leave it. |
 | `missing optional state repo <path> -> not a git repo` | The homes' state tree is not a git repo, so `jbus snapshot` fails, and the backup is off. | Run `git init <path>`, then add the remote as the next line says. |
-| `missing optional state repo <path> -> no remote, so the backup is off` | The state tree has no `origin`. Each `jbus snapshot` commits here and pushes nothing. `jbus-snapshot.timer` is off, and nothing sends alerts. | Nothing, or run `git -C <path> remote add origin <url>`, with a private repository of your own, then `jinstall`. |
+| `missing optional state repo <path> -> no remote, so the backup is off` | The state tree has no `origin`. Each `jbus snapshot` commits in the state tree and pushes nothing. `jbus-snapshot.timer` is off, and nothing sends alerts. | Nothing, or run `git -C <path> remote add origin <url>`, with a private repository of your own, then `jinstall`. |
 | `old optional state repo <path> -> needs gitleaks, which reads each snapshot for secrets` | The state tree has a remote and there is no `gitleaks`, so a snapshot would commit nothing and fail. The install leaves `jbus-snapshot.timer` as it is. | Install `gitleaks`, then run `jinstall`. |
 
 ## Where to get each program

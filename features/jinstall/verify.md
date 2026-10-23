@@ -47,7 +47,7 @@ Tests: none
 - `install-points-here` points each skill link and hook command into its own harness's layout, and each unit into the checkout's `templates/`.
 - `install-from-a-wheel` does the same with `jinstall` from a wheel, in a HOME with no checkout, with every layout file a link into the installed wheel.
 - `release-setup-pstack` runs `/setup-pstack`'s block on a release that the dist `install.sh` installed, which runs `jinstall --setup` and `--doctor` and prints `release: <jinstall>`.
-- `repo-git-hooks` links jleak's `pre-push` and `commit-msg` into a scratch repo with `jinstall --repo`, strips an AI trailer from a commit there with no checkout, and leaves a repo's own hook as it is.
+- `repo-git-hooks`, on a release with no checkout, links jleak's `pre-push` and `commit-msg` into a scratch repo with `jinstall --repo`, strips an AI trailer from a commit there, and leaves a repo's own hook as it is.
 - `install-idempotent` changes nothing on a second run.
 - `install-stale-tool` says `stale` of a tool whose editable paths lack a package that the root pyproject.toml lists, such as a tool built before a package moved.
   A run then installs the tool again.
@@ -103,7 +103,8 @@ Preconditions:
   Run it again, and it prints nothing.
 - **Proof.** Run `record install-skills sh -c '(cd "$HOME" && find . | sort) | diff "$VERIFY_JSTACK_SANDBOX/before.txt" -'`. It prints nothing and exits 0. The `record` file holds every line of each run.
 
-To check the checkout's own skills, clone inside the sandbox's HOME, because a run under a HOME that is not yours links none into a checkout outside that HOME:
+A run under a HOME that is not yours links no project skill into a checkout outside that HOME.
+To check the checkout's own skills, clone the repo inside the sandbox's HOME:
 
 - **Clone and install.**
   Run `git clone -q "$VERIFY_JSTACK_REPO" "$HOME/jstack" && cd "$HOME/jstack"`, then `record project-skills sh install.sh`.
@@ -180,6 +181,6 @@ A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a
 - `install.sh` needs a Python 3.12 or `uv`, and says so when it has neither.
 - The links point at the checkout the script runs from.
   Run the one under `$VERIFY_JSTACK_REPO`, not a copy.
-  In the recipe of a move, run the clone, which is the checkout under test.
+  In the recipe of a move, run the script in the clone, which is the checkout under test.
 - In the recipe of a move, the line for the commands is `old hard commands jstack -> jbriefs is shadowed by <this checkout>/.venv/bin/jbriefs`, because `env.sh` puts this checkout's commands first on PATH.
   That line does not come from the move.

@@ -6,7 +6,7 @@ To work on jstack itself from a checkout, see [Working on jstack](#working-on-js
 
 ## Install
 
-From a release, with nothing but `curl` and a shell:
+Install from a release with only `curl` and a shell:
 
 ```sh
 curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
@@ -29,7 +29,7 @@ jinstall --setup
 | `jinstall --setup` | Goes through every need once, in order, and prints one of these lines for each: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. Prints one line for each hook. |
-| `jinstall --uninstall` | Takes away what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |
+| `jinstall --uninstall` | Removes what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |
 
 `--setup` puts every part that [What the install writes](#what-the-install-writes) lists.
 Where no file is there yet, it also writes your jstack config and a role map where every role inherits.

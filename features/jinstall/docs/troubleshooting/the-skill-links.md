@@ -12,6 +12,6 @@ The install assembles that layout from the release or from a checkout ([The layo
 | `missing hard <home>/<root>/skills/<skill>` | The link for one skill is not there. `<root>` is `.claude`, which Claude Code reads, `.codex`, which Codex reads, or `.agents`, which Cursor reads. | Run `jinstall`. |
 | `old hard <home>/<root>/skills/<skill> -> <path>` | The link points at another layout, at the copy that an install made before the layouts existed, or at a worktree. | Run `jinstall`. It points the link into the layout. |
 | `old hard <home>/<root>/skills/<skill> -> not a link` | A file or a directory is in the link's place. The install never replaces it. | Move it away, then run `jinstall`. |
-| `old hard <home>/<root>/skills/<skill> -> <path>, a skill this checkout no longer has` | The link points at a skill that the checkout no longer has, in a layout or where links went before the layouts. | Run `jinstall`. It removes the link. |
+| `old hard <home>/<root>/skills/<skill> -> <path>, a skill this checkout no longer has` | The link points at a skill that the checkout no longer has, in a layout or in the place where links went before the layouts existed. | Run `jinstall`. It removes the link. |
 
 A checkout of jstack has one more line here, `generated files are current`, in [The lines of a checkout](working-on-jstack.md#the-generated-files).

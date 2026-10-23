@@ -192,7 +192,7 @@ It prints these lines:
 | `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` even when T3 does not list it, if the inventory declares it with no other home. |
 | `missing hard provider <id> -> T3 does not list it` | T3's settings do not have the instance yet. |
 | `old hard provider <id> -> <why>` | T3 lists it disabled, or with another driver or `homePath`. |
-| `ok hard skills <home>` | A declared Claude home takes the central jstack skills: its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` for none. |
+| `ok hard skills <home>` | A declared Claude home uses the central jstack skills. Its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` when the instance has no `config.homePath`. |
 | `missing hard skills <home> -> link it to ~/.claude/skills` | The home has no `skills`. |
 | `old hard skills <home> -> <where it points>` | Its `skills` points somewhere else, or one skill in it does. |
 
@@ -290,7 +290,7 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 |---|---|---|---|---|
 | `off` | Absent | Nothing | While it is there, a new thread in the repo does not become a home by itself. `/nohome repo` makes it and `/nohome on` removes it. | `features/home/hooks/home-start.sh` |
 | `merge-off` | Absent | Nothing | While it is there, `jmerge` merges nothing in the repo. `/nohome merge` makes it and `/nohome merge on` removes it. | `jmerge` |
-| `home-thread` | Absent | One line, a home's thread id | Who runs `jmerge` for the repo. When the file is empty or absent, `jbus` runs it on each pass and a home runs none. With an id, that home runs it and `jbus` does not. Only you write this file. | `jbus`, the `home` skill |
+| `home-thread` | Absent | One line, a home's thread id | Who runs `jmerge` for the repo. When the file is empty or absent, `jbus` runs it on each pass and no home runs it. With an id, that home runs it and `jbus` does not. Only you write this file. | `jbus`, the `home` skill |
 | `fresh-check` | Absent | One line, a command such as `make check` | `jmerge` runs the command on a pull request merged over today's main, in place of waiting for a new CI run. With no file, `jmerge` runs no local check. | `jmerge` |
 
 ## Environment variables
