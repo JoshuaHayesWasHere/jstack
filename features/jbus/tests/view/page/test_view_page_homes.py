@@ -1,7 +1,8 @@
 """In progress by home, in the browser: a project with child homes draws its rows under one
 heading per home, the root first, each heading with the home's open count and its waits on the
-user. A row whose brief names a retired scope is under the root and says so. A project with the
-root alone draws one list and no heading.
+user. A task that waits on the user is in Needs you and not under its home. A row whose brief
+names a retired scope is under the root and says so. A project with the root alone draws one
+list and no heading.
 """
 
 import pytest
@@ -48,9 +49,9 @@ def test_a_project_page_draws_its_rows_under_each_home_the_root_first(scene, tmp
         (RACK, f"{RACK} 2 open 2 wait on you"),
     ]
     rows = {one["home"]: {row["key"] for row in one["rows"]} for one in seen["groups"]}
-    assert {"tea-kettle", "tea-cups", "tea-tray", "oat-bowl", "oat-spoon"} <= rows[""]
-    assert rows[SHELF] == {"jam-jar", "jam-lid"}
-    assert rows[RACK] == {"oat-milk", "oat-honey", "thread:scout:look"}
+    assert {"tea-cups", "tea-tray", "oat-bowl", "oat-spoon"} <= rows[""]
+    assert rows[SHELF] == {"jam-jar"}
+    assert rows[RACK] == {"oat-milk", "thread:scout:look"}
     chips = {row["key"]: row["chips"] for one in seen["groups"] for row in one["rows"]}
     retired = f"home {OLD} retired, so under the root"
     assert [key for key, said in chips.items() if retired in said] == ["tea-tray"]
@@ -61,4 +62,4 @@ def test_a_project_with_the_root_alone_draws_one_list_and_no_heading(scene, tmp_
     assert seen["errors"] == []
     (one,) = seen["groups"]
     assert (one["home"], one["head"]) == ("", None)
-    assert len(one["rows"]) == seen["rows"] == 9
+    assert len(one["rows"]) == seen["rows"] == 6
