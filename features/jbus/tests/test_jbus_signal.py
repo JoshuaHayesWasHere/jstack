@@ -332,8 +332,9 @@ def test_an_alarm_that_cannot_queue_its_alert_alerts_again_on_the_next_one(kitch
             alive.alarm(jbus.load(), later(2), lambda _: None)
     assert kitchen.lines("alert") == []
     assert jbus.read_json(kitchen.state_dir / "streaks.json", {})["pass"]["alerted"] is False
-    assert alarm(later(3)) == ["pass failed: 4 in a row", "alert sent: demo"]
-    assert kitchen.lines("alert") == [PASS.replace("3 times", "4 times")]
+    fourth = PASS.replace("3 times", "4 times")
+    assert alarm(later(3)) == ["pass failed: 4 in a row", f"demo: {fourth}", "alert sent: demo"]
+    assert kitchen.lines("alert") == [fourth]
     assert alarm(later(4)) == ["pass failed: 5 in a row"]
     assert len(kitchen.lines("alert")) == 1
 
@@ -401,6 +402,7 @@ def test_the_pass_streak_alerts_at_the_third_alarm_and_a_pass_that_ends_recovers
     said = alarm(later(2)) + alarm(later(3)) + alarm(later(60))
     assert said == [
         "pass failed: 3 in a row",
+        f"demo: {PASS}",
         "alert sent: demo",
         "pass failed: 4 in a row",
         "pass failed: 5 in a row",

@@ -13,6 +13,12 @@ A streak is the failures in a row of one thing, under a key:
 - `stale` for a look by `jbus alarm --stale` that found no pass ended within its limit;
 - `health <check>` for an incident `jbus.health` found.
 
+A webhook streak of a project's own route or of the top-level one is told on one more path, which
+does not go through a webhook: `page` sends the alert to the project's home thread through T3 Code,
+at the failures in `PAGES` and at every `EVERY`th after them, and `paged` in the streak keeps the
+last count it was sent for. `failing` gives the line of each such streak that alerted, for
+`jbus status`, the heartbeat and `jbus wakes`.
+
 `failed` counts one failure, and returns the alert line once the count has reached the threshold.
 `ok` ends the streak, and returns the recovered line when the streak had alerted. An incident is a
 streak that `opened` starts and `closed` ends, with the line its caller passes. Everything else is
@@ -31,6 +37,7 @@ streak. The status file shows a copy, under `streaks`.
 
 from __future__ import annotations
 
+import argparse
 import fcntl
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -41,10 +48,19 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbus import read_json, wake, write_json
+from jbriefs.home import thread_of
+from jbus import read_json, verbs, wake, write_json
+from jbus.t3 import Client, T3Error
 
 EVENTS = {"alert": "user"}
 AFTER = 3
+PAGES = (AFTER, 30)
+EVERY = 120
+PAGE = """\
+jbus: {line}
+This webhook does not take what jbus posts for the user, so nothing jbus posts reaches them \
+while it fails: tell the user. jbus tells this thread again at {again} failures, and \
+`jbus wakes` says when the webhook takes posts again."""
 PASS = "pass"
 SNAPSHOT = "snapshot"
 STALE = "stale"
@@ -56,6 +72,7 @@ class Streak:
     count: int
     since: str
     alerted: bool
+    paged: int = 0
 
 
 def webhook(project: str) -> str:
@@ -103,7 +120,7 @@ def streak(state: Path, key: str) -> Streak | None:
 def _keep(state: Path, key: str, one: Streak | None) -> None:
     kept = {name: other for name, other in streaks(state).items() if name != key}
     if one:
-        kept[key] = asdict(one)
+        kept[key] = {name: value for name, value in asdict(one).items() if name != "paged" or value}
     write_json(_path(state), kept, mode=0o600)
 
 
@@ -129,7 +146,11 @@ def failed(
         _keep(state, key, one)
     if one.count < after or one.alerted:
         return None
-    return f"alert: {key} failed {one.count} times in a row since {_since(one, user)}: {why}"
+    return _line(one, why, user)
+
+
+def _line(one: Streak, why: str, user: jsettings.Settings) -> str:
+    return f"alert: {one.key} failed {one.count} times in a row since {_since(one, user)}: {why}"
 
 
 def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
@@ -224,7 +245,8 @@ def retire(state: Path, key: str) -> None:
 
 
 def deliver(run: wake.Pass, line: str | None, *, desk: bool = True) -> None:
-    """Send an alert or a recovered line to the chat. Send nothing when there is no line.
+    """Send an alert or a recovered line to the chat, and print it in the journal as
+    `<project>: <line>`. Send nothing when there is no line.
 
     While the project's webhook is failing, the line would only wait in the outbox, so this
     function tells the desk as well. `desk=False` is for a caller that has told the desk itself.
@@ -235,6 +257,7 @@ def deliver(run: wake.Pass, line: str | None, *, desk: bool = True) -> None:
     """
     if not line:
         return
+    run.say(f"{run.project.name}: {line}")
     run.box.send("", "alert", line)
     if desk and streak(run.config.state_dir, webhook(run.project.name)):
         wake.notify(line)
@@ -248,9 +271,10 @@ def tell(run: wake.Pass, key: str, line: str | None) -> None:
         told(run.config.state_dir, key)
 
 
-def flush(run: wake.Pass) -> int:
+def flush(run: wake.Pass, client: Client | None = None) -> int:
     """Post what waits for the project to each of its webhooks, and count each webhook's
-    streak by how the post went. Return how many events the project's own webhook accepted.
+    streak by how the post went. Then tell the project's home thread of a webhook streak whose page
+    is due, through `client` (`page`). Return how many events the project's own webhook accepted.
 
     This function posts to the project's own webhook first, so that an alert from that webhook's
     streak goes to the top-level webhook in the same pass. For a project with no top-level route any
@@ -278,6 +302,7 @@ def flush(run: wake.Pass) -> int:
     if not any(route.top for route in run.box.routes):
         retire(state, top_level(name))
         run.box.drop_top_level()
+    page(run, client)
     return sent
 
 
@@ -351,3 +376,81 @@ def recover(config: jbus.Config, key: str, now: datetime, say: Callable[[str], N
         except Exception as error:
             say(f"recovered failed {one.name}: {why(error, one)}")
     told(config.state_dir, key)
+
+
+def _routes(run: wake.Pass) -> Iterator[tuple[wake.Route, str]]:
+    """Each route that posts the project's events for the user, with the key of its streak."""
+    name = run.project.name
+    for route in run.box.routes:
+        yield route, top_level(name) if route.top else webhook(name)
+
+
+def failing(run: wake.Pass) -> list[tuple[str, str]]:
+    """Return the key and the alert line of each webhook of the project whose streak alerted, with
+    the last error the webhook gave."""
+    found = []
+    for route, key in _routes(run):
+        one = streak(run.config.state_dir, key)
+        if one is not None and one.count >= AFTER:
+            why = run.box.marks(route).get("last_error", "")
+            found.append((key, _line(one, why, run.user)))
+    return found
+
+
+def _due(count: int) -> int:
+    """Return the last count at or under `count` that a page is due at, or 0 for none."""
+    if count >= EVERY:
+        return count - count % EVERY
+    return max((one for one in PAGES if one <= count), default=0)
+
+
+def _again(count: int) -> int:
+    return next((one for one in PAGES if one > count), (count // EVERY + 1) * EVERY)
+
+
+def page(run: wake.Pass, client: Client | None) -> None:
+    """Send each alert of the project's webhook streaks to the project's home thread, once at each
+    count `_due` gives. A send that T3 Code refused goes again on the next pass. Nothing goes where
+    T3 Code is not signed in, or the project's home has no thread."""
+    thread = thread_of(run.home)
+    if client is None or not thread:
+        return
+    state, name = run.config.state_dir, run.project.name
+    for key, line in failing(run):
+        one = streak(state, key)
+        due = _due(one.count) if one else 0
+        if one is None or due <= one.paged:
+            continue
+        client.recipients = client.recipients | {thread}
+        asked = {"threadId": thread, "message": PAGE.format(line=line, again=_again(one.count))}
+        retry = f"page|{key}|{one.since}|{due}"
+        try:
+            client.call("t3_thread_send", {**asked, "mode": "queue", "clientRequestId": retry})
+        except T3Error as error:
+            run.say(f"page failed {name}: {error}")
+            continue
+        with _locked(state):
+            kept = streak(state, key)
+            if kept is not None and kept.since == one.since:
+                kept.paged = due
+                _keep(state, key, kept)
+        run.say(f"paged {name}'s home, thread {thread}: {line}")
+
+
+def _wakes(args: argparse.Namespace, config: jbus.Config) -> int:
+    """Run `jbus wakes`: say whether a webhook of this repo's project is failing, so that a thread
+    knows whether a wake through it can come."""
+    run = wake.Pass(config, verbs.here(config, args.project), datetime.now(UTC))
+    lines = [line for _, line in failing(run)]
+    for line in lines:
+        print(f"wakes fail: {line}")
+    if not lines:
+        print(f"wakes go: no webhook of {run.project.name} is failing")
+    return 1 if lines else 0
+
+
+VERBS = (
+    verbs.Verb(
+        "wakes", "whether a webhook of this repo's project is failing", verbs.nothing, _wakes
+    ),
+)

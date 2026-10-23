@@ -23,7 +23,7 @@ KEY = "wake-key-for-tests"
 class Webhook:
     def __init__(self, key=KEY):
         self.key, self.seen, self.posts, self.sizes, self.fail = key, [], [], [], set()
-        self.refusal = 500
+        self.refusal, self.refused, self.short = 500, b"", 0
         fake = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -38,9 +38,16 @@ class Webhook:
                 if status == 200:
                     fake.posts.append(json.loads(body))
                     fake.sizes.append(len(body))
+                said = fake.refused if status not in (200, 401) else b""
                 self.send_response(status)
-                self.send_header("content-length", "0")
+                if fake.short:
+                    self.send_header("transfer-encoding", "chunked")
+                    self.end_headers()
+                    self.wfile.write(b"%x\r\n" % (len(said) + fake.short) + said)
+                    return
+                self.send_header("content-length", str(len(said)))
                 self.end_headers()
+                self.wfile.write(said)
 
             def log_message(self, *_):
                 pass
@@ -199,6 +206,50 @@ def test_a_403_is_a_failed_post_that_shows_no_url_and_no_key(tmp_path, webhook, 
     shown = [made.marks()["last_error"], *capsys.readouterr()]
     shown += [(made.state / name).read_text() for name in ("outbox.json", "wake.json")]
     assert all(KEY not in text and webhook.url not in text for text in shown)
+
+
+DISABLED = b'{"success":false,"error":"Automation  wake-chef\\nis disabled"}'
+
+
+def test_a_400_keeps_the_error_its_json_body_gives(tmp_path, webhook):
+    webhook.fail, webhook.refusal, webhook.refused = {1, 2}, 400, DISABLED
+    made = box(tmp_path, webhook)
+    made.send("alpha", "decision", "one")
+    why = "the webhook answered 400: Automation wake-chef is disabled"
+    assert wake._post(made.routes[0], waiting(made)) == why
+    assert flush(made) == (0, [f"wake failed demo: {why}"])
+    assert made.marks()["last_error"] == why
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b"", b"<html>Bad Request</html>", b'{"success":false}', b'{"error":{"code":7}}', b"[1]"],
+    ids=["empty", "html", "no-error", "not-text", "a-list"],
+)
+def test_a_refusal_with_no_error_text_says_only_the_code(tmp_path, webhook, body):
+    webhook.fail, webhook.refusal, webhook.refused = {1}, 400, body
+    made = box(tmp_path, webhook)
+    made.send("alpha", "decision", "one")
+    assert wake._post(made.routes[0], waiting(made)) == "the webhook answered 400"
+
+
+def test_a_refusal_whose_body_is_cut_short_says_only_the_code(tmp_path, webhook):
+    webhook.fail, webhook.refusal, webhook.refused, webhook.short = {1, 2}, 400, DISABLED, 10
+    made = box(tmp_path, webhook)
+    made.send("alpha", "decision", "one")
+    assert wake._post(made.routes[0], waiting(made)) == "the webhook answered 400"
+    assert flush(made) == (0, ["wake failed demo: the webhook answered 400"])
+
+
+def test_an_error_text_that_quotes_the_url_or_the_key_shows_neither(tmp_path, webhook):
+    webhook.fail, webhook.refusal = {1}, 400
+    webhook.refused = json.dumps({"error": f"bad {webhook.url}/wake with {KEY} " + "x" * 400})
+    webhook.refused = webhook.refused.encode()
+    made = box(tmp_path, webhook)
+    made.send("alpha", "decision", "one")
+    why = wake._post(made.routes[0], waiting(made))
+    assert why.startswith("the webhook answered 400: bad [webhook]/wake with [webhook] xxx")
+    assert KEY not in why and webhook.url not in why and len(why) <= 300
 
 
 def test_a_key_no_header_can_carry_is_a_failed_post_that_does_not_show_it(

@@ -189,7 +189,7 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     steps(half, "after-derive")
     half.users = half.said.crews(half.crews)
     steps(half, "close")
-    sent = alert.flush(run)
+    sent = alert.flush(run, client)
     if sent:
         run.say(f"woke {run.project.name}: {sent} events")
 

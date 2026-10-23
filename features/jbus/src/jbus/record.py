@@ -214,6 +214,16 @@ def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[st
     }
 
 
+def alerts(config: Config, now: datetime) -> list[str]:
+    """Return the alert line of each webhook of each project whose streak alerted, with the error
+    the webhook gave last (`alert.failing`)."""
+    return [
+        line
+        for one in config.projects
+        for _, line in alert.failing(wake.Pass(config, one, now, lambda _: None))
+    ]
+
+
 def status(config: Config, now: datetime) -> dict[str, Any]:
     """Return what the status file holds. Most of it comes back from the files the pass left.
     The rest is the homes not on the bus, which no pass writes (`project.missing`), and each
@@ -235,6 +245,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
             key = alert.blocking(one.name)
             projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
     return {
+        "alerts": alerts(config, now),
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
         "sign_in_reminder": signin.plan(config, now),
@@ -295,11 +306,15 @@ def heartbeat(run: wake.Pass, last: dict[str, Any]) -> None:
     """Say what the status file said, once per project, on the first pass of each hour.
 
     The line is quiet: it goes to the log, and jbus never posts it. The hour is UTC's, so the
-    heartbeat does not skip the hour that a clock change repeats.
+    heartbeat does not skip the hour that a clock change repeats. Each webhook of the project whose
+    streak alerted gets a heartbeat line of its own, its alert line (`alert.failing`).
     """
     mine = last.get("projects", {}).get(run.project.name, {})
     line = (
         f"heartbeat: jbus alive, last pass {last.get('last_pass', '')[11:] or 'none'}, "
         f"failed wakes {mine.get('failed_wakes', 0)}, last error {mine.get('last_error') or 'none'}"
     )
-    run.find("", "heartbeat", line, key=f"{run.now.astimezone(UTC):%Y-%m-%d %H}")
+    hour = f"{run.now.astimezone(UTC):%Y-%m-%d %H}"
+    run.find("", "heartbeat", line, key=hour)
+    for key, failing in alert.failing(run):
+        run.find("", "heartbeat", failing, key=f"{hour} {key}")

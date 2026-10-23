@@ -159,6 +159,7 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
     )
     kitchen.poll()
     written = {
+        "alerts": [],
         "last_pass": "2026-10-12 11:00 ET",
         "projects": {
             "demo": {

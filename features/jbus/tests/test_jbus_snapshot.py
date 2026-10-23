@@ -180,7 +180,7 @@ def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recov
     kitchen, tree, tmp_path
 ):
     with_origin(tree, tmp_path)
-    assert alarm() == ["snapshot failed", "alert sent: demo"]
+    assert alarm() == ["snapshot failed", f"demo: {FAILED}", "alert sent: demo"]
     assert alarm() == ["snapshot failed"]
     posted = [event for post in kitchen.webhook.posts for event in post]
     assert [(e["event"], e["line"]) for e in posted] == [("alert", FAILED)]
