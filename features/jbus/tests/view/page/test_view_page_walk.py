@@ -59,6 +59,13 @@ def faults(key, made, answer, rows, overview):
             drawn = slug in rows
             if role == name and drawn != (want.row and liveness != "ended"):
                 found.append(f"{slug}: a row of In progress is {drawn}")
+    elif kind == "owner":
+        slug = made.owners[name]
+        retired = f"home {want.home[1]} retired, so under the root"
+        if (slug in rows) != want.row:
+            found.append(f"{slug}: a row of In progress is {slug in rows}")
+        elif (retired in rows[slug]["chips"]) != bool(want.home[1]):
+            found.append(f"{slug}: chips {rows[slug]['chips']}")
     elif kind == "silent" and name == work.T3:
         bare = [slug for slug, one in rows.items() if one["open"].startswith("task:")]
         bare = [
@@ -83,7 +90,8 @@ def test_the_page_draws_each_state_of_the_walk_where_surfaces_says(scene, tmp_pa
     assert shown["errors"] == []
     (one,) = shown["stack"]["rows"]
     overview = " ".join([one["name"], one["why"], *one["counts"], one["said"] or ""])
-    checked = [key for key in walk.SURFACES if key[0] in ("value", "thread", "role", "silent")]
+    kinds = ("value", "thread", "role", "silent", "owner")
+    checked = [key for key in walk.SURFACES if key[0] in kinds]
     wrong = {key: said for key in checked if (said := faults(key, made, answer, rows, overview))}
     known = {key for key, (_, where) in walk.KNOWN.items() if "page" in where}
     fixed = sorted(known - set(wrong))

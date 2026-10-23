@@ -59,6 +59,8 @@ _TASK = {
     },
     "wave": None,
     "waits_on": None,
+    "home": None,
+    "retired": None,
 }
 SHAPE = {"tasks": [_TASK], "ended": [_TASK]}
 SOURCES = (PASS_FILE, WORK_FILE, QUEUE_FILE, WAITING_FILE, MOVES_FILE, EVENTS_FILE, MERGE_LOG)

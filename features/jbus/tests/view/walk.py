@@ -6,14 +6,15 @@ The states come from the modules that own them, never from a list of this file: 
 over `work.every`), each liveness of `live.LIVENESS` with each role of `threads.ROLES`, each
 kind of `waiting.KINDS`, and each word `state._source` gives a source. Beside them are the gates
 of the root home, of a live scope and of a retired one, with and without a default, open and
-closed; a pass that T3 Code or GitHub did not answer; and events stranded in the outbox of a
-route the project's `wake` dropped.
+closed; a row of each of those homes, whose brief's `Home:` line names it; a pass that T3 Code
+or GitHub did not answer; and events stranded in the outbox of a route the project's `wake`
+dropped.
 
 `SURFACES` is closed. Its keys are `(class, name)`, and `missing` names each state that has no
 entry, and each entry that names no state. A place is where a person sees the state: an item
 of Needs you, which the overview counts as its waits; an item of Proceeds; a reason of the
 overview's broken; the overview's rows the view cannot place; a row of In progress, with its
-rank; and a chip on that row.
+rank; a chip on that row; and the home a row is under, with the retired scope it names.
 
 `KNOWN` is each entry that today's view gets wrong, with the finding of scout B
 (`scouts/jview-ux-b.md`, F1 to F7) that says so, and whether the answer of `state.build` or
@@ -34,7 +35,7 @@ from jbus import live, questions, record, threads, waiting, work
 from jbus.view import state as built
 from jbus.view.panels.checks.panel import GITHUB_FRESH
 from test_jbus_kitchen import GATE as PIPED
-from view.scene import GATE, NOW, Scene, ago, iso, item, out, row
+from view.scene import GATE, NOW, Scene, ago, iso, item, judge_row, out, row
 
 BROKEN, ASKS, WORKS, WAITS, QUEUED, OVER = (
     built.BROKEN,
@@ -52,8 +53,9 @@ class Surface:
     in its waits. `proceeds` is an item of Proceeds. `broken` is words that one of the
     overview's broken reasons holds. `unplaced` is the overview's rows the view cannot place.
     `row` is a row of In progress, at `rank`, which the page draws only for a task that is not
-    in Needs you. `chip` is a chip on that row. A surface with
-    nothing set is a state that appears in none of these places."""
+    in Needs you. `chip` is a chip on that row. `home` is the home the row is under and the
+    retired scope it names, as the task has them, and the summary counts the row as that home's.
+    A surface with nothing set is a state that appears in none of these places."""
 
     needs: bool = False
     proceeds: bool = False
@@ -62,6 +64,7 @@ class Surface:
     row: bool = False
     rank: int | None = None
     chip: str = ""
+    home: tuple[str, str] | None = None
 
 
 GONE = "crewmate gone"
@@ -141,6 +144,9 @@ SURFACES = {
     ("silent", work.GITHUB): Surface(broken=f"{work.GITHUB} did not answer", chip="not confirmed"),
     ("route", "stranded outbox"): Surface(broken="outbox"),
     ("route", "old error of a dropped route"): Surface(),
+    ("owner", "root"): Surface(row=True, rank=QUEUED, home=("", "")),
+    ("owner", "live scope"): Surface(row=True, rank=QUEUED, home=("pantry-shelf", "")),
+    ("owner", "retired scope"): Surface(row=True, rank=QUEUED, home=("", "old-shelf")),
 }
 
 
@@ -199,6 +205,7 @@ def states():
         "silent": {work.T3, work.GITHUB},
         "route": {"stranded outbox", "old error of a dropped route"},
         "home": {"ended with work out"},
+        "owner": set(OWNERS),
     } | {"pairs": pairs}
 
 
@@ -270,6 +277,9 @@ GATES = [
 STRANDED = 5
 
 
+OWNERS = {"root": "", "live scope": "pantry-shelf", "retired scope": "old-shelf"}
+
+
 CONFIG = """server = "http://127.0.0.1:9"
 [[project]]
 name = "{name}"
@@ -297,6 +307,7 @@ class Walk:
     items: dict[str, list[str]]
     gates: dict[str, str]
     sources: dict[str, str]
+    owners: dict[str, str]
 
 
 def slug_of(value, thread):
@@ -330,6 +341,14 @@ def build(scene):
             status, liveness, minutes = CREW[thread]
             crews.append(out(f"crew: {slug}", liveness, status, minutes=minutes))
             watched[slug] = {"threads": 1, "thread_status": status, "live": liveness}
+    owners = {}
+    (scene.home / "tasks").mkdir(exist_ok=True)
+    for name, home in OWNERS.items():
+        slug = owners[name] = f"owner-{name.replace(' ', '-')}"
+        rows.append(row(slug))
+        lines.append(judge_row(rows[-1], scene.state))
+        line = f"Home: {home}\n" if home else ""
+        (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}: the walk\n{line}Task: x\n")
     scene.write("queue.json", rows)
     scene.write("work.json", {"at": iso(NOW), "answered": "both", "work": lines})
     gate = PIPED.format(n="<n>", asked="walk the whole line?", status="open", slug="walker")
@@ -351,12 +370,13 @@ def build(scene):
     _stranded(scene)
     (scene.state / SOURCES["missing"]).unlink()
     (scene.state / SOURCES["unreadable"]).write_text("{not json")
-    return Walk(scene, pairs, alone, items, gates, SOURCES | {"stale": "GitHub"})
+    return Walk(scene, pairs, alone, items, gates, SOURCES | {"stale": "GitHub"}, owners)
 
 
 def _gates(scene):
     """The twelve gates, each in the `gates.md` of its home: the root's, a live scope's that
-    has a `home-id`, and a retired scope's whose handoff names the home it was."""
+    has a `home-id`, and a retired scope's, which has a handoff and no id, so that jbriefs
+    no longer counts it as a scope."""
     homes = {
         "root": scene.home,
         "live scope": scene.home / "pantry-shelf",
@@ -365,7 +385,7 @@ def _gates(scene):
     homes["live scope"].mkdir()
     homes["retired scope"].mkdir()
     (homes["live scope"] / "home-id").write_text("mcp:shelf\n")
-    (homes["retired scope"] / "handoff.md").write_text("Status: retired\nWas home: mcp:old\n")
+    (homes["retired scope"] / "handoff.md").write_text("Status: retired\n")
     asked, files = {}, {}
     for number, (name, (where, default, status)) in enumerate(GATES, start=20):
         question = f"is the {where} gate {number} {status}?"

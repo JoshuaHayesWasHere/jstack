@@ -65,6 +65,7 @@ def test_the_walk_has_each_state_and_builds_in_under_5_seconds(walked):
     assert len(made.threads) == 30
     assert set(made.items) == walk.states()["kind"]
     assert len(made.gates) == 12
+    assert set(made.owners) == walk.states()["owner"]
     assert took < 5, f"the walk took {took:.1f} s to build"
 
 
@@ -159,6 +160,18 @@ def wrong(key, made, seen):
             faults.append(f"no broken reason says {want.broken!r}: {broken}")
     elif kind == "route":
         faults += [f"broken says {one!r}" for one in broken if one.startswith("bus")]
+    elif kind == "owner":
+        slug, (home, retired) = made.owners[name], want.home
+        task = tasks.get(slug)
+        if not task or task["rank"] != want.rank:
+            faults.append(f"{slug}: rank {task and task['rank']}, not {want.rank}")
+        elif (task["home"], task["retired"]) != want.home:
+            faults.append(f"{slug}: under {task['home']!r}, retired {task['retired']!r}")
+        groups = {one["name"]: one["open"] for one in project["homes"]}
+        if project["homes"][0]["name"] != "" or groups.get(home, 0) < 1:
+            faults.append(f"the summary's homes {project['homes']} do not count {slug} as {home!r}")
+        if retired and retired in groups:
+            faults.append(f"the retired scope {retired} is a home of the summary")
     return faults
 
 

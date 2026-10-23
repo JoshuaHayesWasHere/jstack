@@ -117,6 +117,7 @@ from jbus.threads import OTHER, REPORT, ROLES
 from jbus.threads import shown as shown_roles
 from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
+from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
 
 APPROVAL = 400
@@ -790,7 +791,7 @@ THREAD = {
         "page",
         "rank",
     )
-} | {"request": REQUEST}
+} | {"request": REQUEST, "home": None, "retired": None}
 
 
 def request(home: Path, slug: str) -> dict[str, str]:
@@ -822,12 +823,15 @@ def request(home: Path, slug: str) -> dict[str, str]:
     return {"state": state, "status": status, "asks": asks}
 
 
-def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[str, Any]] | None:
+def _threads(
+    left: Any, home: Path | None = None, day: str = "", homes: Homes | None = None
+) -> list[dict[str, Any]] | None:
     """Every thread the last pass listed as not settled, or None where it left no list.
 
     `out` marks a thread in which a turn may be under way. That is any thread except one
     that ended. `today` marks a thread that is out, or that last wrote since `day` began. A
-    scout's thread also has what its `request` says."""
+    scout's thread also has what its `request` says, and with `homes` each thread has its
+    `home`, None where it has none (`homes.Homes.of_thread`)."""
     if not isinstance(left, list):
         return None
     found = []
@@ -853,6 +857,9 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
         }
         if thread["role"] == "scout" and home is not None and _SLUG.fullmatch(thread["slug"]):
             thread["request"] = request(home, thread["slug"])
+        if homes is not None:
+            owner = homes.of_thread(thread, text(one.get("id"), 80))
+            thread |= owner.said() if owner else {"home": None, "retired": ""}
         found.append(thread)
     return found
 
@@ -1148,7 +1155,12 @@ class Read:
     @cached_property
     def out(self) -> list[dict[str, Any]] | None:
         """The threads the last pass listed, or None where it left no list."""
-        return _threads(self.mine.get("threads"), self.home, self.day)
+        return _threads(self.mine.get("threads"), self.home, self.day, self.homes)
+
+    @cached_property
+    def homes(self) -> Homes:
+        """The project's homes, which each task, thread and need belongs to."""
+        return Homes(self.home, self.state)
 
     @cached_property
     def unconfirmed(self) -> dict[str, Any] | None:
@@ -1189,7 +1201,7 @@ class Read:
             if one.get("kind") == "row" and isinstance(one.get("line"), str) and one.get("slug")
         }
         seen = self.mine.get("rows")
-        return _tasks(
+        made = _tasks(
             self.rows,
             _history(self.log or [], self.user),
             self.judged,
@@ -1204,6 +1216,9 @@ class Read:
             self.unconfirmed,
             leftover.read(self.state) if self.name else {},
         )
+        for task in made[0] + made[1]:
+            task |= self.homes.of_task(task["slug"]).said()
+        return made
 
     @property
     def tasks(self) -> list[dict[str, Any]]:
@@ -1348,6 +1363,7 @@ SUMMARY = {
     "steps": {ANY: None},
     "merged": None,
     "threads": [THREAD],
+    "homes": [GROUP],
     "broken": [{"what": None, "open": None}],
     "unplaced": [None],
     "health": {
@@ -1436,6 +1452,7 @@ def summary(read: Read) -> dict[str, Any]:
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
         "threads": read.out,
+        "homes": read.homes.group(read.tasks, read.panel("you")["needs"]),
         "health": {
             "checks": failed,
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
