@@ -37,9 +37,9 @@ GNU_ONLY = [
     ),
     (r"\bnproc\b", "macOS has no nproc: `getconf _NPROCESSORS_ONLN`"),
     (
-        r"(?<![\w.:])flock\s+(-\w+\s+)*(?!\$\w+,)\S",
-        'macOS has no flock: `perl -MFcntl=:flock -e \'$^F = 255; open my $l, ">>", shift '
-        "or die; flock $l, LOCK_EX or die; exec @ARGV or die' <lock file> <command>`",
+        r"(?<![\w.:])flock\s",
+        "macOS has no flock: take the lock in perl, as step 2 of "
+        "`features/crew/playbooks/visual-parity.md` does",
     ),
     (
         r"\bxargs(\s+-\w+)*\s+(-\w*r\w*|--no-run-if-empty)\b",

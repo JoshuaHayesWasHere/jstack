@@ -40,12 +40,7 @@ fi
 It times a whole command. A number from inside a process (a request's latency, a frame time) comes from the repo's own harness: then that harness is the command, and the questions are the same.
 
 A command that starts several workers (a browser suite, a parallel build, a test run with more than one worker) is a heavy suite, and the measurement runs one at a time on the whole machine, the lock around the whole call and not around one side, as `skills/crew/SKILL.md` "Do the task" says of a heavy suite.
-Perl takes the lock, since macOS has no `flock` command:
-
-```sh
-perl -MFcntl=:flock -e '$^F = 255; open my $l, ">>", shift or die; flock $l, LOCK_EX or die; exec @ARGV or die' ~/.local/state/locks/heavy-suite.lock sh "$S/scripts/runs.sh" ...
-```
-
+Perl takes the lock, since macOS has no `flock` command: `perl -MFcntl=:flock -e '$^F = 255; open(my $l, ">>", shift) or die "$!\n"; flock($l, LOCK_EX) or die "$!\n"; exec @ARGV or die "$!\n"' ~/.local/state/locks/heavy-suite.lock sh "$S/scripts/runs.sh" ...`.
 It queues behind other threads: give the call a long time limit and wait.
 
 ## The questions
