@@ -22,7 +22,11 @@ Rows launch lowest `priority` first. A launch sends the brief in the message, as
   jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks up the thread of a lost reply.
 - **Overlap does not stop a launch.**
   Each crewmate has its own worktree and branch.
-  When a launch shares a path with a brief that is still out, jbus sends `overlap <slug>: shares <paths> with <holder>; whichever merges second rebases`, once per pair.
+  Each pass compares every two briefs that are out, by their `Where:` lines and by the files each open pull request changes beyond its `Where:` (the `Diff:` of `jmerge --claims`).
+  When two of them share a path, jbus sends `overlap <slug>: shares <paths> with <other>; whichever merges second rebases`, once per pair, keyed by the two slugs.
+  When the two `Where:` lines do not meet and a diff made them meet, the line says so after the other slug: `, by <slug>'s diff` or `, by both diffs`.
+  A pair that is told once is not told again when its shared files grow.
+  No launch and no merge waits on it.
 
 `max_running` is one limit for the whole machine, not one for each project.
 Before it launches anything, each pass adds up the crewmates that are out in every project.
