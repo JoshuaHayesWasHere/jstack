@@ -16,12 +16,12 @@ ones. The caller that queues an event may give it the lower level.
 once. `Box` takes a short lock for each change, because `jbus gate` and `jbus done` add an event
 while a pass runs. `notify` shows on the desktop what jbus could not post to the webhook.
 
-An event for the user goes to each of the project's `routes`. One is the project's own webhook. The
-other is the top-level webhook, which monitors every project, if the config sets that webhook and
-its pair differs from the project's. Each route has its own outbox, five-minute gap and
-`last_error`, in its own folder: the project's state folder for the project's own webhook, and
-`top-level/` inside that folder for the top-level webhook. So a webhook that is down neither holds
-back nor repeats what jbus posts to the other.
+An event for the user goes to each of the project's `routes`, as its `wake` setting picks
+(`jbus.Project`): the project's home thread through T3 Code (`jbus.alert.flush`), its own webhook,
+and the top-level webhook where the config sets one whose pair differs from the project's. Each
+route has its own outbox, five-minute gap and `last_error`, in its own folder: `home-thread/`, the
+project's state folder for its own webhook, and `top-level/`. So a route that is down neither holds
+back nor repeats what jbus sends to another.
 
 Every body has a top-level `kind`, and jbus-relay routes each body by it: `events` for what an
 outbox of events posts, and `reminder` and `refresh` for the timers of what blocks
@@ -87,6 +87,7 @@ UNLOGGED = "unlogged.json"
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
 TOP_LEVEL = "top-level"
+HOME = "home-thread"
 BLOCKING = "blocking"
 EVENTS_KIND = "events"
 TIMERS = ("reminder", "refresh")
@@ -235,15 +236,16 @@ def notify(line: str) -> None:
 
 @dataclass(frozen=True)
 class Route:
-    """A `Route` is one webhook that gets a project's events for the user, with the folder
-    that holds its `outbox.json` and its `wake.json`. `top` marks the top-level webhook, which
-    jbus posts to beside the project's own."""
+    """A `Route` is one place that gets a project's events for the user, with the folder that holds
+    its `outbox.json` and its `wake.json`: a webhook, the top-level webhook (`top`), or the home
+    thread (`home`)."""
 
     url: str
     key: str
     folder: Path
     top: bool = False
     blocking: bool = False
+    home: bool = False
 
 
 class Box:
@@ -253,11 +255,8 @@ class Box:
     day whose sweep has not run yet (`sweep_owed`), the last `sweep`, and why the last POST
     failed (`last_error`), which is empty once a POST goes through. `wake.json` does not
     count how many POSTs failed in a row: that is a streak, and `jbus.alert` keeps streaks.
-    The top-level route's `wake.json` holds only its own `posted` and `last_error`.
-
-    `top` is the config's top-level pair. It is a route of its own when the config sets it and
-    it differs from the project's pair. A project with no pair of its own already uses the
-    top-level pair as its own, and jbus posts to that pair once.
+    Another route's `wake.json` holds only its own `posted` and `last_error`. `top` is the config's
+    top-level pair, which a project with no pair of its own takes as its own (`jbus.load`).
     """
 
     def __init__(
@@ -274,11 +273,13 @@ class Box:
 
     @property
     def routes(self) -> list[Route]:
-        """Return the project's own webhook, then the top-level one if it is a route of its own."""
+        """Return the routes the project's `wake` picks: the home thread, then the project's own
+        webhook, then the top-level one if it is a route of its own."""
+        home = Route("", "", self.state / HOME, home=True)
         own = Route(self.project.webhook_url, self.project.webhook_key, self.state)
         other = Route(*self.top, self.state / TOP_LEVEL, top=True)
-        mine = (own.url, own.key)
-        return [own, *([other] if self.top[0] and tuple(self.top) != mine else [])]
+        hooks = [own, *([other] if self.top[0] and tuple(self.top) != (own.url, own.key) else [])]
+        return [home] * self.project.to_home + hooks * self.project.to_webhook
 
     @property
     def blocking(self) -> Route | None:
@@ -472,15 +473,11 @@ class Box:
         marks = read_json((route or self.routes[0]).folder / "wake.json", {})
         return {**marks, "failed": int(bool(marks.get("last_error")))}
 
-    def drop_top_level(self) -> None:
-        """Remove the top-level route's outbox and marks, once the project has no such route."""
+    def drop(self, folder: str) -> None:
+        """Remove a route's outbox and marks, `TOP_LEVEL`'s, `BLOCKING`'s or `HOME`'s, once the
+        project has no such route."""
         with self._locked():
-            shutil.rmtree(self.state / TOP_LEVEL, ignore_errors=True)
-
-    def drop_blocking(self) -> None:
-        """Remove the second target's outbox and marks, once the config has no such pair."""
-        with self._locked():
-            shutil.rmtree(self.state / BLOCKING, ignore_errors=True)
+            shutil.rmtree(self.state / folder, ignore_errors=True)
 
     def post(self, made: dict[str, Any]) -> None:
         """Queue one whole body for the second target. A refresh replaces a refresh that
@@ -495,9 +492,8 @@ class Box:
             write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)
 
     def waiting(self, route: Route | None = None) -> int:
-        if route is not None and route.blocking:
-            return len(read_json(route.folder / "outbox.json", []))
-        return len(self._outbox(route))
+        blocking = route is not None and route.blocking
+        return len(read_json(route.folder / "outbox.json", []) if blocking else self._outbox(route))
 
     def flush_blocking(
         self, now: datetime, say=print, *, went: Callable[[str], None] = lambda _: None
@@ -546,6 +542,7 @@ class Box:
         *,
         route: Route | None = None,
         went: Callable[[str], None] = lambda _: None,
+        post: Callable[[Route, dict[str, Any]], str] | None = None,
     ) -> int:
         """Post what waits for one route, the project's own by default, in order, at most once
         in five minutes. Return how many went.
@@ -560,9 +557,10 @@ class Box:
 
         Once `flush` unlocks the outbox, it calls `went` with how a flush that posted ended:
         nothing for the lists that were sent, and the reason for the one that failed. It
-        passes both when both happened.
+        passes both when both happened. `post` sends one list, a webhook's POST by default.
+        The log's line for the first route is `posted`, which `log` reads.
         """
-        route = route or self.routes[0]
+        route, post = route or self.routes[0], post or _post
         outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
         with self._locked():
             waiting = self._outbox(route)
@@ -580,9 +578,10 @@ class Box:
             marks = {**marks, "posted": now.timestamp()}
             write_json(wakes, marks)
             sent, why = 0, ""
-            logged = "posted_top_level" if route.top else "posted"
+            logged = "posted" if route == self.routes[0] else "posted_top_level"
+            logged = "posted_webhook" if logged != "posted" and not route.top else logged
             for some in _lists(waiting):
-                why = _post(route, body(some))
+                why = post(route, body(some))
                 if why:
                     break
                 sent += len(some)
@@ -590,7 +589,7 @@ class Box:
                 write_json(outbox, waiting[sent:], mode=0o600)
             write_json(wakes, {**marks, "last_error": why})
             if why:
-                which = f" {TOP_LEVEL} webhook" if route.top else ""
+                which = f" {TOP_LEVEL} webhook" if route.top else " home thread" * route.home
                 say(f"wake failed {self.project.name}{which}: {why}")
         if sent:
             went("")

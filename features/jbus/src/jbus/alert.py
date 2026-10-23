@@ -4,6 +4,7 @@ only place that keeps a streak.
 A streak is the failures in a row of one thing, under a key:
 
 - `pass` for a pass that did not finish;
+- `home thread <project>` for a wake of the project's that its home thread did not get;
 - `webhook <project>` for a POST the project's own webhook did not take;
 - `top-level webhook <project>` for a POST of the project's that the top-level webhook did not
   take;
@@ -13,10 +14,12 @@ A streak is the failures in a row of one thing, under a key:
 - `stale` for a look by `jbus alarm --stale` that found no pass ended within its limit;
 - `health <check>` for an incident `jbus.health` found.
 
-A webhook streak of a project's own route or of the top-level one is told on one more path, which
-does not go through a webhook: `page` sends the alert to the project's home thread through T3 Code,
-at the failures in `PAGES` and at every `EVERY`th after them, and `paged` in the streak keeps the
-last count it was sent for. `failing` gives the line of each such streak that alerted, for
+`flush` sends a project's wakes to its home thread through T3 Code (`_send`), the route
+`wake = "home"` and `wake = "both"` pick. For a project with `wake = "webhook"`, a webhook streak
+is told on one more path, which does not go through a webhook: `page` sends the alert to the
+project's home thread, at the failures in `PAGES` and at every `EVERY`th after them, and `paged` in
+the streak keeps the last count it was sent for. A project whose wakes go to its home thread gets
+that alert as a wake. `failing` gives the line of each route's streak that alerted, for
 `jbus status`, the heartbeat and `jbus wakes`.
 
 `failed` counts one failure, and returns the alert line once the count has reached the threshold.
@@ -39,6 +42,8 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import functools
+import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -52,6 +57,13 @@ from jbriefs.home import thread_of
 from jbus import read_json, verbs, wake, write_json
 from jbus.t3 import Client, T3Error
 
+WAKE = """\
+jbus: {count} events for the user. Tell the user what each asks.
+{say}
+
+```json
+{body}
+```"""
 EVENTS = {"alert": "user"}
 AFTER = 3
 PAGES = (AFTER, 30)
@@ -77,6 +89,15 @@ class Streak:
 
 def webhook(project: str) -> str:
     return f"webhook {project}"
+
+
+def home(project: str) -> str:
+    return f"home thread {project}"
+
+
+def key_of(name: str, route: wake.Route) -> str:
+    """Return the key of a route's streak."""
+    return home(name) if route.home else top_level(name) if route.top else webhook(name)
 
 
 def top_level(project: str) -> str:
@@ -259,51 +280,96 @@ def deliver(run: wake.Pass, line: str | None, *, desk: bool = True) -> None:
         return
     run.say(f"{run.project.name}: {line}")
     run.box.send("", "alert", line)
-    if desk and streak(run.config.state_dir, webhook(run.project.name)):
+    name, state = run.project.name, run.config.state_dir
+    if desk and (streak(state, webhook(name)) or streak(state, home(name))):
         wake.notify(line)
 
 
 def tell(run: wake.Pass, key: str, line: str | None) -> None:
     """Deliver the line that a streak of this project returned, and only then mark the streak."""
     if line:
-        webhook_recovered = key == webhook(run.project.name) and line.startswith("recovered")
-        deliver(run, line, desk=not webhook_recovered)
+        mine = (webhook(run.project.name), home(run.project.name))
+        deliver(run, line, desk=not (key in mine and line.startswith("recovered")))
         told(run.config.state_dir, key)
 
 
 def flush(run: wake.Pass, client: Client | None = None) -> int:
-    """Post what waits for the project to each of its webhooks, and count each webhook's
-    streak by how the post went. Then tell the project's home thread of a webhook streak whose page
-    is due, through `client` (`page`). Return how many events the project's own webhook accepted.
+    """Send what waits for the project to each of its routes, and count each route's streak by how
+    the send went. Then tell the project's home thread of a webhook streak whose page is due
+    (`page`). Return how many events the project's first route took.
 
-    This function posts to the project's own webhook first, so that an alert from that webhook's
-    streak goes to the top-level webhook in the same pass. For a project with no top-level route any
-    more, it ends that streak with no line and drops what waited for the route. If the top-level
-    pair comes back later, the route gets only what is new. It also posts to the second target
-    before the others, with its own streak, so that an alert from that streak goes to the others in
-    the same pass. The same holds for the second target: for a project with no second target any
-    more, it ends that streak with no line and drops what waited for the target.
+    This function sends to the project's first route first, so that an alert from that route's
+    streak goes to the others in the same pass. It sends to the second target before them all, with
+    its own streak, for the same reason. For a route the project's `wake` leaves out, it ends that
+    route's streak with no line and keeps what waits for it, which goes if `wake` picks the route
+    again. For a top-level pair or a second target the config does not have any more, it also drops
+    what waited for it, and if the pair comes back later, its route gets only what is new.
     """
     state, name = run.config.state_dir, run.project.name
     if run.box.blocking is None:
         retire(state, blocking(name))
-        run.box.drop_blocking()
+        run.box.drop(wake.BLOCKING)
     else:
         ended: list[str] = []
         run.box.flush_blocking(run.now, run.say, went=ended.append)
         _count(run, blocking(name), ended)
     sent = 0
-    for route in run.box.routes:
-        key = top_level(name) if route.top else webhook(name)
+    for number, route in enumerate(run.box.routes):
         went: list[str] = []
-        took = run.box.flush(run.now, run.say, route=route, went=went.append)
-        sent = sent if route.top else took
-        _count(run, key, went)
+        post = None
+        if route.home:
+            thread = _thread(run, route)
+            if not thread:
+                continue
+            post = functools.partial(_send, run, client, thread)
+        took = run.box.flush(run.now, run.say, route=route, went=went.append, post=post)
+        sent = took if number == 0 else sent
+        _count(run, key_of(name, route), went)
+    if not any(route.home for route in run.box.routes):
+        retire(state, home(name))
     if not any(route.top for route in run.box.routes):
         retire(state, top_level(name))
-        run.box.drop_top_level()
+        if tuple(run.box.top) in (("", ""), (run.project.webhook_url, run.project.webhook_key)):
+            run.box.drop(wake.TOP_LEVEL)
     page(run, client)
     return sent
+
+
+def _thread(run: wake.Pass, route: wake.Route) -> str:
+    """Return the thread that gets the project's wakes: its home's, or else the config's
+    `home_thread`. With neither, say so once in the journal, until a thread is found."""
+    thread = thread_of(run.home) or run.config.home_thread
+    marks = read_json(route.folder / "wake.json", {})
+    if bool(thread) == bool(marks.get("no_thread")):
+        route.folder.mkdir(parents=True, exist_ok=True)
+        write_json(route.folder / "wake.json", {**marks, "no_thread": not thread})
+        if not thread:
+            run.say(
+                f"wake waits {run.project.name}: no home thread, and the config names no "
+                "home_thread, so its events wait in the outbox"
+            )
+    return thread
+
+
+def _send(
+    run: wake.Pass, client: Client | None, thread: str, _: wake.Route, made: dict[str, Any]
+) -> str:
+    """Send one body of events to the thread through T3 Code, keyed by the body, so that a retry
+    sends the same message. Return why it failed, or nothing."""
+    try:
+        client = client or Client(run.config.server, run.config.token_path)
+    except jbus.Refused as error:
+        return str(error)
+    client.recipients = client.recipients | {thread}
+    text = json.dumps(made, indent=1)
+    message = WAKE.format(count=len(made["events"]), say="\n".join(made["say"]), body=text)
+    retry = f"wake|{run.project.name}|{wake._id(made)}"
+    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": retry}
+    try:
+        client.call("t3_thread_send", asked)
+    except T3Error as error:
+        return f"T3 Code did not take the wake: {error}"
+    return ""
 
 
 def _count(run: wake.Pass, key: str, went: list[str]) -> None:
@@ -380,9 +446,8 @@ def recover(config: jbus.Config, key: str, now: datetime, say: Callable[[str], N
 
 def _routes(run: wake.Pass) -> Iterator[tuple[wake.Route, str]]:
     """Each route that posts the project's events for the user, with the key of its streak."""
-    name = run.project.name
     for route in run.box.routes:
-        yield route, top_level(name) if route.top else webhook(name)
+        yield route, key_of(run.project.name, route)
 
 
 def failing(run: wake.Pass) -> list[tuple[str, str]]:
@@ -411,12 +476,15 @@ def _again(count: int) -> int:
 def page(run: wake.Pass, client: Client | None) -> None:
     """Send each alert of the project's webhook streaks to the project's home thread, once at each
     count `_due` gives. A send that T3 Code refused goes again on the next pass. Nothing goes where
-    T3 Code is not signed in, or the project's home has no thread."""
+    T3 Code is not signed in, or the project's home has no thread, or the project's wakes go to its
+    home thread, which gets the alert as a wake."""
     thread = thread_of(run.home)
-    if client is None or not thread:
+    if client is None or not thread or run.project.to_home:
         return
     state, name = run.config.state_dir, run.project.name
     for key, line in failing(run):
+        if key == home(name):
+            continue
         one = streak(state, key)
         due = _due(one.count) if one else 0
         if one is None or due <= one.paged:
@@ -438,19 +506,24 @@ def page(run: wake.Pass, client: Client | None) -> None:
 
 
 def _wakes(args: argparse.Namespace, config: jbus.Config) -> int:
-    """Run `jbus wakes`: say whether a webhook of this repo's project is failing, so that a thread
-    knows whether a wake through it can come."""
+    """Run `jbus wakes`: say whether the project's wakes can come, so that a thread knows whether to
+    wait for one. The home thread decides it where the project's wakes go there, and a failing
+    webhook beside it is named on a line of its own, since the home thread still gets them."""
     run = wake.Pass(config, verbs.here(config, args.project), datetime.now(UTC))
-    lines = [line for _, line in failing(run)]
-    for line in lines:
+    name, by = run.project.name, "home thread" if run.project.to_home else "webhook"
+    found = failing(run)
+    fails = [line for key, line in found if key == home(name) or not run.project.to_home]
+    for line in fails:
         print(f"wakes fail: {line}")
-    if not lines:
-        print(f"wakes go: no webhook of {run.project.name} is failing")
-    return 1 if lines else 0
+    if not fails:
+        print(f"wakes go: the {by} of {name} is not failing")
+    for line in [line for _, line in found if line not in fails]:
+        print(f"webhook fails (optional): {line}")
+    return 1 if fails else 0
 
 
 VERBS = (
     verbs.Verb(
-        "wakes", "whether a webhook of this repo's project is failing", verbs.nothing, _wakes
+        "wakes", "whether the wakes of this repo's project are failing", verbs.nothing, _wakes
     ),
 )

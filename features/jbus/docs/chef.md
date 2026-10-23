@@ -5,10 +5,9 @@ The Chef is the agent behind a project's webhook.
 It tells you what needs you, and it puts your decisions into the queue.
 
 The Chef is optional.
-With no `webhook_url`, `jbus` still merges, launches the approved rows and settles threads.
-It POSTs nothing, so you read `jbus queue show`, `jbus status` and the journal yourself.
-It also counts the missing webhook as something that waits on you.
-Each hour it raises `set webhook_url and webhook_key for <project> in its [[project]] table, or at the top of ~/.config/jbus/config.toml for every project` on the desktop and prints it in the journal.
+By default `jbus` sends its wakes to each project's home thread through T3 Code, and needs no webhook ([Where wakes go](jbus/events-and-the-webhook.md#where-wakes-go)).
+A Chef is an add-on: set `wake = "webhook"` or `wake = "both"` and a webhook pair, and `jbus` POSTs to it as well.
+A missing `webhook_url` waits on nobody.
 
 The Chef is not the relay's chat bot.
 The Chef is a T3 Code thread that jbus POSTs to directly, and it may run `jbus queue`.
@@ -37,7 +36,7 @@ Without it, T3 Code makes the task with no URL, and the thread says that T3 Conn
    At the top of the file, above the first `[[project]]`, the pair watches every project.
    `jbus` sends that pair every project's events for you, and uses it as the webhook of every project that has no pair of its own.
    In a project's table, the pair is that project's own webhook, and `jbus` posts to it as well as to the top-level one.
-   With an empty `webhook_url`, `jbus` POSTs nothing.
+   Set `wake = "webhook"` for the Chef alone, or `wake = "both"` to keep the home thread too: with the default, `wake = "home"`, `jbus` posts nothing to the pair.
    `jbus` refuses a `webhook_url` with an empty `webhook_key`.
 4. Wait for the first POST.
    `jbus` sends one when a pass finds an event for you, and a project's first pass sends none.

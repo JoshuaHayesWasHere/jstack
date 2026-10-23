@@ -256,6 +256,7 @@ def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are
         "outbox",
         "sign_in",
         "sweep",
+        "wake",
     ]
     kitchen.write(path, plain)
     assert not [line for line in kitchen.poll(later(10)) if line.startswith("ignored")]
@@ -631,6 +632,7 @@ def test_failed_posts_in_a_row_are_counted_and_a_sent_one_starts_the_count_again
         "outbox": 1,
         "sign_in": "",
         "sweep": "",
+        "wake": "webhook",
     }
     kitchen.webhook.status = 200
     assert "woke demo: 1 events" in kitchen.poll(NOW + timedelta(minutes=10))
@@ -680,13 +682,10 @@ def test_the_count_that_tells_is_three_whatever_the_config_says(kitchen):
     assert kitchen.log("notify") == []
 
 
-def test_a_blank_webhook_url_is_a_failed_post(kitchen):
+def test_a_blank_webhook_url_beside_wake_webhook_is_refused(kitchen):
     kitchen.config(url="")
-    decide(kitchen)
-    assert "wake failed demo: the config has no webhook_url" in kitchen.poll()
-    assert kitchen.marks()["last_error"] == "the config has no webhook_url"
-    assert kitchen.status()["projects"]["demo"]["failed_wakes"] == 1
-    assert kitchen.status()["projects"]["demo"]["outbox"] == 1
+    with pytest.raises(jbus.Refused, match='wake = "webhook"'):
+        jbus.load()
 
 
 def test_once_a_day_the_keys_of_a_slug_merged_a_week_ago_are_forgotten(kitchen):

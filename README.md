@@ -57,7 +57,7 @@ jstack runs without it.
 
 | Need | What you lose without it |
 |---|---|
-| `jbus`, with its config, its sign-in and a webhook | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself or hand the merge to a home. With no webhook, `jbus` works and sends no event, and asks you each hour to set `webhook_url` and `webhook_key`. |
+| `jbus`, with its config, its sign-in and a webhook | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself or hand the merge to a home. `jbus` sends its wakes to each project's home thread, and a webhook is an optional add-on (`wake = "webhook"` or `"both"`). |
 | systemd `--user` | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |

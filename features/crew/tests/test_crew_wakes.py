@@ -28,7 +28,7 @@ def wakes(kitchen):
 
 
 def test_a_crewmate_ends_its_turn_while_the_webhook_takes_posts(kitchen):
-    assert wakes(kitchen) == ["end your turn: wakes go: no webhook of demo is failing"]
+    assert wakes(kitchen) == ["end your turn: wakes go: the webhook of demo is not failing"]
 
 
 def test_a_crewmate_stays_in_its_turn_while_the_webhook_is_failing(kitchen):

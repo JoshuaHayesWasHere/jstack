@@ -1,8 +1,9 @@
 """A webhook that keeps failing reaches the user by a path that does not need it.
 
-The webhook's refusal keeps the `error` text its JSON body gives. Each alert and recovered line goes
-to the journal (the pass's `say`). While a project's webhook streak alerts, jbus tells the project's
-home thread through T3 Code, at the third failure, the thirtieth, and every 120th after that.
+The kitchen's project sends its wakes to its webhook alone (`wake = "webhook"`). The webhook's
+refusal keeps the `error` text its JSON body gives. Each alert and recovered line goes to the
+journal (the pass's `say`). While a project's webhook streak alerts, jbus tells the project's home
+thread through T3 Code, at the third failure, the thirtieth, and every 120th after that.
 `jbus status`, the heartbeat (`test_jbus_alive.py`, the one module with it on) and `jbus wakes`
 name the failing webhook on a line of its own.
 
@@ -126,9 +127,9 @@ def test_status_names_the_failing_webhook_as_an_alert_until_it_recovers(kitchen)
 
 
 def test_jbus_wakes_says_whether_the_project_s_wakes_fail(kitchen):
-    assert kitchen.main("wakes") == (0, "wakes go: no webhook of demo is failing\n")
+    assert kitchen.main("wakes") == (0, "wakes go: the webhook of demo is not failing\n")
     refusing(kitchen)
     fail(kitchen, 2)
-    assert kitchen.main("wakes") == (0, "wakes go: no webhook of demo is failing\n")
+    assert kitchen.main("wakes") == (0, "wakes go: the webhook of demo is not failing\n")
     fail(kitchen, 1, start=2)
     assert kitchen.main("wakes") == (1, f"wakes fail: {alert(3)}\n")

@@ -31,8 +31,8 @@ The command first copies the config to `config.toml.<time>.bak` beside it.
 Both files are mode 600.
 Every other table stays as it is.
 The new table has `name`, `checkout` and `projectId`, and no webhook.
-The new project uses the top-level webhook when the config has one ([Events and the webhook](events-and-the-webhook.md)).
-With none there, jbus POSTs nothing for it.
+Its wakes go to its home thread, or as the top-level `wake` picks ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
+It uses the top-level webhook when the config has one and its `wake` posts to a webhook.
 A scratch home's table has `name`, `kind` and `projectId` instead.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`.
