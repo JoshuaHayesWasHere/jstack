@@ -75,7 +75,7 @@ def test_two_holders_are_two_events_and_a_brief_not_launched_is_none(kitchen):
     rebases = "whichever merges second rebases"
     assert len(kitchen.t3.launches) == 1 and kitchen.lines("overlap") == [
         f"overlap alpha: shares src/jbus/cli.py, src/jbus/dispatch.py with one; {rebases}",
-        f"overlap alpha: shares src/jbus/ with two; {rebases}",
+        f"overlap alpha: shares src/jbus with two; {rebases}",
     ]
 
 
