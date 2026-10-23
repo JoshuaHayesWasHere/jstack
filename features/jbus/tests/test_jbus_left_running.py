@@ -230,3 +230,27 @@ def test_a_scout_stops_only_what_its_own_session_started(kitchen, tmp_path, stra
     assert [alive(pid) for pid in stray] == [False, True, True]
     report = (kitchen.home / "scouts" / "alpha.md").read_text()
     assert report.splitlines()[-1].startswith("Left running: 1 stopped by jbus ")
+
+
+def test_the_line_goes_under_the_last_result_and_not_into_a_review_after_it(
+    kitchen, tmp_path, stray
+):
+    tree, _ = ended_crew(kitchen, tmp_path)
+    brief = kitchen.home / "tasks" / "alpha.md"
+    review = "\n## Review\nBy: a reviewer #1\nVerdict: clean\nHead: abc\n"
+    brief.write_text(brief.read_text() + RESULT + review)
+    stray.append(orphan(tree, "yes"))
+    kitchen.poll()
+    text = brief.read_text()
+    assert text.endswith(review)
+    assert "Left running: 1 stopped by jbus " in mirror.last_result(text)
+
+
+def test_a_process_that_ignores_term_is_killed_after_the_grace(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    monkeypatch.setattr(strays, "GRACE", 0.5)
+    tree, _ = ended_crew(kitchen, tmp_path)
+    stray.append(orphan(tree, "sh", "-c", "trap '' TERM; while :; do :; done"))
+    kitchen.poll()
+    assert not alive(stray[0])
