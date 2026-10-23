@@ -5,7 +5,7 @@ It shows what the passes left, and it runs whether or not the timer does, so it 
 It listens on `127.0.0.1`, on port 4388 or the one `--port` names.
 `jinstall` links `jbus-view.service` and leaves it off, and `systemctl --user enable --now jbus-view.service` starts it.
 The variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit.
-When the code on disk is newer than the code the view runs, and starts, the view ends with status 75 (`NEWER_CODE` in `features/jbus/src/jbus/view/__init__.py`).
+When the code on disk is newer than the code the view is running, and a trial run of the newer code starts, the view ends with status 75 (`NEWER_CODE` in `features/jbus/src/jbus/view/__init__.py`).
 The unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
 
 | Variable | What it does |
@@ -72,13 +72,14 @@ A drawer opened from a drawer opens over it.
 Its head has an arrow that names the drawer before it and goes back to it, and Esc does the same, one layer back.
 The browser's back closes the drawer in front, and forward opens it again.
 Close goes to the page under every drawer.
-The head also has breadcrumbs, All, the project and the drawer itself, each a link to that page, not a step of history.
+The head also has breadcrumbs for All, the project and the drawer itself.
+Each breadcrumb links to that page, and does not go back in the browser's history.
 
 A link to a project the state directory does not have, a retired one included, says there is no such project. A link to a task the project does not have, or to a drawer of something that is not there now, opens a drawer that says which name was not found, and where.
 
 The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one.
-`/stack.json` runs the machine's checks (systemd, the room script, the runner units) once for the answer, however many projects there are.
-It also asks GitHub for the runs of each repo, and keeps the answer for a minute.
+To build its reply, `/stack.json` runs the machine's checks (systemd, the room script, the runner units) once, however many projects there are.
+It also asks GitHub for the runs of each repo, and keeps GitHub's reply for a minute.
 The page does not redraw a part whose drawing did not change.
 An answer to a gate goes to the one project whose page it is, as `POST /answer?project=<project>`, and a write that names no project gets 404.
 
@@ -105,16 +106,17 @@ To close several gates at once, tick their rows, or tick every row with the one 
 A batch only takes defaults, so it sends nothing to any thread.
 To pick another option or to use your own words, open that gate by itself.
 
-The view records the answer as `jbus answer` records it: by the user of your settings, at the server's clock, in `jbus view`.
+The view records the answer as `jbus answer` records it, by the user of your settings, at the server's clock, in `jbus view`.
 An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send.
-If T3 Code refuses it or does not answer, the question is closed all the same, the page says why the answer was not sent, and the next pass sends it.
+If T3 Code refuses the message or does not reply, the view still closes the question, the page says why the answer was not sent, and the next pass sends it.
 A question is answered once.
 The view refuses a second answer, and the page shows the first one.
 
 There is no sign-in.
 The page is reachable only on the addresses the view listens on, and the view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or steer for you.
-Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`, and a client that is not a browser sets the `Origin` header as it likes.
-Only a write that has an answer or a message to send reads jbus's config and the sign-in to T3 Code, and neither is in what the page gets.
+Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`.
+A client that is not a browser can set the `Origin` header to anything.
+The server reads jbus's config and the sign-in to T3 Code only for a write that has an answer or a message to send, and it sends neither to the page.
 
 ### Steer a work item
 

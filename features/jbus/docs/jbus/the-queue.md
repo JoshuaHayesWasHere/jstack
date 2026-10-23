@@ -46,7 +46,8 @@ A message of yours in a T3 Code thread is a basis too, with `--message <thread i
 
 The queue table is `~/.local/state/jbus/<project>/queue.json`, and `jbus queue show` prints it as Markdown.
 It prints only the rows still open.
-It leaves out a row that is `merged` or `done` with no reason to wait, and a last line counts those rows, `<n> finished rows not shown: jbus queue show --all`, or `1 finished row not shown: jbus queue show --all` for one.
+It leaves out a row that is `merged` or `done` with no reason to wait.
+A last line counts the rows it left out, as `<n> finished rows not shown: jbus queue show --all`, or `1 finished row not shown: jbus queue show --all` for one.
 `jbus queue show --all` prints every row.
 `add`, `approve`, `hold` and `remove` print the open rows after they run, with the same last line.
 Each column has one writer.

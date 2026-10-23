@@ -42,7 +42,7 @@ The relay sends two routes, both to the relay's webhook, and each POST says whic
 | Route | What it sends |
 |---|---|
 | `everything` | Every body as it came. |
-| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends a `reminder` or a `refresh` whole, and an `events` body of the second target whole when it has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`, with `say` cut to the `say` lines of those events. A body with none of these is not sent on this route. |
+| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends a `reminder` or a `refresh` whole. It also sends whole an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user` or that are a `decision`, a `sign-in` or an `alert`, with `say` cut to the `say` lines of those events. A body with none of these is not sent on this route. |
 
 Each body the relay takes has an id: its own `id` when that is a short name of letters, digits, `.`, `_` and `-`, else a hash of the body, so the same body posted twice has one id.
 Each route writes what it sends to `spool/<route>/` before the relay answers 202 with `{"id"}`.
@@ -71,10 +71,10 @@ The relay writes `heartbeat.json` in its state each minute and on each body it t
 The relay judges none of it.
 `jbus health` reads the file and pages ([The health check](the-health-check.md)).
 
-Your chat bot may acknowledge a body: `POST /ack` on the relay's port, with `RELAY_INBOUND_KEY` in `X-Automation-Key` and `{"id": "<the relay id of the body>"}`.
+Your chat bot may acknowledge a body with `POST /ack` on the relay's port, with `RELAY_INBOUND_KEY` in `X-Automation-Key` and `{"id": "<the relay id of the body>"}`.
 The relay marks the items that body carried as seen, and answers 200 with `{"id", "seen"}`, where `seen` is the number of them.
 The relay answers 404 for an id that carried no item that is still open.
-Until your chat bot sends it, every item that still blocks at 45 minutes pages.
+Until your chat bot acknowledges a body, the relay pages every item of it that still blocks at 45 minutes.
 
 The config decides who posts to the relay: a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key.
 Until one of them names the relay, jbus posts it nothing.
@@ -95,8 +95,8 @@ The body is one JSON object:
 | `project`, `item` | The card's `project` and `item`: an item's id is its project's own, so both are named. |
 | `verb` | One of the card's `actions`: `approve`, `message` or `hold`. A hold is confirmed by the button that sent it. |
 | `words` | What was said: the message for `message`, why for `hold`, the user's words for `approve`. |
-| `by` | The literal `Sous Chef`, which the chat bot sends for a steer of its own whatever its own name is, or the user (`user` in `~/.config/jstack/config.toml`). |
-| `message` | The chat message the user said it in, its id or its link. A decision by the user without it, or without `words`, gets 403. |
+| `by` | Who decided. It is the user (`user` in `~/.config/jstack/config.toml`), or the literal `Sous Chef` for a steer of the chat bot's own, whatever the chat bot's name is. |
+| `message` | The id or the link of the chat message where the user made the decision. A decision by the user with no `message` or no `words` gets 403. |
 | `seen_event` | The `id` of the card the decision was made on. |
 
 The relay records the decision as `jbus item approve` or `jbus item steer` does, with `where: chat`, in the project's state, and writes one line of the item's log.
@@ -121,9 +121,10 @@ The next pass sends a message steer to the item's home.
 ## Cards in your chat bot's chat
 
 Each line of a work item's log is a card ([Work items](work-items.md)).
-The pass that follows the line posts the card to each webhook route that is the relay: a `webhook_url`, of a project or at the top, at `http://127.0.0.1:4390` (or the `RELAY_PORT` of jbus's environment).
+The pass that follows the line posts the card to each webhook route that is the relay.
+Such a route is a project's or the top-level `webhook_url` set to `http://127.0.0.1:4390`, or to the `RELAY_PORT` of jbus's environment.
 A webhook that is not the relay gets no card, so the cards are in your chat bot's chat only.
-The relay sends it on the `everything` route, and its own-id rule sends each card once.
+The relay sends each card on the `everything` route, and since a card has its own `id`, the relay sends it once.
 A route's `cards.json` keeps how many lines of the log have a card.
 A route's first pass posts one card for each live item, at its last line, and not the whole log.
 A POST that fails stops that route's cards until the next pass, which posts them again from there.
@@ -142,4 +143,4 @@ This is the contract for the chat bot's side, whose code is outside this repo:
 | `title`, `state`, `owner`, `risk` | Shown on the card as they are. `state` is one of the eight states of [Work items](work-items.md). |
 | `last` | The last line in one sentence, shown under the title. A decision made in the view arrives here, as "Approved in jbus view by you, 11:52 EDT", and the next body brings the card's new buttons. |
 | `actions` | One button for each, in order, each a `POST /item` with that `verb`. It is empty for a review item (a merge, a secret, the config) and for one that is done or dropped. Such a card has the link and no button. |
-| `view` | The item in jbus view, as a link on every card: at the first origin of `JBUS_VIEW_ORIGINS`, the proxy the view is reached through, else at the first name of `JBUS_VIEW_NAMES` or the address `JBUS_VIEW_HOST` on port 4388, else at 127.0.0.1. |
+| `view` | The link to the item in jbus view, on every card. It uses the first origin of `JBUS_VIEW_ORIGINS`, the proxy the view is reached through. Without one, it uses the first name of `JBUS_VIEW_NAMES` or the address `JBUS_VIEW_HOST`, on port 4388. Without either, it uses 127.0.0.1. |

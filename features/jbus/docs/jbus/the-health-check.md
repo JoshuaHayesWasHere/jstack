@@ -57,7 +57,8 @@ Their numbers come from the ledger, which the threads' status lines and their us
 ## Incidents and pages
 
 A check over its limit is an incident, under the key `health <check>`.
-An incident is paged once when it starts and once when a reading under the limit ends it, through the same streaks as every other alert (`streaks.json`).
+A pass pages an incident once when it starts, and once when a reading under the limit ends it.
+It tracks the incident in `streaks.json`, as it does every other alert.
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
 It goes to the desktop with `notify-send`.
 If you set a top-level webhook, the page also goes there as an event of the machine, once and not once for each project.

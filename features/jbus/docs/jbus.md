@@ -15,7 +15,7 @@ One pass, under one lock, does this for every project in the config:
 2. It reads the briefs and the scout requests in the home's state directory, and makes one event for each new Result, Review, Report and question.
 3. It asks T3 Code for the project's threads and GitHub, through `gh`, for its pull requests and main's checks, and makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).
 4. It tells each crewmate's thread what it must act on: a failed check, a conflict, a review it is owed.
-5. It launches the approved rows of the queue, after every project was asked what is out ([What a pass launches](jbus/what-a-pass-launches.md)).
+5. It launches the approved rows of the queue, once it has asked every project which threads and pull requests it has open ([What a pass launches](jbus/what-a-pass-launches.md)).
 6. It rewrites the queue's derived columns, says what waits on you, and POSTs the events for you to the webhook, if you set one ([The Chef](chef.md)).
 
 jbus makes no judgment call.

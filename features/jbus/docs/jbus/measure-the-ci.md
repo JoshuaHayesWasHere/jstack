@@ -48,12 +48,15 @@ Flaky tests reads a red job's failing tests from the log of a self-hosted job on
 ### The week's report
 
 The report is optional, and a project asks for it with `ci_report = true` in its `[[project]]` table of `~/.config/jbus/config.toml`.
-The install enables `jbus-ci.timer` only while a project asks for it, and with none asking it leaves the timer off and nothing alerts.
+The install enables `jbus-ci.timer` only while a project asks for the report.
+When no project asks, the install leaves the timer off, and nothing alerts.
 The timer runs `jbus-ci.service` every Monday at 09:00 in the machine's own zone.
 With `Persistent=true`, a run the machine slept through starts once the machine is up.
 The service runs `jbus ci --report --each`.
 For each project that asks, it collects, then writes `reports/ci-week-<date>.md` in that project's home.
-The report has the nine targets over the last 7 days, each with how it was counted, the jobs counted (local and hosted apart, and how many were cancelled while they waited), and main's red minutes by day.
+The report has the nine targets over the last 7 days, each with how it was counted.
+It counts the jobs, the local and the hosted ones apart, and says how many were cancelled while they waited.
+It ends with main's red minutes by day.
 A week where every target is met, or has no data, sends nothing.
 A week with a target missed sends one `alert` event, naming each target missed and the report, once for that day.
 A run that fails shows in `journalctl --user -u jbus-ci`.
