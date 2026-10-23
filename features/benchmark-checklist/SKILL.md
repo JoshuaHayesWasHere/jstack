@@ -18,7 +18,9 @@ A path such as `playbooks/<name>.md` or `principles/<name>.md` is from the root 
 
 - Write down the claim you expect to make, in the words you would ship: "export is 30% faster at the median on the 60k-row dataset". The questions test that sentence.
 - Read the measurement script. Note what it times, what it counts and what it ignores.
-- Check the load with `uptime` and the cores with `nproc`. Many threads share a machine: if it is busy, find out with what. If you cannot wait for it, run the sides in turn so both see the same noise, and say so in the report.
+- Check the load with `uptime` and the cores with `getconf _NPROCESSORS_ONLN`.
+  Many threads share a machine: if it is busy, find out with what.
+  If you cannot wait for it, run the sides in turn so both see the same noise, and say so in the report.
 
 ## Taking the runs
 
@@ -37,7 +39,14 @@ fi
 
 It times a whole command. A number from inside a process (a request's latency, a frame time) comes from the repo's own harness: then that harness is the command, and the questions are the same.
 
-A command that starts several workers (a browser suite, a parallel build, a test run with more than one worker) is a heavy suite, and the measurement runs one at a time on the whole machine, the lock around the whole call and not around one side: `flock ~/.local/state/locks/heavy-suite.lock sh "$S/scripts/runs.sh" ...`, as `skills/crew/SKILL.md` "Do the task" says of a heavy suite. It queues behind other threads: give the call a long time limit and wait.
+A command that starts several workers (a browser suite, a parallel build, a test run with more than one worker) is a heavy suite, and the measurement runs one at a time on the whole machine, the lock around the whole call and not around one side, as `skills/crew/SKILL.md` "Do the task" says of a heavy suite.
+Perl takes the lock, since macOS has no `flock` command:
+
+```sh
+perl -MFcntl=:flock -e '$^F = 255; open my $l, ">>", shift or die; flock $l, LOCK_EX or die; exec @ARGV or die' ~/.local/state/locks/heavy-suite.lock sh "$S/scripts/runs.sh" ...
+```
+
+It queues behind other threads: give the call a long time limit and wait.
 
 ## The questions
 

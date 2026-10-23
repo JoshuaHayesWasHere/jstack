@@ -54,4 +54,4 @@ A skill for working on jstack, such as `verify-jstack`, is linked into the check
 
 `scripts/fresh-host.sh` runs `--setup` on a fresh host: a throwaway `archlinux` container with the checkout's `HEAD` cloned in, `uv`, `git` and `jq` installed, and stand-ins for `t3`, `claude`, `gh`, `lavish-axi` and `systemctl`.
 It passes only when the doctor then says `doctor: ok`, a second `--setup` writes nothing, and no `needs you` line is left.
-It starts a container, so run it under the heavy-suite lock: `flock ~/.local/state/locks/heavy-suite.lock sh scripts/fresh-host.sh`.
+It starts a container, so run it under the heavy-suite lock, which perl takes since macOS has no `flock` command: `perl -MFcntl=:flock -e '$^F = 255; open my $l, ">>", shift or die; flock $l, LOCK_EX or die; exec @ARGV or die' ~/.local/state/locks/heavy-suite.lock sh scripts/fresh-host.sh`.
