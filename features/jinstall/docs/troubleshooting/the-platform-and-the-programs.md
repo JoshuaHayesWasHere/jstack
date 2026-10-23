@@ -3,10 +3,9 @@
 | Line | Meaning | Do this |
 |---|---|---|
 | `missing hard linux -> this is <platform>` | jstack runs on Linux only. | Use a Linux machine. |
-| `missing hard t3 -> the nightly build (on Arch: t3code-nightly-bin)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. | Install the nightly build of T3 Code and open the app once. |
+| `missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. | Install T3 Code, the stable or the nightly build, and open the app once. |
 | `old hard t3 -> t3 --version did not answer: open the app once` | The `t3` command is there and printed no version. | Open T3 Code once, then run the doctor again. |
-| `old hard t3 -> <version> is the stable build, needs the nightly build (on Arch: t3code-nightly-bin)` | The stable build lacks tools that jstack calls, such as `t3_thread_launch`. | Install the nightly build. |
-| `old hard t3 -> <version>, needs <floor> or newer` | The nightly is older than the oldest build jstack supports. | Update T3 Code. |
+| `old hard t3 -> <version>, needs 0.1.2-nightly.20261022.3526 or newer` | The build, stable, nightly or preview, is older than the oldest one jstack supports, and may lack tools that jstack calls, such as `t3_thread_launch`. A release ranks after each of its own nightlies, so stable `0.1.2` meets it. | Update T3 Code to stable `0.1.2` or a newer build. |
 | `missing hard claude` | Claude Code is not on `PATH`. | Install Claude Code. |
 | `missing hard uv` | `uv` is not on `PATH`. | Install `uv`. |
 | `missing hard git` | `git` is not on `PATH`. | Install `git` 2.31 or newer. |
@@ -29,7 +28,7 @@ The last column gives the Arch package as one example.
 
 | Program | Install page | Arch package |
 |---|---|---|
-| T3 Code, the nightly build | [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | `t3code-nightly-bin` |
+| T3 Code, stable or nightly | [pingdotgg/t3code](https://github.com/pingdotgg/t3code) | `t3code-bin`, or `t3code-nightly-bin` for the nightly |
 | Claude Code, `claude` | [Set up Claude Code](https://code.claude.com/docs/en/setup) | `claude-code` |
 | `uv` | [Installing uv](https://docs.astral.sh/uv/getting-started/installation/) | `uv` |
 | `git` | [git downloads](https://git-scm.com/downloads) | `git` |

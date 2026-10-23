@@ -10,7 +10,7 @@ docker run --rm -i -v "$work:/src:ro" archlinux:latest sh -eu << 'IN_THE_CONTAIN
 pacman -Sy --noconfirm --needed uv git jq findutils diffutils > /dev/null
 stand=/opt/stand-in
 mkdir -p "$stand"
-printf '#!/bin/sh\necho "t3 v0.0.46-nightly.20261015.3158"\n' > "$stand/t3"
+printf '#!/bin/sh\necho "t3 v0.1.2"\n' > "$stand/t3"
 printf '#!/bin/sh\necho "2.1.296 (Claude Code)"\n' > "$stand/claude"
 printf '#!/bin/sh\n[ "$1 $2" = "auth token" ] && echo gho_stand_in\n' > "$stand/gh"
 printf '#!/bin/sh\nexit 0\n' > "$stand/lavish-axi"

@@ -13,7 +13,7 @@ import tomllib
 import pytest
 
 from jinstall.__main__ import setup as run_setup
-from test_doctor import NIGHTLY, Doctored
+from test_doctor import T3_STABLE, Doctored
 from test_install import REPO, SCRUBBED, UNITS, line_for, machine, worktree
 from testing.paths import skills
 
@@ -160,12 +160,12 @@ def test_a_missing_program_names_the_one_command_to_get_it(user):
 
 
 def test_a_hard_need_left_to_the_user_exits_1(user):
-    user.program("t3", "echo 't3 v0.0.45'")
+    user.program("t3", "echo 't3 v0.1.1'")
     user.program("pacman", "exit 0")
     code, said = user.setup()
     assert code == 1
-    assert "needs you t3 -> yay -S t3code-nightly-bin" in said
-    user.program("t3", f"echo 't3 v{NIGHTLY}'")
+    assert "needs you t3 -> yay -S t3code-bin" in said
+    user.program("t3", f"echo 't3 v{T3_STABLE}'")
     assert user.setup()[0] == 0
 
 

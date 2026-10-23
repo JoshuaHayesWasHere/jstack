@@ -55,7 +55,7 @@ TAGGED = re.compile(r"<(img|a|source)\b[^>]*?\b(?:src|href|srcset)=[\"']([^\"']+
 PERSONAL = ("~/repos/jstack",)
 HARD = {
     "Linux": ("linux",),
-    "T3 Code, the nightly build": ("t3",),
+    "T3 Code": ("t3",),
     "Claude Code": ("claude",),
     "`uv`": ("uv",),
     "`git`": ("git",),
@@ -384,10 +384,7 @@ def test_the_requirements_give_each_need_its_level_and_floor_as_the_doctor_has_t
         assert isinstance(kind, Program)
         floor = ".".join(map(str, kind.floor))
         assert f"| `{name}` | hard | {floor} or newer. |" in said
-    if listed.T3_FLOOR is None:
-        assert "names no oldest nightly yet" in said
-    else:
-        assert f"`{listed.T3_FLOOR}` or newer" in said
+    assert f"`{listed.T3_FLOOR}` or newer" in said
     hard = dict(re.findall(r"^\| ([^|]+) \| (hard|optional) \|", said, re.M))
     assert set(hard.values()) == {"hard"}
     assert set(hard) == set(HARD)

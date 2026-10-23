@@ -951,21 +951,37 @@ class Program:
         return Found.ok(said[0])
 
 
-@dataclass(frozen=True)
-class T3Nightly:
-    """T3 Code, which the probe asks through the `t3` command that the app writes into
-    ~/.t3/bin, or else through the one on PATH.
-    missing: neither command is there.
-    old: the stable build, a command that does not answer, or a nightly before `floor`.
-      `floor` is the oldest nightly with every MCP tool that jstack calls. It is None until
-      someone writes that build down. While it is None, old means only
-      `not the nightly build`."""
+T3_VERSION = re.compile(r"([0-9]+(?:\.[0-9]+)+)(-[0-9A-Za-z.]+)?")
+T3_PRERELEASE = re.compile(r"-(?:nightly|preview)\.([0-9]+)\.([0-9]+)")
 
-    floor: str | None
-    hint: str = "the nightly build (on Arch: t3code-nightly-bin)"
+
+def _t3_order(version: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    """Where `version` sits among T3 Code's builds: by its base, then a release after each of
+    its prereleases. The nightly and the preview runs share one counter, so one order holds
+    both, by date and then run. A suffix of another shape is a prerelease that ranks first."""
+    said = T3_VERSION.fullmatch(version)
+    assert said is not None, version
+    if said[2] is None:
+        return _numbers(said[1]), (1,)
+    prerelease = T3_PRERELEASE.fullmatch(said[2])
+    if prerelease is None:
+        return _numbers(said[1]), (0,)
+    return _numbers(said[1]), (0, int(prerelease[1]), int(prerelease[2]))
+
+
+@dataclass(frozen=True)
+class T3Code:
+    """T3 Code, stable, nightly or preview, which the probe asks through the `t3` command that
+    the app writes into ~/.t3/bin, or else through the one on PATH.
+    missing: neither command is there.
+    old: a command that does not answer, or a build before `floor`, the oldest build with
+      every MCP tool that jstack calls in the shape it calls them."""
+
+    floor: str
+    hint: str = "T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)"
 
     def ask(self, machine: Machine) -> str:
-        return get(machine, "t3code-nightly-bin", "t3")
+        return get(machine, "t3code-bin", "t3")
 
     def probe(self, machine: Machine) -> Found:
         written = machine.home / ".t3" / "bin" / "t3"
@@ -973,12 +989,10 @@ class T3Nightly:
         if command is None:
             return Found.missing(self.hint)
         ran = machine.run([str(command), "--version"])
-        said = re.search(r"[0-9]+(\.[0-9]+)+(-nightly[.0-9]*)?", ran.out)
+        said = T3_VERSION.search(ran.out)
         if ran.code != 0 or said is None:
             return Found.old("t3 --version did not answer: open the app once")
-        if said[2] is None:
-            return Found.old(f"{said[0]} is the stable build, needs {self.hint}")
-        if self.floor is not None and _numbers(said[0]) < _numbers(self.floor):
+        if _t3_order(said[0]) < _t3_order(self.floor):
             return Found.old(f"{said[0]}, needs {self.floor} or newer")
         return Found.ok(said[0])
 
