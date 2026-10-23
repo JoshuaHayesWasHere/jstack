@@ -45,10 +45,10 @@ diff /tmp/before /tmp/after || fail="$fail; the second run changed the files und
 [ "$record" = "$(cat "$HOME/.local/state/jstack/created" "$HOME/.local/state/jstack/seeded" | sha256sum)" ] ||
     fail="$fail; the records changed"
 left=$(sed -n 's/^needs you .* -> //p' /tmp/second | sort | paste -sd, -)
-[ "$left" = "claude" ] || fail="$fail; needs you left: $left"
+[ -z "$left" ] || fail="$fail; needs you left: $left"
 if [ -n "$fail" ]; then
     echo "fresh host: failed${fail}"
     exit 1
 fi
-echo "fresh host: ok, doctor: ok, the second run wrote nothing, left: $left"
+echo "fresh host: ok, doctor: ok, the second run wrote nothing and left nothing for you"
 IN_THE_CONTAINER
