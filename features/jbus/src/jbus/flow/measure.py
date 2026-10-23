@@ -439,7 +439,12 @@ def jbus_down(lines: list[Line], since: datetime, until: datetime) -> dict:
 def main_red(found_runs: list[Run], found_rows: list[Row], merges: dict[str, dict]) -> dict:
     """Return, for each repo, how long main was red on its gate workflow (the workflow with the
     most runs on pushes to main), and what that held up: the rows whose wait was `main red`,
-    their hours, and the pull requests that merged while it was red."""
+    their hours, and the pull requests that merged while it was red.
+
+    A failed run that ended within `NO_JOB` of its start ran no job: GitHub started none, as on
+    a failed payment or a spent limit. Such a run turns main neither red nor green, and the time
+    from it to the next run that did run a job is counted as `no_job_hours`, CI that did not
+    run."""
     by_repo: defaultdict[str, list[Run]] = defaultdict(list)
     for run in found_runs:
         if run.event == "push" and run.branch == "main":
@@ -451,8 +456,14 @@ def main_red(found_runs: list[Run], found_rows: list[Row], merges: dict[str, dic
             (one for one in pushed if one.workflow == gate and one.updated),
             key=lambda one: one.created,
         )
-        red, start = [], None
+        red, idle, start, down = [], [], None, None
         for run in ordered:
+            if _no_job(run):
+                down = down or run.updated
+                continue
+            if down is not None:
+                idle.append((down, run.updated))
+                down = None
             if run.conclusion == "failure" and start is None:
                 start = run.updated
             elif run.conclusion == "success" and start is not None:
@@ -460,12 +471,16 @@ def main_red(found_runs: list[Run], found_rows: list[Row], merges: dict[str, dic
                 start = None
         if start is not None:
             red.append((start, ordered[-1].updated))
+        if down is not None:
+            idle.append((down, ordered[-1].updated))
         merged = [at for at in merges.get(repo, {}).values() if any(a <= at <= b for a, b in red)]
         said[repo] = {
             "gate": gate,
             "red_hours": _hours(red),  # type: ignore[arg-type]
             "red_spans": len(red),
             "merges_while_red": len(merged),
+            "no_job_hours": _hours(idle),  # type: ignore[arg-type]
+            "no_job_runs": sum(1 for one in ordered if _no_job(one)),
         }
     held = [one for one in found_rows if any(span.what == "main red" for span in one.spans)]
     return {
@@ -475,6 +490,14 @@ def main_red(found_runs: list[Run], found_rows: list[Row], merges: dict[str, dic
             sum(span.hours for one in held for span in one.spans if span.what == "main red"), 1
         ),
     }
+
+
+NO_JOB = timedelta(seconds=15)
+
+
+def _no_job(run: Run) -> bool:
+    began = run.started or run.created
+    return run.conclusion == "failure" and run.updated is not None and run.updated - began < NO_JOB
 
 
 def ci(found_runs: list[Run]) -> dict:

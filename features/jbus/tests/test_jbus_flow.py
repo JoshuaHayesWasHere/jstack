@@ -238,11 +238,24 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
         "red_hours": 2.0,
         "red_spans": 1,
         "merges_while_red": 1,
+        "no_job_hours": 0.0,
+        "no_job_runs": 0,
     }
     assert red["rows_held"] == 1 and red["row_hours_held"] == 1.0
     said = measure.ci(found)["o/demo"]
     assert (said["runs"], said["failure"], said["reruns"], said["jobs"]) == (5, 3, 1, 1)
     assert said["queue_hours"] == 0.2 and said["queue_self_hosted_hours"] == 0.2
+
+
+def test_a_failed_run_that_ran_no_job_is_ci_down_and_not_main_red():
+    listed = [
+        run(1, at(0), "success"),
+        {**run(2, at(1), "failure"), "updated_at": (at(1) + timedelta(seconds=3)).isoformat()},
+        {**run(3, at(2), "failure"), "updated_at": (at(2) + timedelta(seconds=3)).isoformat()},
+        run(4, at(5), "success", minutes=0),
+    ]
+    red = measure.main_red(records.runs("o/demo", listed, {}), [], {})["repos"]["o/demo"]
+    assert (red["red_hours"], red["no_job_hours"], red["no_job_runs"]) == (0.0, 4.0, 2)
 
 
 def test_jobs_are_refused_when_they_would_spend_half_the_budget(monkeypatch):

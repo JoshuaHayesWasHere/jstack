@@ -169,7 +169,8 @@ def text(said: dict[str, Any]) -> str:
     for repo, one in red["repos"].items():
         out.append(
             f"  {repo} ({one['gate']}): red {one['red_hours']} h in {one['red_spans']} spans, "
-            f"{one['merges_while_red']} merges while red"
+            f"{one['merges_while_red']} merges while red; no job ran for "
+            f"{one['no_job_hours']} h ({one['no_job_runs']} runs)"
         )
     room, cap, slot, bus = said["no_room"], said["caps"], said["slots"], said["jbus"]
     reasons = ", ".join(f"{why} {h} h" for why, h in room["by_reason"].items()) or "none"
