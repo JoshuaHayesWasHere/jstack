@@ -261,7 +261,17 @@ class Proxy:
     requests on."""
 
     def __init__(
-        self, upstream, at, task="", pick="", gates=None, probe=True, tap="", walk=None, script=""
+        self,
+        upstream,
+        at,
+        task="",
+        pick="",
+        gates=None,
+        probe=True,
+        tap="",
+        walk=None,
+        script="",
+        hops=False,
     ):
         self.upstream, self.dark, self.states = upstream, False, 0
         self.dark_after = None
@@ -273,7 +283,7 @@ class Proxy:
         self.on_write = lambda nth: None
         asked = f"window.__task = {json.dumps(task)}; window.__pick = {json.dumps(pick)};"
         asked += f"window.__gates = {json.dumps(gates)}; window.__tap = {json.dumps(tap)};"
-        asked += f"window.__walk = {json.dumps(walk)};"
+        asked += f"window.__walk = {json.dumps(walk)}; window.__hops = {json.dumps(hops)};"
         head = f"<script>window.__at = {at}; {asked}{script or PROBE}</script>"
         proxy = self
 
@@ -451,6 +461,7 @@ def look(
     alter_state=None,
     script="",
     system="light",
+    hops=False,
 ):
     """Open the page in the browser and give back what the probe found.
 
@@ -462,12 +473,16 @@ def look(
     gets. `alter_state` does the same for `/state.json`. `tap` selects what the probe taps
     3 s after the page loads. `walk` is the steps the probe takes from 2.5 s on, one each
     0.5 s, such as `back` or `open:task:oat-bowl`. `system` is the scheme the browser asks
-    for, `light` or `dark`. With `gates`, the probe answers the gates, and what it found has
+    for, `light` or `dark`. With `hops`, the probe taps each thing on the first screen once,
+    each from the page as it opened, and what it found has what each tap opened under
+    `hops`. With `gates`, the probe answers the gates, and what it found has
     each write the page made under `writes`. The proxy calls `on_write` with the count of
     each write before it passes the write on. A write for which `on_write` answers `dark`
     reaches no server."""
     served = None if port else Served(scene)
-    proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script)
+    proxy = Proxy(
+        port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script, hops=hops
+    )
     proxy.on_write = on_write or proxy.on_write
     proxy.alter = alter or proxy.alter
     proxy.alter_state = alter_state or proxy.alter_state
