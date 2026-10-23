@@ -258,7 +258,7 @@ def write_spec(chart, module, directory):
     print(
         f"{module}: {len(variables)} region variable(s), {len(actions)} action(s), rules"
         f" {' '.join(rules)}"
-        f" -> {os.path.join(directory, module)}.{{tla,cfg,map.py}}",
+        f" -> {os.path.normpath(os.path.join(directory, module))}.{{tla,cfg,map.py}}",
         file=sys.stderr,
     )
 
@@ -288,7 +288,9 @@ def main(argv=None):
         print(f"{USAGE}\n{MORE}", file=sys.stderr)
         return 2
     try:
-        write_spec(chart, module, directory if directory is not None else os.path.dirname(chart))
+        write_spec(
+            chart, module, directory if directory is not None else os.path.dirname(chart) or "."
+        )
     except ChartError as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1

@@ -62,6 +62,7 @@ def download_jar(target):
                 f"{TLA2TOOLS_URL} has sha256 {got}, not the pinned {TLA2TOOLS_SHA256}, so the"
                 " command does not use it."
             )
+        os.chmod(part, 0o644)
         os.replace(part, target)
     except OSError as e:
         raise NoTlc(
