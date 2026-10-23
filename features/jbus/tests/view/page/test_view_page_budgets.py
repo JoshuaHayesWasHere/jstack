@@ -11,7 +11,9 @@ The probe opens every drawer it can reach from there, and on `#/` it taps each t
 first screen once. Each test reads those two looks, which a test before it may have made.
 
 A budget today's page breaks is in `KNOWN`, with the unit that fixes it. Its test is marked as
-a strict xfail, so the suite stays green and the fix that makes it pass takes the mark off.
+a strict xfail, so the suite stays green and the fix that makes it pass takes the mark off. The
+mark expects the budget's own assertion and nothing else, so a runner with no browser, or a
+probe that broke, still fails the test.
 """
 
 import json
@@ -213,7 +215,9 @@ def cases(budget, scenes=("busy", "many"), widths=tuple(SCREENS)):
         for wide in widths:
             unit = KNOWN.get((budget, scene, wide))
             why = f"today's page breaks it, and {unit} fixes it"
-            marks = [pytest.mark.xfail(strict=True, reason=why)] if unit else []
+            marks = (
+                [pytest.mark.xfail(strict=True, raises=AssertionError, reason=why)] if unit else []
+            )
             made.append(pytest.param(scene, wide, marks=marks, id=f"{scene}-{wide}"))
     return made
 
