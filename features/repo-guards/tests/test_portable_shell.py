@@ -155,6 +155,36 @@ def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
     assert on_bsd(tools, "sh", str(hook)).stdout == f"{hook.resolve()}\n"
 
 
+def test_a_realpath_of_a_path_an_install_may_not_have_is_found_until_it_is_handled(tmp_path):
+    """BSD realpath fails on a missing path where GNU prints it. An install places `templates/`
+    beside `skills/` (`jinstall.layout`), so the skills' `T=` line resolves on both, and a planted
+    line that reaches past the skill for anything else fails on macOS's tools and is named."""
+    planted = "T=$(realpath ~/.claude/skills/demo/../../nope) && echo \"$T\""
+    skill = tmp_path / "features" / "demo" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(f"# demo\n\n```sh\n{planted}\n```\n")
+    user = tmp_path / "user"
+    (user / "layout" / "skills" / "demo").mkdir(parents=True)
+    (user / "layout" / "templates").mkdir()
+    (user / ".claude" / "skills").mkdir(parents=True)
+    (user / ".claude" / "skills" / "demo").symlink_to(user / "layout" / "skills" / "demo")
+    tools = bsd_tools(tmp_path / "bsd")
+
+    def on_mac(line):
+        env = {**os.environ, "PATH": str(tools), "HOME": str(user)}
+        return subprocess.run(["sh", "-c", line], env=env, capture_output=True, text=True)
+
+    assert on_mac(planted).returncode == 1
+    (found,) = gnu_only(tmp_path)
+    assert found.split(": ", 1)[0] == "features/demo/SKILL.md:4"
+    handled = planted.replace(")", " 2> /dev/null || echo missing)", 1)
+    install = planted.replace("nope", "templates")
+    skill.write_text(f"# demo\n\n```sh\n{handled}\n{install}\n```\n")
+    assert gnu_only(tmp_path) == []
+    assert on_mac(handled).stdout == "missing\n"
+    assert on_mac(install).stdout == f"{(user / 'layout' / 'templates').resolve()}\n"
+
+
 @pytest.mark.parametrize(
     ("gnu", "portable"),
     [
@@ -167,6 +197,7 @@ def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
         ("out=$(timeout 9 sh -c x)", "out=$(perl -e 'alarm shift; exec @ARGV' 9 sh -c x)"),
         ("sha256sum f | cut -c1-12", "shasum -a 256 f | cut -c1-12"),
         ("cores=$(nproc)", "cores=$(getconf _NPROCESSORS_ONLN)"),
+        ("R=$(realpath -m ~/x/../y)", "R=$(realpath -q ~/x/../y || echo ~/y)"),
     ],
 )
 def test_each_gnu_form_is_found_and_its_portable_form_is_not(gnu, portable):
