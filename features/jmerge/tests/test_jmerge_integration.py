@@ -270,6 +270,10 @@ def test_a_landing_waits_when_the_repos_settings_cannot_be_read(kitchen):
     (said,) = kitchen.run()
     assert said.startswith(f"wait 9 {url(9)}: {ready.NO_SETTINGS}: ")
     assert kitchen.calls() == []
+    (kitchen.home.stub / "repo.json").write_text("[]")
+    (said,) = kitchen.run()
+    assert said == f"wait 9 {url(9)}: {ready.NO_SETTINGS}: GitHub's answer is not a repo"
+    assert kitchen.calls() == []
 
 
 def test_blank_lines_and_spaces_in_the_file_name_no_branch(kitchen):

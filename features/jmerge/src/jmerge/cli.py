@@ -1250,12 +1250,14 @@ class Repo:
             text=True,
             env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
         )
+        if ran.returncode:
+            return "", f"{ready.NO_SETTINGS}: {_said(ran)}"
         try:
-            said = json.loads(ran.stdout) if not ran.returncode else None
+            said = json.loads(ran.stdout)
         except ValueError:
             said = None
         if not isinstance(said, dict):
-            return "", f"{ready.NO_SETTINGS}: {_said(ran)}"
+            return "", f"{ready.NO_SETTINGS}: GitHub's answer is not a repo"
         if said.get("allow_merge_commit") is True:
             return "--merge", ""
         if said.get("allow_squash_merge") is True:
