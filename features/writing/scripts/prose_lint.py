@@ -164,10 +164,12 @@ def git(*args):
 
 
 def generated(paths):
-    """The paths a `.gitattributes` at HEAD marks `linguist-generated`: a tool writes them."""
+    """The paths a `.gitattributes` at HEAD marks `linguist-generated`: a tool writes them. It is
+    read from the index, which is HEAD on the clean checkout the lint runs in: `--source HEAD`
+    needs git 2.40, and jstack's floor is 2.31."""
     if not paths:
         return set()
-    said = git("check-attr", "-z", "--source", "HEAD", "linguist-generated", "--", *paths)
+    said = git("check-attr", "-z", "--cached", "linguist-generated", "--", *paths)
     fields = said.split("\0")
     return {
         fields[i]
