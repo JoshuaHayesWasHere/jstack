@@ -23,7 +23,7 @@ KEY = "wake-key-for-tests"
 class Webhook:
     def __init__(self, key=KEY):
         self.key, self.seen, self.posts, self.sizes, self.fail = key, [], [], [], set()
-        self.refusal, self.refused = 500, b""
+        self.refusal, self.refused, self.short = 500, b"", 0
         fake = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -40,6 +40,11 @@ class Webhook:
                     fake.sizes.append(len(body))
                 said = fake.refused if status not in (200, 401) else b""
                 self.send_response(status)
+                if fake.short:
+                    self.send_header("transfer-encoding", "chunked")
+                    self.end_headers()
+                    self.wfile.write(b"%x\r\n" % (len(said) + fake.short) + said)
+                    return
                 self.send_header("content-length", str(len(said)))
                 self.end_headers()
                 self.wfile.write(said)
@@ -226,6 +231,14 @@ def test_a_refusal_with_no_error_text_says_only_the_code(tmp_path, webhook, body
     made = box(tmp_path, webhook)
     made.send("alpha", "decision", "one")
     assert wake._post(made.routes[0], waiting(made)) == "the webhook answered 400"
+
+
+def test_a_refusal_whose_body_is_cut_short_says_only_the_code(tmp_path, webhook):
+    webhook.fail, webhook.refusal, webhook.refused, webhook.short = {1, 2}, 400, DISABLED, 10
+    made = box(tmp_path, webhook)
+    made.send("alpha", "decision", "one")
+    assert wake._post(made.routes[0], waiting(made)) == "the webhook answered 400"
+    assert flush(made) == (0, ["wake failed demo: the webhook answered 400"])
 
 
 def test_an_error_text_that_quotes_the_url_or_the_key_shows_neither(tmp_path, webhook):
