@@ -484,8 +484,8 @@ def look(
     each from the page as it opened, and what it found has what each tap opened under
     `hops`. With `gates`, the probe answers the gates, and what it found has
     each write the page made under `writes`, and each count it posted under `counted`. The
-    proxy calls `on_write` with the count of each write before it passes the write on. A write for which `on_write` answers `dark`
-    reaches no server."""
+    proxy calls `on_write` with the count of each write before it passes the write on. A
+    write for which `on_write` answers `dark` reaches no server."""
     served = None if port else Served(scene)
     proxy = Proxy(
         port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script, hops=hops
