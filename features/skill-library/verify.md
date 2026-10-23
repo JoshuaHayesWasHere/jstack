@@ -8,7 +8,6 @@ Paths:
 - `templates/`
 Tests:
 - `features/jgauge/tests/test_room.py`
-- `features/skill-library/tests/test_statechart.py`
 
 ## Sub-features
 
