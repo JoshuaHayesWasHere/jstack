@@ -38,7 +38,6 @@ from __future__ import annotations
 
 import itertools
 import os
-import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,6 +45,7 @@ from typing import Any
 
 import jroles
 import jroles.mirror
+from jbriefs import parse
 from jbus import queue, read_json, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
@@ -54,7 +54,6 @@ from jmerge import mainjson
 from jroles import ledger, pool
 
 EVENTS = {"overlap": "quiet"}
-_PATH = re.compile(r"`([^`\s]+)`")
 OVERLAP_PATHS = 5
 
 
@@ -171,26 +170,17 @@ def arguments(
     return made
 
 
-def where(brief: str) -> set[str]:
-    for line in brief.splitlines():
-        if line.startswith("Where:"):
-            return {p for p in _PATH.findall(line) if "/" in p or "." in p}
-    return set()
-
-
-def _under(path: str, directory: str) -> bool:
-    return path.startswith(directory.rstrip("/") + "/")
-
-
 def shared(run: Pass, slug: str, brief: str) -> dict[str, list[str]]:
     """Return the paths this brief shares with each brief that is out, by that brief's slug
     (`jmerge --claims`).
 
-    Where one of two paths is under the other, the function names the file, not its directory. When
-    `jmerge --claims` did not run, the function names no brief. jbus only reports an overlap, and
-    holds back no launch for it.
+    Both `Where:` lines are read as `jbus queue add` and `jmerge --scope` read them
+    (`jbriefs.parse.where`), and two paths are shared when one covers the other
+    (`jbriefs.parse.covers`). The function names the path that is covered, a file and not its
+    directory. When `jmerge --claims` did not run, the function names no brief. jbus only
+    reports an overlap, and holds back no launch for it.
     """
-    mine = where(brief)
+    mine = parse.where(brief)
     ran = run.run("jmerge", "--claims")
     found: dict[str, list[str]] = {}
     for line in ran.stdout.splitlines() if ran.returncode == 0 else []:
@@ -198,10 +188,10 @@ def shared(run: Pass, slug: str, brief: str) -> dict[str, list[str]]:
         if other == slug or rest.startswith("not launched ") or "Where:" not in rest:
             continue
         both = {
-            max(path, theirs, key=len)
-            for theirs in where(rest[rest.index("Where:") :])
+            path if parse.covers((theirs,), path) else theirs
+            for theirs in parse.where(rest[rest.index("Where:") :])
             for path in mine
-            if path == theirs or _under(path, theirs) or _under(theirs, path)
+            if parse.covers((theirs,), path) or parse.covers((path,), theirs)
         }
         if both:
             found[other] = sorted(both)
