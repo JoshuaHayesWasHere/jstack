@@ -39,7 +39,7 @@ jstack runs only when every **hard** need is met.
 
 | Need | Level | Notes |
 |---|---|---|
-| Linux or macOS | hard | A Mac with Apple Silicon. On Windows, inside WSL2. |
+| Linux or macOS | hard | Apple Silicon, or [WSL2](features/jinstall/docs/windows-wsl2.md). |
 | T3 Code | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Stable or nightly, `0.1.2-nightly.20261022.3526` or newer, which stable `0.1.2` meets. jstack is tested on that nightly, and on stable `0.1.2` by its source, which holds that nightly. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |
@@ -64,7 +64,7 @@ jstack runs without it.
 
 The threads run on Claude Code, and the install also links the skills for Codex and Cursor.
 It writes outside jstack's own folders for each of the three.
-`jinstall --uninstall` takes its links, hook entries, keys and units away again:
+`jinstall --uninstall` takes its links, hook entries, keys and units away:
 
 - Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line and the attribution keys in `~/.claude/settings.json`.
 - Codex: a link for each skill in `~/.codex/skills`, and hook entries in `~/.codex/hooks.json`.
@@ -78,7 +78,7 @@ It writes outside jstack's own folders for each of the three.
 
 In this tutorial we install jstack, point it at a repo of yours, and merge one pull request that its threads wrote.
 
-1. Install the latest release and set it up. The install script itself needs only `curl` and a shell.
+1. Install the latest release and set it up. The install script needs only `curl` and a shell.
 
 	```sh
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh

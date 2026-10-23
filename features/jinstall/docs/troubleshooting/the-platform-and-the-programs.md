@@ -2,9 +2,9 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard platform -> this is win32: run jstack inside WSL2` | jstack does not run on Windows itself. | Install WSL2 and run jstack inside its Linux distribution. |
+| `missing hard platform -> this is win32: run jstack inside WSL2` | jstack does not run on Windows itself. | Follow [Windows through WSL2](../windows-wsl2.md). |
 | `missing hard platform -> this is <platform>: jstack runs on Linux and macOS` | jstack runs on Linux and on macOS, and on no other platform. | Use a Linux machine or a Mac with Apple Silicon. |
-| `missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (<where>)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. `<where>` is `on Arch: t3code-bin`, or on macOS `on a Mac with Apple Silicon: brew install --cask t3-code`. | Install T3 Code, the stable or the nightly build, and open the app once. T3 Code has no `t3` command for an Intel Mac, so jstack does not run there. |
+| `missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (<where>)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. `<where>` is `on Arch: t3code-bin`, or on macOS `on a Mac with Apple Silicon: brew install --cask t3-code`. | Install T3 Code, the stable or the nightly build, and open the app once. T3 Code has no `t3` command for an Intel Mac, so jstack does not run there. Under WSL2, install the `t3` command in the distro as [Windows through WSL2](../windows-wsl2.md#4-the-t3-command-in-the-distro) says. |
 | `old hard t3 -> t3 --version did not answer: open the app once` | The `t3` command is there and printed no version. | Open T3 Code once, then run the doctor again. |
 | `old hard t3 -> <version>, needs 0.1.2-nightly.20261022.3526 or newer` | The build, stable, nightly or preview, is older than the oldest one jstack supports, and may lack tools that jstack calls, such as `t3_thread_launch`. A release ranks after each of its own nightlies, so stable `0.1.2` meets it. | Update T3 Code to stable `0.1.2` or a newer build. |
 | `missing hard claude` | Claude Code is not on `PATH`. | Install Claude Code. |
