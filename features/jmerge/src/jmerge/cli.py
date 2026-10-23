@@ -1258,6 +1258,8 @@ class Repo:
             said = None
         if not isinstance(said, dict):
             return "", f"{ready.NO_SETTINGS}: GitHub's answer is not a repo"
+        if not {"allow_merge_commit", "allow_squash_merge"} <= said.keys():
+            return "", f"{ready.NO_SETTINGS}: GitHub gives them to a token with push access only"
         if said.get("allow_merge_commit") is True:
             return "--merge", ""
         if said.get("allow_squash_merge") is True:
