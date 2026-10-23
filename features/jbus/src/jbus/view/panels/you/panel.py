@@ -85,6 +85,7 @@ _NEED = {
         "item",
         "seen",
         "slug",
+        "home",
     )
 } | {"answerable": None, "unblocks": [None]}
 SHAPE = {"waiting": [_WAITS], "gates": [_GATE], "needs": [_NEED], "proceeds": [_NEED]}
@@ -308,6 +309,9 @@ def _need(
         "item": "",
         "seen": "",
         "slug": slug,
+        "home": read.homes.of_gate(waits["home"])
+        if waits["home"]
+        else read.homes.of_task(slug).name,
     }
 
 
@@ -346,6 +350,7 @@ def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict
                 "item": one.id,
                 "seen": one.last_event,
                 "slug": one.slug or "",
+                "home": read.homes.of_task(one.slug or "").name,
             }
         )
     return made

@@ -46,6 +46,12 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 | Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
 
+A project with child homes draws In progress under one heading per home, the root first and then each child home by name.
+Each heading gives the home's open tasks and what of it waits on you, and a child home with nothing open is that heading alone.
+A row's home is the one `jbriefs.home_of` gives its brief's `Home:` line, and the root for a row with no such line.
+A row whose `Home:` line names a scope that has retired is under the root, with a chip that names the scope.
+In `/state.json` and `/stack.json` each task, thread and need has its `home`, the scope's name or an empty string for the root, and the summary lists the homes with their counts under `homes`.
+
 ### Every view is a link
 
 Each view has its own address, a hash, so a pasted link opens it directly, and the browser's back and forward move through the views:
