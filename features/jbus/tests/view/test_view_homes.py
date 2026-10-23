@@ -8,52 +8,8 @@ row says which scope it named.
 """
 
 from jbus.view import state as built
-from view.scene import GATE, NOW, Scene, out
+from view.scene import NOW, OLD, RACK, ROOT, SHELF, Scene, homed
 from view.walk import runs, sources
-
-ROOT, SHELF, RACK, OLD = "", "pantry-shelf", "spice-rack", "old-shelf"
-HOMES = {
-    "tea-kettle": None,
-    "tea-tray": OLD,
-    "jam-jar": SHELF,
-    "jam-lid": SHELF,
-    "oat-milk": RACK,
-    "oat-honey": "mcp:rack",
-}
-
-
-def homed(scene):
-    """The scene's homes: the root's `home-id`, two child homes and a retired scope, and a
-    brief for each slug of `HOMES` in the home's `tasks/`, with a `Home:` line where one is
-    named. The child home `spice-rack` also has a gate with no default, which waits on the
-    user, and a scout of its own."""
-    (scene.home / "home-id").write_text("mcp:root\n")
-    for name in (SHELF, RACK, OLD):
-        (scene.home / name).mkdir()
-    (scene.home / SHELF / "home-id").write_text("mcp:shelf\n")
-    (scene.home / RACK / "home-id").write_text("mcp:rack\n")
-    (scene.home / OLD / "handoff.md").write_text("Status: retired\n")
-    gate = GATE.format(n=30, asked="which jar for the cloves?", status="open", default="")
-    (scene.home / RACK / "gates.md").write_text(gate)
-    for kind, slug, home in (
-        *(("tasks", slug, home) for slug, home in HOMES.items()),
-        ("scouts", "look", RACK),
-    ):
-        (scene.home / kind).mkdir(exist_ok=True)
-        line = f"Home: {home}\n" if home else ""
-        (scene.home / kind / f"{slug}.md").write_text(f"# {slug}: a made-up task\n{line}Task: x\n")
-    scene.passed(
-        20,
-        threads=[
-            out("crew: jam-jar"),
-            out("review: oat-milk"),
-            out("scout: look", "waiting"),
-            out("crew: tea-cups"),
-            out("home: demo", id="mcp:root"),
-            out("home: demo pantry-shelf", id="mcp:shelf"),
-            out("a thread he opened"),
-        ],
-    )
 
 
 def answers(scene):
@@ -123,7 +79,5 @@ def test_a_project_with_no_child_home_has_the_root_alone(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     stack, state = answers(scene)
     (project,) = stack["projects"]
-    assert project["homes"] == [
-        {"name": ROOT, "open": project["open"], "waits": project["waits"]}
-    ]
+    assert project["homes"] == [{"name": ROOT, "open": project["open"], "waits": project["waits"]}]
     assert {(one["home"], one["retired"]) for one in state["tasks"]} == {(ROOT, "")}
