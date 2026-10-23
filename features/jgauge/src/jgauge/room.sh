@@ -155,8 +155,6 @@ room() (
       }
       print (why == "" ? "go" : "wait: " why)
     }')
-  # A wait for load names the processes that fill the machine: the three with the largest
-  # share of a core over their lives, each with its command and its working directory.
   case $said in
   "wait: load "*" cores")
     hz=$(getconf CLK_TCK 2> /dev/null)

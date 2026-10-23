@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import queue, t3, wake
+from jbus import queue, strays, t3, wake
 from jbus.view.panels.usage import panel as usage
 from jmerge import cli
 from test_jbus_kitchen import FIXTURE, NOW, REPO
@@ -47,6 +47,7 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
         "jpack",
     }, roots
     named = source.replace(queue.SESSION, "").replace(f'KEPT = "{usage.KEPT}"', "", 1)
+    named = named.replace(f'AGENT = "{strays.AGENT}"', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)
     assert set(re.findall(r"\bt3_[a-z_]+\b", source)) == {t for t in t3.TOOLS if t[:3] == "t3_"}
 

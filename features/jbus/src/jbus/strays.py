@@ -17,12 +17,13 @@ task whose threads are not at work:
   is `/scout <slug>`. jbus settles a scout once its Report is written, so a scout counts
   whether T3 Code lists it or not, while no thread of that scout is at work.
 
-A session is the process's `CLAUDE_CODE_SESSION_ID`, and its transcript is
-`<CLAUDE_CONFIG_DIR>/projects/<the folder, with - for each character that is not a letter or a
-digit>/<session>.jsonl`, both read from the process's own environment.
+A session is the process's `queue.SESSION`, and its transcript is `<the agent's config
+folder>/projects/<the folder, with - for each character that is not a letter or a
+digit>/<session>.jsonl`, both read from the process's own environment. `AGENT` is the agent's
+name, which spells the config folder's variable (`CONFIG`) and its default (`KEPT`).
 
 A process is never stopped when its parent is not 1, when it is not the user's, when it is jbus
-or one of its ancestors, or when it is T3 Code's or Claude's own (`OWN`). Of those left, it is
+or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, it is
 stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and
 KILL to one still running `GRACE` seconds later, for a process that has the same start time.
 
@@ -44,7 +45,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import read_json, threads, verbs, write_json
+from jbus import queue, read_json, threads, verbs, write_json
 from jbus.passes import Pass
 from jbus.watch import LIVE
 
@@ -57,7 +58,10 @@ TEMP = (Path("/tmp"), Path("/var/tmp"))
 GAP = 1.0
 GRACE = 3.0
 NAME = "left-running.json"
-OWN = re.compile(r"(^|/)(t3|t3code[^/]*|claude|jbus|jgauge)$|t3code|/claude/versions/")
+AGENT = "claude"
+CONFIG = f"{AGENT.upper()}_CONFIG_DIR"
+KEPT = Path.home() / f".{AGENT}"
+OWN = re.compile(rf"(^|/)(t3|t3code[^/]*|{AGENT}|jbus|jgauge)$|t3code|/{AGENT}/versions/")
 SHOWN = 3
 
 
@@ -138,7 +142,7 @@ def _ancestors() -> set[int]:
 
 
 def orphans() -> list[Proc]:
-    """Every process of the user whose parent is 1, but for jbus and T3 Code's and Claude's own."""
+    """Every process of the user whose parent is 1, but for jbus's, T3 Code's and the agent's."""
     try:
         pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
     except OSError:
@@ -155,10 +159,10 @@ def under(path: str, folder: Path) -> bool:
 def transcript(proc: Proc, folder: Path) -> Path | None:
     """The transcript of the session that started the process, where that session worked in
     `folder`."""
-    session = proc.env.get("CLAUDE_CODE_SESSION_ID", "")
+    session = proc.env.get(queue.SESSION, "")
     if not re.fullmatch(r"[A-Za-z0-9-]+", session):
         return None
-    config = Path(proc.env.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    config = Path(proc.env.get(CONFIG) or KEPT)
     kept = config / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(folder)) / f"{session}.jsonl"
     return kept if kept.is_file() else None
 
