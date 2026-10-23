@@ -69,12 +69,14 @@ When no project asks, the install leaves the timer off, and nothing alerts.
 The timer runs `jbus-ci.service` every Monday at 09:00 in the machine's own zone.
 With `Persistent=true`, a run the machine slept through starts once the machine is up.
 The service runs `jbus ci --report --each`.
-For each project that asks, it collects, then writes `reports/ci-week-<date>.md` in that project's home.
+For each project that asks, it collects the jobs and pull requests, then writes `reports/ci-week-<date>.md` in that project's home.
 The report has the nine targets over the last 7 days, each with how it was counted.
-It counts the jobs, the local and the hosted ones apart, and says how many were cancelled while they waited.
+It gives the number of local jobs and the number of hosted jobs.
+It also gives how many jobs GitHub cancelled while they waited.
 It ends with main's red minutes by day.
 A week where every target is met, or has no data, sends nothing.
-A week with a target missed sends one `alert` event, naming each target missed and the report, once for that day.
+A week with a missed target sends one `alert` event on the day of the report.
+The event names each missed target and the report.
 A run that fails shows in `journalctl --user -u jbus-ci`.
 
 The `ci` panel of [the view](the-view.md) opens at `#/<project>/ci`.

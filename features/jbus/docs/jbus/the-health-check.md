@@ -29,7 +29,7 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 | `disk <mount>` | The share of the mount's space used, as `df` gives it. | 80% |
 | `inodes <mount>` | The share of the mount's inodes used. A filesystem that counts none, such as btrfs, has no such line. | 80% |
 | `timeout jbus` | The passes systemd stopped at `jbus.service`'s `TimeoutStartSec`, in its journal over the last 60 minutes. | 1 |
-| `timeout jmerge` | The `jmerge` runs a pass stopped at its 17-minute timeout, from the line the pass writes to the same journal. | 1 |
+| `timeout jmerge` | How many times a pass stopped `jmerge` at its 17-minute timeout, read from the line the pass writes to the same journal. | 1 |
 | `relay` | The state of `jbus-relay.service`. | not `active` |
 | `relay heartbeat` | How long since the relay last wrote its heartbeat. | 3 minutes |
 | `relay silent` | How long since the relay last heard a body. | `RELAY_SILENT_MINUTES`, 90 |

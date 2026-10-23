@@ -30,7 +30,7 @@ Remove it first, and `jinstall --check` says when it is gone.
 | `RELAY_STATE` | Where the spool is, `~/.local/state/jbus-relay` when it is not set. |
 | `RELAY_TIMEOUT_SECONDS`, `RELAY_RETRY_SECONDS` | How long a POST may take, 15 seconds, and how long a route waits after one that failed, 300 seconds. |
 | `RELAY_DEDUP_SECONDS` | How long the relay keeps the hashed id of a sent body, so the same body is not sent again: 900 seconds. The relay keeps a body's own `id` permanently. |
-| `RELAY_SILENT_MINUTES` | How long without a body counts as silence, 90 minutes when it is not set. `jbus health` pages past it ([The health check](the-health-check.md)). One that is not a number stops the relay at start. |
+| `RELAY_SILENT_MINUTES` | How long without a body counts as silence, 90 minutes when it is not set. `jbus health` pages past it ([The health check](the-health-check.md)). A value that is not a number stops the relay at start. |
 | `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE` | The fallback pager, a Home Assistant of yours: its address, a long-lived access token for it, and the `notify` service that pushes to the phone, such as `mobile_app_<phone>`. A page is `POST <url>/api/services/notify/<service>` with `Authorization: Bearer <token>`. |
 
 A key that is missing, empty or `REPLACE_ME` stops the relay at start, and that includes the pager's keys.

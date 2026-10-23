@@ -7,8 +7,9 @@ No other file names the panel.
 
 1. Make the folder.
 2. Write `panel.py`, which builds the panel's data.
-   `build(read)` returns a dict, `SHAPE` lists the keys that dict may have, and `SOURCES` names each file it reads and who writes it.
-3. Write `panel.js`, which draws the panel with one call, `panel({ drawer: function (arg, data) { ... } })`, that returns the drawer's HTML.
+   `build(read)` returns a dict, `SHAPE` lists the keys that dict may have, and `SOURCES` names each file the panel reads and who writes that file.
+3. Write `panel.js`, which draws the panel with one call, `panel({ drawer: function (arg, data) { ... } })`.
+   The `drawer` function returns the drawer's HTML.
    Add `card` for a card on the first screen.
 4. Give the drawer a way to open.
    Put `data-open="<name>"` on its card, or add it to `adds.task` or `adds.you`, which put a line in the task drawer or a count beside the Needs you queue.

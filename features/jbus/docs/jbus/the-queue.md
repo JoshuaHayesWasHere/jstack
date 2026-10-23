@@ -40,7 +40,8 @@ To approve it from a shell:
 
 The next pass with room launches the row and prints `launched alpha: <thread id>`.
 To take the go back before it launches, run `jbus queue hold alpha`.
-A message of yours in a T3 Code thread is a basis too, with `--message <thread id>/<message id>` in place of `--word`, and so is an answer to a question, with `--answer <number>` ([The bases](#the-bases)).
+A message of yours in a T3 Code thread is a basis too, with `--message <thread id>/<message id>` in place of `--word`.
+An answer to a question is another, with `--answer <number>` ([The bases](#the-bases)).
 
 ## The table
 
@@ -196,7 +197,7 @@ The row's `approval` field records the approval:
 `<who>` is `the <directory> home` for a session, and `a shell in <directory>` where no session ran it.
 The view's row says the same line.
 A row approved by rule prints `rule <n>, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and the view's row says the same and carries a `by rule <n>` mark.
-`jbus queue hold <parent>` takes the go of its queued follow-ups back with the parent's.
+`jbus queue hold <parent>` takes back the parent's go and the go of each of its queued follow-ups.
 It prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`.
 `jbus queue remove` of a parent that did not merge does the same.
 `jbus digest --json` lists each such row under its project's `by_rule`, as `{"slug", "rule", "follows", "at"}`, for the approvals run at or after `--since`.
@@ -293,7 +294,7 @@ The removal is one line of `transitions.jsonl`, with the row as it was, and one 
 jbus sends no home a message, since a home sees the removal in the queue.
 jbus moves its stored copy of the brief to `removed/<slug>.<sha12>.md` in the same directory, and leaves the home's own `tasks/<slug>.md` as it is.
 
-`remove` asks T3 Code and GitHub what is out at that moment, and refuses in these cases:
+`remove` asks T3 Code and GitHub which threads and pull requests are open at that moment, and refuses in these cases:
 
 | The row | What `remove` prints |
 |---|---|

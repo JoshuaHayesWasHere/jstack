@@ -32,11 +32,13 @@ Without it, T3 Code makes the task with no URL, and the thread says that T3 Conn
 2. Paste the prompt of [A prompt to start from](#a-prompt-to-start-from) into the thread, after this line:
    `Make a webhook task with schedule_task, bound to this thread, whose prompt is the text below, and tell me its webhookUrl.`
    The thread calls T3 Code's `schedule_task` tool and replies with the task and its `webhookUrl`.
-3. Put that URL in `webhook_url`, in `~/.config/jbus/config.toml`, and a long random string in `webhook_key`, such as the output of `openssl rand -hex 32`.
-   At the top of the file, above the first `[[project]]`, the pair is the monitor of every project.
-   `jbus` posts every project's events for you to that pair, and uses it as the webhook of every project that has no pair of its own.
+3. Put that URL in `webhook_url`, in `~/.config/jbus/config.toml`.
+   Put a long random string in `webhook_key`, such as the output of `openssl rand -hex 32`.
+   At the top of the file, above the first `[[project]]`, the pair watches every project.
+   `jbus` sends that pair every project's events for you, and uses it as the webhook of every project that has no pair of its own.
    In a project's table, the pair is that project's own webhook, and `jbus` posts to it as well as to the top-level one.
-   With an empty `webhook_url`, `jbus` POSTs nothing, and `jbus` refuses a `webhook_url` with an empty `webhook_key`.
+   With an empty `webhook_url`, `jbus` POSTs nothing.
+   `jbus` refuses a `webhook_url` with an empty `webhook_key`.
 4. Wait for the first POST.
    `jbus` sends one when a pass finds an event for you, and a project's first pass sends none.
    The Chef's thread then runs one turn, and `jbus status` shows no `last_error` for the project.

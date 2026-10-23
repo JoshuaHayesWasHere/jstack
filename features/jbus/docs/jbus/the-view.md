@@ -110,8 +110,10 @@ To close several gates at once, tick their rows, or tick every row with the one 
 A batch only takes defaults, so it sends nothing to any thread.
 To pick another option or to use your own words, open that gate by itself.
 
-The view records the answer as `jbus answer` records it, by the user of your settings, at the server's clock, in `jbus view`.
-An answer that is not the default goes to the thread that asked in the same request, as one queued message, the one a pass would send.
+The view records the answer as `jbus answer` records it.
+The record names the user of your settings, the time by the server's clock, and `jbus view` as the place.
+An answer that is not the default goes to the thread that asked in the same request.
+It goes as one queued message, the same message a pass would send.
 If T3 Code refuses the message or does not reply, the view still closes the question, the page says why the answer was not sent, and the next pass sends it.
 You can answer a question only once.
 The view refuses a second answer, and the page shows the first one.
