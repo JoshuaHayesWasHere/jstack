@@ -68,7 +68,8 @@ If the block prints `no entry`, the page gave no go that jbus can read, so ask t
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
 In one case the home approves a row the user did not speak of.
-That case is a brief that follows up work the user approved, under a rule of `standing.md` that says a follow-up needs no new approval (rule 6 of this repo's).
+The brief must follow up work the user approved.
+A rule of `standing.md` must also say that a follow-up needs no new approval, and in this repo that is rule 6.
 Then the home names the rule and the parent row, the one the user gave their word for:
 
 ```sh

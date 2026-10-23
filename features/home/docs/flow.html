@@ -169,14 +169,14 @@
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">4</span>Brief and launch</b><small>Launches when the machine has room. A file that another brief names never stops a launch. <code>jmerge --claims</code> names the overlap, and the second pull request to merge rebases. <code>t3_thread_launch</code> starts a new thread in a new worktree, with the message <code>/crew &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the brief, shaped as <code>features/jbriefs/templates/brief.md</code>, then its <code>Thread:</code> line</small></div><div class="box file"><b>the jbus queue</b><small>a row for the brief, in jbus's own state, by <code>jbus queue add --entry &lt;entry&gt;</code>. The home writes no status into <code>plan.md</code>. <code>jbus plan</code> counts it from the rows.</small></div><i class="ar r"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>Reads the brief and <code>notes.md</code>, nothing else. Then the playbook the brief's <code>Playbook:</code> line names, such as <code>features/crew/playbooks/bug-fix.md</code>.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>It reads the brief and <code>notes.md</code>, and nothing else. Then it reads the playbook that the brief's <code>Playbook:</code> line names, such as <code>features/crew/playbooks/bug-fix.md</code>.</small></div></div>
       <div class="cell g"></div>
     </div>
 
     <div class="row">
       <div class="cell h"></div>
       <div class="cell s"></div>
-      <div class="cell c"><div class="box"><b><span class="n">6</span>Do the task</b><small>Tests first, then the repo's check command until it passes. The "Done when" list is the whole target.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">6</span>Do the task</b><small>It writes the tests first, then runs the repo's check command until it passes. The "Done when" list is the whole target.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -190,7 +190,7 @@
     <div class="row">
       <div class="cell h"></div>
       <div class="cell s"></div>
-      <div class="cell c"><div class="box"><b><span class="n">7</span>Open the pull request</b><small>By <code>features/writing/playbooks/opening-a-pr.md</code>, its body shaped as <code>features/pr-review/templates/pr-body.md</code>. Links it with <code>link_pull_request</code>. Never merges.</small></div><i class="ar r"></i></div>
+      <div class="cell c"><div class="box"><b><span class="n">7</span>Open the pull request</b><small>It follows <code>features/writing/playbooks/opening-a-pr.md</code>, and shapes the body as <code>features/pr-review/templates/pr-body.md</code>. It links the pull request with <code>link_pull_request</code>. It never merges.</small></div><i class="ar r"></i></div>
       <div class="cell g"><div class="box"><b>Pull request</b><small>CI runs the check command.</small></div></div>
     </div>
 
@@ -205,7 +205,7 @@
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the Result gains <code>Reviewer:</code></small></div><i class="ar l"></i></div>
       <div class="cell c"><div class="box"><b><span class="n">9</span>Launch the reviewer</b><small>Once, when the pull request opens, so the review runs beside CI. The crewmate fixes a failed check first. <code>t3_thread_launch</code> in the same worktree, with the message <code>/pr-review run &lt;slug&gt;</code>.</small></div><i class="ar l"></i></div>
-      <div class="cell g"><div class="box"><b>Checks run</b><small>jbus wakes the crewmate only for a check that failed, or a line it owes on green.</small></div></div>
+      <div class="cell g"><div class="box"><b>Checks run</b><small>jbus wakes the crewmate only when a check fails, or when the checks pass and the crewmate owes the home a line.</small></div></div>
     </div>
 
     <div class="row rev">
@@ -225,7 +225,7 @@
     <div class="row rev">
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>Second reviewer:</code>, or <code>Scoped reviewer:</code>, and a second <code>## Review</code></small></div><i class="ar l"></i></div>
-      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>A second pass, and the last</b><small>Under <code>Review: twice</code>, a second review of the fixed head, unless the fix round wrote <code>Fixed: none needed</code>. The message is <code>/pr-review run &lt;slug&gt; again</code>. Under <code>Review: review</code>, a scoped pass of the fix alone, when the fix changed a file outside a <code>tests</code> folder or declined a blocking finding.</small></div></div>
+      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>A second pass, and the last</b><small>Under <code>Review: twice</code>, a second reviewer reviews the fixed head, unless the fix round wrote <code>Fixed: none needed</code>. The message is <code>/pr-review run &lt;slug&gt; again</code>. Under <code>Review: review</code>, a scoped reviewer reviews the fix alone, when the fix changed a file outside a <code>tests</code> folder or declined a blocking finding.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -244,7 +244,7 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small><code>jmerge --sweep</code>, once at each start, while the home merges. It removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
+      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small>The home runs <code>jmerge --sweep</code> once at each start, while it merges. The sweep removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>merge.log</b><small>what was swept, dated</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
@@ -295,7 +295,7 @@
       <tr><td><code>features/crew/templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
       <tr><td><code>features/skill-library/templates/skill-artifacts.md</code></td><td>8</td><td>Crewmate, and a scout</td><td>The artifact each name on a <code>Skills:</code> line leaves under <code>Skills run:</code> in the Result or the Report</td></tr>
       <tr><td><code>features/pr-review/templates/review.md</code></td><td>9</td><td>Reviewer</td><td>The <code>## Review</code> section of the brief</td></tr>
-      <tr><td><code>features/crew/templates/rerun.md</code></td><td>9</td><td>Crewmate, and the reviewer</td><td>The one line a reviewer gets when it is to run <code>again</code>, and the line the reviewer accepts</td></tr>
+      <tr><td><code>features/crew/templates/rerun.md</code></td><td>9</td><td>Crewmate, and the reviewer</td><td>The one message that runs a reviewer <code>again</code>, which is the only rerun message a reviewer accepts</td></tr>
       <tr><td><code>features/expert/templates/expert-answer.md</code></td><td>any</td><td>Expert</td><td>An answer to an ask, in its four parts. It is not a step of a task</td></tr>
       <tr><td><code>features/jpack/templates/context</code></td><td>4</td><td>A scout or a crewmate, on the subject repo's brief</td><td>A repo's context pack, copied into the repo it is about and read by its home at its start (<code>features/jpack/docs/context.md</code>)</td></tr>
       <tr><td><code>features/home/templates/handoff.md</code></td><td>14</td><td>Home</td><td><code>handoff.md</code></td></tr>
@@ -356,7 +356,7 @@
       <tr><td><code>jmerge --checks [&lt;pr&gt;]</code></td><td>On each wake about a pull request's checks, and before a review is launched</td><td>Its checks in one line: <code>passed</code>, <code>failed</code>, <code>wait</code> or <code>unrun</code></td><td>Nothing</td></tr>
     </tbody>
   </table>
-  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, and its findings are handled (<code>Fixed:</code>). A wider fix has had its second pass. The check named <code>check</code>, or each check that the repo's <code>required-checks</code> file lists, has passed at its head, and that check covers today's main. GitHub says the pull request can merge. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
+  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, and its findings are handled (<code>Fixed:</code>). A wider fix has had its second pass. The check named <code>check</code>, or each check that the repo's <code>required-checks</code> file lists, has passed at the pull request's head. That green run still covers today's main. GitHub says the pull request can merge. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
 </section>
 
 <section>

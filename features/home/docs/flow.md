@@ -38,7 +38,8 @@ Until you choose, run `jmerge` in the repo's main checkout.
 
 ## What you are asked for
 
-Three things come to you. Everything else that is reversible is done without asking.
+Three things come to you.
+The threads do everything else that is reversible without asking.
 
 - **An approval.** You give a yes to that exact brief.
 - **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.

@@ -218,7 +218,8 @@ The rest are tools, such as `/architect`, `/create-formal-verification-skill`, `
 ## Contributing
 
 The repo takes issues and pull requests.
-[CONTRIBUTING.md](CONTRIBUTING.md) says how to report a bug, open a pull request, and run the checks, and [SECURITY.md](SECURITY.md) says how to report a vulnerability.
+[CONTRIBUTING.md](CONTRIBUTING.md) says how to report a bug, open a pull request, and run the checks.
+[SECURITY.md](SECURITY.md) says how to report a vulnerability.
 
 ## License
 
