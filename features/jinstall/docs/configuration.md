@@ -107,7 +107,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
 | `dispatch` | `true` | `dispatch = false` launches nothing. |
-| `max_running` | Derived: one for each processor, while each processor has 2 GiB | How many crewmates may be out at once, counted across every project. A value under 1 is refused. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
+| `max_running` | Derived: one a processor, while each has 2 GiB | How many crewmates may be out at once, counted across every project. A value under 1 is refused. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
