@@ -359,3 +359,25 @@ def test_a_sweep_counts_a_pull_request_merged_into_the_train_as_merged(kitchen):
     viewed(kitchen, 6, head, TRAIN)
     said = kitchen.run("--sweep", "--check")
     assert [line for line in said if line.startswith("removable one ")], said
+
+
+def test_a_fresh_check_that_fails_over_its_train_names_the_train_and_not_main(kitchen):
+    """#326 sat on `train/macos`: what jmerge says of its fresh check, and what jbus's rebase
+    message then names, is the pull request's own base."""
+    script = kitchen.tmp / "check.sh"
+    script.write_text("exit 1\n")
+    (kitchen.home.state / "fresh-check").write_text(f"sh {script}\n")
+    head = into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    moved = on(kitchen, TRAIN, {"a.txt": LINES + "theirs\n"})
+    fails = f"wait 6 {url(6)}: sh {script} fails on {head[:12]} over today's {TRAIN} {moved[:12]}"
+    assert kitchen.after_check() == [fails]
+    assert kitchen.calls() == []
+
+
+def test_a_head_that_does_not_merge_over_its_train_names_the_train(kitchen):
+    (kitchen.home.state / "fresh-check").write_text("true\n")
+    into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    on(kitchen, TRAIN, {"a.txt": "theirs\n" + LINES})
+    assert kitchen.run() == [f"wait 6 {url(6)}: it conflicts with today's {TRAIN}"]

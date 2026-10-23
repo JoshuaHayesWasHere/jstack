@@ -306,3 +306,50 @@ def test_a_gated_line_of_this_head_holds_back_green(launched):
     launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)
     assert sends(launched) == []
+
+
+STALE = f"Stale base: at {HEAD}, check\n"
+
+
+def on(kitchen, base, checks):
+    return {**pull(kitchen, checks), "baseRefName": base}
+
+
+def reruns(kitchen):
+    return [line for line in kitchen.log("gh") if line.startswith("run rerun")]
+
+
+@pytest.mark.parametrize("base", ["train/macos", "main"])
+def test_a_failed_check_on_a_stale_base_is_rerun_once_and_a_second_failure_is_told_to_rebase(
+    launched, base
+):
+    """#326: its check failed at a head whose base had moved, so its crew wrote `Stale base:` and
+    waited for the rebase message. jmerge never runs a fresh check while the check is red, so that
+    message never came. jbus reruns the failed jobs once for the head, and when they fail again it
+    sends the rebase message, onto the pull request's own base."""
+    launched.set("open.json", [on(launched, base, [failed()])])
+    launched.poll(NOW)
+    result(launched, STALE)
+    passes(launched, 3, 6, 9)
+    assert reruns(launched) == ["run rerun 5 --failed"]
+    assert launched.lines("rerun") == ["rerun alpha: ran the failed jobs again (#7, cccccccccccc)"]
+    launched.set("jobs.json", {"21": {"steps": [{"name": "make check"}], "run_attempt": 2}})
+    launched.set("open.json", [on(launched, base, [failed("21")])])
+    passes(launched, 12, 15, 18)
+    assert reruns(launched) == ["run rerun 5 --failed"]
+    assert keys(launched) == ["failed|alpha|cccccccccccc", "rebase|alpha|cccccccccccc"]
+    told = sends(launched)[-1]["message"]
+    assert f"jbus: {base} moved under your pull request #7" in told
+    assert f"onto origin/{base}," in told
+    assert launched.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+
+
+def test_a_stale_base_whose_rerun_passes_is_told_nothing_more(launched):
+    launched.set("open.json", [on(launched, "train/macos", [failed()])])
+    launched.poll(NOW)
+    result(launched, STALE)
+    passes(launched, 3)
+    launched.set("open.json", [on(launched, "train/macos", None)])
+    passes(launched, 6, 9)
+    assert reruns(launched) == ["run rerun 5 --failed"]
+    assert keys(launched) == ["failed|alpha|cccccccccccc"]
