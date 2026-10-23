@@ -208,19 +208,21 @@ class Fresh:
             return {}
         return known if isinstance(known, dict) else {}
 
-    def of(self, number: int, head: str, tip: str, files: tuple[str, ...] | None) -> Checked | None:
+    def of(
+        self, number: int, head: str, tip: str, files: tuple[str, ...] | None, base: str
+    ) -> Checked | None:
         was = self.known().get(str(number))
         asked = {"head": head, "main": tip, "command": self.command}
         recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
         if recorded and was.get("result") != ready.TIMED_OUT:
-            return self._said(str(was.get("result")), head, tip, was)
+            return self._said(str(was.get("result")), head, tip, was, base)
         if isinstance(was, dict) and self.stands(number, was, head, tip, files):
             return Checked("", ready.fresh_kept(self.command, head, str(was["main"]), tip))
         if not self.run:
             return Checked(ready.FRESH_QUEUED, "") if recorded else None
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
         if merged.returncode == 1:
-            return Checked(ready.FRESH_CONFLICT, "")
+            return Checked(ready.FRESH_CONFLICT.format(base=base), "")
         if merged.returncode:
             return Checked(self._not_run(merged), "")
         tree = _first_word(merged.stdout)
@@ -229,7 +231,7 @@ class Fresh:
             record = {**asked, "result": ready.PASSED, "tree": tree, "marker": found.at}
             now = datetime.now().astimezone()
             self._keep(number, {**record, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"})
-            return self._said(ready.PASSED, head, tip, record)
+            return self._said(ready.PASSED, head, tip, record, base)
         if self.ran or self._held():
             return Checked(ready.FRESH_QUEUED, "")
         self.ran = True
@@ -364,7 +366,7 @@ class Fresh:
         known = {**self.known(), str(number): record}
         _write_whole(self.state / "fresh.json", json.dumps(known, indent=2) + "\n")
 
-    def _said(self, result: str, head: str, tip: str, was: dict) -> Checked:
+    def _said(self, result: str, head: str, tip: str, was: dict, base: str) -> Checked:
         if result == ready.PASSED and was.get("marker"):
             tree, marker = str(was.get("tree")), str(was["marker"])
             return Checked("", ready.fresh_skipped(tree, marker, head, tip))
@@ -374,7 +376,7 @@ class Fresh:
             return Checked("", ready.fresh_note(self.command, head, tip) + more)
         if result != ready.FAILED:
             return Checked(result, "")
-        return Checked(ready.short_on_fresh(result, self.command, head, tip), "")
+        return Checked(ready.short_on_fresh(result, self.command, head, tip, base), "")
 
     def mark(self, commit: str) -> str:
         tree = _run(self.main, "git", "rev-parse", "--verify", "-q", f"{commit}^{{tree}}")
@@ -1018,7 +1020,7 @@ class Repo:
         asks = self.fresh is not None and self.fresh.command
         if not asks and not own:
             return "", tip, ready.related_note(stale)
-        found = self.fresh.of(one.number, one.head, tip, files) if asks else None
+        found = self.fresh.of(one.number, one.head, tip, files, one.base) if asks else None
         if found is None:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         return found.short, "" if found.short else tip, found.note

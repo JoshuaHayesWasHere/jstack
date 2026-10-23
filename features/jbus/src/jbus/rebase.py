@@ -56,6 +56,13 @@ with no step run means CI started no job. No push repairs that, so `github` send
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
+A crew whose check command passes in its worktree while the base moved under the pull request
+writes `Stale base: at <head>,` and waits. `jmerge` runs no fresh check while the check is red,
+so for such a head `github` acts in its place (`stale_base`). It runs the failed jobs again, once
+for the head, under the key `rerun|<slug>|<head 12>`. When they fail again, it sends the rebase
+message in place of the `refailed` one. The rebase message names the pull request's own base,
+`baseRefName`, so a pull request on a train branch is rebased onto that branch.
+
 The second is a conflict with the base at a head. Before the reviewer writes the review, `github`
 sends a message under the key `conflict|<slug>|<head 12>`. After the reviewer has written the
 review, `github` sends the rebase message instead, whatever `jmerge` says first. `github` does not
@@ -86,22 +93,23 @@ EVENTS = {
     "drops": "quiet",
     "proof": "quiet",
     "failed": "quiet",
+    "rerun": "quiet",
     "conflict": "quiet",
     "refailed": "quiet",
     "green": "quiet",
 }
 _WAIT = re.compile(r"^wait (\d+) \S+: (.+)$")
-_HEAD = re.compile(r"\bfails on ([0-9a-f]{12}) over today's main")
+_HEAD = re.compile(r"\bfails on ([0-9a-f]{12}) over today's \S+")
 CONFLICT = re.compile(r"\bconflicts with its base")
 STALE = (re.compile(r"\bchanged .+ after its check started"), _HEAD, CONFLICT)
 NO_THREAD = "stale pull request with no thread to tell"
 REFUSED = "T3 Code refused the rebase message"
 SECOND = "stale again after its one rebase"
 MESSAGE = (
-    "jbus: main moved under your pull request #{number} ({reason}). Rebase it in your own "
+    "jbus: {base} moved under your pull request #{number} ({reason}). Rebase it in your own "
     "worktree now, even if GitHub says MERGEABLE: run `git update-ref "
     'refs/jstack/pre-rebase/{slug}/{short} {head}` first, then "A conflict"\'s rebase onto '
-    "origin/{default}, the check command, and push with `git push "
+    "origin/{base}, the check command, and push with `git push "
     "--force-with-lease=refs/heads/{slug}:{head} origin HEAD:refs/heads/{slug}`. Never push "
     "without the lease. jmerge merges only after a new green check."
 )
@@ -162,6 +170,7 @@ _REVIEWED = re.compile(r"^## Review\n(?:(?!## ).*\n)*?Head: ", re.M)
 _MODE = re.compile(r"^Review:[ \t]*(\S*)", re.M)
 _FIXED = re.compile(r"^Fixed: \S", re.M)
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
+_RUN = re.compile(r"^/[^/]+/[^/]+/actions/runs/(\d+)/job/\d+$")
 
 
 @dataclass(frozen=True)
@@ -253,7 +262,9 @@ def github(run: Pass, client: Client, world: World) -> None:
         failed, attempt = ("", 0) if rebased else ran_and_failed(run, pull)
         again = _asked("refailed", FAILED, head) if attempt > 1 else None
         ask = again or _asked("failed", FAILED, head)
-        if failed and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
+        if failed and re.search(rf"^Stale base: at {re.escape(head)},", brief, re.M):
+            stale_base(run, client, world, slug, pull, failed, attempt > 1)
+        elif failed and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
             deliver(run, client, world, number, failed, ask)
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
         if pull.get("mergeable") == "CONFLICTING" and not told:
@@ -266,6 +277,44 @@ def github(run: Pass, client: Client, world: World) -> None:
         green = f"green|{slug}|{head[:12]}" not in sent and checks(pull) == "passed"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
+
+
+def stale_base(
+    run: Pass, client: Client, world: World, slug: str, pull: dict, failed: str, again: bool
+) -> None:
+    """Act on a failed check at a head whose crew wrote `Stale base:`: the check command passes
+    in its worktree, and the pull request's base has moved since. jmerge runs no fresh check while
+    the check is red, so no other message would come. The first time, jbus runs the failed jobs
+    again, once for the head. When they fail again, the crew gets the rebase message, onto the
+    pull request's own base, which `post` sends once."""
+    head, number = pull["headRefOid"], pull["number"]
+    sent = read_json(run.state / "sent.json", [])
+    runs = [] if again else failed_runs(pull)
+    if not runs:
+        reason = f"{failed} again at {head[:12]}" if again else f"{failed}, with no run to rerun"
+        ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
+        deliver(run, client, world, number, reason, ask)
+        return
+    if f"rerun|{slug}|{head[:12]}" in sent:
+        return
+    started = [one for one in runs if not run.run("gh", "run", "rerun", one, "--failed").returncode]
+    if not started:
+        run.say(f"wait {slug}: the failed jobs of run {', '.join(runs)} could not be run again")
+        return
+    line = f"rerun {slug}: ran the failed jobs again (#{number}, {head[:12]})"
+    run.find(slug, "rerun", line, f"workflow run {', '.join(started)}", key=head[:12])
+    run.say(line)
+
+
+def failed_runs(pull: dict) -> list[str]:
+    """Return the workflow runs of the failed checks at the pull request's head."""
+    never = frozenset(pull.get(NEVER) or ())
+    found = (
+        _RUN.match(urlsplit(check.get("detailsUrl") or "").path)
+        for check in latest_of_each(pull.get("statusCheckRollup") or [])
+        if check_state(check, never) == "failed"
+    )
+    return list(dict.fromkeys(one[1] for one in found if one))
 
 
 def crew(run: Pass, slug: str) -> str:
@@ -405,10 +454,11 @@ def post(
     if ask.default and not default:
         run.say(f"wait {slug}: the default branch is not known, so its crew is not told")
         return None
+    base = world.open[slug].get("baseRefName") or default
     if held(run, client, world, slug, number, head):
         return None
     message = ask.message.format(
-        number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
+        number=number, reason=reason, slug=slug, short=head[:12], head=head, base=base
     )
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}

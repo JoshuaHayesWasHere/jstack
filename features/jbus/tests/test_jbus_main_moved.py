@@ -132,6 +132,15 @@ def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is
     }
 
 
+def test_a_red_pull_request_on_a_train_is_told_to_rebase_onto_its_train(launched):
+    launched.set("open.json", [{**pull(launched, "alpha", 7, "FAILURE"), "baseRefName": "train/x"}])
+    main = move(launched)
+    launched.poll()
+    (given,) = sends(launched)
+    on_train = message("alpha", 7, main, RED).replace("origin/main", "origin/train/x")
+    assert given["message"] == on_train
+
+
 def test_the_same_main_commit_tells_nobody_again_and_a_new_one_tells_once_more(launched):
     launched.set("open.json", [pull(launched, "alpha", 7, "FAILURE")])
     first = move(launched)

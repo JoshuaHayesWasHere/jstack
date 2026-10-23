@@ -279,12 +279,12 @@ The merge that lands has the same tree, so a CI that looks for the ref on main's
 A CI that uploads the artifact for a tree whose whole suite passed lets `jmerge` skip the check for that tree.
 [An example CI: jstack's own](jmerge/example-ci.md) shows a CI that does both.
 If `jmerge` cannot push the marker, the pass still counts, and the note ends `, its tree is not marked (<why>)`.
-A failed check prints `wait <number> <url>: <command> fails on <head12> over today's main <main12>`.
+A failed check prints `wait <number> <url>: <command> fails on <head12> over today's <base> <base12>`, where `<base>` is the pull request's base, `main` or an integration branch.
 `jmerge` stops a command still running at the limit.
 A timeout says nothing about the tree, because the limit also counts the wait for a test slot.
 It records the result as `timed out`, the line is `a fresh check is queued`, and the next run starts the check again.
 A timeout never asks for a rebase.
-A head that does not merge over today's main waits with `it conflicts with today's main`.
+A head that does not merge over today's base waits with `it conflicts with today's <base>`.
 A command that could not start prints `a fresh check could not be run (<why>)`.
 When main moves again, `jmerge` keeps a pass without a new check if main's new changes select none of the pull request's tests.
 The repo's own `scripts/select_tests.py` makes that choice.

@@ -68,7 +68,7 @@ WAITING = 10
 MESSAGE = (
     "jbus: main is green again at {main} while your pull request #{number} is {why}. If main "
     "was what broke it, it may be fixed now. In your own worktree: run `git update-ref "
-    'refs/jstack/pre-rebase/{slug}/{short} {head}`, rebase onto origin/{default} as "A '
+    'refs/jstack/pre-rebase/{slug}/{short} {head}`, rebase onto origin/{base} as "A '
     'conflict" says, rerun the tests your change touches plus the ones that failed, and push '
     "with `git push --force-with-lease=refs/heads/{slug}:{head} origin "
     "HEAD:refs/heads/{slug}`. Then carry on your flow: launch its reviewer on that push if it "
@@ -201,7 +201,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
             slug=slug,
             short=head[:12],
             head=head,
-            default=default,
+            base=pull.get("baseRefName") or default,
         )
         client.recipients = client.recipients | {thread}
         asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}

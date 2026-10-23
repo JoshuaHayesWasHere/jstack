@@ -68,7 +68,7 @@ PASSED = "passed"
 FAILED = "failed"
 TIMED_OUT = "timed out"
 FRESH_QUEUED = Reason("check", "a fresh check is queued")
-FRESH_CONFLICT = Reason("rebase", "it conflicts with today's main")
+FRESH_CONFLICT = Reason("rebase", "it conflicts with today's {base}")
 NO_HEAD = Reason("second", "its review names no head to compare its rebase with")
 
 BASE = Reason("hold", "its base is {base}, not {default}")
@@ -148,7 +148,7 @@ MAIN_CHANGED = Reason(
     "{default} changed {paths} after its check started at {since}; it needs {needs}",
 )
 FRESH_CHECK = "a fresh check"
-FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's main {tip}")
+FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's {base} {tip}")
 REBASE_HELD = Reason(
     "hold",
     "its crew held a third rebase after fixed and green, and its gate asks the user",
@@ -381,10 +381,11 @@ def short_on_migration(names: tuple[str, ...], on_default: set[int], default: st
 
 
 _TAKEN = re.compile(MIGRATION_TAKEN.pattern + "$")
+_FRESH_CONFLICTED = re.compile(FRESH_CONFLICT.pattern + "$")
 
 
 def being_rebased(why: str) -> bool:
-    return why in (CONFLICTS, FRESH_CONFLICT) or bool(_TAKEN.match(why))
+    return why == CONFLICTS or bool(_FRESH_CONFLICTED.match(why) or _TAKEN.match(why))
 
 
 @dataclass
@@ -1081,10 +1082,10 @@ def fresh_skipped(tree: str, at: str, head: str, tip: str) -> str:
     return _FRESH_SKIPPED.format(tree=tree, at=at, head=head[:12], tip=tip[:12])
 
 
-def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
+def short_on_fresh(result: str, command: str, head: str, tip: str, base: str) -> str:
     if result == PASSED:
         return ""
-    return FRESH_FAILS.format(command=command, head=head[:12], tip=tip[:12])
+    return FRESH_FAILS.format(command=command, head=head[:12], base=base, tip=tip[:12])
 
 
 def fresh_command(text: str) -> str:

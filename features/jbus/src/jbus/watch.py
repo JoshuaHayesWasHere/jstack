@@ -65,7 +65,7 @@ BROWSER_WINDOW = timedelta(days=3)
 BROWSER_GRACE = timedelta(hours=1)
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
-OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
+OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup"
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does."""

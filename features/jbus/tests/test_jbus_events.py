@@ -287,6 +287,7 @@ TABLE = {
     "drops": "quiet",
     "proof": "quiet",
     "failed": "quiet",
+    "rerun": "quiet",
     "conflict": "quiet",
     "refailed": "quiet",
     "green": "quiet",

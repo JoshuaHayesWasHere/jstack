@@ -811,7 +811,7 @@ def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen
     *_, judged = here.waits(one, "main")
     assert judged.fresh == checked.passed()
     other = cli.Fresh(home.main, home.state)
-    assert other.of(8, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
+    assert other.of(8, checked.head, checked.main, ("b.txt",), "main") == (ready.FRESH_QUEUED, "")
 
 
 def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(kitchen):
@@ -885,9 +885,9 @@ def recorded(kitchen, number, limit=60.0):
 def checked_of(kitchen, fresh, checked):
     """What `Fresh.of` says of the pull request once the fresh check that it started has ended."""
     before = known(kitchen)
-    assert fresh.of(7, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
+    assert fresh.of(7, checked.head, checked.main, ("b.txt",), "main") == (ready.FRESH_QUEUED, "")
     settled(kitchen, before)
-    return fresh.of(7, checked.head, checked.main, ("b.txt",))
+    return fresh.of(7, checked.head, checked.main, ("b.txt",), "main")
 
 
 def markers(kitchen):
