@@ -52,6 +52,14 @@ SESSION = "a-home-session"
 GO = f"your word, {SAID_AT} (time typed); run {RAN} by the demo home"
 
 
+def gone(thread, said):
+    """Return T3 Code's answer, as it gives it today (2026-10-23), for a thread it no longer
+    has: a read says the thread `is no longer available`, a send that it `was not found`."""
+    failure = {"_tag": "OrchestratorMcpFailure", "code": "thread_not_found"}
+    text = json.dumps({**failure, "message": f"Thread {thread} {said}."}, separators=(",", ":"))
+    return {"isError": True, "content": [{"type": "text", "text": text}]}
+
+
 def iso(moment):
     return moment.isoformat().replace("+00:00", "Z")
 
@@ -112,14 +120,15 @@ class Webhook(Server):
 
 
 class T3(Server):
-    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls."""
+    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls.
+    A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
         self.messages, self.refuse_send, self.lose_send = {}, False, False
         self.status, self.on_list, self.down, self.lose_read = 200, None, set(), False
         self.challenges, self.registered, self.at_work = {}, [], set()
-        self.said = {}
+        self.said, self.forgot = {}, set()
         super().__init__()
 
     def thread(
@@ -264,7 +273,7 @@ class T3(Server):
                 return {"structuredContent": made, "content": []}
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if not found:
-                return {"isError": True, "content": [{"type": "text", "text": "thread not found"}]}
+                return gone(given["threadId"], "is no longer available")
             (thread,) = found
             said = {k: v for k, v in thread.items() if k != "runs"}
             made = {
@@ -277,6 +286,8 @@ class T3(Server):
                 return None
             if self.refuse_send:
                 return {"isError": True, "content": [{"type": "text", "text": "no"}]}
+            if given["threadId"] in self.forgot:
+                return gone(given["threadId"], "was not found")
             self.messages.setdefault(given["clientRequestId"], given)
             for thread in self.threads:
                 if thread["threadId"] == given["threadId"]:
