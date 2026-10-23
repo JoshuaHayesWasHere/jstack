@@ -32,6 +32,7 @@ from jmerge import (
     proof,
     rangediff,
     ready,
+    rejudge,
     rows,
     sweep,
     trailers,
@@ -593,6 +594,8 @@ class Repo:
         self.heads: dict[int, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
+        self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(fresh and fresh.run))
+        self.again_of: int | None = None
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
 
@@ -1023,6 +1026,22 @@ class Repo:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         return found.short, "" if found.short else tip, found.note
 
+    def again(self, one: ready.PullRequest, left: tuple[str, ...] | None, red: str) -> str:
+        """Why a pull request whose check failed waits, judged over today's base. Its check is
+        its own fault, `red`, unless the base moved since the check started. Then the fresh
+        check runs on the head over the base's tip, where the repo has one and the pull request
+        touches no guarded path, and on a pass, or with none, GitHub merges the base into it."""
+        moved = None if one.started is None else self.moved(one.base, one.started)
+        if moved is None or not moved[1]:
+            return red
+        tip = moved[0]
+        guarded = ready.guarded_path(one, self.guarded, left or ())
+        if self.fresh is not None and self.fresh.command and not guarded:
+            found = self.fresh.of(one.number, one.head, tip, None)
+            if found is None or found.short:
+                return found.short if found else ready.FRESH_QUEUED
+        return self.base_merge.of(one, tip)
+
     def related(
         self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
     ) -> tuple[str, ...]:
@@ -1057,6 +1076,17 @@ class Repo:
         return found
 
     def judge(self, one: ready.PullRequest, default: str) -> Judgement:
+        """The judgement of the pull request. Where all that holds it is a required check that
+        failed, it is judged again as if that check had passed, and a judgement that gets as far
+        as freshness judges it over today's base (`again`)."""
+        found = self.judged(one, default)
+        if not ready.red_only(one) or found.why != ready.short_on_github(one):
+            return found
+        self.again_of = None
+        green = self.judged(replace(one, waiting=(), failed=()), default, found.why)
+        return green if self.again_of == one.number else found
+
+    def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
         self.carried.pop(one.number, None)
         if one.draft:
@@ -1138,6 +1168,9 @@ class Repo:
             hold = ""
         if hold:
             return Judgement(brief.stem, "hold", hold, note, None)
+        if red:
+            self.again_of = one.number
+            return Judgement(brief.stem, "wait", self.again(one, left, red), note, None)
         short, tip, fresh = self.stale(one, left)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)

@@ -180,6 +180,14 @@ MIGRATION_REBASING = Reason(
 )
 MAIN_RED = Reason("check", "main is red at {sha}, its fix merges first")
 BASE_RED = Reason("check", "{base} is red at {sha}: its latest check failed")
+BASE_MERGE_ASKED = Reason(
+    "check",
+    "GitHub was asked to merge {base} at {tip} into it: its check failed before {base} moved",
+)
+BASE_MERGE_REFUSED = Reason("check", "GitHub did not merge {base} at {tip} into it: {why}")
+BASE_MERGE_DUE = Reason(
+    "check", "its check failed before {base} moved: GitHub is to merge {base} at {tip} into it"
+)
 GATE_FAILED = Reason("hold", "its merge gate failed: {first}")
 GATE_UNSTARTED = Reason("hold", "its merge gate could not start: {why}")
 GATE_TIMED_OUT = Reason("hold", "its merge gate ran over {limit} and was stopped")
@@ -219,6 +227,7 @@ class PullRequest:
     draft: bool = False
     started: datetime | None = None
     added: tuple[str, ...] = ()
+    failed: tuple[str, ...] = ()
 
 
 def _at(text: str | None) -> datetime | None:
@@ -262,6 +271,27 @@ def waiting(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[s
     return tuple(name for name in required if not passed(rollup, name))
 
 
+def failed(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
+    """The required checks whose latest run ended and failed, in `required`'s order. A run
+    still going, or one cancelled, is not failed."""
+    return tuple(
+        name
+        for name in required
+        if (runs := latest(rollup, name))
+        and all(
+            one.get("state") in ("FAILURE", "ERROR")
+            or (one.get("status") == "COMPLETED" and one.get("conclusion") == "FAILURE")
+            for one in runs
+        )
+    )
+
+
+def red_only(one: PullRequest) -> bool:
+    """Whether the one thing GitHub holds against the pull request is a required check that
+    ran and failed: every required check that has not passed failed, and it merges cleanly."""
+    return bool(one.waiting) and one.waiting == one.failed and one.mergeable == "MERGEABLE"
+
+
 def started(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> datetime | None:
     runs = latest(rollup, required[0])
     return _at(runs[0].get("startedAt")) if runs else None
@@ -283,6 +313,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         draft=bool(listed.get("isDraft")),
         started=started(listed.get("statusCheckRollup") or [], required),
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
+        failed=failed(listed.get("statusCheckRollup") or [], required),
     )
 
 

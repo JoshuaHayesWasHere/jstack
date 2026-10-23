@@ -161,6 +161,8 @@ def test_the_replay_every_pull_request_red_only_on_its_base_merges_and_one_crew_
     (_, _, _, broken), fix = red_then_fixed(replay)
     replay.passes()
     assert merged(replay.said) == [333, 340, 341]
+    carried = [line for line in replay.said if line.startswith("merged ")]
+    assert all(", review carried over: range-diff " in line for line in carried), carried
     assert sorted(replay.updated()) == ["333", "340", "341"]
     assert all(len(replay.journal(number)) == 1 for number in (333, 340, 341))
     failing = f"{CHECK} fails on {broken[:12]} over today's main"
@@ -180,7 +182,8 @@ def test_with_no_fresh_check_file_github_s_update_alone_moves_it_on(tmp_path):
     assert replay.told == []
 
 
-def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(replay):
+def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
+    replay = Replay(tmp_path, fresh=False)
     (replay.kitchen.home.stub / "refuse").write_text("")
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
@@ -198,14 +201,14 @@ def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(replay):
 def test_a_red_base_is_not_judged_again_until_it_is_green(replay):
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    tip = replay.main_at({"b.txt": "theirs\n"}, FIXED, "failed")
-    assert replay.run() == [f"wait 333 {url(333)}: main is red at {tip[:12]}, its fix merges first"]
+    replay.main_at({"b.txt": "theirs\n"}, FIXED, "failed")
+    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
     assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
 
 
 def test_a_failed_check_over_a_base_that_has_not_moved_since_is_the_pull_request_s_own(replay):
     replay.main_at(WHOLE_TREE, BROKE, "failed")
-    replay.main_at({}, "2026-10-23T12:30:00Z", "green")
+    replay.main_at({"c.txt": "theirs\n"}, "2026-10-23T12:30:00Z", "green")
     replay.crew("one", 333, {"one.txt": "ours\n"})
     assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
     assert replay.updated() == [] and not (replay.kitchen.home.state / "fresh.json").exists()
