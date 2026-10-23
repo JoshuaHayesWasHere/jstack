@@ -4,8 +4,9 @@ each one.
 The walk builds `view.walk`'s project once, runs `state.stack` and `state.build` over it as a
 pass left it, then again for a pass that T3 Code did not answer and one that GitHub did not,
 and checks each entry of `SURFACES` against what they hold. A chip and a row of a thread are
-drawn by the page alone, so `view/page/test_view_page_walk.py` checks those. An entry that
-today's view gets wrong is a known failure that names its finding (`walk.KNOWN`).
+drawn by the page, so `view/page/test_view_page_walk.py` checks those, and the `gone` a task
+carries for its chip is checked here. An entry that today's view gets wrong is a known failure
+that names its finding (`walk.KNOWN`).
 """
 
 import time
@@ -16,7 +17,7 @@ from jbus import work
 from view import walk
 from view.scene import Scene
 
-ON_PAGE = ("thread", "role")
+ON_PAGE = ("role",)
 
 
 BUILT = {}
@@ -104,6 +105,14 @@ def wrong(key, made, seen):
                 faults.append(f"{slug}: open at rank {task['rank']}, and it is off the line")
             elif want.rank not in (None, walk.OVER) and (not task or task["rank"] != want.rank):
                 faults.append(f"{slug}: rank {task and task['rank']}, not {want.rank}")
+    elif kind == "thread":
+        for (value, thread), slug in made.rows.items():
+            task = tasks.get(slug)
+            if thread != name or not task:
+                continue
+            due = want.chip == walk.GONE and work.BY_VALUE[value].who == "crew"
+            if task["gone"] != due:
+                faults.append(f"{slug}: gone is {task['gone']}, not {due}")
     elif kind == "live":
         for (role, liveness), slug in made.threads.items():
             if liveness != name or (role, liveness) == ("home", "ended"):

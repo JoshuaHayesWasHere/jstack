@@ -147,8 +147,6 @@ SURFACES = {
 F1 = "F1: a hung, lost or request-waiting task is the user's, yet only waiting.KINDS make needs"
 F2 = "F2: the outbox count is the first route's only (record.py:236), so stranded calls read 0"
 F3 = "F3: a dropped route's old last_error makes every row red with 'bus failed to send'"
-F4 = "F4: a task whose crewmate failed or is gone reads as the crewmate's, with no chip"
-F5 = "F5: the overview row reads neither unplaced nor silent (page.html:553-558)"
 F6 = "F6: progress rows take only scouts and reviewers, and an idle home ranks as done"
 F7 = "F7: a retired scope's open gate is listed like a live one (mirror.py:182)"
 
@@ -162,13 +160,6 @@ KNOWN = {
     ("value", "lost"): (F1, DATA),
     ("route", "stranded outbox"): (F2, DATA),
     ("route", "old error of a dropped route"): (F3, DATA),
-    ("thread", "failed"): (F4, PAGE),
-    ("thread", "settled"): (F4, PAGE),
-    ("thread", "archived"): (F4, PAGE),
-    ("thread", "missing"): (F4, PAGE),
-    ("value", "unknown"): (F5, PAGE),
-    ("silent", work.T3): (F5, BOTH),
-    ("silent", work.GITHUB): (F5, DATA),
     ("role", "crew"): (F6, PAGE),
     ("role", "home"): (F6, PAGE),
     ("role", "other"): (F6, PAGE),
