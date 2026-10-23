@@ -45,7 +45,7 @@ UPDATE = """\
         fi
         if [ -e "$STUB/down" ]; then
             echo '{"message":"Server Error"}'
-            echo "gh: Server Error (HTTP 502)" >&2
+            echo "gh: Server Error (HTTP $(cat "$STUB/down"))" >&2
             exit 1
         fi
         tree=$(git -C "$ORIGIN" merge-tree --write-tree refs/heads/main "$head") || exit 1
@@ -204,10 +204,12 @@ def test_the_branch_is_updated_once_for_a_head_and_a_base_tip(tmp_path):
     assert replay.updated() == ["333", "333"]
 
 
-def test_a_failure_to_ask_github_is_asked_again_on_the_next_run(tmp_path):
-    """A 5xx is no answer of GitHub's own: it keeps no record, and the next run asks again."""
+@pytest.mark.parametrize("status", ["502", "429", "403"])
+def test_a_failure_to_ask_github_is_asked_again_on_the_next_run(tmp_path, status):
+    """A 5xx or a rate limit is no answer about the branch: it keeps no record, and the next run
+    asks again."""
     replay = Replay(tmp_path, fresh=False)
-    (replay.kitchen.home.stub / "down").write_text("")
+    (replay.kitchen.home.stub / "down").write_text(status)
     replay.crew("one", 333, {"one.txt": "ours\n"})
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")

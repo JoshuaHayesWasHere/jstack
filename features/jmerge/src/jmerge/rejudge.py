@@ -29,15 +29,15 @@ from jmerge import ready
 
 NAME = "base-merges.json"
 SHA = 12
-REFUSED = re.compile(r"\(HTTP 4\d\d\)")
+REFUSED = re.compile(r"\(HTTP (409|422)\)")
 
 
 class BaseMerge:
     """The branch updates `jmerge` asked GitHub for, one record for a pull request, kept in
     `base-merges.json` in the project's state: the head, the base tip, and what GitHub said. A
     record of the same head and tip is said again and not asked again. A failure to ask, such as
-    a `gh` that did not run, a 5xx or a rate limit, keeps no record, so the next run asks again:
-    only GitHub's answer of its own, a merge or a 4xx refusal, is kept."""
+    a `gh` that did not run, a 5xx, a 403 or 429 rate limit, keeps no record, so the next run asks
+    again: only GitHub's answer about the branch, a merge or a 409 or 422 refusal, is kept."""
 
     def __init__(self, main: Path, state: Path, about: list[str], run: bool) -> None:
         self.main = main
