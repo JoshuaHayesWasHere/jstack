@@ -5,6 +5,7 @@ run --project ... jbus` is the real command from this checkout, over a made-up c
 `gh` gives the merge commit, or nothing."""
 
 import os
+import re
 import subprocess
 import sys
 
@@ -120,6 +121,20 @@ def test_an_open_pull_request_names_the_head_its_review_saw(reviewer):
     reviewer.run()
     stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
     assert f"{PULL}, not merged when the review of {HEAD} was written" in stored
+    assert_open(stored)
+
+
+def task_line(stored):
+    (line,) = [one for one in stored.splitlines() if one.startswith("Task:")]
+    return line
+
+
+def assert_open(stored):
+    """The row's `Task:` sentence of a pull request with no merge commit says it has not merged and
+    that the row waits for the merge, and never says it merged."""
+    line = task_line(stored)
+    assert "has not merged" in line and "launches after it merges" in line
+    assert set(re.findall(r"(\w+) merged\b", line)) == {"not"}, line
 
 
 @pytest.mark.parametrize(
@@ -178,6 +193,32 @@ def test_the_second_review_of_a_twice_brief_files_its_warnings_and_errors_as_one
     assert "- F4 error src/a.py:40: the retry never stops (Act on)\n" in stored
     assert "2 info findings" in stored
     assert f"{PULL}, not merged when the review of {FIX} was written" in stored
+    assert_open(stored)
+
+
+def test_a_merged_twice_brief_says_it_merged_with_its_commit(reviewer):
+    reviewer.merged(MERGE)
+    twice(reviewer, SECOND)
+    reviewer.run()
+    stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
+    assert task_line(stored) == (
+        "Task: alpha said `Review: twice`, so it merged once its second review was written, "
+        "and that review's warning and error findings come here; its 2 info findings were "
+        f"dropped. Pull request: {PULL}, merged as {MERGE}."
+    )
+
+
+def test_a_finding_with_no_repo_path_stays_out_of_where(reviewer):
+    reviewer.merged(MERGE)
+    twice(
+        reviewer,
+        SECOND + "- warning - Done when line 1 is met on one screen of three (bucket: Consider)\n",
+    )
+    reviewer.run()
+    stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
+    assert "Done when line 1 is met on one screen of three" in stored
+    (where,) = [one for one in stored.splitlines() if one.startswith("Where:")]
+    assert where == "Where: `src/a.py`, `src/d.py`"
 
 
 def test_a_second_review_of_info_findings_alone_or_clean_makes_no_row(reviewer):
