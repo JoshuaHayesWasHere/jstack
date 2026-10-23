@@ -19,7 +19,7 @@ from view.page.browser import (
     look,
     walked,
 )
-from view.scene import a_noticed, said_by_him, stacked
+from view.scene import Served, a_noticed, said_by_him, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -39,7 +39,7 @@ MIDDLE = (900, 900)
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
     """The test uses a desk's screen and makes it as high as the Needs you queue, `NEEDS`.
     Here that queue has the four rows of the scene. The In progress section starts below that
-    queue, with a row for each of the 28 open tasks."""
+    queue, with a row for each of the other 24 open tasks."""
     open_rows = lineup(scene, TODAY)
     assert len(open_rows) == 28
     screen = (DESK[0], DESK[1] + NEEDS)
@@ -48,10 +48,30 @@ def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(
     assert seen["font"] == 18
     assert seen["words"] <= WORDS, seen["words"]
     assert seen["shell"] <= SHELL, seen["shell"]
-    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 28
+    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 24
     assert set(seen["first"]) <= opened
-    assert {f"task:{slug}" for slug in open_rows} <= opened
-    assert len(opened) >= 28 + 6
+    assert {row["open"] for row in seen["prog"]} <= opened
+    assert len(opened) >= 24 + 6
+
+
+def test_no_slug_is_drawn_twice_on_the_first_screen_of_a_project(scene, tmp_path):
+    """A row of Needs you is the task's one row on the page: In progress does not draw it
+    again. Each need names its task in `state.json`, and each In progress row is one task."""
+    open_rows = lineup(scene, TODAY)
+    served = Served(scene)
+    try:
+        state = served.json(f"/state.json?project={scene.name}")
+    finally:
+        served.close()
+    needs = state["needs"] + state["proceeds"]
+    asked = [one["slug"] for one in needs if one["slug"] in open_rows]
+    assert len(asked) == 4
+    screen = (DESK[0], DESK[1] + NEEDS)
+    seen = look(scene, tmp_path, screen=screen)
+    clean(seen, screen)
+    assert len([one for one in seen["needs"]["now"] if one["seen"]]) == 4
+    drawn = asked + [row["slug"] for row in seen["prog"] if row["seen"]]
+    assert sorted({slug for slug in drawn if drawn.count(slug) > 1}) == []
 
 
 def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, tmp_path):
