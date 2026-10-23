@@ -436,6 +436,13 @@ def test_the_quickstart_is_ten_steps_at_most_and_its_install_commands_end_ok(tmp
     assert printed[-1] == "doctor: ok"
 
 
+def test_the_quickstart_links_how_to_make_the_check_it_asks_the_repo_for():
+    said = section(README.read_text(), "Quickstart")
+    step = re.search(r"^4\. (.*?)^5\. ", said, re.M | re.S)[1]
+    assert "a CI check named `check`" in step
+    assert ("a", "https://docs.github.com/en/actions/get-started/quickstart") in linked(step)
+
+
 def patterns():
     """Each line the troubleshooting pages are keyed on, as a pattern: `<word>` is any text."""
     keyed = re.findall(r"^\| `((?:missing|old|doctor:) [^`]+)` \|", troubleshooting(), re.M)
