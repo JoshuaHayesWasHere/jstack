@@ -10,6 +10,6 @@
 | `alert: health relay: jbus-relay.service is <state>` or `relay heartbeat` | The relay the config posts to is not running. | `systemctl --user status jbus-relay`, and [The relay](../jbus/the-relay.md) for a refused start. |
 | `alert: health relay silent: ...` | No body reached the relay in `RELAY_SILENT_MINUTES`. | See whether passes run (`jbus status`) and post to the relay's port. |
 | `alert: health relay errors: ...` | Your chat bot's webhook or the pager has refused the relay's POSTs for 10 minutes. | The relay's journal names the target and the status. |
-| `alert: health relay refused: ...` | A target refused a body for good, and the relay will not send it again. | Read the body in the `dead/` file the line names, and mend what the target refused. |
+| `alert: health relay refused: ...` | A target refused a body permanently, and the relay will not send it again. | Read the body in the `dead/` file the line names, and mend what the target refused. |
 | `alert: health capped <instance>: ...` | The instance is at 100% of a window, and launches skip it until the reset. | Nothing. Launches resume by themselves, and `recovered: ... launches on <instance> resume` says so. |
 | `?    health <check>: ... could not be read` | The source of the check did not answer. | Run the command it reads (`journalctl`, `systemctl --user show`) by hand. |

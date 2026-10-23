@@ -42,7 +42,7 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 |---|---|
 | Needs you | The same queue, of this project. |
 | In progress | One row for each open task, and one for each scout or reviewer thread with no task, sorted by one table (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: thread hung or quiet, a check failed, behind another task, not confirmed since a time. One click on the heading shows the queue as a flow. |
-| Merged | The count of today, and a closed list of them. |
+| Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer: "All well" and the time of the last pass, or each thing that is broken. The threads out and the blind spots are here too, and the rows the view cannot place are named. |
 
 ### Every view is a link
@@ -58,7 +58,7 @@ Each view has its own address, a hash, so a pasted link opens it directly, and t
 | `#/<project>/<panel>/<arg>` | That page with the drawer of a panel open, as `#/demo/gate/3`, `#/demo/you/gate` or `#/demo/steps/queued`. The parts after the panel are its `data-open` argument, each `:` a `/`. |
 
 `&theme=light` or `&theme=dark` after any of them sets the theme.
-The page rewrites an old link, `?project=<project>` or `#/<project>&open=<drawer>`, to its address.
+The page rewrites an old link, `?project=<project>` or `#/<project>&open=<drawer>`, to the link's new address.
 
 A drawer's head says once how fresh it is, as the header does for the page.
 It gives the time the drawer was read, or, while jbus is stopped, the time of the last pass it shows.

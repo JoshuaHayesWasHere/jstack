@@ -34,7 +34,7 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 | `relay heartbeat` | How long since the relay last wrote its heartbeat. | 3 minutes |
 | `relay silent` | How long since the relay last heard a body. | `RELAY_SILENT_MINUTES`, 90 |
 | `relay errors` | How long a route's POSTs have failed, and how many bodies wait. | 10 minutes |
-| `relay refused` | The bodies a target refused for good in the last 60 minutes, and where the last is kept in `dead/`. | 1 |
+| `relay refused` | The bodies a target refused permanently in the last 60 minutes, and where the last is kept in `dead/`. | 1 |
 | `quota <instance> seven_day` | The share of the instance's seven-day window used, from the ledger. | 80% |
 | `quota <instance> five_hour` | The share of the five-hour window used. | paged only when full, as `capped` |
 | `capped <instance>` | The windows of the instance that are full, and until when. | 100% of a window |
@@ -43,8 +43,8 @@ The mounts are those the stack writes: jbus's state and the homes, each project'
 A pass that systemd stops cannot say so itself, so jbus reads both timeouts from the journal of `jbus.service`.
 
 The relay is optional, and a machine with none has only the `relay` line above, `not watched`.
-The relay is watched only where the config posts to it: a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
-`RELAY_PORT` and `RELAY_STATE` are read from the relay's own env file, `~/.config/jbus-relay/env`, since `jbus.service` does not load it.
+jbus watches the relay only where the config posts to it, with a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
+jbus reads `RELAY_PORT` and `RELAY_STATE` from the relay's own env file, `~/.config/jbus-relay/env`, since `jbus.service` does not load that file.
 jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears a body at least that often.
 While the relay's unit is not active or its heartbeat is stale, jbus does not judge silence and errors.
 The `relay` and `relay heartbeat` lines already report the fault.
@@ -63,7 +63,8 @@ The page is the line `jbus health` prints, after `alert:` or `recovered:`.
 It goes to the desktop with `notify-send`.
 If you set a top-level webhook, the page also goes there as an event of the machine, once and not once for each project.
 A check that could not be read leaves its incident as it is.
-When jbus stops taking a check, because a mount or an instance is gone or the config no longer posts to the relay, the check's incident ends with no page.
+Some checks go away: a mount or an instance is gone, or the config no longer posts to the relay.
+The incident of such a check ends with no page.
 
 ## The pause
 

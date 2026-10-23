@@ -91,7 +91,8 @@ Five lines must also hold the right kind of value:
 
 - `Proves it:` names something outside the agent.
 - `Size:` is a t-shirt size.
-- `Where:` names at least one path under the repo, in backticks, or as a word with a `/`, a glob or an extension.
+- `Where:` names at least one path under the repo.
+  A path is in backticks, or is a word that has a `/`, a glob character or a file extension.
   Prose and a flag are not paths.
 - `Playbook:` names a crewmate's file of `playbooks/`, or `none`.
 - `Design:` names a file, or says `none, <why>`.
@@ -175,13 +176,13 @@ The home decides whether the brief is really a follow-up, and you audit that cal
   A chain is one step.
   A parent that was itself approved by rule gets `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take the user's word for <slug>`.
 
-The row's `approval` is the record of it:
+The row's `approval` field records the approval:
 
 | Field | What it holds |
 | --- | --- |
 | `basis`, `ref` | `word`, `answer` or `message`, and the id, the number or the `<thread id>/<message id>`. By rule: `rule`, and the rule's number. |
 | `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the rule's text as `standing.md` had it then, and the other two are empty, since you said nothing of the row. |
-| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. By rule it is `true`: jbus read the rule itself. |
+| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. By rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
 | `brief_sha` | The sha256 of the brief at the go, as `--sha` named it. |
@@ -224,12 +225,14 @@ Each field is normalised in these steps:
 
 1. A list field, such as `Done when:`, is one line for each `- ` item, with the lines an item is wrapped over joined. Any other field is one line.
 2. Every code span in backticks, every URL, and every word with a `/`, a `.` inside it or a digit is kept exactly as written, since such a word is a path, a file name or a number.
-3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped. A `n't` is a word of its own, `not`, so `shouldn't` is `should` and `not` and a negation is never taken for a typo. A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
+3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped. A `n't` is a word of its own, `not`. So `shouldn't` becomes the two words `should` and `not`, and the fingerprint never takes a negation for a typo. A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
 4. The words and exact tokens of a line are sorted, and so are the lines of a field.
 5. The value of `Size` is kept whole, lowercased and with its white space collapsed.
 6. The fields go in a fixed order, the six above as listed, each present even where the brief has none of it.
 
-Two fingerprints mean the same when each field has as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same. A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go. So a typo, a change of formatting, punctuation or case, and lines put in another order keep the go, and so does an edit only to the fields it leaves out. A line added, taken out or changed in the six, a path, a number or a value changed, or a field of them added, ask you again.
+Two fingerprints mean the same when each field has as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same. A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go. So a typo, a change of formatting, punctuation or case, and lines put in another order keep the go.
+An edit only to the fields the fingerprint leaves out keeps it too.
+Each of these asks you again: a line added, taken out or changed in the six fields, a changed path, number or value, and one of the six fields added.
 
 The fingerprint compares words, not meaning.
 A reword that swaps one content word for another, `must` for `may` or `all` for `any`, asks you again, by design.
@@ -247,10 +250,10 @@ When such a row is queued again with the same text, it moves to that text's `bri
 
 `jbus queue verify <slug>` prints, as JSON, what another reader needs to check that the brief it holds is the one you approved: the row's `approval` record (its basis, its reference and your words, the `brief_sha` and the `meaning` and `scope` at the go), and the brief checked, with its `brief_sha`, `meaning`, `scope` and whether the go `holds` for it. The brief checked is the stored one, or the file `--brief <path>` names. It exits 0 when the go holds, and 1 when it does not or there is no such row.
 
-`jbus queue remove` takes a row out of the queue for good, and a batch takes the same line without `jbus queue`.
+`jbus queue remove` takes a row out of the queue permanently, and a batch takes the same line without `jbus queue`.
 A removal is your word, so `--by` is your name.
 
-One file tells a pass which slugs are gone for good.
+One file tells a pass which slugs are gone permanently.
 `~/.local/state/jbus/<project>/removed.json` names each removed slug, with who said so and when.
 From then on a pass sends no event for that slug, whatever its brief in the home's `tasks/`, its thread or a gate it asked says, and it tells no thread of that slug to carry on.
 A pass still settles a thread of the slug whose brief has a done Result with nothing left, or whose pull request merged.
@@ -277,5 +280,6 @@ jbus moves its stored copy of the brief to `removed/<slug>.<sha12>.md` in the sa
 
 A thread that ended or was settled does not stop a removal.
 
-If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse: every `queue` verb is refused until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
+If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse.
+jbus refuses every `queue` verb until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
 Such a pass cannot tell which slugs were removed, so it launches nothing, reads no brief, acts on no thread or pull request except through `jmerge`, and leaves `waiting-on-user.json` as it was.

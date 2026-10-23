@@ -25,11 +25,11 @@ Remove it first, and `jinstall --check` says when it is gone.
 |---|---|
 | `RELAY_INBOUND_KEY` | The key a POST to the relay gives in `X-Automation-Key`. Any other is refused with 401. |
 | `RELAY_WEBHOOK_URL`, `RELAY_WEBHOOK_KEY` | Your chat bot's webhook and its key, sent in `Authorization: Bearer` and `X-Automation-Key`. An env file written before these names gives them as `GROK_WEBHOOK_URL` and `GROK_WEBHOOK_KEY`, which the relay reads where the new name is not set. |
-| `RELAY_PORT` | The port, 4390 with none. |
-| `RELAY_STATE` | Where the spool is, `~/.local/state/jbus-relay` with none. |
+| `RELAY_PORT` | The port, 4390 when it is not set. |
+| `RELAY_STATE` | Where the spool is, `~/.local/state/jbus-relay` when it is not set. |
 | `RELAY_TIMEOUT_SECONDS`, `RELAY_RETRY_SECONDS` | How long a POST may take, 15 seconds, and how long a route waits after one that failed, 300 seconds. |
-| `RELAY_DEDUP_SECONDS` | How long the relay keeps the hashed id of a sent body, so the same body is not sent again: 900 seconds. A body's own `id` is kept for good. |
-| `RELAY_SILENT_MINUTES` | How long without a body counts as silence, 90 minutes with none. `jbus health` pages past it ([The health check](the-health-check.md)). One that is not a number stops the relay at start. |
+| `RELAY_DEDUP_SECONDS` | How long the relay keeps the hashed id of a sent body, so the same body is not sent again: 900 seconds. The relay keeps a body's own `id` permanently. |
+| `RELAY_SILENT_MINUTES` | How long without a body counts as silence, 90 minutes when it is not set. `jbus health` pages past it ([The health check](the-health-check.md)). One that is not a number stops the relay at start. |
 | `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE` | The fallback pager, a Home Assistant of yours: its address, a long-lived access token of it, and the `notify` service that pushes to the phone, such as `mobile_app_<phone>`. A page is `POST <url>/api/services/notify/<service>` with `Authorization: Bearer <token>`. |
 
 A key that is missing, empty or `REPLACE_ME`, the pager's included, stops the relay at start.
@@ -62,12 +62,12 @@ A body that went and was not yet written to `sent/` when the relay stopped goes 
 The pager is a third route, `page`, spooled as the others are, with the pager as its target.
 The relay pages in the two cases of [What blocks](what-blocks.md), and the page's body is `{"message"}`, one line: the project, the item's `line`, how long it has blocked, and for a body your chat bot did not take, its event id, as `demo: gate 33: tea or coffee?, blocking 47 min`.
 A URL in the line that carries a key, as a query or a user, is cut to `<url>`.
-A page's id is kept for good, so it goes once, also across a restart.
-One the pager did not take goes again as any route's does, and one it refused for good (a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`) stays in `dead/page/` and is not paged again.
+A page's id is kept permanently, so it goes once, also across a restart.
+One the pager did not take goes again as any route's does, and one it refused permanently (a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`) stays in `dead/page/` and is not paged again.
 The relay also shows the line on the desktop with `notify-send -u critical`, once, when the page is spooled.
 `watch.json` in the state holds what the relay knows of what blocks: the items of each project, the ones seen, and the event id that carried each.
 
-The relay writes `heartbeat.json` in its state each minute and on each body it takes: when it beat, when it started, when it last heard a body, `RELAY_SILENT_MINUTES`, each route whose POSTs fail, since when, why, and how many bodies wait, and each body refused for good in the last day, with its file in `dead/`.
+The relay writes `heartbeat.json` in its state each minute and on each body it takes: when it beat, when it started, when it last heard a body, `RELAY_SILENT_MINUTES`, each route whose POSTs fail, since when, why, and how many bodies wait, and each body refused permanently in the last day, with its file in `dead/`.
 The relay judges none of it.
 `jbus health` reads the file and pages ([The health check](the-health-check.md)).
 

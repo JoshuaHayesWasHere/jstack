@@ -64,5 +64,6 @@ A run that fails shows in `journalctl --user -u jbus-ci`.
 The `ci` panel of [the view](the-view.md) opens at `#/<project>/ci`.
 It has no card, so the first screen keeps its size.
 It draws from the same files: each target with its value and what it is held to, and its series by day.
-The panel draws a dashed mark at the merge of each change its `MARKS` names (`features/jbus/src/jbus/view/panels/ci/panel.py`), where that slug merged in the project's home.
-A repo with none of them merged has no mark.
+`MARKS` in `features/jbus/src/jbus/view/panels/ci/panel.py` names the slugs of changes to CI.
+Where one of those slugs merged in the project's home, the panel draws a dashed mark at its merge.
+A repo where none of them merged has no mark.
