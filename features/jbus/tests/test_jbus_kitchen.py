@@ -431,9 +431,10 @@ def fake_jmerge(stub, args, cwd):
     `jmerge-dies` ends it the way a `SystemExit` with a message ends the real command: the line on
     stderr, and exit 1. `jmerge-says` ends it the way the real command ends when it cannot ask
     GitHub: the line on stdout, and exit 1. An accept of a held pull request does nothing where the
-    test wrote no `accept.txt`.
+    test wrote no `accept.txt`. Each pass reads `--claims`, which changes nothing, so its runs go
+    in `claims.log` and `jmerge.log` keeps the runs that may merge.
     """
-    with open(stub / "jmerge.log", "a") as log:
+    with open(stub / ("claims.log" if args == ["--claims"] else "jmerge.log"), "a") as log:
         log.write(" ".join(args) + "\n")
     if args == ["--claims"]:
         if (stub / "claims-fail").exists():
@@ -828,7 +829,8 @@ def test_a_fake_says_the_same_called_here_and_started_as_a_command(kitchen, comm
         there.stdout,
         there.stderr.splitlines()[-1:],
     )
-    log = kitchen.log(command[0].removesuffix("-send"))
+    name = "claims" if command == ["jmerge", "--claims"] else command[0].removesuffix("-send")
+    log = kitchen.log(name)
     assert len(log) == 2 and log[0] == log[1]
 
 

@@ -687,7 +687,7 @@ def test_a_row_whose_files_a_brief_still_out_names_is_launched_all_the_same(kitc
     )
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert gates(kitchen) == [] and "--claims" in kitchen.log("jmerge")
+    assert gates(kitchen) == [] and "--claims" in kitchen.log("claims")
     assert len(kitchen.t3.launches) == 1
 
 
