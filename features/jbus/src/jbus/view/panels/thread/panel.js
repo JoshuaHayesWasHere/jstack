@@ -9,7 +9,7 @@ function works(t) {
     return '<p><span class="chip ' + REQ[asked(t)] + '">' + esc(asked(t)) + '</span> ' + esc(REQSAY[asked(t)]) + '.</p><dl class="kv"><dt>request</dt><dd><code>scouts/' + esc(slug) + '.md</code></dd><dt>asks</dt><dd>' + esc(q.asks || "no title line") + '</dd>' +
       (q.status ? '<dt>Status</dt><dd>' + esc(q.status) + '</dd>' : "") + '</dl>';
   }
-  if (t.role === "home") return '<p>The home of ' + esc(PROJECT) + ': it plans the work and hands out each task on the line, ' + plural(S.tasks.length, "open task", "open tasks") + ' now.</p>';
+  if (t.role === "home") return '<p>' + (t.home ? 'The home of the scope <b>' + esc(t.home) + '</b> of ' : 'The root home of ') + esc(PROJECT) + ': it plans the work and hands out each task on the line, ' + plural(t.open, "open task", "open tasks") + ' of its own now' + (idle(t) ? ', and its turn ended: it waits for you to start it again' : '') + '.</p>';
   if (t.role === "other") return '<p class="src">Its title names no role, so what it works on is not known.</p>';
   if (task) return '<p>' + taskBtn(slug) + ' is on <b>' + esc((STEP[task.step] || { name: task.step }).name) + '</b>: ' + esc(task.state.name) + ', waits for ' + esc(task.state.waits) + '.</p>';
   if (m) return '<p>' + taskBtn(slug) + ' merged ' + day(ms(m.at)) + '.</p>';

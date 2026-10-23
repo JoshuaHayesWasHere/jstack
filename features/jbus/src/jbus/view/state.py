@@ -790,6 +790,7 @@ THREAD = {
         "pending",
         "page",
         "rank",
+        "open",
     )
 } | {"request": REQUEST, "home": None, "retired": None}
 
@@ -831,7 +832,8 @@ def _threads(
     `out` marks a thread in which a turn may be under way. That is any thread except one
     that ended. `today` marks a thread that is out, or that last wrote since `day` began. A
     scout's thread also has what its `request` says, and with `homes` each thread has its
-    `home`, None where it has none (`homes.Homes.of_thread`)."""
+    `home`, None where it has none (`homes.Homes.of_thread`). `open` is nothing until
+    `_home_work` counts a home's open tasks."""
     if not isinstance(left, list):
         return None
     found = []
@@ -854,6 +856,7 @@ def _threads(
             "queued": count(one.get("queued")),
             "pending": count(one.get("pending")),
             "page": one.get("page") is True,
+            "open": 0,
         }
         if thread["role"] == "scout" and home is not None and _SLUG.fullmatch(thread["slug"]):
             thread["request"] = request(home, thread["slug"])
@@ -862,6 +865,32 @@ def _threads(
             thread |= owner.said() if owner else {"home": None, "retired": ""}
         found.append(thread)
     return found
+
+
+def _home_work(
+    found: list[dict[str, Any]] | None, tasks: list[dict[str, Any]]
+) -> list[dict[str, Any]] | None:
+    """The threads, with each home's count of its own open tasks, the tasks whose `home` is
+    the home's. A home's thread whose id is in no `home-id` and on no `Was home:` line is the
+    home its title names: the words after the project's name, which a root home's title has
+    none of. A home whose turn ended while a task of its own is open is idle: nothing moves it
+    but the user, so it ranks with what asks."""
+    if found is None:
+        return None
+    owned: dict[str, int] = {}
+    for task in tasks:
+        owned[task["home"]] = owned.get(task["home"], 0) + 1
+    made = []
+    for thread in found:
+        if thread["role"] == "home":
+            name = thread["home"]
+            if name is None:
+                name = thread["slug"].partition(" ")[2]
+            thread = thread | {"home": name, "open": owned.get(name, 0)}
+            if thread["open"] and not thread["out"]:
+                thread["rank"] = ASKS
+        made.append(thread)
+    return made
 
 
 def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
@@ -1153,9 +1182,15 @@ class Read:
         return mine if isinstance(mine, dict) else {}
 
     @cached_property
-    def out(self) -> list[dict[str, Any]] | None:
+    def threads_listed(self) -> list[dict[str, Any]] | None:
         """The threads the last pass listed, or None where it left no list."""
         return _threads(self.mine.get("threads"), self.home, self.day, self.homes)
+
+    @cached_property
+    def out(self) -> list[dict[str, Any]] | None:
+        """The threads the last pass listed, each home with its open tasks (`_home_work`), or
+        None where the pass left no list."""
+        return _home_work(self.threads_listed, self.tasks)
 
     @cached_property
     def homes(self) -> Homes:
@@ -1211,7 +1246,7 @@ class Read:
             seen if isinstance(seen, dict) else {},
             self.user,
             lambda slug: _whole(self.state, self.home, slug),
-            self.out,
+            self.threads_listed,
             self.now,
             self.unconfirmed,
             leftover.read(self.state) if self.name else {},

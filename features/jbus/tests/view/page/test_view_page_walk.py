@@ -46,7 +46,7 @@ def faults(key, made, answer, rows, overview):
             found.append(f"the overview row does not name what it cannot place: {overview!r}")
     elif kind == "thread":
         for (value, thread), slug in made.rows.items():
-            if thread != name or slug not in rows:
+            if thread != name or not rows.get(slug, {"open": ""})["open"].startswith("task:"):
                 continue
             due = {want.chip} if want.chip and value != thread else set()
             if want.chip == walk.GONE and work.BY_VALUE[value].who != "crew":
