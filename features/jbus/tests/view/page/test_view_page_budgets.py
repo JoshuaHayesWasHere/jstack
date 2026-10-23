@@ -34,6 +34,7 @@ from view.page.browser import (
     look,
 )
 from view.scene import (
+    GITHUB,
     Scene,
     Served,
     a_noticed,
@@ -136,7 +137,7 @@ def a_day_old(scene):
         home = scene.home_dir / state.name
         home.mkdir(exist_ok=True)
         stamp = et(ago(minutes=5)).removesuffix(" ET")
-        url = f"https://github.com/acme/{state.name}/pull/1"
+        url = f"https://{GITHUB}/acme/{state.name}/pull/1"
         with (home / "merge.log").open("a") as log:
             log.write(f"{stamp} wait 1 {url}: check has not passed\n")
         status["projects"].setdefault(state.name, dict(status["projects"]["demo"]))
