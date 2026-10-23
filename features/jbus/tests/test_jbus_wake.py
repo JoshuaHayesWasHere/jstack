@@ -71,7 +71,9 @@ def webhook():
 
 
 def box(tmp_path, webhook, key=KEY):
-    project = Project("demo", tmp_path / "checkout", "demo", "project-1", webhook.url, key)
+    project = Project(
+        "demo", tmp_path / "checkout", "demo", "project-1", webhook.url, key, wake="webhook"
+    )
     return wake.Box(tmp_path / "state", project)
 
 

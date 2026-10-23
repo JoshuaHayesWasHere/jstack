@@ -46,7 +46,7 @@ def homed(kitchen, **config):
 
 
 def test_with_no_wake_setting_and_no_webhook_the_event_reaches_the_home_thread(kitchen):
-    homed(kitchen, url="", wake=None)
+    homed(kitchen, url="", project_wake=None)
     said = kitchen.poll(NOW)
     (sent,) = wakes(kitchen)
     assert sent["mode"] == "queue"
@@ -59,20 +59,20 @@ def test_with_no_wake_setting_and_no_webhook_the_event_reaches_the_home_thread(k
 
 
 def test_a_webhook_pair_with_wake_home_is_kept_and_not_posted_to(kitchen):
-    homed(kitchen, wake="home")
+    homed(kitchen, wake="home", project_wake=None)
     kitchen.poll(NOW)
     assert len(wakes(kitchen)) == 1 and kitchen.webhook.posts == []
     assert jbus.load().project("demo").webhook_url
 
 
 def test_wake_webhook_posts_to_the_webhook_alone(kitchen):
-    homed(kitchen, wake="webhook")
+    homed(kitchen, wake="webhook", project_wake=None)
     kitchen.poll(NOW)
     assert wakes(kitchen) == [] and len(kitchen.webhook.posts) == 1
 
 
 def test_wake_both_posts_to_the_webhook_and_sends_to_the_home_thread(kitchen):
-    homed(kitchen, wake="both")
+    homed(kitchen, wake="both", project_wake=None)
     kitchen.poll(NOW)
     assert len(wakes(kitchen)) == 1 and len(kitchen.webhook.posts) == 1
 
@@ -85,7 +85,7 @@ def test_a_project_s_own_wake_wins_over_the_top_level_one(kitchen):
 
 @pytest.mark.parametrize("picked", ["webhook", "both"])
 def test_a_wake_that_needs_the_webhook_is_refused_without_the_pair(kitchen, picked):
-    kitchen.config(url=None, wake=picked)
+    kitchen.config(wake=picked, project_wake=None)
     path = kitchen.config_dir / "config.toml"
     path.write_text(
         "\n".join(line for line in path.read_text().splitlines() if "webhook_" not in line)
@@ -96,13 +96,13 @@ def test_a_wake_that_needs_the_webhook_is_refused_without_the_pair(kitchen, pick
 
 
 def test_a_wake_that_is_none_of_the_three_is_refused(kitchen):
-    kitchen.config(wake="grok")
+    kitchen.config(project_wake="grok")
     with pytest.raises(jbus.Refused, match="wake"):
         jbus.load()
 
 
 def test_a_retry_after_a_lost_answer_keeps_one_message(kitchen):
-    homed(kitchen, url="", wake=None)
+    homed(kitchen, url="", project_wake=None)
     kitchen.t3.lose_send = True
     kitchen.poll(NOW)
     assert len(waiting(kitchen)) == 1
@@ -112,12 +112,12 @@ def test_a_retry_after_a_lost_answer_keeps_one_message(kitchen):
     kitchen.poll(later(10))
     (first,) = wakes(kitchen)
     assert waiting(kitchen) == []
-    keys = [given["clientRequestId"] for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    keys = [given["clientRequestId"] for tool, given in kitchen.t3.calls if tool.endswith("_send")]
     assert {key for key in keys if key.startswith("wake|")} == {first["clientRequestId"]}
 
 
 def test_the_home_thread_gets_at_most_one_wake_in_five_minutes(kitchen):
-    homed(kitchen, url="", wake=None)
+    homed(kitchen, url="", project_wake=None)
     kitchen.poll(NOW)
     decide_again(kitchen)
     kitchen.poll(later(2))
@@ -132,7 +132,7 @@ def decide_again(kitchen):
 
 
 def test_t3_refusing_keeps_the_events_and_alerts_in_the_journal_and_on_the_desk(kitchen):
-    homed(kitchen, url="", wake=None)
+    homed(kitchen, url="", project_wake=None)
     kitchen.t3.refuse_send = True
     said = []
     for number in range(3):
@@ -150,7 +150,7 @@ def test_t3_refusing_keeps_the_events_and_alerts_in_the_journal_and_on_the_desk(
 
 
 def test_a_failing_webhook_does_not_stop_the_home_thread_s_wakes(kitchen):
-    homed(kitchen, wake="both")
+    homed(kitchen, wake="both", project_wake=None)
     kitchen.webhook.status = 400
     for number in range(3):
         kitchen.poll(later(5 * number))
@@ -162,14 +162,14 @@ def test_a_failing_webhook_does_not_stop_the_home_thread_s_wakes(kitchen):
 
 
 def test_with_no_home_thread_the_top_level_home_thread_gets_the_wake(kitchen):
-    kitchen.config(url="", wake=None, home_thread=TOP)
+    kitchen.config(url="", project_wake=None, home_thread=TOP)
     decide(kitchen)
     kitchen.poll(NOW)
     assert len(wakes(kitchen, TOP)) == 1
 
 
 def test_with_no_thread_at_all_the_events_wait_and_the_journal_says_so_once(kitchen):
-    kitchen.config(url="", wake=None)
+    kitchen.config(url="", project_wake=None)
     decide(kitchen)
     said = kitchen.poll(NOW) + kitchen.poll(later(5))
     assert len([one for one in said if "no home thread" in one]) == 1
@@ -177,7 +177,7 @@ def test_with_no_thread_at_all_the_events_wait_and_the_journal_says_so_once(kitc
 
 
 def test_no_webhook_is_not_something_waiting_on_the_user(kitchen):
-    homed(kitchen, url="", wake=None)
+    homed(kitchen, url="", project_wake=None)
     said = kitchen.poll(NOW) + kitchen.poll(later(70))
     assert not any("set webhook_url" in one for one in said)
     assert not any("set webhook_url" in one["line"] for one in kitchen.events())
@@ -185,6 +185,6 @@ def test_no_webhook_is_not_something_waiting_on_the_user(kitchen):
 
 
 def test_status_names_each_project_s_wake(kitchen):
-    homed(kitchen, wake="both")
+    homed(kitchen, wake="both", project_wake=None)
     kitchen.poll(NOW)
     assert kitchen.status()["projects"]["demo"]["wake"] == "both"

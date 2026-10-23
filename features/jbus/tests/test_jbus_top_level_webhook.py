@@ -155,7 +155,9 @@ def test_with_no_top_level_pair_there_is_one_webhook_as_before(kitchen):
 
 
 def test_a_project_with_no_pair_of_its_own_posts_to_the_top_level_pair_alone(tmp_path, top):
-    inherits = Project("demo", tmp_path / "checkout", "demo", "p-1", top.url, TOP_KEY)
+    inherits = Project(
+        "demo", tmp_path / "checkout", "demo", "p-1", top.url, TOP_KEY, wake="webhook"
+    )
     box = wake.Box(tmp_path / "state", inherits, (top.url, TOP_KEY))
     assert [route.top for route in box.routes] == [False]
     box.send("alpha", "decision", "decision alpha: which one?")

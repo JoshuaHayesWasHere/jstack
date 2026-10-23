@@ -233,14 +233,16 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
     for one in config.projects:
         box = wake.Box(config.state(one), one, config.webhook, config.blocking)
         marks = box.marks()
+        first, *rest = box.routes
         projects[one.name] = {
-            **_hook(config, box, box.routes[0], alert.webhook(one.name)),
+            **_hook(config, box, first, alert.key_of(one.name, first)),
+            "wake": one.wake,
             "sign_in": signin.expiring(config, now),
             "sweep": marks.get("sweep", ""),
         }
-        for route in box.routes[1:]:
-            key = alert.top_level(one.name)
-            projects[one.name]["top_level"] = _hook(config, box, route, key)
+        for route in rest:
+            part = "top_level" if route.top else "webhook"
+            projects[one.name][part] = _hook(config, box, route, alert.key_of(one.name, route))
         if box.blocking is not None:
             key = alert.blocking(one.name)
             projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)

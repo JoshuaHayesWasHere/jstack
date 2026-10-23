@@ -24,7 +24,7 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `approve`: a row with no approval, or a row whose brief changed after its approval, with its
   `slug`. The line is the command that approves it;
 - `hold`: a pull request that `jmerge` holds, with its `number` and `url`;
-- `config`: a webhook that is not set, or no sign-in to T3 Code.
+- `config`: no sign-in to T3 Code.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
 such an item out of what the last pass left, and `keep` leaves it out of what the pass finds. So the
@@ -493,7 +493,8 @@ def _alarms(run: Pass) -> list[Item]:
     """Return the streaks that alerted and are still open, of this project or of the pass. Leave out
     the second target's own streak, since jbus would post it to the same webhook that fails."""
     name = run.project.name
-    mine = {alert.PASS, alert.webhook(name), alert.top_level(name), alert.jmerge(name)}
+    mine = {alert.PASS, alert.home(name), alert.webhook(name), alert.top_level(name)}
+    mine.add(alert.jmerge(name))
     found = []
     for key, one in sorted(alert.streaks(run.config.state_dir).items()):
         if key in mine and one.get("alerted"):

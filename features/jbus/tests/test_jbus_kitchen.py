@@ -646,17 +646,12 @@ class Kitchen:
         }
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
-    def config(self, url=None, project_wake=None, **top):
-        """Write the config. A top-level key given as None stays out of the file. Wakes go to
-        the webhook alone unless a test says otherwise: `wake=None` leaves the setting out, so
-        jbus takes its default, the home thread. `project_wake` sets demo's own `wake`."""
-        top = {
-            "dispatch": True,
-            "max_running": 1,
-            "runtimeMode": "full-access",
-            "wake": "webhook",
-            **top,
-        }
+    def config(self, url=None, project_wake="webhook", **top):
+        """Write the config. A top-level key given as None stays out of the file. The kitchen's
+        projects send their wakes to their webhook alone unless a test says otherwise:
+        `project_wake` is the `wake` of each project's own table, and None leaves it out."""
+        top = {"dispatch": True, "max_running": 1, "runtimeMode": "full-access", **top}
+        own = [f"wake = {json.dumps(project_wake)}"] if project_wake else []
         lines = [f"server = {json.dumps(self.t3.url)}"]
         for key, value in top.items():
             if value is None:
@@ -674,7 +669,7 @@ class Kitchen:
             f"projectId = {json.dumps(PROJECT)}",
             f"webhook_url = {json.dumps(self.webhook.url + '/wake' if url is None else url)}",
             f"webhook_key = {json.dumps(KEY)}",
-            *([f"wake = {json.dumps(project_wake)}"] if project_wake else []),
+            *own,
         ]
         for side in self.sides:
             lines += [
@@ -684,6 +679,7 @@ class Kitchen:
                 f"projectId = {json.dumps(side.project)}",
                 f"webhook_url = {json.dumps(side.webhook.url + '/wake')}",
                 f"webhook_key = {json.dumps(KEY)}",
+                *own,
             ]
         self.write(self.config_dir / "config.toml", "\n".join(lines) + "\n")
 

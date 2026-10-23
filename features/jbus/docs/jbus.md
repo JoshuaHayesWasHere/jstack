@@ -18,7 +18,7 @@ One pass, under one lock, does this for every project in the config:
    It makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).
 4. It tells each crewmate's thread what it must act on: a failed check, a conflict, a review it is owed.
 5. It launches the approved rows of the queue, after it has asked every project for its open threads and pull requests ([What a pass launches](jbus/what-a-pass-launches.md)).
-6. It rewrites the queue's derived columns, says what waits on you, and POSTs the events meant for you to the webhook, if you set one ([The Chef](chef.md)).
+6. It rewrites the queue's derived columns, says what waits on you, and sends the events meant for you to the project's home thread, or to a webhook as `wake` picks ([Where wakes go](jbus/events-and-the-webhook.md#where-wakes-go)).
 
 jbus makes no judgment call.
 When no rule covers a case, jbus logs one line, `condition <slug>: <what>`, without posting it, and leaves that slug alone for the rest of the pass.

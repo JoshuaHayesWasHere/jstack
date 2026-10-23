@@ -216,7 +216,7 @@ def posts_to_relay(config: jbus.Config) -> bool:
         port = int(relay_setting("RELAY_PORT", "4390"))
     except ValueError:
         port = 4390
-    urls = [project.webhook_url for project in config.projects]
+    urls = [project.webhook_url for project in config.projects if project.to_webhook]
     urls += [config.webhook[0], config.blocking[0]]
     found = (urllib.parse.urlsplit(url) for url in urls if url)
     return any(one.hostname in LOCAL and one.port == port for one in found)
