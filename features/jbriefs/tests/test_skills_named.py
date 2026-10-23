@@ -209,7 +209,7 @@ def not_taken():
 def test_the_names_are_of_the_pin_third_party_names():
     commit, names = pinned()
     assert f"- Commit: {commit}" in THIRD_PARTY.read_text()
-    assert len(names) == 54
+    assert len(names) == 57
 
 
 def test_every_pstack_name_at_the_pin_resolves_but_the_skills_jstack_did_not_take():

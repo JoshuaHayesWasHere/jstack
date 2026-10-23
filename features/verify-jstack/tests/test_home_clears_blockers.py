@@ -351,3 +351,49 @@ def test_a_scoped_home_clears_its_own_gates_and_not_the_root_s(demo):
     assert scoped.startswith("cleared question 1: took its default, made tea")
     assert "## Gate q1: tea or coffee?" in (state / "s" / "gates.md").read_text()
     assert not (state / "gates.md").exists()
+
+
+def red_pull(sandbox, slug, path):
+    """Open a pull request for the slug whose check failed, beside the ones already open."""
+    pulls = sandbox.parent / "gh" / "open.json"
+    were = json.loads(pulls.read_text())
+    run(sandbox, f'"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" {slug} {path} FAILURE')
+    (pull,) = json.loads(pulls.read_text())
+    number = 7 + len(were)
+    pull |= {"number": number, "url": f"https://example.test/pull/{number}"}
+    pull["headRefOid"] = f"{number:040x}"
+    pulls.write_text(json.dumps([*were, pull]))
+    run(sandbox, "jbus poll")
+
+
+def red_fix(sandbox, slug, key, path):
+    """Queue a fix of the key, approve it on the standing rule, launch it and fail its check."""
+    added = run(sandbox, f"jbus queue add {slug} --priority 1", fix(slug, key))
+    assert added.returncode == 0, added.stdout + added.stderr
+    sha = f'$(sha256sum "$JBUS_STATE_DIR/demo/briefs/{slug}.md" | cut -c1-12)'
+    ruled = run(sandbox, f"jbus queue approve {slug} --sha {sha} --rule 1 --follows rho")
+    assert ruled.returncode == 0, ruled.stdout + ruled.stderr
+    assert f"launched {slug}" in run(sandbox, "jbus poll").stdout
+    red_pull(sandbox, slug, path)
+    end_thread(sandbox, slug, "idle")
+
+
+def test_a_fix_whose_own_check_failed_is_not_at_work_and_the_next_try_then_the_cap_follow(demo):
+    launched(demo, "rho")
+    red_pull(demo, "rho", "src/rho/a.py")
+    end_thread(demo, "rho", "idle")
+    standing = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "standing.md"
+    standing.write_text("1. A home approves the fix of its own row's red check.\n")
+
+    red_fix(demo, "rho-fix", "check:rho", "src/rho/b.py")
+    second = run(demo, "jbus clear").stdout
+    red_fix(demo, "rho-fix-2", "check:rho", "src/rho/c.py")
+    capped = run(demo, "jbus clear").stdout
+    run(demo, "jbus poll")
+
+    assert second.startswith("fix check:rho: its check failed, brief a fix"), second
+    assert "try 2 of 2" in second
+    assert capped.startswith("decision check:rho: check:rho had 2 fixes"), capped
+    (event,) = [one for one in posted(demo) if "check:rho had" in one["line"]]
+    assert event["event"] == "decision"
+    assert 'Reply: "demo check:rho: I take it"' in event["say"]
