@@ -115,7 +115,9 @@ To check the checkout's own skills, clone inside the sandbox's HOME, because a r
 
 To install from a wheel, use a second sandbox, so that no checkout is above its HOME or its tool:
 
-- **Build and install the wheel.** Run `record install-skills uv build --wheel --out-dir "$VERIFY_JSTACK_SANDBOX/dist" "$VERIFY_JSTACK_REPO"`, then `record install-skills uv tool install "$VERIFY_JSTACK_SANDBOX"/dist/*.whl`. `uv` puts the tool's commands in `$HOME/.local/bin`.
+- **Build and install the wheel.**
+  Run `record install-skills uv build --wheel --out-dir "$VERIFY_JSTACK_SANDBOX/dist" "$VERIFY_JSTACK_REPO"`, then `record install-skills uv tool install "$VERIFY_JSTACK_SANDBOX"/dist/*.whl`.
+  `uv` puts the tool's commands in `$HOME/.local/bin`.
 - **Install from it.** Run `record install-skills "$HOME/.local/bin/jinstall"`, then `record install-skills "$HOME/.local/bin/jinstall" --check`. Every line starts with `ok`, and there is no `generated files` line and no `pre-push` line.
 - **See every link resolve into the wheel.**
   Run the loop of the checkout's recipe with `"$UV_TOOL_DIR"/jstack/share/jstack` in place of `$VERIFY_JSTACK_REPO`.
