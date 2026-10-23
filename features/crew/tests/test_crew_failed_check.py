@@ -132,3 +132,20 @@ def test_a_failed_check_the_block_cannot_judge_waits_and_changes_nothing(kept, t
     assert failed.says(here).split(": ")[0] == "wait"
     assert failed.reruns() == (["run rerun 5"] if kept is no_rerun else [])
     assert "Rerun:" not in failed.brief.read_text()
+
+
+def test_a_worktree_behind_a_head_jmerge_merged_its_base_into_is_told_to_fast_forward(tmp_path):
+    """jmerge asked GitHub to merge the base into the branch, so the pushed head is a commit
+    ahead of this worktree, and a push from here would be refused."""
+    failed = Failed(tmp_path, holds_base=False)
+    was = failed.head()
+    git(failed.work, "fetch", "-q", "origin")
+    git(failed.work, "merge", "-q", "--no-edit", "origin/main")
+    git(failed.work, "push", "-q", "origin", "HEAD")
+    failed.push()
+    merged = failed.head()
+    git(failed.work, "reset", "-q", "--hard", was)
+    said = failed.says("passed")
+    assert said.split(": ")[0] == "wait"
+    assert f"git merge --ff-only {merged}" in said
+    assert failed.head() == was and failed.reruns() == []
