@@ -2,7 +2,7 @@
 a new launch goes to another account. Every command reads these settings the same way.
 
 The settings are in one file, `${XDG_CONFIG_HOME:-~/.config}/jstack/config.toml`, beside the
-role map. It has four keys, and each is optional:
+role map. It has five keys, and each is optional:
 
 - `user`: the name of the one person who accepts a hold and approves a launch. The commands
   print this name for that person. The default is `user`.
@@ -13,6 +13,9 @@ role map. It has four keys, and each is optional:
 - `headroom`: the share of a usage window, in percent, at which jroles counts a provider
   instance as full for a new launch, and sends the launch to the next instance of its pool. The
   default is 90. A move off a running thread still waits for a real cap, 100.
+- `retry_cap`: how many fixes a home queues for one blocker before it stops and raises the
+  blocker to the user as a decision (`jbus.blockers`). A whole number of 1 or more. The default
+  is 2.
 
 With no file, every key has its default, and nothing in this module writes the file. `load` is
 the one reader. It returns the `Settings`, or raises `Invalid` with the one line that says why
@@ -29,9 +32,10 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo, available_timezones
 
-KEYS = ("user", "timezone", "timezone_label", "headroom")
+KEYS = ("user", "timezone", "timezone_label", "headroom", "retry_cap")
 NAMES = KEYS[:3]
 HEADROOM = 90
+RETRY_CAP = 2
 _NAME = re.compile(r"[^\s,]+")
 _AT = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (\S+)")
 
@@ -50,6 +54,7 @@ class Settings:
     zone: ZoneInfo | None = None
     label: str = ""
     headroom: float = HEADROOM
+    retry_cap: int = RETRY_CAP
 
     def local(self, moment: datetime) -> datetime:
         """The moment in the zone. The method reads a moment with no zone of its own as a
@@ -133,6 +138,9 @@ def load(file: Path | None = None) -> Settings:
         or not 0 < headroom <= 100
     ):
         raise Invalid(f"{file} has a headroom that is not a percent over 0 and up to 100")
+    cap = raw.get("retry_cap", RETRY_CAP)
+    if isinstance(cap, bool) or not isinstance(cap, int) or cap < 1:
+        raise Invalid(f"{file} has a retry_cap that is not a whole number of 1 or more")
     zone = None
     if "timezone" in raw:
         try:
@@ -144,4 +152,4 @@ def load(file: Path | None = None) -> Settings:
                     "zone database to find it in: the system has none and tzdata is not installed"
                 ) from error
             raise Invalid(f"{file} has the timezone {raw['timezone']}, not an IANA name") from error
-    return Settings(raw.get("user", "user"), zone, raw.get("timezone_label", ""), headroom)
+    return Settings(raw.get("user", "user"), zone, raw.get("timezone_label", ""), headroom, cap)

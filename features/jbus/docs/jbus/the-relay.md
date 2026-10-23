@@ -5,6 +5,8 @@ The chat bot is the other side of it, and its code is outside this repo: this pa
 A machine with no relay loses nothing else, and `jinstall --doctor` prints `missing optional relay <env file>` for it.
 
 `jbus relay` is a server, not a pass.
+It is the one way jbus pages you: jbus posts its webhook only a `decision`, a `sign-in` and an `alert` that stands ([Decisions](decisions.md)), and the relay sends each on to your chat bot, which pages you.
+No other bot watches the homes or the queue.
 It listens on `127.0.0.1`, on `RELAY_PORT` (4390; with 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound), and sends each body it is posted on to the relay's webhook, `RELAY_WEBHOOK_URL` with the key `RELAY_WEBHOOK_KEY`.
 It pages a second way when your chat bot is silent.
 Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads.
@@ -31,7 +33,7 @@ The relay sends two routes, both to the relay's webhook, and each POST says whic
 | Route | What it sends |
 |---|---|
 | `everything` | Every body as it came. |
-| `blocking` | What blocks: a `reminder` or a `refresh` whole, an `events` body of the second target whole when it has `items` ([What blocks](what-blocks.md)), and of any other body the events whose `loud` is `user` or whose kind is `gate`, `stall`, `alert`, `waiting` or `waiting-on-user`, with `say` cut to theirs. A body with none of these is not sent on this route. |
+| `blocking` | What blocks: a `reminder` or a `refresh` whole, an `events` body of the second target whole when it has `items` ([What blocks](what-blocks.md)), and of any other body the events whose `loud` is `user`, a `decision`, a `sign-in` or an `alert`, with `say` cut to theirs. A body with none of these is not sent on this route. |
 
 Each body the relay takes has an id: its own `id` when that is a short name of letters, digits, `.`, `_` and `-`, else a hash of the body, so the same body posted twice has one id.
 Each route writes what it sends to `spool/<route>/` before the relay answers 202 with `{"id"}`.

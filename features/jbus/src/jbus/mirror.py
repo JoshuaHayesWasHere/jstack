@@ -24,7 +24,7 @@ from jbus import noticed, queue, read_json, verbs, write_json
 from jbus.wake import Pass
 
 EVENTS = {
-    "gate": "user",
+    "gate": "quiet",
     "gate answered": "quiet",
     "result": "quiet",
     "review": "quiet",

@@ -22,11 +22,15 @@ Each POST to a webhook is `{"kind": "events", "say": [...], "events": [...]}`, a
 <!-- built: events -->
 | `loud` | Kinds | What happens |
 |---|---|---|
-| `user` | `alert`, `gate`, `sign-in`, `stall`, `waiting` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
-| `quiet` | `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate answered`, `green`, `heartbeat`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.sent`, `item.steered`, `item.waiting`, `jmerge`, `leftover`, `mainmoved`, `merged`, `note`, `overlap`, `pack`, `proof`, `queue`, `rebase`, `refailed`, `relayed`, `report`, `rereview`, `result`, `resume`, `retro`, `review`, `slot-wake`, `snapshot`, `stale`, `sweep`, `unplaced`, `waiting-on-user` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
+| `user` | `alert`, `decision`, `sign-in` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
+| `quiet` | `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate`, `gate answered`, `green`, `heartbeat`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.sent`, `item.steered`, `item.waiting`, `jmerge`, `leftover`, `mainmoved`, `merged`, `note`, `overlap`, `pack`, `proof`, `queue`, `rebase`, `refailed`, `relayed`, `report`, `rereview`, `result`, `resume`, `retro`, `review`, `slot-wake`, `snapshot`, `stale`, `stall`, `sweep`, `unplaced`, `waiting`, `waiting-on-user` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
 <!-- built: end -->
 
-A `gate` is a question a thread asked. A `waiting` event is `user` only when the list of what waits on you gained a hold, an approval, a config item or a gate of a home's `gates.md`, and `quiet` for any other change. A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
+A webhook is posted three kinds, and only these: a `decision`, a `sign-in` and an `alert` that stands.
+A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).
+A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
+The routine events, `merged`, `stale`, `retro`, `gate`, `stall` and `waiting`, go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
+A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
 
 A POST starts only when a `user` event waits, and it carries nothing else.
 jbus sends what waits for a project at most once in five minutes, in POSTs of at most 100 KB each.

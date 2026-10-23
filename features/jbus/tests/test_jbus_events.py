@@ -17,6 +17,7 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 from jbus import Project, wake
 from test_jbus_kitchen import GATE, KEY, NOW
 from test_jbus_wake import KEY as HOOK_KEY
@@ -88,7 +89,7 @@ def tree(root):
     }
 
 
-def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events(kitchen):
+def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events_unposted(kitchen):
     assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
     kitchen.poll()
     (gate,) = [one for one in logged(kitchen) if one["event"] == "gate"]
@@ -98,20 +99,22 @@ def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events(ki
             "at": at(NOW),
             "event": "gate",
             "slug": "alpha",
-            "loud": "user",
+            "loud": "quiet",
             "line": "gate alpha: question 1: which way?",
             "text": ASKED.strip(),
-            "posted": at(NOW),
+            "posted": None,
         }
     ]
 
 
-def test_a_gate_queued_while_a_pass_runs_is_posted_after_it_was_sent(kitchen, clock):
-    """The pass began before the gate, and the event's queued time and posted time both come from
-    the clock, not from the start of the pass."""
+def test_a_decision_queued_while_a_pass_runs_is_posted_after_it_was_sent(kitchen, clock):
+    """The pass began before the decision, and the event's queued time and posted time both come
+    from the clock, not from the start of the pass."""
     queued, posting = NOW + timedelta(seconds=30), NOW + timedelta(seconds=40)
     clock.at(queued)
-    assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
+    config = jbus.load()
+    made = wake.Box(kitchen.state, config.project("demo"), config.webhook)
+    assert made.send("alpha", "decision", "decision alpha: which way?")
     clock.at(posting)
     kitchen.poll(NOW)
     assert [(one["at"], one["posted"]) for one in printed(kitchen)] == [(at(queued), at(posting))]
@@ -186,28 +189,28 @@ def test_a_quiet_event_is_never_posted_and_one_for_the_user_is_at_the_next_post(
     assert made.flush(NOW, lambda _: None) == 0
     assert [(one["line"], one["posted"]) for one in made.log()] == [("note: a quiet one", None)]
     later = clock.at(NOW + timedelta(minutes=10))
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert made.flush(later, lambda _: None) == 1
     assert [(one["at"], one["line"], one["posted"]) for one in made.log()] == [
         (at(NOW), "note: a quiet one", None),
-        (at(later), "gate alpha: which?", at(later)),
+        (at(later), "decision alpha: which?", at(later)),
     ]
 
 
 def test_a_post_the_webhook_refuses_leaves_the_event_not_posted(tmp_path, webhook):
     webhook.fail = {1}
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert made.flush(NOW, lambda _: None) == 0
     assert [one["posted"] for one in made.log()] == [None]
 
 
 def test_the_same_event_sent_again_after_its_post_is_not_posted(tmp_path, webhook, clock):
     made = box(tmp_path, webhook)
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert made.flush(NOW, lambda _: None) == 1
     later = clock.at(NOW + timedelta(minutes=1))
-    made.send("alpha", "gate", "gate alpha: which?")
+    made.send("alpha", "decision", "decision alpha: which?")
     assert [(one["at"], one["posted"]) for one in made.log()] == [
         (at(NOW), at(NOW)),
         (at(later), None),
@@ -226,8 +229,8 @@ def test_a_log_that_cannot_be_written_stops_no_event_and_no_post(tmp_path, webho
     gets both lists."""
     made = box(tmp_path, webhook)
     (made.state / "events.jsonl").mkdir(parents=True)
-    assert made.send("alpha", "gate", "gate alpha: which?", "a" * 70_000, cap=70_000)
-    assert made.send("beta", "gate", "gate beta: which?", "b" * 70_000, cap=70_000)
+    assert made.send("alpha", "decision", "decision alpha: which?", "a" * 70_000, cap=70_000)
+    assert made.send("beta", "decision", "decision beta: which?", "b" * 70_000, cap=70_000)
     said, went = [], []
     assert made.flush(NOW, said.append, went=went.append) == 2
     assert [[one["slug"] for one in post["events"]] for post in webhook.posts] == [
@@ -262,10 +265,11 @@ def test_the_daily_prune_drops_what_is_older_than_two_weeks(kitchen, clock):
 
 
 TABLE = {
-    "gate": "user",
-    "waiting": "user",
+    "gate": "quiet",
+    "waiting": "quiet",
     "alert": "user",
-    "stall": "user",
+    "stall": "quiet",
+    "decision": "user",
     "failover": "quiet",
     "sign-in": "user",
     "waiting-on-user": "quiet",

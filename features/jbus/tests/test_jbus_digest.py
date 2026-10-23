@@ -43,6 +43,12 @@ def approval(slug):
     return f"approve {slug}: {command}"
 
 
+def deciding(slug):
+    """Return the decision a row with no approval is raised as, as the chat says it."""
+    reply = f'Reply: "demo approve {slug}: go"'
+    return f"demo: decision {slug}: {approval(slug)}, a row with no approval of its brief. {reply}"
+
+
 def four(kitchen):
     """Make one of each kind: an open gate, a row at `gate`, a row with no approval, and a hold."""
     kitchen.config(max_running=6)
@@ -184,7 +190,7 @@ def test_a_row_at_gate_leaves_the_list_once_it_is_launched(kitchen):
     assert "row" not in [one["kind"] for one in listed(kitchen)]
 
 
-def test_a_change_of_the_list_is_one_event_for_the_chat_and_a_pass_with_none_sends_none(kitchen):
+def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one_decision(kitchen):
     four(kitchen)
     kitchen.poll()
     assert kitchen.events("waiting") == []
@@ -193,9 +199,10 @@ def test_a_change_of_the_list_is_one_event_for_the_chat_and_a_pass_with_none_sen
     kitchen.poll(later(3))
     kitchen.poll(later(6))
     (event,) = kitchen.events("waiting")
-    assert (event["slug"], event["loud"]) == ("", "user")
+    assert (event["slug"], event["loud"]) == ("", "quiet")
     assert event["line"] == "waiting demo: 5 wait on user, 1 new (approve second), 1 gone"
-    assert event["loud"] == "user" and kitchen.webhook.said[-1] == [event["line"]]
+    assert deciding("second") in kitchen.webhook.said[-1]
+    assert not [line for post in kitchen.webhook.said for line in post if "waiting demo" in line]
     assert event["text"].splitlines() == [
         "  gate 4: which way?",
         "  gate 1: left or right?",
@@ -206,7 +213,7 @@ def test_a_change_of_the_list_is_one_event_for_the_chat_and_a_pass_with_none_sen
     ]
 
 
-def test_only_a_pass_that_adds_to_the_list_posts_and_its_line_names_what_is_new(kitchen):
+def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event_never(kitchen):
     """The test runs three passes: one adds an approval, one removes one, and one does both."""
     four(kitchen)
     kitchen.poll()
@@ -225,10 +232,16 @@ def test_only_a_pass_that_adds_to_the_list_posts_and_its_line_names_what_is_new(
         if one["event"] == "waiting"
     ]
     assert sent == [
-        ("waiting demo: 6 wait on user, 1 new (approve second), 0 gone", "user", True),
+        ("waiting demo: 6 wait on user, 1 new (approve second), 0 gone", "quiet", False),
         ("waiting demo: 5 wait on user, 0 new, 1 gone", "quiet", False),
-        ("waiting demo: 5 wait on user, 1 new (approve third), 1 gone", "user", True),
+        ("waiting demo: 5 wait on user, 1 new (approve third), 1 gone", "quiet", False),
     ]
+    decided = [
+        (f"demo: {one['line']}", one["posted"] is not None)
+        for one in box(kitchen).log()
+        if one["event"] == "decision" and one["slug"] in ("second", "third")
+    ]
+    assert decided == [(deciding("second"), True), (deciding("third"), True)]
     assert kitchen.waiting() == []
 
 
@@ -236,22 +249,20 @@ def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(ki
     """The removal is in the log, and a POST that something else starts does not carry it."""
     four(kitchen)
     kitchen.poll()
-    posts = len(kitchen.webhook.posts)
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(10))
     kitchen.poll(later(20))
+    posts = len(kitchen.webhook.posts)
     gone = "waiting demo: 4 wait on user, 0 new, 1 gone"
-    assert len(kitchen.webhook.posts) == posts and kitchen.waiting() == []
+    assert kitchen.waiting() == []
     assert [(one["loud"], one["posted"]) for one in box(kitchen).log() if one["line"] == gone] == [
         ("quiet", None)
     ]
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(30))
     assert len(kitchen.webhook.posts) == posts + 1 and kitchen.waiting() == []
-    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["waiting"]
-    assert kitchen.webhook.said[-1] == [
-        "waiting demo: 5 wait on user, 1 new (approve second), 0 gone"
-    ]
+    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision"]
+    assert kitchen.webhook.said[-1] == [deciding("second")]
 
 
 def test_the_line_names_each_new_item_by_its_kind_and_its_slug_or_number(kitchen):
@@ -318,6 +329,7 @@ def test_the_digest_is_each_project_s_rows_merges_pulls_and_waiting_list_then_th
         "done",
         "merged",
         "pulls",
+        "routine",
         "rows",
         "sweep",
         "waiting",
@@ -404,6 +416,7 @@ def test_the_digest_of_a_project_no_pass_has_run_for_is_empty_and_makes_no_state
         "done": [],
         "merged": [],
         "pulls": [],
+        "routine": [],
         "rows": [],
         "sweep": "",
         "waiting": [],

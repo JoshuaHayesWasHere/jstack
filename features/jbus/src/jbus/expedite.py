@@ -57,8 +57,8 @@ not send them while a thread titled `review: <slug>` is at work.
 The message is a quiet event, `expedite`: it starts no POST. `expedite.json` counts the
 passes. After the message, a pass is an idle one when the reason and the head are as they
 were and nobody is at work, neither the crew nor a reviewer the reason waits for. The
-`PASSES`th idle pass sends one `stall` event for the chat, which names the pull request, the
-reason and the crew's thread. So the user hears once, and only of a crew that did not act.
+`PASSES`th idle pass logs one `stall` event, quiet and in the digest, which names the pull
+request, the reason and the crew's thread, once, and only of a crew that did not act.
 Long work does not delay the stall forever. The `REVIEWING`th pass after the message
 also sends that stall, and where somebody is at work in that pass, the stall says so.
 

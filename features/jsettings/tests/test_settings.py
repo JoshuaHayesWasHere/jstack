@@ -358,3 +358,16 @@ def test_the_headroom_is_90_with_none_and_the_number_given_with_one(jstack_confi
     assert jsettings.load().headroom == 90
     jstack_config.write_text("headroom = 82.5\n")
     assert jsettings.load().headroom == 82.5
+
+
+@pytest.mark.parametrize("given", ["0", "1.5", '"2"', "true", "-1"])
+def test_a_retry_cap_that_is_not_a_whole_number_of_one_or_more_is_refused(jstack_config, given):
+    jstack_config.write_text(f"retry_cap = {given}\n")
+    with pytest.raises(jsettings.Invalid, match="has a retry_cap that is not a whole number"):
+        jsettings.load()
+
+
+def test_the_retry_cap_is_2_with_none_and_the_number_given_with_one(jstack_config):
+    assert jsettings.load().retry_cap == 2
+    jstack_config.write_text("retry_cap = 5\n")
+    assert jsettings.load().retry_cap == 5

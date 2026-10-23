@@ -56,6 +56,7 @@ Run it after the block at the top, in the same call as each block below that nam
 |---|---|---|
 | `$M/handoff.md` | The note the last home left: what is next, what it has out that jbus does not hold, what not to redo, what is uncommitted, and each gate jbus could not take. Rewritten at every handoff, from `handoff.next.md` beside it. | Ten lines, and its gates |
 | `$M/plan.md` | The work this home has planned: one entry per task, each with a "Done when" list. | Open tasks only |
+| `$M/blockers.json` | Each blocker this home briefed a fix of, with each fix queued for it, which `jbus queue add` counts against the retry cap and writes: never by hand ("Clearing its own blockers"). | One entry per blocker |
 | `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: the root home's for a brief or a request with no `Home:` line, a scoped home's for one that names its scope. | One line |
 | `$H/home-thread` | The merge switch, and not this home's id. Empty or missing, jbus runs `jmerge` on each pass, also while a home runs, and the home runs none: it tells the user what jbus logged. An id in it stops jbus's run for the project, and only the home merges. One of the two merges, never both: the block of "Who merges" reads it before every run ("Merging a pull request that is ready"). Set by hand only: no skill and no script writes it. | Empty, or one line |
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
@@ -128,6 +129,11 @@ Before a task goes to a crewmate, and when a step elsewhere names a step of this
 
 When a thread this home sent out sends it a message, when the user asks for status, and when a step elsewhere names a step of this section: read `$T/../skills/home/when-a-thread-sends-a-message.md` now.
 
+## Clearing its own blockers
+
+Each time this home wakes, at its start, on a thread's message and on an audit tick, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
+No bot outside watches the homes or the queue: this home clears its own blockers, and raises to the user only what the user has to decide.
+
 ## Gates
 
 At the start, on status, when nothing is left planned or out, whenever a gate is asked, shown or closed, and when a step elsewhere names a step of this section: read `$T/../skills/home/gates.md` now.
@@ -150,7 +156,12 @@ At every home's start (step 5), when a queue playbook (`autopilot-full` or `orch
 
 A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one the audit printed as `stuck`. Its worktree and its brief hold what it did. The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own". It ends in one of two calls.
 
-A thread whose last turn failed on a usage limit, the text `You've hit your weekly limit · resets <time>` or its 5-hour twin, is not carried on in place: its instance is capped until that reset, and the same message fails again. `jbus` does it: its pass reads the failure, writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom with only the `instanceId` changed (`t3_thread_configure`), and sends one queued carry-on, once for the failed run. Every launch goes to that first instance with headroom as well (`jroles` says which instance it chose and why). Where every instance of the pool is capped `jbus` sends one `stall` alert and waits for the first reset. Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configuration`, call `t3_thread_configure` with that selection and the `instanceId` of the next instance of the pool, then send the carry-on below. Never send a plain carry-on to a thread that failed on a limit.
+A thread whose last turn failed on a usage limit, the text `You've hit your weekly limit · resets <time>` or its 5-hour twin, is not carried on in place: its instance is capped until that reset, and the same message fails again.
+`jbus` does it: its pass reads the failure, writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom with only the `instanceId` changed (`t3_thread_configure`), and sends one queued carry-on, once for the failed run.
+Every launch goes to that first instance with headroom as well (`jroles` says which instance it chose and why).
+Where every instance of the pool is capped `jbus` logs one `stall`, which is quiet and in the digest, and waits for the first reset.
+Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configuration`, call `t3_thread_configure` with that selection and the `instanceId` of the next instance of the pool, then send the carry-on below.
+Never send a plain carry-on to a thread that failed on a limit.
 
 A message first, when the thread can still take one: `t3_thread_send` to the id on the brief's `Thread:` line, one line, to carry on from its brief and its worktree and to redo nothing that is there.
 

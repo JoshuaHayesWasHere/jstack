@@ -55,6 +55,15 @@ def loud(kitchen):
     return [event["line"] for event in kitchen.events() if event["loud"] == "user"]
 
 
+def stalls(kitchen):
+    """Return the line of each stall, which the log keeps and jbus never posts."""
+    found = [event for event in kitchen.events() if event["event"] == "stall"]
+    assert [(event["loud"], event.get("posted")) for event in found] == [("quiet", None)] * len(
+        found
+    )
+    return [event["line"] for event in found]
+
+
 def later(minutes):
     return NOW + timedelta(minutes=minutes)
 
@@ -131,7 +140,7 @@ def test_a_leftover_its_home_has_is_not_on_the_users_list_and_the_view_says_who_
         kitchen.poll()
     assert column(kitchen) == ("merged", "#9", "left: " + NOTE[:95] + "[cut]")
     assert jbus.read_json(kitchen.state / "waiting-on-user.json", None) == []
-    assert loud(kitchen) == [] and kitchen.waiting() == []
+    assert stalls(kitchen) == [] and kitchen.waiting() == []
     built = state(kitchen)
     assert built["waiting"] == []
     (task,) = built["tasks"]
@@ -154,13 +163,13 @@ def test_a_home_that_has_not_closed_it_in_time_is_one_stall_that_names_its_threa
     ended(kitchen)
     kitchen.poll(NOW)
     kitchen.poll(later(leftover.CLOSE_MINUTES - 1))
-    assert listed(kitchen) == [] and loud(kitchen) == []
+    assert listed(kitchen) == [] and stalls(kitchen) == []
     late = f"its home, thread {at}, has not closed it 30 min after jbus told it"
     for minutes in (30, 31, 95):
         kitchen.poll(later(minutes))
         assert listed(kitchen) == [f"left alpha: left: the docs; {late}"]
     stall = f"stall alpha: it ended with something left, and {late}; left: the docs"
-    assert loud(kitchen) == [stall]
+    assert stalls(kitchen) == [stall]
     assert len(sends(kitchen)) == 1
     built = state(kitchen, later(95))
     (task,) = built["tasks"]
@@ -177,7 +186,7 @@ def test_a_home_that_has_not_closed_it_in_time_is_one_stall_that_names_its_threa
     assert [line.partition("; ")[0] for line in listed(kitchen)] == [
         "left alpha: left: the index page"
     ]
-    assert loud(kitchen) == [stall]
+    assert stalls(kitchen) == [stall]
 
 
 def test_a_leftover_goes_from_the_record_when_its_brief_says_left_none(kitchen):
@@ -191,7 +200,7 @@ def test_a_leftover_goes_from_the_record_when_its_brief_says_left_none(kitchen):
     kitchen.poll(later(45))
     assert column(kitchen) == ("done", "", "")
     assert leftover.read(kitchen.state) == {} and listed(kitchen) == []
-    assert loud(kitchen) == [] and len(sends(kitchen)) == 1
+    assert stalls(kitchen) == [] and len(sends(kitchen)) == 1
 
 
 def test_a_row_with_no_home_is_the_users_at_once_and_the_line_says_why(kitchen):
@@ -200,7 +209,7 @@ def test_a_row_with_no_home_is_the_users_at_once_and_the_line_says_why(kitchen):
     kitchen.poll()
     why = "it has no home: no home-id names a thread for the home of its brief"
     assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
-    assert sends(kitchen) == [] and loud(kitchen) == []
+    assert sends(kitchen) == [] and stalls(kitchen) == []
     (task,) = state(kitchen)["tasks"]
     assert (task["step"], task["who"]) == ("gate", "user")
     assert f"the docs. It waits on you: {why}. Either of two things ends it" in task["state"]["say"]
@@ -221,7 +230,7 @@ def test_a_home_whose_thread_is_not_listed_as_not_settled_is_no_home_to_tell(kit
         "handed off": leftover.NO_HOME,
     }.get(how, f"its home's thread {at['threadId']} is not one T3 Code lists as not settled")
     assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
-    assert sends(kitchen) == [] and loud(kitchen) == []
+    assert sends(kitchen) == [] and stalls(kitchen) == []
 
 
 def test_a_home_that_starts_later_is_told_then_and_the_row_leaves_the_users_list(kitchen):
@@ -231,7 +240,7 @@ def test_a_home_that_starts_later_is_told_then_and_the_row_leaves_the_users_list
     at = home(kitchen)
     kitchen.poll(later(50))
     assert listed(kitchen) == [] and [one["threadId"] for one in sends(kitchen)] == [at["threadId"]]
-    assert loud(kitchen) == []
+    assert stalls(kitchen) == []
 
 
 def test_a_scoped_homes_brief_goes_to_that_scope_by_its_name_or_its_thread(kitchen):
@@ -260,7 +269,7 @@ def test_a_message_t3_code_does_not_take_is_sent_on_the_next_pass(kitchen):
     assert kitchen.t3.messages == {} and listed(kitchen) == [f"left alpha: left: the docs; {why}"]
     kitchen.t3.lose_send = False
     kitchen.poll(later(40))
-    assert len(kitchen.t3.messages) == 1 and listed(kitchen) == [] and loud(kitchen) == []
+    assert len(kitchen.t3.messages) == 1 and listed(kitchen) == [] and stalls(kitchen) == []
 
 
 def test_a_message_t3_code_refuses_leaves_the_row_the_users_with_the_reason(kitchen):
@@ -311,17 +320,17 @@ def test_a_home_that_took_over_is_told_too_and_its_thirty_minutes_start_then(kit
     kitchen.poll(later(10))
     assert listed(kitchen) == [f"left alpha: left: the docs; {leftover.NO_HOME}"]
     kitchen.poll(later(40))
-    assert loud(kitchen) == []
+    assert stalls(kitchen) == []
     second = home(kitchen)
     (kitchen.home / "handoff.md").unlink()
     kitchen.poll(later(41))
     assert [one["threadId"] for one in sends(kitchen)] == [first["threadId"], second["threadId"]]
-    assert listed(kitchen) == [] and loud(kitchen) == []
+    assert listed(kitchen) == [] and stalls(kitchen) == []
     kitchen.poll(later(70))
-    assert listed(kitchen) == [] and loud(kitchen) == []
+    assert listed(kitchen) == [] and stalls(kitchen) == []
     kitchen.poll(later(71))
     late = f"its home, thread {second['threadId']}, has not closed it 30 min after jbus told it"
-    assert loud(kitchen) == [
+    assert stalls(kitchen) == [
         f"stall alpha: it ended with something left, and {late}; left: the docs"
     ]
 
@@ -336,10 +345,10 @@ def test_a_home_told_and_then_settled_is_the_users_with_that_reason_and_no_stall
         kitchen.poll(later(minutes))
         why = f"its home's thread {at['threadId']} is not one T3 Code lists as not settled"
         assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
-    assert loud(kitchen) == []
+    assert stalls(kitchen) == []
     at["settled"] = False
     kitchen.poll(later(61))
-    assert len(loud(kitchen)) == 1 and len(sends(kitchen)) == 1
+    assert len(stalls(kitchen)) == 1 and len(sends(kitchen)) == 1
 
 
 def test_a_pass_that_cannot_list_the_threads_out_leaves_an_untold_row_the_users(kitchen):

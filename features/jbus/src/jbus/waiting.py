@@ -36,18 +36,13 @@ root's line says more and the root has `unblocks`. A row to approve is listed on
 also when it is at `gate` for its changed brief. A pass that could not ask about a kind keeps the
 items of that kind that it had.
 
-When a pass writes a list with other keys than the list that it found, the pass sends one `waiting`
+When a pass writes a list with other keys than the list that it found, the pass logs one `waiting`
 event. The event gives how many items wait, the new ones by name (`short`), and each line, marked
-`+` for a new item and `-` for one that is gone. The event goes to the chat only when the list
-gained an item that `asks` something new of the user. Such an item is a hold, an approval or a
-config item, of which no other message tells the user, or a gate in a home's `gates.md`. A config
-item is one of jbus's own conditions, but it still asks something of the user: with no sign-in to T3
-Code jbus has stopped, and only the user can sign in. Any other change is `quiet`. `quiet` covers a
-pass that only took items off. It covers a question that jbus holds, since jbus's own `gate` event
-told the user when jbus asked the question. It also covers a row that jbus put at `gate`, since that
-is jbus's own condition. The first pass that writes the list sends no event. Neither the file nor
-the event holds a webhook URL, key or token, since `redact` removes each of them from the pass's
-findings before the pass compares those findings with the file.
+`+` for a new item and `-` for one that is gone. It is `quiet`: the list is for the record and the
+digest, and what on it the user has to decide reaches the user as a `decision` (`jbus.blockers`).
+The first pass that writes the list logs no event. Neither the file nor the event holds a webhook
+URL, key or token, since `redact` removes each of them from the pass's findings before the pass
+compares those findings with the file.
 
 What blocks is a part of this list, and `blocking` is the one function that decides it. An item
 blocks when it is open and nothing can move without the user. That is the design's Blocking test
@@ -112,7 +107,7 @@ from jbus.watch import LIVE, World
 if TYPE_CHECKING:
     from jbus.cli import Half
 
-EVENTS = {"waiting": "user"}
+EVENTS = {"waiting": "quiet"}
 EVENT = "waiting"
 
 
@@ -137,7 +132,6 @@ KINDS = (
     Kind("hold", "Pull requests jmerge holds for your word", "Review merge", 3),
     Kind("config", "Setup jbus lacks", "Set up", 6),
 )
-ASKS = ("hold", "approve", "config")
 
 Item = dict[str, Any]
 
@@ -271,13 +265,6 @@ def unapproved(run: Pass, rows: list[queue.Row]) -> list[Item]:
     return found
 
 
-def asks(one: Item) -> bool:
-    """Say whether an item that the list gained asks something new of the user."""
-    if one["kind"] == "gate":
-        return not questions.listed(one)
-    return one["kind"] in ASKS
-
-
 def gated(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
     """Return the rows at `gate` that have no open pull request and for which this pass recorded a
     condition. When a reply from T3 Code is lost, a row stays at `gate` for one pass with no
@@ -366,9 +353,8 @@ def keep(
     derived: bool,
     read_all: bool,
 ) -> list[Item]:
-    """Rewrite the list, and send one event when the new list's keys differ from the old list's. The
-    event is for the chat when the list gained an item that `asks` something new of the user, and
-    `quiet` for any other change.
+    """Rewrite the list, and log one quiet event when the new list's keys differ from the old
+    list's.
 
     `roots` is the list that `stall.tell` returns. `derived` says the rows' statuses are this
     pass's, and `read_all` says that `dispatch` read every row of the queue in this pass.
@@ -430,8 +416,7 @@ def keep(
         )
         marked = [f"{'+' if one in new else ' '} {one['line']}" for one in listed]
         marked += [f"- {one['line']}" for one in gone]
-        loud = None if any(map(asks, new)) else "quiet"
-        run.box.send("", EVENT, line, "\n".join(marked), loud=loud)
+        run.box.send("", EVENT, line, "\n".join(marked))
     write_json(path(run.state), listed, mode=0o600)
     for file in _named_before(run.state):
         with contextlib.suppress(OSError):

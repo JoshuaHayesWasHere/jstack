@@ -485,7 +485,7 @@ def test_a_pass_that_cannot_read_the_questions_says_so_and_keeps_what_its_list_h
     assert kitchen.lines("gate answered") == []
 
 
-def test_a_gate_of_a_scoped_home_beside_a_question_is_still_said_to_the_chat(kitchen):
+def test_a_gate_of_a_scoped_home_beside_a_question_is_still_listed_and_posted_nowhere(kitchen):
     ask(kitchen)
     kitchen.poll()
     kitchen.webhook.posts.clear()
@@ -493,7 +493,7 @@ def test_a_gate_of_a_scoped_home_beside_a_question_is_still_said_to_the_chat(kit
     (kitchen.home / "quay" / "gates.md").write_text(gate("which berth?", slug="home", n=1))
     kitchen.poll(later(10))
     event = kitchen.events("waiting")[-1]
-    assert event["loud"] == "user"
+    assert event["loud"] == "quiet" and kitchen.webhook.posts == []
     assert event["line"] == "waiting demo: 2 wait on user, 1 new (gate quay#1), 0 gone"
     assert [one["line"] for one in listed(kitchen)] == [
         "gate 1: which berth?",

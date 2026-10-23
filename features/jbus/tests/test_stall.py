@@ -12,7 +12,9 @@ from datetime import timedelta
 
 import pytest
 
-from test_jbus_kitchen import KEY, NOW, RESULT, Kitchen, asking
+import jbus
+from jbus import wake
+from test_jbus_kitchen import KEY, NOW, RESULT, Kitchen
 from test_jbus_queue import add, brief, go, sha12, widened
 
 URL = "https://example.test/pull/286"
@@ -303,7 +305,9 @@ def test_a_webhook_that_is_not_set_is_a_root_said_in_the_journal_and_on_the_desk
     assert said.count(WEBHOOK) == 1 and kitchen.log("notify") == [f"jbus | {WEBHOOK}"]
     assert waits(kitchen) == [WEBHOOK]
     assert [(one["key"], one["line"]) for one in shown(kitchen)] == [("config:demo", SET)]
-    assert kitchen.waiting() == []
+    reply = 'Reply: "demo config: I set it up"'
+    decided = f"decision config: {SET}, jbus lacks a setup only you can give. {reply}"
+    assert [one["line"] for one in kitchen.waiting()] == [decided]
     assert (said + kitchen.poll(later(61))).count(WEBHOOK) == 2
     kitchen.config()
     assert "cleared config:demo" in kitchen.poll(later(64))
@@ -321,10 +325,9 @@ def test_with_no_sign_in_the_root_is_to_sign_in_and_it_unblocks_the_rows_that_wa
 
 def test_a_webhook_whose_last_post_failed_has_each_root_in_the_journal_each_hour(kitchen):
     held(kitchen)
-    kitchen.main(
-        "gate",
-        "alpha",
-        stdin=asking(default="one"),
+    config = jbus.load()
+    wake.Box(kitchen.state, config.project("demo"), config.webhook).send(
+        "alpha", "decision", "decision alpha: which one?"
     )
     kitchen.webhook.status = 500
     said = kitchen.poll()
@@ -359,8 +362,8 @@ def test_a_guarded_wait_is_a_stall_at_its_tenth_pass_at_one_head_and_only_then(k
     kitchen.poll(later(9))
     assert stalls(kitchen) == [STALLED]
     (event,) = kitchen.events("stall")
-    assert (event["slug"], event["loud"]) == ("alpha", "user")
-    assert kitchen.webhook.said == [[f"demo: {STALLED}"]]
+    assert (event["slug"], event["loud"], event["posted"]) == ("alpha", "quiet", None)
+    assert kitchen.webhook.posts == []
     kitchen.poll(later(10))
     assert stalls(kitchen) == [STALLED]
 

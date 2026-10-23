@@ -24,6 +24,10 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
     minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so the digest
     lists a row twice at worst and never misses it.
   - `waiting` is the list of what waits on the user, as the last pass left it (`waiting`).
+  - `routine` holds `{"at", "event", "slug", "line"}` for each event of a kind in `ROUTINE`
+    that the log has at or after `since`, oldest first. These are quiet: no webhook is posted
+    them, and the digest is where the user reads them. Only a `decision`, a `sign-in` and an
+    `alert` page (`jbus.blockers`).
   - `sweep` is what the last look at a sweep found.
 - `status` is what `jbus status` prints.
 - `token_expires` is when the sign-in to T3 Code runs out, read from the stored token. A
@@ -77,6 +81,7 @@ COLUMNS = (
     "why",
     "since",
 )
+ROUTINE = ("merged", "stale", "retro", "gate", "stall", "waiting")
 
 
 def since(given: str | None, user: jsettings.Settings) -> datetime | None:
@@ -163,6 +168,19 @@ def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[di
     return [one for _, one in sorted(found, key=lambda pair: (pair[0], pair[1]["slug"]))]
 
 
+def _routine(config: Config, project: Project, start: datetime) -> list[dict[str, str]]:
+    """Return the routine events of the log at or after `start`, oldest first."""
+    found = []
+    for one in Box(config.state(project), project).log():
+        try:
+            late = config.user.local(datetime.fromisoformat(one["at"])) >= start
+        except (KeyError, TypeError, ValueError):
+            continue
+        if one.get("event") in ROUTINE and late:
+            found.append({key: str(one.get(key) or "") for key in ("at", "event", "slug", "line")})
+    return found
+
+
 def _project(config: Config, project: Project, start: datetime) -> dict[str, Any]:
     state = config.state(project)
     try:
@@ -183,6 +201,7 @@ def _project(config: Config, project: Project, start: datetime) -> dict[str, Any
         "pulls": _pulls(config, project, [row for row in rows if row.get("status") != "merged"]),
         "by_rule": _by_rule(config, table or [], start),
         "waiting": waiting.read(state) or [],
+        "routine": _routine(config, project, start),
         "sweep": Box(state, project).marks().get("sweep", ""),
     }
 

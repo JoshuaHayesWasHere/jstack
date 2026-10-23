@@ -25,6 +25,7 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `plan.md` | One entry per open task, each with a "Done when" list and your decisions. It holds no status: `jbus plan` counts one from the entry's queue rows. |
 | `plan-done.md` | The sections of the entries that are finished, moved there by `jbus plan close <entry>`. |
 | `gates.md` | Each question only you can answer, with the default taken. |
+| `blockers.json` | Each blocker this home briefed a fix of, by its key, with each fix queued for it: `jbus queue add` counts them against `retry_cap` ([Decisions](../../jbus/docs/jbus/decisions.md)). |
 | `home-id` | The home's thread id. The home's start writes it. |
 | `log/` | Old handoffs, dated. |
 

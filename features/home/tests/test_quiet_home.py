@@ -95,7 +95,14 @@ class Quiet(Scene):
         return self.says("crew", asks, self.worktree)
 
     def outbox(self):
-        return json.loads((self.user / ".local/state/jbus/demo/outbox.json").read_text())
+        """Return what waits for a POST: nothing, where jbus has queued nothing for the user."""
+        path = self.user / ".local/state/jbus/demo/outbox.json"
+        return json.loads(path.read_text()) if path.exists() else []
+
+    def logged(self):
+        """Return every event the log of jbus holds, oldest first."""
+        path = self.user / ".local/state/jbus/demo/events.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines()]
 
 
 @pytest.fixture
@@ -152,8 +159,9 @@ def test_a_fixed_pull_request_of_a_scoped_home_is_a_gate_while_jbus_merges(quiet
 def test_a_gate_is_queued_by_the_real_jbus_and_the_home_is_sent_nothing(quiet, skill):
     quiet.jbus()
     assert quiet.gate(skill) == "sent to jbus: queued: question 1\nGate: question 1"
-    (sent,) = quiet.outbox()
-    assert (sent["event"], sent["slug"], sent["loud"]) == ("gate", SLUG, "user")
+    assert quiet.outbox() == []
+    (sent,) = [one for one in quiet.logged() if one.get("event") == "gate"]
+    assert (sent["event"], sent["slug"], sent["loud"]) == ("gate", SLUG, "quiet")
     assert sent["line"] == f"gate {SLUG}: question 1: {ASKED}"
     assert sent["text"] == f"{GATE}\n{CONTEXT}\n{PROPOSED}"
     assert quiet.gate(skill) == "sent to jbus: already sent: question 1\nGate: question 1"
