@@ -225,6 +225,27 @@ def test_a_pull_request_with_no_launch_record_is_told_nothing(kitchen):
     assert sends(kitchen) == [] and kitchen.lines("rebase") == [] and gates(kitchen) == []
 
 
+def test_a_row_its_home_launched_by_hand_is_told_to_rebase_once_on_a_fresh_check_hold(kitchen):
+    """The home launched the row's crew itself, so jbus has no launch record, and its queue row
+    names the crew's thread. jmerge holds the pull request because main changed under its check
+    and the home has no fresh-check command: the crew is woken once to rebase (Winnifred #196,
+    2026-10-23)."""
+    add(kitchen, "alpha")
+    kitchen.t3.thread("alpha", "running")
+    kitchen.brief("alpha", "Thread: mcp:thread-1\n")
+    kitchen.poll(NOW - timedelta(minutes=30))
+    assert kitchen.t3.launches == []
+    kitchen.t3.threads[0]["status"] = "completed"
+    out(kitchen, reason=CHANGED + ": it needs a fresh check")
+    for minutes in (0, 3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    (given,) = sends(kitchen)
+    assert given["threadId"] == "mcp:thread-1" and given["mode"] == "queue"
+    assert given["clientRequestId"] == "rebase|alpha|cccccccccccc"
+    assert "it needs a fresh check" in given["message"]
+    assert kitchen.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
+
+
 @pytest.mark.parametrize(
     ("word", "reason"),
     [

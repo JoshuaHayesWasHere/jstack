@@ -291,6 +291,7 @@ TABLE = {
     "mainmoved": "quiet",
     "resume": "quiet",
     "slot-wake": "quiet",
+    "pool-wake": "quiet",
     "retro": "quiet",
     "snapshot": "quiet",
     "jmerge": "quiet",

@@ -55,6 +55,13 @@ To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.
 
+Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/.." jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configuration` gives as `threadId`.
+When it exits 75 and prints no JSON, every instance of the review pool is capped, and it has registered this thread as a waiter until the cap's end, in the line it prints.
+Then make no launch and add no `Reviewer:` line, and end your turn at once with one line: `Waiting on the review pool: jbus will wake this thread when its cap ends.`
+Never poll for the reset, never wait in a background job, and never count on a nudge from jbus's other messages: `jbus poll` sends this thread one message once the cap's end has passed, and that message is the wake.
+On it, make the same launch again.
+If the pool is capped again by then, the run registers this thread again and you stop again: each wait is woken once.
+
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 
 A pull request with no reviewer never turns ready and sends no `fixed and green` line, and this thread is idle, not `waiting`: nobody would know it is open. So it tells the home, once. Run this before adding the `Reviewer: none` line, with the block at the top:
