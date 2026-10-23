@@ -2,8 +2,9 @@
 names, one to a line. `jmerge` merges a pull request into one of them as it merges one into
 the default branch. It judges against that branch whether the pull request's check is stale
 and whether the branch is red, and it squashes the pull request into that branch. The pull
-request that lands an integration branch on the default branch merges with a merge commit,
-and `jmerge` keeps the branch. With no such file, `jmerge` holds a pull request into another
+request that lands an integration branch on the default branch merges with a merge commit
+where the repo allows one, and as a squash where it allows only that, and `jmerge` keeps the
+branch. With no such file, `jmerge` holds a pull request into another
 branch, as before (`tests/test_home_merge.py`).
 
 The tests run the command against a real origin and a fake `gh` whose merge goes into the
@@ -26,6 +27,7 @@ case "$1 $2" in
     "pr list")
         if [ "$3" = "--base" ]; then echo "[]"; else cat "$STUB/list.json"; fi ;;
     "repo view") echo main ;;
+    "api repos/{owner}/{repo}") cat "$STUB/repo.json" ;;
     "api repos/{owner}/{repo}/commits/"*)
         branch=${2#repos/\\{owner\\}/\\{repo\\}/commits/}
         cat "$STUB/runs-${branch%/check-runs}" 2> /dev/null || echo '{"check_runs": []}' ;;
@@ -35,7 +37,11 @@ case "$1 $2" in
         tree=$(git -C "$ORIGIN" merge-tree --write-tree "refs/heads/$base" "$6") || exit 1
         case "$4 $5" in
             "--squash --match-head-commit") parents="-p refs/heads/$base" ;;
-            "--merge --match-head-commit") parents="-p refs/heads/$base -p $6" ;;
+            "--merge --match-head-commit") parents="-p refs/heads/$base -p $6"
+                if ! jq -e .allow_merge_commit "$STUB/repo.json" > /dev/null; then
+                    echo "GraphQL: Merge commits are not allowed on this repository." >&2
+                    exit 1
+                fi ;;
             *) exit 64 ;;
         esac
         commit=$(git -C "$ORIGIN" commit-tree "$tree" $parents -m "merge (#$3)")
@@ -49,14 +55,28 @@ esac
 """
 
 TRAIN = "migration"
+READ = "api repos/{owner}/{repo}"
 
 
 @pytest.fixture
 def kitchen(tmp_path):
     kitchen = Kitchen(tmp_path, {"a.txt": LINES, "b.txt": LINES, "Makefile": "check:\n"})
     (kitchen.home.stub / "gh").write_text(GH)
+    allows(kitchen, merge=True, squash=True, rebase=True)
     git(kitchen.home.main, "push", "-q", "origin", f"main:{TRAIN}")
     return kitchen
+
+
+def allows(kitchen, merge, squash, rebase):
+    """The repo's settings say which merge methods it allows, as GitHub's repo endpoint gives
+    them: https://docs.github.com/en/rest/repos/repos#get-a-repository"""
+    said = {"allow_merge_commit": merge, "allow_squash_merge": squash, "allow_rebase_merge": rebase}
+    (kitchen.home.stub / "repo.json").write_text(json.dumps(said))
+
+
+def reads(kitchen):
+    """Each time this run asked GitHub for the repo's settings."""
+    return [call for call in kitchen.calls(READ) if call == READ]
 
 
 def integration(kitchen, *branches):
@@ -195,8 +215,61 @@ def test_the_landing_of_the_train_on_main_is_a_merge_commit_and_keeps_the_branch
         main,
         head,
     ]
+    assert ", landed with a merge commit, " in said
     assert tip(kitchen, TRAIN) == head
     assert TRAIN in git(kitchen.home.main, "branch", "--format=%(refname:short)").split()
+
+
+def test_a_repo_that_allows_only_squashes_lands_the_train_as_a_squash_and_keeps_it(kitchen):
+    main = tip(kitchen, "main")
+    head = kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    allows(kitchen, merge=False, squash=True, rebase=False)
+    (said,) = kitchen.run()
+    commit = tip(kitchen, "main")
+    assert said.startswith(f'merged 9 {TRAIN} {commit} "feat: {TRAIN}", ')
+    squashed = f"landed as a squash: each unit's pull request into {TRAIN} is its own record"
+    assert f", {squashed}, " in said
+    assert f", kept: {TRAIN} is an integration branch, " in said
+    assert kitchen.calls() == [
+        f"pr merge 9 --squash --match-head-commit {head} --subject feat: {TRAIN} (#9)"
+        f" --body-file - --repo {kitchen.origin}"
+    ]
+    assert reads(kitchen) == [READ]
+    assert git(kitchen.origin, "rev-list", "--parents", "-n", "1", commit).split()[1:] == [main]
+    assert git(kitchen.origin, "show", "refs/heads/main:a.txt") == ("ours\n" + LINES).strip()
+    assert tip(kitchen, TRAIN) == head
+    assert TRAIN in git(kitchen.home.main, "branch", "--format=%(refname:short)").split()
+
+
+def test_a_pull_request_into_the_train_does_not_read_the_repos_settings(kitchen):
+    into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    allows(kitchen, merge=False, squash=True, rebase=False)
+    (said,) = kitchen.run()
+    assert said.startswith("merged 6 one ") and ", landed " not in said
+    assert reads(kitchen) == []
+
+
+def test_a_repo_that_allows_neither_a_merge_commit_nor_a_squash_waits_and_says_so(kitchen):
+    kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    allows(kitchen, merge=False, squash=False, rebase=True)
+    main = tip(kitchen, "main")
+    (said,) = kitchen.run()
+    assert said == f"wait 9 {url(9)}: " + ready.LANDING_UNALLOWED.format(allowed="rebase merges")
+    assert said.endswith(": the repo allows rebase merges only, not a merge commit or a squash")
+    assert kitchen.calls() == []
+    assert tip(kitchen, "main") == main
+
+
+def test_a_landing_waits_when_the_repos_settings_cannot_be_read(kitchen):
+    kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    (kitchen.home.stub / "repo.json").unlink()
+    (said,) = kitchen.run()
+    assert said.startswith(f"wait 9 {url(9)}: {ready.NO_SETTINGS}: ")
+    assert kitchen.calls() == []
 
 
 def test_blank_lines_and_spaces_in_the_file_name_no_branch(kitchen):
@@ -243,10 +316,13 @@ def viewed(kitchen, number, head, base):
     (kitchen.home.stub / f"view-{number}").write_text(json.dumps(said))
 
 
-def test_a_sweep_keeps_the_integration_branch_after_its_landing_merged(kitchen):
+@pytest.mark.parametrize("merge", [True, False])
+def test_a_sweep_keeps_the_integration_branch_after_its_landing_merged(kitchen, merge):
     head = kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
     integration(kitchen, TRAIN)
-    kitchen.run()
+    allows(kitchen, merge=merge, squash=True, rebase=False)
+    (said,) = kitchen.run()
+    assert said.startswith(f"merged 9 {TRAIN} ")
     viewed(kitchen, 9, head, "main")
     said = kitchen.run("--sweep", "--check")
     assert f"kept {TRAIN}: it is an integration branch" in said
