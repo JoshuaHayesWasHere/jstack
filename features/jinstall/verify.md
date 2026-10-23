@@ -93,7 +93,10 @@ Preconditions:
 - **Check again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
 - **Stand in for a tool built before a move.** Run `sed -i '\|/features/jsettings/src$|d' "$UV_TOOL_DIR"/jstack/lib/python*/site-packages/_editable_impl_jstack.pth`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. The line for the commands is `old hard commands jstack -> stale: its editable paths lack <this checkout>/features/jsettings/src`, and it exits 1.
 - **Install it again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
-- **Put a directory where a link goes.** Run `rm "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew" && mkdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`. The line for that link is `old hard <HOME>/.claude/skills/crew -> not a link`, the directory is still there, and it exits 1. Then run `rmdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`.
+- **Put a directory where a link goes.**
+  Run `rm "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew" && mkdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`.
+  The line for that link is `old hard <HOME>/.claude/skills/crew -> not a link`, the directory is still there, and it exits 1.
+  Then run `rmdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`.
 - **Uninstall.**
   Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --uninstall`.
   Every line starts with `removed`, and it exits 0.
