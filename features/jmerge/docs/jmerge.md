@@ -240,6 +240,17 @@ wait <number> <url>: main changed <up to five paths, then "and <k> more"> after 
 `main` there is the name of the base branch.
 If main moved only on other paths, none of them a caller or a dependency, the check still counts, and nobody rebases for it.
 
+A caller or a dependency holds the merge only in a repo with a `fresh-check` file, which can test the head over today's main.
+A repo with no such file has no way to test that, and a rebase would move the reviewed head for a file the pull request does not change.
+So when every changed path main brought is a caller or a dependency, and none is the pull request's own or a CI path, the check still counts there.
+The pull request merges on it, and the `ready` and `merged` lines, and `merge.log`, carry this note:
+
+```
+fresh: none, main changed related <up to five paths, then "and <k> more">; no fresh-check file
+```
+
+A path the pull request also changes, or a CI path, still makes it wait.
+
 A repo opts in to a local check with a `fresh-check` file in its state directory: one line, the command, such as `make check`.
 `jmerge` merges the head over today's main with `git merge-tree`.
 It first asks GitHub for a green marker of that merge's tree (`features/jmerge/src/jmerge/green.py`).
