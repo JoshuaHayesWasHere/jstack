@@ -55,9 +55,11 @@ def faults(key, made, answer, rows, overview):
             if chips != due:
                 found.append(f"{slug}: chips {sorted(chips)}, not {sorted(due)}")
     elif kind == "role":
+        idle = walk.SURFACES["home", "ended with work out"].row
         for (role, liveness), slug in made.threads.items():
             drawn = slug in rows
-            if role == name and drawn != (want.row and liveness != "ended"):
+            due = liveness != "ended" or (role == "home" and idle)
+            if role == name and drawn != (want.row and due):
                 found.append(f"{slug}: a row of In progress is {drawn}")
     elif kind == "owner":
         slug = made.owners[name]
