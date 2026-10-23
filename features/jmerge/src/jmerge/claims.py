@@ -48,8 +48,7 @@ def held(line: str) -> Held | None:
     if not cut:
         head, diff = rest, ""
     where = parse.where(head[head.index("Where:") :]) if "Where:" in head else ()
-    named = tuple(path.strip().strip("`") for path in diff.split(", ") if path.strip())
-    return Held(slug, where, named)
+    return Held(slug, where, parse.where(f"Where: {diff}") if diff else ())
 
 
 def _where(text: str) -> str:

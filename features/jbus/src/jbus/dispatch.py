@@ -29,9 +29,10 @@ is not the main one), `mirrored` asks `jroles mirror --check` about that instanc
 skips it for the rest of the pass: the launch goes to the next instance with headroom, or waits.
 
 jbus never holds back a launch because another brief names the same file, since each crew
-has its own worktree and branch. When a launched brief shares a path with a brief still out,
-jbus sends one `overlap` event and does nothing else. The crew of the pull request that
-merges second rebases that pull request, and `jbus.rebase` tells that crew to.
+has its own worktree and branch. Each pass, when two briefs that are out share a path, by
+their `Where:` lines or by the files a pull request changes, jbus sends one `overlap` event
+for the pair and does nothing else (`overlaps`). The crew of the pull request that merges
+second rebases that pull request, and `jbus.rebase` tells that crew to.
 """
 
 from __future__ import annotations
@@ -46,15 +47,16 @@ from typing import Any
 import jroles
 import jroles.mirror
 from jbriefs import parse
-from jbus import queue, read_json, write_json
+from jbus import queue, read_json, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
-from jmerge import mainjson
+from jmerge import claims, mainjson
 from jroles import ledger, pool
 
 EVENTS = {"overlap": "quiet"}
 OVERLAP_PATHS = 5
+OVERLAP_RULE = "whichever merges second rebases"
 
 
 def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
@@ -170,47 +172,65 @@ def arguments(
     return made
 
 
-def shared(run: Pass, slug: str, brief: str) -> dict[str, list[str]]:
-    """Return the paths this brief shares with each brief that is out, by that brief's slug
-    (`jmerge --claims`).
+def _meet(mine: tuple[str, ...], theirs: tuple[str, ...]) -> set[str]:
+    """The paths two lists share: two paths are shared when one covers the other
+    (`jbriefs.parse.covers`), and the one named is the path that is covered, a file and not
+    its directory."""
+    return {
+        path if parse.covers((other,), path) else other
+        for other in theirs
+        for path in mine
+        if parse.covers((other,), path) or parse.covers((path,), other)
+    }
 
-    Both `Where:` lines are read as `jbus queue add` and `jmerge --scope` read them
-    (`jbriefs.parse.where`), and two paths are shared when one covers the other
-    (`jbriefs.parse.covers`). The function names the path that is covered, a file and not its
-    directory. When `jmerge --claims` did not run, the function names no brief. jbus only
-    reports an overlap, and holds back no launch for it.
+
+def meet(one: claims.Held, other: claims.Held) -> tuple[list[str], str]:
+    """Return the paths two briefs that are out share, and whose diff made them meet.
+
+    When the two `Where:` lines meet, those paths are the answer and no diff is named. When
+    they do not, the answer is where the claimed files meet, a `Where:` path or a path of a
+    pull request's diff on each side (`jmerge --claims`), and it names each side whose diff
+    the meeting needed."""
+    both = _meet(one.where, other.where)
+    if both:
+        return sorted(both), ""
+    both = _meet(one.where + one.diff, other.where + other.diff)
+    sides = [
+        held.slug
+        for held, against in ((one, other), (other, one))
+        if both - _meet(held.where, against.where + against.diff)
+    ]
+    by = f", by {sides[0]}'s diff" if len(sides) == 1 else ", by both diffs" if sides else ""
+    return sorted(both), by
+
+
+def overlaps(run: Pass) -> None:
+    """Tell the Chef which files each pair of briefs that are out shares, once for each pair.
+
+    The pass reads `jmerge --claims` and compares every brief that is out with every other,
+    by its `Where:` line and by the files its open pull request changes. A pull request that
+    reaches past its `Where:` is found on the first pass after its push, and a pair is told
+    once, keyed by the two slugs, however its shared files grow after that.
+
+    Each crew works in its own worktree, so a shared file blocks no launch and no merge. The
+    pull request that merges second is the one its crew rebases (`rebase.tell`). When
+    `jmerge --claims` did not run, the pass tells nothing.
     """
-    mine = parse.where(brief)
     ran = run.run("jmerge", "--claims")
-    found: dict[str, list[str]] = {}
-    for line in ran.stdout.splitlines() if ran.returncode == 0 else []:
-        other, _, rest = line.partition(" ")
-        if other == slug or rest.startswith("not launched ") or "Where:" not in rest:
+    lines = ran.stdout.splitlines() if ran.returncode == 0 else []
+    out = sorted(
+        (held for held in map(claims.held, lines) if held and held.slug not in run.removed),
+        key=lambda held: held.slug,
+    )
+    for one, other in itertools.combinations(out, 2):
+        paths, by = meet(one, other)
+        if not paths:
             continue
-        both = {
-            path if parse.covers((theirs,), path) else theirs
-            for theirs in parse.where(rest[rest.index("Where:") :])
-            for path in mine
-            if parse.covers((theirs,), path) or parse.covers((path,), theirs)
-        }
-        if both:
-            found[other] = sorted(both)
-    return found
-
-
-def overlaps(run: Pass, slug: str, brief: str) -> None:
-    """Tell the Chef which files the row just launched shares with each other brief, once
-    for each pair.
-
-    Each crew works in its own worktree, so a shared file blocks no launch. The pull request
-    that merges second is the one its crew rebases (`rebase.tell`).
-    """
-    for holder, paths in shared(run, slug, brief).items():
         named = ", ".join(paths[:OVERLAP_PATHS])
         if len(paths) > OVERLAP_PATHS:
             named += f" and {len(paths) - OVERLAP_PATHS} more"
-        line = f"overlap {slug}: shares {named} with {holder}; whichever merges second rebases"
-        run.find(slug, "overlap", line, key=f"{slug} {holder}")
+        line = f"overlap {one.slug}: shares {named} with {other.slug}{by}; {OVERLAP_RULE}"
+        run.find(one.slug, "overlap", line, key=f"{one.slug} {other.slug}")
 
 
 def settle_lost(run: Pass, client: Client) -> None:
@@ -243,7 +263,6 @@ def settle_lost(run: Pass, client: Client) -> None:
             )
             write_thread(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
-            overlaps(run, slug, queue.brief(run.state, slug) or "")
         else:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
 
@@ -517,7 +536,6 @@ class Turns:
             write_thread(run, slug, reply["threadId"])
             on = f" on {choice.instance}, {choice.why}" if choice.why else ""
             run.say(f"launched {slug}: {reply['threadId']}{on}")
-            overlaps(run, slug, brief)
             return LAUNCHED
         return NOTHING
 
@@ -580,3 +598,10 @@ def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
     for one in projects:
         one.rest(cap=took != NO_ROOM and slots is not None)
     return made
+
+
+STEPS = (
+    verbs.Step(
+        "after-derive", 60, "dispatch.overlaps", lambda half: overlaps(half.run), ("sight",)
+    ),
+)
