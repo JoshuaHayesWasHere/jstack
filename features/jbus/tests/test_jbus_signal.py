@@ -16,7 +16,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import alert, alive, cli, item, wake
+from jbus import alert, alive, cli, item, passes, wake
 from test_jbus_kitchen import ASK, NOW
 
 SRC = pathlib.Path(jbus.__file__).parent
@@ -81,7 +81,7 @@ def test_a_kind_the_table_does_not_name_is_refused(tmp_path):
 
 
 def test_a_keyed_finding_of_an_unknown_kind_leaves_no_key_so_it_is_refused_again(kitchen):
-    run = wake.Pass(jbus.load(), jbus.load().projects[0], NOW)
+    run = passes.Pass(jbus.load(), jbus.load().projects[0], NOW)
     run.find("alpha", "result", "result alpha: done")
     before = (kitchen.state / "sent.json").read_text()
     for _ in range(2):
@@ -96,6 +96,7 @@ PASSED_AS = {
     ("rebase.py", "ask.kind"): (("Ask", 0), ("_asked", 0)),
     ("mirror.py", "what"): (("_found", 0), ("_gates", 1)),
     ("wake.py", "kind"): (),
+    ("passes.py", "kind"): (),
     ("item.py", "kind(verb)"): (),
 }
 
@@ -187,7 +188,8 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     }
     assert sent[("mirror.py", "what")] == {"result", "review", "report", "gate", "gate answered"}
     assert sent[("wake.py", "kind")] == set()
-    assert sent[("wake.py", "CONDITION")] == {"condition"}
+    assert sent[("passes.py", "kind")] == set()
+    assert sent[("passes.py", "CONDITION")] == {"condition"}
     assert sent[("record.py", "'heartbeat'")] == {"heartbeat"}
     assert sent[("item.py", "kind(verb)")] == set()
     every = set().union(*sent.values()) | {item.kind(verb) for verb in item.Verb}

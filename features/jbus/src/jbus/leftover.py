@@ -60,8 +60,8 @@ from typing import Any
 
 from jbriefs.home import home_of, thread_of
 from jbus import mirror, questions, queue, read_json, verbs, write_json
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import LIVE, World, brief_of, last_result, named
 
 EVENTS = {"leftover": "quiet"}

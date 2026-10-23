@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import Refused, read_json, verbs, wake, write_json
+from jbus import Refused, passes, read_json, verbs, wake, write_json
 from jbus.item import (
     LIVE,
     MOVES,
@@ -154,7 +154,7 @@ def cards(
     return [card(replace(one, risk=risks[one.id]), line, user) for one, line in made]
 
 
-def post(run: wake.Pass) -> int:
+def post(run: passes.Pass) -> int:
     """Run the pass's step that posts cards. Post each card still to post, in order, to each route
     that is the relay. Record in the route's `cards.json` how many lines of the log have their card.
     When a POST fails, this function posts nothing more to that route in this pass, and the next

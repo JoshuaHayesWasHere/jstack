@@ -149,7 +149,7 @@ class Asked:
 
 @dataclass
 class FakePass:
-    """`FakePass` has what `tell` reads of a `jbus.wake.Pass`, over the model's state directory."""
+    """`FakePass` has what `tell` reads of a `jbus.passes.Pass`, over the state of the model."""
 
     state: Path
     checks: dict[str, str]

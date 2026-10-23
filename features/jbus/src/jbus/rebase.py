@@ -74,8 +74,8 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from jbus import END_TURN, dispatch, merge, queue, read_json, verbs
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
 from jmerge import ready
 from jmerge.checks import check_state, latest_of_each

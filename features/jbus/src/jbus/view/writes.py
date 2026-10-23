@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbus import Refused, item, questions, queue, steer, t3, wake
+from jbus import Refused, item, passes, questions, queue, steer, t3, wake
 from jbus.view import state
 from jbus.view.clean import clean
 from jbus.view.state import Sources
@@ -94,7 +94,7 @@ class Writes:
                 self.config(), state_dir=self.sources.state_dir, home_dir=self.sources.home_dir
             )
             hidden = config.secrets()
-            run = wake.Pass(config, config.project(name), now, say=lambda line: None)
+            run = passes.Pass(config, config.project(name), now, say=lambda line: None)
             client = t3.Client(config.server, config.token_path, timeout=SEND)
             went = questions.carry(run, client, closed)
         except (Refused, OSError) as error:

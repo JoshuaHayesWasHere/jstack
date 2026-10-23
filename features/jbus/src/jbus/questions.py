@@ -113,8 +113,8 @@ from typing import Any
 import jsettings
 from jbriefs import skills
 from jbus import END_TURN, Config, Refused, dispatch, mirror, queue, verbs, write_json
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused, typed
-from jbus.wake import Pass
 
 EVENTS = {"note": "quiet"}
 NAME = "questions.json"

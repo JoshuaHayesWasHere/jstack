@@ -48,8 +48,8 @@ import jroles
 import jroles.mirror
 from jbriefs import parse
 from jbus import queue, read_json, verbs, write_json
+from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Changed, Depends, Pass, Slot
 from jbus.watch import TITLE, End, World, crew_threads, ended
 from jmerge import claims, mainjson
 from jroles import ledger, pool

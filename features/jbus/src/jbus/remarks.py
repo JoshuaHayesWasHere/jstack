@@ -33,8 +33,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from jbus import dispatch, read_json, verbs, write_json
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import World, _api
 
 REPO = "repos/{owner}/{repo}"

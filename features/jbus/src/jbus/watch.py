@@ -39,8 +39,9 @@ from jbus import Refused, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
+from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error
-from jbus.wake import Changed, Depends, Pass, Slot, cut
+from jbus.wake import cut
 from jgauge import slot, waiters
 from jmerge import checks as reading
 from jmerge import mainjson

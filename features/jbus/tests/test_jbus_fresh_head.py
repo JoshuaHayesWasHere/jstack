@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import mainmoved, merge, rebase, t3, wake, watch
+from jbus import mainmoved, merge, passes, rebase, t3, watch
 from test_jbus_expedite import NO_FIXED, Short
 from test_jbus_guarded_ask import URL, Fixed
 from test_jbus_kitchen import NOW
@@ -119,7 +119,7 @@ RED = {"state": "FAILURE", "mergeable": "MERGEABLE", "says": f"{CHANGED}: it nee
 def test_one_stale_head_is_one_message_in_whichever_order_the_two_are_reached(kitchen, first, how):
     due = stale(kitchen, **how)
     config = jbus.load()
-    run = wake.Pass(config, config.projects[0], NOW, lambda _: None)
+    run = passes.Pass(config, config.projects[0], NOW, lambda _: None)
     client = t3.Client(config.server, config.token_path)
     world = watch.look(run, client, []).world
     said = merge.Said(kitchen.stub.joinpath("jmerge.txt").read_text().splitlines())

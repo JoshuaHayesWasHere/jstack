@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from jbus import wake
+from jbus import passes
 from jgauge import cli, sample
 from testing.paths import REPO
 
@@ -227,8 +227,8 @@ def test_the_report_gives_the_peaks_against_rooms_lines_and_the_jbus_stalls(mach
                 json.dumps(
                     {
                         "at": moment,
-                        "event": wake.CONDITION,
-                        "line": f"{wake.CONDITION} e: no room for 10 passes: x",
+                        "event": passes.CONDITION,
+                        "line": f"{passes.CONDITION} e: no room for 10 passes: x",
                     }
                 ),
                 '{"at": "2025-10-20T00:01:20+00:00", "event": "stall", "line": "after the span"}',

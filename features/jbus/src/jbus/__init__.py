@@ -133,7 +133,7 @@ class Scratch:
 
     def addressee(self) -> Project:
         """Return the home as `word` addresses it: a `Project` with no checkout. It is
-        for the `wake.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
+        for the `passes.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
         nothing else. Its state and its home are `<name>`, as a repo's are."""
         return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
 

@@ -55,6 +55,7 @@ from jbus import (
     dispatch,
     expedite,
     merge,
+    passes,
     questions,
     queue,
     record,
@@ -74,8 +75,7 @@ LAUNCH = "the launch"
 
 @dataclass
 class Half:
-    """A `Half` is the state of a project's pass that its steps, the dispatch and its second
-    half read.
+    """A `Half` is the state of one pass that its steps, the dispatch and its second half read.
 
     `first_half` makes it when the pass starts. The pass fills it in as it runs its fixed steps in
     order, so a step reads what the fixed steps had set when its slot comes (`verbs.SLOTS`). `held`
@@ -91,7 +91,7 @@ class Half:
     (`users`), and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
     """
 
-    run: wake.Pass
+    run: passes.Pass
     client: t3.Client | None = None
     rows: list[queue.Row] | None = None
     seen: watch.Look = field(default_factory=watch.Look)
@@ -133,7 +133,7 @@ def steps(half: Half, slot: str) -> None:
             step.run(half)
 
 
-def first_half(run: wake.Pass, client: t3.Client | None) -> Half:
+def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
     """Run a project's pass up to any launch: merge, read, ask, and say what it found.
 
     This function runs the fixed steps of the pass in order, with a call to `steps` per slot.
@@ -250,7 +250,7 @@ def poll(
                 return None
 
         def first(project: jbus.Project) -> Half:
-            run = wake.Pass(config, project, now, say)
+            run = passes.Pass(config, project, now, say)
             record.heartbeat(run, last)
             return first_half(run, client)
 

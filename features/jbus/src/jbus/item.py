@@ -46,7 +46,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from jbus import Refused, questions, queue, read_json, verbs, wake, work, write_json
+from jbus import Refused, passes, questions, queue, read_json, verbs, wake, work, write_json
 
 EVENTS = {
     "item.proposed": "quiet",
@@ -536,7 +536,7 @@ def _move(state: State, back: State | None, target: State) -> Verb | None:
     return None
 
 
-def follow(run: wake.Pass, rows: list[queue.Row]) -> int:
+def follow(run: passes.Pass, rows: list[queue.Row]) -> int:
     """Move each row's item as `planned` says, give an item to a row that is not over and has
     none, and drop the item of a row that was removed. This is the pass's step. Return how many
     lines it wrote.

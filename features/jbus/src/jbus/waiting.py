@@ -101,7 +101,8 @@ from jbus import (
     verbs,
     write_json,
 )
-from jbus.wake import CONDITION, Pass, Slot, renamed
+from jbus.passes import CONDITION, Pass, Slot
+from jbus.wake import renamed
 from jbus.watch import LIVE, World
 
 if TYPE_CHECKING:

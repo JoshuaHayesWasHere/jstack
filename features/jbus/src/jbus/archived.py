@@ -21,8 +21,8 @@ from __future__ import annotations
 from typing import Any
 
 from jbus import dispatch, queue, read_json, write_json
+from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import World
 
 NAME = "unlisted.json"

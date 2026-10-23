@@ -86,9 +86,9 @@ from typing import Any
 from jbriefs import findings, skills
 from jbriefs.home import home_of, thread_of
 from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
+from jbus.passes import Pass
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
-from jbus.wake import Pass
 from jbus.watch import LIVE, World
 from jmerge import ready
 
