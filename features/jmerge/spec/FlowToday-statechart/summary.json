@@ -1,0 +1,186 @@
+{
+  "view": "customer",
+  "second": {
+    "role": "fix",
+    "label": "the three fixes",
+    "lacks": []
+  },
+  "modelStates": 643,
+  "modelTransitions": 998,
+  "chartStates": 74,
+  "chartTransitions": 75,
+  "chartStatus": {
+    "works": 44,
+    "wrong": 0,
+    "fixed": 30
+  },
+  "chartGroups": [
+    {
+      "name": "Done",
+      "color": "#d1f2eb",
+      "states": 1
+    },
+    {
+      "name": "Moving",
+      "color": "#e8eef9",
+      "states": 35
+    },
+    {
+      "name": "Waits on you",
+      "color": "#fdebd0",
+      "states": 14
+    },
+    {
+      "name": "Stuck",
+      "color": "#f9d6d5",
+      "states": 3
+    }
+  ],
+  "mixedGroups": [
+    "Main green, machine full: 1 merged, 1 red only from main's break",
+    "Main green, machine full: 1 merged, 1 red, its own break",
+    "Main green, machine full: 1 merged, 1 red, its own break hidden behind main's",
+    "Main green, machine full: both merged",
+    "Main green: 1 merged, 1 red only from main's break",
+    "Main green: 1 merged, 1 red, its own break hidden behind main's",
+    "Main green: 1 red only from main's break, 1 red, its own break hidden behind main's",
+    "Main green: 2 red only from main's break",
+    "Main green: 2 red, its own break hidden behind main's",
+    "Main red from outside, machine full: 1 merged, 1 passed, waiting to merge",
+    "Main red from outside, machine full: 1 merged, 1 red only from main's break",
+    "Main red from outside, machine full: 1 merged, 1 red, its own break",
+    "Main red from outside, machine full: 1 merged, 1 red, its own break hidden behind main's",
+    "Main red from outside, machine full: 1 passed, waiting to merge, 1 red only from main's break",
+    "Main red from outside, machine full: 1 passed, waiting to merge, 1 red, its own break",
+    "Main red from outside, machine full: 1 passed, waiting to merge, 1 red, its own break hidden behind main's",
+    "Main red from outside, machine full: 1 red only from main's break, 1 red, its own break",
+    "Main red from outside, machine full: 1 red only from main's break, 1 red, its own break hidden behind main's",
+    "Main red from outside, machine full: 2 passed, waiting to merge",
+    "Main red from outside, machine full: 2 red only from main's break",
+    "Main red from outside, machine full: both merged"
+  ],
+  "regions": {
+    "drawn": false,
+    "why": "\"Main green, machine full: 1 merged, 1 red only from main's break\" is \"Fixed by the three fixes\", and its two region states would show \"Works today\""
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Main red from a merge: 1 merged, 1 waiting for a check",
+      "invariant": "NoMergeTurnsMainRed",
+      "rule": "\"A merge never turns main red.\"",
+      "cause": "its check skipped the test that reads the whole tree, so a change that breaks that test merges",
+      "readerSteps": 2,
+      "modelSteps": 3,
+      "counterexamples": 74,
+      "fix": "Main green: 1 merged, 1 waiting for a check"
+    },
+    {
+      "n": 2,
+      "end": "Main green: 1 merged, 1 red, its own break hidden behind main's",
+      "invariant": "FlowsWhenGreen",
+      "rule": "\"Work never stops flowing: once nothing more happens on its own and main is green, every pull request has merged.\"",
+      "cause": "its own break failed while main was red too, so its crew reads it as main's and waits for a message nothing sends",
+      "readerSteps": 4,
+      "modelSteps": 5,
+      "counterexamples": 11,
+      "fix": "Main green: 1 merged, 1 waiting for a check"
+    },
+    {
+      "n": 3,
+      "end": "Main green: 2 red only from main's break",
+      "invariant": "FlowsWhenGreen",
+      "rule": "\"Work never stops flowing: once nothing more happens on its own and main is green, every pull request has merged.\"",
+      "cause": "the pull request went red while main was red, and nothing checks it again once main is fixed",
+      "readerSteps": 4,
+      "modelSteps": 5,
+      "counterexamples": 13,
+      "fix": "same screens, but the rule holds"
+    },
+    {
+      "n": 4,
+      "end": "Main green, machine full: 1 merged, 1 red, its own break",
+      "invariant": "FlowsWhenGreen",
+      "rule": "\"Work never stops flowing: once nothing more happens on its own and main is green, every pull request has merged.\"",
+      "cause": "a crew left processes running, the machine stays full, and nothing new can start",
+      "readerSteps": 5,
+      "modelSteps": 6,
+      "counterexamples": 8,
+      "fix": "same screens, but the rule holds"
+    },
+    {
+      "n": 5,
+      "end": "Main red from outside, machine full: 2 passed, waiting to merge",
+      "invariant": "MachineNotLeftFull",
+      "rule": "\"Once nothing more happens on its own, the machine has room.\"",
+      "cause": "a crew left processes running, and nothing stops them",
+      "readerSteps": 5,
+      "modelSteps": 6,
+      "counterexamples": 93,
+      "fix": "same screens, but the rule holds"
+    },
+    {
+      "n": 6,
+      "end": "Main red from outside, machine full: 2 passed, waiting to merge",
+      "invariant": "MainFixWaitsOnlyOnYou",
+      "rule": "\"While main is red and nothing else can happen, its fix waits only on your approval.\"",
+      "cause": "the machine is full, so even an approved fix for main cannot start",
+      "readerSteps": 5,
+      "modelSteps": 6,
+      "counterexamples": 80,
+      "fix": "same screens, but the rule holds"
+    }
+  ],
+  "codeLike": [],
+  "uncited": {
+    "FlowToday.tla": [
+      {
+        "line": 24,
+        "action": "Check",
+        "condition": "st[p] = \"open\""
+      },
+      {
+        "line": 45,
+        "action": "CrewFix",
+        "condition": "st[p] = \"open\""
+      }
+    ],
+    "FlowDesign.tla": [
+      {
+        "line": 23,
+        "action": "Check",
+        "condition": "st[p] = \"open\""
+      },
+      {
+        "line": 42,
+        "action": "CrewFix",
+        "condition": "st[p] = \"open\""
+      },
+      {
+        "line": 46,
+        "action": "CrewFix",
+        "condition": "(~ranRed[p] \\/ told[p])"
+      },
+      {
+        "line": 58,
+        "action": "Rejudge",
+        "condition": "st[p] = \"open\""
+      },
+      {
+        "line": 60,
+        "action": "Rejudge",
+        "condition": "ranRed[p]"
+      },
+      {
+        "line": 61,
+        "action": "Rejudge",
+        "condition": "~mainRed"
+      },
+      {
+        "line": 63,
+        "action": "Rejudge",
+        "condition": "~full"
+      }
+    ]
+  }
+}
