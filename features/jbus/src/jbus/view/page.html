@@ -613,9 +613,6 @@
     if (h.threads) line.push(hk(plural(h.threads, "thread", "threads") + " out", "threads"));
     return line.join(" &middot; ");
   }
-  /* The rows of In progress by home, as the summary lists the homes: the root first, then each
-     child home. A row whose home the summary does not list is the root's. With the root alone
-     there is one list and no heading. */
   function byHome(rows, homes) {
     var named = {};
     homes.forEach(function (h) { named[h.name] = 1; });
