@@ -130,7 +130,7 @@ Each `[[project]]` table is one repo:
 | `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key. `jbus` runs no repo step for it ([A scratch home](../../jbus/docs/jbus/a-scratch-home.md)). `jbus` refuses any other value. |
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
-| `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. `jbus` refuses a table with only one of the two. |
+| `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. `jbus` refuses a table with only one of `webhook_url` and `webhook_key`. |
 | `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives. When such a pull request lands, `jmerge` gives a numbered migration its number ([jmerge](../../jmerge/docs/jmerge.md#migrations)). `jbus` refuses a directory that is absolute or has `..` in it. With none, `jmerge` holds no pull request for its migrations. |
 | `ci_report` | Off | `true` turns on the project's weekly CI report, which `jbus-ci.timer` writes each Monday at 09:00. The install enables that timer only while a project asks ([Measure the CI](../../jbus/docs/jbus/measure-the-ci.md#the-weeks-report)). `jbus` refuses a value that is not `true` or `false`. |
 | `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. `jbus` refuses any other value. |
@@ -236,7 +236,8 @@ The limits files are the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger
 `~/.local/state/claude/limits` is the built-in instance's, `claudeAgent`, and `~/.local/state/claude/limits.<instanceId>` beside it is any other's, such as `limits.claudeAgent_work`.
 `jgauge limits` writes them ahead of time, and `jgauge-limits.timer` runs it every two minutes.
 It reads every Claude account of `providers.json`, and it reads `~/.claude` as `claudeAgent` where the inventory names no instance there ([jgauge](../../jgauge/docs/jgauge.md)).
-jgauge's `limits.sh`, which the status line runs, writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
+jgauge's `limits.sh`, which the status line runs, writes the file of the account whose status line it runs in.
+That account is the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 For an account the inventory does not declare, `limits.sh` writes nothing.
 When a turn ends on an instance's usage limit, `jbus` writes that instance's file at 100% until the reset.
 All three writers merge their readings by the ledger's rule, so a reading that fails or comes late never lowers the share already recorded for a window.
