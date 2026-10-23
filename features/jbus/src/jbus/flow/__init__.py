@@ -80,6 +80,10 @@ def build(
         "rows": len(found),
         "row_hours": round(total, 1),
         "working_hours": round(sum(one.hours(True) for one in found), 1),
+        "working": {
+            what: round(sum(s.hours for one in found for s in one.spans if s.what == what), 1)
+            for what in measure.WORKING
+        },
         "waiting_hours": round(sum(one.hours(False) for one in found), 1),
         "unexplained_share": round((unexplained + other) / total, 3),
         "no_record_share": round(unrecorded / total, 3),
@@ -182,6 +186,7 @@ def text(said: dict[str, Any]) -> str:
         f"rows {said['rows']}: {said['row_hours']} h in the window, {said['working_hours']} h "
         f"working, {said['waiting_hours']} h waiting, {said['unexplained_share']:.1%} "
         f"unexplained, {said['no_record_share']:.1%} before any record of the row (no record)",
+        "working: " + ", ".join(f"{what} {hours} h" for what, hours in said["working"].items()),
         f"merged {lead['merged']}: approved to merged median {lead['median_hours']} h, "
         f"85th percentile {lead['p85_hours']} h; {lead['working_hours']} h working, "
         f"{lead['waiting_hours']} h waiting",

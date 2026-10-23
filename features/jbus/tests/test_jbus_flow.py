@@ -464,6 +464,7 @@ def test_the_command_prints_the_measure_writes_nothing_and_holds_no_secret(kitch
     assert files() == before
     assert "elsewhere" in said["coverage"]["projects"]
     assert said["rows"] == 2 and said["lead_times"]["merged"] == 1
+    assert said["working"] == {"crew at work": 0.7, "checks running": 0.5}
     assert said["no_room"]["spans"] == 2
     assert said["unexplained_share"] > 0
     assert asked.count("journalctl") == 1
