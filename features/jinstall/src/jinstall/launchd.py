@@ -165,7 +165,12 @@ def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str
     """The shell that runs the service as systemd would: the start marker, the environment
     file, the command (stopped at the start timeout), the failure service's command when the
     command fails, and the exit status of the command. With nothing to do after the command,
-    the shell is replaced by it, so the process launchd keeps and stops is the command."""
+    the shell is replaced by it, so the process launchd keeps and stops is the command.
+
+    The start timeout's watcher gets a process group of its own (`set -m`), and the whole group
+    is killed once the command ends. A sleep it forks as the KILL lands is in that group too:
+    the kernel restarts a fork that a signal to its group interrupts, and no shell can catch a
+    KILL, so nothing of the watcher outlives the agent to hold its output open."""
     said = shlex.quote(str(log(home, name)))
     lines = [
         f'[ "$(wc -c < {said} 2> /dev/null || echo 0)" -lt {LOG_CAP} ] || : > {said}',
@@ -185,11 +190,12 @@ def _script(service: dict, units: dict[str, dict], home: Path, name: str) -> str
         lines += [
             f"{command} &",
             "pid=$!",
-            f"(trap 'kill $nap 2> /dev/null; exit' TERM; sleep {seconds(timeout)} & nap=$!; "
-            f'wait "$nap"; kill "$pid" 2> /dev/null && echo "{TIMED_OUT}") &',
+            "set -m",
+            f'(sleep {seconds(timeout)}; kill "$pid" 2> /dev/null && echo "{TIMED_OUT}") &',
             "watch=$!",
+            "set +m",
             'wait "$pid"; code=$?',
-            'kill "$watch" 2> /dev/null',
+            'kill -KILL -- "-$watch" 2> /dev/null',
         ]
     if failure is not None:
         lines.append(f'[ "$code" -eq 0 ] || {_command(units[failure], home)}')
