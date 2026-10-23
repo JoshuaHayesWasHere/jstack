@@ -216,7 +216,6 @@ AFTER = {
     "main moved": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
     "stale": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
     "t3 down": f"{JUDGED} {CLOSE}",
-    # `blockers.raise_listed` reads the questions again, for the config item it raises.
     "signed out": f"{JUDGED.replace('questions.read', 'questions.read questions.read')} {CLOSE}",
     "blind": f"stall.tell waiting.cadence {CLOSE}",
     "words.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",

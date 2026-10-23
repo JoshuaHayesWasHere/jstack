@@ -95,7 +95,7 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
         f"missing optional jbus config {user.jbus / 'config.toml'} -> jbus does not run without it",
         f"missing optional jbus sign-in {user.token} -> run jbus t3 login",
         f"missing optional config {user.config}"
-        " -> defaults are used: user, timezone, timezone_label, headroom",
+        " -> defaults are used: user, timezone, timezone_label, headroom, retry_cap",
         f"missing optional roles {user.config.with_name('roles')}"
         " -> every role inherits the model of the thread that launches it",
         "ok optional lavish-axi",
@@ -364,7 +364,7 @@ def test_a_jstack_config_the_loader_takes_is_ok_and_one_it_refuses_is_old(user):
     user.write(user.config, 'name = "ada"\n')
     assert user.line("optional config") == (
         f"old {part} -> {user.config} has the key name,"
-        " not one of user, timezone, timezone_label, headroom"
+        " not one of user, timezone, timezone_label, headroom, retry_cap"
     )
 
 
@@ -373,7 +373,7 @@ def test_a_jstack_config_that_is_a_link_to_nothing_is_missing(user):
     user.config.symlink_to(user.home / "nowhere.toml")
     assert user.line("optional config") == (
         f"missing optional config {user.config}"
-        " -> defaults are used: user, timezone, timezone_label, headroom"
+        " -> defaults are used: user, timezone, timezone_label, headroom, retry_cap"
     )
 
 

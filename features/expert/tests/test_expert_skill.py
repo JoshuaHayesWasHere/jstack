@@ -460,8 +460,11 @@ def test_the_real_jbus_queues_the_gate_the_block_sends_under_its_slug(scene):
     config.chmod(0o600)
     slug = f"expert-{NAME}-no-rollback"
     assert gate(scene) == [f"sent to demo as {slug}: queued: question 1"]
-    (waiting,) = json.loads((scene.user / ".local/state/jbus/demo/outbox.json").read_text())
-    assert waiting["line"] == f"gate {slug}: question 1: the release workflow has no rollback step"
+    state = scene.user / ".local/state/jbus/demo"
+    logged = [json.loads(line) for line in (state / "events.jsonl").read_text().splitlines()]
+    (gated,) = [one for one in logged if one.get("event") == "gate"]
+    assert gated["line"] == f"gate {slug}: question 1: the release workflow has no rollback step"
+    assert gated["loud"] == "quiet" and not (state / "outbox.json").exists()
     assert gate(scene) == [f"sent to demo as {slug}: already sent: question 1"]
     (said,) = gate(scene, project="another")
     assert said.startswith("not sent: jbus said: refused: no project another")
