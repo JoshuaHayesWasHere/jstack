@@ -21,7 +21,10 @@ An event for the user goes to each of the project's `routes`, as its `wake` sett
 and the top-level webhook where the config sets one whose pair differs from the project's. Each
 route has its own outbox, five-minute gap and `last_error`, in its own folder: `home-thread/`, the
 project's state folder for its own webhook, and `top-level/`. So a route that is down neither holds
-back nor repeats what jbus sends to another.
+back nor repeats what jbus sends to another. What waits for a route that `wake` leaves out moves,
+on the next pass, to the outbox of each route in effect (`Box.rehome`), so a change of `wake`
+strands no event. An event for the user that still waits after `AFTER` passes in which a route in
+effect took posts is told once on the desk (`Box.unposted`).
 
 Every body has a top-level `kind`, and jbus-relay routes each body by it: `events` for what an
 outbox of events posts, and `reminder` and `refresh` for the timers of what blocks
@@ -86,6 +89,9 @@ SNAPSHOT_AT = (17, 15)
 PRUNE_AFTER = timedelta(days=7)
 LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
+UNPOSTED = "unposted.json"
+AFTER = 3
+TAKEN = "taken"
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
 TOP_LEVEL = "top-level"
@@ -250,6 +256,11 @@ class Route:
     blocking: bool = False
     home: bool = False
 
+    @property
+    def name(self) -> str:
+        """Return what the journal and the status file call the route."""
+        return "home thread" if self.home else "top-level webhook" if self.top else "webhook"
+
 
 class Box:
     """A `Box` holds a project's outboxes, the keys of what it has sent, and when it last posted.
@@ -275,14 +286,29 @@ class Box:
         self.second = second
 
     @property
-    def routes(self) -> list[Route]:
-        """Return the routes the project's `wake` picks: the home thread, then the project's own
+    def every(self) -> list[Route]:
+        """Return each route a `wake` could pick: the home thread, then the project's own
         webhook, then the top-level one if it is a route of its own."""
         home = Route("", "", self.state / HOME, home=True)
         own = Route(self.project.webhook_url, self.project.webhook_key, self.state)
         other = Route(*self.top, self.state / TOP_LEVEL, top=True)
-        hooks = [own, *([other] if self.top[0] and tuple(self.top) != (own.url, own.key) else [])]
-        return [home] * self.project.to_home + hooks * self.project.to_webhook
+        return [
+            home,
+            own,
+            *([other] if self.top[0] and tuple(self.top) != (own.url, own.key) else []),
+        ]
+
+    @property
+    def routes(self) -> list[Route]:
+        """Return the routes the project's `wake` picks, in the order of `every`."""
+        picked = {True: self.project.to_home, False: self.project.to_webhook}
+        return [route for route in self.every if picked[route.home]]
+
+    @property
+    def left(self) -> list[Route]:
+        """Return the routes of `every` that the project's `wake` leaves out."""
+        routes = self.routes
+        return [route for route in self.every if route not in routes]
 
     @property
     def blocking(self) -> Route | None:
@@ -505,6 +531,68 @@ class Box:
             if made["kind"] == "refresh":
                 waiting = [one for one in waiting if one.get("kind") != "refresh"]
             write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)
+
+    def rehome(self) -> tuple[list[Route], int]:
+        """Move each event for the user that waits for a route `left` names to the outbox of each
+        route in effect, and empty the old outbox. An event goes once to each outbox: one whose id
+        waits there already stays as it is. Return the routes events moved from, and how many
+        events moved, each counted once."""
+        moved, ids = [], set()
+        with self._locked():
+            routes = self.routes
+            for old in self.left:
+                held = self._outbox(old)
+                if not held:
+                    continue
+                found = [one for one in held if _loud(one) == "user"]
+                for route in routes:
+                    waiting = self._outbox(route)
+                    there = {_id(one) for one in waiting}
+                    for one in found:
+                        if _id(one) not in there:
+                            there.add(_id(one))
+                            waiting.append(one)
+                    route.folder.mkdir(parents=True, exist_ok=True)
+                    write_json(route.folder / "outbox.json", waiting, mode=0o600)
+                write_json(old.folder / "outbox.json", [], mode=0o600)
+                moved.append(old)
+                ids |= {_id(one) for one in found}
+        return moved, len(ids)
+
+    def ids(self, route: Route) -> set[str]:
+        """Return the ids of the events for the user that wait for a route."""
+        return {_id(one) for one in self._outbox(route) if _loud(one) == "user"}
+
+    def unposted(self, taken: set[str], working: bool) -> list[dict[str, Any]]:
+        """Count one pass for each event for the user that waits in any outbox of the project and
+        that no route has taken, when a route in effect took posts in that pass (`working`).
+        Return each event whose count reached `AFTER` in this pass, so that it is told once.
+
+        `unposted.json` keeps the count of each event that waits, by its id, or `TAKEN` once a
+        route took it, so that a copy that waits for another route counts no more. It forgets an
+        event that waits nowhere."""
+        due = []
+        with self._locked():
+            path = self.state / UNPOSTED
+            kept = read_json(path, {})
+            counts: dict[str, int | str] = {}
+            for route in self.every:
+                for one in self._outbox(route):
+                    name = _id(one)
+                    if _loud(one) != "user" or name in counts:
+                        continue
+                    count = kept.get(name, 0)
+                    if count == TAKEN or name in taken:
+                        counts[name] = TAKEN
+                        continue
+                    if working and count < AFTER:
+                        count += 1
+                        if count == AFTER:
+                            due.append(one)
+                    counts[name] = count
+            if counts != kept:
+                write_json(path, counts, mode=0o600)
+        return due
 
     def waiting(self, route: Route | None = None) -> int:
         blocking = route is not None and route.blocking

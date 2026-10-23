@@ -214,6 +214,19 @@ def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[st
     }
 
 
+def stranded(config: Config) -> dict[str, dict[str, int]]:
+    """Return, for each project that has one, each outbox of a route its `wake` leaves out that
+    still holds events, with how many. The next pass moves them (`wake.Box.rehome`), and
+    `jbus status` counts them again as they stand."""
+    found = {}
+    for one in config.projects:
+        box = wake.Box(config.state(one), one, config.webhook, config.blocking)
+        held = {route.name: box.waiting(route) for route in box.left}
+        if any(held.values()):
+            found[one.name] = {name: count for name, count in held.items() if count}
+    return found
+
+
 def alerts(config: Config, now: datetime) -> list[str]:
     """Return the alert line of each webhook of each project whose streak alerted, with the error
     the webhook gave last (`alert.failing`)."""
@@ -248,6 +261,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
             projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
     return {
         "alerts": alerts(config, now),
+        "stranded": stranded(config),
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
         "sign_in_reminder": signin.plan(config, now),
