@@ -104,22 +104,22 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     needs = seen["needs"]
     assert needs["head"] == "4 Needs you"
     assert [(one["key"], one["what"], one["acts"][0]["text"]) for one in needs["now"]] == [
+        ("demo/approve:tea-kettle", "tea-kettle", "Approve launch"),
         ("demo/row:jam-lid", "which lid?", "Fix brief"),
         ("pantry/row:fig-tart", "which tin?", "Fix brief"),
         ("demo/#14", "Pull request #14", "Review merge"),
-        ("demo/approve:tea-kettle", "tea-kettle", "Approve launch"),
     ]
     assert [one["acts"][0]["href"] for one in needs["now"]] == [
+        "#/demo/you/approve/tea-kettle",
         "#/demo/you/row/jam-lid",
         "#/pantry/you/row/fig-tart",
         "#/demo/you/hold/14",
-        "#/demo/you/approve/tea-kettle",
     ]
     assert [one["meta"] for one in needs["now"]] == [
+        "demo · waiting 50m · unblocks tea-cups",
         "demo · jam-lid · waiting 50m",
         "pantry · fig-tart · waiting 40m",
         "demo · oat-honey · waiting 12m · merge to main",
-        "demo · new · unblocks tea-cups",
     ]
     assert [(one["what"], one["acts"][0]["text"]) for one in needs["soon"]] == [
         ("tea or coffee?", "Answer")

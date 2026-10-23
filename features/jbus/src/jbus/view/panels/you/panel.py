@@ -1,13 +1,18 @@
 """What waits on the user: the list the last pass left, with the gates as they are now, and every
 gate of the home's `gates.md` that jbus does not hold as a question.
 
-From that list the panel builds the page's two queues, as closed records (`_NEED`), in a person's
-words and with no command line in them. `needs` is what only the user can move and nothing else
-will: a gate that holds (`Holds:`) or has no default, an approval, a held merge, a row at a gate,
-a leftover, a setup. `proceeds` is a gate whose default is already taken. It closes with that
-default after 2 hours of silence (`questions.QUIET`). A gate of a home's `gates.md` instead
-stands as it is. A link's conflict is a question for its home, not for the user, so it is on
-neither queue.
+The panel builds the page's two queues, as closed records (`_NEED`), in a person's words and with
+no command line in them. `needs` is what only the user can move and nothing else will. Of work,
+that is every line of `work.json` whose holder is the user, a row's or a thread's, with what
+holds it and since when it is in that state: a row at a gate, one to approve, a held merge, a
+leftover, a closed pull request, a hung turn, a thread that waits on a request, and a thread
+that is gone. The pass judged each line once (`jbus.work`), so the list of what waits on the
+user is no second source for work: an item of it that names a row (`ROWS`) is no need by
+itself, and only lends its route and what it unblocks to the row's need. Of that list, `needs`
+has the rest: a gate that holds (`Holds:`) or has no default, and a setup. `proceeds` is a gate
+whose default is already taken. It closes with that default after 2 hours of silence
+(`questions.QUIET`). A gate of a home's `gates.md` instead stands as it is. A link's conflict
+is a question for its home, not for the user, so it is on neither queue.
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
 page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
@@ -19,15 +24,16 @@ for a row whose item was redirected, the item's id is the only thing that approv
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from jbus import item, merge, mirror, questions, queue, waiting
+from jbus import item, mirror, questions, queue, waiting
 from jbus.view.state import (
     _SLUG,
+    LOST,
+    SAYS,
     WAITING_FILE,
     WORDS,
     Read,
@@ -94,7 +100,19 @@ NEEDS, PROCEEDS = "needs", "proceeds"
 ITEM, APPROVE = "item", "Approve"
 LINE = 200
 WHY = 60
-_SENTENCE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"])")
+USER = "user"
+KIND_OF = {
+    "asking": "row",
+    "unapproved": "approve",
+    "hold": "hold",
+    "leftover": "left",
+    "closed": "left",
+}
+"""The kind of the list of what waits on the user that names a row in each value of `work.json`.
+A need of such a row has its kind's verb. A value with no kind, such as `hung`, is its own kind,
+and its need opens the task."""
+ROWS = frozenset(KIND_OF.values())
+LOOK = "Look at it"
 SOURCES = (
     WAITING_FILE,
     Source("gates.md", "server", lambda read: {"at": _mtime(read.home / "gates.md")}, 140),
@@ -204,20 +222,15 @@ def _cut(given: str, cap: int = LINE) -> str:
     return given[:cap].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
-def _brief(read: Read, slug: str) -> tuple[str, str]:
-    """The title line of the brief that `slug` has in the project's `briefs/`, and the first
-    sentence of its `Task:` line, both empty where there is no such brief."""
+def _title(read: Read, slug: str) -> str:
+    """The title line of the brief that `slug` has in the project's `briefs/`, empty where
+    there is no such brief."""
     try:
         brief = queue.brief(read.state, slug) if _SLUG.fullmatch(slug) else None
     except ValueError:
         brief = None
-    title = task = ""
-    for line in (brief or "").splitlines():
-        if not title and line.startswith("# "):
-            title = line[2:]
-        elif not task and line.startswith("Task:"):
-            task = _SENTENCE.split(line.removeprefix("Task:").strip(), maxsplit=1)[0]
-    return _cut(title), _cut(task)
+    titled = (line[2:] for line in (brief or "").splitlines() if line.startswith("# "))
+    return _cut(next(titled, ""))
 
 
 def _after(line: str, slug: str) -> str:
@@ -253,41 +266,17 @@ def _route(project: str, waits: dict[str, Any], slug: str) -> str:
 
 
 def _need(
-    read: Read,
-    waits: dict[str, Any],
-    one: questions.Question | None,
-    slugs: dict[str, str],
-    tier: str,
+    read: Read, waits: dict[str, Any], one: questions.Question | None, tier: str
 ) -> dict[str, Any]:
-    """One item as the page draws it: what it is and why in words, the one verb that moves
-    it, what it risks, what it unblocks and where it opens."""
+    """One item of the list that names no row, as the page draws it: what it is and why in
+    words, the one verb that moves it, what it risks, what it unblocks and where it opens."""
     kind, slug = waits["kind"], waits["slug"]
-    if kind == "hold":
-        slug = slugs.get(waits["number"], "")
-    elif kind in ("approve", "row", "left"):
-        slug = slug or waits["key"].rpartition(":")[2]
-    title, task = _brief(read, slug)
-    line = _after(waits["line"], waits["slug"])
-    default = waits["default"]
+    line = _after(waits["line"], slug)
     if kind == "gate":
         what, why = waits["question"], _cut(waits["context"])
-    elif kind == "approve":
-        what, why = title or slug, task
-    elif kind == "hold":
-        said = merge.parse(waits["line"])
-        number = f"#{waits['number']}"
-        what = f"Pull request {number}" + (f": {title}" if title else "")
-        why = _cut(said.reason if said and said.reason else "waits for your word")
-        default = ""
     else:
-        what = title or (slug if kind == "left" else "") or line
-        why = line if what != line else ""
+        what, why = line, ""
     accepts = bool(waits["answerable"] and one is not None and not one.holds)
-    depends = [
-        task["slug"]
-        for task in read.tasks
-        if slug and any(each["slug"] == slug for each in task["depends"])
-    ]
     due = None
     if one is not None and tier == PROCEEDS:
         due = iso(datetime.fromisoformat(one.asked_at) + questions.QUIET)
@@ -300,9 +289,9 @@ def _need(
         "since": waits["since"],
         "verb": ANSWER if kind == "gate" and not accepts else waiting.verb(kind),
         "answerable": waits["answerable"],
-        "default": _cut(default, 600),
-        "risk": MERGES if kind == "hold" else (one.holds if one and one.holds else REVERSIBLE),
-        "unblocks": list(dict.fromkeys([*waits["unblocks"], *depends])),
+        "default": _cut(waits["default"], 600),
+        "risk": one.holds if one and one.holds else REVERSIBLE,
+        "unblocks": waits["unblocks"],
         "open": _route(read.name, waits, slug),
         "due": due,
         "item": "",
@@ -311,10 +300,10 @@ def _need(
     }
 
 
-def _approves(waits: dict[str, Any]) -> str:
+def _approves(need: dict[str, Any]) -> str:
     """For a need of the kind `approve`, the slug of a row: the need asks the user's go for
     that row. For any other need, nothing."""
-    return (waits["slug"] or waits["key"].rpartition(":")[2]) if waits["kind"] == "approve" else ""
+    return need["key"].partition(":")[2] if need["kind"] == "approve" else ""
 
 
 def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict[str, Any]]:
@@ -351,23 +340,117 @@ def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict
     return made
 
 
+def _work(read: Read, value: str, slug: str, listed: dict[str, Any] | None) -> dict[str, Any]:
+    """What a need of work has that its kind gives: its kind, verb, risk and route. A row
+    that the list of what waits on the user names opens that item's drawer."""
+    kind = KIND_OF.get(value, value)
+    here = quote(read.name, safe="")
+    return {
+        "kind": kind,
+        "verb": waiting.verb(kind) if kind in ROWS else LOOK,
+        "risk": MERGES if kind == "hold" else REVERSIBLE,
+        "open": _route(read.name, listed, slug)
+        if listed
+        else f"#/{here}/task/{quote(slug, safe='')}",
+        "answerable": False,
+        "default": "",
+        "due": None,
+        "item": "",
+        "seen": "",
+        "slug": slug,
+    }
+
+
+def _rows(read: Read, listed: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """A need for each row of `work.json` whose holder is the user: what it is, what holds it,
+    and since when it is in that state, as the task has it. Where the task keeps no time, the
+    need has the time of the item of the list that names the row, if there is one."""
+    made = []
+    for task in read.tasks:
+        if task["who"] != USER:
+            continue
+        slug, value, said = task["slug"], task["state"]["kind"], task["state"]["say"]
+        kind = KIND_OF.get(value, value)
+        key = task["pr"] if kind == "hold" and task["pr"] else f"{kind}:{slug}"
+        title = _title(read, slug)
+        said = said or task["state"]["waits"]
+        what = title or (said if kind == "row" else slug)
+        if kind == "hold":
+            what = f"Pull request {task['pr']}" + (f": {title}" if title else "")
+        one = listed.get(key)
+        depends = [
+            other["slug"]
+            for other in read.tasks
+            if any(each["slug"] == slug for each in other["depends"])
+        ]
+        made.append(
+            {
+                "project": read.name,
+                "key": key,
+                "what": _cut(what, 100),
+                "why": _cut(said if what != said else "", WHY),
+                "since": task["since"] or (one["since"] if one else None),
+                "unblocks": list(dict.fromkeys([*(one["unblocks"] if one else []), *depends])),
+            }
+            | _work(read, value, slug, one)
+        )
+    return made
+
+
+def _threads(read: Read) -> list[dict[str, Any]]:
+    """A need for each thread of no row whose holder in `work.json` is the user, since it last
+    wrote."""
+    wrote = {
+        one.get("id"): when(one.get("wrote") or one.get("updatedAt"))
+        for one in read.mine.get("threads") or []
+        if isinstance(one, dict)
+    }
+    made = []
+    for line in (read.work or {}).get("work", []):
+        if not isinstance(line, dict) or line.get("kind") != "thread" or line.get("who") != USER:
+            continue
+        value, key = text(line.get("value"), 20), text(line.get("key"), 120)
+        said = SAYS.get(value, "")
+        if value == "lost":
+            said = LOST.get((line.get("facts") or {}).get("thread", ""), LOST["completed"])
+        role, slug = text(line.get("role"), 20), text(line.get("slug"), 80)
+        made.append(
+            {
+                "project": read.name,
+                "key": key,
+                "what": _cut(text(line.get("title")) or key, 100),
+                "why": _cut(said or text(line.get("waits")), WHY),
+                "since": wrote.get(line.get("key")),
+                "unblocks": [],
+            }
+            | _work(read, value, slug, None)
+            | {
+                "open": "#/"
+                + "/".join(quote(one, safe="") for one in (read.name, "thread", role, slug))
+            }
+        )
+    return made
+
+
 def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any]]:
     """The two queues of the page: what only the user can move, oldest first, and the gates
-    that go ahead on their default, soonest first."""
+    that go ahead on their default, soonest first. An item of the list that names a row is
+    the row's, and the row is a need where `work.json` says the user holds it (`_rows`)."""
     asked = {str(one.number): one for one in questions.load(read.state)}
-    slugs = {task["pr"].removeprefix("#"): task["slug"] for task in read.tasks if task["pr"]}
     queues: dict[str, list[dict[str, Any]]] = {NEEDS: [], PROCEEDS: []}
     found = item.items(read.state)
     redirected = {one.slug for one in found.values() if one.slug and one.redirect}
     for one in waits:
-        if _approves(one) in redirected:
+        if one["kind"] in ROWS:
             continue
         held = asked.get(one["number"]) if one["answerable"] else None
         tier = _tier(one, held)
         if tier:
-            queues[tier].append(_need(read, one, held, slugs, tier))
-    rows = {_approves(one) for one in waits} - {""}
-    needs = oldest([*queues[NEEDS], *_items(read, found, rows)])
+            queues[tier].append(_need(read, one, held, tier))
+    listed = {one["key"]: one for one in waits if one["kind"] in ROWS}
+    rows = [one for one in _rows(read, listed) if _approves(one) not in redirected]
+    approving = {_approves(one) for one in rows} - {""}
+    needs = oldest([*queues[NEEDS], *rows, *_threads(read), *_items(read, found, approving)])
     return needs, sorted(queues[PROCEEDS], key=lambda one: one["due"] or "~")
 
 

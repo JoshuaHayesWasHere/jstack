@@ -17,10 +17,15 @@ def a_brief(scene, slug, title, task):
 
 
 def needing(scene):
-    """One item of each of the six kinds, over two projects, each with a time of its own:
-    a setup 7 hours old, an approval with a brief and a row behind it, a question that holds, a
-    leftover, a row at a gate of `pantry`, and a held pull request."""
+    """One need of each of the six kinds, over two projects: a setup 7 hours old, a question
+    that holds, a row to approve with a brief and a row behind it, a row at a gate of each
+    project, a leftover, and a held pull request. The rows are the user's in `work.json`."""
     stacked(scene)
+    rows = json.loads((scene.state / "queue.json").read_text())
+    for one in rows:
+        if one["slug"] == "rye-loaf":
+            one["why"] = "Left: a note"
+    scene.queue(rows)
     a_brief(scene, "tea-kettle", "boil the water first", "Boil the water. Then pour it.")
     a_brief(scene, "oat-honey", "stir the honey in", "Stir it.")
     lines = PIPED.format(n="<n>", asked="post the menu?", status="open", slug="jam-jar")
@@ -52,8 +57,9 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
         demo = served.json("/state.json?project=demo")
     finally:
         served.close()
-    assert [one["kind"] for one in needs] == ["config", "approve", "gate", "left", "row", "hold"]
-    assert [one["project"] for one in needs] == ["demo"] * 4 + ["pantry", "demo"]
+    kinds = ["config", "gate", "approve", "row", "left", "row", "hold"]
+    assert [one["kind"] for one in needs] == kinds
+    assert [one["project"] for one in needs] == ["demo"] * 5 + ["pantry", "demo"]
     assert [one["since"] for one in needs] == sorted(one["since"] for one in needs)
     assert {one["verb"] for one in needs} <= {
         *(one.verb for one in waiting.KINDS),
@@ -61,8 +67,9 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     }
     assert [one["verb"] for one in needs] == [
         "Set up",
-        "Approve launch",
         "Answer",
+        "Approve launch",
+        "Fix brief",
         "Close it",
         "Fix brief",
         "Review merge",
@@ -71,11 +78,13 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     assert all("jbus " not in one["what"] + one["why"] for one in needs)
     by = {one["kind"]: one for one in needs}
     assert by["approve"]["what"] == "tea-kettle: boil the water first"
-    assert by["approve"]["why"] == "Boil the water."
+    assert by["approve"]["why"] == "nobody has approved it"
     assert by["approve"]["unblocks"] == ["tea-cups"]
     assert by["approve"]["open"] == "#/demo/you/approve/tea-kettle"
     assert by["hold"]["what"] == "Pull request #14: oat-honey: stir the honey in"
-    assert by["hold"]["why"] == "needs the user's word"
+    assert by["hold"]["why"] == "needs user, touches skills/crew/SKILL.md"
+    assert by["hold"]["since"] == iso(ago(minutes=12))
+    assert by["left"]["open"] == "#/demo/you/left/rye-loaf"
     assert (by["hold"]["risk"], by["hold"]["answerable"]) == ("merge to main", False)
     assert by["hold"]["open"] == "#/demo/you/hold/14"
     assert (by["gate"]["what"], by["gate"]["risk"]) == ("post the menu?", "publishes")
@@ -133,7 +142,8 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
 ):
     """The scene has eleven questions that go ahead on their default, and a link's conflict,
     whose question goes to its home. It also has a gate of a home's file with a default, and an
-    approval. The page's count is one.
+    approval, of the one row of the queue, which is the user's to approve. The page's count is
+    one.
     Each countdown is the 2 hours of silence after which jbus closes the question."""
     scene = Scene(tmp_path, monkeypatch)
     asked = [ago(minutes=10 * at) for at in range(11)]
@@ -146,6 +156,7 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
         GATE.format(n=40, asked="a lump?", status="open", default="one")
     )
     scene.waiting([item("approve", "approve:tea-kettle", "approve tea-kettle: jbus queue approve")])
+    scene.queue([row("tea-kettle", approved="", why="not approved")])
     served = Served(scene)
     try:
         stack = served.json("/stack.json")
@@ -178,10 +189,11 @@ def test_every_row_the_pass_marks_as_the_users_needs_the_user(scene, served):
     what waits on the user has. So a hung, lost or waiting task needs the user as much as one
     at a gate, each with what holds it and since when."""
     rows = [
-        row(f"yours-{value}", why=f"a reason {value}", since=et(ago(minutes=10 + at)))
-        | {"value": value, "who": "user"}
+        row(f"yours-{value}", since=et(ago(minutes=10 + at))) | {"value": value, "who": "user"}
         for at, value in enumerate(YOURS)
     ]
+    lost = rows[YOURS.index("lost")]
+    lost["facts"] = {"thread": "missing", "launch": "launched"}
     rows.append(row("crews-own", "running", thread="mcp:crew") | {"value": "working"})
     scene.queue(rows)
     scene.waiting([])
@@ -192,10 +204,11 @@ def test_every_row_the_pass_marks_as_the_users_needs_the_user(scene, served):
     for value in YOURS:
         one, task = found[f"yours-{value}"], tasks[f"yours-{value}"]
         assert one["since"] == task["since"] == iso(ago(minutes=10 + YOURS.index(value)))
-        assert one["why"], f"{value}: Needs you does not say what holds it"
+        cause = one["why"] or (one["what"] if one["what"] != task["slug"] else "")
+        assert cause, f"{value}: Needs you does not say what holds it"
         assert one["open"] == f"#/demo/task/yours-{value}"
     assert found["yours-hung"]["why"] == "its turn has written nothing, and may be hung"
-    assert found["yours-lost"]["why"] == "its thread is gone and wrote nothing"
+    assert found["yours-lost"]["why"] == "T3 Code has no such thread, and it wrote nothing"
     assert found["yours-waiting"]["why"] == "the thread waits on a request"
     assert served.json("/stack.json")["projects"][0]["waits"] == len(YOURS)
 
@@ -230,7 +243,9 @@ def test_a_thread_of_no_row_that_the_pass_marks_as_the_users_needs_the_user(scen
     )
     assert lost.value == "lost"
     about = {"key": "mcp:scout: tin", "kind": "thread", "slug": "tin", "thread": "mcp:scout: tin"}
-    line = work.entry(lost, work.holder(lost, role="scout"), **about, role="scout", title="scout: tin")
+    line = work.entry(
+        lost, work.holder(lost, role="scout"), **about, role="scout", title="scout: tin"
+    )
     kept = json.loads((scene.state / "work.json").read_text())
     scene.write("work.json", kept | {"work": [*kept["work"], line]})
     scene.passed(seconds_ago=20, threads=[out("scout: tin", "ended", "completed", minutes=30)])
