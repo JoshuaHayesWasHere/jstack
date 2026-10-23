@@ -7,7 +7,8 @@ A kind writes only through Machine, so this file can enforce these rules:
 - Machine writes a JSON file by a rename, at the path its symlink points to. It never writes
   over a change that another process made after Machine read the file. One install or uninstall
   runs at a time for a HOME, because `alone` holds a lock on it.
-- Machine runs systemctl only when the user manager reads this HOME.
+- Machine runs systemctl only when the user manager reads this HOME, and the system's launchctl
+  only when HOME is the account's.
 - Machine runs uv with nothing forced, so uv never replaces a program that is not its own.
 - Machine writes a file that `--setup` seeds once, with the digest of its bytes in a record,
   and removes it only while its bytes still have that digest.
@@ -26,6 +27,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+
+SYSTEM_LAUNCHCTL = "/bin/launchctl"
 
 
 @dataclass(frozen=True)
@@ -276,12 +279,15 @@ class Machine:
     def unlink(self, path: Path) -> None:
         path.unlink()
 
-    def write_text(self, path: Path, text: str) -> None:
-        """Write a file that is not there yet. Each level above it that was not there goes
-        into the record first, so an uninstall that removes the file leaves no directory."""
+    def write_text(self, path: Path, text: str, mode: int | None = None) -> None:
+        """Write a file by a rename, over one that is there or where none is. Each level above
+        it that was not there goes into the record first, so an uninstall that removes the
+        file leaves no directory. With `mode`, the file has it whatever the umask is."""
         self.make_dirs(path.parent)
         with _beside(path) as next_to:
             next_to.write_text(text)
+            if mode is not None:
+                next_to.chmod(mode)
 
     def read_object(self, path: Path) -> JsonObject | Unreadable:
         real = Path(os.path.realpath(path))
@@ -430,6 +436,20 @@ class Machine:
         if asked.code != 0 or f"HOME={self.home}" not in asked.out.splitlines():
             return None
         return self.run(["systemctl", "--user", *args])
+
+    def gui(self) -> str:
+        """launchd's domain of the logged-in user, `gui/<uid>`, where a user's agents load."""
+        return f"gui/{os.getuid()}"
+
+    def launchctl(self, *args: str) -> Ran | None:
+        """Run `launchctl <args>`, or return None without running it when HOME is not the
+        account's and the launchctl on PATH is the system's. The gui domain is the account's,
+        so a sandbox's agents never load into it. A stand-in on PATH answers for the sandbox."""
+        found = self.which("launchctl")
+        system = found is not None and os.path.realpath(found) == os.path.realpath(SYSTEM_LAUNCHCTL)
+        if self.home != self.account and system:
+            return None
+        return self.run(["launchctl", *args])
 
     def sweep(self) -> Dropped:
         """The last step of uninstall, over the record

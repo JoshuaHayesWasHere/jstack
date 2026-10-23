@@ -25,6 +25,7 @@ is "the machine and the plan jgauge reads are the sandbox's" 'inside "$PROC" && 
 is "gh is the stand-in ($(command -v gh))" '[ "$(command -v gh)" = "$S/stub/gh" ]'
 is "notify-send is the stand-in" '[ "$(command -v notify-send)" = "$S/stub/notify-send" ]'
 is "systemctl is the stand-in" '[ "$(command -v systemctl)" = "$S/stub/systemctl" ]'
+is "launchctl is the stand-in" '[ "$(command -v launchctl)" = "$S/stub/launchctl" ]'
 is "the units, the state, uv's tools and its bin directory are in the sandbox" \
   'inside "${XDG_CONFIG_HOME:-$HOME/.config}/" && inside "${XDG_STATE_HOME:-$HOME/.local/state}/" &&
     inside "${UV_TOOL_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/uv/tools}/" &&

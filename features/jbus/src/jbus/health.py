@@ -49,7 +49,9 @@ import argparse
 import math
 import os
 import subprocess
+import sys
 import tempfile
+import time
 import urllib.parse
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -60,7 +62,7 @@ from typing import Any
 import jbus
 import jroles
 import jsettings
-from jbus import alert, read_json, verbs, wake
+from jbus import alert, launchd, read_json, verbs, wake
 from jbus import relay as relaying
 from jroles import ledger, pool
 
@@ -182,7 +184,40 @@ def _lines(command: list[str]) -> list[str] | None:
     return done.stdout.splitlines() if done.returncode == 0 else None
 
 
-SENSES = Senses()
+class Launchd(Senses):
+    """`Launchd` reads macOS, where launchd runs the units as agents (`jinstall.launchd`). The
+    journal of a unit is what its agent's log says over the window, by the start marker of
+    each run. A unit's ActiveState is `active` while its agent runs, `inactive` while launchd
+    does not have it, and launchd's own word otherwise. launchd sets no start timeout of its
+    own, so a unit has no TimeoutStartUSec: the agent's shell stops the command and says so in
+    the log, in the words the journal gives."""
+
+    def journal(self, unit: str, minutes: int) -> list[str] | None:
+        try:
+            lines = launchd.log(Path.home(), launchd.label(unit)).read_text().splitlines()
+        except OSError:
+            return None
+        return launchd.recent(lines, time.time() - minutes * 60)
+
+    def show(self, unit: str, name: str) -> str:
+        if name != "ActiveState":
+            return ""
+        service = f"gui/{os.getuid()}/{launchd.label(unit)}"
+        try:
+            done = subprocess.run(
+                ["launchctl", "print", service], capture_output=True, text=True, timeout=30
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return ""
+        if done.returncode in launchd.NOT_LOADED:
+            return "inactive"
+        if done.returncode:
+            return ""
+        state = launchd.parse_print(done.stdout).get("state", "")
+        return "active" if state == "running" else state
+
+
+SENSES = Launchd() if sys.platform == "darwin" else Senses()
 
 
 def clock() -> datetime:

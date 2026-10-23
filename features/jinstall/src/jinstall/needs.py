@@ -15,6 +15,8 @@ from importlib import metadata
 from pathlib import Path
 
 import jleak
+from jinstall import launchd
+from jinstall.agents import Agents
 from jinstall.harnesses import CLAUDE_CODE, HARNESSES
 from jinstall.kinds import (
     Attribution,
@@ -152,7 +154,9 @@ def needs(machine: Machine) -> tuple[Need, ...]:
                                               home) and in each harness's settings file
       optional  units ~/.config/systemd/user  Units, which enables the ci, relay and
                                               snapshot units only while the ci report, relay
-                                              and state repo needs above are ok (`OPTED`)
+                                              and state repo needs above are ok (`OPTED`); on
+                                              macOS `units ~/Library/LaunchAgents`, Agents,
+                                              the launchd agents made from the same units
     """
     repo, home = machine.checkout, machine.home
     try:
@@ -287,13 +291,14 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     names = sorted(templates(machine))
     opted = {"jbus-ci.timer": CiReport(jbus), "jbus-relay.service": RelayKeys(relay)}
     opted["jbus-snapshot.timer"] = StateRepo(state)
-    units = Units(
-        machine.config_home() / "systemd" / "user",
-        tuple(names),
-        tuple(name for name in names if name.endswith(".timer") and name not in opted),
-        jbus,
-        tuple((name, need) for name, need in opted.items() if name in names),
-    )
+    timers = tuple(name for name in names if name.endswith(".timer") and name not in opted)
+    chosen = tuple((name, need) for name, need in opted.items() if name in names)
+    if machine.platform == "darwin":
+        made = launchd.agents(templates(machine), home)
+        units = Agents(home / "Library" / "LaunchAgents", made, timers, jbus, chosen)
+    else:
+        systemd = machine.config_home() / "systemd" / "user"
+        units = Units(systemd, tuple(names), timers, jbus, chosen)
     found.append(Need(f"units {units.directory}", Level.OPTIONAL, units))
     return tuple(found)
 
