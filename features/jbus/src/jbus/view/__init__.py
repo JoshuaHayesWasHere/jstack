@@ -705,6 +705,8 @@ def _port(shown: argparse.ArgumentParser) -> None:
 
 def _run(args: argparse.Namespace) -> int:
     """Serve the page, or with `usage`, print what it opened."""
+    if args.what != "usage" and args.since:
+        raise Refused("refused: --since is for jbus view usage")
     if args.what != "usage":
         return doors(args.port).serve()
     sources = _sources()

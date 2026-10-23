@@ -126,6 +126,11 @@ def test_jbus_view_usage_counts_each_route_drawer_and_click_in_its_window(
     ]
 
 
+def test_a_window_is_for_the_counts_and_not_for_the_server(scene, capsys):
+    assert cli.main(["view", "--since", "2026-10-01"]) != 0
+    assert "--since is for jbus view usage" in capsys.readouterr().out
+
+
 def test_jbus_view_usage_over_no_file_says_nothing_was_counted(scene, monkeypatch, capsys):
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
     assert cli.main(["view", "usage"]) == 0
