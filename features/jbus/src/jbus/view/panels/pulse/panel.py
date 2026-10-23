@@ -12,7 +12,6 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import sys
 from datetime import datetime
 from typing import Any
 
@@ -129,15 +128,13 @@ def launchd(read: Read) -> dict[str, dict[str, str]] | None:
     }
 
 
-MANAGER, ASK = ("launchd", launchd) if sys.platform == "darwin" else ("systemd", systemd)
-
-
 def pulse(read: Read) -> dict[str, Any]:
     """What systemd, `pass.json` and `status.json` say, and whether systemd `answered`."""
     sources, name, now = read.sources, read.name, read.now
     record = read.record
     status = _table(sources.state_dir / "status.json") or {}
-    units = read.machine(ASK)
+    manager = agents.manager()
+    units = read.machine(launchd if manager == "launchd" else systemd)
     timer, service = (units or {}).get(TIMER, {}), (units or {}).get(SERVICE, {})
     started, ended = when(record.get("started")), when(record.get("ended"))
     last = ended or when(status.get("last_pass"), sources.user)
@@ -149,7 +146,7 @@ def pulse(read: Read) -> dict[str, Any]:
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
     scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
-    said = f"{MANAGER} did not answer"
+    said = f"{manager} did not answer"
     if units is not None:
         said = (
             f"{timer.get('Id', TIMER)} {text(timer.get('ActiveState'), 60)} "
@@ -163,7 +160,7 @@ def pulse(read: Read) -> dict[str, Any]:
         "quiet": QUIET,
         "last_end": last,
         "said": said,
-        "manager": MANAGER,
+        "manager": manager,
         "answered": units is not None,
         "pass": {
             "started": started,

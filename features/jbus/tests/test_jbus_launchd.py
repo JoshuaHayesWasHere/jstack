@@ -4,7 +4,9 @@ in place of launchd, and loads the agents into it as the install does."""
 
 import os
 import subprocess
+import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -12,6 +14,7 @@ import pytest
 from jbus import health, launchd
 from jbus.view.panels.checks import panel as checks
 from jbus.view.panels.pulse import panel as pulse
+from jbus.view.state import Sources
 from testing.paths import REPO
 
 LAUNCHCTL = REPO / "features" / "verify-jstack" / "project-skill" / "scripts" / "fake-launchctl"
@@ -134,3 +137,43 @@ def test_a_reader_keeps_the_runs_of_its_window_by_their_start_markers():
     lines = ["before", f"{launchd.STARTED}100", "old", f"{launchd.STARTED}200", "new", "newer"]
     assert launchd.recent(lines, 150) == ["new", "newer"]
     assert launchd.recent(lines, 50) == ["old", "new", "newer"]
+
+
+class Read:
+    """The little of a view's `Read` that the pulse and checks panels ask of the machine."""
+
+    def __init__(self, tmp_path):
+        self.sources, self.name = Sources(tmp_path / "state", tmp_path / "home"), "demo"
+        self.now, self.record = datetime.now(UTC), {}
+
+    def machine(self, make):
+        return make(self)
+
+    def once(self, make):
+        return {} if make is checks.runs else make(self)
+
+    def table(self, name):
+        return None
+
+
+@pytest.mark.parametrize(("platform", "manager"), [("darwin", "launchd"), ("linux", "systemd")])
+def test_jbus_reads_the_manager_of_its_platform_in_health_the_pulse_and_the_checks(
+    fake, monkeypatch, tmp_path, platform, manager
+):
+    monkeypatch.setattr(sys, "platform", platform)
+    systemctl = Path(os.environ["PATH"].split(":")[0]) / "systemctl"
+    systemctl.write_text("#!/bin/sh\nexit 1\n")
+    systemctl.chmod(0o755)
+    fake.load("jstack.jbus")
+    fake.load("actions.runner.me-jstack.mac-1", pid=41)
+    read = Read(tmp_path)
+
+    assert launchd.manager() == manager
+    assert isinstance(health.machine_senses(), health.Launchd) is (manager == "launchd")
+    said = pulse.pulse(read)
+    assert said["manager"] == manager
+    assert said["answered"] is (manager == "launchd")
+    assert said["said"].startswith("jstack.jbus active" if manager == "launchd" else "systemd")
+    built = checks.build(read)["checks"]
+    assert built["manager"] == manager
+    assert built["runners_read"] is (manager == "launchd")

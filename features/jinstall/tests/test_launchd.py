@@ -16,7 +16,7 @@ import pytest
 
 from jbus import relay
 from jbus.launchd import STARTED, TIMED_OUT, label
-from jinstall import launchd
+from jinstall import agents, launchd
 from jinstall.__main__ import doctor, install, setup, uninstall
 from jinstall.kinds import unit_templates
 from jinstall.machine import Machine, Ran
@@ -156,6 +156,63 @@ def test_uninstall_boots_out_each_agent_and_removes_its_plist(mac):
     assert uninstall(mac.machine()).lines == ()
 
 
+def stick(mac, name):
+    """Make the fake launchd keep the agent of unit `name` after a bootout that exits 0, as
+    launchd does while that bootout still runs."""
+    stub = mac.stub / "launchctl"
+    stub.unlink()
+    stub.write_text(
+        f'#!/bin/sh\n[ "$1 $2" = "bootout {GUI}/{label(name)}" ] || exec {LAUNCHCTL} "$@"\n'
+        'echo "$*" >> "$FAKE_LAUNCHCTL_LOG"\n'
+    )
+    stub.chmod(0o755)
+
+
+def unstick(mac):
+    (mac.stub / "launchctl").unlink()
+    (mac.stub / "launchctl").symlink_to(LAUNCHCTL)
+
+
+def test_setup_refuses_to_rewrite_a_plist_whose_agent_launchd_still_has_after_its_bootout(
+    mac, monkeypatch
+):
+    monkeypatch.setattr(agents, "GONE_WAIT", 0.3)
+    mac.with_jbus()
+    setup(mac.machine())
+    plist = mac.plist("jbus.timer")
+    edited = plist.read_text().replace("<integer>60</integer>", "<integer>9</integer>")
+    plist.write_text(edited)
+    stick(mac, "jbus.timer")
+
+    done = setup(mac.machine())
+
+    assert "launchd still has jstack.jbus 0.3 s after its bootout" in done.note
+    assert done.code == 1
+    assert plist.read_text() == edited
+    unstick(mac)
+    assert mac.said_by(install, True) == [f"ok optional {mac.line}"]
+
+
+def test_uninstall_says_which_agent_launchd_still_has_and_a_second_run_removes_the_rest(
+    mac, monkeypatch
+):
+    monkeypatch.setattr(agents, "GONE_WAIT", 0.3)
+    mac.with_jbus()
+    setup(mac.machine())
+    stick(mac, "jbus.timer")
+
+    done = uninstall(mac.machine())
+
+    assert "launchd still has jstack.jbus 0.3 s after its bootout" in done.note
+    assert done.code == 1
+    assert mac.plist("jbus.timer").exists()
+    unstick(mac)
+    again = uninstall(mac.machine())
+    assert again.code == 0
+    assert not mac.agents.exists() or not list(mac.agents.iterdir())
+    assert not list(mac.loaded.iterdir())
+
+
 def test_the_owners_mac_runs_the_ci_relay_and_snapshot_agents_and_drops_one_nothing_asks_for(
     mac,
 ):
@@ -230,6 +287,18 @@ def test_every_template_has_its_schedule_carried_over(tmp_path):
         assert schedule == SCHEDULES[name], name
         path = f"{tmp_path}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
         assert agent.environment == {"PATH": path}
+
+
+@pytest.mark.parametrize("source", ["/src/a--b", "/src/a-->b", "/src/50%-off--x", "/src/a%2Db"])
+def test_a_source_path_with_dashes_and_percents_is_named_in_a_comment_the_plist_parses(
+    tmp_path, source
+):
+    for agent in launchd.agents(unit_templates(REPO), tmp_path).values():
+        said = launchd.text(agent, tmp_path, Path(source))
+        comment = said.split("<!--", 1)[1].split("-->", 1)[0]
+        assert "--" not in comment
+        assert plistlib.loads(said.encode())["Label"] == agent.label
+        assert launchd.made_from(said) == source
 
 
 def agent_runs(tmp_path, name, programs):
