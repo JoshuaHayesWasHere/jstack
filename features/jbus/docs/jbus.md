@@ -17,6 +17,7 @@ One pass, under one lock, does this for every project in the config:
 3. It asks T3 Code for the project's threads, and asks GitHub, through `gh`, for its pull requests and main's checks.
    It makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).
 4. It tells each crewmate's thread what it must act on: a failed check, a conflict, a review it is owed.
+   It stops a busy process that a crew, reviewer or scout left running after its turn, one whose parent is 1 and that runs in the task's worktree or a temporary folder its session made, and adds a `Left running:` line under the task's last Result or Report.
 5. It launches the approved rows of the queue, after it has asked every project for its open threads and pull requests ([What a pass launches](jbus/what-a-pass-launches.md)).
 6. It rewrites the queue's derived columns, says what waits on you, and sends the events meant for you to the project's home thread, or to a webhook as `wake` picks ([Where wakes go](jbus/events-and-the-webhook.md#where-wakes-go)).
 

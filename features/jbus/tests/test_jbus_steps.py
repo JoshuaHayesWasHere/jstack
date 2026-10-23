@@ -74,6 +74,7 @@ ORDER = [
     "tellers 80 threads.out and stall.hung (client, world)",
     "tellers 100 rebase.tell (client, world)",
     "tellers 110 stall.guarded (client, world)",
+    "after-expedite 5 strays.stop (client, world)",
     "after-expedite 10 mainmoved.tell (client, world)",
     "after-expedite 20 remarks.tell (client, world)",
     "after-expedite 30 rebase.github (client, world)",
