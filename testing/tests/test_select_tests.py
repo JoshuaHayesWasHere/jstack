@@ -635,6 +635,40 @@ def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(pane
     assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
 
 
+MERGED = {
+    "#330": (
+        [
+            "features/jbus/docs/jbus/the-sign-in.md",
+            "features/jbus/docs/jbus/when-jbus-fails.md",
+            "features/jbus/src/jbus/alert.py",
+            "features/jbus/src/jbus/signin.py",
+            "features/jbus/src/jbus/wake.py",
+            "features/jbus/tests/test_jbus_wake_home.py",
+        ],
+        "features/repo-guards/tests/test_module_size.py",
+    ),
+    "#337": (
+        [
+            "features/jbus/tests/fixtures/jbus-view/probe.js",
+            "features/jbus/tests/view/page/browser.py",
+            "features/jbus/tests/view/page/test_view_page_budgets.py",
+        ],
+        "features/jbus/tests/view/test_view_sources.py",
+    ),
+}
+
+
+@pytest.mark.parametrize(("changed", "broken"), MERGED.values(), ids=MERGED.keys())
+def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_broke(
+    changed, broken
+):
+    """The paths each pull request changed. Its check ran neither test, and main went red after
+    the merge: #330 pushed `jbus/wake.py` over the cap of lines, #337 put a URL in a view test."""
+    tests, _ = select.selection(changed)
+
+    assert broken in tests
+
+
 SUMMARY = re.compile(
     r"check-fast selection=(?P<selection>all|some) files=(?P<files>\d+) of=(?P<of>\d+)"
     r" changed=(?P<changed>\d+) imports=(?P<imports>\d+) names=(?P<names>\d+)"
