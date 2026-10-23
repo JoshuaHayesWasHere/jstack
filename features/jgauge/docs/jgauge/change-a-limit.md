@@ -3,7 +3,8 @@
 jstack caps how much work runs at once, so that many threads and test runs together do not overload the machine or use up your Claude plan.
 Three of the caps are sizes of the machine, which jstack works out from its processors and memory.
 One more, `headroom`, says when a launch counts your plan as full.
-You can set each of these four.
+Another, `room_passes`, says how many passes a crew's launch waits for room before it asks you.
+You can set each of these five.
 The other caps are fixed in jstack, as shares and floors that mean the same on any machine.
 
 ## See the limits on this machine
