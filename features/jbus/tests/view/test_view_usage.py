@@ -131,6 +131,28 @@ def test_a_window_is_for_the_counts_and_not_for_the_server(scene, capsys):
     assert "--since is for jbus view usage" in capsys.readouterr().out
 
 
+def test_jbus_view_usage_skips_a_line_it_cannot_read_and_counts_the_rest(
+    scene, monkeypatch, capsys
+):
+    monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
+    lately = (scene.now - timedelta(hours=2)).isoformat()
+    bad = [
+        {"at": "2026-10-12T18:00:00", "kind": "route", "name": "stack"},
+        {"at": lately, "kind": ["route"], "name": "stack"},
+        {"at": lately, "kind": "route", "name": {"stack": 1}},
+        {"at": 1760000000, "kind": "route", "name": "stack"},
+        ["route", "stack"],
+    ]
+    good = {"at": lately, "kind": "drawer", "name": "task", "project": "demo"}
+    text = "".join(json.dumps(one) + "\n" for one in [*bad, good])
+    (scene.state_dir / usage.FILE).write_text(text)
+    since = et(scene.now - timedelta(days=1))
+    assert cli.main(["view", "usage", "--since", since]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0].startswith("jbus view usage: 1 since ")
+    assert [line.split() for line in out[1:]] == [["drawer", "task", "1"]]
+
+
 def test_jbus_view_usage_over_no_file_says_nothing_was_counted(scene, monkeypatch, capsys):
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
     assert cli.main(["view", "usage"]) == 0
