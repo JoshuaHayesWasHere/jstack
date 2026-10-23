@@ -27,7 +27,10 @@ Run `loginctl enable-linger "$USER"` in the distro, so the units run while no te
 
 ## 2. T3 Code on Windows, with a WSL connection
 
-Install the T3 Code desktop app on Windows, the build the [Requirements](../../../README.md#requirements) name, from [its releases](https://github.com/pingdotgg/t3code/releases) or with `winget install T3Tools.T3Code`.
+Install the T3 Code desktop app on Windows, the nightly build the [Requirements](../../../README.md#requirements) name.
+Take it from [its releases](https://github.com/pingdotgg/t3code/releases): the newest release titled "T3 Code Nightly", its `T3-Code-<version>-x64.exe`.
+`winget install T3Tools.T3Code` installs the stable build, which lacks tools that jstack calls.
+The doctor cannot see which build the app is, since it reads the `t3` command of step 4, so install the nightly app here.
 Open it, then open **Settings → Connections** and choose your distro.
 T3 Code installs its own server runtime in the distro, under `~/.t3/wsl-runtime`, and runs your projects and agents there.
 
