@@ -51,6 +51,35 @@ def test_a_fact_that_cannot_be_read_is_taken_as_its_fallback(tmp_path):
     )
 
 
+DARWIN = Path(__file__).parent / "fixtures" / "darwin"
+
+
+@pytest.fixture
+def mac(tmp_path, monkeypatch):
+    """A Mac: `sys.platform` is darwin and `sysctl` prints the output in fixtures/darwin, 12
+    processors and 16 GiB. `PROC` names a /proc of other sizes, so a fact read from it would
+    show."""
+    shown = tmp_path / "darwin"
+    shown.mkdir()
+    (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setenv("DARWIN", str(shown))
+    monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
+    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
+    return shown
+
+
+def test_the_facts_of_a_mac_are_its_processors_and_memory_from_sysctl(mac):
+    found = Machine.here()
+    assert found == Machine(12, 16)
+    assert found.says() == "12 cores, 16 GiB"
+
+
+def test_a_mac_whose_sysctl_says_nothing_takes_the_fallbacks(mac):
+    (mac / "sysctl.txt").write_text("")
+    assert Machine.here() == Machine(sizes.FALLBACK_CORES, sizes.FALLBACK_GIB, ("cores", "memory"))
+
+
 @pytest.mark.parametrize(
     ("cores", "gib", "full", "short", "crews"),
     [
@@ -158,6 +187,8 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
         "__future__",
         "os",
         "re",
+        "subprocess",
+        "sys",
         "tomllib",
         "collections",
         "dataclasses",
