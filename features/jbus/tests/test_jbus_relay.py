@@ -283,9 +283,10 @@ def test_a_body_with_nothing_that_blocks_goes_on_the_full_feed_only(relay, hooks
     assert sous_chef.bodies("blocking") == []
 
 
-def test_a_user_loud_kind_given_the_lower_level_stays_off_the_blocking_route(relay, hooks):
+@pytest.mark.parametrize("kind", ["decision", "sign-in", "alert"])
+def test_a_user_loud_kind_given_the_lower_level_stays_off_the_blocking_route(relay, hooks, kind):
     sous_chef, _, _ = hooks
-    lowered = event("gate", "quiet")
+    lowered = event(kind, "quiet")
 
     _, said = relay.send(body(lowered))
 
