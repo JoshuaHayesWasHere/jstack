@@ -225,12 +225,17 @@ Each field is normalised in these steps:
 
 1. A list field, such as `Done when:`, is one line for each `- ` item, with the lines an item is wrapped over joined. Any other field is one line.
 2. Every code span in backticks, every URL, and every word with a `/`, a `.` inside it or a digit is kept exactly as written, since such a word is a path, a file name or a number.
-3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped. A `n't` is a word of its own, `not`. So `shouldn't` becomes the two words `should` and `not`, and the fingerprint never takes a negation for a typo. A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
+3. Every other word is lowercased, with the markdown, the punctuation and the white space around it dropped.
+   A `n't` is a word of its own, `not`.
+   So `shouldn't` becomes the two words `should` and `not`, and the fingerprint never takes a negation for a typo.
+   A word of a short fixed list of fillers (`a`, `an`, `the`, `of`, `to`, `in`, `on`, `at`, `for`, `by`, `with`, `is`, `are`, `was`, `be`, `been`, `it`, `its`, `that`, `this`, `as`, `from`, `so`, `then`, `there`) is dropped.
 4. The words and exact tokens of a line are sorted, and so are the lines of a field.
 5. The value of `Size` is kept whole, lowercased and with its white space collapsed.
 6. The fields go in a fixed order, the six above as listed, each present even where the brief has none of it.
 
-Two fingerprints mean the same when each field has as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same. A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go. So a typo, a change of formatting, punctuation or case, and lines put in another order keep the go.
+Two fingerprints mean the same when each field has as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same.
+A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go.
+So a typo, a change of formatting, punctuation or case, and lines put in another order keep the go.
 An edit only to the fields the fingerprint leaves out keeps it too.
 Each of these asks you again: a line added, taken out or changed in the six fields, a changed path, number or value, and one of the six fields added.
 
