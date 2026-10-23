@@ -4,7 +4,7 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `alert: health disk <mount>: <n>% of its space used ...` or `inodes <mount>` | The mount is at 80% or more. | Free space there. Under `/tmp`, you can delete old `pytest-of-*` directories that no live process holds. |
+| `alert: health disk <mount>: <n>% of its space used ...` or `inodes <mount>` | The mount is at 80% or more. | Free space there. Under `/tmp`, old `pytest-of-*` directories that no live process holds are not data. |
 | `alert: health timeout jbus: ...` | systemd stopped a pass at `TimeoutStartSec`. | `journalctl --user -u jbus.service` shows the pass. |
 | `alert: health timeout jmerge: ...` | A pass stopped `jmerge` at its timeout. | Run `jmerge --check` in the main checkout and see where it waits. |
 | `alert: health relay: jbus-relay.service is <state>` or `relay heartbeat` | The relay the config posts to is not running. | `systemctl --user status jbus-relay`, and [The relay](../jbus/the-relay.md) for a refused start. |
