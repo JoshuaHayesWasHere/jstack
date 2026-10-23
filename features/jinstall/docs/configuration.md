@@ -106,7 +106,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 |---|---|---|
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
-| `dispatch` | `true` | `dispatch = false` launches nothing. |
+| `dispatch` | `true` | With `dispatch = false`, `jbus` launches nothing. |
 | `max_running` | Derived: one a processor, while each has 2 GiB | How many crewmates may be out at once, counted across every project. A value under 1 is refused. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
@@ -114,7 +114,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `webhook_url` | Empty | The top-level webhook, which monitors every project. `jbus` POSTs every project's events to it. It is also the URL of every project that has no `webhook_url` and no `webhook_key` of its own. |
 | `webhook_key` | Empty | The key that goes with the top-level `webhook_url`. Set both or neither, because `jbus` refuses half a pair. |
 | `blocking_url` | Empty | A second webhook, for what blocks, which jbus-relay fans out. `jbus` POSTs to it each blocking item as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh. It POSTs no event there. With no `blocking_url`, `jbus` POSTs nothing more. [jbus](../../jbus/docs/jbus/what-blocks.md) has the bodies. |
-| `blocking_key` | Empty | The key that goes with `blocking_url`, in the same two headers. Set both or neither, because `jbus` refuses half a pair. Keep both secret, like the webhook's. |
+| `blocking_key` | Empty | The key that goes with `blocking_url`, which `jbus` sends in the same two headers as a project's `webhook_key`. Set both or neither, because `jbus` refuses half a pair. Keep both secret, like the webhook's pair. |
 
 The model of a crew's launch is not a key here.
 `jbus` takes it from the role map's `crew` line ([Roles](#roles)), the one source.

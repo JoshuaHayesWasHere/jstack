@@ -26,13 +26,14 @@ jinstall --setup
 |---|---|
 | `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. One line a part. |
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
-| `jinstall --setup` | Goes through every need once, in order: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
+| `jinstall --setup` | Goes through every need once, in order, and prints one of these lines for each: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
 | `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. One line a hook. |
 | `jinstall --uninstall` | Takes away what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |
 
-`--setup` puts every part [What the install writes](#what-the-install-writes) lists.
-Where no file is there yet, it also writes your jstack config, a role map where every role inherits, and a `jbus` config that launches nothing (`dispatch = false`).
+`--setup` puts every part that [What the install writes](#what-the-install-writes) lists.
+Where no file is there yet, it also writes your jstack config and a role map where every role inherits.
+It also writes a `jbus` config with `dispatch = false`, so `jbus` launches nothing.
 Then it links the units.
 Run each command a `needs you` line names, such as `gh auth login`, then run `--setup` again.
 A `missing optional` line names a layer you may leave off, such as the relay or the backup.
@@ -95,7 +96,7 @@ The install leaves every other key of those files as it was.
 jleak's `pre-push` and `commit-msg` hooks go into every repo jstack works in:
 
 - the checkout of each project of `jbus`'s config, which `/new-home` adds
-- each repo you set up with `jinstall --repo`, which the install keeps in `~/.local/state/jstack/repos`
+- each repo you set up with `jinstall --repo`, whose path the install records in `~/.local/state/jstack/repos`
 
 To add the hooks to another repo, run `jinstall --repo` in it, or `jinstall --repo <path>`.
 `/new-home` runs it for the repo it sets up.
