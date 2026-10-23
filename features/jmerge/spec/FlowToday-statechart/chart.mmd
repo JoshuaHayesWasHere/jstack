@@ -1,0 +1,265 @@
+---
+title: "Does work keep flowing?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  %% second model (fix): the three fixes
+  classDef plainFixed fill:#f4f6f7,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1 fill:#e8eef9,stroke:#74777d,color:#1b2631
+  classDef group1Fixed fill:#e8eef9,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Fixed fill:#fdebd0,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef group3 fill:#f9d6d5,stroke:#7d6b6b,color:#1b2631
+  classDef group3Fixed fill:#f9d6d5,stroke:#1e8449,stroke-width:4px,color:#145a32
+  state "Legend" as legend {
+    state "Done" as legendGroup0
+    state "Moving" as legendGroup1
+    state "Waits on you" as legendGroup2
+    state "Stuck" as legendGroup3
+    state "Fixed by the three fixes" as legendFixed
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendFixed plainFixed
+  state "Main green, machine full" as g0 {
+    state "1 merged, 1 passed,<br/>waiting to merge" as s0
+    state "1 merged, 1 red only from<br/>main's break" as s1
+    state "1 merged, 1 red, its own<br/>break" as s2
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s3
+    state "1 merged, 1 waiting for a<br/>check" as s4
+    state "1 passed, waiting to<br/>merge, 1 red only from<br/>main's break" as s5
+    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break" as s6
+    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break hidden behind main's" as s7
+    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s8
+    state "1 red only from main's<br/>break, 1 waiting for a<br/>check" as s9
+    state "1 red, its own break<br/>hidden behind main's, 1<br/>waiting for a check" as s10
+    state "1 red, its own break, 1<br/>waiting for a check" as s11
+    state "2 passed, waiting to merge" as s12
+    state "2 waiting for a check" as s13
+    state "both merged" as s14
+  }
+  state "Main green" as g1 {
+    state "1 merged, 1 passed,<br/>waiting to merge" as s15
+    state "1 merged, 1 red only from<br/>main's break" as s16
+    state "1 merged, 1 red, its own<br/>break" as s17
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s18
+    state "1 merged, 1 waiting for a<br/>check" as s19
+    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break" as s20
+    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s21
+    state "1 red only from main's<br/>break, 1 red, its own<br/>break" as s22
+    state "1 red only from main's<br/>break, 1 red, its own<br/>break hidden behind main's" as s23
+    state "1 red only from main's<br/>break, 1 waiting for a<br/>check" as s24
+    state "1 red, its own break<br/>hidden behind main's, 1<br/>waiting for a check" as s25
+    state "1 red, its own break, 1<br/>red, its own break hidden<br/>behind main's" as s26
+    state "1 red, its own break, 1<br/>waiting for a check" as s27
+    state "2 passed, waiting to merge" as s28
+    state "2 red only from main's<br/>break" as s29
+    state "2 red, its own break<br/>hidden behind main's" as s30
+    state "2 waiting for a check" as s31
+    state "both merged" as s32
+  }
+  state "Main red from a merge,<br/>machine full" as g2 {
+    state "1 merged, 1 passed,<br/>waiting to merge" as s33
+    state "1 merged, 1 red only from<br/>main's break" as s34
+    state "1 merged, 1 waiting for a<br/>check" as s35
+    state "both merged" as s36
+  }
+  state "Main red from a merge" as g3 {
+    state "1 merged, 1 passed,<br/>waiting to merge" as s37
+    state "1 merged, 1 red only from<br/>main's break" as s38
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s39
+    state "1 merged, 1 waiting for a<br/>check" as s40
+    state "both merged" as s41
+  }
+  state "Main red from outside,<br/>machine full" as g4 {
+    state "1 merged, 1 passed,<br/>waiting to merge" as s42
+    state "1 merged, 1 red only from<br/>main's break" as s43
+    state "1 merged, 1 red, its own<br/>break" as s44
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s45
+    state "1 merged, 1 waiting for a<br/>check" as s46
+    state "1 passed, waiting to<br/>merge, 1 red only from<br/>main's break" as s47
+    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break" as s48
+    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break hidden behind main's" as s49
+    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s50
+    state "1 red only from main's<br/>break, 1 red, its own<br/>break" as s51
+    state "1 red only from main's<br/>break, 1 red, its own<br/>break hidden behind main's" as s52
+    state "1 red only from main's<br/>break, 1 waiting for a<br/>check" as s53
+    state "1 red, its own break, 1<br/>waiting for a check" as s54
+    state "2 passed, waiting to merge" as s55
+    state "2 red only from main's<br/>break" as s56
+    state "2 waiting for a check" as s57
+    state "both merged" as s58
+  }
+  state "Main red from outside" as g5 {
+    state "1 merged, 1 passed,<br/>waiting to merge" as s59
+    state "1 merged, 1 red only from<br/>main's break" as s60
+    state "1 merged, 1 red, its own<br/>break hidden behind main's" as s61
+    state "1 merged, 1 waiting for a<br/>check" as s62
+    state "1 passed, waiting to<br/>merge, 1 red only from<br/>main's break" as s63
+    state "1 passed, waiting to<br/>merge, 1 red, its own<br/>break hidden behind main's" as s64
+    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s65
+    state "1 red only from main's<br/>break, 1 red, its own<br/>break hidden behind main's" as s66
+    state "1 red only from main's<br/>break, 1 waiting for a<br/>check" as s67
+    state "1 red, its own break<br/>hidden behind main's, 1<br/>waiting for a check" as s68
+    state "2 passed, waiting to merge" as s69
+    state "2 red only from main's<br/>break" as s70
+    state "2 red, its own break<br/>hidden behind main's" as s71
+    state "2 waiting for a check" as s72
+    state "both merged" as s73
+  }
+  [*] --> s31
+  s31 --> s21 : its check runs
+  s31 --> s72 : something outside breaks main
+  s31 --> s27 : its check runs
+  s21 --> s19 : it merges
+  s21 --> s28 : its check runs
+  s21 --> s65 : something outside breaks main
+  s72 --> s67 : its check runs
+  s21 --> s20 : its check runs
+  s21 --> s40 : it merges
+  s27 --> s13 : its crew fixes its change
+  s72 --> s68 : its check runs
+  s19 --> s15 : its check runs
+  s19 --> s62 : something outside breaks main
+  s28 --> s69 : something outside breaks main
+  s65 --> s63 : its check runs
+  s67 --> s70 : its check runs
+  s67 --> s24 : you approve main's fix
+  s19 --> s17 : its check runs
+  s28 --> s37 : it merges
+  s20 --> s8 : its crew fixes its change
+  s65 --> s64 : its check runs
+  s40 --> s38 : its check runs
+  s13 --> s8 : its check runs
+  s13 --> s57 : something outside breaks main
+  s67 --> s66 : its check runs
+  s68 --> s25 : you approve main's fix
+  s40 --> s39 : its check runs
+  s13 --> s11 : its check runs
+  s68 --> s71 : its check runs
+  s15 --> s32 : it merges
+  s15 --> s59 : something outside breaks main
+  s62 --> s60 : its check runs
+  s70 --> s29 : you approve main's fix
+  s15 --> s41 : it merges
+  s17 --> s4 : its crew fixes its change
+  s62 --> s61 : its check runs
+  s8 --> s4 : it merges
+  s8 --> s12 : its check runs
+  s8 --> s50 : something outside breaks main
+  s38 --> s16 : you approve main's fix
+  s57 --> s53 : its check runs
+  s66 --> s23 : you approve main's fix
+  s24 --> s22 : its check runs
+  s39 --> s18 : you approve main's fix
+  s8 --> s35 : it merges
+  s8 --> s6 : its check runs
+  s11 --> s54 : something outside breaks main
+  s71 --> s30 : you approve main's fix
+  s25 --> s26 : its check runs
+  s32 --> s73 : something outside breaks main
+  s4 --> s0 : its check runs
+  s4 --> s46 : something outside breaks main
+  s12 --> s55 : something outside breaks main
+  s50 --> s47 : its check runs
+  s53 --> s56 : its check runs
+  s22 --> s9 : its crew fixes its change
+  s35 --> s34 : its check runs
+  s12 --> s33 : it merges
+  s4 --> s2 : its check runs
+  s6 --> s48 : something outside breaks main
+  s50 --> s49 : its check runs
+  s54 --> s51 : its check runs
+  s53 --> s52 : its check runs
+  s26 --> s10 : its crew fixes its change
+  s0 --> s14 : it merges
+  s0 --> s42 : something outside breaks main
+  s46 --> s43 : its check runs
+  s9 --> s5 : its check runs
+  s0 --> s36 : it merges
+  s2 --> s44 : something outside breaks main
+  s46 --> s45 : its check runs
+  s10 --> s7 : its check runs
+  s14 --> s58 : something outside breaks main
+  s5 --> s1 : it merges
+  s7 --> s3 : it merges
+  class s0 group1
+  class s1 plainFixed
+  class s2 plainFixed
+  class s3 plainFixed
+  class s4 group1
+  class s5 group1
+  class s6 group1
+  class s7 group1
+  class s8 group1
+  class s9 group1
+  class s10 group1
+  class s11 group1
+  class s12 group1
+  class s13 group1
+  class s14 plainFixed
+  class s15 group1
+  class s16 plainFixed
+  class s17 group1
+  class s18 plainFixed
+  class s19 group1
+  class s20 group1
+  class s21 group1
+  class s22 group1
+  class s23 plainFixed
+  class s24 group1
+  class s25 group1
+  class s26 group1
+  class s27 group1
+  class s28 group1
+  class s29 plainFixed
+  class s30 plainFixed
+  class s31 group1
+  class s32 group0
+  class s33 group3Fixed
+  class s34 group3Fixed
+  class s35 group1Fixed
+  class s36 group3Fixed
+  class s37 group2Fixed
+  class s38 group2Fixed
+  class s39 group2Fixed
+  class s40 group1Fixed
+  class s41 group2Fixed
+  class s42 plainFixed
+  class s43 plainFixed
+  class s44 plainFixed
+  class s45 plainFixed
+  class s46 group1
+  class s47 plainFixed
+  class s48 plainFixed
+  class s49 plainFixed
+  class s50 group1
+  class s51 plainFixed
+  class s52 plainFixed
+  class s53 group1
+  class s54 group1
+  class s55 plainFixed
+  class s56 plainFixed
+  class s57 group1
+  class s58 plainFixed
+  class s59 group2
+  class s60 group2
+  class s61 group2
+  class s62 group1
+  class s63 group2
+  class s64 group2
+  class s65 group1
+  class s66 group2
+  class s67 group1
+  class s68 group1
+  class s69 group2
+  class s70 group2
+  class s71 group2
+  class s72 group1
+  class s73 group2

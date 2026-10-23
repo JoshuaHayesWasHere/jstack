@@ -303,6 +303,21 @@ The other pull requests wait with `a fresh check is queued`.
 When jbus stops a `jmerge` run, the check keeps running to its end.
 The three limits are in this order, shortest first: the check's own 15 minutes (`Fresh.TIMEOUT`), the 17 minutes a jbus pass allows `jmerge` (`JMERGE_TIMEOUT` in `features/jbus/src/jbus/wake.py`), and the unit's `TimeoutStartSec=20min`.
 
+## A failed check over a base that moved
+
+A pull request's check runs on its merge with the base as the base was then, and a rerun runs on that same merge.
+So a check that failed while the base was red stays red after the base is fixed, though the pull request owes no change (`features/jmerge/src/jmerge/rejudge.py`).
+`jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`, main or an integration branch) has moved since the check started.
+It judges the pull request as if the check had passed, and a pull request that waits on anything else keeps the line `<check> has not passed`, a red base included.
+Where the repo has a `fresh-check` file and the pull request touches no guarded path, it first runs the fresh check on the head over the base's tip, once for a head and a tip.
+On a fail the line is `<command> fails on <head12> over today's main <tip12>`, and jbus tells the crew once.
+On a pass, or with no `fresh-check` file, it asks GitHub to merge the base into the branch, `PUT /repos/{owner}/{repo}/pulls/<n>/update-branch` with `expected_head_sha`, which rewrites no history.
+The line is then `GitHub was asked to merge <base> at <tip12> into it: its check failed before <base> moved`, or `GitHub did not merge <base> at <tip12> into it: <what GitHub said>`.
+It asks once for a head and a base tip, and keeps what GitHub said in `base-merges.json` in the state directory.
+`--check` asks nothing, and says `its check failed before <base> moved: GitHub is to merge <base> at <tip12> into it`.
+GitHub's new check at the new head then decides by the normal path.
+The review stands across the merge, as across a rebase: the range-diff of the reviewed head and the new head shows no content, since it leaves out the merge commit.
+
 ## Merge gate
 
 A repo opts in to a merge gate with a `merge-gate` file in its state directory, beside `fresh-check`: one line, the command, such as `~/repos/demo/scripts/receipt-check`.
