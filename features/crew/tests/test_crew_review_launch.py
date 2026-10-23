@@ -2,12 +2,13 @@
 
 import os
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
 import pytest
 
-from crew_helpers import BRIEF, SKILL, said, with_field
+from crew_helpers import BRIEF, SKILL, said, sections, with_field
 from test_home_thread import as_read
 from testing.layouts import assembled
 
@@ -71,3 +72,30 @@ def test_the_check_before_a_launch_prints_the_mode_and_whether_to_launch(
     assert printed == mode
     assert (what == "launch a reviewer") == launches
     assert launches or what.startswith("launch no reviewer, ")
+
+
+def test_a_launch_on_a_capped_pool_registers_this_thread_to_be_woken(tmp_path, monkeypatch):
+    """The command "The review" runs before a launch, with a review pool whose one instance is
+    capped: jroles makes no selection, exits 75 and registers the thread until the cap's end,
+    which `jbus poll` wakes (`test_jbus_pool_wake.py`)."""
+    from datetime import UTC, datetime, timedelta
+
+    from jroles import ledger, waits
+    from jroles.cli import main
+
+    named = r"`(uv run [^`]*jroles review --thread <thread id>)`"
+    (command,) = re.findall(named, sections()["The review"])
+    words = shlex.split(command.replace("<thread id>", "mcp:the-crew"))
+    assert words[:4] == ["uv", "run", "--project", "$T/.."] and words[4] == "jroles"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv("LIMITS", str(tmp_path / "state" / "limits"))
+    (tmp_path / "config" / "jstack").mkdir(parents=True)
+    pool = "claudeAgent_claude_prime"
+    roles = f"review: claudeAgent claude-sonnet-5-5 {pool} effort=medium\n"
+    (tmp_path / "config" / "jstack" / "roles").write_text(roles)
+    now = datetime(2026, 10, 23, 3, 58, tzinfo=UTC)
+    until = now + timedelta(minutes=22)
+    ledger.write(ledger.Record(pool, "five_hour", ledger.FULL, int(until.timestamp())))
+    assert main(words[5:], now=now) == 75
+    (wait,) = waits.read(waits.where())
+    assert (wait.thread, wait.role, wait.until) == ("mcp:the-crew", "review", until.isoformat())

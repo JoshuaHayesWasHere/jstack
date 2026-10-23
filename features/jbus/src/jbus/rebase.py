@@ -73,7 +73,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbus import END_TURN, dispatch, merge, read_json, verbs
+from jbus import END_TURN, dispatch, merge, queue, read_json, verbs
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.wake import Pass
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
@@ -246,7 +246,7 @@ def github(run: Pass, client: Client, world: World) -> None:
     sent = read_json(run.state / "sent.json", [])
     for slug, pull in world.open.items():
         head, number = pull.get("headRefOid", ""), pull["number"]
-        if not head or not dispatch.launched(run, slug):
+        if not head or not crew(run, slug):
             continue
         brief = _brief(run, slug)
         rebased = f"rebase|{slug}|{head[:12]}" in sent
@@ -266,6 +266,17 @@ def github(run: Pass, client: Client, world: World) -> None:
         green = f"green|{slug}|{head[:12]}" not in sent and checks(pull) == "passed"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
+
+
+def crew(run: Pass, slug: str) -> str:
+    """Return the thread of the slug's crew: the one jbus launched, or for a row whose home
+    launched its crew itself, the thread its queue row names. Return nothing for a slug with no
+    crew of either kind."""
+    launched = dispatch.launched(run, slug)
+    if launched:
+        return launched
+    row = queue.fresh(run.state, slug) or {}
+    return str(row.get("thread") or "")
 
 
 def _brief(run: Pass, slug: str) -> str:
@@ -356,18 +367,19 @@ def post(
     """Send the crew of a pull request one message. Return the slug, the head and the message sent,
     or nothing when no message went.
 
-    `post` sends only for a pull request that is open under a slug that jbus launched, since jbus
-    has no crew on any other. The key `<kind>|<slug>|<head 12>` is the retry key at T3 Code. `post`
-    sends no message whose key is already in `sent.json`. `deliver` puts the key there through the
-    event that it queues, and any other caller writes the key itself. `mainmoved` also writes the
-    key, for a head that it told. `post` sends nothing while `held` delays the message. When a
-    rebase message goes, `post` writes the `mainmoved` key for the commit that the default branch
-    points to, so jbus does not also tell of that move.
+    `post` sends only for a pull request that is open under a slug that has a crew (`crew`): jbus
+    launched it, or its home launched it for a queue row that names its thread. The key
+    `<kind>|<slug>|<head 12>` is the retry key at T3 Code. `post` sends no message whose key is
+    already in `sent.json`. `deliver` puts the key there through the event that it queues, and any
+    other caller writes the key itself. `mainmoved` also writes the key, for a head that it told.
+    `post` sends nothing while `held` delays the message. When a rebase message goes, `post` writes
+    the `mainmoved` key for the commit that the default branch points to, so jbus does not also
+    tell of that move.
     """
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
     head = world.open[slug].get("headRefOid", "") if slug else ""
     key = f"{ask.kind}|{slug}|{head[:12]}"
-    if not head or not dispatch.launched(run, slug):
+    if not head or not crew(run, slug):
         return None
     sent = read_json(run.state / "sent.json", [])
     if key in sent:
