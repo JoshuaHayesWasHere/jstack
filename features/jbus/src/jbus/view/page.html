@@ -580,12 +580,18 @@
     var tone = r.rank === 0 ? " bad" : r.rank === 1 ? " ask" : "";
     return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button>' + (r.item ? " " + itemLink(r.item) : "") + '</span><span class="pgw' + tone + '"><b>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
   }
+  function needed() {
+    var out = {};
+    S.needs.forEach(function (w) { if (w.slug) out[w.slug] = 1; });
+    return out;
+  }
   function progress() {
-    var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key; }).map(function (t) {
+    var you = needed();
+    var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key && !you[t.slug]; }).map(function (t) {
       var it = ITEM_OF[t.slug], held = it && it.state === "held" ? ' <span class="chip user">held</span>' : "";
       return { key: t.slug, slug: t.slug, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
     });
-    S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key); }).forEach(function (it) {
+    S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && (you[it.slug] || TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key)); }).forEach(function (it) {
       var at = itemAt(it);
       rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });

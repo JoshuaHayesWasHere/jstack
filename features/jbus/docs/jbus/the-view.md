@@ -42,7 +42,7 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 | Part | What it shows |
 |---|---|
 | Needs you | The same queue, of this project. |
-| In progress | One row for each open task, and one for each scout or reviewer thread with no task. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
+| In progress | One row for each open task that is not in Needs you, and one for each scout or reviewer thread with no task. A task in Needs you is drawn there only. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
 

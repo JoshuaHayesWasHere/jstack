@@ -63,8 +63,7 @@ def test_no_slug_is_drawn_twice_on_the_first_screen_of_a_project(scene, tmp_path
         state = served.json(f"/state.json?project={scene.name}")
     finally:
         served.close()
-    needs = state["needs"] + state["proceeds"]
-    asked = [one["slug"] for one in needs if one["slug"] in open_rows]
+    asked = [one["slug"] for one in state["needs"] if one["slug"] in open_rows]
     assert len(asked) == 4
     screen = (DESK[0], DESK[1] + NEEDS)
     seen = look(scene, tmp_path, screen=screen)
@@ -197,7 +196,7 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
     clean(seen)
     assert seen["hash"] == "#/pantry"
     assert (seen["stack"]["shown"], seen["needs"]["head"]) == (False, "1 Needs you")
-    assert {row["slug"] for row in seen["prog"]} == {"fig-jam", "fig-tart"}
+    assert {row["slug"] for row in seen["prog"]} == {"fig-jam"}, "fig-tart is in Needs you"
     seen = look(scene, tmp_path, route="?project=pantry")
     clean(seen)
     assert (seen["hash"], seen["needs"]["head"]) == ("#/pantry", "1 Needs you")

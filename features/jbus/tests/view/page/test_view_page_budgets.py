@@ -195,7 +195,6 @@ EVERY = [(scene, wide) for scene in ("busy", "many") for wide in SCREENS]
 KNOWN = {
     (budget, scene, wide): unit
     for budget, unit, broken in (
-        ("twice", "jv-one-place", [(scene, wide) for scene, wide in EVERY if wide != 390]),
         ("hung", "jv-needs-from-work", EVERY),
         ("waits", "jv-needs-from-work", EVERY),
         ("drawers", "jv-homes-map", EVERY),
