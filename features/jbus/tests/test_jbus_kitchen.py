@@ -96,13 +96,13 @@ class Server:
 class Webhook(Server):
     def __init__(self):
         self.posts, self.keys, self.sleep, self.status = [], [], 0, 200
-        self.said, self.bodies = [], []
+        self.said, self.bodies, self.refused = [], [], {}
         super().__init__()
 
     def answer(self, handler, body):
         time.sleep(self.sleep)
         if self.status != 200:
-            return self.reply(handler, {}, self.status)
+            return self.reply(handler, self.refused, self.status)
         self.keys.append(handler.headers.get(wake.HEADER))
         taken = json.loads(body)
         self.bodies.append(taken)
