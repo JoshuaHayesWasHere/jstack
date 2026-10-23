@@ -11,10 +11,12 @@ import shutil
 import subprocess
 import sys
 import time
+from dataclasses import replace
 
 import pytest
 
-from jinstall.kinds import Linux, Program, T3Code
+from jinstall.__main__ import doctor
+from jinstall.kinds import Program, T3Code
 from jinstall.needs import T3_FLOOR
 from test_install import REPO, Machine, Ran, User, line_for, machine
 
@@ -83,7 +85,7 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
     assert said[:8] == [
-        "ok hard linux",
+        f"ok hard platform -> {sys.platform}",
         f"ok hard t3 -> {T3_STABLE}",
         "ok hard claude",
         "ok hard uv",
@@ -227,11 +229,48 @@ def test_a_release_ranks_after_each_of_its_prereleases(tmp_path):
     )
 
 
-def test_a_platform_that_is_not_linux_is_missing(tmp_path):
-    here = machine(REPO, tmp_path, tmp_path)
-    found = Linux("darwin").probe(here)
-    assert (found.state.value, found.detail) == ("missing", "this is darwin")
-    assert Linux("linux").probe(here).state.value == "ok"
+@pytest.mark.parametrize(
+    ("platform", "lines"),
+    [
+        (
+            "linux",
+            [
+                "ok hard platform -> linux",
+                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)",
+            ],
+        ),
+        (
+            "darwin",
+            [
+                "ok hard platform -> darwin",
+                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
+                " (on a Mac with Apple Silicon: brew install --cask t3-code)",
+            ],
+        ),
+        (
+            "win32",
+            [
+                "missing hard platform -> this is win32: run jstack inside WSL2",
+                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
+                " (run jstack inside WSL2)",
+            ],
+        ),
+        (
+            "freebsd14",
+            [
+                "missing hard platform -> this is freebsd14: jstack runs on Linux and macOS",
+                "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)",
+            ],
+        ),
+    ],
+)
+def test_the_platform_is_ok_on_linux_and_macos_and_windows_is_sent_to_wsl2(
+    tmp_path, platform, lines
+):
+    here = replace(machine(REPO, tmp_path / "home", tmp_path / "account"), platform=platform)
+    said = doctor(here)
+    assert list(said.lines[:2]) == lines
+    assert said.code == 1
 
 
 def test_a_program_with_no_floor_is_not_run(tmp_path):
