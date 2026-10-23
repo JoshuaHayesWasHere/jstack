@@ -287,9 +287,7 @@ INCLUDED = {
 
 
 @pytest.mark.parametrize("path", ["skills/three/part.md", "skills/three/deep.md"])
-def test_a_file_a_skill_includes_selects_the_tests_that_read_the_skill_however_deep(
-    tmp_path, path
-):
+def test_a_file_a_skill_includes_selects_the_tests_that_read_the_skill_however_deep(tmp_path, path):
     repo = Repo(tmp_path, files={**FILES, **INCLUDED})
 
     assert repo.selected(repo.change([path])) == [
