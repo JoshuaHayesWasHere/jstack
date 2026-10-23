@@ -71,7 +71,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbus import LEVELS, Config, Loud, Project, queue, read_json, verbs, write_json
+from jbus import LEVELS, Config, Loud, Project, queue, read_json, refusal, verbs, write_json
 
 CAP = 8_000
 WAKE_CAP = 100_000
@@ -665,7 +665,7 @@ def _post(route: Route, made: dict[str, Any]) -> str:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as reply:
             reply.read()
     except urllib.error.HTTPError as error:
-        return f"the webhook answered {error.code}"
+        return f"the webhook answered {error.code}{refusal.said(error, url, key)}"
     except TimeoutError:
         return f"no answer in {TIMEOUT} s"
     except urllib.error.URLError as error:

@@ -115,6 +115,24 @@ Once the pull request is open:
 2. Do the three steps of "End": write the Result, run its check of whether the home is told, say it here. With a pull request the check says `send nothing`, and nothing is sent.
 3. Run the block of "The checks". On `passed` or `wait`, start its review now, in this turn: the review runs beside the checks, and never waits for green (see "The review"). On `failed`, fix and push first, as "The checks" says, then start it. On `unrun`, park the gate and start none. Where there is no reviewer to launch, the brief's `Review: none` or a session with no launch tool, do this on `passed` only: the line that tells the home says the pull request is green. On `wait`, jbus says when every check has passed.
 4. End your turn. Nothing watches the pull request for this thread: arm no pull request watch of T3's, do not poll, and do not run a watcher of your own. jbus reads every open pull request on each pass and sends this thread a message only when there is something for it to do. A green pull request with nothing owed gets no message, and the thread shows in T3 as idle: `jbus view` is where its pull request's state is.
+   Before you end it, ask jbus whether its wakes can come.
+   Run this in this worktree, with the block at the top:
+
+   ```sh
+   said=$(uv run --project "$T/.." jbus wakes 2>&1)
+   case $said in
+   'wakes fail: '*)
+       sleep 240
+       printf 'stay: %s\n' "$said"
+       ;;
+   *) printf 'end your turn: %s\n' "$said" ;;
+   esac
+   ```
+
+   On `end your turn`, end it.
+   On `stay`, the project's webhook is failing, so a wake this turn waits for may never come: do not end your turn.
+   The block has waited four minutes: run the block of "The checks", do what it prints, and then run this block again, in this turn, until it prints `end your turn` or the pull request has merged or closed.
+   Add one line to the Result the first time, `Wakes: failing at <head>, checked by hand`.
 
 If the session has no `link_pull_request`, say so in the Result under "Noticed" and go on the same way: jbus's messages come all the same.
 
