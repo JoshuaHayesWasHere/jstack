@@ -29,8 +29,6 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
 
 CITE = re.compile(r"((?:features|scripts|\.github)/[\w./-]+):(\d+(?:-\d+)?(?:,\d+)*)")
 
-# What each line a model cites must hold, so that a cite that drifts off its condition fails here
-# and not only where TLC runs.
 CITED = {
     ".github/workflows/check.yml:4": "pull_request:",
     "scripts/select_tests.py:153-154": '"Cross-cutting"',
@@ -60,7 +58,8 @@ def lines_of(path, spans):
 
 
 def test_each_line_a_model_cites_holds_the_condition_it_names():
-    """Every cite in the models is in `CITED`, and its lines hold the text pinned there."""
+    """Every cite in the models is in `CITED`, and its lines hold the text pinned there, so a cite
+    that drifts off its condition fails here, also where no Java runs TLC."""
     models = [SPEC / "FlowToday.tla", SPEC / "FlowDesign.tla"]
     models += [SPEC / "canary" / f"{name}.tla" for name in flow.CANARIES]
     cites = {
