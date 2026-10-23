@@ -27,7 +27,10 @@ from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
-from jbus import live, questions, threads, waiting, work
+import pytest
+
+import jbus
+from jbus import live, questions, record, threads, waiting, work
 from jbus.view import state as built
 from jbus.view.panels.checks.panel import GITHUB_FRESH
 from test_jbus_kitchen import GATE as PIPED
@@ -275,6 +278,15 @@ GATES = [
 STRANDED = 5
 
 
+CONFIG = """server = "http://127.0.0.1:9"
+[[project]]
+name = "{name}"
+checkout = "{checkout}"
+projectId = "walk"
+wake = "home"
+"""
+
+
 HOLDS = "Holds: publishes\nFail-safe: the dry run of the post, in the plan\n"
 
 
@@ -381,22 +393,23 @@ def _gates(scene):
 def _stranded(scene):
     """The project's `wake` is `home`, so its one route is the home's thread, whose outbox is
     empty. The route of its webhook was dropped, and its outbox in the state directory still
-    holds `STRANDED` events, with the error that route gave last. The status file counts the
-    outbox of the route in effect, as `record.status` writes it."""
+    holds `STRANDED` events, with the error that route gave last. `record.status` writes the
+    status file from those outboxes, over a config that names the project, as a pass does."""
     scene.write("outbox.json", [{"event": "result", "line": f"walk {n}"} for n in range(STRANDED)])
     (scene.state / "home-thread").mkdir()
     scene.write("outbox.json", [], scene.state / "home-thread")
     old = (NOW - timedelta(hours=6)).timestamp()
     said = {"began": True, "last_error": "the config has no webhook_url", "posted": old}
     scene.write("wake.json", said)
-    status = json.loads((scene.state_dir / "status.json").read_text())
-    status["projects"][scene.name] |= {
-        "outbox": 0,
-        "failed_wakes": 0,
-        "last_error": "",
-        "wake": "home",
-    }
-    scene.write("status.json", status, scene.state_dir)
+    config = scene.root / "config"
+    config.mkdir(exist_ok=True)
+    (config / "config.toml").write_text(CONFIG.format(checkout=scene.root, name=scene.name))
+    (config / "config.toml").chmod(0o600)
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
+        monkeypatch.setenv("JBUS_HOME_DIR", str(scene.home_dir))
+        written = record.status(jbus.load(config), NOW)
+    scene.write("status.json", written, scene.state_dir)
 
 
 def silent(scene, who):

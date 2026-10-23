@@ -160,7 +160,7 @@ def cases():
             continue
         known = walk.KNOWN.get(key)
         marks = (
-            [pytest.mark.xfail(strict=True, reason=known[0])]
+            [pytest.mark.xfail(strict=True, raises=AssertionError, reason=known[0])]
             if known and "data" in known[1]
             else []
         )
