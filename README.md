@@ -13,7 +13,6 @@ It is for a developer who uses Claude Code and wants more than one agent at work
 Every thread spends tokens on your own Claude plan.
 One task takes at least two threads, a crewmate and a reviewer.
 `jgauge session` prints what a thread cost.
-It runs on Linux only.
 
 ![How a task flows through jstack: a home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main.](features/home/docs/flow.svg)
 
@@ -40,7 +39,7 @@ jstack runs only when every **hard** need is met.
 
 | Need | Level | Notes |
 |---|---|---|
-| Linux | hard | The only platform. |
+| Linux | hard | Or Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). macOS on Apple Silicon is in progress. |
 | T3 Code, the nightly build | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Any nightly build. The doctor refuses the stable build and names no oldest nightly yet. jstack is tested on `0.1.2-nightly.20261022.3526`. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |
@@ -65,7 +64,7 @@ jstack runs without it.
 
 The threads run on Claude Code, and the install also links the skills for Codex and Cursor.
 It writes outside jstack's own folders for each of the three.
-`jinstall --uninstall` takes its links, hook entries, keys and units away again:
+`jinstall --uninstall` takes its links, hook entries, keys and units away:
 
 - Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line and the attribution keys in `~/.claude/settings.json`.
 - Codex: a link for each skill in `~/.codex/skills`, and hook entries in `~/.codex/hooks.json`.
@@ -79,7 +78,7 @@ It writes outside jstack's own folders for each of the three.
 
 In this tutorial we install jstack, point it at a repo of yours, and merge one pull request that its threads wrote.
 
-1. Install the latest release and set it up. The install script itself needs only `curl` and a shell.
+1. Install the latest release and set it up. The install script needs only `curl` and a shell.
 
 	```sh
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh

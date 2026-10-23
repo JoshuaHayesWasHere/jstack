@@ -2,8 +2,8 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard linux -> this is <platform>` | jstack runs on Linux only. | Use a Linux machine. |
-| `missing hard t3 -> the nightly build (on Arch: t3code-nightly-bin)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. | Install the nightly build of T3 Code and open the app once. |
+| `missing hard linux -> this is <platform>` | jstack runs on Linux. On Windows it runs inside WSL2, and macOS on Apple Silicon is in progress. | Use a Linux machine, or on Windows follow [Windows through WSL2](../windows-wsl2.md). |
+| `missing hard t3 -> the nightly build (on Arch: t3code-nightly-bin)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. | Install the nightly build of T3 Code and open the app once. Under WSL2, install the `t3` command in the distro as [Windows through WSL2](../windows-wsl2.md#4-the-t3-command-in-the-distro) says. |
 | `old hard t3 -> t3 --version did not answer: open the app once` | The `t3` command is there and printed no version. | Open T3 Code once, then run the doctor again. |
 | `old hard t3 -> <version> is the stable build, needs the nightly build (on Arch: t3code-nightly-bin)` | The stable build lacks tools that jstack calls, such as `t3_thread_launch`. | Install the nightly build. |
 | `old hard t3 -> <version>, needs <floor> or newer` | The nightly is older than the oldest build jstack supports. | Update T3 Code. |
