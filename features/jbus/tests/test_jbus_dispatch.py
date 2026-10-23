@@ -259,3 +259,17 @@ def test_a_queue_that_does_not_parse_is_a_gate_and_nothing_is_launched(kitchen, 
     assert kitchen.lines() == ["condition demo: queue.json does not parse"]
     assert kitchen.t3.launches == []
     assert (kitchen.state / "queue.json").read_text() == written
+
+
+def test_a_bare_where_shares_a_path_with_a_ticked_where_under_it(kitchen):
+    bare = "Where: client/src/routes/sitter/, client/src/lib/components/ui/ (new X)"
+    text = complete("alpha").replace("Where: `src/alpha/`", bare)
+    assert kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=text)[0] == 0
+    assert go(kitchen, "alpha")[0] == 0
+    button = "client/src/lib/components/ui/Button.svelte"
+    kitchen.set("claims.txt", f"other out root Where: `{button}`, `server/app.py`\n")
+    kitchen.poll()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
+    assert kitchen.lines("overlap") == [
+        f"overlap alpha: shares {button} with other; whichever merges second rebases"
+    ]
