@@ -240,7 +240,7 @@ def test_a_releases_outbound_hook_checks_a_push_on_the_tools_own_python_with_no_
     assert released.run(home, "jinstall", **env).returncode == 0
     narrow = tmp_path / "narrow"
     narrow.mkdir()
-    for program in ("dirname", "readlink", "cat"):
+    for program in ("dirname", "realpath", "cat"):
         (narrow / program).symlink_to(shutil.which(program))
     hook = laid(home) / "hooks" / "outbound-command.sh"
 
@@ -412,7 +412,7 @@ def test_a_repo_a_release_set_up_strips_an_ai_trailer_from_a_commit_with_no_chec
         assert os.readlink(hooks / name) == str(script)
     narrow = tmp_path / "narrow"
     narrow.mkdir()
-    for program in ("git", "readlink"):
+    for program in ("git", "realpath"):
         (narrow / program).symlink_to(shutil.which(program))
     named = ["-c", "user.name=Sam Doe", "-c", "user.email=sam@example.test"]
     trailer = "Co-Authored-By: Claude <noreply@anthropic.com>"

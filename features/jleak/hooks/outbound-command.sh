@@ -5,7 +5,7 @@ case $input in
 *gh*pr* | *push*) ;;
 *) exit 0 ;;
 esac
-here=$(readlink -f "$0") || exit 2
+here=$(realpath "$0") || exit 2
 source=${here%/features/jleak/hooks/*}
 if [ ! -d "$source/features/jleak/src/jleak" ]; then
   python=${source%/share/jstack}/bin/python

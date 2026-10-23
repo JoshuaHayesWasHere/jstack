@@ -37,7 +37,7 @@
       cat > "$C/run" << 'THE_CHECK_ENDS_HERE'
   <check command>
   THE_CHECK_ENDS_HERE
-      setsid sh -c 'echo $$ > "${1}/pid"; uv run --project "${2}" jgauge test-slot --thread "${3}" -- sh "${1}/run" > "${1}/out" 2>&1; echo $? > "${1}/exit"' check "$C" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
+      perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' sh -c 'echo $$ > "${1}/pid"; uv run --project "${2}" jgauge test-slot --thread "${3}" -- sh "${1}/run" > "${1}/out" 2>&1; echo $? > "${1}/exit"' check "$C" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
       for second in 1 2 3 4 5 6 7 8 9 10; do [ -f "$C/pid" ] && break; sleep 1; done
       echo "started: the check runs on this worktree as it is now, and this call waits on it"
   fi

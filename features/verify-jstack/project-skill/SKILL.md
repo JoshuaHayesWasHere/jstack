@@ -71,8 +71,8 @@ The other features are in each `features/<name>/verify.md`, and the shared test 
 
 ```sh
 printf '# alpha: a demo task\nWhere: `src/alpha/`\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1
-sha=$(sha256sum "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)
-record queue-row jbus queue approve alpha --by user --at "2026-10-12 00:30 $(date -d '2026-10-12 00:30' +%Z)" --sha "$sha"
+sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)
+record queue-row jbus queue approve alpha --by user --at "2026-10-12 00:30 $(perl -MPOSIX -e 'print strftime("%Z", localtime(mktime(0, 30, 0, 12, 9, 126, 0, 0, -1)))')" --sha "$sha"
 record queue-row jbus poll
 record queue-row jbus queue show
 record queue-row jbus status

@@ -149,7 +149,7 @@ else
     rm -f "$D/proof.pid" "$D/proof.exit" "$D/proof.told" "$D/proof.out"
     printf '%s\n' "$cmd" > "$D/proof.cmd"
     echo "$key" > "$D/proof.key"
-    setsid sh -c 'uv run --project "${2}" jgauge test-slot --short --thread "${3}" -- sh "${1}/proof.cmd" > "${1}/proof.out" 2>&1; echo $? > "${1}/proof.exit"' proof "$D" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
+    perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' sh -c 'uv run --project "${2}" jgauge test-slot --short --thread "${3}" -- sh "${1}/proof.cmd" > "${1}/proof.out" 2>&1; echo $? > "${1}/proof.exit"' proof "$D" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
     echo $! > "$D/proof.pid"
     echo "started: the proof runs at this head, and this call waits on it"
 fi

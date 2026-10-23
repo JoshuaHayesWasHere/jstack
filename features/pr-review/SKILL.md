@@ -246,7 +246,14 @@ if ! view=$(gh pr view <url> --json baseRefName) || ! base=$(printf %s "$view" |
     echo "not run: where the pull request left its base could not be worked out" >&2
     exit 1
 fi
-out=$(BASE=$fork HEAD=$kept timeout "$limit" sh -c "$gate"' "$@"' merge-gate "$fork" "$kept" < /dev/null 2>&1)
+out=$(BASE=$fork HEAD=$kept perl -e '
+    $limit = shift;
+    defined($pid = fork) or die "fork: $!\n";
+    if (!$pid) { setpgrp; exec @ARGV or die "$ARGV[0]: $!\n" }
+    $SIG{ALRM} = sub { kill "TERM", -$pid; exit 124 };
+    alarm $limit;
+    waitpid $pid, 0;
+    exit($? & 127 ? 128 + ($? & 127) : $? >> 8)' "$limit" sh -c "$gate"' "$@"' merge-gate "$fork" "$kept" < /dev/null 2>&1)
 code=$?
 if [ "$code" = 124 ]; then
     if [ $((limit % 60)) = 0 ]; then over="$((limit / 60)) minutes"; else over="$limit s"; fi

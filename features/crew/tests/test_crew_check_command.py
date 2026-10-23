@@ -12,14 +12,16 @@ import test_room as room
 from crew_helpers import FENCED, block, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
+from test_portable_shell import bsd_tools
 from testing.paths import REPO
 
 
-def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
+def checked(tmp_path, command, limit=60, heading="Do the task", then=None, tools=None):
     """Run the check block of "Do the task" once in a worktree of its own, as an agent runs it,
     waiting `limit` seconds at most. It returns what the block printed, its exit code and how
     long it took. The test calls `then` once the block has printed its first line, while the
-    block still waits."""
+    block still waits. `tools` is the PATH the block finds its tools on, the machine's own by
+    default."""
     repo, home, stub = tmp_path / "repo", tmp_path / "home", tmp_path / "stub"
     if not repo.exists():
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -39,7 +41,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
             **os.environ,
             "HOME": str(home),
             "TEST_SLOTS": "3",
-            "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
+            "PATH": f"{stub}:{room.BIN}:{tools or os.environ['PATH']}",
             "T": str(REPO / "features" / "crew" / "templates"),
         },
     )
@@ -84,6 +86,18 @@ def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check
     step = sections()["Do the task"]
     assert "(`notes.md` names it)" in step
     assert not re.search(r"make check(?![-\w])", step)
+
+
+def test_the_check_starts_and_ends_on_the_tools_of_macos(tmp_path):
+    """macOS has no `setsid` and refuses GNU's flags. With only such tools on PATH, the block
+    still starts the check on its own and waits on it to the end."""
+    tools = bsd_tools(tmp_path / "bsd")
+    said, code, _ = checked(tmp_path, "echo all passed", tools=tools)
+    assert (said[0].split(":")[0], said[-2:], code) == (
+        "started",
+        ["all passed", "done: the check exited 0"],
+        0,
+    )
 
 
 def ended(tmp_path):

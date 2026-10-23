@@ -86,7 +86,7 @@ state() (
     git rev-parse -q --verify HEAD
     git status --porcelain
     git diff HEAD 2> /dev/null | git hash-object --stdin
-    git ls-files -o --exclude-standard -z | xargs -0r git hash-object --
+    git ls-files -o --exclude-standard -z | xargs -0 git hash-object --
 )
 if [ -z "$G" ]; then
     echo "no worktree check: $PWD is not in a git repository"

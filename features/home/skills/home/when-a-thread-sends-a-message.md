@@ -95,7 +95,7 @@ Once a week the root home's status also says where changes collide. Run this wit
 ```sh
 if [ -z "$(find "$H/hot-files.stamp" -mtime -7 2> /dev/null)" ]; then
     J=$(git -C "$T/../source" rev-parse --show-toplevel 2> /dev/null || git -C "$T" rev-parse --show-toplevel) &&
-        uv run --project "$J" "$J/scripts/hot_files.py" --since "$(date -d '7 days ago' +%F)" --home "$H" --top 5 &&
+        uv run --project "$J" "$J/scripts/hot_files.py" --since "$(perl -MPOSIX -e 'print strftime("%F", localtime(time - 7 * 86400))')" --home "$H" --top 5 &&
         touch "$H/hot-files.stamp"
 fi
 ```
