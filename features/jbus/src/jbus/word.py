@@ -53,6 +53,7 @@ import argparse
 import fcntl
 import hashlib
 import json
+import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
@@ -64,7 +65,7 @@ import jsettings
 from jbriefs.home import thread_of
 from jbus import Config, Refused, queue, verbs, write_json
 from jbus.passes import Pass
-from jbus.t3 import Client, T3Error, T3Refused, typed
+from jbus.t3 import GONE, Client, T3Error, T3Refused, typed
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -82,6 +83,7 @@ NO_ANSWER = "T3 Code gave no answer"
 REFUSED = "T3 Code refused it"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
+THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 
 
 class Unparsable(Refused):
@@ -264,6 +266,34 @@ def line(run: Pass, was: Word) -> str:
     return f"waits: {name}, {one.waits}, word {one.id}"
 
 
+def recorded_by(recorder: str, homes: list[str], client: Client | None) -> str:
+    """Check `--from` before anything is kept. Refuse a value that is not shaped like a T3 Code
+    thread id, `mcp:<uuid>` as a home's `home-id` holds it, and one that is neither a home's thread
+    nor a thread T3 Code has. Return a line to print when T3 Code gave no answer, so that the shape
+    alone decided, or nothing."""
+    if not THREAD.fullmatch(recorder):
+        raise Refused(f'refused: --from is a T3 Code thread id, mcp:<uuid>, not "{recorder}"')
+    if recorder in homes:
+        return ""
+    try:
+        if client is None:
+            raise T3Error(NO_T3)
+        client.call("t3_thread_read", {"threadId": recorder, "limit": 1})
+    except T3Refused as error:
+        if GONE.search(str(error)):
+            raise Refused(
+                f"refused: --from {recorder} is no thread of T3 Code, and not this home's"
+            ) from error
+    except T3Error:
+        pass
+    else:
+        return ""
+    return (
+        f"unchecked: --from {recorder} has the shape of a thread id, and T3 Code gave no answer "
+        "on whether it has that thread"
+    )
+
+
 def _word(args: argparse.Namespace, config: Config) -> int:
     """`jbus word`: keep the user's word for one project's home, or for every home, from any
     checkout.
@@ -273,7 +303,9 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     sends nothing again. The user types the words with `--by` and `--at`, or names a message
     with `--message`, and jbus reads that message's words and time from T3 Code. For a word
     said in a project's home thread, or recorded by it (`--from`), `keep` records the word
-    as sent and posts it to nobody.
+    as sent and posts it to nobody. Before it keeps anything, the command refuses a `--from`
+    that names no thread (`recorded_by`), since a mistyped id would post the word back to the
+    home that recorded it.
 
     `--to` names a project or a scratch home (`jbus.Scratch`). `--all` means every project
     and no scratch home, since a scratch home takes no word about the repos. When a project
@@ -290,6 +322,11 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     except Refused:
         client = None
     now = datetime.now(UTC)
+    if args.recorder is not None:
+        homes = [thread_of(Pass(config, project, now, lambda _: None).home) for project in projects]
+        unchecked = recorded_by(args.recorder, homes, client)
+        if unchecked:
+            print(unchecked)
     code = 0
     for project in projects:
         run = Pass(config, project, now, lambda _: None)
