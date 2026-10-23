@@ -112,6 +112,16 @@ def test_a_carried_pull_request_whose_row_is_over_holds_nothing_back(built_on):
     assert built_on.run("--check")[0].startswith("ready 7 ")
 
 
+def test_a_head_that_cannot_be_read_waits_rather_than_merge_what_it_may_carry(built_on):
+    queue_of(built_on.home, rows())
+    listing(built_on, 7, 8)
+    listed = json.loads((built_on.home.stub / "list.json").read_text())
+    listed[1]["headRefOid"] = "f" * 40
+    (built_on.home.stub / "list.json").write_text(json.dumps(listed))
+    unknown = ready.CARRIES_UNKNOWN.format(carried="beta", number=8)
+    assert built_on.run("--check")[0] == f"wait 7 {merge.URL}: {unknown}"
+
+
 def test_a_link_of_a_stack_keeps_the_stacks_own_rule(built_on):
     brief_of(built_on.home, "alpha", merge.URL, built_on.head, more="Stack: pair 2 on beta\n")
     queue_of(built_on.home, rows())
@@ -121,6 +131,12 @@ def test_a_link_of_a_stack_keeps_the_stacks_own_rule(built_on):
     assert built_on.run("--check", "--land", "pair")[0].startswith("ready 7 ")
 
 
-def test_the_carried_wait_lands_on_the_check_step_and_not_in_unknown():
-    reason = ready.CARRIES_AFTER.format(carried="beta", number=8, slug="gamma", open="#9")
+@pytest.mark.parametrize(
+    "reason",
+    [
+        ready.CARRIES_AFTER.format(carried="beta", number=8, slug="gamma", open="#9"),
+        ready.CARRIES_UNKNOWN.format(carried="beta", number=8),
+    ],
+)
+def test_each_carried_wait_lands_on_the_check_step_and_not_in_unknown(reason):
     assert jbus_merge.step(f"wait: {reason}") == "check"

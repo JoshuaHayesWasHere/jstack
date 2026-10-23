@@ -104,7 +104,7 @@
    B="$H/tasks/<slug>.md"
    if awk '/^Review:/ {after = ($(2) == "after" || $(2) == "twice"); exit} END {exit !after}' "$B"; then
        if text=$(uv run --project "$T/.." jbus cleanup "$B"); then
-           printf '%s\n' "$text" | uv run --project "$T/.." jbus queue add "cleanup-<slug>" --priority 50
+           printf '%s\n' "$text" | uv run --project "$T/.." jbus queue add "cleanup-<slug>" --priority 50 --depends "<slug>"
        else
            echo "$text"
        fi
@@ -119,6 +119,7 @@
    Where the block queued a row, the line is `<slug>: the second review of <url> at <head> filed <k> warning or error findings as cleanup-<slug> and dropped <m> info findings; fix nothing for it`.
    Where it printed `no cleanup row: its second review has no warning or error finding`, the line is `<slug>: the second review of <url> at <head> filed nothing and dropped <m> info findings; fix nothing for it`, with `<m>` the count of `info` findings the block printed.
    It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit, and it is not approved: it waits for the user's go.
+   The row depends on `<slug>`, so it launches only once that pull request has merged, and its crew starts from a main that has it.
    On any other `no cleanup row`, of an `after` brief, or of a `twice` brief whose row is already in the queue, the review was clean or the row is already queued, and nothing more is done.
 
    What follows in this step is for a brief the block above printed `not after` or `first review` for, and the others have nothing more to send.

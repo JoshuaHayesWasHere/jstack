@@ -155,6 +155,13 @@ REBASE_HELD = Reason(
 )
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
+CARRIES_AFTER = Reason(
+    "check",
+    "carries {carried}'s commits (#{number}), which merges after {slug} ({open}), not merged yet",
+)
+CARRIES_UNKNOWN = Reason(
+    "check", "its head or {carried}'s (#{number}) cannot be read to see whether it carries it"
+)
 QUEUE_UNREADABLE = Reason(
     "hold",
     "its queue cannot be read, so its holds and merge order are not known",

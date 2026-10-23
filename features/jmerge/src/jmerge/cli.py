@@ -589,6 +589,8 @@ class Repo:
         self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
         self.trunk = ""
         self.reds: dict[str, list[dict]] = {}
+        self.open: list[ready.PullRequest] = []
+        self.heads: dict[int, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.listed, self.was = home_rule.ids(state)
@@ -653,6 +655,52 @@ class Repo:
         if self.through not in (None, one.number):
             return ready.MIGRATION_MERGING.format(number=self.through)
         return ""
+
+    def has(self, one: ready.PullRequest) -> bool:
+        """GitHub keeps each pull request's head as `refs/pull/<number>/head`, also one from a
+        fork, so `jmerge` fetches a head the main checkout does not have from that ref:
+        https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/checking-out-pull-requests-locally
+        """
+        if one.number not in self.heads:
+            commit = f"{one.head}^{{commit}}"
+            if _run(self.main, "git", "cat-file", "-e", commit).returncode:
+                _run(self.main, "git", "fetch", "-q", "origin", f"refs/pull/{one.number}/head")
+            self.heads[one.number] = not _run(self.main, "git", "cat-file", "-e", commit).returncode
+        return self.heads[one.number]
+
+    def outside(self, commit: str, of: str) -> bool:
+        """Whether `of` lacks `commit`. A ref that cannot be read lacks it too, which keeps a
+        pull request waiting rather than merging what it may carry."""
+        return bool(_run(self.main, "git", "merge-base", "--is-ancestor", commit, of).returncode)
+
+    @functools.cached_property
+    def ordered(self) -> dict[int, str]:
+        """The open pull requests whose rows merge after another row, by number, with their
+        slugs. Only these can hold back a pull request that carries them (`rows.short`)."""
+        slugs = rows.ordered(self.queue)
+        found = {}
+        for one in self.open:
+            brief = ready.brief_of(one.url, self.state / "tasks")
+            if brief is not None and brief.stem in slugs:
+                found[one.number] = brief.stem
+        return found
+
+    def carries(self, one: ready.PullRequest) -> list[tuple[str, int, bool]]:
+        """The open pull requests in `ordered` whose commits a merge of `one` would land: those
+        whose head `one`'s head contains and its base does not. Each comes with whether both
+        heads could be read, and one that could not is kept, since it may be carried."""
+        found = []
+        for other in self.open:
+            slug = self.ordered.get(other.number)
+            if slug is None or other.number == one.number:
+                continue
+            if not (self.has(other) and self.has(one)):
+                found.append((slug, other.number, False))
+            elif not self.outside(other.head, one.head) and self.outside(
+                other.head, f"origin/{one.base}"
+            ):
+                found.append((slug, other.number, True))
+        return found
 
     def others(self, text: str) -> bool:
         return claims.home_of(text, self.homes.known) != self.asking
@@ -1056,6 +1104,11 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         short = (
             rows.short(self.queue, brief.stem)
+            or (
+                rows.short(self.queue, brief.stem, self.carries(one))
+                if ready.stack_of(text) is None
+                else ""
+            )
             or self.red(one, default, brief.stem)
             or self.short_on_migrations(one, one.base)
         )
@@ -1828,6 +1881,7 @@ def main(argv: list[str] | None = None) -> int:
         say(f"wait: could not ask GitHub{silent}")
         return 1
     listed = [repo.in_full(one) for one in listed]
+    repo.open = listed
 
     if args.accept is not None:
         found = next((one for one in listed if one.number == int(args.accept)), None)
