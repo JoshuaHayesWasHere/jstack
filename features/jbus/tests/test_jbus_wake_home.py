@@ -188,3 +188,27 @@ def test_status_names_each_project_s_wake(kitchen):
     homed(kitchen, wake="both", project_wake=None)
     kitchen.poll(NOW)
     assert kitchen.status()["projects"]["demo"]["wake"] == "both"
+
+
+def test_a_flip_of_wake_keeps_the_wakes_that_wait_for_a_route_it_leaves(kitchen):
+    homed(kitchen, url="", project_wake=None)
+    kitchen.t3.refuse_send = True
+    kitchen.poll(NOW)
+    assert waiting(kitchen)
+    kitchen.config(project_wake="webhook")
+    kitchen.poll(later(5))
+    assert any(one["event"] == "decision" for one in waiting(kitchen))
+    kitchen.t3.refuse_send = False
+    kitchen.config(project_wake="home")
+    kitchen.poll(later(10))
+    assert any("decision alpha" in one["message"] for one in wakes(kitchen))
+
+
+def test_the_relay_health_check_counts_no_top_level_pair_while_wake_is_home(kitchen):
+    from jbus import health
+
+    relay = "http://127.0.0.1:4390/wake"
+    kitchen.config(url="", project_wake=None, webhook_url=relay, webhook_key="k")
+    assert not health.posts_to_relay(jbus.load())
+    kitchen.config(project_wake="both", webhook_url=relay, webhook_key="k")
+    assert health.posts_to_relay(jbus.load())

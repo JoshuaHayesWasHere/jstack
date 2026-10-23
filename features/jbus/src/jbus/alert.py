@@ -300,9 +300,10 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
 
     This function sends to the project's first route first, so that an alert from that route's
     streak goes to the others in the same pass. It sends to the second target before them all, with
-    its own streak, for the same reason. For a route the project does not have any more, the
-    top-level webhook, the home thread or the second target, it ends that route's streak with no
-    line and drops what waited for it. If the route comes back later, it gets only what is new.
+    its own streak, for the same reason. For a route the project's `wake` leaves out, it ends that
+    route's streak with no line and keeps what waits for it, which goes if `wake` picks the route
+    again. For a top-level pair or a second target the config does not have any more, it also drops
+    what waited for it, and if the pair comes back later, its route gets only what is new.
     """
     state, name = run.config.state_dir, run.project.name
     if run.box.blocking is None:
@@ -324,10 +325,12 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
         took = run.box.flush(run.now, run.say, route=route, went=went.append, post=post)
         sent = took if number == 0 else sent
         _count(run, key_of(name, route), went)
-    for gone, folder, key in ((True, wake.TOP_LEVEL, top_level), (False, wake.HOME, home)):
-        if not any(route.top if gone else route.home for route in run.box.routes):
-            retire(state, key(name))
-            run.box.drop(folder)
+    if not any(route.home for route in run.box.routes):
+        retire(state, home(name))
+    if not any(route.top for route in run.box.routes):
+        retire(state, top_level(name))
+        if tuple(run.box.top) in (("", ""), (run.project.webhook_url, run.project.webhook_key)):
+            run.box.drop(wake.TOP_LEVEL)
     page(run, client)
     return sent
 
