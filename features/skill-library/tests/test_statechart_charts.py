@@ -31,6 +31,8 @@ from statechart_support import (
     read,
     rule_sentences,
     state_key,
+    statechart_cli,
+    statechart_tools,
     tlc_output_warning,
     tlc_threw,
     uncited_conditions,
@@ -949,3 +951,35 @@ def test_every_script_prints_its_help_and_points_at_it_for_an_argument_it_does_n
         assert r.returncode == 2, script
         assert r.stdout == ""
         assert r.stderr == stderr
+
+
+def test_png_renders_each_chart_with_the_pinned_mermaid_cli_and_never_npxs_latest(
+    tmp_path, monkeypatch
+):
+    """--png runs @mermaid-js/mermaid-cli at the version pinned in tools.py, through npx, with
+    each chart in and its PNG out: a bare package name would let npx take its latest."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls"
+    write(
+        bin_dir / "npx",
+        f"""#!/bin/sh
+printf '%s\\n' "$*" >> '{calls}'
+while [ $# -gt 0 ]; do
+  case "$1" in -o) touch "$2" ;; esac
+  shift
+done
+""",
+        0o755,
+    )
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+    charts = [str(tmp_path / "chart.mmd"), str(tmp_path / "bug-1.mmd")]
+    for chart in charts:
+        write(chart, "stateDiagram-v2\n  [*] --> A\n")
+    pinned = statechart_tools.MERMAID_CLI
+    assert re.fullmatch(r"@mermaid-js/mermaid-cli@\d+\.\d+\.\d+", pinned)
+    pngs = statechart_cli.render(charts, str)
+    assert pngs == [chart.replace(".mmd", ".png") for chart in charts]
+    assert read(calls).splitlines() == [
+        f"-y {pinned} -i {chart} -o {chart.replace('.mmd', '.png')} -s 2" for chart in charts
+    ]

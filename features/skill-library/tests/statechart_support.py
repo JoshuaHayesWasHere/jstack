@@ -22,15 +22,12 @@ from testing.paths import REPO
 SCRIPTS = REPO / "features" / "skill-library" / "skills" / "statechart" / "scripts"
 
 
-SRC = SCRIPTS
-
-
 def module_of(path):
     """The dotted name of one module of the port, from its file under `scripts/`."""
     return ".".join(path.relative_to(SCRIPTS).with_suffix("").parts)
 
 
-sys.path.insert(0, str(SRC))
+sys.path.insert(0, str(SCRIPTS))
 PORT = [
     SCRIPTS / "statechart" / "__init__.py",
     SCRIPTS / "statechart" / "lib.py",
@@ -51,6 +48,7 @@ for module in PORT:
     importlib.import_module(module_of(module))
 lib = importlib.import_module("statechart.lib")
 statechart_tools = importlib.import_module("statechart.tools")
+statechart_cli = importlib.import_module("statechart.cli")
 ChartError = lib.ChartError
 parse_dot = lib.parse_dot
 parse_mermaid = lib.parse_mermaid
@@ -79,7 +77,7 @@ def edges(region):
 def run_env(env=None):
     env = env or {}
     merged = {**os.environ, **env}
-    merged["PYTHONPATH"] = os.pathsep.join(filter(None, [env.get("PYTHONPATH"), str(SRC)]))
+    merged["PYTHONPATH"] = os.pathsep.join(filter(None, [env.get("PYTHONPATH"), str(SCRIPTS)]))
     return merged
 
 
