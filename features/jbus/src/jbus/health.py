@@ -49,7 +49,6 @@ import argparse
 import math
 import os
 import subprocess
-import sys
 import tempfile
 import time
 import urllib.parse
@@ -217,7 +216,9 @@ class Launchd(Senses):
         return "active" if state == "running" else state
 
 
-SENSES = Launchd() if sys.platform == "darwin" else Senses()
+def machine_senses() -> Senses:
+    """What `jbus health` looks at on this machine: launchd on macOS, systemd elsewhere."""
+    return Launchd() if launchd.manager() == "launchd" else Senses()
 
 
 def clock() -> datetime:
@@ -458,7 +459,7 @@ def readings(machine: Machine, now: datetime, user: jsettings.Settings) -> list[
 def look(
     config: jbus.Config, now: datetime, say: Callable[[str], None], senses: Senses | None = None
 ) -> list[Reading]:
-    return readings(gather(config, now, say, senses or SENSES), now, config.user)
+    return readings(gather(config, now, say, senses or machine_senses()), now, config.user)
 
 
 def watch(config: jbus.Config, now: datetime, say: Callable[[str], None]) -> list[Reading]:

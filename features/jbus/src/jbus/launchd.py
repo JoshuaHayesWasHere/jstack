@@ -2,6 +2,7 @@
 units (`jinstall.launchd` makes them): each agent's label, the log launchd writes for it, and
 the words of that log and of `launchctl print`."""
 
+import sys
 from pathlib import Path
 
 PREFIX = "jstack."
@@ -13,6 +14,12 @@ STARTED = "jstack: started "
 TIMED_OUT = "jstack: Failed with result 'timeout'"
 """What an agent's shell says when it stops the command at its start timeout: the words that
 systemd's journal gives, which `jbus.health` counts."""
+
+
+def manager() -> str:
+    """The service manager that runs jstack's units on this machine: `launchd` on macOS and
+    `systemd` elsewhere. Read when asked, so that each reader picks the platform the same way."""
+    return "launchd" if sys.platform == "darwin" else "systemd"
 
 
 def label(unit: str) -> str:

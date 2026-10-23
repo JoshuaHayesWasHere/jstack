@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from typing import Any
 
+from jbus import launchd
 from jbus.view.state import Read, Source, iso, kept, text
 
 FIRST = True
@@ -59,7 +59,7 @@ def _github(read: Read) -> dict[str, Any]:
 def runners(read: Read) -> list[dict[str, str]] | None:
     """Each runner unit that systemd lists, loaded or not and active or not, or None where
     systemd did not answer. On macOS, each runner agent that launchd lists."""
-    if sys.platform == "darwin":
+    if launchd.manager() == "launchd":
         return agents(read)
     try:
         asked = subprocess.run(
@@ -148,7 +148,7 @@ def build(read: Read) -> dict[str, Any]:
             "green": sum(1 for word in kept.values() if word == "green"),
             "runners": read.machine(runners) or [],
             "runners_read": read.machine(runners) is not None,
-            "manager": "launchd" if sys.platform == "darwin" else "systemd",
+            "manager": launchd.manager(),
             "ended": sum(1 for one in asked.get("runs", []) if one.get("state") in FAILED),
             "now": tally(asked.get("runs", [])),
         }
