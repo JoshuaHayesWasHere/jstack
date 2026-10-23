@@ -1,8 +1,8 @@
 # The lines of a checkout
 
 This page is for working on jstack, in a checkout of its repo.
-There `sh install.sh` runs the install, and takes the verbs of `jinstall`: `sh install.sh --doctor`, `--check`, `--setup`, `--repo [<path>]` and `--uninstall`.
-Wherever another troubleshooting page says to run `jinstall`, a checkout runs `sh install.sh` with the same flag.
+In a checkout, `sh install.sh` runs the install and takes the verbs of `jinstall`: `sh install.sh --doctor`, `--check`, `--setup`, `--repo [<path>]` and `--uninstall`.
+Wherever another troubleshooting page says to run `jinstall`, a checkout runs `sh install.sh` with the same verb.
 The lines below print only in a checkout.
 [Contributing](../../../../CONTRIBUTING.md) has the setup.
 
@@ -13,14 +13,14 @@ The lines below print only in a checkout.
 | `missing hard python -> 3.12 or newer, or uv, which brings one` | The script found no Python 3.12 and no `uv`, so it ran nothing. | Install `uv`. |
 | `missing hard a checkout of jstack around <path> -> curl -fsSL <url> \| sh` | `install.sh` ran outside a checkout, and carries no release version. | Run it from the root of a checkout, or install a release with the `curl` line it names. |
 | `usage: install.sh [--check \| --uninstall \| --doctor \| --setup \| --repo [<path>]]` | The argument is not one of the verbs. The script exits 2. | Run it with one verb or none. |
-| `install.sh: <checkout> is a linked worktree, and HOME is your own: install from the main checkout` | A plain install from a worktree would point every skill at that worktree. Nothing was written. | Run `sh install.sh` in the main checkout. |
-| `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout` | The same, for `--setup`. Nothing was written. | Run `sh install.sh --setup` in the main checkout. |
+| `install.sh: <checkout> is a linked worktree, and HOME is your own: install from the main checkout` | A plain install from a worktree would point every skill at that worktree. The script wrote nothing. | Run `sh install.sh` in the main checkout. |
+| `install.sh: <checkout> is a linked worktree, and HOME is your own: set up from the main checkout` | A `--setup` from a worktree would do the same. The script wrote nothing. | Run `sh install.sh --setup` in the main checkout. |
 
 ## The generated files
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `ok hard generated files are current` | `skills.json`, which each layout is assembled from, and the other files `scripts/generate-jstack-trees.py` writes from the checkout are current. | Nothing. |
+| `ok hard generated files are current` | `skills.json`, which the install assembles each layout from, and the other files `scripts/generate-jstack-trees.py` writes from the checkout are current. | Nothing. |
 | `old hard generated files are current -> stale: <path>` | A skill, playbook, template or hook was added or changed after the generator ran, so `skills.json` does not list it yet, and it is in no layout. The install does not run the generator. | Run `make trees`, which runs `python3 scripts/generate-jstack-trees.py`, commit what it writes, then run `sh install.sh`. |
 
 ## The commands of a checkout
@@ -48,10 +48,10 @@ A skill for working on jstack, such as `verify-jstack`, is linked into the check
 | `missing hard <checkout>/<folder>/<name>` | The link for one of the checkout's own skills is not there. `<folder>` is `.claude/skills` or `.cursor/skills`. | Run `sh install.sh`. |
 | `old hard <checkout>/<folder>/<name> -> <path>, a skill no feature declares` | The link is left from a skill whose feature no longer names it under `projectSkills`. | Run `sh install.sh`. It removes the link. |
 | `old hard <checkout>/<folder>/<name> -> <path>` | The link points somewhere else. | Run `sh install.sh`. It points the link at the skill's feature. |
-| `old hard <checkout>/<folder>/<name> -> not a link` | A file or a directory is where the link goes. The install never replaces it. | Move it away, then run `sh install.sh`. |
+| `old hard <checkout>/<folder>/<name> -> not a link` | A file or a directory is in the link's place. The install never replaces it. | Move it away, then run `sh install.sh`. |
 
 ## A host with nothing on it
 
 `scripts/fresh-host.sh` runs `--setup` on a fresh host: a throwaway `archlinux` container with the checkout's `HEAD` cloned in, `uv`, `git` and `jq` installed, and stand-ins for `t3`, `claude`, `gh`, `lavish-axi` and `systemctl`.
-It fails unless the doctor then says `doctor: ok`, a second `--setup` writes nothing, and the only `needs you` line left is `claude`.
+It passes only when the doctor then says `doctor: ok`, a second `--setup` writes nothing, and the only `needs you` line left is `claude`.
 It starts a container, so run it under the heavy-suite lock: `flock ~/.local/state/locks/heavy-suite.lock sh scripts/fresh-host.sh`.
