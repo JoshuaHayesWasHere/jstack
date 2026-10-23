@@ -390,7 +390,7 @@ CAPS = {
     ("browser.yml", "browser"): "15",
     ("check.yml", "check"): "30",
     ("check.yml", "full"): "30",
-    ("macos.yml", "macos"): "45",
+    ("macos.yml", "macos"): "60",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
 }

@@ -26,10 +26,11 @@ jobs:
   # failed, so each step carries the flag as well. A job cancelled at its cap reads as failed
   # too, so the suite's step stops first. What failed is in the job's summary, and in one
   # warning with the count. No merge waits on it: it is in no required-checks.
+  # The suite took 36 minutes there on its first run, 2026-10-22, with 1172 tests failing.
   macos:
     runs-on: macos-15
     continue-on-error: true
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         continue-on-error: true
@@ -51,7 +52,7 @@ jobs:
       - name: make check
         id: suite
         continue-on-error: true
-        timeout-minutes: 40
+        timeout-minutes: 55
         run: make check JUNIT="$RUNNER_TEMP/junit.xml"
       - name: failed tests
         if: "!cancelled()"
