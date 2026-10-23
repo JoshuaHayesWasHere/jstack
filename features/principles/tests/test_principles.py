@@ -13,7 +13,7 @@ frontmatter = importlib.import_module("jtrees.frontmatter")
 
 PRINCIPLES = REPO / "features" / "principles" / "skills"
 THIRD_PARTY = REPO / "THIRD_PARTY.md"
-PSTACK_COMMIT = "99743e9c151c8537cbbf1f98bb38f34ef3368453"
+PSTACK_COMMIT = "4ec7ffa173eaa70d3d9467a627baf0954645a353"
 EM_DASH = "\N{EM DASH}"
 FILES = sorted(skills.listed("principle").values())
 
