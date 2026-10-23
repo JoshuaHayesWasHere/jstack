@@ -14,6 +14,7 @@ Each verb that jbus's help lists is in one of the three tables below.
 | `jbus status` | Prints what the last pass left: the status file and the record of the pass. |
 | `jbus events [--slug <slug>] [--since <time>]` | Prints the project's event log as JSON, one event a line, oldest first. `--slug` keeps the events of one slug, and `--since` keeps those sent at or after a time. |
 | `jbus digest --json [--since <time>]` | Prints what waits and what moved over every project, as one JSON object. `--json` is required, since JSON is the one form there is. `--since` sets the time it counts merges from, and is a day ago when you do not give it. |
+| `jbus flow [--since <time>] [--until <time>] [--json] [--jobs] [--no-github] [--no-journal]` | Prints how work flowed in a window over every project, from the event logs, jbus's journal and GitHub: each row's time from approved to merged, split into working and waiting, the waits ranked by hours lost, how long main was red and what it held up, how long the machine had no room and why, and the share left unexplained. It writes nothing. `--since` is 7 days ago and `--until` now when you do not give them. `--jobs` asks GitHub for each run's jobs, a call per run, for their queue time, and is refused where those calls would spend more than half of GitHub's hourly budget. `--no-github` and `--no-journal` leave out those sources. |
 | `jbus view [--port <port>]` | Serves the bus as a page. The page only reads, except for one write, your answer to a question. [The view](the-view.md) has the rest. |
 | `jbus queue show\|add\|approve\|hold\|remove\|apply\|verify` | Prints or changes the queue table, or prints a row's approval record. [The queue](the-queue.md) has each verb. |
 | `jbus scout add\|approve\|show` | Stores a scout's request from stdin, records your go for it, or prints each request's state and what its Report says. A pass launches an approved request as a read-only scout. [What a pass launches](what-a-pass-launches.md#a-scout) has the rest. |
@@ -61,5 +62,5 @@ A time with no zone is in your time zone.
 In `--at`, `<zone>` is your `timezone_label`, or the word your time zone prints for that time, such as `CEST`.
 `jbus` refuses any other word.
 
-`jbus poll`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus view`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
+`jbus poll`, `jbus alarm`, `jbus health`, `jbus relay`, `jbus snapshot`, `jbus ci --notice`, `jbus status`, `jbus digest`, `jbus flow`, `jbus view`, `jbus steps`, `jbus playbook`, `jbus home`, `jbus project add` and `jbus t3 login` read no project, and `jbus word` takes its own from `--to` or `--all`.
 `jbus gate`, `jbus done`, `jbus queue add`, `jbus queue apply` and `jbus scout add` read stdin, and wait for it when nothing is piped in.
