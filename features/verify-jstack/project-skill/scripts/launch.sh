@@ -3,7 +3,7 @@
 #   launch.sh
 # It installs this checkout's commands (uv sync), then makes a new directory under
 # ${TMPDIR:-/tmp} that holds everything a drive touches: a HOME, jbus's config and state, a
-# demo repo with its origin, a `gh`, a `notify-send` and a `systemctl` that are stand-ins, a
+# demo repo with its origin, a `gh`, a `notify-send`, a `systemctl` and a `launchctl` that are stand-ins, a
 # directory for uv's tools, a machine that is idle, and a local stand-in for T3 Code and the webhook. It prints `ready:` only after
 # jbus and jmerge have each run in it. Nothing outside it is written
 # but the evidence directory, ${TMPDIR:-/tmp}/verify-jstack-evidence/<run>, which cleanup.sh
@@ -36,6 +36,7 @@ mkdir -p "$E" "$S/home/.local/state/home/demo/tasks" "$S/config" "$S/state" "$S/
 # The stand-ins on PATH. notify-send only writes down what it was asked to show.
 ln -s "$here/fake-gh" "$S/stub/gh"
 ln -s "$here/fake-systemctl" "$S/stub/systemctl"
+ln -s "$here/fake-launchctl" "$S/stub/launchctl"
 printf '#!/bin/sh\necho "$*" >> "%s/notify.log"\n' "$S" >"$S/stub/notify-send"
 chmod +x "$S/stub/notify-send"
 for name in open merged commits; do echo "[]" >"$S/gh/$name.json"; done

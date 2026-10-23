@@ -26,6 +26,8 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
   On the real machine the POST goes to the Chef's webhook, which can be down or refuse the key.
 - `notify-send` is a script that appends to `notify.log`. The real machine shows a notification on a desktop session.
 - `fake-systemctl` is `systemctl`. It says the manager reads the sandbox's HOME, makes and removes the links systemd makes on `enable` and `disable` of a linked unit, writes each call to `systemctl.log`, and starts no unit. On the real machine systemd loads the units and the timer runs the pass.
+- `fake-launchctl` is `launchctl`, for a run on macOS.
+  It loads and boots out agents in the gui domain as launchd does, answers `print` and `list` with launchd's words and exit codes, writes each call to `launchctl.log`, and runs no agent.
 - `uv tool install` is the real one, with `UV_TOOL_DIR` in the sandbox and the host's cache and Pythons. On the real machine uv keeps its tools under the user's HOME.
 - A release is a wheel `make dist` built from this checkout, served by a local web server named in `JSTACK_RELEASE_URL`, and the uv installer `install.sh` fetches when uv is missing is a stand-in named in `JSTACK_UV_INSTALLER`. On the real machine both come from GitHub's release and astral.sh, over the network.
 - `PROC` and `LIMITS` name files Launch wrote: an idle machine and a plan at 10% of its limits. The real machine reads `/proc` and the plan's own limits.
@@ -154,6 +156,7 @@ All in `features/verify-jstack/project-skill/scripts/`, which `$VERIFY_JSTACK_SC
 | `fake_t3.py` | started by `launch.sh`, never by hand | the stand-in for T3 Code's MCP endpoint (`$VERIFY_JSTACK_URL/mcp`) and the webhook (`$VERIFY_JSTACK_URL/wake`) |
 | `fake-gh` | linked as `gh` on the sandbox's PATH, never run by hand | the stand-in for `gh`: answers from `gh/*.json`, exits 64 on `pr merge` |
 | `fake-systemctl` | linked as `systemctl` on the sandbox's PATH, never run by hand | the stand-in for `systemctl --user`: answers for the sandbox's HOME, links and unlinks as systemd does, starts nothing |
+| `fake-launchctl` | linked as `launchctl` on the sandbox's PATH, never run by hand | the stand-in for `launchctl` on macOS: loads and boots out agents as launchd does, starts nothing |
 
 When jstack changes, the feature files are what go stale first.
 `/maintain-verification-skill` finds this skill through `skills.json`, where `projectSkills` names it, but it reads a feature map only from the skill's own `features/` folder, which this skill does not have: on jstack it stops at `no feature map`.

@@ -25,6 +25,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 PREFIX = "jstack."
+NOT_LOADED = (3, 113)
+"""What `launchctl print` and `bootout` exit with for a service the domain does not have: 113,
+or 3 (ESRCH) on older releases."""
 STARTED = "jstack: started "
 TIMED_OUT = "jstack: Failed with result 'timeout'"
 """What the shell says when it stops a command at its start timeout: the words systemd's journal

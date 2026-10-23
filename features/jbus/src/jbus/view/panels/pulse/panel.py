@@ -1,5 +1,6 @@
 """Whether the bus is alive: the timer and the service as systemd reports them, the last pass,
-the status file, and which code of the view answers.
+the status file, and which code of the view answers. On macOS launchd runs the timer and the
+service as one agent (`jinstall.launchd`), and `launchd` gives its answer in systemd's words.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than `QUIET`
 seconds ago and systemd does not report a pass running now. A pass that starts and crashes each
@@ -8,8 +9,10 @@ minute has stopped too, because only the end of a pass counts, not its start.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
+import sys
 from datetime import datetime
 from typing import Any
 
@@ -27,6 +30,7 @@ from jbus.view.state import (
     text,
     when,
 )
+from jinstall import launchd as agents
 from jmerge import mainjson
 
 FIRST = True
@@ -41,6 +45,7 @@ SHAPE = {
         "quiet": None,
         "last_end": None,
         "said": None,
+        "manager": None,
         "pass": {"started": None, "ended": None, "seconds": None, "running": None},
         "timer": {"active": None, "sub": None, "enabled": None, "last_trigger": None},
         "status": {
@@ -94,12 +99,45 @@ def systemd(read: Read) -> dict[str, dict[str, str]] | None:
     return units if TIMER in units else None
 
 
+def launchd(read: Read) -> dict[str, dict[str, str]] | None:
+    """What launchd says of jbus's agent, as systemd would say it of the timer and the service,
+    or None where launchd did not answer. A loaded agent is an active timer, and a running one
+    a service at work. Its last exit code is the service's result."""
+    label = agents.label(TIMER)
+    try:
+        asked = subprocess.run(
+            ["launchctl", "print", f"gui/{os.getuid()}/{label}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if asked.returncode in agents.NOT_LOADED:
+        return {TIMER: {"Id": label, "ActiveState": "inactive"}, SERVICE: {"Id": label}}
+    if asked.returncode:
+        return None
+    said = agents.parse_print(asked.stdout)
+    running = said.get("state") == "running"
+    code = said.get("last exit code", "")
+    result = "success" if code == "0" else "exit-code" if code.isdigit() else ""
+    timer = {"Id": label, "ActiveState": "active", "SubState": "running" if running else "waiting"}
+    service = {"Id": label, "ActiveState": "activating" if running else "inactive"}
+    return {
+        TIMER: timer | {"UnitFileState": "loaded"},
+        SERVICE: service | {"Result": result, "ExecMainStatus": code},
+    }
+
+
+MANAGER, ASK = ("launchd", launchd) if sys.platform == "darwin" else ("systemd", systemd)
+
+
 def pulse(read: Read) -> dict[str, Any]:
     """What systemd, `pass.json` and `status.json` say, and whether systemd `answered`."""
     sources, name, now = read.sources, read.name, read.now
     record = read.record
     status = _table(sources.state_dir / "status.json") or {}
-    units = read.machine(systemd)
+    units = read.machine(ASK)
     timer, service = (units or {}).get(TIMER, {}), (units or {}).get(SERVICE, {})
     started, ended = when(record.get("started")), when(record.get("ended"))
     last = ended or when(status.get("last_pass"), sources.user)
@@ -111,11 +149,12 @@ def pulse(read: Read) -> dict[str, Any]:
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
     scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
-    said = "systemd did not answer"
+    said = f"{MANAGER} did not answer"
     if units is not None:
         said = (
-            f"{TIMER} {text(timer.get('ActiveState'), 60)} ({text(timer.get('SubState'), 60)}), "
-            f"{SERVICE} {text(service.get('Result'), 60)}, "
+            f"{timer.get('Id', TIMER)} {text(timer.get('ActiveState'), 60)} "
+            f"({text(timer.get('SubState'), 60)}), "
+            f"{service.get('Id', SERVICE)} {text(service.get('Result'), 60)}, "
             f"exit {text(service.get('ExecMainStatus'), 60)}"
         )
     return {
@@ -124,6 +163,7 @@ def pulse(read: Read) -> dict[str, Any]:
         "quiet": QUIET,
         "last_end": last,
         "said": said,
+        "manager": MANAGER,
         "answered": units is not None,
         "pass": {
             "started": started,

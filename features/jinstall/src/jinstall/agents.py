@@ -9,9 +9,6 @@ from jinstall import launchd
 from jinstall.kinds import Found, Kind, split
 from jinstall.machine import Dropped, Machine, Refused
 
-NOT_LOADED = (3, 113)
-"""What `launchctl print` and `bootout` exit with for a service the domain does not have: 113,
-or 3 (ESRCH) on older releases."""
 PLIST_MODE = 0o644
 """launchd refuses a plist that its group or anyone else may write."""
 GONE_WAIT = 5.0
@@ -88,7 +85,7 @@ class Agents:
         ran = machine.launchctl("print", self._service(machine, agent))
         if ran is None or ran.code is None:
             return None
-        if ran.code == 0 or ran.code in NOT_LOADED:
+        if ran.code == 0 or ran.code in launchd.NOT_LOADED:
             return ran.code == 0
         said = ran.out.strip().splitlines()
         return f"launchctl print {self._service(machine, agent)}: {said[-1] if said else ran.code}"
