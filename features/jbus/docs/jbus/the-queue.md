@@ -274,7 +274,7 @@ When such a row is queued again with the same text, it moves to that text's `bri
 `jbus queue verify <slug>` prints, as JSON, what another reader needs to check that a brief is the one you approved.
 It prints the row's `approval` record: its basis, its reference and your words, and the `brief_sha`, `meaning` and `scope` at the go.
 It also prints the brief it checked, with its `brief_sha`, `meaning` and `scope`, and whether the go `holds` for it.
-The brief checked is the stored one, or the file `--brief <path>` names.
+The brief `jbus queue verify` checks is the stored one, or the file `--brief <path>` names.
 It exits 0 when the go holds, and 1 when it does not or there is no such row.
 
 `jbus queue remove` takes a row out of the queue permanently, and a batch takes the same line without `jbus queue`.
