@@ -1,12 +1,13 @@
 # The relay
 
 The relay is optional.
+jbus sends its wakes to each project's home thread by default, and posts to the relay only with `wake = "webhook"` or `wake = "both"` ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
 It sends what jbus posts on to a chat bot of your own, and pages you when that bot is silent.
 The chat bot's code is outside this repo, and this page is the contract the chat bot keeps.
 A machine with no relay loses nothing else, and `jinstall --doctor` prints `missing optional relay <env file>` for it.
 
 `jbus relay` is a server, not a pass.
-It is the one way jbus pages you.
+Where it runs, it is the one way jbus pages you.
 jbus posts only three kinds of event to its webhook: a `decision`, a `sign-in` and an `alert` that stands ([Decisions](decisions.md)).
 The relay sends each on to your chat bot, which pages you.
 No other bot watches the homes or the queue.

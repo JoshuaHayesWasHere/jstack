@@ -118,8 +118,8 @@ def test_the_example_config_ships_with_dispatch_on_and_only_placeholders():
     given = tomllib.loads(example)
     assert given["dispatch"] is True and "max_running" not in given
     (project,) = given["project"]
-    assert set(project) == {"name", "checkout", "state", "projectId", "webhook_url", "webhook_key"}
-    assert all("<" in project[key] for key in ("projectId", "webhook_url", "webhook_key"))
+    assert set(project) == {"name", "checkout", "state", "projectId"}
+    assert all("<" in project[key] for key in ("projectId",))
 
 
 def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
@@ -168,6 +168,7 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
                 "outbox": 0,
                 "sign_in": "",
                 "sweep": "",
+                "wake": "webhook",
             }
         },
         "streaks": {},

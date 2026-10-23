@@ -32,11 +32,6 @@ ACCEPTED = f"ready 286 {HEAD} ps-agnostic ps-agnostic, accepted: {WHY}, {SAFE}\n
 UNBLOCKS = " · unblocks jbus-a, jbus-b, jbus-c, jbus-d · since 11:00 ET"
 HAND = f"hand-merge #286 {URL}: {WHY}; {SAFE}; jmerge --accept 286 {STAMP}"
 MERGE = f"waiting-on-user demo: {HAND}{UNBLOCKS}"
-SET = (
-    "set webhook_url and webhook_key for demo in its [[project]] table, "
-    "or at the top of ~/.config/jbus/config.toml for every project"
-)
-WEBHOOK = f"waiting-on-user demo: {SET} · unblocks events to the Chef · since 11:00 ET"
 
 
 @pytest.fixture
@@ -299,19 +294,11 @@ def test_queue_show_prints_what_waits_on_the_user_above_the_table(kitchen):
     assert kitchen.main("queue", "show")[1].startswith("| slug |")
 
 
-def test_a_webhook_that_is_not_set_is_a_root_said_in_the_journal_and_on_the_desk(kitchen):
-    kitchen.config(url="")
-    said = kitchen.poll() + kitchen.poll(later(3))
-    assert said.count(WEBHOOK) == 1 and kitchen.log("notify") == [f"jbus | {WEBHOOK}"]
-    assert waits(kitchen) == [WEBHOOK]
-    assert [(one["key"], one["line"]) for one in shown(kitchen)] == [("config:demo", SET)]
-    reply = 'Reply: "demo config: I set it up"'
-    decided = f"decision config: {SET}, jbus lacks a setup only you can give. {reply}"
-    assert [one["line"] for one in kitchen.waiting()] == [decided]
-    assert (said + kitchen.poll(later(61))).count(WEBHOOK) == 2
-    kitchen.config()
-    assert "cleared config:demo" in kitchen.poll(later(64))
-    assert shown(kitchen) == []
+def test_a_webhook_that_is_not_set_is_no_root(kitchen):
+    kitchen.config(url="", project_wake=None)
+    said = kitchen.poll() + kitchen.poll(later(61))
+    assert not [line for line in said if line.startswith("waiting-on-user")]
+    assert waits(kitchen) == [] and shown(kitchen) == []
 
 
 def test_with_no_sign_in_the_root_is_to_sign_in_and_it_unblocks_the_rows_that_wait(kitchen):

@@ -7,7 +7,7 @@ A root is one thing only the user can do, and it has a key:
   The line names the one safety fact that the review proved at the head;
 - `re-approve:<slug>`: approve again a brief that changed after their go;
 - `approve:<slug>`: approve a row that an approved row depends on;
-- `config:<project>`: set the webhook, or sign in to T3 Code.
+- `config:<project>`: sign in to T3 Code.
 
 `walk` starts at every approved row that was not launched and follows its `depends` links
 (`Pass.reasons`, which `dispatch` records). It stops at a root or at progress: a thread, a pull
@@ -147,19 +147,12 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
 
 
 def config(run: Pass, client: Client | None, rows: list[queue.Row] | None) -> Roots:
-    """Return the project's own root: a webhook that is not set, or no sign-in to T3 Code."""
-    name, project = run.project.name, run.project
-    actions, unblocks = [], []
-    if not (project.webhook_url and project.webhook_key):
-        actions.append(
-            f"set webhook_url and webhook_key for {name} in its [[project]] table, "
-            "or at the top of ~/.config/jbus/config.toml for every project"
-        )
-        unblocks.append("events to the Chef")
-    if client is None:
-        actions.append("run jbus t3 login")
-        unblocks += [row["slug"] for row in rows or [] if row.get("status") == "queued"]
-    return {f"config:{name}": (", and ".join(actions), unblocks)} if actions else {}
+    """Return the project's own root: no sign-in to T3 Code. A webhook is optional, since wakes go
+    to the home thread by default, so one that is not set is no root."""
+    if client is not None:
+        return {}
+    unblocks = [row["slug"] for row in rows or [] if row.get("status") == "queued"]
+    return {f"config:{run.project.name}": ("run jbus t3 login", unblocks)}
 
 
 def done(run: Pass, world: World | None, rows: list[queue.Row] | None, key: str) -> bool:
@@ -186,11 +179,11 @@ def tell(
     """Send each root that is due, say which roots cleared, and rewrite `stall.json`. Return the
     roots that are still open, each `{"key", "line", "since", "unblocks"}`.
 
-    `tell` also raises each due root on the desk. `tell` prints the root when the webhook is not set
-    or its last POST failed. A pass judges no row when it could not ask T3 Code or GitHub, could not
-    read the queue, or ran with dispatch off. Such a pass keeps the roots that it had as they were,
-    and neither sends nor clears them, except a root that is plainly `done`. `tell` also keeps the
-    root of a held pull request as it was when the pull request is still open and `jmerge` said
+    `tell` also raises each due root on the desk. `tell` prints the root when the project's first
+    route's last send failed. A pass judges no row when it could not ask T3 Code or GitHub, could
+    not read the queue, or ran with dispatch off. Such a pass keeps the roots that it had as they
+    were, and neither sends nor clears them, except a root that is plainly `done`. `tell` also keeps
+    the root of a held pull request as it was when the pull request is still open and `jmerge` said
     nothing of it in this pass. In that case either `jmerge` did not run, or the home merges.
     """
     name = run.project.name
@@ -204,9 +197,7 @@ def tell(
     found |= config(run, client, rows)
     was: dict[str, Any] = read_json(run.state / "stall.json", {})
     before = {one["key"]: one for one in waiting.read(run.state) or [] if "unblocks" in one}
-    blank = not (run.project.webhook_url and run.project.webhook_key)
-    failing = run.box.marks().get("failed", 0) > 0
-    quiet = blank or failing
+    quiet = run.box.marks().get("failed", 0) > 0
     kept: dict[str, Any] = {}
     shown = []
     for key, (action, unblocks) in found.items():
