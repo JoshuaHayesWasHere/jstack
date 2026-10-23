@@ -56,7 +56,7 @@ STATUS = {
     "waiting": "crew asks the owner",
     "gate": "owner: gate",
 }
-OVER = ("merged", "done")
+OVER = ("merged", "done", "removed")
 GAP = timedelta(minutes=5)
 PASS = timedelta(minutes=1)
 

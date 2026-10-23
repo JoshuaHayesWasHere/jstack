@@ -40,16 +40,17 @@ POOL = re.compile(
     r"^pool-wake: woke (\S+), the review pool was capped until (\S+), after (\d+) min"
 )
 WORKTREE = re.compile(r"/worktrees/([^/\s]+)/")
-ITEM = re.compile(r"^item \S+: w\d+ (\w+): row (\S+) (?:is (\w+)|has a go: (.*))$")
+ITEM = re.compile(r"^item \S+: w\d+ (\w+): row (\S+) (?:(?:is|was) (\w+)|has a go: (.*))$")
 ITEM_STATES = {
     "behind": ("queued", "behind: the rows in front of it to merge"),
     "ready": ("queued", "ready: the next pass of jbus to launch it"),
     "unapproved": ("queued", "not approved"),
     "launching": ("launched", ""),
+    "removed": ("removed", ""),
 }
 """What an item's line says of a row that its tables do not: the status and why of a row before
 its launch. An item is `behind` while the rows in front of it merge, and `ready` until a pass
-launches it."""
+launches it. A row that `was removed` is over, as a merged one is."""
 TIMEOUT = 120
 
 

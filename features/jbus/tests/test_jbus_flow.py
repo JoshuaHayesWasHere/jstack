@@ -99,6 +99,14 @@ def test_a_row_never_approved_is_left_out():
     assert measure.row_spans(project(), "beta", at(-48), at(48), {}) is None
 
 
+def test_a_removed_row_ends_where_it_was_removed():
+    gone = [item(at(0), "gamma", "has a go: your word, 2026-10-20 10:00 EDT")]
+    gone += [item(at(0), "gamma", "is behind"), item(at(2), "gamma", "was removed")]
+    row = measure.row_spans(records.events("demo", gone), "gamma", at(-48), at(48), {})
+    assert [(span.what, span.hours) for span in row.spans] == [("ordering", 2.0)]
+    assert row.merged is None
+
+
 def test_the_window_clips_a_row():
     row = measure.row_spans(project(), "alpha", at(2.75), at(3.5), {})
     assert [(span.what, span.start, span.end) for span in row.spans] == [
