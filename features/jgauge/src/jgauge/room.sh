@@ -21,14 +21,27 @@ room() (
     if [ "$instance" != claudeAgent ]; then file=$LIMITS.$instance; fi
     if [ -d "$file" ]; then hollow="$hollow$instance "; fi
   done
-  load=$(cut -d' ' -f1 "$PROC/loadavg" 2> /dev/null)
-  cores=$(nproc 2> /dev/null)
-  memory=$(awk '/^MemAvailable:/ {print $(2)}' "$PROC/meminfo" 2> /dev/null)
-  pressure=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/memory" 2> /dev/null)
-  stalled=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/cpu" 2> /dev/null)
+  if [ "$(uname -s 2> /dev/null)" = Darwin ]; then
+    psi=0
+    tmp=0
+    load=$(sysctl -n vm.loadavg 2> /dev/null | awk '$(1) == "{" {print $(2)}')
+    cores=$(sysctl -n hw.ncpu 2> /dev/null)
+    memory=$(vm_stat 2> /dev/null | awk '
+      NR == 1 && /page size of [0-9]+ bytes/ {size = $(NF - 1)}
+      /^Pages (free|inactive|speculative):/ {sub(/\.$/, "", $(NF)); if ($(NF) ~ /^[0-9]+$/) {pages += $(NF); seen++}}
+      END {if (size > 0 && seen == 3) print int(pages * size / 1024)}')
+  else
+    psi=1
+    tmp=1
+    load=$(cut -d' ' -f1 "$PROC/loadavg" 2> /dev/null)
+    cores=$(nproc 2> /dev/null)
+    memory=$(awk '/^MemAvailable:/ {print $(2)}' "$PROC/meminfo" 2> /dev/null)
+    pressure=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/memory" 2> /dev/null)
+    stalled=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/cpu" 2> /dev/null)
+  fi
   read_slots() { df -Pi "$TMPFS" 2> /dev/null | awk 'NR == 2 {print $(2), $(3)}'; }
-  slots=$(read_slots)
-  if echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}' &&
+  if [ "$tmp" = 1 ]; then slots=$(read_slots); fi
+  if [ "$tmp" = 1 ] && echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}' &&
     here=$(cd "$TMPFS" 2> /dev/null && pwd -P); then
     stale=$({
       find "$PROC"/[0-9]*/cwd "$PROC"/[0-9]*/fd/ -maxdepth 1 -type l -printf '%l\n' 2> /dev/null
@@ -54,7 +67,7 @@ room() (
     fi
   fi
   awk -v busy="$load" -v cores="$cores" -v stalled="$stalled" -v memory="$memory" -v pressure="$pressure" \
-    -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
+    -v psi="$psi" -v tmp="$tmp" -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
     -v LOAD="$LOAD" -v CPU="$CPU" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
     -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v pool="$POOL" -v hollow="$hollow" -v now="$(date +%s)" '
     function span(left) {
@@ -105,14 +118,14 @@ room() (
       window["seven_day"] = "weekly"
       if (light != "1" && (busy !~ number || cores !~ number || cores == 0)) why = "the load or the core count could not be read"
       else if (light != "1" && int(busy * 100 + 0.5) >= cores * LOAD) why = "load " busy " is at or over " LOAD "% of " cores " cores"
-      else if (light != "1" && stalled !~ number) why = "the CPU pressure could not be read"
-      else if (light != "1" && stalled >= CPU) why = "CPU pressure " stalled " is at or over " CPU
+      else if (light != "1" && psi && stalled !~ number) why = "the CPU pressure could not be read"
+      else if (light != "1" && psi && stalled >= CPU) why = "CPU pressure " stalled " is at or over " CPU
       else if (memory !~ number) why = "the available memory could not be read"
       else if (memory < MEMORY * 1048576) why = sprintf("%.1f GB of memory available, under %s", memory / 1048576, MEMORY)
-      else if (pressure !~ number) why = "the memory pressure could not be read"
-      else if (pressure >= PRESSURE) why = "memory pressure " pressure " is at or over " PRESSURE
-      else if (slots !~ /^[0-9]+$/ || taken !~ /^[0-9]+$/) why = "the file slots of " TMPFS " could not be read"
-      else if (taken * 100 > slots * SLOTS) why = TMPFS " has " taken " of " slots " file slots used, over " SLOTS "%"
+      else if (psi && pressure !~ number) why = "the memory pressure could not be read"
+      else if (psi && pressure >= PRESSURE) why = "memory pressure " pressure " is at or over " PRESSURE
+      else if (tmp && (slots !~ /^[0-9]+$/ || taken !~ /^[0-9]+$/)) why = "the file slots of " TMPFS " could not be read"
+      else if (tmp && taken * 100 > slots * SLOTS) why = TMPFS " has " taken " of " slots " file slots used, over " SLOTS "%"
       # Room holds back a launch only while every instance of a line of the pool is full. For a
       # pool of one, the reason names its first full window; for a larger pool, each instance
       # and the first reset.

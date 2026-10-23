@@ -1,6 +1,8 @@
 import json
 import os
+import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -95,6 +97,40 @@ def test_a_machine_with_no_pressure_and_no_loadavg_still_writes_a_row(machine):
     assert cli.main(["sample"]) == 0
     (row,) = rows(log)
     assert len(row) == 19 and row[2:17] == [""] * 15
+
+
+DARWIN = Path(__file__).parent / "fixtures" / "darwin"
+
+
+@pytest.fixture
+def mac(machine, monkeypatch, tmp_path):
+    """The machine above as a Mac: `sys.platform` is darwin and `sysctl` prints the output in
+    fixtures/darwin. The /proc of the machine fixture is still there, so a value read from it
+    would show."""
+    shown = tmp_path / "darwin"
+    shown.mkdir()
+    (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setenv("DARWIN", str(shown))
+    monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
+    return shown, machine[1]
+
+
+def test_a_sample_on_a_mac_has_its_load_and_cores_and_no_pressure(mac):
+    """macOS has no pressure (PSI) lines: their fields are empty, as on a kernel without them."""
+    _, log = mac
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[1:5] == ["12", "1.62", "1.88", "2.03"]
+    assert row[5:17] == [""] * 12
+
+
+def test_a_sample_on_a_mac_whose_sysctl_says_nothing_still_writes_a_row(mac):
+    shown, log = mac
+    (shown / "sysctl.txt").write_text("")
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert len(row) == 19 and row[1:17] == [""] * 16
 
 
 def test_rows_older_than_30_days_are_dropped_by_the_sampler(machine):

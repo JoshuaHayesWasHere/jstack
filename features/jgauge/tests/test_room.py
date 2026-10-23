@@ -953,3 +953,109 @@ def test_a_pooled_instance_whose_file_is_a_directory_is_not_known_and_has_room(t
     looked = ran(env)
     assert looked.stdout == "go\n"
     assert looked.stderr.endswith(f"the pool has room on {PRIME}\n")
+
+
+DARWIN = Path(__file__).parent / "fixtures" / "darwin"
+
+
+def mac(where, sysctl=None, vm_stat=None, env=None):
+    """A Mac as `room` reads one: `uname -s` says Darwin, and `sysctl` and `vm_stat` print the
+    output in fixtures/darwin, with each name in `sysctl` and each line in `vm_stat` given the
+    value there (None leaves the line out). `PROC` names no directory, so a reading that came
+    from it would not be read."""
+    env = env or machine(where, **IDLE)
+    shown = where / "darwin"
+    shown.mkdir(exist_ok=True)
+    for name, changed in (("sysctl", sysctl or {}), ("vm_stat", vm_stat or {})):
+        lines = []
+        for line in (DARWIN / f"{name}.txt").read_text().splitlines():
+            key = line.split(":")[0] if line.startswith(("Pages", "vm.", "hw.")) else line
+            if key not in changed:
+                lines.append(line)
+            elif changed[key] is not None:
+                lines.append(f"{key}: {changed[key]}")
+        (shown / f"{name}.txt").write_text("".join(f"{line}\n" for line in lines))
+    return {
+        **env,
+        "PROC": str(where / "no-proc"),
+        "DARWIN": str(shown),
+        "PATH": f"{DARWIN / 'bin'}:{env['PATH']}",
+    }
+
+
+def test_an_idle_mac_has_room_with_no_pressure_lines_to_read(tmp_path):
+    """macOS has no /proc and no pressure (PSI) lines: the load, the cores and the memory come
+    from sysctl and vm_stat, and the two pressure readings are not available there, which is
+    no reason to wait."""
+    looked = ran(mac(tmp_path))
+    assert (looked.stdout, looked.stderr) == ("go\n", "")
+
+
+def test_a_mac_with_its_load_at_the_line_waits_and_says_its_cores(tmp_path):
+    env = mac(tmp_path, sysctl={"vm.loadavg": "{ 24.00 20.12 18.40 }"})
+    assert says(env) == "wait: load 24.00 is at or over 200% of 12 cores"
+    env = mac(tmp_path, sysctl={"vm.loadavg": "{ 23.99 20.12 18.40 }"})
+    assert says(env) == "go"
+
+
+@pytest.mark.parametrize(
+    ("size", "pages"),
+    [("16384", (100000, 20000, 11072)), ("4096", (400000, 80000, 44288))],
+)
+def test_a_mac_short_of_memory_waits_on_its_free_inactive_and_speculative_pages(
+    tmp_path, size, pages
+):
+    """The available memory is the free, inactive and speculative pages, at the page size that
+    vm_stat's first line gives: 2 GB on both page sizes here."""
+    free, inactive, speculative = (f"{n}." for n in pages)
+    header = f"Mach Virtual Memory Statistics: (page size of {size} bytes)"
+    env = mac(
+        tmp_path,
+        vm_stat={
+            "Mach Virtual Memory Statistics: (page size of 16384 bytes)": None,
+            "Pages free": free,
+            "Pages inactive": inactive,
+            "Pages speculative": speculative,
+        },
+    )
+    text = (tmp_path / "darwin" / "vm_stat.txt").read_text()
+    (tmp_path / "darwin" / "vm_stat.txt").write_text(f"{header}\n{text}")
+    assert says(env) == "wait: 2.0 GB of memory available, under 6"
+
+
+@pytest.mark.parametrize(
+    ("sysctl", "vm_stat", "said"),
+    [
+        ({"vm.loadavg": None}, {}, "the load or the core count could not be read"),
+        ({"vm.loadavg": "{ }"}, {}, "the load or the core count could not be read"),
+        ({"hw.ncpu": None}, {}, "the load or the core count could not be read"),
+        ({}, {"Pages inactive": None}, "the available memory could not be read"),
+        ({}, {"Pages free": "lots."}, "the available memory could not be read"),
+        (
+            {},
+            {"Mach Virtual Memory Statistics: (page size of 16384 bytes)": None},
+            "the available memory could not be read",
+        ),
+    ],
+)
+def test_a_mac_reading_that_cannot_be_read_waits(tmp_path, sysctl, vm_stat, said):
+    assert says(mac(tmp_path, sysctl=sysctl, vm_stat=vm_stat)) == f"wait: {said}"
+
+
+def test_a_light_look_on_a_mac_skips_its_load_as_on_linux(tmp_path):
+    env = mac(tmp_path, sysctl={"vm.loadavg": "{ 60.00 50.00 40.00 }"})
+    assert says(env) == "wait: load 60.00 is at or over 200% of 12 cores"
+    assert light(env) == (["go"], 0)
+
+
+def test_a_mac_neither_sweeps_tmp_nor_counts_its_file_slots(tmp_path):
+    """The sweep finds the live runs from /proc, which macOS lacks, so there every stale run
+    would look unheld: it is skipped. APFS gives inodes as files are made, with no fixed table
+    to fill, so the file slots are not a reading there either."""
+    linux, tmp = tmpfs(tmp_path, 60)
+    made = runs(tmp, "joshua", [1, 2, 3])
+    before = sorted(tmp.rglob("*"))
+    looked = ran(mac(tmp_path, env=linux))
+    assert (looked.stdout, looked.stderr) == ("go\n", "")
+    assert sorted(tmp.rglob("*")) == before and all(path.is_dir() for path in made)
+    assert not (tmp_path / "stub" / "asked").exists()
