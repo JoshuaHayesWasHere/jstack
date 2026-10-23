@@ -5,8 +5,10 @@ function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
 function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
 function inlineAccept(w) { return (w.answerable && w.verb === "Accept default") || (!!w.item && !!PROJECT); }
+function saysSlug(line, slug) { return (" " + line + " ").split(/[^\w.-]+/).indexOf(slug) >= 0; }
 function needMeta(w, soon) {
   var v = ms(w.since), due = ms(w.due), bits = PROJECT ? [] : [esc(w.project)];
+  if (w.slug && !saysSlug(w.what, w.slug)) bits.push('<a class="ilk" href="' + esc(href(w.project, "task:" + w.slug)) + '" aria-label="Task ' + esc(w.slug) + ': open it">' + esc(w.slug) + '</a>');
   if (w.item) bits.push('<a class="ilk" href="' + esc(needLink(w)) + '">' + esc(w.item) + '</a>');
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (soon && due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));

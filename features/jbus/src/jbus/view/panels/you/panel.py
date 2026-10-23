@@ -11,7 +11,8 @@ neither queue.
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
 page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
-last `seen` at. Every other need has those two empty. Where a proposed item's row waits for its
+last `seen` at. Every other need has those two empty. Each need names the task it is about, its
+`slug`, or none, so the page draws that task once. Where a proposed item's row waits for its
 approval, the panel leaves the item to that row. A go by the item's id is no go of the row. But
 for a row whose item was redirected, the item's id is the only thing that approves it
 (`jbus.steer.approvable`). So the item's need then takes the row's place."""
@@ -83,6 +84,7 @@ _NEED = {
         "due",
         "item",
         "seen",
+        "slug",
     )
 } | {"answerable": None, "unblocks": [None]}
 SHAPE = {"waiting": [_WAITS], "gates": [_GATE], "needs": [_NEED], "proceeds": [_NEED]}
@@ -305,6 +307,7 @@ def _need(
         "due": due,
         "item": "",
         "seen": "",
+        "slug": slug,
     }
 
 
@@ -342,6 +345,7 @@ def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict
                 "due": None,
                 "item": one.id,
                 "seen": one.last_event,
+                "slug": one.slug or "",
             }
         )
     return made

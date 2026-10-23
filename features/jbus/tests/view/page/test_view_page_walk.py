@@ -3,7 +3,8 @@ text and the chips `SURFACES` names, for a pass that T3 Code did not answer.
 
 The test opens the project's page and the overview of every project once each. It checks each
 entry of `SURFACES` that only the page can show: a row of In progress with its state's name, a
-chip on it, a row for a thread out with no task, and what the overview row says. The entries
+chip on it, a row for a thread out with no task, and what the overview row says. A task that is
+in Needs you is drawn there only, so In progress has no row for it. The entries
 that today's page gets wrong are the ones `walk.KNOWN` marks for the page, and the test fails
 when that set changes, so a fix removes its mark.
 """
@@ -25,6 +26,7 @@ def faults(key, made, answer, rows, overview):
     kind, name = key
     want = walk.SURFACES[key]
     tasks = {one["slug"]: one for one in answer["tasks"]}
+    asked = {one["slug"] for one in answer["needs"]}
     found = []
     if kind == "value":
         for (value, _), slug in made.rows.items():
@@ -32,7 +34,7 @@ def faults(key, made, answer, rows, overview):
             if value != name or not task:
                 continue
             drawn = slug in rows
-            if drawn != want.row:
+            if drawn != (want.row and slug not in asked):
                 found.append(f"{slug}: a row of In progress is {drawn}")
             elif drawn and rows[slug]["state"] != task["state"]["name"]:
                 found.append(f"{slug}: reads {rows[slug]['state']!r}")

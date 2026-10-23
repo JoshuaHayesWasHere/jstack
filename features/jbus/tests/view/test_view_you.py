@@ -84,6 +84,14 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     assert by["row"]["project"] == "pantry"
     assert by["row"]["open"] == "#/pantry/you/row/fig-tart"
     assert {one["risk"] for one in needs if one["kind"] not in ("gate", "hold")} == {"reversible"}
+    assert {kind: one["slug"] for kind, one in by.items()} == {
+        "config": "",
+        "approve": "tea-kettle",
+        "gate": "jam-jar",
+        "left": "rye-loaf",
+        "row": "fig-tart",
+        "hold": "oat-honey",
+    }
     assert demo["needs"] == [one for one in needs if one["project"] == "demo"]
 
 
