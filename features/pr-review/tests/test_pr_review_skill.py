@@ -22,6 +22,7 @@ from jmerge import ready
 from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
+from test_portable_shell import bsd_tools
 from test_room import BIN, IDLE, machine, says, uv
 from testing.layouts import assembled
 from testing.paths import REPO
@@ -1016,8 +1017,8 @@ def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path
     """The block records the proof's pid itself. So when the system starts a proof late, the
     block counts that proof as running from the first call, and no second call may start
     another."""
-    delayed = proof.stub / "setsid"
-    delayed.write_text(f'#!/bin/sh\nsleep 11\nexec {shutil.which("setsid")} "$@"\n')
+    delayed = proof.stub / "perl"
+    delayed.write_text(f'#!/bin/sh\nsleep 11\nexec {shutil.which("perl")} "$@"\n')
     delayed.chmod(0o755)
     runs = tmp_path / "runs"
     script = f"echo ran >> {runs}\necho the fact holds\n"
@@ -1028,6 +1029,14 @@ def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path
     said, code = proof.ends(script, limit=0)
     assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
     assert not runs.exists()
+
+
+def test_a_proof_starts_and_ends_on_the_tools_of_macos(proof, tmp_path):
+    """macOS has no `setsid` and refuses GNU's flags. With only such tools on PATH, the block
+    still starts the proof on its own and gives its exit code."""
+    tools = bsd_tools(tmp_path / "bsd")
+    said, code = proof.ends("echo the fact holds\n", PATH=f"{proof.stub}:{BIN}:{tools}")
+    assert (said[0].split(":")[0], said[1:3], code) == ("started", ["exit 0", "the fact holds"], 0)
 
 
 def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):
@@ -1381,7 +1390,7 @@ def test_a_brief_whose_where_names_no_path_is_not_read_as_no_wider(reviewer):
     assert reviewer("### Wider than the brief") == ([], 1)
 
 
-def gated(reviewer, gate=None, fill=None):
+def gated(reviewer, gate=None, fill=None, **more):
     """Make a pull request whose branch has one commit on top of main, and a repo state
     with the merge gate `gate`, or with no merge gate when `gate` is None. Run the
     reviewer's "The merge gate" at the head, with the block's words in `fill` changed too.
@@ -1412,7 +1421,7 @@ def gated(reviewer, gate=None, fill=None):
     if gate is not None:
         (reviewer.state / "merge-gate").write_text(f"\n  {gate}  \n")
     fill = {"<the head kept at the start>": head, **(fill or {})}
-    printed, code = reviewer("### The merge gate", fill=fill)
+    printed, code = reviewer("### The merge gate", fill=fill, **more)
     return printed, code, fork, head
 
 
@@ -1455,6 +1464,27 @@ def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(reviewer):
         f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
         "(principle: none) (bucket: Act on)"
     ]
+
+
+def test_a_merge_gate_is_stopped_on_the_tools_of_macos_too(reviewer, tmp_path):
+    """macOS has no `timeout`: with only its tools on PATH, a gate past the limit is still
+    stopped, it and what it started, and said so."""
+    tools = bsd_tools(tmp_path / "bsd")
+    began = time.monotonic()
+    printed, code, _, head = gated(
+        reviewer,
+        "sleep 30; :",
+        fill={"limit=540": "limit=1"},
+        PATH=f"{reviewer.stub}:{BIN}:{tools}",
+    )
+    assert (code, printed) == (
+        0,
+        [
+            f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
+            "(principle: none) (bucket: Act on)"
+        ],
+    )
+    assert time.monotonic() - began < 15
 
 
 def test_the_open_pull_requests_that_share_a_file_are_listed(reviewer):
