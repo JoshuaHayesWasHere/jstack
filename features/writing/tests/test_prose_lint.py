@@ -6,6 +6,7 @@ than one sentence. The lint never judges a line the commit leaves alone. `senten
 function that says what a sentence is, has tests of its own."""
 
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
@@ -181,6 +182,37 @@ def test_a_page_git_marks_generated_is_not_judged(repo):
     code, said = check(repo)
     assert code == 1
     assert [line.split(":")[0] for line in said[:-1]] == ["features/new/notes.md"]
+
+
+def test_a_git_older_than_2_40_still_reads_the_generated_mark(repo, tmp_path):
+    """jstack's floor is git 2.31, and `git check-attr --source` came in 2.40: on Debian 12 or
+    Apple Git, both 2.39, the lint still runs. The stand-in refuses `--source` as 2.39 does."""
+    shim = tmp_path / "bin" / "git"
+    shim.parent.mkdir()
+    shim.write_text(
+        "#!/bin/sh\n"
+        'case " $* " in *" check-attr "*" --source "*)\n'
+        '    echo "error: unknown option \\`source\'" >&2\n'
+        "    exit 129\n"
+        "esac\n"
+        f'exec {shutil.which("git")} "$@"\n'
+    )
+    shim.chmod(0o755)
+    change(repo, "features/new/out/stories.md", lambda _: "One. Two.\n")
+    change(repo, "features/new/notes.md", lambda _: "One. Two.\n")
+    change(repo, "features/new/.gitattributes", lambda _: "out/** linguist-generated\n")
+    ran = subprocess.run(
+        [sys.executable, "-I", "-S", str(SCRIPT), "main"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "PATH": f"{shim.parent}{os.pathsep}{os.environ['PATH']}"},
+    )
+    assert ran.stderr == ""
+    assert ran.returncode == 1
+    assert [line.split(":")[0] for line in ran.stdout.splitlines()[:-1]] == [
+        "features/new/notes.md"
+    ]
 
 
 def test_only_markdown_of_the_five_folders_is_judged(repo):
