@@ -4,6 +4,7 @@ it as the reviewer does: `jbus cleanup <brief>`, piped into `jbus queue add clea
 run --project ... jbus` is the real command from this checkout, over a made-up config and state.
 `gh` gives the merge commit, or nothing."""
 
+import json
 import os
 import re
 import subprocess
@@ -104,9 +105,11 @@ def reviewer(tmp_path):
 def test_findings_on_an_after_brief_make_exactly_one_row_that_waits_for_the_go(reviewer):
     reviewer.merged(MERGE)
     reviewer.brief()
-    reviewer.run()
+    said = reviewer.run()
     (row,) = reviewer.rows()
     assert (row["slug"], row["priority"], row["approved"]) == ("cleanup-alpha", 50, "")
+    assert row["depends"] == ["alpha"], "the cleanup starts from a main that has its parent"
+    assert "\n| cleanup-alpha | 50 | alpha |" in said, "the line jbus prints names what it waits on"
     stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
     assert "src/a.py:12" in stored and "src/b.py:3" in stored
     assert "src/c.py" not in stored
@@ -114,6 +117,18 @@ def test_findings_on_an_after_brief_make_exactly_one_row_that_waits_for_the_go(r
     assert f"{PULL}, merged as {MERGE}" in stored
     assert reviewer.run().strip() == cleanup.THERE.format(slug="cleanup-alpha")
     assert len(reviewer.rows()) == 1
+
+
+def test_a_parent_row_removed_from_the_queue_still_gets_its_cleanup_row(reviewer):
+    reviewer.merged(MERGE)
+    reviewer.brief()
+    reviewer.state.mkdir(parents=True)
+    queue.removed_path(reviewer.state).write_text(
+        json.dumps({"alpha": {"at": "2026-10-23 10:00 EDT", "by": "user"}})
+    )
+    reviewer.run()
+    (row,) = reviewer.rows()
+    assert (row["slug"], row["depends"]) == ("cleanup-alpha", [])
 
 
 def test_an_open_pull_request_names_the_head_its_review_saw(reviewer):

@@ -134,6 +134,11 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A hold stops a merge as it stops a launch, and `--accept` does not lift it.
   When a row names other rows in `merge_after`, its pull request waits as `merges after <slug> (#<n>), not merged yet` for the first of them that is not `merged` or `done`.
   `jmerge` judges it again on the run after the one in which that other pull request merges.
+  A pull request built on another open pull request's branch carries that one's commits, and a merge of it lands them too.
+  So when its head contains the head of another open pull request, and its base does not, it waits on that one's `merge_after` as on its own: `carries <slug>'s commits (#<n>), which merges after <slug> (#<n>), not merged yet`.
+  That holds while the carried row is not `merged` or `done`, and also for a pull request whose brief has no queue row.
+  When either head cannot be read, even from `refs/pull/<n>/head`, it waits as `its head or <slug>'s (#<n>) cannot be read to see whether it carries it`.
+  A link of a stack, whose brief has a `Stack:` line, keeps the stack's own rule instead.
   When the queue exists but cannot be read, every pull request waits with `its queue cannot be read, so its holds and merge order are not known`.
   A repo with no jbus config, or that no project names, has no queue and no such wait.
   `jmerge` judges these after the review and rebase gates, so it reports a missing review or rebase line first.
