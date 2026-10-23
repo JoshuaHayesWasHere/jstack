@@ -39,9 +39,9 @@ retry_cap = 2
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
-| `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take, whose own message `--message` asks for, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
+| `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take. It is also the user whose own T3 Code message `--message` must name, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `jinstall --doctor` |
-| `timezone_label` | The word the zone prints for that time, such as `CEST` | The word after a time, in a printed line and in `--at`. The pages write it as `<zone>`. | `jmerge`, `jbus` |
+| `timezone_label` | The zone's abbreviation at the time printed, such as `CEST` | The word that follows a time in a printed line and in `--at`. The docs write it as `<zone>`. | `jmerge`, `jbus` |
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next instance of its pool. At the same share, `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. The value is a number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 | `retry_cap` | `2` | How many fixes a home queues for one blocker before it stops and the blocker comes to you as a decision ([Decisions](../../jbus/docs/jbus/decisions.md)). A whole number of 1 or more. | `jbus` |
 
@@ -107,7 +107,7 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `server` | None, required | The address of the T3 Code server. |
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
 | `dispatch` | `true` | With `dispatch = false`, `jbus` launches nothing. |
-| `max_running` | Derived: one a processor, while each has 2 GiB | How many crewmates may be out at once, counted across every project. A value under 1 is refused. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
+| `max_running` | Derived: one a processor, while each has 2 GiB | How many crewmates may be out at once, counted across every project. `jbus` refuses a value under 1. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
@@ -127,13 +127,13 @@ Each `[[project]]` table is one repo:
 | `name` | None, required | The project's name in `jbus --project <name>` and in every event. |
 | `checkout` | None, required | The path of the repo's main checkout. A leading `~` is your home directory. |
 | `projectId` | None, required | The T3 Code project that the launches go to. |
-| `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key. `jbus` runs no repo step for it ([A scratch home](../../jbus/docs/jbus/a-scratch-home.md)). Any other value is refused. |
+| `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key. `jbus` runs no repo step for it ([A scratch home](../../jbus/docs/jbus/a-scratch-home.md)). `jbus` refuses any other value. |
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
 | `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
-| `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. A table with only one of the two is refused. |
-| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](../../jmerge/docs/jmerge.md#migrations)). A directory that is absolute or has `..` in it is refused. With none, `jmerge` holds no pull request for its migrations. |
-| `ci_report` | Off | `true` asks for the project's weekly CI report. `jbus-ci.timer` writes it each Monday at 09:00, and the install enables that timer only while a project asks ([Measure the CI](../../jbus/docs/jbus/measure-the-ci.md#the-weeks-report)). A value that is not `true` or `false` is refused. |
-| `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. Any other value is refused. |
+| `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. `jbus` refuses a table with only one of the two. |
+| `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives, and gives a numbered migration its number when it lands ([jmerge](../../jmerge/docs/jmerge.md#migrations)). `jbus` refuses a directory that is absolute or has `..` in it. With none, `jmerge` holds no pull request for its migrations. |
+| `ci_report` | Off | `true` turns on the project's weekly CI report, which `jbus-ci.timer` writes each Monday at 09:00. The install enables that timer only while a project asks ([Measure the CI](../../jbus/docs/jbus/measure-the-ci.md#the-weeks-report)). `jbus` refuses a value that is not `true` or `false`. |
+| `migration_names` | Numbered | How the repo names a migration: `numbered`, as `0004_insulin`, or `timestamped`, whose names cannot collide. `jmerge` checks the number of a `numbered` migration and skips the check for a `timestamped` one. `jbus` refuses any other value. |
 
 To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` instead of editing the file by hand.
 [jbus](../../jbus/docs/jbus/add-a-project.md) says what the command writes.
@@ -187,9 +187,9 @@ It prints these lines:
 
 | Line | Meaning |
 |---|---|
-| `missing optional provider inventory -> <path>` | There is no inventory, so nothing is declared. The doctor does not fail on it. |
+| `missing optional provider inventory -> <path>` | There is no inventory, so it declares no instance. The doctor does not fail on it. |
 | `old optional provider inventory -> <why>` | The file is not in T3's shape. The doctor checks no instance. |
-| `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` even when T3 does not list it, if it is declared with no other home. |
+| `ok hard provider <id>` | T3 lists the instance with the declared driver, `enabled` and `homePath`. `claudeAgent`, T3's built-in instance, is `ok` even when T3 does not list it, if the inventory declares it with no other home. |
 | `missing hard provider <id> -> T3 does not list it` | T3's settings do not have the instance yet. |
 | `old hard provider <id> -> <why>` | T3 lists it disabled, or with another driver or `homePath`. |
 | `ok hard skills <home>` | A declared Claude home takes the central jstack skills: its `skills` is `~/.claude/skills`, or each skill in it links into Claude Code's layout, `~/.local/share/jstack/harness/claude-code/skills/`. The home is `config.homePath`, or `~/.claude` for none. |
@@ -213,8 +213,9 @@ The doctor prints `ok optional mirror <home>` for each, `missing` while the home
 Three numbers are sizes of the machine: the full test slots, the short test slots and the crew cap.
 `jgauge.sizes` derives each default from the whole machine: its processors in `/proc/stat` and its `MemTotal`.
 It never uses the caller's own CPU quota, so `jbus.service` and every shell count the same slots.
-`jgauge sizes` prints the three, the value each caller gets and where it came from, and room's lines.
-`~/.config/jstack/machine.toml` sets a slot count where the derived one is not wanted, and nothing else:
+`jgauge sizes` prints the three sizes, each with the value its caller gets and where that value came from.
+Then it prints the six limits of `jgauge room`, which `room.sh` keeps.
+`~/.config/jstack/machine.toml` sets a slot count where you do not want the derived one, and nothing else:
 
 ```toml
 test_slots = 3
@@ -225,7 +226,7 @@ test_slots = 3
 | `test_slots` | One full slot for each desk run's workers, a quarter of the processors, at most one for each 4 GiB: 4 on most machines of 8 cores or more (5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room) | How many whole suites run at once, machine-wide. `--slots` and `TEST_SLOTS` come before it. | `jgauge test-slot`, `jbus poll` |
 | `short_slots` | One for each 8 processors, from 2 to 8 | How many targeted runs and reviewers' proofs run at once in the short lane. | `jgauge test-slot --short`, `jbus poll` |
 
-A key that is not one of these, or a value that is not a whole number of 1 or more, is refused with one line.
+The loader refuses, with one line, a key that is not one of these or a value that is not a whole number of 1 or more.
 The crew cap is `max_running` in jbus's config ([jbus](#jbus)).
 
 ## The limits file
@@ -237,7 +238,7 @@ It reads every Claude account of `providers.json`, and it reads `~/.claude` as `
 jgauge's `limits.sh`, which the status line runs, writes the file of the account whose status line it runs in: the instance of `providers.json` whose `config.homePath` is the session's `CLAUDE_CONFIG_DIR`, or `claudeAgent` for `~/.claude`.
 For an account the inventory does not declare, `limits.sh` writes nothing.
 When a turn ends on an instance's usage limit, `jbus` writes that instance's file at 100% until the reset.
-All three writers merge their readings by the ledger's rule, so a reading that fails or comes late never lowers a share of the same window.
+All three writers merge their readings by the ledger's rule, so a reading that fails or comes late never lowers the share already recorded for a window.
 `jgauge room` reads the file of each instance of the role's pool ([jroles](../../jroles/docs/jroles.md#the-ledger)), the built-in instance's where the role has no pool, or the one `--instance <id>` names.
 `LIMITS` names another path for the built-in instance's file, and the others are beside it.
 

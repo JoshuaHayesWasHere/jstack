@@ -24,11 +24,11 @@ jinstall --setup
 
 | Verb | What it does |
 |---|---|
-| `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. One line a part. |
+| `jinstall` | Puts each part: the layouts, the skill links, the hooks, the status line, the private patterns, the commands and the units. Prints one line for each part. |
 | `jinstall --check` | Prints the same lines and writes nothing. Every line starts with `ok` on a machine that is set up. |
 | `jinstall --setup` | Goes through every need once, in order, and prints one of these lines for each: `done <name>`, `already <name>`, `needs you <name> -> <command>`, or for a layer you have not set up, `missing optional <name> -> <command>`. |
 | `jinstall --doctor` | Prints one line for each requirement, then the lines of `--check`, and `doctor: ok` last. |
-| `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. One line a hook. |
+| `jinstall --repo [<path>]` | Links the git hooks into the repo at `<path>`, or the one you are in, and keeps it in the list `--check` and the doctor read. Prints one line for each hook. |
 | `jinstall --uninstall` | Takes away what it put, and keeps what is yours. It keeps the tool it runs from. Run `uv tool uninstall jstack` afterwards to remove the tool. |
 
 `--setup` puts every part that [What the install writes](#what-the-install-writes) lists.
@@ -136,7 +136,7 @@ The install turns off each harness's own AI co-author trailer, and touches no ot
 | Codex | none | codex-cli 0.163.0 ignores `commit_attribution` as an unrecognized setting: its trailer is a flag of the account's workspace |
 
 A declared home whose `settings.json` is a link to `~/.claude/settings.json`, as `jroles mirror` makes it, shares that one file and the hook entries in it.
-The install writes no `settings.json` for a declared home that has none yet, because `jroles mirror` links it.
+The install writes no `settings.json` for a declared home that has none yet, because `jroles mirror` links that file.
 `--check` prints `attribution <file>` as `missing`, or as `old` with the first key that differs.
 `--uninstall` takes out only a key that still holds the install's value.
 A setting alone does not stop an agent that types the trailer into its own commit, so jleak's [AI trailer guards](../../jleak/docs/jleak.md#ai-trailers) refuse the command and clean the message.

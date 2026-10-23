@@ -12,7 +12,7 @@
 
 It prints one line for each part, `<state> <level> <name>[ -> <detail>]`, where the state is `ok`, `missing` or `old` and the level is `hard` or `optional`.
 With `--check` it prints the same lines and writes nothing.
-With `--uninstall` it removes what names this checkout and prints `removed <piece>` or `kept <piece> -> <why>`.
+With `--uninstall` it removes each part that points at this checkout and prints `removed <piece>` or `kept <piece> -> <why>`.
 It also puts the AI trailer hook in `~/.codex/hooks.json`, and the keys that turn off each harness's AI co-author trailer.
 
 Paths:
@@ -46,7 +46,7 @@ Tests: none
 - `install-layouts` assembles one layout for each harness, whose skill files link to their files in the checkout, with `templates/` and `playbooks/` beside `skills/`.
 - `install-points-here` points each skill link and hook command into its own harness's layout, and each unit into the checkout's `templates/`.
 - `install-from-a-wheel` does the same with `jinstall` from a wheel, in a HOME with no checkout, with every layout file a link into the installed wheel.
-- `release-setup-pstack` runs `/setup-pstack`'s block on a release installed by the dist `install.sh`: it runs `jinstall --setup` and `--doctor` and prints `release: <jinstall>`.
+- `release-setup-pstack` runs `/setup-pstack`'s block on a release that the dist `install.sh` installed, which runs `jinstall --setup` and `--doctor` and prints `release: <jinstall>`.
 - `repo-git-hooks` links jleak's `pre-push` and `commit-msg` into a scratch repo with `jinstall --repo`, strips an AI trailer from a commit there with no checkout, and leaves a repo's own hook as it is.
 - `install-idempotent` changes nothing on a second run.
 - `install-stale-tool` says `stale` of a tool whose editable paths lack a package that the root pyproject.toml lists, such as a tool built before a package moved.
@@ -69,7 +69,8 @@ Needs: `home`, `config`
 
 Preconditions:
 
-- A new sandbox, `env.sh` sourced, `doctor: ok`, with its line `ok   systemctl is the stand-in`.
+- The sandbox is new and has `env.sh` sourced.
+  Its doctor says `doctor: ok`, with the line `ok   systemctl is the stand-in`.
 - `$HOME/.claude`, `$HOME/.agents`, `$HOME/.codex` and `$HOME/.config` do not exist. HOME is the sandbox's.
 
 - **List HOME before.** Run `(cd "$HOME" && find . | sort) > "$VERIFY_JSTACK_SANDBOX/before.txt"`.
@@ -80,7 +81,9 @@ Preconditions:
   Run `record install-skills sh -c 'for l in "$HOME"/.claude/skills/* "$HOME"/.codex/skills/* "$HOME"/.agents/skills/*; do for f in $(find -L "$l" -type f); do r=$(readlink -f "$f"); case $r in "$VERIFY_JSTACK_REPO"/*) ;; *) echo "outside: $f -> $r";; esac; done; done; echo checked'`.
   It prints only `checked`, except for the two files of `skills/home` that the layout writes because they link into `docs/`.
 - **See the templates beside the skills.** Run `record install-skills realpath "$HOME/.claude/skills/crew/../../templates"`. It prints `<HOME>/.local/share/jstack/harness/claude-code/templates`.
-- **See the hooks.** Run `record install-skills jq -r '.hooks[][].hooks[].command, (.statusLine.command // empty)' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json"`. Each command of `settings.json` runs a script under `<HOME>/.local/share/jstack/harness/claude-code/hooks/`, and the one of `hooks.json` under `.../codex/hooks/`.
+- **See the hooks.**
+  Run `record install-skills jq -r '.hooks[][].hooks[].command, (.statusLine.command // empty)' "$HOME/.claude/settings.json" "$HOME/.codex/hooks.json"`.
+  Each command of `settings.json` runs a script under `<HOME>/.local/share/jstack/harness/claude-code/hooks/`, and the command of `hooks.json` runs one under `.../codex/hooks/`.
 - **See the commands.**
   Run `record install-skills ls "$HOME/.local/bin" "$UV_TOOL_DIR"`.
   It lists the six commands and the one tool `jstack`.
@@ -90,8 +93,11 @@ Preconditions:
 - **Check again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
 - **Stand in for a tool built before a move.** Run `sed -i '\|/features/jsettings/src$|d' "$UV_TOOL_DIR"/jstack/lib/python*/site-packages/_editable_impl_jstack.pth`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. The line for the commands is `old hard commands jstack -> stale: its editable paths lack <this checkout>/features/jsettings/src`, and it exits 1.
 - **Install it again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
-- **Put a directory where a link goes.** Run `rm "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew" && mkdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`. The line for it is `old hard <HOME>/.claude/skills/crew -> not a link`, the directory is still there, and it exits 1. Then run `rmdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`.
-- **Uninstall.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --uninstall`. Every line starts with `removed`, and it exits 0. Run it again: it prints nothing.
+- **Put a directory where a link goes.** Run `rm "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew" && mkdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`. The line for that link is `old hard <HOME>/.claude/skills/crew -> not a link`, the directory is still there, and it exits 1. Then run `rmdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`.
+- **Uninstall.**
+  Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --uninstall`.
+  Every line starts with `removed`, and it exits 0.
+  Run it again, and it prints nothing.
 - **Proof.** Run `record install-skills sh -c '(cd "$HOME" && find . | sort) | diff "$VERIFY_JSTACK_SANDBOX/before.txt" -'`. It prints nothing and exits 0. The `record` file holds every line of each run.
 
 To check the checkout's own skills, clone inside the sandbox's HOME, because a run under a HOME that is not yours links none into a checkout outside that HOME:
@@ -115,7 +121,9 @@ To install from a wheel, use a second sandbox, so that no checkout is above its 
 To install from a release's own `install.sh`, as a new user does, use a fourth sandbox:
 
 - **Build the assets and serve them.**
-  Run `record release make -s -C "$VERIFY_JSTACK_REPO" dist DIST="$VERIFY_JSTACK_SANDBOX/dist"`, then serve that folder with `python3 -m http.server <a free port> --bind 127.0.0.1` and export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
+  Run `record release make -s -C "$VERIFY_JSTACK_REPO" dist DIST="$VERIFY_JSTACK_SANDBOX/dist"`.
+  Serve that folder with `python3 -m http.server <a free port> --bind 127.0.0.1`.
+  Export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
 - **Install the release.**
   Run `PATH="$HOME/.local/bin:$PATH" record release sh -c "curl -fsSL $JSTACK_RELEASE_URL/install.sh | sh"`.
   Every line is `done` or `already`, except for the `needs you` lines of what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
@@ -132,7 +140,9 @@ To install from a release's own `install.sh`, as a new user does, use a fourth s
   Remove the repo's `commit-msg`, then run `jinstall --check` and `jinstall --doctor`.
   Each prints `missing optional hook <repo>/.git/hooks/commit-msg commit-msg`.
 - **Keep a repo's own hook.**
-  In a second scratch repo with a `pre-push` of its own, `jinstall --repo` prints `old optional hook ... -> a hook of the repo's own, which the install does not write over: run sh '<script>' "$@" from it`, exits 1, and the file is as it was.
+  Make a second scratch repo, give it a `pre-push` hook of its own, and run `jinstall --repo` in it.
+  It prints `old optional hook ... -> a hook of the repo's own, which the install does not write over: run sh '<script>' "$@" from it` and exits 1.
+  The repo's `pre-push` is as it was.
 
 To follow a move, use a third sandbox with a clone of this checkout at the commit before a merge that moved a skill, so that you can pull the merge as `jmerge` pulls it.
 A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a merge.
@@ -154,11 +164,12 @@ A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a
 - The stand-in `systemctl` starts nothing.
   The recipe proves the links and the calls, not that systemd runs a pass.
 - `uv tool install` is the real one.
-  It needs `hatchling` in uv's cache or the network.
+  It needs `hatchling` in uv's cache or network access.
   With neither, the line is `missing hard commands jstack` and the reason is on stderr.
 - The link count follows `skills.json`, so assert that every line is `ok`, not a number of lines.
 - A new skill is in no layout until `python3 scripts/generate-jstack-trees.py` lists it in `skills.json`, and the first line, `generated files are current`, says so.
-- The `rm` in the recipe names the sandbox's HOME through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops there and removes nothing. Keep it that way: never write it with `$HOME`.
+- The `rm` in the recipe names the sandbox's HOME through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops there and removes nothing.
+  Keep it that way, and never write it with `$HOME`.
 - `install.sh` needs a Python 3.12 or `uv`, and says so when it has neither.
 - The links point at the checkout the script runs from.
   Run the one under `$VERIFY_JSTACK_REPO`, not a copy.
