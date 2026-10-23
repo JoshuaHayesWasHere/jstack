@@ -111,7 +111,7 @@ In the measurements, four suites at once held CPU pressure at 17 to 29, under ro
 Five suites at once gave 10% more throughput at CPU pressure 30.
 Six took 195 s a suite at CPU pressure 55, and one test failed intermittently.
 The count is 4 on most machines of 8 cores or more, because the desk share is a quarter of the cores.
-On 10, 11 or 15 cores it is 5, because the floor of 2 workers or the rounding leaves room for one more slot.
+On 10, 11 or 15 cores it is 5, because dividing the cores by the desk workers (2, 2 and 3) rounds down to 5.
 On any machine, all the full slots at once run at most one desk worker per processor.
 The crew cap derives the same 24 that the owner set by hand, so jstack's source contains no number specific to yelena.
 

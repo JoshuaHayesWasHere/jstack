@@ -1,7 +1,7 @@
 # jmerge
 
 `jmerge` merges each open pull request of your repo that is reviewed, fixed and green.
-After a merge, it removes the pull request's worktree and branches.
+After a merge, it removes the crewmate's worktree and branches where it is safe to, as "What a merge does" says.
 It applies fixed rules to the briefs and their Results, the review sections, the queue, and GitHub's report of each pull request's checks.
 `jmerge` calls no AI model.
 When a pull request lacks something, `jmerge` leaves it open and prints the reason it waits.

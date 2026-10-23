@@ -1,14 +1,14 @@
 # What `jgauge` reads from a transcript
 
 > This page records the research for `jgauge`'s counting rule.
-> jstack's developers did it with one version of Claude Code.
+> It was recorded with one version of Claude Code, for jstack's developers.
 > [jgauge](jgauge.md#how-it-counts-tokens) states the rule.
 
 `jgauge` counts tokens from the transcripts Claude Code writes.
 Claude Code does not document the transcript format, and the format can change between versions.
 This page records what two probe sessions showed, and the reasons for the counting rule in `features/jgauge/src/jgauge/transcript.py`.
 
-jstack's developers recorded the two sessions on 2026-10-09 with Claude Code 2.1.296.
+The two sessions were recorded on 2026-10-09 with Claude Code 2.1.296.
 Trimmed copies are in `features/jgauge/tests/fixtures/projects/-tmp-jstack-check/`, and `features/jgauge/tests/fixtures/README.md` lists what the trimmed copies kept.
 `features/jgauge/tests/test_probes.py` checks `jgauge session` against a recount made by hand from the untrimmed files.
 

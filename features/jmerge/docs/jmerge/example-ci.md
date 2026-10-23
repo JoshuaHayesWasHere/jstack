@@ -35,7 +35,7 @@ A changed module selects the tests that import it, through any chain of modules.
 A changed file that is not a module selects the tests whose text contains its path.
 The pages in `testing/verify/` and each `features/<name>/verify.md` add to the selection.
 Each feature file names the paths it owns (`Paths:`) and the tests that read them in a way no import shows (`Tests:`).
-The README of `testing/verify/` names the test files that read the whole tree (`Cross-cutting:`), and the selection includes them for every diff.
+The map, `features/verify-jstack/project-skill/map.md`, names the test files that read the whole tree (`Cross-cutting:`), and the selection includes them for every diff.
 An edit to a feature file selects that feature's tests, not `all`.
 Only these changes select `all`: `pyproject.toml`, `uv.lock`, the root `conftest.py`, a plugin of `testing/` that the root `conftest.py` names, a test module that a plugin loads for every test, and a fixture that no test names.
 The script needs no package, so it runs before `uv sync`, and the same two commits always give the same output.
