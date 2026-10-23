@@ -84,9 +84,12 @@ An answer to a gate goes to the one project whose page it is, as `POST /answer?p
 
 ### Answer a question on the page
 
-The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked. A gate that jbus holds as a question opens from its row. A gate that is only in a home's `gates.md` is listed, and cannot be answered on the page.
+The "Waits on you" drawer lists each open gate with every option its thread proposed, and the default the thread took is marked.
+A gate that jbus holds as a question opens from its row.
+A gate that is only in a home's `gates.md` is listed, and cannot be answered on the page.
 
-An opened gate shows who asked, the context, the default taken, what was built on it, how to undo it, one card for each option, a text box and one button. A line above the button says what will be sent and to which thread, or that nothing is sent.
+An opened gate shows who asked, the context, the default taken, what was built on it, how to undo it, one card for each option, a text box and one button.
+A line above the button says what will be sent and to which thread, or that nothing is sent.
 There are three ways to close the gate:
 
 | You do | The button says | What jbus does |
