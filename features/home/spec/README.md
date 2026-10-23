@@ -53,5 +53,5 @@ The merge race (`NoBlindMerge`) needs two pull requests, so it is in the sibling
 
 - The wake setting `both`, which posts to the home thread and the webhook at once.
 - A third child, and a sibling's message to another, which goes through the root.
-- A pull request that stops being ready, and a push to main by anything but a merge.
+- A pull request that stops being ready a second time, and a push to main by anything but a merge.
 - The crew's own stalls, which the crew skill and jbus's waits cover.
