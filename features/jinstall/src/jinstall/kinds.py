@@ -772,6 +772,22 @@ def wanted_by(template: Path) -> str:
     return "timers.target"
 
 
+def split(
+    machine: Machine, timers: tuple[str, ...], opted: tuple[tuple[str, Kind], ...]
+) -> tuple[list[str], list[str]]:
+    """The units to turn on, and the opted units to turn off, by what each opted unit's need
+    answers now: on while it is ok, off while it is missing, and neither while it is old. The
+    systemd units and the launchd agents (`jinstall.agents`) take the same answer."""
+    on, off = list(timers), []
+    for name, need in opted:
+        state = need.probe(machine).state
+        if state is State.OK:
+            on.append(name)
+        elif state is State.MISSING:
+            off.append(name)
+    return on, off
+
+
 @dataclass(frozen=True)
 class Units:
     """The jbus units. For each of `names` (every unit `templates(machine)` finds), the
@@ -830,16 +846,7 @@ class Units:
         return self.directory / f"{target}.wants" / name
 
     def _split(self, machine: Machine) -> tuple[list[str], list[str]]:
-        """The units to enable, and the opted units to disable, by what each opted unit's need
-        answers now."""
-        on, off = list(self.timers), []
-        for name, need in self.opted:
-            state = need.probe(machine).state
-            if state is State.OK:
-                on.append(name)
-            elif state is State.MISSING:
-                off.append(name)
-        return on, off
+        return split(machine, self.timers, self.opted)
 
     def _enabled(self, machine: Machine, name: str) -> bool:
         ran = machine.systemctl("is-enabled", name)
