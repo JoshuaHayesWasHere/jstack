@@ -1,6 +1,7 @@
 # A T3 Code sign-in ran out
 
-`jbus` does not renew its sign-in to T3 Code. When the sign-in runs out, `jbus` cannot ask T3 Code, so it launches nothing.
+`jbus` does not renew its sign-in to T3 Code.
+When the sign-in runs out, `jbus` cannot ask T3 Code, so it launches nothing.
 
 You see one of these:
 
