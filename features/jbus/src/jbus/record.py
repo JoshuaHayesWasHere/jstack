@@ -216,7 +216,8 @@ def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[st
 
 def stranded(config: Config) -> dict[str, dict[str, int]]:
     """Return, for each project that has one, each outbox of a route its `wake` leaves out that
-    still holds events, with how many. The next pass moves them (`wake.Box.rehome`)."""
+    still holds events, with how many. The next pass moves them (`wake.Box.rehome`), and
+    `jbus status` counts them again as they stand."""
     found = {}
     for one in config.projects:
         box = wake.Box(config.state(one), one, config.webhook, config.blocking)

@@ -302,10 +302,10 @@ def flush(run: wake.Pass, client: Client | None = None) -> int:
     streak goes to the others in the same pass. It sends to the second target before them all, with
     its own streak, for the same reason. Before them all, what waits for a route the project's
     `wake` leaves out moves to the routes in effect (`moved`), and that route's streak ends with
-    no line.
-    For a top-level pair or a second target the config does not have any more, it drops what waited
-    for it, and if the pair comes back later, its route gets only what is new. Last, it tells once
-    of each event for the user that waits unposted while a route takes posts (`unposted`).
+    no line. For a top-level pair or a second target the config does not have any more, it drops
+    what waited for it, and if the pair comes back later, its route gets only what is new. Last, it
+    tells once of each event for the user that waits unposted while a route takes posts
+    (`unposted`).
     """
     state, name = run.config.state_dir, run.project.name
     moved(run)
