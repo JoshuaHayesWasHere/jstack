@@ -57,6 +57,10 @@ def demo(sandbox):
     (root / "home" / ".local" / "state" / "home" / "demo" / "tasks").mkdir(parents=True)
     (root / "t3" / "wake.jsonl").unlink(missing_ok=True)
     (root / "gh" / "open.json").write_text("[]\n")
+    threads = root / "t3" / "threads.json"
+    if threads.exists():
+        kept = json.loads(threads.read_text())
+        threads.write_text(json.dumps([one | {"settled": True} for one in kept]))
     assert run(sandbox, "jbus poll").returncode == 0
     return sandbox
 
@@ -232,3 +236,118 @@ def test_the_cap_is_the_one_jsettings_names(demo):
     assert first.returncode == 0, first.stdout + first.stderr
     assert second.returncode == 1
     assert "check:eps had 1 fix" in second.stdout + second.stderr
+
+
+def end_thread(sandbox, slug, status):
+    """Set the T3 Code status of the slug's crew thread, as the outside world would."""
+    threads = sandbox.parent / "t3" / "threads.json"
+    kept = json.loads(threads.read_text())
+    for one in kept:
+        if one.get("title") == f"crew: {slug}":
+            one["status"] = status
+    threads.write_text(json.dumps(kept))
+
+
+def launched(sandbox, slug):
+    assert run(sandbox, f"jbus queue add {slug} --priority 1", brief(slug)).returncode == 0
+    assert approve(sandbox, slug).returncode == 0
+    assert f"launched {slug}" in run(sandbox, "jbus poll").stdout
+
+
+def remove(sandbox, slug):
+    at = f"--at \"{AT} $(date -d '{AT}' +%Z)\""
+    return run(sandbox, f"jbus queue remove {slug} --by user {at}")
+
+
+def test_a_stuck_row_and_then_its_leftover_each_get_a_fix_line_with_no_event(demo):
+    launched(demo, "lam")
+    end_thread(demo, "lam", "idle")
+    run(demo, "jbus poll")
+    stuck = run(demo, "jbus clear").stdout
+    end_thread(demo, "lam", "completed")
+    tasks = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "tasks"
+    result = "\n## Result\nStatus: done\nBranch: lam   Pull request: none\nLeft: the docs page\n"
+    (tasks / "lam.md").write_text((tasks / "lam.md").read_text() + result)
+    run(demo, "jbus poll")
+    left = run(demo, "jbus clear").stdout
+
+    assert stuck.startswith(
+        'fix row:lam: it was refused or is stuck, brief a fix whose head has "Fix'
+    )
+    assert left.startswith(
+        'fix left:lam: it left work, brief a fix whose head has "Fix of: left:lam"'
+    )
+    assert posted(demo) == []
+
+
+def test_a_fix_at_work_is_waited_on_and_a_key_at_its_cap_is_one_decision(demo):
+    launched(demo, "mu")
+    end_thread(demo, "mu", "idle")
+    run(demo, "jbus poll")
+    for slug in ("mu-fix-1", "mu-fix-2"):
+        added = run(demo, f"jbus queue add {slug} --priority 1", fix(slug, "row:mu"))
+        assert added.returncode == 0, added.stdout + added.stderr
+    waits = run(demo, "jbus clear").stdout
+    for slug in ("mu-fix-1", "mu-fix-2"):
+        assert remove(demo, slug).returncode == 0
+    capped = run(demo, "jbus clear").stdout
+    third = run(demo, "jbus queue add mu-fix-3 --priority 1", fix("mu-fix-3", "row:mu"))
+    run(demo, "jbus poll")
+    run(demo, "jbus clear")
+    run(demo, "jbus poll")
+
+    assert waits.startswith("wait row:mu: mu-fix-1, mu-fix-2 is at work on it")
+    assert capped.startswith("decision row:mu: row:mu had 2 fixes (mu-fix-1, mu-fix-2), the retry")
+    assert third.returncode == 1
+    (event,) = [one for one in posted(demo) if "row:mu had" in one["line"]]
+    assert 'Reply: "demo row:mu: I take it"' in event["say"]
+
+
+def test_a_batch_of_fixes_past_the_cap_queues_none_and_counts_none(demo):
+    batch = "".join(
+        f"add {slug} --priority 1\n--- brief {slug}\n{fix(slug, 'check:nu')}--- end\n"
+        for slug in ("nu-fix-1", "nu-fix-2", "nu-fix-3")
+    )
+
+    applied = run(demo, "jbus queue apply", batch)
+    after = run(demo, "jbus queue add nu-fix-4 --priority 1", fix("nu-fix-4", "check:nu"))
+
+    assert applied.returncode == 1
+    assert "check:nu had 2 fixes" in applied.stdout + applied.stderr
+    shown = run(demo, "jbus queue show").stdout
+    assert not any(f"nu-fix-{n} " in shown for n in (1, 2, 3))
+    assert after.returncode == 0, after.stdout + after.stderr
+    blockers = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "blockers.json"
+    assert [one["slug"] for one in json.loads(blockers.read_text())["check:nu"]] == ["nu-fix-4"]
+
+
+def test_a_scope_change_raised_by_hand_is_one_decision_with_its_reply(demo):
+    question = "--question 'add a second webhook to the plan?' --reply 'scope: yes, add it'"
+
+    first = run(demo, f"jbus decide alpha {question}")
+    again = run(demo, f"jbus decide alpha {question}")
+    run(demo, "jbus poll")
+
+    assert first.stdout == "raised: alpha: add a second webhook to the plan?\n"
+    assert again.stdout == "raised already: alpha: add a second webhook to the plan?\n"
+    (event,) = posted(demo)
+    assert event["say"] == (
+        'demo: decision alpha: add a second webhook to the plan?. Reply: "demo scope: yes, add it"'
+    )
+
+
+def test_a_scoped_home_clears_its_own_gates_and_not_the_root_s(demo):
+    state = demo.parent / "home" / ".local" / "state" / "home" / "demo"
+    (state / "s").mkdir()
+    (state / "s" / "plan.md").write_text("# plan\n")
+    (state / "s" / "home-id").write_text("mcp:scoped-home\n")
+    (state / "tasks" / "alpha.md").write_text("# alpha: a demo task\nHome: s\n")
+    run(demo, "jbus gate alpha", GATE)
+
+    root = run(demo, "jbus clear --after 0").stdout
+    scoped = run(demo, "jbus clear --scope s --after 0").stdout
+
+    assert "question 1" not in root
+    assert scoped.startswith("cleared question 1: took its default, made tea")
+    assert "## Gate q1: tea or coffee?" in (state / "s" / "gates.md").read_text()
+    assert not (state / "gates.md").exists()

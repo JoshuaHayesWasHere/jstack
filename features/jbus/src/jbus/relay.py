@@ -105,7 +105,6 @@ Say = Callable[[str], None]
 REFUSED = 2
 LIMIT = 1_000_000
 PLACEHOLDER = "REPLACE_ME"
-BLOCKING = {"gate", "stall", "alert", "waiting", "waiting-on-user"}
 PASS = {"reminder", "refresh"}
 AGAIN = {401, 403, 404, 407, 408, 429}
 NAME = re.compile(r"[A-Za-z0-9_.-]{1,64}")
@@ -125,13 +124,13 @@ def blocking(body: Body) -> Body | None:
 
     A reminder or a refresh blocks as a whole. An `events` body of the second target blocks
     as a whole when it has `items`. In any other body, only the events that are loud for the
-    user or of a blocking kind block."""
+    user block: a decision, a sign-in or an alert."""
     if str(body.get("kind") or body.get("event") or "") in PASS:
         return body
     events = [event for event in body.get("events") or [] if isinstance(event, dict)]
     if any(event.get("event") in PASS for event in events) or body.get("items"):
         return body
-    kept = [e for e in events if e.get("loud") == "user" or e.get("event") in BLOCKING]
+    kept = [e for e in events if e.get("loud") == "user"]
     if not kept:
         return None
     return {**body, "say": [e["say"] for e in kept if e.get("say")], "events": kept}

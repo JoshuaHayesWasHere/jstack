@@ -1,10 +1,10 @@
 """A home clears its own blockers, and raises to the user only what the user has to decide.
 
-A blocker is one thing that holds a home's work up, named by a key: an open question
-(`question <n>`), a pull request whose check failed (`check:<slug>`), a row that was refused or
-is stuck (`row:<slug>`), and a row whose Result left something (`left:<slug>`). `jbus clear` is
-what a home runs each time it wakes. It reads only what jbus keeps (`questions.json`,
-`queue.json`), asks no service, and prints one line for each blocker of that home:
+A blocker is one thing that holds a home's work up, named by a key: an open question (`question
+<n>`), a pull request whose check failed (`check:<slug>`), a row that was refused or is stuck
+(`row:<slug>`), and a row whose Result left something (`left:<slug>`). `jbus clear` is what a home
+runs each time it wakes. It reads only what jbus keeps (`questions.json`, `queue.json`), asks no
+service, and prints one line for each blocker of that home:
 
 - `cleared question <n>`: a question that does not need the user, open `--after` minutes or more
   (30 by default, `leftover.CLOSE_MINUTES`). The thread acted on its default when it asked, so
@@ -18,25 +18,29 @@ what a home runs each time it wakes. It reads only what jbus keeps (`questions.j
 - `wait <key>`: a fix of the key is queued and not over.
 - `decision <key>`: the key had its cap of fixes and still blocks, raised to the user.
 
-A fix's own blockers count against the key it fixes: a fix whose check fails is the same
-blocker again, so a chain of fixes of fixes is bounded by the one cap.
+A fix's own blockers count against the key it fixes: a fix whose check fails is the same blocker
+again, so a chain of fixes of fixes is bounded by the one cap.
 
 `admit` is the one door every fix a home queues goes through, `jbus queue add` and `jbus queue
-apply` alike. A brief whose head has a `Fix of:` line is a fix. It is refused with no `When
-green:` line, the exact check that ends the work, such as CI's check passing on the fix's head.
-Each brief admitted for a key is counted, by its `brief_sha`, in `blockers.json` in the directory
-of the brief's home (`jbriefs.home.home_of`), `{"<key>": [{"slug", "sha", "at"}]}`. The same
-brief queued again is no new try. Once a key has `retry_cap` tries (`jsettings`, 2 by default),
-the next fix is refused, and the key is raised as a decision instead.
+apply` alike. A brief whose head has a `Fix of:` line is a fix. It is refused with no `When green:`
+line, the exact check that ends the work, such as CI's check passing on the fix's head. Each brief
+admitted for a key is counted, by its `brief_sha`, in `blockers.json` in the directory of the
+brief's home (`jbriefs.home.home_of`), `{"<key>": [{"slug", "sha", "at"}]}`, under the same lock
+that checks the cap, and the count is taken back when the queue refuses the brief. The same brief
+queued again is no new try. Once a key has `retry_cap` tries (`jsettings`, 2 by default), the next
+fix is refused, and the key is raised as a decision instead.
 
-A decision is the one event of the kind `decision`, at `user`, for each key: `decide` sends it
-under the key `decision|<key>`, which names no slug, so whoever raises the same blocker again
-sends nothing. Its line ends with `Reply: "<reply>"`, a line the user can send as it is: the
-reply goes to the home as the user's word (`jbus word`). A pass raises one for each item of
-the list of what waits that the user has to decide (`needs`): a question or a gate that holds,
-has no default or names one of `waiting.PAUSE`, a row to approve, a pull request `jmerge` holds,
-and a config item. `jbus decide` raises one by hand, for a scope change. A project's first pass
-raises none, as it sends nothing else.
+A decision is the one event of the kind `decision`, at `user`, for each key: `decide` sends it under
+the key `decision|<key>`, which names no slug, so whoever raises the same blocker again sends
+nothing. An item of the list of what waits is raised once for each time it is on the list: its key
+holds the item's `since`, so a hold or an approval that leaves the list and comes back is raised
+again. A blocker at its cap is `blocker:<key>`, the same from `admit` and `jbus clear`. Its line
+ends with `Reply: "<reply>"`, a line the user can send as it is: the reply goes to the home as the
+user's word (`jbus word`). A pass raises one for each item of the list of what waits that the user
+has to decide (`needs`): a question or a gate that holds, has no default or names one of
+`waiting.PAUSE`, a row to approve, a pull request `jmerge` holds, and a config item. `jbus decide`
+raises one by hand, for a scope change. A project's first pass raises none, as it sends nothing
+else.
 """
 
 from __future__ import annotations
@@ -127,8 +131,10 @@ def _capped(project: Project, slug: str, key: str, had: list[dict[str, str]]) ->
 
 def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[], None]:
     """Refuse a fix that has no `When green:` line, or whose key had its cap of fixes, and raise
-    the second as a decision. Return what counts the fix once it is queued: nothing for a brief
-    that is no fix, or that was counted before."""
+    the second as a decision. Otherwise count the fix at once, under the lock that checks the
+    cap, so neither a batch nor two adds at the same time pass the cap. Return what takes the
+    count back when the queue then refuses the brief: nothing for a brief that is no fix, or that
+    was counted before."""
     key = head(text, FIX_OF)
     if not key:
         return lambda: None
@@ -140,26 +146,32 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
         )
     directory = homes.home_of(config.home(project), text)
     sha = queue.brief_sha(text)
-    had = tries(directory, key)
-    if any(one.get("sha") == sha for one in had):
-        return lambda: None
-    if len(had) >= config.user.retry_cap:
-        run = Pass(config, project, datetime.now(UTC))
-        said, reply = _capped(project, slug, key, had)
-        decide(run.box, slug, key, said, reply)
-        raise Refused(
-            f"refused: {said}: raised to {config.user.user} as a decision, and {slug} is not queued"
-        )
-
-    def count() -> None:
-        at = datetime.now(UTC).isoformat(timespec="seconds")
-        with _locked(directory):
-            kept = ledger(directory)
-            now = [one for one in kept.get(key, []) if one.get("sha") != sha]
-            kept[key] = [*now, {"slug": slug, "sha": sha, "at": at}]
+    with _locked(directory):
+        kept = ledger(directory)
+        had = kept.get(key) if isinstance(kept.get(key), list) else []
+        if any(one.get("sha") == sha for one in had):
+            return lambda: None
+        if len(had) < config.user.retry_cap:
+            at = datetime.now(UTC).isoformat(timespec="seconds")
+            kept[key] = [*had, {"slug": slug, "sha": sha, "at": at}]
             write_json(directory / LEDGER, kept)
+            return lambda: _release(directory, key, sha)
+    run = Pass(config, project, datetime.now(UTC))
+    said, reply = _capped(project, slug, key, had)
+    decide(run.box, slug, f"blocker:{key}", said, reply)
+    raise Refused(
+        f"refused: {said}: raised to {config.user.user} as a decision, and {slug} is not queued"
+    )
 
-    return count
+
+def _release(directory: Path, key: str, sha: str) -> None:
+    """Take back the count of a fix the queue refused."""
+    with _locked(directory):
+        kept = ledger(directory)
+        kept[key] = [one for one in kept.get(key, []) if one.get("sha") != sha]
+        if not kept[key]:
+            del kept[key]
+        write_json(directory / LEDGER, kept)
 
 
 def needs(one: waiting.Item, context: str = "") -> str:
@@ -206,7 +218,7 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
         if why:
             asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
             said = f"{(asked or one['line']).rstrip('.?')}, {why}"
-            key, slug = one["key"], one.get("slug") or one["key"]
+            key, slug = f"{one['key']}|{one['since']}", one.get("slug") or one["key"]
             if one["kind"] == "config":
                 key = f"{key}|{hashlib.sha256(one['line'].encode()).hexdigest()[:12]}"
                 slug = "config"
@@ -318,7 +330,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
             said.append(f"wait {key}: {', '.join(at_work)} is at work on it")
         elif len(had) >= cap:
             what, reply = _capped(run.project, slug, key, had)
-            decide(run.box, slug, key, what, reply)
+            decide(run.box, slug, f"blocker:{key}", what, reply)
             said.append(f"decision {key}: {what}, raised, it waits on {run.user.user}")
         else:
             said.append(

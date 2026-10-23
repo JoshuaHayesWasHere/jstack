@@ -33,7 +33,7 @@ The relay sends two routes, both to the relay's webhook, and each POST says whic
 | Route | What it sends |
 |---|---|
 | `everything` | Every body as it came. |
-| `blocking` | What blocks: a `reminder` or a `refresh` whole, an `events` body of the second target whole when it has `items` ([What blocks](what-blocks.md)), and of any other body the events whose `loud` is `user` or whose kind is `gate`, `stall`, `alert`, `waiting` or `waiting-on-user`, with `say` cut to theirs. A body with none of these is not sent on this route. |
+| `blocking` | What blocks: a `reminder` or a `refresh` whole, an `events` body of the second target whole when it has `items` ([What blocks](what-blocks.md)), and of any other body the events whose `loud` is `user`, a `decision`, a `sign-in` or an `alert`, with `say` cut to theirs. A body with none of these is not sent on this route. |
 
 Each body the relay takes has an id: its own `id` when that is a short name of letters, digits, `.`, `_` and `-`, else a hash of the body, so the same body posted twice has one id.
 Each route writes what it sends to `spool/<route>/` before the relay answers 202 with `{"id"}`.

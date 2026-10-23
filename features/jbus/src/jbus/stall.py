@@ -21,8 +21,8 @@ everything else that waits on the user.
 guarded path. `jmerge` keeps such a pull request on a `wait` line, and that line wakes nobody. The
 line may say that the head has no proven safety fact, while the head is a fix pushed after the last
 review. Then `guarded` asks the crew for the one scoped review that proves the fix, once per head.
-When the line still says the same of the same head after `PASSES` passes, `guarded` sends one
-`stall` event, for the chat. `guarded.json` counts the passes.
+When the line still says the same of the same head after `PASSES` passes, `guarded` logs one
+`stall` event, which is quiet and in the digest. `guarded.json` counts the passes.
 
 `unclosed` handles a leftover that its home did not close. Such a leftover is a row that ended with
 something left, after jbus told the row's home about the leftover (`leftover`)
