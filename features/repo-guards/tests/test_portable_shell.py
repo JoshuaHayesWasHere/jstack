@@ -67,7 +67,7 @@ GNU_ONLY = [
 
 EXEMPT = {
     "scripts/fresh-host.sh": "its shell runs in an Arch Linux container",
-    "features/jgauge/src/jgauge/room.sh": "it reads /proc, and its darwin form is jgauge's own",
+    "features/jgauge/src/jgauge/room.sh": "its GNU forms are in its Linux branch",
 }
 
 BLOCK = re.compile(r"^([ \t]*)```(?:sh|bash|shell|zsh)[ \t]*\n(.*?)^\1```[ \t]*$", re.M | re.S)
