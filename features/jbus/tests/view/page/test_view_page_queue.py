@@ -78,7 +78,7 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     opened = clean(seen)
     drawers = {one["target"]: one["said"] for one in seen["opened"]}
     by_rule = (
-        "rule 6, follow-up of nut-shell; run 2026-10-12 09:00 ET by the demo home; he did not "
+        "rule 6, follow-up of nut-shell; run 2026-10-12 09:00 ET by the demo home; you did not "
         "speak of this row by rule 6"
     )
     assert by_rule in drawers["task:nut-meat"]
