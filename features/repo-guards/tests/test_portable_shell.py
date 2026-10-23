@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -370,9 +371,10 @@ def unparsed_by_bash3(root, where):
     """Each block bash 5 parses that bash 3.2 does not, as `path:line`."""
     five, three = bash5(), bash3(where)
     if five is None or three is None:
-        pytest.skip(
-            "needs a bash 4 or later and a bash 3.2 (macOS's /bin/bash, or docker's bash:3.2)"
-        )
+        why = "needs a bash 4 or later and a bash 3.2 (macOS's /bin/bash, or docker's bash:3.2)"
+        if os.environ.get("CI") and sys.platform == "darwin":
+            pytest.fail(f"{why}: the macOS job is where this guard always runs")
+        pytest.skip(why)
     where.mkdir(parents=True, exist_ok=True)
     names = {}
     for at, (name, text) in enumerate(tracked_blocks(root)):

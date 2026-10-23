@@ -43,12 +43,15 @@ jobs:
       - run: uv sync --locked
         continue-on-error: true
       # GitHub's macOS image has gh and jq, and zsh is the system's shell. This installs gh or
-      # jq where a later image drops one. The suite fakes gitleaks, as it does on Linux.
+      # jq where a later image drops one. The suite fakes gitleaks, as it does on Linux. Its only
+      # bash is /bin/bash, 3.2, and test_portable_shell reads each block with a bash 5 first.
       - name: tools
         continue-on-error: true
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
-        run: for tool in gh jq; do command -v "$tool" || brew install "$tool"; done && zsh --version
+        run: >-
+          for tool in gh jq; do command -v "$tool" || brew install "$tool"; done &&
+          { [ -x "$(brew --prefix)/bin/bash" ] || brew install bash; } && zsh --version
       - name: make check
         id: suite
         continue-on-error: true
