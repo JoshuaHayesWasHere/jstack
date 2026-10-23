@@ -1,18 +1,23 @@
 """`jbus flow`: how work flowed in a window, over every project, measured from the records.
 
-It reads each project's `events.jsonl`, jbus's journal (`journalctl --user -u jbus`) and GitHub's
-runs, jobs and merged pull requests of each project's repo, and prints for the window:
+It reads the `events.jsonl` of every folder of jbus's state that has one (each project, and
+any other jbus keeps state for), jbus's journal (`journalctl --user -u jbus`, or a file of its
+lines with `--journal`), the jobs `jbus ci` kept in a project's `ci.jsonl`, and GitHub's runs,
+jobs and merged pull requests of each configured project's repo, and prints for the window:
 
-- each row's time from approved to merged, split into working and waiting (`measure.lead_times`);
+- each row's time from approved to merged, split into working and waiting (`measure.lead_times`),
+  and with `--rows` every merged row's spans, each with the record that opened it;
 - the classes of waiting ranked by hours lost, over every row with time in the window
-  (`measure.pareto`);
+  (`measure.pareto`), and what the hours behind a `depends` waited on at the head of the chain
+  (`measure.behind`);
 - how long main was red, and what that held up (`measure.main_red`);
 - how long the machine had no room, why, and how long an account cap or a slot held a row
   (`measure.no_room`, `measure.caps`, `measure.slots`), and when jbus itself did not run;
 - GitHub's queue and run time, cancels and reruns (`measure.ci`);
 - how many events paged the owner (`measure.pages`);
-- the share of the rows' time the records leave unexplained, and when each source's records
-  begin, since a window that starts before them is time no record covers.
+- the share of the rows' time the records leave unexplained, and apart from it the share before
+  any record of the row (`no record`), with when each source's records begin, since a window
+  that starts before them is time no record covers.
 
 It writes nothing: no state, no lock, no file. It takes no lock, so it runs beside a pass. What it
 prints is passed through `jbus.redact` with the config's secrets, so no webhook URL, key or token
@@ -27,10 +32,12 @@ from __future__ import annotations
 import argparse
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 import jbus
 from jbus import digest, verbs
+from jbus.ci import ledger
 from jbus.flow import measure, records
 
 DEFAULT_DAYS = 7
@@ -44,15 +51,19 @@ def build(
     repos: dict[str, str],
     since: datetime,
     until: datetime,
+    jobs: dict[str, list[dict]] | None = None,
+    spans: bool = False,
 ) -> dict[str, Any]:
     """Return the whole measure of the window as one dict. `merges` maps a repo to the times its
-    pull requests merged, by number, and `repos` maps a project to its repo."""
+    pull requests merged, by number, `repos` maps a project to its repo, and `jobs` a project
+    to the jobs its `ci.jsonl` kept. With `spans`, each merged row carries its spans."""
     by_project = {name: merges.get(repo, {}) for name, repo in repos.items()}
     found = measure.rows(projects, since, until, by_project)
     total = sum(one.hours() for one in found) or 1.0
     ranked = measure.pareto(found)
     unexplained = sum(one["hours"] for one in ranked if one["unexplained"])
     other = sum(one["hours"] for one in ranked if one["class"].startswith(("other:", "status ")))
+    unrecorded = sum(one["hours"] for one in ranked if one["no_record"])
     starts = [one.first for one in projects if one.first]
     return {
         "since": since.isoformat(),
@@ -62,41 +73,65 @@ def build(
             "journal_from": lines[0].at.isoformat() if lines else None,
             "runs": len(found_runs),
             "projects": [one.name for one in projects],
+            "events_from_by_project": {
+                one.name: one.first.isoformat() if one.first else None for one in projects
+            },
         },
         "rows": len(found),
         "row_hours": round(total, 1),
         "working_hours": round(sum(one.hours(True) for one in found), 1),
         "waiting_hours": round(sum(one.hours(False) for one in found), 1),
         "unexplained_share": round((unexplained + other) / total, 3),
-        "lead_times": measure.lead_times(found),
+        "no_record_share": round(unrecorded / total, 3),
+        "lead_times": measure.lead_times(found, spans),
         "pareto": ranked,
+        "behind": measure.behind(found),
         "main_red": measure.main_red(found_runs, found, merges),
         "no_room": measure.no_room(lines, since, until),
         "caps": measure.caps(projects, lines, since, until),
         "slots": measure.slots(projects, since, until),
         "jbus": measure.jbus_down(lines, since, until),
         "ci": measure.ci(found_runs),
+        "ci_ledger": measure.ledger_jobs(jobs or {}, since, until),
         "pages": measure.pages(projects, since, until),
     }
+
+
+LOG = "events.jsonl"
 
 
 def gather(config: jbus.Config, args: argparse.Namespace, since: datetime, until: datetime):
     """Read every source for the window. A source that cannot be read is left out and named."""
     missing: list[str] = []
-    projects, repos = [], {}
-    for project in config.projects:
-        path = config.state(project) / "events.jsonl"
+    projects, repos, jobs = [], {}, {}
+    configured = {config.state(one).name: one for one in config.projects}
+    state = config.state_dir
+    found = set()
+    if state.is_dir():
+        found = {one.name for one in state.iterdir() if (one / LOG).is_file()}
+    for name in sorted(found | set(configured), key=str.lower):
+        folder = state / name
         try:
-            text = path.read_text()
+            text = (folder / LOG).read_text(errors="replace")
         except OSError:
-            missing.append(f"{project.name}: no events.jsonl")
+            missing.append(f"{name}: no {LOG}")
             text = ""
-        projects.append(records.events(project.name, text.splitlines()))
-        repo = records.repo_of(project.checkout)
+        projects.append(records.events(name, text.splitlines()))
+        jobs[name] = ledger.read(folder / ledger.JOBS)
+        project = configured.get(name)
+        repo = records.repo_of(project.checkout) if project else None
         if repo:
-            repos[project.name] = repo
+            repos[name] = repo
+        elif not args.no_github:
+            missing.append(f"GitHub for {name}: no project of the config with a GitHub origin")
     said = None
-    if not args.no_journal:
+    if args.journal is not None:
+        try:
+            said = args.journal.read_text(errors="replace")
+        except OSError as error:
+            why = f"refused: {args.journal} cannot be read: {error.strerror}"
+            raise jbus.Refused(why) from None
+    elif not args.no_journal:
         said = records.ask(
             [
                 "journalctl",
@@ -124,7 +159,7 @@ def gather(config: jbus.Config, args: argparse.Namespace, since: datetime, until
             missing.append(f"GitHub for {repo}")
         found_runs += ran or []
         merges[repo] = merged or {}
-    return projects, lines, found_runs, merges, repos, missing
+    return projects, lines, found_runs, merges, repos, jobs, missing
 
 
 def _local(moment: datetime) -> str:
@@ -145,25 +180,45 @@ def text(said: dict[str, Any]) -> str:
     out += [
         "",
         f"rows {said['rows']}: {said['row_hours']} h in the window, {said['working_hours']} h "
-        f"working, {said['waiting_hours']} h waiting, {said['unexplained_share']:.0%} unexplained",
+        f"working, {said['waiting_hours']} h waiting, {said['unexplained_share']:.1%} "
+        f"unexplained, {said['no_record_share']:.1%} before any record of the row (no record)",
         f"merged {lead['merged']}: approved to merged median {lead['median_hours']} h, "
         f"85th percentile {lead['p85_hours']} h; {lead['working_hours']} h working, "
         f"{lead['waiting_hours']} h waiting",
         "",
         "approved to merged, longest first (working / waiting hours, the longest wait):",
     ]
-    for row in lead["rows"][:25]:
+    every = "spans" in (lead["rows"][0] if lead["rows"] else {})
+    for row in lead["rows"] if every else lead["rows"][:25]:
         out.append(
             f"  {row['project']}/{row['slug']}: {row['working_hours']} / "
-            f"{row['waiting_hours']} h, {row['top_wait'] or '-'}"
+            f"{row['waiting_hours']} h, most on {row['top_wait'] or '-'} "
+            f"({row['top_wait_hours']} h)"
         )
-    out += ["", "waiting by class, hours lost (share, running share, rows):"]
+        for span in row.get("spans", []):
+            out.append(
+                f"    {span['start']} {span['hours']:>6} h  {span['class']}  <- {span['source']}"
+            )
+    if not every and len(lead["rows"]) > 25:
+        out.append(f"  ({len(lead['rows']) - 25} more, and each row's spans, with --rows)")
+    out += ["", "waiting by class, hours lost (share, running share, rows, the longest row):"]
     for one in said["pareto"]:
         mark = " (unexplained)" if one["unexplained"] else ""
+        mark = " (before any record)" if one["no_record"] else mark
         out.append(
             f"  {one['hours']:>7} h  {one['share']:>5.1%}  {one['cumulative']:>6.1%}  "
-            f"{one['rows']:>3}  {one['class']}{mark}"
+            f"{one['rows']:>3}  {one['class']}{mark}; most {one['worst_row']} "
+            f"{one['worst_row_hours']} h"
         )
+    chain = said["behind"]
+    out += [
+        "",
+        f"ordering, what the head of each chain was doing: {chain['hours']} h, "
+        f"{chain['chains']} spans behind a chain of two or more, the longest "
+        f"{chain['longest_chain']} links",
+    ]
+    for one in chain["heads"]:
+        out.append(f"  {one['hours']:>7} h  {one['share']:>5.1%}  {one['class']}")
     red = said["main_red"]
     out += ["", f"main red: held {red['rows_held']} rows for {red['row_hours_held']} row-hours"]
     for repo, one in red["repos"].items():
@@ -172,6 +227,19 @@ def text(said: dict[str, Any]) -> str:
             f"{one['merges_while_red']} merges while red; no job ran for "
             f"{one['no_job_hours']} h ({one['no_job_runs']} runs)"
         )
+        for span in one["spans"]:
+            out.append(
+                f"    {span['start']} to {span['end']}: run {span['red_run']} to "
+                f"{span['green_run'] or 'still red'}"
+            )
+        for flow, each in one["by_workflow"].items():
+            if flow != one["gate"] and (each["red_spans"] or each["no_job_runs"]):
+                still = ", still red" if each["still_red"] else ""
+                out.append(
+                    f"    other workflow {flow}: {each['runs']} runs, red {each['red_hours']} h "
+                    f"in {each['red_spans']} spans{still}, no job ran in "
+                    f"{each['no_job_runs']} runs ({each['no_job_hours']} h)"
+                )
     room, cap, slot, bus = said["no_room"], said["caps"], said["slots"], said["jbus"]
     reasons = ", ".join(f"{why} {h} h" for why, h in room["by_reason"].items()) or "none"
     accounts = ", ".join(f"{name} {h} h" for name, h in cap["by_account"].items()) or "none"
@@ -189,15 +257,25 @@ def text(said: dict[str, Any]) -> str:
         f"({bus['gap_hours']} h), GitHub unreachable {bus['github_unreachable_hours']} h, "
         f"{bus['webhook_failures']} webhook failures",
         "",
-        "GitHub runs (failure / cancelled / reruns; job queue total, median, 90th; run total):",
+        "GitHub runs (failure / cancelled / reruns; run queue total, median, 90th; job queue "
+        "with --jobs; run total):",
     ]
     for repo, one in said["ci"].items():
         out.append(
             f"  {repo}: {one['runs']} runs, {one['failure']} / {one['cancelled']} / "
-            f"{one['reruns']}; queue {one['queue_hours']} h, {one['queue_median_s']} s, "
-            f"{one['queue_p90_s']} s (self-hosted {one['queue_self_hosted_hours']} h); run "
-            f"{one['run_hours']} h"
+            f"{one['reruns']}; queue {one['run_queue_hours']} h, {one['run_queue_median_s']} s, "
+            f"{one['run_queue_p90_s']} s; jobs {one['queue_hours']} h (self-hosted "
+            f"{one['queue_self_hosted_hours']} h); run {one['run_hours']} h"
         )
+    for name, one in said["ci_ledger"].items():
+        out.append(f"  {name}, jobs `jbus ci` kept from {one['from']} to {one['to']}:")
+        for kind, each in one.items():
+            if isinstance(each, dict):
+                out.append(
+                    f"    {kind}: {each['jobs']} jobs, waited for a runner {each['queue_hours']} h"
+                    f" (median {each['queue_median_s']} s, 90th {each['queue_p90_s']} s), "
+                    f"{each['cancelled_waiting']} cancelled while waiting"
+                )
     paged = said["pages"]
     kinds = ", ".join(f"{kind} {n}" for kind, n in paged["by_kind"].items()) or "none"
     out += ["", f"paged the owner: {paged['total']} ({kinds})"]
@@ -211,12 +289,15 @@ def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
     if since >= until:
         raise jbus.Refused(f"refused: --since {args.since} is not before --until {until}")
     try:
-        projects, lines, found_runs, merges, repos, missing = gather(config, args, since, until)
+        projects, lines, found_runs, merges, repos, jobs, missing = gather(
+            config, args, since, until
+        )
     except records.Unaffordable as error:
         raise jbus.Refused(str(error)) from None
     if args.project:
         projects = [one for one in projects if one.name == config.project(args.project).name]
-    said = build(projects, lines, found_runs, merges, repos, since, until) | {"missing": missing}
+    said = build(projects, lines, found_runs, merges, repos, since, until, jobs, args.rows)
+    said |= {"missing": missing}
     said = jbus.redact(said, config.secrets())
     print(json.dumps(said, indent=2, sort_keys=True) if args.json else text(said))
     return 0
@@ -233,8 +314,16 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--since", help=f"from this time, the user's zone with none (default: {DEFAULT_DAYS} days)"
     )
-    parser.add_argument("--until", help="to this time (default: now)")
+    parser.add_argument(
+        "--until", help="to this time, the user's zone with none, as --since (default: now)"
+    )
     parser.add_argument("--json", action="store_true", help="print the measure as JSON")
+    parser.add_argument(
+        "--rows", action="store_true", help="every merged row, each span with its record"
+    )
+    parser.add_argument(
+        "--journal", type=Path, help="read jbus's journal lines from this file, not journalctl"
+    )
     parser.add_argument("--no-github", action="store_true", help="ask GitHub nothing")
     parser.add_argument(
         "--jobs", action="store_true", help="ask each run's jobs for queue time: a call per run"

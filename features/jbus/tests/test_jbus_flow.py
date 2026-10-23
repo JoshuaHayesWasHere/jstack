@@ -116,6 +116,78 @@ def test_the_window_clips_a_row():
     assert row.merged is None
 
 
+def test_each_span_names_the_record_that_opened_it():
+    row = measure.row_spans(project(), "alpha", at(-48), at(48), {})
+    sources = {span.what: span.source for span in row.spans}
+    assert sources["ordering"] == f"demo events.jsonl {at(0).isoformat()} item.queued"
+    capped = (at(1) + timedelta(minutes=10)).isoformat()
+    assert sources["account cap"] == f"demo events.jsonl {capped} stall"
+    assert sources["review not written"] == f"demo events.jsonl {at(2.5).isoformat()} jmerge"
+    assert sources["main red"] == f"demo events.jsonl {at(3).isoformat()} jmerge"
+
+
+def test_an_item_hold_is_the_owner_s_wait_and_a_check_nothing_reports_is_no_work():
+    lines = [
+        item(at(0), "eps", "has a go: your word, 2026-10-20 10:00 EDT"),
+        table(at(1), "eps", "pr", checks="passed", pr="#11", why="wait: it has no review yet"),
+        event(at(2), "jmerge", "wait 11 https://example.test/pull/11: borders has not passed"),
+        event(at(2), "item.resumed", "item demo: w3 resumed: row eps is check"),
+        event(at(5), "item.waiting", "item demo: w3 waiting: row eps is hold"),
+        event(at(6), "item.resumed", "item demo: w3 resumed: row eps is check"),
+        table(at(7), "eps", "merged", pr="#11"),
+    ]
+    row = measure.row_spans(records.events("demo", lines), "eps", at(-1), at(8), {})
+    assert [(span.what, span.hours) for span in row.spans] == [
+        ("no record", 1.0),
+        ("review not written", 1.0),
+        ("required check not reported", 3.0),
+        ("owner: hand-merge", 1.0),
+        ("required check not reported", 1.0),
+    ]
+    assert row.hours(True) == 0
+
+
+def chain_row(slug, depends, approved_at, merged_at, launched_at):
+    cells = [slug, "1", depends, "", f"his word, {_edt(approved_at)}", "", "", "queued"]
+    cells += ["", "", "", "", "depends on " + depends if depends else "", ""]
+    queued = event(
+        approved_at,
+        "queue",
+        "queue demo: the table changed",
+        TABLE + "| " + " | ".join(cells) + " |",
+    )
+    return [
+        queued,
+        table(launched_at, slug, "running", thread=f"mcp:t-{slug}"),
+        table(merged_at, slug, "merged", pr=f"#{len(slug)}"),
+    ]
+
+
+def _edt(moment):
+    return (moment - timedelta(hours=4)).strftime("%Y-%m-%d %H:%M EDT")
+
+
+def test_the_hours_behind_a_chain_go_to_what_its_head_was_doing():
+    lines = chain_row("c", "", at(0), at(3), at(0))
+    lines += chain_row("b", "c", at(0), at(4), at(3))
+    lines += chain_row("a", "b", at(0), at(5), at(4))
+    found = measure.rows([records.events("demo", lines)], at(-1), at(6), {})
+    said = measure.behind(found)
+    assert said["longest_chain"] == 3 and said["chains"] >= 1
+    heads = {one["class"]: one["hours"] for one in said["heads"]}
+    assert heads == {"crew at work": 7.0}
+    assert said["hours"] == 7.0
+
+
+def test_a_row_behind_two_waits_on_the_one_not_merged_yet():
+    lines = chain_row("y", "", at(0), at(1), at(0))
+    lines += chain_row("z", "", at(0), at(3), at(0))
+    lines += chain_row("x", "y, z", at(0), at(4), at(3))
+    found = measure.rows([records.events("demo", lines)], at(-1), at(6), {})
+    heads = {one["class"]: one["hours"] for one in measure.behind(found)["heads"]}
+    assert heads == {"crew at work": 3.0}
+
+
 def test_a_row_approved_before_any_record_waits_on_no_record():
     late = [
         table(
@@ -144,7 +216,18 @@ def test_the_pareto_ranks_the_waits_and_marks_what_is_unexplained():
         "account cap",
     ]
     assert ranked[0]["cumulative"] < ranked[-1]["cumulative"] == 1.0
-    assert not any(one["unexplained"] for one in ranked)
+    assert not any(one["unexplained"] or one["no_record"] for one in ranked)
+    assert ranked[0]["worst_row"] == "demo/alpha" and ranked[0]["worst_row_hours"] == 1.0
+
+
+def test_no_record_is_its_own_reason_and_not_counted_as_unexplained():
+    late = [table(at(2), "g", "pr", pr="#9", approved="his word, 2026-10-20 09:00 EDT")]
+    found = measure.rows([records.events("demo", late)], at(-48), at(3), {})
+    ranked = {one["class"]: one for one in measure.pareto(found)}
+    assert ranked["no record"]["no_record"] and not ranked["no record"]["unexplained"]
+    assert ranked["waits, no why recorded"]["unexplained"]
+    said = flow.build([records.events("demo", late)], [], [], {}, {}, at(-48), at(3))
+    assert said["no_record_share"] == 0.75 and said["unexplained_share"] == 0.25
 
 
 @pytest.mark.parametrize(
@@ -162,6 +245,14 @@ def test_the_pareto_ranks_the_waits_and_marks_what_is_unexplained():
         ("wait: check has not passed", "pending", "checks running"),
         ("wait: a fresh check is queued", "", "fresh check queued"),
         ("depends on ft-main-contract", "", "ordering"),
+        ("wait: borders has not passed", "passed", "required check not reported"),
+        ("wait: borders has not passed", "pending", "checks running"),
+        ("wait: check has not passed", "passed", "checks running"),
+        ("brief changed after approval", "", "owner: approval voided"),
+        ("wait: its queue row is held: approve it again", "", "owner: approval"),
+        ("wait: its base is train/macos, not main", "", "base is not main"),
+        ("wait: the merge failed: GitHub said 405", "", "merge call failed"),
+        ("wait: GitHub has not decided whether it merges", "", "GitHub merge"),
     ],
 )
 def test_why_a_row_waits_names_its_class(why, checks, named):
@@ -217,7 +308,7 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
         run(1, at(0), "success"),
         run(2, at(1), "failure"),
         run(3, at(2), "failure"),
-        run(4, at(3), "success"),
+        {**run(4, at(3), "success"), "run_started_at": (at(3) + timedelta(minutes=3)).isoformat()},
         run(5, at(2), "failure", branch="topic", event="pull_request", attempt=2),
     ]
     jobs = {
@@ -233,7 +324,8 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
     found = records.runs("o/demo", listed, jobs)
     found_rows = measure.rows([project()], at(-48), at(48), {})
     red = measure.main_red(found, found_rows, {"o/demo": {"7": at(1.5), "8": at(5)}})
-    assert red["repos"]["o/demo"] == {
+    said = red["repos"]["o/demo"]
+    assert {key: said[key] for key in said if key not in ("spans", "by_workflow")} == {
         "gate": "check",
         "red_hours": 2.0,
         "red_spans": 1,
@@ -241,10 +333,65 @@ def test_main_is_red_from_a_failed_check_to_the_next_that_passes():
         "no_job_hours": 0.0,
         "no_job_runs": 0,
     }
+    assert said["spans"] == [
+        {
+            "start": (at(1) + timedelta(minutes=5)).isoformat(),
+            "end": (at(3) + timedelta(minutes=5)).isoformat(),
+            "red_run": 2,
+            "green_run": 4,
+        }
+    ]
     assert red["rows_held"] == 1 and red["row_hours_held"] == 1.0
     said = measure.ci(found)["o/demo"]
     assert (said["runs"], said["failure"], said["reruns"], said["jobs"]) == (5, 3, 1, 1)
     assert said["queue_hours"] == 0.2 and said["queue_self_hosted_hours"] == 0.2
+    assert said["run_queue_p90_s"] == 126.0 and said["run_queue_median_s"] == 0.0
+
+
+def test_each_workflow_of_main_is_red_on_its_own_and_one_left_red_is_said():
+    listed = [run(1, at(0), "success"), run(2, at(1), "failure"), run(3, at(2), "success")]
+    listed += [run(9, at(0), "success"), run(10, at(1.5), "failure")]
+    listed += [{**one, "name": "release"} for one in [run(20, at(0.5), "failure")]]
+    broken = {**run(30, at(1), "failure"), "name": "gitleaks"}
+    listed += [{**broken, "updated_at": (at(1) + timedelta(seconds=2)).isoformat()}]
+    listed += [{**run(31, at(4), "success"), "name": "gitleaks"}]
+    red = measure.main_red(records.runs("o/demo", listed, {}), [], {})["repos"]["o/demo"]
+    assert red["gate"] == "check" and red["red_hours"] == 1.0
+    assert red["by_workflow"]["release"] == {
+        "red_hours": 0.0,
+        "red_spans": 1,
+        "still_red": True,
+        "no_job_hours": 0.0,
+        "no_job_runs": 0,
+        "runs": 1,
+    }
+    assert red["by_workflow"]["check"]["still_red"] is False
+    leaks = red["by_workflow"]["gitleaks"]
+    assert (leaks["red_spans"], leaks["no_job_runs"], leaks["no_job_hours"]) == (0, 1, 3.1)
+
+
+def test_the_jobs_jbus_ci_kept_give_the_runner_queue():
+    kept = [
+        {"created": at(0).isoformat(), "started": at(0.5).isoformat(), "kind": "local"},
+        {"created": at(1).isoformat(), "started": at(1.25).isoformat(), "kind": "local"},
+        {
+            "created": at(1).isoformat(),
+            "started": None,
+            "kind": "hosted",
+            "conclusion": "cancelled",
+        },
+        {"created": at(-9).isoformat(), "started": at(-8).isoformat(), "kind": "local"},
+    ]
+    said = measure.ledger_jobs({"demo": kept, "none": []}, at(-1), at(2))
+    assert list(said) == ["demo"] and said["demo"]["jobs"] == 3
+    assert said["demo"]["local"]["queue_hours"] == 0.8
+    assert said["demo"]["hosted"] == {
+        "jobs": 1,
+        "queue_hours": 0.0,
+        "queue_median_s": None,
+        "queue_p90_s": None,
+        "cancelled_waiting": 1,
+    }
 
 
 def test_a_failed_run_that_ran_no_job_is_ci_down_and_not_main_red():
@@ -297,20 +444,51 @@ def test_the_command_prints_the_measure_writes_nothing_and_holds_no_secret(kitch
         return JOURNAL if command[0] == "journalctl" else None
 
     monkeypatch.setattr(records, "ask", ask)
-    before = {path: path.stat().st_mtime_ns for path in kitchen.state_dir.rglob("*")}
+    other = kitchen.state_dir / "elsewhere"
+    other.mkdir(parents=True)
+    (other / "events.jsonl").write_text("\n".join(BETA) + "\n")
+
+    def files():
+        return {
+            path: (path.stat().st_mtime_ns, path.read_bytes())
+            for path in kitchen.state_dir.rglob("*")
+            if path.is_file()
+        }
+
+    before = files()
     code, out = kitchen.main(
         "flow", "--since", "2026-10-20T00:00", "--until", "2026-10-21T00:00", "--json"
     )
     assert code == 0, out
     said = json.loads(out)
     assert KEY not in out
-    assert {path: path.stat().st_mtime_ns for path in kitchen.state_dir.rglob("*")} == before
+    assert files() == before
+    assert "elsewhere" in said["coverage"]["projects"]
     assert said["rows"] == 2 and said["lead_times"]["merged"] == 1
     assert said["no_room"]["spans"] == 2
     assert said["unexplained_share"] > 0
     assert asked.count("journalctl") == 1
     code, out = kitchen.main("flow", "--since", "2026-10-20T00:00", "--until", "2026-10-21T00:00")
     assert code == 0 and "waiting by class" in out and KEY not in out
+
+
+def test_a_journal_file_replays_with_no_journalctl_and_rows_name_their_records(
+    kitchen, monkeypatch, tmp_path
+):
+    kitchen.state.mkdir(parents=True, exist_ok=True)
+    (kitchen.state / "events.jsonl").write_text("\n".join([*ALPHA, *BETA]) + "\n")
+    journal = tmp_path / "journal.txt"
+    journal.write_text(JOURNAL)
+    asked = []
+    monkeypatch.setattr(records, "ask", lambda command, cwd=None: asked.append(command) or None)
+    window = ("--since", "2026-10-20T00:00", "--until", "2026-10-21T00:00")
+    code, out = kitchen.main("flow", *window, "--journal", str(journal), "--no-github", "--rows")
+    assert code == 0, out
+    assert not [one for one in asked if one[0] == "journalctl"]
+    assert "no room: 0.1 h in 2 spans" in out
+    assert "main red  <- demo events.jsonl" in out
+    code, out = kitchen.main("flow", *window, "--journal", str(tmp_path / "gone"))
+    assert code == 1 and out.startswith("refused:")
 
 
 def test_the_command_refuses_a_window_that_ends_before_it_starts(kitchen):

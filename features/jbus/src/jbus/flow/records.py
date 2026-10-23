@@ -9,10 +9,14 @@ a `GET` address. The jobs of each run are a call per run, so they are asked for 
 own passes share (`affordable`).
 
 A row's `Sighting` is what a table of the event log said of it at one time: its status, its
-checks, its pull request, its thread and why it waits. The log writes a table each time a row
-changes (`queue ...: the table changed`) and once a day whole (`snapshot`). A `Said` is a line
-`jmerge` logged of a pull request, read with `jmerge.lines.one`: it changes why the row waits
-and nothing else.
+checks, its pull request, its thread, the rows it depends on or merges after, why it waits, and
+the event that said it (`source`), so each span `jbus.flow.measure` cuts names the record it
+came from. The log writes a table each time a row changes (`queue ...: the table changed`) and
+once a day whole (`snapshot`). A `Said` is a line `jmerge` logged of a pull request, read with
+`jmerge.lines.one`: it changes why the row waits and nothing else. A `Mark` is an item's line
+that a row's pull request waits on the owner's merge (`waiting: ... is hold`) or went back to
+its checks (`resumed: ... is check`): the table writes a row's line only when a column of its
+own changes, so these lines say a hold the table did not.
 """
 
 from __future__ import annotations
@@ -41,6 +45,9 @@ POOL = re.compile(
 )
 WORKTREE = re.compile(r"/worktrees/([^/\s]+)/")
 ITEM = re.compile(r"^item \S+: w\d+ (\w+): row (\S+) (?:(?:is|was) (\w+)|has a go: (.*))$")
+MARKS = {"hold": "hold: needs the owner (the item waits)", "check": ""}
+"""What an item's `waiting` or `resumed` line says of a row's pull request: a hold for the owner,
+or back to its checks, where the why `jmerge` gave last stands again."""
 ITEM_STATES = {
     "behind": ("queued", "behind: the rows in front of it to merge"),
     "ready": ("queued", "ready: the next pass of jbus to launch it"),
@@ -65,6 +72,8 @@ class Sighting:
     pr: str
     thread: str
     approved: str
+    depends: tuple[str, ...] = ()
+    source: str = ""
 
 
 @dataclass(frozen=True)
@@ -75,6 +84,17 @@ class Said:
     number: str
     verdict: str
     why: str
+    source: str = ""
+
+
+@dataclass(frozen=True)
+class Mark:
+    """An item's line at `at` that the row's pull request waits on the owner or on its checks."""
+
+    at: datetime
+    slug: str
+    why: str
+    source: str
 
 
 @dataclass(frozen=True)
@@ -105,6 +125,7 @@ class Project:
     name: str
     sightings: dict[str, list[Sighting]] = field(default_factory=dict)
     said: list[Said] = field(default_factory=list)
+    marks: list[Mark] = field(default_factory=list)
     merged: dict[str, tuple[datetime, str]] = field(default_factory=dict)
     caps: list[Cap] = field(default_factory=list)
     slots: list[SlotWait] = field(default_factory=list)
@@ -140,6 +161,14 @@ class Run:
     queued: tuple[float, ...] = ()
     ran: tuple[float, ...] = ()
     hosted: tuple[bool, ...] = ()
+
+    @property
+    def waited(self) -> float | None:
+        """Return the seconds from the run's creation to the start of its last attempt: its
+        queue, as the run's own times give it, with no call per job."""
+        if self.started is None or self.attempt > 1:
+            return None
+        return max(0.0, (self.started - self.created).total_seconds())
 
 
 def when(text: str) -> datetime | None:
@@ -192,6 +221,7 @@ def events(name: str, lines: Iterable[str]) -> Project:
 
 def _event(project: Project, at: datetime, record: dict[str, Any]) -> None:
     kind, line, text = record["event"], record.get("line", ""), record.get("text", "")
+    source = f"{project.name} events.jsonl {record['at']} {kind}"
     if record.get("loud") == "user":
         project.pages.append((at, kind))
     if kind in ("queue", "snapshot"):
@@ -204,12 +234,14 @@ def _event(project: Project, at: datetime, record: dict[str, Any]) -> None:
                 row.get("pr", "").lstrip("#"),
                 row.get("thread", ""),
                 row.get("approved", ""),
+                _slugs(row.get("depends", "") + "," + row.get("merge_after", "")),
+                source,
             )
             project.sightings.setdefault(row["slug"], []).append(seen)
     elif kind.startswith("item.") and (found := ITEM.match(line)):
-        _item(project, at, found[2], found[3], found[4])
+        _item(project, at, found[2], found[3], found[4], source)
     elif kind == "jmerge" and (said := lines.one(line)):
-        project.said.append(Said(at, str(said.number), said.word, said.reason))
+        project.said.append(Said(at, str(said.number), said.word, said.reason, source))
     elif kind == "merged" and (found := MERGED.match(line)):
         project.merged.setdefault(found[1], (at, found[2]))
     elif kind == "stall" and (found := CAPPED.match(line)):
@@ -224,14 +256,24 @@ def _event(project: Project, at: datetime, record: dict[str, Any]) -> None:
         project.pool.append((at, int(found[3])))
 
 
-def _item(project: Project, at: datetime, slug: str, value: str | None, go: str | None) -> None:
+def _slugs(cell: str) -> tuple[str, ...]:
+    """Return the slugs of a `depends` or `merge_after` cell, each once, in order."""
+    return tuple(dict.fromkeys(one.strip() for one in cell.split(",") if one.strip()))
+
+
+def _item(
+    project: Project, at: datetime, slug: str, value: str | None, go: str | None, source: str
+) -> None:
     if go is not None:
         stamp = stamped(go)
         if stamp is not None and slug not in project.approvals:
             project.approvals[slug] = stamp
+    elif value in MARKS:
+        project.marks.append(Mark(at, slug, MARKS[value], source))
     elif value in ITEM_STATES:
         status, why = ITEM_STATES[value]
-        project.sightings.setdefault(slug, []).append(Sighting(at, status, "", why, "", "", ""))
+        seen = Sighting(at, status, "", why, "", "", "", (), source)
+        project.sightings.setdefault(slug, []).append(seen)
 
 
 def _cap(project: Project, at: datetime, until: str, slug: str, who: tuple[str, ...]) -> None:
