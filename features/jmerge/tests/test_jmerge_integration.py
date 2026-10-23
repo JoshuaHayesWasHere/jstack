@@ -276,6 +276,23 @@ def test_a_landing_waits_when_the_repos_settings_cannot_be_read(kitchen):
     assert kitchen.calls() == []
 
 
+def test_a_repo_answer_with_no_allow_keys_waits_as_unread_and_keeps_the_branch(kitchen):
+    """GitHub leaves the allow_* keys out of the repo it gives a token without push access, so
+    the answer says nothing of the merge methods, and the landing waits as unread."""
+    kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
+    integration(kitchen, TRAIN)
+    said = {"name": "jstack", "full_name": "o/jstack", "default_branch": "main"}
+    (kitchen.home.stub / "repo.json").write_text(json.dumps(said))
+    main, train = tip(kitchen, "main"), tip(kitchen, TRAIN)
+    (said,) = kitchen.run()
+    unread = "GitHub gives them to a token with push access only"
+    assert said == f"wait 9 {url(9)}: {ready.NO_SETTINGS}: {unread}"
+    assert kitchen.calls() == []
+    assert tip(kitchen, "main") == main
+    assert tip(kitchen, TRAIN) == train
+    assert TRAIN in git(kitchen.home.main, "branch", "--format=%(refname:short)").split()
+
+
 def test_blank_lines_and_spaces_in_the_file_name_no_branch(kitchen):
     head = into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES})
     (kitchen.home.state / "integration").write_text(f"\n  {TRAIN}  \n\n")
