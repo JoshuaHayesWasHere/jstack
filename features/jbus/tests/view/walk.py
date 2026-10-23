@@ -51,7 +51,8 @@ class Surface:
     """Where one state must appear. `needs` is an item of Needs you, which the overview counts
     in its waits. `proceeds` is an item of Proceeds. `broken` is words that one of the
     overview's broken reasons holds. `unplaced` is the overview's rows the view cannot place.
-    `row` is a row of In progress, at `rank`. `chip` is a chip on that row. A surface with
+    `row` is a row of In progress, at `rank`, which the page draws only for a task that is not
+    in Needs you. `chip` is a chip on that row. A surface with
     nothing set is a state that appears in none of these places."""
 
     needs: bool = False

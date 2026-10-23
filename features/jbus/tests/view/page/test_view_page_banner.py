@@ -75,7 +75,7 @@ def test_with_the_server_gone_the_page_says_so_after_two_answers_missed(scene, t
     assert seen["header"]["read"] == f"Stale since {read}", "the time of the last answer"
     assert seen["header"]["stale"] is True
     assert "GitHub cannot be asked" in seen["github"]
-    assert len(seen["prog"]) == 9
+    assert len(seen["prog"]) == 9 - 3, "the three tasks in Needs you are not drawn again"
 
 
 def test_a_server_that_never_answered_is_said_too(scene, tmp_path):
@@ -90,8 +90,8 @@ def test_on_a_phone_the_page_is_one_column_and_every_target_takes_a_thumb(scene,
     screen = (PHONE[0], PHONE[1] + PHONE_NEEDS)
     seen = look(scene, tmp_path, budget=9000, screen=screen)
     opened = clean(seen, screen)
-    assert {f"task:{slug}" for slug in open_rows} <= opened
-    assert len(seen["prog"]) >= 28
+    assert {row["open"] for row in seen["prog"]} <= opened
+    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 28 - 4
     assert all(
         row["box"][0] >= 0 and row["box"][0] + row["box"][2] <= screen[0] for row in seen["prog"]
     )
