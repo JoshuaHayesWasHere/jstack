@@ -57,11 +57,11 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
 }
 
-# The rules today's code breaks, and in which scene. The others hold today only because nothing
-# today flags, nudges or asks.
+# The rules today's code breaks, and in which scene. CallsReachJosh holds since pull request 332
+# moved what waits for a dropped route, and the others hold today only because nothing today
+# flags, nudges or asks.
 TODAY_BREAKS = {
     "NoRetireWithOpen": "a",
-    "CallsReachJosh": "a",
     "StallFlagged": "a",
     "OneMerger": "a",
     "NoBlindMerge": "siblings",
@@ -146,6 +146,8 @@ def runs():
     for rule, scene in TODAY_BREAKS.items():
         cfg = config(scene, [rule], '{"jbus", "home"}')
         yield f"today, scene {scene}: {rule}", "HomeTreeToday", cfg, rule, "breaks"
+    cfg = config("a", ["CallsReachJosh"], '{"jbus", "home"}')
+    yield "today, scene a: CallsReachJosh", "HomeTreeToday", cfg, "CallsReachJosh", "holds"
 
 
 def main():

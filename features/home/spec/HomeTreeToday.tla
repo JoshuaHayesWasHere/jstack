@@ -1,5 +1,5 @@
 ---- MODULE HomeTreeToday ----
-\* Today's code, at main f2b8921b. A child home is a scoped home (scoped-homes.md), the root is
+\* Today's code, at main f31174a3. A child home is a scoped home (scoped-homes.md), the root is
 \* the repo's root home, and jbus's pass is the root's check. Each condition of a step names the
 \* file and line that checks it: jbus/ is features/jbus/src/jbus/, jmerge/ is
 \* features/jmerge/src/jmerge/, jbriefs/ is features/jbriefs/src/jbriefs/, and the skills are in
@@ -40,12 +40,12 @@ CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh goes into the outbox of each route the setting picks, once: its
-\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:349-352). The
+\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:376-378). The
 \* model's setting picks one route, home or webhook, and leaves out both.
 RaiseCall(c) ==
     /\ c \in Raised
-    /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:182 the scope's gates.md is read too
-    /\ msg[c] = "none" /\ msg' = Set(msg, c, wake)     \* jbus/wake.py:355 self.routes
+    /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:188 the scope's gates.md is read too
+    /\ msg[c] = "none" /\ msg' = Set(msg, c, wake)     \* jbus/wake.py:381 self.routes
     /\ quiet' = Set(quiet, OwnerOf[c], 0)
     /\ UNCHANGED <<life, work, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a turn in its thread, a commit, a push.
@@ -69,17 +69,23 @@ Retire(k) ==
 Answer(c) ==
     /\ msg[c] = "told" /\ msg' = Set(msg, c, "none")
     /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* A pass posts what waits in the outbox of each route the setting picks, and only those: a
-\* route the setting leaves out keeps what waits for it, which goes only if the setting picks
-\* the route again (jbus/alert.py:296-306). A post that fails leaves it in the outbox.
+\* A pass posts what waits in the outbox of each route the setting picks, and only those. A post
+\* that fails leaves it in the outbox.
 Deliver(m) ==
     \E r \in Routes :
         /\ msg[m] = r
-        /\ r = wake     \* jbus/alert.py:318 for route in run.box.routes
-        /\ up[r]        \* jbus/wake.py:599 a post that fails breaks the flush
+        /\ r = wake     \* jbus/alert.py:320 for route in run.box.routes
+        /\ up[r]        \* jbus/wake.py:687 a post that fails breaks the flush
         /\ msg' = Set(msg, m, "told")
         /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock,
                        mode>>
+\* Each pass first moves what waits for a route the setting leaves out to the route it picks
+\* (pull request 332), so a change of the setting strands no call.
+Rehome(m) ==
+    /\ msg[m] \in Routes
+    /\ msg[m] # wake     \* jbus/alert.py:311 moved(run); jbus/wake.py:543 for old in self.left
+    /\ msg' = Set(msg, m, wake)
+    /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The wake setting changes between home and webhook (jbus/__init__.py:117-121).
 ChangeWake ==
     /\ RoutesMove
@@ -134,12 +140,12 @@ Next ==
                        \/ CrewEnds(k)
                        \/ Activity(k) \/ GetsStuck(k) \/ Retire(k)
     \/ \E c \in Calls : RaiseCall(c) \/ Answer(c)
-    \/ \E m \in Msgs : Deliver(m)
+    \/ \E m \in Msgs : Deliver(m) \/ Rehome(m)
     \/ ChangeWake \/ \E r \in Routes : RouteFails(r) \/ RouteMends(r)
     \/ Check
     \/ \E a \in Mergers, k \in Kids : Read(a, k) \/ Merge(a, k)
 Fair ==
-    /\ \A m \in Msgs : WF_vars(Deliver(m))
+    /\ \A m \in Msgs : WF_vars(Deliver(m)) /\ WF_vars(Rehome(m))
     /\ \A r \in Routes : WF_vars(RouteMends(r))
     /\ WF_vars(Check)
     /\ \A k \in Kids : WF_vars(PrReady(k))     \* a crew fixes a pull request that dropped
