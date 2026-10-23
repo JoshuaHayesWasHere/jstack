@@ -106,21 +106,48 @@ No recipe drives these yet: `jgauge session`, `jgauge run` and `jgauge test-slot
 ## Cross-cutting tests
 
 A test file that reads the whole tree, and not the paths of one feature (it globs the repo, or every skill and every page at once), is cross-cutting: every diff runs it, and no `Tests:` line needs to name it.
+A test file reads the tree when it globs, walks or lists with `git ls-files` a folder of the checkout, the root, a `src/`, a folder of tests or any other.
+`testing/tests/test_cross_cutting.py` fails when such a test file is not on this list, and names the read it found.
 
 Cross-cutting:
 - `testing/tests/test_check_command.py`
+- `testing/tests/test_cross_cutting.py`
 - `testing/tests/test_daemons.py`
 - `features/repo-guards/tests/test_docs_true.py`
 - `features/repo-guards/tests/test_docs_tree.py`
+- `features/jdrift/tests/test_drift.py`
+- `features/home/tests/test_flow_doc.py`
+- `features/home/tests/test_home_merge.py`
 - `features/home/tests/test_home_merge_guard.py`
+- `features/home/tests/test_home_thread.py`
+- `features/jbus/tests/test_jbus.py`
 - `features/jdrift/tests/test_jstack_explained.py`
+- `testing/tests/test_jtrees_schema.py`
+- `features/jinstall/tests/test_layout.py`
+- `features/jmerge/tests/test_main_contract.py`
+- `features/skill-library/tests/test_maintain_verification_skill.py`
+- `features/repo-guards/tests/test_module_size.py`
 - `features/repo-guards/tests/test_no_comments.py`
 - `features/repo-guards/tests/test_no_mistakes_gone.py`
+- `features/repo-guards/tests/test_one_way.py`
 - `features/repo-guards/tests/test_playbook_wiring.py`
+- `features/repo-guards/tests/test_playbooks.py`
+- `features/pr-review/tests/test_pr_review_skill.py`
+- `features/principles/tests/test_principles.py`
+- `features/jinstall/tests/test_project_skills.py`
 - `features/repo-guards/tests/test_readme_current.py`
+- `features/jgauge/tests/test_room.py`
 - `features/repo-guards/tests/test_run_not_read.py`
 - `testing/tests/test_select_tests.py`
+- `features/repo-guards/tests/test_skill_args.py`
 - `features/repo-guards/tests/test_skill_frontmatter.py`
+- `features/repo-guards/tests/test_skill_size.py`
+- `features/skill-library/tests/test_skill_tips.py`
+- `features/jbriefs/tests/test_skills_named.py`
+- `features/repo-guards/tests/test_templates.py`
+- `testing/tests/test_test_plugins.py`
 - `features/repo-guards/tests/test_test_size.py`
 - `features/repo-guards/tests/test_tool_calls.py`
+- `features/verify-jstack/tests/test_verify_jstack.py`
+- `features/jbus/tests/view/test_view_sources.py`
 - `testing/tests/test_workflows.py`
