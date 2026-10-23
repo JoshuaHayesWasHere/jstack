@@ -355,7 +355,7 @@
 </ol>
 <div class="aside">
   <div class="box plain"><span class="tag">before step 2, sometimes</span><b>A scout goes first</b><small>When the home cannot write the brief from what it knows, a scout reads the code and the docs and writes down what it found. The home itself never reads the code.</small></div>
-  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>A thread that meets a question only the operator can answer takes a default, carries on, and parks the question with <code>jbus gate</code>, which numbers the question and keeps it until the operator answers.</small></div>
+  <div class="box plain"><span class="tag">at any step</span><b>A gate</b><small>When a thread gets a question only the operator can answer, it takes a default and keeps working. It records the question with <code>jbus gate</code>, which numbers it and keeps it until the operator answers.</small></div>
   <div class="box plain"><span class="tag">at step 9, rarely</span><b>A hold</b><small>A plain <code>jmerge</code> never merges a pull request that touches a protected path. Only the operator can accept it.</small></div>
 </div>
 <details>
