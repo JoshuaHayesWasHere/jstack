@@ -144,7 +144,6 @@ SURFACES = {
 }
 
 
-F1 = "F1: a hung, lost or request-waiting task is the user's, yet only waiting.KINDS make needs"
 F2 = "F2: the outbox count is the first route's only (record.py:236), so stranded calls read 0"
 F3 = "F3: a dropped route's old last_error makes every row red with 'bus failed to send'"
 F4 = "F4: a task whose crewmate failed or is gone reads as the crewmate's, with no chip"
@@ -157,9 +156,6 @@ DATA, PAGE, BOTH = ("data",), ("page",), ("data", "page")
 
 
 KNOWN = {
-    ("value", "hung"): (F1, DATA),
-    ("value", "waiting"): (F1, DATA),
-    ("value", "lost"): (F1, DATA),
     ("route", "stranded outbox"): (F2, DATA),
     ("route", "old error of a dropped route"): (F3, DATA),
     ("thread", "failed"): (F4, PAGE),

@@ -1,11 +1,12 @@
 """The You panel: what needs the user, across projects, oldest first."""
 
+import json
 from dataclasses import asdict
 
 from jbus import questions, threads, waiting, work
 from jbus.view.panels.you import panel as panel_you
 from test_jbus_kitchen import GATE as PIPED
-from view.scene import GATE, PULL, Scene, Served, ago, iso, item, stacked
+from view.scene import GATE, PULL, Scene, Served, ago, et, iso, item, out, row, stacked
 
 HOLDING = "Holds: publishes\nFail-safe: the dry run of the post, in the plan\n"
 
@@ -167,3 +168,74 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
     )
     assert {one["verb"] for one in answerable} == {"Accept default"}
     assert home["verb"] == "Answer"
+
+
+YOURS = [pattern.value for pattern in work.PATTERNS if pattern.who == "user"]
+
+
+def test_every_row_the_pass_marks_as_the_users_needs_the_user(scene, served):
+    """Needs you is every line of `work.json` whose holder is the user, whatever the list of
+    what waits on the user has. So a hung, lost or waiting task needs the user as much as one
+    at a gate, each with what holds it and since when."""
+    rows = [
+        row(f"yours-{value}", why=f"a reason {value}", since=et(ago(minutes=10 + at)))
+        | {"value": value, "who": "user"}
+        for at, value in enumerate(YOURS)
+    ]
+    rows.append(row("crews-own", "running", thread="mcp:crew") | {"value": "working"})
+    scene.queue(rows)
+    scene.waiting([])
+    needs = served.json("/stack.json")["needs"]
+    tasks = {one["slug"]: one for one in served.json("/state.json?project=demo")["tasks"]}
+    found = {one["key"].rpartition(":")[2]: one for one in needs}
+    assert sorted(found) == sorted(f"yours-{value}" for value in YOURS)
+    for value in YOURS:
+        one, task = found[f"yours-{value}"], tasks[f"yours-{value}"]
+        assert one["since"] == task["since"] == iso(ago(minutes=10 + YOURS.index(value)))
+        assert one["why"], f"{value}: Needs you does not say what holds it"
+        assert one["open"] == f"#/demo/task/yours-{value}"
+    assert found["yours-hung"]["why"] == "its turn has written nothing, and may be hung"
+    assert found["yours-lost"]["why"] == "its thread is gone and wrote nothing"
+    assert found["yours-waiting"]["why"] == "the thread waits on a request"
+    assert served.json("/stack.json")["projects"][0]["waits"] == len(YOURS)
+
+
+def test_a_waiting_item_of_a_row_the_pass_does_not_mark_as_the_users_is_no_need(scene, served):
+    """The list of what waits on the user is no second source for a row: an item of a row
+    the pass judged its crewmate's needs nothing of the user."""
+    scene.queue([row("jam-jar", "running", thread="mcp:0000") | {"value": "working"}])
+    scene.waiting(
+        [
+            item("left", "left:jam-jar", "left jam-jar: a note", slug="jam-jar"),
+            item("config", "config:t3", "no sign-in to T3 Code"),
+        ]
+    )
+    needs = served.json("/stack.json")["needs"]
+    assert [one["key"] for one in needs] == ["config:t3"]
+
+
+def test_a_thread_of_no_row_that_the_pass_marks_as_the_users_needs_the_user(scene, served):
+    """A scout's thread that ended with no Report is the user's, and so a need, since when it
+    last wrote."""
+    lost = work.judge(
+        work.Facts(
+            work.Row.ABSENT,
+            work.Thread.COMPLETED,
+            work.Launch.LAUNCHED,
+            work.Written.NONE,
+            work.Pull.NONE,
+            work.Question.NONE,
+            work.Answered.BOTH,
+        )
+    )
+    assert lost.value == "lost"
+    about = {"key": "mcp:scout: tin", "kind": "thread", "slug": "tin", "thread": "mcp:scout: tin"}
+    line = work.entry(lost, work.holder(lost, role="scout"), **about, role="scout", title="scout: tin")
+    kept = json.loads((scene.state / "work.json").read_text())
+    scene.write("work.json", kept | {"work": [*kept["work"], line]})
+    scene.passed(seconds_ago=20, threads=[out("scout: tin", "ended", "completed", minutes=30)])
+    needs = served.json("/stack.json")["needs"]
+    (one,) = [one for one in needs if one["key"] == "mcp:scout: tin"]
+    assert one["what"] == "scout: tin"
+    assert one["since"] == iso(ago(minutes=30))
+    assert one["why"]
