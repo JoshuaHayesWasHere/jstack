@@ -248,3 +248,25 @@ def test_with_wake_both_and_no_home_thread_the_webhook_s_post_counts_as_the_wake
     assert "woke demo: 1 events" in said
     (decision,) = kitchen.events("decision")
     assert decision["posted"] is not None
+
+
+@pytest.mark.parametrize("picked", ["home", "both"])
+def test_an_event_the_home_thread_took_shows_as_posted(kitchen, picked):
+    homed(kitchen, project_wake=picked)
+    kitchen.webhook.status = 400
+    kitchen.poll(NOW)
+    assert len(wakes(kitchen)) == 1
+    (decision,) = kitchen.events("decision")
+    assert decision["posted"] is not None
+
+
+def test_a_log_line_of_the_own_webhook_from_before_posted_home_still_counts(kitchen):
+    kitchen.config()
+    box = wake.Box(kitchen.state, jbus.load().project("demo"))
+    box.send("alpha", "decision", "decision alpha: which one?")
+    (made,) = jbus.read_json(kitchen.state / "outbox.json", [])
+    line = {"at": NOW.isoformat(), "posted_webhook": [wake._id(made)]}
+    with open(kitchen.state / wake.LOG, "a") as log:
+        log.write(json.dumps(line) + "\n")
+    (decision,) = kitchen.events("decision")
+    assert decision["posted"] == NOW.isoformat()
