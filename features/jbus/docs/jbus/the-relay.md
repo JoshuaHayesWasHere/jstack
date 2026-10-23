@@ -13,7 +13,7 @@ No other bot watches the homes or the queue.
 It listens on `127.0.0.1`, on `RELAY_PORT`, which is 4390 when it is not set.
 With a port of 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound.
 It sends each body posted to it on to the relay's webhook, `RELAY_WEBHOOK_URL`, with the key `RELAY_WEBHOOK_KEY`.
-When your chat bot is silent, it also pages you through the fallback pager.
+When your chat bot is silent, it also pages you through the fallback pager, when you set one, and on the desktop with `notify-send`.
 Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads.
 The install links `features/jbus/units/jbus-relay.service` on every machine.
 It enables and starts the unit only once `~/.config/jbus-relay/env` holds every key the relay needs.
@@ -33,7 +33,10 @@ Remove it first, and `jinstall --check` says when it is gone.
 | `RELAY_SILENT_MINUTES` | How long without a body counts as silence, 90 minutes when it is not set. `jbus health` pages past it ([The health check](the-health-check.md)). A value that is not a number stops the relay at start. |
 | `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE` | The fallback pager, a Home Assistant of yours: its address, a long-lived access token for it, and the `notify` service that pushes to the phone, such as `mobile_app_<phone>`. A page is `POST <url>/api/services/notify/<service>` with `Authorization: Bearer <token>`. |
 
-A key that is missing, empty or `REPLACE_ME` stops the relay at start, and that includes the pager's keys.
+A key that is missing, empty or `REPLACE_ME` stops the relay at start.
+The pager is optional, and all or none: with none of its three keys set, or each of them empty, the relay starts with no pager.
+It then says `relay: no pager set; when Sous Chef is silent the relay runs notify-send only` once at start.
+With one or two of the pager's keys set, the relay refuses to start and names each of the others, and a pager key that is `REPLACE_ME` also stops it.
 The relay prints `relay: refused to start: <each such key and why>`, never a value, and exits with code 2, which the unit does not restart.
 `systemctl --user status jbus-relay` then shows it failed.
 Nothing reads the `GATEKEEPER_WEBHOOK_URL` and `GATEKEEPER_WEBHOOK_KEY` of an older env file, since Gatekeeper is not a target.
@@ -73,6 +76,9 @@ A page's id is kept permanently, so it goes once, also across a restart.
 A page the pager did not take goes again, as on any route.
 A page the pager refused permanently, with a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`, stays in `dead/page/` and is not paged again.
 The relay also shows the line on the desktop with `notify-send -u critical`, once, when the page is spooled.
+With no pager set there is no `page` route: no `spool/page/`, no `sent/page` and no `dead/page/`, and `heartbeat.json` names no pager.
+When your chat bot is silent, the relay then runs `notify-send` only, once for each page's id while it runs, so a restart can show a page again.
+`jbus health` reads no pager, so a relay with none is not a fault.
 `watch.json` in the state holds what the relay knows of what blocks: the items of each project, the ones seen, and the event id that carried each.
 
 The relay writes `heartbeat.json` in its state each minute and on each body it takes.

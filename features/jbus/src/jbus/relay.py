@@ -33,8 +33,9 @@ sends that body once more after it starts again. So the relay sends each body at
 Both routes send to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`). The route
 `everything` sends every body as it came, and the route `blocking` sends what blocks (`blocking`).
 The relay refuses to start when a target's URL or key is missing, empty or REPLACE_ME, or when the
-inbound key is missing. The relay names each such key in the journal, but never the key's value, and
-exits 2, which `jbus-relay.service` does not restart. The relay keeps its state in `RELAY_STATE`,
+inbound key is missing. The pager is a target only when one of its keys is set (see below). The
+relay names each such key in the journal, but never the key's value, and exits 2, which
+`jbus-relay.service` does not restart. The relay keeps its state in `RELAY_STATE`,
 ~/.local/state/jbus-relay: `spool/<route>/`, `sent/<route>`, `dead/<route>/`, `watch.json` and
 `heartbeat.json`.
 
@@ -58,6 +59,11 @@ so the relay gets a body at least that often.
 
 When Sous Chef is silent, the relay pages a second way, the `pager` target (Home Assistant's
 mobile push, `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE`), and runs `notify-send` too.
+The pager is optional, and all or none. With none of its keys set, the relay says
+`relay: no pager set; when Sous Chef is silent the relay runs notify-send only` at start, and has
+no `page` route: when Sous Chef is silent it runs `notify-send` only, once for each page's id
+while it runs, and keeps no `spool/page/`, `sent/page` or `dead/page/`. With some of the pager's
+keys set, the relay refuses to start and names each of the others.
 The relay decides on its own, without any word from Sous Chef, that Sous Chef is silent. It does
 so in two cases:
 
@@ -182,7 +188,7 @@ class Refused(Exception):
 class Settings:
     inbound: str
     targets: Mapping[str, Target]
-    pager: Target
+    pager: Target | None
     port: int
     state: Path
     timeout: float
@@ -227,14 +233,17 @@ def _named(env: Mapping[str, str]) -> dict[str, str]:
 def settings(env: Mapping[str, str]) -> Settings:
     """Read the relay's settings from its environment. When a key is not usable, raise
     `Refused`, which names every such key and none of their values. A webhook key that only its
-    older name sets is named by that name."""
+    older name sets is named by that name. The pager is all or none: with none of its keys set,
+    `pager` is None, and with some set, each of the others is a key that is not usable."""
     given, env = env, _named(env)
 
     def called(key: str) -> str:
         return OLDER[key] if key in OLDER and key not in given and OLDER[key] in given else key
 
+    paging = any(env.get(key, "").strip() for key in PAGER)
+    targets = {**TARGETS, **({PAGES.target: PAGER} if paging else {})}
     wrong = [why for why in [_unusable(env, "RELAY_INBOUND_KEY")] if why]
-    for name, keys in [*TARGETS.items(), (PAGES.target, PAGER)]:
+    for name, keys in targets.items():
         wrong += [
             f"target {name}: {why.replace(key, called(key))}"
             for key in keys
@@ -242,12 +251,15 @@ def settings(env: Mapping[str, str]) -> Settings:
         ]
     if wrong:
         raise Refused("; ".join(wrong))
-    for name, url in [*((name, url) for name, (url, _) in TARGETS.items()), ("pager", PAGER[0])]:
+    for name, (url, *_) in targets.items():
         if urllib.parse.urlsplit(env[url].strip()).scheme not in ("http", "https"):
             raise Refused(f"target {name}: {called(url)} is not an http or https URL")
-    base, token, service = (env[key].strip() for key in PAGER)
-    if not SERVICE.fullmatch(service):
-        raise Refused(f"target pager: {PAGER[2]} is not a notify service name")
+    pager = None
+    if paging:
+        base, token, service = (env[key].strip() for key in PAGER)
+        if not SERVICE.fullmatch(service):
+            raise Refused(f"target pager: {PAGER[2]} is not a notify service name")
+        pager = Target("pager", f"{base.rstrip('/')}/api/services/notify/{service}", token)
     try:
         return Settings(
             inbound=env["RELAY_INBOUND_KEY"],
@@ -255,7 +267,7 @@ def settings(env: Mapping[str, str]) -> Settings:
                 name: Target(name, env[url].strip(), env[key].strip())
                 for name, (url, key) in TARGETS.items()
             },
-            pager=Target("pager", f"{base.rstrip('/')}/api/services/notify/{service}", token),
+            pager=pager,
             port=int(env.get("RELAY_PORT", "4390")),
             state=Path(env.get("RELAY_STATE", "~/.local/state/jbus-relay")).expanduser(),
             timeout=float(env.get("RELAY_TIMEOUT_SECONDS", "15")),
@@ -513,15 +525,24 @@ def notify(line: str, say: Say) -> None:
 
 class Pager:
     """A `Pager` is the second way to page. It sends each page on the `page` route to Home
-    Assistant, and also runs `notify-send`."""
+    Assistant, and also runs `notify-send`. With no pager set, it has no lane and runs
+    `notify-send` only, once for each page's id while the relay runs."""
 
     def __init__(self, config: Settings, say: Say) -> None:
         self.say = say
-        self.lane = Lane(PAGES, config.pager, config, say)
+        self.lanes = [Lane(PAGES, config.pager, config, say)] if config.pager else []
+        self.lock = threading.Lock()
+        self.shown: set[str] = set()
 
     def page(self, id: str, line: str) -> None:
-        if self.lane.has(id) or not self.lane.take(id, {"id": id, "page": line}):
-            return
+        for lane in self.lanes:
+            if lane.has(id) or not lane.take(id, {"id": id, "page": line}):
+                return
+        if not self.lanes:
+            with self.lock:
+                if id in self.shown:
+                    return
+                self.shown.add(id)
         self.say(f"relay: paged {id}")
         threading.Thread(target=notify, args=(line, self.say), daemon=True).start()
 
@@ -555,7 +576,7 @@ class Relay:
         self._failing()
         self.beat_lock = threading.Lock()
         self.started = _now()
-        for lane in [*self.lanes, self.pager.lane]:
+        for lane in [*self.lanes, *self.pager.lanes]:
             lane.changed = self.beat
             lane.refused = self.refuse
 
@@ -612,7 +633,7 @@ class Relay:
             kept = json.loads(self.beating.read_text()).get("failing")
         except (OSError, ValueError, AttributeError):
             return
-        lanes = {lane.route.name: lane for lane in [*self.lanes, self.pager.lane]}
+        lanes = {lane.route.name: lane for lane in [*self.lanes, *self.pager.lanes]}
         for one in kept if isinstance(kept, list) else []:
             lane = lanes.get(one.get("route")) if isinstance(one, dict) else None
             if lane and silent.when(one.get("since")) and lane._waiting():
@@ -640,7 +661,7 @@ class Relay:
             with self.refuse_lock:
                 refused = self._recent()
             failing = []
-            for lane in [*self.lanes, self.pager.lane]:
+            for lane in [*self.lanes, *self.pager.lanes]:
                 if lane.failing:
                     failing.append({**lane.failing, "waiting": len(lane._waiting())})
             made = {
@@ -663,7 +684,7 @@ class Relay:
             time.sleep(BEAT_SECONDS)
 
     def start(self) -> None:
-        for lane in [*self.lanes, self.pager.lane]:
+        for lane in [*self.lanes, *self.pager.lanes]:
             threading.Thread(target=lane.run, name=lane.route.name, daemon=True).start()
         threading.Thread(target=self.beats, name="heartbeat", daemon=True).start()
 
@@ -754,6 +775,8 @@ def relay(env: Mapping[str, str] = os.environ, say: Say | None = None) -> int:
     except Refused as error:
         say(f"relay: refused to start: {error}")
         return REFUSED
+    if config.pager is None:
+        say("relay: no pager set; when Sous Chef is silent the relay runs notify-send only")
     running = Relay(config, say)
     running.start()
     running.serve()
