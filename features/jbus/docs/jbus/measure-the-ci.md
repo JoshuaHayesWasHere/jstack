@@ -72,10 +72,10 @@ The service runs `jbus ci --report --each`.
 For each project that asks, it collects the jobs and pull requests, then writes `reports/ci-week-<date>.md` in that project's home.
 The report has the nine targets over the last 7 days, each with how it was counted.
 It gives the number of local jobs and the number of hosted jobs.
-It also gives how many jobs GitHub cancelled while they waited.
+It also gives how many jobs were cancelled while they waited.
 It ends with main's red minutes by day.
 A week where every target is met, or has no data, sends nothing.
-A week with a missed target sends one `alert` event on the day of the report.
+A week with a missed target sends one `alert` event, only once that day.
 The event names each missed target and the report.
 A run that fails shows in `journalctl --user -u jbus-ci`.
 
