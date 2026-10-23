@@ -120,22 +120,39 @@ def test_every_line_of_shell_in_the_tree_runs_on_bsd_tools_as_well():
     assert gnu_only(REPO) == []
 
 
-def test_a_date_d_planted_in_a_skill_block_is_found_with_its_portable_form(tmp_path):
+def on_bsd(tools, *argv):
+    env = {**os.environ, "PATH": str(tools)}
+    return subprocess.run(argv, env=env, capture_output=True, text=True)
+
+
+def test_a_date_d_planted_in_a_skill_block_is_found_and_its_portable_form_runs(tmp_path):
+    """The planted line fails on macOS's tools, the guard names its line, and the form its
+    message gives prints the date a week ago on those same tools."""
+    planted = "since=$(date -d '7 days ago' +%F) && echo \"$since\""
     skill = tmp_path / "features" / "demo" / "SKILL.md"
     skill.parent.mkdir(parents=True)
-    skill.write_text("# demo\n\n```sh\necho one\nsince=$(date -d '7 days ago' +%F)\n```\n")
+    skill.write_text(f"# demo\n\n```sh\necho one\n{planted}\n```\n")
+    tools = bsd_tools(tmp_path / "bsd")
+    assert on_bsd(tools, "sh", "-c", planted).returncode == 64
     (found,) = gnu_only(tmp_path)
-    assert found.startswith("features/demo/SKILL.md:5: BSD date has no -d")
-    assert "strftime" in found
+    where, why = found.split(": ", 1)
+    assert where == "features/demo/SKILL.md:5"
+    portable = on_bsd(tools, "sh", "-c", re.findall(r"`([^`]+)`", why)[-1])
+    assert (portable.returncode, len(portable.stdout.split("-"))) == (0, 3)
 
 
 def test_a_script_is_read_by_its_shebang_and_its_comments_are_not(tmp_path):
+    """A hook with no `.sh` is read by its first line: the guard names the GNU-only line and
+    not the comment above it, and the hook fails on macOS's tools until it is rewritten."""
     hook = tmp_path / "features" / "demo" / "hooks" / "stamp"
     hook.parent.mkdir(parents=True)
-    hook.write_text('#!/bin/sh\n# GNU\'s readlink -f is not used here\nhere=$(readlink -f "$0")\n')
-    assert gnu_only(tmp_path) == [
-        "features/demo/hooks/stamp:3: use `realpath`, the form the rest of jstack uses"
-    ]
+    hook.write_text('#!/bin/sh\n# readlink -f here\nreadlink -f "$0"\n')
+    tools = bsd_tools(tmp_path / "bsd")
+    assert on_bsd(tools, "sh", str(hook)).returncode == 64
+    assert [line.split(": ")[0] for line in gnu_only(tmp_path)] == ["features/demo/hooks/stamp:3"]
+    hook.write_text('#!/bin/sh\n# readlink -f here\nrealpath "$0"\n')
+    assert gnu_only(tmp_path) == []
+    assert on_bsd(tools, "sh", str(hook)).stdout == f"{hook.resolve()}\n"
 
 
 @pytest.mark.parametrize(
