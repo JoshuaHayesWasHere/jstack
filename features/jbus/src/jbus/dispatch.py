@@ -172,16 +172,25 @@ def arguments(
     return made
 
 
+def _covered(paths: tuple[str, ...], patterns: tuple[str, ...]) -> set[str]:
+    """The paths that one of `patterns` covers (`jbriefs.parse.covers`). A plain pattern covers
+    a path that is it or under it, so it is looked up among the path's parents, and only a glob
+    or `.` goes through `covers`, which builds a regex for each pattern and parent."""
+    plain = {one for one in patterns if one != "." and "*" not in one and "?" not in one}
+    globs = tuple(one for one in patterns if one not in plain)
+    found = set()
+    for path in paths:
+        parts = path.split("/")
+        parents = {"/".join(parts[: n + 1]) for n in range(len(parts))}
+        if parents & plain or (globs and parse.covers(globs, path)):
+            found.add(path)
+    return found
+
+
 def _meet(mine: tuple[str, ...], theirs: tuple[str, ...]) -> set[str]:
-    """The paths two lists share: two paths are shared when one covers the other
-    (`jbriefs.parse.covers`), and the one named is the path that is covered, a file and not
-    its directory."""
-    return {
-        path if parse.covers((other,), path) else other
-        for other in theirs
-        for path in mine
-        if parse.covers((other,), path) or parse.covers((path,), other)
-    }
+    """The paths two lists share: two paths are shared when one covers the other, and the one
+    named is the path that is covered, a file and not its directory."""
+    return _covered(mine, theirs) | _covered(theirs, mine)
 
 
 def meet(one: claims.Held, other: claims.Held) -> tuple[list[str], str]:
