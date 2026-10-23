@@ -1,8 +1,8 @@
 # The lines of a checkout
 
 This page is for working on jstack, in a checkout of its repo.
-In a checkout, `sh install.sh` runs the install and takes the same flags as `jinstall`: `sh install.sh --doctor`, `--check`, `--setup`, `--repo [<path>]` and `--uninstall`.
-Wherever another troubleshooting page says to run `jinstall`, a checkout runs `sh install.sh` with the same flag.
+In a checkout, `sh install.sh` runs the install and takes the verbs of `jinstall`: `sh install.sh --doctor`, `--check`, `--setup`, `--repo [<path>]` and `--uninstall`.
+Wherever another troubleshooting page says to run `jinstall`, a checkout runs `sh install.sh` with the same verb.
 The lines below print only in a checkout.
 [Contributing](../../../../CONTRIBUTING.md) has the setup.
 
