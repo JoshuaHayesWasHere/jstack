@@ -168,9 +168,9 @@ def test_a_jmerge_line_about_a_row_s_pull_request_is_its_why_until_the_next_line
         {
             "at": at(1),
             "event": "jmerge",
-            "line": "hold 7 https://github.com/o/r/pull/7: needs JoshuaHayesWasHere, touches x",
+            "line": "hold 7 https://example.test/o/r/pull/7: needs JoshuaHayesWasHere, touches x",
         },
-        {"at": at(2), "event": "jmerge", "line": "wait 8 https://github.com/o/r/pull/8: draft"},
+        {"at": at(2), "event": "jmerge", "line": "wait 8 https://example.test/o/r/pull/8: draft"},
         changed(3, line("e", "merged", pr="#7")),
     ]
     (row,) = rows.walk("demo", events, START + timedelta(hours=4))
@@ -380,7 +380,7 @@ def test_it_writes_nothing_under_the_state(monkeypatch, tmp_path):
     assert after == before
 
 
-SECRET = "https://hooks.example.test/hidden-path-of-the-hook"
+SECRET = "https://example.test/hidden-path-of-the-hook"
 
 
 def test_a_secret_of_the_config_never_reaches_the_output(monkeypatch, tmp_path):
@@ -414,7 +414,7 @@ def test_a_secret_of_the_config_never_reaches_the_output(monkeypatch, tmp_path):
         config=config,
     )
     assert code == 0 and "wake failed demo: the webhook" in said
-    assert "hidden-path" not in said and "hooks.example.test" not in said
+    assert "hidden-path" not in said and "example.test" not in said
 
 
 def test_a_journal_file_that_cannot_be_read_is_refused(monkeypatch, tmp_path):

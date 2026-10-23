@@ -28,6 +28,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from jmerge import lines
+
 WORKING = frozenset({"launched", "running"})
 ENDED = frozenset({"merged", "done"})
 WORK = "work"
@@ -75,7 +77,6 @@ RULES = tuple(
     )
 )
 DROPPED = re.compile(r"\brow (\S+) was removed\b")
-JMERGE = re.compile(r"^(wait|hold) (\d+) \S+: (.*)$")
 
 
 @dataclass(frozen=True)
@@ -203,11 +204,12 @@ def walk(project: str, events: Iterable[dict[str, Any]], until: datetime) -> lis
                 del last[found[1]]
             continue
         if event.get("event") == "jmerge":
-            said = JMERGE.match(str(event.get("line", "")))
-            slug = pulls.get(said[2], "") if said else ""
+            said = lines.one(str(event.get("line", "")))
+            waits = said is not None and said.word in ("wait", "hold") and bool(said.reason)
+            slug = pulls.get(str(said.number), "") if said and waits else ""
             if said and slug in last and last[slug][1].status == "pr":
                 close(slug, when)
-                last[slug] = when, replace(last[slug][1], why=f"{said[1]}: {said[3]}")
+                last[slug] = when, replace(last[slug][1], why=f"{said.word}: {said.reason}")
             continue
         if event.get("event") != "queue":
             continue
