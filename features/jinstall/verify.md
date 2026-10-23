@@ -46,7 +46,8 @@ Tests: none
 - `install-layouts` assembles one layout for each harness, whose skill files link to their files in the checkout, with `templates/` and `playbooks/` beside `skills/`.
 - `install-points-here` points each skill link and hook command into its own harness's layout, and each unit into the checkout's `templates/`.
 - `install-from-a-wheel` does the same with `jinstall` from a wheel, in a HOME with no checkout, with every layout file a link into the installed wheel.
-- `release-setup-pstack` runs `/setup-pstack`'s block on a release that the dist `install.sh` installed, which runs `jinstall --setup` and `--doctor` and prints `release: <jinstall>`.
+- `release-setup-pstack` runs `/setup-pstack`'s block on a release that the dist `install.sh` installed.
+  The block runs `jinstall --setup` and `--doctor` and prints `release: <jinstall>`.
 - `repo-git-hooks`, on a release with no checkout, links jleak's `pre-push` and `commit-msg` into a scratch repo with `jinstall --repo`, strips an AI trailer from a commit there, and leaves a repo's own hook as it is.
 - `install-idempotent` changes nothing on a second run.
 - `install-stale-tool` says `stale` of a tool whose editable paths lack a package that the root pyproject.toml lists, such as a tool built before a package moved.
@@ -112,7 +113,8 @@ To check the checkout's own skills, clone the repo inside the sandbox's HOME:
   Run `record project-skills sh -c 'readlink -f .claude/skills/verify-jstack/SKILL.md .claude/skills/verify-main-red/SKILL.md .cursor/skills/verify-jstack/SKILL.md'`.
   It prints the path of each skill's `SKILL.md` in its feature's folder.
 - **See git track none of it.**
-  `record project-skills git ls-files .claude .cursor` prints nothing, and `git status --short --ignored .claude .cursor` prints `!! .claude/` and `!! .cursor/`.
+  Run `record project-skills git ls-files .claude .cursor`, which prints nothing.
+  Then `git status --short --ignored .claude .cursor` prints `!! .claude/` and `!! .cursor/`.
 
 To install from a wheel, use a second sandbox, so that no checkout is above its HOME or its tool:
 
@@ -132,16 +134,17 @@ To install from a release's own `install.sh`, as a new user does, use a fourth s
   Export `JSTACK_RELEASE_URL=http://127.0.0.1:<port>`.
 - **Install the release.**
   Run `PATH="$HOME/.local/bin:$PATH" record release sh -c "curl -fsSL $JSTACK_RELEASE_URL/install.sh | sh"`.
-  Every line is `done` or `already`, except for the `needs you` lines of what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
+  Every line is `done` or `already`, except for the `needs you` lines for what a sandbox lacks (`t3`, `gh sign-in`, `state repo`, `provider inventory`), so it exits 1.
 - **Run `/setup-pstack`'s block.**
   Take the one `sh` block of `$HOME/.claude/skills/setup-pstack/SKILL.md` and run it with `$HOME/.local/bin` first on PATH.
   Its first line is `release: <HOME>/.local/bin/jinstall`, then the setup's lines, `setup: <n> done, <n> already, 4 needs you, exit 1`, and the doctor's last line.
-- **Set a scratch repo up.**
+- **Set up a scratch repo.**
   Run `git init -q -b main "$HOME/repos/scratch"`, then `jinstall --repo` in it.
   It prints `ok optional hook <repo>/.git/hooks/pre-push pre-push` and the same for `commit-msg`, and each hook links into `"$UV_TOOL_DIR"/jstack/share/jstack/features/jleak/hooks/`.
 - **Commit an AI trailer.**
-  Write the message to a file with `printf`, building the trailer's key from two words so the harness's own hook does not refuse the command, and run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone.
-  Then git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
+  Write the message to a file with `printf`, and build the trailer's key from two words so that the harness's own hook does not refuse the command.
+  Run `git commit --allow-empty -F <file>` with a PATH of `git` and `readlink` alone.
+  git prints `jleak: took out of the commit message: ...`, and `git log -1 --format=%B` has no trailer.
 - **See a hook gone.**
   Remove the repo's `commit-msg`, then run `jinstall --check` and `jinstall --doctor`.
   Each prints `missing optional hook <repo>/.git/hooks/commit-msg commit-msg`.
