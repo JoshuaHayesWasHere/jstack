@@ -212,3 +212,61 @@ def test_the_relay_health_check_counts_no_top_level_pair_while_wake_is_home(kitc
     assert not health.posts_to_relay(jbus.load())
     kitchen.config(project_wake="both", webhook_url=relay, webhook_key="k")
     assert health.posts_to_relay(jbus.load())
+
+
+def test_status_and_the_digest_show_the_last_sweep_whatever_the_wake(kitchen):
+    from jbus import digest, record
+
+    homed(kitchen, wake="home", project_wake=None)
+    config = jbus.load()
+    wake.Box(kitchen.state, config.project("demo")).swept("2026-10-23 ran", True)
+    assert record.status(config, NOW)["projects"]["demo"]["sweep"] == "2026-10-23 ran"
+    assert digest.build(config, now=NOW)["projects"]["demo"]["sweep"] == "2026-10-23 ran"
+
+
+def test_an_event_of_the_machine_reaches_the_home_thread_beside_the_top_level_webhook(kitchen):
+    from test_jbus_kitchen import KEY, Webhook
+
+    top = Webhook()
+    try:
+        homed(kitchen, project_wake="both", webhook_url=top.url + "/wake", webhook_key=KEY)
+        config = jbus.load()
+        box = wake.Box(kitchen.state, config.project("demo"), config.webhook)
+        box.send("", "alert", "alert: the machine's own", machine=True)
+        kitchen.poll(NOW)
+        assert any("alert: the machine's own" in one["message"] for one in wakes(kitchen))
+        assert any("alert: the machine's own" in json.dumps(post) for post in top.posts)
+    finally:
+        top.close()
+
+
+def test_with_wake_both_and_no_home_thread_the_webhook_s_post_counts_as_the_wake(kitchen):
+    kitchen.config(project_wake="both")
+    decide(kitchen)
+    said = kitchen.poll(NOW)
+    assert len(kitchen.webhook.posts) == 1
+    assert "woke demo: 1 events" in said
+    (decision,) = kitchen.events("decision")
+    assert decision["posted"] is not None
+
+
+@pytest.mark.parametrize("picked", ["home", "both"])
+def test_an_event_the_home_thread_took_shows_as_posted(kitchen, picked):
+    homed(kitchen, project_wake=picked)
+    kitchen.webhook.status = 400
+    kitchen.poll(NOW)
+    assert len(wakes(kitchen)) == 1
+    (decision,) = kitchen.events("decision")
+    assert decision["posted"] is not None
+
+
+def test_a_log_line_of_the_own_webhook_from_before_posted_home_still_counts(kitchen):
+    kitchen.config()
+    box = wake.Box(kitchen.state, jbus.load().project("demo"))
+    box.send("alpha", "decision", "decision alpha: which one?")
+    (made,) = jbus.read_json(kitchen.state / "outbox.json", [])
+    line = {"at": NOW.isoformat(), "posted_webhook": [wake._id(made)]}
+    with open(kitchen.state / wake.LOG, "a") as log:
+        log.write(json.dumps(line) + "\n")
+    (decision,) = kitchen.events("decision")
+    assert decision["posted"] == NOW.isoformat()

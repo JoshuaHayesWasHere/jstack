@@ -20,8 +20,9 @@ jbus cannot read the file, it does not treat the expiry that it finds as a renew
 
 The sign-in is the machine's, so jbus gives the reminder once, not once for each project. jbus
 queues the reminder in the box of the config's first project, as an event of the machine
-(`wake.Box.send`). Such an event waits for the top-level webhook alone, or the project's first
-route where it has none (`wake.Box.machine_route`), and that project's flush posts it. `jbus events`
+(`wake.Box.send`). Such an event waits for the project's home thread where its `wake` picks it, and
+for one webhook where its `wake` picks the webhook: the top-level one, or the project's own where
+the config has none (`wake.Box.machine_routes`). That project's flush posts it. `jbus events`
 of that project lists it.
 
 The `sign_in` line of each project in the status file is separate from the reminder, and
@@ -117,13 +118,14 @@ def plan(config: Config, now: datetime) -> str:
     if not config.projects:
         return "none: the config has no project to carry it"
     first_project = config.projects[0]
-    route = _box(config).machine_route
-    if route.top:
-        where = "the top-level webhook"
-    elif route.home:
-        where = f"the home thread of {first_project.name}"
-    else:
-        where = f"the webhook of {first_project.name}"
+    where = " and ".join(
+        "the top-level webhook"
+        if route.top
+        else f"the home thread of {first_project.name}"
+        if route.home
+        else f"the webhook of {first_project.name}"
+        for route in _box(config).machine_routes
+    )
     stamp = config.user.stamp(expires)
     if now >= expires:
         return f"{KIND} to {where}: it ran out at {stamp}, run jbus t3 login"
