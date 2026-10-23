@@ -52,6 +52,7 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         "/steer",
         "/steer?project=",
         "/task/",
+        "/usage",
     ]
     assert sorted(set(re.findall(r'ask\("(/[^"]*)"', page))) == asks
     assert "fetch(path," in page and page.count("fetch(") == 1
