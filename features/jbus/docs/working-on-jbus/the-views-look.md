@@ -13,6 +13,8 @@ Amber (`due`) is what waits on you, and red (`missed`) is what broke.
 The page shows who holds a task by a shape and a name, not by a colour, and draws nothing healthy or merged in green.
 `features/jbus/tests/test_view_tokens.py` holds each token to WCAG 2.2 AA in both themes: text at 4.5:1 on every background, and a control's border and the focus ring at 3:1.
 
-The text is set in Atkinson Hyperlegible Next, one variable font the view serves itself at `/font.woff2` (`font-src 'self'`, and no other host), with its licence beside it in `features/jbus/src/jbus/view/OFL.txt`.
+The text is set in Atkinson Hyperlegible Next, one variable font that the view serves itself at `/font.woff2`.
+The page's policy is `font-src 'self'`, so it loads fonts from no other host.
+The font's licence is beside it, in `features/jbus/src/jbus/view/OFL.txt`.
 The sizes are 15 px for a caption, the smallest on the page, 18 for body text, 20 for a heading and 24 for a title.
 Mono is for slugs and commits.

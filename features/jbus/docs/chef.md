@@ -77,4 +77,5 @@ The request:
 {{body}}
 ```
 
-`{{body}}` is the JSON of the POST. T3 Code fills the placeholders in before the turn starts, and the thread sees the request through them alone.
+`{{body}}` is the JSON of the POST.
+T3 Code fills the placeholders in before the turn starts, and the placeholders are the only way the request reaches the thread.

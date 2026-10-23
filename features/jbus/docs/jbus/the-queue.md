@@ -177,7 +177,8 @@ The home decides whether the brief is really a follow-up, and you audit that cal
 - **The parent** is a row of the same queue, or one that was removed after it merged.
   It must have an approval of its own, by `--word`, `--answer`, `--message` or `--page`, or as the typed string of an older row.
   A parent that is no row gets `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with no approval gets `refused: <slug> cannot follow <parent>: <parent> has no approval`.
-  `approve` also refuses a rule approval for a row that another row already follows, since it would write over the word the follow-ups are based on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take the user's word for <slug>`.
+  `approve` also refuses a rule approval for a row that another row already follows.
+  Such an approval would write over the word that the follow-ups are based on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take the user's word for <slug>`.
   A chain is one step.
   A parent that was itself approved by rule gets `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take the user's word for <slug>`.
 

@@ -2,7 +2,7 @@
 
 `jbus` takes one verb.
 `--project <name>` goes before the verb, as in `jbus --project demo queue show`, and names a project of the config.
-Without it, `jbus gate`, `jbus answer`, `jbus done` and `jbus plan` speak for the project whose repo they are run in.
+Without it, `jbus gate`, `jbus answer`, `jbus done` and `jbus plan` act on the project whose repo they are run in.
 `jbus events`, `jbus t3 launch-test`, `jbus failover` and the `jbus queue` verbs take the config's one project, or, when the config has several, the one whose repo they are run in.
 
 Each verb that jbus's help lists is in one of the three tables below.
@@ -12,7 +12,7 @@ Each verb that jbus's help lists is in one of the three tables below.
 | Verb | What it does |
 |---|---|
 | `jbus status` | Prints what the last pass left: the status file and the record of the pass. |
-| `jbus events [--slug <slug>] [--since <time>]` | Prints the project's event log as JSON, one event a line, oldest first. `--slug` keeps the events of one slug, and `--since` those sent at or after a time. |
+| `jbus events [--slug <slug>] [--since <time>]` | Prints the project's event log as JSON, one event a line, oldest first. `--slug` keeps the events of one slug, and `--since` keeps those sent at or after a time. |
 | `jbus digest --json [--since <time>]` | Prints what waits and what moved over every project, as one JSON object. `--json` is required, since JSON is the one form there is. `--since` sets the time it counts merges from, and is a day ago when you do not give it. |
 | `jbus view [--port <port>]` | Serves the bus as a page. The page only reads, except for one write, your answer to a question. [The view](the-view.md) has the rest. |
 | `jbus queue show\|add\|approve\|hold\|remove\|apply\|verify` | Prints or changes the queue table, or prints a row's approval record. [The queue](the-queue.md) has each verb. |
