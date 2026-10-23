@@ -442,9 +442,8 @@ def main_red(found_runs: list[Run], found_rows: list[Row], merges: dict[str, dic
     their hours, and the pull requests that merged while it was red.
 
     A failed run that ended within `NO_JOB` of its start ran no job: GitHub started none, as on
-    a failed payment or a spent limit. Such a run turns main neither red nor green, and the time
-    from it to the next run that did run a job is counted as `no_job_hours`, CI that did not
-    run."""
+    a failed payment or a spent limit. Such a run turns main neither red nor green. The time
+    until the next run that did run a job is counted as `no_job_hours`, CI that did not run."""
     by_repo: defaultdict[str, list[Run]] = defaultdict(list)
     for run in found_runs:
         if run.event == "push" and run.branch == "main":
