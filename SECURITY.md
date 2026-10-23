@@ -10,5 +10,5 @@ Say what is affected, how to reproduce it, and what somebody could do with it.
 Reports cover the latest release and `main`.
 A fix goes into `main` and the next release, and no older release gets one.
 
-jstack is maintained by one person in spare time.
+One person maintains jstack in spare time.
 The maintainer promises no response time and no fix.
