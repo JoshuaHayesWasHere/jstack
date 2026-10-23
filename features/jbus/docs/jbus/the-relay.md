@@ -13,7 +13,7 @@ No other bot watches the homes or the queue.
 It listens on `127.0.0.1`, on `RELAY_PORT`, which is 4390 when it is not set.
 With a port of 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound.
 It sends each body posted to it on to the relay's webhook, `RELAY_WEBHOOK_URL`, with the key `RELAY_WEBHOOK_KEY`.
-It pages a second way when your chat bot is silent.
+When your chat bot is silent, it also pages you through the fallback pager.
 Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads.
 The install links `features/jbus/units/jbus-relay.service` on every machine, and enables and starts it only once that file holds every key the relay needs.
 With no file it leaves the unit off, and nothing alerts.
@@ -30,10 +30,10 @@ Remove it first, and `jinstall --check` says when it is gone.
 | `RELAY_TIMEOUT_SECONDS`, `RELAY_RETRY_SECONDS` | How long a POST may take, 15 seconds, and how long a route waits after one that failed, 300 seconds. |
 | `RELAY_DEDUP_SECONDS` | How long the relay keeps the hashed id of a sent body, so the same body is not sent again: 900 seconds. The relay keeps a body's own `id` permanently. |
 | `RELAY_SILENT_MINUTES` | How long without a body counts as silence, 90 minutes when it is not set. `jbus health` pages past it ([The health check](the-health-check.md)). One that is not a number stops the relay at start. |
-| `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE` | The fallback pager, a Home Assistant of yours: its address, a long-lived access token of it, and the `notify` service that pushes to the phone, such as `mobile_app_<phone>`. A page is `POST <url>/api/services/notify/<service>` with `Authorization: Bearer <token>`. |
+| `PAGER_HA_URL`, `PAGER_HA_TOKEN`, `PAGER_HA_SERVICE` | The fallback pager, a Home Assistant of yours: its address, a long-lived access token for it, and the `notify` service that pushes to the phone, such as `mobile_app_<phone>`. A page is `POST <url>/api/services/notify/<service>` with `Authorization: Bearer <token>`. |
 
-A key that is missing, empty or `REPLACE_ME`, the pager's included, stops the relay at start.
-The relay prints `relay: refused to start: <each such key and why>`, never a value, and exits 2, which the unit does not restart.
+A key that is missing, empty or `REPLACE_ME` stops the relay at start, and that includes the pager's keys.
+The relay prints `relay: refused to start: <each such key and why>`, never a value, and exits with code 2, which the unit does not restart.
 `systemctl --user status jbus-relay` then shows it failed.
 Nothing reads the `GATEKEEPER_WEBHOOK_URL` and `GATEKEEPER_WEBHOOK_KEY` of an older env file, since Gatekeeper is not a target.
 
@@ -76,9 +76,9 @@ The relay marks the items that body carried as seen, and answers 200 with `{"id"
 The relay answers 404 for an id that carried no item that is still open.
 Until your chat bot acknowledges a body, the relay pages every item of it that still blocks at 45 minutes.
 
-The config decides who posts to the relay: a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key.
+jbus posts to the relay only where the config names it, as a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key.
 Until one of them names the relay, jbus posts it nothing.
-`blocking_url` is the one that sends it what blocks (`waiting.blocking`).
+Through `blocking_url`, jbus posts the relay what blocks (`waiting.blocking`).
 
 ## Decisions from the chat
 
@@ -93,7 +93,7 @@ The body is one JSON object:
 | Field | What it is |
 |---|---|
 | `project`, `item` | The card's `project` and `item`: an item's id is its project's own, so both are named. |
-| `verb` | One of the card's `actions`: `approve`, `message` or `hold`. A hold is confirmed by the button that sent it. |
+| `verb` | One of the card's `actions`: `approve`, `message` or `hold`. The relay takes the button press that sent a hold as its confirmation. |
 | `words` | What was said: the message for `message`, why for `hold`, the user's words for `approve`. |
 | `by` | Who decided. It is the user (`user` in `~/.config/jstack/config.toml`), or the literal `Sous Chef` for a steer of the chat bot's own, whatever the chat bot's name is. |
 | `message` | The id or the link of the chat message where the user made the decision. A decision by the user with no `message` or no `words` gets 403. |
@@ -111,7 +111,7 @@ The relay answers with one of these:
 
 - 200 with `{"id", "item", "line"}`, the line written.
 - 400 for a body that lacks a field.
-- 403 for a `by` that is neither, or for the user with no message or words.
+- 403 for a `by` that is neither `Sous Chef` nor the user, or for a decision by the user that lacks `message` or `words`.
 - 404 for a project the config does not have.
 - 409 with `{"refused"}`, the sentence, for a decision jbus refuses.
 - 503 when the config cannot be read.

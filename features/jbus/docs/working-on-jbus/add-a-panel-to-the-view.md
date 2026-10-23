@@ -15,7 +15,8 @@ No other file names the panel.
 5. Set `FIRST = True` in `panel.py` only when the first screen needs the data.
    Without it the page asks `/panel/<name>.json` when the drawer opens.
 
-When the server reads a panel's data itself, the panel says so with `reads`, and its drawer's head then says the data is read now.
+When the server reads a panel's data itself, the panel says so with `reads`.
+The head of the panel's drawer then says that the server read the data at that request.
 
 An edit of `panel.js` is live on the next request, and the server restarts itself after an edit of `panel.py`.
 `features/jbus/src/jbus/view/panels/__init__.py` lists everything a panel may declare.

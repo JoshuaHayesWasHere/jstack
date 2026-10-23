@@ -205,8 +205,10 @@ The sha leaves out the `Home:`, `Thread:` and `Green main:` lines of the brief's
 They say whom the brief is sent to and where main last passed, not what it asks for.
 jbus keeps the stored brief whole, those lines included.
 A launch sends the brief without the three lines.
-It writes its own `Green main: <sha>` under the brief's first line, in the brief it sends and in the home's `tasks/<slug>.md`, for the crew to rebase onto where main is red.
-That sha is the last tip of main whose check passed, `green` in `main.json`, and there is no such line where none is known.
+It writes its own `Green main: <sha>` line under the brief's first line, both in the brief it sends and in the home's `tasks/<slug>.md`.
+The crew rebases onto that sha when main is red.
+The sha is the last tip of main whose check passed, `green` in `main.json`.
+When jbus knows no such tip, it writes no `Green main:` line.
 jbus also writes the launch's own `Thread:` line.
 
 ### What an approval is bound to
@@ -233,7 +235,8 @@ Each field is normalised in these steps:
 5. The value of `Size` is kept whole, lowercased and with its white space collapsed.
 6. The fields go in a fixed order, the six above as listed, each present even where the brief has none of it.
 
-Two fingerprints mean the same when each field has as many lines, and each approved line pairs with a line of the new brief whose exact tokens are the same and whose words are the same.
+Two fingerprints mean the same when each field has the same number of lines in both.
+Each approved line must also pair with a line of the new brief that has the same exact tokens and the same words.
 A word of five letters or more within two edits of the approved word counts as the same word, so a typo fixed keeps the go.
 So a typo, a change of formatting, punctuation or case, and lines put in another order keep the go.
 An edit only to the fields the fingerprint leaves out keeps it too.

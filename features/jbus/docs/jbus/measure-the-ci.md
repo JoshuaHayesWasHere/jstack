@@ -9,7 +9,10 @@ It keeps what it collects in two files in the project's state directory:
 
 - `ci.jsonl`, one line per job, written once.
   A second run adds no line it already has.
-  A line holds the run, job and attempt, the job's `name`, `sha`, `branch`, `pr`, `event`, `created`, `started` and `completed`, its `conclusion`, the `runner` and its `kind` (`hosted` or `local`, kept apart), and the failing `tests` and runner faults (`signs`) of a red job on the local runner.
+  A line holds the run, the job and the attempt.
+  It also holds the job's `name`, `sha`, `branch`, `pr`, `event`, `created`, `started`, `completed` and `conclusion`.
+  It names the `runner` and its `kind`, `hosted` or `local`, and the targets count the two kinds apart.
+  For a red job on the local runner, it lists the failing `tests` and the runner faults (`signs`).
   A job cancelled while it waited has no runner and no start, and `jbus ci` keeps it and counts it.
 - `ci-prs.jsonl`, one line per pull request, rewritten each run, with the times its branch was force-pushed.
 
@@ -35,7 +38,7 @@ Flaky tests reads a red job's failing tests from the log of a self-hosted job on
 | --- | --- | --- |
 | queue p50 under exec p50 | the wait is under the run | median minutes from `created` to `started`, against the median from `started` to `completed`, of green jobs. A job cancelled while it waited is in neither. |
 | wasted-minute share | under 15% | execution minutes of jobs that failed or were cancelled, over all execution minutes |
-| own-cause reds | over 70% | of the failed local jobs on a run's last attempt, the share that is the pull request's own. A red is `main` when main was red with the same failing tests when it started, `runner` when its log shows a runner fault and another branch fails the same tests, `flake` when no fault shows, else `own`. |
+| own-cause reds | over 70% | of the failed local jobs on a run's last attempt, the share that is the pull request's own. A red job is `main` when main was red with the same failing tests when the job started. It is `runner` when its log shows a runner fault and another branch fails the same tests, and `flake` when no fault shows. Any other red job is `own`. |
 | rebases per merged PR | under 0.3 | force-pushes of the branches of the pull requests merged in the period, over those pull requests |
 | staleness-only rebases | none | force-pushes whose cause was only that main had moved, read from the jbus event that came before them |
 | time-to-green p50 | under 15 min | median minutes from the first job on a merged pull request's final head to the last green one |

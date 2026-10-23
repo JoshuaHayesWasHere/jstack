@@ -95,7 +95,7 @@ There are three ways to close the gate:
 
 | You do | The button says | What jbus does |
 |---|---|---|
-| Nothing: the default is selected when the gate opens. | Accept the default | Closes the question. It sends nothing, because the thread already took the default. |
+| Nothing. The view selects the default when the gate opens. | Accept the default | Closes the question. It sends nothing, because the thread already took the default. |
 | Pick another card. | Send this option | Closes the question and sends the option's name to the thread that asked. |
 | Type in the box, with or without another card picked. | Send my words | Closes the question and sends the option's name, where you picked another, with your words after it. |
 
