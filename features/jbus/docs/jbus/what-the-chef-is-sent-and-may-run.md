@@ -5,7 +5,11 @@ This page is its contract: the body jbus POSTs to it, and the commands it may ru
 
 ## What it is sent
 
-`jbus` POSTs JSON to the project's `webhook_url`, at most once in five minutes, and only when an event for you waits. The Chef behind the top-level `webhook_url` is the monitor of every project: it gets every project's events for you, also those of a project that has a Chef of its own, each with its `project`. A project with no pair of its own has the top-level Chef alone:
+`jbus` POSTs JSON to the project's `webhook_url`, at most once in five minutes, and only when an event for you waits.
+The Chef behind the top-level `webhook_url` is the monitor of every project.
+It gets every project's events for you, each with its `project` field.
+That includes the events of a project that has a Chef of its own.
+A project with no `webhook_url` and `webhook_key` of its own has only the top-level Chef:
 
 ```json
 {
@@ -36,7 +40,7 @@ This page is its contract: the body jbus POSTs to it, and the commands it may ru
 | `events[].loud` | `user` or `quiet`. An event with `user` also has its own `say`. |
 
 [Events and the webhook](events-and-the-webhook.md) has the kinds at each level.
-A project's webhook is posted its `user` events, and nothing quiet.
+jbus posts a project's webhook its `user` events, and no quiet events.
 
 Each POST carries the project's `webhook_key` in two headers, `Authorization: Bearer <key>` and `X-Automation-Key: <key>`. Its `User-Agent` is `jbus`.
 
@@ -53,10 +57,17 @@ The Chef runs `jbus queue` and nothing else that changes state.
 | `jbus queue apply` | Runs a batch of those three verbs from stdin, all or none. |
 
 The Chef never approves by itself.
-An approval takes no name and no time: it names your own message, which jbus reads from T3 Code, or a word or an answer jbus keeps, and jbus writes who ran the command and when.
+The `approve` command above takes no name and no time.
+Instead it names your own message, which jbus reads from T3 Code, or a word or an answer that jbus keeps.
+jbus writes who ran the command and when.
 `--sha` ties the go to one text of the brief.
-One more basis, `--rule <n> --follows <parent slug>`, is not your word for the row: a home uses it for a follow-up to a row you approved. jbus refuses nobody by who runs it and records who did, so the Chef's own rule is what keeps it from using this basis.
-The row then says you did not speak of it, and the digest's `by_rule` counts those rows so the Chef can tell you.
+One more basis, `--rule <n> --follows <parent slug>`, is not your word for the row.
+A home uses it for a follow-up to a row you approved.
+jbus does not check who runs the command, and it records who did.
+So only the Chef's own rule keeps the Chef from using this basis.
+The row then records that you did not give your word for it, and the digest's `by_rule` counts those rows so the Chef can tell you.
 [The queue](the-queue.md) has the format of a batch.
 
-The Chef does not merge, does not run `jmerge --accept`, and does not edit a brief after your go. A pull request that `jmerge` holds is yours: the `waiting-on-user` line holds the command, and you run it.
+The Chef does not merge, does not run `jmerge --accept`, and does not edit a brief after your go.
+A pull request that `jmerge` holds is yours.
+The `waiting-on-user` line holds the command, and you run it.
