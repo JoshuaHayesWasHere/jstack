@@ -6,6 +6,7 @@ import re
 
 import pytest
 
+from jbus import alert
 from view.page.browser import (
     BROWSES,
     DESK,
@@ -19,7 +20,7 @@ from view.page.browser import (
     look,
     walked,
 )
-from view.scene import Served, a_noticed, said_by_him, stacked
+from view.scene import Served, a_noticed, ago, iso, said_by_him, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -266,6 +267,25 @@ def test_a_stopped_jbus_makes_every_project_row_red_with_its_reason(scene, tmp_p
     rows = seen["stack"]["rows"]
     assert [row["name"] for row in rows] == ["demo", "larder", "pantry"]
     assert all(row["why"].startswith("jbus stopped") and "bad" in row["dot"] for row in rows)
+
+
+def test_passes_that_fail_and_a_red_main_are_on_the_first_screen(scene, tmp_path):
+    """While passes raise, the header counts them where it said the last pass, and a red main
+    names its tip on its project's row, since when, as every red reason does."""
+    stacked(scene)
+    for project in ("demo", "pantry"):
+        scene.write("waiting-on-user.json", [], scene.state_dir / project)
+    streak = {"key": alert.PASS, "count": 3, "since": iso(ago(minutes=3)), "alerted": True}
+    scene.write("streaks.json", {alert.PASS: streak}, scene.state_dir)
+    red = "badc0de" + "1" * 33
+    scene.write("main.json", {"at": iso(ago(minutes=12)), "main": red, "check": "failed"})
+    seen = look(scene, tmp_path, route="#/")
+    clean(seen)
+    assert seen["needs"]["head"] == "Nothing needs you · 3 passes failed"
+    assert seen["header"]["machine"]["text"] == "3 passes failed"
+    rows = {row["name"]: row["why"] for row in seen["stack"]["rows"]}
+    assert re.fullmatch(r"main red badc0de since \d\d:\d\d", rows["demo"]), rows["demo"]
+    assert all(re.search(r"(since \d\d:\d\d|since not known)$", why) for why in rows.values())
 
 
 KIND_HEADINGS = (
