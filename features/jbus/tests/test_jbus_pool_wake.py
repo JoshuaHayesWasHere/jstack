@@ -167,3 +167,30 @@ def test_a_crew_that_waits_again_once_its_wait_is_due_has_a_new_wait_jbus_keeps(
     assert again.id != first.id
     waits.forget(waits.where(), {first.id})
     assert [one.id for one in waits.read(waits.where())] == [again.id]
+
+
+def about(said, thread):
+    return [line for line in said if thread in line]
+
+
+def test_a_crew_t3_code_no_longer_has_is_dropped_with_one_line(capped, capsys):
+    """T3 Code says `thread_not_found`, "is no longer available", for a thread it no longer has
+    (2026-10-23: jbus kept such a wait and logged it twice on every pass)."""
+    thread, _ = crew(capped, capsys)
+    capped.t3.threads.remove(next(t for t in capped.t3.threads if t["threadId"] == thread))
+    said = capped.poll(UNTIL + timedelta(minutes=1))
+    (line,) = about(said, thread)
+    assert "is gone" in line and "no longer available" in line
+    assert waits.read(waits.where()) == [] and sends(capped) == []
+    assert about(capped.poll(UNTIL + timedelta(minutes=3)), thread) == []
+
+
+def test_a_crew_t3_code_will_not_send_to_is_dropped_with_one_line(capped, capsys):
+    thread, _ = crew(capped, capsys)
+    capped.t3.lose_read = True
+    capped.t3.forgot.add(thread)
+    said = capped.poll(UNTIL + timedelta(minutes=1))
+    (line,) = [line for line in about(said, thread) if "is gone" in line]
+    assert "was not found" in line and not any("could not be told" in one for one in said)
+    assert waits.read(waits.where()) == [] and sends(capped) == []
+    assert about(capped.poll(UNTIL + timedelta(minutes=3)), thread) == []
