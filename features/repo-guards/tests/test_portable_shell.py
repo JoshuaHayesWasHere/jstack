@@ -3,12 +3,15 @@
 The guard reads every `sh` block of the Markdown under `features/` and every shell script in the
 tree, and fails on a GNU-only command or flag, with the form that works on both in its message.
 `bsd_tools` builds a PATH that has the real tools with these taken away, the one the crew's and
-the reviewer's tests start their checks on.
+the reviewer's tests start their checks on. Every `sh` block of every tracked .md that bash 5
+parses also parses under bash 3.2, the bash macOS runs as /bin/sh.
 """
 
 import os
 import re
+import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -297,3 +300,106 @@ def test_the_bsd_tools_refuse_the_gnu_forms_and_pass_the_rest(tmp_path):
     assert runs("setsid true").returncode == 127
     assert runs("date +%F").returncode == 0
     assert runs("perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' true").returncode == 0
+
+
+BASH3_IMAGE = "bash:3.2"
+
+
+def bash_version(bash):
+    """The major version of a bash, or 0 where it does not run."""
+    try:
+        said = subprocess.run(
+            [bash, "-c", "echo ${BASH_VERSINFO[0]}"], capture_output=True, text=True
+        )
+    except OSError:
+        return 0
+    return int(said.stdout.strip() or 0) if said.returncode == 0 else 0
+
+
+def bash5():
+    """A bash of version 4 or later: the one the blocks are first read with."""
+    for bash in (shutil.which("bash"), "/opt/homebrew/bin/bash", "/usr/local/bin/bash"):
+        if bash and bash_version(bash) >= 4:
+            return [bash]
+    return None
+
+
+def bash3(folder):
+    """A bash 3.2, the one macOS runs as /bin/sh, with `folder` where it reads it, or None:
+    macOS's own /bin/bash, else the `bash:3.2` image where docker already has it."""
+    if bash_version("/bin/bash") == 3:
+        return ["/bin/bash"], str(folder)
+    docker = shutil.which("docker")
+    if (
+        docker
+        and subprocess.run(
+            [docker, "image", "inspect", BASH3_IMAGE], capture_output=True
+        ).returncode
+        == 0
+    ):
+        return [docker, "run", "--rm", "-v", f"{folder}:/blocks:ro", BASH3_IMAGE, "bash"], "/blocks"
+    return None
+
+
+def tracked_blocks(root):
+    """Each `sh` block of each tracked .md, as `(path:line, text)`."""
+    listed = subprocess.run(
+        ["git", "-C", str(root), "ls-files", "-z", "*.md"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    for name in sorted(filter(None, listed.split("\0"))):
+        path = root / name
+        if not path.is_file():
+            continue
+        text = path.read_text()
+        for found in BLOCK.finditer(text):
+            yield f"{name}:{text.count(chr(10), 0, found.start(2)) + 1}", found.group(2)
+
+
+def unparsed(bash, folder):
+    """The names of the files in `folder` that `bash -n` refuses, read by one bash."""
+    command, inside = bash
+    loop = 'for f in "$1"/*; do "$BASH" -n "$f" 2> /dev/null || echo "${f##*/}"; done'
+    said = subprocess.run([*command, "-c", loop, "sh", inside], capture_output=True, text=True)
+    assert said.returncode == 0, said.stderr
+    return set(said.stdout.split())
+
+
+def unparsed_by_bash3(root, where):
+    """Each block bash 5 parses that bash 3.2 does not, as `path:line`."""
+    five, three = bash5(), bash3(where)
+    if five is None or three is None:
+        why = "needs a bash 4 or later and a bash 3.2 (macOS's /bin/bash, or docker's bash:3.2)"
+        if os.environ.get("CI") and sys.platform == "darwin":
+            pytest.fail(f"{why}: the macOS job is where this guard always runs")
+        pytest.skip(why)
+    where.mkdir(parents=True, exist_ok=True)
+    names = {}
+    for at, (name, text) in enumerate(tracked_blocks(root)):
+        names[f"{at:05}"] = name
+        (where / f"{at:05}").write_text(text)
+    refused = unparsed(three, where) - unparsed((five, str(where)), where)
+    return sorted(names[file] for file in refused)
+
+
+def test_every_block_bash_5_parses_parses_under_bash_3_2(tmp_path):
+    assert unparsed_by_bash3(REPO, tmp_path / "blocks") == []
+
+
+def test_a_heredoc_with_an_apostrophe_inside_a_command_substitution_is_found(tmp_path):
+    """bash 3.2 ends a quote at the apostrophe in the heredoc's body, where bash 5 reads the
+    body as text: the guard names that block and no other, and the same text with the heredoc
+    moved out of `$( )`, into a function the substitution calls, passes."""
+    repo = tmp_path / "repo"
+    skill = repo / "features" / "demo" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    planted = "said=$(cat << 'EOF'\nthe home's line\nEOF\n)\necho \"$said\"\n"
+    moved = "line() {\n    cat << 'EOF'\nthe home's line\nEOF\n}\nsaid=$(line)\necho \"$said\"\n"
+    skill.write_text(f"# demo\n\n```sh\necho one\n```\n\n```sh\n{planted}```\n")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    assert unparsed_by_bash3(repo, tmp_path / "planted") == ["features/demo/SKILL.md:8"]
+    skill.write_text(f"# demo\n\n```sh\necho one\n```\n\n```sh\n{moved}```\n")
+    assert unparsed_by_bash3(repo, tmp_path / "moved") == []

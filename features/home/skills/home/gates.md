@@ -73,12 +73,14 @@ It prints nothing. `$P` is this repo's project in jbus's config, and `$OPEN` the
 ```sh
 : "${SEP:?run the block that reads jbus first}"
 slug='own'
-gate=$(cat << 'THE_GATE_ENDS_HERE'
+the_gate() {
+    cat << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>
 Option: <an option's short name> (default, recommended): <what follows from it>
 THE_GATE_ENDS_HERE
-)
+}
+gate=$(the_gate)
 if [ "$slug" = own ]; then
     slug=$own
     gate=$(printf '%s\n' "$gate" | sed "s/^Asked by: [^,]*/Asked by: $own/")
@@ -226,10 +228,12 @@ n='<number>'
 by="<the user's name>"
 at='<YYYY-MM-DD HH:MM ZONE>'
 which='<default or differs>'
-ANSWER=$(paste -sd ' ' - << 'THE_ANSWER_ENDS_HERE'
+the_answer() {
+    paste -sd ' ' - << 'THE_ANSWER_ENDS_HERE'
 <the user's answer, in their words>
 THE_ANSWER_ENDS_HERE
-)
+}
+ANSWER=$(the_answer)
 case $which in
 default | differs)
     if ! command -v jbus > /dev/null; then
