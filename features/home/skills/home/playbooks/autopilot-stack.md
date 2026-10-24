@@ -19,7 +19,10 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 5. Add the next link only on a verified one (`principles/principle-sequence-verifiable-units.md`). When a link's `fixed and green` line arrives, read its brief: a `## Review`, and a clean verdict or a `Fixed:` line. Then launch the link above it with the call of "A stack the user lands", from its parent's branch, after `room` says `go`. One link at a time, and never one on a parent that is not fixed and green.
 6. Work each message as "When a thread sends a message" says, and each tick as "One tick" says. You read no diff and judge no change (`principles/principle-prove-it-works.md`). A link that stopped is picked up with `playbooks/session-pickup.md`, and nothing above it launches meanwhile. A link's crewmate never rebases for a conflict by itself: on its line that it has one, send it the line of "A link with a conflict" there, then the links above it, bottom up.
 7. On the user's stop, stop at once. Launch nothing, send every thread out one line to write and push nothing more, delete the audit if one is kept, and tell the user which threads were told.
-8. Deliver the stack when its top link is fixed and green. Run the merge step of "Merging a pull request that is ready" with `flags='--check --land <name>'`: the bottom link prints `ready`, and each one above it waits on its base. Tell the user the name, each link from the bottom up with its pull request and its verdict, what is parked or left out and why, and that it lands on their word, "land <name>". Then stop: the landing is `playbooks/shipping.md`, and it starts with that word.
+8. Deliver the stack when its top link is fixed and green.
+   Run the merge step of "Merging a pull request that is ready" with `flags='--check --land <name>'`: the bottom link prints `ready`, and each one above it waits on its base.
+   End the turn with `decision local <name>:`, each link from the bottom up with its pull request and verdict, what is parked or left out and why, and that it lands on "land <name>".
+   Then stop: the landing is `playbooks/shipping.md`, and it starts with that word.
 
 Never done here, and who does it:
 

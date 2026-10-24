@@ -98,11 +98,11 @@ On `asked: already answered: question <number>:` nothing was asked: an earlier q
 If that answer does not settle this one, word the question so that it says what is new, and run it again.
 On `not asked: jbus said: not sent:` or `jbus said: refused:`, jbus names what the gate lacks, checked against `$T/gates.md`: a first line that is not `## Gate <n>: ` and the question, more than one gate, no `Status: open` line, a line of the template left unfilled, a default that is not the recommended option, a `Holds:` line with no fail-safe or a case not in the table.
 Mend that line and run it again.
-On any other `not asked`, jbus holds nothing: put the question to the user in this thread, in two lines, with the default taken.
+On any other `not asked`, jbus holds nothing: end the turn with `decision local <slug>: ` and then the question and the default taken ("How a turn ends").
 
 The same block hands jbus a gate another thread wrote out in full, the lines of a gate under "Noticed" in a Result or "Findings" in a Report: run it with that thread's slug in place of `own` and those lines as the entry. On `asked:`, jbus holds it, or held it already, and it asks nothing more here. On `not asked`, it is one jbus could not take: the end of this section says what to do with it.
 
-**Show the open ones** in the start's summary, when the user asks for status, and when nothing is left planned or out:
+**Show the open ones** when the user asks for status, and at no other time: a question jbus holds is told once, at the end of the turn that asked it or that jbus's wake brought it in ("How a turn ends"), and is on jbus's list of what waits on the user from then on:
 
 ```sh
 : "${SEP:?run the block that reads jbus first}"

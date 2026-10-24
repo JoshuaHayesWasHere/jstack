@@ -20,10 +20,15 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
    A thread is judged by its side effects (a line in its brief, a push to its branch), not by its state or what it says of itself (`principles/principle-prove-it-works.md`).
    One printed as `stuck` is picked up with the playbook `session-pickup` when it is neither `running` nor `waiting`.
    A stall drops nothing: its entry stays in the queue.
-   A tick that changed something ends by catching the user up on that alone, per `skills/ketchup/SKILL.md`.
+   A tick ends by "How a turn ends", like any other turn.
    A tick that changed nothing ends with no reply.
 6. On the user's stop, stop at once. Send every thread out one line with `t3_thread_send`: write nothing more, push nothing, and wait for a word. Launch nothing, delete the audit as "A home that hands off" does, and tell the user which threads were told. The threads keep their briefs and their worktrees until the user releases them.
-7. Close when the first block of "A queue and its hourly audit" prints `delete`: every entry is done. Delete the audit and run the keep block with nothing. Run `jmerge` and the sweep once more. Then account for every entry by its line in `$H/merge.log`, not from memory (`principles/principle-outcome-oriented-execution.md`): merged, with its pull request and commit, or left, with the reason. Take the `Playbook:` line out of the plan's head, and show the open gates.
+7. Close when the first block of "A queue and its hourly audit" prints `delete`: every entry is done.
+   Delete the audit and run the keep block with nothing.
+   Run `jmerge` and the sweep once more.
+   Then account for every entry by its line in `$H/merge.log`, not from memory (`principles/principle-outcome-oriented-execution.md`): merged, with its pull request and commit, or left, with the reason.
+   Its lines are told on status.
+   Take the `Playbook:` line out of the plan's head.
 
 Never done here, and who does it:
 

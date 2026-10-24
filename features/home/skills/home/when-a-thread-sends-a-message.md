@@ -6,7 +6,7 @@ The threads this home sent out write what they did to disk: a crewmate its `## R
 |---|---|---|---|
 | `<slug>: <pull request url> at <head> is fixed and green` | a crewmate | its pull request is reviewed, the findings are handled, and every check has passed | `home merges` |
 | the task ended with no pull request | a crewmate | it wrote a Result that names none | both |
-| `<slug>: <pull request url> at <head> is green and has no review` | a crewmate | every check has passed and no reviewer will come: the brief says `Review: none`, or the session could launch none. It is never ready, so tell the user it waits for their word | `home merges`; on `jbus merges` it is a gate |
+| `<slug>: <pull request url> at <head> is green and has no review` | a crewmate | every check has passed and no reviewer will come: the brief says `Review: none`, or the session could launch none. It is never ready, so end the turn with `decision local <slug>: ` and that it waits for their word ("How a turn ends") | `home merges`; on `jbus merges` it is a gate |
 | the report is written | a scout | at its End, once, and once more only if a page's feedback changed the report | both |
 | a review's findings | a reviewer | only when the brief has no `Thread:` line to send them to | both |
 | `<slug>: <pull request url> has a conflict, and it is a link of a stack` | a crewmate | GitHub reports a conflict on a link, which its crewmate never rebases by itself: send it the line of "A stack the user lands" | `home merges`; on `jbus merges` it is a gate |
@@ -84,11 +84,24 @@ On each message, do this without waiting for a word from the user.
    ```
 
    It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. A scout's request, in `scouts/` with no brief in `tasks/`, gets `go` alone. On a `wait:` line that says the task has no line, its brief is not on disk yet: write it ("Handing a task to a crewmate" step 1), then run the check again. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
-4. Tell the user in a few lines, here: what landed, what was merged, what was launched with its link, what was parked, and what waits and why. When nothing is left planned or out, say that the planned work is done and show the open questions ("Gates").
+4. End the turn by "How a turn ends": what landed, what was merged, what was launched with its link, what was parked, and what waits and why are its lines, and the user hears only a decision or a stop among them.
+   When nothing is left planned or out, that is a `handled:` line, told with the open questions when the user asks for status ("Gates").
 
 If a result says the task is not done, the fix is a new message from the user in the crewmate's own thread, or a new brief. The home does not take the task over.
 
-When the user asks for status, run the merge step of "Merging a pull request that is ready" and relay what it printed, and for a brief with no result yet, one `t3_thread_list` call gives the state of the crewmates still out: `running`, `waiting` (it is at one of the four pauses and has asked in its own thread), `failed` or `interrupted`. Report that state with the thread's link. No message brought what finished since: run the block of step 4 of "When a home starts" and read the last result of each brief it prints that this thread has not read. Then run the block of "Show the open ones" ("Gates") and show what it prints. The root home then runs the block of "Scoped homes" that reads the scopes. Do not read a crewmate's timeline unless the user asks what it is doing.
+When the user asks for status, run the merge step of "Merging a pull request that is ready" and relay what it printed, and for a brief with no result yet, one `t3_thread_list` call gives the state of the crewmates still out: `running`, `waiting` (it is at one of the four pauses and has asked in its own thread), `failed` or `interrupted`.
+Report that state with the thread's link.
+No message brought what finished since: run the block of step 4 of "When a home starts" and read the last result of each brief it prints that this thread has not read.
+Then run the block of "Show the open ones" ("Gates") and show what it prints.
+Then show each `local` decision or stop this home told and nothing has ended yet ("How a turn ends"), with the block at the top and the block that finds this home:
+
+```sh
+grep -E '^(decision|stop) local ' "${M:?run the block that finds this home first}/told" 2> /dev/null ||
+    echo "no local decision or stop is open"
+```
+
+The root home then runs the block of "Scoped homes" that reads the scopes.
+Do not read a crewmate's timeline unless the user asks what it is doing.
 
 Once a week the root home's status also says where changes collide. Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines or changed the patch) and stamps the run, and otherwise it prints nothing. Show what it prints. A file high in all three is one to split, and never a reason to hold a launch.
 
