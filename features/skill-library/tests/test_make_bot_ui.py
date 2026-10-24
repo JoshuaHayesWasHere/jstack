@@ -23,6 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from test_tool_calls import CALLS, errors
+from testing import loopback
 from testing.paths import REPO
 
 SCRIPT = REPO / "features" / "skill-library" / "skills" / "make-bot-ui" / "scripts" / "bot_ui.py"
@@ -122,7 +123,7 @@ def stand_in():
 
 
 @pytest.mark.timeout(60)
-def test_the_server_posts_signed_once_in_time_logs_a_failure_and_binds_two_addresses(
+def test_the_server_posts_signed_once_in_time_logs_a_failure_and_never_binds_every_address(
     tmp_path, stand_in
 ):
     config = tmp_path / "ui" / "config.json"
@@ -141,15 +142,13 @@ def test_the_server_posts_signed_once_in_time_logs_a_failure_and_binds_two_addre
     assert not reaches("127.0.0.1", port)
     server = subprocess.Popen(
         ["uv", "run", "--script", str(SCRIPT), "serve", str(config), "--page", str(page)]
-        + ["--port", str(port), "--host", "127.0.0.2"],
+        + ["--port", str(port)],
     )
     try:
         deadline = time.monotonic() + 10
         while not reaches("127.0.0.1", port) and time.monotonic() < deadline:
             time.sleep(0.1)
-        assert reaches("127.0.0.1", port) and reaches("127.0.0.2", port)
-        assert not reaches("127.0.0.3", port), "it listens on every address"
-        own = f"127.0.0.2:{port}"
+        own = f"127.0.0.1:{port}"
         press = json.dumps({"action": "deploy"}).encode()
         foreign = urllib.request.Request(
             f"http://{own}/send", data=press, headers={"Origin": "http://evil.example"}
@@ -193,9 +192,36 @@ def test_the_server_posts_signed_once_in_time_logs_a_failure_and_binds_two_addre
 
 
 @pytest.mark.timeout(60)
+def test_the_server_binds_the_address_it_is_given_and_answers_its_own_page_there(tmp_path):
+    second = loopback.second()
+    config = tmp_path / "ui" / "config.json"
+    assert run("key", config).returncode == 0
+    page = tmp_path / "page"
+    page.mkdir()
+    (page / "index.html").write_text("<button>deploy</button>")
+    port = free_port()
+    server = subprocess.Popen(
+        ["uv", "run", "--script", str(SCRIPT), "serve", str(config), "--page", str(page)]
+        + ["--port", str(port), "--host", second],
+    )
+    try:
+        deadline = time.monotonic() + 10
+        while not reaches(second, port) and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert reaches("127.0.0.1", port) and reaches(second, port)
+        assert not reaches("127.0.0.3", port), "it listens on every address"
+        with urllib.request.urlopen(f"http://{second}:{port}/", timeout=5) as answer:
+            assert b"deploy" in answer.read()
+    finally:
+        server.terminate()
+        server.wait()
+
+
+@pytest.mark.timeout(60)
 def test_the_server_listens_on_both_addresses_at_once_however_slow_a_reverse_lookup_is(tmp_path):
     """On a runner whose DNS was slow to answer for 127.0.0.2, the server listened on 127.0.0.1
     and not yet on 127.0.0.2: `HTTPServer` looks up a name for each address it binds."""
+    second = loopback.second()
     config = tmp_path / "ui" / "config.json"
     assert run("key", config).returncode == 0
     page = tmp_path / "page"
@@ -212,14 +238,14 @@ def test_the_server_listens_on_both_addresses_at_once_however_slow_a_reverse_loo
     port = free_port()
     server = subprocess.Popen(
         ["uv", "run", "--script", str(SCRIPT), "serve", str(config), "--page", str(page)]
-        + ["--port", str(port), "--host", "127.0.0.2"],
+        + ["--port", str(port), "--host", second],
         env={**os.environ, "PYTHONPATH": str(slow)},
     )
     try:
         deadline = time.monotonic() + 20
         while not reaches("127.0.0.1", port) and time.monotonic() < deadline:
             time.sleep(0.1)
-        assert reaches("127.0.0.1", port) and reaches("127.0.0.2", port)
+        assert reaches("127.0.0.1", port) and reaches(second, port)
     finally:
         server.terminate()
         server.wait()
