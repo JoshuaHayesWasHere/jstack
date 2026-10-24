@@ -597,7 +597,7 @@
     var rows = [], batch = {};
     STACK.needs.forEach(function (w) {
       var row = { key: w.project + "/" + w.key, subj: w.subj || w.what, what: w.what, where: homePath(w.project, w.home), since: w.since, verb: w.verb, href: linkOf(w.open) };
-      if (w.verb.indexOf("Approve") !== 0) { rows.push(row); return; }
+      if (w.kind !== "approve") { rows.push(row); return; }
       var k = w.project + "/" + w.kind;
       if (batch[k]) { batch[k].push(w); return; }
       row.batch = batch[k] = [w];
@@ -611,7 +611,7 @@
       r.what = listed(b.map(function (w) { return w.subj || w.what; }));
       r.where = b[0].project;
       r.verb = "Approve " + b.length;
-      if (b[0].kind === "approve") r.href = href(b[0].project, "you:approve");
+      r.href = href(b[0].project, "you:approve");
     });
     return rows;
   }
@@ -637,7 +637,7 @@
     var soon = STACK.proceeds;
     if (!soon.length) return "";
     var due = soon.map(function (w) { return ms(w.due); }).filter(function (v) { return v != null; }), first = due.length ? Math.min.apply(null, due) : null;
-    return '<p class="tail"><a href="' + esc(linkOf(soon[0].open)) + '">' + soon.length + ' take their default if you say nothing' + (first == null ? "" : ", the first at " + hm(first)) + ' &rsaquo;</a></p>';
+    return '<p class="tail"><a href="' + esc(linkOf(soon[0].open)) + '">' + (soon.length === 1 ? "1 takes its default" : soon.length + " take their default") + ' if you say nothing' + (first == null ? "" : ", the first at " + hm(first)) + ' &rsaquo;</a></p>';
   }
   function calmLine(mine, wrong) {
     var open = 0, merged = 0, out = 0;
