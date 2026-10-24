@@ -36,7 +36,7 @@ for tool in jbus jmerge jgauge jbriefs; do
 done
 pid=$(cat "$S/t3/pid" 2>/dev/null)
 is "the stand-in for T3 Code is the process this sandbox started (pid $pid)" \
-  'tr "\0" " " < "/proc/$pid/cmdline" | grep -qF "fake_t3.py $S/t3"'
+  'ps -ww -o command= -p "$pid" | grep -qF "fake_t3.py $S/t3"'
 is "it answers at $VERIFY_JSTACK_URL for this sandbox" \
   'curl -fsS "$VERIFY_JSTACK_URL/health" | grep -qF "$S/t3"'
 is "jbus reads the sandbox's config: project demo" \
