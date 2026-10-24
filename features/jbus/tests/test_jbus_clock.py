@@ -157,3 +157,62 @@ def test_a_reviewer_whose_thread_is_gone_is_not_asked_again_and_the_home_gets_th
     assert len([one for one in sends(kitchen) if one["threadId"] == reviewer["threadId"]]) == len(
         tried
     )
+
+
+def test_a_second_reviewer_at_the_same_head_gets_its_own_line_after_the_first_was_relaunched(
+    short, kitchen
+):
+    first = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    result = f"Reviewer: {first['threadId']} #1\n"
+    short.out(NO_REVIEW, result=result, review=False)
+    short.passes(N)
+    assert len(to(kitchen, first)) == 1
+    second = kitchen.t3.thread("alpha", "completed", title="review: alpha, second pass")
+    twice = ready.TWICE_UNWRITTEN.format(head=short.head[:12])
+    short.out(twice, result=result + f"Second reviewer: {second['threadId']} #1\n")
+    said = short.passes(N)
+    (again,) = to(kitchen, second)
+    assert again == "/pr-review run alpha again"
+    assert any(one.endswith(second["threadId"]) and "relaunched" in one for one in said)
+
+
+def test_a_decline_the_scoped_review_did_not_uphold_waits_on_the_crew_not_the_reviewer(
+    short, kitchen
+):
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha, scoped")
+    owed = f"Scoped review: needed since {short.saw}, the fix changed a.py\n"
+    result = owed + short.rebased() + f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n"
+    short.out(ready.DECLINES_OVERRULED.format(ruled="F1"), result=result)
+    short.passes(3 * N)
+    assert to(kitchen, reviewer) == []
+
+
+@pytest.mark.parametrize(
+    "reason",
+    [
+        ready.NO_VERDICT,
+        ready.SECOND_UNWRITTEN,
+        ready.DECLINES_UNRULED.format(ids="F1, F2"),
+        ready.SCOPED_UNRULED.format(files="a.py"),
+    ],
+)
+def test_each_wait_on_a_reviewer_jmerge_gives_has_a_clock(reason, short, kitchen):
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(reason, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
+    short.passes(N)
+    assert len(sends(kitchen)) >= 1
+    assert any(one["clientRequestId"].startswith("clock|alpha|") for one in sends(kitchen))
+
+
+def test_a_home_t3_code_refuses_the_line_is_one_quiet_stall_and_the_wait_is_not_dropped(
+    short, kitchen
+):
+    desk = home(kitchen)
+    kitchen.t3.forgot.add(desk["threadId"])
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
+    said = short.passes(3 * N)
+    assert not any("told its home" in one for one in said)
+    (stall,) = [one for one in kitchen.lines("stall") if one.startswith("stall alpha: #7 waited")]
+    assert "refused its home" in stall and desk["threadId"] in stall
+    assert loud(kitchen) == [] and gates(kitchen) == []

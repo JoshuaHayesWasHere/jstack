@@ -156,6 +156,21 @@ def test_with_a_home_a_third_end_is_one_line_to_the_home_and_no_gate(kitchen):
     assert len(sends(kitchen)) == 3 and gates(kitchen) == []
 
 
+def test_a_third_end_whose_home_t3_code_refuses_the_line_is_one_gate(kitchen):
+    thread = crew(kitchen)
+    desk = home(kitchen)
+    kitchen.t3.forgot.add(desk["threadId"])
+    kitchen.poll()
+    thread.update(status="cancelled", latestRunId="run-2")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    thread.update(status="failed", latestRunId="run-3")
+    for minutes in (6, 9, 12):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    tried = [one for one in kitchen.t3.calls if one[1].get("threadId") == desk["threadId"]]
+    assert len([one for one in tried if one[0] == "t3_thread_send"]) == 1
+    assert gates(kitchen) == ["condition alpha: thread ended failed after two carry-ons"]
+
+
 def test_a_new_thread_for_the_slug_starts_its_own_count(kitchen):
     thread = crew(kitchen)
     kitchen.poll()

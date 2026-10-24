@@ -23,9 +23,10 @@ At `PASSES` such passes jbus acts once by itself. It sends a reviewer its line a
 `t3_thread_send`: `/pr-review run <slug> again`, or the scoped line with its two ranges, alone,
 since the reviewer's Start reads the line as its message. It sends a crew one carry-on that names
 the wait. The count starts again. At `PASSES` more, the second miss, jbus sends the brief's home
-one line and owns the wait no longer. With no home it logs one quiet `stall` instead. Neither goes
-to the user. A turn that hangs is counted as stopped, and jbus does not interrupt it: interrupting
-a hung turn waits on the user's own rule for it (jv-hung-interrupt), so the home picks it up.
+one line and owns the wait no longer. With no home, or a home T3 Code refuses the line, it logs
+one quiet `stall` instead. Neither goes to the user. A turn that hangs is counted as stopped, and
+jbus does not interrupt it: interrupting a hung turn waits on the user's own rule for it
+(jv-hung-interrupt), so the home picks it up.
 
 A new head or a new class starts a new clock, and a slug that waits no more drops its clock. A pass
 in which `jmerge` failed, or that could not list the threads, counts nothing and keeps the clocks.
@@ -51,17 +52,14 @@ STALL = "stall"
 FILE = "clock.json"
 PASSES = 10
 AT_WORK = ("moving", "quiet", "waiting")
+FIXES = (ready.FIX_UNREVIEWED, ready.DECLINES_UNRULED)
 CLASSES = (
-    ("result", re.compile(re.escape(ready.NO_BRIEF))),
-    ("scoped", re.compile(r".*\bscoped review\b.*")),
-    (
-        "review",
-        re.compile(
-            r"it has no review yet|its review has no verdict|its second review is not written"
-            r" at \S+|.*: the second pass is not written"
-        ),
-    ),
+    ("result", (ready.NO_BRIEF,)),
+    ("scoped", (*FIXES, ready.SCOPED_UNRULED, ready.CONTENT_CHANGED)),
+    ("review", (ready.NO_REVIEW, ready.NO_VERDICT, ready.TWICE_UNWRITTEN, ready.SECOND_UNWRITTEN)),
 )
+"""Each class with the reasons of `jmerge` it takes, matched by each reason's own pattern, so a
+reason that `jmerge` rewords keeps its clock."""
 CARRY_ON = (
     "jbus: pull request #{number} of this task has waited {passes} passes on you, with your "
     "thread not at work: {reason}. Carry on with your brief from where you stopped: read "
@@ -76,9 +74,13 @@ HOME = (
 _SEAT = re.compile(r"#(\d+)$")
 
 
+def _of(reason: str, reasons: tuple[ready.Reason, ...]) -> bool:
+    return any(re.fullmatch(one.pattern, reason) for one in reasons)
+
+
 def class_of(reason: str) -> str:
     """Return the class of a wait `jmerge` gives, or nothing for a wait that has no clock here."""
-    return next((name for name, pattern in CLASSES if pattern.fullmatch(reason)), "")
+    return next((name for name, reasons in CLASSES if _of(reason, reasons)), "")
 
 
 def _id(line: str) -> str:
@@ -126,7 +128,7 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
         return dispatch.thread_of(brief), ""
     if kind == "review":
         return named, expedite.AGAIN.format(slug=slug)
-    found = expedite.ranges(run, slug, head, "fix" if reason == ready.FIX_UNREVIEWED else "rebase")
+    found = expedite.ranges(run, slug, head, "fix" if _of(reason, FIXES) else "rebase")
     if not found:
         return dispatch.thread_of(brief), ""
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
@@ -156,7 +158,7 @@ def _send(run: Pass, client: Client, thread: str, message: str, key: str) -> str
 def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     """Send the thread a wait is on its line or a carry-on, once. Return whether it went."""
     number, reason, line = wait["number"], wait["reason"], wait["line"]
-    key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]}"
+    key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     if not line:
         line = threads.resume_message(
             CARRY_ON,
@@ -180,7 +182,8 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
 
 def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str) -> bool:
     """Tell the brief's home, in one line, that a wait jbus acted on still waits. With no home, log
-    one quiet stall. Return whether it is done."""
+    one quiet stall, and one too where T3 Code refused the home the line. Return whether it is
+    done."""
     did = "relaunched its reviewer" if wait["line"] else "carried its crew on"
     crew = dispatch.thread_of(brief) or "not known"
     text = HOME.format(
@@ -193,15 +196,17 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
         crew=crew,
     )
     at = thread_of(home_of(run.home, brief))
-    if not at:
-        line = f"{STALL} {slug}: #{wait['number']} waited {wait['passes']} passes after jbus {did}"
-        line += f", {wait['reason']}, and it has no home to tell; its crew's thread is {crew}"
-        run.find(slug, STALL, line, key=f"{CLOCK} {wait['kind']} {wait['head'][:12]}")
-        return True
-    key = f"{CLOCK}-home|{slug}|{wait['kind']} {wait['head'][:12]}"
-    if not _send(run, client, at, text, key):
+    key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
+    went = _send(run, client, at, text, f"{CLOCK}-home|{slug}|{key}") if at else "no home"
+    if not went:
         return False
-    run.say(f"{CLOCK} {slug}: told its home, thread {at}, that #{wait['number']} still waits")
+    if went == "sent":
+        run.say(f"{CLOCK} {slug}: told its home, thread {at}, that #{wait['number']} still waits")
+        return True
+    why = f"T3 Code refused its home, {at}, the line" if at else "it has no home to tell"
+    line = f"{STALL} {slug}: #{wait['number']} waited {wait['passes']} passes after jbus {did}"
+    line += f", {wait['reason']}, and {why}; its crew's thread is {crew}"
+    run.find(slug, STALL, line, key=f"{CLOCK} {key}")
     return True
 
 

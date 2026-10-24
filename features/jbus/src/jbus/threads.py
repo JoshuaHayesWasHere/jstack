@@ -612,8 +612,8 @@ def _stopped(
 ) -> None:
     """Hand a thread that ended again after its last carry-on to the brief's home, in one line,
     once for the thread: the wait is the home's from there, not the user's. With no home to tell,
-    it is a gate, once for the ended run, as before homes were told. A line T3 Code did not take
-    is sent again on the next pass."""
+    it is a gate, once for the ended run, as before homes were told, and a line T3 Code refused
+    is a gate once for the thread. A line that got no answer is sent again on the next pass."""
     at, ended = run_of
     what = f"thread ended {status} after two carry-ons"
     home = thread_of(home_of(run.home, brief))
@@ -628,6 +628,10 @@ def _stopped(
     asked = {"threadId": home, "message": text, "mode": "queue", "clientRequestId": key}
     try:
         client.call("t3_thread_send", asked)
+    except T3Refused as error:
+        run.box.mark(key)
+        run.gate(slug, what, f"{at}\n\nT3 Code refused its home the line: {error}", key=at)
+        return
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told the crew stopped ({error})")
         return
