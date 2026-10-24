@@ -206,7 +206,7 @@ These rules make no pull request wait in a repo with no `migrations` key, and no
   It renumbers the migration that the reason names to the number the reason gives.
   It renumbers each later migration of the pull request to the numbers that follow, one each and in their order.
   It changes the files and every reference to an old number, then pushes.
-  `jmerge` counts that rebase like any other rebase after fixed and green, so a third rebase gets a hold (`REBASE_HELD`), and its gate asks the user.
+  The crew counts that rebase like any other rebase after fixed and green, so a third rebase whose range-diff is not empty gets a hold (`REBASE_HELD`), and its gate asks the user.
   `jmerge` judges the renumbered head again, and the content change needs the scoped review that "After a rebase" describes.
 - **A repo can name its migrations by timestamp instead.**
   With `migration_names = "timestamped"` the names cannot collide, and `jmerge` skips the number check.
@@ -514,6 +514,8 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. For a brief with an open pull request, the line goes on with `Diff:` and each file that pull request changes, or that its last Result's `Wider:` line names, which its `Where:` does not cover, in backticks. GitHub lists up to 100 files of each pull request here. jbus reads the lines on each pass to tell an `overlap`. |
 | `--scope <slug>` | Changes nothing. It prints, for the brief's branch against the branch it left (the default branch, or for a link of a stack the branch it sits on), `outside: <path>` for each changed file the brief's `Where:` line does not cover, and `wider: <path>: <why>` for each one the last Result's `Wider: <path>: <why>` line gives a reason for. It prints nothing when every file is inside, and exits 1 with a reason on stderr when the brief's `Where:` names no path or neither the branch nor its pull request can be read. For a branch that is gone, it asks the branch's pull request. |
 | `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks. The crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on is narrower: the required checks alone, as the merge rule on green says. |
+| `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`, for the crew skill's third rebase after fixed and green. |
+| `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
 | `--home <id>` | The home that is asking. Defaults to the id in the state directory's `home-id`. |
 | `--all` | Merges the pull requests of the repo's other homes too. |
 | `--land <stack>` | Merges the pull requests of a stack you said to land, each once its base is the default branch. |
