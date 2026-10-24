@@ -490,3 +490,45 @@ def test_queue_show_says_which_rows_were_grandfathered_and_which_are_re_asked(ki
         "re-asked, the go does not hold for the stored brief: alpha\n"
         in (kitchen.main("queue", "show")[1])
     )
+
+
+def test_changed_names_nothing_exactly_when_the_brief_means_the_same():
+    approved = meaning.meaning(APPROVED)
+    edits = [
+        REWORDED,
+        MOVED,
+        APPROVED.replace("3 minutes", "5 minutes"),
+        APPROVED.replace("wording-only", "wordnig-only"),
+        APPROVED.replace("- an approval holds through a wording-only edit\n", ""),
+        APPROVED.replace("Proves it:", "- `make check` exits 0, in 3 minutes or less\nProves it:"),
+        APPROVED.replace("Size: M", "Size: m."),
+        APPROVED.replace("Size: M", "Size: L"),
+        APPROVED.replace("refuses an incomplete", "refuses an incompleet"),
+        APPROVED.replace("refuses an incomplete", "accepts an incomplete"),
+    ]
+    for again in edits:
+        names = meaning.changed(approved, again)
+        assert (names == []) == meaning.same(approved, meaning.meaning(again)), again
+    doubled = APPROVED.replace(
+        "Proves it:", "- `make check` exits 0, in 3 minutes or less\nProves it:"
+    )
+    assert meaning.changed(approved, doubled) == [f"Done when: {LONGER.replace('5', '3')}"]
+
+
+def test_a_gate_on_a_stored_brief_that_is_gone_says_so(kitchen):
+    approved(kitchen)
+    queue.brief_path(kitchen.state, "alpha").unlink()
+    kitchen.poll()
+    assert gates(kitchen) == [
+        "condition alpha: brief changed after approval: the stored brief is gone"
+    ]
+
+
+def test_a_gate_on_a_go_bound_only_to_a_sha_says_it_can_name_no_line(kitchen):
+    old_go(kitchen, typed=False)
+    queue.brief_path(kitchen.state, "alpha").write_text(APPROVED.replace("Size: M", "Size: L"))
+    kitchen.poll()
+    assert gates(kitchen) == [
+        "condition alpha: brief changed after approval: "
+        "the go is bound to a sha of the whole brief, so no line can be named"
+    ]

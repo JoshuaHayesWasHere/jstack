@@ -201,31 +201,34 @@ def _pairs(approved: list, now: list, alike) -> bool:
 def changed(approved: Meaning, text: str) -> list[str]:
     """The lines of the brief `text` that the approved fingerprint does not cover, each as
     `<label>: <line>`, in the order of `MEANING`, and `<label>: a line taken out` for each
-    approved line that pairs with none. It is empty when the brief means what was approved
-    (`same`)."""
+    approved line that pairs with none beyond those. It pairs lines as `same` does, so it is empty
+    exactly when the brief means what was approved."""
     was = dict(approved)
     found = []
     for label, lines in _fields(text).items():
         if label not in (MEANING if parse.TITLE in was else LEGACY):
             continue
-        left = list(was.get(label, []))
-        if _pairs(left, [line for _, line in lines], _alike):
-            continue
+        left = sorted(lines, key=lambda one: one[1])
         rest = []
-        for said, line in lines:
-            if line in left:
-                left.remove(line)
-            else:
-                rest.append((said, line))
-        named = []
-        for said, line in rest:
-            match = next((other for other in left if _alike(other, line)), None)
+        for line in was.get(label, []):
+            match = next((one for one in left if one[1] == line), None)
             if match is None:
-                named.append(f"{label}: {said}")
+                rest.append(line)
             else:
                 left.remove(match)
-        named += [f"{label}: a line taken out"] * (len(left) - len(named))
-        found += named or [f"{label}: changed"]
+        out = 0
+        for line in rest:
+            match = next((one for one in left if _alike(line, one[1])), None)
+            if match is None:
+                out += 1
+            else:
+                left.remove(match)
+        for one in lines:
+            if one in left:
+                left.remove(one)
+                found.append(f"{label}: {one[0]}")
+                out -= 1
+        found += [f"{label}: a line taken out"] * out
     return found
 
 
