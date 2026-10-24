@@ -140,7 +140,10 @@ printf '%s\n' "$said" | awk -v told="$told" '
         }
         for (i = 1; i <= k; i++) {
             split(kept[i], word, " ")
-            if (word[2] == "local" && (substr(word[3], 1, length(word[3]) - 1) in ends)) continue
+            if (word[2] == "local" && (substr(word[3], 1, length(word[3]) - 1) in ends)) {
+                changed = 1
+                continue
+            }
             open[++o] = kept[i]
             seen[key(kept[i])] = 1
         }
@@ -148,8 +151,9 @@ printf '%s\n' "$said" | awk -v told="$told" '
             seen[key(mine[i])] = 1
             tell[++n] = mine[i]
             open[++o] = mine[i]
+            changed = 1
         }
-        if (o != k) {
+        if (changed) {
             for (i = 1; i <= o; i++) print open[i] > (told ".new")
             close(told ".new")
             system("mv \"" told ".new\" \"" told "\"")

@@ -173,3 +173,13 @@ def test_a_cleared_line_with_no_slug_is_refused_and_ends_nothing(turns):
     code, said = turns.end([line])
     assert code == 2 and said[0].startswith(f"refused: {line}: its kind is none of")
     assert open_locals(turns) == [gate]
+
+
+def test_a_turn_that_clears_one_local_line_and_tells_one_new_line_keeps_both(turns):
+    first = "stop local x: a"
+    second = "stop local y: b"
+    assert turns.end([first, second]) == (0, [f"say: {first}", f"say: {second}"])
+    asked = "decision question 5: new? default: no"
+    assert turns.end(["cleared local x: done", asked]) == (0, [f"say: {asked}"])
+    assert open_locals(turns) == [second]
+    assert turns.end([asked]) == (0, [SILENT])
