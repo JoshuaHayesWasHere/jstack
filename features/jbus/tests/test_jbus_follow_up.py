@@ -21,6 +21,7 @@ from test_jbus_queue import brief, rows, sha12
 
 BY_RULE = "rule 6, follow-up of {parent}; run {ran} by the demo home; you did not speak of this row"
 NIGHT = datetime(2026, 10, 13, 3, 0, tzinfo=UTC)
+BUILDS_ON = "Builds on: alpha: the code of its pull request, which the findings are in\n"
 
 
 @pytest.fixture
@@ -68,7 +69,7 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     assert rows(kitchen)["alpha"]["status"] == "merged"
     kitchen.forget()
     queued = [
-        ("cleanup-alpha", ("--depends", "alpha"), brief("cleanup-alpha")),
+        ("cleanup-alpha", ("--depends", "alpha"), brief("cleanup-alpha", BUILDS_ON)),
         ("alpha-2", ("--entry", "alpha"), brief("alpha-2", follows("alpha"))),
         ("alpha-3", ("--entry", "alpha"), brief("alpha-3", follows("alpha"))),
         ("delta", (), brief("delta")),
