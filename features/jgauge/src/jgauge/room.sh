@@ -41,12 +41,19 @@ room() (
     pressure=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/memory" 2> /dev/null)
     stalled=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/cpu" 2> /dev/null)
   fi
-  read_slots() { df -Pi "$TMPFS" 2> /dev/null | awk 'NR == 2 {print $(2), $(3)}'; }
+  read_slots() { df -Pi "$TMPFS" 2> /dev/null | awk '
+    NR == 1 {for (i = 1; i <= NF; i++) column[tolower($(i))] = i}
+    NR == 2 && column["iused"] {
+      used = $(column["iused"])
+      if (column["inodes"]) total = $(column["inodes"])
+      else if (used ~ /^[0-9]+$/ && $(column["ifree"]) ~ /^[0-9]+$/) total = used + $(column["ifree"])
+      print total, used
+    }'; }
   if [ "$tmp" = 1 ]; then slots=$(read_slots); fi
   if [ "$tmp" = 1 ] && echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}' &&
     here=$(cd "$TMPFS" 2> /dev/null && pwd -P); then
     stale=$({
-      find "$PROC"/[0-9]*/cwd "$PROC"/[0-9]*/fd/ -maxdepth 1 -type l -printf '%l\n' 2> /dev/null
+      find "$PROC"/[0-9]*/cwd "$PROC"/[0-9]*/fd/ -maxdepth 1 -type l -exec readlink {} + 2> /dev/null
       printf '\001\n'
       find "$here"/pytest-of-* -mindepth 1 -maxdepth 1 -name 'pytest-*' -type d -user "$(id -u)" -mmin +20 2> /dev/null
     } | awk '
@@ -59,7 +66,7 @@ room() (
       case $pid in ("" | *[!0-9]*) ;; (*) [ -e "$PROC/$pid" ] && continue ;; esac
       rm -rf -- "$run" 2> /dev/null
       [ -e "$run" ] || echo "$run"
-    done | wc -l)
+    done | awk 'END {print NR}')
     if [ "$removed" -gt 0 ]; then
       was=$slots
       slots=$(read_slots)
