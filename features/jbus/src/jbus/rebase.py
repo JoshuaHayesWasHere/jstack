@@ -57,10 +57,11 @@ When the crew already got the rebase message for a head, `github` sends no messa
 failed check, since a rebase is the fix that the failed check needs.
 
 The second is a conflict with the base at a head, of a pull request that is not a stacked link
-still on its base's branch (`stack` tells that one when to move). Before the reviewer writes the review, `github`
-sends a message under the key `conflict|<slug>|<head 12>`. After the reviewer has written the
-review, `github` sends the rebase message instead, whatever `jmerge` says first. `github` does not
-wait for `jmerge` here, because a red check hides the conflict from the line that `jmerge` prints.
+still on its base's branch (`stack` tells that one when to move). Before the reviewer writes the
+review, `github` sends a message under the key `conflict|<slug>|<head 12>`. After the reviewer
+has written the review, `github` sends the rebase message instead, whatever `jmerge` says first.
+`github` does not wait for `jmerge` here, because a red check hides the conflict from the line
+that `jmerge` prints.
 
 The third is a head at which every check passed, under the key `green|<slug>|<head 12>`. `github`
 sends this message only where the crew owes a line on green and no reviewer that the crew launched

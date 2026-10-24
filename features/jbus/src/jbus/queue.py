@@ -391,8 +391,8 @@ def body(text: str) -> str:
     """Return the brief with no `Home:`, `Thread:`, `Green main:` or `Stacked on:` line in its
     head, the lines above its first `## `. The first two name the threads that receive the brief,
     and they are left out because a brief is the same brief under another home. A launch writes
-    the other two (`dispatch`). A launch sends this text, so every line that a launch sends is a line
-    that `brief_sha` covers."""
+    the other two (`dispatch`). A launch sends this text, so every line that a launch sends is a
+    line that `brief_sha` covers."""
     kept, head = [], True
     for line in text.splitlines(keepends=True):
         head = head and not line.startswith("## ")

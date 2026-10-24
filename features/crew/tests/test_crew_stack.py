@@ -231,5 +231,7 @@ def test_a_conflict_rebases_a_link_jbus_stacked_only_once_it_moved_onto_main(tmp
 
     assert link.move(link.started_from) == [f"moved from {link.started_from} onto origin/main"]
     moved = link.head()
-    assert link.run_text(about, H=str(tmp_path)).splitlines() == ["already on origin/main: no rebase"]
+    assert link.run_text(about, H=str(tmp_path)).splitlines() == [
+        "already on origin/main: no rebase"
+    ]
     assert link.head() == moved

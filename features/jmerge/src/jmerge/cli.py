@@ -1121,9 +1121,7 @@ class Repo:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
         stacked = ready.stacked_of(text)
-        short = ready.held(
-            one, default, ready.stack_of(text), self.land, self.integration, stacked
-        )
+        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
         short = short or self.on_stack(one, default, stacked)
         short = short or ready.short_of(text, one.head)
         rebase = ready.rebase_of(text, one.head)
