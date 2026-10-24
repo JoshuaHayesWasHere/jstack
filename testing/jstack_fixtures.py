@@ -32,6 +32,7 @@ run loads them. `test_home_merge` runs `uv cache dir` only when a test needs the
 """
 
 import os
+import sys
 
 import pytest
 
@@ -46,7 +47,7 @@ NAMED = f'user = "Robin"\n{ZONE}'
 OLD_LEVEL, OLD_EVENT = "robin", "waiting-on-robin"
 
 
-SYSTEMD_RUN = """\
+SYSTEMD_RUN = f"""\
 #!/bin/sh
 if [ -n "$SYSTEMD_RUN_CALLS" ]; then echo "$*" >> "$SYSTEMD_RUN_CALLS"; fi
 while [ $# -gt 0 ]; do
@@ -56,7 +57,11 @@ while [ $# -gt 0 ]; do
     *) break ;;
     esac
 done
-setsid "$@" < /dev/null > /dev/null 2>&1 &
+exec "{sys.executable}" -c '
+import subprocess, sys
+subprocess.Popen(sys.argv[1:], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                 stderr=subprocess.DEVNULL, start_new_session=True)
+' "$@"
 """
 
 
