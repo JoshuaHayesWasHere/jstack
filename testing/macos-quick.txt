@@ -10,3 +10,5 @@ features/jbus/tests/view/test_view_checks.py
 testing/tests/test_daemons.py
 features/repo-guards/tests/test_portable_shell.py
 testing/tests/test_workflows.py
+features/jbus/tests/test_gates.py
+features/home/tests/test_home_start.py
