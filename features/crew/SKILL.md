@@ -303,7 +303,12 @@ else
 fi
 ```
 
-On `home merges`, **the thread that hears of a pull request** is the one the block below prints. On `jbus merges: send nothing`, write the lines the Result is owed and go on: `jmerge`, run by jbus, reads them. On `jbus merges: send no line, and park it as a gate`, the line asks for somebody's word and jbus's `jmerge` says only `wait` of such a pull request: park a gate ("Do the task") whose question is the line without its `at <head>`, with the default that the pull request waits and the head on its `Built on it:` line. jbus tells one gate from another by its slug and its question, so a later head of the same pull request is the same gate, and `already sent` is no fault. A brief of a scoped home is told the same way: jbus merges its pull request as it merges the root home's. A block beside a send that prints `tell the home` is answered by this one.
+On `home merges`, **the thread that hears of a pull request** is the one the block below prints.
+On `jbus merges: send nothing`, write the lines the Result is owed and go on: `jmerge`, run by jbus, reads them.
+On `jbus merges: send no line, and park it as a gate`, the line asks for somebody's word and jbus's `jmerge` says only `wait` of such a pull request: park a gate ("Do the task") whose question is the line without its `at <head>`, with the default that the pull request waits and the head on its `Built on it:` line.
+jbus tells one gate from another by its slug and its question, so a later head of the same pull request is the same gate, and `already sent` is no fault.
+A brief of a scoped home is told the same way: jbus merges its pull request as it merges the root home's.
+A block beside a send that prints `tell the home` is answered by this one.
 
 Whom to send it to is this. Shell variables do not last from one call to the next, so run it in one call with the block at the top and `B` set to the brief, `$H/tasks/<slug>.md`:
 
