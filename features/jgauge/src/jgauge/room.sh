@@ -170,8 +170,8 @@ room() (
       }
       print (why == "" ? "go" : "wait: " why)
     }')
-  case $said in
-  "wait: load "*" cores")
+  case $mac:$said in
+  0:"wait: load "*" cores")
     hz=$(getconf CLK_TCK 2> /dev/null)
     up=$(cut -d' ' -f1 "$PROC/uptime" 2> /dev/null)
     top=$(awk -v hz="${hz:-100}" -v up="$up" '
