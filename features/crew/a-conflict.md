@@ -86,7 +86,10 @@ else
 fi
 ```
 
-When it says GitHub has not decided, or that it could not ask, fetch, keep the head or start, there is no rebase: say what it printed in the Result and end your turn. `already on` is a branch that holds the tip of its base: there is nothing to rebase onto. On `a link of a stack`, do what "A link that moved" says for a conflict. jbus tells this thread once for each head in conflict, so do not ask again.
+When it says GitHub has not decided, or that it could not ask, fetch, keep the head or start, there is no rebase: say what it printed in the Result and end your turn.
+`already on` is a branch that holds the tip of its base: there is nothing to rebase onto.
+On `a link of a stack`, do what "A link that moved" says for a conflict.
+jbus tells this thread once for each head in conflict, so do not ask again.
 
 The file `crew-before-rebase` in the git directory is the record of a rebase from its start to its push. Its first line is the head before the rebase, the base, and the head the pull request had at GitHub when the rebase started. The push removes the file.
 
@@ -211,7 +214,9 @@ fi
 
 On `pushed`, the record is removed. On `the push was refused` or `no push`, nothing was pushed and nothing is forced: somebody else pushed to this branch, or the record is gone. Add what it printed to the Result, park a gate ("Do the task") that asks what to do with the commits on the origin's branch, with the default that the pull request waits, and end your turn.
 
-A rebase adds no line to the Result and changes none. A `Fixed:` line that names a commit keeps naming the commit it named before the rebase: that commit, or with no such line the head the last review saw, is the one the review covers, and `jmerge` compares the head it finds with it. A commit made before the push, for the check command or for a line put back, is read with the rebase.
+A rebase adds no line to the Result and changes none.
+A `Fixed:` line that names a commit keeps naming the commit it named before the rebase: that commit, or with no such line the head the last review saw, is the one the review covers, and `jmerge` compares the head it finds with it.
+A commit made before the push, for the check command or for a line put back, is read with the rebase.
 
 The review stands after a rebase when the rebase left the reviewed content as it was: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean no review is started and nothing is asked of this thread. Where it is not, the rebase changed what was reviewed, and jbus says so in a message here: `the rebase changed the content after its review`, with the two ranges of that range-diff. That message, and nothing else, starts one scoped review, of the changed hunks only. Launch one reviewer the way "The review" launches one, with the message `/pr-review run <slug> scoped <old range> <new range>`, add the line `Scoped reviewer: <threadId>` to the Result, and handle its findings as a review's. Until its `## Review` section is written, the first block above does not rebase. A head gets one scoped review: a later rebase gets its own only on its own message, and its `Scoped reviewer:` line is added under the earlier one, which stays: the first block counts every reviewer that was launched. A push for a failed check made after a review saw an older head is ruled on the same way: its `CI fix:` line ("The checks") has `jmerge` compare the two heads, a clean range-diff carries the review over, and one that is not brings the same message here, which starts the one scoped review. A failing push before any review starts nothing more than the reviewer the pull request was still owed.
 
