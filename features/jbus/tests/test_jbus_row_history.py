@@ -210,7 +210,7 @@ def test_where_jmerge_ran_here_a_line_it_logged_before_is_not_the_reason(kitchen
     kitchen.set("open.json", [kitchen.opened("alpha", 8)])
     (kitchen.home / "merge.log.last").write_text(json.dumps({"8": NO_REVIEW.strip()}))
     kitchen.poll()
-    assert kitchen.log("jmerge") == [""]
+    assert kitchen.log("jmerge") == ["--all"]
     assert waits(kitchen) == {"alpha": ("", "")}
 
 

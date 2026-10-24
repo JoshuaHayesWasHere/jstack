@@ -64,7 +64,7 @@ def test_once_a_day_what_a_sweep_would_remove_is_one_event(kitchen):
     kitchen.set("sweep.txt", "\n".join([*REMOVABLE, KEPT]) + "\n")
     kitchen.quiet()
     kitchen.poll(QUARTER_PAST_FIVE - timedelta(minutes=1))
-    assert kitchen.log("jmerge") == ["", ""] and kitchen.events("sweep") == []
+    assert kitchen.log("jmerge") == ["--all", "--all"] and kitchen.events("sweep") == []
     kitchen.poll(QUARTER_PAST_FIVE)
     kitchen.poll(QUARTER_PAST_FIVE + timedelta(hours=3))
     (event,) = kitchen.events("sweep")
@@ -176,7 +176,7 @@ NO_LIST = "condition demo: jmerge has no readable protected-paths list, nothing 
 def test_a_jmerge_with_no_protected_paths_list_is_a_gate_once_a_day(kitchen, said):
     kitchen.set("jmerge-dies", said)
     printed = kitchen.poll() + kitchen.poll(NOW + timedelta(minutes=3))
-    assert kitchen.log("jmerge") == ["", ""]
+    assert kitchen.log("jmerge") == ["--all", "--all"]
     assert kitchen.lines() == [NO_LIST]
     assert kitchen.events()[0]["text"] == said
     assert not [line for line in printed if "jmerge did not run" in line]

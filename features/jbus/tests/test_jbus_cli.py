@@ -24,4 +24,4 @@ def test_two_passes_at_once_run_jmerge_once(kitchen):
     for one in passes:
         one.join()
     assert sorted(lines == ["busy"] for lines in said) == [False, True]
-    assert kitchen.log("jmerge") == [""]
+    assert kitchen.log("jmerge") == ["--all"]

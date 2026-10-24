@@ -12,7 +12,8 @@ jbus needs T3 Code running on the machine, `gh` signed in to GitHub, and a syste
 
 One pass, under one lock, does this for every project in the config:
 
-1. It runs `jmerge` in the project's main checkout when no home merges, and makes one event for each line `jmerge` prints about a pull request.
+1. It runs `jmerge --all` in the project's main checkout when no home merges, and makes one event for each line `jmerge` prints about a pull request.
+   With `--all` it merges the pull requests of every home, a scoped home's too, since no other home merges them.
 2. It reads the briefs and the scout requests in the home's state directory, and makes one event for each new Result, Review, Report and question.
 3. It asks T3 Code for the project's threads, and asks GitHub, through `gh`, for its pull requests and main's checks.
    It makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).

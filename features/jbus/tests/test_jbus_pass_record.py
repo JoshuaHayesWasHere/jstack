@@ -196,7 +196,7 @@ def test_a_record_that_cannot_be_written_is_said_and_the_pass_does_all_it_did(ki
         "pass record failed",
         "pass record failed",
     ]
-    assert kitchen.log("jmerge") == [""]
+    assert kitchen.log("jmerge") == ["--all"]
     assert kitchen.status()["last_pass"] == "2026-10-12 11:00 ET"
     assert not (kitchen.state_dir / "pass.json").exists()
 

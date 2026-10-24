@@ -400,7 +400,7 @@ def test_a_sign_in_that_no_longer_works_is_a_gate_once_a_day(kitchen):
     assert any(line.startswith("wait demo: T3 Code could not be asked") for line in said)
     assert kitchen.lines() == ["condition demo: T3 Code could not be asked"]
     assert kitchen.t3.url not in "".join(said) + kitchen.events()[0]["text"]
-    assert kitchen.log("jmerge") == ["", ""]
+    assert kitchen.log("jmerge") == ["--all", "--all"]
     kitchen.poll(NOW + timedelta(days=1))
     assert len(kitchen.lines()) == 2
 

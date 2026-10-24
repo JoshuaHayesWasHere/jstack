@@ -98,7 +98,7 @@ def test_with_the_home_off_jmerge_runs_and_each_line_is_an_event_once(kitchen):
     )
     (kitchen.home / "home-thread").write_text("\n")
     kitchen.poll()
-    assert kitchen.log("jmerge") == [""]
+    assert kitchen.log("jmerge") == ["--all"]
     assert kitchen.lines("jmerge") == [
         "merged 7 alpha abc1234",
         "wait 8 https://example.test/pull/8: no review",
@@ -126,7 +126,7 @@ def test_a_merged_line_with_its_revert_and_a_hold_line_are_each_an_event_once(ki
     kitchen.poll()
     kitchen.set("jmerge.txt", f"{hold}\n")
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert kitchen.log("jmerge") == ["", ""]
+    assert kitchen.log("jmerge") == ["--all", "--all"]
     assert kitchen.lines("jmerge") == [merged, hold]
     assert kitchen.lines("gate") == []
     assert [event["slug"] for event in kitchen.events()] == ["alpha", "#9"]

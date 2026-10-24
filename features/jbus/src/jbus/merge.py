@@ -134,7 +134,10 @@ def home_thread(run: Pass) -> str:
 
 
 def merge(run: Pass) -> Said:
-    """Run `jmerge`, send each line it prints about a pull request, and return the lines.
+    """Run `jmerge --all`, send each line it prints about a pull request, and return the lines.
+
+    With no home merging, jbus is the project's only merger, so it merges the pull requests of
+    every home, a scoped home's too.
 
     Every line is a quiet event, including a `hold` line. `waiting` lists each hold that is
     the user's. The user learns of a hold when the hold joins that list: once for the pull request,
@@ -149,7 +152,7 @@ def merge(run: Pass) -> Said:
     if home:
         run.say(f"skipped {run.project.name}: the home {home} merges")
         return Said()
-    ran = run.run("jmerge", timeout=JMERGE_TIMEOUT)
+    ran = run.run("jmerge", "--all", timeout=JMERGE_TIMEOUT)
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
         line = parse(text)
