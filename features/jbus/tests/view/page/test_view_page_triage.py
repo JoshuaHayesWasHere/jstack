@@ -329,3 +329,15 @@ def test_proposed_items_are_not_batched_since_each_opens_its_own_drawer(tmp_path
         ("Approve", "#/demo/item/I-1"),
         ("Approve", "#/demo/item/I-2"),
     ]
+
+
+def test_one_gate_that_takes_its_default_is_said_in_the_singular(tmp_path):
+    def one(nth, body):
+        return body | {"proceeds": body["proceeds"][:1]}
+
+    with pytest.MonkeyPatch.context() as patch:
+        scene = Scene(tmp_path, patch)
+        asked(scene)
+        seen = look(scene, tmp_path / "look", route="#/triage", script=PROBE, at=1500, alter=one)
+    (tail,) = [line for line in seen["parts"]["ask"]["tail"] if "default" in line]
+    assert re.fullmatch(r"1 takes its default if you say nothing, the first at \d\d:\d\d ›", tail)
