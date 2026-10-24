@@ -57,8 +57,8 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
 }
 
-# The rules today's code breaks, and in which scene. The others hold today only because nothing
-# today flags, nudges or asks, except the two TODAY_HOLDS checks.
+# The rules today's code breaks, and in which scene. FirstStrike, NudgesBounded and AsksAfterTwo
+# hold today only because nothing today flags, nudges or asks, and no run checks them on today.
 TODAY_BREAKS = {
     "NoRetireWithOpen": "a",
     "StallFlagged": "a",

@@ -145,8 +145,8 @@ Check ==
 \* ---- merging: jbus alone, every home's pull request, one merge at a time
 
 \* jbus judges the pull requests of every home, whatever the root's home-thread file says: mode
-\* plays no part here. Without that it asks as the root, and a child's pull request waits as
-\* another home's, as today.
+\* plays no part here. Today it does so only while home-thread is empty. Without that guard it
+\* judges no child's pull request, and a ready one never merges.
 MayMerge(a, k) ==
     /\ Kept("one-merger") => a = "jbus"
     /\ a = "jbus" => Kept("all-homes")
