@@ -15,11 +15,23 @@ home's `scouts/`. A home's own thread is the home whose `home-id`, or whose hand
 `Was home:` line, has its id. A thread that is none of these has no home.
 
 `group` gives the project's homes: the root first, then each scope in name order, each with
-the open tasks and the needs that are its own.
+the open tasks and the needs that are its own, its health and the day its scope was made.
+
+A home's health is its own thread's, the home thread the last pass listed for it, and the one
+that is out where it listed two, as a handoff leaves them: `moving` while a turn writes or
+waits on a request, `unknown` where the pass could not say, `quiet` or `hung` with `since`, the
+time it last wrote, `ended` where its turn ended with a task of its own open, which nothing
+moves but the user, and `rest` where it ended with nothing open. A home no listed thread is
+has `none`: a repo may run with no home.
+
+A scope is made by the root home's block, which writes its `plan.md` with a first line and
+then `Goal (<day>, ...)`. That day is `started`. The root, a plan with no such line before its
+first entry, and a scope with no plan have none.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -28,7 +40,23 @@ from typing import Any
 from jbriefs import home as jbriefs
 
 ROOT = ""
-GROUP = {"name": None, "open": None, "waits": None}
+GROUP = {
+    "name": None,
+    "open": None,
+    "waits": None,
+    "health": None,
+    "since": None,
+    "started": None,
+}
+HEALTH = {
+    "moving": "moving",
+    "waiting": "moving",
+    "quiet": "quiet",
+    "hung": "hung",
+    "unknown": "unknown",
+}
+SINCE = ("quiet", "hung")
+_GOAL = re.compile(r"^Goal \((\d{4}-\d\d-\d\d)\b", re.M)
 
 
 def _read(path: Path) -> str | None:
@@ -110,14 +138,45 @@ class Homes:
         scope while it is one, else the root."""
         return scope if scope in {one.name for one, _, _ in self.scopes} else ROOT
 
-    def group(self, tasks: list[dict[str, Any]], needs: list[dict[str, Any]]) -> list[Any]:
+    def started(self, scope: Path) -> str | None:
+        """The day the scope was made: the `Goal (<day>` line of its plan, before the plan's
+        first entry."""
+        plan = _read(scope / "plan.md")
+        found = _GOAL.search(plan.split("\n## ", 1)[0]) if plan else None
+        return found[1] if found else None
+
+    def group(
+        self,
+        tasks: list[dict[str, Any]],
+        needs: list[dict[str, Any]],
+        threads: list[dict[str, Any]] | None = None,
+    ) -> list[Any]:
         """The project's homes, the root first and then each scope by name, each with how many
-        open tasks and needs are its own."""
-        return [
-            {
-                "name": name,
-                "open": sum(1 for task in tasks if task["home"] == name),
-                "waits": sum(1 for need in needs if need["home"] == name),
-            }
-            for name in (ROOT, *(scope.name for scope, _, _ in self.scopes))
-        ]
+        open tasks and needs are its own, its health from `threads`, the threads the last pass
+        listed with each one's home, and the day its scope was made."""
+        own = [one for one in threads or [] if one["role"] == "home"]
+        found = []
+        for name, scope in ((ROOT, None), *((one.name, one) for one, _, _ in self.scopes)):
+            work = sum(1 for task in tasks if task["home"] == name)
+            mine = sorted(
+                (one for one in own if one["home"] == name),
+                key=lambda one: (one["out"], one["updated"] or ""),
+            )
+            thread = mine[-1] if mine else None
+            if thread is None:
+                health = "none"
+            elif thread["out"]:
+                health = HEALTH[thread["live"]]
+            else:
+                health = "ended" if work else "rest"
+            found.append(
+                {
+                    "name": name,
+                    "open": work,
+                    "waits": sum(1 for need in needs if need["home"] == name),
+                    "health": health,
+                    "since": thread["updated"] if health in SINCE else None,
+                    "started": self.started(scope) if scope else None,
+                }
+            )
+        return found

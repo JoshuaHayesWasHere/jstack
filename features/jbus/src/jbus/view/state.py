@@ -1668,7 +1668,7 @@ def summary(read: Read) -> dict[str, Any]:
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
         "threads": read.out,
-        "homes": read.homes.group(read.tasks, read.panel("you")["needs"]),
+        "homes": read.homes.group(read.tasks, read.panel("you")["needs"], read.out),
         "health": {
             "checks": failed,
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
