@@ -13,7 +13,9 @@ check run at main's tip stays red with nobody's row on it:
 
 `judge` reads one workflow's own runs on the default branch, newest first. The workflow is red
 when its last run that passed or failed within `WINDOW` failed: a run cancelled or skipped says
-nothing. A red is left to the gate's rule, as before, when its newest run is a push run at
+nothing, and while a run of it is still going nothing is judged, since that run's answer is the
+newest (the gate's run at a new tip, below which the last red would look like a side red). A
+red is left to the gate's rule, as before, when its newest run is a push run at
 main's tip that ran a job. It is left to the account (S9's class) when its runs ran no job and
 neither did any other workflow's run on main since. Every other red is a `Red`: `FAILED` when one
 of its runs ran a job, and `NOT_RUN` when none did, which is a file GitHub cannot run, so its fix
@@ -99,7 +101,7 @@ def _red(one: dict[str, Any]) -> bool:
 def ran_a_job(one: dict[str, Any]) -> bool:
     """Return whether GitHub ran a job for the run: a run that passed did, one cancelled or
     skipped says nothing, and one that failed within `NO_JOB` of its start did not."""
-    if one.get("conclusion") in IDLE:
+    if one.get("status") != "completed" or one.get("conclusion") in IDLE:
         return False
     began = when(one.get("run_started_at") or one["created_at"])
     return not _red(one) or _ended(one) - began >= NO_JOB
@@ -109,8 +111,10 @@ def judge(
     path: str, runs: list[dict[str, Any]], others: list[dict[str, Any]], tip: str, now: datetime
 ) -> Red | None:
     """Return the red of the workflow at `path` that no other rule owns, or None. `runs` is its
-    completed runs on the default branch, `others` the other workflows' runs there, and `tip`
-    main's commit now."""
+    runs on the default branch, one still going included, `others` the other workflows' runs
+    there, and `tip` main's commit now."""
+    if any(one.get("status") != "completed" for one in runs):
+        return None
     settled = sorted((one for one in runs if one.get("conclusion") not in IDLE), key=_order)[::-1]
     if not settled or now - _ended(settled[0]) > WINDOW:
         return None
@@ -249,7 +253,7 @@ def owe(run: Pass) -> None:
     runs: dict[str, list[dict[str, Any]]] = {}
     for flow in flows:
         path = f"repos/{{owner}}/{{repo}}/actions/workflows/{flow['id']}/runs"
-        said = _api(run, f"{path}?branch={default}&status=completed&per_page={RUNS}")
+        said = _api(run, f"{path}?branch={default}&per_page={RUNS}")
         if not isinstance(said, dict):
             return
         runs[flow["path"]] = [

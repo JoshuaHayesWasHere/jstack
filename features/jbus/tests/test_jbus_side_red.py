@@ -147,6 +147,17 @@ def test_a_red_run_of_the_gate_at_mains_tip_is_left_to_the_main_red_rule(kitchen
     assert rows(kitchen) == []
 
 
+def test_a_red_of_the_gate_below_a_tip_whose_run_is_still_going_files_nothing(kitchen):
+    """The gate's run at a new tip has not ended: its red at the commit before is still the
+    main-red rule's, and the answer at the tip is the one that counts."""
+    kitchen.quiet()
+    head = side(kitchen, {})
+    going = run(202, head, None, ago=timedelta(0), status="in_progress")
+    side(kitchen, {CHECK: [going, run(201, "g", "failure")]}, push=False)
+    kitchen.poll()
+    assert rows(kitchen) == []
+
+
 def test_a_red_push_run_below_mains_tip_is_a_side_red(kitchen):
     """A workflow with path filters that failed at a commit and did not run at the tip leaves no
     check run there, so no rule but this one sees it."""
