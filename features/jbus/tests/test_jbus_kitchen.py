@@ -350,7 +350,8 @@ def fake_gh(stub, args, cwd):
     view shows it. `run rerun` starts a run again and says nothing, or fails when `gh-no-rerun` is
     there.
 
-    `pr edit` changes nothing and says nothing: the log is its record.
+    `pr edit` changes nothing and says nothing: the log is its record. With `gh-edit-refused`
+    there, it fails and says nothing.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
     `api .../compare/<base>...<head>` gives the status `compare.json` keeps for `<base>...<head>`,
     or `diverged`.
@@ -397,6 +398,8 @@ def fake_gh(stub, args, cwd):
         now = json.loads(pushed.read_text()) if pushed.exists() else {}
         said = json.dumps(dict(found[0], **now.get(str(found[0]["number"]), {})))
     elif args[:2] == ["pr", "edit"]:
+        if (stub / "gh-edit-refused").exists():
+            return 1, "", ""
         said = ""
     elif args[0] == "api" and "/compare/" in args[1]:
         kept = stub / "compare.json"

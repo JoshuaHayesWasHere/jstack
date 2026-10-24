@@ -142,3 +142,12 @@ def test_a_link_that_sits_on_its_base_is_not_told_to_rebase_onto_main_for_a_conf
     holds(stacked, (BASE, LINK))
     passes(stacked, 0, 3)
     assert sends(stacked) == []
+
+
+def test_a_link_github_will_not_rebase_is_told_nothing_and_its_line_stays(stacked):
+    pulls(stacked, merged=True)
+    (stacked.stub / "gh-edit-refused").write_text("")
+    said = stacked.poll(NOW)
+    assert "wait two: #11 could not be based on main: gh exited 1" in said
+    assert sends(stacked) == []
+    assert head_line(stacked) == stacks.Stacked("one", "one")

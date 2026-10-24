@@ -133,8 +133,9 @@ def _moved(
     if pull.get("baseRefName") not in (None, "", default):
         asked = run.run("gh", "pr", "edit", str(number), "--base", default)
         if asked.returncode:
-            why = (asked.stderr or asked.stdout).strip().splitlines()
-            run.say(f"wait {slug}: #{number} could not be based on {default}: {why[-1:]}")
+            said = (asked.stderr or asked.stdout).strip().splitlines()
+            why = said[-1] if said else f"gh exited {asked.returncode}"
+            run.say(f"wait {slug}: #{number} could not be based on {default}: {why}")
             return
     last = str(merged.get("headRefOid") or "") or stacked.branch
     message = (
