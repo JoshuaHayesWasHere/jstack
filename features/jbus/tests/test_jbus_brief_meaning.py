@@ -513,6 +513,9 @@ def test_changed_names_nothing_exactly_when_the_brief_means_the_same():
         "Proves it:", "- `make check` exits 0, in 3 minutes or less\nProves it:"
     )
     assert meaning.changed(approved, doubled) == [f"Done when: {LONGER.replace('5', '3')}"]
+    both = APPROVED.replace("wording-only", "wordnig-only").replace("3 minutes", "5 minutes")
+    assert not meaning.same(approved, meaning.meaning(both))
+    assert meaning.changed(approved, both) == [f"Done when: {LONGER}"]
 
 
 def test_a_gate_on_a_stored_brief_that_is_gone_says_so(kitchen):
