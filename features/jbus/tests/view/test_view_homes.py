@@ -97,10 +97,11 @@ def healths(scene):
 def test_each_home_says_how_its_own_thread_is_and_since_when_it_hung_or_went_quiet(
     tmp_path, monkeypatch
 ):
-    """A home's health is its own thread's: moving while a turn writes or waits on a request,
-    quiet or hung with the time it last wrote, ended where its turn ended with a task of its own
-    open, and at rest where it ended with nothing open. A home no thread of the last pass is,
-    `spice-rack` here, has none: a repo may run with no home at all."""
+    """A home's health is its own thread's: moving while a turn writes, waiting while it waits
+    on a request, quiet or hung with the time it last wrote, ended where its turn ended with a
+    task of its own open, and at rest where it ended with nothing open. A home no thread of the
+    last pass is, `spice-rack` here, has none: a repo may run with no home at all. Where the
+    pass left no list of threads, no home's health is known."""
     scene = Scene(tmp_path, monkeypatch)
     homed(scene)
     assert healths(scene) == {ROOT: ("moving", None), SHELF: ("moving", None), RACK: ("none", None)}
@@ -114,7 +115,7 @@ def test_each_home_says_how_its_own_thread_is_and_since_when_it_hung_or_went_qui
         )
         wrote = iso(ago(minutes=minutes))
         assert healths(scene) == {
-            ROOT: ("moving", None),
+            ROOT: ("waiting", None),
             SHELF: (health, wrote),
             RACK: ("none", None),
         }
@@ -129,6 +130,8 @@ def test_each_home_says_how_its_own_thread_is_and_since_when_it_hung_or_went_qui
     for slug in ("jam-jar", "jam-lid"):
         (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}\nHome: {RACK}\nTask: x\n")
     assert healths(scene)[SHELF] == ("rest", None)
+    scene.passed(20, threads=None)
+    assert set(healths(scene).values()) == {("unknown", None)}
 
 
 def test_a_home_with_two_threads_is_the_one_that_is_out(tmp_path, monkeypatch):

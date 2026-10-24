@@ -55,7 +55,7 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "merged": 0,
         "threads": None,
         "homes": [
-            {"name": "", "open": 0, "waits": 0, "health": "none", "since": None, "started": None}
+            {"name": "", "open": 0, "waits": 0, "health": "unknown", "since": None, "started": None}
         ],
         "health": {
             "checks": {"running": 0, "waiting": 0, "failed": 0, "error": "the repo is not known"},

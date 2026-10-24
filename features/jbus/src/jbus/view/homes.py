@@ -17,12 +17,11 @@ home's `scouts/`. A home's own thread is the home whose `home-id`, or whose hand
 `group` gives the project's homes: the root first, then each scope in name order, each with
 the open tasks and the needs that are its own, its health and the day its scope was made.
 
-A home's health is its own thread's, the home thread the last pass listed for it, and the one
-that is out where it listed two, as a handoff leaves them: `moving` while a turn writes or
-waits on a request, `unknown` where the pass could not say, `quiet` or `hung` with `since`, the
-time it last wrote, `ended` where its turn ended with a task of its own open, which nothing
-moves but the user, and `rest` where it ended with nothing open. A home no listed thread is
-has `none`: a repo may run with no home.
+A home's health is the `health` of its own thread, the home thread the last pass listed for
+it (`state._home_work`), and of the one that is out where it listed two, as a handoff leaves
+them. Where the health is `quiet` or `hung`, `since` is the time that thread last wrote. A home
+no listed thread is has `none`, since a repo may run with no home, and where the pass left no
+list of threads every home has `unknown`.
 
 A scope is made by the root home's block, which writes its `plan.md` with a first line and
 then `Goal (<day>, ...)`. That day is `started`. The root, a plan with no such line before its
@@ -47,13 +46,6 @@ GROUP = {
     "health": None,
     "since": None,
     "started": None,
-}
-HEALTH = {
-    "moving": "moving",
-    "waiting": "moving",
-    "quiet": "quiet",
-    "hung": "hung",
-    "unknown": "unknown",
 }
 SINCE = ("quiet", "hung")
 _GOAL = re.compile(r"^Goal \((\d{4}-\d\d-\d\d)\b", re.M)
@@ -157,25 +149,19 @@ class Homes:
         own = [one for one in threads or [] if one["role"] == "home"]
         found = []
         for name, scope in ((ROOT, None), *((one.name, one) for one, _, _ in self.scopes)):
-            work = sum(1 for task in tasks if task["home"] == name)
             mine = sorted(
                 (one for one in own if one["home"] == name),
                 key=lambda one: (one["out"], one["updated"] or ""),
             )
             thread = mine[-1] if mine else None
-            if thread is None:
-                health = "none"
-            elif thread["out"]:
-                health = HEALTH[thread["live"]]
-            else:
-                health = "ended" if work else "rest"
+            health = "unknown" if threads is None else thread["health"] if thread else "none"
             found.append(
                 {
                     "name": name,
-                    "open": work,
+                    "open": sum(1 for task in tasks if task["home"] == name),
                     "waits": sum(1 for need in needs if need["home"] == name),
                     "health": health,
-                    "since": thread["updated"] if health in SINCE else None,
+                    "since": thread["updated"] if thread and health in SINCE else None,
                     "started": self.started(scope) if scope else None,
                 }
             )

@@ -586,7 +586,7 @@
   function renderStack() {
     keyed($("rows"), "li", "pr", STACK.projects.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
   }
-  function idle(t) { return t.role === "home" && !t.out && t.open > 0; }
+  function idle(t) { return t.health === "ended"; }
   var TRI_MAX = 6, TRI_ALL = {};
   var WRONG_VERB = { main: "Open pulse", ci: "Open checks", bus: "Open bus", source: "Open pulse", unasked: "Open pulse", thread: "Open thread", stall: "Open task", idle: "Open task" };
   function linkOf(open) { var at = parse(open); return href(at.project, at.target); }
