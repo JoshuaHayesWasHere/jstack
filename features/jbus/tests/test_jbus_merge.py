@@ -29,6 +29,14 @@ def test_with_the_home_on_jbus_leaves_the_merge_to_it(kitchen):
     assert kitchen.log("jmerge") == [] and kitchen.events("jmerge") == []
 
 
+def test_with_no_home_merging_jbus_merges_the_pull_request_of_every_home(kitchen):
+    kitchen.brief("alpha", "Home: flow\n")
+    kitchen.set("jmerge.txt", "merged 7 alpha abc1234\n")
+    kitchen.poll()
+    assert kitchen.lines("jmerge") == ["merged 7 alpha abc1234"]
+    assert kitchen.log("jmerge") == ["--all"]
+
+
 REMOVABLE = [
     "removable alpha mcp:thread-1: worktree, local branch, remote branch",
     "removable beta no-thread: remote branch",

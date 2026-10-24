@@ -444,6 +444,10 @@ def fake_jmerge(stub, args, cwd):
     GitHub: the line on stdout, and exit 1. An accept of a held pull request does nothing where the
     test wrote no `accept.txt`. Each pass reads `--claims`, which changes nothing, so its runs go
     in `claims.log` and `jmerge.log` keeps the runs that may merge.
+
+    `jmerge.txt` is what the real command prints with `--all`. Without it, the fake skips a pull
+    request of another home as the real command does: a `merged` line whose brief has a `Home:`
+    line is printed as a wait for that reason.
     """
     with open(stub / ("claims.log" if args == ["--claims"] else "jmerge.log"), "a") as log:
         log.write(" ".join(args) + "\n")
@@ -462,6 +466,15 @@ def fake_jmerge(stub, args, cwd):
         return 0, said.read_text() if said.exists() else "", ""
     time.sleep(float((stub / "jmerge-sleep").read_text()))
     said = (stub / "jmerge.txt").read_text()
+    if "--all" not in args:
+        tasks, lines = stub.parent / "home" / cwd.name / "tasks", []
+        for line in said.splitlines(keepends=True):
+            word, number, slug = (line.split() + ["", "", ""])[:3]
+            brief = tasks / f"{slug}.md"
+            if word == "merged" and brief.exists() and "\nHome: " in brief.read_text():
+                line = f"wait {number} https://example.test/pull/{number}: another home's\n"
+            lines.append(line)
+        said = "".join(lines)
     if (stub / "jmerge-dies-late").exists():
         return 1, said, (stub / "jmerge-dies-late").read_text() + "\n"
     return 0, said, ""
