@@ -80,11 +80,14 @@ def test_a_red_tip_keeps_the_green_tip_before_it(kitchen):
 
 
 def test_a_red_main_with_no_merge_in_a_day_is_kept_as_red_and_gets_its_fix_row(kitchen):
+    """The pass that first sees the red keeps it in `main.json`, and the next files its row."""
     kitchen.quiet()
     red = tip(kitchen)
     checks(kitchen, red, "failure")
+    kitchen.set("commits.json", [kitchen.commit(red)])
     kitchen.poll()
     assert kept(kitchen) == mainjson.Main(red=red)
+    kitchen.poll(NOW + timedelta(minutes=1))
     (fix,) = main_red(kitchen)
     assert fix["slug"] == f"{mainjson.FIX}{red[:12]}" and fix["approved"] == ""
 
@@ -357,6 +360,20 @@ def test_a_run_that_starts_no_job_after_the_account_was_put_right_is_a_new_decis
     first, second = asked(kitchen)
     assert first.answer is not None and second.answer is None
     assert main_red(kitchen) == []
+
+
+def test_a_tip_that_started_no_job_with_no_briefed_merge_is_the_accounts_and_files_no_row(kitchen):
+    """The no-job class (S9) owns such a tip with its one decision: the red tip rule files no fix
+    row beside it, however many passes look."""
+    kitchen.quiet()
+    at = tip(kitchen)
+    kitchen.set("commits.json", [kitchen.commit(at)])
+    no_job(kitchen, at, 1)
+    for minutes in (3, 6, 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert main_red(kitchen) == []
+    assert kept(kitchen) == mainjson.Main()
+    assert len(asked(kitchen)) == 1
 
 
 def test_a_rerun_on_the_same_tip_whose_jobs_pass_closes_the_decision(kitchen):
