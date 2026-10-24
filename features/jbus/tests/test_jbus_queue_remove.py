@@ -8,9 +8,10 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import digest, queue, wake
+from jbus import digest, queue, waiting, wake
 from jbus.view import state as view
-from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen
+from test_jbus_blocking import relayed
+from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen, Webhook
 from test_jbus_queue import add, brief, rows, sha12
 from test_jbus_resume import crew, sends
 from test_jbus_row_history import transitions
@@ -155,6 +156,42 @@ def test_the_waiting_list_drops_a_removed_row_at_once_and_sends_no_event_for_it(
     assert decided.startswith("decision alpha: approve alpha: jbus --project demo queue approve")
     assert decided.endswith('a row with no approval of its brief. Reply: "demo approve alpha: go"')
     assert removed == f"queue demo: removed alpha, {AT} by user"
+
+
+def test_a_removal_that_lands_during_a_pass_raises_no_approve_decision(kitchen, monkeypatch):
+    kitchen.quiet()
+    add(kitchen, "alpha", approve=False)
+    add(kitchen, "beta", approve=False)
+    kept = waiting.keep
+
+    def removed_first(*args, **kwargs):
+        assert remove(kitchen, "alpha")[0] == 0
+        return kept(*args, **kwargs)
+
+    monkeypatch.setattr(waiting, "keep", removed_first)
+    kitchen.poll()
+    assert [line.split(":")[0] for line in kitchen.lines("decision")] == ["decision beta"]
+    listed = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
+    assert [one["key"] for one in listed] == ["approve:beta"]
+
+
+@pytest.mark.parametrize("emptied", [True, False], ids=["empty", "missing"])
+def test_a_row_whose_brief_is_missing_or_empty_raises_no_approve_decision(kitchen, emptied):
+    second = Webhook()
+    try:
+        relayed(kitchen, second)
+        add(kitchen, "alpha", approve=False)
+        add(kitchen, "beta", approve=False)
+        stored = kitchen.state / "briefs" / "alpha.md"
+        stored.write_text("") if emptied else stored.unlink()
+        kitchen.poll(LATER)
+        assert [line.split(":")[0] for line in kitchen.lines("decision")] == ["decision beta"]
+        listed = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
+        assert [one["key"] for one in listed] == ["approve:beta"]
+        (opened,) = second.bodies
+        assert sorted(one["key"] for one in opened["items"]) == ["approve:beta", "brief:alpha"]
+    finally:
+        second.close()
 
 
 def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):
