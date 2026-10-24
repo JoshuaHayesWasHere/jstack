@@ -52,7 +52,21 @@ Paths:
 - `src/beta/*.py`
 Tests: none
 """
+KIT = """\
+# Kit
+
+The tests of this repo that only a change to themselves would select, listed so a rule owns each.
+
+Paths:
+- `kit/`
+Tests:
+- `testing/tests/test_helper.py`
+- `testing/tests/test_kit.py`
+- `testing/tests/test_own_shared.py`
+- `testing/tests/test_shared.py`
+"""
 FILES = {
+    f"{select.MAP}/kit.md": KIT,
     "src/alpha/__init__.py": "",
     "src/alpha/a.py": "from alpha import util\n",
     "src/alpha/util.py": "X = 1\n",
@@ -321,6 +335,31 @@ def test_a_file_no_feature_owns_and_no_test_names_selects_the_cross_cutting_alon
     head = repo.change(["README.md"])
 
     assert repo.selected(head) == ["testing/tests/test_tree.py"]
+
+
+LONE = {"testing/tests/test_lone.py": "def test_lone():\n    assert True\n"}
+
+
+def test_a_test_no_rule_selects_runs_on_a_change_that_selects_only_the_cross_cutting(tmp_path):
+    """`test_lone.py` imports nothing, spells no path and is on no list, so a change to any other
+    path selects it by no rule. The catch-all runs it on every change, as it runs the
+    cross-cutting tests."""
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+
+    assert repo.selected(repo.change(["README.md"])) == [
+        "testing/tests/test_lone.py",
+        "testing/tests/test_tree.py",
+    ]
+
+
+def test_a_test_no_rule_selects_runs_beside_what_a_change_selects(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **LONE})
+
+    assert repo.selected(repo.change(["src/beta/plug.py"])) == [
+        "testing/tests/test_beta.py",
+        "testing/tests/test_lone.py",
+        "testing/tests/test_tree.py",
+    ]
 
 
 def test_a_star_stays_within_one_part_of_the_path(repo):
@@ -805,13 +844,15 @@ def owns_module(owned, path):
     return path.startswith("src/") and select.owns(owned, path)
 
 
-def test_every_test_file_is_run_by_a_change_to_something_or_is_cross_cutting():
-    cross = set(select.cross_cutting())
-    every = {path for path in tracked() if not path.startswith(".")} - {"conftest.py"}
-    run = set(cross)
-    for path in sorted(every):
+def test_every_test_file_is_run_by_a_change_to_another_path():
+    """A changed test file selects itself, so that change does not count. A test that no change
+    to any other path selects is owned by no rule, and a change that breaks it would merge with
+    it unrun. The selector's catch-all runs each such test on every change, so none is left."""
+    run = set()
+    for path in sorted(select.tracked()):
         tests, _ = select.selection([path])
-        run |= set(tests) - {"all"}
+        if tests != ["all"]:
+            run |= set(tests) - {path}
     left = [
         test
         for test in tracked("testing/tests/", "features/")
@@ -915,8 +956,9 @@ def test_a_module_with_one_test_marked_is_selected_whole_and_make_leaves_that_te
 
 SMALL = {
     "conftest.py": "",
+    "src/small/__init__.py": "",
     "testing/tests/test_tree.py": "def test_tree():\n    pass\n",
-    **{f"testing/tests/test_{name}.py": "def test_it():\n    pass\n" for name in "abcd"},
+    **{f"testing/tests/test_{name}.py": "import small\n" for name in "abcd"},
 }
 
 

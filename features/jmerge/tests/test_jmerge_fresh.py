@@ -296,7 +296,7 @@ SELECTED = {
     "conftest.py": "",
     "testing/tests/test_one.py": "import demo.one\n",
     "testing/tests/test_two.py": "import demo.two\n",
-    "testing/tests/test_whole.py": "",
+    "testing/tests/test_whole.py": "import demo\n",
 }
 
 
@@ -348,6 +348,20 @@ def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_p
     the pull request therefore run main's change to `one.py`."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen)
+    kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
+    before = known(kitchen)
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen, before)
+    assert len(checked.ran()) == 2
+
+
+def test_a_test_no_rule_owns_is_one_in_common(tmp_path):
+    """`test_lone.py` imports nothing and spells no path, so the selector's catch-all runs it on
+    every change. Main's change to `one.py` then meets the pull request's tests there."""
+    kitchen = Kitchen(tmp_path, {**SELECTED, "testing/tests/test_lone.py": ""})
+    checked = Checked(kitchen, "true", "src/demo/two.py")
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
     settled(kitchen)
     kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})

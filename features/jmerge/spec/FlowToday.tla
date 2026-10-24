@@ -23,7 +23,7 @@ Init ==
 Check(p) ==
     /\ st[p] = "open"                       \* .github/workflows/check.yml:4, a pull request's check
     /\ ci[p] = "none"
-    \* scripts/select_tests.py:153-154: only tests on Cross-cutting run on every diff, and
+    \* scripts/select_tests.py:160-161: only tests on Cross-cutting run on every diff, and
     \* test_module_size.py and test_view_sources.py are not on it, so a diff selects them by chance.
     /\ \E sel \in BOOLEAN :
         ci' = [ci EXCEPT ![p] = IF sel /\ (mainRed \/ breaks[p]) THEN "fail" ELSE "pass"]
