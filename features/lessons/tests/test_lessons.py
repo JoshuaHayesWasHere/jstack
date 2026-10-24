@@ -54,6 +54,19 @@ def test_an_em_dash_in_a_skill_is_a_problem():
     assert em_dashes(f"# a\n\nOne thing {EM_DASH} and another.\n") == ["has an em dash on line [3]"]
 
 
+def padding_wc(directory):
+    """A Mac's `wc` in `directory`, made of this machine's: it pads its count to eight places,
+    as BSD's does."""
+    directory.mkdir(exist_ok=True)
+    wc = directory / "wc"
+    wc.write_text(
+        f'#!/bin/sh\n{shutil.which("wc")} "$@" | awk \'{{printf "%8d", $(1)\n'
+        f'for (i = 2; i <= NF; i++) printf " %s", $(i); print ""}}\'\n'
+    )
+    wc.chmod(0o755)
+    return directory
+
+
 class Machine:
     """A user's home directory with the fixture as its `~/.claude/projects`."""
 
@@ -238,7 +251,8 @@ def test_a_digest_that_was_not_made_is_said(machine, tmp_path, lines):
     ]
 
 
-def test_a_turn_with_no_content_is_left_out_of_the_digest(machine, tmp_path):
+@pytest.mark.parametrize("tools", ["gnu", "bsd"])
+def test_a_turn_with_no_content_is_left_out_of_the_digest(machine, tmp_path, tools):
     transcript = tmp_path / "cccccccc.jsonl"
     transcript.write_text(
         '{"type": "user", "message": {"content": "said"}}\n'
@@ -246,7 +260,10 @@ def test_a_turn_with_no_content_is_left_out_of_the_digest(machine, tmp_path):
     )
     script = DIGEST.replace("<the file step 1 printed>", str(transcript))
     out = tmp_path / "reflect-cccccccc.txt"
-    assert machine.run(script, TMPDIR=str(tmp_path)) == [f"{out} 20 bytes"]
+    path = os.environ["PATH"]
+    if tools == "bsd":
+        path = f"{padding_wc(tmp_path / 'bsd')}:{path}"
+    assert machine.run(script, TMPDIR=str(tmp_path), PATH=path) == [f"{out} 20 bytes"]
     assert out.read_text() == "line 1, user:\nsaid\n\n"
 
 
