@@ -74,7 +74,9 @@ def checkout_with(tmp_path, tool, body):
 
 def gone(pid):
     for _ in range(50):
-        if not Path(f"/proc/{pid}").exists():
+        try:
+            os.kill(int(pid), 0)
+        except ProcessLookupError:
             return True
         time.sleep(0.1)
     return False
@@ -114,6 +116,21 @@ def test_a_launch_whose_command_fails_is_not_ready_and_tears_down(tmp_path, tool
     assert gone(stopped[0].rstrip(")").split()[-1])
     assert list(tmp.iterdir()) == [tmp / "verify-jstack-evidence"]
     assert list((tmp / "verify-jstack-evidence").iterdir()) == []
+
+
+def test_a_launch_whose_stand_in_does_not_start_says_what_its_log_holds(tmp_path):
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    scripts, path = checkout_with(
+        tmp_path, "python", "echo 'python: broken on purpose' >&2; exit 3"
+    )
+
+    ran = launch(tmp, scripts, path)
+
+    assert ran.returncode == 1
+    assert "launch.sh: the stand-in for T3 Code did not start" in ran.stderr
+    assert "python: broken on purpose" in ran.stderr
+    assert sorted(tmp.glob("verify-jstack.*")) == []
 
 
 def test_doctor_passes_every_feature_on_a_new_sandbox(sandbox):
