@@ -9,6 +9,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from datetime import timedelta
 
@@ -117,13 +118,13 @@ def test_the_crew_left_is_said_in_one_journal_line_and_under_its_result(kitchen,
     tree, _ = ended_crew(kitchen, tmp_path)
     brief = kitchen.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text() + RESULT)
-    stray += [orphan(tree, "yes"), orphan(tree, "yes", "two")]
+    stray += [orphan(tree, "yes"), orphan(tree, "cat", "/dev/zero")]
     said = kitchen.poll()
     lines = [one for one in said if one.startswith("left running")]
-    assert lines == [f"left running crew alpha: stopped 2: yes in {tree}, yes two in {tree}"]
+    assert lines == [f"left running crew alpha: stopped 2: yes in {tree}, cat /dev/zero in {tree}"]
     last = brief.read_text().splitlines()[-1]
     assert last.startswith("Left running: 2 stopped by jbus ")
-    assert last.endswith(f": yes in {tree}, yes two in {tree}")
+    assert last.endswith(f": yes in {tree}, cat /dev/zero in {tree}")
     assert mirror.field(mirror.last_result(brief.read_text()), "Left") == "none"
     kitchen.poll()
     assert brief.read_text().count("Left running:") == 1
@@ -155,6 +156,9 @@ def test_a_worktree_removed_under_a_busy_process_still_counts(
     assert not alive(stray[0])
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
+)
 def test_a_temporary_folder_the_crews_session_made_counts(kitchen, tmp_path, stray):
     tree, _ = ended_crew(kitchen, tmp_path)
     made = tmp_path / "lwr" / "c"
@@ -211,6 +215,9 @@ def test_a_process_of_a_crew_still_at_work_or_one_that_uses_no_cpu_is_left(
     assert [alive(pid) for pid in stray] == [False, True]
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
+)
 def test_a_scout_stops_only_what_its_own_session_started(kitchen, tmp_path, stray):
     kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=2), title="scout: alpha")
     (kitchen.home / "scouts" / "alpha.md").write_text("# alpha\n\n## Report\nFound it.\n")

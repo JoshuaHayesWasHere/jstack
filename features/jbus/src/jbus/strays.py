@@ -22,16 +22,18 @@ folder>/projects/<the folder, with - for each character that is not a letter or 
 digit>/<session>.jsonl`, both read from the process's own environment. `AGENT` is the agent's
 name, which spells the config folder's variable (`CONFIG`) and its default (`KEPT`).
 
-A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own `systemd
---user`, which adopts what a unit of it left, as it is for jbus, a user service. Where there is
-no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory and
-`ps -E` its environment, and the one reaper is 1, launchd. `ps` gives the command line as one
-string, so its arguments are split at spaces there: a path with a space in it, as an app
-bundle's, is read as several arguments. A process is
-never stopped when its parent is not a reaper, when it is not the user's, when it is jbus
-or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, it is
-stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and
-KILL to one still running `GRACE` seconds later, for a process that has the same start time.
+A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own
+`systemd --user`, which adopts what a unit of it left, as it is for jbus, a user service. Where
+there is no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory,
+and the one reaper is 1, launchd. There the environment is not read, since macOS's `ps -E` showed
+none for the user's own processes on the macOS job: a temporary folder and a scout's session then
+tie no process to a task, and only a folder or an argument under a worktree does. `ps` gives the
+command line as one string, so its arguments are split at spaces there: a path with a space in it,
+as an app bundle's, is read as several arguments. A process is never stopped when its parent is not
+a reaper, when it is not the user's, when it is jbus or one of its ancestors, or when it is T3
+Code's or the agent's own (`OWN`). Of those left, it is stopped only when it used CPU over `GAP`
+seconds of the pass. `stop` sends each one TERM, and KILL to one still running `GRACE` seconds
+later, for a process that has the same start time.
 
 For each task with a process stopped, `stop` says one line, which the unit's journal keeps, with
 the count and the commands. It also adds one `Left running:` line at the end of the brief's last
@@ -222,9 +224,8 @@ def _read(pid: str, stat: tuple[int, int, int]) -> Proc | None:
 
 
 def _located(found: list[Proc]) -> list[Proc]:
-    """The processes with the working directory `lsof` gives and the environment `ps -E` adds
-    after the command line, which it shows for the user's own processes. A process `lsof` gives
-    no folder for has none, and is known by its arguments alone."""
+    """The processes with the working directory `lsof` gives. A process `lsof` gives no folder
+    for has none, and is known by its arguments alone."""
     if not found:
         return []
     pids = ",".join(str(one.pid) for one in found)
@@ -234,17 +235,8 @@ def _located(found: list[Proc]) -> list[Proc]:
             pid = line[1:]
         elif line.startswith("n") and pid:
             folders[pid] = line[1:].removesuffix(" (deleted)")
-    shown = {}
-    for line in _run("ps", "-ww", "-E", "-p", pids, "-o", "pid=,command=").splitlines():
-        pid, _, text = line.strip().partition(" ")
-        shown[pid] = text.split()
-    named = r"(?:^| )([A-Za-z_][A-Za-z0-9_]*)=(.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)"
     for one in found:
         one.cwd = folders.get(str(one.pid), "")
-        words = shown.get(str(one.pid), [])
-        if words[: len(one.args)] == one.args:
-            rest = " ".join(words[len(one.args) :])
-            one.env = {each[1]: each[2] for each in re.finditer(named, rest)}
     return found
 
 
