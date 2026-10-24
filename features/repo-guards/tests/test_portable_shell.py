@@ -7,6 +7,8 @@ the reviewer's tests start their checks on. Every `sh` block of every tracked .m
 parses also parses under bash 3.2, the bash macOS runs as /bin/sh, as written and with its
 `<placeholder>`s filled in, with a plain word and, one at a time, with words that hold an
 apostrophe.
+A separator a block reads fields on with `IFS=` is one bash 3.2 splits on, which \\001 and \\177
+are not.
 """
 
 import os
@@ -460,3 +462,58 @@ def test_a_heredoc_with_an_apostrophe_inside_a_command_substitution_is_found(
     assert unparsed_by_bash3(repo, tmp_path / "planted") == ["features/demo/SKILL.md:10"]
     skill.write_text(page(moved))
     assert unparsed_by_bash3(repo, tmp_path / "moved") == []
+
+
+SEPARATOR = re.compile(r"\b(\w+)=\$\(printf '(\\[0-7]{1,3})'\)")
+SPLIT = 'printf "1${SEP}alpha${SEP}tea\\n" | while IFS=$SEP read -r n s a; do echo "[$n][$s]"; done'
+
+
+def unsplit_by_bash3(root, where):
+    """Each separator a block sets with `printf` and a block reads fields on, `IFS=$<name>`,
+    that bash 3.2 does not split on, as `path:line`. bash 3.2 keeps \\001 and \\177 as its own
+    quoting bytes, and its `read` takes a line with them as one field."""
+    lines = list(shell(root))
+    found = [
+        (f"{path.relative_to(root)}:{at}", setting.group(2))
+        for path, at, line in lines
+        for setting in SEPARATOR.finditer(line)
+        if any(re.search(rf'IFS="?\${setting.group(1)}\b', text) for _, _, text in lines)
+    ]
+    if not found:
+        return []
+    three = bash3(where)
+    if three is None:
+        why = "needs a bash 3.2 (macOS's /bin/bash, or docker's bash:3.2)"
+        if os.environ.get("CI") and sys.platform == "darwin":
+            pytest.fail(f"{why}: the macOS job is where this guard always runs")
+        pytest.skip(why)
+    command, inside = three
+    where.mkdir(parents=True, exist_ok=True)
+    unsplit = []
+    for name, byte in found:
+        (where / "split").write_text(f"SEP=$(printf '{byte}')\n{SPLIT}\n")
+        said = subprocess.run(
+            [*command, f"{inside}/split"], capture_output=True, text=True, check=True
+        )
+        if said.stdout != "[1][alpha]\n":
+            unsplit.append(name)
+    return unsplit
+
+
+def test_every_separator_a_block_reads_fields_on_splits_under_bash_3_2(tmp_path):
+    assert unsplit_by_bash3(REPO, tmp_path / "split") == []
+
+
+def test_a_read_on_a_separator_bash_3_2_keeps_whole_is_found(tmp_path):
+    """A block that reads fields on \\001 gets one run-on field under bash 3.2, where bash 5
+    splits it. The guard names the line that sets it, and passes the same block on \\037."""
+    skill = tmp_path / "features" / "demo" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+
+    def page(byte):
+        return f"# demo\n\n```sh\nSEP=$(printf '{byte}')\n{SPLIT}\n```\n"
+
+    skill.write_text(page("\\001"))
+    assert unsplit_by_bash3(tmp_path, tmp_path / "planted") == ["features/demo/SKILL.md:4"]
+    skill.write_text(page("\\037"))
+    assert unsplit_by_bash3(tmp_path, tmp_path / "moved") == []
