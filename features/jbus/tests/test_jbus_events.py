@@ -277,6 +277,7 @@ TABLE = {
     "sign-in": "user",
     "waiting-on-user": "quiet",
     "condition": "quiet",
+    "clock": "quiet",
     "merged": "quiet",
     "gate answered": "quiet",
     "result": "quiet",

@@ -251,6 +251,11 @@ At every home's start (step 5), when a queue playbook (`autopilot-full` or `orch
 
 A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one the audit printed as `stuck`. Its worktree and its brief hold what it did. The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own". It ends in one of two calls.
 
+`jbus` tries once first, by the wait's age (`jbus.clock`).
+A pull request whose review is not written while its reviewer's thread is not at work gets that reviewer sent its line again; one that waits on its crew gets the crew one carry-on; a crew that ended with no Result has its two carry-ons.
+After the second miss `jbus` sends this home one line that names the slug, the pull request and the thread, and the user is not told: that line is the home's cue to pick the thread up as this section says.
+`jbus` interrupts no hung turn, so an interrupt, where one is needed, is the home's.
+
 A thread whose last turn failed on a usage limit, the text `You've hit your weekly limit · resets <time>` or its 5-hour twin, is not carried on in place: its instance is capped until that reset, and the same message fails again.
 `jbus` does it: its pass reads the failure, writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom with only the `instanceId` changed (`t3_thread_configure`), and sends one queued carry-on, once for the failed run.
 Every launch goes to that first instance with headroom as well (`jroles` says which instance it chose and why).
