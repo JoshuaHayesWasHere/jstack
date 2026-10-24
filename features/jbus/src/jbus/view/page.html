@@ -241,12 +241,22 @@
   .hk.op { color: var(--due); font-weight: 600; }
   .qn { margin: 10px 0 0; }
   .calm { color: var(--ink-2); font-weight: 700; margin: 4px 0; }
+  .tri .needs.wrong { border-left-color: var(--missed); }
+  .tri .needs.wrong h2 b { color: var(--missed); }
+  .tri .tail { margin: 2px 0 0; font-size: 15px; }
+  .tri .tail a, .tri .tail button { color: var(--ink-2); font: inherit; font-weight: 700; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+  .tri .calm { margin-top: 12px; font-weight: 400; }
+  .tri .nr { flex-wrap: nowrap; }
+  .tri .nb { flex: 1 1 0; }
+  .tab { font-size: 15px; font-weight: 700; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; white-space: nowrap; }
+  .tab[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
 
   @media (max-width: 640px) {
     main { padding: 8px 10px 32px; }
     .hdr { position: static; padding: 4px 10px; gap: 0 10px; }
     .hdr h1 { order: 3; flex-basis: 100%; }
     .brand { min-height: 44px; display: inline-flex; align-items: center; }
+    .tab { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; }
     .tok { min-height: 44px; border-radius: 10px; padding: 4px 12px; line-height: 1.3; }
     .tok .lb { white-space: normal; overflow: visible; text-align: left; }
     .tok .src { white-space: nowrap; }
@@ -316,6 +326,7 @@
 <header class="hdr">
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
+  <a class="tab" id="tri" href="#/triage" hidden></a>
   <select class="pick" id="pick" aria-label="Project"></select>
   <span class="readat" id="readat"></span>
   <a class="machw" id="mach" hidden></a>
@@ -332,6 +343,11 @@
     <div id="nsaid" role="status"></div>
   </section>
   <p class="nx" id="nx"></p>
+  <div class="tri" id="triage" hidden>
+    <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
+    <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
+    <p class="calm" data-role="calm" id="tri-calm"></p>
+  </div>
   <div id="stack" hidden>
     <h2 class="sec" id="projects-h">Projects</h2>
     <ul class="prs" id="rows" aria-labelledby="projects-h"></ul>
@@ -362,12 +378,13 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, ITEMS = {}, ITEM_OF = {};
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
-  var STACK = null, NOSUCH = "", PROJECT = null, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
+  var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
   function parse(hash) {
     var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {};
     parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
+    if (segs[0] === "triage") return { project: "", target: "", more: more, triage: true };
     if (segs[0] === "help") return { project: "", target: "help" + (segs[1] ? ":" + segs.slice(1).map(name).join(":") : ""), more: more };
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
   }
@@ -543,15 +560,18 @@
     box.title = "jbus, the room, the runners and the plan: open the pulse";
   }
   function renderHeader() {
-    var at = PROJECT || NOSUCH;
-    put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    var at = PROJECT || NOSUCH, tab = $("tri");
+    put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : TRIAGE ? '<a href="' + esc(href("")) + '">All</a><a href="#/triage" aria-current="page">Triage</a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    tab.hidden = !STACK;
+    if (STACK) { put(tab, 'Triage <b>' + STACK.needs.length + '</b>'); tab.setAttribute("aria-label", "Triage: " + plural(STACK.needs.length, "thing is", "things are") + " yours"); }
+    if (TRIAGE) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
     var names = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
     if (at && names.indexOf(at) < 0) names.push(at);
     put($("pick"), '<option value=""' + (at ? "" : " selected") + '>All projects</option>' + names.map(function (n) { return '<option value="' + esc(n) + '"' + (n === at ? " selected" : "") + '>' + esc(n) + '</option>'; }).join(""));
     $("pick").hidden = !names.length;
     machineWord();
     $("helpme").setAttribute("href", href(PROJECT, "help"));
-    var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
+    var named = PROJECT ? "jbus: " + PROJECT : TRIAGE ? "jbus: triage" : "jbus: every project";
     if (document.title !== named) document.title = named;
   }
   function brokeSince(b) { var at = ms(b.since); return b.what + (at == null ? ", since not known" : " since " + day(at)); }
@@ -567,6 +587,77 @@
     keyed($("rows"), "li", "pr", STACK.projects.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
   }
   function idle(t) { return t.role === "home" && !t.out && t.open > 0; }
+  var TRI_MAX = 6, TRI_ALL = {};
+  var WRONG_VERB = { main: "Open pulse", ci: "Open checks", bus: "Open bus", source: "Open pulse", unasked: "Open pulse", thread: "Open thread", stall: "Open task", idle: "Open task" };
+  function linkOf(open) { var at = parse(open); return href(at.project, at.target); }
+  function ago(t) { var v = ms(t); return v == null ? "no time kept" : NOW - v < 60e3 ? "new" : short(NOW - v); }
+  function homePath(project, home) { return project + (home ? " \u203a " + home : ""); }
+  function listed(names) { return names.length > 3 ? names.slice(0, 2).join(", ") + " and " + (names.length - 2) + " more" : names.join(", "); }
+  function yours() {
+    var rows = [], batch = {};
+    STACK.needs.forEach(function (w) {
+      var row = { key: w.project + "/" + w.key, subj: w.subj || w.what, what: w.what, where: homePath(w.project, w.home), since: w.since, verb: w.verb, href: linkOf(w.open) };
+      if (w.kind !== "approve") { rows.push(row); return; }
+      var k = w.project + "/" + w.kind;
+      if (batch[k]) { batch[k].push(w); return; }
+      row.batch = batch[k] = [w];
+      rows.push(row);
+    });
+    rows.forEach(function (r) {
+      var b = r.batch;
+      if (!b || b.length < 2) return;
+      r.key = "batch:" + b[0].project + "/" + b[0].kind;
+      r.subj = plural(b.length, "approval", "approvals");
+      r.what = listed(b.map(function (w) { return w.subj || w.what; }));
+      r.where = b[0].project;
+      r.verb = "Approve " + b.length;
+      r.href = href(b[0].project, "you:approve");
+    });
+    return rows;
+  }
+  function wrongRows() {
+    return STACK.wrong.map(function (w) {
+      var first = w.where[0], places = w.where.map(function (p) { return homePath(p.project, p.home); });
+      return { key: w.kind + "/" + w.subj + "/" + w.cause, subj: w.subj, what: w.cause, where: places.length ? listed(places) : "this machine", since: w.since, verb: WRONG_VERB[w.kind] || "Open it",
+        href: first ? linkOf(first.open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse") };
+    });
+  }
+  function triRow(r, n, fill) {
+    return '<div class="nb"><span class="nw"><code>' + esc(r.subj) + '</code>' + (r.what && r.what !== r.subj ? " " + esc(r.what) : "") + '</span><span class="nm">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></div>' +
+      '<div class="na"><a class="btn' + (fill && n === 0 ? " fill" : "") + '" href="' + esc(r.href) + '">' + esc(r.verb) + '</a></div>';
+  }
+  function triList(part, rows, count, title, fill) {
+    var box = $("tri-" + part), sec = box.parentElement, shown = TRI_ALL[part] ? rows : rows.slice(0, TRI_MAX), rest = rows.length - shown.length;
+    sec.hidden = !rows.length;
+    put($("tri-" + part.charAt(0) + "h"), '<b>' + count + '</b> ' + title);
+    keyed(box, "li", "nr", shown.map(function (r, n) { return { key: r.key, html: triRow(r, n, fill) }; }));
+    return rest ? '<p class="tail"><button type="button" data-tri="' + part + '">' + rest + ' more &rsaquo;</button></p>' : "";
+  }
+  function soonTail() {
+    var soon = STACK.proceeds;
+    if (!soon.length) return "";
+    var due = soon.map(function (w) { return ms(w.due); }).filter(function (v) { return v != null; }), first = due.length ? Math.min.apply(null, due) : null;
+    return '<p class="tail"><a href="' + esc(linkOf(soon[0].open)) + '">' + (soon.length === 1 ? "1 takes its default" : soon.length + " take their default") + ' if you say nothing' + (first == null ? "" : ", the first at " + hm(first)) + ' &rsaquo;</a></p>';
+  }
+  function calmLine(mine, wrong) {
+    var open = 0, merged = 0, out = 0;
+    STACK.projects.forEach(function (p) { open += p.open; merged += p.merged; out += p.health.threads || 0; });
+    var lead = !mine && !wrong ? "Nothing waits on you and nothing is wrong. " : !mine ? "Nothing waits on you. " : !wrong ? "Nothing is wrong. " : "";
+    return lead + "Everything else moves: " + open + " open in " + plural(STACK.projects.length, "project", "projects") + ", " + merged + " merged today, " + plural(out, "thread", "threads") + " out.";
+  }
+  function renderTriage() {
+    var mine = yours(), wrong = wrongRows();
+    put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail());
+    $("tri-yl").parentElement.hidden = !mine.length && !STACK.proceeds.length;
+    put($("tri-wt"), triList("wl", wrong, wrong.length, "Wrong", false));
+    say($("tri-calm"), calmLine(STACK.needs.length, wrong.length));
+  }
+  document.addEventListener("click", function (e) {
+    var more = e.target.closest && e.target.closest("[data-tri]");
+    if (!more) return;
+    TRI_ALL[more.getAttribute("data-tri")] = true;
+    renderTriage();
+  });
   var LIVEWORD = { moving: "Working", quiet: "Quiet", hung: "Hung", waiting: "Waiting", unknown: "Unknown" };
   function chipsOf(t) {
     var out = [], live = t.seen.live;
@@ -665,7 +756,8 @@
     renderHeader();
     $("none").hidden = !NOSUCH;
     if (NOSUCH) put($("none"), noSuch());
-    $("stack").hidden = !!PROJECT || !STACK;
+    $("stack").hidden = !!PROJECT || !STACK || TRIAGE;
+    $("triage").hidden = !!PROJECT || !STACK || !TRIAGE;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
     if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderDead(); PANELS.you.draw(); return; }
@@ -676,7 +768,8 @@
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
-    if (!PROJECT) renderStack(); else renderProject();
+    if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
+    if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else renderStack();
     freshen();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
@@ -1019,7 +1112,7 @@
       var put = href(at.project, wanted.length ? wanted[wanted.length - 1].target : "");
       st = { layers: wanted, back: false }; history.replaceState(st, "", put); at = parse(put);
     }
-    HASH = at.more; PROJECT = at.project; LAYERS = st.layers; BACK = !!st.back;
+    HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; LAYERS = st.layers; BACK = !!st.back;
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
     if (PROJECT !== was) {

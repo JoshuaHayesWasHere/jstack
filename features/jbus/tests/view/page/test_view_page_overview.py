@@ -271,10 +271,18 @@ def test_a_stopped_jbus_makes_every_project_row_red_with_its_reason(scene, tmp_p
 
 def test_passes_that_fail_and_a_red_main_are_on_the_first_screen(scene, tmp_path):
     """While passes raise, the header counts them where it said the last pass, and a red main
-    names its tip on its project's row, since when, as every red reason does."""
+    names its tip on its project's row, since when, as every red reason does. Nothing waits on
+    the user: no list of what waits, and no row the user holds."""
     stacked(scene)
     for project in ("demo", "pantry"):
         scene.write("waiting-on-user.json", [], scene.state_dir / project)
+        state = scene.state_dir / project
+        work = json.loads((state / "work.json").read_text())
+        held = {one.get("slug") for one in work["work"] if one.get("who") == "user"}
+        work["work"] = [one for one in work["work"] if one.get("slug") not in held]
+        rows = json.loads((state / "queue.json").read_text())
+        scene.write("queue.json", [one for one in rows if one["slug"] not in held], state)
+        scene.write("work.json", work, state)
     streak = {"key": alert.PASS, "count": 3, "since": iso(ago(minutes=3)), "alerted": True}
     scene.write("streaks.json", {alert.PASS: streak}, scene.state_dir)
     red = "badc0de" + "1" * 33
