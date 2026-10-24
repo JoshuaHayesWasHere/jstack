@@ -125,9 +125,10 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
             return {}
         reason, row = run.reasons.get(slug), table.get(slug)
         if isinstance(reason, Changed) and row:
-            now, was = reason.sha, row.get("brief_sha", "")[:12]
-            command = waiting.approve(name, slug, now, user)
-            action = f"re-approve {slug} (brief now {now}, approved {was}): {command}"
+            command = waiting.approve(name, slug, reason.sha, user)
+            lines = "; ".join(reason.lines)
+            said = f"brief now {reason.sha}, approved {reason.was}; changed: {lines}"
+            action = f"re-approve {slug} ({said}): {command}"
             return {f"re-approve:{slug}": action}
         if isinstance(reason, Depends):
             found: dict[str, str] = {}

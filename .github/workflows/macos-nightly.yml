@@ -1,0 +1,92 @@
+name: macos-nightly
+
+# The whole suite on macOS, once a night, over the macOS train. A pull request's macOS job runs
+# only the quick list, so a change stays quick, and a Mac bug the list misses is caught here
+# (the owner's word, 2026-10-24: "changes should stay quick with mac bugs being caught during
+# larger regression runs. maybe we run these nightly?"). GitHub runs a schedule only from the
+# default branch's file, so this file is on main and checks out the branch `ref` names. It runs
+# at 04:00 ET (08:00 UTC), an hour after browser.yml, and by hand, and never on a pull request
+# or a push. It is in no required-checks: nothing waits on it.
+#
+# A red run is not told from here: jbus reads this workflow's runs and files and queues the
+# brief for the fix, `macos-red-<date>`, under the macos home (features/jbus/src/jbus/watch.py).
+# A manual run on a fix's branch runs from main all the same, so the run's title names the ref it
+# checked out, and jbus files a brief only for a red run of the train's.
+run-name: macos-nightly on ${{ inputs.ref || 'train/macos' }}
+
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The branch, tag or commit whose suite runs
+        default: train/macos
+
+permissions:
+  contents: read
+
+env:
+  # The same uv as check.yml's (testing/tests/test_workflows.py).
+  UV_VERSION: "0.13.2"
+
+jobs:
+  # The whole suite took 51 minutes on macos-15 with its waits (run 40108766945): 90 leaves
+  # room for a slow runner, and the suite's own cap stops it first, so the summary still runs.
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || 'train/macos' }}
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --locked
+      # As macos.yml installs them: gh and jq where the image lacks one, a bash 5 beside the
+      # system's 3.2, and the system's zsh.
+      - name: tools
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: >-
+          for tool in gh jq; do command -v "$tool" || brew install "$tool"; done &&
+          { [ -x "$(brew --prefix)/bin/bash" ] || brew install bash; } && zsh --version
+      - name: make check
+        id: suite
+        timeout-minutes: 80
+        run: make check JUNIT="$RUNNER_TEMP/junit.xml"
+      - name: failed tests
+        if: "!cancelled()"
+        env:
+          JUNIT: ${{ runner.temp }}/junit.xml
+          SUITE: ${{ steps.suite.outcome }}
+        run: |
+          python3 - << 'EOF'
+          import os, xml.etree.ElementTree as tree
+
+          def named(case):
+              parts, classes = (case.get("classname") or "").split("."), []
+              while len(parts) > 1 and parts[-1].startswith("Test"):
+                  classes.insert(0, parts.pop())
+              return "::".join(["/".join(parts) + ".py", *classes, case.get("name") or ""])
+
+          try:
+              report = tree.parse(os.environ["JUNIT"]).getroot()
+          except (OSError, tree.ParseError):
+              failed = []
+              line = f"macOS: no test report, the suite step ended {os.environ['SUITE']}"
+          else:
+              failed = [
+                  named(case)
+                  for case in report.iter("testcase")
+                  if case.find("failure") is not None or case.find("error") is not None
+              ]
+              line = f"macOS: {len(failed)} tests failed, the suite step ended {os.environ['SUITE']}"
+          print(f"::warning::{line}")
+          for test in failed:
+              print(f"FAILED {test}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(line + "\n" + "".join(f"- `{test}`\n" for test in failed))
+          EOF

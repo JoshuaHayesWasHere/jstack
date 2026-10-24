@@ -1,6 +1,10 @@
 ## Merging a pull request that is ready
 
-A pull request that is reviewed, fixed and green is merged, and the user is told. Nobody has to give the word for that one. A pull request that is anything short of ready is never merged without the user's word. Neither is one that changes a protected path (a secret, or one of the two lists of paths), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not. One that changes a guarded path is merged by the same command, under a stricter gate (below).
+A pull request that is reviewed, fixed and green is merged, and the user is told of it when they ask for status, as "How a turn ends" says.
+Nobody has to give the word for that one.
+A pull request that is anything short of ready is never merged without the user's word.
+Neither is one that changes a protected path (a secret, or one of the two lists of paths), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
+One that changes a guarded path is merged by the same command, under a stricter gate (below).
 
 The home merges nothing itself. One command does all of it, with no model: `jmerge`, from the repo this skill lives in. One runner runs it for a repo, jbus or a home, never both: two runs at once would race, and no lock keeps them apart.
 
