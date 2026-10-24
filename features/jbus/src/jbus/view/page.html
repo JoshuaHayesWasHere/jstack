@@ -227,6 +227,8 @@
   .pgw.bad b { color: var(--missed); }
   .pgw.ask b { color: var(--due); }
   .pga { margin-left: auto; color: var(--ink-2); font-size: 15px; }
+  .pgh { font-size: 16px; margin: 14px 0 4px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .pgh .cnt { font-size: 15px; font-weight: 700; color: var(--ink-2); }
   .chip.bad { background: var(--missed-tint); color: var(--missed); }
   .merged > summary { cursor: pointer; font-size: 20px; font-weight: 700; margin-top: 22px; }
   .merged ul { margin-top: 6px; }
@@ -339,7 +341,7 @@
     <section aria-labelledby="prog-h">
       <h2 class="sec" id="prog-h"></h2>
       <p class="calm" id="calm" hidden>Nothing in progress</p>
-      <ol class="pgl" id="prog" aria-labelledby="prog-h"></ol>
+      <div id="prog"></div>
     </section>
     <details class="merged" id="merged-d" hidden><summary id="merged-s"></summary><ul class="clean" id="merged-l"></ul></details>
     <section aria-labelledby="health-h">
@@ -552,7 +554,7 @@
     if (document.title !== named) document.title = named;
   }
   function projectRow(p) {
-    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; })).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
+    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; }), p.unplaced.length ? ["cannot place " + p.unplaced.join(", ")] : []).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
     if (p.waits) says.push(p.waits + " need you");
     if (why) says.push(why);
     return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
@@ -568,9 +570,11 @@
     function liveness(who, word) { if (word === "hung") add(who + " hung", "bad"); else if (word === "quiet") add(who + " quiet", "user"); }
     if (live !== t.state.kind) liveness("thread", live);
     (S.threads || []).forEach(function (r) { if (r.role === "reviewer" && r.slug === t.slug && r.out && r.live !== t.state.kind) liveness("reviewer", r.live); });
+    if (t.gone) add("crewmate gone", "bad");
     if (t.seen.check && /fail/.test(t.seen.check.state)) add("check failed", "bad");
     if (t.state.kind === "behind") add("behind " + (t.waits_on || (t.blockers[0] && t.blockers[0].what) || "another task"), "plain");
     if (t.unconfirmed) add(t.unconfirmed.since ? "not confirmed since " + hm(ms(t.unconfirmed.since)) : "not confirmed", "gap");
+    if (t.retired) add("home " + t.retired + " retired, so under the root", "plain");
     return out.join(" ");
   }
   var ITEM_WORD = { proposed: "Proposed", approved: "Approved", queued: "Queued", running: "Running", waiting_on_you: "Needs you", held: "Held", done: "Done", dropped: "Dropped" };
@@ -590,15 +594,15 @@
     var you = needed();
     var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key && !you[t.slug]; }).map(function (t) {
       var it = ITEM_OF[t.slug], held = it && it.state === "held" ? ' <span class="chip user">held</span>' : "";
-      return { key: t.slug, slug: t.slug, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
+      return { key: t.slug, slug: t.slug, home: t.home, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
     });
     S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && (you[it.slug] || TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key)); }).forEach(function (it) {
       var at = itemAt(it);
-      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : "", open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     (S.threads || []).filter(function (t) { return t.out && (t.role === "scout" || t.role === "reviewer") && !TASK[t.slug] && !ENDED[t.slug]; }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }
@@ -610,11 +614,31 @@
     if (h.threads) line.push(hk(plural(h.threads, "thread", "threads") + " out", "threads"));
     return line.join(" &middot; ");
   }
+  function byHome(rows, homes) {
+    var named = {};
+    homes.forEach(function (h) { named[h.name] = 1; });
+    return homes.map(function (h) { return { home: h, rows: rows.filter(function (r) { return (named[r.home] ? r.home : "") === h.name; }) }; });
+  }
+  function homeHead(h) {
+    return esc(h.name || "root") + ' <span class="cnt">' + h.open + ' open</span>' + (h.waits ? ' <span class="chip user">' + plural(h.waits, "waits", "wait") + ' on you</span>' : "");
+  }
+  function renderProgress(rows, homes) {
+    var box = $("prog"), groups = byHome(rows, homes.length ? homes : [{ name: "", open: 0, waits: 0 }]), split = groups.length > 1, keys = groups.map(function (g) { return g.home.name; }).join("\n");
+    if (box.__keys !== keys) {
+      box.innerHTML = groups.map(function (g, n) { return '<section class="pgg" data-key="' + esc(g.home.name) + '"><h3 class="pgh" id="pgh-' + n + '"' + (split ? "" : " hidden") + '></h3><ol class="pgl" aria-labelledby="' + (split ? "pgh-" + n : "prog-h") + '"></ol></section>'; }).join("");
+      box.__keys = keys;
+    }
+    groups.forEach(function (g, n) {
+      var sec = box.children[n];
+      if (split) put(sec.firstChild, homeHead(g.home));
+      keyed(sec.lastChild, "li", "pg", g.rows.map(function (r) { return { key: r.key, html: progRow(r) }; }));
+    });
+  }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
     put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : ""));
     $("calm").hidden = rows.length > 0;
-    keyed($("prog"), "li", "pg", rows.map(function (r) { return { key: r.key, html: progRow(r) }; }));
+    renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
     $("merged-d").hidden = !merged.length && !done.length;
     say($("merged-s"), "Merged today \u00b7 " + (merged.length + done.length));
@@ -805,6 +829,7 @@
   }
   function openDrawer(target, focus) {
     var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
+    count("drawer", kind);
     if (!p || !p.drawer) { mark(null); show({}, missing(kind, arg)); return; }
     if (p.first) {
       mark(p, null);
@@ -892,6 +917,12 @@
   document.addEventListener("change", function (e) { if (e.target.id === "pick") location.hash = href(e.target.value); });
   window.addEventListener("scroll", hidePeek, true);
   document.addEventListener("click", function (e) {
+    if (clicked || !e.target.closest) return;
+    var b = e.target.closest("[data-open]"), row = e.target.closest("#rows .proj");
+    clicked = true;
+    count("click", b ? b.getAttribute("data-open").split(":")[0] : row ? "project" : e.target.closest("#helpme") ? "help" : "other");
+  }, true);
+  document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
   });
   document.addEventListener("keydown", function (e) {
@@ -902,7 +933,8 @@
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  var gAt = 0, CHORD_MS = 1500;
+  var gAt = 0, CHORD_MS = 1500, clicked = false;
+  function count(kind, what) { if (!gone) ask("/usage", { kind: kind, name: what, project: PROJECT || "" }).catch(function () {}); }
   function typing(el) { return el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(el.type)) || !!el.isContentEditable; }
   function nextProject() {
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
@@ -986,6 +1018,7 @@
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
     if (PROJECT !== was) {
+      count("route", PROJECT ? "project" : "stack");
       S = null; NOSUCH = ""; turnOf += 1;
       shutDrawer(first); render();
       pending = top();

@@ -60,6 +60,8 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         "pending": 0,
         "page": False,
         "rank": 0,
+        "home": "",
+        "retired": "",
     }
     seen = tasks(state)["jam-jar"]["seen"]
     assert (seen["live"], seen["run_started"], seen["queued"]) == ("hung", began, 2)

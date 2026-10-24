@@ -17,7 +17,7 @@ The unit's `RestartForceExitStatus=75` starts it again on the new code, and `Suc
 [The view's look](../working-on-jbus/the-views-look.md) has its colours and type, for working on the page.
 
 To show the page, the view reads no config of jbus and no secret.
-It takes `GET` requests and two writes, `POST /answer` and `POST /steer`.
+It takes `GET` requests and three writes, `POST /answer`, `POST /steer` and `POST /usage`.
 Any other method gets 405.
 
 ### What the bare link shows
@@ -45,6 +45,12 @@ A project's row opens its page, `#/<project>`, which has nothing else on its fir
 | In progress | One row for each open task that is not in Needs you, and one for each scout or reviewer thread with no task. A task in Needs you is drawn there only. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
+
+A project with child homes draws In progress under one heading per home, the root first and then each child home by name.
+Each heading gives the home's open tasks and what of it waits on you, and a child home with nothing open is that heading alone.
+A row's home is the one `jbriefs.home_of` gives its brief's `Home:` line, and the root for a row with no such line.
+A row whose `Home:` line names a scope that has retired is under the root, with a chip that names the scope.
+In `/state.json` and `/stack.json` each task, thread and need has its `home`, the scope's name or an empty string for the root, and the summary lists the homes with their counts under `homes`.
 
 ### Every view is a link
 
@@ -140,3 +146,13 @@ The answer is `{at, item, say, state, last_event}`, read from the record after t
 A message goes to the item's home in the same request.
 Where T3 Code does not take it, the view still records the line, `say` tells why it was not sent, and the next pass sends it.
 `/steer` has the checks `/answer` has: a foreign `Host` or `Origin` gets 403, a body that is too long or not of that shape gets 400, and a project the state directory lacks gets 404.
+
+### Count what the page opens
+
+The page posts one line to `POST /usage` for each route it shows, each drawer it opens, and the first click after it loads.
+The server writes each line itself, as `{at, kind, name, project}`, into `view-usage.jsonl` in jbus's state directory.
+It takes a name only from its own routes and panels and a project only from its state directory, and it refuses anything else with 400.
+So a line holds no row text, slug, thread id or address, and nothing of it leaves the machine.
+Like the other writes, a count is taken only from the view's own origin.
+Past 256 KiB the file keeps only its newest lines, up to half that size.
+`jbus view usage [--since <time>]` prints how many of each kind and name it holds, over the last 7 days by default.

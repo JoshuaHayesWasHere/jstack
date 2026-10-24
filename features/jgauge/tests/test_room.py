@@ -953,3 +953,51 @@ def test_a_pooled_instance_whose_file_is_a_directory_is_not_known_and_has_room(t
     looked = ran(env)
     assert looked.stdout == "go\n"
     assert looked.stderr.endswith(f"the pool has room on {PRIME}\n")
+
+
+def processes(where, *each, uptime=1000.0):
+    """Processes in the machine's /proc: each a command, a working directory, and the seconds
+    of CPU it used over its life, all of which began 900 s after the machine booted. With 100
+    ticks a second, its share of a core is its CPU seconds over the 100 s it has run."""
+    proc = where / "proc"
+    put(proc / "uptime", f"{uptime} 12345.67\n")
+    for pid, (command, cwd, seconds) in enumerate(each, start=4000):
+        made = proc / str(pid)
+        made.mkdir(parents=True, exist_ok=True)
+        ticks = int(seconds * 100)
+        name = command.split()[0].rsplit("/", 1)[-1]
+        fields = ["S", "1", *["0"] * 9, str(ticks), "0", *["0"] * 6, str(900 * 100), "0"]
+        put(made / "stat", f"{pid} ({name}) {' '.join(fields)}\n")
+        put(made / "cmdline", "\0".join(command.split()) + "\0")
+        (made / "cwd").unlink(missing_ok=True)
+        (made / "cwd").symlink_to(cwd)
+
+
+def test_a_wait_for_load_names_the_three_busiest_processes_and_where_they_run(tmp_path):
+    env = machine(tmp_path, **{**IDLE, "load": "63.00", "cores": "24"})
+    processes(
+        tmp_path,
+        ("yes", "/home/u/.t3/worktrees/jstack/launchd-watch-race (deleted)", 98),
+        ("sleep 300", "/tmp", 0),
+        ("yes", "/tmp/lwr/c", 99),
+        ("/usr/lib/chromium/chromium --headless --user-data-dir=/tmp/f4-1", "/", 40),
+        ("bash", "/home/u", 1),
+    )
+    assert says(env) == (
+        "wait: load 63.00 is at or over 200% of 24 cores; the busiest: "
+        "yes in /tmp/lwr/c (99%), "
+        "yes in /home/u/.t3/worktrees/jstack/launchd-watch-race (deleted) (98%), "
+        "/usr/lib/chromium/chromium --headless --user-data-dir=/tmp/f4-1 in / (40%)"
+    )
+
+
+def test_a_wait_for_another_reason_or_a_machine_with_room_names_no_process(tmp_path):
+    env = machine(tmp_path, **{**IDLE, "cpu": "71.30"})
+    processes(tmp_path, ("yes", "/tmp/lwr/c", 99))
+    assert says(env) == "wait: CPU pressure 71.30 is at or over 40"
+    assert says(machine(tmp_path, **IDLE)) == "go"
+
+
+def test_a_wait_for_load_on_a_machine_whose_processes_cannot_be_read_says_as_before(tmp_path):
+    env = machine(tmp_path, **{**IDLE, "load": "24.00"})
+    assert says(env) == "wait: load 24.00 is at or over 200% of 12 cores"
