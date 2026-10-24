@@ -138,7 +138,11 @@ def test_a_red_run_of_the_gate_at_mains_tip_is_left_to_the_main_red_rule(kitchen
     before, and this rule files nothing beside it."""
     kitchen.quiet()
     head = side(kitchen, {})
-    side(kitchen, {CHECK: [run(201, head, "failure"), run(200, "g", ago=timedelta(hours=2))]}, push=False)
+    side(
+        kitchen,
+        {CHECK: [run(201, head, "failure"), run(200, "g", ago=timedelta(hours=2))]},
+        push=False,
+    )
     kitchen.poll()
     assert rows(kitchen) == []
 
