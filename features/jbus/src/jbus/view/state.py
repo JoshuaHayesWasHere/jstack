@@ -1514,7 +1514,8 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
         found.append(_wrong(read, "unasked", read.unconfirmed["source"], cause, since, "pulse"))
     for one in read.out or []:
         if one["live"] in QUIET_OR_HUNG:
-            route = "/".join(quote(part, safe="") for part in ("thread", one["role"], one["slug"]))
+            parts = ("thread", one["role"], one["slug"]) if one["slug"] else ("threads",)
+            route = "/".join(quote(part, safe="") for part in parts)
             cause = QUIET_OR_HUNG[one["live"]]
             if one["queued"]:
                 cause += f", and {one['queued']} run{'' if one['queued'] == 1 else 's'} wait"
