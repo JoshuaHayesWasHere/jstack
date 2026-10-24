@@ -125,7 +125,7 @@ SURFACES = {
     ("kind", "hold"): Surface(needs=True),
     ("kind", "config"): Surface(needs=True),
     ("source", "ok"): Surface(),
-    ("source", "missing"): Surface(broken="unread"),
+    ("source", "missing"): Surface(),
     ("source", "unreadable"): Surface(broken="unread"),
     ("source", "stale"): Surface(broken="unread"),
     ("gate", "root, no default, open"): Surface(needs=True),
@@ -150,8 +150,6 @@ SURFACES = {
 }
 
 
-F2 = "F2: the outbox count is the first route's only (record.py:236), so stranded calls read 0"
-F3 = "F3: a dropped route's old last_error makes every row red with 'bus failed to send'"
 F6 = "F6: progress rows take only scouts and reviewers, and an idle home ranks as done"
 F7 = "F7: a retired scope's open gate is listed like a live one (mirror.py:182)"
 
@@ -160,8 +158,6 @@ DATA, PAGE, BOTH = ("data",), ("page",), ("data", "page")
 
 
 KNOWN = {
-    ("route", "stranded outbox"): (F2, DATA),
-    ("route", "old error of a dropped route"): (F3, DATA),
     ("role", "crew"): (F6, PAGE),
     ("role", "home"): (F6, PAGE),
     ("role", "other"): (F6, PAGE),

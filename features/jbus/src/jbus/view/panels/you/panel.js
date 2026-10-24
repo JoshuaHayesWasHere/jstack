@@ -28,8 +28,8 @@ function needRow(w, soon) {
     (w["default"] ? '<span class="ny">If you do nothing: ' + esc(w["default"]) + '</span>' : "") + '<span class="nm"' + (ms(w.since) == null ? "" : ' title="Since ' + esc(day(ms(w.since))) + '"') + '>' + needMeta(w, soon) + '</span></div><div class="na">' + needAct(w) + '</div>';
 }
 function lastPass() {
-  var j = jb(), t = j && (ms(j.status && j.status.last_pass) || ms(j.last_end));
-  return t == null ? "" : " &middot; last pass " + hm(t);
+  var j = jb(), t = j && (ms(j.status && j.status.last_pass) || ms(j.last_end)), said = passWord(t);
+  return said ? " &middot; " + said : "";
 }
 function saidRows() {
   return SAID.map(function (s) { return '<p class="' + (s.bad ? "will bad" : "will none") + '"><b>' + esc(s.say) + '</b></p>'; }).join("");

@@ -240,7 +240,10 @@ def alerts(config: Config, now: datetime) -> list[str]:
 def status(config: Config, now: datetime) -> dict[str, Any]:
     """Return what the status file holds. Most of it comes back from the files the pass left.
     The rest is the homes not on the bus, which no pass writes (`project.missing`), and each
-    scratch home, with the thread in its `home-id` and none of a repo's fields."""
+    scratch home, with the thread in its `home-id` and none of a repo's fields. A project's
+    streak and last error are its first route's. Its `outbox` counts what waits in that route
+    and in each route its `wake` leaves out, so no event is left uncounted. Each other route in
+    effect has its own count beside it."""
     expires = t3.expiry(config.token_path)
     projects = {}
     for one in config.projects:
@@ -249,6 +252,7 @@ def status(config: Config, now: datetime) -> dict[str, Any]:
         first, *rest = box.routes
         projects[one.name] = {
             **_hook(config, box, first, alert.key_of(one.name, first)),
+            "outbox": sum(box.waiting(route) for route in (first, *box.left)),
             "wake": one.wake,
             "sign_in": signin.expiring(config, now),
             "sweep": marks.get("sweep", ""),

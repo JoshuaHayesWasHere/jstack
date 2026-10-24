@@ -1,6 +1,12 @@
 """The bus: what the outbox and the wakes count, what jbus sent today by kind and loudness, and
 the last events of the log. The panel never opens the outbox itself.
 
+The outbox counts what waits in the first route and in each route the project's `wake` dropped,
+and `top_level` counts its own. The last error, the last POST and `since`, when
+the streak of failed wakes began, are the first route's that the project's `wake` picks: the
+home thread's where it picks the home thread. A route it dropped keeps its old error in its
+own `wake.json`, and that error is no fault. `stranded` is what waits in such a route.
+
 `top_level` is the same count for the top-level webhook, which monitors every project. It is
 there where the project posts to that webhook beside its own. The count is that webhook's outbox,
 its failed wakes, its last error and its last POST. It is None where the project has one webhook.
@@ -15,7 +21,7 @@ from typing import Any
 from jbus import read_json
 from jbus.view.clean import ANY
 from jbus.view.state import EVENTS_FILE, Read, Spot, kept, text, when
-from jbus.wake import BLOCKING, LOUDNESS, TOP_LEVEL
+from jbus.wake import BLOCKING, HOME, LOUDNESS, TOP_LEVEL
 
 FIRST = True
 SHOWN = 40
@@ -25,6 +31,8 @@ SHAPE = {
         "outbox": None,
         "failed_wakes": None,
         "last_error": None,
+        "since": None,
+        "stranded": None,
         "posted": None,
         "sent": None,
         "sent_kinds": {ANY: None},
@@ -55,7 +63,8 @@ SOURCES = (
 
 def build(read: Read) -> dict[str, Any]:
     status = read.panel("pulse")["jbus"]["status"]
-    wake, keys = read.table("wake.json") or {}, read.once(sent) or []
+    first = f"{HOME}/wake.json" if status["wake"] in ("home", "both") else "wake.json"
+    wake, keys = read.table(first) or {}, read.once(sent) or []
     today: dict[str, int] = {}
     for one in read.events:
         if one["at"] >= read.day:
@@ -70,6 +79,8 @@ def build(read: Read) -> dict[str, Any]:
             "outbox": status["outbox"],
             "failed_wakes": status["failed_wakes"],
             "last_error": text(wake.get("last_error")) or status["last_error"],
+            "since": status["since"],
+            "stranded": status["stranded"],
             "posted": when(wake.get("posted")),
             "sent": len(keys),
             "sent_kinds": by_kind,

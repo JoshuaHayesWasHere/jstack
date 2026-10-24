@@ -132,9 +132,9 @@ def wrong(key, made, seen):
         file = made.sources[name]
         unwell = {(one["name"], one["state"]) for one in project["health"]["unwell"]}
         listed = {one for one, _ in unwell}
-        if name == "ok" and file in listed:
-            faults.append(f"{file} is ok and is listed as unwell")
-        elif name != "ok" and (file, name) not in unwell:
+        if not want.broken and file in listed:
+            faults.append(f"{file} is {name} and is listed as unwell")
+        elif want.broken and (file, name) not in unwell:
             faults.append(f"{file} is not listed as {name}")
         if want.broken and not any(want.broken in one for one in broken):
             faults.append(f"no broken reason says {want.broken!r}: {broken}")
