@@ -17,10 +17,12 @@ import jbus.queue
 import jbus.wake
 import test_jbus_main_moved
 from jbus import questions
-from jmerge import mainjson
+from jmerge import mainjson, ready
 from jmerge import rows as jmerge_rows
+from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, RESULT, approved, complete, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
+from test_jbus_queue import go as queue_go
 from test_jbus_watch import main_of, main_red
 
 
@@ -77,13 +79,64 @@ def test_a_red_tip_keeps_the_green_tip_before_it(kitchen):
     assert kept(kitchen) == mainjson.Main(green=green, red=red)
 
 
-def test_a_red_main_with_no_merge_in_a_day_is_still_kept_as_red(kitchen):
+def test_a_red_main_with_no_merge_in_a_day_is_kept_as_red_and_gets_its_fix_row(kitchen):
     kitchen.quiet()
     red = tip(kitchen)
     checks(kitchen, red, "failure")
     kitchen.poll()
     assert kept(kitchen) == mainjson.Main(red=red)
-    assert main_red(kitchen) == []
+    (fix,) = main_red(kitchen)
+    assert fix["slug"] == f"{mainjson.FIX}{red[:12]}" and fix["approved"] == ""
+
+
+def red_after_a_quiet_day(kitchen, briefed_ago):
+    """Main's tip is a commit made outside the queue (a hand merge, a tool update) whose check
+    fails. The last merge jbus briefed landed `briefed_ago` before it."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.quiet()
+    red, base = tip(kitchen), "f" * 40
+    done = {"status": "completed"}
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, base, ago=briefed_ago)])
+    kitchen.set(
+        "commits.json",
+        [
+            kitchen.commit(red, "chore: a hand merge", ago=timedelta(minutes=10)),
+            kitchen.commit(base, "feat: alpha (#7)", ago=briefed_ago),
+        ],
+    )
+    kitchen.set(
+        "check-runs.json",
+        {
+            red: [{**done, "conclusion": "failure", "name": "check"}],
+            base: [{**done, "conclusion": "success", "name": "check"}],
+        },
+    )
+    return red
+
+
+def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_for_the_user(kitchen):
+    """fl-statechart's bug 1: a red nobody's merge caused still holds every merge in `jmerge`,
+    so it gets the same unapproved row a red after a briefed merge gets, once."""
+    assert queue_add(kitchen, "beta")[0] == 0
+    assert queue_go(kitchen, "beta")[0] == 0
+    red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=25))
+    name = f"{mainjson.FIX}{red[:12]}"
+    for minutes in (0, 3, 60, 6 * 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert kept(kitchen).red == red
+        assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [(name, "")]
+    assert jmerge_rows.red(kept(kitchen), "beta") == ready.MAIN_RED.format(sha=red[:12])
+    text = (kitchen.home / "tasks" / f"{name}.md").read_text()
+    assert f"# {name}: main's check failed at {red[:12]}" in text
+    assert "chore: a hand merge" in text
+
+
+def test_the_same_red_within_a_day_of_a_briefed_merge_is_filed_once(kitchen):
+    red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=2))
+    for minutes in (0, 3, 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
+    assert "after alpha merged" in (kitchen.home / "tasks" / f"main-red-{red[:12]}.md").read_text()
 
 
 def test_a_later_green_tip_clears_the_red_and_becomes_the_green(kitchen):
