@@ -189,10 +189,17 @@ window.addEventListener("load", function () { setTimeout(function () {
     merged: { shown: seen(document.getElementById("merged-d")), head: text(document.getElementById("merged-s")), open: document.getElementById("merged-d").open },
     health: { shown: seen(document.getElementById("health")), text: text(document.getElementById("health")), links: all("#health [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open")]; }), unplaced: text(document.getElementById("unplaced")) },
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),
+    /* The homes map of every project: each card, then each line of the quiet ones, in the page's
+       order, with the lines of what is wrong apart from the cards under `machine`. */
     stack: (function () {
       var view = document.getElementById("stack"), none = document.getElementById("none");
       return { shown: seen(view), title: text(document.getElementById("title")), none: none && seen(none) ? text(none) : "",
-        rows: all("#rows .prl").map(function (r) { return { project: r.parentElement.getAttribute("data-key"), seen: seen(r), box: box(r), name: text(r.querySelector(".pn")), dot: r.querySelector(".pd").className, why: text(r.querySelector(".pwhy")), counts: all(".pc", r).map(text), href: r.getAttribute("href"), said: r.getAttribute("aria-description") }; }) };
+        machine: all("#map-m .wl").map(text),
+        rows: all("#map-c > [data-key], #map-ql > [data-key]").map(function (r) {
+          var name = r.querySelector(".cn, b"), root = r.querySelector(".hm.root, a");
+          return { project: r.getAttribute("data-key"), seen: seen(r), box: box(r), name: text(name), quiet: r.parentElement.id === "map-ql", tone: (r.querySelector(".card") || r).className,
+            why: all(".wl", r).map(text).join(", "), counts: text(root.querySelector(".ct, span")), href: name.closest("a").getAttribute("href") };
+        }) };
     })(),
     links: [],
     opened: []

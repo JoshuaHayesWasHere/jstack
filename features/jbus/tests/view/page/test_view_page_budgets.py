@@ -3,8 +3,13 @@ tests" (jview-ux-c), less the ones that belong to one layout.
 
 Each budget is checked on two scenes, at a desk's width, at 900 and at a phone's. `busy` is the
 tests' busy day in six projects: every step of the lineup in `demo`, a crewmate that hung, a
-failing CI run, gates and noticed lines, and three more projects beside `stacked`'s two. `many`
-is the same with sixteen projects. A third scene, `calm`, has nothing wrong in it.
+failing CI run, gates and noticed lines, and three more projects beside `stacked`'s two. demo
+has two child homes, and one of them has a row that stalled (`browser.child_homes`). `many` is
+the same with sixteen projects. A third scene, `calm`, has nothing wrong in it.
+
+The homes map of `#/` has budgets of its own, read by its probe (`browser.mapped`): the busy
+map fits a phone whole, a quiet project or child home adds one line at most, sixteen projects
+are 250 words at most, and every wrong fact is on a phone's first screen.
 
 A scene is opened twice at each width, on every project, `#/`, and on `demo`'s page, `#/demo`.
 The probe opens every drawer it can reach from there, and on `#/` it taps each thing on the
@@ -30,8 +35,10 @@ from view.page.browser import (
     PHONE,
     TODAY,
     a_day_of_threads,
+    child_homes,
     lineup,
     look,
+    mapped,
 )
 from view.scene import (
     GITHUB,
@@ -171,6 +178,7 @@ def busy(scene, projects=6):
     lineup(scene, TODAY)
     stacked(scene)
     a_day_of_threads(scene)
+    child_homes(scene)
     a_noticed(scene, *((f"oat-{n}", "new", 10 + n, {}) for n in range(12)))
     for n, name in enumerate(EXTRA[: projects - 3]):
         another(scene, name, n)
@@ -196,12 +204,10 @@ EVERY = [(scene, wide) for scene in ("busy", "many") for wide in SCREENS]
 KNOWN = {
     (budget, scene, wide): unit
     for budget, unit, broken in (
-        ("hung", "jv-needs-from-work", EVERY),
         ("waits", "jv-needs-from-work", EVERY),
-        ("drawers", "jv-homes-map", EVERY),
-        ("header", "jv-homes-map", [("busy", 390), ("many", 390)]),
-        ("crumb", "jv-homes-map", EVERY),
-        ("words", "jv-homes-map", EVERY),
+        ("drawers", "jv-drawer-budgets", EVERY),
+        ("crumb", "jv-drawer-budgets", EVERY),
+        ("words", "jv-drawer-budgets", EVERY),
     )
     for scene, wide in broken
 }
@@ -377,3 +383,74 @@ def test_a_calm_scene_paints_nothing_missed(views, scene, wide):
     found = paints(views(scene, wide))
     missed = {(route, p["what"]) for route, p in found if p["tone"] == "missed" and not p["key"]}
     assert sorted(missed) == []
+
+
+MAP_WORDS = 250
+
+
+def quiet_projects(scene, many=3):
+    """The busy day and `many` more projects with nothing wrong and nothing for the user."""
+    busy(scene)
+    for n, name in enumerate(EXTRA[3 : 3 + many]):
+        another(scene, name, n, calm=True)
+    a_day_old(scene)
+
+
+def quiet_homes(scene, many=3):
+    """The busy day and `many` more child homes of demo, each with nothing open."""
+    busy(scene)
+    for n in range(many):
+        (scene.home / f"shelf-{n}").mkdir()
+        (scene.home / f"shelf-{n}" / "home-id").write_text(f"mcp:shelf-{n}\n")
+
+
+MAPS = {"busy": busy, "many": SCENES["many"], "quiet": quiet_projects, "homes": quiet_homes}
+
+
+@pytest.fixture(scope="module")
+def maps(tmp_path_factory):
+    """The homes map of a scene of `MAPS` at a width, each made once in the module."""
+    made = {}
+
+    def view(name, wide):
+        if (name, wide) not in made:
+            root = tmp_path_factory.mktemp(f"map-{name}-{wide}")
+            with pytest.MonkeyPatch.context() as patch:
+                seen, stack = mapped(Scene(root, patch), root, MAPS[name], screen=SCREENS[wide])
+            assert seen["errors"] == []
+            made[name, wide] = seen | {"stack": stack}
+        return made[name, wide]
+
+    return view
+
+
+def test_the_busy_map_fits_a_phone_whole(maps):
+    seen = maps("busy", 390)
+    assert seen["high"] <= PHONE[1], seen["high"]
+
+
+@pytest.mark.parametrize("wide", SCREENS)
+@pytest.mark.parametrize("more", ["quiet", "homes"])
+def test_a_quiet_project_or_home_adds_one_line_at_most(maps, more, wide):
+    """Three more quiet projects, or three more child homes with nothing in them, make the
+    page no taller than three of its lines, each as high as a quiet project's line."""
+    base, grown = maps("busy", wide), maps(more, wide)
+    assert base["line"] > 0
+    assert grown["high"] - base["high"] <= 3 * base["line"], (grown["high"], base["high"])
+
+
+@pytest.mark.parametrize("wide", SCREENS)
+def test_sixteen_projects_are_250_words_at_most(maps, wide):
+    seen = maps("many", wide)
+    assert len(seen["stack"]["projects"]) == 16
+    assert seen["words"] <= MAP_WORDS, seen["words"]
+
+
+@pytest.mark.parametrize("name", ["busy", "many"])
+def test_every_wrong_fact_shows_on_the_first_screen_of_a_phone(maps, name):
+    """Each entry of what is wrong across the projects is a line or a flag inside the first
+    844 px of a phone's screen."""
+    seen = maps(name, 390)
+    wrong = {f"{one['kind']}/{one['subj']}/{one['cause']}" for one in seen["stack"]["wrong"]}
+    assert len(wrong) == 3
+    assert sorted(wrong - set(seen["wrong"])) == []

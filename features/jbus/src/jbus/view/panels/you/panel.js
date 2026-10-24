@@ -52,7 +52,18 @@ function renderNeeds() {
   var src = PROJECT ? S : STACK, box = $("needs");
   box.hidden = !src || !!NOSUCH;
   if (box.hidden) return;
-  var needs = src.needs, soon = src.proceeds;
+  var needs = src.needs, soon = src.proceeds, bar = !PROJECT;
+  box.classList.toggle("bar", bar);
+  $("needs-go").hidden = !bar || !needs.length && !soon.length;
+  if (bar) {
+    var tail = (needs.length ? ["oldest " + ago(needs[0].since)] : []).concat(soon.length ? [soon.length + (needs.length ? " more" : "") + " on default"] : []);
+    put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> wait on you' : "Nothing waits on you" + lastPass()) + (tail.length ? ' <span class="nm">' + (needs.length ? "" : "&middot; ") + esc(tail.join(" \u00b7 ")) + '</span>' : ""));
+    keyed($("nq"), "li", "nr", []); keyed($("np"), "li", "nr", []);
+    $("nq").hidden = true; $("np-w").hidden = true;
+    put($("nsaid"), saidRows());
+    put($("nx"), "");
+    return;
+  }
   put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()));
   keyed($("nq"), "li", "nr", needs.map(function (w) { return { key: needId(w), html: needRow(w, false) }; }));
   $("nq").hidden = !needs.length;

@@ -1,5 +1,5 @@
 """The first screen of a project and the overview of every project: their words, the
-header, the sidebar and the rows."""
+header, the sidebar, and the overview's map of projects."""
 
 import json
 import re
@@ -85,16 +85,17 @@ def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, t
     stacked(scene)
     seen = look(scene, tmp_path, route="#/")
     clean(seen)
-    assert [row["project"] for row in seen["stack"]["rows"]] == ["demo", "larder", "pantry"]
+    assert [row["project"] for row in seen["stack"]["rows"]] == ["larder", "demo", "pantry"]
     assert seen["words"] <= EVERY, seen["words"]
     assert seen["shell"] <= SHELL, seen["shell"]
     assert all(row["seen"] for row in seen["stack"]["rows"])
 
 
 def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp_path):
-    """The overview has the machine as one word, one Needs you queue across the projects,
-    oldest first, and a row for each project. Each row has a name, a dot, what is broken,
-    and two counts. The page asks `/stack.json` and nothing else, once a poll. After a poll
+    """The overview has the machine as one word, one bar of what waits on the user across the
+    projects, and a card for each project. larder's CI could not be read, so it is first, and
+    demo and pantry have what waits on the user. The bar draws no list of what waits: it opens
+    the triage tab. The page asks `/stack.json` and nothing else, once a poll. After a poll
     that changed nothing, the page draws nothing again."""
     stacked(scene)
     seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
@@ -103,42 +104,22 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert (stack["shown"], stack["title"], stack["none"]) == (True, "All projects", "")
     assert seen["header"]["machine"]["text"] == "Machine ok"
     needs = seen["needs"]
-    assert needs["head"] == "4 Needs you"
-    assert [(one["key"], one["what"], one["acts"][0]["text"]) for one in needs["now"]] == [
-        ("demo/approve:tea-kettle", "tea-kettle", "Approve launch"),
-        ("demo/row:jam-lid", "which lid?", "Fix brief"),
-        ("pantry/row:fig-tart", "which tin?", "Fix brief"),
-        ("demo/#14", "Pull request #14", "Review merge"),
-    ]
-    assert [one["acts"][0]["href"] for one in needs["now"]] == [
-        "#/demo/you/approve/tea-kettle",
-        "#/demo/you/row/jam-lid",
-        "#/pantry/you/row/fig-tart",
-        "#/demo/you/hold/14",
-    ]
-    assert [one["meta"] for one in needs["now"]] == [
-        "demo · waiting 50m · unblocks tea-cups",
-        "demo · jam-lid · waiting 50m",
-        "pantry · fig-tart · waiting 40m",
-        "demo · oat-honey · waiting 12m · merge to main",
-    ]
-    assert [(one["what"], one["acts"][0]["text"]) for one in needs["soon"]] == [
-        ("tea or coffee?", "Answer")
-    ]
-    assert needs["filled"] == 0
-    assert [row["project"] for row in stack["rows"]] == ["demo", "larder", "pantry"]
-    assert all(row["seen"] for row in stack["rows"])
+    assert needs["head"] == "4 wait on you oldest 50m · 1 more on default"
+    assert (needs["now"], needs["soon"], needs["filled"]) == ([], [], 1)
+    assert [row["project"] for row in stack["rows"]] == ["larder", "demo", "pantry"]
+    assert all(row["seen"] and not row["quiet"] for row in stack["rows"])
     assert [(row["name"], row["counts"]) for row in stack["rows"]] == [
-        ("demo", ["9 open", "1 merged today"]),
-        ("larder", ["0 open", "0 merged today"]),
-        ("pantry", ["2 open", "1 merged today"]),
+        ("larder", "0 open"),
+        ("demo", "9 open · 3 wait on you · 1 on default"),
+        ("pantry", "2 open · 1 waits on you"),
     ]
-    assert stack["rows"][0]["why"] == "" and stack["rows"][1]["why"].startswith("CI not read")
-    assert [row["href"] for row in stack["rows"]] == ["#/demo", "#/larder", "#/pantry"]
+    assert stack["rows"][0]["why"] == "CI could not be read, GitHub cannot be read"
+    assert stack["rows"][1]["why"] == stack["rows"][2]["why"] == ""
+    assert [row["href"] for row in stack["rows"]] == ["#/larder", "#/demo", "#/pantry"]
     assert seen["words"] <= EVERY, seen["words"]
     polls = [asked for asked in seen["asked"] if asked not in ("/", "/favicon.ico", "/font.woff2")]
     assert len(polls) == 9 and set(polls) == {"/stack.json"}
-    drawn = [change["at"] for change in seen["changes"] if change["part"].startswith("rows:")]
+    drawn = [change["at"] for change in seen["changes"] if change["part"].startswith("map-c:")]
     assert drawn and [one for one in seen["changes"] if one["at"] > max(drawn) + 1000] == []
     assert seen["marked"] == 1
 
@@ -196,7 +177,7 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
         scene,
         tmp_path,
         route="#/",
-        tap='#rows a[href="#/pantry"]',
+        tap='#stack a[href="#/pantry"]',
         at=6000,
         budget=9000,
     )
@@ -259,20 +240,23 @@ def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_pan
     assert seen["words"] <= WORDS, seen["words"]
 
 
-def test_a_stopped_jbus_makes_every_project_row_red_with_its_reason(scene, tmp_path):
+def test_a_stopped_jbus_is_one_line_over_the_map_of_every_project(scene, tmp_path):
+    """A quiet project is only as quiet as the last pass saw it, so a stopped jbus says so
+    once, over the map, beside the banner and the header's word."""
     stacked(scene)
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
     seen = look(scene, tmp_path, route="#/")
     clean(seen)
-    rows = seen["stack"]["rows"]
-    assert [row["name"] for row in rows] == ["demo", "larder", "pantry"]
-    assert all(row["why"].startswith("jbus stopped") and "bad" in row["dot"] for row in rows)
+    assert seen["stack"]["machine"] == ["jbus stopped, so this is as its last pass left it"]
+    assert seen["header"]["machine"]["text"] == "jbus stopped"
+    assert seen["banner"].startswith("jbus has not passed")
+    assert {row["name"] for row in seen["stack"]["rows"]} == {"demo", "larder", "pantry"}
 
 
 def test_passes_that_fail_and_a_red_main_are_on_the_first_screen(scene, tmp_path):
     """While passes raise, the header counts them where it said the last pass, and a red main
-    names its tip on its project's row, since when, as every red reason does. Nothing waits on
-    the user: no list of what waits, and no row the user holds."""
+    names its tip on its project's card, with how long ago, as every wrong line does. Nothing
+    waits on the user but a gate that takes its default, so pantry is quiet."""
     stacked(scene)
     for project in ("demo", "pantry"):
         scene.write("waiting-on-user.json", [], scene.state_dir / project)
@@ -289,12 +273,14 @@ def test_passes_that_fail_and_a_red_main_are_on_the_first_screen(scene, tmp_path
     scene.write("main.json", {"at": iso(ago(minutes=12)), "main": red, "check": "failed"})
     seen = look(scene, tmp_path, route="#/")
     clean(seen)
-    assert seen["needs"]["head"] == "Nothing needs you · 3 passes failed"
+    assert seen["needs"]["head"] == "Nothing waits on you · 3 passes failed · 1 on default"
     assert seen["header"]["machine"]["text"] == "3 passes failed"
-    rows = {row["name"]: row["why"] for row in seen["stack"]["rows"]}
-    assert re.fullmatch(r"main red badc0de since \d\d:\d\d", rows["demo"]), rows["demo"]
-    assert rows["larder"] == "CI not read, since not known, 1 source unread, since not known"
-    assert rows["pantry"] == ""
+    rows = {row["name"]: (row["why"], row["quiet"]) for row in seen["stack"]["rows"]}
+    assert rows == {
+        "demo": ("main red at badc0de 12m", False),
+        "larder": ("CI could not be read, GitHub cannot be read", False),
+        "pantry": ("", True),
+    }
 
 
 KIND_HEADINGS = (
