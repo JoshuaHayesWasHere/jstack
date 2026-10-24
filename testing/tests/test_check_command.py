@@ -337,6 +337,19 @@ def changed_copy(tmp_path, path):
     return copy, f"{bin}:{os.environ['PATH']}", asked
 
 
+@pytest.fixture
+def step_files(tmp_path, monkeypatch):
+    """The step's own output and summary files, as a check job's step sets them around this suite.
+    A test's `make check-fast` must leave them as they are: a line it added would be the step's,
+    and `selection=` there decides whether the job leaves the green tree marker."""
+    files = [tmp_path / "output", tmp_path / "summary"]
+    for name, file in zip(("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY"), files, strict=True):
+        file.write_text("")
+        monkeypatch.setenv(name, str(file))
+    yield files
+    assert [file.read_text() for file in files] == ["", ""]
+
+
 def check_fast(copy, path):
     """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line."""
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
@@ -365,7 +378,7 @@ LINT = ["run ruff check .", "run ruff format --check ."]
 OFF = ["-m", "not", "browser"]
 
 
-def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path):
+def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path, step_files):
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
     tests = selected(copy)
@@ -379,7 +392,9 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     ]
 
 
-def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(tmp_path):
+def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(
+    tmp_path, step_files
+):
     copy, path, asked = changed_copy(tmp_path, "pyproject.toml")
     check_fast(copy, path)
     assert selected(copy) == ["all"]

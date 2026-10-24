@@ -41,19 +41,43 @@ def test_the_four_parts_hold_each_selected_test_once_and_miss_none(selected):
     assert len(whole) > PARTS and all(parts)
 
 
-def test_a_part_with_none_of_the_selected_tests_passes_and_one_part_runs_each():
-    one = f"{SOME[0]}::test_the_reader_reads_mappings_scalars_and_lists"
-    ran = [
-        subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", one, f"--shard={k}/4"],
+def ended(run):
+    """The exit status and the output of a pytest started with its output piped."""
+    out, _ = run.communicate(timeout=100)
+    return run.returncode, out
+
+
+def parts(*selected):
+    """Each of the four parts of this selection, run as CI's jobs run them: on xdist's workers,
+    whose controller sets the exit status."""
+    run = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-n", "2"]
+    started = [
+        subprocess.Popen(
+            [*run, "--dist", "worksteal", *selected, f"--shard={k}/{PARTS}"],
             cwd=REPO,
-            capture_output=True,
+            stdout=subprocess.PIPE,
             text=True,
         )
-        for k in range(1, 5)
+        for k in range(1, PARTS + 1)
     ]
-    assert [run.returncode for run in ran] == [0] * 4
-    assert sorted("1 passed" in run.stdout for run in ran) == [False] * 3 + [True]
+    return [ended(one) for one in started]
+
+
+def test_a_part_with_none_of_the_selected_tests_passes_and_one_part_runs_each():
+    ran = parts(f"{SOME[0]}::test_the_reader_reads_mappings_scalars_and_lists")
+    assert [code for code, _ in ran] == [0] * PARTS
+    assert sorted("1 passed" in out for _, out in ran) == [False] * (PARTS - 1) + [True]
+
+
+@pytest.mark.parametrize("workers", [[], ["-n", "2", "--dist", "worksteal"]], ids=["one", "xdist"])
+def test_a_selection_with_no_tests_at_all_fails_in_every_part_as_it_does_whole(workers):
+    run = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *workers, SOME[0]]
+    nothing = ["-k", "no_test_is_named_this"]
+    started = [
+        subprocess.Popen([*run, *nothing, *shard], cwd=REPO, stdout=subprocess.PIPE, text=True)
+        for shard in [[], *([f"--shard={k}/{PARTS}"] for k in range(1, PARTS + 1))]
+    ]
+    assert [ended(one)[0] for one in started] == [pytest.ExitCode.NO_TESTS_COLLECTED] * (PARTS + 1)
 
 
 def test_a_shard_that_is_not_k_of_n_is_refused():
