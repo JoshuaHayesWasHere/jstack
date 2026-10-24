@@ -402,6 +402,8 @@ def keep(
         items[key] = {"kind": kind(key), **named, **items.get(key, {}), **root}
     for key in [key for key in items if kind(key) == "approve"]:
         items.pop(f"row:{key.partition(':')[2]}", None)
+        if not _approvable(run, key.partition(":")[2]):
+            del items[key]
     now = run.now.isoformat()
     for key, one in items.items():
         stamps = [one.get("since", now), before.get(key, {}).get("since", now)]
@@ -423,6 +425,13 @@ def keep(
         with contextlib.suppress(OSError):
             file.unlink()
     return listed
+
+
+def _approvable(run: Pass, slug: str) -> bool:
+    """Say whether a row has a brief for the user to approve. The rows a pass read can be older
+    than a removal that ran while the pass did, so this reads `removed.json` and the stored brief
+    again. A row that is there with no brief is `_briefless`'s to report."""
+    return slug not in run.removed and bool((queue.brief(run.state, slug) or "").strip())
 
 
 def paused(text: str) -> str:
@@ -513,7 +522,7 @@ def _briefless(run: Pass, rows: list[queue.Row] | None, listed: list[Item]) -> l
         slug = row["slug"]
         if row.get("status", "queued") not in ("queued", "gate") or f"approve:{slug}" in keys:
             continue
-        if slug in run.removed or queue.brief(run.state, slug) is not None:
+        if slug in run.removed or (queue.brief(run.state, slug) or "").strip():
             continue
         line = f"brief {slug}: the queue has no brief for it, add it again"
         item = {"key": f"brief:{slug}", "kind": "brief", "line": line, "slug": slug}
