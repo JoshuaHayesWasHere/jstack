@@ -7,6 +7,7 @@ playbook's `Verify skill:` line names for jstack is one the lookup finds from js
 
 import json
 import re
+import shutil
 import subprocess
 
 import pytest
@@ -19,6 +20,19 @@ __all__ = ["home", "repo"]
 VERIFY_LINES = sorted(
     path for path in playbooks().values() if re.search(r"^Verify skill: ", path.read_text(), re.M)
 )
+
+
+def padding_wc(directory):
+    """A Mac's `wc` in `directory`, made of this machine's: it pads its count to eight places,
+    as BSD's does."""
+    directory.mkdir(exist_ok=True)
+    wc = directory / "wc"
+    wc.write_text(
+        f'#!/bin/sh\n{shutil.which("wc")} "$@" | awk \'{{printf "%8d", $(1)\n'
+        f'for (i = 2; i <= NF; i++) printf " %s", $(i); print ""}}\'\n'
+    )
+    wc.chmod(0o755)
+    return directory
 
 
 def commit(repo, files):
@@ -38,15 +52,16 @@ def git_head(repo):
     return said.stdout.strip()
 
 
-def lookup(repo, home):
-    return run(block("maintain-verification-skill", "no verify skill"), repo, home)
+def lookup(repo, home, before=""):
+    return run(block("maintain-verification-skill", "no verify skill"), repo, home, before)
 
 
 def scouts(home):
     return home / ".local" / "state" / "home" / "demo" / "scouts"
 
 
-def test_a_tracked_verify_skill_is_found(repo, home):
+@pytest.mark.parametrize("tools", ["gnu", "bsd"])
+def test_a_tracked_verify_skill_is_found(repo, home, tmp_path, tools):
     head = commit(
         repo,
         {
@@ -55,7 +70,8 @@ def test_a_tracked_verify_skill_is_found(repo, home):
         },
     )
     run_name = f"maintain-demo-{head}"
-    assert lookup(repo, home) == [
+    before = f"PATH={padding_wc(tmp_path / 'bsd')}:$PATH\n" if tools == "bsd" else ""
+    assert lookup(repo, home, before) == [
         f"wrote: scouts/{run_name}-login.md",
         f"run: {run_name}, 1 feature files, launch them ten at a time",
     ]
