@@ -320,6 +320,11 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     assert gates(kitchen) == []
 
 
+def crew(kitchen):
+    """Return the messages jbus sent the crew, and not the reviewer the clock relaunches."""
+    return [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
+
+
 def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_after_the_reset(
     short, kitchen
 ):
@@ -335,7 +340,7 @@ def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_afte
     (first,) = sends(kitchen)
     assert "`/pr-review run alpha again`" in first["message"]
     short.passes(21)
-    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    assert later(short.minute - 1) < resets and crew(kitchen) == [first]
     said = short.passes(1)
     assert later(short.minute - 1) == resets
     again = [one for one in sends(kitchen) if one != first]
@@ -345,7 +350,7 @@ def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_afte
     line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]}), "
     assert line + "sent `/pr-review run alpha again`" in said
     short.passes(12)
-    assert len(sends(kitchen)) == 2
+    assert len(crew(kitchen)) == 2
 
 
 def test_a_hold_sent_into_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_sent_again(
@@ -381,9 +386,9 @@ def test_a_send_into_a_cap_whose_pass_kept_no_count_is_still_sent_again_after_th
     (first,) = sends(kitchen)
     jbus.write_json(kitchen.state / "expedite.json", counted)
     short.passes(21)
-    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    assert later(short.minute - 1) < resets and crew(kitchen) == [first]
     short.passes(1)
-    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    assert [one["message"] for one in crew(kitchen)] == [first["message"]] * 2
 
 
 def reviewer_says(tmp_path, asked, brief):

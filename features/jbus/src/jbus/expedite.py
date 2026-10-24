@@ -415,13 +415,18 @@ def _busy(run: Pass, client: Client, world: World, slug: str, row: Short) -> boo
 def _capped(run: Pass, client: Client, slug: str) -> int | None:
     """Return the Unix time the cap on the crew's instance resets, or None while that instance has
     headroom, or where T3 Code did not say which instance the crew's thread is on."""
-    thread = dispatch.thread_of(_brief(run, slug))
+    return capped(run, client, dispatch.thread_of(_brief(run, slug)), slug)
+
+
+def capped(run: Pass, client: Client, thread: str, slug: str) -> int | None:
+    """Return the Unix time the cap on a thread's instance resets, or None while that instance
+    has headroom, or where T3 Code did not say which instance the thread is on."""
     if not thread:
         return None
     try:
         asked = client.call("t3_thread_configuration", {"threadId": thread})
     except T3Error as error:
-        run.say(f"wait {slug}: its crew's instance could not be read ({error})")
+        run.say(f"wait {slug}: the instance of {thread} could not be read ({error})")
         return None
     chosen = asked.get("modelSelection") or {}
     instance = chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN

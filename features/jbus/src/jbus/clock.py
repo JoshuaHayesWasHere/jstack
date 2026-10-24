@@ -31,7 +31,11 @@ jbus does not interrupt it: interrupting a hung turn waits on the user's own rul
 A new head or a new class starts a new clock, and a slug that waits no more drops its clock. A pass
 in which `jmerge` failed, or that could not list the threads, counts nothing and keeps the clocks.
 A crew that waits on a usage limit (`Pass.limited`) or on a gate is left to `failover` and the
-gate. A thread that ended with no Result and no pull request is `threads.resume`'s.
+gate. A pass in which the thread jbus would send to is on a capped instance (`expedite.capped`)
+does not count either: a message sent then ends at once on the limit, so the one try waits for the
+reset. Where another step of jbus nudges the crew about the same head just as the clock is due (an
+expedite sent again after a cap), the clock starts again, so the reviewer is not asked twice at
+once. A thread that ended with no Result and no pull request is `threads.resume`'s.
 """
 
 from __future__ import annotations
@@ -210,6 +214,13 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
     return True
 
 
+def _nudges(run: Pass, slug: str, head: str) -> int:
+    """Count the messages jbus's other steps sent about the slug at this head (`expedite`'s keys
+    name both)."""
+    keys = (key.split("|") for key in run.box.sent() if not key.startswith(CLOCK))
+    return sum(1 for key in keys if key[1:3] == [slug, head[:12]])
+
+
 def tick(
     run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
 ) -> None:
@@ -240,6 +251,13 @@ def tick(
         kept[slug] = wait
         busy = {live.get(thread), live.get(dispatch.thread_of(brief))} & set(AT_WORK)
         if wait["home"] or busy or slug in reviewing:
+            continue
+        nudges = _nudges(run, slug, head)
+        grew, wait["nudges"] = nudges > wait.get("nudges", nudges), nudges
+        if wait["passes"] + 1 >= PASSES and grew:
+            wait["passes"] = 0
+            continue
+        if wait["passes"] + 1 >= PASSES and expedite.capped(run, client, thread, slug):
             continue
         wait["passes"] += 1
         if wait["passes"] < PASSES:

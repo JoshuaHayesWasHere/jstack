@@ -8,7 +8,8 @@ fakes: the replay the report names for NoWaitWithoutClock is
 import pytest
 
 from jmerge import ready
-from test_jbus_expedite import NO_REVIEW, Short
+from jroles import ledger
+from test_jbus_expedite import NO_REVIEW, Short, later
 from test_jbus_kitchen import sends
 from test_jbus_leftover import home
 from test_jbus_queue import gates
@@ -216,3 +217,18 @@ def test_a_home_t3_code_refuses_the_line_is_one_quiet_stall_and_the_wait_is_not_
     (stall,) = [one for one in kitchen.lines("stall") if one.startswith("stall alpha: #7 waited")]
     assert "refused its home" in stall and desk["threadId"] in stall
     assert loud(kitchen) == [] and gates(kitchen) == []
+
+
+def test_a_reviewer_on_a_capped_instance_is_relaunched_only_after_the_reset(short, kitchen):
+    """The cap holds the clock. At the reset jbus sends the crew its nudge again, so the clock gives
+    the crew a whole bound before it relaunches the reviewer."""
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
+    resets = later(N + 5)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(N + 5)
+    assert later(short.minute - 1) < resets and to(kitchen, reviewer) == []
+    short.passes(N)
+    assert to(kitchen, reviewer) == []
+    short.passes(1)
+    assert to(kitchen, reviewer) == ["/pr-review run alpha again"]
