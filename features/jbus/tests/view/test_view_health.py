@@ -118,6 +118,24 @@ def test_a_red_tip_main_moved_past_is_red_since_a_time_not_known(tmp_path, monke
     assert row(stack)["broken"][0] == {"what": "main red badc0de", "open": "pulse", "since": None}
 
 
+def test_a_source_the_last_pass_could_not_ask_is_red_since_that_pass_saw_the_project(
+    tmp_path, monkeypatch
+):
+    """A pass that could not ask T3 Code names it, since the time that pass saw the project,
+    and with no time where no pass kept one."""
+    scene = Scene(tmp_path, monkeypatch)
+    record = json.loads((scene.state_dir / "pass.json").read_text())
+    record["silent"] = {scene.name: "T3 Code"}
+    scene.write("pass.json", record, scene.state_dir)
+    stack, _ = answers(scene)
+    reason = {"what": "T3 Code did not answer", "open": "pulse", "since": iso(ago(seconds=20))}
+    assert reason in row(stack)["broken"]
+    del record["projects"][scene.name]["seen"]
+    scene.write("pass.json", record, scene.state_dir)
+    stack, _ = answers(scene)
+    assert reason | {"since": None} in row(stack)["broken"]
+
+
 def test_ci_that_failed_is_red_since_its_oldest_failed_run(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     scene.github([("oat-bowl", "completed", "success"), ("oat-milk", "completed", "failure")])
