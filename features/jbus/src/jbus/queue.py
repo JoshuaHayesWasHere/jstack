@@ -689,6 +689,25 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
     return sorted(held)
 
 
+def _builds_on(rows: list[Row], verb: Add) -> None:
+    """Refuse a depends that the brief does not build on. A depends holds the row's launch until
+    the other row has merged, which costs the row that row's whole cycle, so it is only for a row
+    whose brief's `Builds on:` line names the other (`jbriefs.parse.builds_on`). An order that is
+    only about merging is `merge_after`, and the row launches at once. A depends the row already
+    has is not checked again, so an add that only changes a row's priority or brief goes through
+    for a row queued before this check."""
+    had = next((row.get("depends", []) for row in rows if row["slug"] == verb.slug), [])
+    named = briefs.builds_on(body(verb.text))
+    for other in verb.depends:
+        if other not in had and other not in named:
+            raise Refused(
+                f"refused: {verb.slug} cannot depend on {other}: its brief's Builds on: line "
+                f"does not name {other}. A depends is for a row that starts from {other}'s "
+                f"work, and the brief's Builds on: line says what of it; an order that is only "
+                f"about merging is --merge-after {other}, and the row launches at once"
+            )
+
+
 def _merge_after(batch: _Batch, verb: Add) -> None:
     """Refuse an order that jmerge could not keep. There are three such orders. In the first, a row
     merges after itself. In the second, a row merges after a slug that was removed or that has no
@@ -820,6 +839,7 @@ def _do(
                 said = _was(other, batch.gone)
                 raise Refused(f"refused: {verb.slug} cannot depend on {other}: {said}")
         _merge_after(batch, verb)
+        _builds_on(rows, verb)
         if verb.entry and not _SLUG.fullmatch(verb.entry):
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():

@@ -9,7 +9,9 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --priority PRIORITY   an integer, lower first
-  --depends DEPENDS     slugs that must be merged first, with commas
+  --depends DEPENDS     slugs that must be merged before this row launches,
+                        with commas: each one the brief's Builds on: line
+                        names
   --merge-after MERGE_AFTER
                         slugs whose pull requests merge before this row's,
                         with commas: jmerge waits
