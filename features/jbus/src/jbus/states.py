@@ -32,8 +32,8 @@ def judged(half: Half) -> None:
     if world is None and half.out is None and half.seen.out is not None and client is not None:
         half.out = threads.out(run, client, stall.watched(run))
         stall.hung(run, half.out)
-    said = dict(watch.waits(run, half.said, merge.home_thread(run)).said) if world else {}
-    if half.said.failed:
+    said = dict(watch.waits(half.shown).said) if world else {}
+    if half.shown.failed:
         for row in rows:
             number = str(row.get("pr", "")).removeprefix("#")
             if row.get("status") == "pr" and number and number not in said:
@@ -46,7 +46,7 @@ def judged(half: Half) -> None:
 def derive(half: Half) -> None:
     """Rewrite the table's derived columns (`queue.derive`), and say whether the table changed."""
     run, world, states = half.run, half.seen.world, half.states
-    waits = watch.waits(run, half.said, merge.home_thread(run))
+    waits = watch.waits(half.shown)
     unread = watch.unread(run, half.read)
 
     def facts(row: queue.Row) -> queue.Row:
