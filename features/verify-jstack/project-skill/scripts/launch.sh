@@ -71,7 +71,9 @@ tries=0
 until [ -s "$S/t3/port" ]; do
   tries=$((tries + 1))
   if [ "$tries" -gt 50 ]; then
-    echo "launch.sh: the stand-in for T3 Code did not start, see $S/t3/log" >&2
+    # The trap at the top removes the log with the sandbox, so what it holds is said here.
+    echo "launch.sh: the stand-in for T3 Code did not start, and its log said:" >&2
+    cat "$S/t3/log" >&2
     exit 1
   fi
   sleep 0.1
