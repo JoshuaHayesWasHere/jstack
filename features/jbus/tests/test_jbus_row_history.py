@@ -110,6 +110,22 @@ def test_where_the_home_merges_the_line_is_the_last_one_jmerge_logged(kitchen):
     assert waits(kitchen) == {"alpha": ("wait: needs a rebase", FIRST)}
 
 
+def test_where_the_home_merges_a_hold_shows_in_the_pass_that_asked_jmerge(kitchen):
+    """S11: a replay from made-up rows. The home logged "no review yet" for #8 and has not run
+    `jmerge` since. Its review is written now, and `jmerge` holds it. One pass shows the hold in
+    the queue's table, the row jview shows, and the pass merged nothing and logged nothing."""
+    add(kitchen, "alpha", approve=False)
+    kitchen.brief("alpha", RESULT)
+    kitchen.set("open.json", [kitchen.opened("alpha", 8)])
+    (kitchen.home / "home-thread").write_text("mcp:a-home\n")
+    (kitchen.home / "merge.log.last").write_text(json.dumps({"8": NO_REVIEW.strip()}))
+    kitchen.set("jmerge.txt", "hold 8 https://example.test/pull/8: needs user\n")
+    kitchen.poll()
+    assert waits(kitchen) == {"alpha": ("hold: needs user", FIRST)}
+    assert kitchen.log("jmerge") == ["--check"]
+    assert json.loads((kitchen.home / "merge.log.last").read_text()) == {"8": NO_REVIEW.strip()}
+
+
 def test_a_log_of_last_lines_that_does_not_parse_gives_no_reason(kitchen):
     add(kitchen, "alpha", approve=False)
     kitchen.brief("alpha", RESULT)
