@@ -77,6 +77,16 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
     ]
 
 
+def test_a_system_with_no_affinity_counts_every_core(machine, monkeypatch):
+    """macOS has no `sched_getaffinity`: a sample of a given /proc there counts every core."""
+    _, log = machine
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+    monkeypatch.setattr(os, "cpu_count", lambda: 7)
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[1:5] == ["7", "11.54", "8.96", "7.51"]
+
+
 def test_a_missing_pressure_file_writes_empty_fields_and_not_a_crash(machine):
     proc, log = machine
     (proc / "pressure" / "io").unlink()
