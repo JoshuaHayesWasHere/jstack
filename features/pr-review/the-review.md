@@ -54,7 +54,7 @@ SCOPE
 }
 SCOPE=$(the_scope)
 INTENT=$(
-  sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p}}' "$BRIEF"
+  sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p;};}' "$BRIEF"
   run=$(uv run --project "$T/.." jbriefs --skills-run "$BRIEF")
   if [ -n "$run" ]; then
     skills=$(awk '/^## / {exit} /^Skills:/ {sub(/^Skills:[ \t]*/, ""); print; exit}' "$BRIEF")

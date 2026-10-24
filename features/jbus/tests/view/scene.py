@@ -796,7 +796,8 @@ raise SystemExit(cli.main(["view", "--port", sys.argv[1]]))
 class Process:
     """The real server as a process of its own: `jbus view` over a copy of the packages it
     runs. This process checks its code every 0.2 s, where `jbus view` otherwise checks every
-    `view.CHECK` seconds.
+    `view.CHECK` seconds. What the server prints to stderr goes to `said`, and a wait that fails
+    ends with its last lines.
     It copies each folder the packages are in (`testing.paths.sources`), and `src` is the copy
     that has `jbus`."""
 
@@ -814,15 +815,17 @@ class Process:
             "JBUS_STATE_DIR": str(scene.state_dir),
             "JBUS_HOME_DIR": str(scene.home_dir),
         }
+        self.said = scene.root / "view.err"
         self.run = None
 
     def start(self):
-        self.run = daemons.start(
-            [sys.executable, "-c", STARTS, str(self.port)],
-            env=self.env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        with self.said.open("a") as said:
+            self.run = daemons.start(
+                [sys.executable, "-c", STARTS, str(self.port)],
+                env=self.env,
+                stdout=subprocess.DEVNULL,
+                stderr=said,
+            )
         self.until(lambda: self.ask("/healthz") == {"ok": True})
 
     def ask(self, path):
@@ -835,11 +838,16 @@ class Process:
     def code(self):
         return (self.ask("/state.json?project=demo") or {}).get("jbus", {}).get("code", {})
 
+    def err(self):
+        return self.said.read_text()[-2000:]
+
     def until(self, holds, seconds=20):
         end = time.monotonic() + seconds
         while not holds():
-            assert time.monotonic() < end, "the server did not get there in time"
-            assert self.run.poll() is None, f"the server ended with {self.run.returncode}"
+            assert time.monotonic() < end, f"the server did not get there in time:\n{self.err()}"
+            assert self.run.poll() is None, (
+                f"the server ended with {self.run.returncode}:\n{self.err()}"
+            )
             time.sleep(0.05)
 
     def stop(self):

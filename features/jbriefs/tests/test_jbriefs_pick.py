@@ -184,7 +184,7 @@ def test_the_skills_block_prints_the_same_lines_as_jbriefs_pick(user, home, demo
         ("tasks/tidy-gauge.md", str(home / "tasks" / "tidy-gauge.md")),
     ):
         said = run_block(user, demo, typed)
-        assert said[0] == f"root: {assembled()}"
+        assert said[0] == f"root: {os.path.realpath(assembled())}"
         assert said[1:-1] == jbriefs(path)
         assert said[-1] == "setup: README.md, Quickstart" or said[-1].startswith("setup: sh ")
     asked = run_block(user, demo, QUESTION.strip())
