@@ -15,6 +15,7 @@ The mark of that is the Result's `Fixed:` line, which a crewmate writes whoever 
 Each rebase the block starts after the `Fixed:` line, one that stops on a conflict included, and counted again from each new Result, it records itself as the last line of the brief, `Rebased after fixed: <the head before> onto origin/<base> at <its tip>`.
 Where two such lines are there already, the block makes the third on trial: it rebases, records nothing yet, and prints a line that begins `a third rebase after fixed and green`.
 The block that looks for dropped lines, run once the rebase is finished, judges it by `jmerge --range-diff`, the range-diff `jmerge` carries a review over with, between the head before and the rebased head.
+The rebased head is the one the rebase finished at, read from git's log of the branch, so a commit made after the rebase and before this block, such as a renumber, is not judged with it and stays on the branch.
 Where that range-diff is empty, the rebase goes on by its default and asks nobody: the block writes its `Rebased after fixed:` line and prints `kept:`.
 Where it is not, a default branch that keeps landing on this pull request's files is work that collides, and sequencing it is the home's and the user's, not one more rebase.
 So the block keeps the rebased head under `refs/jstack/held-rebase/<slug>/<the head before's first 12 characters>`, puts the branch back at the head before, writes `Rebase hold: at <head>, a third rebase after fixed and green, onto origin/<base> at <its tip>`, and prints a line that begins `hold:`.
@@ -170,12 +171,18 @@ goes_on() {
     read -r before base pushed < "$G/crew-before-rebase"
     head=$(git rev-parse HEAD)
     third="a third rebase after fixed and green"
+    branch=$(git symbolic-ref -q HEAD)
+    rebased=$(git reflog show --format='%H %gs' "$branch" 2> /dev/null | awk -v ref="$branch" -v tip="${onto##* }" '
+        $(2) == "rebase" && $(3) == "(finish):" && $(4) == ref && $(5) == "onto" && $(6) == tip {print $(1); exit}')
     if [ "$head" = "$before" ]; then
         rm "$G/crew-before-rebase" "$G/crew-third-rebase"
         stop="no rebase: the head is still at $before, so $third was not made and nothing is recorded"
         return 1
+    elif [ -z "$rebased" ] || ! git merge-base --is-ancestor "$rebased" HEAD; then
+        stop="could not judge $third, nothing is pushed: git's log of ${branch:-the branch} has no rebase ${onto} under the head"
+        return 1
     fi
-    said=$(uv run --project "$T/.." jmerge --range-diff "$before..$head" --base "$base" 2>&1)
+    said=$(uv run --project "$T/.." jmerge --range-diff "$before..$rebased" --base "$base" 2>&1)
     case $said in
     'clean: '*)
         if ! note "Rebased after fixed: $before $onto"; then

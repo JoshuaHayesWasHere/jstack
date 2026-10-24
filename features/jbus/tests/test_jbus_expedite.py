@@ -158,10 +158,10 @@ SAYS = {
     "renumber": (
         'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '
         "`stale`: it counts the rebase toward the cap of two after fixed and green, and holds a "
-        "third. Then renumber the migration the reason names to the number it gives, and each "
-        "migration of yours after it to the numbers that follow, one each and in their order: "
-        "the files, and every other line that names an old number. Run the check command, and "
-        "push with the block's push."
+        "third only where its range-diff is not empty. Then renumber the migration the reason "
+        "names to the number it gives, and each migration of yours after it to the numbers that "
+        "follow, one each and in their order: the files, and every other line that names an old "
+        "number. Run the check command, and push with the block's push."
     ),
 }
 
