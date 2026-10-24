@@ -48,20 +48,15 @@ def orphan(cwd, *command, env=None):
 
 
 def parent(pid):
-    try:
-        with open(f"/proc/{pid}/stat") as stat:
-            return int(stat.read().rsplit(")", 1)[1].split()[1])
-    except (OSError, IndexError, ValueError):
-        return None
+    """The process's parent, as `ps` says, which reads it on Linux and on macOS alike."""
+    said = subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)], capture_output=True, text=True)
+    return int(said.stdout) if said.stdout.strip().isdecimal() else None
 
 
 def alive(pid):
-    """Whether the process runs: a zombie that pid 1 has not reaped yet has stopped."""
-    try:
-        with open(f"/proc/{pid}/stat") as stat:
-            return stat.read().rsplit(")", 1)[1].split()[0] != "Z"
-    except OSError:
-        return False
+    """Whether the process runs: a zombie that its reaper has not reaped yet has stopped."""
+    said = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True)
+    return said.stdout.strip()[:1] not in ("", "Z")
 
 
 @pytest.fixture
@@ -154,7 +149,8 @@ def test_a_worktree_removed_under_a_busy_process_still_counts(
     tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
     stray.append(orphan(tree, "yes"))
     kitchen.git("worktree", "remove", "--force", str(tree))
-    assert os.readlink(f"/proc/{stray[0]}/cwd").endswith(" (deleted)")
+    if os.path.isdir("/proc"):
+        assert os.readlink(f"/proc/{stray[0]}/cwd").endswith(" (deleted)")
     kitchen.poll()
     assert not alive(stray[0])
 
@@ -281,5 +277,20 @@ def test_a_process_that_ignores_term_is_killed_after_the_grace(
     monkeypatch.setattr(strays, "GRACE", 0.5)
     tree, _ = ended_crew(kitchen, tmp_path)
     stray.append(orphan(tree, "sh", "-c", "trap '' TERM; while :; do :; done"))
+    kitchen.poll()
+    assert not alive(stray[0])
+
+
+def test_with_no_proc_to_read_as_on_a_mac_a_busy_stray_is_still_stopped(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    """macOS has no /proc, and there `ps` and `lsof` say what a process is. A missing `ROOT`
+    stands in for it here. The process names its worktree, since this machine may have no `lsof`
+    to give its working directory, and the gap is over a second, since Linux's `ps` gives CPU
+    time in whole seconds."""
+    monkeypatch.setattr(strays, "ROOT", tmp_path / "no-proc")
+    monkeypatch.setattr(strays, "GAP", 1.5)
+    tree, _ = ended_crew(kitchen, tmp_path)
+    stray.append(orphan(tree, "yes", str(tree)))
     kitchen.poll()
     assert not alive(stray[0])
