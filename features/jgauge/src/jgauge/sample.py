@@ -60,6 +60,14 @@ def proc() -> Path:
     return Path(os.environ.get("PROC") or "/proc")
 
 
+def available_cores() -> int | None:
+    """The cores this process may run on, or every core where the system cannot say, as on
+    macOS, which has no `sched_getaffinity`."""
+    if hasattr(os, "sched_getaffinity"):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count()
+
+
 def tmpfs() -> Path:
     """The filesystem on which room.sh counts file slots: `TMPFS` when it is set, and /tmp
     otherwise."""
@@ -104,20 +112,20 @@ def _pressure(text: str) -> dict[str, str]:
 def row(now: int) -> list[str]:
     """One row of the log. On macOS the load and the cores come from `sysctl`, whose
     `vm.loadavg` prints `{ 1.62 1.88 2.03 }`, and the pressure fields stay empty, since macOS has
-    no pressure lines."""
-    if sizes.on_darwin():
+    no pressure lines. A /proc named in `PROC` is read on every system."""
+    if sizes.from_sysctl():
         load, cores = (
             sizes.sysctl("vm.loadavg").strip("{} ").split()[:3],
             sizes.sysctl_count("hw.ncpu"),
         )
     else:
-        load, cores = _read(proc() / "loadavg").split()[:3], len(os.sched_getaffinity(0))
+        load, cores = _read(proc() / "loadavg").split()[:3], available_cores()
     fields = {
         "time": str(now),
         "cores": str(cores or ""),
         **dict(zip(("load1", "load5", "load15"), load, strict=False)),
     }
-    for resource in () if sizes.on_darwin() else RESOURCES:
+    for resource in () if sizes.from_sysctl() else RESOURCES:
         read = _pressure(_read(proc() / "pressure" / resource))
         fields |= {f"{resource}_{key}": value for key, value in read.items()}
     try:

@@ -112,8 +112,8 @@ class Machine:
     def here(cls, proc: Path | None = None) -> Machine:
         """Read the facts of `proc`, else `$PROC`, else `/proc`, as room.sh reads them. A test
         can then give room.sh and this method the same fake tree. On macOS, which has no
-        /proc, read `hw.ncpu` and `hw.memsize` from `sysctl`."""
-        if on_darwin():
+        /proc, read `hw.ncpu` and `hw.memsize` from `sysctl`, unless a /proc is given."""
+        if proc is None and from_sysctl():
             cores, memory = sysctl_count("hw.ncpu"), sysctl_count("hw.memsize")
             memory = memory // (KIB_PER_GIB * 1024) if memory else None
         else:
@@ -149,6 +149,12 @@ def on_darwin() -> bool:
     """Whether this is macOS, which has no /proc. It is read at each call, so a test can set
     `sys.platform`."""
     return sys.platform == "darwin"
+
+
+def from_sysctl() -> bool:
+    """Whether the machine is read from `sysctl` rather than a /proc: on macOS, unless the
+    caller names a /proc in `PROC`, as a test's made-up machine does. room.sh decides the same."""
+    return on_darwin() and not os.environ.get("PROC")
 
 
 def sysctl(name: str) -> str:

@@ -6,6 +6,8 @@ room() (
   PRESSURE=10
   CUSHION=${HEADROOM:-90}
   SLOTS=85
+  mac=0
+  if [ -z "${PROC:-}" ] && [ "$(uname -s 2> /dev/null)" = Darwin ]; then mac=1; fi
   PROC=${PROC:-/proc}
   LIMITS=${LIMITS:-$HOME/.local/state/claude/limits}
   TMPFS=${TMPFS:-/tmp}
@@ -21,7 +23,7 @@ room() (
     if [ "$instance" != claudeAgent ]; then file=$LIMITS.$instance; fi
     if [ -d "$file" ]; then hollow="$hollow$instance "; fi
   done
-  if [ "$(uname -s 2> /dev/null)" = Darwin ]; then
+  if [ "$mac" = 1 ]; then
     psi=0
     tmp=0
     load=$(sysctl -n vm.loadavg 2> /dev/null | awk '$(1) == "{" {print $(2)}')

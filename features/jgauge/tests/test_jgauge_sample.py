@@ -69,7 +69,7 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
     else:
         assert row[17:] == ["", ""]
     assert row[1:17] == [
-        str(len(os.sched_getaffinity(0))),
+        str(len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()),
         *("11.54", "8.96", "7.51"),
         *("5.00", "5.72", "0.00", "0.10"),
         *("0.01", "0.02", "0.03", "0.04"),
