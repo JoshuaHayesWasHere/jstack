@@ -39,11 +39,11 @@ CITED = {
     "features/jmerge/src/jmerge/ready.py:289-292": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
     "features/jmerge/src/jmerge/cli.py:216": 'was.get("result")',
-    "features/jmerge/src/jmerge/cli.py:1034-1035": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:1039": "self.fresh.command",
-    "features/jmerge/src/jmerge/cli.py:1040-1042": "self.fresh.of(",
-    "features/jmerge/src/jmerge/cli.py:1078": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:1149": "self.red(one, default",
+    "features/jmerge/src/jmerge/cli.py:1039-1040": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:1044": "self.fresh.command",
+    "features/jmerge/src/jmerge/cli.py:1045-1047": "self.fresh.of(",
+    "features/jmerge/src/jmerge/cli.py:1083": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:1154": "self.red(one, default",
     "features/jmerge/src/jmerge/rejudge.py:63": "self.ask(one)",
 }
 
