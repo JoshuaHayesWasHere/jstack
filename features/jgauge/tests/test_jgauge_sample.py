@@ -105,15 +105,30 @@ DARWIN = Path(__file__).parent / "fixtures" / "darwin"
 @pytest.fixture
 def mac(machine, monkeypatch, tmp_path):
     """The machine above as a Mac: `sys.platform` is darwin and `sysctl` prints the output in
-    fixtures/darwin. The /proc of the machine fixture is still there, so a value read from it
-    would show."""
+    fixtures/darwin. `PROC` is unset, as on a Mac, and the /proc of the machine fixture is
+    still there, so a value read from it would show."""
     shown = tmp_path / "darwin"
     shown.mkdir()
     (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("DARWIN", str(shown))
     monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
+    monkeypatch.delenv("PROC")
     return shown, machine[1]
+
+
+def test_a_sample_on_a_mac_given_a_proc_reads_that_proc_and_not_sysctl(mac, machine, monkeypatch):
+    """A caller that names a /proc in `PROC` has that machine sampled on every system."""
+    _, log = mac
+    monkeypatch.setenv("PROC", str(machine[0]))
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[2:17] == [
+        *("11.54", "8.96", "7.51"),
+        *("5.00", "5.72", "0.00", "0.10"),
+        *("0.01", "0.02", "0.03", "0.04"),
+        *("1.50", "2.25", "0.75", "1.25"),
+    ]
 
 
 def test_a_sample_on_a_mac_has_its_load_and_cores_and_no_pressure(mac):

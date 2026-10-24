@@ -57,15 +57,14 @@ DARWIN = Path(__file__).parent / "fixtures" / "darwin"
 @pytest.fixture
 def mac(tmp_path, monkeypatch):
     """A Mac: `sys.platform` is darwin and `sysctl` prints the output in fixtures/darwin, 12
-    processors and 16 GiB. `PROC` names a /proc of other sizes, so a fact read from it would
-    show."""
+    processors and 16 GiB. `PROC` is unset, as on a Mac."""
     shown = tmp_path / "darwin"
     shown.mkdir()
     (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("DARWIN", str(shown))
     monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
-    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
+    monkeypatch.delenv("PROC", raising=False)
     return shown
 
 
@@ -73,6 +72,12 @@ def test_the_facts_of_a_mac_are_its_processors_and_memory_from_sysctl(mac):
     found = Machine.here()
     assert found == Machine(12, 16)
     assert found.says() == "12 cores, 16 GiB"
+
+
+def test_a_mac_given_a_proc_reads_that_proc_and_not_sysctl(mac, tmp_path, monkeypatch):
+    """A caller that names a /proc in `PROC` has that machine read on every system."""
+    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
+    assert Machine.here() == Machine(24, 62)
 
 
 def test_a_mac_whose_sysctl_says_nothing_takes_the_fallbacks(mac):
