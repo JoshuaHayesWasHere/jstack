@@ -1811,6 +1811,27 @@ def test_a_brief_is_ready_while_its_checks_run_and_once_they_passed(case, tmp_pa
         assert said.startswith(f"a-task: not ready, its checks, {answer}: ")
 
 
+def test_with_github_s_budget_at_its_floor_no_brief_is_asked_about_and_the_block_is_held(tmp_path):
+    launcher = Launcher(tmp_path)
+    crew.spent(launcher.stub)
+    script = readiness().replace("<slug>", "*").replace("--wait 540", "--wait 0")
+    env = {
+        **os.environ,
+        "PATH": f"{launcher.stub}:{os.environ['PATH']}",
+        "STUB": str(launcher.stub),
+        "H": str(launcher.state),
+        "T": str(assembled() / "templates"),
+    }
+    ran = subprocess.run(["sh", "-c", script], capture_output=True, text=True, env=env)
+    (line,) = ran.stdout.splitlines()
+    assert ran.returncode == 75 and line.startswith("held: GitHub's core budget has 0 of 5000")
+    assert "3 calls would take it to -3" in line and line.endswith(
+        "run this block again, in this turn"
+    )
+    crew.spent(launcher.stub, 5000)
+    assert launcher.says() == [f"a-task: ready, {URL} at {HEAD}"]
+
+
 def test_checks_that_could_not_be_read_are_not_ready_though_a_later_call_names_the_head(tmp_path):
     launcher = Launcher(tmp_path, crew.ROLLUPS["one ran and failed"][0])
     rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup ] &&'

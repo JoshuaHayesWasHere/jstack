@@ -172,6 +172,10 @@ On an `Update on pull request` message for a comment or review, and on no messag
 
 ```sh
 remarks() {
+    if ! said=$(uv run --project "$T/.." jbus budget --calls 10); then
+        echo "not known: ${said#held: }, so no comment is acted on"
+        return
+    fi
     owner=$(gh api 'repos/{owner}/{repo}' --jq '.owner.login') || owner=
     number=$(gh pr view --json number --jq '.number') || number=
     if [ -z "$owner" ] || [ -z "$number" ]; then

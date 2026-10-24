@@ -34,6 +34,9 @@ elif args[:2] == ["pr", "lock"]:
     sys.exit(said.get("lock", 0) and said["lock"])
 elif args[:2] == ["pr", "view"]:
     print(said["number"])
+elif args[:2] == ["api", "rate_limit"]:
+    full = {{"limit": 5000, "used": 0, "remaining": said.get("budget", 5000), "reset": 1791824400}}
+    print(json.dumps({{"resources": {{"core": full, "graphql": full}}}}))
 elif args[0] == "api" and args[1] == "repos/{{owner}}/{{repo}}":
     print(said.get("owner") or sys.exit(1))
 elif args[0] == "api":
@@ -60,7 +63,11 @@ def run(tmp_path):
 
     def ran(text, **said):
         (stub / "said.json").write_text(json.dumps({"url": URL, "number": 7, **said}))
-        env = {**os.environ, "PATH": f"{stub}{os.pathsep}{os.environ['PATH']}"}
+        env = {
+            **os.environ,
+            "PATH": f"{stub}{os.pathsep}{os.environ['PATH']}",
+            "T": str(REPO / "features" / "crew" / "templates"),
+        }
         done = subprocess.run(["sh", "-c", text], capture_output=True, text=True, env=env)
         log = stub / "gh.log"
         return done.stdout.splitlines(), log.read_text().splitlines() if log.exists() else []
@@ -152,7 +159,7 @@ def test_the_owner_is_the_one_github_names_and_not_a_name_in_the_tree(run):
         "by the owner, grace: 0, and jbus sends this thread each one once",
         "by anybody else: 1, not shown and not acted on",
     ]
-    assert asked[0] == "api repos/{owner}/{repo} --jq .owner.login"
+    assert asked[:2] == ["api rate_limit", "api repos/{owner}/{repo} --jq .owner.login"]
 
 
 @pytest.mark.parametrize(
@@ -167,3 +174,13 @@ def test_with_no_answer_from_github_no_comment_is_shown(run, said, why):
     printed, _ = run(block("features/crew/SKILL.md", "remarks()"), **said)
     (line,) = printed
     assert line.startswith("not known: ") and why in line and line.endswith("is acted on")
+
+
+def test_with_github_s_budget_at_its_floor_nothing_is_asked_and_no_comment_is_shown(run):
+    lists = {"issues/7/comments": [one("ada", "a")], "pulls/7/comments": [], "pulls/7/reviews": []}
+    printed, asked = run(
+        block("features/crew/SKILL.md", "remarks()"), owner="ada", lists=lists, budget=0
+    )
+    (line,) = printed
+    assert line.startswith("not known: GitHub's core budget has 0 of 5000 calls left")
+    assert line.endswith("so no comment is acted on") and asked == ["api rate_limit"]

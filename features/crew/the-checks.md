@@ -26,6 +26,8 @@ B="$H/tasks/<slug>.md"
 here='<failed or passed>'
 if [ "$here" != failed ] && [ "$here" != passed ]; then
     echo "wait: run the check command in this worktree first, and set here to failed or passed"
+elif ! said=$(uv run --project "$T/.." jbus budget --wait 540 --calls 10); then
+    echo "$said"
 elif ! view=$(gh pr view --json headRefOid,baseRefName,statusCheckRollup); then
     echo "wait: could not ask GitHub"
 else
@@ -67,7 +69,10 @@ else
 fi
 ```
 
-Its first word is one of five answers. After each, end your turn.
+Its first word is one of six answers. After each but `held`, end your turn.
+
+- `held`: GitHub's API budget, which jbus and every thread share, stayed at its floor (`jbus budget`) for the nine minutes the block waited, and nothing was asked of GitHub.
+  Give the block a time limit of 10 minutes (`timeout: 600000` in Claude Code), and run it again, in this turn, until it prints another word.
 
 - `fix`: the failure is in the pull request's own change. Only this one gets a commit: fix it, run the check command, push, and add one line to the Result saying what failed and what you did. Then go by what has reviewed the pull request. Where the block of "The review" prints `launch a reviewer`, launch it now, on the push. Where the brief has a `## Review` section and the Result no `Fixed:` line that names a commit, add `CI fix: <the head you pushed>, after the review of <the Head: of the last ## Review section>`, both commits in full, one line for each such push: `jmerge` compares the two heads by `git range-diff`, and the review carries over or one scoped review is asked for ("A conflict"). Where a reviewer is launched and its section is not written yet, the line is owed once the section is, if its `Head:` is not the head you pushed: add it on the message that brings the findings when nothing is pushed for them.
 - `stale`: the change passes here, and its base moved under it.
