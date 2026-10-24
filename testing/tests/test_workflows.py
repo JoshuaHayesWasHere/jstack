@@ -328,12 +328,15 @@ def test_an_env_is_read_from_its_own_step_and_no_other():
 
 
 def steps(text, job):
-    """The steps of one job, each as the keys written on it, and the job's own keys."""
-    found, keys, inside, at = [], [], False, None
+    """The steps of one job, each as the keys written on it, and the job's own keys. A value
+    folded with `>-` is read as its lines joined by spaces."""
+    found, keys, inside, at, folded = [], [], False, None, None
     for line in text.splitlines():
         indent = len(line) - len(line.lstrip())
         if not line.strip() or line.lstrip().startswith("#"):
             continue
+        if indent < 10:
+            folded = None
         if indent <= 2:
             inside, at = line.strip() == f"{job}:" and indent == 2, None
         elif not inside:
@@ -350,6 +353,10 @@ def steps(text, job):
         elif at is not None and indent == 10 and isinstance(found[-1][key], dict):
             under, _, value = line.strip().partition(":")
             found[-1][key][under] = scalar(value)
+        elif at is not None and indent == 10 and found[-1][key] == ">-":
+            found[-1][key], folded = line.strip(), key
+        elif at is not None and indent == 10 and key == folded:
+            found[-1][key] += " " + line.strip()
     return found, keys
 
 
@@ -358,12 +365,13 @@ def test_steps_are_read_with_their_own_keys_and_the_job_with_its_own():
         "jobs:\n  other:\n    if: false\n    steps:\n      - run: true\n"
         "  check:\n    runs-on: x\n    steps:\n      - uses: a/b@1 # v1\n        with:\n"
         "          if: no\n          depth: 2\n      - name: one\n        if: a != 'b'\n"
-        "        run: make check\n"
+        "        run: make check\n      - run: >-\n          make\n          check\n"
     )
     assert steps(text, "check") == (
         [
             {"uses": "a/b@1", "with": {"if": "no", "depth": "2"}},
             {"name": "one", "if": "a != 'b'", "run": "make check"},
+            {"run": "make check"},
         ],
         ["runs-on", "steps"],
     )
@@ -498,8 +506,10 @@ def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_
     assert paths and len(paths) == len(set(paths))
     for path in paths:
         found = REPO / path
-        assert found.is_file() and fnmatch(found.name, "test_*.py") or (
-            found.is_dir() and found.name == "tests"
+        assert (
+            found.is_file()
+            and fnmatch(found.name, "test_*.py")
+            or (found.is_dir() and found.name == "tests")
         ), path
 
 
