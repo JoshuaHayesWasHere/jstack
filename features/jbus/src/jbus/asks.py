@@ -76,6 +76,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
         slug = move["slug"]
         line = f"queue {project.name}: removed {slug}, {move['said']} by {move['by']}"
         run.box.send(slug, "queue", line, queue.render([move["row"]]))
+        blockers.forgo(run, move)
 
     def out(slug: str) -> str:
         try:

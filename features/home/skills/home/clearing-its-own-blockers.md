@@ -28,7 +28,7 @@ Each line it prints is one blocker of this home, and its first word says what to
   Do nothing more for it.
   The reply comes back as the user's word ("The user's word, carried by jbus"): act on it then.
 - `fix <key>`: brief a fix, as below, and queue it.
-- `wait <key>`: a fix of the key is queued and not over.
+- `wait <key>`: a fix of the key is queued and not over, or its last fix merged and the blocker has not been judged since.
   Nothing to do.
 - `nothing blocks this home`: nothing to do.
 
@@ -46,6 +46,7 @@ A refused or stuck row is fixed and queued again the same way: its fix brief nam
 
 Each blocker has a retry cap, `retry_cap` in `~/.config/jstack/config.toml` (2 with none).
 jbus counts each fix brief queued for a key in `blockers.json` in this home's directory, and a fix whose own check fails is the same blocker again, not a new one.
+A fix row removed with `jbus queue remove` before it launched gives its try back, and one that launched stays counted.
 When a key has had its cap, `jbus queue add` refuses the next fix and raises the key as a decision instead (`refused: <key> had <n> fixes`), and `jbus clear` prints it as `decision`.
 Then stop: queue no fix of it under another key and another slug. The user's reply says what happens next.
 
