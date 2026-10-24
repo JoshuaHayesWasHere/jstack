@@ -50,7 +50,9 @@ A schedule call and the block that keeps its id are two calls, and a turn can st
 }
 ```
 
-Leave `bindToCurrentThread` out: each run then posts into this thread. A run in a thread of its own would start in the main checkout, as a home. The call returns the audit's id as `scheduledTaskId`, and `nextRunAt`: tell the user that time once.
+Leave `bindToCurrentThread` out: each run then posts into this thread.
+A run in a thread of its own would start in the main checkout, as a home.
+The call returns the audit's id as `scheduledTaskId`, and `nextRunAt`: write that time as a `launched:` line of the turn's end, which the user is told when they ask for status.
 
 **Delete it** with the `t3-code` server's `delete_scheduled_task` (if your harness defers it, load it first), with the id the block printed:
 
@@ -106,5 +108,14 @@ esac
    esac
    ```
 
-   A side effect is a line in the brief (a Result, a Review, a `Finding:`) or a push to the task's branch. The block keeps a mark of both for each brief of this home that is out with no pull request yet, in `$M/audit-seen`, and counts the ticks it stayed the same. A brief with a pull request is not judged: its crewmate is on the pull request's watch, what it waits for is often another party (a reviewer, CI, the user's word), and step 2's line for it says what it is short of. `moved` and `quiet` ask for nothing. `stuck` is printed on every second such tick, so a thread that a message did not move is printed again two ticks later: look the thread up with `t3_thread_list`, as "Handing a task to a crewmate" does after a lost reply. `running`: leave it, a long run writes nothing. `waiting`: it asked the user in its own thread, so tell the user it waits. Anything else: pick it up, as the next section says.
-4. Tell the user what this tick changed, in one line each: a merge, a launch with its link, a stuck thread and what was done, and a question asked. Nothing that an earlier message said. A `hold` line is not told here: jbus puts each pull request `jmerge` holds on its list of what waits on the user, from its own run or from the last line a home's run logged, and tells the user of it once. A tick that changed nothing ends the turn with no reply at all.
+   A side effect is a line in the brief (a Result, a Review, a `Finding:`) or a push to the task's branch.
+   The block keeps a mark of both for each brief of this home that is out with no pull request yet, in `$M/audit-seen`, and counts the ticks it stayed the same.
+   A brief with a pull request is not judged: its crewmate is on the pull request's watch, what it waits for is often another party (a reviewer, CI, the user's word), and step 2's line for it says what it is short of.
+   `moved` and `quiet` ask for nothing.
+   `stuck` is printed on every second such tick, so a thread that a message did not move is printed again two ticks later: look the thread up with `t3_thread_list`, as "Handing a task to a crewmate" does after a lost reply.
+   `running`: leave it, a long run writes nothing.
+   `waiting`: it asked the user in its own thread, which T3 Code shows them, so it is a `waits:` line.
+   Anything else: pick it up, as the next section says.
+4. End the turn by "How a turn ends": a merge, a launch with its link, and a stuck thread and what was done are its lines, and only a question asked reaches the user.
+   A `hold` line is no line of it: jbus puts each pull request `jmerge` holds on its list of what waits on the user, from its own run or from the last line a home's run logged, and tells the user of it once.
+   A tick that changed nothing runs the block with no lines, and ends with no reply at all.

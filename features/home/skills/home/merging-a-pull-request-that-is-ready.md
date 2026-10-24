@@ -69,7 +69,13 @@ home)
 esac
 ```
 
-On `jbus merges` it runs no `jmerge`: jbus runs it on each pass, and this home's part is to tell the user. The block prints what a run of `jmerge` would, from what jbus's runs left on disk. First the `merged` lines jbus's `jmerge` appended to `$H/merge.log` since this home last read it, without their date: how far it read is kept in `$M/merge-seen`, a home with no mark starts at the end of the log, so an old merge is never news, and a log shorter than the mark is read from its start. Then, for each pull request GitHub lists as open, the last `wait` or `hold` line `jmerge` said of it (`$H/merge.log.last`): that is read anew on every run and no mark is kept for it, so a `hold` is never lost between this block and the one that tells it, a pull request that has waited for long still has its line when the user asks for status, and one that is merged or closed has none. An open pull request `jmerge` has no line for yet is `wait <number> <url>: jbus has said nothing of it yet`. They are the lines of the table below, and are relayed as a run's own are. On `wait: could not ask GitHub` no pull request's line was read.
+On `jbus merges` it runs no `jmerge`: jbus runs it on each pass, and this home's part is to read what jbus did.
+The block prints what a run of `jmerge` would, from what jbus's runs left on disk.
+First the `merged` lines jbus's `jmerge` appended to `$H/merge.log` since this home last read it, without their date: how far it read is kept in `$M/merge-seen`, a home with no mark starts at the end of the log, so an old merge is never news, and a log shorter than the mark is read from its start.
+Then, for each pull request GitHub lists as open, the last `wait` or `hold` line `jmerge` said of it (`$H/merge.log.last`): that is read anew on every run and no mark is kept for it, so a `hold` is never lost between this block and the one that tells it, a pull request that has waited for long still has its line when the user asks for status, and one that is merged or closed has none.
+An open pull request `jmerge` has no line for yet is `wait <number> <url>: jbus has said nothing of it yet`.
+They are the lines of the table below, and are relayed as a run's own are.
+On `wait: could not ask GitHub` no pull request's line was read.
 
 A line is as of jbus's last pass, not of now: `jmerge` writes one only when it changes, and nothing here says how old it is. No `fixed and green` line is sent while jbus merges, so a pull request that just turned ready often still has the `wait` from before its `Fixed:` line: jbus's next pass judges it, and its `merged` line comes on a later run of this step. If jbus is stopped the lines stay as they were: `systemctl --user status jbus.timer` says whether it runs.
 
@@ -90,7 +96,7 @@ On `home merges` it runs `jmerge`. For each open pull request of this repo that 
 | The line | Means |
 |---|---|
 | `merged <number> <slug> <commit> "<title>", revert: <command>` | it is merged as that commit, the main checkout is pulled, and the worktree and both branches are gone. The line ends in the command that undoes it |
-| `merged <number> <slug> <commit> "<title>", the rebase changed the patch in <files>, revert: <command>` | it is merged, and a rebase changed its patch in those files after the last head a review saw: the review stands, and no review saw that change. Tell the user the files |
+| `merged <number> <slug> <commit> "<title>", the rebase changed the patch in <files>, revert: <command>` | it is merged, and a rebase changed its patch in those files after the last head a review saw: the review stands, and no review saw that change. Name the files on the line's `merged:` line |
 | `merged <number> <slug> <commit> "<title>", kept: <what and why>, revert: <command>` | it is merged, and something was left: a worktree with uncommitted work, a branch that is not at the merged head, a worktree or a branch git would not remove. Do nothing more about it. The same line says so if the pull failed |
 | `merged <number> <slug> <commit> "<title>", guarded: <path>, revert: <command>` | it is merged under the stricter gate of a guarded path, the first one it changes |
 | `wait <number> <url>: <reason>` | it is not merged. The reason is the first thing it is short of |
@@ -136,13 +142,24 @@ A head that moved between the check and the merge fails the merge, and that is t
 
 **The log is the undo list.** Each `merged` line in `$H/merge.log` starts with the time it was printed, then its first four words, `merged <number> <slug> <commit>`, then the pull request's title in quotes, the notes above, and last `revert: gh pr revert <url>`. Run as it stands, from anywhere, that command opens a pull request that reverts the merge. It pushes nothing to the default branch and changes nothing in the checkout: the revert is a pull request like any other, and is merged like one. Run it on the user's word only, and give them the pull request it prints.
 
-Relay what it printed: tell the user in one line per pull request, the slug, the pull request, that it is merged, and anything that was kept. A `hold` line is the user's to act on, and jbus tells them of it: each pull request `jmerge` holds is on jbus's list of what waits on the user, from jbus's own run or from the last line a home's run logged, which `jbus queue show` prints first. Tell it only when the user asks for status, or when it is about the pull request a message was sent for. A `wait` line is reported, not acted on: give it to the user when they ask for status, and when it is about the pull request a message was sent for. The home does not fix what a pull request is short of. Its crewmate does. Settling a merged crewmate's thread is not the command's: T3 Code settles a thread whose linked pull request merges.
+Write what it printed as lines of the turn's end ("How a turn ends"): one `merged:` line per pull request, the slug, the pull request and anything that was kept, which the user is told when they ask for status.
+A `hold` line is the user's to act on, and jbus tells them of it: each pull request `jmerge` holds is on jbus's list of what waits on the user, from jbus's own run or from the last line a home's run logged, which `jbus queue show` prints first.
+Tell it only when the user asks for status, or when it is about the pull request a message was sent for.
+A `wait` line is reported, not acted on: give it to the user when they ask for status, and when it is about the pull request a message was sent for.
+The home does not fix what a pull request is short of.
+Its crewmate does.
+Settling a merged crewmate's thread is not the command's: T3 Code settles a thread whose linked pull request merges.
 
 To see what is ready and merge nothing, run the merge step with `flags='--check'` in place of its `flags=''` line, on `home merges`: on `jbus merges` the `jmerge` line is not reached, and the merge step's own lines say what waits. It prints `ready <number> <head> <branch> <slug>` in place of merging. A pull request that is held, or whose repo's merge is off, is printed as it is without the flag: it is not `ready`.
 
 To land a stack, run the merge step with `flags='--land <name>'` in place of its `flags=''` line, the stack's name in place of the words in angle brackets: one run, which reads the log and sets the mark as every merge step does. To see what would land and merge nothing, it is `flags='--check --land <name>'`. It is run on the user's word only: "land <name>", said in this thread. No `fixed and green` line, no tick and no start of a home runs it.
 
-On `jbus merges` the merge step then prints `not landed` before its other lines, and nothing was run: jbus never adds `--land`. Tell the user that landing the stack needs an id in `$H/home-thread`, which only they write, and do nothing more. On `home merges`, `--land` lifts the second wait for the pull requests whose `Stack:` line names that stack, and nothing else: each is merged as any other, when it is ready and its base is the default branch. So one run lands the bottom link and prints `its base is <branch>, not <default branch>` for every link above it. The merged link's remote branch stays while a pull request is based on it, and its line says so under `kept:`. `jmerge` changes no base, and prints nothing that says a new base is the next step: "A stack the user lands" has it, and the playbook `shipping` has the steps in order.
+On `jbus merges` the merge step then prints `not landed` before its other lines, and nothing was run: jbus never adds `--land`.
+End the turn with `stop local <name>: landing the stack needs an id in $H/home-thread, which only the user writes` ("How a turn ends"), and do nothing more.
+On `home merges`, `--land` lifts the second wait for the pull requests whose `Stack:` line names that stack, and nothing else: each is merged as any other, when it is ready and its base is the default branch.
+So one run lands the bottom link and prints `its base is <branch>, not <default branch>` for every link above it.
+The merged link's remote branch stays while a pull request is based on it, and its line says so under `kept:`.
+`jmerge` changes no base, and prints nothing that says a new base is the next step: "A stack the user lands" has it, and the playbook `shipping` has the steps in order.
 
 A merge clears up after itself only when all is clean at that moment. What is left then, and what never had a merge by this command, is the sweep's: a `kept:` of a merge, a pull request merged by hand, a crewmate that ended with no pull request, a scout's worktree, the gate's ref. The same command does it, with no model. Run it once at the start of a home, after the merge step, from the main checkout, in one call with the block at the top and the block of "Who merges":
 
