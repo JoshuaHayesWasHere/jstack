@@ -133,8 +133,8 @@ function sendBatch() {
   send({ numbers: ns.map(Number) }, function (why) { BATCH = { busy: false, error: why }; draw(); });
 }
 function dYou(arg) {
-  var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
+  var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.needs.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
+  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes, and also hold the gates that go ahead on their default. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;
