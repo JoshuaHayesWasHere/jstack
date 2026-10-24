@@ -42,8 +42,8 @@ reason with its sentence:
   `Stale base:` line for the head;
 - `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
   <free>`: rebase with the crew skill's "A conflict" block, which counts the rebase toward
-  its cap of two after fixed and green. Then renumber the migration and the ones after it,
-  consecutively.
+  its cap of two after fixed and green and holds a third only where its range-diff is not
+  empty. Then renumber the migration and the ones after it, consecutively.
 - `gate`, a `hold` that says `its merge gate failed`, `could not start` or `ran over`: run the
   repo's merge gate at the head, fix what it names or make what it asks for, and push where a
   file changed. Only a gate that passes lifts the hold.
@@ -313,10 +313,10 @@ TABLE = (
         ),
         'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '
         "`stale`: it counts the rebase toward the cap of two after fixed and green, and holds a "
-        "third. Then renumber the migration the reason names to the number it gives, and each "
-        "migration of yours after it to the numbers that follow, one each and in their order: "
-        "the files, and every other line that names an old number. Run the check command, and "
-        "push with the block's push.",
+        "third only where its range-diff is not empty. Then renumber the migration the reason "
+        "names to the number it gives, and each migration of yours after it to the numbers that "
+        "follow, one each and in their order: the files, and every other line that names an old "
+        "number. Run the check command, and push with the block's push.",
     ),
     Short(
         "gate",

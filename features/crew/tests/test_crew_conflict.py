@@ -335,6 +335,25 @@ def test_a_third_rebase_whose_range_diff_is_empty_goes_on_and_asks_nobody(
     assert pr.run("no rebase to look through", home).splitlines() == said[1:]
 
 
+def test_a_third_rebase_is_judged_alone_and_not_with_a_commit_made_after_it(tmp_path):
+    """The `renumber` message orders the rebase, then a commit that renumbers, then the check and
+    the push. The range-diff judges the rebase alone, so an empty one goes on and the commit
+    after it stays on the branch."""
+    pr, home, brief = rebased_twice(tmp_path, "other.txt")
+    before = pr.head()
+    said = pr.run("mergeable", home).splitlines()
+    assert said[-1].startswith(f"{THIRD}: run the block that looks for dropped lines")
+    pr.commit(pr.work, "0009_mine.up.sql", "renumbered\n", "renumber the migration")
+    renumbered = pr.head()
+    said = pr.run("no rebase to look through", home).splitlines()
+    assert said[0].startswith(f"kept: {THIRD} whose range-diff is empty, so it goes on: ")
+    assert pr.head() == renumbered
+    assert "Rebase hold:" not in brief.read_text()
+    assert brief.read_text().endswith(
+        f"Rebased after fixed: {before} onto origin/main at {pr.landed}\n"
+    )
+
+
 def test_a_third_rebase_that_changes_the_content_is_still_held_for_the_user(tmp_path):
     """S10: a third rebase after fixed and green whose resolution changed what was reviewed is
     not made. The head goes back to where it was, the resolved head is kept under a ref, and
