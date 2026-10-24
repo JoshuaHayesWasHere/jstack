@@ -91,7 +91,7 @@ REFUSED = "T3 Code refused it"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
 THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
-SLUG = re.compile(r"[a-z0-9][a-z0-9.]*(?:-[a-z0-9.]+)+")
+SLUG = re.compile(r"[a-z0-9]+(?:\.[a-z0-9]+)*(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)+")
 
 
 class Unparsable(Refused):
