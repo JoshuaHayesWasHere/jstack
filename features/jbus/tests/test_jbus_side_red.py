@@ -14,12 +14,13 @@ import jbus.queue
 from test_jbus_kitchen import NOW, iso
 from test_jbus_watch import main_red
 
-RELEASE, CHECK, DRIFT, BROWSER = 11, 12, 13, 14
+RELEASE, CHECK, DRIFT, BROWSER, MACOS = 11, 12, 13, 14, 16
 WORKFLOWS = [
     {"id": RELEASE, "path": ".github/workflows/release.yml", "state": "active"},
     {"id": CHECK, "path": ".github/workflows/check.yml", "state": "active"},
     {"id": DRIFT, "path": ".github/workflows/pstack-drift.yml", "state": "active"},
     {"id": BROWSER, "path": ".github/workflows/browser.yml", "state": "active"},
+    {"id": MACOS, "path": ".github/workflows/macos-nightly.yml", "state": "active"},
     {"id": 15, "path": "dynamic/dependabot/dependabot-updates", "state": "active"},
 ]
 DRIFT_LOG = (
@@ -217,9 +218,10 @@ def test_a_workflow_green_on_main_or_red_long_ago_files_nothing(kitchen, runs):
     assert rows(kitchen) == []
 
 
-def test_browser_yml_keeps_its_own_rule_and_a_dynamic_workflow_is_not_judged(kitchen):
+def test_each_nightly_keeps_its_own_rule_and_a_dynamic_workflow_is_not_judged(kitchen):
     kitchen.quiet()
-    side(kitchen, {BROWSER: [run(400, "e", "failure")], 15: [run(401, "e", "failure")]})
+    red = {BROWSER: [run(400, "e", "failure")], MACOS: [run(402, "e", "failure")]}
+    side(kitchen, red | {15: [run(401, "e", "failure")]})
     kitchen.poll()
     assert rows(kitchen) == []
 
