@@ -182,6 +182,8 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("stall.py", "STALL")] == {"stall"}
     assert sent[("expedite.py", "EXPEDITE")] == {"expedite"}
     assert sent[("expedite.py", "STALL")] == {"stall"}
+    assert sent[("clock.py", "CLOCK")] == {"clock"}
+    assert sent[("clock.py", "STALL")] == {"stall"}
     assert sent[("rebase.py", "ask.kind")] == {
         "rebase",
         "rereview",

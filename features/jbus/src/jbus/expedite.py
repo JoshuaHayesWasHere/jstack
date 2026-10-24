@@ -159,7 +159,7 @@ class Short:
     rerun: bool = False
 
 
-def _no_reviewer_by_rule(brief: str, head: str) -> bool:
+def no_reviewer_by_rule(brief: str, head: str) -> bool:
     """Say whether the brief records, by the crew skill's rule, that the pull request has
     no reviewer at this head. That is so when the crew launched no reviewer, and either none
     can run (`Reviewer: none`) or none runs yet (no check ran, a check is stuck, or the base
@@ -289,7 +289,7 @@ TABLE = (
         f"the one line `{AGAIN}` with `t3_thread_send`, and write `Woke: jbus, sent {AGAIN}` "
         "in the Result, the line as sent. Launch no second one.",
         reviewed=True,
-        unless=_no_reviewer_by_rule,
+        unless=no_reviewer_by_rule,
         sends=AGAIN,
         rerun=True,
     ),
@@ -367,7 +367,7 @@ def _kept(run: Pass, slug: str) -> str:
     return "" if kept.returncode else kept.stdout.strip()
 
 
-def _ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None:
+def ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None:
     """Return the two ranges of a scoped review that ends on `head`: the patch before it and
     the patch after. Each patch starts where its branch left the default branch.
 
@@ -571,13 +571,13 @@ def _tell(
     head, window = entry["head"], _window(capped)
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix"):
-        ranges = _ranges(run, slug, head, row.kind)
-        if not ranges and row.kind == "unruled":
+        found = ranges(run, slug, head, row.kind)
+        if not found and row.kind == "unruled":
             run.say(f"wait {slug}: {NO_RANGE}")
             return "users"
-        if ranges:
-            sentence = sentence.replace("{old}", ranges[0]).replace("{new}", ranges[1])
-            sent = sent.replace("{old}", ranges[0]).replace("{new}", ranges[1])
+        if found:
+            sentence = sentence.replace("{old}", found[0]).replace("{new}", found[1])
+            sent = sent.replace("{old}", found[0]).replace("{new}", found[1])
         else:
             sentence, sent = NO_FIX_RANGE, ""
     if row.rerun:

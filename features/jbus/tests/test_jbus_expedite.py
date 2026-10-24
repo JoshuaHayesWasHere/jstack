@@ -300,7 +300,8 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     (event,) = kitchen.events("expedite")
     assert (event["line"], event["loud"]) == (line, "quiet")
     short.passes(9)
-    assert len(sends(kitchen)) == 1
+    crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
+    assert len(crew) == 1
     posted = [event for post in kitchen.webhook.posts for event in post]
     assert [event["line"] for event in posted if event["loud"] == "user"] == []
     assert kitchen.lines("stall") == [] and gates(kitchen) == []
@@ -314,7 +315,8 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     assert (event["loud"], event["posted"]) == ("quiet", None)
     assert not [one for post in kitchen.webhook.posts for one in post if one["event"] == "stall"]
     short.passes(12)
-    assert kitchen.lines("stall") == [stalled] and len(sends(kitchen)) == 1
+    crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
+    assert stalled in kitchen.lines("stall") and len(crew) == 1
     assert gates(kitchen) == []
 
 

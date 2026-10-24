@@ -139,3 +139,21 @@ def test_with_no_home_the_second_miss_is_one_quiet_stall_and_not_the_user_s(shor
     (stall,) = [one for one in kitchen.lines("stall") if one.startswith("stall alpha: #7 waited")]
     assert "no home" in stall
     assert loud(kitchen) == [] and gates(kitchen) == []
+
+
+def test_a_reviewer_whose_thread_is_gone_is_not_asked_again_and_the_home_gets_the_line(
+    short, kitchen
+):
+    desk = home(kitchen)
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    kitchen.t3.forgot.add(reviewer["threadId"])
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
+    said = short.passes(N)
+    assert any("and T3 Code refused it" in one for one in said)
+    short.passes(N)
+    assert len(to(kitchen, desk)) == 1
+    tried = [one for one in sends(kitchen) if one["threadId"] == reviewer["threadId"]]
+    short.passes(N)
+    assert len([one for one in sends(kitchen) if one["threadId"] == reviewer["threadId"]]) == len(
+        tried
+    )
