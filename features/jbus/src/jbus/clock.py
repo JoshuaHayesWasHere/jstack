@@ -2,9 +2,9 @@
 or on a crew that stopped, is asked again by how long it has waited, not by how often `jmerge`
 repeats its line.
 
-`tick` reads what `jmerge` says of each open pull request that jbus launched a crew for (where the
-home merges, the lines the home's run logged, as `watch.waits` reads them) and sorts the wait into
-one of three classes:
+`tick` reads what jbus's own run of `jmerge` says in this pass of each open pull request that jbus
+launched a crew for, and sorts the wait into one of three classes. Where the home merges, acting on
+a pull request is the home's (`merge.shown`), so no clock runs there. The classes:
 
 - `review`: the review is not written (`it has no review yet`, `its review has no verdict`, the
   second review or the second pass is not written);
@@ -214,7 +214,7 @@ def tick(
     run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
 ) -> None:
     """Count one pass on each wait's clock, and act on each wait that is due. See the module."""
-    waits = watch.waits(run, pulls, merge.home_thread(run))
+    waits = watch.waits(pulls)
     was: dict[str, Any] = read_json(run.state / FILE, {})
     if waits.failed or out is None:
         return
