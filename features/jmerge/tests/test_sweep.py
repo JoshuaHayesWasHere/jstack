@@ -549,9 +549,9 @@ def on_a_mac(monkeypatch, tmp_path, said=None, code=0):
     bin.mkdir()
     if said is not None:
         lsof = bin / "lsof"
-        lsof.write_text(f"#!/bin/sh\ncat <<'EOF'\n{said}EOF\nexit {code}\n")
+        lsof.write_text(f"#!/bin/sh\n/bin/cat <<'EOF'\n{said}EOF\nexit {code}\n")
         lsof.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin}:/usr/bin:/bin")
+    monkeypatch.setenv("PATH", str(bin))
     monkeypatch.setattr(cli.sys, "platform", "darwin")
 
 
