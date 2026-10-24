@@ -65,7 +65,7 @@ git -C "$S/demo" remote set-head origin main >/dev/null
 
 # The stand-in for T3 Code and the webhook. Its token is made up here and opens nothing else.
 token="sandbox-$run"
-nohup "$repo/.venv/bin/python" "$here/fake_t3.py" "$S/t3" --token "$token" >"$S/t3/log" 2>&1 &
+PYTHONFAULTHANDLER=1 nohup "$repo/.venv/bin/python" "$here/fake_t3.py" "$S/t3" --token "$token" >"$S/t3/log" 2>&1 &
 echo $! >"$S/t3/pid"
 tries=0
 until [ -s "$S/t3/port" ]; do
@@ -74,6 +74,8 @@ until [ -s "$S/t3/port" ]; do
     # The trap at the top removes the log with the sandbox, so what it holds is said here.
     echo "launch.sh: the stand-in for T3 Code did not start, and its process is:" >&2
     ps -ww -o pid=,stat=,etime=,command= -p "$(cat "$S/t3/pid")" >&2 || echo "gone" >&2
+    # With PYTHONFAULTHANDLER set, SIGABRT writes where each of its threads waits into the log.
+    kill -ABRT "$(cat "$S/t3/pid")" 2>/dev/null && sleep 1
     echo "launch.sh: its log said:" >&2
     cat "$S/t3/log" >&2
     exit 1
