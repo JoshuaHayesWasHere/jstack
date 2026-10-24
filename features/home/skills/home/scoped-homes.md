@@ -8,6 +8,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 - Nothing else is sent: not a launch, a merge, a status, or that a scope has ended. The root home is sent nothing while a scope works, and reads the scope's files when the user asks for status. A scope that ends says so in its own `handoff.md`.
 - A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`). It is relayed to no home: every home reads `standing.md` whole at its start.
 - No home asks another what it has out. The launch check of "When a thread sends a message" prints it.
+- A user's word about another home's work, a page that home opened, a row with its `Home:` line or a slug of its prefix, is that home's alone: forward it with the one `jbus word --from "$ME"` line of "A word this home records", which carries it there, and brief nothing of it.
 
 A scoped home gives each brief and request a slug that starts with its prefix, the one its section of `$H/notes.md` names.
 

@@ -143,6 +143,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
         text = sys.stdin.read()
+        queue.owned(config.home(project), project.name, args.slug, text, args.adder, args.handed)
         release = blockers.admit(config, project, args.slug, text)
         try:
             named = _item(state, args.slug, args.item or "")
@@ -274,6 +275,20 @@ def _table(table: argparse.ArgumentParser) -> None:
     )
     add.add_argument("--entry", help="the plan entry the row is work for, when not its own slug")
     add.add_argument("--item", help="the work item the row is, by its id; with none, one is made")
+    add.add_argument(
+        "--from",
+        dest="adder",
+        metavar="THREAD",
+        help="the thread of the home that adds the row, empty for the root home: a brief whose "
+        "Home: line names another home is refused",
+    )
+    add.add_argument(
+        "--for",
+        dest="handed",
+        metavar="HOME",
+        help="root, or the scope the brief's Home: line names: the row is that home's, "
+        "handed over on purpose",
+    )
     approve = table_verbs.add_parser(
         "approve", help="record the go for the brief the user was shown", allow_abbrev=False
     )

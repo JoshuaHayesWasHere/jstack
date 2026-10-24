@@ -106,6 +106,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import chains, meaning
+from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbus import Refused, write_json
 
@@ -205,6 +206,45 @@ def removed_slugs(state: Path) -> frozenset[str]:
         return frozenset(removed(state))
     except Unparsable:
         return frozenset()
+
+
+def _home_name(home: Path, directory: Path) -> str:
+    return "root" if directory == home else directory.name
+
+
+def owned(
+    home: Path, project: str, slug: str, text: str, adder: str | None, given: str | None
+) -> None:
+    """Refuse a row that a home adds for a brief whose home is another (`jbriefs.home.home_of`),
+    so that two homes do not brief the same fix unseen. `adder` is the thread of the home that
+    adds it (`--from`), the root home's when it is empty, and None when no home said it adds it.
+    `given` is the home the row is handed over to on purpose (`--for`): `root` or a scope's name,
+    which must be the brief's home."""
+    theirs = _home_name(home, homes.home_of(home, text))
+    if given is not None:
+        if given != theirs:
+            raise Refused(
+                f"refused: --for {given}, and {slug}'s brief is the {theirs} home's: "
+                "nothing is queued"
+            )
+        return
+    if adder is None:
+        return
+    mine = home if not adder else None
+    for where in (home, *(scope for scope, _, _ in homes.scopes(home))):
+        if adder and homes.thread_of(where) == adder:
+            mine = where
+    if mine is None:
+        raise Refused(
+            f"refused: --from {adder} is no home of {project} now, its id is in no home-id: "
+            "nothing is queued"
+        )
+    if _home_name(home, mine) != theirs:
+        raise Refused(
+            f"refused: {slug}'s brief is the {theirs} home's, and the {_home_name(home, mine)} "
+            f"home adds it: the {theirs} home queues it, or this home hands it over with --for "
+            f"{theirs}, and nothing is queued"
+        )
 
 
 def clock() -> datetime:

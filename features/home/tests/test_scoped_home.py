@@ -247,7 +247,7 @@ def test_a_block_run_by_a_thread_that_is_no_home_writes_nothing(homes, thread):
     homes.home_starts(SCOPED, SCOPE)
     before = homes.state()
     found = of_this_home()
-    assert len(found) == 17
+    assert len(found) == 18
     finds = block("home", 'echo "no home:').replace(UNFILLED, thread)
     for text in found:
         ran = subprocess.run(
@@ -518,7 +518,7 @@ def test_a_direct_launch_adds_the_briefs_row_only_where_jbus_has_a_plan_for_this
     if answers:
         assert ran.stdout == "added: the row part-1, of the entry epic\n"
         assert called.read_text().startswith(
-            "queue add part-1 --priority 3 --entry epic: # part-1: a title\n"
+            f"queue add part-1 --priority 3 --entry epic --from {ROOT}: # part-1: a title\n"
         )
     else:
         assert ran.stdout == (
