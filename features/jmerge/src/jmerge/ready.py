@@ -25,7 +25,6 @@ _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
 _CI_FIX = re.compile(r"CI fix: ([0-9a-f]{40}), after the review of ([0-9a-f]{40})")
-_HELD = re.compile(r"Rebase hold: at ([0-9a-f]{40}), |Rebase hold lifted: ")
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -149,10 +148,6 @@ MAIN_CHANGED = Reason(
 )
 FRESH_CHECK = "a fresh check"
 FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's main {tip}")
-REBASE_HELD = Reason(
-    "hold",
-    "its crew held a third rebase after fixed and green, and its gate asks the user",
-)
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
 CARRIES_AFTER = Reason(
@@ -395,15 +390,6 @@ def held(
     if stack is None or (stack and stack == land):
         return ""
     return IN_STACK.format(stack=stack) if stack else IN_UNNAMED_STACK
-
-
-def rebase_held(text: str, head: str) -> str:
-    last = ""
-    for line in text.splitlines():
-        found = _HELD.match(line)
-        if found:
-            last = found[1] or ""
-    return REBASE_HELD if last and last == head else ""
 
 
 def migrations(one: PullRequest, directory: str) -> tuple[str, ...]:

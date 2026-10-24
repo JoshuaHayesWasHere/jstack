@@ -1103,7 +1103,7 @@ class Repo:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
         short = ready.held(one, default, ready.stack_of(text), self.land, self.integration)
-        short = short or ready.rebase_held(text, one.head) or ready.short_of(text, one.head)
+        short = short or ready.short_of(text, one.head)
         rebase = ready.rebase_of(text, one.head)
         covered = ready.to_range_diff(rebase, text, one.head)
         lost: tuple[ready.Drop, ...] = ()
