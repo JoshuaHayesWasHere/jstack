@@ -89,7 +89,19 @@ On each message, do this without waiting for a word from the user.
 
 If a result says the task is not done, the fix is a new message from the user in the crewmate's own thread, or a new brief. The home does not take the task over.
 
-When the user asks for status, run the merge step of "Merging a pull request that is ready" and relay what it printed, and for a brief with no result yet, one `t3_thread_list` call gives the state of the crewmates still out: `running`, `waiting` (it is at one of the four pauses and has asked in its own thread), `failed` or `interrupted`. Report that state with the thread's link. No message brought what finished since: run the block of step 4 of "When a home starts" and read the last result of each brief it prints that this thread has not read. Then run the block of "Show the open ones" ("Gates") and show what it prints. The root home then runs the block of "Scoped homes" that reads the scopes. Do not read a crewmate's timeline unless the user asks what it is doing.
+When the user asks for status, run the merge step of "Merging a pull request that is ready" and relay what it printed, and for a brief with no result yet, one `t3_thread_list` call gives the state of the crewmates still out: `running`, `waiting` (it is at one of the four pauses and has asked in its own thread), `failed` or `interrupted`.
+Report that state with the thread's link.
+No message brought what finished since: run the block of step 4 of "When a home starts" and read the last result of each brief it prints that this thread has not read.
+Then run the block of "Show the open ones" ("Gates") and show what it prints.
+Then show each `local` decision or stop this home told and nothing has ended yet ("How a turn ends"), with the block at the top and the block that finds this home:
+
+```sh
+grep -E '^(decision|stop) local ' "${M:?run the block that finds this home first}/told" 2> /dev/null ||
+    echo "no local decision or stop is open"
+```
+
+The root home then runs the block of "Scoped homes" that reads the scopes.
+Do not read a crewmate's timeline unless the user asks what it is doing.
 
 Once a week the root home's status also says where changes collide. Run this with the block at the top, in the main checkout: when the stamp in `$H` is over 7 days old, or missing, it prints the top 5 files of the last week's three tables (merged pull requests, pairs open at once, rebases that dropped lines or changed the patch) and stamps the run, and otherwise it prints nothing. Show what it prints. A file high in all three is one to split, and never a reason to hold a launch.
 

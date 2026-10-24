@@ -229,11 +229,11 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run.
    Both go by the block of "Who merges", and run no `jmerge` on `jbus merges`.
    A message sent between the last home's handoff and this start reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
+   Then, on either start, run the first block of "A queue and its hourly audit" and do what it prints: an audit is its home's own, so this home schedules one for a queue that is out and deletes the one the last home left.
+   Then do what "Its thread" says, under "The home before this one".
    Then end the start.
    A start the user began by typing `/home` asks where things stand: tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan and the note, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
    A start the last home's handoff launched asks nothing of the user: it ends by "How a turn ends", with what it did as the lines, and only a decision or a stop among them reaches the user.
-   Before that summary, run the first block of "A queue and its hourly audit" and do what it prints: an audit is its home's own, so this home schedules one for a queue that is out and deletes the one the last home left.
-   Last before the summary, do what "Its thread" says, under "The home before this one".
 
 ### On the bus
 

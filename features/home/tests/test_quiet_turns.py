@@ -108,7 +108,10 @@ def test_a_stop_and_a_decision_in_one_turn_are_both_told_in_their_order(turns):
     assert turns.end(lines) == (0, [f"say: {line}" for line in lines[1:]])
 
 
-KINDS = "its kind is none of decision, stop, merged, launched, handled, parked, waits"
+KINDS = (
+    "its kind is none of decision, stop, merged, launched, handled, parked, waits, "
+    "cleared local <slug>"
+)
 KEYS = "a decision or a stop names its key first: question <n>, jbus or local <slug>"
 
 
@@ -140,3 +143,33 @@ def test_each_home_keeps_what_it_told_apart(turns):
     ends = block("home", PLACEHOLDER).replace(PLACEHOLDER, asked)
     ran = turns.run("home", ends, turns.main, "mcp:the-scoped-home")
     assert ran.stdout.splitlines() == [f"say: {asked}"]
+
+
+def open_locals(turns):
+    """What status shows of the `local` decisions and stops this home told and nothing ended."""
+    shows = block("home", "no local decision or stop is open")
+    return turns.run("home", shows, turns.main, THREAD).stdout.splitlines()
+
+
+def test_a_local_stop_shows_on_status_until_a_cleared_line_ends_it_and_comes_back_told(turns):
+    stop = "stop local next-step: no tool in this session starts a thread"
+    gate = "decision local fix-two: keep the v1 route? default: it stays"
+    assert open_locals(turns) == ["no local decision or stop is open"]
+    assert turns.end([stop, gate]) == (0, [f"say: {stop}", f"say: {gate}"])
+    assert open_locals(turns) == [stop, gate]
+    reworded = "stop local next-step: still no tool to start a thread"
+    assert turns.end([reworded]) == (0, [SILENT])
+    ended = "cleared local next-step: launched by hand"
+    assert turns.end([ended, "launched: next-step, thread mcp:t5"]) == (0, [SILENT])
+    assert open_locals(turns) == [gate]
+    assert turns.end([stop]) == (0, [f"say: {stop}"])
+    assert open_locals(turns) == [gate, stop]
+
+
+def test_a_cleared_line_with_no_slug_is_refused_and_ends_nothing(turns):
+    gate = "decision local fix-two: keep the v1 route? default: it stays"
+    assert turns.end([gate]) == (0, [f"say: {gate}"])
+    line = "cleared: fix-two is answered"
+    code, said = turns.end([line])
+    assert code == 2 and said[0].startswith(f"refused: {line}: its kind is none of")
+    assert open_locals(turns) == [gate]

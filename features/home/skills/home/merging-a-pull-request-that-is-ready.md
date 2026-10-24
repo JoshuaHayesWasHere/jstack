@@ -144,8 +144,8 @@ A head that moved between the check and the merge fails the merge, and that is t
 
 Write what it printed as lines of the turn's end ("How a turn ends"): one `merged:` line per pull request, the slug, the pull request and anything that was kept, which the user is told when they ask for status.
 A `hold` line is the user's to act on, and jbus tells them of it: each pull request `jmerge` holds is on jbus's list of what waits on the user, from jbus's own run or from the last line a home's run logged, which `jbus queue show` prints first.
-Tell it only when the user asks for status, or when it is about the pull request a message was sent for.
-A `wait` line is reported, not acted on: give it to the user when they ask for status, and when it is about the pull request a message was sent for.
+Tell it only when the user asks for status.
+A `wait` line is reported, not acted on: give it to the user when they ask for status.
 The home does not fix what a pull request is short of.
 Its crewmate does.
 Settling a merged crewmate's thread is not the command's: T3 Code settles a thread whose linked pull request merges.

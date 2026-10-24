@@ -60,7 +60,7 @@ Run it after the block at the top, in the same call as each block below that nam
 | `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: the root home's for a brief or a request with no `Home:` line, a scoped home's for one that names its scope. | One line |
 | `$H/home-thread` | The merge switch, and not this home's id. Empty or missing, jbus runs `jmerge` on each pass, also while a home runs, and the home runs none: it tells the user what jbus logged. An id in it stops jbus's run for the project, and only the home merges. One of the two merges, never both: the block of "Who merges" reads it before every run ("Merging a pull request that is ready"). Set by hand only: no skill and no script writes it. | Empty, or one line |
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
-| `$M/told` | The key of each decision and stop a turn's end told the user, one a line, so each is told once ("How a turn ends"). | One line per decision or stop |
+| `$M/told` | Each decision and stop a turn's end told the user, one a line, so each is told once, and each `local` one is shown on status until a `cleared local` line ends it ("How a turn ends"). | One line per decision or stop |
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that while jbus merges each `merged` line is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | Old handoffs, dated. Nobody reads these at start. | Unbounded |
 | `$H/notes.md` | Facts about this repo that a new thread would otherwise relearn the hard way. Read when a step needs one of them, not whole at a start. | At most 60 lines |
@@ -92,6 +92,7 @@ Write each thing the turn did as one line, its kind first:
 - `decision <key>: <the question and the default taken>`: the user has to decide it.
 - `stop <key>: <what stopped and why>`: the work cannot go on, and nothing but the user can clear it.
 - `merged:`, `launched:`, `handled:`, `parked:` or `waits:`, then what it was: these are told on status only.
+- `cleared local <slug>: <how it ended>`: a `local` decision or stop this home told has ended.
 
 The key names a decision or a stop so the same one has the same key on every turn:
 
@@ -109,38 +110,62 @@ said=$(cat << 'THE_TURN_ENDS_HERE'
 <what this turn did, one line each>
 THE_TURN_ENDS_HERE
 )
-printf '%s\n' "$said" | awk -v told="${M:?run the block that finds this home first}/told" '
-    BEGIN { while ((getline line < told) > 0) seen[line] = 1 }
+told="${M:?run the block that finds this home first}/told"
+printf '%s\n' "$said" | awk -v told="$told" '
+    function key(line) {
+        if (!match(line, /^(decision|stop) (question [0-9]+|local [^ :]+|jbus): ./)) return ""
+        split(line, word, " ")
+        return (word[2] == "jbus:") ? line : substr(line, 1, RLENGTH - 3)
+    }
+    BEGIN { while ((getline line < told) > 0) if (key(line) != "") kept[++k] = line }
     /^[[:space:]]*$/ { next }
     $(1) ~ /^(merged|launched|handled|parked|waits):$/ { next }
+    $(1) == "cleared" && match($(0), /^cleared local [^ :]+: ./) {
+        ends[substr($(3), 1, length($(3)) - 1)] = 1
+        next
+    }
     $(1) ~ /^(decision|stop):?$/ {
-        if (!match($(0), /^[a-z]+ (question [0-9]+|local [^ :]+|jbus): ./)) {
+        if (key($(0)) == "") {
             bad[++b] = $(0) ": a decision or a stop names its key first: question <n>, jbus or local <slug>"
             next
         }
-        key = ($(2) == "jbus:") ? $(0) : substr($(0), 1, RLENGTH - 3)
-        if (!(key in seen) && !(key in now)) { now[key] = 1; tell[++n] = $(0) }
+        mine[++m] = $(0)
         next
     }
-    { bad[++b] = $(0) ": its kind is none of decision, stop, merged, launched, handled, parked, waits" }
+    { bad[++b] = $(0) ": its kind is none of decision, stop, merged, launched, handled, parked, waits, cleared local <slug>" }
     END {
         if (b) {
             for (i = 1; i <= b; i++) print "refused: " bad[i]
             exit 2
         }
-        if (!n) {
-            print "silent: end the turn with no message"
-            exit 0
+        for (i = 1; i <= k; i++) {
+            split(kept[i], word, " ")
+            if (word[2] == "local" && (substr(word[3], 1, length(word[3]) - 1) in ends)) continue
+            open[++o] = kept[i]
+            seen[key(kept[i])] = 1
         }
+        for (i = 1; i <= m; i++) if (!(key(mine[i]) in seen)) {
+            seen[key(mine[i])] = 1
+            tell[++n] = mine[i]
+            open[++o] = mine[i]
+        }
+        if (o != k) {
+            for (i = 1; i <= o; i++) print open[i] > (told ".new")
+            close(told ".new")
+            system("mv \"" told ".new\" \"" told "\"")
+        }
+        if (!n) print "silent: end the turn with no message"
         for (i = 1; i <= n; i++) print "say: " tell[i]
-        for (key in now) print key >> told
     }'
 ```
 
 On `silent`, end the turn and write nothing more: no recap, no acknowledgment, no line saying nothing changed.
 On `say:`, tell the user each line after `say: `, in its order, and nothing else.
 On `refused:`, nothing is marked told: mend the line it names and run the block again.
-A decision or a stop is told once, by its key, which the block keeps in `$M/told`: from then on it is in jbus's list of what waits on the user, and is shown again only when the user asks for status.
+A decision or a stop is told once, by its key, and the block keeps its line in `$M/told`.
+A `question <n>` or `jbus` one is in jbus's list of what waits on the user from then on, and is shown again only when the user asks for status.
+A `local <slug>` one is in no list of jbus's, so status shows it from `$M/told` ("When a thread sends a message") until it ends.
+When it ends (the gate is answered, the stack lands, the tool is there), write `cleared local <slug>: <how it ended>` as a line of that turn: it is quiet, it takes that slug's lines out of `$M/told`, and the same stop coming back later is told again.
 
 ## When a home starts
 
