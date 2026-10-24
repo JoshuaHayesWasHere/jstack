@@ -11,7 +11,7 @@ and a stalled row in `ui`.
 import pytest
 
 from view.page import browser
-from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE
+from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, clean, look
 from view.page.test_view_page_budgets import SCENES
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
@@ -45,8 +45,8 @@ def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_pe
     assert ui["text"].startswith("demo › ui ended, work out 1 open")
     assert (ui["flags"], ui["age"]) == (["oat-saucer stalled"], "3d old")
     assert demo["wrong"] == [
-        "tea-saucer check failed",
-        "crew: jam-jar its turn has written nothing, and may be hung, and 2 runs wait",
+        "tea-saucer check failed 30m",
+        "crew: jam-jar its turn has written nothing, and may be hung, and 2 runs wait 25m",
     ]
     bakery = seen["cards"][1]
     assert [one["home"] for one in bakery["homes"]] == [""]
@@ -73,13 +73,15 @@ def test_the_bar_counts_what_waits_on_the_user_and_opens_the_triage_tab(scene, t
     assert seen["bar"]["text"].startswith("6 wait on you")
     assert "6 more on default" in seen["bar"]["text"]
     assert (seen["bar"]["go"], seen["bar"]["list"]) == ("#/triage", False)
-    tapped, _ = mapped(scene, tmp_path, tap="#needs .go", at=5000, budget=8000)
+    (tmp_path / "tapped").mkdir()
+    how = {"tap": "#needs .go", "at": 5000, "budget": 8000}
+    tapped, _ = browser.mapped(scene, tmp_path / "tapped", lambda scene: None, **how)
     assert tapped["hash"] == "#/triage"
 
 
 def test_a_card_opens_its_projects_root_home_page_with_a_group_per_child_home(scene, tmp_path):
-    seen, _ = mapped(scene, tmp_path, tap='#map-c .card[data-key="demo"] .cn', at=6000, budget=9000)
-    assert seen["hash"] == "#/demo"
+    seen, _ = mapped(scene, tmp_path, tap='#map-c [data-key="demo"] .cn', at=6000, budget=9000)
+    assert seen["hash"] == "#/demo", seen
     assert [head.split(" ")[0] for head in seen["groups"]] == ["root", "docs", "ui"]
 
 
@@ -97,3 +99,10 @@ def test_with_nothing_wrong_a_card_is_only_for_what_waits_and_the_rest_is_quiet(
     assert seen["machine"] == [] and seen["wrong"] == []
     quiet = sorted(one["name"] for one in stack["projects"] if one["name"] not in asks)
     assert [one["project"] for one in seen["quiet"]] == quiet
+
+
+def test_on_a_phone_every_target_of_the_map_takes_a_thumb_and_nothing_is_cut(scene, tmp_path):
+    SCENES["busy"](scene)
+    seen = look(scene, tmp_path, route="#/", screen=PHONE)
+    clean(seen, PHONE)
+    assert (seen["small"], seen["cut"]) == ([], [])

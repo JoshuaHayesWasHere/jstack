@@ -628,7 +628,7 @@ def walked(scene, tmp_path, route, walk):
 def gated(scene):
     """Three questions of one crewmate, each with its options, the first with a context and
     one more option. It returns the numbers of the three questions."""
-    (scene.home / "tasks").mkdir()
+    (scene.home / "tasks").mkdir(exist_ok=True)
     (scene.home / "tasks" / "alpha.md").write_text("# alpha\nThread: mcp:crew-alpha\n")
     lines = PIPED.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
     lines += "Context: the pot holds two cups\nOption: both: a second pot\n"

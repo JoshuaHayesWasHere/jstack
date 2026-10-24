@@ -208,17 +208,8 @@
   .sec { font-size: 20px; margin: 22px 0 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
   .sec .cnt { font-size: 15px; font-weight: 700; color: var(--ink-2); }
   .sec .btn { margin-left: auto; }
-  .prs, .pgl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--hair); }
-  .prs > li, .pgl > li { border-bottom: 1px solid var(--hair); }
-  .prl { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; padding: 7px 4px; color: var(--ink); text-decoration: none; border-radius: 8px; }
-  .prl:hover { background: var(--sunk); }
-  .pd { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink-3); flex: none; align-self: center; }
-  .pd.op { background: var(--due); border-color: var(--due); }
-  .pd.bad { background: var(--missed); border-color: var(--missed); }
-  .pn { font-size: 18px; }
-  .pwhy { color: var(--missed); font-weight: 600; }
-  .pc { color: var(--ink-2); font-size: 15px; }
-  .pc:first-of-type { margin-left: auto; }
+  .pgl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--hair); }
+  .pgl > li { border-bottom: 1px solid var(--hair); }
   .pg { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; padding: 6px 4px; }
   .pgs { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ink); text-align: left; }
   .pgs:hover { text-decoration: underline; }
@@ -248,13 +239,41 @@
   .tri .calm { margin-top: 12px; font-weight: 400; }
   .tri .nr { flex-wrap: nowrap; }
   .tri .nb { flex: 1 1 0; }
+  .needs.bar:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  .needs.bar h2 { flex: 1 1 0; min-width: 0; flex-wrap: wrap; }
+  .needs.bar h2 .nm { font-weight: 400; }
+  .needs .go:not([hidden]) { display: inline-flex; align-items: center; min-height: 40px; text-decoration: none; }
+  .map .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 10px; margin-top: 10px; }
+  .card { min-width: 0; border: 1.5px solid var(--hair); border-top: 5px solid var(--ink-3); border-radius: 10px; background: var(--surface); padding: 4px 12px 6px; }
+  .card.op { border-top-color: var(--due); }
+  .card.bad { border-top-color: var(--missed); }
+  .hm { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; font-size: 15px; padding: 2px 0; min-width: 0; }
+  .hm.root { font-size: 16px; }
+  .hm .cn { font-size: 18px; font-weight: 700; text-decoration: none; }
+  .hm .cn:hover { text-decoration: underline; }
+  .hm .hp { font-weight: 700; white-space: nowrap; }
+  .hm .hh.op { color: var(--due); font-weight: 700; }
+  .hm .hh.bad { color: var(--missed); font-weight: 700; }
+  .hm .ct, .hm .ha { color: var(--ink-2); }
+  .hm .ha { margin-left: auto; }
+  .hf { color: var(--missed); font-weight: 700; text-decoration: none; }
+  .wl { display: block; font-size: 15px; color: var(--missed); text-decoration: none; padding: 1px 0 1px 12px; border-left: 2px solid var(--missed); margin: 1px 0 3px; }
+  .wl code { color: var(--ink); }
+  .wl .wa { color: var(--ink-2); }
+  .wl:hover, .hf:hover { text-decoration: underline; }
+  #map-m .wl { margin-top: 8px; }
+  #map-q .sec { margin-top: 14px; }
+  .ql { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 0 14px; }
+  .ql a { display: flex; gap: 8px; align-items: baseline; text-decoration: none; padding: 2px 0; font-size: 15px; }
+  .ql a b { font-weight: 600; }
+  .ql a span { color: var(--ink-2); }
   .tab { font-size: 15px; font-weight: 700; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; white-space: nowrap; }
   .tab[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
 
   @media (max-width: 640px) {
     main { padding: 8px 10px 32px; }
     .hdr { position: static; padding: 4px 10px; gap: 0 10px; }
-    .hdr h1 { order: 3; flex-basis: 100%; }
+    .hdr h1.every, #pick, #theme, .readat:not(.stale), .machw:not(.op):not(.bad) { display: none; }
     .brand { min-height: 44px; display: inline-flex; align-items: center; }
     .tab { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; }
     .tok { min-height: 44px; border-radius: 10px; padding: 4px 12px; line-height: 1.3; }
@@ -315,8 +334,10 @@
     .theme.help { display: inline-flex; align-items: center; justify-content: center; }
   }
   @media (max-width: 640px) {
-    .back, .pgs, .prl, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
+    .back, .pgs, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
     .nq .btn, .soon > summary { min-height: 44px; display: flex; align-items: center; }
+    .needs .go:not([hidden]), .hm .cn, .hf, .ql a { min-height: 44px; display: inline-flex; align-items: center; }
+    .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   }
 </style>
@@ -338,6 +359,7 @@
   <div class="dead" id="dead" role="alert"></div>
   <section class="needs" id="needs" aria-labelledby="needs-h" hidden>
     <h2 id="needs-h"></h2>
+    <a class="btn fill go" id="needs-go" href="#/triage" hidden>Open</a>
     <ol class="nq clean" id="nq"></ol>
     <details class="soon" id="np-w"><summary id="np-h"></summary><ol class="nq clean soon" id="np"></ol></details>
     <div id="nsaid" role="status"></div>
@@ -348,9 +370,10 @@
     <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
     <p class="calm" data-role="calm" id="tri-calm"></p>
   </div>
-  <div id="stack" hidden>
-    <h2 class="sec" id="projects-h">Projects</h2>
-    <ul class="prs" id="rows" aria-labelledby="projects-h"></ul>
+  <div class="map" id="stack" hidden>
+    <div id="map-m"></div>
+    <div class="grid" id="map-c"></div>
+    <section id="map-q" aria-labelledby="map-qh" hidden><h2 class="sec" id="map-qh"></h2><ul class="ql clean" id="map-ql"></ul></section>
   </div>
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
@@ -561,6 +584,7 @@
   }
   function renderHeader() {
     var at = PROJECT || NOSUCH, tab = $("tri");
+    $("title").classList.toggle("every", !at && !TRIAGE);
     put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : TRIAGE ? '<a href="' + esc(href("")) + '">All</a><a href="#/triage" aria-current="page">Triage</a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
     tab.hidden = !STACK;
     if (STACK) { put(tab, 'Triage <b>' + STACK.needs.length + '</b>'); tab.setAttribute("aria-label", "Triage: " + plural(STACK.needs.length, "thing is", "things are") + " yours"); }
@@ -576,15 +600,63 @@
   }
   function brokeSince(b) { var at = ms(b.since); return b.what + (at == null ? ", since not known" : " since " + day(at)); }
   function passWord(end) { var j = jb(); return j && j.failed ? plural(j.failed, "pass", "passes") + " failed" : end == null ? "" : "last pass " + hm(end); }
-  function projectRow(p) {
-    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(brokeSince), p.unplaced.length ? ["cannot place " + p.unplaced.join(", ")] : []).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
-    if (p.waits) says.push(p.waits + " need you");
-    if (why) says.push(why);
-    return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
-      '<span class="pc">' + p.open + ' open</span><span class="pc">' + p.merged + ' merged today</span></a>';
+  var HEALTH = { moving: ["moving", ""], waiting: ["waits on a request", "op"], quiet: ["quiet", "op"], hung: ["hung", "bad"], ended: ["ended, work out", "op"], rest: ["at rest", ""] };
+  var FLAG = { stall: "stalled", idle: "idle" };
+  function wrongKey(w) { return w.kind + "/" + w.subj + "/" + w.cause; }
+  function wrongLine(w, where) { return '<a class="wl" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(w.where.length ? linkOf(w.where[0].open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span><code>' + esc(w.subj) + '</code> ' + esc(w.cause) + (where ? " &middot; " + esc(where) : "") + (ms(w.since) == null ? "" : ' <span class="wa">' + esc(ago(w.since)) + '</span>') + '</span></a>'; }
+  function mapOf() {
+    var by = {}, machine = [];
+    STACK.projects.forEach(function (p) {
+      var m = by[p.name] = { p: p, homes: {}, lines: {}, flags: {}, said: {}, asks: 0 };
+      p.homes.forEach(function (h) { m.homes[h.name] = h; m.lines[h.name] = []; m.flags[h.name] = []; });
+    });
+    STACK.wrong.forEach(function (w) {
+      var at = w.where.length === 1 ? w.where[0] : null, m = at && by[at.project];
+      if (!m) { machine.push(w); return; }
+      var home = m.homes[at.home] ? at.home : "";
+      if (FLAG[w.kind]) m.flags[home].push(w);
+      else if (/\/thread\/home\//.test(at.open)) m.said[home] = w;
+      else m.lines[home].push(w);
+    });
+    STACK.proceeds.forEach(function (w) { if (by[w.project]) by[w.project].asks += 1; });
+    var cards = [], quiet = [];
+    STACK.projects.forEach(function (p) {
+      var m = by[p.name], bad = false, op = m.asks > 0;
+      p.homes.forEach(function (h) {
+        var tone = (HEALTH[h.health] || [])[1];
+        if (m.lines[h.name].length || m.flags[h.name].length || m.said[h.name] || tone === "bad") bad = true;
+        if (h.name === "" && p.unplaced.length) bad = true;
+        if (h.waits || tone === "op") op = true;
+      });
+      m.tone = bad ? "bad" : op ? "op" : "";
+      (m.tone ? cards : quiet).push(m);
+    });
+    cards.sort(function (a, b) { return (a.tone !== "bad") - (b.tone !== "bad") || b.p.waits - a.p.waits || (a.p.name < b.p.name ? -1 : 1); });
+    return { machine: machine, cards: cards, quiet: quiet };
+  }
+  function homeLine(m, h) {
+    var root = h.name === "", hs = HEALTH[h.health], said = m.said[h.name], counts = [h.open + " open"];
+    if (h.waits) counts.push(plural(h.waits, "waits", "wait") + " on you");
+    if (root && m.asks) counts.push(m.asks + " on default");
+    var bits = [root ? '<a class="cn" href="' + esc(href(m.p.name)) + '">' + esc(m.p.name) + '</a>' : '<span class="hp">' + esc(homePath(m.p.name, h.name)) + '</span>'];
+    if (hs) bits.push('<span class="hh' + (hs[1] ? " " + hs[1] : "") + '"' + (said ? ' data-wrong="' + esc(wrongKey(said)) + '"' : "") + '>' + esc(hs[0] + (h.since ? " " + ago(h.since) : "")) + '</span>');
+    bits.push('<span class="ct">' + counts.join(" &middot; ") + '</span>');
+    m.flags[h.name].forEach(function (w) { bits.push('<a class="hf" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(linkOf(w.where[0].open)) + '" title="' + esc(w.cause) + '">' + esc(w.subj + " " + FLAG[w.kind]) + '</a>'); });
+    if (!root && h.started) bits.push('<span class="ha">' + esc(ago(h.started)) + ' old</span>');
+    var lines = m.lines[h.name].map(function (w) { return wrongLine(w); });
+    if (root && m.p.unplaced.length) lines.push('<a class="wl" href="' + esc(href(m.p.name)) + '"><span>cannot place ' + esc(m.p.unplaced.join(", ")) + '</span></a>');
+    return '<div class="hm' + (root ? " root" : " child") + '" data-home="' + esc(h.name) + '">' + bits.join(" ") + '</div>' + lines.join("");
+  }
+  function card(m) {
+    return '<section class="card ' + m.tone + '" aria-label="' + esc(m.p.name) + '">' + m.p.homes.map(function (h) { return homeLine(m, h); }).join("") + '</section>';
   }
   function renderStack() {
-    keyed($("rows"), "li", "pr", STACK.projects.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
+    var map = mapOf();
+    put($("map-m"), (STACK.machine.jbus.stopped ? '<a class="wl" href="' + esc(href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span>jbus stopped, so this is as its last pass left it</span></a>' : "") + map.machine.map(function (w) { return wrongLine(w, listed(w.where.map(function (p) { return homePath(p.project, p.home); })) || "this machine"); }).join(""));
+    keyed($("map-c"), "div", "cw", map.cards.map(function (m) { return { key: m.p.name, html: card(m) }; }));
+    $("map-q").hidden = !map.quiet.length;
+    put($("map-qh"), 'Quiet <span class="cnt">' + map.quiet.length + '</span>');
+    keyed($("map-ql"), "li", "", map.quiet.map(function (m) { return { key: m.p.name, html: '<a href="' + esc(href(m.p.name)) + '"><b>' + esc(m.p.name) + '</b> <span>' + m.p.open + ' open</span></a>' }; }));
   }
   function idle(t) { return t.health === "ended"; }
   var TRI_MAX = 6, TRI_ALL = {};
@@ -1016,7 +1088,7 @@
   window.addEventListener("scroll", hidePeek, true);
   document.addEventListener("click", function (e) {
     if (clicked || !e.target.closest) return;
-    var b = e.target.closest("[data-open]"), row = e.target.closest("#rows .proj");
+    var b = e.target.closest("[data-open]"), row = e.target.closest("#stack .cn, #map-ql a");
     clicked = true;
     count("click", b ? b.getAttribute("data-open").split(":")[0] : row ? "project" : e.target.closest("#helpme") ? "help" : "other");
   }, true);
@@ -1043,8 +1115,6 @@
     e.preventDefault(); $("main").focus();
   });
   document.addEventListener("click", function (e) {
-    var row = e.target.closest("#rows .proj");
-    if (row && !e.target.closest("a")) { location.hash = href(row.getAttribute("data-key")); return; }
     var b = e.target.closest("[data-open]");
     if (b) { go(b.getAttribute("data-open"), drawer.open && drawer.contains(b), b.hasAttribute("aria-pressed")); return; }
     if (e.target.closest("#dw-back")) { up(); return; }

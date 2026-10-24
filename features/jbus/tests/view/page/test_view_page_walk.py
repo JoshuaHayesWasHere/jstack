@@ -3,8 +3,9 @@ text and the chips `SURFACES` names, for a pass that T3 Code did not answer.
 
 The test opens the project's page and the overview of every project once each. It checks each
 entry of `SURFACES` that only the page can show: a row of In progress with its state's name, a
-chip on it, a row for a thread out with no task, and what the overview row says. A task that is
-in Needs you is drawn there only, so In progress has no row for it. The entries
+chip on it, a row for a thread out with no task, and what the project's card on the overview
+says. A task that is in Needs you is drawn there only, so In progress has no row for it. The
+entries
 that today's page gets wrong are the ones `walk.KNOWN` marks for the page, and the test fails
 when that set changes, so a fix removes its mark.
 """
@@ -91,7 +92,7 @@ def test_the_page_draws_each_state_of_the_walk_where_surfaces_says(scene, tmp_pa
     shown = look(scene, tmp_path, route="#/")
     assert shown["errors"] == []
     (one,) = shown["stack"]["rows"]
-    overview = " ".join([one["name"], one["why"], *one["counts"], one["said"] or ""])
+    overview = " ".join([one["name"], one["why"], one["counts"], *shown["stack"]["machine"]])
     kinds = ("value", "thread", "role", "silent", "owner")
     checked = [key for key in walk.SURFACES if key[0] in kinds]
     wrong = {key: said for key in checked if (said := faults(key, made, answer, rows, overview))}

@@ -204,12 +204,10 @@ EVERY = [(scene, wide) for scene in ("busy", "many") for wide in SCREENS]
 KNOWN = {
     (budget, scene, wide): unit
     for budget, unit, broken in (
-        ("hung", "jv-needs-from-work", EVERY),
         ("waits", "jv-needs-from-work", EVERY),
-        ("drawers", "jv-homes-map", EVERY),
-        ("header", "jv-homes-map", [("busy", 390), ("many", 390)]),
-        ("crumb", "jv-homes-map", EVERY),
-        ("words", "jv-homes-map", EVERY),
+        ("drawers", "jv-drawer-budgets", EVERY),
+        ("crumb", "jv-drawer-budgets", EVERY),
+        ("words", "jv-drawer-budgets", EVERY),
     )
     for scene, wide in broken
 }
@@ -435,7 +433,7 @@ def test_the_busy_map_fits_a_phone_whole(maps):
 @pytest.mark.parametrize("more", ["quiet", "homes"])
 def test_a_quiet_project_or_home_adds_one_line_at_most(maps, more, wide):
     """Three more quiet projects, or three more child homes with nothing in them, make the
-    page no taller than three of its lines."""
+    page no taller than three of its lines, each as high as a quiet project's line."""
     base, grown = maps("busy", wide), maps(more, wide)
     assert base["line"] > 0
     assert grown["high"] - base["high"] <= 3 * base["line"], (grown["high"], base["high"])

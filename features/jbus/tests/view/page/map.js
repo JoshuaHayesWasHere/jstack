@@ -2,6 +2,7 @@
    each element that says a wrong fact and shows on the first screen. With `__tap`, it taps that first. */
 window.__errs = [];
 window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
+window.addEventListener("unhandledrejection", function (e) { window.__errs.push("rejection: " + String(e.reason && e.reason.stack || e.reason)); });
 window.addEventListener("load", function () {
   if (window.__tap) setTimeout(function () { document.querySelector(window.__tap).click(); }, 2500);
   setTimeout(function () {
@@ -19,20 +20,20 @@ window.addEventListener("load", function () {
   };
   var card = function (c) {
     var name = c.querySelector(".cn");
-    return { project: c.getAttribute("data-key"), href: name.getAttribute("href"), tone: c.className,
+    return { project: c.getAttribute("data-key"), href: name.getAttribute("href"), tone: c.querySelector(".card").className,
       homes: all(".hm", c).map(line), wrong: all(".wl", c).map(text) };
   };
   var out = { errors: window.__errs, hash: location.hash,
     bar: { text: text(document.getElementById("needs")), count: text(document.querySelector("#needs-h b")),
       go: (document.querySelector("#needs .go") || { getAttribute: function () { return null; } }).getAttribute("href"),
       list: seen(document.getElementById("nq")) },
-    cards: all("#map-c .card").map(card),
+    cards: all("#map-c > [data-key]").map(card),
     quiet: all("#map-q li").map(function (l) { return { project: l.getAttribute("data-key"), text: text(l), href: l.querySelector("a").getAttribute("href") }; }),
     machine: all("#map-m .wl").map(text),
     wrong: all("[data-wrong]").filter(seen).map(function (el) { return el.getAttribute("data-wrong"); }),
     groups: all("#prog .pgg .pgh").map(text),
     words: ["header", "main"].map(function (q) { return (text(document.querySelector(q)).match(/\S+/g) || []).length; }).reduce(function (a, b) { return a + b; }, 0),
-    high: document.documentElement.scrollHeight, line: Math.max.apply(null, [0].concat(all("#map .hm, #map-q li").map(function (el) { return el.getBoundingClientRect().height; }))) };
+    high: document.documentElement.scrollHeight, line: (function (one) { return one ? one.getBoundingClientRect().height : 0; })(document.querySelector("#map-ql li")) };
   var pre = document.createElement("pre");
   pre.id = "probe";
   pre.textContent = JSON.stringify(out);
