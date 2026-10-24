@@ -134,7 +134,7 @@ def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkey
         kitchen.set("jmerge.txt", "merged 7 alpha abc1234\n")
         said = kitchen.poll()
         assert not any(line.startswith("skipped") for line in said)
-        assert kitchen.log("jmerge") == [""]
+        assert kitchen.log("jmerge") == ["--all"]
         assert kitchen.lines("jmerge") == ["merged 7 alpha abc1234"]
     finally:
         kitchen.close()
