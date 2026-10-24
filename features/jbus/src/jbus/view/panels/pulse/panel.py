@@ -156,14 +156,7 @@ def pulse(read: Read) -> dict[str, Any]:
     held = stranded.get(name) if isinstance(stranded.get(name), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
     scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
-    said = f"{manager} did not answer"
-    if units is not None:
-        said = (
-            f"{timer.get('Id', TIMER)} {text(timer.get('ActiveState'), 60)} "
-            f"({text(timer.get('SubState'), 60)}), "
-            f"{service.get('Id', SERVICE)} {text(service.get('Result'), 60)}, "
-            f"exit {text(service.get('ExecMainStatus'), 60)}"
-        )
+    said = f"{manager} did not answer" if units is None else _said(timer, service)
     return {
         "stopped": stopped,
         "why": "the timer is not active" if down else f"no pass in the last {QUIET} s" * stopped,
@@ -225,6 +218,21 @@ def _hook(one: Any) -> dict[str, Any] | None:
         "last_error": text(one.get("last_error")),
         "outbox": count(one.get("outbox")),
     }
+
+
+def _said(timer: dict[str, str], service: dict[str, str]) -> str:
+    """The manager's answer in one line, `jbus.timer active (waiting), jbus.service success,
+    exit 0`, with each field it did not give left out. launchd gives no state of an agent it has
+    not loaded, and no result of one that has not exited."""
+    sub = text(timer.get("SubState"), 60)
+    result = text(service.get("Result"), 60)
+    code = text(service.get("ExecMainStatus"), 60)
+    said = f"{timer.get('Id', TIMER)} {text(timer.get('ActiveState'), 60)}"
+    said += f" ({sub})" if sub else ""
+    if result or code:
+        said += f", {service.get('Id', SERVICE)}" + (f" {result}" if result else "")
+        said += f", exit {code}" if code else ""
+    return said
 
 
 def _streak(streaks: dict[str, Any], key: str) -> tuple[int, str | None]:
