@@ -613,6 +613,10 @@ def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
 
 STEPS = (
     verbs.Step(
-        "after-derive", 60, "dispatch.overlaps", lambda half: overlaps(half.run), ("sight",)
+        "after-derive",
+        60,
+        "dispatch.overlaps",
+        lambda half: overlaps(half.run),
+        ("sight", "budget"),
     ),
 )

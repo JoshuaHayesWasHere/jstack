@@ -129,6 +129,7 @@ def steps(half: Half, slot: str) -> None:
             "client": half.client is not None,
             "world": half.seen.world is not None,
             "rows": half.states is not None,
+            "budget": not half.seen.held,
         }
         if all(has[need] for need in step.needs):
             step.run(half)
