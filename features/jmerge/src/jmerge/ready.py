@@ -150,6 +150,15 @@ FRESH_CHECK = "a fresh check"
 FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's main {tip}")
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
+STACKED_ON = Reason(
+    "check",
+    "it is stacked on {branch}, and merges after {slug} merged and jbus moved it onto {default}",
+)
+STACKED_UNMOVED = Reason(
+    "check",
+    "{slug} merged as {sha}, which its head does not hold: it merges after its crew rebased it "
+    "onto {default}",
+)
 CARRIES_AFTER = Reason(
     "check",
     "carries {carried}'s commits (#{number}), which merges after {slug} ({open}), not merged yet",
@@ -373,6 +382,43 @@ def stack_of(text: str) -> str | None:
     return None
 
 
+STACKED = "Stacked on:"
+
+
+@dataclass(frozen=True)
+class Stacked:
+    """What a brief's `Stacked on:` line says, the one record of a link jbus stacked: the row it
+    builds on, the branch its pull request sits on, and, once that row merged and jbus moved the
+    link onto the default branch, the commit of that branch that merged it (`at`).
+
+    jbus writes the line at the launch, `Stacked on: <slug> <its branch>`, and again once the
+    row merged, `Stacked on: <slug> <default branch> at <commit>` (`jbus.stack`)."""
+
+    slug: str
+    branch: str
+    at: str = ""
+
+
+def stacked_of(text: str) -> Stacked | None:
+    """The `Stacked on:` line in the head of a brief, above its first `## `, or None."""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith(STACKED):
+            words = line.removeprefix(STACKED).split()
+            if len(words) == 2:
+                return Stacked(*words)
+            if len(words) == 4 and words[2] == "at" and _COMMIT.fullmatch(words[3]):
+                return Stacked(words[0], words[1], words[3])
+            return None
+    return None
+
+
+def stacked_line(stacked: Stacked) -> str:
+    at = f" at {stacked.at}" if stacked.at else ""
+    return f"{STACKED} {stacked.slug} {stacked.branch}{at}"
+
+
 def integration_of(text: str) -> tuple[str, ...]:
     """The integration branches that a project's `integration` file names, one to a line."""
     return tuple(dict.fromkeys(line.strip() for line in text.splitlines() if line.strip()))
@@ -384,8 +430,12 @@ def held(
     stack: str | None,
     land: str | None,
     integration: tuple[str, ...] = (),
+    stacked: Stacked | None = None,
 ) -> str:
-    if one.base != default and one.base not in integration:
+    """Why a pull request is held by its base or its stack, or nothing. A link jbus stacked sits
+    on its base's branch until that row merged: it is not held for it, and waits (`on_stack`)."""
+    on_base = stacked is not None and one.base == stacked.branch
+    if one.base != default and one.base not in integration and not on_base:
         return BASE.format(base=one.base, default=default)
     if stack is None or (stack and stack == land):
         return ""

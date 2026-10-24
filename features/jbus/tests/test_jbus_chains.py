@@ -258,6 +258,8 @@ def test_a_row_that_builds_on_an_open_pull_request_launches_stacked_on_its_branc
     assert rows(kitchen)["two"]["status"] == "queued"
 
     pull = {**kitchen.opened("one", 10), "headRefName": "one-branch"}
+    with (kitchen.home / "tasks" / "one.md").open("a") as one:
+        one.write(f"\n## Result\nBranch: one-branch   Pull request: {pull['url']}\n")
     kitchen.set("open.json", [pull])
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: one", "crew: two"]

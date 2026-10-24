@@ -129,7 +129,7 @@ STATUSES = (
 )
 FINAL = ("merged", "done")
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
-_SENT_TO = ("Home:", "Thread:", "Green main:")
+_SENT_TO = ("Home:", "Thread:", "Green main:", "Stacked on:")
 PAGE = "page"
 BASES = ("word", "answer", "message", PAGE)
 BASIS = (
@@ -388,10 +388,10 @@ def sha(text: str) -> str:
 
 
 def body(text: str) -> str:
-    """Return the brief with no `Home:`, `Thread:` or `Green main:` line in its head, the
-    lines above its first `## `. The first two name the threads that receive the brief, and
-    they are left out because a brief is the same brief under another home. A launch writes the
-    third (`dispatch`). A launch sends this text, so every line that a launch sends is a line
+    """Return the brief with no `Home:`, `Thread:`, `Green main:` or `Stacked on:` line in its
+    head, the lines above its first `## `. The first two name the threads that receive the brief,
+    and they are left out because a brief is the same brief under another home. A launch writes
+    the other two (`dispatch`). A launch sends this text, so every line that a launch sends is a line
     that `brief_sha` covers."""
     kept, head = [], True
     for line in text.splitlines(keepends=True):
