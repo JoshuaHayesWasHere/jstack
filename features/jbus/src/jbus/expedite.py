@@ -58,9 +58,11 @@ A message sent while the crew's instance is capped (`jroles.ledger`) starts a tu
 on the usage limit, so it is spent. Its key ends `|cap <reset>`, the Unix time the cap resets, and
 `expedite.json` keeps that reset beside the pass it was told in. The first pass after the reset
 finds the reason and the head as they were, and sends the message again, once, under the key of the
-window it is sent in. The passes of the cap do not count as idle ones, so a hold the message was
-about stays in hand until the reset. A message sent while the instance has headroom is sent once,
-as above.
+window it is sent in. The passes of the cap do not count as idle ones, and no stall is logged
+before the reset, so a hold the message was about stays in hand until the reset.
+At the reset the count starts again at `AFTER`, as if the message were due for the first time, so
+`LAPSE` and `REVIEWING` count from the reset and not from the send into the cap.
+A message sent while the instance has headroom is sent once, as above.
 
 The message is a quiet event, `expedite`: it starts no POST. `expedite.json` counts the
 passes. After the message, a pass is an idle one when the reason and the head are as they
@@ -479,6 +481,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         entry |= {"head": head, "reason": reason, "number": number}
         if "told" in entry and run.now.timestamp() >= entry.get("capped", float("inf")):
             entry = {name: value for name, value in entry.items() if name not in SPENT}
+            entry["passes"] = AFTER
         kept[slug] = entry
         passes = entry["passes"]
         due = not entry.keys() & {"told", "users"} and passes >= AFTER
@@ -502,7 +505,9 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if row.word == "hold":
             hand.add(number)
         since = passes - entry.get("told", passes)
-        if since and busy is False and run.now.timestamp() >= entry.get("capped", 0):
+        if run.now.timestamp() < entry.get("capped", 0):
+            continue
+        if since and busy is False:
             entry["idle"] = entry.get("idle", 0) + 1
         if entry.get("idle", 0) >= PASSES or since >= REVIEWING:
             thread = dispatch.thread_of(_brief(run, slug)) or "not known"
