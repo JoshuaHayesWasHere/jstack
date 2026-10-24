@@ -3,6 +3,7 @@ subject, cause, since when and where, and one cause that several projects share 
 that names them. Each need names the row or question it is about."""
 
 import json
+from datetime import timedelta
 
 from jbus.view.state import iso
 from view.scene import NOW, Scene, Served, ago, out, stacked
@@ -183,3 +184,45 @@ def test_a_red_ci_of_main_in_each_project_is_an_entry_each(tmp_path, monkeypatch
     ci = [one for one in stack(scene)["wrong"] if one["kind"] == "ci"]
     assert sorted(one["where"][0]["project"] for one in ci) == ["demo", "larder", "pantry"]
     assert all(len(one["where"]) == 1 for one in ci)
+
+
+def test_a_stall_of_a_cap_stands_while_the_cap_lasts(tmp_path, monkeypatch):
+    """`failover` logs a stall when every instance of the pool is capped, and the cap's end is
+    in its line: the stall stands until then."""
+    scene = Scene(tmp_path, monkeypatch)
+
+    def capped(minutes):
+        until = iso(NOW + timedelta(minutes=minutes))
+        line = f"stall tea-tray: claudeAgent and claudeAgent_prime are both capped until {until}"
+        scene.events(("stall", "quiet", "tea-tray", line, 3))
+        return [one for one in stack(scene)["wrong"] if one["subj"] == "tea-tray"]
+
+    (one,) = capped(20)
+    assert (one["kind"], one["since"]) == ("stall", iso(ago(minutes=3)))
+    assert capped(-1) == []
+
+
+def test_wakes_stranded_in_a_dropped_route_are_wrong(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    status = json.loads((scene.state_dir / "status.json").read_text())
+    status["stranded"] = {scene.name: {"wake.json": 3}}
+    scene.write("status.json", status, scene.state_dir)
+    (one,) = stack(scene)["wrong"]
+    assert (one["kind"], one["subj"]) == ("bus", "bus")
+    assert "no longer takes" in one["cause"]
+
+
+def test_a_source_the_last_pass_could_not_ask_is_wrong_since_that_pass(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    record = json.loads((scene.state_dir / "pass.json").read_text())
+    record["silent"] = {scene.name: "T3 Code"}
+    scene.write("pass.json", record, scene.state_dir)
+    (one,) = stack(scene)["wrong"]
+    assert (one["kind"], one["subj"], one["since"]) == ("unasked", "T3 Code", iso(ago(seconds=20)))
+
+
+def test_a_source_of_the_machine_that_cannot_be_read_is_wrong_in_no_project(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    (scene.state_dir / "pass.json").write_text("{not json")
+    machine = [one for one in stack(scene)["wrong"] if one["where"] == []]
+    assert [(one["kind"], one["subj"]) for one in machine] == [("source", "pass.json")]
