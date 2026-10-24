@@ -69,12 +69,22 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
     else:
         assert row[17:] == ["", ""]
     assert row[1:17] == [
-        str(len(os.sched_getaffinity(0))),
+        str(len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()),
         *("11.54", "8.96", "7.51"),
         *("5.00", "5.72", "0.00", "0.10"),
         *("0.01", "0.02", "0.03", "0.04"),
         *("1.50", "2.25", "0.75", "1.25"),
     ]
+
+
+def test_a_system_with_no_affinity_counts_every_core(machine, monkeypatch):
+    """macOS has no `sched_getaffinity`: a sample of a given /proc there counts every core."""
+    _, log = machine
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+    monkeypatch.setattr(os, "cpu_count", lambda: 7)
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[1:5] == ["7", "11.54", "8.96", "7.51"]
 
 
 def test_a_missing_pressure_file_writes_empty_fields_and_not_a_crash(machine):
@@ -105,15 +115,30 @@ DARWIN = Path(__file__).parent / "fixtures" / "darwin"
 @pytest.fixture
 def mac(machine, monkeypatch, tmp_path):
     """The machine above as a Mac: `sys.platform` is darwin and `sysctl` prints the output in
-    fixtures/darwin. The /proc of the machine fixture is still there, so a value read from it
-    would show."""
+    fixtures/darwin. `PROC` is unset, as on a Mac, and the /proc of the machine fixture is
+    still there, so a value read from it would show."""
     shown = tmp_path / "darwin"
     shown.mkdir()
     (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("DARWIN", str(shown))
     monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
+    monkeypatch.delenv("PROC")
     return shown, machine[1]
+
+
+def test_a_sample_on_a_mac_given_a_proc_reads_that_proc_and_not_sysctl(mac, machine, monkeypatch):
+    """A caller that names a /proc in `PROC` has that machine sampled on every system."""
+    _, log = mac
+    monkeypatch.setenv("PROC", str(machine[0]))
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[2:17] == [
+        *("11.54", "8.96", "7.51"),
+        *("5.00", "5.72", "0.00", "0.10"),
+        *("0.01", "0.02", "0.03", "0.04"),
+        *("1.50", "2.25", "0.75", "1.25"),
+    ]
 
 
 def test_a_sample_on_a_mac_has_its_load_and_cores_and_no_pressure(mac):
