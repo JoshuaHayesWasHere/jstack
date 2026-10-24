@@ -16,7 +16,7 @@ once for the run, and journals one `cancelled` line that names the pull request 
 later attempt the check was cancelled twice, and a third run is not jbus's to start: `rerun` tells
 the brief's home one line, once for the head, with how long each attempt ran and the cause where the
 job's log names one. A rerun that GitHub refuses is told the same way, and never tried again. The
-line the home got is the row's `why` (`why`) until the pull request moves to another head.
+line the home got is the row's `why` (`why`) while the check stays stopped at that head.
 
 Only the head's own runs count. A check run whose job GitHub says ran on another commit belongs to
 a head that a newer push displaced, and `rerun` neither runs it again nor tells anyone of it.
@@ -103,13 +103,8 @@ def why(run: Pass, slug: str) -> str:
 def rerun(run: Pass, client: Client, world: World, slugs: set[str]) -> None:
     """Run each cancelled required check of an open row's pull request again once, at its first
     attempt, and tell the home of one cancelled again or that GitHub would not run again."""
-    kept: dict[str, dict[str, str]] = read_json(run.state / FILE, {})
-    was = dict(kept)
-    kept = {
-        slug: entry
-        for slug, entry in kept.items()
-        if (world.open.get(slug) or {}).get("headRefOid") == entry.get("head")
-    }
+    was: dict[str, dict[str, str]] = read_json(run.state / FILE, {})
+    kept: dict[str, dict[str, str]] = {}
     names = required(run)
     for slug, pull in world.open.items():
         head = pull.get("headRefOid", "")

@@ -426,3 +426,14 @@ def test_a_part_that_failed_beside_one_cancelled_is_a_failed_check_for_the_crew(
     )
     passes(launched, 0, 3)
     assert reruns(launched) == [] and keys(launched) == ["failed|alpha|cccccccccccc"]
+
+
+def test_a_check_told_cancelled_twice_that_then_passes_at_the_same_head_leaves_the_why(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched, attempt=2)
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0, 3)
+    assert rows(launched)["alpha"]["why"].startswith("#7: its check was cancelled twice")
+    launched.set("open.json", [pull(launched)])
+    passes(launched, 6)
+    assert "cancelled" not in rows(launched)["alpha"]["why"]
