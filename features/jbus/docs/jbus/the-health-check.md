@@ -57,11 +57,11 @@ Their numbers come from the ledger, which the threads' status lines and their us
 ## Incidents and pages
 
 A check over its limit is an incident, under the key `health <check>`.
-A pass pages an incident once when it starts, and once when a reading under the limit ends it.
+A pass pages an incident once when it starts, and logs its end, a `quiet` `recovered` event, when a reading under the limit ends it.
 It tracks the incident in `streaks.json`, as it does every other alert.
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
 It goes to the desktop with `notify-send`.
-If you set a top-level webhook, the page also goes there as an event of the machine, once and not once for each project.
+If you set a top-level webhook, an `alert:` page also goes there as an event of the machine, once and not once for each project.
 A check that could not be read leaves its incident as it is.
 Some checks go away: a mount or an instance is gone, or the config no longer posts to the relay.
 The incident of such a check ends with no page.

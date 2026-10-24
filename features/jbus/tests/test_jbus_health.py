@@ -58,7 +58,9 @@ def quiet_plan(kitchen):
 
 
 def pages(kitchen):
-    return kitchen.lines("alert")
+    """Every line the health check queued, oldest first: each `alert`, which pages the user, and
+    each `recovered`, which only the log and the digest hold."""
+    return [one["line"] for one in kitchen.events() if one["event"] in ("alert", "recovered")]
 
 
 def polls(kitchen, *minutes, start=NOW):
@@ -66,7 +68,7 @@ def polls(kitchen, *minutes, start=NOW):
         kitchen.poll(start + timedelta(minutes=one))
 
 
-def test_a_full_disk_is_paged_once_while_it_holds_and_once_when_it_clears(kitchen, senses):
+def test_a_full_disk_is_paged_once_while_it_holds_and_logged_once_when_it_clears(kitchen, senses):
     senses.disks["/home"] = (85 * GIB, 15 * GIB, 0, 0)
     polls(kitchen, 0, 1, 5, 30)
     assert pages(kitchen) == [
@@ -77,6 +79,8 @@ def test_a_full_disk_is_paged_once_while_it_holds_and_once_when_it_clears(kitche
     assert pages(kitchen)[1:] == [
         "recovered: health disk /home: 60% of its space used (60.0 of 100.0 GiB), alerts at 80%"
     ]
+    assert [one["loud"] for one in kitchen.events("recovered")] == ["quiet"]
+    assert [one["event"] for post in kitchen.webhook.posts for one in post] == ["alert"]
 
 
 def test_the_page_reaches_the_webhook_once_as_an_event_of_the_machine(kitchen, senses):

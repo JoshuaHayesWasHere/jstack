@@ -118,8 +118,8 @@ def test_a_failing_top_level_webhook_leaves_the_own_webhook_s_posts_and_outbox_a
     kitchen.poll(later(34))
     assert top.said == [[GAINED, alerted[0]]]
     recovered = "recovered: top-level webhook demo after 4 failures since 11:10 ET"
-    assert [one["line"] for one in outbox(kitchen, "top-level")] == [recovered]
-    assert [one["line"] for one in outbox(kitchen)] == [recovered]
+    assert outbox(kitchen, "top-level") == outbox(kitchen) == []
+    assert kitchen.lines("recovered") == [recovered]
 
 
 def test_a_failing_own_webhook_leaves_the_top_level_webhook_s_posts_and_outbox_alone(kitchen, top):

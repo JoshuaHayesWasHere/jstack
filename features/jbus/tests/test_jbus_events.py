@@ -270,6 +270,7 @@ TABLE = {
     "gate": "quiet",
     "waiting": "quiet",
     "alert": "user",
+    "recovered": "quiet",
     "stall": "quiet",
     "decision": "user",
     "failover": "quiet",
