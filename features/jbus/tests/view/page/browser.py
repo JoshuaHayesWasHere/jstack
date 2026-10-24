@@ -81,6 +81,7 @@ from view.scene import (
     asks,
     et,
     free_port,
+    iso,
     item,
     logged,
     out,
@@ -560,6 +561,56 @@ def a_day_of_threads(scene):
         ],
         rows={"jam-jar": {"threads": 2, "thread_status": "running", "live": "hung"}},
     )
+
+
+def child_homes(scene):
+    """Two child homes of the scene's project beside its root, after `a_day_of_threads`. `ui`
+    was made on 2026-10-09. The crewmate that hung works on its brief `jam-jar`, its own thread
+    ended while a row of it is open, and jbus logged a stall of that row. `docs` was made the day
+    after and has nothing open and nothing wrong. It gives back the slug of the row that
+    stalled."""
+    for name, made in (("ui", "2026-10-09"), ("docs", "2026-10-10")):
+        (scene.home / name).mkdir()
+        (scene.home / name / "home-id").write_text(f"mcp:{name}\n")
+        goal = f"Goal ({made}, the user): the {name} of {scene.name}\n"
+        (scene.home / name / "plan.md").write_text(f"# {scene.name}, {name}: plan\n\n{goal}")
+    rows = json.loads((scene.state / "queue.json").read_text())
+    stalled = next(one["slug"] for one in rows if one["status"] == "running")
+    (scene.home / "tasks").mkdir(exist_ok=True)
+    for slug in ("jam-jar", stalled):
+        (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}\nHome: ui\nTask: x\n")
+    record = json.loads((scene.state_dir / "pass.json").read_text())
+    listed = record["projects"][scene.name]["threads"]
+    listed.append(out(f"home: {scene.name} ui", "ended", "completed", minutes=50, id="mcp:ui"))
+    scene.write("pass.json", record, scene.state_dir)
+    stall = {
+        "at": iso(ago(minutes=2)),
+        "event": "stall",
+        "id": "00000000000000ff",
+        "line": f"stall {stalled}: it has been on its step for 2 hours",
+        "loud": "user",
+        "slug": stalled,
+        "text": "the text of the event, which no answer holds",
+    }
+    with (scene.state / "events.jsonl").open("a") as log:
+        log.write(json.dumps(stall) + "\n")
+    return stalled
+
+
+MAP = (Path(__file__).parent / "map.js").read_text()
+
+
+def mapped(scene, tmp_path, build, screen=DESK, **how):
+    """What the probe of the homes map, `MAP`, found on `#/` of the scene that `build` makes,
+    and `/stack.json` as the server gives it."""
+    build(scene)
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        seen = look(scene, tmp_path, route="#/", script=MAP, screen=screen, port=served.port, **how)
+    finally:
+        served.close()
+    return seen, stack
 
 
 def chips(seen_band):
