@@ -12,6 +12,7 @@ import pytest
 
 import jbus.queue
 from test_jbus_kitchen import NOW, iso
+from test_jbus_watch import main_red
 
 RELEASE, CHECK, DRIFT, BROWSER = 11, 12, 13, 14
 WORKFLOWS = [
@@ -135,7 +136,8 @@ def test_a_scheduled_workflow_that_fails_files_one_row_naming_its_failed_tests(k
 
 def test_a_red_run_of_the_gate_at_mains_tip_is_left_to_the_main_red_rule(kitchen):
     """main's check runs at its tip carry a push run that ran a job: `watch._retro` owns it, as
-    before, and this rule files nothing beside it."""
+    before, and this rule files nothing beside it. With no briefed merge before it, the red is
+    owned by one row, the main-red rule's."""
     kitchen.quiet()
     head = side(kitchen, {})
     side(
@@ -143,8 +145,13 @@ def test_a_red_run_of_the_gate_at_mains_tip_is_left_to_the_main_red_rule(kitchen
         {CHECK: [run(201, head, "failure"), run(200, "g", ago=timedelta(hours=2))]},
         push=False,
     )
-    kitchen.poll()
+    done = {"status": "completed", "conclusion": "failure", "name": "check"}
+    kitchen.set("check-runs.json", {head: [done]})
+    kitchen.set("commits.json", [kitchen.commit(head)])
+    for minutes in (0, 1, 20):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
     assert rows(kitchen) == []
+    assert [row["slug"] for row in main_red(kitchen)] == [f"main-red-{head[:12]}"]
 
 
 def test_a_red_of_the_gate_below_a_tip_whose_run_is_still_going_files_nothing(kitchen):
@@ -175,7 +182,9 @@ def test_a_red_push_run_below_mains_tip_is_a_side_red(kitchen):
     kitchen.quiet()
     side(kitchen, {DRIFT: [run(301, "d", "failure", name="pstack-drift")], CHECK: [run(201, "h")]})
     kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=1))
     assert [row["slug"] for row in rows(kitchen)] == [f"workflow-red-pstack-drift-{'d' * 12}"]
+    assert main_red(kitchen) == []
 
 
 def test_runs_that_ran_no_job_in_every_workflow_are_the_accounts_and_file_nothing(kitchen):
