@@ -277,11 +277,13 @@ The fingerprint does not compare the fields such a go recorded that it no longer
 A row approved before the fingerprint existed has no `meaning` in its record.
 It keeps its go while its stored brief has the sha its row holds, line for line, as before.
 That sha is the `brief_sha` of the text, or, for a row approved before the sha left the two lines out, the sha256 of the whole text.
-When such a row is queued again with the same text, it moves to that text's `brief_sha`.
+The first time such a row is queued again while its go still holds for the stored brief, jbus binds the go to that brief's fingerprint, once, in the row's `rebound` column.
+From then on the go holds as a fingerprint's does, so a new `Home:` or `Thread:` line, or any other edit that keeps the meaning, keeps it.
 
 `jbus queue verify <slug>` prints, as JSON, what another reader needs to check that a brief is the one you approved.
 It prints the row's `approval` record: its basis, its reference and your words, and the `brief_sha`, `meaning` and `scope` at the go.
 It also prints the brief it checked, with its `brief_sha`, `meaning` and `scope`, and whether the go `holds` for it.
+It prints `rebound`, the fingerprint an older go was bound to, empty for any other go.
 The brief `jbus queue verify` checks is the stored one, or the file `--brief <path>` names.
 It exits 0 when the go holds, and 1 when it does not or there is no such row.
 

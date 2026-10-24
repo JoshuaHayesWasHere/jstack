@@ -413,7 +413,9 @@ class Turns:
             if brief is None or not queue.approved_text(row, brief):
                 now = queue.brief_sha(brief or "")[:12]
                 if not full:
-                    run.gate(slug, "brief changed after approval", key=f"brief changed, now {now}")
+                    lines = "; ".join(queue.changed(row, brief))
+                    what = f"brief changed after approval: {lines}"
+                    run.gate(slug, what, key=f"brief changed, now {now}")
                 run.reasons[slug] = Changed(now)
                 continue
             met = merged | {
