@@ -273,6 +273,19 @@ def body(*events: dict) -> dict:
     return {"kind": "events", "say": [e["say"] for e in events], "events": list(events)}
 
 
+def test_the_relay_listens_while_a_lookup_of_its_address_never_answers(hooks, tmp_path):
+    """On a Mac a reverse lookup of 127.0.0.1 can wait on mDNS longer than a relay may take to
+    start. Here no lookup ever answers, and the relay still listens and answers a POST."""
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "sitecustomize.py").write_text(
+        "import socket, threading\nsocket.gethostbyaddr = lambda *args: threading.Event().wait()\n"
+    )
+    path = os.pathsep.join(filter(None, [str(site), os.environ.get("PYTHONPATH")]))
+    relay = Relay({**env_for(hooks), "PYTHONPATH": path}, tmp_path / "state").up()
+    assert relay.ack("an-event-nobody-sent") == 404
+
+
 def test_a_blocking_event_reaches_sous_chef_and_gatekeeper_gets_nothing(relay, hooks):
     sous_chef, gatekeeper, _ = hooks
     gate, quiet = event("gate", "user"), event("merged", "quiet", "beta")
