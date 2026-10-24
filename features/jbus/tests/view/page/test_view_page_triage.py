@@ -226,6 +226,11 @@ def test_same_kind_approvals_are_one_row_and_the_defaults_one_tail_line(views):
     verbs = [row["verb"] for row in parts["ask"]["rows"]]
     for n in batched.values():
         assert verbs.count(f"Approve {n}") >= 1, verbs
+    assert all(
+        row["href"].endswith("/you/approve")
+        for row in parts["ask"]["rows"]
+        if re.fullmatch(r"Approve \d+", row["verb"])
+    ), parts["ask"]["rows"]
     proceeds = stack["proceeds"]
     assert proceeds
     (tail,) = [one for one in parts["ask"]["tail"] if "default" in one]
@@ -283,3 +288,44 @@ def test_the_tab_is_in_the_header_of_every_route(views, tmp_path):
         "#/demo": ("#/triage", ""),
     }
     assert tabs["#/"]["count"] == seen["#/triage"]["tab"]["count"]
+
+
+def test_proposed_items_are_not_batched_since_each_opens_its_own_drawer(tmp_path):
+    """Only rows to approve have one list that holds them all. Two proposed work items of one
+    project stay two rows, each opening its own item."""
+
+    def items(nth, body):
+        made = [
+            {
+                "project": "demo",
+                "kind": "item",
+                "key": f"item:{one}",
+                "subj": one,
+                "what": one,
+                "why": "",
+                "since": body["at"],
+                "verb": "Approve",
+                "default": "",
+                "risk": "reversible",
+                "open": f"#/demo/item/{one}",
+                "due": None,
+                "item": one,
+                "seen": "",
+                "slug": "",
+                "home": "",
+                "answerable": False,
+                "unblocks": [],
+            }
+            for one in ("I-1", "I-2")
+        ]
+        return body | {"needs": made}
+
+    with pytest.MonkeyPatch.context() as patch:
+        scene = Scene(tmp_path, patch)
+        SCENES["busy"](scene)
+        seen = look(scene, tmp_path / "look", route="#/triage", script=PROBE, at=1500, alter=items)
+    rows = seen["parts"]["ask"]["rows"]
+    assert [(row["verb"], row["href"]) for row in rows] == [
+        ("Approve", "#/demo/item/I-1"),
+        ("Approve", "#/demo/item/I-2"),
+    ]
