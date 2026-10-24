@@ -226,3 +226,27 @@ def test_2026_10_24_check_mac_room_proc_replayed_through_a_pass_sends_no_page(ki
     assert [one["line"] for one in kitchen.events("decision")] == []
     assert kitchen.webhook.posts == []
     assert counted(kitchen, "check:mac-room-proc") == ["mac-sync-shards"]
+
+
+@pytest.mark.parametrize(("status", "key"), [("left", "left:beta"), ("gate", "row:beta")])
+def test_a_blocker_no_pass_judges_again_pages_at_the_cap_once_its_last_fix_merged(
+    kitchen, status, key
+):
+    """Only a failed check on an open pull request is judged again over a merged fix. A stuck or
+    left row keeps its columns, so waiting for its next judgment would wait for ever."""
+    add(kitchen, "beta")
+    seen(kitchen, "beta", timedelta(hours=3), status=status, thread="mcp:beta")
+    for slug, ago in (("beta-fix-1", timedelta(minutes=90)), ("beta-fix-2", timedelta(hours=1))):
+        assert queued(kitchen, slug, key)[0] == 0
+        seen(kitchen, slug, ago, status="merged", thread=f"mcp:{slug}", pr="#8")
+
+    capped = cleared(kitchen)
+    refused = queued(kitchen, "beta-fix-3", key)
+
+    assert capped.startswith(f"decision {key}: {key} had 2 fixes (beta-fix-1, beta-fix-2)"), capped
+    assert refused[0] == 1
+    assert "raised to" in refused[1], refused[1]
+    assert [one["line"] for one in paged(kitchen)] == [
+        f"decision beta: {key} had 2 fixes (beta-fix-1, beta-fix-2), the retry cap, and it still "
+        f'blocks. Reply: "demo {key}: I take it"'
+    ]
