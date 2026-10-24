@@ -109,6 +109,16 @@ def no_machine_state(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("LIMITS", str(tmp_path_factory.mktemp("state") / "limits"))
 
 
+@pytest.fixture(autouse=True)
+def no_step_files(monkeypatch):
+    """Keep the step's own output and summary files, which GitHub Actions sets for the job that
+    runs the suite, out of each test. A script a test runs, `select_tests.py` above all, writes to
+    them, and a line it wrote there would be the step's: the check job reads `selection` from the
+    output. A test that needs the files sets the variables again itself."""
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+
 @pytest.fixture
 def named_user(jstack_config):
     """Settings that name the user Robin. `OLD_LEVEL` and `OLD_EVENT` are a level and a kind of
