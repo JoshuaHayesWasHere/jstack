@@ -94,6 +94,19 @@ class Quiet(Scene):
         asks = asks.replace("<fixed or waits>", line).replace("<slug>", SLUG)
         return self.says("crew", asks, self.worktree)
 
+    def scoped(self, names):
+        """Make the brief one of the scoped home `speed`, named as `names` says."""
+        scope = self.home_dir / "speed"
+        scope.mkdir()
+        (scope / "plan.md").write_text("# a plan\n")
+        if names.startswith("handed off"):
+            (scope / "handoff.md").write_text(f"# handoff\nWas home: {OTHER}\n")
+        else:
+            (scope / "home-id").write_text(f"{OTHER}\n")
+        self.brief.write_text(
+            f"# {SLUG}: a title\nHome: {OTHER if names.endswith('id') else 'speed'}\n"
+        )
+
     def outbox(self):
         """Return what waits for a POST: nothing, where jbus has queued nothing for the user."""
         path = self.user / ".local/state/jbus/demo/outbox.json"
@@ -135,22 +148,17 @@ def test_a_crewmate_that_does_not_say_which_line_is_not_told_whether_to_send_it(
     assert quiet.who_merges("<fixed or waits>").startswith("not filled in: ")
 
 
-@pytest.mark.parametrize("names", ["id", "handed off", "handed off, by its id", "scope"])
-def test_a_fixed_pull_request_of_a_scoped_home_is_a_gate_while_jbus_merges(quiet, names):
-    """jbus merges no pull request of a scoped home, so a ready one waits for the user."""
-    scope = quiet.home_dir / "speed"
-    scope.mkdir()
-    (scope / "plan.md").write_text("# a plan\n")
-    if names.startswith("handed off"):
-        (scope / "handoff.md").write_text(f"# handoff\nWas home: {OTHER}\n")
-    else:
-        (scope / "home-id").write_text(f"{OTHER}\n")
-    quiet.brief.write_text(
-        f"# {SLUG}: a title\nHome: {OTHER if names.endswith('id') else 'speed'}\n"
-    )
-    said = quiet.who_merges("fixed")
-    assert said.startswith("jbus merges: send no line, and park it as a gate")
-    assert said.endswith("jbus merges no pull request of the scoped home speed")
+SCOPED = ["id", "handed off", "handed off, by its id", "scope"]
+
+
+@pytest.mark.parametrize("names", SCOPED)
+def test_a_fixed_pull_request_of_a_scoped_home_is_told_as_one_of_the_root_home_is(quiet, names):
+    """jbus merges a scoped home's pull request as it merges the root home's (#357), and with an
+    id in home-thread each home merges its own, so neither parks a gate for the user."""
+    root = quiet.who_merges("fixed")
+    quiet.scoped(names)
+    assert quiet.who_merges("fixed") == root
+    assert root.startswith("jbus merges: send nothing")
     quiet.switch.write_text(f"{THREAD}\n")
     assert quiet.who_merges("fixed").startswith("home merges: send the line")
 

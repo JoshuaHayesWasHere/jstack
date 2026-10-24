@@ -1689,9 +1689,9 @@ def who_merges(reviewer):
 def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
     reviewer, switch, scope
 ):
-    """A home that merges hears `fixed and green` from the crewmate. For a scoped home, the crewmate
-    parks the pull request as a gate instead. The crew skill's check says that jbus must wake
-    the crewmate in both cases."""
+    """A home that merges hears `fixed and green` from the crewmate. While jbus merges, it merges
+    a scoped home's pull request as it merges the root home's, and the crewmate sends nothing for
+    either. The crew skill's check says when jbus must wake the crewmate."""
     (reviewer.state / "home-thread").write_text(switch)
     home = ""
     if scope:
@@ -1705,7 +1705,7 @@ def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
         home = f"Home: {'mcp:two' if scope.endswith('id') else 'speed'}\n"
     reviewer.brief.write_text(BRIEF + home + DONE + SECOND)
     nothing = who_merges(reviewer).startswith("jbus merges: send nothing")
-    assert nothing == (not switch.strip() and not scope)
+    assert nothing == (not switch.strip())
     assert where(reviewer, "clean").startswith("nobody: ") == nothing
 
 
