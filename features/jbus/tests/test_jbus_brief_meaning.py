@@ -3,12 +3,13 @@ not to its wording. Like `test_jbus_queue.py`, the tests run the real command an
 against a faked T3 Code server, `gh` and `jmerge`."""
 
 import json
+from datetime import timedelta
 
 import pytest
 
 from jbriefs import meaning, parse
-from jbus import queue
-from test_jbus_kitchen import Kitchen
+from jbus import dispatch, queue
+from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import gates, go, rows
 from testing.paths import REPO
 
@@ -532,3 +533,67 @@ def test_a_gate_on_a_go_bound_only_to_a_sha_says_it_can_name_no_line(kitchen):
         "condition alpha: brief changed after approval: "
         "the go is bound to a sha of the whole brief, so no line can be named"
     ]
+
+
+DRAFT = APPROVED.replace(
+    "- an approval holds", "- a draft line the home took out\n- an approval holds"
+)
+
+
+def test_a_go_given_again_while_a_pass_runs_is_judged_with_the_brief_it_binds(kitchen, monkeypatch):
+    """The home queues a draft and approves it, then queues the brief again with a line taken out
+    and approves that, while a pass that read the table before the second add is still running.
+    The pass judges the row with the brief the row's go binds now: it sends no gate and no page
+    to re-approve, and launches the brief that was approved."""
+    approved(kitchen, DRAFT)
+    turns = dispatch.turns
+
+    def late(*args):
+        assert add(kitchen, APPROVED)[0] == 0
+        assert go(kitchen, "alpha")[0] == 0
+        return turns(*args)
+
+    monkeypatch.setattr(dispatch, "turns", late)
+    kitchen.poll()
+    assert kitchen.lines("waiting-on-user") == []
+    assert gates(kitchen) == []
+    (launch,) = kitchen.t3.launches
+    assert launch["message"] == f"/crew alpha\n\n{queue.body(APPROVED)}"
+
+
+def test_the_lines_a_launch_writes_keep_the_go(kitchen):
+    """A brief queued again with the `Thread:` line a launch writes, and another `Home:`, means
+    what was approved: its go holds, and it launches with neither line."""
+    approved(kitchen)
+    again = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-launched-thread")
+    code, said = add(kitchen, again)
+    assert code == 0 and "does not hold" not in said, said
+    assert queue.brief_sha(again) == queue.brief_sha(APPROVED)
+    assert queue.approved_text(rows(kitchen)["alpha"], again)
+    kitchen.poll()
+    assert gates(kitchen) == [] and kitchen.lines("waiting-on-user") == []
+    (launch,) = kitchen.t3.launches
+    assert launch["message"] == f"/crew alpha\n\n{queue.body(APPROVED)}"
+
+
+@pytest.mark.parametrize("held_again", ["approved again", "the brief changed back"])
+def test_a_brief_changed_gate_clears_the_pass_its_go_holds_again_with_no_hold(kitchen, held_again):
+    """A row gated because its brief changed is judged again on the next pass. Once its go
+    holds again, by a new approval or by the brief put back, the pass clears the page and
+    launches the row: nobody holds it first."""
+    approved(kitchen)
+    changed = APPROVED.replace("Size: M", "Size: L")
+    assert add(kitchen, changed)[0] == 0
+    kitchen.poll()
+    assert gates(kitchen) == ["condition alpha: brief changed after approval: Size: L"]
+    (page,) = kitchen.lines("waiting-on-user")
+    now, was = queue.brief_sha(changed)[:12], queue.brief_sha(APPROVED)[:12]
+    assert f"(brief now {now}, approved {was}; changed: Size: L)" in page
+    if held_again == "approved again":
+        assert go(kitchen, "alpha")[0] == 0
+    else:
+        assert add(kitchen, APPROVED)[0] == 0
+    said = kitchen.poll(NOW + timedelta(minutes=3))
+    assert "cleared re-approve:alpha" in said
+    assert len(kitchen.t3.launches) == 1
+    assert "held" not in rows(kitchen)["alpha"]
