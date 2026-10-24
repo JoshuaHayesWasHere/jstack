@@ -81,10 +81,12 @@ A finding that something should change goes to jbus as a gate: jbus keeps it as 
 ```sh
 project='<project>'
 about='<about>'
-gate=$(cat << 'THE_GATE_ENDS_HERE'
+the_gate() {
+    cat << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 THE_GATE_ENDS_HERE
-)
+}
+gate=$(the_gate)
 case "$project $about" in
 *'<'* | *'>'*) why="put the project and what the finding is about in place of the placeholders" ;;
 *) why= ;;
