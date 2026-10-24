@@ -40,27 +40,46 @@ window.addEventListener("load", function () { setTimeout(function () {
   var vh = window.innerHeight, vw = window.innerWidth;
   var all = function (sel, el) { return [].slice.call((el || document).querySelectorAll(sel)); };
   var text = function (el) { return el ? el.textContent.replace(/\\s+/g, " ").trim() : ""; };
-  var shown = function (el) { return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }); };
-  var box = function (el) { var b = el.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]; };
-  var atoms = [], walk = document.createTreeWalker(document.querySelector("main"), NodeFilter.SHOW_TEXT);
+  var shown = function (el) {
+    return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  };
+  var box = function (el) {
+    var b = el.getBoundingClientRect();
+    return [b.left, b.top, b.width, b.height].map(Math.round);
+  };
+  var onScreen = function (b) {
+    return b.width > 0 && b.height > 0 && b.top < vh && b.bottom > 0 && b.left < vw;
+  };
+  var main = document.querySelector("main"), atoms = [];
+  var walk = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
   while (walk.nextNode()) {
     var node = walk.currentNode, p = node.parentElement;
     if (!/\\S/.test(node.textContent) || !shown(p)) continue;
-    var range = document.createRange(); range.selectNodeContents(node);
-    var on = [].some.call(range.getClientRects(), function (b) { return b.width > 0 && b.height > 0 && b.top < vh && b.bottom > 0 && b.left < vw && b.right > 0; });
+    var range = document.createRange();
+    range.selectNodeContents(node);
+    if (![].some.call(range.getClientRects(), onScreen)) continue;
     var role = p.closest("[data-role]");
-    if (on) atoms.push({ text: node.textContent.replace(/\\s+/g, " ").trim(), role: role ? role.getAttribute("data-role") : "" });
+    atoms.push({ text: text({ textContent: node.textContent }),
+      role: role ? role.getAttribute("data-role") : "" });
   }
+  var row = function (r) {
+    var btn = r.querySelector(".btn");
+    return { text: text(r), box: box(r), meta: text(r.querySelector(".nm")),
+      verb: text(btn), href: btn ? btn.getAttribute("href") : "" };
+  };
   var parts = {};
   all("main [data-role]").filter(shown).forEach(function (sec) {
     parts[sec.getAttribute("data-role")] = { text: text(sec), head: text(sec.querySelector("h2 b")),
-      rows: all("li", sec).filter(shown).map(function (r) { return { text: text(r), box: box(r), meta: text(r.querySelector(".nm")), verb: text(r.querySelector(".btn")), href: (r.querySelector(".btn") || {}).getAttribute ? r.querySelector(".btn").getAttribute("href") : "" }; }),
+      rows: all("li", sec).filter(shown).map(row),
       tail: all(".tail", sec).filter(shown).map(text) };
   });
-  var tab = document.getElementById("tri"), title = document.getElementById("dw-title");
+  var tab = document.getElementById("tri"), drawer = document.getElementById("drawer");
   var out = { errors: window.__errs, hash: location.hash, atoms: atoms, parts: parts,
-    tab: tab && shown(tab) ? { text: text(tab), count: text(tab.querySelector("b")), href: tab.getAttribute("href"), current: tab.getAttribute("aria-current") || "" } : null,
-    drawer: document.getElementById("drawer").open ? text(title) : "" };
+    drawer: drawer.open ? text(document.getElementById("dw-title")) : "", tab: null };
+  if (tab && shown(tab)) {
+    out.tab = { text: text(tab), count: text(tab.querySelector("b")),
+      href: tab.getAttribute("href"), current: tab.getAttribute("aria-current") || "" };
+  }
   var pre = document.createElement("pre");
   pre.id = "probe";
   pre.textContent = JSON.stringify(out);
@@ -85,7 +104,11 @@ def asked(scene):
     gated(scene)
 
 
-MADE = SCENES | {"asked": asked, "quiet-3": lambda scene: quiet(scene, 3), "quiet-16": lambda scene: quiet(scene, 16)}
+MADE = SCENES | {
+    "asked": asked,
+    "quiet-3": lambda scene: quiet(scene, 3),
+    "quiet-16": lambda scene: quiet(scene, 16),
+}
 
 
 def looked(root, name, wide, routes=("#/triage",)):
@@ -207,7 +230,9 @@ def test_same_kind_approvals_are_one_row_and_the_defaults_one_tail_line(views):
     assert proceeds
     (tail,) = [one for one in parts["ask"]["tail"] if "default" in one]
     assert [need["due"] for need in proceeds if need["due"]], proceeds
-    assert re.fullmatch(rf"{len(proceeds)} take their default if you say nothing, the first at \d\d:\d\d ›", tail)
+    assert re.fullmatch(
+        rf"{len(proceeds)} take their default if you say nothing, the first at \d\d:\d\d ›", tail
+    )
 
 
 def test_the_tab_counts_what_is_yours_and_says_where_it_is(views):
