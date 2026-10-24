@@ -170,6 +170,11 @@ goes_on() {
     read -r before base pushed < "$G/crew-before-rebase"
     head=$(git rev-parse HEAD)
     third="a third rebase after fixed and green"
+    if [ "$head" = "$before" ]; then
+        rm "$G/crew-before-rebase" "$G/crew-third-rebase"
+        stop="no rebase: the head is still at $before, so $third was not made and nothing is recorded"
+        return 1
+    fi
     said=$(uv run --project "$T/.." jmerge --range-diff "$before..$head" --base "$base" 2>&1)
     case $said in
     'clean: '*)
@@ -258,6 +263,7 @@ fi
 For a third rebase after fixed and green it first judges the rebase, as the rule above says.
 On `kept:`, the rebase goes on and the block goes on to the lines.
 On `hold:`, the block stops there: do what "On `hold`" above says.
+On `no rebase: the head is still at`, the trial was given up, by a `git rebase --abort` or by hand: nothing is pushed, held or counted.
 On `could not judge`, nothing is pushed and nothing is held: find out why `jmerge` could not say, and run the block again.
 On `Kept: every line, in <files>`, go on. On `could not look`, nothing is proved: find out why git gave no file (a base that is not fetched, a record that names a commit that is gone), and do not push until the block prints one of the other two. On `Dropped: <k> of main's lines in <file>, <j> of its own in <file>`, the rebase took a line out that neither side meant to. Put the lines back, commit, and run the block again. Where a line is gone on purpose (the task replaces it, or the default branch's change makes it wrong), add one line to the Result for each such file, `Dropped on rebase: <file>, <k> of main's, <j> of its own, at <head12>: <why>`, with the two counts the block printed for that file, `0` for one it did not print, and the first 12 characters of the head you push: the scoped review rules on it. `jmerge` reads the line for the head the pull request is at and no other, so a commit after it (a fix, another rebase) asks for the line again at the new head, and jbus says so in a message here that begins `jbus: the rebase dropped`. A drop with no such line keeps the pull request waiting, one the review upholds merges, and only one it does not uphold goes to the user. Then run the block again, and go on only when every `Dropped` it still prints has its line in the Result. The head before the rebase is `refs/jstack/pre-rebase/<slug>/<its first 12 characters>`, and `git diff <that ref> HEAD -- <file>` shows what the resolution did.
 
@@ -270,6 +276,8 @@ pushed=
 if [ -f "$G/crew-before-rebase" ]; then read -r before base pushed < "$G/crew-before-rebase"; fi
 if [ -z "$branch" ] || [ -z "$pushed" ]; then
     echo "no push: the head the pull request had before the rebase is not on record here, so there is no lease to push with"
+elif [ -f "$G/crew-third-rebase" ]; then
+    echo "no push: a third rebase after fixed and green is not judged yet: run the block that looks for dropped lines first"
 elif git push -q --force-with-lease="refs/heads/$branch:$pushed" --force-if-includes origin "HEAD:refs/heads/$branch"; then
     rm "$G/crew-before-rebase"
     echo "pushed $(git rev-parse HEAD) over $pushed"

@@ -374,3 +374,36 @@ def test_three_rows_at_a_third_rebase_ask_the_user_once(tmp_path):
         third_rebase(pr, home, resolved)
         held[slug] = ready.rebase_held(brief.read_text(), pr.head())
     assert held == {"beta": "", "gamma": "", "delta": ready.REBASE_HELD}
+
+
+def test_a_third_rebase_not_judged_yet_is_not_pushed(tmp_path):
+    """The push block refuses a third rebase after fixed and green that the block that looks
+    for dropped lines has not judged, so no unjudged rebase reaches the pull request."""
+    pr, home, brief = rebased_twice(tmp_path, "other.txt")
+    before = pr.head()
+    assert pr.run("mergeable", home).splitlines()[0] == "rebased onto origin/main"
+    not_judged = (
+        f"no push: {THIRD} is not judged yet: run the block that looks for dropped lines first"
+    )
+    assert pr.run("--force-with-lease", home).splitlines() == [not_judged]
+    assert git(pr.work, "rev-parse", "origin/a-task") != pr.head()
+    said = pr.run("no rebase to look through", home)
+    assert said.startswith(f"kept: {THIRD}")
+    assert pr.run("--force-with-lease", home).splitlines() == [f"pushed {pr.head()} over {before}"]
+
+
+def test_a_third_rebase_given_up_by_hand_is_not_recorded_as_kept(tmp_path):
+    """A stopped trial that the crewmate aborts leaves the head where it was: the block says no
+    rebase was made, and writes no `Rebased after fixed:` line and no hold."""
+    pr, home, brief = rebased_twice(tmp_path, "shared.txt")
+    before = pr.head()
+    assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
+    git(pr.work, "rebase", "--abort")
+    gone = (
+        f"no rebase: the head is still at {before}, so {THIRD} was not made and nothing is recorded"
+    )
+    assert pr.run("no rebase to look through", home).splitlines() == [gone]
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    assert "Rebase hold:" not in brief.read_text()
+    assert not (pr.git_dir / "crew-before-rebase").exists()
+    assert not (pr.git_dir / "crew-third-rebase").exists()
