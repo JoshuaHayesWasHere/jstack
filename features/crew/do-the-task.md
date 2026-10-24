@@ -112,7 +112,8 @@
   fi
   ```
 
-  On `base <branch>`, open the pull request with `--base <branch>`. A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from.
+  On `base <branch>`, open the pull request with `--base <branch>`.
+  A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
   On `no base`, open no pull request: say what it printed in the Result under "Noticed" and in what you tell the home.
