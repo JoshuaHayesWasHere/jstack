@@ -260,3 +260,107 @@ def test_a_rebase_that_wrote_no_line_is_one_jmerge_carries_the_review_over(
     handled = f"Finding: fixed, it is wrong\nFixed: {before}\n" if fixed else ""
     review = merge.review("findings" if fixed else "clean", saw if fixed else before)
     assert covers(tmp_path / "main", BRIEF + handled + review, pr.head()) == (before, True)
+
+
+THIRD = "a third rebase after fixed and green"
+
+
+def rebased_twice(tmp_path, main_edits):
+    """A made-up row: a pull request that is fixed and green and was rebased twice since, and a
+    default branch that has moved under it once more."""
+    pr = PullRequest(tmp_path, "CONFLICTING", main_edits)
+    asked(pr, "CONFLICTING")
+    home = tmp_path / "home"
+    (home / "tasks").mkdir(parents=True)
+    twice = "".join(
+        f"Rebased after fixed: {a * 40} onto origin/main at {b * 40}\n" for a, b in ("ab", "cd")
+    )
+    (home / "tasks" / "alpha.md").write_text(BRIEF + f"Fixed: {pr.head()}\n" + twice)
+    return pr, home, home / "tasks" / "alpha.md"
+
+
+def third_rebase(pr, home, resolved=None):
+    """What the crewmate does on the conflict: the first block of "A conflict", the file the
+    rebase stopped on resolved as `resolved` says, and the block that looks for lost lines."""
+    said = pr.run("mergeable", home).splitlines()
+    if resolved is not None:
+        assert said[0] == "the rebase stopped: resolve these, then git rebase --continue"
+        (pr.work / "shared.txt").write_text(resolved)
+        git(pr.work, "add", "shared.txt")
+        git(pr.work, "-c", "core.editor=true", "rebase", "--continue")
+    else:
+        assert said[0] == "rebased onto origin/main"
+    assert said[-1].startswith(f"{THIRD}: run the block that looks for dropped lines")
+    return pr.run("no rebase to look through", home).splitlines()
+
+
+@pytest.mark.parametrize(
+    ("main_edits", "resolved"),
+    [
+        ("other.txt", None),
+        ("shared.txt", "theirs\nthe task\n"),
+    ],
+    ids=["a clean rebase", "a conflict resolved keeping both sides"],
+)
+def test_a_third_rebase_whose_range_diff_is_empty_goes_on_and_asks_nobody(
+    main_edits, resolved, tmp_path
+):
+    """S10: a third rebase after fixed and green that leaves the reviewed content as it was
+    goes by its default. No hold is written, so `jmerge` has nothing to wait on and no gate asks
+    the user, and the rebase is counted in the brief as any other."""
+    pr, home, brief = rebased_twice(tmp_path, main_edits)
+    before = pr.head()
+    said = third_rebase(pr, home, resolved)
+    assert said[0].startswith(f"kept: {THIRD} whose range-diff is empty, so it goes on: ")
+    assert said[-1].startswith("Kept: every line, in ")
+    assert git(pr.work, "rev-parse", "HEAD~1") == pr.landed
+    assert "Rebase hold:" not in brief.read_text()
+    assert brief.read_text().endswith(
+        f"Rebased after fixed: {before} onto origin/main at {pr.landed}\n"
+    )
+    assert brief.read_text().count("Rebased after fixed:") == 3
+    assert ready.rebase_held(brief.read_text(), pr.head()) == ""
+    assert ready.rebase_held(brief.read_text(), before) == ""
+    assert (pr.git_dir / "crew-before-rebase").read_text().split() == [before, "main", before]
+    assert pr.run("no rebase to look through", home).splitlines() == said[1:]
+
+
+def test_a_third_rebase_that_changes_the_content_is_still_held_for_the_user(tmp_path):
+    """S10: a third rebase after fixed and green whose resolution changed what was reviewed is
+    not made. The head goes back to where it was, the resolved head is kept under a ref, and
+    the hold line is written for that head, so `jmerge` waits and the gate asks the user."""
+    pr, home, brief = rebased_twice(tmp_path, "shared.txt")
+    before = pr.head()
+    said = third_rebase(pr, home, "theirs\nthe task, as main has it now\n")
+    resolved = git(pr.work, "rev-parse", f"refs/jstack/held-rebase/alpha/{before[:12]}")
+    line = f"Rebase hold: at {before}, {THIRD}, onto origin/main at {pr.landed}"
+    (hold,) = said
+    assert hold.startswith(f"hold: {THIRD} changed the content, so it is not made: ")
+    assert hold.endswith(f"; the brief has the line {line}")
+    assert pr.head() == before
+    assert git(pr.work, "rev-parse", f"{resolved}~1") == pr.landed
+    assert not (pr.git_dir / "crew-before-rebase").exists()
+    assert brief.read_text().endswith(line + "\n")
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    assert ready.rebase_held(brief.read_text(), before) == ready.REBASE_HELD
+    again = [f"held: no third rebase after fixed and green, and its gate is parked already: {line}"]
+    assert pr.run("mergeable", home).splitlines() == again
+    assert pr.head() == before
+
+
+def test_three_rows_at_a_third_rebase_ask_the_user_once(tmp_path):
+    """The replay of S10 from three made-up rows, each at its third rebase after fixed and
+    green: two whose range-diff is empty go on by their default, and the one whose rebase
+    changed the content still asks. What the user is asked is what `jmerge` holds."""
+    rows = {
+        "beta": ("other.txt", None),
+        "gamma": ("shared.txt", "theirs\nthe task\n"),
+        "delta": ("shared.txt", "theirs\nthe task, as main has it now\n"),
+    }
+    held = {}
+    for slug, (main_edits, resolved) in rows.items():
+        (tmp_path / slug).mkdir()
+        pr, home, brief = rebased_twice(tmp_path / slug, main_edits)
+        third_rebase(pr, home, resolved)
+        held[slug] = ready.rebase_held(brief.read_text(), pr.head())
+    assert held == {"beta": "", "gamma": "", "delta": ready.REBASE_HELD}
