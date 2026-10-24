@@ -414,6 +414,13 @@ def stacked_of(text: str) -> Stacked | None:
     return None
 
 
+def unmoved(text: str) -> bool:
+    """Whether a brief is of a link that still sits on its base's branch: its branch holds its
+    base's commits and its own, so a rebase onto the default branch would replay them."""
+    stacked = stacked_of(text)
+    return stacked is not None and not stacked.at
+
+
 def stacked_line(stacked: Stacked) -> str:
     at = f" at {stacked.at}" if stacked.at else ""
     return f"{STACKED} {stacked.slug} {stacked.branch}{at}"

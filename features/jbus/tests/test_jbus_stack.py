@@ -76,7 +76,7 @@ def head_line(kitchen):
 
 
 def edits(kitchen):
-    return [line for line in kitchen.log("gh.log") if line.startswith("pr edit")]
+    return [line for line in kitchen.log("gh") if line.startswith("pr edit")]
 
 
 def test_a_link_whose_head_holds_its_bases_head_is_told_nothing(stacked):
