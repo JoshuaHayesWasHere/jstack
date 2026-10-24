@@ -80,6 +80,7 @@ ORDER = [
     "after-expedite 20 remarks.tell (client, world)",
     "after-expedite 30 rebase.github (client, world)",
     "after-expedite 40 scouts.launch (client, world)",
+    "derive 5 merge.shown",
     "derive 10 states.judged (sight)",
     "derive 20 states.derive (client, world, rows)",
     "after-derive 10 leftover.tell (client, world, rows)",

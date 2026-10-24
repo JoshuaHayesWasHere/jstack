@@ -415,3 +415,14 @@ def test_a_wait_that_is_not_a_guarded_one_and_a_pass_jmerge_said_nothing_in_are_
     guarded(kitchen)
     kitchen.poll(later(22))
     assert stalls(kitchen) == []
+
+
+def test_where_the_home_merges_a_held_pull_request_is_listed_and_no_root_is_paged(kitchen):
+    """The pass reads the hold from `jmerge --check`, for the list, and leaves acting on it to the
+    home: no `hand-merge` root, no accept asked for, no `waiting-on-user` event."""
+    held(kitchen)
+    (kitchen.home / "home-thread").write_text("mcp:a-home\n")
+    kitchen.poll()
+    assert waits(kitchen) == []
+    assert kitchen.log("jmerge") == ["--check"]
+    assert [one["line"] for one in shown(kitchen) if one["kind"] == "hold"] == [HOLD.strip()]

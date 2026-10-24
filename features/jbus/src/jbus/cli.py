@@ -85,10 +85,10 @@ class Half:
     Such a pass reads no brief, acts on no thread or pull request, and leaves the list of what waits
     as it was. It still counts its crews at work.
 
-    The second half fills in the rest. It records whether it `derived` the table and `read`
-    every brief, the `states` it judged, and the `table` its steps read. When it derived the
-    table anew, it records what `changed`. It keeps what `jmerge` said, worded for the user
-    (`users`), and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
+    The second half fills in the rest. It records whether it `derived` the table and `read` every
+    brief, the `states` it judged, and the `table` its steps read. When it derived the table anew,
+    it records what `changed`. It keeps what `jmerge` said of the rows and that worded for the user
+    (`merge.shown`), and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
     """
 
     run: passes.Pass
@@ -96,6 +96,7 @@ class Half:
     rows: list[queue.Row] | None = None
     seen: watch.Look = field(default_factory=watch.Look)
     said: merge.Said = field(default_factory=merge.Said)
+    shown: merge.Said = field(default_factory=merge.Said)
     held: frozenset[str] | None = None
     turns: dispatch.Turns | None = None
     crews: set[int] = field(default_factory=set)
@@ -187,7 +188,6 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     half.table = rows
     steps(half, "derive")
     steps(half, "after-derive")
-    half.users = half.said.crews(half.crews)
     steps(half, "close")
     sent = alert.flush(run, client)
     if sent:
