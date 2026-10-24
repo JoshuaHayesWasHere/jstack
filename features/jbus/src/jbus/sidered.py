@@ -27,8 +27,10 @@ run of the workflow on main, and files nothing.
 
 `owe` files one brief for each red, named for the workflow and the commit of the run that turned
 it red, and queues it unapproved, as `_browser_red` does: the user approves it like any other
-row. `workflows.json` keeps each such run with the row it got, so a row that was removed is not
-filed again, and a red that a green run ended and a new failure began is a new row. On a
+row. `workflows.json` keeps, for each workflow, the row its red got and the red runs it has seen.
+A red that shares a run with them is the same red, though its oldest run has slid out of the
+`RUNS` that GitHub lists: it is not filed again, nor is it after its row was removed. A red that
+a green run ended, and a new failure began, is a new row. On a
 project's first pass `owe` only records the reds it sees. It asks GitHub at most once in `EVERY`,
 since a pass runs each minute and a side workflow runs a few times a day.
 """
@@ -95,8 +97,10 @@ def _red(one: dict[str, Any]) -> bool:
 
 
 def ran_a_job(one: dict[str, Any]) -> bool:
-    """Return whether GitHub ran a job for the run: a run that passed did, and one that failed
-    within `NO_JOB` of its start did not."""
+    """Return whether GitHub ran a job for the run: a run that passed did, one cancelled or
+    skipped says nothing, and one that failed within `NO_JOB` of its start did not."""
+    if one.get("conclusion") in IDLE:
+        return False
     began = when(one.get("run_started_at") or one["created_at"])
     return not _red(one) or _ended(one) - began >= NO_JOB
 
@@ -254,11 +258,16 @@ def owe(run: Pass) -> None:
             if one.get("head_branch") == default
             and not str(one.get("event")).startswith("pull_request")
         ]
-    filed: dict[str, str] = kept.get("filed", {})
+    filed: dict[str, dict[str, Any]] = kept.get("filed", {})
     for path, own in runs.items():
         others = [one for other, each in runs.items() if other != path for one in each]
         red = judge(path, own, others, tip, run.now)
-        if red is None or str(red.first.get("id")) in filed:
+        if red is None:
+            continue
+        ids = [str(one.get("id")) for one in red.runs]
+        was = filed.get(path, {})
+        if set(ids) & set(was.get("runs", [])):
+            filed[path] = {"slug": was.get("slug", ""), "runs": ids}
             continue
         answered, changed = _changed(run, red, default)
         if not answered or not stands(red, changed):
@@ -285,7 +294,7 @@ def owe(run: Pass) -> None:
                 key=f"workflow {red.first.get('id')}",
                 past=True,
             )
-        filed[str(red.first.get("id"))] = red.name
+        filed[path] = {"slug": red.name, "runs": ids}
     write_json(run.state / NAME, {"asked": run.now.isoformat(), "filed": filed})
 
 

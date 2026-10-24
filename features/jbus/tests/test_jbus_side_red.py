@@ -161,7 +161,8 @@ def test_runs_that_ran_no_job_in_every_workflow_are_the_accounts_and_file_nothin
     kitchen.quiet()
     release, _ = eight_runs_with_no_job()
     check = [run(200 + n, "x", "failure", timedelta(hours=8 - n), timedelta(0)) for n in range(8)]
-    side(kitchen, {RELEASE: release, CHECK: check[::-1]})
+    stopped = run(250, "y", "cancelled", timedelta(minutes=5), timedelta(0))
+    side(kitchen, {RELEASE: release, CHECK: [stopped, *check[::-1]]})
     kitchen.poll()
     assert rows(kitchen) == []
 
@@ -258,3 +259,16 @@ def test_a_red_whose_file_changed_on_main_since_waits_for_a_run_and_files_nothin
     kitchen.set("commits.json", [kitchen.commit("f" * 40, "feat: release", ago=timedelta(days=1))])
     kitchen.poll(NOW + timedelta(minutes=20))
     assert [row["slug"] for row in rows(kitchen)] == [f"workflow-red-release-{'a' * 12}"]
+
+
+def test_a_red_longer_than_the_runs_github_lists_is_one_row(kitchen):
+    """GitHub lists the newest 20 runs: as the red goes on, its oldest run slides out of the list,
+    and the red is still the one row it got."""
+    kitchen.quiet()
+    check = [run(200, "h", ago=timedelta(minutes=10))]
+    many = [no_job(100 + n, f"{n:02x}" * 20, timedelta(minutes=50 - n)) for n in range(25)]
+    side(kitchen, {RELEASE: many[:20][::-1], CHECK: check})
+    kitchen.poll()
+    side(kitchen, {RELEASE: many[5:][::-1], CHECK: check}, push=False)
+    kitchen.poll(NOW + timedelta(minutes=20))
+    assert [row["slug"] for row in rows(kitchen)] == [f"workflow-red-release-{'0' * 12}"]
