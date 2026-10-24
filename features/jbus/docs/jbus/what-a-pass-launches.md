@@ -3,12 +3,21 @@
 A pass launches a row only when all of these hold:
 
 - the row has an `approved` value, and its go holds for its brief ([What an approval is bound to](the-queue.md#what-an-approval-is-bound-to));
-- every slug in `depends` is merged;
+- every slug in `depends` is merged, or every one but one, whose pull request is open: the row then launches stacked on that pull request's branch;
 - no branch of its name exists, and no settled thread has its slug;
 - fewer than `max_running` crewmates are out across every project in the config (`jgauge sizes` prints `max_running`, which jbus derives from the machine unless the config sets it);
 - `jgauge room` prints `go`.
 
-Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
+Rows launch lowest `priority` first.
+A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there.
+jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch, but for a stacked link's line below.
+
+A row launched stacked starts its worktree from its base's branch, and its brief has `Stacked on: <slug> <branch>` in its head in place of `Green main:`.
+Its crew opens its pull request on that branch, and `jmerge` waits on it as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>`.
+Each pass after that tells its crew once for each move: when its base's head moves, to rebase onto the base's branch, and when its base merged, to move its own commits onto the default branch.
+Before that second message jbus bases its pull request on the default branch, where GitHub has not done so itself on deleting the base's branch.
+Once the message went, the line says `Stacked on: <slug> <default> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
+A link still on its base's branch gets no message to rebase onto main: its branch holds its base's commits too.
 
 - **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval: <lines>`.
   `<lines>` names each line the go no longer covers, as `<field>: <the line>`, or `<field>: a line taken out`, joined by `; `.

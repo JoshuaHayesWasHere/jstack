@@ -83,6 +83,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
 - **Its base is the default branch or an integration branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
   It merges a pull request whose brief has a `Stack:` line only when you pass `--land <stack>`.
+  A link jbus stacked, whose brief has a `Stacked on:` line, is no such hold: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
+  Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
   An integration branch is one the project's `integration` file names ("Integration branches").
 - **The review is done.**
   The brief has a `## Review` section with a verdict.

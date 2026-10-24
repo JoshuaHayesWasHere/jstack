@@ -93,7 +93,14 @@
   ```sh
   B="$H/tasks/<slug>.md"
   line=$(awk '/^## / {exit} /^Stack:/ {print; exit}' "$B")
-  if [ -n "$line" ]; then
+  stacked=$(awk '/^## / {exit} /^Stacked on:/ {print; exit}' "$B")
+  if [ -n "$stacked" ]; then
+      printf '%s\n' "$stacked" | awk '{
+          if (NF == 4) print "base " $(4) ": the brief\047s Stacked on: line, stacked on " $(3) "\047s pull request"
+          else if (NF == 6 && $(5) == "at") print "base " $(4) ": the brief\047s Stacked on: line, moved onto " $(4) " once " $(3) " merged"
+          else print "no base: the brief\047s Stacked on: line is not Stacked on: <slug> <branch>, and only jbus writes it"
+      }'
+  elif [ -n "$line" ]; then
       printf '%s\n' "$line" | awk '{
           if (NF == 5 && $(3) ~ /^[0-9]+$/ && $(4) == "on") print "base " $(5) ": the brief\047s Stack: line, link " $(3) " of the stack " $(2)
           else print "no base: the brief\047s Stack: line is not Stack: <name> <place> on <branch>, and only the home writes it"
@@ -105,7 +112,11 @@
   fi
   ```
 
-  On `base <branch>`, open the pull request with `--base <branch>`. A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from. On `no base`, open no pull request: say what it printed in the Result under "Noticed" and in what you tell the home.
+  On `base <branch>`, open the pull request with `--base <branch>`.
+  A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from.
+  A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
+  Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
+  On `no base`, open no pull request: say what it printed in the Result under "Noticed" and in what you tell the home.
 
 The user may steer in this thread at any time. What they say here overrides the brief; record it in the result.
 

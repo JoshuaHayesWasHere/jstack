@@ -46,6 +46,7 @@ from jbus.wake import cut
 from jgauge import slot, waiters
 from jmerge import checks as reading
 from jmerge import mainjson
+from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 
@@ -67,11 +68,11 @@ NIGHTLY_WINDOW = timedelta(days=3)
 NIGHTLY_GRACE = timedelta(hours=1)
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
-OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
+OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup"
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does."""
-MERGED = "number,url,title,headRefName,mergeCommit,mergedAt"
+MERGED = "number,url,title,headRefName,headRefOid,mergeCommit,mergedAt"
 GATED = "a gate the Chef has"
 OFF, STOP, UNREAD = "dispatch is off", "the stop file is there", "not read in this pass"
 AFTER_MERGE = "after the merge"
@@ -108,6 +109,15 @@ class World:
 
     def live(self) -> int:
         return sum(t["status"] in LIVE for found in self.threads.values() for t in found)
+
+    def stack_on(self, unmet: list[str]) -> stacks.Stacked | None:
+        """The open pull request a row whose depends `unmet` are not over launches stacked on: the
+        one row it still waits on, once that row's pull request is open. A stack sits on one
+        branch, so a row that waits on two or more rows launches on none."""
+        if len(unmet) != 1 or unmet[0] not in self.open:
+            return None
+        branch = str(self.open[unmet[0]].get("headRefName") or "")
+        return stacks.Stacked(unmet[0], branch) if branch else None
 
 
 @dataclass(frozen=True)
@@ -512,6 +522,13 @@ def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
     return work.Row.BEHIND if unmet else work.Row.FREE
 
 
+def unmet(world: World | None, row: dict[str, Any], final: frozenset[str]) -> list[str]:
+    """The depends that hold back a row's launch: none for a row that launches stacked on the one
+    it waits on (`World.stack_on`)."""
+    left = [one for one in row.get("depends", []) if one not in final]
+    return [] if world is not None and world.stack_on(left) else left
+
+
 def final(run: Pass, world: World | None, rows: list[dict[str, Any]]) -> frozenset[str]:
     """Return the slugs that no longer hold back a row that depends on them. Those are the
     slugs that merged, or that ended `done` under the rule that `dispatch` uses to launch.
@@ -550,7 +567,7 @@ def facts(
             said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
     made = work.Facts(
-        row=row_of(run, row, [one for one in row.get("depends", []) if one not in seen.final]),
+        row=row_of(run, row, unmet(world, row, seen.final)),
         thread=said or work.Thread.NONE,
         seen="" if said else str((found or {}).get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,

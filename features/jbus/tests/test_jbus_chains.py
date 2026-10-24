@@ -1,7 +1,8 @@
 """A row's order is one of two kinds. `--depends` holds a row's launch until the row it names has
-merged, and is only for a row whose brief builds on that row's work: its `Builds on:` line names
-it. Every other order is only about merging, and is `--merge-after`: the row launches at once,
-and jmerge holds its pull request until the row it names has merged.
+opened its pull request, and the row then launches stacked on that pull request's branch. It is
+only for a row whose brief builds on that row's work: its `Builds on:` line names it. Every other
+order is only about merging, and is `--merge-after`: the row launches at once, and jmerge holds
+its pull request until the row it names has merged.
 
 The tests run the real `jbus queue add` and the real pass in a kitchen, against its fakes of T3
 Code and GitHub. The merges follow the real rule of `jmerge.rows`, which jmerge asks first."""
@@ -154,7 +155,8 @@ def test_a_chain_only_about_merging_launches_at_once_and_merges_link_by_link(kit
     """Four rows, each merging after the one before it, and one more row that builds on the
     first. The four launch on the first pass. Each pass after that merges what jmerge's rule
     lets through, which is one link, the one whose row ahead has merged. The row that builds
-    on the first launches once the first has merged, and not before."""
+    on the first launches once the first has opened its pull request, stacked on its branch,
+    and not before."""
     kitchen.config(max_running=8)
     after = None
     for slug in CHAIN:
@@ -175,8 +177,8 @@ def test_a_chain_only_about_merging_launches_at_once_and_merges_link_by_link(kit
     while len(order) < len(CHAIN):
         now += timedelta(minutes=3)
         kitchen.poll(now)
-        if "one" not in order:
-            assert "crew: five" not in [given["title"] for given in kitchen.t3.launches]
+        five = [given for given in kitchen.t3.launches if given["title"] == "crew: five"]
+        assert [given["workspaceStrategy"]["baseRef"] for given in five] == ["one"]
         left = [slug for slug in CHAIN if slug not in order]
         assert [rows(kitchen)[slug]["status"] for slug in left] == ["pr"] * len(left)
         ready = mergeable(kitchen, left)
@@ -228,3 +230,64 @@ def test_the_arena_queues_its_four_seats_whose_briefs_build_on_what_they_depend_
         runners,
         [*runners, "ar-judge"],
     )
+
+
+def launch_of(kitchen, slug):
+    (given,) = [given for given in kitchen.t3.launches if given["title"] == f"crew: {slug}"]
+    return given
+
+
+def head_of(kitchen, slug):
+    text = (kitchen.home / "tasks" / f"{slug}.md").read_text()
+    return text.partition("\n## ")[0].splitlines()
+
+
+def test_a_row_that_builds_on_an_open_pull_request_launches_stacked_on_its_branch(kitchen):
+    """The fl-statechart replay of bug 3, the other way round: the entry, and a follow-up whose
+    brief builds on it, each with your go. Once the entry's crew opens its pull request, the
+    next pass launches the follow-up on the entry's branch, and its brief says what it is
+    stacked on. It gets no `Green main:` line: its base is the entry's branch, not main."""
+    kitchen.config(max_running=8)
+    assert queue_add(kitchen, "one")[0] == 0
+    assert go(kitchen, "one")[0] == 0
+    built = brief("two", "Builds on: one: the table one adds\n")
+    assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
+    assert go(kitchen, "two")[0] == 0
+    kitchen.poll()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: one"]
+    assert rows(kitchen)["two"]["status"] == "queued"
+
+    pull = {**kitchen.opened("one", 10), "headRefName": "one-branch"}
+    with (kitchen.home / "tasks" / "one.md").open("a") as one:
+        one.write(f"\n## Result\nBranch: one-branch   Pull request: {pull['url']}\n")
+    kitchen.set("open.json", [pull])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: one", "crew: two"]
+    assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "one-branch"
+    head = head_of(kitchen, "two")
+    assert "Stacked on: one one-branch" in head
+    assert not [line for line in head if line.startswith("Green main:")]
+    assert "Stacked on: one one-branch" in launch_of(kitchen, "two")["message"]
+    assert rows(kitchen)["two"]["status"] != "queued"
+
+
+def test_a_row_whose_depends_have_two_open_pull_requests_waits_until_one_is_left(kitchen):
+    """A stack sits on one branch: a row that builds on two rows whose pull requests are both
+    open waits, and launches stacked on the one left open once the other has merged."""
+    kitchen.config(max_running=8)
+    for slug in ("one", "two"):
+        assert queue_add(kitchen, slug)[0] == 0
+        assert go(kitchen, slug)[0] == 0
+    built = brief("three", "Builds on: one: its table; two: its parser\n")
+    assert queue_add(kitchen, "three", "--depends", "one,two", text=built)[0] == 0
+    assert go(kitchen, "three")[0] == 0
+    kitchen.poll()
+    kitchen.set("open.json", [kitchen.opened("one", 10), kitchen.opened("two", 11)])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert "crew: three" not in [given["title"] for given in kitchen.t3.launches]
+
+    kitchen.set("open.json", [kitchen.opened("two", 11)])
+    kitchen.set("merged.json", [kitchen.merged("one", 10, "a" * 40)])
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert launch_of(kitchen, "three")["workspaceStrategy"]["baseRef"] == "two"
+    assert "Stacked on: two two" in head_of(kitchen, "three")

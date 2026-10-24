@@ -33,7 +33,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:921-922
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:935-936
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
@@ -42,7 +42,7 @@ Merge(p) ==
 
 \* The crew fixes its own broken change: only when it sees the failure as its own.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:247, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:250, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* features/crew/the-checks.md:48,79: a failure over a base that moved reads as `stale`:

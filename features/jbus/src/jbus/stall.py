@@ -10,7 +10,9 @@ A root is one thing only the user can do, and it has a key:
 - `config:<project>`: sign in to T3 Code.
 
 `walk` starts at every approved row that was not launched and follows its `depends` links
-(`Pass.reasons`, which `dispatch` records). It stops at a root or at progress: a thread, a pull
+(`Pass.reasons`, which `dispatch` records). A stacked link (`jbus.stack`) launched before its
+base merged, and its own merge still waits on its base's: `walk` starts at it too, and follows it
+to its base. It stops at a root or at progress: a thread, a pull
 request on which `jmerge` waits, a slot, or a gate that the Chef already has. `tell` sends one
 `waiting-on-user` event for each root, and sends that event again each hour while the root is still
 open. `tell` also rewrites `stall.json`, which records when jbus first saw each root and when jbus
@@ -50,6 +52,7 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
 from jbus.wake import cut, notify
 from jbus.watch import World
+from jmerge import stacked as stacks
 from jmerge.lines import READY
 
 if TYPE_CHECKING:
@@ -109,18 +112,26 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
     holds = {line.number: (line.name, line.reason) for line in said}
     merges: dict[int, str] = {}
 
+    def on_base(slug: str) -> str:
+        """The row a stacked link still sits on, or nothing: its merge waits on that row's."""
+        found = stacks.of(_brief(run, slug)) if table.get(slug, {}).get("depends") else None
+        return found.slug if found and not found.at else ""
+
     def roots(slug: str, seen: set[str]) -> dict[str, str]:
         if slug in seen:
             return {}
         seen.add(slug)
+        on = on_base(slug)
         pull = world.open.get(slug)
         if pull:
             number = pull["number"]
             if number not in holds:
-                return {}
+                return roots(on, seen) if on else {}
             if number not in merges:
                 merges[number] = hand_merge(run, number, *holds[number])
             return {f"#{number}": merges[number]}
+        if on and (slug in world.threads or launched(run, slug)):
+            return roots(on, seen)
         if slug in world.merged or slug in world.threads or launched(run, slug):
             return {}
         reason, row = run.reasons.get(slug), table.get(slug)
@@ -142,7 +153,7 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
 
     found: Roots = {}
     for row in sorted(rows, key=queue.order):
-        if row["slug"] in run.reasons:
+        if row["slug"] in run.reasons or on_base(row["slug"]):
             for key, action in roots(row["slug"], set()).items():
                 found.setdefault(key, (action, []))[1].append(row["slug"])
     return found

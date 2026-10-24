@@ -192,3 +192,46 @@ def test_a_move_that_conflicts_stops_and_says_which_files(tmp_path):
     assert said == ["the rebase stopped: resolve these, then git rebase --continue", "other.txt"]
     assert link.rebasing()
     assert link.move()[0] == "the rebase is not finished: resolve these, then git rebase --continue"
+
+
+@pytest.mark.parametrize(
+    ("line", "said"),
+    [
+        (
+            "Stacked on: beta add-schema",
+            "base add-schema: the brief's Stacked on: line, stacked on beta's pull request",
+        ),
+        (
+            "Stacked on: beta main at " + "a" * 40,
+            "base main: the brief's Stacked on: line, moved onto main once beta merged",
+        ),
+    ],
+)
+def test_a_link_jbus_stacked_opens_its_pull_request_on_the_branch_its_line_names(
+    line, said, tmp_path
+):
+    assert base_of(tmp_path, with_field(line)) == said
+
+
+def test_a_conflict_rebases_a_link_jbus_stacked_only_once_it_moved_onto_main(tmp_path):
+    """While a link sits on its base, or its base merged and its head does not hold that merge
+    yet, its branch holds its base's commits: "A link that moved" moves it, never this block.
+    Once moved, it is a pull request like any other."""
+    link = Link(tmp_path, "main")
+    (link.stub / "view.json").write_text('{"baseRefName": "main", "mergeable": "CONFLICTING"}')
+    (tmp_path / "tasks").mkdir()
+    brief = tmp_path / "tasks" / "a-link.md"
+    about = block("Stay on the pull request", "mergeable").replace("<slug>", "a-link")
+    before = link.head()
+    for line in ("Stacked on: under under", f"Stacked on: under main at {link.landed}"):
+        brief.write_text(with_field(line))
+        (said,) = link.run_text(about, H=str(tmp_path)).splitlines()
+        assert said.startswith("a link of a stack: no rebase here")
+        assert link.head() == before
+
+    assert link.move(link.started_from) == [f"moved from {link.started_from} onto origin/main"]
+    moved = link.head()
+    assert link.run_text(about, H=str(tmp_path)).splitlines() == [
+        "already on origin/main: no rebase"
+    ]
+    assert link.head() == moved

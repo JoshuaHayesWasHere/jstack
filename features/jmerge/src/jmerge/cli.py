@@ -37,6 +37,7 @@ from jmerge import (
     sweep,
     trailers,
 )
+from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -672,6 +673,24 @@ class Repo:
             self.heads[one.number] = not _run(self.main, "git", "cat-file", "-e", commit).returncode
         return self.heads[one.number]
 
+    def on_stack(self, one: ready.PullRequest, default: str, stacked: stacks.Stacked | None) -> str:
+        """Why a link jbus stacked waits, or nothing. It waits while its line names its base's
+        branch, whatever base GitHub gives it now: GitHub bases it on the default branch by
+        itself when the base's branch is deleted on its merge, and its head still holds the
+        base's commits then. Once jbus wrote the commit that merged its base, it waits until its
+        head holds that commit: its crew rebased its own commits onto the default branch."""
+        if stacked is None:
+            return ""
+        if not stacked.at or stacked.branch != default or one.base != default:
+            return ready.STACKED_ON.format(
+                branch=stacked.branch, slug=stacked.slug, default=default
+            )
+        if not self.has(one) or self.outside(stacked.at, one.head):
+            return ready.STACKED_UNMOVED.format(
+                slug=stacked.slug, sha=stacked.at[:12], default=default
+            )
+        return ""
+
     def outside(self, commit: str, of: str) -> bool:
         """Whether `of` lacks `commit`. A ref that cannot be read lacks it too, which keeps a
         pull request waiting rather than merging what it may carry."""
@@ -1102,7 +1121,9 @@ class Repo:
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
-        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration)
+        stacked = stacks.of(text)
+        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
+        short = short or self.on_stack(one, default, stacked)
         short = short or ready.short_of(text, one.head)
         rebase = ready.rebase_of(text, one.head)
         covered = ready.to_range_diff(rebase, text, one.head)
