@@ -128,19 +128,43 @@ def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
 
 
 @pytest.mark.parametrize(
-    "edit",
+    "edit, named",
     [
-        lambda text: text.replace("Proves it:", "- the go is printed by verify\nProves it:"),
-        lambda text: text.replace("- an approval holds through a wording-only edit\n", ""),
-        lambda text: text.replace("Size: M", "Size: L"),
-        lambda text: text.replace("3 minutes", "5 minutes"),
-        lambda text: text.replace("`src/jbriefs/`", "`src/jmerge/`"),
-        lambda text: text.replace("`~/.config/`", "`~/.config/`, `docs/`"),
-        lambda text: text.replace("holds through", "never holds through"),
-        lambda text: text.replace(
-            'Task: "make the queue check a brief"', 'Task: "check briefs when they are queued"'
+        (
+            lambda text: text.replace("Proves it:", "- the go is printed by verify\nProves it:"),
+            "Done when: the go is printed by verify",
         ),
-        lambda text: text.replace("alpha: a brief whose go is kept", "alpha: another brief"),
+        (
+            lambda text: text.replace("- an approval holds through a wording-only edit\n", ""),
+            "Done when: a line taken out",
+        ),
+        (lambda text: text.replace("Size: M", "Size: L"), "Size: L"),
+        (
+            lambda text: text.replace("3 minutes", "5 minutes"),
+            "Done when: `make check` exits 0, in 5 minutes or less",
+        ),
+        (
+            lambda text: text.replace("`src/jbriefs/`", "`src/jmerge/`"),
+            "Where: `src/jbus/queue.py`, `src/jmerge/`",
+        ),
+        (
+            lambda text: text.replace("`~/.config/`", "`~/.config/`, `docs/`"),
+            "Do not touch: `~/.config/`, `docs/`",
+        ),
+        (
+            lambda text: text.replace("holds through", "never holds through"),
+            "Done when: an approval never holds through a wording-only edit",
+        ),
+        (
+            lambda text: text.replace(
+                'Task: "make the queue check a brief"', 'Task: "check briefs when they are queued"'
+            ),
+            'Task: "check briefs when they are queued"',
+        ),
+        (
+            lambda text: text.replace("alpha: a brief whose go is kept", "alpha: another brief"),
+            "title: alpha: another brief",
+        ),
     ],
     ids=[
         "a done-when line added",
@@ -154,14 +178,16 @@ def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
         "the title",
     ],
 )
-def test_an_approved_brief_whose_goal_or_scope_changed_asks_again(kitchen, edit):
+def test_an_approved_brief_whose_goal_or_scope_changed_asks_again_and_names_the_line(
+    kitchen, edit, named
+):
     approved(kitchen)
     again = edit(APPROVED)
     assert again != APPROVED
     code, said = add(kitchen, again)
     assert code == 0 and "its go does not hold for it: approve it again" in said, said
     kitchen.poll()
-    assert gates(kitchen) == ["condition alpha: brief changed after approval"]
+    assert gates(kitchen) == [f"condition alpha: brief changed after approval: {named}"]
     assert kitchen.t3.launches == []
     assert go(kitchen, "alpha")[0] == 0
     kitchen.poll()
@@ -310,7 +336,7 @@ def old_go(kitchen, typed):
 
 
 MOVED = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-crew")
-LONGER = "- `make check` exits 0, in 5 minutes or less"
+LONGER = "`make check` exits 0, in 5 minutes or less"
 
 
 @pytest.mark.parametrize("typed", [False, True], ids=["a record", "a typed string"])
