@@ -89,7 +89,8 @@ DECISION = "\n".join(
         "fixes that",
         "Option: wait for the account (default, recommended): no main-red row, and this question "
         "closes itself when a run with jobs passes",
-        "Option: treat it as red: a main-red row for {sha} that no fix to the code can close",
+        "Option: put it right now: pay or raise the limit on GitHub, then re-run the failed jobs "
+        "at {sha}; this question closes when they pass",
     )
 )
 MESSAGE = (
@@ -164,7 +165,7 @@ def account(run: Pass, unrun: str, passed: str) -> None:
         if unrun and not raised:
             lines = DECISION.format(sha=unrun[:12], slug=ACCOUNT)
             one, _ = questions.park(run, ACCOUNT, lines)
-            write_json(path, {"question": one.number, "since": unrun})
+            write_json(path, {"question": one.number})
     except Refused as refused:
         run.condition(ACCOUNT, f"the decision about CI that starts no job was not kept: {refused}")
 

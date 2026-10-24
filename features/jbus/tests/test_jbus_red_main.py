@@ -304,3 +304,13 @@ def test_a_run_that_starts_no_job_after_the_account_was_put_right_is_a_new_decis
     first, second = asked(kitchen)
     assert first.answer is not None and second.answer is None
     assert main_red(kitchen) == []
+
+
+def test_a_rerun_on_the_same_tip_whose_jobs_pass_closes_the_decision(kitchen):
+    _, runs = replay_no_job_runs(kitchen, runs=1)
+    at = tip(kitchen)
+    checks(kitchen, at, "success")
+    kitchen.poll(NOW + timedelta(minutes=3 * (runs + 1)))
+    (decision,) = asked(kitchen)
+    assert decision.answer is not None
+    assert kept(kitchen) == mainjson.Main(green=at)
