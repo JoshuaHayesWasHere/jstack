@@ -438,15 +438,6 @@ _LINES = re.compile(r":\d+(?:-\d+)?$")
 _PATHLIKE = re.compile(r"[\w.@+~*?\[\]{}/-]+")
 _EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,5}$")
 _BRACES = re.compile(r"\{([^{}]*)\}")
-_SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
-
-
-def builds_on(text: str) -> frozenset[str]:
-    """The rows a brief's `Builds on:` field names: in each `;` item, the slugs before its colon."""
-    said = _head_lines(text, "Builds on") or ""
-    named = (item.split(":")[0] for item in said.split(";"))
-    words = (word.strip("`") for part in named for word in re.split(r"[\s,]+", part))
-    return frozenset(word for word in words if _SLUG.fullmatch(word))
 
 
 def _head_lines(text: str, label: str) -> str | None:
