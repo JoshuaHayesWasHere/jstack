@@ -166,6 +166,10 @@ GH = """\
 #!/bin/sh
 case "$1 $2" in
     "pr view") cat "$STUB/view.json" 2> /dev/null ;;
+    "api rate_limit")
+        cat "$STUB/rate-limit.json" 2> /dev/null && exit
+        full='{"limit": 5000, "used": 0, "remaining": 5000, "reset": 1791824400}'
+        printf '{"resources": {"core": %s, "graphql": %s}}\n' "$full" "$full" ;;
     "run rerun")
         echo "$*" >> "$STUB/calls"
         [ ! -e "$STUB/no-rerun" ] ;;
@@ -328,6 +332,15 @@ ROLLUPS = {
 }
 
 
+def spent(stub, left=0):
+    """GitHub's API budget, as the stub `gh` gives it, has `left` calls in each window."""
+    window = {"limit": 5000, "used": 5000 - left, "remaining": left, "reset": 1791824400}
+    (stub / "rate-limit.json").write_text(json.dumps({"resources": dict.fromkeys(WINDOWS, window)}))
+
+
+WINDOWS = ("core", "graphql")
+
+
 def stub_gh(stub, head, rollup, state="OPEN"):
     """A stub `gh` that prints this rollup for the pull request, or fails when there is no
     rollup."""
@@ -365,10 +378,12 @@ class Failed(PullRequest):
         }
         (self.stub / "view.json").write_text(json.dumps(view))
 
-    def says(self, here):
+    def says(self, here, wait=None):
         """What the block prints when the test tells it what the check command did in this
-        worktree."""
+        worktree. With `wait`, the block waits that long for GitHub's budget, not nine minutes."""
         text = block("Stay on the pull request", "run rerun").replace("<slug>", "alpha")
+        if wait is not None:
+            text = text.replace("--wait 540", f"--wait {wait}")
         text, filled = re.subn(
             r"^here='<[^>]*>'$", f"here='{here}'" if here else r"\g<0>", text, flags=re.M
         )
@@ -383,6 +398,7 @@ class Failed(PullRequest):
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
+                "T": str(REPO / "features" / "crew" / "templates"),
             },
             check=True,
         )

@@ -68,5 +68,5 @@ def sweep(half: Half) -> None:
 STEPS = (
     verbs.Step("close", 40, "chores.began", lambda half: half.run.box.began(), ("world",)),
     verbs.Step("close", 50, "chores.daily", daily),
-    verbs.Step("close", 60, "chores.sweep", sweep),
+    verbs.Step("close", 60, "chores.sweep", sweep, ("budget",)),
 )

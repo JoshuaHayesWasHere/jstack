@@ -121,14 +121,14 @@ class Half:
 
 
 def steps(half: Half, slot: str) -> None:
-    """Run the steps of a slot by rank, each step only when the pass has what that step
-    needs. A step of `derive` judges the rows that the later steps need."""
+    """Run a slot's steps by rank, each where the pass has its needs: `derive` judges the rows."""
     for step in RANKED[slot]:
         has = {
             "sight": not half.blind,
             "client": half.client is not None,
             "world": half.seen.world is not None,
             "rows": half.states is not None,
+            "budget": not half.seen.held,
         }
         if all(has[need] for need in step.needs):
             step.run(half)
@@ -157,7 +157,7 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
         run.gate(name, "questions.json does not parse", str(questions.path(run.state)))
     half.seen = watch.look(run, client, half.rows or [])
     if half.blind:
-        half.seen = watch.Look(out=half.seen.out, why=half.seen.why)
+        half.seen = watch.Look(out=half.seen.out, why=half.seen.why, held=half.seen.held)
     if half.seen.world is not None and client is not None:
         archived.ask(run, client, half.seen.world, half.rows or [])
     steps(half, "tellers")
