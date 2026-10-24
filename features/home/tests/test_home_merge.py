@@ -358,13 +358,13 @@ def test_a_clean_review_stands_after_a_rebase_the_result_records(home, result):
     assert home.ready() == [f"ready 7 {PUSHED} alpha alpha"]
 
 
-def test_a_rebase_hold_that_is_lifted_or_of_another_head_holds_nothing(home):
+def test_a_rebase_hold_an_older_crew_wrote_holds_nothing(home):
+    """The crew no longer holds a third rebase after fixed and green, so a `Rebase hold:` line
+    from before that is no reason to wait, at the head it names or any other."""
     held = f"Rebase hold: at {REVIEWED}, a third rebase, onto main\n"
-    other = f"Rebase hold: at {'c' * 40}, a third rebase, onto main\n"
-    for result in (held + "Rebase hold lifted: question 7, by the user\n", other):
-        (home.tasks / "alpha.md").write_text(brief(review("clean"), result))
-        home.open_pull_request(REVIEWED)
-        assert home.ready() == [f"ready 7 {REVIEWED} alpha alpha"]
+    (home.tasks / "alpha.md").write_text(brief(review("clean"), held))
+    home.open_pull_request(REVIEWED)
+    assert home.ready() == [f"ready 7 {REVIEWED} alpha alpha"]
 
 
 def test_findings_all_declined_are_ready_at_the_reviewed_head(home):
@@ -698,11 +698,6 @@ SHORT = {
         brief(result="Reviewer: mcp:1111-aaaa\n"),
         {"head": REVIEWED},
         "it has no review yet",
-    ),
-    "a rebase its crew held after fixed and green": (
-        brief(review("clean"), f"Rebase hold: at {REVIEWED}, a third rebase, onto main\n"),
-        {"head": REVIEWED},
-        "its crew held a third rebase after fixed and green, and its gate asks the user",
     ),
     "no brief": (
         None,
