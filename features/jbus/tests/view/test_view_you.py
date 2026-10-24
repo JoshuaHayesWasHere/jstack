@@ -6,7 +6,22 @@ from dataclasses import asdict
 from jbus import questions, threads, waiting, work
 from jbus.view.panels.you import panel as panel_you
 from test_jbus_kitchen import GATE as PIPED
-from view.scene import GATE, PULL, Scene, Served, ago, et, iso, item, out, row, stacked
+from view.scene import (
+    GATE,
+    PULL,
+    ROOT,
+    SHELF,
+    Scene,
+    Served,
+    ago,
+    et,
+    homed,
+    iso,
+    item,
+    out,
+    row,
+    stacked,
+)
 
 HOLDING = "Holds: publishes\nFail-safe: the dry run of the post, in the plan\n"
 
@@ -254,3 +269,13 @@ def test_a_thread_of_no_row_that_the_pass_marks_as_the_users_needs_the_user(scen
     assert one["what"] == "scout: tin"
     assert one["since"] == iso(ago(minutes=30))
     assert one["why"]
+
+
+def test_each_need_of_work_carries_the_home_of_its_row_or_thread(scene, served):
+    """A need built from a line of `work.json` belongs to a home as every other need does: a
+    row of a scoped home's brief to that home, a row of a brief with no `Home:` line to the
+    root, and a thread to the home of the task or request it is about."""
+    homed(scene)
+    needs = {one["key"]: one["home"] for one in served.json("/stack.json")["needs"]}
+    assert needs["row:jam-lid"] == SHELF
+    assert needs["approve:tea-kettle"] == ROOT
