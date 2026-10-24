@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 import daemons
+from jbus.relay import Server
 from testing.paths import REPO
 
 INBOUND = "inbound-key-for-the-relay"
@@ -70,7 +71,7 @@ class Webhook:
             def log_message(self, *args) -> None:
                 pass
 
-        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server = Server(("127.0.0.1", 0), Handler)
         self.server.daemon_threads = True
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         self.url = f"{self.base}/hook"
@@ -748,14 +749,18 @@ LEAVES = Path(__file__).with_name("relay_leaves.py")
 def alive(pid: int) -> list[str]:
     """Return what `ps` lists of the relay and of everything in its process group or session.
     These are the processes that are not zombies, since a zombie is gone and waits only for its
-    reaper."""
+    reaper. macOS's `ps` has no session id, so there it is the process group alone."""
+    ids = ["pid", "pgid", "sid"] if sys.platform == "linux" else ["pid", "pgid"]
     listed = subprocess.run(
-        ["ps", "-eo", "pid=,pgid=,sid=,stat=,args="], capture_output=True, text=True, check=True
+        ["ps", "-eo", ",".join(f"{name}=" for name in [*ids, "stat", "args"])],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
     return [
         line.strip()
         for line in listed.splitlines()
-        if str(pid) in line.split()[:3] and not line.split()[3].startswith("Z")
+        if str(pid) in line.split()[: len(ids)] and not line.split()[len(ids)].startswith("Z")
     ]
 
 
@@ -803,6 +808,9 @@ def test_a_test_that_fails_or_times_out_leaves_no_relay(tmp_path, how, more):
             put_away(relay_pid(tmp_path))
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="only Linux has PR_SET_PDEATHSIG (testing/tests/daemons.py)"
+)
 def test_a_pytest_killed_outright_leaves_no_relay(tmp_path):
     pytest_run = run_leaves(tmp_path, "hang")
     try:
