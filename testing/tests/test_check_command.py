@@ -42,7 +42,7 @@ from jgauge import sizes
 from testing.paths import REPO
 
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
-SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT")
+SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT", "SHARD")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]

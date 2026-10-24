@@ -35,7 +35,7 @@ CITED = {
     "features/crew/the-checks.md:48,79": "stale: the check command passes",
     "features/jbus/src/jbus/dispatch.py:324-356": "no room",
     "features/jbus/src/jbus/rebase.py:247": "world.open.items()",
-    "features/jmerge/src/jmerge/ready.py:918-919": "NOT_PASSED",
+    "features/jmerge/src/jmerge/ready.py:935-936": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:289-292": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
     "features/jmerge/src/jmerge/cli.py:216": 'was.get("result")',
