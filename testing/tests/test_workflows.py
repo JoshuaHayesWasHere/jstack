@@ -11,8 +11,9 @@ only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
 of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for the
-workflow `macos`: it runs the whole suite on each pull request to learn what fails on macOS, and
-it never fails a run or a check, since jbus and jmerge read every check of a pull request.
+workflow `macos`: on each pull request it runs the test files listed in `testing/macos-quick.txt`,
+the ones whose code branches on macOS or that guard a break only a Mac has, and it never fails a
+run or a check, since jbus and jmerge read every check of a pull request.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
@@ -56,6 +57,7 @@ BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
 BORDERS = WORKFLOWS / "borders.yml"
 MAC = WORKFLOWS / "macos.yml"
+MAC_QUICK = REPO / "testing" / "macos-quick.txt"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
 HOSTED = "ubuntu-24.04"
 MACOS = "macos-15"
@@ -390,7 +392,7 @@ CAPS = {
     ("browser.yml", "browser"): "15",
     ("check.yml", "check"): "30",
     ("check.yml", "full"): "30",
-    ("macos.yml", "macos"): "60",
+    ("macos.yml", "macos"): "15",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
 }
@@ -458,9 +460,47 @@ def test_the_macos_job_never_fails_a_run_or_a_check_and_no_merge_waits_on_it():
     found, _ = steps(text, "macos")
     assert found and all(step.get("continue-on-error") is True for step in found)
     (suite,) = [step for step in found if step.get("id") == "suite"]
-    assert suite["run"] == SUITE
     assert int(suite["timeout-minutes"]) < int(cap(text, "macos"))
     assert "macos" not in ready.REQUIRED
+
+
+def test_the_macos_job_runs_the_quick_list_on_three_workers_into_the_report_its_summary_reads(
+    tmp_path,
+):
+    """The step runs pytest itself and not `make check`: this runs its shell against a `uv` that
+    writes down what it was given. pytest reads the arguments of `@<file>` from that file, one a
+    line, so the list's paths are the tests the job runs."""
+    found, _ = steps(MAC.read_text(), "macos")
+    (suite,) = [step for step in found if step.get("id") == "suite"]
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    bin, said = tmp_path / "bin", tmp_path / "said"
+    bin.mkdir()
+    (bin / "uv").write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > {said}\n')
+    (bin / "uv").chmod(0o755)
+    subprocess.run(
+        ["bash", "-e", "-c", suite["run"]],
+        cwd=REPO,
+        env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)},
+        check=True,
+    )
+    given = said.read_text().splitlines()
+    assert given[:2] == ["run", "pytest"]
+    assert given[given.index("-n") + 1] == "3"
+    report = listed["env"]["JUNIT"].replace("${{ runner.temp }}", str(tmp_path))
+    assert f"--junitxml={report}" in given
+    (read,) = [arg for arg in given if arg.startswith("@")]
+    assert (REPO / read[1:]).resolve() == MAC_QUICK
+
+
+def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_of_the_repo():
+    """A path that moved or went would make pytest stop with no test run."""
+    paths = MAC_QUICK.read_text().splitlines()
+    assert paths and len(paths) == len(set(paths))
+    for path in paths:
+        found = REPO / path
+        assert found.is_file() and fnmatch(found.name, "test_*.py") or (
+            found.is_dir() and found.name == "tests"
+        ), path
 
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
