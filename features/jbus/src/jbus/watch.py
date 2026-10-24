@@ -908,7 +908,8 @@ def red_brief(
     """Return the brief for the fix of a red main at `sha`, in the shape of
     `features/jbriefs/templates/brief.md`. `jobs` is each failed check run's name, URL and
     failed tests. `red` is the commits from `sha` down to the last green one, not including
-    it. `changed` is the files those commits changed."""
+    it. `changed` is the files those commits changed. `slug` is the briefed merge before the
+    red, or empty where none came in the day before it."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
     where = (
@@ -926,9 +927,10 @@ def red_brief(
     ]
     return "\n".join(
         [
-            f"# {mainjson.FIX}{sha[:12]}: main's check failed at {sha[:12]}, after {slug} merged",
+            f"# {mainjson.FIX}{sha[:12]}: main's check failed at {sha[:12]}, "
+            + (f"after {slug} merged" if slug else "with no briefed merge in the day before it"),
             f'Task: "main check failed at {sha[:12]}, {len(red)} merges since the last green" '
-            f"(jbus, the retro of {slug})",
+            + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)"),
             "Done when:",
             "- each failed test named under Read passes on main, and the failed job passes at "
             "the commit that merges the fix",
@@ -1110,14 +1112,16 @@ def _browser_red(run: Pass) -> None:
 
 def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
     """Report a red main within a day of a merge, and a revert of one. Both lines name the
-    merged slug.
+    merged slug. A red tip of main with no briefed merge in the day before it is reported too,
+    under the name of its fix row: `jmerge` holds every merge on it all the same.
 
     A main whose run was cancelled is not red: `_retro` asks for its run again, and reports
     only a second cancelled run, or a run GitHub would not start again. It reports a red main
     once for each commit. `_retro` files and queues a brief for the fix once, and only for
     main's tip as this pass reads it (`_file`). A red commit that a later commit superseded
     is no longer main, so there is nothing to fix. If main turns green again before a filed
-    row launches, `_retro` reports that once and leaves the row as it is.
+    row launches, `_retro` reports that once and leaves the row as it is. With no briefed merge
+    and no unlaunched fix row, `_retro` asks GitHub nothing until `main.json` keeps a red tip.
     """
     slugs = sorted(
         (s for s in world.merged if brief_of(run, s) and s not in run.gated),
@@ -1130,7 +1134,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         and row.get("status") in ("queued", "gate")
         and not row.get("thread")
     ]
-    if not slugs and not unlaunched:
+    if not slugs and not unlaunched and not mainjson.read(run.state).red:
         return
     merges = [world.merged[slug] for slug in slugs]
     slug_of = {pull["number"]: slug for slug, pull in world.merged.items()}
@@ -1158,9 +1162,12 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         before = [p for p in merges if timedelta(0) <= date - when(p["mergedAt"]) <= RETRO]
         pull = by_commit.get(sha) or (before[-1] if before else None)
         if pull is None or run.now - date > RETRO:
-            continue
-        slug, answer = slug_of[pull["number"]], _check(run, known, sha, again=True)
-        if answer in ("cancelled", "refused"):
+            pull = None
+            if place != 0:
+                continue
+        slug = slug_of[pull["number"]] if pull else ""
+        answer = _check(run, known, sha, again=bool(slug))
+        if slug and answer in ("cancelled", "refused"):
             twice = f"main check cancelled twice at {sha[:12]}"
             unasked = f"main check cancelled at {sha[:12]}, and GitHub did not run it again"
             line = f"retro {slug}: {twice if answer == 'cancelled' else unasked}"
@@ -1172,8 +1179,12 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             if _check(run, known, older["sha"]) == "green":
                 break
             since += 1
-        line = f"retro {slug}: main check failed at {sha[:12]}, {since} merges since the last green"
-        run.find(slug, "retro", line, key=f"red {sha}", past=True)
+        owner = slug or f"{mainjson.FIX}{sha[:12]}"
+        line = (
+            f"retro {owner}: main check failed at {sha[:12]}, {since} merges since the last green"
+        )
+        line += "" if slug else ", and no briefed merge came in the day before it"
+        run.find(owner, "retro", line, key=f"red {sha}", past=True)
         if place == 0 and not run.first and slug not in run.removed:
             _file(run, slug, sha, commits[place : place + since])
     write_json(run.state / "checks.json", known)
