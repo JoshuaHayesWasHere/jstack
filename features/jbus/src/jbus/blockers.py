@@ -17,8 +17,9 @@ service, and prints one line for each blocker of that home:
   queued for the key so far.
 - `wait <key>`: a fix of the key is at work: its row is not over, not stuck and its check has
   not failed. A fix that failed is no fix at work, so the next try is briefed, or the cap raised.
-  It is also the line while the key's last fix has merged and the blocker has not been judged
-  since (`pending`): the merged fix may be what clears it, so no next fix and no page yet.
+  It is also the line while the key's last fix has merged and the blocker's failed check has not
+  been judged since (`pending`): the merged fix may be what clears it, so no next fix and no page
+  yet. A stuck or left row is never judged again, so it does not wait.
 - `decision <key>`: the key had its cap of fixes and still blocks, raised to the user.
 
 A fix's own blockers count against the key it fixes: a fix whose check fails is the same blocker
@@ -36,11 +37,13 @@ fix is refused, and the key is raised as a decision instead.
 A fix is counted when it is queued, so the cap is checked under that one lock, and `forgo` takes
 the count back when `jbus queue remove` takes out a fix row that never launched: it did no work,
 so it spent no try. A row launched once keeps its count when it is removed, so a cap cannot be
-dodged by removing a fix that ran. The cap waits for the effect of the key's last fix: while that
-fix has merged and no pass has judged the blocker since (its pull request's latest check, as the
-pass record keeps it, started after the merge and completed, or its row changed), the key is not
-raised, and `admit` refuses the next fix with no decision (`pending`). A blocker the merged fix
-cleared blocks no more, and is never raised.
+dodged by removing a fix that ran. The cap waits for the effect of the key's last fix on a failed
+check: while that fix has merged and no pass has judged the check since (its pull request's latest
+check, as the pass record keeps it, started after the merge and completed, or its row changed), the
+key is not raised, and `admit` refuses the next fix with no decision (`pending`). A blocker the
+merged fix cleared blocks no more, and is never raised. A stuck or left row is raised at once: the
+pass record keeps a check only for an open pull request, and such a row changes no column when a
+fix merges, so no pass would judge it again.
 
 A decision is the one event of the kind `decision`, at `user`, for each key: `decide` sends it under
 the key `decision|<key>`, which names no slug, so whoever raises the same blocker again sends
@@ -271,10 +274,14 @@ def pending(
     run: Pass, rows: dict[str, queue.Row], had: list[dict[str, str]], blocker: queue.Row | None
 ) -> str:
     """Say that the key's last counted fix has merged and no pass has judged the blocker since,
-    or nothing. Such a fix has not had its effect yet: the blocker's next judgment, such as its
-    check run again over the merged fix, says whether it still stands."""
+    or nothing. Such a fix has not had its effect yet: the blocker's next judgment, its check run
+    again over the merged fix, says whether it still stands. Only a failed check is judged
+    again, as the pass record keeps a check only for a row with an open pull request: a stuck or
+    left row changes no column when a fix merges, so it is never pending."""
     last = rows.get(had[-1].get("slug", "")) if had else None
     if last is None or blocker is None or last.get("status") not in queue.FINAL:
+        return ""
+    if blocker.get("checks") != "failed":
         return ""
     ended = _ended(run, last)
     if ended is not None and _judged(run, blocker, ended):
