@@ -707,6 +707,11 @@ class Repo:
         return found
 
     def others(self, text: str) -> bool:
+        """Whether the brief is another home's to merge. While `home-thread` is empty, jbus is
+        the one runner and every home's brief is its own: none is another's, except to a thread
+        that is no home now. With an id in the switch, each home merges its own."""
+        if self.asking != claims.NOBODY and not _read(self.state / "home-thread").strip():
+            return False
         return claims.home_of(text, self.homes.known) != self.asking
 
     @functools.cached_property
