@@ -384,6 +384,54 @@ def test_a_send_into_a_cap_whose_pass_kept_no_count_is_still_sent_again_after_th
     assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
 
 
+def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_resend_stalls(
+    short, kitchen
+):
+    """The crew is asked for `/pr-review run alpha again` while its instance is capped for an hour,
+    longer than `REVIEWING` passes. A crew the cap locks out is not one that did not act, so no
+    stall is logged during the cap. After the reset the message is sent again, and a crew that
+    stays short `PASSES` idle passes after that gets its stall."""
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
+    resets = later(2) + timedelta(minutes=60)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(3)
+    (first,) = sends(kitchen)
+    short.passes(59)
+    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    assert kitchen.lines("stall") == []
+    short.passes(1)
+    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    short.passes(9)
+    assert kitchen.lines("stall") == []
+    short.passes(1)
+    (stalled,) = kitchen.lines("stall")
+    assert stalled.startswith("stall alpha: #7 is as short as it was 10 passes after")
+
+
+def test_a_hold_whose_crew_is_at_work_at_the_reset_stays_in_hand_and_is_sent_once_it_is_idle(
+    short, kitchen
+):
+    """The crew is asked for a scoped pass over its rebase while its instance is capped for 40
+    minutes, and it is at work on the pass at the reset. The passes of the cap are not passes the
+    message waited to be sent, so the hold is not the user's, and the first pass with the crew
+    idle sends the message again."""
+    short.out(short.unruled(), "hold", short.rebased())
+    resets = later(2) + timedelta(minutes=40)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(3)
+    (first,) = sends(kitchen)
+    short.passes(39)
+    short.thread["status"] = "running"
+    short.passes(1)
+    assert later(short.minute - 1) == resets and sends(kitchen) == [first]
+    assert listed(kitchen) == []
+    short.thread["status"] = "completed"
+    short.passes(1)
+    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    assert listed(kitchen) == []
+
+
 def reviewer_says(tmp_path, asked, brief):
     """Return what the reviewer's Start 1 prints when `asked` starts the reviewer on a brief."""
     (tmp_path / "tasks").mkdir(exist_ok=True)
