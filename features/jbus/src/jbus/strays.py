@@ -25,7 +25,9 @@ name, which spells the config folder's variable (`CONFIG`) and its default (`KEP
 A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own `systemd
 --user`, which adopts what a unit of it left, as it is for jbus, a user service. Where there is
 no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory and
-`ps -E` its environment, and the one reaper is 1, launchd. A process is
+`ps -E` its environment, and the one reaper is 1, launchd. `ps` gives the command line as one
+string, so its arguments are split at spaces there: a path with a space in it, as an app
+bundle's, is read as several arguments. A process is
 never stopped when its parent is not a reaper, when it is not the user's, when it is jbus
 or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, it is
 stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and
@@ -74,7 +76,8 @@ SHOWN = 3
 class Proc:
     """A `Proc` is what `/proc`, or `ps` where there is none, says of one process: its parent,
     its start time, its CPU time in clock ticks (hundredths of a second from `ps`), its
-    arguments, its working directory, and its environment."""
+    arguments, its working directory, its environment, and its owner where `ps` read it (the
+    /proc reader keeps only the user's own)."""
 
     pid: int
     ppid: int
@@ -83,6 +86,7 @@ class Proc:
     args: list[str]
     cwd: str
     env: dict[str, str] = field(default_factory=dict)
+    uid: int | None = None
 
     @property
     def command(self) -> str:
@@ -126,11 +130,10 @@ def _ticks(text: str) -> int:
     return round((int(days or 0) * 86400 + seconds) * 100)
 
 
-def _ps(*pids: str) -> dict[str, tuple[tuple[int, int, int], int, str]]:
-    """For each of the processes, or each process when none is named, that is not a zombie:
-    its parent, start time and CPU time, as `_stat` gives them, its owner and its command line.
-    `lstart` is a start time to the second, which is enough to tell a process from a later one
-    with its pid."""
+def _ps(*pids: str) -> dict[int, Proc]:
+    """Each of the processes, or each process when none is named, that is not a zombie, as `ps`
+    gives it: no working directory or environment yet. `lstart` is a start time to the second,
+    which is enough to tell a process from a later one with its pid."""
     which = ("-p", ",".join(pids)) if pids else ("-A",)
     said = _run("ps", "-ww", *which, "-o", "pid=,ppid=,uid=,lstart=,time=,stat=,command=")
     found = {}
@@ -140,25 +143,28 @@ def _ps(*pids: str) -> dict[str, tuple[tuple[int, int, int], int, str]]:
             continue
         try:
             start = time.mktime(time.strptime(" ".join(part[3:8]), "%a %b %d %H:%M:%S %Y"))
-            stat = (int(part[1]), int(start), _ticks(part[8]))
-            found[part[0]] = (stat, int(part[2]), part[10] if len(part) > 10 else "")
+            args = part[10].split() if len(part) > 10 else []
+            pid, ppid, uid = int(part[0]), int(part[1]), int(part[2])
+            found[pid] = Proc(pid, ppid, int(start), _ticks(part[8]), args, "", uid=uid)
         except ValueError:
             continue
     return found
 
 
 def _stats(pids: Iterable[str]) -> dict[str, tuple[int, int, int] | None]:
-    """`_stat` of each process, from one `ps` where there is no /proc."""
+    """Each process's parent, start time and CPU time: from /proc, or from one `ps` where there
+    is none."""
     pids = list(pids)
     if ROOT.is_dir() or not pids:
         return {pid: _stat(pid) for pid in pids}
     listed = _ps(*pids)
-    return {pid: listed[pid][0] if pid in listed else None for pid in pids}
+    return {
+        pid: (one.ppid, one.start, one.ticks) if (one := listed.get(int(pid))) else None
+        for pid in pids
+    }
 
 
 def _stat(pid: str) -> tuple[int, int, int] | None:
-    if not ROOT.is_dir():
-        return _stats([pid])[pid]
     try:
         text = (ROOT / pid / "stat").read_text()
         fields = text.rsplit(")", 1)[1].split()
@@ -215,60 +221,68 @@ def _read(pid: str, stat: tuple[int, int, int]) -> Proc | None:
     )
 
 
-def _listed(adopted: dict[str, tuple[tuple[int, int, int], int, str]]) -> list[Proc]:
-    """The processes `ps` listed, with the working directory `lsof` gives and the environment
-    `ps -E` adds after the command line, which it shows for the user's own processes. A
-    process `lsof` gives no folder for has none, and is known by its arguments alone."""
-    if not adopted:
+def _located(found: list[Proc]) -> list[Proc]:
+    """The processes with the working directory `lsof` gives and the environment `ps -E` adds
+    after the command line, which it shows for the user's own processes. A process `lsof` gives
+    no folder for has none, and is known by its arguments alone."""
+    if not found:
         return []
-    pids = ",".join(adopted)
+    pids = ",".join(str(one.pid) for one in found)
     folders, pid = {}, ""
     for line in _run("lsof", "-a", "-d", "cwd", "-Fn", "-p", pids).splitlines():
         if line.startswith("p"):
             pid = line[1:]
         elif line.startswith("n") and pid:
             folders[pid] = line[1:].removesuffix(" (deleted)")
-    envs = {}
+    shown = {}
     for line in _run("ps", "-ww", "-E", "-p", pids, "-o", "pid=,command=").splitlines():
         pid, _, text = line.strip().partition(" ")
-        command = adopted[pid][2] if pid in adopted else None
-        if command and text.startswith(command):
-            rest = text[len(command) :]
-            named = r"(?:^| )([A-Za-z_][A-Za-z0-9_]*)=(.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)"
-            envs[pid] = {one[1]: one[2] for one in re.finditer(named, rest)}
-    return [
-        Proc(int(pid), *stat, command.split(), folders.get(pid, ""), envs.get(pid, {}))
-        for pid, (stat, _, command) in adopted.items()
-    ]
+        shown[pid] = text.split()
+    named = r"(?:^| )([A-Za-z_][A-Za-z0-9_]*)=(.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)"
+    for one in found:
+        one.cwd = folders.get(str(one.pid), "")
+        words = shown.get(str(one.pid), [])
+        if words[: len(one.args)] == one.args:
+            rest = " ".join(words[len(one.args) :])
+            one.env = {each[1]: each[2] for each in re.finditer(named, rest)}
+    return found
 
 
-def _ancestors(stats: dict[str, tuple[int, int, int]]) -> set[int]:
+def _from_proc() -> tuple[dict[int, int], list[Proc]]:
+    """Each process's parent, and the user's processes whose parent is a reaper, from /proc."""
+    try:
+        pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
+    except OSError:
+        return {}, []
+    stats = {pid: stat for pid in pids if (stat := _stat(pid)) is not None}
+    adopting = {ppid for ppid in {stat[0] for stat in stats.values()} if reaper(ppid)}
+    left = [_read(pid, stat) for pid, stat in stats.items() if stat[0] in adopting]
+    parents = {int(pid): stat[0] for pid, stat in stats.items()}
+    return parents, [one for one in left if one is not None]
+
+
+def _from_ps() -> tuple[dict[int, int], list[Proc]]:
+    """The same, from `ps` and `lsof`, where the one reaper is 1, launchd."""
+    listed = _ps()
+    uid = os.getuid()
+    left = [one for one in listed.values() if one.ppid == 1 and one.uid == uid]
+    return {pid: one.ppid for pid, one in listed.items()}, _located(left)
+
+
+def _ancestors(parents: dict[int, int]) -> set[int]:
     found, pid = set(), os.getpid()
     while pid > 1 and pid not in found:
         found.add(pid)
-        stat = stats.get(str(pid))
-        pid = stat[0] if stat else 0
+        pid = parents.get(pid, 0)
     return found
 
 
 def orphans() -> list[Proc]:
     """Every process of the user whose parent is a reaper, but for jbus's, T3 Code's and the
     agent's."""
-    if ROOT.is_dir():
-        try:
-            pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
-        except OSError:
-            return []
-        stats = {pid: stat for pid in pids if (stat := _stat(pid)) is not None}
-        adopting = {ppid for ppid in {stat[0] for stat in stats.values()} if reaper(ppid)}
-        left = [_read(pid, stat) for pid, stat in stats.items() if stat[0] in adopting]
-    else:
-        listed = _ps()
-        stats = {pid: one[0] for pid, one in listed.items()}
-        uid = os.getuid()
-        left = _listed({pid: one for pid, one in listed.items() if (one[0][0], one[1]) == (1, uid)})
-    mine = _ancestors(stats)
-    found = [one for one in left if one is not None and one.pid not in mine]
+    parents, left = _from_proc() if ROOT.is_dir() else _from_ps()
+    mine = _ancestors(parents)
+    found = [one for one in left if one.pid not in mine]
     return [one for one in found if not any(OWN.search(arg) for arg in one.args[:3])]
 
 
