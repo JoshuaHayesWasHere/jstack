@@ -16,7 +16,18 @@ import pytest
 from jinstall.__main__ import setup as run_setup
 from jinstall.kinds import StateRepo
 from test_doctor import T3_STABLE, Doctored
-from test_install import REPO, SCRUBBED, UNITS, Machine, Ran, line_for, machine, worktree
+from test_install import (
+    REPO,
+    SCRUBBED,
+    T3_GET,
+    UNITS_PUT,
+    Machine,
+    Ran,
+    line_for,
+    linux_only,
+    machine,
+    worktree,
+)
 from testing.paths import skills
 
 GIT = 'case "$1" in config) echo "Sam Doe" ;; *) echo "git version 2.51.0" ;; esac'
@@ -114,9 +125,7 @@ def test_it_seeds_a_private_jbus_config_that_dispatches_nothing(user):
     user.setup()
     assert stat.S_IMODE(user.jbus_config.stat().st_mode) == 0o600
     assert tomllib.loads(user.jbus_config.read_text()) == {"server": SERVER, "dispatch": False}
-    assert sorted(path.name for path in user.units.iterdir()) == sorted(
-        [*UNITS, "timers.target.wants"]
-    )
+    assert sorted(path.name for path in user.units.iterdir()) == UNITS_PUT
 
 
 def test_the_jbus_server_is_the_one_the_t3_sign_in_names(user):
@@ -147,6 +156,9 @@ def test_a_file_that_is_there_is_never_written_over(user):
     assert user.roles.read_text() == "crew: nonsense\n"
 
 
+@linux_only(
+    "test_setup.py::test_each_missing_program_is_named_with_the_command_that_gets_it_on_the_platform"
+)
 def test_a_missing_program_names_the_one_command_to_get_it(user):
     path = user.without("gh")
     assert line_for(user.setup(path=path)[1], "gh") == [
@@ -249,7 +261,7 @@ def test_a_hard_need_left_to_the_user_exits_1(user):
     user.program("pacman", "exit 0")
     code, said = user.setup()
     assert code == 1
-    assert "needs you t3 -> yay -S t3code-bin" in said
+    assert f"needs you t3 -> {T3_GET}" in said
     user.program("t3", f"echo 't3 v{T3_STABLE}'")
     assert user.setup()[0] == 0
 
