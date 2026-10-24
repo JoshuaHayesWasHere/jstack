@@ -18,7 +18,7 @@ import pytest
 from jinstall.__main__ import doctor
 from jinstall.kinds import Program, T3Code
 from jinstall.needs import T3_FLOOR
-from test_install import REPO, Machine, Ran, User, line_for, machine
+from test_install import REPO, T3_WHERE, Machine, Ran, User, line_for, machine
 
 T3_STABLE = "0.1.2"
 TOKEN = "gho_a_token_the_doctor_never_prints"
@@ -181,7 +181,7 @@ def test_a_t3_code_that_does_not_answer_is_old(user):
 def test_t3_code_is_asked_through_the_command_it_writes_into_its_own_home(user):
     path = user.without("t3")
     assert line_for(user.doctor(path=path)[1], "hard t3") == [
-        "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)"
+        f"missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly ({T3_WHERE})"
     ]
     written = user.home / ".t3" / "bin" / "t3"
     user.write(written, f"#!/bin/sh\necho 't3 v{T3_STABLE}'\n")
