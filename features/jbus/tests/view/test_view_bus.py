@@ -1,9 +1,15 @@
 """Whether jbus is passing, and the room the machine has."""
 
 import json
+import os
+import subprocess
+import sys
 from datetime import timedelta
 
+from testing.paths import REPO
 from view.scene import NOW, ago, iso
+
+LAUNCHCTL = REPO / "features" / "verify-jstack" / "project-skill" / "scripts" / "fake-launchctl"
 
 
 def test_jbus_is_passing_while_the_timer_is_active_and_a_pass_ended_lately(served):
@@ -54,6 +60,29 @@ def test_a_pass_that_starts_and_dies_each_minute_has_stopped(scene, served):
     jbus = served.json("/state.json?project=demo")["jbus"]
     assert (jbus["stopped"], jbus["why"]) == (True, "no pass in the last 150 s")
     assert jbus["last_end"] == iso(ago(seconds=400).replace(second=0))
+
+
+def test_on_a_mac_jbus_is_its_launchd_agent_and_the_line_says_only_what_launchd_gives(
+    scene, served, monkeypatch
+):
+    monkeypatch.setattr(sys, "platform", "darwin")
+    (scene.bin / "launchctl").symlink_to(LAUNCHCTL)
+    monkeypatch.setenv("FAKE_LAUNCHCTL_LOG", str(scene.root / "launchctl.log"))
+    monkeypatch.setenv("FAKE_LAUNCHCTL_LOADED", str(scene.root / "launchd"))
+    jbus = served.json("/state.json?project=demo")["jbus"]
+    assert (jbus["manager"], jbus["stopped"], jbus["why"]) == (
+        "launchd",
+        True,
+        "the timer is not active",
+    )
+    assert jbus["said"] == "jstack.jbus inactive"
+
+    plist = scene.root / "jstack.jbus.plist"
+    plist.write_text("<plist/>\n")
+    subprocess.run([LAUNCHCTL, "bootstrap", f"gui/{os.getuid()}", str(plist)], check=True)
+    jbus = served.json("/state.json?project=demo")["jbus"]
+    assert (jbus["stopped"], jbus["why"]) == (False, "")
+    assert jbus["said"] == "jstack.jbus active (waiting), jstack.jbus success, exit 0"
 
 
 def test_what_jbus_wrote_is_frozen_and_what_the_server_reads_is_live(served):
