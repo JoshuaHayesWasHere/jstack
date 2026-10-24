@@ -302,4 +302,4 @@ def owe(run: Pass) -> None:
     write_json(run.state / NAME, {"asked": run.now.isoformat(), "filed": filed})
 
 
-STEPS = (verbs.Step("tellers", 45, "sidered.owe", lambda half: owe(half.run)),)
+STEPS = (verbs.Step("tellers", 45, "sidered.owe", lambda half: owe(half.run), ("budget",)),)
