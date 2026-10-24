@@ -351,6 +351,20 @@ def step_files(tmp_path, monkeypatch):
     assert [file.read_text() for file in files] == ["", ""]
 
 
+def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, step_files):
+    """A test of `select_tests.py` runs the script as a job's step would, and the job's step files
+    are in the environment of every test: the suite's fixtures keep them out of each test."""
+    one = "testing/tests/test_select_tests.py::"
+    one += "test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_chain"
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", one],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout[-2000:]
+
+
 def check_fast(copy, path):
     """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line."""
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
