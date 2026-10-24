@@ -208,9 +208,11 @@ def shown(run: Pass, said: Said) -> Said:
 
 
 def _shown(half: Half) -> None:
-    """Keep the lines of `shown`, and those lines as the user is to hear them (`Said.crews`)."""
+    """Keep the lines of `shown`, and what `merge` printed as the user is to hear it (`Said.crews`).
+    `stall.tell` reads `users`: where the home merges, a hold is the home's to act on, so `users`
+    holds no line of `CHECK`, and `waiting.keep` lists the holds from `shown`."""
     half.shown = shown(half.run, half.said)
-    half.users = half.shown.crews(half.crews)
+    half.users = half.said.crews(half.crews)
 
 
 def _why(ran: subprocess.CompletedProcess[str]) -> str:

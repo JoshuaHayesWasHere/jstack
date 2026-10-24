@@ -655,10 +655,11 @@ def cadence(
 
 
 def _keep(half: Half) -> None:
-    """Rewrite the list, and store it for `cadence`."""
-    run, world, rows = half.run, half.seen.world, half.table
+    """Rewrite the list, and store it for `cadence`. The holds come from `Half.shown`, which where
+    the home merges is what `jmerge --check` said in this pass (`merge.shown`)."""
+    run, world, rows, pulls = half.run, half.seen.world, half.table, half.shown.crews(half.crews)
     half.listed = keep(
-        run, world, rows, half.users, half.roots, derived=half.derived, read_all=half.read
+        run, world, rows, pulls, half.roots, derived=half.derived, read_all=half.read
     )
 
 
