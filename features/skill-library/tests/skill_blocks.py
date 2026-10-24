@@ -88,7 +88,7 @@ def prints_the_root_and_names_only_files_under_it(name, repo, home):
     that root, and every file the skill names is under the root."""
     linked(home, name)
     (root,) = run(block(name, "no root:"), repo, home)
-    assert root == str(COPY)
+    assert root == os.path.realpath(COPY)
     named = {
         path
         for file in (COPY / "skills" / name).rglob("*.md")
