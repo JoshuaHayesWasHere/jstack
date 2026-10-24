@@ -178,57 +178,53 @@ def _near(approved: str, now: str) -> bool:
     return long and _edits(approved, now) <= EDITS
 
 
-def _pairs(approved: list, now: list, alike) -> bool:
-    """Whether every item of `approved` pairs with its own item of `now`, with as many items in
-    each. Equal items pair first, then each item pairs with the first item that is `alike`."""
-    if len(approved) != len(now):
-        return False
+def _unpaired(approved: list, now: list, alike, key=lambda item: item) -> tuple[list, list]:
+    """The items of `approved` and the items of `now` that pair with none of the other. Equal
+    items pair first, then each item pairs with the first item that is `alike`. An item of `now`
+    is compared by its `key`."""
     left = list(now)
     rest = []
     for item in approved:
-        if item in left:
-            left.remove(item)
-        else:
-            rest.append(item)
-    for item in rest:
-        match = next((other for other in left if alike(item, other)), None)
+        match = next((other for other in left if key(other) == item), None)
         if match is None:
-            return False
-        left.remove(match)
-    return True
+            rest.append(item)
+        else:
+            left.remove(match)
+    out = []
+    for item in rest:
+        match = next((other for other in left if alike(item, key(other))), None)
+        if match is None:
+            out.append(item)
+        else:
+            left.remove(match)
+    return out, left
+
+
+def _pairs(approved: list, now: list, alike) -> bool:
+    """Whether every item of `approved` pairs with its own item of `now`, with as many items in
+    each."""
+    return len(approved) == len(now) and _unpaired(approved, now, alike) == ([], [])
 
 
 def changed(approved: Meaning, text: str) -> list[str]:
     """The lines of the brief `text` that the approved fingerprint does not cover, each as
     `<label>: <line>`, in the order of `MEANING`, and `<label>: a line taken out` for each
-    approved line that pairs with none beyond those. It pairs lines as `same` does, so it is empty
-    exactly when the brief means what was approved."""
+    approved line that pairs with none beyond those. It pairs lines with `_unpaired`, as `same`
+    does, so it is empty exactly when the brief means what was approved."""
     was = dict(approved)
     found = []
     for label, lines in _fields(text).items():
         if label not in (MEANING if parse.TITLE in was else LEGACY):
             continue
-        left = sorted(lines, key=lambda one: one[1])
-        rest = []
-        for line in was.get(label, []):
-            match = next((one for one in left if one[1] == line), None)
-            if match is None:
-                rest.append(line)
-            else:
-                left.remove(match)
-        out = 0
-        for line in rest:
-            match = next((one for one in left if _alike(line, one[1])), None)
-            if match is None:
-                out += 1
-            else:
-                left.remove(match)
+        now = sorted(lines, key=lambda one: one[1])
+        out, left = _unpaired(was.get(label, []), now, _alike, key=lambda one: one[1])
+        shown = 0
         for one in lines:
             if one in left:
                 left.remove(one)
                 found.append(f"{label}: {one[0]}")
-                out -= 1
-        found += [f"{label}: a line taken out"] * out
+                shown += 1
+        found += [f"{label}: a line taken out"] * (len(out) - shown)
     return found
 
 
