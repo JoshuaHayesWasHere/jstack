@@ -51,6 +51,14 @@ Each heading gives the home's open tasks and what of it waits on you, and a chil
 A row's home is the one `jbriefs.home_of` gives its brief's `Home:` line, and the root for a row with no such line.
 A row whose `Home:` line names a scope that has retired is under the root, with a chip that names the scope.
 In `/state.json` and `/stack.json` each task, thread and need has its `home`, the scope's name or an empty string for the root, and the summary lists the homes with their counts under `homes`.
+Each need also has its `subj`, the row or question it is about, so that no need reads only as its question.
+
+`/stack.json` has one list of what is wrong across the projects, `wrong`, oldest first.
+Its kinds are a red main, a failed or unread CI, failing or stranded wakes, a source that is there and cannot be read, a source the last pass could not ask, a thread that is hung or quiet, a stall jbus logged that still stands, and a pull request whose crew was told what it lacks and has not acted (`expedite.json`).
+A file a project has never had is no entry.
+Each entry has its `kind`, its `subj`, its `cause`, `since` when it went wrong, and `where`: each project and home it is in, with the drawer that has it.
+An entry of the bus or of a source with the same subject and cause in several projects is one entry that names them all, and any other entry stays one per project.
+A project's red reasons (`broken`) are built from the same list, so the two never disagree.
 
 ### Every view is a link
 

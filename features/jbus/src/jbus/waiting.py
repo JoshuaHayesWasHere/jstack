@@ -192,6 +192,20 @@ def short(one: Item) -> str:
     return f"{'question' if questions.listed(one) else one['kind']} {home}{what}"
 
 
+def subject(one: Item) -> str:
+    """Return the row or question an item is about: the slug of its row, else `question <n>`
+    for a gate (`question <home>#<n>` for a scoped home's), else `#<n>` for a hold, else what
+    its key names after its kind."""
+    if one.get("slug"):
+        return str(one["slug"])
+    if one["kind"] in ("gate", "hold") and one.get("number"):
+        if one["kind"] == "hold":
+            return f"#{one['number']}"
+        home = f"{one['home']}#" if one.get("home") else ""
+        return f"question {home}{one['number']}"
+    return str(one["key"]).rpartition(":")[2]
+
+
 def read(state: Path) -> list[Item] | None:
     """Return the list as the last pass left it, or None where no pass has written one.
 
