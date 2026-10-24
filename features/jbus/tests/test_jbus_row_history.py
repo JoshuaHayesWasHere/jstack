@@ -98,18 +98,6 @@ def test_a_row_that_no_longer_waits_has_no_reason_and_no_since(kitchen):
     assert waits(kitchen) == {"alpha": ("", "")}
 
 
-def test_where_the_home_merges_the_line_is_the_last_one_jmerge_logged(kitchen):
-    add(kitchen, "alpha", approve=False)
-    kitchen.brief("alpha", RESULT)
-    kitchen.set("open.json", [kitchen.opened("alpha", 8)])
-    (kitchen.home / "home-thread").write_text("mcp:a-home\n")
-    last = {"8": "wait 8 https://example.test/pull/8: needs a rebase", "7": "hold 7 beta: old"}
-    (kitchen.home / "merge.log.last").write_text(json.dumps(last))
-    kitchen.poll()
-    assert kitchen.log("jmerge") == []
-    assert waits(kitchen) == {"alpha": ("wait: needs a rebase", FIRST)}
-
-
 def test_where_the_home_merges_a_hold_shows_in_the_pass_that_asked_jmerge(kitchen):
     """S11: a replay from made-up rows. The home logged "no review yet" for #8 and has not run
     `jmerge` since. Its review is written now, and `jmerge` holds it. One pass shows the hold in
@@ -126,15 +114,19 @@ def test_where_the_home_merges_a_hold_shows_in_the_pass_that_asked_jmerge(kitche
     assert json.loads((kitchen.home / "merge.log.last").read_text()) == {"8": NO_REVIEW.strip()}
 
 
-def test_a_log_of_last_lines_that_does_not_parse_gives_no_reason(kitchen):
+def test_where_the_home_merges_a_check_that_stops_keeps_the_reason_the_row_had(kitchen):
     add(kitchen, "alpha", approve=False)
     kitchen.brief("alpha", RESULT)
     kitchen.set("open.json", [kitchen.opened("alpha", 8)])
     (kitchen.home / "home-thread").write_text("mcp:a-home\n")
-    for text in ("[not a table", '["a list"]', '{"8": 8}'):
-        (kitchen.home / "merge.log.last").write_text(text)
-        kitchen.poll()
-        assert waits(kitchen) == {"alpha": ("", "")}
+    kitchen.set("jmerge.txt", "hold 8 https://example.test/pull/8: needs user\n")
+    kitchen.poll()
+    kitchen.set("jmerge-dies", "jmerge: gh is not installed")
+    printed = kitchen.poll(LATER)
+    assert "wait demo: jmerge --check did not run to its end (jmerge: gh is not installed)" in (
+        printed
+    )
+    assert waits(kitchen) == {"alpha": ("hold: needs user", FIRST)}
 
 
 def test_a_row_not_launched_says_which_of_the_reasons_stopped_it(kitchen):

@@ -706,25 +706,18 @@ def status(
     }
 
 
-def waits(run: Pass, pulls: Said, home: str) -> Waits:
+def waits(pulls: Said) -> Waits:
     """Return what `jmerge` waits for or holds, by the pull request's number.
 
-    `pulls` is what `jmerge` printed in this pass. Where the `home` merges, `jmerge` did
-    not run here, and `waits` reads the last lines that `jmerge` logged, in `merge.log.last`.
-    `waits` reads that file in no other case, since the file keeps a pull request's line even
-    after the pull request stopped waiting.
+    `pulls` is what `jmerge` said in this pass (`merge.shown`), also where the home merges.
     """
-    said: list[Any] = pulls
-    if home:
-        last = read_json(run.home / "merge.log.last", {})
-        said = list(last.values()) if isinstance(last, dict) else []
-    found = (parse(line) for line in said if isinstance(line, str))
+    found = (parse(line) for line in pulls if isinstance(line, str))
     by_number = {
         str(line.number): f"{line.word}: {line.reason}"
         for line in found
         if line and line.word in ("wait", "hold") and line.reason
     }
-    return Waits(by_number, failed=not home and pulls.failed)
+    return Waits(by_number, failed=pulls.failed)
 
 
 def unread(run: Pass, read: bool) -> str:

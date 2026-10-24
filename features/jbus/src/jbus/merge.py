@@ -3,6 +3,9 @@
 jbus runs `jmerge` only when the project's home is off, that is, when the home's `home-thread` file
 is missing or empty. A home that is switched on does its own merging, and two merges at once would
 race. The pass holds the pass lock around the run, so two passes never run `jmerge` together either.
+Where the home merges, the pass still asks `jmerge` what it says of each pull request, with `CHECK`,
+which merges and logs nothing (`shown`). A row's reason is then what `jmerge` says in this pass, and
+not the last line a run of the home's logged, which only the home's next run brings up to date.
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
@@ -28,8 +31,9 @@ from __future__ import annotations
 import hashlib
 import re
 import subprocess
+from typing import TYPE_CHECKING
 
-from jbus import alert
+from jbus import alert, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
@@ -38,6 +42,9 @@ from jmerge import ready
 from jmerge.lines import Line as Line
 from jmerge.lines import one as parse
 
+if TYPE_CHECKING:
+    from jbus.cli import Half
+
 EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
 _NO_LIST = re.compile(
     r"jmerge: .*(protected|guarded|ci-paths)\.txt "
@@ -45,6 +52,7 @@ _NO_LIST = re.compile(
 )
 NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
 SWEEP = ("jmerge", "--sweep", "--check")
+CHECK = ("jmerge", "--check")
 UNRULED = re.compile(
     re.escape(ready.UNRULED_DROPS)
     .replace(r"\{user\}", ".+?")
@@ -177,6 +185,34 @@ def merge(run: Pass) -> Said:
     return lines
 
 
+def shown(run: Pass, said: Said) -> Said:
+    """Return the lines a row's reason and the list of holds are read from: what `merge` printed
+    in this pass, `said`, or, where the home merges, what `jmerge` says with `CHECK`.
+
+    The lines of `CHECK` are kept apart from `said`, since jbus acts on `said` (a rebase, an
+    expedite), and where the home merges, acting on a pull request is the home's. They are not
+    sent as events either: the home's own run of `jmerge` logs its lines. The `Said` is `failed`
+    when `CHECK` did not run to its end, so the pass keeps what it knew of the rows."""
+    if not home_thread(run):
+        return said
+    ran = run.run(*CHECK, timeout=JMERGE_TIMEOUT)
+    lines = Said(
+        text
+        for text in map(str.strip, ran.stdout.splitlines())
+        if (line := parse(text)) and line.word != "refused"
+    )
+    lines.failed = bool(ran.returncode)
+    if lines.failed:
+        run.say(f"wait {run.project.name}: {' '.join(CHECK)} did not run to its end ({_why(ran)})")
+    return lines
+
+
+def _shown(half: Half) -> None:
+    """Keep the lines of `shown`, and those lines as the user is to hear them (`Said.crews`)."""
+    half.shown = shown(half.run, half.said)
+    half.users = half.shown.crews(half.crews)
+
+
 def _why(ran: subprocess.CompletedProcess[str]) -> str:
     said = (ran.stderr or ran.stdout).strip().splitlines()
     return said[-1].strip() if said else str(ran.returncode)
@@ -223,3 +259,6 @@ def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, threa
     line = f"{UNPLACED} {slug}: told its home, thread {thread}, that no rule names `{said}`"
     run.find(slug, UNPLACED, line, text, key=digest)
     run.say(line)
+
+
+STEPS = (verbs.Step("derive", 5, "merge.shown", _shown),)
