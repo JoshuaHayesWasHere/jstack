@@ -361,24 +361,32 @@ def deliver(run: Pass, client: Client, world: World, number: int, reason: str, a
         run.say(line)
 
 
+def mark(kind: str, slug: str, head: str, window: str = "") -> str:
+    """Return the key of a message about a head: `<kind>|<slug>|<head 12>`, and `|<window>` after
+    it when the message is sent while the crew's instance is capped. A message spent in a cap has a
+    key of its own, so the same message sent after the reset is not taken for it."""
+    return f"{kind}|{slug}|{head[:12]}" + (f"|{window}" if window else "")
+
+
 def post(
-    run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask
+    run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask, window: str = ""
 ) -> tuple[str, str, str] | None:
     """Send the crew of a pull request one message. Return the slug, the head and the message sent,
     or nothing when no message went.
 
     `post` sends only for a pull request that is open under a slug that has a crew (`crew`): jbus
     launched it, or its home launched it for a queue row that names its thread. The key
-    `<kind>|<slug>|<head 12>` is the retry key at T3 Code. `post` sends no message whose key is
-    already in `sent.json`. `deliver` puts the key there through the event that it queues, and any
-    other caller writes the key itself. `mainmoved` also writes the key, for a head that it told.
+    `mark` gives, `<kind>|<slug>|<head 12>` with `|<window>` after it for a message sent into a cap,
+    is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`.
+    `deliver` puts the key there through the event that it queues, and any other caller writes the
+    key itself. `mainmoved` also writes the key, for a head that it told.
     `post` sends nothing while `held` delays the message. When a rebase message goes, `post` writes
     the `mainmoved` key for the commit that the default branch points to, so jbus does not also
     tell of that move.
     """
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
     head = world.open[slug].get("headRefOid", "") if slug else ""
-    key = f"{ask.kind}|{slug}|{head[:12]}"
+    key = mark(ask.kind, slug, head, window)
     if not head or not crew(run, slug):
         return None
     sent = read_json(run.state / "sent.json", [])
