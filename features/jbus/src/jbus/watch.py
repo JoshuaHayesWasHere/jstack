@@ -833,9 +833,11 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     the rerun ends. GitHub's `run_attempt` says whether the run ran again: `cancelled` is a later
     attempt that was cancelled too, and `refused` a run that GitHub did not start again.
 
-    A commit whose every failed check run has a job that ran no step is `NO_JOB`, not `failed`:
-    GitHub started no job, as on a spent Actions limit or a failed payment, so no code was judged.
-    A check run whose job GitHub does not give counts as one that ran, as in `never_started`.
+    A commit whose every failed check run has a job that ran no step, and no check run of which
+    passed, is `NO_JOB`, not `failed`: GitHub started no job, as on a spent Actions limit or a
+    failed payment, so no code was judged. A run that passed shows that GitHub starts jobs, so a
+    run beside it that started none is a failed check. A check run whose job GitHub does not give
+    counts as one that ran, as in `never_started`.
     """
     if sha in known:
         return known[sha]
@@ -846,7 +848,7 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
         return "pending"
     failed = [r for r in runs if r.get("conclusion") not in NOT_RED]
     unrun = (job(run, "{owner}/{repo}", str(r.get("id"))).get("steps") == [] for r in failed)
-    if failed and all(unrun):
+    if failed and "success" not in ended and all(unrun):
         known[sha] = NO_JOB
         return NO_JOB
     bad = bool(failed)
