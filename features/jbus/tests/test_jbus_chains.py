@@ -6,6 +6,8 @@ and jmerge holds its pull request until the row it names has merged.
 The tests run the real `jbus queue add` and the real pass in a kitchen, against its fakes of T3
 Code and GitHub. The merges follow the real rule of `jmerge.rows`, which jmerge asks first."""
 
+import os
+import sys
 from datetime import timedelta
 
 import pytest
@@ -13,6 +15,9 @@ import pytest
 from jmerge import rows as jrows
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import brief, go, rows
+from testing.paths import REPO
+
+BRIEFS = REPO / "features/arena-swarm/skills/arena/briefs.sh"
 
 ORDER_ONLY = "{slug} cannot depend on {other}: its brief's Builds on: line does not name"
 
@@ -64,6 +69,23 @@ def test_a_builds_on_line_names_a_slug_whole_and_not_a_slug_it_starts_with(kitch
     built = brief("beta", "Builds on: alpha-two: its tables\n")
     assert queue_add(kitchen, "beta", "--depends", "alpha", text=built)[0] != 0
     assert queue_add(kitchen, "beta", "--depends", "alpha-two", text=built)[0] == 0
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Builds on: alpha: the docs alpha writes\n",
+        "Builds on: alpha: its parser; gamma: the docs it reads\n",
+        "Builds on: <slug>: <what of its work this row starts from>\n",
+    ],
+)
+def test_a_word_after_the_colon_names_no_row(kitchen, line):
+    """Only the slugs before each item's colon are rows the brief builds on: a word of the
+    description that happens to be a slug, or the template's own text, names none."""
+    for slug in ("alpha", "gamma", "docs"):
+        assert queue_add(kitchen, slug)[0] == 0
+    code, said = queue_add(kitchen, "beta", "--depends", "docs", text=brief("beta", line))
+    assert code != 0 and ORDER_ONLY.format(slug="beta", other="docs") in said
 
 
 def test_an_order_only_about_merging_is_queued_as_merge_after_with_no_line(kitchen):
@@ -143,3 +165,42 @@ def test_a_chain_only_about_merging_launches_at_once_and_merges_link_by_link(kit
     assert order == list(CHAIN)
     assert [rows(kitchen)[slug]["status"] for slug in CHAIN] == ["merged"] * len(CHAIN)
     assert [given["title"] for given in kitchen.t3.launches][len(CHAIN) :] == ["crew: five"]
+
+
+@pytest.mark.parametrize("have", ["a b", "a"])
+def test_the_arena_queues_its_four_seats_whose_briefs_build_on_what_they_depend_on(
+    kitchen, tmp_path, have
+):
+    """The arena's script writes the four briefs and queues them with `jbus queue apply`: the
+    judge depends on the runners and the graft on them and the judge, and each brief's
+    `Builds on:` line names what its row depends on, so the batch is queued whole."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake = bin_dir / "jbus"
+    fake.write_text(
+        f'#!/bin/sh\ncase $1 in plan) exit 0 ;; esac\nexec {sys.executable} -m jbus "$@"\n'
+    )
+    fake.chmod(0o755)
+    frame = {
+        "H": str(kitchen.home),
+        "slug": "ar",
+        "entry": "ar",
+        "size": "S",
+        "where": "`src/ar/`",
+        "priority": "2",
+        "scope": "",
+        "have": have,
+        "prompt": "make a thing",
+        "rubric": "- it is a thing",
+        "done_when": "- it is done",
+        "proves": "`make check`",
+    }
+    env = {**os.environ, **frame, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+    ran = kitchen.started(["sh", str(BRIEFS)], env=env, capture_output=True, text=True)
+    assert ran.returncode == 0, ran.stdout + ran.stderr
+    runners = [f"ar-{one}" for one in have.split()]
+    table = rows(kitchen)
+    assert (table["ar-judge"]["depends"], table["ar"]["depends"]) == (
+        runners,
+        [*runners, "ar-judge"],
+    )

@@ -14,8 +14,8 @@ Review: twice | review | none | after
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
 <The line below is there only in a brief a scoped home writes, and it is the scope's name, never a thread id. The root home's brief has no `Home:` line.>
 Home: <scope>
-<The line below is there only for a row queued with `--depends`, and names each row it depends on with what of its work this row starts from, its code or its Result, while an order that is only about merging is `--merge-after` and needs no line.>
-Builds on: <slug>: <what of its work this row starts from>
+<The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, its code or its Result, one item for each and `;` between them, while an order that is only about merging is `--merge-after` and needs no line.>
+Builds on: <slug>: <what of its work this row starts from>; <slug>: <what of its work>
 <The line below is there only for a link of a stack, in a plan whose head names the playbook `autopilot-stack`. Only the home writes it: the first word is the stack's name, the place counts from 1 at the bottom, and link 1 sits on the default branch.>
 Stack: <name> <place> on <the branch it sits on>
 <The five lines below are there when a scout wrote this brief. A home that writes one from a light scout's answer may fill `Read:`, `Change:` and `Rests on:` from it; any other brief the home writes leaves all five out.>
