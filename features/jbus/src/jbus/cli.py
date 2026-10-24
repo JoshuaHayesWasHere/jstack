@@ -121,8 +121,7 @@ class Half:
 
 
 def steps(half: Half, slot: str) -> None:
-    """Run the steps of a slot by rank, each step only when the pass has what that step
-    needs. A step of `derive` judges the rows that the later steps need."""
+    """Run a slot's steps by rank, each where the pass has its needs: `derive` judges the rows."""
     for step in RANKED[slot]:
         has = {
             "sight": not half.blind,
