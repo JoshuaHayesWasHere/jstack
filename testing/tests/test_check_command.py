@@ -43,6 +43,7 @@ from testing.paths import REPO
 
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT", "SHARD")
+SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
@@ -337,6 +338,33 @@ def changed_copy(tmp_path, path):
     return copy, f"{bin}:{os.environ['PATH']}", asked
 
 
+@pytest.fixture
+def step_files(tmp_path, monkeypatch):
+    """The step's own output and summary files, as a check job's step sets them around this suite.
+    A test's `make check-fast` must leave them as they are: a line it added would be the step's,
+    and `selection=` there decides whether the job leaves the green tree marker."""
+    files = [tmp_path / "output", tmp_path / "summary"]
+    for name, file in zip(("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY"), files, strict=True):
+        file.write_text("")
+        monkeypatch.setenv(name, str(file))
+    yield files
+    assert [file.read_text() for file in files] == ["", ""]
+
+
+def test_no_test_writes_to_the_step_output_of_the_job_that_runs_it(tmp_path, step_files):
+    """A test of `select_tests.py` runs the script as a job's step would, and the job's step files
+    are in the environment of every test: the suite's fixtures keep them out of each test."""
+    one = "testing/tests/test_select_tests.py::"
+    one += "test_a_changed_module_selects_each_test_that_imports_it_directly_or_by_a_chain"
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", one],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+    )
+    assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout[-2000:]
+
+
 def check_fast(copy, path):
     """What `uv` was asked by `make check-fast BASE=HEAD^1` in the copy, one call a line."""
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
@@ -351,9 +379,11 @@ def check_fast(copy, path):
 
 
 def selected(copy):
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     ran = subprocess.run(
         [sys.executable, "scripts/select_tests.py", "HEAD^1", "HEAD"],
         cwd=copy,
+        env=env,
         capture_output=True,
         text=True,
         check=True,
@@ -365,7 +395,7 @@ LINT = ["run ruff check .", "run ruff format --check ."]
 OFF = ["-m", "not", "browser"]
 
 
-def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path):
+def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path, step_files):
     copy, path, asked = changed_copy(tmp_path, "features/jdrift/src/jdrift/__init__.py")
     check_fast(copy, path)
     tests = selected(copy)
@@ -379,7 +409,9 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     ]
 
 
-def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(tmp_path):
+def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_on(
+    tmp_path, step_files
+):
     copy, path, asked = changed_copy(tmp_path, "pyproject.toml")
     check_fast(copy, path)
     assert selected(copy) == ["all"]
