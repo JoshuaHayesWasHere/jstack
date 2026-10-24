@@ -116,6 +116,7 @@ class Relay:
             "RELAY_STATE": str(state),
             "RELAY_TIMEOUT_SECONDS": "1",
             "RELAY_RETRY_SECONDS": "0.3",
+            "PYTHONFAULTHANDLER": "1",
             **env,
         }
         self.process = daemons.start(
@@ -135,10 +136,39 @@ class Relay:
             if not self.reader.is_alive():
                 raise AssertionError(f"the relay ended: {self.said()}")
             if time.monotonic() > end:
-                raise AssertionError(f"the relay did not listen: {self.said()}")
+                raise AssertionError(f"the relay did not listen: {self.where()}")
             time.sleep(0.01)
         self.port = int(listening[1])
         return self
+
+    def where(self) -> str:
+        """Say where a relay that does not listen is: its processes, a `sample` of it on a Mac,
+        and then, from SIGABRT and `PYTHONFAULTHANDLER`, the Python stack of each of its threads,
+        which the relay writes to its output as it ends."""
+        pid, shown = self.process.pid, []
+        ps = subprocess.run(
+            ["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,etime=,command="],
+            capture_output=True,
+            text=True,
+        )
+        shown += [
+            "its processes:",
+            *[ln for ln in ps.stdout.splitlines() if ln.split()[2:3] == [str(pid)]],
+        ]
+        if sys.platform == "darwin":
+            report = self.state.parent / "sample.txt"
+            with contextlib.suppress(OSError, subprocess.SubprocessError):
+                subprocess.run(
+                    ["sample", str(pid), "1", "-mayDie", "-file", str(report)],
+                    capture_output=True,
+                    timeout=30,
+                )
+            shown += ["its sample:", report.read_text() if report.exists() else "none"]
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGABRT)
+        self.reader.join(5)
+        shown += ["what it said, up to the stacks of SIGABRT:", self.said()]
+        return "\n".join(shown)
 
     def said(self) -> str:
         """Return what the relay has said so far, as far as the test has read it."""
