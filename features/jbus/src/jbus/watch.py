@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
-from jbus import Refused, merge, queue, read_json, verbs, work, write_json
+from jbus import Refused, budget, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
@@ -128,12 +128,14 @@ class Look:
     answered.
 
     `out` is the number of crews that T3 Code lists as live, which jbus knows whenever T3 Code
-    answered. `why` is the reason T3 Code did not answer.
+    answered. `why` is the reason T3 Code did not answer. `held` is why the pass asked GitHub
+    nothing to save its API budget, or why it could not tell what is left of it.
     """
 
     world: World | None = None
     out: int | None = None
     why: str = ""
+    held: str = ""
 
 
 def when(stamp: str) -> datetime:
@@ -233,16 +235,24 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
     asks for that pull request by its address.
+
+    First of all, `look` reads GitHub's API budget (`jbus.budget`), and every `Look` it returns
+    holds it, T3 Code silent or not: a step that spends the budget needs it. With no answer, or
+    with the budget at or under its floor, `look` asks GitHub nothing else, and the pass has no
+    world, as when GitHub is silent: no row changes. `jmerge` ran before, so a merge still goes.
     """
+    asked = run.run(*budget.ASK)
+    left = budget.parse(asked.stdout) if asked.returncode == 0 else None
+    held = budget.held(left)
     if client is None:
-        return _silent(run, "no token: run `jbus t3 login`")
+        return replace(_silent(run, "no token: run `jbus t3 login`"), held=held)
     world = World(waiting={one.thread for one in waiters.read(slot.locks_dir()) if not one.woken})
     slug_of = tied(run)
     url_of = {slug: url for url, slug in slug_of.items()}
     try:
         listed = crew_threads(client, run.project.project_id)
     except T3Error as error:
-        return _silent(run, str(error))
+        return replace(_silent(run, str(error)), held=held)
     for thread in sorted(listed, key=lambda t: t.get("createdAt", "")):
         slug = thread["title"][len(TITLE) :].strip()
         if thread.get("settled"):
@@ -252,6 +262,14 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     out = world.live()
     for slug in run.removed:
         world.threads.pop(slug, None)
+    if left is None:
+        run.say(f"wait {run.project.name}: could not ask GitHub{asked_why(asked)}")
+        return Look(out=out, held=held)
+    if held:
+        run.say(f"wait {run.project.name}: GitHub not asked: {held}")
+        key = f"budget {left.low.name} {left.low.reset.isoformat()}"
+        run.condition(run.project.name, "GitHub's API budget is under the floor", held, key=key)
+        return Look(out=out, held=held)
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
     try:

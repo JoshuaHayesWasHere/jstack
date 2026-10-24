@@ -7,6 +7,7 @@
 #   commits.json what `gh api` gives for the default branch's commits
 #   checks.json  each commit's check runs, by its sha: `{}` gives every commit none
 #   logs/<id>    the log of the job whose id is <id>, which is not found when the file is not
+#   rate-limit.json  what `gh api rate_limit` gives, GitHub's API budget: a full one when it is not
 # A commit asked for by its sha lists no changed files.
 # Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. It never merges: `gh pr merge`
 # and anything else it does not know exit 64.
@@ -41,6 +42,12 @@ case "$1 $2" in
 "api --paginate") ;;
 api\ *)
   case $2 in
+  rate_limit)
+    cat "$G/rate-limit.json" 2>/dev/null || {
+      full='{"limit": 5000, "used": 0, "remaining": 5000, "reset": 1791824400}'
+      printf '{"resources": {"core": %s, "graphql": %s}}\n' "$full" "$full"
+    }
+    ;;
   */check-runs)
     sha=${2%/check-runs}
     jq -c --arg sha "${sha##*/}" '{check_runs: (.[$sha] // [])}' "$G/checks.json"

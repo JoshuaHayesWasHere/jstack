@@ -23,7 +23,8 @@ It writes nothing: no state, no lock, no file. It takes no lock, so it runs besi
 prints is passed through `jbus.redact` with the config's secrets, so no webhook URL, key or token
 is in it. `--no-github` skips GitHub. `--jobs` asks for each run's jobs, which give the queue time
 and the run time of each job, at a call per run: it is refused where those calls would spend
-more than half of what is left of GitHub's hourly budget (`records.affordable`). Without it a
+more than half of what is left of GitHub's hourly budget, or take it to the floor that jbus and
+the threads keep for merges (`records.affordable`, `jbus.budget`). Without it a
 run's time is the run's own, from its start to its last update, and no queue time is known.
 """
 

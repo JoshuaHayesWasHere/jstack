@@ -17,7 +17,7 @@ import pytest
 
 from jbus import flow
 from jbus.flow import measure, records
-from test_jbus_kitchen import KEY, Kitchen
+from test_jbus_kitchen import KEY, Kitchen, rate_limit
 
 T = datetime(2026, 10, 20, 14, 0, tzinfo=UTC)
 TABLE = (
@@ -419,7 +419,7 @@ def test_jobs_are_refused_when_they_would_spend_half_the_budget(monkeypatch):
 
     def ask(command, cwd=None):
         if command[:3] == ["gh", "api", "rate_limit"]:
-            return "50\n"
+            return json.dumps(rate_limit(50))
         return "\n".join(listed)
 
     monkeypatch.setattr(records, "ask", ask)

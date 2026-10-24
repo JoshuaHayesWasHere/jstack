@@ -32,7 +32,7 @@ CITE = re.compile(r"((?:features|scripts|\.github)/[\w./-]+):(\d+(?:-\d+)?(?:,\d
 CITED = {
     ".github/workflows/check.yml:4": "pull_request:",
     "scripts/select_tests.py:153-154": '"Cross-cutting"',
-    "features/crew/the-checks.md:46,73": "stale: the check command passes",
+    "features/crew/the-checks.md:48,79": "stale: the check command passes",
     "features/jbus/src/jbus/dispatch.py:324-356": "no room",
     "features/jbus/src/jbus/rebase.py:247": "world.open.items()",
     "features/jmerge/src/jmerge/ready.py:918-919": "NOT_PASSED",
