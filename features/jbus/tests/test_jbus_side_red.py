@@ -158,6 +158,17 @@ def test_a_red_of_the_gate_below_a_tip_whose_run_is_still_going_files_nothing(ki
     assert rows(kitchen) == []
 
 
+def test_a_red_of_the_gate_below_a_tip_whose_push_run_was_cancelled_files_nothing(kitchen):
+    """The gate's push run at main's tip was cancelled: the main-red rule holds that tip pending
+    and runs it again, so the red at the commit before is still its, not a side red."""
+    kitchen.quiet()
+    head = side(kitchen, {})
+    stopped = run(202, head, "cancelled", ago=timedelta(minutes=5))
+    side(kitchen, {CHECK: [stopped, run(201, "g", "failure")]}, push=False)
+    kitchen.poll()
+    assert rows(kitchen) == []
+
+
 def test_a_red_push_run_below_mains_tip_is_a_side_red(kitchen):
     """A workflow with path filters that failed at a commit and did not run at the tip leaves no
     check run there, so no rule but this one sees it."""
