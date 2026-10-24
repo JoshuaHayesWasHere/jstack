@@ -39,4 +39,4 @@ Never done here, and who does it:
 - **A watch loop, or a second schedule.** Nobody does: the audit is the one exception, one per home, and it ends with the queue.
 - **A stack.** Nobody does here: a dependent entry waits for the merge. Entries the user wants to review as one chain and land themselves are `playbooks/autopilot-stack.md`, landed by `playbooks/shipping.md`.
 
-**Hand over:** in this thread, to the user, at the close and when asked: catch the user up per `skills/ketchup/SKILL.md`, then this account, uncut: each entry with its crewmate's link, its state and its pull request; what merged, with the commit; each stuck thread and what was done; the open gates; and that the audit is deleted.
+**Hand over:** in this thread, to the user, only when asked: catch the user up per `skills/ketchup/SKILL.md`, then this account, uncut: each entry with its crewmate's link, its state and its pull request; what merged, with the commit; each stuck thread and what was done; the open gates; and that the audit is deleted.
