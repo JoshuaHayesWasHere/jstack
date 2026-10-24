@@ -542,6 +542,49 @@ def test_a_readable_process_list_finds_this_process(tmp_path, monkeypatch):
     assert cli._running(str(tmp_path)) == os.getpid()
 
 
+def on_a_mac(monkeypatch, tmp_path, said=None, code=0):
+    """A Mac as `_running` sees it: Darwin, with an `lsof` that prints `said` in its `-F` form,
+    or with no `lsof` at all when `said` is None."""
+    bin = tmp_path / "bin"
+    bin.mkdir()
+    if said is not None:
+        lsof = bin / "lsof"
+        lsof.write_text(f"#!/bin/sh\ncat <<'EOF'\n{said}EOF\nexit {code}\n")
+        lsof.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin}:/usr/bin:/bin")
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+
+
+def listed(*cwds):
+    return "".join(f"p{pid}\nfcwd\nn{cwd}\n" for pid, cwd in cwds)
+
+
+def test_on_a_mac_the_processes_in_a_worktree_are_read_from_lsof(tmp_path, monkeypatch):
+    tree = tmp_path / "tree"
+    said = listed((os.getpid(), "/"), (4242, f"{tree}-beside"), (4343, tree / "deeper"))
+    on_a_mac(monkeypatch, tmp_path, said)
+    assert cli._running(str(tree)) == 4343
+    assert cli._running(str(tmp_path / "idle")) == 0
+
+
+@pytest.mark.parametrize(
+    ("said", "code"),
+    [(None, 0), (listed((os.getpid() + 1, "/")), 0), (listed((os.getpid(), "/")), 1)],
+    ids=["no lsof", "without this process", "lsof failed"],
+)
+def test_on_a_mac_an_lsof_that_cannot_list_every_process_is_no_answer(
+    tmp_path, monkeypatch, said, code
+):
+    on_a_mac(monkeypatch, tmp_path, said, code)
+    assert cli._running(str(tmp_path)) is None
+
+
+def test_on_a_mac_a_process_list_a_caller_names_is_read_and_not_lsof(tmp_path, monkeypatch):
+    on_a_mac(monkeypatch, tmp_path, listed((os.getpid(), "/")))
+    monkeypatch.setattr(cli, "PROC", tmp_path / "no-proc")
+    assert cli._running(str(tmp_path)) is None
+
+
 def test_the_first_reason_is_the_records_before_the_worktrees(scene):
     tree = scene.crewmate("alpha", state="OPEN", status="not done", left="a file")
     (tree / "notes.txt").write_text("not committed\n")
