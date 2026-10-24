@@ -129,9 +129,9 @@ def test_an_alert_the_webhook_did_not_take_waits_and_a_pass_keeps_the_streaks(ki
     assert kitchen.webhook.posts == []
     kitchen.poll(datetime.now(UTC) + timedelta(minutes=6))
     assert kitchen.status()["streaks"] == {}
-    (post,) = kitchen.webhook.said
-    recovered = post[1].removeprefix("demo: ")
-    assert post[0] == f"demo: {alert}" and recovered.startswith("recovered: pass after 3 failures ")
+    assert kitchen.webhook.said == [[f"demo: {alert}"]]
+    (recovered,) = kitchen.lines("recovered")
+    assert recovered.startswith("recovered: pass after 3 failures ")
     assert kitchen.log("notify") == [f"jbus | {alert}", f"jbus | {recovered}"]
 
 
@@ -147,7 +147,7 @@ def stale(now, limit="2h"):
     return said
 
 
-def test_no_pass_for_two_hours_alerts_once_and_the_next_pass_says_it_recovered(kitchen):
+def test_no_pass_for_two_hours_alerts_once_and_the_next_pass_logs_that_it_recovered(kitchen):
     """Its own timer runs the watcher, `jbus alarm --stale 2h`. The watcher reads the end of the
     last pass from `pass.json`, and the first pass after the outage ends the alarm's stale
     streak."""
@@ -165,17 +165,17 @@ def test_no_pass_for_two_hours_alerts_once_and_the_next_pass_says_it_recovered(k
     assert kitchen.log("notify") == [f"jbus | {first}"]
     kitchen.poll(NOW + timedelta(hours=3, minutes=10))
     recovered = "recovered: stale after 2 failures since 13:01 ET"
-    assert kitchen.lines("alert") == [first, recovered]
+    assert (kitchen.lines("alert"), kitchen.lines("recovered")) == ([first], [recovered])
     assert kitchen.status()["streaks"] == {}
     kitchen.poll(NOW + timedelta(hours=3, minutes=11))
-    assert kitchen.webhook.said[1:] == [[f"demo: {recovered}"]]
-    assert kitchen.lines("alert") == [first, recovered]
+    assert kitchen.webhook.said == [[f"demo: {first}"]]
+    assert (kitchen.lines("alert"), kitchen.lines("recovered")) == ([first], [recovered])
     second = STALE.format(since="16:12 ET", last="2026-10-12 14:11 ET")
     assert stale(NOW + timedelta(hours=5, minutes=12))[1:] == [
         f"demo: {second}",
         "alert sent: demo",
     ]
-    assert kitchen.webhook.said[2:] == [[f"demo: {second}"]]
+    assert kitchen.webhook.said[1:] == [[f"demo: {second}"]]
     assert kitchen.log("notify")[1:] == [f"jbus | {second}"]
 
 

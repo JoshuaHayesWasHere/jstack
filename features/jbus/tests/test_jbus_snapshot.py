@@ -176,7 +176,7 @@ def test_with_no_gitleaks_nothing_is_committed(tree, monkeypatch):
     assert git(tree, "rev-parse", "HEAD") == before
 
 
-def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recovered(
+def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_logs_it_recovered(
     kitchen, tree, tmp_path
 ):
     with_origin(tree, tmp_path)
@@ -188,7 +188,7 @@ def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_says_recov
     (tree / "demo" / "notes.md").write_text("# notes\nback\n")
     code, said = take()
     assert (code, said[0]) == (0, "snapshot: committed, pushed")
-    (recovered,) = [line for line in kitchen.lines("alert") if line.startswith("recovered")]
+    (recovered,) = kitchen.lines("recovered")
     assert recovered.startswith("recovered: snapshot after 2 failures since 11:00 ET")
     assert kitchen.log("notify")[1] == f"jbus | {recovered}"
     assert jbus.read_json(kitchen.state_dir / "streaks.json", {}) == {}

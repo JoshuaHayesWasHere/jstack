@@ -58,13 +58,15 @@ from jbus import passes, read_json, verbs, wake, write_json
 from jbus.t3 import Client, T3Error
 
 WAKE = """\
-jbus: {count} events for the user. Tell the user what each asks.
+jbus: {count} events for the user, each a decision or a stop that is theirs. End the turn by "How a
+turn ends" in the home skill, with one line for each, keyed `jbus`, as that section says.
 {say}
 
 ```json
 {body}
 ```"""
-EVENTS = {"alert": "user"}
+EVENTS = {"alert": "user", "recovered": "quiet"}
+RECOVERED = "recovered"
 AFTER = 3
 PAGES = (AFTER, 30)
 EVERY = 120
@@ -266,8 +268,8 @@ def retire(state: Path, key: str) -> None:
 
 
 def deliver(run: passes.Pass, line: str | None, *, desk: bool = True) -> None:
-    """Send an alert or a recovered line to the chat, and print it in the journal as
-    `<project>: <line>`. Send nothing when there is no line.
+    """Send an alert to the chat, log a recovered line (`queue`), and print either in the
+    journal as `<project>: <line>`. Send nothing when there is no line.
 
     While the project's webhook is failing, the line would only wait in the outbox, so this
     function tells the desk as well. `desk=False` is for a caller that has told the desk itself.
@@ -279,17 +281,27 @@ def deliver(run: passes.Pass, line: str | None, *, desk: bool = True) -> None:
     if not line:
         return
     run.say(f"{run.project.name}: {line}")
-    run.box.send("", "alert", line)
+    queue(run.box, line)
     name, state = run.project.name, run.config.state_dir
     if desk and (streak(state, webhook(name)) or streak(state, home(name))):
         wake.notify(line)
+
+
+def queue(box: wake.Box, line: str, *, machine: bool = False) -> None:
+    """Queue a line of this module. A `recovered` line ends a streak or an incident: it asks
+    nothing of the user and reports no stop, so it is quiet, in the log and the digest and in no
+    outbox. Every other line is an `alert`, for the user."""
+    if line.startswith(f"{RECOVERED}: "):
+        box.send("", RECOVERED, line, machine=machine)
+    else:
+        box.send("", "alert", line, machine=machine)
 
 
 def tell(run: passes.Pass, key: str, line: str | None) -> None:
     """Deliver the line that a streak of this project returned, and only then mark the streak."""
     if line:
         mine = (webhook(run.project.name), home(run.project.name))
-        deliver(run, line, desk=not (key in mine and line.startswith("recovered")))
+        deliver(run, line, desk=not (key in mine and line.startswith(RECOVERED)))
         told(run.config.state_dir, key)
 
 
