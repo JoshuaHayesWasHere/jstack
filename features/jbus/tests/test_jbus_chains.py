@@ -88,6 +88,30 @@ def test_a_word_after_the_colon_names_no_row(kitchen, line):
     assert code != 0 and ORDER_ONLY.format(slug="beta", other="docs") in said
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        "Builds on: alpha: its parser; then docs\n",
+        "Builds on: alpha is the parser docs\n",
+    ],
+)
+def test_prose_with_no_colon_names_no_row(kitchen, line):
+    """An item with no colon is prose, a `;` inside a description or a line that names no row
+    before a colon: a word of it that happens to be a slug names none."""
+    for slug in ("alpha", "docs"):
+        assert queue_add(kitchen, slug)[0] == 0
+    code, said = queue_add(kitchen, "beta", "--depends", "docs", text=brief("beta", line))
+    assert code != 0 and ORDER_ONLY.format(slug="beta", other="docs") in said
+
+
+def test_a_list_of_slugs_with_no_colon_names_each_row(kitchen):
+    for slug in ("alpha", "docs"):
+        assert queue_add(kitchen, slug)[0] == 0
+    built = brief("beta", "Builds on: alpha, `docs`\n")
+    code, said = queue_add(kitchen, "beta", "--depends", "alpha,docs", text=built)
+    assert code == 0, said
+
+
 def test_an_order_only_about_merging_is_queued_as_merge_after_with_no_line(kitchen):
     assert queue_add(kitchen, "alpha")[0] == 0
     code, said = queue_add(kitchen, "beta", "--merge-after", "alpha")

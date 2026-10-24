@@ -94,7 +94,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbriefs import meaning
+from jbriefs import chains, meaning
 from jbriefs import parse as briefs
 from jbus import Refused, write_json
 
@@ -692,12 +692,12 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
 def _builds_on(rows: list[Row], verb: Add) -> None:
     """Refuse a depends that the brief does not build on. A depends holds the row's launch until
     the other row has merged, which costs the row that row's whole cycle, so it is only for a row
-    whose brief's `Builds on:` line names the other (`jbriefs.parse.builds_on`). An order that is
+    whose brief's `Builds on:` line names the other (`jbriefs.chains.builds_on`). An order that is
     only about merging is `merge_after`, and the row launches at once. A depends the row already
     has is not checked again, so an add that only changes a row's priority or brief goes through
     for a row queued before this check."""
     had = next((row.get("depends", []) for row in rows if row["slug"] == verb.slug), [])
-    named = briefs.builds_on(body(verb.text))
+    named = chains.builds_on(body(verb.text))
     for other in verb.depends:
         if other not in had and other not in named:
             raise Refused(
