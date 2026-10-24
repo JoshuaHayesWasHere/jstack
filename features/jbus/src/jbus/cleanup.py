@@ -131,6 +131,7 @@ def brief(
         "Pull request: open one when done\n"
         "Review: review\n"
         "Playbook: bug-fix\n"
+        f"Builds on: {slug}: the code of its pull request, which the findings are in\n"
     )
 
 

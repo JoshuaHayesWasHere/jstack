@@ -444,9 +444,7 @@ _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 
 
 def builds_on(text: str) -> frozenset[str]:
-    """The slugs a brief's `Builds on:` field names: the rows whose work the row starts from,
-    which are the only rows it may `depend` on. A slug is named whole, so `alpha-two` does not
-    name `alpha`. A brief with no such field names none."""
+    """The slugs a brief's `Builds on:` field names, each whole: the rows it may depend on."""
     said = _head_lines(text, "Builds on") or ""
     return frozenset(word.rstrip(".") for word in _SLUG.findall(said))
 
