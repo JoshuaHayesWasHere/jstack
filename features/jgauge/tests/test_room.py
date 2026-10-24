@@ -961,8 +961,8 @@ DARWIN = Path(__file__).parent / "fixtures" / "darwin"
 def mac(where, sysctl=None, vm_stat=None, env=None):
     """A Mac as `room` reads one: `uname -s` says Darwin, and `sysctl` and `vm_stat` print the
     output in fixtures/darwin, with each name in `sysctl` and each line in `vm_stat` given the
-    value there (None leaves the line out). `PROC` names no directory, so a reading that came
-    from it would not be read."""
+    value there (None leaves the line out). `PROC` is unset, as on a Mac, so room reads the
+    Mac's own readers."""
     env = env or machine(where, **IDLE)
     shown = where / "darwin"
     shown.mkdir(exist_ok=True)
@@ -976,8 +976,7 @@ def mac(where, sysctl=None, vm_stat=None, env=None):
                 lines.append(f"{key}: {changed[key]}")
         (shown / f"{name}.txt").write_text("".join(f"{line}\n" for line in lines))
     return {
-        **env,
-        "PROC": str(where / "no-proc"),
+        **{key: value for key, value in env.items() if key != "PROC"},
         "DARWIN": str(shown),
         "PATH": f"{DARWIN / 'bin'}:{env['PATH']}",
     }
@@ -989,6 +988,19 @@ def test_an_idle_mac_has_room_with_no_pressure_lines_to_read(tmp_path):
     no reason to wait."""
     looked = ran(mac(tmp_path))
     assert (looked.stdout, looked.stderr) == ("go\n", "")
+
+
+def test_a_mac_given_a_proc_is_judged_by_that_proc_and_not_by_sysctl(tmp_path):
+    """A caller that names a /proc in `PROC`, as these tests' made-up machines do, has that
+    machine judged on every system: on a Mac too, the load of 60 that sysctl gives is not
+    read."""
+    busy = {"vm.loadavg": "{ 60.00 50.00 40.00 }"}
+    for load, said in (
+        ("0.42", "go"),
+        ("24.00", "wait: load 24.00 is at or over 200% of 12 cores"),
+    ):
+        env = mac(tmp_path, sysctl=busy, env=machine(tmp_path, **{**IDLE, "load": load}))
+        assert says({**env, "PROC": str(tmp_path / "proc")}) == said
 
 
 def test_a_mac_with_its_load_at_the_line_waits_and_says_its_cores(tmp_path):
