@@ -30,7 +30,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:921-922
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:935-936
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
@@ -56,12 +56,12 @@ CrewFix(p) ==
 \* broken change fails there and its crew gets one message; otherwise GitHub merges the base into
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1083, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:284-287, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1039-1040, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1154, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:216, once a head and tip
-    /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1044, a fresh-check file
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1102, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:294-297, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1058-1059, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1175, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:217, once a head and tip
+    /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1063, a fresh-check file
         IF fresh /\ breaks[p]
             \* features/jmerge/src/jmerge/cli.py:1064-1066: it fails over today's base, one message
             THEN /\ told' = [told EXCEPT ![p] = TRUE] /\ UNCHANGED ci
