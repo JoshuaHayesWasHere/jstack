@@ -17,3 +17,8 @@ features/jbus/tests/view/test_view_panels.py
 features/skill-library/tests/test_make_bot_ui.py
 testing/tests/test_loopback.py
 features/jbus/tests/test_jbus_left_running.py
+features/jmerge/tests/test_jmerge_fresh.py
+features/jmerge/tests/test_jmerge_fresh_marker.py
+features/jmerge/tests/test_jmerge_callers.py
+features/jmerge/tests/test_jmerge_rejudge.py
+testing/tests/test_test_plugins.py
