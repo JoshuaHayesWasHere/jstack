@@ -845,9 +845,9 @@ def owns_module(owned, path):
 
 
 def test_every_test_file_is_run_by_a_change_to_another_path():
-    """A changed test file selects itself, so that change shows no rule owns the test. A test
-    that no change to any other path selects is one a rule owns only by accident, and a change
-    that breaks it merges unchecked, unless the selector's catch-all runs it on every change."""
+    """A changed test file selects itself, so that change does not count. A test that no change
+    to any other path selects is owned by no rule, and a change that breaks it would merge with
+    it unrun. The selector's catch-all runs each such test on every change, so none is left."""
     run = set()
     for path in sorted(select.tracked()):
         tests, _ = select.selection([path])

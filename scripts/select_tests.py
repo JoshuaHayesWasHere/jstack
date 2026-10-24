@@ -38,6 +38,11 @@ selects that feature's tests: its `Tests:` and every test file that imports a mo
 The map's page, `CROSS`, lists the test files that read the whole tree (`Cross-cutting:`), and
 every change runs them.
 
+A test file that no change to any other path selects is owned by no rule: it imports nothing,
+spells no path and is on no list. A change it reads in some other way (a glob, a walk) would merge
+with it unrun. So every change also runs each such test, the catch-all, and the summary counts
+it with the cross-cutting tests.
+
 It prints `all` when the files it selected are `WHOLE` (80%) of the test files or more. Such a
 run costs about what the whole suite does, and a whole run leaves the tree's marker. It also
 prints `all` when a changed path is one that every test depends on. Those paths are
@@ -132,6 +137,7 @@ def listed(text, label):
     return []
 
 
+@cache
 def pages():
     """Each feature file's name, with its path: `<MAP>/<name>.md`, or `features/<name>/verify.md`
     once the feature's page has moved into its folder."""
@@ -144,6 +150,7 @@ def pages():
     return {name: path.relative_to(ROOT).as_posix() for name, path in sorted(found.items())}
 
 
+@cache
 def features():
     """Each feature file's name, with its `Paths:` and its `Tests:`."""
     texts = {name: (ROOT / path).read_text() for name, path in pages().items()}
@@ -291,18 +298,24 @@ def conftests(name):
     return {".".join(parts[:end] + ["conftest"]) for end in range(1, len(parts) + 1)}
 
 
-def importers(names):
-    """The modules that import any of `names`, through any chain, and `names` themselves."""
-    by_imported = {}
+@cache
+def imported_by():
+    """Each module, with the modules that import it directly."""
+    found = {}
     for name, reached in edges().items():
         for one in reached:
-            by_imported.setdefault(one, set()).add(name)
+            found.setdefault(one, set()).add(name)
+    return found
+
+
+def importers(names):
+    """The modules that import any of `names`, through any chain, and `names` themselves."""
     found, todo = set(), list(names)
     while todo:
         one = todo.pop()
         if one not in found:
             found.add(one)
-            todo += by_imported.get(one, ())
+            todo += imported_by().get(one, ())
     return found
 
 
@@ -541,9 +554,10 @@ def opens_browser(test):
     return bool(BROWSER.search((ROOT / test).read_text()))
 
 
-def selection(changed):
-    """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
-    each cause the number of files it selected, or the path that forced `all`."""
+def ruled(changed):
+    """`(tests, why)`: the sorted test files the rules select for the changed paths, or
+    `["all"]`, and for each cause the number of files it selected, or the path that forced
+    `all`."""
     ready()
     for path in changed:
         if path in shared():
@@ -576,6 +590,39 @@ def selection(changed):
         for key, tests in found.items()
     }
     return sorted(set().union(*present.values())), {key: len(one) for key, one in present.items()}
+
+
+def collected():
+    """The test files the check runs: each one there is, but the ones marked `browser`."""
+    return {
+        one
+        for one in modules().values()
+        if TEST.fullmatch(one) and (ROOT / one).is_file() and not opens_browser(one)
+    }
+
+
+@cache
+def unowned():
+    """The test files no rule owns: a change to every tracked path but the test itself selects
+    none of them, where it does not select `all`."""
+    owned = set()
+    for path in sorted(tracked()):
+        tests, _ = ruled([path])
+        if tests != ["all"]:
+            owned |= set(tests) - {path}
+    return frozenset(collected() - owned)
+
+
+def selection(changed):
+    """`(tests, why)`: the sorted test files the changed paths need, or `["all"]`, and for
+    each cause the number of files it selected, or the path that forced `all`. They are what
+    the rules select and the test files no rule owns, counted as cross-cutting."""
+    tests, why = ruled(changed)
+    if tests == ["all"]:
+        return tests, why
+    lone = unowned()
+    why = {**why, "cross-cutting": len(set(cross_cutting()) & collected() | lone)}
+    return sorted(set(tests) | lone), why
 
 
 CAUSES = ("imports", "names", "features", "cross-cutting")
