@@ -188,7 +188,7 @@ The rule is the one that the home's `follow-rule` file names, one number on one 
 `queue add` approves such a row in the same write, and so does an `approve` by your word of P, for the waiting rows that name P.
 A row that names a parent and is no follow-up gets one line, `<slug> waits for the user's go, not a follow-up by rule <n>: <why>`, and waits for your go.
 A row that was queued already, and waited for you, is not approved by a later `add`, and a held row stays held.
-`jbus queue add --help` gives the rule.
+The help that `jbus queue add` prints gives the rule.
 
 The row's `approval` field records the approval:
 
