@@ -349,8 +349,10 @@ def fake_gh(stub, args, cwd):
     gives a list of pages, here two. A job comes from `jobs.json` by its id, or is one step at the
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
     not found. A commit asked for by its sha lists the files it changed, from `commit-files.json`.
-    The runs of the browser workflow are in `browser-runs.json`. A run's jobs come from
-    `run-jobs.json` by the run's id, and the call fails where that entry is null.
+    The runs of the browser workflow are in `browser-runs.json`. The repo's workflows are in
+    `workflows.json`, and the runs of each other workflow in `workflow-runs.json` by its id. A
+    run's jobs come from `run-jobs.json` by the run's id, and the call fails where that entry is
+    null.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -418,9 +420,16 @@ def fake_gh(stub, args, cwd):
         kept = stub / "jobs.json"
         job = (json.loads(kept.read_text()) if kept.exists() else {}).get(args[1].split("/")[-1])
         said = json.dumps(job or {"steps": [{"name": "make check"}], "run_attempt": 1})
-    elif args[0] == "api" and "/actions/workflows/" in args[1]:
+    elif args[0] == "api" and args[1].split("?")[0].endswith("/actions/workflows"):
+        kept = stub / "workflows.json"
+        said = json.dumps({"workflows": json.loads(kept.read_text()) if kept.exists() else []})
+    elif args[0] == "api" and "/actions/workflows/browser.yml/" in args[1]:
         kept = stub / "browser-runs.json"
         said = json.dumps({"workflow_runs": json.loads(kept.read_text()) if kept.exists() else []})
+    elif args[0] == "api" and "/actions/workflows/" in args[1]:
+        kept, flow = stub / "workflow-runs.json", args[1].split("/actions/workflows/")[1]
+        every = json.loads(kept.read_text()) if kept.exists() else {}
+        said = json.dumps({"workflow_runs": every.get(flow.split("/")[0], [])})
     elif (
         args[0] == "api" and "/actions/runs/" in args[1] and args[1].split("?")[0].endswith("/jobs")
     ):
