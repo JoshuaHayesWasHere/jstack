@@ -17,6 +17,8 @@ service, and prints one line for each blocker of that home:
   queued for the key so far.
 - `wait <key>`: a fix of the key is at work: its row is not over, not stuck and its check has
   not failed. A fix that failed is no fix at work, so the next try is briefed, or the cap raised.
+  It is also the line while the key's last fix has merged and the blocker has not been judged
+  since (`pending`): the merged fix may be what clears it, so no next fix and no page yet.
 - `decision <key>`: the key had its cap of fixes and still blocks, raised to the user.
 
 A fix's own blockers count against the key it fixes: a fix whose check fails is the same blocker
@@ -30,6 +32,14 @@ brief's home (`jbriefs.home.home_of`), `{"<key>": [{"slug", "sha", "at"}]}`, und
 that checks the cap, and the count is taken back when the queue refuses the brief. The same brief
 queued again is no new try. Once a key has `retry_cap` tries (`jsettings`, 2 by default), the next
 fix is refused, and the key is raised as a decision instead.
+
+A fix is counted when it is queued, so the cap is checked under that one lock, and `forgo` takes
+the count back when `jbus queue remove` takes out a fix row that never launched: it did no work,
+so it spent no try. A row launched once keeps its count when it is removed, so a cap cannot be
+dodged by removing a fix that ran. The cap waits for the effect of the key's last fix: while that
+fix has merged and the blocker's row has not changed since, as a pass sees it, the key is not
+raised, and `admit` refuses the next fix with no decision (`pending`). A blocker the merged fix
+cleared blocks no more, and is never raised.
 
 A decision is the one event of the kind `decision`, at `user`, for each key: `decide` sends it under
 the key `decision|<key>`, which names no slug, so whoever raises the same blocker again sends
@@ -49,18 +59,21 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import jsettings
 from jbriefs import home as homes
 from jbus import (
     Config,
     Project,
     Refused,
+    dispatch,
     leftover,
     questions,
     queue,
@@ -82,6 +95,7 @@ FIX_OF, WHEN_GREEN = "Fix of", "When green"
 TAKE_IT = "I take it"
 FIXED = {"check": "its check failed", "row": "it was refused or is stuck", "left": "it left work"}
 STUCK = ("gate", "failed", "stale")
+_STAMP = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
 
 
 def head(text: str, name: str) -> str:
@@ -159,6 +173,13 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
             write_json(directory / LEDGER, kept)
             return lambda: _release(directory, key, sha)
     run = Pass(config, project, datetime.now(UTC))
+    rows = {row["slug"]: row for row in queue.load(run.state)}
+    merged = pending(rows, had, rows.get(key.partition(":")[2]), config.user)
+    if merged:
+        raise Refused(
+            f"refused: {merged}, so {slug} is not queued and nothing is raised: wait for "
+            f"{key}'s next judgment"
+        )
     said, reply = _capped(project, slug, key, had)
     decide(run.box, slug, f"blocker:{key}", said, reply)
     raise Refused(
@@ -166,14 +187,61 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
     )
 
 
-def _release(directory: Path, key: str, sha: str) -> None:
-    """Take back the count of a fix the queue refused."""
+def _release(directory: Path, key: str, sha: str = "", slug: str = "") -> None:
+    """Take back the count of a fix the queue refused, by its sha, or of a fix row removed
+    unrun, by its slug."""
     with _locked(directory):
         kept = ledger(directory)
-        kept[key] = [one for one in kept.get(key, []) if one.get("sha") != sha]
+        if key not in kept:
+            return
+        kept[key] = [
+            one
+            for one in kept[key]
+            if not (sha and one.get("sha") == sha) and not (slug and one.get("slug") == slug)
+        ]
         if not kept[key]:
             del kept[key]
         write_json(directory / LEDGER, kept)
+
+
+def forgo(run: Pass, move: dict[str, Any]) -> None:
+    """Give back the try of a fix whose row `jbus queue remove` took out before it launched: no
+    thread, no pull request and no launch record. `move` is the removal's line of
+    `transitions.jsonl`, with the row as it was and where its brief was kept."""
+    row, slug = move.get("row") or {}, move["slug"]
+    if row.get("thread") or row.get("pr") or dispatch.records(run, slug):
+        return
+    try:
+        text = Path(move["brief"]).read_text(errors="replace") if move.get("brief") else ""
+    except OSError:
+        return
+    key = head(text, FIX_OF)
+    if key:
+        _release(homes.home_of(run.config.home(run.project), text), key, slug=slug)
+
+
+def _moment(stamp: str, user: jsettings.Settings) -> datetime | None:
+    """The time a pass stamped on a row, which is a time in the user's zone."""
+    found = _STAMP.match(stamp or "")
+    return user.local(datetime.fromisoformat(found[0])) if found else None
+
+
+def pending(
+    rows: dict[str, queue.Row],
+    had: list[dict[str, str]],
+    blocker: queue.Row | None,
+    user: jsettings.Settings,
+) -> str:
+    """Say that the key's last counted fix has merged and the blocker's row has not changed
+    since, as a pass sees it, or nothing. Such a fix has not had its effect yet: the blocker's
+    next judgment, such as its check run over the merged main, says whether it still stands."""
+    last = rows.get(had[-1].get("slug", "")) if had else None
+    if last is None or blocker is None or last.get("status") not in queue.FINAL:
+        return ""
+    ended, judged = _moment(last.get("updated", ""), user), _moment(blocker["updated"], user)
+    if ended is not None and judged is not None and judged > ended:
+        return ""
+    return f"{last['slug']} {last['status']} at {last.get('updated') or 'a time not stamped'}"
 
 
 def needs(one: waiting.Item, context: str = "") -> str:
@@ -328,8 +396,11 @@ def _rows(run: Pass, home: Directory) -> list[str]:
         seen.add(key)
         had = tries(home.path, key)
         at_work = [one for one in open_fixes.get(key, []) if one != slug]
+        merged = pending({one["slug"]: one for one in rows}, had, row, run.user)
         if at_work:
             said.append(f"wait {key}: {', '.join(at_work)} is at work on it")
+        elif merged:
+            said.append(f"wait {key}: {merged}, and {slug} has not been judged since")
         elif len(had) >= cap:
             what, reply = _capped(run.project, slug, key, had)
             decide(run.box, slug, f"blocker:{key}", what, reply)
