@@ -944,11 +944,16 @@ def test_a_row_that_is_launched_has_no_reason_and_one_never_approved_has_none(ki
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
 
 
-def test_a_changed_brief_is_recorded_with_the_sha_it_has_now(kitchen):
+def test_a_changed_brief_is_recorded_with_the_sha_it_has_now_the_approved_one_and_its_lines(
+    kitchen,
+):
     add(kitchen, "alpha")
     changed = widened("alpha")
     add(kitchen, "alpha", approve=False, text=changed)
-    assert reasons(kitchen) == {"alpha": passes.Changed(sha12(changed))}
+    lines = ("Done when: One more line.",)
+    assert reasons(kitchen) == {
+        "alpha": passes.Changed(sha12(changed), sha12(brief("alpha")), lines)
+    }
 
 
 def test_a_row_that_depends_is_recorded_with_the_slugs_that_are_not_merged(kitchen):

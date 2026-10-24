@@ -26,9 +26,12 @@ EVENTS = {"condition": "quiet"}
 @dataclass(frozen=True)
 class Changed:
     """A `Changed` is a brief that changed after its approval. It holds the first 12
-    characters of the brief's sha now."""
+    characters of the brief's sha now, the first 12 of the sha the go was given for, and the
+    lines of the brief that the go does not cover (`queue.changed`)."""
 
     sha: str
+    was: str = ""
+    lines: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
