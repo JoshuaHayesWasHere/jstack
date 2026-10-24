@@ -126,7 +126,8 @@
    For a `twice` brief, send the crewmate only one line, with no finding in it, and write that thread's id on the `Sent to:` line.
    Where the block queued a row, the line is `<slug>: the second review of <url> at <head> filed <k> warning or error findings as cleanup-<slug> and dropped <m> info findings; fix nothing for it`.
    Where it printed `no cleanup row: its second review has no warning or error finding`, the line is `<slug>: the second review of <url> at <head> filed nothing and dropped <m> info findings; fix nothing for it`, with `<m>` the count of `info` findings the block printed.
-   It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit, and it is not approved: it waits for the user's go.
+   It queues one row, `cleanup-<slug>`, that lists each finding with its path:line, the pull request and its merge commit.
+   The row is a follow-up of `<slug>`, so jbus approves it by the home's follow-up rule when it is queued, where the home has a `follow-rule` file and the user's own word approved `<slug>`; otherwise it waits for the user's go.
    The row depends on `<slug>`, so it launches only once that pull request has merged, and its crew starts from a main that has it.
    A `<slug>` row already removed from the queue has nothing left to wait on, so the block queues the row with no such dependency.
    On any other `no cleanup row`, of an `after` brief, or of a `twice` brief whose row is already in the queue, the review was clean or the row is already queued, and nothing more is done.

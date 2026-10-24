@@ -37,6 +37,13 @@ and the follow-up's line says that the user said nothing of the follow-up. A `ho
 parent, or a `remove` of a parent that did not merge, also takes back the go of the parent's queued
 follow-ups.
 
+jbus gives that go itself at the end of a batch (`_followers`, `_by_rule`), to a row that the
+follow-up rule names a follow-up (`follow_up`, the rule in words is `FOLLOW_UP`): a row the batch
+queued new, or queued again where its go was by rule, and a waiting row whose parent the batch
+approved by the user's word. The rule's number is in the home's `follow-rule` file (`Asks.follow`),
+and with none jbus approves no row by rule. So a follow-up is approved in the write that queues it,
+and no pass lists it for the user.
+
 `brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the brief's
 head, which say whom the brief is sent to and not what it asks for: a launch writes `Thread:` in,
 and a brief queued again under another home is the same brief. jbus stores the brief whole, those
@@ -127,6 +134,14 @@ BASIS = (
 RULE = "rule"
 BY_RULE = "--rule <n> with --follows <parent slug>"
 FOLLOWED = "a follow-up approved by rule has no go without its parent's"
+CLEANUP = "cleanup-"
+FOLLOW_UP = (
+    "a row is a follow-up of the row P, and jbus approves it by the home's follow-up rule when it "
+    "is queued, when it names P (its brief's head has a line `Follows: P`, or its slug is "
+    "`cleanup-P`), when it is P's (its slug is `cleanup-P`, or its --entry is P's plan entry), "
+    "and when P's go is the user's own and holds (P is a row of the queue, or went as merged, "
+    "and was approved by the user's word and not by a rule); any other row waits for the user's go"
+)
 SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
 GO_VOID = ", its go does not hold for it: approve it again"
@@ -553,12 +568,16 @@ class Asks:
     `said` gets an approval's basis and reference, and returns the user's words that the basis and
     reference name or the text of the standing rule, or refuses. It may ask T3 Code, so jbus also
     calls it before it locks the table.
+
+    `follow` is the number of the home's standing rule that a follow-up of approved work needs no
+    new approval, or nothing where the home has none: then jbus approves no row by rule itself.
     """
 
     out: Callable[[str], str]
     launched: Callable[[str], str]
     told: Callable[[dict[str, Any]], None]
     said: Callable[[str, str], Said] | None = None
+    follow: str = ""
 
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
@@ -603,6 +622,8 @@ class _Batch:
     briefs: dict[str, str | None]
     moves: list[dict[str, Any]]
     aside: dict[Path, str]
+    queued: list[str] = field(default_factory=list)
+    parents: list[str] = field(default_factory=list)
 
     def brief(self, slug: str) -> str | None:
         return self.briefs[slug] if slug in self.briefs else brief(self.state, slug)
@@ -648,15 +669,7 @@ def _parent(batch: _Batch, slug: str, follows: str) -> None:
             f"{cannot} {follows}: {', '.join(behind)} follow {slug}, and a chain is one step: "
             f"take the user's word for {slug}"
         )
-    row = next((row for row in batch.rows if row["slug"] == follows), None)
-    here = row is not None
-    if row is None:
-        if follows not in batch.gone:
-            raise Refused(f"{cannot} {follows}: the queue has no row {follows}")
-        row = _went(batch, follows)
-        if row is None or row.get("status") != "merged":
-            was = _was(follows, batch.gone)
-            raise Refused(f"{cannot} {follows}: {was}, and its row did not go as merged")
+    row, here = _parent_row(batch, slug, follows)
     made = record(row)
     if made and made.basis == RULE:
         raise Refused(
@@ -669,6 +682,91 @@ def _parent(batch: _Batch, slug: str, follows: str) -> None:
     text = batch.brief(follows) if here else None
     if text is not None and not approved_text(row, text):
         raise Refused(f"{cannot} {follows}: {follows}'s brief changed after its approval")
+
+
+def _parent_row(batch: _Batch, slug: str, follows: str) -> tuple[Row, bool]:
+    """Return the parent's row, and whether it is in the table. A removed parent is its row as it
+    went, and only one that went as merged is a parent."""
+    cannot = f"refused: {slug} cannot follow"
+    row = next((row for row in batch.rows if row["slug"] == follows), None)
+    if row is not None:
+        return row, True
+    if follows not in batch.gone:
+        raise Refused(f"{cannot} {follows}: the queue has no row {follows}")
+    went = _went(batch, follows)
+    if went is None or went.get("status") != "merged":
+        was = _was(follows, batch.gone)
+        raise Refused(f"{cannot} {follows}: {was}, and its row did not go as merged")
+    return went, False
+
+
+def named_parent(slug: str, text: str) -> str:
+    """Return the parent a row names: the first `Follows:` line of its brief's head, or else, for a
+    row a review filed, the slug after `cleanup-`. Return nothing for a row that names none."""
+    named = [lines[0].strip() for label, lines in briefs.fields(text) if label == "Follows"]
+    if named:
+        return named[0]
+    return slug.removeprefix(CLEANUP) if slug.startswith(CLEANUP) else ""
+
+
+def follow_up(batch: _Batch, slug: str) -> str:
+    """Return the parent that the row `slug` follows up by the follow-up rule, or refuse with why
+    the row is not a follow-up. The rule is `FOLLOW_UP`, and it reads the row, its brief and the
+    parent's row, never a judgment. The parent's go must be the user's own (`_parent`), so a
+    follow-up of a follow-up waits for the user."""
+    named = named_parent(slug, batch.brief(slug) or "")
+    if not named:
+        raise Refused(f"refused: {slug} names no parent: no Follows: line, and no cleanup- slug")
+    parent, _ = _parent_row(batch, slug, named)
+    if slug != f"{CLEANUP}{named}" and entry(batch.row(slug)) != entry(parent):
+        raise Refused(
+            f"refused: {slug} does not do work for {named}'s plan entry {entry(parent)}: "
+            f"its entry is {entry(batch.row(slug))}"
+        )
+    _parent(batch, slug, named)
+    return named
+
+
+def _by_rule(
+    batch: _Batch,
+    slug: str,
+    user: jsettings.Settings | None,
+    asks: Asks,
+    said: dict[tuple[str, str], Said | Refused],
+) -> str:
+    """Approve by the follow-up rule a row that waits for a go and has no hold, and return the line
+    that says so. Return the reason for a row that names a parent and is no follow-up, and nothing
+    for one that names none: either waits for the user's go."""
+    row = next((row for row in batch.rows if row["slug"] == slug), None)
+    text = batch.brief(slug)
+    if row is None or text is None or row.get("held") or row.get("status", "queued") != "queued":
+        return ""
+    if row.get("approved") and approved_text(row, text):
+        return ""
+    try:
+        parent = follow_up(batch, slug)
+        verb = Approve(slug, RULE, asks.follow, brief_sha(text)[:12], parent)
+        return _do(verb, batch, user, asks, {}, said)
+    except Refused as error:
+        if not named_parent(slug, text):
+            return ""
+        why = str(error).removeprefix("refused: ")
+        return f"{slug} waits for the user's go, not a follow-up by rule {asks.follow}: {why}"
+
+
+def _followers(batch: _Batch) -> list[str]:
+    """Return the rows that the follow-up rule is asked of at the end of a batch: each row the
+    batch queued new, or queued again where its go was by rule, and each row with no go that names
+    a parent the batch approved by the user's word. A row that already waited for the user is asked
+    again only when its parent gets that word, so a re-add never turns a row the user left into a
+    go."""
+    waiting = [
+        row["slug"]
+        for row in batch.rows
+        if not row.get("approved")
+        and named_parent(row["slug"], batch.brief(row["slug"]) or "") in batch.parents
+    ]
+    return list(dict.fromkeys([*batch.queued, *waiting]))
 
 
 def _hold(row: Row) -> None:
@@ -869,6 +967,8 @@ def _do(
         kept = record(row)
         if was is not None and not (kept and kept.scope) and approved_text(row, was):
             row["brief_sha"] = brief_sha(was)
+        if not found or (kept and kept.basis == RULE):
+            batch.queued.append(verb.slug)
         if not found:
             rows.append(row)
         batch.briefs[verb.slug] = verb.text
@@ -897,6 +997,8 @@ def _do(
             raise rests
         if verb.basis == RULE:
             _parent(batch, verb.slug, verb.follows)
+        else:
+            batch.parents.append(verb.slug)
         means = fingerprint(text)
         made = Approval(
             basis=verb.basis,
@@ -1001,13 +1103,17 @@ def _run(
             except Refused as error:
                 out[verb.slug] = error
     said_by: dict[tuple[str, str], Said | Refused] = {}
+    rule = asks.follow if asks is not None and asks.said is not None else ""
     for _, verb in verbs:
-        named = (verb.basis, verb.ref) if isinstance(verb, Approve) else None
-        if asks is not None and asks.said is not None and named and named not in said_by:
-            try:
-                said_by[named] = asks.said(*named)
-            except Refused as error:
-                said_by[named] = error
+        asked = [(verb.basis, verb.ref)] if isinstance(verb, Approve) else []
+        if rule and isinstance(verb, Add | Approve):
+            asked.append((RULE, rule))
+        for named in asked:
+            if asks is not None and asks.said is not None and named not in said_by:
+                try:
+                    said_by[named] = asks.said(*named)
+                except Refused as error:
+                    said_by[named] = error
     moves: list[dict[str, Any]] = []
     with _changing(state) as rows:
         try:
@@ -1022,6 +1128,11 @@ def _run(
                 if not line:
                     raise
                 raise _none(line, error) from error
+        if rule and asks is not None:
+            for slug in _followers(batch):
+                line = _by_rule(batch, slug, user, asks, said_by)
+                if line:
+                    said.append(line)
         for kept, text in batch.aside.items():
             kept.parent.mkdir(parents=True, exist_ok=True)
             kept.write_text(text)
@@ -1049,11 +1160,14 @@ def add(
     entry: str = "",
     item: str = "",
     merge_after: list[str] | None = None,
-) -> str:
+    user: jsettings.Settings | None = None,
+    asks: Asks | None = None,
+) -> list[str]:
     """Add the row, or its brief again, linked to the work item `item` where one is given.
-    Return the line that says what was added."""
+    Return the line that says what was added, and the line of its approval by the follow-up rule
+    or of why it waits, where `asks` names the rule (`_followers`)."""
     verb = Add(slug, priority, depends, text, entry, item, merge_after or [])
-    return _run(state, [(0, verb)])[0]
+    return _run(state, [(0, verb)], user, asks)
 
 
 def approve(
@@ -1063,11 +1177,12 @@ def approve(
     given: str,
     user: jsettings.Settings,
     asks: Asks,
-) -> None:
+) -> list[str]:
     """Record the go. `rests` is the basis, its reference and the parent, as `basis` returns
-    them."""
+    them. Return the line of the go, and a line for each waiting follow-up of the row that the
+    go lets the follow-up rule approve."""
     kind, ref, follows = rests
-    _run(state, [(0, Approve(slug, kind, ref, given, follows))], user, asks)
+    return _run(state, [(0, Approve(slug, kind, ref, given, follows))], user, asks)
 
 
 def hold(state: Path, slug: str) -> str:

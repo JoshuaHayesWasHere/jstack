@@ -62,7 +62,7 @@ Instead it names your own message, which jbus reads from T3 Code, or a word or a
 jbus writes who ran the command and when.
 `--sha` ties the go to one text of the brief.
 One more basis, `--rule <n> --follows <parent slug>`, is not your word for the row.
-A home uses it for a follow-up to a row you approved.
+A home uses it for a follow-up to a row you approved, and `jbus queue add` uses it itself for a row that its follow-up rule names a follow-up ([the queue](the-queue.md)).
 jbus does not check who runs the command, and it records who did.
 So only the Chef's own rule keeps the Chef from using this basis.
 The row then records that you did not give your word for it, and the digest's `by_rule` counts those rows so the Chef can tell you.
