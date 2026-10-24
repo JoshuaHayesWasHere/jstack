@@ -30,6 +30,7 @@ from typing import Any
 from urllib.parse import quote
 
 from jbus import item, mirror, questions, queue, waiting
+from jbus.view.homes import Owner
 from jbus.view.state import (
     _SLUG,
     LOST,
@@ -396,6 +397,7 @@ def _rows(read: Read, listed: dict[str, dict[str, Any]]) -> list[dict[str, Any]]
                 "why": _cut(said if what != said else "", WHY),
                 "since": task["since"] or (one["since"] if one else None),
                 "unblocks": list(dict.fromkeys([*(one["unblocks"] if one else []), *depends])),
+                "home": task["home"],
             }
             | _work(read, value, slug, one)
         )
@@ -404,7 +406,7 @@ def _rows(read: Read, listed: dict[str, dict[str, Any]]) -> list[dict[str, Any]]
 
 def _threads(read: Read) -> list[dict[str, Any]]:
     """A need for each thread of no row whose holder in `work.json` is the user, since it last
-    wrote."""
+    wrote. It belongs to the thread's home, or to the root for a thread of no home."""
     wrote = {
         one.get("id"): when(one.get("wrote") or one.get("updatedAt"))
         for one in read.mine.get("threads") or []
@@ -419,6 +421,7 @@ def _threads(read: Read) -> list[dict[str, Any]]:
         if value == "lost":
             said = LOST.get((line.get("facts") or {}).get("thread", ""), LOST["completed"])
         role, slug = text(line.get("role"), 20), text(line.get("slug"), 80)
+        owner = read.homes.of_thread({"role": role, "slug": slug}, text(line.get("thread"), 80))
         made.append(
             {
                 "project": read.name,
@@ -427,6 +430,7 @@ def _threads(read: Read) -> list[dict[str, Any]]:
                 "why": _cut(said or text(line.get("waits")), WHY),
                 "since": wrote.get(line.get("key")),
                 "unblocks": [],
+                "home": (owner or Owner()).name,
             }
             | _work(read, value, slug, None)
             | {

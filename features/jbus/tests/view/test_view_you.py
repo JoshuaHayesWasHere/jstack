@@ -9,6 +9,7 @@ from test_jbus_kitchen import GATE as PIPED
 from view.scene import (
     GATE,
     PULL,
+    RACK,
     ROOT,
     SHELF,
     Scene,
@@ -276,6 +277,24 @@ def test_each_need_of_work_carries_the_home_of_its_row_or_thread(scene, served):
     row of a scoped home's brief to that home, a row of a brief with no `Home:` line to the
     root, and a thread to the home of the task or request it is about."""
     homed(scene)
+    waits = work.judge(
+        work.Facts(
+            work.Row.ABSENT,
+            work.Thread.COMPLETED,
+            work.Launch.LAUNCHED,
+            work.Written.NONE,
+            work.Pull.NONE,
+            work.Question.NONE,
+            work.Answered.BOTH,
+        )
+    )
+    about = {"key": "mcp:scout: look", "kind": "thread", "slug": "look"}
+    line = work.entry(
+        waits, work.holder(waits, role="scout"), **about, role="scout", title="scout: look"
+    )
+    kept = json.loads((scene.state / "work.json").read_text())
+    scene.write("work.json", kept | {"work": [*kept["work"], line]})
     needs = {one["key"]: one["home"] for one in served.json("/stack.json")["needs"]}
     assert needs["row:jam-lid"] == SHELF
     assert needs["approve:tea-kettle"] == ROOT
+    assert needs["mcp:scout: look"] == RACK
