@@ -49,7 +49,7 @@ def test_an_overlap_is_one_event_for_each_pair_and_nothing_else(kitchen):
     add(kitchen, "alpha", text=task("alpha", "src/jbus/cli.py", "tests/test_alpha.py"))
     kitchen.set(
         "claims.txt",
-        claim("alpha", "src/jbus/cli.py", "tests/test_alpha.py", state="not launched")
+        claim("alpha", "src/jbus/cli.py", "tests/test_alpha.py")
         + claim("other", "docs/", "src/jbus/cli.py")
         + claim("apart", "src/jmerge/"),
     )
@@ -63,11 +63,12 @@ def test_an_overlap_is_one_event_for_each_pair_and_nothing_else(kitchen):
     assert kitchen.lines("overlap") == [line] and gates(kitchen) == []
 
 
-def test_two_holders_are_two_events_and_a_brief_not_launched_is_none(kitchen):
+def test_each_pair_of_briefs_out_is_one_event_and_a_brief_not_launched_is_none(kitchen):
     add(kitchen, "alpha", text=task("alpha", "src/jbus/"))
     kitchen.set(
         "claims.txt",
-        claim("one", "src/jbus/cli.py", "src/jbus/dispatch.py")
+        claim("alpha", "src/jbus/")
+        + claim("one", "src/jbus/cli.py", "src/jbus/dispatch.py")
         + claim("two", "src/jbus/", state="pull request 9")
         + claim("later", "src/jbus/cli.py", state="not launched"),
     )
@@ -75,14 +76,15 @@ def test_two_holders_are_two_events_and_a_brief_not_launched_is_none(kitchen):
     rebases = "whichever merges second rebases"
     assert len(kitchen.t3.launches) == 1 and kitchen.lines("overlap") == [
         f"overlap alpha: shares src/jbus/cli.py, src/jbus/dispatch.py with one; {rebases}",
-        f"overlap alpha: shares src/jbus/ with two; {rebases}",
+        f"overlap alpha: shares src/jbus with two; {rebases}",
+        f"overlap one: shares src/jbus/cli.py, src/jbus/dispatch.py with two; {rebases}",
     ]
 
 
 def test_an_overlap_names_five_paths_and_counts_the_rest(kitchen):
     paths = [f"src/jbus/{name}.py" for name in "abcdefg"]
     add(kitchen, "alpha", text=task("alpha", *paths))
-    kitchen.set("claims.txt", claim("other", "src/jbus/"))
+    kitchen.set("claims.txt", claim("alpha", *paths) + claim("other", "src/jbus/"))
     kitchen.poll()
     assert kitchen.lines("overlap") == [
         f"overlap alpha: shares {', '.join(paths[:5])} and 2 more with other; "
@@ -92,25 +94,14 @@ def test_an_overlap_names_five_paths_and_counts_the_rest(kitchen):
 
 def test_a_row_that_is_not_launched_sends_no_overlap(kitchen):
     add(kitchen, "alpha", text=task("alpha", "src/jbus/cli.py"))
-    kitchen.set("claims.txt", claim("other", "src/jbus/cli.py"))
+    kitchen.set(
+        "claims.txt",
+        claim("alpha", "src/jbus/cli.py", state="not launched") + claim("other", "src/jbus/cli.py"),
+    )
     kitchen.t3.refuse = "no"
     kitchen.poll()
     assert gates(kitchen) == ["condition alpha: T3 Code refused the launch"]
     assert kitchen.lines("overlap") == []
-
-
-def test_a_launch_whose_reply_was_lost_sends_its_overlap_when_it_is_adopted(kitchen):
-    add(kitchen, "alpha", text=task("alpha", "src/jbus/cli.py"))
-    kitchen.set("claims.txt", claim("other", "src/jbus/cli.py"))
-    kitchen.t3.lose = "after"
-    kitchen.poll()
-    assert kitchen.lines("overlap") == []
-    kitchen.t3.lose = None
-    assert "adopted alpha: mcp:thread-1" in kitchen.poll(NOW + timedelta(minutes=3))
-    kitchen.poll(NOW + timedelta(minutes=6))
-    assert len(kitchen.t3.launches) == 1 and kitchen.lines("overlap") == [
-        "overlap alpha: shares src/jbus/cli.py with other; whichever merges second rebases"
-    ]
 
 
 def out(kitchen, head="c" * 40, reason=CHANGED + ": it needs a rebase", word="wait"):
@@ -223,6 +214,27 @@ def test_a_pull_request_with_no_launch_record_is_told_nothing(kitchen):
     out(kitchen)
     kitchen.poll()
     assert sends(kitchen) == [] and kitchen.lines("rebase") == [] and gates(kitchen) == []
+
+
+def test_a_row_its_home_launched_by_hand_is_told_to_rebase_once_on_a_fresh_check_hold(kitchen):
+    """The home launched the row's crew itself, so jbus has no launch record, and its queue row
+    names the crew's thread. jmerge holds the pull request because main changed under its check
+    and the home has no fresh-check command: the crew is woken once to rebase (Winnifred #196,
+    2026-10-23)."""
+    add(kitchen, "alpha")
+    kitchen.t3.thread("alpha", "running")
+    kitchen.brief("alpha", "Thread: mcp:thread-1\n")
+    kitchen.poll(NOW - timedelta(minutes=30))
+    assert kitchen.t3.launches == []
+    kitchen.t3.threads[0]["status"] = "completed"
+    out(kitchen, reason=CHANGED + ": it needs a fresh check")
+    for minutes in (0, 3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    (given,) = sends(kitchen)
+    assert given["threadId"] == "mcp:thread-1" and given["mode"] == "queue"
+    assert given["clientRequestId"] == "rebase|alpha|cccccccccccc"
+    assert "it needs a fresh check" in given["message"]
+    assert kitchen.lines("rebase") == ["rebase alpha: told the crew (#7, cccccccccccc)"]
 
 
 @pytest.mark.parametrize(

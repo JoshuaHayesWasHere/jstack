@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from jbus.view import state as built
 from view.scene import (
     OPAQUE,
     REPORTED,
@@ -60,6 +61,9 @@ def test_the_state_has_every_thread_out_and_each_task_its_threads_liveness(scene
         "pending": 0,
         "page": False,
         "rank": 0,
+        "home": "",
+        "retired": "",
+        "open": 0,
     }
     seen = tasks(state)["jam-jar"]["seen"]
     assert (seen["live"], seen["run_started"], seen["queued"]) == ("hung", began, 2)
@@ -244,3 +248,31 @@ def test_a_pull_request_ten_minutes_on_review_with_no_reviewer_listed_says_so(
     assert (task["step"], task["state"]["say"]) == ("review", says)
     waits = "its crewmate to start a reviewer" if says.startswith("no reviewer") else "its reviewer"
     assert task["state"]["waits"] == waits
+
+
+def test_a_home_names_its_scope_and_one_that_ended_with_its_own_tasks_open_asks(scene, served):
+    """A home's title is `home: <project>`, and a scoped home's names its scope after the
+    project. A home owns the open tasks whose brief its `Home:` line gives it, and a brief with
+    none is the root home's. A home whose turn ended while a task of its own is open is idle:
+    it waits on the user to start it again, so it ranks with what asks. A home with no open task
+    of its own ended with nothing out."""
+    (scene.home / "second").mkdir()
+    (scene.home / "second" / "home-id").write_text("mcp:home: demo second\n")
+    (scene.home / "tasks").mkdir(exist_ok=True)
+    (scene.home / "tasks" / "jam-jar.md").write_text("# jam-jar: a jar\nHome: second\n")
+    scene.queue([row("jam-jar", "running", thread="mcp:0000"), row("rye-loaf", "merged", pr="#9")])
+    scene.passed(
+        20,
+        threads=[
+            out("home: demo", "ended", "completed"),
+            out("home: demo second", "ended", "completed"),
+            out("home: demo third", "hung", minutes=25),
+        ],
+    )
+    state = served.json("/state.json?project=demo")
+    homes = [(t["slug"], t["home"], t["open"], t["out"], t["rank"]) for t in state["threads"]]
+    assert homes == [
+        ("demo", "", 0, False, built.OVER),
+        ("demo second", "second", 1, False, built.ASKS),
+        ("demo third", "third", 0, True, built.BROKEN),
+    ]

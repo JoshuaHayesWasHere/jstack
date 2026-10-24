@@ -244,6 +244,7 @@ class PullRequest:
                 "GIT_COMMITTER_NAME": "t",
                 "GIT_COMMITTER_EMAIL": "t@example.com",
                 "GIT_EDITOR": "true",
+                "T": str(REPO / "features" / "crew" / "templates"),
                 **({"H": str(home)} if home else {}),
             },
         ).stdout

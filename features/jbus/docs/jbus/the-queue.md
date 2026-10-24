@@ -182,6 +182,14 @@ The home decides whether the brief is really a follow-up, and you audit that cal
   A chain is one step.
   A parent that was itself approved by rule gets `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take the user's word for <slug>`.
 
+jbus also gives this approval itself, when `queue add` queues a follow-up, so that a follow-up never asks you.
+A row is a follow-up of P when it names P (a line `Follows: P` in its brief's head, or the slug `cleanup-P`), when it is P's (the slug `cleanup-P`, or the same `--entry` as P), and when P passes the parent checks above.
+The rule is the one that the home's `follow-rule` file names, one number on one line, and a home with no such file gets no approval by rule from jbus.
+`queue add` approves such a row in the same write, and so does an `approve` by your word of P, for the waiting rows that name P.
+A row that names a parent and is no follow-up gets one line, `<slug> waits for the user's go, not a follow-up by rule <n>: <why>`, and waits for your go.
+A row that was queued already, and waited for you, is not approved by a later `add`, and a held row stays held.
+The help that `jbus queue add` prints gives the rule.
+
 The row's `approval` field records the approval:
 
 | Field | What it holds |

@@ -33,6 +33,8 @@ When Sous Chef relays the user's word to this home, the home records it with `jb
 The home passes its own thread as `--from "$ME"`, so jbus keeps the word and posts nothing back into this thread.
 Without `--from`, jbus sends the word here as a queued message, and this home has already acted on it.
 The block that finds this home sets `$ME` to its id, and the block that reads jbus ("Gates") sets `$P` to the project.
+That id is the one line of this home's `home-id`, `mcp:<uuid>`, which the block checks `$ME` against, so pass `"$ME"` as it is and never type a name such as `home-<repo>` in its place.
+jbus refuses a `--from` that is not shaped `mcp:<uuid>`, or that T3 Code says is no thread, and keeps and sends nothing for it.
 Run this in the same call as the block at the top and those two:
 
 ```sh
@@ -70,20 +72,29 @@ If the block prints `no entry`, the page gave no go that jbus can read, so ask t
 ### A follow-up approved by a standing rule
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
-In one case the home approves a row the user did not speak of.
-The brief must follow up work the user approved.
-A rule of `standing.md` must also say that a follow-up needs no new approval, and in this repo that is rule 6.
-Then the home names the rule and the parent row, the one the user gave their word for:
+In one case a row launches on a word the user gave for another row: a follow-up of work the user approved.
+A rule of `standing.md` must say that a follow-up needs no new approval, and in this repo that is rule 6.
+The home's `follow-rule` file holds that rule's number, on one line, and with no such file jbus approves no row by rule.
+What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
+
+- the row names its parent P, by a line `Follows: P` in its brief's head, or by its slug `cleanup-P`, the row a review files with `jbus cleanup`;
+- the row is P's, since its slug is `cleanup-P`, or since it does work for P's plan entry (`--entry`), as a second unit of that entry does;
+- P's go is the user's own and still holds: P is a row of this queue, or one that was removed as merged, and the user's word approved it, not a rule.
+
+`jbus queue add` checks the rule when it queues the row, and approves a row that meets it by the rule in the same write, so no pass asks the user for it.
+It also checks the waiting rows that name P when the user's word approves P.
+It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
+`jbus queue add --help` gives the same rule.
+To queue a second unit, write `Follows: <parent>` in its brief's head and queue it with `--entry <the parent's plan entry>`.
+A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go however small it is.
+A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.
+A chain has one step, so a follow-up of a follow-up waits for the user.
+Where jbus did not approve a follow-up whose parent the user did approve, the home may still name the rule and the parent itself:
 
 ```sh
 jbus --project <project> queue approve <slug> --sha <sha12> --rule 6 --follows <parent>
 ```
 
-A rule approval is never for new work.
-New work waits for the user's go, however small it is and whatever entry holds it.
-A follow-up finishes or repairs what the parent row asked for, and asks for no outcome the parent did not.
-The home judges that, and jbus does not.
 `jbus` refuses a parent that is not a row of this queue, a parent with no approval, and a parent that a rule approved.
-A chain has one step, so a follow-up of a follow-up names the first parent or waits for the user.
 The row then reads `rule 6, follow-up of <parent>; run <time> by the <repo> home; you did not speak of this row`, the page marks it, and the digest counts it for the user.
-That is how the user audits a rule approval, so the home makes a doubtful follow-up a gate and not a rule approval.
+That is how the user audits a rule approval, so a follow-up the home doubts is held (`jbus queue hold`) and asked as a gate.

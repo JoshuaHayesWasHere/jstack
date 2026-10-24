@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from jbus import merge, mirror, queue, verbs, wake, watch
+from jbus import merge, mirror, passes, queue, verbs, wake, watch
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 SNAPSHOT_DAYS = 14
 
 
-def snapshot(run: wake.Pass, rows: list[queue.Row] | None) -> str:
+def snapshot(run: passes.Pass, rows: list[queue.Row] | None) -> str:
     parts = [queue.render(rows) if rows is not None else "queue.json does not parse\n"]
     since = (run.now - timedelta(days=SNAPSHOT_DAYS)).timestamp()
     briefs = [p for p in (run.home / "tasks").glob("*.md") if p.stat().st_mtime >= since]

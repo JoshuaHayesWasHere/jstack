@@ -45,7 +45,6 @@ They exit 1 when any line they print is not `ok`.
 - [A thread did not become a home](../../../home/docs/troubleshooting/a-thread-did-not-become-a-home.md)
 - [A restart cancelled a turn](../../../jbus/docs/troubleshooting/a-restart-cancelled-a-turn.md)
 - [A T3 Code sign-in ran out](../../../jbus/docs/troubleshooting/a-t3-code-sign-in-ran-out.md)
-- [`jbus` asks for `webhook_url` and `webhook_key`](../../../jbus/docs/troubleshooting/jbus-asks-for-a-webhook.md)
 - [A page or `jbus health` says `health <check>`](../../../jbus/docs/troubleshooting/jbus-health.md)
 - [The jbus units](../../../jbus/docs/troubleshooting/the-jbus-units.md)
 - [`jgauge room` prints `wait:`](../../../jgauge/docs/troubleshooting/jgauge-room-prints-wait.md)

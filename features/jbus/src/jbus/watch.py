@@ -39,8 +39,9 @@ from jbus import Refused, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
 from jbus.mirror import last_result, sections
+from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error
-from jbus.wake import Changed, Depends, Pass, Slot, cut
+from jbus.wake import cut
 from jgauge import slot, waiters
 from jmerge import checks as reading
 from jmerge import mainjson
@@ -58,6 +59,8 @@ WAITING_MINUTES = 30
 UNWRITTEN_MINUTES = 15
 RETRO = timedelta(hours=24)
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
+NO_JOB = "nojob"
+"""What `_check` answers for a commit on main whose failed check runs started no job."""
 BROWSER = "browser.yml"
 BROWSER_RED = ("failure", "timed_out")
 BROWSER_WINDOW = timedelta(days=3)
@@ -836,6 +839,10 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     `_check` reruns a cancelled run that is at its first attempt, and the commit is `pending` until
     the rerun ends. GitHub's `run_attempt` says whether the run ran again: `cancelled` is a later
     attempt that was cancelled too, and `refused` a run that GitHub did not start again.
+
+    A commit whose every failed check run has a job that ran no step is `NO_JOB`, not `failed`:
+    GitHub started no job, as on a spent Actions limit or a failed payment, so no code was judged.
+    A check run whose job GitHub does not give counts as one that ran, as in `never_started`.
     """
     if sha in known:
         return known[sha]
@@ -844,7 +851,12 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     ended = [r.get("conclusion") for r in runs if r.get("status") == "completed"]
     if len(ended) < len(runs):
         return "pending"
-    bad = any(c not in NOT_RED for c in ended)
+    failed = [r for r in runs if r.get("conclusion") not in NOT_RED]
+    unrun = (job(run, "{owner}/{repo}", str(r.get("id"))).get("steps") == [] for r in failed)
+    if failed and all(unrun):
+        known[sha] = NO_JOB
+        return NO_JOB
+    bad = bool(failed)
     if bad or (runs and "cancelled" not in ended):
         known[sha] = "failed" if bad else "green"
         return known[sha]

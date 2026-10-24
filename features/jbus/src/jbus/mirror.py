@@ -1,8 +1,9 @@
 """Read what the threads wrote down, and never write it: briefs, scout requests and the gates.
 
-Each pass reads `tasks/*.md`, `scouts/*.md` and `gates.md` in the home's state directory. It sends
-one event for each new section: a Result (a follow-up included), a Review, a Report, an open gate,
-an answered gate, and a gate that a thread with no home wrote into its own Result or Report. A gate
+Each pass reads `tasks/*.md`, `scouts/*.md` and each `gates.md` of the home and of its scoped homes
+(`gate_files`), in the home's state directory. It sends one event for each new section: a Result
+(a follow-up included), a Review, a Report, an open gate, an answered gate, and a gate that a thread
+with no home wrote into its own Result or Report. A gate of a scoped home names that home. A gate
 that a thread piped to `jbus gate` is a question jbus keeps (`questions`). `gate_key` gives such a
 question the same key as the gate in the file, so the two are one event, and jbus sends no event for
 its answer. `seen.json` keeps the file, heading and hash of every section jbus sent. So jbus sends
@@ -21,7 +22,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from jbus import noticed, queue, read_json, verbs, write_json
-from jbus.wake import Pass
+from jbus.passes import Pass
 
 EVENTS = {
     "gate": "quiet",
@@ -175,11 +176,16 @@ def gates(text: str) -> list[tuple[str, str, str, str]]:
     return [(match[1], match[2].strip(), heading, body) for match, heading, body in found if match]
 
 
+def gate_files(home: Path) -> tuple[Path, ...]:
+    """Return the home's `gates.md`, then each scoped home's, whether or not it exists."""
+    return (home / "gates.md", *sorted(home.glob("*/gates.md")))
+
+
 def home_gates(home: Path) -> Iterator[tuple[Path, str, str, str, str]]:
     """Return each gate of the home's `gates.md`, then of each scoped home's: its file, its
     number, what it asks, the lines under it, and its `gate_key`. It returns no gate for a file
     it cannot read."""
-    for file in (home / "gates.md", *sorted(home.glob("*/gates.md"))):
+    for file in gate_files(home):
         for number, asked, _, body in gates(_read(file)):
             yield file, number, asked, body, gate_key(asker(body), asked)
 
@@ -190,24 +196,31 @@ def asker(body: str) -> str:
 
 
 def _gates(
-    text: str, held: frozenset[str] | None = frozenset()
+    text: str, held: frozenset[str] | None = frozenset(), where: str = ""
 ) -> list[tuple[str, str, str, str, str]]:
-    """Return the events of a `gates.md`. A gate jbus holds as a question gets no
-    `gate answered` event: its record is closed, and jbus reports a closed record nowhere.
-    With no `held`, jbus could not read the questions, so this function reports no
-    answered gate until jbus can read them."""
+    """Return the events of a `gates.md`. `where` is the scoped home the file is of, or nothing
+    for the root's. A gate jbus holds as a question gets no `gate answered` event: its record is
+    closed, and jbus reports a closed record nowhere. With no `held`, jbus could not read the
+    questions, so this function reports no answered gate until jbus can read them.
+
+    A scoped gate's line and key name its home, so two homes' gates are two events, and a root
+    gate keeps the key it always had. A scoped gate that jbus holds as a question went out when
+    it was piped, under the question's key, so it gets no event here."""
     found = []
     for number, asked, heading, body in gates(text):
         slug = asker(body)
         status = field(body, "Status")
         whole = f"{heading}\n{body}"
+        key, tag = gate_key(slug, asked), f"{slug} in {where}" if where else slug
         if status.startswith("open"):
-            found.append((slug, "gate", f"gate {slug}: {asked}", whole, gate_key(slug, asked)))
+            if where and (held is None or key in held):
+                continue
+            found.append((slug, "gate", f"gate {tag}: {asked}", whole, f"{where} {key}".lstrip()))
         elif held is None:
             continue
-        elif status.startswith("answered") and gate_key(slug, asked) not in held:
-            line = f"gate {slug}: gate {number} answered"
-            found.append((slug, "gate answered", line, whole, f"answered {number}"))
+        elif status.startswith("answered") and key not in held:
+            line, done = f"gate {tag}: gate {number} answered", f"{where}#{number}".lstrip("#")
+            found.append((slug, "gate answered", line, whole, f"answered {done}"))
     return found
 
 
@@ -226,6 +239,9 @@ def scan(
     sends nothing for it, and `noticed.keep` adds its `Noticed` lines as lines from before. A
     brief jbus launched has a row. A home writes a scout's request before the launch, so a
     pass reads the request before the scout's Report is in it.
+
+    It reads the `gates.md` of each scoped home too. A gate that such a file holds as answered
+    the first time a pass reads it was answered before, and the pass sends nothing for it.
     """
     seen_path = run.state / "seen.json"
     seen: dict[str, dict[str, str]] = read_json(seen_path, {})
@@ -266,9 +282,16 @@ def scan(
                     whole = f"{heading}\n{body}"
                     key = f"{kind} {name} {digest}"
                     sent += run.find(slug, what, line, whole, key=key, past=True)
-    for slug, what, line, whole, key in _gates(_read(run.home / "gates.md"), held):
-        if new("gates.md", f"{what} {key}", whole, again=False):
-            sent += run.find(slug, what, line, whole, key=key, past=True)
+    for path in gate_files(run.home):
+        where = "" if path.parent == run.home else path.parent.name
+        file = f"{where}/gates.md" if where else "gates.md"
+        first = bool(where) and file not in seen
+        if path.exists():
+            seen.setdefault(file, {})
+        for slug, what, line, whole, key in _gates(_read(path), held, where):
+            fresh = new(file, f"{what} {key}", whole, again=False)
+            if fresh and not (first and what == "gate answered"):
+                sent += run.find(slug, what, line, whole, key=key, past=True)
     if restored:
         try:
             noticed.keep(run.state, run.home, run.now, before=frozenset(restored))

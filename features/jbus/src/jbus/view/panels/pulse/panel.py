@@ -15,6 +15,7 @@ import subprocess
 from datetime import datetime
 from typing import Any
 
+from jbus import alert
 from jbus import launchd as agents
 from jbus.view.clean import ANY
 from jbus.view.state import (
@@ -45,6 +46,7 @@ SHAPE = {
         "last_end": None,
         "said": None,
         "manager": None,
+        "failed": None,
         "pass": {"started": None, "ended": None, "seconds": None, "running": None},
         "timer": {"active": None, "sub": None, "enabled": None, "last_trigger": None},
         "status": {
@@ -53,6 +55,9 @@ SHAPE = {
             "failed_wakes": None,
             "last_error": None,
             "outbox": None,
+            "wake": None,
+            "since": None,
+            "stranded": None,
             "top_level": {"failed_wakes": None, "last_error": None, "outbox": None},
             "blocking": {"failed_wakes": None, "last_error": None, "outbox": None},
             "sign_in": None,
@@ -63,7 +68,7 @@ SHAPE = {
         },
         "code": {"started": None, "stale": None, "error": None},
     },
-    "main": {"sha": None, "at": None},
+    "main": {"sha": None, "red": None, "at": None},
 }
 NOT_KEPT = (
     Spot("only the last pass is kept, not the ones before it", 500),
@@ -144,6 +149,11 @@ def pulse(read: Read) -> dict[str, Any]:
     mine = status.get("projects", {}).get(name) if isinstance(status.get("projects"), dict) else {}
     mine = mine if isinstance(mine, dict) else {}
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
+    open_now = _table(sources.state_dir / "streaks.json") or {}
+    wake = text(mine.get("wake"), 20)
+    route = alert.home(name) if wake in ("home", "both") else alert.webhook(name)
+    stranded = status.get("stranded") if isinstance(status.get("stranded"), dict) else {}
+    held = stranded.get(name) if isinstance(stranded.get(name), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
     scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
     said = f"{manager} did not answer"
@@ -162,6 +172,7 @@ def pulse(read: Read) -> dict[str, Any]:
         "said": said,
         "manager": manager,
         "answered": units is not None,
+        "failed": _streak(open_now, alert.PASS)[0],
         "pass": {
             "started": started,
             "ended": ended,
@@ -182,6 +193,9 @@ def pulse(read: Read) -> dict[str, Any]:
             "failed_wakes": count(mine.get("failed_wakes")),
             "last_error": text(mine.get("last_error")),
             "outbox": count(mine.get("outbox")),
+            "wake": wake,
+            "since": _streak(open_now, route)[1] if mine.get("failed_wakes") else None,
+            "stranded": sum(count(one) for one in held.values()),
             "top_level": _hook(mine.get("top_level")),
             "blocking": _hook(mine.get("blocking")),
             "sign_in": text(mine.get("sign_in")),
@@ -211,6 +225,16 @@ def _hook(one: Any) -> dict[str, Any] | None:
         "last_error": text(one.get("last_error")),
         "outbox": count(one.get("outbox")),
     }
+
+
+def _streak(streaks: dict[str, Any], key: str) -> tuple[int, str | None]:
+    """How many tries in a row failed under `key` in `streaks.json`, and since when. `jbus alarm`
+    counts a pass that raised there after the pass wrote the status file, so the view reads the
+    file itself and is not a pass behind."""
+    one = streaks.get(key)
+    if not isinstance(one, dict):
+        return 0, None
+    return count(one.get("count")), when(one.get("since"))
 
 
 def _code(said: dict[str, Any]) -> dict[str, Any]:
@@ -251,10 +275,15 @@ def blind(read: Read) -> list[Spot]:
 
 
 def build(read: Read) -> dict[str, Any]:
-    main = mainjson.typed(read.table(mainjson.NAME)) or {}
-    sha = text(main.get("main", ""), 40)
+    kept = read.table(mainjson.NAME)
+    main = mainjson.typed(kept) or {}
+    sha, red = text(main.get("main", ""), 40), text(mainjson.of(kept).red, 40)
     said = {key: value for key, value in read.once(pulse).items() if key != "answered"}
     return {
         "jbus": said | {"code": _code(read.code)},
-        "main": {"sha": sha if _SHA.fullmatch(sha) else "", "at": when(main.get("at"))},
+        "main": {
+            "sha": sha if _SHA.fullmatch(sha) else "",
+            "red": red if _SHA.fullmatch(red) else "",
+            "at": when(main.get("at")),
+        },
     }

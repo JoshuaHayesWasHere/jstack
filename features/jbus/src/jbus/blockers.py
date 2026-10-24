@@ -69,7 +69,8 @@ from jbus import (
     waiting,
     write_json,
 )
-from jbus.wake import Box, Pass
+from jbus.passes import Pass
+from jbus.wake import Box
 
 if TYPE_CHECKING:
     from jbus.cli import Half

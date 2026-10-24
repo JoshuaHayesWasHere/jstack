@@ -22,6 +22,7 @@ IMPORTS = (
     "dispatch",
     "expedite",
     "merge",
+    "passes",
     "questions",
     "queue",
     "record",

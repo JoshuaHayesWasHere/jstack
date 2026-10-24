@@ -247,13 +247,14 @@ def relay_state() -> Path:
 
 def posts_to_relay(config: jbus.Config) -> bool:
     """Return whether the config posts to the relay: a webhook on this machine at its port,
-    `RELAY_PORT` (4390)."""
+    `RELAY_PORT` (4390), that a project's `wake` posts to, or the second target."""
     try:
         port = int(relay_setting("RELAY_PORT", "4390"))
     except ValueError:
         port = 4390
-    urls = [project.webhook_url for project in config.projects]
-    urls += [config.webhook[0], config.blocking[0]]
+    posting = [project for project in config.projects if project.to_webhook]
+    urls = [project.webhook_url for project in posting]
+    urls += [config.webhook[0] if posting else "", config.blocking[0]]
     found = (urllib.parse.urlsplit(url) for url in urls if url)
     return any(one.hostname in LOCAL and one.port == port for one in found)
 

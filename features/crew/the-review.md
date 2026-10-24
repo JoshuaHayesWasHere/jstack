@@ -43,7 +43,7 @@ The same words inside the task's text or a result do not count.
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
 - `after`: launch the reviewer as for `review`, and do not wait for it.
-  The pull request merges once its check passes, and the reviewer turns its findings into a cleanup row, `cleanup-<slug>`, that waits for the user's go, so no findings come to this thread and the Result gets no `Finding` lines and no `Fixed:` line.
+  The pull request merges once its check passes, and the reviewer turns its findings into a cleanup row, `cleanup-<slug>`, a follow-up that `jbus queue add` approves by the home's follow-up rule, so no findings come to this thread and the Result gets no `Finding` lines and no `Fixed:` line.
   While a home merges, jbus wakes this thread when every check has passed, and on `passed` it sends the thread that hears of a pull request ("Telling the home") one line, once for a head: `<slug>: <pull request url> at <full head commit> is green, and its brief says Review: after`.
 - `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
   Once the `Fixed:` line names the head you pushed, launch the second review of that head as a second pass is launched, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
@@ -54,6 +54,13 @@ The same words inside the task's text or a result do not count.
 To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says for `/pr-review` typed in a crewmate's thread: each line `jroles review` prints is one reviewer, told its number.
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.
+
+Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/.." jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configuration` gives as `threadId`.
+When it exits 75 and prints no JSON, every instance of the review pool is capped, and it has registered this thread as a waiter until the cap's end, in the line it prints.
+Then make no launch and add no `Reviewer:` line, and end your turn at once with one line: `Waiting on the review pool: jbus will wake this thread when its cap ends.`
+Never poll for the reset, never wait in a background job, and never count on a nudge from jbus's other messages: `jbus poll` sends this thread one message once the cap's end has passed, and that message is the wake.
+On it, make the same launch again.
+If the pool is capped again by then, the run registers this thread again and you stop again: each wait is woken once.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 

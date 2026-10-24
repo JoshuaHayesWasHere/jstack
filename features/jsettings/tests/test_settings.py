@@ -16,7 +16,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import wake
+from jbus import passes, wake
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import AT, add, brief, rows, sha12
 from test_stall import ACCEPTED, HEAD, SAFE, URL, held, later, shown
@@ -176,7 +176,8 @@ def test_a_config_that_names_robin_is_whom_jbus_takes_and_prints(kitchen, jstack
         "refused: only Robin gives a word, not user\n",
     )
     kept = kitchen.main(*say, "--by", "Robin", "--at", AT, "go")[1].split()[-1]
-    go = ["queue", "approve", "alpha", "--sha", sha12(brief("alpha"))]
+    built = brief("alpha", "Builds on: ps-agnostic\n")
+    go = ["queue", "approve", "alpha", "--sha", sha12(built)]
     assert kitchen.main(*go, "--word", kept)[0] == 0
     assert rows(kitchen)["alpha"]["approval"]["said_at"] == AT
     kitchen.poll()
@@ -239,7 +240,7 @@ def test_an_outbox_of_the_old_names_goes_out_in_the_next_post_under_the_new(kitc
 def test_a_key_sent_under_the_old_event_name_keeps_the_finding_from_going_twice(kitchen):
     kitchen.quiet()
     jbus.write_json(kitchen.state / "sent.json", [f"{OLD_EVENT}|#9|a line"])
-    run = wake.Pass(jbus.load(), jbus.load().projects[0], NOW)
+    run = passes.Pass(jbus.load(), jbus.load().projects[0], NOW)
     assert run.find("#9", "waiting-on-user", "a line") is False
     assert run.find("#9", "waiting-on-user", "another line") is True
     assert [one["line"] for one in kitchen.events()] == ["another line"]

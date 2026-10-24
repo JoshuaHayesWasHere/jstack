@@ -56,7 +56,9 @@ SCOPE = "orchestration:read orchestration:operate"
 PROTOCOL = "2025-06-18"
 LIFETIME = 30 * 24 * 60 * 60
 CHARS = 50000
-GONE = re.compile(r"not found|no such|unknown thread|does not exist|no thread", re.I)
+GONE = re.compile(
+    r"not[ _]found|no longer available|no such|unknown thread|does not exist|no thread", re.I
+)
 
 
 class T3Error(Exception):

@@ -81,7 +81,9 @@ The block first prints the `merged` lines this home has not read, as on `jbus me
 After the run it prints what `jmerge` printed, then any `merged` line of this home's that another writer logged meanwhile, and sets the mark to the end of the log: what this home's own run printed is not news after the switch is emptied.
 It ends with what `jmerge` ended with and does not end the call, so a sweep joined after it runs.
 
-jbus runs `jmerge` with no `--home`, as the root home would. So the pull request of a brief whose `Home:` line names a scoped home is `wait <number> <url>: another home's` to it, also when it is ready or would be held, and nobody merges it while jbus merges: no `fixed and green` line comes for it either, so when the user asks for status, tell them that this line is a pull request nobody merges, and that it is theirs to merge once its brief has a `Fixed:` line.
+jbus runs `jmerge` with no `--home`, as the root home would, and while `$H/home-thread` is empty it merges for every home of the repo.
+So the pull request of a brief whose `Home:` line names a scoped home is merged, held or left waiting by the same rules as the root home's, and its `merged` line is in `$H/merge.log` like any other.
+A pull request is `wait <number> <url>: another home's` only while an id is in `$H/home-thread`, where each home runs `jmerge --home` and merges its own: never tell the user that a scoped home's pull request is theirs to merge for that reason.
 
 On `home merges` it runs `jmerge`. For each open pull request of this repo that is ready, it squash-merges it at the exact head it checked (`gh pr merge <number> --squash --match-head-commit <head>`), runs `git pull --ff-only` in the main checkout, and removes the crewmate's worktree and its local and remote branch. It writes no plan: `jbus plan` counts an entry's status from its queue rows. The skills in `~/.claude/skills` may be symlinks into the main checkout, and stay on the old text until that pull. It prints one line per open pull request, and appends the same lines, dated, to `$H/merge.log`:
 
@@ -95,7 +97,7 @@ On `home merges` it runs `jmerge`. For each open pull request of this repo that 
 | `wait <number> <url>: guarded (touches <path>), <reason>` | it is not merged yet: it is short of nothing else, it changes a guarded path, and that part of the stricter gate does not hold. It is not the user's to merge: a later run merges it once the reason is gone |
 | `hold <number> <url>: needs <the user's name>, touches <path>` | it is not merged and `jmerge` never merges it: it is short of nothing else, and it changes a protected path: a secret, or one of `jmerge`'s two lists. The path is the first one that matches. Tell the user, once: it is theirs to merge |
 | `wait <number> <url>: auto-merge is off for this repo` | it is not merged: it is short of nothing else, and the repo has a `merge-off` file. It is the user's to merge |
-| `wait <number> <url>: another home's` | its brief's `Home:` line names another home of this repo, and a home merges its own. `--all` merges those too: add it only on the user's word |
+| `wait <number> <url>: another home's` | its brief's `Home:` line names another home of this repo, and while `$H/home-thread` holds an id a home merges its own. `--all` merges those too: add it only on the user's word |
 | `wait: could not ask GitHub` | nothing was looked at |
 
 Ready means all of these hold.

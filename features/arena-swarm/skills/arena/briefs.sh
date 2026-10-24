@@ -22,6 +22,20 @@ reads() {
     printf '`, then each candidate'"'"'s diff from `origin/HEAD`, with its rationale in its Result:'
     for r in $have; do printf ' `%s`' "$H/tasks/$slug-$r.md"; done
 }
+# The `Builds on:` line of a seat that starts from the runners' work, and the judge's too
+# when it is given `judge`: jbus queues a `--depends` only on a row that line names.
+builds() {
+    printf 'Builds on:'
+    sep=' '
+    for r in $have; do
+        printf '%s%s' "$sep" "$slug-$r"
+        sep=', '
+    done
+    if [ -n "${1}" ]; then printf ', %s-judge' "$slug"; fi
+    printf ': the candidates on their branches, with the rationale in their Results'
+    if [ -n "${1}" ]; then printf ", and the judge's verdict in its Result"; fi
+    printf '\n'
+}
 runner() {
     cat << EOF
 # $slug-${1}: runner ${1} of the arena $slug, made apart from runner ${2}
@@ -59,6 +73,7 @@ Pull request: none
 Review: none
 Playbook: none
 Read: $(reads)
+$(builds)
 $(home)
 EOF
 }
@@ -83,6 +98,7 @@ Pull request: open one when done
 Review: review
 Playbook: none
 Read: first $(reads); only after the scores are written, the judge's Result in \`$H/tasks/$slug-judge.md\`
+$(builds judge)
 $(home)
 EOF
 }

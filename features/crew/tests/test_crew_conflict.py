@@ -139,9 +139,10 @@ def main_adds(pr, other, name):
 
 def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_path):
     """This test covers upstream's cap on rebases. Past merge prep, when a change on trunk
-    forces a third rebase, the block does not make it and reports it instead. The block
-    counts the rebases it made after the `Fixed:` line and writes the stop line instead of
-    making the third, and `jmerge` reads that line for the head it holds."""
+    forces a third rebase that changes the content, the block does not make it and reports it
+    instead. The block counts the rebases it made after the `Fixed:` line, makes the third on
+    trial, and once the range-diff shows content puts the head back and writes the stop line,
+    which `jmerge` reads for the head it holds."""
     pr = PullRequest(tmp_path, "CONFLICTING", "other.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)
@@ -149,8 +150,8 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
     brief.write_text(BRIEF)
     other = tmp_path / "other"
 
-    def main_moves(name):
-        pr.commit(other, name, "theirs\n", f"main changes {name}")
+    def main_moves(name, text="theirs\n"):
+        pr.commit(other, name, text, f"main changes {name}")
         git(other, "push", "-q", "origin", "HEAD:main")
         return git(other, "rev-parse", "HEAD")
 
@@ -165,11 +166,15 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
         assert f"Rebased after fixed: {before} onto origin/main at {tip}\n" in brief.read_text()
     assert ready.rebase_held(brief.read_text(), pr.head()) == ""
 
-    held, tip = pr.head(), main_moves("fourth.txt")
+    held, tip = pr.head(), main_moves("shared.txt", "one\nthe task\n")
     third = "a third rebase after fixed and green"
     stop = f"Rebase hold: at {held}, {third}, onto origin/main at {tip}"
-    told = [f"hold: no third rebase after fixed and green, the brief has the line {stop}"]
-    assert pr.run("mergeable", home).splitlines() == told
+    said = pr.run("mergeable", home).splitlines()
+    assert said[0] == "rebased onto origin/main"
+    assert said[-1].startswith(f"{third}: run the block that looks for dropped lines")
+    (told,) = pr.run("no rebase to look through", home).splitlines()
+    assert told.startswith(f"hold: {third} changed the content, so it is not made: ")
+    assert told.endswith(f"; the brief has the line {stop}")
     assert pr.head() == held
     assert not pr.rebasing()
     again = [f"held: no third rebase after fixed and green, and its gate is parked already: {stop}"]
@@ -185,11 +190,11 @@ def test_a_third_rebase_after_the_fixed_line_is_held_and_jmerge_waits_on_it(tmp_
     assert brief.read_text().count("Rebased after fixed:") == 3
 
 
-def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path):
+def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_made_on_trial(tmp_path):
     """When main has taken a migration's number, the crewmate rebases by running the block with
     `stale`, as the `renumber` message of `expedite` says to. GitHub reports no conflict. The
-    block counts each such rebase after the `Fixed:` line, so it stops at the third rebase,
-    and `jmerge` waits."""
+    block counts each such rebase after the `Fixed:` line, so the third is made on trial, and
+    with a range-diff that is empty it goes on and `jmerge` does not wait."""
     pr = PullRequest(tmp_path, "MERGEABLE", "0005_other.up.sql")
     asked(pr, "MERGEABLE")
     state = tmp_path / "home"
@@ -206,16 +211,20 @@ def test_a_renumber_rebase_counts_toward_the_cap_and_the_third_is_held(tmp_path)
     assert f"Rebased after fixed: {before} onto origin/main at {tip}\n" in brief.read_text()
     assert brief.read_text().count("Rebased after fixed:") == 2
     assert ready.rebase_held(brief.read_text(), pr.head()) == ""
-    held, tip = pr.head(), main_adds(pr, other, "0008_other.up.sql")
-    (said,) = renumber()
-    assert said.startswith("hold: no third rebase after fixed and green")
-    assert pr.head() == held
-    assert ready.rebase_held(brief.read_text(), held) == ready.REBASE_HELD
+    before, tip = pr.head(), main_adds(pr, other, "0008_other.up.sql")
+    said = renumber()
+    assert said[0] == "rebased onto origin/main"
+    assert said[-1].startswith("a third rebase after fixed and green: run the block that looks")
+    kept = stays(pr, "no rebase to look through", state=state)
+    assert kept[0].startswith("kept: a third rebase after fixed and green whose range-diff is ")
+    assert git(pr.work, "rev-parse", "HEAD~1") == tip
+    assert f"Rebased after fixed: {before} onto origin/main at {tip}\n" in brief.read_text()
+    assert ready.rebase_held(brief.read_text(), pr.head()) == ""
 
 
 def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_anew(tmp_path):
-    """A follow-up with no `Fixed:` line of its own counts its rebases, and stops before it
-    makes the third."""
+    """A follow-up with no `Fixed:` line of its own counts its rebases, and makes the third on
+    trial: it is counted only once it is kept."""
     pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
     home = tmp_path / "home"
     (home / "tasks").mkdir(parents=True)
@@ -234,10 +243,11 @@ def test_a_rebase_that_stops_after_the_fixed_line_counts_and_a_follow_up_counts_
         assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
         assert brief.read_text().count("Rebased after fixed:") == count
         git(pr.work, "rebase", "--abort")
-    (third,) = pr.run("mergeable", home).splitlines()
-    assert third.startswith("hold: no third rebase after fixed and green, the brief has the line ")
+    third = pr.run("mergeable", home).splitlines()
+    assert third[0] == "the rebase stopped: resolve these, then git rebase --continue"
+    assert third[-1].startswith("a third rebase after fixed and green: run the block that looks")
     assert brief.read_text().count("Rebased after fixed:") == 4
-    assert not pr.rebasing()
+    assert pr.rebasing()
 
 
 @pytest.mark.parametrize("main_edits", ["other.txt", "shared.txt"])
@@ -260,3 +270,159 @@ def test_a_rebase_that_wrote_no_line_is_one_jmerge_carries_the_review_over(
     handled = f"Finding: fixed, it is wrong\nFixed: {before}\n" if fixed else ""
     review = merge.review("findings" if fixed else "clean", saw if fixed else before)
     assert covers(tmp_path / "main", BRIEF + handled + review, pr.head()) == (before, True)
+
+
+THIRD = "a third rebase after fixed and green"
+
+
+def rebased_twice(tmp_path, main_edits):
+    """A made-up row: a pull request that is fixed and green and was rebased twice since, and a
+    default branch that has moved under it once more."""
+    pr = PullRequest(tmp_path, "CONFLICTING", main_edits)
+    asked(pr, "CONFLICTING")
+    home = tmp_path / "home"
+    (home / "tasks").mkdir(parents=True)
+    twice = "".join(
+        f"Rebased after fixed: {a * 40} onto origin/main at {b * 40}\n" for a, b in ("ab", "cd")
+    )
+    (home / "tasks" / "alpha.md").write_text(BRIEF + f"Fixed: {pr.head()}\n" + twice)
+    return pr, home, home / "tasks" / "alpha.md"
+
+
+def third_rebase(pr, home, resolved=None):
+    """What the crewmate does on the conflict: the first block of "A conflict", the file the
+    rebase stopped on resolved as `resolved` says, and the block that looks for lost lines."""
+    said = pr.run("mergeable", home).splitlines()
+    if resolved is not None:
+        assert said[0] == "the rebase stopped: resolve these, then git rebase --continue"
+        (pr.work / "shared.txt").write_text(resolved)
+        git(pr.work, "add", "shared.txt")
+        git(pr.work, "-c", "core.editor=true", "rebase", "--continue")
+    else:
+        assert said[0] == "rebased onto origin/main"
+    assert said[-1].startswith(f"{THIRD}: run the block that looks for dropped lines")
+    return pr.run("no rebase to look through", home).splitlines()
+
+
+@pytest.mark.parametrize(
+    ("main_edits", "resolved"),
+    [
+        ("other.txt", None),
+        ("shared.txt", "theirs\nthe task\n"),
+    ],
+    ids=["a clean rebase", "a conflict resolved keeping both sides"],
+)
+def test_a_third_rebase_whose_range_diff_is_empty_goes_on_and_asks_nobody(
+    main_edits, resolved, tmp_path
+):
+    """S10: a third rebase after fixed and green that leaves the reviewed content as it was
+    goes by its default. No hold is written, so `jmerge` has nothing to wait on and no gate asks
+    the user, and the rebase is counted in the brief as any other."""
+    pr, home, brief = rebased_twice(tmp_path, main_edits)
+    before = pr.head()
+    said = third_rebase(pr, home, resolved)
+    assert said[0].startswith(f"kept: {THIRD} whose range-diff is empty, so it goes on: ")
+    assert said[-1].startswith("Kept: every line, in ")
+    assert git(pr.work, "rev-parse", "HEAD~1") == pr.landed
+    assert "Rebase hold:" not in brief.read_text()
+    assert brief.read_text().endswith(
+        f"Rebased after fixed: {before} onto origin/main at {pr.landed}\n"
+    )
+    assert brief.read_text().count("Rebased after fixed:") == 3
+    assert ready.rebase_held(brief.read_text(), pr.head()) == ""
+    assert ready.rebase_held(brief.read_text(), before) == ""
+    assert (pr.git_dir / "crew-before-rebase").read_text().split() == [before, "main", before]
+    assert pr.run("no rebase to look through", home).splitlines() == said[1:]
+
+
+def test_a_third_rebase_is_judged_alone_and_not_with_a_commit_made_after_it(tmp_path):
+    """The `renumber` message orders the rebase, then a commit that renumbers, then the check and
+    the push. The range-diff judges the rebase alone, so an empty one goes on and the commit
+    after it stays on the branch."""
+    pr, home, brief = rebased_twice(tmp_path, "other.txt")
+    before = pr.head()
+    said = pr.run("mergeable", home).splitlines()
+    assert said[-1].startswith(f"{THIRD}: run the block that looks for dropped lines")
+    pr.commit(pr.work, "0009_mine.up.sql", "renumbered\n", "renumber the migration")
+    renumbered = pr.head()
+    said = pr.run("no rebase to look through", home).splitlines()
+    assert said[0].startswith(f"kept: {THIRD} whose range-diff is empty, so it goes on: ")
+    assert pr.head() == renumbered
+    assert "Rebase hold:" not in brief.read_text()
+    assert brief.read_text().endswith(
+        f"Rebased after fixed: {before} onto origin/main at {pr.landed}\n"
+    )
+
+
+def test_a_third_rebase_that_changes_the_content_is_still_held_for_the_user(tmp_path):
+    """S10: a third rebase after fixed and green whose resolution changed what was reviewed is
+    not made. The head goes back to where it was, the resolved head is kept under a ref, and
+    the hold line is written for that head, so `jmerge` waits and the gate asks the user."""
+    pr, home, brief = rebased_twice(tmp_path, "shared.txt")
+    before = pr.head()
+    said = third_rebase(pr, home, "theirs\nthe task, as main has it now\n")
+    resolved = git(pr.work, "rev-parse", f"refs/jstack/held-rebase/alpha/{before[:12]}")
+    line = f"Rebase hold: at {before}, {THIRD}, onto origin/main at {pr.landed}"
+    (hold,) = said
+    assert hold.startswith(f"hold: {THIRD} changed the content, so it is not made: ")
+    assert hold.endswith(f"; the brief has the line {line}")
+    assert pr.head() == before
+    assert git(pr.work, "rev-parse", f"{resolved}~1") == pr.landed
+    assert not (pr.git_dir / "crew-before-rebase").exists()
+    assert brief.read_text().endswith(line + "\n")
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    assert ready.rebase_held(brief.read_text(), before) == ready.REBASE_HELD
+    again = [f"held: no third rebase after fixed and green, and its gate is parked already: {line}"]
+    assert pr.run("mergeable", home).splitlines() == again
+    assert pr.head() == before
+
+
+def test_three_rows_at_a_third_rebase_ask_the_user_once(tmp_path):
+    """The replay of S10 from three made-up rows, each at its third rebase after fixed and
+    green: two whose range-diff is empty go on by their default, and the one whose rebase
+    changed the content still asks. What the user is asked is what `jmerge` holds."""
+    rows = {
+        "beta": ("other.txt", None),
+        "gamma": ("shared.txt", "theirs\nthe task\n"),
+        "delta": ("shared.txt", "theirs\nthe task, as main has it now\n"),
+    }
+    held = {}
+    for slug, (main_edits, resolved) in rows.items():
+        (tmp_path / slug).mkdir()
+        pr, home, brief = rebased_twice(tmp_path / slug, main_edits)
+        third_rebase(pr, home, resolved)
+        held[slug] = ready.rebase_held(brief.read_text(), pr.head())
+    assert held == {"beta": "", "gamma": "", "delta": ready.REBASE_HELD}
+
+
+def test_a_third_rebase_not_judged_yet_is_not_pushed(tmp_path):
+    """The push block refuses a third rebase after fixed and green that the block that looks
+    for dropped lines has not judged, so no unjudged rebase reaches the pull request."""
+    pr, home, brief = rebased_twice(tmp_path, "other.txt")
+    before = pr.head()
+    assert pr.run("mergeable", home).splitlines()[0] == "rebased onto origin/main"
+    not_judged = (
+        f"no push: {THIRD} is not judged yet: run the block that looks for dropped lines first"
+    )
+    assert pr.run("--force-with-lease", home).splitlines() == [not_judged]
+    assert git(pr.work, "rev-parse", "origin/a-task") != pr.head()
+    said = pr.run("no rebase to look through", home)
+    assert said.startswith(f"kept: {THIRD}")
+    assert pr.run("--force-with-lease", home).splitlines() == [f"pushed {pr.head()} over {before}"]
+
+
+def test_a_third_rebase_given_up_by_hand_is_not_recorded_as_kept(tmp_path):
+    """A stopped trial that the crewmate aborts leaves the head where it was: the block says no
+    rebase was made, and writes no `Rebased after fixed:` line and no hold."""
+    pr, home, brief = rebased_twice(tmp_path, "shared.txt")
+    before = pr.head()
+    assert pr.run("mergeable", home).splitlines()[0].startswith("the rebase stopped")
+    git(pr.work, "rebase", "--abort")
+    gone = (
+        f"no rebase: the head is still at {before}, so {THIRD} was not made and nothing is recorded"
+    )
+    assert pr.run("no rebase to look through", home).splitlines() == [gone]
+    assert brief.read_text().count("Rebased after fixed:") == 2
+    assert "Rebase hold:" not in brief.read_text()
+    assert not (pr.git_dir / "crew-before-rebase").exists()
+    assert not (pr.git_dir / "crew-third-rebase").exists()

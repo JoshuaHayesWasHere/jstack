@@ -39,7 +39,7 @@ Each section named below is in `skills/home/SKILL.md`.
 6. Keep what holds.
    An issue a worker reports is a claim until a thread has run its evidence or read the line it points at.
    Where crewmates left files to keep, write one more brief, `tasks/<slug>.md`, whose `Rests on:` line is the table: its crewmate checks each claim it keeps, brings the kept files into one branch from the slices' branches, runs the check command, and opens the swarm's one pull request with `Review: review`.
-   Queue it with `--depends` on the writing rows, and its Result names their branches to remove once it merges.
+   Queue it with `--depends` on the writing rows its `Builds on:` names; its Result names their branches to remove once merged.
    Where every worker only read, the table is the answer, and an issue the user wants fixed is a brief of its own.
 
 Never done here, and who does it:

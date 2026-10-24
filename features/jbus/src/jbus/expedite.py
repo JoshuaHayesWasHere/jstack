@@ -42,8 +42,8 @@ reason with its sentence:
   `Stale base:` line for the head;
 - `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
   <free>`: rebase with the crew skill's "A conflict" block, which counts the rebase toward
-  its cap of two after fixed and green. Then renumber the migration and the ones after it,
-  consecutively.
+  its cap of two after fixed and green and holds a third only where its range-diff is not
+  empty. Then renumber the migration and the ones after it, consecutively.
 - `gate`, a `hold` that says `its merge gate failed`, `could not start` or `ran over`: run the
   repo's merge gate at the head, fix what it names or make what it asks for, and push where a
   file changed. Only a gate that passes lifts the hold.
@@ -53,6 +53,14 @@ thread is at work (`watch.LIVE`: starting, `running` or `waiting`), since the li
 what the crew is about to write. It tells a crew that ended its turn (`completed`, `failed`,
 `interrupted`, `cancelled`). The last four reasons wait for a review, so `tell` also does
 not send them while a thread titled `review: <slug>` is at work.
+
+A message sent while the crew's instance is capped (`jroles.ledger`) starts a turn that ends at once
+on the usage limit, so it is spent. Its key ends `|cap <reset>`, the Unix time the cap resets, and
+`expedite.json` keeps that reset beside the pass it was told in. The first pass after the reset
+finds the reason and the head as they were, and sends the message again, once, under the key of the
+window it is sent in. The passes of the cap do not count as idle ones, so a hold the message was
+about stays in hand until the reset. A message sent while the instance has headroom is sent once,
+as above.
 
 The message is a quiet event, `expedite`: it starts no POST. `expedite.json` counts the
 passes. After the message, a pass is an idle one when the reason and the head are as they
@@ -81,16 +89,18 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from jbriefs import findings, skills
 from jbriefs.home import home_of, thread_of
 from jbus import END_TURN, dispatch, merge, read_json, rebase, write_json
+from jbus.passes import Pass
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
-from jbus.wake import Pass
 from jbus.watch import LIVE, World
 from jmerge import ready
+from jroles import ledger
 
 EVENTS = {"expedite": "quiet"}
 EXPEDITE = "expedite"
@@ -100,6 +110,7 @@ LAPSE = AFTER + PASSES
 NO_THREAD = "short pull request with no thread to tell"
 REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
+SPENT = ("told", "idle", "capped")
 REVIEW = "review: "
 NO_RANGE = "its Result has no Rebase line for its head, so the hold is the user's"
 _REBASE = re.compile(
@@ -313,10 +324,10 @@ TABLE = (
         ),
         'Rebase onto the default branch with the crew skill\'s "A conflict" block, run with '
         "`stale`: it counts the rebase toward the cap of two after fixed and green, and holds a "
-        "third. Then renumber the migration the reason names to the number it gives, and each "
-        "migration of yours after it to the numbers that follow, one each and in their order: "
-        "the files, and every other line that names an old number. Run the check command, and "
-        "push with the block's push.",
+        "third only where its range-diff is not empty. Then renumber the migration the reason "
+        "names to the number it gives, and each migration of yours after it to the numbers that "
+        "follow, one each and in their order: the files, and every other line that names an old "
+        "number. Run the check command, and push with the block's push.",
     ),
     Short(
         "gate",
@@ -401,6 +412,27 @@ def _busy(run: Pass, client: Client, world: World, slug: str, row: Short) -> boo
     return _reviewing(run, client, slug) if row.reviewed else False
 
 
+def _capped(run: Pass, client: Client, slug: str) -> int | None:
+    """Return the Unix time the cap on the crew's instance resets, or None while that instance has
+    headroom, or where T3 Code did not say which instance the crew's thread is on."""
+    thread = dispatch.thread_of(_brief(run, slug))
+    if not thread:
+        return None
+    try:
+        asked = client.call("t3_thread_configuration", {"threadId": thread})
+    except T3Error as error:
+        run.say(f"wait {slug}: its crew's instance could not be read ({error})")
+        return None
+    chosen = asked.get("modelSelection") or {}
+    instance = chosen.get("instanceId") or chosen.get("provider") or ledger.BUILT_IN
+    until = ledger.capped_until(ledger.read([instance]), instance, run.now)
+    return int(until.timestamp()) if until else None
+
+
+def _window(capped: int | None) -> str:
+    return f"cap {capped}" if capped else ""
+
+
 def told(run: Pass, pulls: merge.Said) -> set[int]:
     """Return the holds in hand in a pass that could not ask T3 Code or GitHub, and so has
     no crew to ask. They are the holds `tell` had in hand for the same reason when it last
@@ -445,16 +477,21 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         same = (seen.get("head"), seen.get("reason")) == (head, reason)
         entry = {**seen, "passes": seen["passes"] + 1} if same else {"passes": 1}
         entry |= {"head": head, "reason": reason, "number": number}
+        if "told" in entry and run.now.timestamp() >= entry.get("capped", float("inf")):
+            entry = {name: value for name, value in entry.items() if name not in SPENT}
         kept[slug] = entry
         passes = entry["passes"]
         due = not entry.keys() & {"told", "users"} and passes >= AFTER
-        if due and f"{row.kind}|{slug}|{head[:12]}" in sent:
+        capped = _capped(run, client, slug) if due else None
+        if due and rebase.mark(row.kind, slug, head, _window(capped)) in sent:
             entry["told"], due = passes, False
+            entry |= {"capped": capped} if capped else {}
         asked = "told" in entry and not entry.get("users")
         busy = _busy(run, client, world, slug, row) if due or asked else None
         if due and busy is False:
-            went = _tell(run, client, world, number, slug, row, entry)
+            went = _tell(run, client, world, number, slug, row, entry, capped)
             entry |= {"told": passes} if went == "told" else {"users": True} if went else {}
+            entry |= {"capped": capped} if went == "told" and capped else {}
         if row.word == "hold" and due and "told" not in entry and passes >= LAPSE:
             run.say(
                 f"wait {slug}: its crew was not told in {passes} passes, so the hold is the user's"
@@ -465,7 +502,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if row.word == "hold":
             hand.add(number)
         since = passes - entry.get("told", passes)
-        if since and busy is False:
+        if since and busy is False and run.now.timestamp() >= entry.get("capped", 0):
             entry["idle"] = entry.get("idle", 0) + 1
         if entry.get("idle", 0) >= PASSES or since >= REVIEWING:
             thread = dispatch.thread_of(_brief(run, slug)) or "not known"
@@ -519,11 +556,19 @@ def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reas
 
 
 def _tell(
-    run: Pass, client: Client, world: World, number: int, slug: str, row: Short, entry: dict
+    run: Pass,
+    client: Client,
+    world: World,
+    number: int,
+    slug: str,
+    row: Short,
+    entry: dict,
+    capped: int | None = None,
 ) -> str:
     """Send the message that is due, and return how it went: `told`, `users` for a hold no
-    message can lift, or nothing when the next pass must try the message again."""
-    head = entry["head"]
+    message can lift, or nothing when the next pass must try the message again. `capped` is the
+    reset of a cap the crew's instance is under, and the message's key names it."""
+    head, window = entry["head"], _window(capped)
     sentence, sent = row.sentence, row.sends.replace("{slug}", slug)
     if row.kind in ("unruled", "fix"):
         ranges = _ranges(run, slug, head, row.kind)
@@ -544,12 +589,15 @@ def _tell(
     ask = rebase.Ask(
         row.kind, "", "told what it is short of", message, no_thread=NO_THREAD, refused=REFUSED
     )
-    went = rebase.post(run, client, world, number, entry["reason"], ask)
+    went = rebase.post(run, client, world, number, entry["reason"], ask, window)
     if not went:
         return ""
-    run.box.mark(f"{row.kind}|{slug}|{head[:12]}")
+    run.box.mark(rebase.mark(row.kind, slug, head, window))
     line = f"{EXPEDITE} {slug}: told the crew what #{number} is short of ({row.kind}, {head[:12]})"
     line += f", sent `{sent}`" if sent else ""
-    run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]}")
+    if capped:
+        until = datetime.fromtimestamp(capped, UTC).isoformat()
+        line += f", while its crew's instance is capped until {until}, so it is sent again then"
+    run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]} {window}".strip())
     run.say(line)
     return "told"

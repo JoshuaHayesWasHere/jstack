@@ -45,7 +45,7 @@ from pathlib import Path
 import jbus
 import jsettings
 from jbus import mirror, plan, queue, verbs, write_json
-from jbus.wake import Pass
+from jbus.passes import Pass
 
 NAME = "noticed.json"
 NEW, TAKEN, DROPPED = "new", "taken", "dropped"

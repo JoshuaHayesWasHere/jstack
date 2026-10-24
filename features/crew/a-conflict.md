@@ -1,10 +1,26 @@
 ### A conflict
 
-A default branch that moved is a reason to rebase in two cases only, a conflict or a failure, never staleness. GitHub says the pull request is `CONFLICTING`. Or a message from jbus or `jmerge` says its check no longer passes there, `<command> fails on <head> over today's main`. A default branch that moved on this pull request's files or on any other is no reason by itself: where the repo asks for a fresh check, `jmerge` tests the head over today's main and merges on a pass, and one that ran out of time is queued again, not failed. Only where `jmerge` can run no fresh check (a guarded pull request, `it needs a rebase`, or a repo with no `fresh-check`) does a message say `main changed <files> after its check started`, because a new check at the rebased head is then the only test of the combined tree. The rebase is told once for a pull request: a failure after it is not rebased for again, and jbus parks a gate with the default that the pull request waits.
+A default branch that moved is a reason to rebase in two cases only, a conflict or a failure, never staleness.
+GitHub says the pull request is `CONFLICTING`.
+Or a message from jbus or `jmerge` says its check no longer passes there, `<command> fails on <head> over today's main`.
+A check that failed while the base was red is no reason either: once the base has moved since that check started, `jmerge` judges the pull request again over today's base by itself, with its fresh check where the repo has one, and asks GitHub to merge the base into the branch, so no crew waits on it and no home sends a rebase for it by hand.
+A default branch that moved on this pull request's files or on any other is no reason by itself: where the repo asks for a fresh check, `jmerge` tests the head over today's main and merges on a pass, and one that ran out of time is queued again, not failed.
+Only where `jmerge` can run no fresh check (a guarded pull request, `it needs a rebase`, or a repo with no `fresh-check`) does a message say `main changed <files> after its check started`, because a new check at the rebased head is then the only test of the combined tree.
+The rebase is told once for a pull request: a failure after it is not rebased for again, and jbus parks a gate with the default that the pull request waits.
 
 Run this with the block at the top: as it is on jbus's message that the pull request is in conflict, and with `stale` in place of the words in angle brackets on that message. It rebases onto the pull request's base, the default branch. On a conflict it does so when GitHub reports `CONFLICTING`, and does nothing on any other answer. On `stale` it does so whatever GitHub reports, `MERGEABLE` included. It never rebases a link of a stack, a brief with a `Stack:` line in its head, `stale` or not: such a branch holds the commits of the links under it, and this rebase would replay them ("A link that moved").
 
-It rebases twice at most for the default branch once the pull request is fixed and green, and not a third time. The mark of that is the Result's `Fixed:` line, which a crewmate writes whoever merges: the `fixed and green` line is sent only while a home merges. Each rebase the block starts after the `Fixed:` line, one that stops on a conflict included, and counted again from each new Result, it records itself as the last line of the brief, `Rebased after fixed: <the head before> onto origin/<base> at <its tip>`. Where two such lines are there already, a default branch that keeps landing on this pull request's files is work that collides, and sequencing it is the home's and the user's, not one more rebase. So in place of the third the block writes `Rebase hold: at <head>, a third rebase after fixed and green, onto origin/<base> at <its tip>`, once for a head, and prints a line that begins `hold:`. `jmerge` reads that line and waits at that head.
+It rebases twice at most for the default branch once the pull request is fixed and green, and makes a third only where that leaves the reviewed content as it was.
+The mark of that is the Result's `Fixed:` line, which a crewmate writes whoever merges: the `fixed and green` line is sent only while a home merges.
+Each rebase the block starts after the `Fixed:` line, one that stops on a conflict included, and counted again from each new Result, it records itself as the last line of the brief, `Rebased after fixed: <the head before> onto origin/<base> at <its tip>`.
+Where two such lines are there already, the block makes the third on trial: it rebases, records nothing yet, and prints a line that begins `a third rebase after fixed and green`.
+The block that looks for dropped lines, run once the rebase is finished, judges it by `jmerge --range-diff`, the range-diff `jmerge` carries a review over with, between the head before and the rebased head.
+The rebased head is the one the rebase finished at, read from git's log of the branch, so a commit made after the rebase and before this block, such as a renumber, is not judged with it and stays on the branch.
+Where that range-diff is empty, the rebase goes on by its default and asks nobody: the block writes its `Rebased after fixed:` line and prints `kept:`.
+Where it is not, a default branch that keeps landing on this pull request's files is work that collides, and sequencing it is the home's and the user's, not one more rebase.
+So the block keeps the rebased head under `refs/jstack/held-rebase/<slug>/<the head before's first 12 characters>`, puts the branch back at the head before, writes `Rebase hold: at <head>, a third rebase after fixed and green, onto origin/<base> at <its tip>`, and prints a line that begins `hold:`.
+On a later wake at that head the first block prints `held:` and does not try again.
+`jmerge` reads the hold line and waits at that head.
 
 It never rebases under a review that is running either. A reviewer launched from this thread has a line in the Result, `Reviewer:`, `Second reviewer:` or `Scoped reviewer:` with a thread id, and writes one `## Review` section with a `Head:` line. While the brief has more of those lines than of those sections, the block prints `a review of <head> is running: rebase after its section is written` and does nothing: a rebase would move the head from under the reviewer, whose findings would then name lines of a head that is gone. Run the block again on the message that brings that review's findings.
 
@@ -64,24 +80,22 @@ else
             echo "could not fetch origin/$base: no rebase"
         elif git merge-base --is-ancestor "origin/$base" HEAD; then
             echo "already on origin/$base: no rebase"
-        elif [ "$fixed" = 1 ] && [ "$rebased" -ge $((2 + lifted)) ]; then
-            head=$(git rev-parse HEAD)
-            line="Rebase hold: at $head, a third rebase after fixed and green, onto origin/$base at $(git rev-parse "origin/$base")"
-            if grep -q "^Rebase hold: at $head," "$B" 2> /dev/null; then
-                echo "held: no third rebase after fixed and green, and its gate is parked already: $(grep "^Rebase hold: at $head," "$B" | tail -n 1)"
-            elif note "$line"; then
-                echo "hold: no third rebase after fixed and green, the brief has the line $line"
-            else
-                echo "hold: no third rebase after fixed and green, and the brief could not be written: add the line $line"
-            fi
+        elif [ "$fixed" = 1 ] && [ "$rebased" -ge $((2 + lifted)) ] && grep -q "^Rebase hold: at $(git rev-parse HEAD)," "$B" 2> /dev/null; then
+            echo "held: no third rebase after fixed and green, and its gate is parked already: $(grep "^Rebase hold: at $(git rev-parse HEAD)," "$B" | tail -n 1)"
         elif ! git update-ref "refs/jstack/pre-rebase/<slug>/$(git rev-parse --short=12 HEAD)" HEAD; then
             echo "could not keep the head under refs/jstack/pre-rebase: no rebase"
         else
             before=$(git rev-parse HEAD)
             echo "$before $base $pushed" > "$G/crew-before-rebase"
+            rm -f "$G/crew-third-rebase"
             counted() {
-                line="Rebased after fixed: $before onto origin/$base at $(git rev-parse "origin/$base")"
-                if [ "$fixed" = 1 ] && ! note "$line"; then echo "the brief could not be written: add the line $line"; fi
+                onto="onto origin/$base at $(git rev-parse "origin/$base")"
+                if [ "$fixed" = 1 ] && [ "$rebased" -ge $((2 + lifted)) ]; then
+                    echo "$onto" > "$G/crew-third-rebase"
+                    echo "a third rebase after fixed and green: run the block that looks for dropped lines once it is finished, which keeps it where its range-diff is empty and holds it where not"
+                elif [ "$fixed" = 1 ] && ! note "Rebased after fixed: $before $onto"; then
+                    echo "the brief could not be written: add the line Rebased after fixed: $before $onto"
+                fi
             }
             if said=$(git rebase -q "origin/$base" 2>&1); then
                 echo "rebased onto origin/$base"
@@ -149,11 +163,59 @@ On `not made`, run the command yourself and read what it says: the file is still
 Once the rebase is finished, prove that it lost no line, before the check command. Run this. For each file the patch changes, before the rebase or after it, it looks in the head for two sets of lines. The default branch's are the ones it added between where the branch left it before the rebase and where it leaves it now. Its own are the ones the patch added before the rebase. Each must be in the file at the head, unless the other side's diff removes that same line, which is a deletion that was meant. Lines are compared as text with the white space at their end left off, they are counted, so a line that is there once does not stand for two, and blank lines are skipped. It is the rule `jmerge` holds a rebased pull request to:
 
 ```sh
+B="$H/tasks/<slug>.md"
 G=$(git rev-parse --git-dir)
+note() { { { [ -z "$(tail -c1 "$B")" ] || echo >> "$B"; } && echo "${1}" >> "$B"; } 2> /dev/null; }
+goes_on() {
+    onto=$(cat "$G/crew-third-rebase" 2> /dev/null) || return 0
+    read -r before base pushed < "$G/crew-before-rebase"
+    head=$(git rev-parse HEAD)
+    third="a third rebase after fixed and green"
+    branch=$(git symbolic-ref -q HEAD)
+    rebased=$(git reflog show --format='%H %gs' "$branch" 2> /dev/null | awk -v ref="$branch" -v tip="${onto##* }" '
+        $(2) == "rebase" && $(3) == "(finish):" && $(4) == ref && $(5) == "onto" && $(6) == tip {print $(1); exit}')
+    if [ "$head" = "$before" ]; then
+        rm "$G/crew-before-rebase" "$G/crew-third-rebase"
+        stop="no rebase: the head is still at $before, so $third was not made and nothing is recorded"
+        return 1
+    elif [ -z "$rebased" ] || ! git merge-base --is-ancestor "$rebased" HEAD; then
+        stop="could not judge $third, nothing is pushed: git's log of ${branch:-the branch} has no rebase ${onto} under the head"
+        return 1
+    fi
+    said=$(uv run --project "$T/.." jmerge --range-diff "$before..$rebased" --base "$base" 2>&1)
+    case $said in
+    'clean: '*)
+        if ! note "Rebased after fixed: $before $onto"; then
+            stop="the brief could not be written: add the line Rebased after fixed: $before $onto, then run this again"
+            return 1
+        fi
+        rm "$G/crew-third-rebase"
+        echo "kept: $third whose range-diff is empty, so it goes on: ${said#clean: }"
+        ;;
+    'changed: '*)
+        line="Rebase hold: at $before, $third, $onto"
+        git update-ref "refs/jstack/held-rebase/<slug>/$(git rev-parse --short=12 "$before")" "$head"
+        if ! git reset -q --hard "$before"; then
+            stop="could not go back to $before: nothing is pushed, put the head back there by hand and run this again"
+        elif rm "$G/crew-before-rebase" "$G/crew-third-rebase" && note "$line"; then
+            stop="hold: $third changed the content, so it is not made: ${said#changed: }; the brief has the line $line"
+        else
+            stop="hold: $third changed the content, so it is not made: ${said#changed: }; the brief could not be written: add the line $line"
+        fi
+        return 1
+        ;;
+    *)
+        stop="could not judge $third, nothing is pushed: run this again; jmerge said: $said"
+        return 1
+        ;;
+    esac
+}
 if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
     echo "the rebase is not finished: resolve, git rebase --continue, then run this again"
 elif ! [ -f "$G/crew-before-rebase" ]; then
     echo "no rebase to look through"
+elif ! goes_on; then
+    echo "$stop"
 else
     read -r before base pushed < "$G/crew-before-rebase"
     old=$(git merge-base "origin/$base" "$before")
@@ -205,6 +267,11 @@ else
 fi
 ```
 
+For a third rebase after fixed and green it first judges the rebase, as the rule above says.
+On `kept:`, the rebase goes on and the block goes on to the lines.
+On `hold:`, the block stops there: do what "On `hold`" above says.
+On `no rebase: the head is still at`, the trial was given up, by a `git rebase --abort` or by hand: nothing is pushed, held or counted.
+On `could not judge`, nothing is pushed and nothing is held: find out why `jmerge` could not say, and run the block again.
 On `Kept: every line, in <files>`, go on. On `could not look`, nothing is proved: find out why git gave no file (a base that is not fetched, a record that names a commit that is gone), and do not push until the block prints one of the other two. On `Dropped: <k> of main's lines in <file>, <j> of its own in <file>`, the rebase took a line out that neither side meant to. Put the lines back, commit, and run the block again. Where a line is gone on purpose (the task replaces it, or the default branch's change makes it wrong), add one line to the Result for each such file, `Dropped on rebase: <file>, <k> of main's, <j> of its own, at <head12>: <why>`, with the two counts the block printed for that file, `0` for one it did not print, and the first 12 characters of the head you push: the scoped review rules on it. `jmerge` reads the line for the head the pull request is at and no other, so a commit after it (a fix, another rebase) asks for the line again at the new head, and jbus says so in a message here that begins `jbus: the rebase dropped`. A drop with no such line keeps the pull request waiting, one the review upholds merges, and only one it does not uphold goes to the user. Then run the block again, and go on only when every `Dropped` it still prints has its line in the Result. The head before the rebase is `refs/jstack/pre-rebase/<slug>/<its first 12 characters>`, and `git diff <that ref> HEAD -- <file>` shows what the resolution did.
 
 Then run the check command, and push with this. It is the only way a rebased head is pushed, never a bare `git push --force` and never `--force-with-lease` with no commit named. The lease names the head the pull request had at GitHub before the rebase started, read from the record, so a fetch since then cannot widen it:
@@ -216,6 +283,8 @@ pushed=
 if [ -f "$G/crew-before-rebase" ]; then read -r before base pushed < "$G/crew-before-rebase"; fi
 if [ -z "$branch" ] || [ -z "$pushed" ]; then
     echo "no push: the head the pull request had before the rebase is not on record here, so there is no lease to push with"
+elif [ -f "$G/crew-third-rebase" ]; then
+    echo "no push: a third rebase after fixed and green is not judged yet: run the block that looks for dropped lines first"
 elif git push -q --force-with-lease="refs/heads/$branch:$pushed" --force-if-includes origin "HEAD:refs/heads/$branch"; then
     rm "$G/crew-before-rebase"
     echo "pushed $(git rev-parse HEAD) over $pushed"
@@ -227,6 +296,7 @@ fi
 On `pushed`, the record is removed. On `the push was refused` or `no push`, nothing was pushed and nothing is forced: somebody else pushed to this branch, or the record is gone. Add what it printed to the Result, park a gate ("Do the task") that asks what to do with the commits on the origin's branch, with the default that the pull request waits, and end your turn.
 
 A rebase adds no line to the Result and changes none, but for the `Rebased after fixed:` and `Rebase hold:` lines the first block writes past the `Fixed:` line. A `Fixed:` line that names a commit keeps naming the commit it named before the rebase: that commit, or with no such line the head the last review saw, is the one the review covers, and `jmerge` compares the head it finds with it. A commit made before the push, for the check command or for a line put back, is read with the rebase.
+For a third rebase after fixed and green, the block that looks for dropped lines writes those two lines in place of the first block.
 
 The review stands after a rebase when the rebase left the reviewed content as it was: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean no review is started and nothing is asked of this thread. Where it is not, the rebase changed what was reviewed, and jbus says so in a message here: `the rebase changed the content after its review`, with the two ranges of that range-diff. That message, and nothing else, starts one scoped review, of the changed hunks only. Launch one reviewer the way "The review" launches one, with the message `/pr-review run <slug> scoped <old range> <new range>`, add the line `Scoped reviewer: <threadId>` to the Result, and handle its findings as a review's. Until its `## Review` section is written, the first block above does not rebase. A head gets one scoped review: a later rebase gets its own only on its own message, and its `Scoped reviewer:` line is added under the earlier one, which stays: the first block counts every reviewer that was launched. A push for a failed check made after a review saw an older head is ruled on the same way: its `CI fix:` line ("The checks") has `jmerge` compare the two heads, a clean range-diff carries the review over, and one that is not brings the same message here, which starts the one scoped review. A failing push before any review starts nothing more than the reviewer the pull request was still owed.
 

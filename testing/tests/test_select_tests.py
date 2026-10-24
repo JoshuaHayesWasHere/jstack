@@ -595,44 +595,55 @@ def test_a_commit_git_does_not_know_fails_with_what_git_said(repo):
     assert ran.stderr.startswith("select_tests.py: git diff failed: ")
 
 
-def whole(tmp_path):
-    """A repo with the map, the tests, the plugins and the fixtures of this one."""
-    map = REPO / select.MAP
-    repo = Repo(tmp_path, {path.name: path.read_text() for path in map.glob("*.md")}, files={})
-    shutil.copy2(REPO / "conftest.py", repo.put("conftest.py"))
-    shutil.copy2(REPO / select.CROSS, repo.put(select.CROSS))
-    for page in REPO.glob(f"features/*/{select.PAGE}"):
-        shutil.copy2(page, repo.put(page.relative_to(REPO).as_posix()))
-    tests = [*(REPO / "testing" / "tests").rglob("*"), *REPO.glob("features/*/tests/**/*")]
-    for test in [*tests, *(REPO / "testing").rglob("*.py")]:
-        named = test.relative_to(REPO).as_posix()
-        if test.is_file() and (select.FIXTURES.match(named) or test.suffix == ".py"):
-            shutil.copy2(test, repo.put(named))
-    repo.base = repo.commit()
-    return repo
+def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page():
+    selected, _ = select.selection(["features/jbus/src/jbus/view/page.html"])
 
-
-def test_a_change_to_the_view_selects_its_tests_but_not_the_browser_drive_of_its_page(tmp_path):
-    repo = whole(tmp_path)
-
-    head = repo.change(["features/jbus/src/jbus/view/page.html"])
-
-    selected = repo.selected(head)
     assert "features/jbus/tests/view/test_view_server.py" in selected
     assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
     assert set(select.cross_cutting()) <= set(selected)
-    assert "features/jdrift/tests/test_drift.py" not in selected
+    assert "features/jroles/tests/test_jroles_mirror.py" not in selected
 
 
 @pytest.mark.parametrize("panel", ["bus", "checks", "words", "you"])
-def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(panel, tmp_path):
-    repo = whole(tmp_path)
+def test_a_change_to_a_panel_selects_the_tests_of_the_view_under_tests_view(panel):
+    selected, _ = select.selection([f"features/jbus/src/jbus/view/panels/{panel}/panel.py"])
 
-    head = repo.change([f"features/jbus/src/jbus/view/panels/{panel}/panel.py"])
-
-    selected = repo.selected(head)
     assert f"features/jbus/tests/view/test_view_{panel}.py" in selected
     assert not [one for one in selected if one.startswith("features/jbus/tests/view/page/")]
+
+
+MERGED = {
+    "#330": (
+        [
+            "features/jbus/docs/jbus/the-sign-in.md",
+            "features/jbus/docs/jbus/when-jbus-fails.md",
+            "features/jbus/src/jbus/alert.py",
+            "features/jbus/src/jbus/signin.py",
+            "features/jbus/src/jbus/wake.py",
+            "features/jbus/tests/test_jbus_wake_home.py",
+        ],
+        "features/repo-guards/tests/test_module_size.py",
+    ),
+    "#337": (
+        [
+            "features/jbus/tests/fixtures/jbus-view/probe.js",
+            "features/jbus/tests/view/page/browser.py",
+            "features/jbus/tests/view/page/test_view_page_budgets.py",
+        ],
+        "features/jbus/tests/view/test_view_sources.py",
+    ),
+}
+
+
+@pytest.mark.parametrize(("changed", "broken"), MERGED.values(), ids=MERGED.keys())
+def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_broke(
+    changed, broken
+):
+    """The paths each pull request changed. Its check ran neither test, and main went red after
+    the merge: #330 pushed `jbus/wake.py` over the cap of lines, #337 put a URL in a view test."""
+    tests, _ = select.selection(changed)
+
+    assert broken in tests
 
 
 SUMMARY = re.compile(

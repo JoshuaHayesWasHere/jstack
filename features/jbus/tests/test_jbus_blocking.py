@@ -21,7 +21,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import alert, leftover, waiting, wake
+from jbus import alert, leftover, passes, waiting, wake
 from test_jbus_kitchen import KEY, NOW, RESULT, Webhook
 from test_jbus_questions import gate
 
@@ -280,7 +280,7 @@ def test_a_defaulted_gate_is_no_stall_while_two_threads_of_its_slug_are_at_work(
 def judged(kitchen, listed, rows=None, world=None, had=None):
     """Return what `waiting.blocking` gives over a made-up list, with the second target set."""
     config = jbus.load()
-    run = wake.Pass(config, config.project("demo"), later(1))
+    run = passes.Pass(config, config.project("demo"), later(1))
     return waiting.blocking(run, listed, rows, world, had)
 
 
@@ -326,7 +326,7 @@ def test_a_blind_pass_keeps_what_it_had(kitchen, second):
     hold(kitchen, 9)
     kitchen.poll(later(1))
     config = jbus.load()
-    run = wake.Pass(config, config.project("demo"), later(5))
+    run = passes.Pass(config, config.project("demo"), later(5))
     kept = waiting.cadence(run, None, None, None)
     assert [one["key"] for one in kept] == ["#9"]
     stall = made("gate", "gate:q4", default="tea", question="tea?", slug="alpha")

@@ -8,7 +8,8 @@ Once it runs out, T3 Code refuses jbus and jbus launches nothing.
 ## The reminder
 
 jbus reminds you with a `sign-in` event, which is a `user` event of the machine and not of a project.
-jbus posts it once to the top-level webhook, or to the first project's own webhook when there is no top-level pair, and keeps it in the first project's `jbus events`.
+jbus sends it once, to the first project's home thread where that project's `wake` picks it, and to one webhook where its `wake` picks the webhook: the top-level one, or the project's own when there is no top-level pair.
+It keeps it in the first project's `jbus events`.
 jbus counts the days by the calendar of your zone, up to the day the sign-in runs out:
 
 | When | The line |
@@ -22,7 +23,7 @@ Each row of the table is a mark.
 A pass sends the line for the mark it is in, and none for a mark already behind it.
 The renewal starts the count over for the new expiry.
 `~/.local/state/jbus/sign-in.json` keeps the expiry jbus saw last and the marks it has sent for it, so a project added or moved in the config sends nothing again.
-`sign_in_reminder` in `jbus status` names the webhook the reminder goes to and the days still ahead, or says `none: no top-level webhook, and <project> has none of its own`.
+`sign_in_reminder` in `jbus status` names where the reminder goes and the days still ahead, or says `none: no sign-in is stored` or `none: the config has no project to carry it`.
 
 ## The quiet lines
 

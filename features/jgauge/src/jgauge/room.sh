@@ -66,7 +66,7 @@ room() (
       }'
     fi
   fi
-  awk -v busy="$load" -v cores="$cores" -v stalled="$stalled" -v memory="$memory" -v pressure="$pressure" \
+  said=$(awk -v busy="$load" -v cores="$cores" -v stalled="$stalled" -v memory="$memory" -v pressure="$pressure" \
     -v psi="$psi" -v tmp="$tmp" -v light="$SKIP_LOAD" -v slots="${slots% *}" -v taken="${slots#* }" -v TMPFS="$TMPFS" \
     -v LOAD="$LOAD" -v CPU="$CPU" -v MEMORY="$MEMORY" -v PRESSURE="$PRESSURE" -v SLOTS="$SLOTS" \
     -v CUSHION="$CUSHION" -v LIMITS="$LIMITS" -v pool="$POOL" -v hollow="$hollow" -v now="$(date +%s)" '
@@ -167,6 +167,30 @@ room() (
         }
       }
       print (why == "" ? "go" : "wait: " why)
-    }'
+    }')
+  case $said in
+  "wait: load "*" cores")
+    hz=$(getconf CLK_TCK 2> /dev/null)
+    up=$(cut -d' ' -f1 "$PROC/uptime" 2> /dev/null)
+    top=$(awk -v hz="${hz:-100}" -v up="$up" '
+      FNR == 1 {
+        line = $(0)
+        sub(/^.*\) /, "", line)
+        split(line, field, " ")
+        pid = FILENAME
+        sub(/\/stat$/, "", pid)
+        sub(/^.*\//, "", pid)
+        age = up - field[20] / hz
+        if (age > 0 && field[1] != "Z") printf "%d %s\n", 100 * (field[12] + field[13]) / hz / age + 0.5, pid
+      }' "$PROC"/[0-9]*/stat 2> /dev/null | sort -rn | head -n 3 | while read -r share pid; do
+      [ "$share" -gt 0 ] || continue
+      command=$(tr '\0' ' ' < "$PROC/$pid/cmdline" 2> /dev/null | cut -c1-80 | sed 's/ *$//')
+      cwd=$(readlink "$PROC/$pid/cwd" 2> /dev/null)
+      printf '%s in %s (%s%%), ' "${command:-?}" "${cwd:-?}" "$share"
+    done)
+    if [ -n "$top" ]; then said="$said; the busiest: ${top%, }"; fi
+    ;;
+  esac
+  echo "$said"
 )
 room

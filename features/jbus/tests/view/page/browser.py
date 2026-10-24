@@ -12,8 +12,10 @@ the page: it counts the words on the first screen, opens every drawer, and write
 into the page, which the browser then prints. The proxy can also stop passing requests on. That
 is how a test puts the page in front of a server that is gone. The proxy writes down each write
 the page makes before it passes the write on. So a test may do something first, or keep the
-write from reaching any server. The browser opens no window under 500 pixels wide. So for the
-phone, the proxy gives it a page that has the real one in a frame of the phone's size.
+write from reaching any server. It keeps the page's counts of what it opened, its posts to
+`/usage`, apart from the writes, under `counted`. The browser opens no window under 500 pixels
+wide. So for the phone, the proxy gives it a page that has the real one in a frame of the phone's
+size.
 
 In place of the probe, the proxy can add axe, `AXE`, which is two files. One is the engine,
 vendored for these tests alone in `fixtures/jbus-view/axe.min.js`. The other is `axe-run.js`,
@@ -79,6 +81,7 @@ from view.scene import (
     asks,
     et,
     free_port,
+    iso,
     item,
     logged,
     out,
@@ -261,7 +264,17 @@ class Proxy:
     requests on."""
 
     def __init__(
-        self, upstream, at, task="", pick="", gates=None, probe=True, tap="", walk=None, script=""
+        self,
+        upstream,
+        at,
+        task="",
+        pick="",
+        gates=None,
+        probe=True,
+        tap="",
+        walk=None,
+        script="",
+        hops=False,
     ):
         self.upstream, self.dark, self.states = upstream, False, 0
         self.dark_after = None
@@ -269,11 +282,11 @@ class Proxy:
         self.alter = lambda nth, body: body
         self.alter_state = lambda nth, body: body
         self.refused = ()
-        self.writes = []
+        self.writes, self.counted = [], []
         self.on_write = lambda nth: None
         asked = f"window.__task = {json.dumps(task)}; window.__pick = {json.dumps(pick)};"
         asked += f"window.__gates = {json.dumps(gates)}; window.__tap = {json.dumps(tap)};"
-        asked += f"window.__walk = {json.dumps(walk)};"
+        asked += f"window.__walk = {json.dumps(walk)}; window.__hops = {json.dumps(hops)};"
         head = f"<script>window.__at = {at}; {asked}{script or PROBE}</script>"
         proxy = self
 
@@ -320,15 +333,20 @@ class Proxy:
                 it passes the write on with the server's own address as its `Host` and
                 `Origin`, the way the server's own page would send it."""
                 body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-                proxy.writes.append(
-                    {
-                        "path": self.path,
-                        "origin": self.headers.get("Origin"),
-                        "kind": self.headers.get("Content-Type"),
-                        "body": json.loads(body),
-                    }
-                )
-                if proxy.on_write(len(proxy.writes)) == "dark":
+                made = {
+                    "path": self.path,
+                    "origin": self.headers.get("Origin"),
+                    "kind": self.headers.get("Content-Type"),
+                    "body": json.loads(body),
+                }
+                if self.path == "/usage":
+                    proxy.counted.append(made)
+                else:
+                    proxy.writes.append(made)
+                if proxy.dark and self.path == "/usage":
+                    self.send_error(502)
+                    return
+                if self.path != "/usage" and proxy.on_write(len(proxy.writes)) == "dark":
                     self.send_error(502)
                     return
                 link = http.client.HTTPConnection("127.0.0.1", upstream, timeout=30)
@@ -451,6 +469,7 @@ def look(
     alter_state=None,
     script="",
     system="light",
+    hops=False,
 ):
     """Open the page in the browser and give back what the probe found.
 
@@ -462,12 +481,16 @@ def look(
     gets. `alter_state` does the same for `/state.json`. `tap` selects what the probe taps
     3 s after the page loads. `walk` is the steps the probe takes from 2.5 s on, one each
     0.5 s, such as `back` or `open:task:oat-bowl`. `system` is the scheme the browser asks
-    for, `light` or `dark`. With `gates`, the probe answers the gates, and what it found has
-    each write the page made under `writes`. The proxy calls `on_write` with the count of
-    each write before it passes the write on. A write for which `on_write` answers `dark`
-    reaches no server."""
+    for, `light` or `dark`. With `hops`, the probe taps each thing on the first screen once,
+    each from the page as it opened, and what it found has what each tap opened under
+    `hops`. With `gates`, the probe answers the gates, and what it found has
+    each write the page made under `writes`, and each count it posted under `counted`. The
+    proxy calls `on_write` with the count of each write before it passes the write on. A
+    write for which `on_write` answers `dark` reaches no server."""
     served = None if port else Served(scene)
-    proxy = Proxy(port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script)
+    proxy = Proxy(
+        port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script, hops=hops
+    )
     proxy.on_write = on_write or proxy.on_write
     proxy.alter = alter or proxy.alter
     proxy.alter_state = alter_state or proxy.alter_state
@@ -492,7 +515,12 @@ def look(
     found = re.search(r'<pre id="probe">(.*?)</pre>', ran.stdout, re.S)
     assert found, f"the probe wrote nothing: {ran.stdout[-2000:]} {ran.stderr[-2000:]}"
     said = json.loads(html.unescape(found[1]))
-    return said | {"writes": proxy.writes, "at": proxy.port, "asked": proxy.asked}
+    return said | {
+        "writes": proxy.writes,
+        "counted": proxy.counted,
+        "at": proxy.port,
+        "asked": proxy.asked,
+    }
 
 
 def clean(seen, screen=DESK):
@@ -535,6 +563,56 @@ def a_day_of_threads(scene):
     )
 
 
+def child_homes(scene):
+    """Two child homes of the scene's project beside its root, after `a_day_of_threads`. `ui`
+    was made on 2026-10-09. The crewmate that hung works on its brief `jam-jar`, its own thread
+    ended while a row of it is open, and jbus logged a stall of that row. `docs` was made the day
+    after and has nothing open and nothing wrong. It gives back the slug of the row that
+    stalled."""
+    for name, made in (("ui", "2026-10-09"), ("docs", "2026-10-10")):
+        (scene.home / name).mkdir()
+        (scene.home / name / "home-id").write_text(f"mcp:{name}\n")
+        goal = f"Goal ({made}, the user): the {name} of {scene.name}\n"
+        (scene.home / name / "plan.md").write_text(f"# {scene.name}, {name}: plan\n\n{goal}")
+    rows = json.loads((scene.state / "queue.json").read_text())
+    stalled = next(one["slug"] for one in rows if one["status"] == "running")
+    (scene.home / "tasks").mkdir(exist_ok=True)
+    for slug in ("jam-jar", stalled):
+        (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}\nHome: ui\nTask: x\n")
+    record = json.loads((scene.state_dir / "pass.json").read_text())
+    listed = record["projects"][scene.name]["threads"]
+    listed.append(out(f"home: {scene.name} ui", "ended", "completed", minutes=50, id="mcp:ui"))
+    scene.write("pass.json", record, scene.state_dir)
+    stall = {
+        "at": iso(ago(minutes=2)),
+        "event": "stall",
+        "id": "00000000000000ff",
+        "line": f"stall {stalled}: it has been on its step for 2 hours",
+        "loud": "user",
+        "slug": stalled,
+        "text": "the text of the event, which no answer holds",
+    }
+    with (scene.state / "events.jsonl").open("a") as log:
+        log.write(json.dumps(stall) + "\n")
+    return stalled
+
+
+MAP = (Path(__file__).parent / "map.js").read_text()
+
+
+def mapped(scene, tmp_path, build, screen=DESK, **how):
+    """What the probe of the homes map, `MAP`, found on `#/` of the scene that `build` makes,
+    and `/stack.json` as the server gives it."""
+    build(scene)
+    served = Served(scene)
+    try:
+        stack = served.json("/stack.json")
+        seen = look(scene, tmp_path, route="#/", script=MAP, screen=screen, port=served.port, **how)
+    finally:
+        served.close()
+    return seen, stack
+
+
 def chips(seen_band):
     return [(rl, [(c["text"], c["open"], c["ended"]) for c in cs]) for rl, cs in seen_band["rows"]]
 
@@ -550,7 +628,7 @@ def walked(scene, tmp_path, route, walk):
 def gated(scene):
     """Three questions of one crewmate, each with its options, the first with a context and
     one more option. It returns the numbers of the three questions."""
-    (scene.home / "tasks").mkdir()
+    (scene.home / "tasks").mkdir(exist_ok=True)
     (scene.home / "tasks" / "alpha.md").write_text("# alpha\nThread: mcp:crew-alpha\n")
     lines = PIPED.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
     lines += "Context: the pot holds two cups\nOption: both: a second pot\n"

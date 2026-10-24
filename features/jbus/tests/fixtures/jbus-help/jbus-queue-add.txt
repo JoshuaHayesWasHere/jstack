@@ -3,13 +3,25 @@ usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
                       [--item ITEM]
                       slug
 
+Queue a row, with its brief on stdin. A follow-up: a row is a follow-up of the
+row P, and jbus approves it by the home's follow-up rule when it is queued,
+when it names P (its brief's head has a line `Follows: P`, or its slug is
+`cleanup-P`), when it is P's (its slug is `cleanup-P`, or its --entry is P's
+plan entry), and when P's go is the user's own and holds (P is a row of the
+queue, or went as merged, and was approved by the user's word and not by a
+rule); any other row waits for the user's go. The home's follow-rule file
+names that rule of its standing.md, and with no such file no row is approved
+by rule when it is queued.
+
 positional arguments:
   slug
 
 options:
   -h, --help            show this help message and exit
   --priority PRIORITY   an integer, lower first
-  --depends DEPENDS     slugs that must be merged first, with commas
+  --depends DEPENDS     slugs that must be merged before this row launches,
+                        with commas: each one the brief's Builds on: line
+                        names
   --merge-after MERGE_AFTER
                         slugs whose pull requests merge before this row's,
                         with commas: jmerge waits

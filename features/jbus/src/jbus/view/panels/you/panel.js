@@ -5,8 +5,10 @@ function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
 function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
 function inlineAccept(w) { return (w.answerable && w.verb === "Accept default") || (!!w.item && !!PROJECT); }
+function saysSlug(line, slug) { return (" " + line + " ").split(/[^\w.-]+/).indexOf(slug) >= 0; }
 function needMeta(w, soon) {
   var v = ms(w.since), due = ms(w.due), bits = PROJECT ? [] : [esc(w.project)];
+  if (w.slug && !saysSlug(w.what, w.slug)) bits.push('<a class="ilk" href="' + esc(href(w.project, "task:" + w.slug)) + '" aria-label="Task ' + esc(w.slug) + ': open it">' + esc(w.slug) + '</a>');
   if (w.item) bits.push('<a class="ilk" href="' + esc(needLink(w)) + '">' + esc(w.item) + '</a>');
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (soon && due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
@@ -26,8 +28,8 @@ function needRow(w, soon) {
     (w["default"] ? '<span class="ny">If you do nothing: ' + esc(w["default"]) + '</span>' : "") + '<span class="nm"' + (ms(w.since) == null ? "" : ' title="Since ' + esc(day(ms(w.since))) + '"') + '>' + needMeta(w, soon) + '</span></div><div class="na">' + needAct(w) + '</div>';
 }
 function lastPass() {
-  var j = jb(), t = j && (ms(j.status && j.status.last_pass) || ms(j.last_end));
-  return t == null ? "" : " &middot; last pass " + hm(t);
+  var j = jb(), t = j && (ms(j.status && j.status.last_pass) || ms(j.last_end)), said = passWord(t);
+  return said ? " &middot; " + said : "";
 }
 function saidRows() {
   return SAID.map(function (s) { return '<p class="' + (s.bad ? "will bad" : "will none") + '"><b>' + esc(s.say) + '</b></p>'; }).join("");
@@ -50,7 +52,18 @@ function renderNeeds() {
   var src = PROJECT ? S : STACK, box = $("needs");
   box.hidden = !src || !!NOSUCH;
   if (box.hidden) return;
-  var needs = src.needs, soon = src.proceeds;
+  var needs = src.needs, soon = src.proceeds, bar = !PROJECT;
+  box.classList.toggle("bar", bar);
+  $("needs-go").hidden = !bar || !needs.length && !soon.length;
+  if (bar) {
+    var tail = (needs.length ? ["oldest " + ago(needs[0].since)] : []).concat(soon.length ? [soon.length + (needs.length ? " more" : "") + " on default"] : []);
+    put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> wait on you' : "Nothing waits on you" + lastPass()) + (tail.length ? ' <span class="nm">' + (needs.length ? "" : "&middot; ") + esc(tail.join(" \u00b7 ")) + '</span>' : ""));
+    keyed($("nq"), "li", "nr", []); keyed($("np"), "li", "nr", []);
+    $("nq").hidden = true; $("np-w").hidden = true;
+    put($("nsaid"), saidRows());
+    put($("nx"), "");
+    return;
+  }
   put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()));
   keyed($("nq"), "li", "nr", needs.map(function (w) { return { key: needId(w), html: needRow(w, false) }; }));
   $("nq").hidden = !needs.length;
@@ -131,8 +144,8 @@ function sendBatch() {
   send({ numbers: ns.map(Number) }, function (why) { BATCH = { busy: false, error: why }; draw(); });
 }
 function dYou(arg) {
-  var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.waiting.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">From <code>waiting-on-user.json</code>, the one list a pass writes. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
+  var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.needs.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
+  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes, and also hold the gates that go ahead on their default. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;
