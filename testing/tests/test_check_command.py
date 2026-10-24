@@ -43,6 +43,7 @@ from testing.paths import REPO
 
 SET_BY_A_RUN = ("MAKEFLAGS", "MAKELEVEL", "MFLAGS", "TEST_WORKERS", "GITHUB_ACTIONS", "CORES")
 SET_BY_A_RUN += ("RUNNER_ENVIRONMENT", "CGROUP", "JUNIT", "SHARD")
+SET_BY_A_RUN += ("GITHUB_OUTPUT", "GITHUB_STEP_SUMMARY")
 SCHEDULE = ["--dist", "worksteal", "--durations=25"]
 UNLIMITED = {"CGROUP": "/nonexistent"}
 LEAVES_OUT = ["-m", "not browser"]
@@ -364,9 +365,11 @@ def check_fast(copy, path):
 
 
 def selected(copy):
+    env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
     ran = subprocess.run(
         [sys.executable, "scripts/select_tests.py", "HEAD^1", "HEAD"],
         cwd=copy,
+        env=env,
         capture_output=True,
         text=True,
         check=True,
