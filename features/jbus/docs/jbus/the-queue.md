@@ -135,6 +135,9 @@ An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after`
 With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.
 A row keeps its item, and `add` refuses an `--item` that names another.
+`jbus queue add <slug> --from <thread id>` says which home adds the row, and an empty id is the root home.
+`add` refuses a row whose brief's `Home:` line names a home other than the one adding it, and queues nothing, so two homes do not brief the same fix unseen.
+`jbus queue add --for <home>`, `root` or a scope's name, hands the row over on purpose, and `add` refuses a `--for` that is not the brief's home.
 `hold` takes a row's approval back, which stops both its launch and its merge.
 A held row that was never launched does not launch.
 If its pull request is open, `jmerge` leaves it unmerged, with `wait <number> <url>: its queue row is held: approve it again to let it merge`, until `jbus queue approve` gives the row its go again.
