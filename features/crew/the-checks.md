@@ -69,7 +69,8 @@ else
 fi
 ```
 
-Its first word is one of six answers. After each but `held`, end your turn.
+Its first word is one of six answers.
+After each but `held`, end your turn.
 
 - `held`: GitHub's API budget, which jbus and every thread share, stayed at its floor (`jbus budget`) for the nine minutes the block waited, and nothing was asked of GitHub.
   Give the block a time limit of 10 minutes (`timeout: 600000` in Claude Code), and run it again, in this turn, until it prints another word.

@@ -56,10 +56,10 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    done
    ```
 
-   It prints one line for each brief, `<slug>: ready, <url> at <head>` or `<slug>: not ready, <the first thing it is short of>`.
    It first asks `jbus budget` whether GitHub's API budget, which jbus and every thread share, is above its floor, counting three calls for each brief.
    While it is not, the block waits up to nine minutes, then prints one line that starts `held:` and ends 75 with no brief asked about.
-   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and on `held:` run the block again, in this turn, until it prints the briefs. With `*` it leaves out the briefs of the past: those with no pull request, with a pull request that is merged or closed, or with a review or a reviewer already. A brief is ready when all of these hold:
+   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and on `held:` run the block again, in this turn, until it prints the briefs.
+   It prints one line for each brief, `<slug>: ready, <url> at <head>` or `<slug>: not ready, <the first thing it is short of>`. With `*` it leaves out the briefs of the past: those with no pull request, with a pull request that is merged or closed, or with a review or a reviewer already. A brief is ready when all of these hold:
    - its last `## Result` says `Status: done` and names a pull request;
    - it has no `## Review` section and no reviewer: no `Reviewer:` line but one that says `none`, which the block above reads the same way;
    - that pull request is open;
