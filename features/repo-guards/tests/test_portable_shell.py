@@ -4,7 +4,9 @@ The guard reads every `sh` block of the Markdown under `features/` and every she
 tree, and fails on a GNU-only command or flag, with the form that works on both in its message.
 `bsd_tools` builds a PATH that has the real tools with these taken away, the one the crew's and
 the reviewer's tests start their checks on. Every `sh` block of every tracked .md that bash 5
-parses also parses under bash 3.2, the bash macOS runs as /bin/sh.
+parses also parses under bash 3.2, the bash macOS runs as /bin/sh, as written and with its
+`<placeholder>`s filled in, with a plain word and, one at a time, with words that hold an
+apostrophe.
 """
 
 import os
@@ -75,6 +77,11 @@ GNU_ONLY = [
     ),
     (r"(^|[;&|(`]\s*|\$\(\s*|=\S*\s+)timeout\s", f"macOS has no timeout: {PERL_TIMEOUT}"),
     (r"\bsha256sum\b", "macOS has no sha256sum: `shasum -a 256`"),
+    (
+        r"\"[^\"]*\$\{\w+:?[-+=?][^}]*'",
+        "bash 3.2, macOS's sh, opens a quote at an apostrophe in `${name:-words}` inside double "
+        "quotes, when it runs and not under `bash -n`: set the words in a line of their own",
+    ),
     (
         r"(?<!command -v )\bxdg-open\b",
         "macOS opens a file with `open`: `$(command -v xdg-open || echo open)`",
@@ -213,6 +220,10 @@ def test_a_realpath_of_a_path_an_install_may_not_have_is_found_until_it_is_handl
         ("out=$(timeout 9 sh -c x)", "out=$(perl -e 'alarm shift; exec @ARGV' 9 sh -c x)"),
         ("sha256sum f | cut -c1-12", "shasum -a 256 f | cut -c1-12"),
         ("cores=$(nproc)", "cores=$(getconf _NPROCESSORS_ONLN)"),
+        (
+            'echo "${boot:-the home\'s line}"',
+            'first=${boot:-}\nif [ -z "$first" ]; then first="the home\'s line"; fi',
+        ),
         ("R=$(realpath -m ~/x/../y)", "R=$(realpath -q ~/x/../y || echo ~/y)"),
     ],
 )
@@ -341,8 +352,23 @@ def bash3(folder):
     return None
 
 
+PLACEHOLDER = re.compile(r"<[a-z][^<>\n]*>")
+
+
+def filled(block):
+    """The block as written, then as an agent fills it in: each placeholder a plain word, then
+    one placeholder at a time a user's words or a proof command that hold an apostrophe."""
+    yield block
+    names = list(dict.fromkeys(PLACEHOLDER.findall(block)))
+    for words in [None, *names]:
+        yield PLACEHOLDER.sub(
+            lambda one, words=words: "a user's words" if one[0] == words else "x", block
+        )
+
+
 def tracked_blocks(root):
-    """Each `sh` block of each tracked .md, as `(path:line, text)`."""
+    """Each `sh` block of each tracked .md, as `(path:line, text)`, out of the indent of its fence
+    as an agent runs it, once for each way it is `filled`."""
     listed = subprocess.run(
         ["git", "-C", str(root), "ls-files", "-z", "*.md"],
         capture_output=True,
@@ -355,7 +381,12 @@ def tracked_blocks(root):
             continue
         text = path.read_text()
         for found in BLOCK.finditer(text):
-            yield f"{name}:{text.count(chr(10), 0, found.start(2)) + 1}", found.group(2)
+            at = f"{name}:{text.count(chr(10), 0, found.start(2)) + 1}"
+            fence = found.group(1)
+            lines = found.group(2).splitlines(keepends=True)
+            unfenced = "".join(line.removeprefix(fence) for line in lines)
+            for block in filled(unfenced):
+                yield at, block
 
 
 def unparsed(bash, folder):
@@ -381,25 +412,51 @@ def unparsed_by_bash3(root, where):
         names[f"{at:05}"] = name
         (where / f"{at:05}").write_text(text)
     refused = unparsed(three, where) - unparsed((five, str(where)), where)
-    return sorted(names[file] for file in refused)
+    return sorted({names[file] for file in refused})
 
 
 def test_every_block_bash_5_parses_parses_under_bash_3_2(tmp_path):
     assert unparsed_by_bash3(REPO, tmp_path / "blocks") == []
 
 
-def test_a_heredoc_with_an_apostrophe_inside_a_command_substitution_is_found(tmp_path):
-    """bash 3.2 ends a quote at the apostrophe in the heredoc's body, where bash 5 reads the
-    body as text: the guard names that block and no other, and the same text with the heredoc
-    moved out of `$( )`, into a function the substitution calls, passes."""
+MOVED = "line() {\n    cat << 'EOF'\nTEXT\nEOF\n}\nsaid=$(line)\necho \"$said\"\n"
+
+
+SAID = "said=$(cat << 'EOF'\nTEXT\nEOF\n)\necho \"$said\"\n"
+
+
+@pytest.mark.parametrize(
+    ("planted", "text", "fence"),
+    [
+        (SAID, "the home's line", ""),
+        ("gh pr diff <url> > /dev/null\n" + SAID, "the home's line", ""),
+        (SAID, "<what the scope owns>", ""),
+        (SAID, "<the answer>", "   "),
+    ],
+    ids=["apostrophe", "apostrophe-beside-a-placeholder", "placeholder", "placeholder-in-a-list"],
+)
+def test_a_heredoc_with_an_apostrophe_inside_a_command_substitution_is_found(
+    tmp_path, planted, text, fence
+):
+    """bash 3.2 ends a quote at an apostrophe in the heredoc's body, where bash 5 reads the
+    body as text. The apostrophe is in the block, or comes with the words an agent puts in
+    place of its placeholder, and neither a placeholder elsewhere that bash 5 does not parse as
+    written nor the indent of a block in a list hides it. The guard names that block and no
+    other, and the same text with the heredoc moved out of `$( )`, into a function the
+    substitution calls, passes."""
     repo = tmp_path / "repo"
     skill = repo / "features" / "demo" / "SKILL.md"
     skill.parent.mkdir(parents=True)
-    planted = "said=$(cat << 'EOF'\nthe home's line\nEOF\n)\necho \"$said\"\n"
-    moved = "line() {\n    cat << 'EOF'\nthe home's line\nEOF\n}\nsaid=$(line)\necho \"$said\"\n"
-    skill.write_text(f"# demo\n\n```sh\necho one\n```\n\n```sh\n{planted}```\n")
+    planted = planted.replace("TEXT", text)
+    moved = planted[: planted.index("said=")] + MOVED.replace("TEXT", text)
+
+    def page(block):
+        block = "".join(fence + line for line in f"```sh\n{block}```\n".splitlines(True))
+        return f"# demo\n\n```sh\necho one\n```\n\n-  a step\n\n{block}"
+
+    skill.write_text(page(planted))
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
-    assert unparsed_by_bash3(repo, tmp_path / "planted") == ["features/demo/SKILL.md:8"]
-    skill.write_text(f"# demo\n\n```sh\necho one\n```\n\n```sh\n{moved}```\n")
+    assert unparsed_by_bash3(repo, tmp_path / "planted") == ["features/demo/SKILL.md:10"]
+    skill.write_text(page(moved))
     assert unparsed_by_bash3(repo, tmp_path / "moved") == []

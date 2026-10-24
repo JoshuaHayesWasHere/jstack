@@ -19,7 +19,8 @@ if [ "$said" != go ]; then
   exit 69
 fi
 rm -f "$W"
-SCOPE=$(cat <<'SCOPE'
+the_scope() {
+    cat <<'SCOPE'
 Scope of this review. It overrides anything above that reads wider.
 Review only the lines this pull request changes: its diff against its base branch.
 Report a finding only when it is about a changed line, or about something a changed line breaks. Give every finding the file and line of the changed line, and when the damage is elsewhere, say where in the text.
@@ -50,7 +51,8 @@ Read the changed code the way a tech lead would, and answer these about it:
    - A removal the change did not earn: an import, variable or function that was already unused before this change is named in the finding, not deleted. What the change itself made unused goes in the same change, and one left behind is a finding too.
 7. Does it change a file outside the "Where" line above? Each such file is a finding.
 SCOPE
-)
+}
+SCOPE=$(the_scope)
 INTENT=$(
   sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p}}' "$BRIEF"
   run=$(uv run --project "$T/.." jbriefs --skills-run "$BRIEF")
@@ -135,10 +137,12 @@ G=$(git rev-parse --git-dir)
 at() { [ "$(git rev-parse HEAD)" = "$kept" ] && [ ! -d "$G/rebase-merge" ] && [ ! -d "$G/rebase-apply" ]; }
 at || { echo "unproven: this checkout is not at $kept, or a rebase is going on in it, so the proof did not run"; exit 1; }
 export D
-cmd=$(cat << 'THE_PROOF_ENDS_HERE'
+the_proof() {
+    cat << 'THE_PROOF_ENDS_HERE'
 <the proof>
 THE_PROOF_ENDS_HERE
-)
+}
+cmd=$(the_proof)
 key=$({ printf '%s\n' "$cmd"; cat "$D/proof.sh" 2> /dev/null; } | cksum)
 running() { [ -f "$D/proof.pid" ] && ! [ -f "$D/proof.exit" ] && kill -0 "$(cat "$D/proof.pid")" 2> /dev/null; }
 if running; then

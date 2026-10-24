@@ -282,7 +282,9 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
        boot=$(awk '/^[ \t]*```/ {if (open) last = text; text = ""; open = !open; next} open {text = text $(0) "\n"} END {printf "%s", last}' "$page")
    fi
    told="Thread $ME, the $P thread before this one, handed off with /handoff and is settled: send it nothing. Before anything else, read \"The thread a party's handoff started\" in $(realpath "$T/../skills/handoff/SKILL.md") and do what it says, with $P in place of <party>. Then start from $M/handoff.md${boot:+ and $page}."
-   message=$(printf '%s\n\n%s\n' "${boot:-You are the next thread of $P's home, in $M.}" "$told")
+   first=$boot
+   if [ -z "$first" ]; then first="You are the next thread of $P's home, in $M."; fi
+   message=$(printf '%s\n\n%s\n' "$first" "$told")
    title="home: $P"
    model=$(uv run --project "$T/.." jroles expert) || model=
    if ! launch=$(jq -cn --arg title "$title" --arg message "$message" --argjson selection "${model:-null}" '{title: $title, workspaceStrategy: {type: "root"}, message: $message} + if $selection then {modelSelection: $selection} else {} end') ||
