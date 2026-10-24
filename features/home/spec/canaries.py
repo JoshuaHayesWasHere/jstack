@@ -97,9 +97,13 @@ def tlc(found, module, cfg):
         for spec in HERE.glob("*.tla"):
             shutil.copy(spec, work)
         (work / "run.cfg").write_text(cfg)
+        # Java's own cap is a quarter of the machine's memory, and a run grows to some 5 GB of it
+        # unasked. The tests run several at once, and a low-memory killer stopped them at that
+        # size, while the largest scene runs as fast in 1 GB.
         ran = subprocess.run(
             [
                 found.java,
+                "-Xmx1g",
                 "-XX:+UseParallelGC",
                 f"-Djava.io.tmpdir={work}",
                 "-cp",
