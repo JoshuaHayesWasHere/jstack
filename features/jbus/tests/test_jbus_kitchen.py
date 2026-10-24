@@ -350,7 +350,10 @@ def fake_gh(stub, args, cwd):
     view shows it. `run rerun` starts a run again and says nothing, or fails when `gh-no-rerun` is
     there.
 
+    `pr edit` changes nothing and says nothing: the log is its record.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
+    `api .../compare/<base>...<head>` gives the status `compare.json` keeps for `<base>...<head>`,
+    or `diverged`.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
     request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
@@ -393,6 +396,12 @@ def fake_gh(stub, args, cwd):
         pushed = stub / "head-now.json"
         now = json.loads(pushed.read_text()) if pushed.exists() else {}
         said = json.dumps(dict(found[0], **now.get(str(found[0]["number"]), {})))
+    elif args[:2] == ["pr", "edit"]:
+        said = ""
+    elif args[0] == "api" and "/compare/" in args[1]:
+        kept = stub / "compare.json"
+        known = json.loads(kept.read_text()) if kept.exists() else {}
+        said = json.dumps({"status": known.get(args[1].split("/compare/")[1], "diverged")})
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
         said = json.dumps({"check_runs": runs.get(args[1].split("/")[-2], [])})
@@ -803,6 +812,7 @@ class Kitchen:
             "url": f"https://example.test/pull/{number}",
             "title": title or f"feat: {slug}",
             "headRefName": slug,
+            "headRefOid": "d" * 40,
             "mergeCommit": {"oid": sha},
             "mergedAt": iso(NOW - ago),
         }
@@ -814,6 +824,7 @@ class Kitchen:
             "title": f"feat: {slug}",
             "headRefName": slug,
             "headRefOid": "c" * 40,
+            "baseRefName": "main",
             "statusCheckRollup": [
                 {"status": "COMPLETED" if state else "IN_PROGRESS", "conclusion": state}
             ],
@@ -835,6 +846,8 @@ class Kitchen:
         (["gh", "api", "repos/{owner}/{repo}"], {}),
         (["gh", "api", "repos/o/r/pulls/7/reviews", "--slurp"], {}),
         (["gh", "api", "repos/o/r/commits"], {}),
+        (["gh", "api", "repos/o/r/compare/a...b"], {"compare.json": '{"a...b": "ahead"}'}),
+        (["gh", "pr", "edit", "7", "--base", "main"], {}),
         (["gh", "pr", "list", "--state", "open"], {"gh-down": ""}),
         (["gh", "something", "else"], {}),
         (["jmerge"], {"jmerge.txt": "wait 7 a line\n"}),
