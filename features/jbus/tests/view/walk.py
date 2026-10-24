@@ -150,9 +150,6 @@ SURFACES = {
 }
 
 
-DATA, PAGE, BOTH = ("data",), ("page",), ("data", "page")
-
-
 KNOWN = {}
 
 

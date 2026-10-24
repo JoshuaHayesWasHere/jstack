@@ -320,7 +320,8 @@ def _need(
     default = waits["default"]
     if kind == "gate" and one is None and default.strip():
         who = f"the home of {waits['home']}" if waits["home"] else "the home"
-        default = f"{default.strip().rstrip('.')}. It stands until {who} closes it."
+        stands = f". It stands until {who} closes it."
+        default = _cut(default.strip().rstrip("."), 600 - len(stands)) + stands
     accepts = bool(waits["answerable"] and one is not None and not one.holds)
     due = None
     if one is not None and tier == PROCEEDS:
