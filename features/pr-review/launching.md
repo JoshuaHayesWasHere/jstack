@@ -12,8 +12,15 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
 
    ```sh
    PASS=first
-   set -- "$H"/tasks/<slug>.md
-   if ! said=$(uv run --project "$T/.." jbus budget --wait 540 --calls $((3 * $#))); then
+   asked=$(awk -v pass="$PASS" '
+       function count() {if (done && pr ~ /^http/ && (pass != "first" || !had)) n++}
+       FNR == 1 {if (NR > 1) count(); pr = ""; done = result = had = 0}
+       /^## Result/ {pr = ""; done = 0; result = 1}
+       result && /^Status: done/ {done = 1}
+       result && $(1) == "Branch:" {pr = $(NF)}
+       /^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/) {had = 1}
+       END {if (NR) count(); print n + 0}' "$H"/tasks/<slug>.md 2> /dev/null)
+   if ! said=$(uv run --project "$T/.." jbus budget --wait 540 --calls $((3 * ${asked:-0}))); then
        echo "$said: run this block again, in this turn"
        exit 75
    fi
@@ -56,7 +63,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    done
    ```
 
-   It first asks `jbus budget` whether GitHub's API budget, which jbus and every thread share, is above its floor, counting three calls for each brief.
+   It first asks `jbus budget` whether GitHub's API budget, which jbus and every thread share, is above its floor, counting three calls for each brief it will ask GitHub about: one whose last Result says `Status: done` and names a pull request, and for a first pass has no review and no reviewer.
    While it is not, the block waits up to nine minutes, then prints one line that starts `held:` and ends 75 with no brief asked about.
    Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and on `held:` run the block again, in this turn, until it prints the briefs.
    It prints one line for each brief, `<slug>: ready, <url> at <head>` or `<slug>: not ready, <the first thing it is short of>`. With `*` it leaves out the briefs of the past: those with no pull request, with a pull request that is merged or closed, or with a review or a reviewer already. A brief is ready when all of these hold:

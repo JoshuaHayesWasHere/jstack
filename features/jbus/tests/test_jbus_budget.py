@@ -12,9 +12,9 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import budget
+from jbus import budget, queue
 from jbus.flow import records
-from test_jbus_kitchen import NOW, Kitchen, rate_limit
+from test_jbus_kitchen import NOW, PROJECT, Kitchen, rate_limit
 from test_jbus_queue import add, launches
 
 
@@ -67,6 +67,18 @@ def test_a_pass_with_no_answer_about_the_budget_makes_no_other_call_and_changes_
     assert calls == ["api rate_limit"] and merges
     assert after == table and launches(kitchen) == []
     assert any(line.startswith("wait demo: could not ask GitHub: ") for line in said)
+
+
+@pytest.mark.parametrize("blind", ["t3 down", "removed.json does not parse"])
+def test_a_pass_that_sees_no_world_still_spends_no_budget_under_the_floor(kitchen, blind):
+    add(kitchen, "alpha")
+    if blind == "t3 down":
+        kitchen.t3.down.add(PROJECT)
+    else:
+        queue.removed_path(kitchen.state).write_text("not json")
+    said, calls, merges, table, after = passed(kitchen, 0, 0)
+    assert calls == ["api rate_limit"] and merges and "--sweep --check" not in merges
+    assert kitchen.log("claims") == [] and after == table
 
 
 def test_a_pass_under_the_floor_records_it_once_a_window_as_a_quiet_condition(kitchen):
@@ -129,3 +141,10 @@ def test_jobs_are_refused_where_they_would_take_the_budget_to_the_floor(monkeypa
     given = json.dumps(rate_limit(budget.FLOOR + 500))
     monkeypatch.setattr(records, "ask", lambda command, cwd=None: given)
     assert records.affordable(499) and not records.affordable(500)
+
+
+def test_jobs_are_refused_where_the_floor_allows_them_and_they_would_spend_half(monkeypatch):
+    given = json.dumps(rate_limit(2500))
+    monkeypatch.setattr(records, "ask", lambda command, cwd=None: given)
+    assert budget.held(budget.parse(given), 1251) == ""
+    assert records.affordable(1250) and not records.affordable(1251)

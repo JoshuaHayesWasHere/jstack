@@ -1832,6 +1832,25 @@ def test_with_github_s_budget_at_its_floor_no_brief_is_asked_about_and_the_block
     assert launcher.says() == [f"a-task: ready, {URL} at {HEAD}"]
 
 
+def test_the_budget_counts_only_the_briefs_github_is_asked_about(tmp_path):
+    launcher = Launcher(tmp_path)
+    for n in range(400):
+        (launcher.state / "tasks" / f"past-{n}.md").write_text(BRIEF)
+    crew.spent(launcher.stub, 1004)
+    assert launcher.says("*") == [f"a-task: ready, {URL} at {HEAD}"]
+    crew.spent(launcher.stub, 1003)
+    script = readiness().replace("<slug>", "*").replace("--wait 540", "--wait 0")
+    env = {
+        **os.environ,
+        "PATH": f"{launcher.stub}:{os.environ['PATH']}",
+        "STUB": str(launcher.stub),
+        "H": str(launcher.state),
+        "T": str(assembled() / "templates"),
+    }
+    ran = subprocess.run(["sh", "-c", script], capture_output=True, text=True, env=env)
+    assert ran.returncode == 75 and "3 calls would take it to 1000" in ran.stdout
+
+
 def test_checks_that_could_not_be_read_are_not_ready_though_a_later_call_names_the_head(tmp_path):
     launcher = Launcher(tmp_path, crew.ROLLUPS["one ran and failed"][0])
     rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup ] &&'
