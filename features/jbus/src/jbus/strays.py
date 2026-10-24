@@ -1,9 +1,9 @@
 """A process a thread left running after its turn is stopped, and the thread's Result says so.
 
 A crew, reviewer or scout thread can start a process that outlives its turn: a `yes` left by a
-test, a server in a temporary folder. Once the shell that started it is gone, its parent is 1,
-and nothing in T3 Code or jbus stops it. Each pass, `stop` looks for such processes, for each
-task whose threads are not at work:
+test, a server in a temporary folder. Once the shell that started it is gone, its parent is a
+reaper, and nothing in T3 Code or jbus stops it. Each pass, `stop` looks for such processes,
+for each task whose threads are not at work:
 
 - A crew's and its reviewers' processes are those whose working directory or an argument is under
   the task's worktree, or under a temporary folder (`TEMP`) while the process was started by a
@@ -22,7 +22,9 @@ folder>/projects/<the folder, with - for each character that is not a letter or 
 digit>/<session>.jsonl`, both read from the process's own environment. `AGENT` is the agent's
 name, which spells the config folder's variable (`CONFIG`) and its default (`KEPT`).
 
-A process is never stopped when its parent is not 1, when it is not the user's, when it is jbus
+A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own `systemd
+--user`, which adopts what a unit of it left, as it is for jbus, a user service. A process is
+never stopped when its parent is not a reaper, when it is not the user's, when it is jbus
 or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, it is
 stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and
 KILL to one still running `GRACE` seconds later, for a process that has the same start time.
@@ -106,11 +108,31 @@ def _stat(pid: str) -> tuple[int, int, int] | None:
         return None
 
 
-def _read(pid: str) -> Proc | None:
-    """Return the process, or None when it is gone, is a zombie, or is not the user's."""
-    stat = _stat(pid)
-    if stat is None or stat[0] != 1:
-        return None
+def _manager(pid: str) -> bool:
+    """Whether the process is the user's own service manager, `systemd --user`: /proc does not
+    say which process is a child subreaper, so it is known by its place, the `init.scope` of
+    the user's `user@<uid>.service`."""
+    uid = os.getuid()
+    try:
+        if (ROOT / pid).stat().st_uid != uid:
+            return False
+        lines = (ROOT / pid / "cgroup").read_text().splitlines()
+    except OSError:
+        return False
+    return any(one.endswith(f"/user@{uid}.service/init.scope") for one in lines)
+
+
+def reaper(pid: int) -> bool:
+    """Whether the process is one an orphan is handed to: 1, or a user manager, which the
+    system's manager, 1, starts."""
+    if pid == 1:
+        return True
+    stat = _stat(str(pid))
+    return stat is not None and stat[0] == 1 and _manager(str(pid))
+
+
+def _read(pid: str, stat: tuple[int, int, int]) -> Proc | None:
+    """Return the process, or None when it is gone or is not the user's."""
     where = ROOT / pid
     try:
         if where.stat().st_uid != os.getuid():
@@ -142,13 +164,17 @@ def _ancestors() -> set[int]:
 
 
 def orphans() -> list[Proc]:
-    """Every process of the user whose parent is 1, but for jbus's, T3 Code's and the agent's."""
+    """Every process of the user whose parent is a reaper, but for jbus's, T3 Code's and the
+    agent's."""
     try:
         pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
     except OSError:
         return []
+    stats = {pid: stat for pid in pids if (stat := _stat(pid)) is not None}
+    adopting = {ppid for ppid in {stat[0] for stat in stats.values()} if reaper(ppid)}
     mine = _ancestors()
-    found = [one for one in map(_read, pids) if one is not None and one.pid not in mine]
+    left = [_read(pid, stat) for pid, stat in stats.items() if stat[0] in adopting]
+    found = [one for one in left if one is not None and one.pid not in mine]
     return [one for one in found if not any(OWN.search(arg) for arg in one.args[:3])]
 
 

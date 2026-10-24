@@ -29,7 +29,8 @@ def kitchen(tmp_path, monkeypatch):
 
 def orphan(cwd, *command, env=None):
     """Start `command` in `cwd` from a shell that exits at once, as a crew's shell does at the
-    end of its turn, so the process's parent is 1. Return its pid."""
+    end of its turn, so the process's parent is a reaper: 1, or the user's `systemd --user`
+    under a unit of it. Return its pid."""
     started = subprocess.run(
         ["sh", "-c", 'cd "$1" || exit; shift; "$@" > /dev/null 2>&1 < /dev/null & echo $!', "sh"]
         + [str(cwd), *command],
@@ -40,10 +41,10 @@ def orphan(cwd, *command, env=None):
     )
     pid = int(started.stdout)
     for _ in range(50):
-        if parent(pid) == 1:
+        if (ppid := parent(pid)) is not None and strays.reaper(ppid):
             return pid
         time.sleep(0.02)
-    raise AssertionError(f"{pid} was not handed to pid 1, so it is no orphan of this machine")
+    raise AssertionError(f"{pid} was not handed to a reaper, so it is no orphan of this machine")
 
 
 def parent(pid):
