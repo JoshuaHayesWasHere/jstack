@@ -1762,7 +1762,8 @@ def parser() -> argparse.ArgumentParser:
         "with its state, its home and its Where line. With --accept it lifts the hold of one "
         "pull request, at the head the hold was said at, when a review proved its one safety "
         "fact at that head, and merges it as any other. With --checks it changes nothing: it "
-        "prints the state of one pull request's checks in a line.",
+        "prints the state of one pull request's checks in a line. With --range-diff it "
+        "changes nothing: it prints whether a rebase changed the content of a branch.",
     )
     top.add_argument(
         "--check",
@@ -1799,10 +1800,23 @@ def parser() -> argparse.ArgumentParser:
         "or a branch, by default the current branch's; merge, remove and log nothing",
     )
     instead.add_argument(
+        "--range-diff",
+        metavar="BEFORE..HEAD",
+        help="print 'clean: <why>' when the branch at HEAD has the content it had at BEFORE, "
+        "by the range-diff over origin/<--base> that jmerge carries a review over with, else "
+        "'changed: <why>'; run it in the checkout that has both; merge, remove and log nothing",
+    )
+    instead.add_argument(
         "--accept",
         metavar="NUMBER",
         help="lift the hold of this pull request at its current head and merge it: the "
         "user's hand-merge, with --by and --at; with --check alone, say what it would do",
+    )
+    top.add_argument(
+        "--base",
+        metavar="BRANCH",
+        default="main",
+        help="with --range-diff: the branch both heads sit on (default: main)",
     )
     top.add_argument(
         "--by", metavar="WHO", help="with --accept: who accepts it, the user jstack's config names"
@@ -1829,6 +1843,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.checks is not None:
         print(said_of_checks(args.checks))
+        return 0
+    if args.range_diff:
+        before, _, head = args.range_diff.partition("..")
+        found = rangediff.verdict(Path.cwd(), before, head, args.base)
+        print(f"{'clean' if found.clean else 'changed'}: {found.why}, by {found.command}")
         return 0
     try:
         user = jsettings.load()
