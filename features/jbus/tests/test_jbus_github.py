@@ -313,15 +313,15 @@ def cancelled(conclusion="CANCELLED", job="11"):
     return {**failed(job), "conclusion": conclusion}
 
 
-def ran(kitchen, attempt=1, head=HEAD, minutes=30):
-    """Job 11, the check's job in workflow run 5, as GitHub gives it: at `attempt`, on `head`,
-    `minutes` long. Its attempt before, if any, ran as long."""
+def ran(kitchen, attempt=1, head=HEAD, minutes=30, job="11", name="check"):
+    """A job of workflow run 5 as GitHub gives it, the check's own by default: at `attempt`, on
+    `head`, `minutes` long. Its attempt before, if any, ran as long."""
     times = {"started_at": "2026-10-24T10:00:00Z", "completed_at": f"2026-10-24T10:{minutes}:00Z"}
     steps = [{"name": "make check"}]
     kitchen.set(
-        "jobs.json", {"11": {"steps": steps, "run_attempt": attempt, "head_sha": head, **times}}
+        "jobs.json", {job: {"steps": steps, "run_attempt": attempt, "head_sha": head, **times}}
     )
-    kitchen.set("run-jobs.json", {str(attempt - 1): [{"name": "check", **times}]})
+    kitchen.set("run-jobs.json", {str(attempt - 1): [{"name": name, **times}]})
 
 
 def reruns(kitchen):
@@ -384,3 +384,44 @@ def test_a_rerun_github_refuses_is_told_to_the_home_once_and_not_tried_again(lau
     )
     assert reruns(launched) == ["run rerun 5 --failed"]
     assert [given["message"] for given in to_home(launched)] == [said]
+
+
+def sharded(*parts):
+    """The check workflow since its four parts: `check` failed because of its parts, and each
+    part, job 12 on, ended as `parts` says."""
+    each = [
+        {**failed(str(12 + at)), "name": f"check {at + 1} of 4", "conclusion": conclusion}
+        for at, conclusion in enumerate(parts)
+    ]
+    return [failed(), *each]
+
+
+def test_a_check_failed_by_a_part_that_ran_past_its_timeout_is_run_again_not_told_to_the_crew(
+    launched,
+):
+    ran(launched, job="13", name="check 2 of 4")
+    launched.set(
+        "open.json", [pull(launched, sharded("SUCCESS", "CANCELLED", "SUCCESS", "SUCCESS"))]
+    )
+    passes(launched, 0, 3)
+    assert reruns(launched) == ["run rerun 5 --failed"] and sends(launched) == []
+
+
+def test_a_part_cancelled_twice_is_told_with_its_own_minutes_and_timeout(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched, attempt=2, job="13", name="check 2 of 4", minutes=31)
+    launched.set("logs.json", {"13": TIMEOUT + "\n"})
+    launched.set(
+        "open.json", [pull(launched, sharded("SUCCESS", "CANCELLED", "SUCCESS", "SUCCESS"))]
+    )
+    passes(launched, 0, 3)
+    said = "alpha: #7: its check was cancelled twice, at 31 min each: its timeout of 30 min"
+    assert [given["message"] for given in to_home(launched)] == [said] and reruns(launched) == []
+
+
+def test_a_part_that_failed_beside_one_cancelled_is_a_failed_check_for_the_crew(launched):
+    launched.set(
+        "open.json", [pull(launched, sharded("FAILURE", "CANCELLED", "SUCCESS", "SUCCESS"))]
+    )
+    passes(launched, 0, 3)
+    assert reruns(launched) == [] and keys(launched) == ["failed|alpha|cccccccccccc"]

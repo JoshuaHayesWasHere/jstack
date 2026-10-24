@@ -297,6 +297,7 @@ TABLE = {
     "slot-wake": "quiet",
     "pool-wake": "quiet",
     "retro": "quiet",
+    "cancelled": "quiet",
     "snapshot": "quiet",
     "jmerge": "quiet",
     "expedite": "quiet",
