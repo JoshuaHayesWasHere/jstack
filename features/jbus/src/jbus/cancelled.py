@@ -140,18 +140,21 @@ def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: di
     attempt = int(given.get("run_attempt") or 1)
     name = check.get("name") or check.get("context") or "check"
     its = "its check" if name == "check" else f"its check {name}"
+    kept = read_json(run.state / FILE, {}).get(slug) or {}
+    told = kept["why"] if kept.get("head") == head else ""
     if attempt > 1:
+        if told and f"cancelled|{slug}|{head[:12]}" in run.box.sent():
+            return told
         part = stop.get("name") or stop.get("context") or name
         minutes = [_minutes(_before(run, repo, number, attempt, part)), _minutes(given)]
         cause = _cause(run, repo, at, stop)
-        at = _at(minutes)
-        line = f"#{pr}: {its} was cancelled twice{',' + at if at else ''}"
+        when = _at(minutes)
+        line = f"#{pr}: {its} was cancelled twice{',' + when if when else ''}"
         line += f": {cause}" if cause else ""
         return _tell(run, client, slug, head, line)
     key = f"rerun {number}"
     if f"cancelled|{slug}|{key}" in run.box.sent():
-        kept = read_json(run.state / FILE, {}).get(slug) or {}
-        return _tell(run, client, slug, head, kept["why"]) if kept.get("head") == head else ""
+        return _tell(run, client, slug, head, told) if told else ""
     asked = run.run("gh", "run", "rerun", number, "--failed")
     if asked.returncode == 0:
         line = f"cancelled {slug}: ran #{pr}'s check again, run {number} at {head[:12]}"

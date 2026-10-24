@@ -362,6 +362,7 @@ def test_a_check_cancelled_again_at_its_rerun_is_told_to_the_home_once_and_not_r
     assert [given["message"] for given in to_home(launched)] == [said]
     assert reruns(launched) == [] and keys(launched) == ["cancelled|alpha|cccccccccccc"]
     assert rows(launched)["alpha"]["why"] == said.removeprefix("alpha: ")
+    assert len([line for line in launched.log("gh") if "/attempts/1/jobs" in line]) == 1
 
 
 def test_a_run_cancelled_at_a_head_the_pull_request_has_left_is_neither_run_nor_told(launched):
