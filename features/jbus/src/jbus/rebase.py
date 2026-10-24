@@ -73,7 +73,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbus import END_TURN, dispatch, merge, queue, read_json, verbs
+from jbus import END_TURN, cancelled, dispatch, merge, queue, read_json, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
@@ -333,13 +333,20 @@ def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
     or nothing. Also return the highest attempt of the workflow runs in which they failed. When
     GitHub says a check's job ran no step, the check never started: CI started no job, and the
     crew's `unrun` parks that case. When GitHub will not give a check's job, the check counts as
-    run, at its first attempt."""
+    run, at its first attempt. A workflow run in which a cancelled or timed-out job stopped a
+    required check is `cancelled`'s, which runs it again or tells the home, so none of its checks
+    is named here."""
     if checks(pull) != "failed":
         return "", 0
-    names, attempt = [], 1
+    names, attempt, required = [], 1, cancelled.required(run)
     never = frozenset(pull.get(NEVER) or ())
-    for check in latest_of_each(pull.get("statusCheckRollup") or []):
-        if check_state(check, never) != "failed":
+    latest = latest_of_each(pull.get("statusCheckRollup") or [])
+    theirs = cancelled.runs(latest, never, required)
+    for check in latest:
+        if (
+            check_state(check, never) != "failed"
+            or cancelled.run_of(check.get("detailsUrl")) in theirs
+        ):
             continue
         found = _JOB.match(urlsplit(check.get("detailsUrl") or "").path)
         given = job(run, *found.groups()) if found else {}

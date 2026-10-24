@@ -10,7 +10,19 @@ from datetime import UTC
 from typing import TYPE_CHECKING
 
 from jbriefs.home import home_of, thread_of
-from jbus import dispatch, leftover, merge, mirror, queue, stall, threads, verbs, watch, work
+from jbus import (
+    cancelled,
+    dispatch,
+    leftover,
+    merge,
+    mirror,
+    queue,
+    stall,
+    threads,
+    verbs,
+    watch,
+    work,
+)
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -53,7 +65,8 @@ def derive(half: Half) -> None:
         slug = row["slug"]
         launched = dispatch.launched(run, slug)
         found = watch.status(run, world, slug, states.of(row, launched), launched)
-        return {**found, "why": watch.why(run, row, found, waits, unread)}
+        said = cancelled.why(run, slug) if found["status"] == "pr" else ""
+        return {**found, "why": said or watch.why(run, row, found, waits, unread)}
 
     at = run.now.astimezone(UTC).isoformat(timespec="seconds")
     half.table, half.changed = queue.derive(run.state, facts, run.user.stamp(run.now), at)
