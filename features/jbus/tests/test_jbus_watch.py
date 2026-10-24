@@ -666,6 +666,11 @@ MACOS_LOG = (
 )
 
 
+def macos_run(conclusion="failure", ref="train/macos", **more):
+    """Return a run of macos-nightly.yml, whose title names the ref it checked out."""
+    return browser_run(77, conclusion, display_title=f"macos-nightly on {ref}", **more)
+
+
 def macos_runs(kitchen, *runs, log=MACOS_LOG):
     """Set the runs of macos-nightly.yml, newest first, and a failed job and its log for the run
     77. A nightly's runs are on main, whatever branch its `ref` checked out."""
@@ -683,7 +688,7 @@ def red_rows(kitchen, prefix):
 def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_naming_its_tests(
     kitchen,
 ):
-    macos_runs(kitchen, browser_run(77))
+    macos_runs(kitchen, macos_run())
     kitchen.poll()
     brief = kitchen.home / "tasks" / "macos-red-2026-10-12.md"
     text = brief.read_text()
@@ -710,7 +715,7 @@ def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_namin
 
 def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_each(kitchen):
     browser_runs(kitchen, browser_run())
-    kitchen.set("workflow-runs.json", {"macos-nightly.yml": [browser_run(77)]})
+    kitchen.set("workflow-runs.json", {"macos-nightly.yml": [macos_run()]})
     macos = {"id": 712, "name": "macos", "status": "completed", "html_url": MACOS_JOB}
     browser = {"id": 911, "name": "browser", "status": "completed", "html_url": BROWSER_JOB}
     kitchen.set(
@@ -733,7 +738,7 @@ def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_eac
 
 
 def test_a_macos_nightly_that_timed_out_is_red_with_no_test_named_and_is_filed_once(kitchen):
-    macos_runs(kitchen, browser_run(77, conclusion="timed_out"), log="The job was cancelled.\n")
+    macos_runs(kitchen, macos_run("timed_out"), log="The job was cancelled.\n")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     text = (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
@@ -744,7 +749,18 @@ def test_a_macos_nightly_that_timed_out_is_red_with_no_test_named_and_is_filed_o
 
 @pytest.mark.parametrize("conclusion", ["success", "cancelled"])
 def test_a_macos_nightly_that_passed_or_was_cancelled_files_nothing(kitchen, conclusion):
-    macos_runs(kitchen, browser_run(77, conclusion=conclusion))
+    macos_runs(kitchen, macos_run(conclusion))
     kitchen.poll()
     assert red_rows(kitchen, "macos-red-") == []
     assert kitchen.lines("retro") == []
+
+
+def test_a_red_manual_macos_run_on_a_fixs_ref_files_nothing_and_one_on_the_train_does(kitchen):
+    """Every run of macos-nightly.yml is on main, so its title is what names the ref it ran."""
+    manual = {"event": "workflow_dispatch", "head_branch": "main"}
+    macos_runs(kitchen, macos_run(ref="mac-room-fix", **manual))
+    kitchen.poll()
+    assert red_rows(kitchen, "macos-red-") == []
+    macos_runs(kitchen, macos_run(**manual))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]

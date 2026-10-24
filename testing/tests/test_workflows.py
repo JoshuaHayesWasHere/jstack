@@ -1158,6 +1158,20 @@ def test_the_macos_nightly_checks_out_the_train_unless_a_manual_run_names_anothe
     ]
 
 
+def test_a_run_of_the_train_is_titled_as_jbus_files_it_and_a_run_on_another_ref_is_not():
+    """Every run of the nightly is on main, so the title is what tells jbus which ref it ran."""
+    from jbus import watch
+
+    lines = NIGHTLY.read_text().splitlines()
+    (named,) = [line for line in lines if line.startswith("run-name: ")]
+    title = named.removeprefix("run-name: ")
+    head, _, rest = title.partition("${{")
+    expression = rest.removesuffix("}}")
+    titled = [head + worked(expression, {"inputs.ref": given}) for given in ("", "fix-branch")]
+    assert titled[0] == watch.MACOS.title and titled[1] != watch.MACOS.title
+    assert watch.MACOS.file == NIGHTLY.name and watch.MACOS in watch.NIGHTLIES
+
+
 def test_the_macos_nightly_installs_as_the_macos_job_does_and_runs_make_check_into_a_report():
     from jmerge import ready
 

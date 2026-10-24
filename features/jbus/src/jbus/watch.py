@@ -8,7 +8,8 @@ requests stay in the answer. When only GitHub was silent, the answer from `look`
 many crews are out. The machine has one such count: `jbus poll` adds it up over every project.
 `watch` sends a line for what a home would have noticed: a merge; a thread that ran past its
 timebox, waits on a request, or ended with no Result; a main branch whose check failed after a
-merge; a red run of the browser workflow; and a revert. `watch` names no cause and changes nothing.
+merge; a red run of a nightly workflow (`NIGHTLIES`); and a revert. `watch` names no cause and
+changes nothing.
 A finding that no rule covers becomes a gate. `status` gives the table's derived column for a slug.
 `why` gives the reason the slug's row waits: the line that `jmerge` has for the slug's pull request,
 what stopped the slug's launch, or what the slug's Result leaves.
@@ -61,10 +62,9 @@ RETRO = timedelta(hours=24)
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
 NO_JOB = "nojob"
 """What `_check` answers for a commit on main whose failed check runs started no job."""
-BROWSER = "browser.yml"
-BROWSER_RED = ("failure", "timed_out")
-BROWSER_WINDOW = timedelta(days=3)
-BROWSER_GRACE = timedelta(hours=1)
+NIGHTLY_RED = ("failure", "timed_out")
+NIGHTLY_WINDOW = timedelta(days=3)
+NIGHTLY_GRACE = timedelta(hours=1)
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,mergeable,statusCheckRollup"
@@ -830,7 +830,8 @@ def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         result = last_result(brief_of(run, slug))
         run.find(slug, "merged", line, result, key=f"#{pull['number']}", past=True)
     _retro(run, world, rows)
-    _browser_red(run)
+    for nightly in NIGHTLIES:
+        _nightly_red(run, nightly)
 
 
 def _api(run: Pass, path: str) -> Any:
@@ -989,15 +990,75 @@ def _default_branch(run: Pass) -> str:
     return default.stdout.strip().removeprefix("origin/") or "main"
 
 
-def browser_red_brief(
-    name: str, day: str, one: dict[str, Any], jobs: list[tuple[str, str, list[str]]]
+@dataclass(frozen=True)
+class Nightly:
+    """A workflow that no pull request's check runs, whose red run jbus files a fix brief for.
+
+    `file` is the workflow's file, `prefix` the slug's start before the day, `seen` the file in
+    the project's state that keeps the runs jbus has seen, and `run` how the run is named. The
+    rest are the brief's own lines: `failed` what failed, `where` its `Where:` when the log
+    names no test, `done` and `proves` how the fix is shown, `pull` its `Pull request:`, and
+    `home` the scoped home it is filed under, or an empty string for the root home. `title`,
+    where it is set, is the title of the runs jbus files for: a run of the workflow with any
+    other title checked out another ref, and is that ref's concern.
+    """
+
+    file: str
+    prefix: str
+    seen: str
+    run: str
+    failed: str
+    where: str
+    done: str
+    proves: str
+    pull: str = "open one when done"
+    home: str = ""
+    title: str = ""
+
+
+BROWSER = Nightly(
+    file="browser.yml",
+    prefix="browser-red-",
+    seen="browser-runs.json",
+    run="the browser run",
+    failed="the browser tests failed",
+    where="the tests marked `browser`",
+    done="each failed test named under Read passes under `make check-browser`",
+    proves="`make check-browser` passes, and so does a manual run of browser.yml "
+    "(workflow_dispatch) on the fix's branch",
+)
+MACOS = Nightly(
+    file="macos-nightly.yml",
+    prefix="macos-red-",
+    seen="macos-nightly-runs.json",
+    run="the macOS nightly run",
+    failed="the macOS suite failed",
+    where="the tests the macOS nightly runs, on train/macos",
+    done="each failed test named under Read passes on macOS, in a manual run of "
+    "macos-nightly.yml with `ref` set to the fix's branch",
+    proves="`make check-fast BASE=origin/train/macos` passes, and so does a manual run of "
+    "macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)",
+    pull="open one against train/macos when done",
+    home="macos",
+    title="macos-nightly on train/macos",
+)
+NIGHTLIES = (BROWSER, MACOS)
+"""The nightly workflows, each with its own rule for a red run (`_nightly_red`)."""
+
+
+def nightly_red_brief(
+    nightly: Nightly,
+    name: str,
+    day: str,
+    one: dict[str, Any],
+    jobs: list[tuple[str, str, list[str]]],
 ) -> str:
-    """Return the brief for the fix of a red browser run, in the shape of
+    """Return the brief for the fix of a red run of a nightly workflow, in the shape of
     `features/jbriefs/templates/brief.md`. `one` is the run as GitHub lists it, and `jobs`
     is each failed job's name, URL and failed tests."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys(test.split("::")[0] for test in tests))
-    where = ", ".join(f"`{file}`" for file in files) or "the tests marked `browser`"
+    where = ", ".join(f"`{file}`" for file in files) or nightly.where
     number, event = one.get("id"), one.get("event") or "an event"
     read = [
         f"- the job `{job}`, {url or 'with no URL'}: "
@@ -1007,23 +1068,22 @@ def browser_red_brief(
     read += [f"- the run {one.get('html_url') or number}, from {event}, at {one.get('head_sha')}"]
     return "\n".join(
         [
-            f"# {name}: the browser tests failed on {day}",
-            f'Task: "the browser run {number} failed on {day}, {len(tests)} tests named" '
-            "(jbus, from browser.yml)",
+            f"# {name}: {nightly.failed} on {day}",
+            f'Task: "{nightly.run} {number} failed on {day}, {len(tests)} tests named" '
+            f"(jbus, from {nightly.file})",
             "Done when:",
-            "- each failed test named under Read passes under `make check-browser`",
-            "- the Result names the cause: the merge that broke the page, or a flake with its "
-            "evidence",
-            "Proves it: `make check-browser` passes, and so does a manual run of browser.yml "
-            "(workflow_dispatch) on the fix's branch",
+            f"- {nightly.done}",
+            "- the Result names the cause: the merge that broke it, or a flake with its evidence",
+            f"Proves it: {nightly.proves}",
             "Size: S",
             f"Where: {where}",
             "Do not touch: .github/workflows/, the ruleset",
-            "Decisions: none, jbus filed this from a red browser run and the user has not seen it",
+            "Decisions: none, jbus filed this from a red nightly run and the user has not seen it",
             "Design: none, a fix to what the failed run names",
-            "Pull request: open one when done",
+            f"Pull request: {nightly.pull}",
             "Review: review",
             "Playbook: bug-fix",
+            *([f"Home: {nightly.home}"] if nightly.home else []),
             "Read:",
             *read,
             "",
@@ -1031,53 +1091,57 @@ def browser_red_brief(
     )
 
 
-def _browser_name(day: str, taken: set[str]) -> str:
-    """Return `browser-red-<day>`, with `-2`, `-3` for each further red run of the same day."""
-    name, more = f"browser-red-{day}", 1
+def _nightly_name(nightly: Nightly, day: str, taken: set[str]) -> str:
+    """Return `<prefix><day>`, with `-2`, `-3` for each further red run of the same day."""
+    name, more = f"{nightly.prefix}{day}", 1
     while name in taken:
         more += 1
-        name = f"browser-red-{day}-{more}"
+        name = f"{nightly.prefix}{day}-{more}"
     return name
 
 
-def _browser_red(run: Pass) -> None:
-    """File the brief for the fix of a red run of browser.yml, a workflow that no pull
-    request's check runs, and queue the brief unapproved, once per run. jbus records each run
-    that it has seen in `browser-runs.json`, so it files no brief again for a run whose row was
-    removed. On a project's first pass, jbus only records the runs that it sees.
+def _nightly_red(run: Pass, nightly: Nightly) -> None:
+    """File the brief for the fix of a red run of a nightly workflow, and queue the brief
+    unapproved, once per run. jbus records each run that it has seen in the nightly's `seen`
+    file, so it files no brief again for a run whose row was removed. On a project's first
+    pass, jbus only records the runs that it sees.
 
-    A red run is one that failed or timed out, and ended within `BROWSER_WINDOW`. Where GitHub
+    A red run is one that failed or timed out, and ended within `NIGHTLY_WINDOW`. Where GitHub
     would not give the run's jobs, or a failed job's log, the next pass asks about the run
-    again. Once the run ended `BROWSER_GRACE` ago, jbus files the brief without the test
+    again. Once the run ended `NIGHTLY_GRACE` ago, jbus files the brief without the test
     names. jbus files nothing for a manual run on a branch other than the default: that run is
-    the branch's concern.
+    the branch's concern. A run of macos-nightly.yml is on the default branch whatever it checks
+    out, so a nightly with a `title` files only for the runs that carry it.
     """
     said = _api(
         run,
-        f"repos/{{owner}}/{{repo}}/actions/workflows/{BROWSER}/runs?status=completed&per_page=20",
+        f"repos/{{owner}}/{{repo}}/actions/workflows/{nightly.file}/runs"
+        "?status=completed&per_page=20",
     )
     runs = said.get("workflow_runs") if isinstance(said, dict) else None
     if not isinstance(runs, list):
         return
-    seen: dict[str, str] = read_json(run.state / "browser-runs.json", {})
+    seen: dict[str, str] = read_json(run.state / nightly.seen, {})
     default = _default_branch(run)
     for one in sorted(runs, key=lambda r: r.get("created_at") or ""):
         number = str(one.get("id"))
         ended = when(one.get("updated_at") or one["created_at"])
-        stale = run.now - ended > BROWSER_WINDOW
-        if number in seen or one.get("conclusion") not in BROWSER_RED or stale:
+        stale = run.now - ended > NIGHTLY_WINDOW
+        if number in seen or one.get("conclusion") not in NIGHTLY_RED or stale:
             continue
         if one.get("event") == "workflow_dispatch" and one.get("head_branch") != default:
+            continue
+        if nightly.title and one.get("display_title") != nightly.title:
             continue
         if run.first:
             seen[number] = ""
             continue
         day = run.user.day(when(one["created_at"]))
-        name = _browser_name(day, {*seen.values(), *run.removed})
+        name = _nightly_name(nightly, day, {*seen.values(), *run.removed})
         if queue.fresh(run.state, name) is None:
             asked = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs/{number}/jobs?per_page=100")
             if not isinstance(asked, dict):
-                if run.now - ended < BROWSER_GRACE:
+                if run.now - ended < NIGHTLY_GRACE:
                     continue
                 asked = {}
             red = [
@@ -1086,13 +1150,13 @@ def _browser_red(run: Pass) -> None:
                 if j.get("status") == "completed" and j.get("conclusion") not in NOT_RED
             ]
             logs = [_log_failed(run, j.get("id")) for j in red]
-            if None in logs and run.now - ended < BROWSER_GRACE:
+            if None in logs and run.now - ended < NIGHTLY_GRACE:
                 continue
             jobs = [
                 (j.get("name") or "?", j.get("html_url") or "", failed or [])
                 for j, failed in zip(red, logs, strict=True)
             ]
-            text = browser_red_brief(name, day, one, jobs)
+            text = nightly_red_brief(nightly, name, day, one, jobs)
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)
             (run.home / "tasks" / f"{name}.md").write_text(text)
             try:
@@ -1101,11 +1165,11 @@ def _browser_red(run: Pass) -> None:
                 run.condition(name, f"its brief was not queued: {refused}")
                 continue
             tests = sum(len(failed) for _, _, failed in jobs)
-            line = f"retro {name}: the browser run {number} failed on {day}, {tests} tests named"
-            run.find(name, "retro", line, key=f"browser {number}", past=True)
+            line = f"retro {name}: {nightly.run} {number} failed on {day}, {tests} tests named"
+            run.find(name, "retro", line, key=f"{nightly.file} {number}", past=True)
         seen[number] = name
-        write_json(run.state / "browser-runs.json", seen)
-    write_json(run.state / "browser-runs.json", seen)
+        write_json(run.state / nightly.seen, seen)
+    write_json(run.state / nightly.seen, seen)
 
 
 def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:

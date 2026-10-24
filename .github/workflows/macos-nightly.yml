@@ -10,6 +10,10 @@ name: macos-nightly
 #
 # A red run is not told from here: jbus reads this workflow's runs and files and queues the
 # brief for the fix, `macos-red-<date>`, under the macos home (features/jbus/src/jbus/watch.py).
+# A manual run on a fix's branch runs from main all the same, so the run's title names the ref it
+# checked out, and jbus files a brief only for a red run of the train's.
+run-name: macos-nightly on ${{ inputs.ref || 'train/macos' }}
+
 on:
   schedule:
     - cron: '0 8 * * *'
