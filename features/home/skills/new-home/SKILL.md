@@ -20,10 +20,12 @@ Run this with everything typed after `/new-home` in place of `<the text after /n
 
 ```sh
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
-typed=$(cat << 'THE_TEXT_ENDS_HERE'
+the_text() {
+    cat << 'THE_TEXT_ENDS_HERE'
 <the text after /new-home>
 THE_TEXT_ENDS_HERE
-)
+}
+typed=$(the_text)
 word=$(printf '%s\n' "$typed" | awk 'NF {print $(1); exit}')
 case $word in
 '~') at=$HOME ;;
