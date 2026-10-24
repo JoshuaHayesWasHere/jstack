@@ -89,7 +89,7 @@ for feature in "$(dirname "$0")"/../features/*.md \
   done
   if [ -n "$needs" ] && [ "$lacks" = 0 ]; then say ok "$name: seed has $needs"; fi
 done
-echo "build $(git -C "$VERIFY_JSTACK_REPO" rev-parse --short HEAD) $(git -C "$VERIFY_JSTACK_REPO" status --porcelain | wc -l) uncommitted"
+echo "build $(git -C "$VERIFY_JSTACK_REPO" rev-parse --short HEAD) $(($(git -C "$VERIFY_JSTACK_REPO" status --porcelain | wc -l))) uncommitted"
 if [ "$bad" = 0 ]; then echo "doctor: ok"; else
   echo "doctor: not ok"
   exit 1

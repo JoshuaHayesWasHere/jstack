@@ -62,7 +62,7 @@ if jq -r '
     | select(length > 0)
     | $head, .[], ""
 ' "$F" > "$out" && [ -s "$out" ]; then
-    echo "$out $(wc -c < "$out") bytes"
+    echo "$out $(($(wc -c < "$out"))) bytes"
 else
     echo "no digest: jq failed on $F, or it holds no turn"
 fi
