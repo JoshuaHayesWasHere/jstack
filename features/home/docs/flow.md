@@ -58,7 +58,8 @@ Without asking you, the threads do everything else that is reversible.
 | One of the four pauses | Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside | The thread asks in its own thread and waits for your answer. These are the only things a thread asks first. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
-A brief that says `Review: after` merges once its check passes, and its review's findings come to you as a cleanup row, `cleanup-<slug>`, that waits for your go.
+A brief that says `Review: after` merges once its check passes, and its review's findings become a cleanup row, `cleanup-<slug>`.
+Where the home has a `follow-rule` file and you approved the reviewed row yourself, jbus approves that row by rule when it is queued; otherwise it waits for your go.
 A brief that says `Review: twice`, the home's default, gets one review and one fix round.
 Then a second review reads the head the fix round pushed, unless that round changed nothing and wrote `Fixed: none needed`.
 The pull request merges once the second review is written.

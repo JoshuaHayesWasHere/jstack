@@ -37,6 +37,8 @@ from jbus import (
 )
 from jmerge.asked import Silent
 
+FOLLOW_RULE = "follow-rule"
+
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     """Return what `queue remove` and `queue approve` ask, and the one quiet event a removal
@@ -44,7 +46,9 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
 
     `said` returns the words an approval names: a word of the project's `words.json`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
-    read from Lavish's state file, or a rule of the home's `standing.md`.
+    read from Lavish's state file, or a rule of the home's `standing.md`. `follow` is the number
+    in the home's `follow-rule` file (`FOLLOW_RULE`): the rule of `standing.md` by which jbus
+    approves a follow-up when it is queued.
 
     `out` asks T3 Code and GitHub now for a thread that is at work, an open pull request, or a
     merged one. A thread that ended or settled is not out. Where `out` cannot ask either of
@@ -107,7 +111,11 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
             return queue.rule(config.home(project) / "standing.md", ref)
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
 
-    return queue.Asks(out, launched, told, said)
+    try:
+        follow = (config.home(project) / FOLLOW_RULE).read_text().strip()
+    except OSError:
+        follow = ""
+    return queue.Asks(out, launched, told, said, follow)
 
 
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
@@ -138,14 +146,26 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         try:
             named = _item(state, args.slug, args.item or "")
             after = queue.slugs(args.merge_after or "")
-            said = queue.add(
-                state, args.slug, args.priority, depends, text, args.entry or "", named, after
+            asks = _asks(config, project)
+            said, *ruled = queue.add(
+                state,
+                args.slug,
+                args.priority,
+                depends,
+                text,
+                args.entry or "",
+                named,
+                after,
+                config.user,
+                asks,
             )
         except BaseException:
             release()
             raise
         if said.endswith((queue.GO_HOLDS, queue.GO_VOID)):
             print(said)
+        for line in ruled:
+            print(line)
         try:
             notes = (config.home(project) / "notes.md").read_text()
         except OSError:
@@ -161,7 +181,11 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     elif args.verb == "approve":
         rests = queue.basis(vars(args))
         steer.approvable(state, args.slug)
-        queue.approve(state, args.slug, rests, args.sha, config.user, _asks(config, project))
+        _, *ruled = queue.approve(
+            state, args.slug, rests, args.sha, config.user, _asks(config, project)
+        )
+        for line in ruled:
+            print(line)
     elif args.verb == "hold":
         held = queue.hold(state, args.slug)
         if held != f"held {args.slug}":
@@ -228,7 +252,14 @@ def _table(table: argparse.ArgumentParser) -> None:
         "show", help="the rows still open, as Markdown", allow_abbrev=False
     )
     show.add_argument("--all", action="store_true", help="every row, the finished ones too")
-    add = table_verbs.add_parser("add", help="a row, with its brief on stdin", allow_abbrev=False)
+    add = table_verbs.add_parser(
+        "add",
+        help="a row, with its brief on stdin",
+        description=f"Queue a row, with its brief on stdin. A follow-up: {queue.FOLLOW_UP}. "
+        f"The home's {FOLLOW_RULE} file names that rule of its standing.md, and with no such "
+        "file no row is approved by rule when it is queued.",
+        allow_abbrev=False,
+    )
     add.add_argument("slug")
     add.add_argument("--priority", type=int, required=True, help="an integer, lower first")
     add.add_argument(

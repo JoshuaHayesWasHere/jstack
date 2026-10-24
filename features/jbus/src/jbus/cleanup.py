@@ -4,8 +4,9 @@ needs.
 The pull request of a brief whose `Review:` line says `after` merges on its check alone
 (`jmerge.ready.after`). Its review's findings do not block the merge, and a crew fixes them
 later, in a row of their own. The reviewer runs this command once it has written its section, and
-pipes what it prints into `jbus queue add cleanup-<slug>`. That command queues the row
-without approving it, so the row waits for the user's go like any other.
+pipes what it prints into `jbus queue add cleanup-<slug>`. That command approves the row by the
+home's follow-up rule where the reviewed row had the user's go (`queue.FOLLOW_UP`), and otherwise
+the row waits for the user's go like any other.
 
 The command prints that row's brief, `cleanup-<slug>`, when the last round's verdict is `findings`.
 The brief lists each finding that would have gone to the crew, with its path:line, the pull request,
