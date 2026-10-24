@@ -18,7 +18,7 @@ python3 features/home/spec/canaries.py
 Run it from the repo root.
 It checks that each rule holds in the design in each scene.
 It checks that each canary, the design with one guard taken out, breaks the rule that rests on that guard, so no rule holds by construction.
-It checks that today's code breaks the five rules it breaks today.
+It checks that today's code breaks the four rules it breaks today, and keeps the two it keeps.
 It prints one line for each run and ends 0 when every run says what it should.
 TLC is the statechart skill's pinned `tla2tools.jar`, and Java is `JAVA` or a `java` on `PATH`.
 `features/home/tests/test_home_tree_spec.py` runs it, and skips where no Java runs TLC.
@@ -36,8 +36,7 @@ S=features/skill-library/skills/statechart/scripts
 cd features/home/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
     statechart from-spec HomeTreeToday.tla --against HomeTreeDesign.tla --label "the design" \
-    --expect-broken NoRetireWithOpen --expect-broken StallFlagged --expect-broken OneMerger \
-    --expect-broken ReadyMerges --png
+    --expect-broken NoRetireWithOpen --expect-broken StallFlagged --expect-broken OneMerger --png
 ```
 
 It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, one `bug-N` chart for each bug, `stories.md` and `summary.json`.
@@ -45,7 +44,8 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 The chart's scene, in `HomeTreeToday.cfg` and `HomeTreeDesign.cfg`, is child a alone with one call and K at 1.
 TLC 2.19 fails in a run of one worker with `-continue` once a rule breaks in some thousands of states, and the statechart command runs one worker, so the chart's scene is small.
 The chart draws only the rules that are invariants.
-A ready pull request that never merges (`ReadyMerges`) is a property, and its counterexample is in `tlc/HomeTreeToday-ReadyMerges.out`.
+A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request.
+Since that change TLC 2.19 stops the chart's run of `NoRetireWithOpen` with `Failed to recover the initial state from its fingerprint`, so the committed chart is the one drawn before it.
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it since pull request 332 moved what waits for a route the setting dropped.
 The merge race (`NoBlindMerge`) needs two pull requests, so it is in the siblings' run of `canaries.py` and not in the chart.
 
