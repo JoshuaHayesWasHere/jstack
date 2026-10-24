@@ -32,7 +32,9 @@ def test_the_walk_reaches_every_event_the_model_has():
     passes, it proves nothing about them."""
     found = walk(EVERY)
     kinds = {"jmerge merges", "jmerge holds", "another merge", "no send", "rerun passes"}
-    kinds |= {f"settles {answer}" for answer in ("green", "failed", "cancelled", "refused")}
+    kinds |= {
+        f"settles {answer}" for answer in ("green", "failed", "cancelled", "refused", "nojob")
+    }
     kinds |= {f"T3 Code {answer}" for answer in ("answers", "loses the send", "refuses the send")}
     assert found.events == kinds
 
