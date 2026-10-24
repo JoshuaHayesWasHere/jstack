@@ -128,11 +128,12 @@
    Briefs and requests are in the repo's directory, whichever home launches from them.
    Write no status in the plan.
    A launch by this section adds no row to the queue, and `jbus plan` counts an entry from its rows, so where the brief has no row yet, add one for its entry.
-   Run this in the main checkout with the block at the top, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets, and with the row's order from step 1 added as `--merge-after <slugs>` or `--depends <slugs>`:
+   Run this in the main checkout with the block at the top and the block that finds this home, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets, and with the row's order from step 1 added as `--merge-after <slugs>` or `--depends <slugs>`:
 
    ```sh
+   : "${M:?run the block that finds this home first}"
    if command -v jbus > /dev/null && jbus plan > /dev/null 2>&1; then
-       if said=$(jbus queue add '<slug>' --priority '<n>' --entry '<entry>' < "$H/tasks/<slug>.md" 2>&1); then
+       if said=$(jbus queue add '<slug>' --priority '<n>' --entry '<entry>' --from "$ME" < "$H/tasks/<slug>.md" 2>&1); then
            echo "added: the row <slug>, of the entry <entry>"
        else
            printf '%s\n' "$said"
@@ -143,6 +144,7 @@
    ```
 
    `jbus plan` answers only for the repo it is run in, and `jbus queue add` with no project takes the config's only project whatever the repo: so the row is added only where `jbus plan` answered, and on `no row` none is, since it would be another repo's row. On `refused:`, nothing is queued: mend the brief as the lines under it say, and run it again. A row with no approval is never launched again. Then give the user the link: `[<slug>](t3-thread://v1/<threadId>)`.
+   `--from "$ME"` says which home adds the row, and jbus refuses a brief whose `Home:` line names another home, so two homes never brief one fix unseen: that home briefs it, or this home hands it over on purpose by adding `--for <that home>`, `root` or the scope's name.
 
 No fixed count limits the threads out, crewmates and durable scouts together, and no file does: each crew has its own worktree and branch, and two pull requests that change the same file are settled at the merge, where the second to merge rebases. What holds a launch is the machine: it has to have room.
 

@@ -35,7 +35,7 @@ def test_a_word_about_a_scoped_homes_report_is_shown_at_that_homes_start_alone(h
     said = ("--by", "user", "--at", AT, "fix", "the", "bugs", "of", "the", "sp-chart", "report")
     assert home.kitchen.main("word", "--to", "demo", *said)[0] == 0
     assert home.word(SCOPED) == f"user, {AT}: fix the bugs of the sp-chart report"
-    assert home.word() == NONE
+    assert home.word(ROOT) == NONE
 
 
 def test_the_root_home_that_records_a_scoped_homes_word_forwards_it_there(home):
@@ -43,7 +43,7 @@ def test_the_root_home_that_records_a_scoped_homes_word_forwards_it_there(home):
     ran = home.home(RECORDS, ROOT, **{"<thread id>/<message id>": "mcp:sous/m1"})
     assert ran.startswith(f"sent: demo, to the {SCOPE} home at {SCOPED}, word ")
     assert home.word(SCOPED).endswith(": drop sp-chart")
-    assert home.word() == NONE
+    assert home.word(ROOT) == NONE
 
 
 @pytest.mark.parametrize(("thread", "queued"), [(ROOT, False), (SCOPED, True)])

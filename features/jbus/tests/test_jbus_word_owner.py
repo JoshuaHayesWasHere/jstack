@@ -15,7 +15,7 @@ from jbus import word
 from test_jbus_kitchen import Kitchen, complete, sends
 from test_jbus_word import AT, thread
 
-ROOT, FLOW, CREW = thread("a"), thread("f"), thread("c")
+ROOT, FLOW, NEXT, CREW = thread("a"), thread("f"), thread("e"), thread("c")
 SCOPE = "flow"
 SAID = ("--by", "user", "--at", AT)
 
@@ -53,6 +53,12 @@ def test_a_word_that_names_a_scoped_homes_report_goes_to_that_home_alone(kitchen
 def test_a_word_that_names_a_row_with_a_scoped_homes_home_line_goes_to_that_home(kitchen):
     assert says(kitchen, "land", "fl-s1-stack", "first")[0] == 0
     assert to(kitchen) == [FLOW]
+
+
+def test_a_word_that_names_a_new_slug_of_a_scoped_homes_prefix_goes_to_that_home(kitchen):
+    assert says(kitchen, "brief", "fl-brand-new", "for", "it")[0] == 0
+    assert says(kitchen, "a", "follow-up", "on", "fl-brand-new")[0] == 0
+    assert to(kitchen) == [FLOW, FLOW]
 
 
 def test_a_word_given_on_a_page_goes_to_the_home_whose_page_it_is(kitchen):
@@ -94,14 +100,14 @@ def test_the_root_that_records_a_scoped_homes_word_forwards_it_and_the_scope_kee
 
 
 def test_a_scoped_homes_word_waits_for_its_home_and_not_for_the_root(kitchen):
-    (kitchen.home / SCOPE / "home-id").write_text("")
+    (kitchen.home / SCOPE / "handoff.md").write_text(f"# flow: handoff\nWas home: {FLOW}\n")
     code, out = says(kitchen, "fix", "fl-statechart")
     assert (code, out.startswith(f"waits: demo, for the {SCOPE} home, ")) == (0, True)
     kitchen.poll()
     assert to(kitchen) == []
-    (kitchen.home / SCOPE / "home-id").write_text(f"{FLOW}\n")
+    (kitchen.home / SCOPE / "home-id").write_text(f"{NEXT}\n")
     kitchen.poll()
-    assert to(kitchen) == [FLOW]
+    assert to(kitchen) == [NEXT]
 
 
 def queues(kitchen, slug, home="", *more):

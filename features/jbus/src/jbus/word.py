@@ -13,6 +13,7 @@ list of `Word`:
   message's own. A word typed with `--by` and `--at` has no `ref`, no `said_in`, and `checked`
   false.
 - `kept_at`: when `jbus word` recorded the word.
+- `home`: the scope of the home the word is for, or empty for the root home (`owner`).
 - `thread` and `sent_at`: the home's thread that received the word, and when. Both are empty
   while the word waits.
 - `skipped`: why jbus posted the word to nobody. It is set for a word that was said in, or
@@ -21,7 +22,13 @@ list of `Word`:
   what it recorded itself. `skipped` is empty for every other word.
 - `waits`: why the word has not gone yet, as the log last said it.
 
-A word goes once, as one queued message to the thread in the home's `home-id`. jbus reads that file
+A word goes to one home of the project, the one that owns its subject (`owner`): the home whose
+directory or brief the page it was given on (`--page`) is of, else the home of the briefs, requests
+and rows its words name by slug, when they are all one home's, else the root home. So a word about a
+scoped home's work reaches that home alone, and two homes never act on one word. A home that
+records such a word with `--from` forwards it to the home that owns it.
+
+A word goes once, as one queued message to the thread in that home's `home-id`. jbus reads that file
 when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends the word
 at once, except to the home that recorded it. For a word said in that home's own thread (`--message`
 whose thread is the home's) or recorded by it (`--from <thread id>`), `keep` records the word as
@@ -62,7 +69,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jsettings
-from jbriefs.home import thread_of
+from jbriefs.home import home_of, scopes, thread_of
 from jbus import Config, Refused, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused, typed
@@ -84,6 +91,7 @@ REFUSED = "T3 Code refused it"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
 THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
+SLUG = re.compile(r"[a-z0-9][a-z0-9.]*(?:-[a-z0-9.]+)+")
 
 
 class Unparsable(Refused):
@@ -104,6 +112,7 @@ class Word:
     said_in: str = ""
     checked: bool = False
     skipped: str = ""
+    home: str = ""
 
 
 def path(state: Path) -> Path:
@@ -130,6 +139,56 @@ def load(state: Path) -> list[Word]:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
 
 
+def _whose(home: Path, brief: Path) -> str:
+    found = home_of(home, brief.read_text(errors="replace"))
+    return "" if found == home else found.name
+
+
+def _named(home: Path, name: str) -> str | None:
+    """The scope of the home whose brief or request has the slug `name`, empty for the root home,
+    or None when no brief or request has it. A slug that no brief or request has yet is a scope's
+    when every brief and request that starts with its prefix, the slug up to its first dash, is
+    that scope's: a new `fl-` slug where every `fl-` brief is the flow home's."""
+    for kind in ("tasks", "scouts"):
+        brief = home / kind / f"{name}.md"
+        if brief.is_file():
+            return _whose(home, brief)
+    prefix = name.split("-")[0] + "-"
+    found = {
+        _whose(home, brief)
+        for kind in ("tasks", "scouts")
+        for brief in (home / kind).glob(f"{prefix}*.md")
+        if brief.is_file()
+    }
+    return found.pop() if len(found) == 1 and "" not in found else None
+
+
+def owner(home: Path, words: str, page: str = "") -> str:
+    """The scope of the home that owns a word's subject, or an empty string for the root home.
+
+    A page under a scope's directory is that scope's, and a page named for a brief or a request,
+    as `reports/<slug>/` or `reports/<slug>.html`, is the home's of that brief or request. A page
+    decides over the words. Without one, the briefs, requests and rows that the words name by slug
+    decide when they are all one home's (`_named`), and a word that names none, or the work of two
+    homes, is the root home's."""
+    if page:
+        where = Path(page).resolve()
+        if where.is_relative_to(home.resolve()):
+            parts = where.relative_to(home.resolve()).parts
+            if parts[:1] and parts[0] in {scope.name for scope, _, _ in scopes(home)}:
+                return parts[0]
+            for part in parts[1:]:
+                found = _named(home, Path(part).name.removesuffix(".html"))
+                if found is not None:
+                    return found
+    named = {_named(home, slug) for slug in SLUG.findall(words)} - {None}
+    return named.pop() or "" if len(named) == 1 else ""
+
+
+def _homes_dir(run: Pass, one: Word) -> Path:
+    return run.home / one.home if one.home else run.home
+
+
 def _write(state: Path, words: list[Word]) -> None:
     write_json(path(state), [asdict(one) for one in words], mode=0o600)
 
@@ -154,14 +213,16 @@ def keep(
     at: str,
     heard: queue.Said | None = None,
     recorder: str = "",
+    page: str = "",
 ) -> Word:
     """Keep a word for the project, and return its record: the one there was, or a new one.
 
     For a word given as `--message`, `heard` is the T3 Code message, and jbus reads the word's words
     and time from it. `ref` is then the message's `<thread id>/<message id>`. `recorder` is the
-    thread that ran `jbus word`, for `--from`. When a new word was said in the project's home
-    thread, or recorded by that thread, `keep` records the word as sent to that thread and posts it
-    to nobody (`skipped`).
+    thread that ran `jbus word`, for `--from`, and `page` the page it was given on, for `--page`.
+    A new word is for the home that `owner` names. When it was said in that home's thread, or
+    recorded by that thread, `keep` records the word as sent to that thread and posts it to nobody
+    (`skipped`).
     """
     ref = heard.ref if heard else ""
     named = json.dumps([run.project.name, words, by, at, *([ref] if ref else [])])
@@ -172,10 +233,10 @@ def keep(
             if one.id == name:
                 return one
         kept_at = run.now.astimezone(UTC).isoformat(timespec="seconds")
-        made = Word(name, words, by, at, kept_at)
+        made = Word(name, words, by, at, kept_at, home=owner(run.home, words, page))
         if heard:
             made = replace(made, ref=ref, said_in=heard.said_in, checked=heard.checked)
-        mine = thread_of(run.home)
+        mine = thread_of(_homes_dir(run, made))
         if mine and mine == ref.partition("/")[0]:
             made = replace(
                 made, thread=mine, sent_at=kept_at, skipped=SAID_IN_HOME.format(thread=mine)
@@ -233,15 +294,15 @@ def post(client: Client | None, thread: str, message: str, key: str) -> str:
 
 
 def deliver(run: Pass, client: Client | None) -> None:
-    """Send each word that waits to the home's thread, once. A word that cannot go keeps
-    waiting.
+    """Send each word that waits to the thread of the home it is for, once. A word that cannot go
+    keeps waiting.
 
     `deliver` writes why a word waits once, and again when the reason changes.
     """
     for one in load(run.state):
         if one.sent_at:
             continue
-        thread, name = thread_of(run.home), run.project.name
+        thread, name = thread_of(_homes_dir(run, one)), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
         waits = post(client, thread, MESSAGE.format(**asdict(one)), key)
         if not waits:
@@ -262,8 +323,10 @@ def line(run: Pass, was: Word) -> str:
         return f"kept: {name}, not posted, {one.skipped}, word {one.id}"
     if one.sent_at:
         how = "already sent" if was.sent_at else "sent"
-        return f"{how}: {name}, to {one.thread}, word {one.id}"
-    return f"waits: {name}, {one.waits}, word {one.id}"
+        to = f"the {one.home} home at {one.thread}" if one.home else one.thread
+        return f"{how}: {name}, to {to}, word {one.id}"
+    whose = f"for the {one.home} home, " if one.home else ""
+    return f"waits: {name}, {whose}{one.waits}, word {one.id}"
 
 
 def recorded_by(recorder: str, homes: list[str], client: Client | None) -> str:
@@ -307,6 +370,9 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     that names no thread (`recorded_by`), since a mistyped id would post the word back to the
     home that recorded it.
 
+    The word goes to the home of the project that owns its subject (`owner`), so a home that
+    records a word about another home's work forwards it there.
+
     `--to` names a project or a scratch home (`jbus.Scratch`). `--all` means every project
     and no scratch home, since a scratch home takes no word about the repos. When a project
     refuses the word, for example because its `words.json` does not parse, the command says
@@ -323,7 +389,12 @@ def _word(args: argparse.Namespace, config: Config) -> int:
         client = None
     now = datetime.now(UTC)
     if args.recorder is not None:
-        homes = [thread_of(Pass(config, project, now, lambda _: None).home) for project in projects]
+        homes = [
+            thread_of(where)
+            for project in projects
+            for home in [Pass(config, project, now, lambda _: None).home]
+            for where in (home, *(scope for scope, _, _ in scopes(home)))
+        ]
         unchecked = recorded_by(args.recorder, homes, client)
         if unchecked:
             print(unchecked)
@@ -331,7 +402,7 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     for project in projects:
         run = Pass(config, project, now, lambda _: None)
         try:
-            was = keep(run, words, by, at, heard, args.recorder or "")
+            was = keep(run, words, by, at, heard, args.recorder or "", args.page or "")
             deliver(run, client)
             print(line(run, was))
         except Refused as error:
@@ -361,6 +432,11 @@ def _down(down: argparse.ArgumentParser) -> None:
         dest="recorder",
         metavar="THREAD",
         help="the thread running this: a word recorded by a project's home is not posted to it",
+    )
+    down.add_argument(
+        "--page",
+        metavar="FILE",
+        help="the page the word was given on: the word goes to the home whose page it is",
     )
     down.add_argument("words", nargs="*", help="the user's words, with --by and --at")
 
