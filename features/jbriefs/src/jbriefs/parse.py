@@ -440,6 +440,17 @@ _EXTENSION = re.compile(r"\.[A-Za-z0-9]{1,5}$")
 _BRACES = re.compile(r"\{([^{}]*)\}")
 
 
+_SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
+
+
+def builds_on(text: str) -> frozenset[str]:
+    """The slugs a brief's `Builds on:` field names: the rows whose work the row starts from,
+    which are the only rows it may `depend` on. A slug is named whole, so `alpha-two` does not
+    name `alpha`. A brief with no such field names none."""
+    said = _head_lines(text, "Builds on") or ""
+    return frozenset(word.rstrip(".") for word in _SLUG.findall(said))
+
+
 def _head_lines(text: str, label: str) -> str | None:
     """The head field `<label>`: its first line and the lines under it, joined by a space."""
     for name, lines in fields(text):

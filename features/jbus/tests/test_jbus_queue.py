@@ -66,8 +66,9 @@ def go(kitchen, slug, sha=None, project="demo"):
 
 def add(kitchen, slug, priority=1, depends="", approve=True, text=None, project="demo"):
     argv = ["--project", project, "queue", "add", slug, "--priority", str(priority)]
+    built = brief(slug, f"Builds on: {depends}\n") if depends else brief(slug)
     code, said = kitchen.main(
-        *argv, *(["--depends", depends] if depends else []), stdin=text or brief(slug)
+        *argv, *(["--depends", depends] if depends else []), stdin=text or built
     )
     assert code == 0, said
     if approve:
@@ -294,14 +295,15 @@ def stored(kitchen):
 
 def test_a_batch_applies_every_verb_and_prints_one_line_for_each(kitchen):
     add(kitchen, "old")
-    alpha, beta = sha12(brief("alpha")), sha12(brief("beta"))
+    built = brief("beta", "Builds on: alpha, old\n")
+    alpha, beta = sha12(brief("alpha")), sha12(built)
     code, said = kitchen.main(
         "queue",
         "apply",
         stdin=batch(
             adds("alpha", "--priority 1"),
             "\n",
-            adds("beta", "--priority 2 --depends alpha,old"),
+            adds("beta", "--priority 2 --depends alpha,old", built),
             approves("alpha", alpha),
             "hold old\n",
         ),
@@ -1358,7 +1360,7 @@ def test_an_order_that_could_never_be_kept_is_refused_and_nothing_is_queued(
             "1",
             "--depends",
             "gamma",
-            stdin=brief("beta"),
+            stdin=brief("beta", "Builds on: gamma\n"),
         )
         before = stored(kitchen)
     argv = ["queue", "add", slug, "--priority", "1", "--merge-after", given]
