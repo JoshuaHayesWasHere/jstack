@@ -389,6 +389,12 @@ class Turns:
         that slug has merged, or has ended `done` with no pull request. Once the pass is `full`,
         the method reads a row only for its reason, sends no gate for it, and adds the row to
         `Pass.held`.
+
+        The pass read the table before it merged and asked T3 Code, and the home may have added
+        and approved the brief again since. So a go that does not hold for the stored brief is
+        judged once more with the row and the brief as they are now, read together
+        (`queue.current`), and the row is gated only when that go does not hold either. Each pass
+        judges the row again, so the gate goes the pass its go holds.
         """
         run, world = self.run, self.world
         merged = set(world.merged) - set(world.open)
@@ -411,12 +417,16 @@ class Turns:
                 continue
             brief = queue.brief(run.state, slug)
             if brief is None or not queue.approved_text(row, brief):
+                row, brief = queue.current(run.state, slug)
+                if row is None or not row.get("approved"):
+                    continue
+            if brief is None or not queue.approved_text(row, brief):
                 now = queue.brief_sha(brief or "")[:12]
+                lines = tuple(queue.changed(row, brief))
                 if not full:
-                    lines = "; ".join(queue.changed(row, brief))
-                    what = f"brief changed after approval: {lines}"
+                    what = f"brief changed after approval: {'; '.join(lines)}"
                     run.gate(slug, what, key=f"brief changed, now {now}")
-                run.reasons[slug] = Changed(now)
+                run.reasons[slug] = Changed(now, row.get("brief_sha", "")[:12], lines)
                 continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")

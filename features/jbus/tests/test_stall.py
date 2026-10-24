@@ -122,7 +122,8 @@ def test_a_brief_changed_after_the_go_is_a_root_to_approve_it_again(kitchen):
     kitchen.poll()
     now, was = sha12(changed), sha12(brief("alpha"))
     assert waits(kitchen) == [
-        f"waiting-on-user demo: re-approve alpha (brief now {now}, approved {was}): "
+        f"waiting-on-user demo: re-approve alpha (brief now {now}, approved {was}; "
+        "changed: Done when: One more line.): "
         f"jbus --project demo queue approve alpha --sha {now} {BASES}"
         " · unblocks alpha, beta · since 11:00 ET"
     ]

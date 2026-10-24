@@ -455,13 +455,21 @@ def _well_formed(row: Any) -> bool:
 
 def fresh(state: Path, slug: str) -> Row | None:
     """Return the row as it is now, read under the same lock that the verbs hold when they write."""
+    return current(state, slug)[0]
+
+
+def current(state: Path, slug: str) -> tuple[Row | None, str | None]:
+    """Return the row and its stored brief as they are now, both read under the lock that the
+    verbs hold while they write the table and the briefs. A batch writes both under it, so the
+    two are of one moment: a row is never judged against a brief that a later `add` wrote."""
     state.mkdir(parents=True, exist_ok=True)
     with open(state / "queue.lock", "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         try:
-            return next((row for row in load(state) if row["slug"] == slug), None)
+            row = next((row for row in load(state) if row["slug"] == slug), None)
         except Unparsable:
-            return None
+            return None, None
+        return row, brief(state, slug)
 
 
 def load(state: Path) -> list[Row]:
