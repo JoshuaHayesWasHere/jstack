@@ -124,7 +124,11 @@
    esac
    ```
 
-   The line goes above the Result, when a fast crewmate has written one by then, and takes the place of the line of an earlier launch from the same brief: a review's findings go to the thread it names. Briefs and requests are in the repo's directory, whichever home launches from them. Write no status in the plan. A launch by this section adds no row to the queue, and `jbus plan` counts an entry from its rows, so where the brief has no row yet, add one for its entry. Run this in the main checkout with the block at the top, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets, and with the row's order from step 1 added as `--merge-after <slugs>` or `--depends <slugs>`:
+   The line goes above the Result, when a fast crewmate has written one by then, and takes the place of the line of an earlier launch from the same brief: a review's findings go to the thread it names.
+   Briefs and requests are in the repo's directory, whichever home launches from them.
+   Write no status in the plan.
+   A launch by this section adds no row to the queue, and `jbus plan` counts an entry from its rows, so where the brief has no row yet, add one for its entry.
+   Run this in the main checkout with the block at the top, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets, and with the row's order from step 1 added as `--merge-after <slugs>` or `--depends <slugs>`:
 
    ```sh
    if command -v jbus > /dev/null && jbus plan > /dev/null 2>&1; then
