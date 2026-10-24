@@ -659,17 +659,16 @@ def test_a_brief_changed_after_the_go_is_a_gate_until_it_is_approved_again(kitch
     assert "One more line." in kitchen.t3.launches[0]["message"]
 
 
-def test_a_row_waits_silently_until_everything_it_depends_on_is_merged(kitchen):
+def test_a_row_waits_silently_until_what_it_depends_on_opens_its_pull_request(kitchen):
     add(kitchen, "beta", depends="alpha")
     kitchen.brief("alpha", RESULT)
     kitchen.poll()
-    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll(NOW + timedelta(minutes=3))
     assert kitchen.t3.launches == [] and kitchen.lines() == []
-    kitchen.set("open.json", [])
-    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll(NOW + timedelta(minutes=6))
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
+    assert kitchen.t3.launches[0]["workspaceStrategy"]["baseRef"] == "alpha"
 
 
 def test_a_dependency_merged_into_an_integration_branch_counts_as_merged(kitchen):

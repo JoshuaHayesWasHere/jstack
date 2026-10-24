@@ -11,6 +11,7 @@ from pathlib import Path
 
 from jbriefs import findings, skills
 from jmerge.rangediff import Verdict
+from jmerge.stacked import Stacked
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -380,50 +381,6 @@ def stack_of(text: str) -> str | None:
         if line.startswith("Stack:"):
             return "".join(line.removeprefix("Stack:").split()[:1])
     return None
-
-
-STACKED = "Stacked on:"
-
-
-@dataclass(frozen=True)
-class Stacked:
-    """What a brief's `Stacked on:` line says, the one record of a link jbus stacked: the row it
-    builds on, the branch its pull request sits on, and, once that row merged and jbus moved the
-    link onto the default branch, the commit of that branch that merged it (`at`).
-
-    jbus writes the line at the launch, `Stacked on: <slug> <its branch>`, and again once the
-    row merged, `Stacked on: <slug> <default branch> at <commit>` (`jbus.stack`)."""
-
-    slug: str
-    branch: str
-    at: str = ""
-
-
-def stacked_of(text: str) -> Stacked | None:
-    """The `Stacked on:` line in the head of a brief, above its first `## `, or None."""
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith(STACKED):
-            words = line.removeprefix(STACKED).split()
-            if len(words) == 2:
-                return Stacked(*words)
-            if len(words) == 4 and words[2] == "at" and _COMMIT.fullmatch(words[3]):
-                return Stacked(words[0], words[1], words[3])
-            return None
-    return None
-
-
-def unmoved(text: str) -> bool:
-    """Whether a brief is of a link that still sits on its base's branch: its branch holds its
-    base's commits and its own, so a rebase onto the default branch would replay them."""
-    stacked = stacked_of(text)
-    return stacked is not None and not stacked.at
-
-
-def stacked_line(stacked: Stacked) -> str:
-    at = f" at {stacked.at}" if stacked.at else ""
-    return f"{STACKED} {stacked.slug} {stacked.branch}{at}"
 
 
 def integration_of(text: str) -> tuple[str, ...]:

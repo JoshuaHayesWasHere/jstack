@@ -12,13 +12,14 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import ready
+from jmerge import stacked as stacks
 from test_jmerge_carried import brief_of, built_on, listing, rows
 from test_jmerge_order import queue_of
 
 __all__ = ["built_on"]
 
 
-def stacked(built_on, line, base="main"):
+def judged(built_on, line, base="main"):
     brief_of(built_on.home, "alpha", merge.URL, built_on.head, more=line + "\n")
     queue_of(built_on.home, rows(gamma="merged"))
     listing(built_on, 7)
@@ -30,27 +31,27 @@ def stacked(built_on, line, base="main"):
 
 @pytest.mark.parametrize("base", ["beta", "main"])
 def test_a_link_on_its_bases_branch_waits_for_jbus_to_move_it(built_on, base):
-    said = stacked(built_on, "Stacked on: beta beta", base=base)
+    said = judged(built_on, "Stacked on: beta beta", base=base)
     on = ready.STACKED_ON.format(branch="beta", slug="beta", default="main")
     assert said == f"wait 7 {merge.URL}: {on}"
 
 
 def test_a_link_whose_head_does_not_hold_its_bases_merge_waits_for_its_rebase(built_on):
-    said = stacked(built_on, f"Stacked on: beta main at {built_on.delta}")
+    said = judged(built_on, f"Stacked on: beta main at {built_on.delta}")
     unmoved = ready.STACKED_UNMOVED.format(slug="beta", sha=built_on.delta[:12], default="main")
     assert said == f"wait 7 {merge.URL}: {unmoved}"
 
 
 def test_a_link_rebased_onto_its_bases_merge_merges_as_any_other(built_on):
-    said = stacked(built_on, f"Stacked on: beta main at {built_on.beta}")
+    said = judged(built_on, f"Stacked on: beta main at {built_on.beta}")
     assert said.startswith("ready 7 ")
 
 
 @pytest.mark.parametrize(
     ("line", "found"),
     [
-        ("Stacked on: beta beta", ready.Stacked("beta", "beta")),
-        ("Stacked on: beta main at " + "a" * 40, ready.Stacked("beta", "main", "a" * 40)),
+        ("Stacked on: beta beta", stacks.Stacked("beta", "beta")),
+        ("Stacked on: beta main at " + "a" * 40, stacks.Stacked("beta", "main", "a" * 40)),
         ("Stacked on: beta", None),
         ("Stacked on: beta main at", None),
         ("Stacked on: beta main by " + "a" * 40, None),
@@ -58,6 +59,6 @@ def test_a_link_rebased_onto_its_bases_merge_merges_as_any_other(built_on):
 )
 def test_the_line_reads_back_as_it_was_written(line, found):
     text = merge.brief(merge.review("clean", "a" * 40), field=line + "\n")
-    assert ready.stacked_of(text) == found
+    assert stacks.of(text) == found
     if found is not None:
-        assert ready.stacked_line(found) == line
+        assert stacks.line(found) == line

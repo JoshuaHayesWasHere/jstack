@@ -15,7 +15,7 @@ from datetime import timedelta
 
 import pytest
 
-from jmerge import ready
+from jmerge import stacked as stacks
 from test_jbus_chains import queue_add
 from test_jbus_github import keys, sends
 from test_jbus_kitchen import NOW, Kitchen
@@ -72,7 +72,7 @@ def passes(kitchen, *minutes):
 
 def head_line(kitchen):
     text = (kitchen.home / "tasks" / "two.md").read_text()
-    return ready.stacked_of(text)
+    return stacks.of(text)
 
 
 def edits(kitchen):
@@ -105,7 +105,7 @@ def test_a_base_whose_head_moved_tells_its_link_once_for_that_head(stacked):
     holds(stacked, (again, rebased))
     passes(stacked, 15, 18)
     assert len(sends(stacked)) == 2
-    assert head_line(stacked) == ready.Stacked("one", "one")
+    assert head_line(stacked) == stacks.Stacked("one", "one")
 
 
 @pytest.mark.parametrize("on", ["one", "main"])
@@ -120,7 +120,7 @@ def test_a_base_that_merged_moves_its_link_onto_main_once(stacked, on):
     (said,) = [given["message"] for given in sends(stacked)]
     assert "one merged as aaaaaaaaaaaa" in said and "now based on main" in said
     assert f"with {LAST} as the branch it sat on" in said and "again with one" in said
-    assert head_line(stacked) == ready.Stacked("one", "main", MERGE)
+    assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
 
 
 def test_a_link_whose_thread_is_at_work_is_moved_on_a_later_pass(stacked):
@@ -129,12 +129,12 @@ def test_a_link_whose_thread_is_at_work_is_moved_on_a_later_pass(stacked):
         thread["status"] = "running"
     passes(stacked, 0)
     assert sends(stacked) == []
-    assert head_line(stacked) == ready.Stacked("one", "one")
+    assert head_line(stacked) == stacks.Stacked("one", "one")
     for thread in stacked.t3.threads:
         thread["status"] = "completed"
     passes(stacked, 3, 6)
     assert keys(stacked) == [f"restack|two|{LINK[:12]}|{MERGE[:12]}"]
-    assert head_line(stacked) == ready.Stacked("one", "main", MERGE)
+    assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
 
 
 def test_a_link_that_sits_on_its_base_is_not_told_to_rebase_onto_main_for_a_conflict(stacked):

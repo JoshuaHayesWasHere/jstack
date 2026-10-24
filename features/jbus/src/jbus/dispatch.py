@@ -51,7 +51,8 @@ from jbus import queue, read_json, verbs, write_json
 from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, crew_threads, ended
-from jmerge import claims, mainjson, ready
+from jmerge import claims, mainjson
+from jmerge import stacked as stacks
 from jroles import ledger, pool
 
 EVENTS = {"overlap": "quiet"}
@@ -148,7 +149,7 @@ def green_main(brief: str, green: str) -> str:
     return f"{first}\n{GREEN_MAIN} {green}\n{rest}"
 
 
-def launched_text(brief: str, green: str, on: ready.Stacked | None) -> str:
+def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
     """Return the brief a launch sends: with the `Green main:` line (`green_main`), or for a row
     that launches stacked, with its `Stacked on:` line in that place and no `Green main:`. A
     stacked crew starts from its base's branch, never from main, so the line that tells a crew
@@ -158,16 +159,16 @@ def launched_text(brief: str, green: str, on: ready.Stacked | None) -> str:
     return stacked(green_main(brief, ""), on)
 
 
-def stacked(brief: str, on: ready.Stacked) -> str:
+def stacked(brief: str, on: stacks.Stacked) -> str:
     """Return the brief with `on`'s `Stacked on:` line under its first line, in place of any such
     line its head had."""
     kept, head = [], True
     for line in brief.splitlines(keepends=True):
         head = head and not line.startswith("## ")
-        if not (head and line.startswith(ready.STACKED)):
+        if not (head and line.startswith(stacks.LINE)):
             kept.append(line)
     first, _, rest = "".join(kept).partition("\n")
-    return f"{first}\n{ready.stacked_line(on)}\n{rest}"
+    return f"{first}\n{stacks.line(on)}\n{rest}"
 
 
 def arguments(
@@ -401,7 +402,7 @@ class Turns:
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
 
-    def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str, ready.Stacked | None]]:
+    def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str, stacks.Stacked | None]]:
         """Read rows off `left`, and yield each row, with its brief and the stack it launches
         on, that waits only for a free slot.
 

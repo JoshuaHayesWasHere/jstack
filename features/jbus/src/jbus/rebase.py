@@ -80,6 +80,7 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
 from jmerge import ready
+from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
 
 EVENTS = {
@@ -258,7 +259,7 @@ def github(run: Pass, client: Client, world: World) -> None:
         if failed and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
             deliver(run, client, world, number, failed, ask)
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
-        if pull.get("mergeable") == "CONFLICTING" and not told and not ready.unmoved(brief):
+        if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
             if _REVIEWED.search(brief):
                 ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)

@@ -33,10 +33,11 @@ from jbus import END_TURN, dispatch, read_json, rebase, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
 from jbus.watch import World
-from jmerge import ready
+from jmerge import stacked as stacks
 
 EVENTS = {"restack": "quiet"}
-KIND, HOLDS = "restack", "stacked"
+KIND = "restack"
+HOLDS = "stacked"
 _MOVE = (
     'In your own worktree, read "A link that moved" in the crew skill again, from the file, '
     "and run its block with {was} as the branch it sat on."
@@ -64,7 +65,7 @@ def move(run: Pass, client: Client, world: World) -> None:
     for slug, pull in world.open.items():
         head = str(pull.get("headRefOid") or "")
         brief = _brief(run, slug)
-        stacked = ready.stacked_of(brief)
+        stacked = stacks.of(brief)
         if not head or stacked is None or stacked.at or not rebase.crew(run, slug):
             continue
         base = world.open.get(stacked.slug)
@@ -87,7 +88,7 @@ def _restack(
     world: World,
     slug: str,
     pull: dict[str, Any],
-    stacked: ready.Stacked,
+    stacked: stacks.Stacked,
     base: dict[str, Any],
     sent: set[str],
 ) -> None:
@@ -120,7 +121,7 @@ def _moved(
     world: World,
     slug: str,
     pull: dict[str, Any],
-    stacked: ready.Stacked,
+    stacked: stacks.Stacked,
     merged: dict[str, Any],
     default: str,
     sent: set[str],
@@ -183,7 +184,7 @@ def _brief(run: Pass, slug: str) -> str:
         return ""
 
 
-def _rewrite(run: Pass, slug: str, stacked: ready.Stacked) -> None:
+def _rewrite(run: Pass, slug: str, stacked: stacks.Stacked) -> None:
     """Write where the link sits now on its brief's `Stacked on:` line, read again just before,
     so a line its crew added since is kept."""
     path = run.home / "tasks" / f"{slug}.md"

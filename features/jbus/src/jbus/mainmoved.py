@@ -64,7 +64,8 @@ from jbus import Refused, dispatch, questions, read_json, rebase, verbs, write_j
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import NO_JOB, World, _api, _check, checks
-from jmerge import mainjson, ready
+from jmerge import mainjson
+from jmerge import stacked as stacks
 from jmerge.mainjson import SETTLED
 
 EVENTS = {"mainmoved": "quiet"}
@@ -238,7 +239,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
             brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
         except OSError:
             brief = ""
-        if ready.unmoved(brief):
+        if stacks.unmoved(brief):
             continue
         thread = dispatch.thread_of(brief)
         if not thread:

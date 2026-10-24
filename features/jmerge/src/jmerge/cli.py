@@ -37,6 +37,7 @@ from jmerge import (
     sweep,
     trailers,
 )
+from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -672,7 +673,7 @@ class Repo:
             self.heads[one.number] = not _run(self.main, "git", "cat-file", "-e", commit).returncode
         return self.heads[one.number]
 
-    def on_stack(self, one: ready.PullRequest, default: str, stacked: ready.Stacked | None) -> str:
+    def on_stack(self, one: ready.PullRequest, default: str, stacked: stacks.Stacked | None) -> str:
         """Why a link jbus stacked waits, or nothing. It waits while its line names its base's
         branch, whatever base GitHub gives it now: GitHub bases it on the default branch by
         itself when the base's branch is deleted on its merge, and its head still holds the
@@ -1120,7 +1121,7 @@ class Repo:
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
-        stacked = ready.stacked_of(text)
+        stacked = stacks.of(text)
         short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
         short = short or self.on_stack(one, default, stacked)
         short = short or ready.short_of(text, one.head)

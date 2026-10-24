@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from jbriefs import home, parse
-from jmerge import ready, sweep
+from jmerge import stacked as stacks
+from jmerge import sweep
 
 ROOT = "root"
 NOBODY = ""
@@ -93,8 +94,8 @@ def branch_of(slug: str, text: str) -> tuple[str, str]:
 
 def stacked_on(text: str) -> str:
     """The branch a link of a stack sits on: its `Stack:` line's, or the `Stacked on:` line's
-    of a link jbus stacked (`ready.stacked_of`), or nothing."""
-    stacked = ready.stacked_of(text)
+    of a link jbus stacked (`stacked.of`), or nothing."""
+    stacked = stacks.of(text)
     if stacked is not None:
         return stacked.branch
     for line in text.splitlines():

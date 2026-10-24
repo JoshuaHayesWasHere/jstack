@@ -29,7 +29,7 @@ def waits(kitchen):
 def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(kitchen):
     add(kitchen, "alpha", priority=1, approve=False)
     add(kitchen, "beta", priority=2)
-    add(kitchen, "gamma", priority=3, depends="beta")
+    add(kitchen, "gamma", priority=3, depends="beta,alpha")
     kitchen.brief("alpha", RESULT)
     kitchen.set("open.json", [kitchen.opened("alpha", 8)])
     kitchen.set("jmerge.txt", NO_REVIEW)
@@ -38,7 +38,7 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
     assert waits(kitchen) == {
         "alpha": ("wait: it has no review yet", FIRST),
         "beta": ("", ""),
-        "gamma": ("depends on beta", FIRST),
+        "gamma": ("depends on beta, alpha", FIRST),
     }
     thread["status"] = "completed"
     kitchen.brief("beta", RESULT)
@@ -49,7 +49,7 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
     assert waits(kitchen) == {
         "alpha": ("wait: it has no review yet", FIRST),
         "beta": ("wait: a check has not finished", SECOND),
-        "gamma": ("depends on beta", FIRST),
+        "gamma": ("depends on beta, alpha", FIRST),
     }
     assert transitions(kitchen) == [
         {"slug": "alpha", "from": "queued", "to": "pr", "at": "2026-10-12T15:00:00+00:00"},
@@ -65,7 +65,7 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
         f"| pr | mcp:thread-1 | #9 | pending | {SECOND} | wait: a check has not finished "
         f"| {SECOND} |"
     )
-    assert shown[4].endswith(f"| queued |  |  |  |  | depends on beta | {FIRST} |")
+    assert shown[4].endswith(f"| queued |  |  |  |  | depends on beta, alpha | {FIRST} |")
 
 
 def test_a_quiet_pass_keeps_since_and_appends_no_transition(kitchen):

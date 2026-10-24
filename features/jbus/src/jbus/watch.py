@@ -45,7 +45,8 @@ from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import slot, waiters
 from jmerge import checks as reading
-from jmerge import mainjson, ready
+from jmerge import mainjson
+from jmerge import stacked as stacks
 from jmerge.asked import Silent
 from jmerge.asked import why as asked_why
 
@@ -109,14 +110,14 @@ class World:
     def live(self) -> int:
         return sum(t["status"] in LIVE for found in self.threads.values() for t in found)
 
-    def stack_on(self, unmet: list[str]) -> ready.Stacked | None:
+    def stack_on(self, unmet: list[str]) -> stacks.Stacked | None:
         """The open pull request a row whose depends `unmet` are not over launches stacked on: the
         one row it still waits on, once that row's pull request is open. A stack sits on one
         branch, so a row that waits on two or more rows launches on none."""
         if len(unmet) != 1 or unmet[0] not in self.open:
             return None
         branch = str(self.open[unmet[0]].get("headRefName") or "")
-        return ready.Stacked(unmet[0], branch) if branch else None
+        return stacks.Stacked(unmet[0], branch) if branch else None
 
 
 @dataclass(frozen=True)
