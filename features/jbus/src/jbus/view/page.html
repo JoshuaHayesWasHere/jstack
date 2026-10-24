@@ -606,7 +606,7 @@
     });
     (S.threads || []).filter(function (t) { return (t.out || idle(t)) && !(t.slug && known(t.slug)); }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title) + ":" + (t.created || ""), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }

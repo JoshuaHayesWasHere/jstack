@@ -50,7 +50,7 @@ def test_a_project_page_draws_its_rows_under_each_home_the_root_first(scene, tmp
     ]
     rows = {one["home"]: {row["key"] for row in one["rows"]} for one in seen["groups"]}
     assert {"tea-cups", "tea-tray", "oat-bowl", "oat-spoon"} <= rows[""]
-    assert rows[SHELF] == {"jam-jar"}
+    assert rows[SHELF] == {"jam-jar", f"thread:home:demo {SHELF}"}
     assert rows[RACK] == {"oat-milk", "thread:scout:look"}
     chips = {row["key"]: row["chips"] for one in seen["groups"] for row in one["rows"]}
     retired = f"home {OLD} retired, so under the root"
