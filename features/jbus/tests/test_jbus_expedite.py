@@ -15,6 +15,7 @@ import jsettings
 from jbriefs import findings
 from jbus import merge
 from jmerge import ready
+from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
@@ -315,6 +316,72 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     short.passes(12)
     assert kitchen.lines("stall") == [stalled] and len(sends(kitchen)) == 1
     assert gates(kitchen) == []
+
+
+def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_after_the_reset(
+    short, kitchen
+):
+    """The reviewer wrote nothing, and jbus asks the crew for `/pr-review run alpha again` while
+    the crew's instance is capped, 22 minutes before the cap resets. The turn the message starts
+    ends at once on the limit, so the crew stays as it was. The first pass after the reset sends
+    the message again, once, and a later pass sends nothing more."""
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
+    resets = later(2) + timedelta(minutes=22)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(3)
+    (first,) = sends(kitchen)
+    assert "`/pr-review run alpha again`" in first["message"]
+    short.passes(21)
+    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    said = short.passes(1)
+    assert later(short.minute - 1) == resets
+    again = [one for one in sends(kitchen) if one != first]
+    assert [(one["threadId"], one["message"]) for one in again] == [
+        ("mcp:thread-1", first["message"])
+    ]
+    line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]}), "
+    assert line + "sent `/pr-review run alpha again`" in said
+    short.passes(12)
+    assert len(sends(kitchen)) == 2
+
+
+def test_a_hold_sent_into_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_sent_again(
+    short, kitchen
+):
+    """The crew is asked for a scoped pass over its rebase while its instance is capped for 40
+    minutes. The passes of the cap are not the crew's idleness, so the hold is not the user's by
+    the reset, and the first pass after it sends the message again."""
+    short.out(short.unruled(), "hold", short.rebased())
+    resets = later(2) + timedelta(minutes=40)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(3)
+    (first,) = sends(kitchen)
+    short.passes(39)
+    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    assert listed(kitchen) == []
+    short.passes(1)
+    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+
+
+def test_a_send_into_a_cap_whose_pass_kept_no_count_is_still_sent_again_after_the_reset(
+    short, kitchen
+):
+    """A pass sent into a cap and stopped before it wrote `expedite.json`. The next pass finds the
+    message's mark, and the first pass after the reset still sends it again."""
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
+    resets = later(2) + timedelta(minutes=22)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(2)
+    counted = jbus.read_json(kitchen.state / "expedite.json", {})
+    short.passes(1)
+    (first,) = sends(kitchen)
+    jbus.write_json(kitchen.state / "expedite.json", counted)
+    short.passes(21)
+    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    short.passes(1)
+    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
 
 
 def reviewer_says(tmp_path, asked, brief):
