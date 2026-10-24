@@ -6,10 +6,10 @@ T3 Code shows the pull request in that thread. `relay` sends a review's findings
 when the reviewer could not send them. `settle` settles the threads of a slug that is finished, and
 the subagent threads under them. `settle` also archives the review threads of a pull request that
 merged or closed. `resume` tells a crewmate to carry on when its thread ended with no Result.
-`resume` does this twice at most, and after that the Chef handles the crewmate. `merged` tells a
-crewmate to carry on, once, when its pull request merged and its Result leaves work for after the
-merge. `out` lists every thread that is not settled, whatever its title, with the role that its
-title gives it (`ROLES`) and its liveness.
+`resume` does this twice at most, and after that it tells the brief's home in one line. `merged`
+tells a crewmate to carry on, once, when its pull request merged and its Result leaves work for
+after the merge. `out` lists every thread that is not settled, whatever its title, with the role
+that its title gives it (`ROLES`) and its liveness.
 
 Each action happens once. jbus records the action's key in `sent.json`, beside the keys of the
 events, but only after T3 Code accepted the call. So when an action got no answer, the next pass
@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import skills
+from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
     dispatch,
@@ -134,6 +135,11 @@ CARRY_ON = (
     "{most}."
 )
 CARRY_ONS = 2
+STOPPED = (
+    "jbus: {slug}'s crew thread {thread} ended ({status}) with no Result after {most} "
+    "carry-ons. It is the home's from here: pick it up as the home skill's \"Picking up a "
+    'thread that stopped" says.'
+)
 MERGED = (
     "jbus: pull request #{number} of this task is merged, and your last Result leaves work "
     "for after the merge. Carry on from your brief: read `tasks/{slug}.md`, do what the "
@@ -550,7 +556,8 @@ def resume(run: Pass, client: Client, world: World) -> None:
     `resume` tells only the one thread of a slug that jbus launched and that the brief names on its
     `Thread:` line, and only while the slug has no pull request. `resume` counts a thread's
     carry-ons by the keys that `resume` wrote for them. When the count reaches `CARRY_ONS`, the
-    thread's next end becomes a gate. A new thread for the slug starts again from zero.
+    thread's next end goes to the brief's home in one line, or is a gate where the brief has no
+    home (`_stopped`). A new thread for the slug starts again from zero.
     """
     briefs = _briefs(run)
     sent = read_json(run.state / "sent.json", [])
@@ -572,7 +579,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         had = sum(one.startswith(f"resume|{slug}|{at}|") for one in sent)
         if had >= CARRY_ONS:
-            run.gate(slug, f"thread ended {status} after two carry-ons", at, key=f"{at} {ended}")
+            _stopped(run, client, slug, (at, ended), status, brief)
             continue
         message = resume_message(
             CARRY_ON,
@@ -598,6 +605,38 @@ def resume(run: Pass, client: Client, world: World) -> None:
         run.find(slug, "resume", line, key=f"{at} {ended}")
         run.box.mark(key)
         run.say(line)
+
+
+def _stopped(
+    run: Pass, client: Client, slug: str, run_of: tuple[str, str], status: str, brief: str
+) -> None:
+    """Hand a thread that ended again after its last carry-on to the brief's home, in one line,
+    once for the thread: the wait is the home's from there, not the user's. With no home to tell,
+    it is a gate, once for the ended run, as before homes were told, and a line T3 Code refused
+    is a gate once for the thread. A line that got no answer is sent again on the next pass."""
+    at, ended = run_of
+    what = f"thread ended {status} after two carry-ons"
+    home = thread_of(home_of(run.home, brief))
+    key = f"stopped|{slug}|{at}"
+    if home and key in read_json(run.state / "sent.json", []):
+        return
+    if not home:
+        run.gate(slug, what, at, key=f"{at} {ended}")
+        return
+    text = STOPPED.format(slug=slug, thread=at, status=status, most=CARRY_ONS)
+    client.recipients = client.recipients | {home}
+    asked = {"threadId": home, "message": text, "mode": "queue", "clientRequestId": key}
+    try:
+        client.call("t3_thread_send", asked)
+    except T3Refused as error:
+        run.box.mark(key)
+        run.gate(slug, what, f"{at}\n\nT3 Code refused its home the line: {error}", key=at)
+        return
+    except T3Error as error:
+        run.say(f"wait {slug}: its home could not be told the crew stopped ({error})")
+        return
+    run.box.mark(key)
+    run.say(f"resume {slug}: told its home, thread {home}, that {at} {what}")
 
 
 def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> None:
