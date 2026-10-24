@@ -78,7 +78,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   `jmerge` never merges a draft, whatever flags you pass, and prints `wait <number> <url>: draft`.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
-  If the brief belongs to another home of the repo, the pull request waits as `another home's`, unless you pass `--all`.
+  While `home-thread` is empty, jbus runs `jmerge` for every home of the repo, and a scoped home's pull request merges as the root home's does.
+  While it holds an id, each home merges its own: a brief of another home of the repo waits as `another home's`, unless you pass `--all`.
 - **Its base is the default branch or an integration branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
   It merges a pull request whose brief has a `Stack:` line only when you pass `--land <stack>`.
