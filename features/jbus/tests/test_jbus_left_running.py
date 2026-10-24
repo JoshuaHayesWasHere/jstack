@@ -29,7 +29,8 @@ def kitchen(tmp_path, monkeypatch):
 
 def orphan(cwd, *command, env=None):
     """Start `command` in `cwd` from a shell that exits at once, as a crew's shell does at the
-    end of its turn, so the process's parent is 1. Return its pid."""
+    end of its turn, so the process's parent is a reaper: 1, or the user's `systemd --user`
+    under a unit of it. Return its pid."""
     started = subprocess.run(
         ["sh", "-c", 'cd "$1" || exit; shift; "$@" > /dev/null 2>&1 < /dev/null & echo $!', "sh"]
         + [str(cwd), *command],
@@ -40,10 +41,10 @@ def orphan(cwd, *command, env=None):
     )
     pid = int(started.stdout)
     for _ in range(50):
-        if parent(pid) == 1:
+        if (ppid := parent(pid)) is not None and strays.reaper(ppid):
             return pid
         time.sleep(0.02)
-    raise AssertionError(f"{pid} was not handed to pid 1, so it is no orphan of this machine")
+    raise AssertionError(f"{pid} was not handed to a reaper, so it is no orphan of this machine")
 
 
 def parent(pid):
@@ -244,6 +245,34 @@ def test_the_line_goes_under_the_last_result_and_not_into_a_review_after_it(
     text = brief.read_text()
     assert text.endswith(review)
     assert "Left running: 1 stopped by jbus " in mirror.last_result(text)
+
+
+def test_a_process_the_users_systemd_adopted_is_an_orphan_and_one_under_a_live_parent_is_not(
+    tmp_path, monkeypatch
+):
+    """Under a unit of the user's `systemd --user`, as jbus and jmerge's fresh check run, an
+    orphan is handed to that manager and not to 1."""
+    uid = os.getuid()
+
+    def proc(pid, ppid, cgroup):
+        where = tmp_path / str(pid)
+        where.mkdir()
+        (where / "stat").write_text(f"{pid} (yes) R {ppid}" + " 0" * 40 + "\n")
+        (where / "cmdline").write_bytes(b"yes\0")
+        (where / "environ").write_bytes(b"")
+        (where / "cgroup").write_text(
+            f"0::/user.slice/user-{uid}.slice/user@{uid}.service/{cgroup}\n"
+        )
+        (where / "cwd").symlink_to(tmp_path)
+
+    proc(904, 1, "init.scope")
+    proc(5000, 1, "app.slice/a.service")
+    proc(5001, 904, "app.slice/b.service")
+    proc(5002, 5000, "app.slice/a.service")
+    monkeypatch.setattr(strays, "ROOT", tmp_path)
+    found = {one.pid for one in strays.orphans()}
+    assert {5000, 5001} <= found
+    assert 5002 not in found
 
 
 def test_a_process_that_ignores_term_is_killed_after_the_grace(
