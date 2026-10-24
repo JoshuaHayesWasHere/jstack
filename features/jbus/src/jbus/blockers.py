@@ -37,7 +37,8 @@ A fix is counted when it is queued, so the cap is checked under that one lock, a
 the count back when `jbus queue remove` takes out a fix row that never launched: it did no work,
 so it spent no try. A row launched once keeps its count when it is removed, so a cap cannot be
 dodged by removing a fix that ran. The cap waits for the effect of the key's last fix: while that
-fix has merged and the blocker's row has not changed since, as a pass sees it, the key is not
+fix has merged and no pass has judged the blocker since (its pull request's latest check, as the
+pass record keeps it, started after the merge and completed, or its row changed), the key is not
 raised, and `admit` refuses the next fix with no decision (`pending`). A blocker the merged fix
 cleared blocks no more, and is never raised.
 
@@ -59,6 +60,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import hashlib
+import json
 import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -78,6 +80,7 @@ from jbus import (
     questions,
     queue,
     read_json,
+    record,
     verbs,
     waiting,
     write_json,
@@ -174,7 +177,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
             return lambda: _release(directory, key, sha)
     run = Pass(config, project, datetime.now(UTC))
     rows = {row["slug"]: row for row in queue.load(run.state)}
-    merged = pending(rows, had, rows.get(key.partition(":")[2]), config.user)
+    merged = pending(run, rows, had, rows.get(key.partition(":")[2]))
     if merged:
         raise Refused(
             f"refused: {merged}, so {slug} is not queued and nothing is raised: wait for "
@@ -226,20 +229,55 @@ def _moment(stamp: str, user: jsettings.Settings) -> datetime | None:
     return user.local(datetime.fromisoformat(found[0])) if found else None
 
 
+def _iso(text: Any) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(text).replace("Z", "+00:00")) if text else None
+    except ValueError:
+        return None
+
+
+def _ended(run: Pass, row: queue.Row) -> datetime | None:
+    """When a pass first saw the fix's row merged or done: its last move there in
+    `transitions.jsonl`, or the row's stamp where the log has none."""
+    try:
+        lines = queue.transitions_path(run.state).read_text().splitlines()
+    except OSError:
+        lines = []
+    moved = None
+    for line in lines:
+        if row["slug"] in line:
+            try:
+                one = json.loads(line)
+            except ValueError:
+                continue
+            if one.get("slug") == row["slug"] and one.get("to") in queue.FINAL:
+                moved = _iso(one.get("at")) or moved
+    return moved or _moment(row.get("updated", ""), run.user)
+
+
+def _judged(run: Pass, blocker: queue.Row, since: datetime) -> bool:
+    """Whether a pass has judged the blocker since then: its pull request's latest check started
+    after it and completed, as the pass record keeps it (`record`), or its row changed after it."""
+    rows = (record.read(run.config).get("projects") or {}).get(run.project.name) or {}
+    check = ((rows.get("rows") or {}).get(blocker["slug"]) or {}).get("check") or {}
+    started = _iso(check.get("started"))
+    if started is not None and started > since and check.get("completed"):
+        return True
+    changed = _moment(blocker.get("updated", ""), run.user)
+    return changed is not None and changed > since
+
+
 def pending(
-    rows: dict[str, queue.Row],
-    had: list[dict[str, str]],
-    blocker: queue.Row | None,
-    user: jsettings.Settings,
+    run: Pass, rows: dict[str, queue.Row], had: list[dict[str, str]], blocker: queue.Row | None
 ) -> str:
-    """Say that the key's last counted fix has merged and the blocker's row has not changed
-    since, as a pass sees it, or nothing. Such a fix has not had its effect yet: the blocker's
-    next judgment, such as its check run over the merged main, says whether it still stands."""
+    """Say that the key's last counted fix has merged and no pass has judged the blocker since,
+    or nothing. Such a fix has not had its effect yet: the blocker's next judgment, such as its
+    check run again over the merged fix, says whether it still stands."""
     last = rows.get(had[-1].get("slug", "")) if had else None
     if last is None or blocker is None or last.get("status") not in queue.FINAL:
         return ""
-    ended, judged = _moment(last.get("updated", ""), user), _moment(blocker["updated"], user)
-    if ended is not None and judged is not None and judged > ended:
+    ended = _ended(run, last)
+    if ended is not None and _judged(run, blocker, ended):
         return ""
     return f"{last['slug']} {last['status']} at {last.get('updated') or 'a time not stamped'}"
 
@@ -396,7 +434,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
         seen.add(key)
         had = tries(home.path, key)
         at_work = [one for one in open_fixes.get(key, []) if one != slug]
-        merged = pending({one["slug"]: one for one in rows}, had, row, run.user)
+        merged = pending(run, {one["slug"]: one for one in rows}, had, row)
         if at_work:
             said.append(f"wait {key}: {', '.join(at_work)} is at work on it")
         elif merged:

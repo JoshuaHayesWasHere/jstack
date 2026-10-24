@@ -13,7 +13,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_queue import add, brief, go
 
 AT = "2026-10-12 10:58 ET"
@@ -113,50 +113,75 @@ def test_a_fix_removed_after_it_launched_still_counts(kitchen):
     assert "check:beta had 2 fixes (beta-fix-1, beta-fix-2)" in third[1]
 
 
-def merged_fix(kitchen, slug, ago):
-    seen(kitchen, slug, ago, status="merged", thread=f"mcp:{slug}", pr="#8", checks="")
+def pull(kitchen, slug, number, ran=None, conclusion="FAILURE"):
+    """The slug's open pull request, whose check started `ran` before now and took 2 minutes."""
+    made = kitchen.opened(slug, number, state=conclusion)
+    if ran is not None:
+        made["statusCheckRollup"][0].update(
+            name="check",
+            startedAt=iso(NOW - ran),
+            completedAt=iso(NOW - ran + timedelta(minutes=2)),
+        )
+    return made
+
+
+def merged_after_one_ran(kitchen, launched_first):
+    """Through passes: beta's check fails on #7, beta-fix-1 is queued and removed, launched first
+    or not, and beta-fix-2 merges as #8 40 minutes before now. Return what `jbus clear` says
+    then."""
+    add(kitchen, "beta")
+    kitchen.t3.thread("beta", "idle", idle=timedelta(hours=2))
+    kitchen.set("open.json", [pull(kitchen, "beta", 7, ran=timedelta(minutes=80))])
+    kitchen.poll(NOW - timedelta(minutes=60))
+    for slug in ("beta-fix-1", "beta-fix-2"):
+        assert queued(kitchen, slug, "check:beta")[0] == 0
+    if launched_first:
+        kitchen.t3.thread("beta-fix-1", "completed", idle=timedelta(minutes=55))
+        kitchen.poll(NOW - timedelta(minutes=50))
+    assert remove(kitchen, "beta-fix-1")[0] == 0
+    assert go(kitchen, "beta-fix-2")[0] == 0
+    kitchen.t3.thread("beta-fix-2", "completed", settled=True)
+    merged = kitchen.merged("beta-fix-2", 8, "e" * 40, ago=timedelta(minutes=42))
+    kitchen.set("merged.json", [merged])
+    kitchen.poll(NOW - timedelta(minutes=40))
+    return cleared(kitchen)
 
 
 def test_a_merged_fix_s_effect_is_waited_on_and_a_blocker_it_clears_never_pages(kitchen):
-    red(kitchen, "beta")
-    for slug in ("beta-fix-1", "beta-fix-2"):
-        assert queued(kitchen, slug, "check:beta")[0] == 0
-    assert remove(kitchen, "beta-fix-1")[0] == 0
-    merged_fix(kitchen, "beta-fix-2", timedelta(minutes=30))
-
-    pending = cleared(kitchen)
+    pending = merged_after_one_ran(kitchen, launched_first=False)
     paged_while_pending = paged(kitchen)
-    seen(kitchen, "beta", timedelta(minutes=5), status="merged", checks="")
+    kitchen.set(
+        "open.json", [pull(kitchen, "beta", 7, ran=timedelta(minutes=30), conclusion="SUCCESS")]
+    )
+    kitchen.poll(NOW - timedelta(minutes=20))
     after = cleared(kitchen)
 
+    assert counted(kitchen, "check:beta") == ["beta-fix-2"]
     assert pending.startswith("wait check:beta: beta-fix-2 merged"), pending
     assert paged_while_pending == []
-    assert "check:beta" not in after
+    assert "check:beta" not in after, after
     assert paged(kitchen) == []
     assert posted(kitchen) == []
 
 
-def test_at_the_cap_a_merged_fix_s_effect_is_waited_on_and_then_a_blocker_that_stands_pages(
-    kitchen,
-):
-    red(kitchen, "beta")
-    for slug in ("beta-fix-1", "beta-fix-2"):
-        assert queued(kitchen, slug, "check:beta")[0] == 0
-    seen(kitchen, "beta-fix-1", timedelta(hours=1), status="queued", thread="mcp:beta-fix-1")
-    kitchen.t3.thread("beta-fix-1", "completed", settled=True)
-    assert remove(kitchen, "beta-fix-1")[0] == 0
-    merged_fix(kitchen, "beta-fix-2", timedelta(minutes=30))
-
-    pending = cleared(kitchen)
+def test_at_the_cap_a_merged_fix_s_effect_is_waited_on_and_a_rerun_that_fails_again_pages(kitchen):
+    pending = merged_after_one_ran(kitchen, launched_first=True)
     refused = queued(kitchen, "beta-fix-3", "check:beta")
     paged_while_pending = paged(kitchen)
-    seen(kitchen, "beta", timedelta(minutes=5), checks="failed")
+    still = pull(kitchen, "beta", 7, ran=timedelta(minutes=30))
+    kitchen.set("open.json", [still])
+    kitchen.poll(NOW - timedelta(minutes=20))
+    row = next(
+        one for one in jbus.read_json(kitchen.state / "queue.json", []) if one["slug"] == "beta"
+    )
     stands = cleared(kitchen)
 
+    assert counted(kitchen, "check:beta") == ["beta-fix-1", "beta-fix-2"]
     assert pending.startswith("wait check:beta: beta-fix-2 merged"), pending
     assert refused[0] == 1
     assert "beta-fix-2 merged" in refused[1]
     assert paged_while_pending == []
+    assert row["updated"] == stamp(timedelta(minutes=60)), "the rerun changed no column"
     assert stands.startswith("decision check:beta: check:beta had 2 fixes"), stands
     (said,) = posted(kitchen)
     assert 'Reply: "demo check:beta: I take it"' in said
