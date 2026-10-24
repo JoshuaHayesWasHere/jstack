@@ -58,7 +58,6 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     row as it was, and jbus leaves it in the outbox and starts no POST for it.
     """
     run = passes.Pass(config, project, datetime.now(UTC))
-    state = config.state(project)
     began = time.time()
 
     def launched(slug: str) -> str:
@@ -116,7 +115,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
         follow = (config.home(project) / FOLLOW_RULE).read_text().strip()
     except OSError:
         follow = ""
-    return queue.Asks(out, launched, told, said, follow, lambda slug: steer.approvable(state, slug))
+    return queue.Asks(out, launched, told, said, follow)
 
 
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:

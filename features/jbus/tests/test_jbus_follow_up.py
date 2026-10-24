@@ -271,3 +271,23 @@ def test_queue_add_help_gives_the_follow_up_rule_and_the_file_that_names_it(kitc
     assert code == 0
     assert queue.FOLLOW_UP in " ".join(said.split())
     assert "follow-rule file names that rule of its standing.md" in " ".join(said.split())
+
+
+def test_a_follow_up_whose_work_item_was_redirected_is_not_approved_by_rule(kitchen):
+    """A redirect gives the item a new brief and holds its row, and a held row is never approved by
+    rule: queued again as a follow-up, it waits for the user."""
+    add(kitchen, "alpha")
+    assert go(kitchen, "alpha")[0] == 0
+    add(kitchen, "cleanup-alpha")
+    name = rows(kitchen)["cleanup-alpha"]["item"]
+    seen = kitchen.main("item", "show", name)[1].partition("last event: ")[2].split()[0]
+    redirected = brief("cleanup-alpha", "Redirected.\n")
+    argv = ("item", "steer", name, "redirect", "--seen", seen, "--by", "user", "--word", SAID)
+    code, said = kitchen.main(*argv, stdin=redirected)
+    assert code == 0, said
+    assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
+    assert add(kitchen, "cleanup-alpha", text=redirected) == []
+    assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
+    kitchen.quiet()
+    kitchen.poll()
+    assert "decision cleanup-alpha" in decided(kitchen)

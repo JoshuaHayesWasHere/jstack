@@ -112,7 +112,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
 - A brief that says `Review: after` skips the review's gates.
   `jmerge` asks for no `## Review`, verdict, `Fixed:` line or answered finding.
   A review written while the pull request is open does not change its wait reason (`ready.after`).
-  Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that `jbus queue add` approves by rule.
+  Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that `jbus queue add` approves by rule where the home has a `follow-rule` file and the user's own word approved `<slug>`.
   The pull request merges once its required checks pass, and its `Skills run:`, `Rebase:` and `Dropped on rebase:` lines meet their rules.
   A pull request that changes a guarded path still waits for a review of its head.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.

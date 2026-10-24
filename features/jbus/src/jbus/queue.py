@@ -571,7 +571,6 @@ class Asks:
 
     `follow` is the number of the home's standing rule that a follow-up of approved work needs no
     new approval, or nothing where the home has none: then jbus approves no row by rule itself.
-    `approvable` refuses a row whose work item may not take a go from the row (`jbus.steer`).
     """
 
     out: Callable[[str], str]
@@ -579,7 +578,6 @@ class Asks:
     told: Callable[[dict[str, Any]], None]
     said: Callable[[str, str], Said] | None = None
     follow: str = ""
-    approvable: Callable[[str], None] | None = None
 
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
@@ -747,8 +745,6 @@ def _by_rule(
         return ""
     try:
         parent = follow_up(batch, slug)
-        if asks.approvable is not None:
-            asks.approvable(slug)
         verb = Approve(slug, RULE, asks.follow, brief_sha(text)[:12], parent)
         return _do(verb, batch, user, asks, {}, said)
     except Refused as error:
