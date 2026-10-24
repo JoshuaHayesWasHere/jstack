@@ -11,8 +11,10 @@ user is no second source for work: an item of it that names a row (`ROWS`) is no
 itself, and only lends its route and what it unblocks to the row's need. Of that list, `needs`
 has the rest: a gate that holds (`Holds:`) or has no default, and a setup. `proceeds` is a gate
 whose default is already taken. It closes with that default after 2 hours of silence
-(`questions.QUIET`). A gate of a home's `gates.md` instead stands as it is. A link's conflict
-is a question for its home, not for the user, so it is on neither queue.
+(`questions.QUIET`). A gate of a home's `gates.md` instead stands until its home closes it, and
+its default says so. A gate of a retired scope (`retired`) waits on nobody: neither queue has
+an open one, and the list of gates keeps only its answered ones. A link's conflict is a
+question for its home, not for the user, so it is on neither queue.
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
 page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
@@ -26,11 +28,13 @@ for a row whose item was redirected, the item's id is the only thing that approv
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from jbriefs import home as jbriefs
 from jbus import item, mirror, questions, queue, waiting
 from jbus.view.homes import Owner
 from jbus.view.state import (
@@ -124,16 +128,46 @@ SOURCES = (
 )
 
 
+CLOSED = re.compile(r"^Scope closed:", re.M)
+
+
+def retired(home: Path) -> set[str]:
+    """The retired scopes of the home, each a directory with a `gates.md`. A scope is retired
+    when jbriefs no longer counts it as one, since it has no `home-id` and no `Was home:` line,
+    or when its handoff says its scope closed, as `skills/handoff` writes it, and its `home-id`
+    names no thread, so no home was started for it since."""
+    live = {scope.name: scope for scope, _, _ in jbriefs.scopes(home)}
+    found = set()
+    for file in home.glob("*/gates.md"):
+        scope = file.parent
+        if scope.name not in live:
+            found.add(scope.name)
+            continue
+        try:
+            closed = CLOSED.search((scope / "handoff.md").read_text(errors="replace"))
+        except OSError:
+            closed = None
+        if closed and not jbriefs.thread_of(scope):
+            found.add(scope.name)
+    return found
+
+
 def _gates(state: Path, home: Path) -> list[dict[str, Any]]:
     """Every gate of the home's `gates.md` and of each scoped home's, open or not, except one
     that jbus holds as a question, which is on the waiting list while it is open. The panel also
-    leaves out a gate whose slug was removed from the queue."""
+    leaves out a gate whose slug was removed from the queue, and an open gate of a retired
+    scope."""
     held = {one.key for one in questions.load(state)}
     gone = queue.removed_slugs(state)
+    over = retired(home)
     found = []
     for file, number, asked, body, key in mirror.home_gates(home):
         status = mirror.field(body, "Status")
-        if key in held or mirror.asker(body) in gone:
+        if (
+            key in held
+            or mirror.asker(body) in gone
+            or (status.startswith("open") and file.parent != home and file.parent.name in over)
+        ):
             continue
         found.append(
             {
@@ -180,13 +214,18 @@ def _waiting(
     now in jbus's questions and in `gates.md`. A gate keeps the `since` that the pass gave it, a
     new question has the time it was asked, and a new gate of a file has no time. A leftover of a
     task that ended has its task's words (`words`), not the pass's. A question that jbus holds
-    has what the page needs to answer it (`_question`)."""
+    has what the page needs to answer it (`_question`). A gate of a retired scope is not on it."""
     kept = [one for one in left or [] if one["kind"] in waiting.kinds()]
     since = {one["key"]: one.get("since") for one in kept}
     asked = questions.load(state)
     held = {str(one.number): one for one in asked}
     try:
-        live = waiting.gates(home, asked, queue.removed_slugs(state))
+        over = retired(home)
+        live = [
+            one
+            for one in waiting.gates(home, asked, queue.removed_slugs(state))
+            if one["home"] not in over
+        ]
     except OSError:
         live = []
     listed = [one for one in kept if one["kind"] != "gate"] + [
@@ -282,6 +321,11 @@ def _need(
         what, why = waits["question"], _cut(waits["context"])
     else:
         what, why = line, ""
+    default = waits["default"]
+    if kind == "gate" and one is None and default.strip():
+        who = f"the home of {waits['home']}" if waits["home"] else "the home"
+        stands = f". It stands until {who} closes it."
+        default = _cut(default.strip().rstrip("."), 600 - len(stands)) + stands
     accepts = bool(waits["answerable"] and one is not None and not one.holds)
     due = None
     if one is not None and tier == PROCEEDS:
@@ -295,7 +339,7 @@ def _need(
         "since": waits["since"],
         "verb": ANSWER if kind == "gate" and not accepts else waiting.verb(kind),
         "answerable": waits["answerable"],
-        "default": _cut(waits["default"], 600),
+        "default": _cut(default, 600),
         "risk": one.holds if one and one.holds else REVERSIBLE,
         "unblocks": waits["unblocks"],
         "open": _route(read.name, waits, slug),

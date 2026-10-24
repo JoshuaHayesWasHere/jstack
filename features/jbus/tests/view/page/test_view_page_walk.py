@@ -46,7 +46,7 @@ def faults(key, made, answer, rows, overview):
             found.append(f"the overview row does not name what it cannot place: {overview!r}")
     elif kind == "thread":
         for (value, thread), slug in made.rows.items():
-            if thread != name or slug not in rows:
+            if thread != name or not rows.get(slug, {"open": ""})["open"].startswith("task:"):
                 continue
             due = {want.chip} if want.chip and value != thread else set()
             if want.chip == walk.GONE and work.BY_VALUE[value].who != "crew":
@@ -55,9 +55,11 @@ def faults(key, made, answer, rows, overview):
             if chips != due:
                 found.append(f"{slug}: chips {sorted(chips)}, not {sorted(due)}")
     elif kind == "role":
+        idle = walk.SURFACES["home", "ended with work out"].row
         for (role, liveness), slug in made.threads.items():
             drawn = slug in rows
-            if role == name and drawn != (want.row and liveness != "ended"):
+            due = liveness != "ended" or (role == "home" and idle)
+            if role == name and drawn != (want.row and due):
                 found.append(f"{slug}: a row of In progress is {drawn}")
     elif kind == "owner":
         slug = made.owners[name]

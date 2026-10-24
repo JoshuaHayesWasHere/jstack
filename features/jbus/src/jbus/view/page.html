@@ -566,6 +566,7 @@
   function renderStack() {
     keyed($("rows"), "li", "pr", STACK.projects.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
   }
+  function idle(t) { return t.role === "home" && !t.out && t.open > 0; }
   var LIVEWORD = { moving: "Working", quiet: "Quiet", hung: "Hung", waiting: "Waiting", unknown: "Unknown" };
   function chipsOf(t) {
     var out = [], live = t.seen.live;
@@ -603,9 +604,9 @@
       var at = itemAt(it);
       rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : "", open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });
-    (S.threads || []).filter(function (t) { return t.out && (t.role === "scout" || t.role === "reviewer") && !TASK[t.slug] && !ENDED[t.slug]; }).forEach(function (t) {
+    (S.threads || []).filter(function (t) { return (t.out || idle(t)) && !(t.slug && known(t.slug)); }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }

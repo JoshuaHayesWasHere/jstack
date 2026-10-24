@@ -189,7 +189,8 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
         iso(when_asked + questions.QUIET) for when_asked in asked
     )
     (home,) = [one for one in stack["proceeds"] if not one["answerable"]]
-    assert (home["what"], home["default"], home["due"]) == ("a lump?", "one", None)
+    assert (home["what"], home["due"]) == ("a lump?", None)
+    assert home["default"] == "one. It stands until the home closes it."
     assert [one["due"] for one in stack["proceeds"][:11]] == sorted(
         one["due"] for one in answerable
     )
@@ -298,3 +299,48 @@ def test_each_need_of_work_carries_the_home_of_its_row_or_thread(scene, served):
     assert needs["row:jam-lid"] == SHELF
     assert needs["approve:tea-kettle"] == ROOT
     assert needs["mcp:scout: look"] == RACK
+
+
+CLOSED = """# {name}: handoff
+
+Scope closed: 2026-10-20, its plan has no open entry and no home was started after this one.
+Was home: mcp:{name}
+"""
+
+
+def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_home_closes_it(
+    scene, served
+):
+    """A scope is retired when its handoff says it closed and no home was started for it since:
+    its `home-id` names no thread. Its open gates go with it, so neither queue lists them, and its
+    answered ones stay on the record of gates. A scope
+    started again after it closed is live. A file gate has no timer, so its default says it
+    stands until the home of its file closes it."""
+    homes = {name: scene.home / name for name in ("shelf", "old-shelf", "back-shelf")}
+    for name, where in homes.items():
+        where.mkdir()
+        if name != "shelf":
+            (where / "handoff.md").write_text(CLOSED.format(name=name))
+    (homes["shelf"] / "home-id").write_text("mcp:shelf\n")
+    (homes["back-shelf"] / "home-id").write_text("mcp:back-shelf-again\n")
+    for number, name in enumerate(homes, start=40):
+        (homes[name] / "gates.md").write_text(
+            GATE.format(n=number, asked=f"which {name} jar?", status="open", default="the jam")
+            + GATE.format(n=number + 10, asked=f"is {name} full?", status="open", default="")
+            + GATE.format(
+                n=number + 20, asked=f"was {name} swept?", status="answered: yes", default=""
+            )
+        )
+    stack = served.json("/stack.json")
+    proceeds = {one["what"]: one["default"] for one in stack["proceeds"]}
+    assert proceeds == {
+        "tea or coffee?": "tea. It stands until the home closes it.",
+        "which shelf jar?": "the jam. It stands until the home of shelf closes it.",
+        "which back-shelf jar?": "the jam. It stands until the home of back-shelf closes it.",
+    }
+    asks = [one["what"] for one in stack["needs"] if one["kind"] == "gate"]
+    assert sorted(asks) == ["is back-shelf full?", "is shelf full?"]
+    gates = served.json("/state.json?project=demo")["gates"]
+    assert [one["question"] for one in gates if one["home"] == "old-shelf"] == [
+        "was old-shelf swept?"
+    ]

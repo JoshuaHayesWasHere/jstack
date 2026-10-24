@@ -150,21 +150,7 @@ SURFACES = {
 }
 
 
-F6 = "F6: progress rows take only scouts and reviewers, and an idle home ranks as done"
-F7 = "F7: a retired scope's open gate is listed like a live one (mirror.py:182)"
-
-
-DATA, PAGE, BOTH = ("data",), ("page",), ("data", "page")
-
-
-KNOWN = {
-    ("role", "crew"): (F6, PAGE),
-    ("role", "home"): (F6, PAGE),
-    ("role", "other"): (F6, PAGE),
-    ("home", "ended with work out"): (F6, DATA),
-    ("gate", "retired scope, no default, open"): (F7, DATA),
-    ("gate", "retired scope, a default, open"): (F7, DATA),
-}
+KNOWN = {}
 
 
 def source_states():
