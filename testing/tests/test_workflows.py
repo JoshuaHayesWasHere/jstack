@@ -12,7 +12,11 @@ The test reads the workflow file as YAML with two small readers, `mapping` and `
 only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
-of the owner's machine or reads a repo variable for it. Each job has a cap that a hung run meets.
+of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for the
+workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the browser
+run, and by hand, over the branch its `ref` names, `train/macos` unless a manual run names another.
+It runs on no pull request and no push, and no merge waits on it.
+Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
 check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, and by hand,
@@ -54,8 +58,10 @@ DRIFT = WORKFLOWS / "pstack-drift.yml"
 BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
 BORDERS = WORKFLOWS / "borders.yml"
+NIGHTLY = WORKFLOWS / "macos-nightly.yml"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
 HOSTED = "ubuntu-24.04"
+MACOS = "macos-15"
 
 
 def scalar(text):
@@ -172,6 +178,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "borders.yml": {"borders": HOSTED},
         "browser.yml": {"browser": HOSTED},
         "check.yml": {"check-shard": HOSTED, "check": HOSTED, "full-shard": HOSTED, "full": HOSTED},
+        "macos-nightly.yml": {"macos": MACOS},
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
     }
@@ -383,6 +390,7 @@ CAPS = {
     ("check.yml", "check"): "5",
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
+    ("macos-nightly.yml", "macos"): "90",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
 }
@@ -709,12 +717,15 @@ JUNIT = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def summary_step():
-    """The shell of the `suite summary` step of `full`, as the runner gets it."""
-    lines = CHECK.read_text().splitlines()
-    at = lines.index("      - name: suite summary")
+def summary_step(name="suite summary", path=CHECK):
+    """The shell of one step's block `run`, by default the `suite summary` step of `full`, as the
+    runner gets it."""
+    lines = path.read_text().splitlines()
+    at = lines.index(f"      - name: {name}")
     start = lines.index("        run: |", at) + 1
-    end = next(n for n in range(start, len(lines)) if lines[n] and lines[n][:10].strip())
+    end = next(
+        (n for n in range(start, len(lines)) if lines[n] and lines[n][:10].strip()), len(lines)
+    )
     return "\n".join(line[10:] for line in lines[start:end]) + "\n"
 
 
@@ -1101,6 +1112,137 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
+TRAIN = "train/macos"
+
+
+def dispatch_inputs(path):
+    """The inputs of a workflow's `workflow_dispatch`, as a mapping of each input's keys."""
+    lines = [
+        line
+        for line in path.read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    start = lines.index("    inputs:") + 1
+    end = next(at for at in range(start, len(lines)) if not lines[at].startswith("      "))
+    return mapping(lines[start:end], 6)[0]
+
+
+def test_the_macos_nightly_runs_on_a_schedule_and_by_hand_and_on_no_pull_request_or_push():
+    found = triggers(NIGHTLY.read_text())
+    assert list(found) == ["schedule", "workflow_dispatch"]
+    assert "concurrency" not in NIGHTLY.read_text()
+
+
+def test_the_macos_nightly_runs_every_day_an_hour_after_the_browser_run():
+    (browser,) = triggers(BROWSER.read_text())["schedule"]
+    (night,) = triggers(NIGHTLY.read_text())["schedule"]
+    minute, hour, *every = night["cron"].split()
+    assert every == ["*", "*", "*"]
+    at = datetime(2026, 10, 18, int(hour), int(minute), tzinfo=UTC)
+    assert at.astimezone(ZoneInfo("America/New_York")).strftime("%H:%M") == "04:00"
+    assert browser["cron"].split()[:2] == [minute, str(int(hour) - 1)]
+
+
+def test_the_macos_nightly_checks_out_the_train_unless_a_manual_run_names_another_ref():
+    """A scheduled run has no inputs, so the checkout's own fallback is the input's default."""
+    assert list(dispatch_inputs(NIGHTLY)) == ["ref"]
+    assert dispatch_inputs(NIGHTLY)["ref"]["default"] == TRAIN
+    found, _ = steps(NIGHTLY.read_text(), "macos")
+    checkout = found[0]
+    assert checkout["uses"].partition("@")[0] == "actions/checkout"
+    assert checkout["with"]["persist-credentials"] is False
+    ref = checkout["with"]["ref"].removeprefix("${{").removesuffix("}}")
+    assert [worked(ref, {"inputs.ref": given}) for given in ("", "fix-branch")] == [
+        TRAIN,
+        "fix-branch",
+    ]
+
+
+def test_the_macos_nightly_installs_as_the_macos_job_does_and_runs_make_check_into_a_report():
+    from jmerge import ready
+
+    found, _ = steps(NIGHTLY.read_text(), "macos")
+    assert [
+        step.get("uses", step.get("run", step.get("name"))).partition("@")[0] for step in found
+    ][:3] == ["actions/checkout", "astral-sh/setup-uv", "uv sync --locked"]
+    assert [step.get("name") for step in found][3:5] == ["tools", "make check"]
+    assert "brew install bash; } && zsh --version" in NIGHTLY.read_text()
+    (suite,) = [step for step in found if step.get("id") == "suite"]
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    assert suite["run"] == 'make check JUNIT="$RUNNER_TEMP/junit.xml"'
+    assert listed["env"]["JUNIT"] == "${{ runner.temp }}/junit.xml"
+    assert int(suite["timeout-minutes"]) < int(cap(NIGHTLY.read_text(), "macos"))
+    assert found.index(listed) == found.index(suite) + 1
+    assert "continue-on-error" not in NIGHTLY.read_text()
+    assert "macos" not in ready.REQUIRED and "macos-nightly" not in ready.REQUIRED
+
+
+FAILED = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="4" time="9.0">
+<testcase classname="features.jgauge.tests.test_room" name="test_go" time="1.0" />
+<testcase classname="features.jgauge.tests.test_room" name="test_load[idle]" time="1.0">
+<failure message="no /proc/loadavg" /></testcase>
+<testcase classname="features.crew.tests.test_check.TestSetsid" name="test_starts" time="1.0">
+<error message="setsid: command not found" /></testcase>
+<testcase classname="features.jbus.tests.test_view" name="test_skipped" time="0.0">
+<skipped message="linux only" /></testcase>
+</testsuite></testsuites>
+"""
+
+
+def test_the_macos_nightly_names_each_failed_test_in_its_log_and_summary_after_any_suite(tmp_path):
+    """jbus reads the failed tests of a red run from its log's `FAILED <test>` lines, so the step
+    prints one for each failed test of the report, also when the suite stopped at its cap and
+    pytest printed no summary of its own."""
+    found, _ = steps(NIGHTLY.read_text(), "macos")
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    assert (
+        worked(listed["if"], {"!cancelled()": True}),
+        worked(listed["if"], {"!cancelled()": False}),
+    ) == (True, False)
+    assert listed["env"]["SUITE"] == "${{ steps.suite.outcome }}"
+
+    def run(junit):
+        out = tmp_path / "summary"
+        out.write_text("")
+        ran = subprocess.run(
+            ["bash", "-e", "-c", summary_step("failed tests", NIGHTLY)],
+            env={"PATH": "/usr/bin:/bin", "JUNIT": str(junit), "SUITE": "failure"}
+            | {"GITHUB_STEP_SUMMARY": str(out)},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return ran.stdout, out.read_text()
+
+    junit = tmp_path / "junit.xml"
+    junit.write_text(FAILED)
+    room = "features/jgauge/tests/test_room.py::test_load[idle]"
+    setsid = "features/crew/tests/test_check.py::TestSetsid::test_starts"
+    assert run(junit) == (
+        "::warning::macOS: 2 tests failed, the suite step ended failure\n"
+        f"FAILED {room}\nFAILED {setsid}\n",
+        f"macOS: 2 tests failed, the suite step ended failure\n- `{room}`\n- `{setsid}`\n",
+    )
+    assert run(tmp_path / "gone") == (
+        "::warning::macOS: no test report, the suite step ended failure\n",
+        "macOS: no test report, the suite step ended failure\n",
+    )
+
+
+def test_every_action_is_pinned_to_one_commit_with_its_version_beside_it():
+    pins = {}
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        for line in path.read_text().splitlines():
+            if line.strip().startswith("- uses: "):
+                used, _, version = line.strip()[len("- uses: ") :].partition(" # ")
+                action, _, commit = used.partition("@")
+                assert len(commit) == 40 and all(c in "0123456789abcdef" for c in commit), line
+                assert version.startswith("v"), line
+                pins.setdefault(action, set()).add(used)
+    assert pins and all(len(used) == 1 for used in pins.values()), pins
+
+
 PIN = "${{ env.UV_VERSION }}"
 
 
@@ -1125,6 +1267,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
         "check.yml": 2,
+        "macos-nightly.yml": 1,
         "pstack-drift.yml": 1,
         "release.yml": 1,
     }
