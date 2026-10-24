@@ -7,7 +7,7 @@ tests the run has. The hash is sha256 and not Python's `hash`, which a process s
 own: every xdist worker and every job must work out the same part for the same test. The parts
 split what the run selected, so the tests `make check-fast` names are split as the whole suite
 is. A part that holds none of them passes, since a small selection leaves some parts empty.
-`features/repo-guards/tests/test_shards.py` holds the four parts to the whole collection."""
+`testing/tests/test_shards.py` holds the four parts to the whole collection."""
 
 import hashlib
 
