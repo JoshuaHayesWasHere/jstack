@@ -113,12 +113,12 @@ Check ==
 \* ---- merging: a read of main's tip, then the merge
 
 \* Who may merge a child's pull request. On jbus merges, jbus runs jmerge only while the root's
-\* home-thread is empty, as the root, and a child's pull request waits as another home's. On
-\* home merges, the child runs jmerge for its own, and the root may add --all.
+\* home-thread is empty, as the root, and then no home's pull request is another's, so jbus
+\* merges a child's. On home merges, the child runs jmerge for its own, and the root may add --all.
 MayMerge(a, k) ==
-    /\ mode = "home"     \* jbus/merge.py:148 jbus runs jmerge only with no home-thread
-    /\ a \in {"root", "child"}     \* jmerge/cli.py:1067 another home's waits, without --all
-    /\ a = "child" => life[k] = "working"     \* jmerge/cli.py:715-717 a retired home is NOBODY
+    /\ mode = "jbus" => a = "jbus"     \* jbus/merge.py:148 jbus runs jmerge only with no home-thread
+    /\ mode = "home" => a \in {"root", "child"}     \* jmerge/cli.py:713-715 with an id, another's waits
+    /\ a = "child" => life[k] = "working"     \* jmerge/cli.py:722-724 a retired home is NOBODY
 \* jmerge checks that main's tip is still the one it judged (jmerge/cli.py:1343-1344) and then
 \* merges (jmerge/cli.py:1368). No lock spans the gap between the two, and two runners can run
 \* at once (merging-a-pull-request-that-is-ready.md:5).
