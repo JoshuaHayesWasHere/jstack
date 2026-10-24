@@ -246,6 +246,34 @@ def test_the_line_goes_under_the_last_result_and_not_into_a_review_after_it(
     assert "Left running: 1 stopped by jbus " in mirror.last_result(text)
 
 
+def test_a_process_the_users_systemd_adopted_is_an_orphan_and_one_under_a_live_parent_is_not(
+    tmp_path, monkeypatch
+):
+    """Under a unit of the user's `systemd --user`, as jbus and jmerge's fresh check run, an
+    orphan is handed to that manager and not to 1."""
+    uid = os.getuid()
+
+    def proc(pid, ppid, cgroup):
+        where = tmp_path / str(pid)
+        where.mkdir()
+        (where / "stat").write_text(f"{pid} (yes) R {ppid}" + " 0" * 40 + "\n")
+        (where / "cmdline").write_bytes(b"yes\0")
+        (where / "environ").write_bytes(b"")
+        (where / "cgroup").write_text(
+            f"0::/user.slice/user-{uid}.slice/user@{uid}.service/{cgroup}\n"
+        )
+        (where / "cwd").symlink_to(tmp_path)
+
+    proc(904, 1, "init.scope")
+    proc(5000, 1, "app.slice/a.service")
+    proc(5001, 904, "app.slice/b.service")
+    proc(5002, 5000, "app.slice/a.service")
+    monkeypatch.setattr(strays, "ROOT", tmp_path)
+    found = {one.pid for one in strays.orphans()}
+    assert {5000, 5001} <= found
+    assert 5002 not in found
+
+
 def test_a_process_that_ignores_term_is_killed_after_the_grace(
     kitchen, tmp_path, stray, monkeypatch
 ):
