@@ -231,7 +231,11 @@ def _table(table: argparse.ArgumentParser) -> None:
     add = table_verbs.add_parser("add", help="a row, with its brief on stdin", allow_abbrev=False)
     add.add_argument("slug")
     add.add_argument("--priority", type=int, required=True, help="an integer, lower first")
-    add.add_argument("--depends", help="slugs that must be merged first, with commas")
+    add.add_argument(
+        "--depends",
+        help="slugs that must be merged before this row launches, with commas: each one the "
+        "brief's Builds on: line names",
+    )
     add.add_argument(
         "--merge-after",
         help="slugs whose pull requests merge before this row's, with commas: jmerge waits",

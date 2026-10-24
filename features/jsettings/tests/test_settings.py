@@ -176,7 +176,8 @@ def test_a_config_that_names_robin_is_whom_jbus_takes_and_prints(kitchen, jstack
         "refused: only Robin gives a word, not user\n",
     )
     kept = kitchen.main(*say, "--by", "Robin", "--at", AT, "go")[1].split()[-1]
-    go = ["queue", "approve", "alpha", "--sha", sha12(brief("alpha"))]
+    built = brief("alpha", "Builds on: ps-agnostic\n")
+    go = ["queue", "approve", "alpha", "--sha", sha12(built)]
     assert kitchen.main(*go, "--word", kept)[0] == 0
     assert rows(kitchen)["alpha"]["approval"]["said_at"] == AT
     kitchen.poll()
