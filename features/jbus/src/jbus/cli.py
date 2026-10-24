@@ -85,10 +85,10 @@ class Half:
     Such a pass reads no brief, acts on no thread or pull request, and leaves the list of what waits
     as it was. It still counts its crews at work.
 
-    The second half fills in the rest. It records whether it `derived` the table and `read`
-    every brief, the `states` it judged, and the `table` its steps read. When it derived the
-    table anew, it records what `changed`. It keeps what `jmerge` said, worded for the user
-    (`users`), and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
+    The second half fills in the rest. It records whether it `derived` the table and `read` every
+    brief, the `states` it judged, and the `table` its steps read. When it derived the table anew,
+    it records what `changed`. It keeps what `jmerge` said of the rows and that worded for the user
+    (`merge.shown`), and what `stall.tell` and `waiting.keep` found (`roots`, `listed`).
     """
 
     run: passes.Pass
@@ -96,6 +96,7 @@ class Half:
     rows: list[queue.Row] | None = None
     seen: watch.Look = field(default_factory=watch.Look)
     said: merge.Said = field(default_factory=merge.Said)
+    shown: merge.Said = field(default_factory=merge.Said)
     held: frozenset[str] | None = None
     turns: dispatch.Turns | None = None
     crews: set[int] = field(default_factory=set)
@@ -120,14 +121,14 @@ class Half:
 
 
 def steps(half: Half, slot: str) -> None:
-    """Run the steps of a slot by rank, each step only when the pass has what that step
-    needs. A step of `derive` judges the rows that the later steps need."""
+    """Run a slot's steps by rank, each where the pass has its needs: `derive` judges the rows."""
     for step in RANKED[slot]:
         has = {
             "sight": not half.blind,
             "client": half.client is not None,
             "world": half.seen.world is not None,
             "rows": half.states is not None,
+            "budget": not half.seen.held,
         }
         if all(has[need] for need in step.needs):
             step.run(half)
@@ -156,7 +157,7 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
         run.gate(name, "questions.json does not parse", str(questions.path(run.state)))
     half.seen = watch.look(run, client, half.rows or [])
     if half.blind:
-        half.seen = watch.Look(out=half.seen.out, why=half.seen.why)
+        half.seen = watch.Look(out=half.seen.out, why=half.seen.why, held=half.seen.held)
     if half.seen.world is not None and client is not None:
         archived.ask(run, client, half.seen.world, half.rows or [])
     steps(half, "tellers")
@@ -187,7 +188,6 @@ def second_half(half: Half, client: t3.Client | None) -> None:
     half.table = rows
     steps(half, "derive")
     steps(half, "after-derive")
-    half.users = half.said.crews(half.crews)
     steps(half, "close")
     sent = alert.flush(run, client)
     if sent:

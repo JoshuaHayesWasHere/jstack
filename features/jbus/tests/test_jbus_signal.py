@@ -1,6 +1,7 @@
 """jbus decides which events are worth telling the user. Each event kind has one loudness, and jbus
 posts to the webhook only for an event the user must act on. The POST carries the lines for the chat
-as they are to be posted. When a failure repeats, jbus tells it once, and once more when it ends.
+as they are to be posted. When a failure repeats, jbus tells it once, and logs its end, `recovered`,
+as a quiet event that asks the user nothing.
 
 Every test runs the real pass, the real command or the real `alert` functions against the faked T3
 Code server and webhook of `test_jbus_kitchen`. Nothing reaches the network.
@@ -36,6 +37,11 @@ ET = jsettings.Settings(zone=ZoneInfo("America/New_York"), label="ET")
 
 def later(minutes):
     return NOW + timedelta(minutes=minutes)
+
+
+def streak_lines(kitchen):
+    """Every alert and recovered line the log holds, oldest first."""
+    return [one["line"] for one in kitchen.events() if one["event"] in ("alert", "recovered")]
 
 
 def test_every_event_has_its_kind_s_loudness_and_only_one_for_the_chat_has_a_say_line():
@@ -176,6 +182,8 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
     assert sent[("stall.py", "STALL")] == {"stall"}
     assert sent[("expedite.py", "EXPEDITE")] == {"expedite"}
     assert sent[("expedite.py", "STALL")] == {"stall"}
+    assert sent[("clock.py", "CLOCK")] == {"clock"}
+    assert sent[("clock.py", "STALL")] == {"stall"}
     assert sent[("rebase.py", "ask.kind")] == {
         "rebase",
         "rereview",
@@ -354,7 +362,7 @@ def test_a_recovered_line_that_could_not_be_queued_is_owed_to_the_next_pass(kitc
     assert kitchen.status()["streaks"]["pass"]["alerted"] is True
     assert alert.deliver is deliver
     kitchen.poll(later(11))
-    assert kitchen.lines("alert") == [PASS, "recovered: pass after 3 failures since 11:00 ET"]
+    assert streak_lines(kitchen) == [PASS, "recovered: pass after 3 failures since 11:00 ET"]
     assert kitchen.status()["streaks"] == {}
 
 
@@ -381,7 +389,7 @@ def test_a_later_streak_that_makes_the_same_lines_is_told_again(kitchen):
             alarm(later(24 * 60 * day + minute))
         kitchen.poll(later(24 * 60 * day + 10))
     recovered = "recovered: pass after 3 failures since 11:00 ET"
-    assert kitchen.lines("alert") == [PASS, recovered, PASS, recovered]
+    assert streak_lines(kitchen) == [PASS, recovered, PASS, recovered]
     assert kitchen.log("notify") == [f"jbus | {PASS}"] * 2
 
 
@@ -397,7 +405,7 @@ def alarm(now):
     return said
 
 
-def test_the_pass_streak_alerts_at_the_third_alarm_and_a_pass_that_ends_recovers(kitchen):
+def test_the_pass_streak_alerts_at_the_third_alarm_and_a_pass_that_ends_it_is_logged(kitchen):
     said = alarm(NOW) + alarm(later(1))
     assert said == ["pass failed: 1 in a row", "pass failed: 2 in a row"]
     assert kitchen.events() == [] and kitchen.webhook.posts == []
@@ -414,8 +422,9 @@ def test_the_pass_streak_alerts_at_the_third_alarm_and_a_pass_that_ends_recovers
     kitchen.poll(later(70))
     kitchen.poll(later(75))
     recovered = "recovered: pass after 5 failures since 11:00 ET"
-    assert kitchen.lines("alert") == [PASS, recovered]
-    assert kitchen.webhook.said[1:] == [[f"demo: {recovered}"]]
+    assert streak_lines(kitchen) == [PASS, recovered]
+    assert [one["loud"] for one in kitchen.events("recovered")] == ["quiet"]
+    assert kitchen.webhook.said == [[f"demo: {PASS}"]]
     assert kitchen.status()["streaks"] == {}
     assert kitchen.log("notify") == [f"jbus | {PASS}"]
 
@@ -423,7 +432,7 @@ def test_the_pass_streak_alerts_at_the_third_alarm_and_a_pass_that_ends_recovers
 WEBHOOK = "alert: webhook demo failed 3 times in a row since 11:00 ET: the webhook answered 500"
 
 
-def test_the_webhook_streak_alerts_through_the_desk_and_recovers_through_the_webhook(kitchen):
+def test_the_webhook_streak_alerts_through_the_desk_and_its_end_is_logged(kitchen):
     decide(kitchen)
     kitchen.webhook.status = 500
     for number in range(2):
@@ -445,9 +454,9 @@ def test_the_webhook_streak_alerts_through_the_desk_and_recovers_through_the_web
     recovered = "recovered: webhook demo after 6 failures since 11:00 ET"
     asked = "demo: decision alpha: which one?"
     assert kitchen.webhook.said == [[asked, f"demo: {WEBHOOK}"]]
-    assert kitchen.lines("alert") == [WEBHOOK, recovered]
+    assert streak_lines(kitchen) == [WEBHOOK, recovered]
     kitchen.poll(later(35))
-    assert kitchen.webhook.said == [[asked, f"demo: {WEBHOOK}"], [f"demo: {recovered}"]]
+    assert kitchen.webhook.said == [[asked, f"demo: {WEBHOOK}"]]
     assert kitchen.log("notify") == [f"jbus | {WEBHOOK}"]
     assert kitchen.status()["streaks"] == {}
 
@@ -455,7 +464,9 @@ def test_the_webhook_streak_alerts_through_the_desk_and_recovers_through_the_web
 JMERGE = "alert: jmerge demo failed 3 times in a row since 11:00 ET: jmerge: it broke"
 
 
-def test_the_jmerge_streak_alerts_at_the_third_run_that_fails_and_recovers_when_one_runs(kitchen):
+def test_the_jmerge_streak_alerts_at_the_third_run_that_fails_and_logs_its_end_when_one_runs(
+    kitchen,
+):
     kitchen.set("jmerge-dies", "jmerge: it broke")
     said = kitchen.poll(NOW) + kitchen.poll(later(1))
     assert said.count("wait demo: jmerge did not run (jmerge: it broke)") == 2
@@ -470,7 +481,8 @@ def test_the_jmerge_streak_alerts_at_the_third_run_that_fails_and_recovers_when_
     kitchen.poll(later(9))
     kitchen.poll(later(10))
     recovered = "recovered: jmerge demo after 9 failures since 11:00 ET"
-    assert kitchen.webhook.said == [[f"demo: {JMERGE}"], [f"demo: {recovered}"]]
+    assert kitchen.webhook.said == [[f"demo: {JMERGE}"]]
+    assert streak_lines(kitchen) == [JMERGE, recovered]
     assert kitchen.log("notify") == []
 
 

@@ -292,9 +292,26 @@ def red_only(one: PullRequest) -> bool:
     return bool(one.waiting) and one.waiting == one.failed and one.mergeable == "MERGEABLE"
 
 
+_RUN = re.compile(r"/actions/runs/(\d+)/")
+
+
 def started(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> datetime | None:
+    """When the latest run of the first required check started. A check that waits on other
+    jobs of its workflow run (the check workflow's four parts) starts when they have ended, so
+    the earliest start of a job in the same workflow run counts as its start."""
     runs = latest(rollup, required[0])
-    return _at(runs[0].get("startedAt")) if runs else None
+    if not runs:
+        return None
+    first = _at(runs[0].get("startedAt"))
+    run = _RUN.search(runs[0].get("detailsUrl") or "")
+    if first is None or run is None:
+        return first
+    times = [
+        _at(one.get("startedAt"))
+        for one in rollup
+        if (other := _RUN.search(one.get("detailsUrl") or "")) and other[1] == run[1]
+    ]
+    return min((at for at in times if at is not None), default=first)
 
 
 def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequest:

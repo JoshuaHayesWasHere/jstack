@@ -60,6 +60,7 @@ Run it after the block at the top, in the same call as each block below that nam
 | `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: the root home's for a brief or a request with no `Home:` line, a scoped home's for one that names its scope. | One line |
 | `$H/home-thread` | The merge switch, and not this home's id. Empty or missing, jbus runs `jmerge` on each pass, also while a home runs, and the home runs none: it tells the user what jbus logged. An id in it stops jbus's run for the project, and only the home merges. One of the two merges, never both: the block of "Who merges" reads it before every run ("Merging a pull request that is ready"). Set by hand only: no skill and no script writes it. | Empty, or one line |
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
+| `$M/told` | Each decision and stop a turn's end told the user, one a line, so each is told once, and each `local` one is shown on status until a `cleared local` line ends it ("How a turn ends"). | One line per decision or stop |
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that while jbus merges each `merged` line is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | Old handoffs, dated. Nobody reads these at start. | Unbounded |
 | `$H/notes.md` | Facts about this repo that a new thread would otherwise relearn the hard way. Read when a step needs one of them, not whole at a start. | At most 60 lines |
@@ -72,9 +73,103 @@ Run it after the block at the top, in the same call as each block below that nam
 
 ## Carry on
 
-Proceed on reversible work without asking: do it, then say what you did and why. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first. When in doubt, act and write down what you did.
+Proceed on reversible work without asking: do it, and write down what you did and why.
+Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside.
+What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first.
+When in doubt, act and write down what you did.
 
 For a home, reversible work is the plan, the briefs, the launches and the merge of what is ready. A question only the user can answer does not hold any of it up: "Gates". Planning with the user is not such a question: what the work is for comes from them.
+
+## How a turn ends
+
+A turn ends with no message to the user unless it asks a decision that is theirs or reports a stop nothing else can clear.
+A merge, a launch, a stuck thread dealt with, a Result read, a report written and a wait are told when the user asks for status, and at no other time.
+A turn the user started with a question (status, why, where, what) answers it in full, and is the one turn this section does not end.
+Every other turn ends here: one a thread, jbus or an audit tick started, a home's start, and a turn the user started with an instruction ("launch it", "fix that").
+
+Write each thing the turn did as one line, its kind first:
+
+- `decision <key>: <the question and the default taken>`: the user has to decide it.
+- `stop <key>: <what stopped and why>`: the work cannot go on, and nothing but the user can clear it.
+- `merged:`, `launched:`, `handled:`, `parked:` or `waits:`, then what it was: these are told on status only.
+- `cleared local <slug>: <how it ended>`: a `local` decision or stop this home told has ended.
+
+The key names a decision or a stop so the same one has the same key on every turn:
+
+- `question <n>`: a question jbus holds, by its number (`jbus gate`, "Show the open ones").
+- `jbus`: an event jbus's wake carried, and the rest of the line is its line as jbus sent it, word for word.
+- `local <slug>`: one jbus does not hold, by the slug it is about: a gate jbus could not take, or a stop this home found, such as a launch this session has no tool for.
+
+A blocker `jbus clear` prints as `decision` is raised by jbus itself, and its wake brings it: write no line for it until then.
+A wait, a hold and a stalled thread are no stop while jbus or a thread is at work on them: jbus lists each on what waits on the user ("Needs you").
+
+Run this in one call with the block at the top and the block that finds this home, with the turn's lines in place of the line in angle brackets:
+
+```sh
+said=$(cat << 'THE_TURN_ENDS_HERE'
+<what this turn did, one line each>
+THE_TURN_ENDS_HERE
+)
+told="${M:?run the block that finds this home first}/told"
+printf '%s\n' "$said" | awk -v told="$told" '
+    function key(line) {
+        if (!match(line, /^(decision|stop) (question [0-9]+|local [^ :]+|jbus): ./)) return ""
+        split(line, word, " ")
+        return (word[2] == "jbus:") ? line : substr(line, 1, RLENGTH - 3)
+    }
+    BEGIN { while ((getline line < told) > 0) if (key(line) != "") kept[++k] = line }
+    /^[[:space:]]*$/ { next }
+    $(1) ~ /^(merged|launched|handled|parked|waits):$/ { next }
+    $(1) == "cleared" && match($(0), /^cleared local [^ :]+: ./) {
+        ends[substr($(3), 1, length($(3)) - 1)] = 1
+        next
+    }
+    $(1) ~ /^(decision|stop):?$/ {
+        if (key($(0)) == "") {
+            bad[++b] = $(0) ": a decision or a stop names its key first: question <n>, jbus or local <slug>"
+            next
+        }
+        mine[++m] = $(0)
+        next
+    }
+    { bad[++b] = $(0) ": its kind is none of decision, stop, merged, launched, handled, parked, waits, cleared local <slug>" }
+    END {
+        if (b) {
+            for (i = 1; i <= b; i++) print "refused: " bad[i]
+            exit 2
+        }
+        for (i = 1; i <= k; i++) {
+            split(kept[i], word, " ")
+            if (word[2] == "local" && (substr(word[3], 1, length(word[3]) - 1) in ends)) {
+                changed = 1
+                continue
+            }
+            open[++o] = kept[i]
+            seen[key(kept[i])] = 1
+        }
+        for (i = 1; i <= m; i++) if (!(key(mine[i]) in seen)) {
+            seen[key(mine[i])] = 1
+            tell[++n] = mine[i]
+            open[++o] = mine[i]
+            changed = 1
+        }
+        if (changed) {
+            for (i = 1; i <= o; i++) print open[i] > (told ".new")
+            close(told ".new")
+            system("mv \"" told ".new\" \"" told "\"")
+        }
+        if (!n) print "silent: end the turn with no message"
+        for (i = 1; i <= n; i++) print "say: " tell[i]
+    }'
+```
+
+On `silent`, end the turn and write nothing more: no recap, no acknowledgment, no line saying nothing changed.
+On `say:`, tell the user each line after `say: `, in its order, and nothing else.
+On `refused:`, nothing is marked told: mend the line it names and run the block again.
+A decision or a stop is told once, by its key, and the block keeps its line in `$M/told`.
+A `question <n>` or `jbus` one is in jbus's list of what waits on the user from then on, and is shown again only when the user asks for status.
+A `local <slug>` one is in no list of jbus's, so status shows it from `$M/told` ("When a thread sends a message") until it ends.
+When it ends (the gate is answered, the stack lands, the tool is there), write `cleared local <slug>: <how it ended>` as a line of that turn: it is quiet, it takes that slug's lines out of `$M/told`, and the same stop coming back later is told again.
 
 ## When a home starts
 
@@ -136,7 +231,7 @@ No bot outside watches the homes or the queue: this home clears its own blockers
 
 ## Gates
 
-At the start, on status, when nothing is left planned or out, whenever a gate is asked, shown or closed, and when a step elsewhere names a step of this section: read `$T/../skills/home/gates.md` now.
+At the start, on status, whenever a gate is asked, shown or closed, and when a step elsewhere names a step of this section: read `$T/../skills/home/gates.md` now.
 
 **Move the ones a file still has** at the start, before the open ones are shown, when `$M/gates.md` exists: read `$T/../skills/home/move-the-ones-a-file-still-has.md` now, and run its block in the same call as the block that reads jbus. Its "the end of this section" is the end of "Gates".
 
@@ -155,6 +250,11 @@ At every home's start (step 5), when a queue playbook (`autopilot-full` or `orch
 ## Picking up a thread that stopped
 
 A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one the audit printed as `stuck`. Its worktree and its brief hold what it did. The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own". It ends in one of two calls.
+
+`jbus` tries once first, by the wait's age (`jbus.clock`).
+A pull request whose review is not written while its reviewer's thread is not at work gets that reviewer sent its line again; one that waits on its crew gets the crew one carry-on; a crew that ended with no Result has its two carry-ons.
+After the second miss `jbus` sends this home one line that names the slug, the pull request and the thread, and the user is not told: that line is the home's cue to pick the thread up as this section says.
+`jbus` interrupts no hung turn, so an interrupt, where one is needed, is the home's.
 
 A thread whose last turn failed on a usage limit, the text `You've hit your weekly limit · resets <time>` or its 5-hour twin, is not carried on in place: its instance is capped until that reset, and the same message fails again.
 `jbus` does it: its pass reads the failure, writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom with only the `instanceId` changed (`t3_thread_configure`), and sends one queued carry-on, once for the failed run.

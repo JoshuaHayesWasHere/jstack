@@ -128,19 +128,43 @@ def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
 
 
 @pytest.mark.parametrize(
-    "edit",
+    "edit, named",
     [
-        lambda text: text.replace("Proves it:", "- the go is printed by verify\nProves it:"),
-        lambda text: text.replace("- an approval holds through a wording-only edit\n", ""),
-        lambda text: text.replace("Size: M", "Size: L"),
-        lambda text: text.replace("3 minutes", "5 minutes"),
-        lambda text: text.replace("`src/jbriefs/`", "`src/jmerge/`"),
-        lambda text: text.replace("`~/.config/`", "`~/.config/`, `docs/`"),
-        lambda text: text.replace("holds through", "never holds through"),
-        lambda text: text.replace(
-            'Task: "make the queue check a brief"', 'Task: "check briefs when they are queued"'
+        (
+            lambda text: text.replace("Proves it:", "- the go is printed by verify\nProves it:"),
+            "Done when: the go is printed by verify",
         ),
-        lambda text: text.replace("alpha: a brief whose go is kept", "alpha: another brief"),
+        (
+            lambda text: text.replace("- an approval holds through a wording-only edit\n", ""),
+            "Done when: a line taken out",
+        ),
+        (lambda text: text.replace("Size: M", "Size: L"), "Size: L"),
+        (
+            lambda text: text.replace("3 minutes", "5 minutes"),
+            "Done when: `make check` exits 0, in 5 minutes or less",
+        ),
+        (
+            lambda text: text.replace("`src/jbriefs/`", "`src/jmerge/`"),
+            "Where: `src/jbus/queue.py`, `src/jmerge/`",
+        ),
+        (
+            lambda text: text.replace("`~/.config/`", "`~/.config/`, `docs/`"),
+            "Do not touch: `~/.config/`, `docs/`",
+        ),
+        (
+            lambda text: text.replace("holds through", "never holds through"),
+            "Done when: an approval never holds through a wording-only edit",
+        ),
+        (
+            lambda text: text.replace(
+                'Task: "make the queue check a brief"', 'Task: "check briefs when they are queued"'
+            ),
+            'Task: "check briefs when they are queued"',
+        ),
+        (
+            lambda text: text.replace("alpha: a brief whose go is kept", "alpha: another brief"),
+            "title: alpha: another brief",
+        ),
     ],
     ids=[
         "a done-when line added",
@@ -154,14 +178,16 @@ def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
         "the title",
     ],
 )
-def test_an_approved_brief_whose_goal_or_scope_changed_asks_again(kitchen, edit):
+def test_an_approved_brief_whose_goal_or_scope_changed_asks_again_and_names_the_line(
+    kitchen, edit, named
+):
     approved(kitchen)
     again = edit(APPROVED)
     assert again != APPROVED
     code, said = add(kitchen, again)
     assert code == 0 and "its go does not hold for it: approve it again" in said, said
     kitchen.poll()
-    assert gates(kitchen) == ["condition alpha: brief changed after approval"]
+    assert gates(kitchen) == [f"condition alpha: brief changed after approval: {named}"]
     assert kitchen.t3.launches == []
     assert go(kitchen, "alpha")[0] == 0
     kitchen.poll()
@@ -291,17 +317,69 @@ def test_verify_prints_the_record_and_whether_the_go_holds_for_a_brief(kitchen, 
     assert kitchen.main("queue", "verify", "nope") == (1, "refused: the queue has no row nope\n")
 
 
-def test_a_row_approved_before_the_fingerprint_is_held_to_its_sha(kitchen):
+def old_go(kitchen, typed):
+    """Give a go as jbus recorded it before #249: the row's `brief_sha` is the sha256 of the whole
+    text, its `Home:` line included, and the go has no fingerprint, either a record without one or
+    a `typed` string with no record at all."""
     approved(kitchen)
     table = json.loads((kitchen.state / "queue.json").read_text())
-    for column in ("brief_sha", "scope", "meaning"):
-        table[0]["approval"].pop(column)
+    if typed:
+        table[0].pop("approval")
+        table[0]["approved"] = "Josh said go, 2026-10-20"
+    else:
+        for column in ("brief_sha", "scope", "meaning"):
+            table[0]["approval"].pop(column)
+    table[0]["brief_sha"] = queue.sha(APPROVED)
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     code, said = kitchen.main("queue", "verify", "alpha")
     assert (code, json.loads(said)["holds"]) == (0, True)
-    assert add(kitchen, APPROVED.replace("a brief", "every brief"))[0] == 0
+
+
+MOVED = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-crew")
+LONGER = "`make check` exits 0, in 5 minutes or less"
+
+
+@pytest.mark.parametrize("typed", [False, True], ids=["a record", "a typed string"])
+def test_an_old_go_is_bound_to_the_meaning_so_a_home_rewrite_and_a_later_edit_keep_it(
+    kitchen, typed
+):
+    old_go(kitchen, typed)
+    assert add(kitchen, MOVED)[0] == 0
+    code, said = add(kitchen, REWORDED.replace("Home: mcp:another-home", "Home: flow"))
+    assert code == 0 and ", its go holds\n" in said, said
     kitchen.poll()
-    assert gates(kitchen) == ["condition alpha: brief changed after approval"]
+    assert gates(kitchen) == []
+    assert len(kitchen.t3.launches) == 1
+
+
+@pytest.mark.parametrize("typed", [False, True], ids=["a record", "a typed string"])
+def test_an_old_go_on_a_rewritten_home_still_asks_again_for_a_done_when_change_and_names_it(
+    kitchen, typed
+):
+    old_go(kitchen, typed)
+    assert add(kitchen, MOVED)[0] == 0
+    longer = MOVED.replace("3 minutes", "5 minutes")
+    code, said = add(kitchen, longer)
+    assert code == 0 and "its go does not hold for it: approve it again" in said, said
+    assert add(kitchen, longer)[0] == 0
+    code, said = kitchen.main("queue", "verify", "alpha")
+    assert (code, json.loads(said)["holds"]) == (1, False)
+    kitchen.poll()
+    assert gates(kitchen) == [f"condition alpha: brief changed after approval: Done when: {LONGER}"]
+    assert kitchen.t3.launches == []
+
+
+def test_a_gate_names_each_line_that_changed_and_a_line_taken_out(kitchen):
+    approved(kitchen)
+    edited = APPROVED.replace("Size: M", "Size: L").replace(
+        "- an approval holds through a wording-only edit\n", ""
+    )
+    assert add(kitchen, edited.replace("3 minutes", "5 minutes"))[0] == 0
+    kitchen.poll()
+    assert gates(kitchen) == [
+        "condition alpha: brief changed after approval: "
+        f"Done when: {LONGER}; Done when: a line taken out; Size: L"
+    ]
 
 
 def test_the_fingerprint_keeps_paths_numbers_and_values_exact_and_sorts_the_rest():
@@ -412,3 +490,45 @@ def test_queue_show_says_which_rows_were_grandfathered_and_which_are_re_asked(ki
         "re-asked, the go does not hold for the stored brief: alpha\n"
         in (kitchen.main("queue", "show")[1])
     )
+
+
+def test_changed_names_nothing_exactly_when_the_brief_means_the_same():
+    approved = meaning.meaning(APPROVED)
+    edits = [
+        REWORDED,
+        MOVED,
+        APPROVED.replace("3 minutes", "5 minutes"),
+        APPROVED.replace("wording-only", "wordnig-only"),
+        APPROVED.replace("- an approval holds through a wording-only edit\n", ""),
+        APPROVED.replace("Proves it:", "- `make check` exits 0, in 3 minutes or less\nProves it:"),
+        APPROVED.replace("Size: M", "Size: m."),
+        APPROVED.replace("Size: M", "Size: L"),
+        APPROVED.replace("refuses an incomplete", "refuses an incompleet"),
+        APPROVED.replace("refuses an incomplete", "accepts an incomplete"),
+    ]
+    for again in edits:
+        names = meaning.changed(approved, again)
+        assert (names == []) == meaning.same(approved, meaning.meaning(again)), again
+    doubled = APPROVED.replace(
+        "Proves it:", "- `make check` exits 0, in 3 minutes or less\nProves it:"
+    )
+    assert meaning.changed(approved, doubled) == [f"Done when: {LONGER.replace('5', '3')}"]
+
+
+def test_a_gate_on_a_stored_brief_that_is_gone_says_so(kitchen):
+    approved(kitchen)
+    queue.brief_path(kitchen.state, "alpha").unlink()
+    kitchen.poll()
+    assert gates(kitchen) == [
+        "condition alpha: brief changed after approval: the stored brief is gone"
+    ]
+
+
+def test_a_gate_on_a_go_bound_only_to_a_sha_says_it_can_name_no_line(kitchen):
+    old_go(kitchen, typed=False)
+    queue.brief_path(kitchen.state, "alpha").write_text(APPROVED.replace("Size: M", "Size: L"))
+    kitchen.poll()
+    assert gates(kitchen) == [
+        "condition alpha: brief changed after approval: "
+        "the go is bound to a sha of the whole brief, so no line can be named"
+    ]

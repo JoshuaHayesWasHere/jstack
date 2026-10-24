@@ -300,7 +300,8 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     (event,) = kitchen.events("expedite")
     assert (event["line"], event["loud"]) == (line, "quiet")
     short.passes(9)
-    assert len(sends(kitchen)) == 1
+    crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
+    assert len(crew) == 1
     posted = [event for post in kitchen.webhook.posts for event in post]
     assert [event["line"] for event in posted if event["loud"] == "user"] == []
     assert kitchen.lines("stall") == [] and gates(kitchen) == []
@@ -314,8 +315,14 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     assert (event["loud"], event["posted"]) == ("quiet", None)
     assert not [one for post in kitchen.webhook.posts for one in post if one["event"] == "stall"]
     short.passes(12)
-    assert kitchen.lines("stall") == [stalled] and len(sends(kitchen)) == 1
+    crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
+    assert stalled in kitchen.lines("stall") and len(crew) == 1
     assert gates(kitchen) == []
+
+
+def crew(kitchen):
+    """Return the messages jbus sent the crew, and not the reviewer the clock relaunches."""
+    return [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
 
 
 def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_after_the_reset(
@@ -333,7 +340,7 @@ def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_afte
     (first,) = sends(kitchen)
     assert "`/pr-review run alpha again`" in first["message"]
     short.passes(21)
-    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    assert later(short.minute - 1) < resets and crew(kitchen) == [first]
     said = short.passes(1)
     assert later(short.minute - 1) == resets
     again = [one for one in sends(kitchen) if one != first]
@@ -343,7 +350,7 @@ def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_afte
     line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]}), "
     assert line + "sent `/pr-review run alpha again`" in said
     short.passes(12)
-    assert len(sends(kitchen)) == 2
+    assert len(crew(kitchen)) == 2
 
 
 def test_a_hold_sent_into_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_sent_again(
@@ -379,9 +386,57 @@ def test_a_send_into_a_cap_whose_pass_kept_no_count_is_still_sent_again_after_th
     (first,) = sends(kitchen)
     jbus.write_json(kitchen.state / "expedite.json", counted)
     short.passes(21)
+    assert later(short.minute - 1) < resets and crew(kitchen) == [first]
+    short.passes(1)
+    assert [one["message"] for one in crew(kitchen)] == [first["message"]] * 2
+
+
+def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_resend_stalls(
+    short, kitchen
+):
+    """The crew is asked for `/pr-review run alpha again` while its instance is capped for an hour,
+    longer than `REVIEWING` passes. A crew the cap locks out is not one that did not act, so no
+    stall is logged during the cap. After the reset the message is sent again, and a crew that
+    stays short `PASSES` idle passes after that gets its stall."""
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
+    resets = later(2) + timedelta(minutes=60)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(3)
+    (first,) = sends(kitchen)
+    short.passes(59)
     assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    assert kitchen.lines("stall") == []
     short.passes(1)
     assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    short.passes(9)
+    assert kitchen.lines("stall") == []
+    short.passes(1)
+    (stalled,) = kitchen.lines("stall")
+    assert stalled.startswith("stall alpha: #7 is as short as it was 10 passes after")
+
+
+def test_a_hold_whose_crew_is_at_work_at_the_reset_stays_in_hand_and_is_sent_once_it_is_idle(
+    short, kitchen
+):
+    """The crew is asked for a scoped pass over its rebase while its instance is capped for 40
+    minutes, and it is at work on the pass at the reset. The passes of the cap are not passes the
+    message waited to be sent, so the hold is not the user's, and the first pass with the crew
+    idle sends the message again."""
+    short.out(short.unruled(), "hold", short.rebased())
+    resets = later(2) + timedelta(minutes=40)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    short.passes(3)
+    (first,) = sends(kitchen)
+    short.passes(39)
+    short.thread["status"] = "running"
+    short.passes(1)
+    assert later(short.minute - 1) == resets and sends(kitchen) == [first]
+    assert listed(kitchen) == []
+    short.thread["status"] = "completed"
+    short.passes(1)
+    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    assert listed(kitchen) == []
 
 
 def reviewer_says(tmp_path, asked, brief):

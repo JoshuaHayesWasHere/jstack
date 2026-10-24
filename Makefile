@@ -32,8 +32,10 @@ PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(R
 TEST_WORKERS ?= $(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n" -ge 2 ] || n=2; echo "$$n")
 # Workers take the next test as each finishes (`worksteal`), so a slow file does not hold up
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`
-# writes every test's time there, which CI's summary line reads.
-PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))
+# writes every test's time there, which CI's summary line reads. `SHARD=K/N` runs only the K-th
+# of N parts of the tests the run selected (testing/shard.py): CI's check and full each run as
+# four jobs side by side, one for each part.
+PYTEST = uv run pytest -n $(TEST_WORKERS) --dist worksteal --durations=25 -m "not browser"$(if $(JUNIT), --junitxml=$(JUNIT))$(if $(SHARD), --shard=$(SHARD))
 
 .PHONY: check
 check:

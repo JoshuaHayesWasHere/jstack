@@ -57,7 +57,7 @@ def test_a_kind_added_to_an_events_without_the_table_is_behind(tree, monkeypatch
     assert f"behind: {pages.EVENTS_PAGE}: run" in capsys.readouterr().out
     assert pages.main([]) == 0
     said = (tree / pages.EVENTS_PAGE).read_text()
-    assert "| `quiet` | `a-new-kind`, `condition`, " in said
+    assert "| `quiet` | `a-new-kind`, `cancelled`, `clock`, " in said
 
 
 def test_no_docs_page_is_over_the_cap_unless_listed_and_a_listed_one_is():

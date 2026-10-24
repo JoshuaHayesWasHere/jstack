@@ -68,7 +68,7 @@ def test_a_merge_into_an_integration_branch_is_sent_as_any_merge(tmp_path):
 
 def test_a_row_waits_for_what_a_wait_or_a_hold_line_gives_as_its_reason(tmp_path):
     run = a_pass(tmp_path, PRINTED)
-    assert watch.waits(run, merge.merge(run), "").said == {
+    assert watch.waits(merge.merge(run)).said == {
         "8": "wait: it has no review yet",
         "9": "hold: needs user, touches secrets/x.json",
     }

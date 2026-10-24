@@ -10,6 +10,7 @@ import pytest
 import jbus
 from jbus import threads
 from test_jbus_kitchen import NOW, RESULT, TOKEN, sends
+from test_jbus_leftover import home
 from test_jbus_queue import add, gates
 from testing.paths import skills
 
@@ -137,6 +138,36 @@ def test_a_second_end_is_the_last_carry_on_and_a_third_is_a_gate(kitchen):
     kitchen.poll(NOW + timedelta(minutes=9))
     kitchen.poll(NOW + timedelta(minutes=12))
     assert len(sends(kitchen)) == 2 and len(resumes(kitchen)) == 2
+    assert gates(kitchen) == ["condition alpha: thread ended failed after two carry-ons"]
+
+
+def test_with_a_home_a_third_end_is_one_line_to_the_home_and_no_gate(kitchen):
+    """S3: after the second miss the wait goes to the home in one line, not to the user."""
+    thread = crew(kitchen)
+    desk = home(kitchen)
+    kitchen.poll()
+    thread.update(status="cancelled", latestRunId="run-2")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    thread.update(status="failed", latestRunId="run-3")
+    kitchen.poll(NOW + timedelta(minutes=6))
+    kitchen.poll(NOW + timedelta(minutes=9))
+    told = [one["message"] for one in sends(kitchen) if one["threadId"] == desk["threadId"]]
+    assert len(told) == 1 and "alpha" in told[0] and THREAD in told[0]
+    assert len(sends(kitchen)) == 3 and gates(kitchen) == []
+
+
+def test_a_third_end_whose_home_t3_code_refuses_the_line_is_one_gate(kitchen):
+    thread = crew(kitchen)
+    desk = home(kitchen)
+    kitchen.t3.forgot.add(desk["threadId"])
+    kitchen.poll()
+    thread.update(status="cancelled", latestRunId="run-2")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    thread.update(status="failed", latestRunId="run-3")
+    for minutes in (6, 9, 12):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    tried = [one for one in kitchen.t3.calls if one[1].get("threadId") == desk["threadId"]]
+    assert len([one for one in tried if one[0] == "t3_thread_send"]) == 1
     assert gates(kitchen) == ["condition alpha: thread ended failed after two carry-ons"]
 
 

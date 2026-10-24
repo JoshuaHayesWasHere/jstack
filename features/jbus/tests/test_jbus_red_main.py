@@ -314,3 +314,35 @@ def test_a_rerun_on_the_same_tip_whose_jobs_pass_closes_the_decision(kitchen):
     (decision,) = asked(kitchen)
     assert decision.answer is not None
     assert kept(kitchen) == mainjson.Main(green=at)
+
+
+def beside(kitchen, sha, n, conclusion):
+    """Give a commit on main the check run `no_job` gives, and beside it a second one whose job
+    ran its steps and ended as `conclusion`, as infra's gitleaks beside its check."""
+    no_job(kitchen, sha, n)
+    run = {"id": 6000 + n, "name": "gitleaks", "status": "completed", "conclusion": conclusion}
+    job = {"id": run["id"], "conclusion": conclusion, "steps": [{"conclusion": conclusion}]}
+    for name, key, value in (("check-runs.json", sha, run), ("jobs.json", str(run["id"]), job)):
+        kept = json.loads((kitchen.stub / name).read_text())
+        kitchen.set(name, {**kept, key: [*kept[key], value] if key == sha else value})
+
+
+def test_a_failed_run_that_ran_beside_one_that_started_no_job_is_a_red_main(kitchen):
+    green, _ = replay_no_job_runs(kitchen, runs=0)
+    red = landed(kitchen, 1)
+    beside(kitchen, red, 1, "failure")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"main-red-{red[:12]}"]
+    assert kept(kitchen) == mainjson.Main(green=green, red=red)
+    assert asked(kitchen) == []
+
+
+def test_a_run_that_started_no_job_beside_one_that_ran_and_passed_is_no_account_decision(kitchen):
+    """A run that ran and passed shows the account starts jobs, so the run beside it that started
+    none is no question about the limit or the payment: the commit's check failed."""
+    green, _ = replay_no_job_runs(kitchen, runs=0)
+    red = landed(kitchen, 1)
+    beside(kitchen, red, 1, "success")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert asked(kitchen) == []
+    assert kept(kitchen) == mainjson.Main(green=green, red=red)

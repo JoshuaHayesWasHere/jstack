@@ -79,11 +79,14 @@ class Verb:
     config: bool = True
 
 
-NEEDS = ("sight", "client", "world", "rows")
+NEEDS = ("sight", "client", "world", "rows", "budget")
 SLOTS = {
     "before-watch": ("first in the pass, before merge.merge", ("client",)),
-    "tellers": ("after watch.look", ("sight", "client", "world")),
-    "after-expedite": ("after expedite.tell, before dispatch.turns", ("sight", "client", "world")),
+    "tellers": ("after watch.look", ("sight", "client", "world", "budget")),
+    "after-expedite": (
+        "after expedite.tell, before dispatch.turns",
+        ("sight", "client", "world", "budget"),
+    ),
     "derive": ("after the launches, first in the second half", NEEDS),
     "after-derive": ("after derive", NEEDS),
     "close": ("after after-derive, before alert.flush, the last of a pass", NEEDS),
@@ -102,6 +105,8 @@ class Step:
     - `world`: the answers of T3 Code and GitHub.
     - `rows`: the judged rows of a queue that parses (`Half.states`), which only the second
       half has.
+    - `budget`: GitHub's API budget above its floor, which `jbus.watch.look` read (`jbus.budget`):
+      a step that spends it on what can wait needs it.
 
     The pass skips a step when the pass lacks one of the step's needs.
     """

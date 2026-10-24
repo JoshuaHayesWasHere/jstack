@@ -163,6 +163,8 @@ The four thresholds are the first four lines of its `room`: change one there.
 Run it with the block at the top, which sets `T`: `uv run --project` needs nothing on `PATH` but `uv`.
 A check that did not run is a `wait` as well.
 
-Launch on `go`. On `wait`, do not launch: tell the user the task is written and waiting, and why, and launch it when they next ask or the check says `go`. That holds whatever the user asks for in one message: every launch gets its own check, and the ones with no room wait their turn.
+Launch on `go`.
+On `wait`, do not launch: write it as a `waits:` line of the turn's end, the task and why ("How a turn ends"), and launch it when the user next asks or the check says `go`.
+That holds whatever the user asks for in one message: every launch gets its own check, and the ones with no room wait their turn.
 
 A review is a task like any other. Do not run several review subagents that each install and test their own checkout: that is the same load as that many crewmates, with nobody able to watch it. Each review runs in its own reviewer thread, as many at a time as the machine has room for (the pr-review skill's run block makes the same check before a run starts), and their heavy suites run under the machine-wide lock in the user's global instructions.

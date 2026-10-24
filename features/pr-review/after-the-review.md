@@ -39,17 +39,12 @@
            return
        fi
        before=$(awk '/^## / {review = ($(0) == "## Review")} review && /^Verdict: (clean|findings)$/ {n++} END {print n + 0}' "$B")
-       D=$(uv run --project "$T/.." jbus home --directory "$B")
-       scope=
-       if [ "$D" != "$H" ]; then scope=${D##*/}; fi
        if [ "$before" = 0 ]; then
            echo "the Fixed: line, which a first review is answered with"
        elif ! grep -q '^Fixed: ' "$B"; then
            echo "the Fixed: line, which the Result does not have yet"
        elif [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then
            echo "the fixed and green line, which a home that merges hears from the crewmate"
-       elif [ -n "$scope" ]; then
-           echo "a gate, since jbus merges no pull request of the scoped home $scope"
        elif ! view=$(gh pr view <url> --json mergeable,headRefOid,statusCheckRollup) || [ "$(printf %s "$view" | jq -r .mergeable)" != MERGEABLE ]; then
            echo "a rebase, which waits for this section while GitHub does not say MERGEABLE"
        elif printf %s "$view" | jq -e 'any(.statusCheckRollup[]?; if .state then (.state | IN("SUCCESS", "PENDING", "EXPECTED") | not) else .status == "COMPLETED" and (.conclusion | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not) end)' > /dev/null; then

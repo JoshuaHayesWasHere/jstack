@@ -10,7 +10,8 @@ A pass launches a row only when all of these hold:
 
 Rows launch lowest `priority` first. A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there. jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch.
 
-- **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval`.
+- **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval: <lines>`.
+  `<lines>` names each line the go no longer covers, as `<field>: <the line>`, or `<field>: a line taken out`, joined by `; `.
   Approve it again.
   An edit that keeps its meaning fingerprint is no change.
 - **A brief is not checked again.**

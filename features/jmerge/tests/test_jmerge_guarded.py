@@ -297,6 +297,25 @@ def test_the_start_of_a_check_is_its_latest_run_named_check():
     assert pull_request("a.txt", checks=(merge.OTHER_PASSED,)).started is None
 
 
+def test_the_start_of_a_check_that_waits_on_its_parts_is_the_first_part_s_start():
+    """The check workflow runs its tests as four parts, and the job `check` starts once they
+    have ended: the check is as old as the earliest job of the same workflow run."""
+
+    def job(name, at, run=7):
+        url = f"https://github.com/o/r/actions/runs/{run}/job/1"
+        return {**merge.run("SUCCESS", name), "startedAt": at, "detailsUrl": url}
+
+    runs = (
+        job("check 1 of 4", "2026-10-24T16:14:34Z"),
+        job("check 2 of 4", "2026-10-24T16:14:33Z"),
+        job("check", "2026-10-24T16:28:50Z"),
+        job("borders", "2026-10-24T16:10:00Z", run=8),
+    )
+    assert pull_request("a.txt", checks=runs).started == datetime(
+        2026, 10, 24, 16, 14, 33, tzinfo=UTC
+    )
+
+
 BORDERS_PASSED = merge.run("SUCCESS", "borders")
 
 
