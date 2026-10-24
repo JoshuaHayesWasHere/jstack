@@ -793,6 +793,7 @@ THREAD = {
         "page",
         "rank",
         "open",
+        "health",
     )
 } | {"request": REQUEST, "home": None, "retired": None}
 
@@ -876,7 +877,11 @@ def _home_work(
     the home's. A home's thread whose id is in no `home-id` and on no `Was home:` line is the
     home its title names: the words after the project's name, which a root home's title has
     none of. A home whose turn ended while a task of its own is open is idle: nothing moves it
-    but the user, so it ranks with what asks."""
+    but the user, so it ranks with what asks.
+
+    A home's thread also has its `health`: the word of its liveness while it is out,
+    `ended` where its turn ended with a task of its own open, and `rest` where it ended with
+    nothing open."""
     if found is None:
         return None
     owned: dict[str, int] = {}
@@ -889,7 +894,11 @@ def _home_work(
             if name is None:
                 name = thread["slug"].partition(" ")[2]
             thread = thread | {"home": name, "open": owned.get(name, 0)}
-            if thread["open"] and not thread["out"]:
+            if thread["out"]:
+                thread["health"] = thread["live"]
+            else:
+                thread["health"] = "ended" if thread["open"] else "rest"
+            if thread["health"] == "ended":
                 thread["rank"] = ASKS
         made.append(thread)
     return made
@@ -1668,7 +1677,7 @@ def summary(read: Read) -> dict[str, Any]:
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
         "threads": read.out,
-        "homes": read.homes.group(read.tasks, read.panel("you")["needs"]),
+        "homes": read.homes.group(read.tasks, read.panel("you")["needs"], read.out),
         "health": {
             "checks": failed,
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
