@@ -1,6 +1,8 @@
 """`daemons.stop` ends a daemon and what it started, whatever the daemon does with SIGTERM."""
 
+import os
 import subprocess
+import sys
 import time
 
 import daemons
@@ -56,3 +58,24 @@ def test_stop_all_stops_every_daemon_that_was_started():
 
     assert [sleeper.poll() is not None for sleeper in sleepers] == [True] * 3
     assert daemons.running == []
+
+
+NO_PRCTL = """\
+import ctypes
+class Library:
+    def __init__(self, *args, **kwargs):
+        pass
+ctypes.CDLL = Library
+"""
+
+
+def test_the_guard_runs_the_command_on_a_system_with_no_prctl_such_as_macos():
+    """macOS has no `prctl`, so there the guard asks for no signal and still runs the command:
+    the autouse fixture alone stops the daemon there."""
+    ran = subprocess.run(
+        [sys.executable, "-c", NO_PRCTL + daemons.GUARD, str(os.getpid()), "echo", "ran"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert (ran.returncode, ran.stdout) == (0, "ran\n")
