@@ -57,16 +57,18 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
 }
 
-# The rules today's code breaks, and in which scene. CallsReachJosh holds since pull request 332
-# moved what waits for a dropped route, and the others hold today only because nothing today
-# flags, nudges or asks.
+# The rules today's code breaks, and in which scene. The others hold today only because nothing
+# today flags, nudges or asks, except the two TODAY_HOLDS checks.
 TODAY_BREAKS = {
     "NoRetireWithOpen": "a",
     "StallFlagged": "a",
     "OneMerger": "a",
     "NoBlindMerge": "siblings",
-    "ReadyMerges": "a",
 }
+
+# The rules today's code keeps. CallsReachJosh holds since pull request 332 moved what waits for a
+# dropped route, and ReadyMerges since pull request 357 let jbus merge a child's pull request.
+TODAY_HOLDS = ["CallsReachJosh", "ReadyMerges"]
 
 
 def config(scene, rules, modes, drop=None):
@@ -146,8 +148,9 @@ def runs():
     for rule, scene in TODAY_BREAKS.items():
         cfg = config(scene, [rule], '{"jbus", "home"}')
         yield f"today, scene {scene}: {rule}", "HomeTreeToday", cfg, rule, "breaks"
-    cfg = config("a", ["CallsReachJosh"], '{"jbus", "home"}')
-    yield "today, scene a: CallsReachJosh", "HomeTreeToday", cfg, "CallsReachJosh", "holds"
+    for rule in TODAY_HOLDS:
+        cfg = config("a", [rule], '{"jbus", "home"}')
+        yield f"today, scene a: {rule}", "HomeTreeToday", cfg, rule, "holds"
 
 
 def main():
