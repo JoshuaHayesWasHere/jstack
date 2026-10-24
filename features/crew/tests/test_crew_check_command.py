@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 
 import test_room as room
@@ -14,6 +15,16 @@ from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
 from test_portable_shell import bsd_tools
 from testing.paths import REPO
+
+TAKEN = """import fcntl, sys
+
+with open(sys.argv[1], "a") as lock:
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit(0)
+sys.exit(1)
+"""
 
 
 def checked(tmp_path, command, limit=60, heading="Do the task", then=None, tools=None):
@@ -240,6 +251,8 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
 
 
 def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp_path):
+    """The command asks whether its short slot is held with `TAKEN`, by Python's fcntl, which a
+    Mac has too: util-linux's `flock` command is Linux only."""
     home, stub = tmp_path / "home", tmp_path / "stub"
     stub.mkdir()
     room.uv(stub)
@@ -250,7 +263,9 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
         fd = os.open(locks / f"test-slot.{n}.lock", os.O_RDWR | os.O_CREAT)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
-    took = f"! flock -n {locks}/test-slot-short.1.lock true && echo short; exit 3"
+    taken = tmp_path / "taken.py"
+    taken.write_text(TAKEN)
+    took = f"{sys.executable} {taken} {locks}/test-slot-short.1.lock && echo short; exit 3"
     script = block("Do the task", "test-slot --short").replace(
         "<the targeted tests>", f"sh -c '{took}'"
     )

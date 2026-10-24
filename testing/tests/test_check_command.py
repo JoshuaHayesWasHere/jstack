@@ -176,23 +176,28 @@ def test_a_cgroup_quota_is_the_processors_a_run_counts_from_rounded_down_and_at_
     assert workers("CORES=8", CGROUP=str(tmp_path), **runner) == 12
 
 
-def test_the_quota_is_read_from_the_cgroup_the_run_is_in():
+def test_the_quota_is_read_from_the_cgroup_the_run_is_in(tmp_path):
     """A run's cgroup is the directory under /sys/fs/cgroup that /proc/self/cgroup names: a
     container's own cgroup is `/`, and a command under `systemd-run --scope` gets the scope's
-    cgroup.
+    cgroup. A system with no /proc/self/cgroup, such as macOS, has none, so no quota. The
+    makefile that prints it is a file, since macOS's make, 3.81, has no `--eval`.
     """
     env = {name: value for name, value in os.environ.items() if name not in SET_BY_A_RUN}
+    printed = tmp_path / "cgroup.mk"
+    printed.write_text("cgroup: ; @echo $(CGROUP)\n")
     made = subprocess.run(
-        ["make", "-s", "--eval", "cgroup: ; @echo $(CGROUP)", "cgroup"],
+        ["make", "-s", "-f", "Makefile", "-f", str(printed), "cgroup"],
         cwd=REPO,
         env=env,
         capture_output=True,
         text=True,
         check=True,
     )
-    (own,) = [
-        line for line in Path("/proc/self/cgroup").read_text().splitlines() if line[:3] == "0::"
-    ]
+    named = Path("/proc/self/cgroup")
+    if not named.exists():
+        assert made.stdout == "\n"
+        return
+    (own,) = [line for line in named.read_text().splitlines() if line[:3] == "0::"]
     assert made.stdout == f"/sys/fs/cgroup{own[3:]}\n"
 
 
