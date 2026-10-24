@@ -143,9 +143,13 @@ def states(out):
 
 def runs():
     """Each run: its label, the module, the config, the rule it is about, and what it must say."""
+    # TLC walks a scene's whole state graph again for each property, so a run of every rule takes
+    # as long as its runs one property at a time: one run for the invariants and one for each
+    # property is the same check in pieces a test can take one by one.
     for scene in SCENES:
-        cfg = config(scene, RULES, '{"jbus"}', "none")
-        yield f"design, scene {scene}: every rule", "HomeTreeDesign", cfg, None, "holds"
+        for name, rules in [("every invariant", INVARIANTS), *((p, [p]) for p in PROPERTIES)]:
+            cfg = config(scene, rules, '{"jbus"}', "none")
+            yield f"design, scene {scene}: {name}", "HomeTreeDesign", cfg, None, "holds"
     for guard, (rule, scene) in CANARIES.items():
         cfg = config(scene, [rule], '{"jbus"}', guard)
         yield f"canary {guard}, scene {scene}: {rule}", "HomeTreeDesign", cfg, rule, "breaks"

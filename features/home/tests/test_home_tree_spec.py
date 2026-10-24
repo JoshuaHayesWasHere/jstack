@@ -41,13 +41,18 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
     assert lib.uncited_conditions(today.read_text(), shared) == []
 
 
-def test_the_runs_are_every_scene_of_the_design_every_canary_and_today():
-    """canaries.py runs the design once in each scene, each canary once, and today's code once for
-    each rule it breaks or keeps, and the canaries between them break every rule."""
+def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
+    """canaries.py runs the design in each scene once for its invariants and once for each
+    property, each canary once, and today's code once for each rule it breaks or keeps, and the
+    canaries between them break every rule."""
     assert all(path.is_file() for path in FILES)
     labels = [label for label, *_ in RUNS]
     assert labels == [
-        *(f"design, scene {scene}: every rule" for scene in canaries.SCENES),
+        *(
+            f"design, scene {scene}: {name}"
+            for scene in canaries.SCENES
+            for name in ["every invariant", *canaries.PROPERTIES]
+        ),
         *(
             f"canary {guard}, scene {scene}: {rule}"
             for guard, (rule, scene) in canaries.CANARIES.items()
