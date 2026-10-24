@@ -1469,22 +1469,50 @@ class Repo:
 PROC = Path("/proc")
 
 
-def _running(tree: str) -> int | None:
+def _cwds_from_proc() -> dict[int, str] | None:
     try:
         listed = [PROC / name for name in os.listdir(PROC) if name.isdigit()]
     except OSError:
         return None
     if PROC / str(os.getpid()) not in listed:
         return None
-    inside = os.path.realpath(tree)
-    found = []
+    cwds = {}
     for entry in listed:
         try:
-            at = os.readlink(entry / "cwd")
+            cwds[int(entry.name)] = os.readlink(entry / "cwd")
         except OSError:
             continue
-        if at == inside or at.startswith(f"{inside}/"):
-            found.append(int(entry.name))
+    return cwds
+
+
+def _cwds_from_lsof() -> dict[int, str] | None:
+    """The working directory of each of the user's processes on a Mac, which has no /proc. lsof's
+    `-F n` prints a `p<pid>` line for each process and an `n<path>` line for its cwd."""
+    command = ["lsof", "-w", "-a", "-d", "cwd", "-u", str(os.getuid()), "-F", "n"]
+    try:
+        said = subprocess.run(command, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if said.returncode:
+        return None
+    cwds, pid = {}, 0
+    for line in said.stdout.splitlines():
+        if line.startswith("p") and line[1:].isdigit():
+            pid = int(line[1:])
+        elif line.startswith("n") and pid:
+            cwds[pid] = line[1:]
+    return cwds if os.getpid() in cwds else None
+
+
+def _running(tree: str) -> int | None:
+    """The lowest pid of a process whose working directory is in the tree, 0 for none, and None
+    when no list of every process could be read. A Mac reads lsof, unless a caller set PROC."""
+    on_a_mac = sys.platform == "darwin" and PROC == Path("/proc")
+    cwds = _cwds_from_lsof() if on_a_mac else _cwds_from_proc()
+    if cwds is None:
+        return None
+    inside = os.path.realpath(tree)
+    found = [pid for pid, at in cwds.items() if at == inside or at.startswith(f"{inside}/")]
     return min(found, default=0)
 
 
