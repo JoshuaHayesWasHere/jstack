@@ -15,7 +15,7 @@ import pytest
 
 import jbus
 from test_jbus_kitchen import NOW, Kitchen
-from test_jbus_queue import add, gates
+from test_jbus_queue import add, gates, rows
 
 HEAD = "c" * 40
 JOB = "https://example.test/o/r/actions/runs/5/job/{}"
@@ -306,3 +306,81 @@ def test_a_gated_line_of_this_head_holds_back_green(launched):
     launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)
     assert sends(launched) == []
+
+
+def cancelled(conclusion="CANCELLED", job="11"):
+    """A required check whose latest run ended cancelled, or past its `timeout-minutes`."""
+    return {**failed(job), "conclusion": conclusion}
+
+
+def ran(kitchen, attempt=1, head=HEAD, minutes=30):
+    """Job 11, the check's job in workflow run 5, as GitHub gives it: at `attempt`, on `head`,
+    `minutes` long. Its attempt before, if any, ran as long."""
+    times = {"started_at": "2026-10-24T10:00:00Z", "completed_at": f"2026-10-24T10:{minutes}:00Z"}
+    steps = [{"name": "make check"}]
+    kitchen.set(
+        "jobs.json", {"11": {"steps": steps, "run_attempt": attempt, "head_sha": head, **times}}
+    )
+    kitchen.set("run-jobs.json", {str(attempt - 1): [{"name": "check", **times}]})
+
+
+def reruns(kitchen):
+    return [line for line in kitchen.log("gh") if line.startswith("run rerun")]
+
+
+def to_home(kitchen):
+    return [given for given in sends(kitchen) if given["threadId"] == "mcp:home"]
+
+
+TIMEOUT = (
+    "##[error]The job running on runner r has exceeded the maximum execution time of 30 minutes."
+)
+
+
+@pytest.mark.parametrize("conclusion", ["CANCELLED", "TIMED_OUT"])
+def test_a_check_cancelled_at_its_first_attempt_is_run_again_once_and_journaled(
+    launched, conclusion
+):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched)
+    launched.set("open.json", [pull(launched, [cancelled(conclusion)])])
+    passes(launched, 0, 3, 6)
+    assert reruns(launched) == ["run rerun 5 --failed"]
+    assert launched.lines("cancelled") == [
+        "cancelled alpha: ran #7's check again, run 5 at cccccccccccc"
+    ]
+    assert sends(launched) == []
+
+
+def test_a_check_cancelled_again_at_its_rerun_is_told_to_the_home_once_and_not_run_again(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched, attempt=2)
+    launched.set("logs.json", {"11": "a line\n" + TIMEOUT + "\n"})
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0, 3, 6)
+    said = "alpha: #7: its check was cancelled twice, at 30 min each: its timeout of 30 min"
+    assert [given["message"] for given in to_home(launched)] == [said]
+    assert reruns(launched) == [] and keys(launched) == ["cancelled|alpha|cccccccccccc"]
+    assert rows(launched)["alpha"]["why"] == said.removeprefix("alpha: ")
+
+
+def test_a_run_cancelled_at_a_head_the_pull_request_has_left_is_neither_run_nor_told(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched, head="b" * 40)
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0, 3)
+    assert reruns(launched) == [] and sends(launched) == [] and launched.lines("cancelled") == []
+
+
+def test_a_rerun_github_refuses_is_told_to_the_home_once_and_not_tried_again(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    launched.set("gh-no-rerun", "")
+    ran(launched)
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0, 3, 6)
+    said = (
+        "alpha: #7: its check was cancelled at 30 min, and GitHub did not run it again: "
+        "run cannot be rerun"
+    )
+    assert reruns(launched) == ["run rerun 5 --failed"]
+    assert [given["message"] for given in to_home(launched)] == [said]
