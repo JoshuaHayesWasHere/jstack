@@ -8,11 +8,14 @@ homes `ui` and `docs` (`browser.child_homes`), a failed CI run on the root and a
 and a stalled row in `ui`.
 """
 
+import json
+
 import pytest
 
 from view.page import browser
 from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, clean, look
 from view.page.test_view_page_budgets import SCENES
+from view.scene import out
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -106,3 +109,39 @@ def test_on_a_phone_every_target_of_the_map_takes_a_thumb_and_nothing_is_cut(sce
     seen = look(scene, tmp_path, route="#/", screen=PHONE)
     clean(seen, PHONE)
     assert (seen["small"], seen["cut"]) == ([], [])
+
+
+def troubled_homes(scene):
+    """The busy day, with the root's thread waiting on a request, `ui`'s hung for 40 minutes
+    and `docs`'s quiet for 12."""
+    SCENES["busy"](scene)
+    record = json.loads((scene.state_dir / "pass.json").read_text())
+    listed = record["projects"][scene.name]["threads"]
+    listed[:] = [one for one in listed if one["role"] != "home"] + [
+        out("home: demo", "waiting", minutes=3),
+        out("home: demo ui", "hung", minutes=40, id="mcp:ui"),
+        out("home: demo docs", "quiet", minutes=12, id="mcp:docs"),
+    ]
+    scene.write("pass.json", record, scene.state_dir)
+
+
+def test_a_home_whose_thread_hung_or_went_quiet_says_so_with_its_age_as_a_wrong_fact(
+    scene, tmp_path
+):
+    """A home's own thread that hung or went quiet is its health word, with how long since it
+    wrote, and that word is the line of its wrong fact: no other line repeats it."""
+    seen, stack = browser.mapped(scene, tmp_path, troubled_homes)
+    assert seen["errors"] == []
+    root, docs, ui = seen["cards"][0]["homes"]
+    assert (root["health"], docs["health"], ui["health"]) == (
+        "waits on a request",
+        "quiet 12m",
+        "hung 40m",
+    )
+    own = {
+        f"{one['kind']}/{one['subj']}/{one['cause']}"
+        for one in stack["wrong"]
+        if one["subj"].startswith("home: ")
+    }
+    assert len(own) == 2 and own <= set(seen["wrong"])
+    assert not any(line.startswith("home: ") for line in seen["cards"][0]["wrong"])

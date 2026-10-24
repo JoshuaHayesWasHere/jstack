@@ -796,13 +796,6 @@ THREAD = {
         "health",
     )
 } | {"request": REQUEST, "home": None, "retired": None}
-HEALTH = {
-    "moving": "moving",
-    "waiting": "waiting",
-    "quiet": "quiet",
-    "hung": "hung",
-    "unknown": "unknown",
-}
 
 
 def request(home: Path, slug: str) -> dict[str, str]:
@@ -886,7 +879,7 @@ def _home_work(
     none of. A home whose turn ended while a task of its own is open is idle: nothing moves it
     but the user, so it ranks with what asks.
 
-    A home's thread also has its `health`: the word of its liveness while it is out (`HEALTH`),
+    A home's thread also has its `health`: the word of its liveness while it is out,
     `ended` where its turn ended with a task of its own open, and `rest` where it ended with
     nothing open."""
     if found is None:
@@ -902,7 +895,7 @@ def _home_work(
                 name = thread["slug"].partition(" ")[2]
             thread = thread | {"home": name, "open": owned.get(name, 0)}
             if thread["out"]:
-                thread["health"] = HEALTH[thread["live"]]
+                thread["health"] = thread["live"]
             else:
                 thread["health"] = "ended" if thread["open"] else "rest"
             if thread["health"] == "ended":
