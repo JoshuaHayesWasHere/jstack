@@ -23,7 +23,9 @@ digit>/<session>.jsonl`, both read from the process's own environment. `AGENT` i
 name, which spells the config folder's variable (`CONFIG`) and its default (`KEPT`).
 
 A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own `systemd
---user`, which adopts what a unit of it left, as it is for jbus, a user service. A process is
+--user`, which adopts what a unit of it left, as it is for jbus, a user service. Where there is
+no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory and
+`ps -E` its environment, and the one reaper is 1, launchd. A process is
 never stopped when its parent is not a reaper, when it is not the user's, when it is jbus
 or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, it is
 stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and
@@ -41,6 +43,7 @@ import json
 import os
 import re
 import signal
+import subprocess
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -69,8 +72,9 @@ SHOWN = 3
 
 @dataclass
 class Proc:
-    """A `Proc` is what `/proc` says of one process: its parent, its start time and CPU time in
-    clock ticks, its arguments, its working directory, and its environment."""
+    """A `Proc` is what `/proc`, or `ps` where there is none, says of one process: its parent,
+    its start time, its CPU time in clock ticks (hundredths of a second from `ps`), its
+    arguments, its working directory, and its environment."""
 
     pid: int
     ppid: int
@@ -97,7 +101,64 @@ class Task:
     folders: tuple[Path, ...]
 
 
+def _run(*argv: str) -> str:
+    """What a command prints, in the C locale, or nothing when it cannot be run."""
+    try:
+        said = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            errors="replace",
+            env={**os.environ, "LC_ALL": "C"},
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return said.stdout
+
+
+def _ticks(text: str) -> int:
+    """`ps`'s CPU time, `[days-][hours:]minutes:seconds[.hundredths]`, in hundredths."""
+    days, _, clock = text.rpartition("-")
+    seconds = 0.0
+    for part in clock.split(":"):
+        seconds = seconds * 60 + float(part)
+    return round((int(days or 0) * 86400 + seconds) * 100)
+
+
+def _ps(*pids: str) -> dict[str, tuple[tuple[int, int, int], int, str]]:
+    """For each of the processes, or each process when none is named, that is not a zombie:
+    its parent, start time and CPU time, as `_stat` gives them, its owner and its command line.
+    `lstart` is a start time to the second, which is enough to tell a process from a later one
+    with its pid."""
+    which = ("-p", ",".join(pids)) if pids else ("-A",)
+    said = _run("ps", "-ww", *which, "-o", "pid=,ppid=,uid=,lstart=,time=,stat=,command=")
+    found = {}
+    for line in said.splitlines():
+        part = line.split(None, 10)
+        if len(part) < 10 or part[9].startswith("Z"):
+            continue
+        try:
+            start = time.mktime(time.strptime(" ".join(part[3:8]), "%a %b %d %H:%M:%S %Y"))
+            stat = (int(part[1]), int(start), _ticks(part[8]))
+            found[part[0]] = (stat, int(part[2]), part[10] if len(part) > 10 else "")
+        except ValueError:
+            continue
+    return found
+
+
+def _stats(pids: Iterable[str]) -> dict[str, tuple[int, int, int] | None]:
+    """`_stat` of each process, from one `ps` where there is no /proc."""
+    pids = list(pids)
+    if ROOT.is_dir() or not pids:
+        return {pid: _stat(pid) for pid in pids}
+    listed = _ps(*pids)
+    return {pid: listed[pid][0] if pid in listed else None for pid in pids}
+
+
 def _stat(pid: str) -> tuple[int, int, int] | None:
+    if not ROOT.is_dir():
+        return _stats([pid])[pid]
     try:
         text = (ROOT / pid / "stat").read_text()
         fields = text.rsplit(")", 1)[1].split()
@@ -154,11 +215,38 @@ def _read(pid: str, stat: tuple[int, int, int]) -> Proc | None:
     )
 
 
-def _ancestors() -> set[int]:
+def _listed(adopted: dict[str, tuple[tuple[int, int, int], int, str]]) -> list[Proc]:
+    """The processes `ps` listed, with the working directory `lsof` gives and the environment
+    `ps -E` adds after the command line, which it shows for the user's own processes. A
+    process `lsof` gives no folder for has none, and is known by its arguments alone."""
+    if not adopted:
+        return []
+    pids = ",".join(adopted)
+    folders, pid = {}, ""
+    for line in _run("lsof", "-a", "-d", "cwd", "-Fn", "-p", pids).splitlines():
+        if line.startswith("p"):
+            pid = line[1:]
+        elif line.startswith("n") and pid:
+            folders[pid] = line[1:].removesuffix(" (deleted)")
+    envs = {}
+    for line in _run("ps", "-ww", "-E", "-p", pids, "-o", "pid=,command=").splitlines():
+        pid, _, text = line.strip().partition(" ")
+        command = adopted[pid][2] if pid in adopted else None
+        if command and text.startswith(command):
+            rest = text[len(command) :]
+            named = r"(?:^| )([A-Za-z_][A-Za-z0-9_]*)=(.*?)(?= [A-Za-z_][A-Za-z0-9_]*=|$)"
+            envs[pid] = {one[1]: one[2] for one in re.finditer(named, rest)}
+    return [
+        Proc(int(pid), *stat, command.split(), folders.get(pid, ""), envs.get(pid, {}))
+        for pid, (stat, _, command) in adopted.items()
+    ]
+
+
+def _ancestors(stats: dict[str, tuple[int, int, int]]) -> set[int]:
     found, pid = set(), os.getpid()
     while pid > 1 and pid not in found:
         found.add(pid)
-        stat = _stat(str(pid))
+        stat = stats.get(str(pid))
         pid = stat[0] if stat else 0
     return found
 
@@ -166,14 +254,20 @@ def _ancestors() -> set[int]:
 def orphans() -> list[Proc]:
     """Every process of the user whose parent is a reaper, but for jbus's, T3 Code's and the
     agent's."""
-    try:
-        pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
-    except OSError:
-        return []
-    stats = {pid: stat for pid in pids if (stat := _stat(pid)) is not None}
-    adopting = {ppid for ppid in {stat[0] for stat in stats.values()} if reaper(ppid)}
-    mine = _ancestors()
-    left = [_read(pid, stat) for pid, stat in stats.items() if stat[0] in adopting]
+    if ROOT.is_dir():
+        try:
+            pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
+        except OSError:
+            return []
+        stats = {pid: stat for pid in pids if (stat := _stat(pid)) is not None}
+        adopting = {ppid for ppid in {stat[0] for stat in stats.values()} if reaper(ppid)}
+        left = [_read(pid, stat) for pid, stat in stats.items() if stat[0] in adopting]
+    else:
+        listed = _ps()
+        stats = {pid: one[0] for pid, one in listed.items()}
+        uid = os.getuid()
+        left = _listed({pid: one for pid, one in listed.items() if (one[0][0], one[1]) == (1, uid)})
+    mine = _ancestors(stats)
     found = [one for one in left if one is not None and one.pid not in mine]
     return [one for one in found if not any(OWN.search(arg) for arg in one.args[:3])]
 
@@ -249,11 +343,11 @@ def busy(found: Iterable[Proc]) -> list[Proc]:
     if not found:
         return []
     time.sleep(GAP)
-    later = {one.pid: _stat(str(one.pid)) for one in found}
+    later = _stats(str(one.pid) for one in found)
     return [
         one
         for one in found
-        if (now := later[one.pid]) and now[1] == one.start and now[2] > one.ticks
+        if (now := later[str(one.pid)]) and now[1] == one.start and now[2] > one.ticks
     ]
 
 
@@ -266,7 +360,8 @@ def kill(found: list[Proc]) -> None:
             pass
     waited = 0.0
     while waited < GRACE:
-        left = [one for one in found if (now := _stat(str(one.pid))) and now[1] == one.start]
+        now = _stats(str(one.pid) for one in found)
+        left = [one for one in found if (stat := now[str(one.pid)]) and stat[1] == one.start]
         if not left:
             return
         time.sleep(0.1)
