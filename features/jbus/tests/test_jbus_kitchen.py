@@ -329,6 +329,13 @@ class T3(Server):
         return {"content": [{"type": "text", "text": json.dumps(made)}], "structuredContent": made}
 
 
+def rate_limit(left, reset=NOW + timedelta(hours=1)):
+    """What `gh api rate_limit` prints when both windows jbus spends have `left` calls."""
+    reset = int(reset.timestamp())
+    window = {"limit": 5000, "used": 5000 - left, "remaining": left, "reset": reset}
+    return {"resources": {"core": window, "graphql": window}, "rate": window}
+
+
 def fake_gh(stub, args, cwd):
     """Run the `gh` of a kitchen with `args` in `cwd`, and return its exit code, stdout and stderr.
 
@@ -343,6 +350,7 @@ def fake_gh(stub, args, cwd):
     view shows it. `run rerun` starts a run again and says nothing, or fails when `gh-no-rerun` is
     there.
 
+    `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
     request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
@@ -398,6 +406,11 @@ def fake_gh(stub, args, cwd):
         if (stub / "gh-no-rerun").exists():
             return 1, "", "run cannot be rerun\n"
         said = ""
+    elif args[:2] == ["api", "rate_limit"]:
+        kept = stub / "rate-limit.json"
+        full = {"limit": 5000, "used": 0, "remaining": 5000, "reset": 1791824400}
+        given = {"resources": {"core": full, "graphql": full}}
+        said = kept.read_text() if kept.exists() else json.dumps(given)
     elif args[0] == "api" and args[1] == "repos/{owner}/{repo}":
         said = (stub / "repo.json").read_text()
     elif args[0] == "api" and args[1].split("?")[0].endswith(("/comments", "/reviews")):

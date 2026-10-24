@@ -33,6 +33,9 @@ fixed typo passes. So a typo, a change of formatting, punctuation or case, and l
 another order keep the go. A line added, removed or changed in a field of `MEANING`, or a
 changed path, number or value, needs a new approval.
 
+When a brief no longer means what was approved, `changed` names the lines that differ, as the
+brief says them, so the gate that asks again says what to look at.
+
 An approval recorded before this module read the title and Task has neither in its fingerprint
 (`LEGACY`), and holds for any title and Task. The comparison skips the fields that the old
 approval recorded and that are no longer part of the meaning.
@@ -127,22 +130,28 @@ def _lines(lines: list[str]) -> list[str]:
     return [" ".join(text), *items] if text and items else items or [" ".join(text)]
 
 
-def meaning(text: str) -> Meaning:
-    """The fingerprint of a brief: `[label, lines]` for each field of `MEANING`, in order."""
+def _fields(text: str) -> dict[str, list[tuple[str, Line]]]:
+    """Each field of `MEANING` in the brief, as its lines: each line as the brief says it, with
+    its tokens."""
     held: dict[str, list[str]] = {}
     for label, lines in parse.fields(text):
         if label in MEANING:
             held.setdefault(label, []).extend(lines)
-    made: Meaning = []
+    made: dict[str, list[tuple[str, Line]]] = {}
     for label in MEANING:
         if label in VALUES:
-            value = " ".join(" ".join(held.get(label, [])).split()).lower().rstrip(".")
-            lines = [[EXACT + value]] if value else []
+            value = " ".join(" ".join(held.get(label, [])).split())
+            exact = value.lower().rstrip(".")
+            made[label] = [(value, [EXACT + exact])] if exact else []
         else:
-            lines = [tokens(line) for line in _lines(held.get(label, []))]
-            lines = [line for line in lines if line]
-        made.append([label, sorted(lines)])
+            said = [(" ".join(line.split()), tokens(line)) for line in _lines(held.get(label, []))]
+            made[label] = [(line, found) for line, found in said if found]
     return made
+
+
+def meaning(text: str) -> Meaning:
+    """The fingerprint of a brief: `[label, lines]` for each field of `MEANING`, in order."""
+    return [[label, sorted(line for _, line in lines)] for label, lines in _fields(text).items()]
 
 
 def fingerprint(made: Meaning) -> str:
@@ -169,33 +178,62 @@ def _near(approved: str, now: str) -> bool:
     return long and _edits(approved, now) <= EDITS
 
 
-def _pairs(approved: list, now: list, alike) -> bool:
-    """Whether every item of `approved` pairs with its own item of `now`, with as many items in
-    each. Equal items pair first, then each item pairs with the first item that is `alike`."""
-    if len(approved) != len(now):
-        return False
+def _unpaired(approved: list, now: list, alike, key=lambda item: item) -> tuple[list, list]:
+    """The items of `approved` and the items of `now` that pair with none of the other. Equal
+    items pair first, then each item pairs with the first item that is `alike`. An item of `now`
+    is compared by its `key`."""
     left = list(now)
     rest = []
     for item in approved:
-        if item in left:
-            left.remove(item)
-        else:
-            rest.append(item)
-    for item in rest:
-        match = next((other for other in left if alike(item, other)), None)
+        match = next((other for other in left if key(other) == item), None)
         if match is None:
-            return False
-        left.remove(match)
-    return True
+            rest.append(item)
+        else:
+            left.remove(match)
+    out = []
+    for item in rest:
+        match = next((other for other in left if alike(item, key(other))), None)
+        if match is None:
+            out.append(item)
+        else:
+            left.remove(match)
+    return out, left
+
+
+def _pairs(approved: list, now: list, alike) -> bool:
+    """Whether every item of `approved` pairs with its own item of `now`, with as many items in
+    each."""
+    return len(approved) == len(now) and _unpaired(approved, now, alike) == ([], [])
+
+
+def changed(approved: Meaning, text: str) -> list[str]:
+    """The lines of the brief `text` that the approved fingerprint does not cover, each as
+    `<label>: <line>`, in the order of `MEANING`, and `<label>: a line taken out` for each
+    approved line that pairs with none beyond those. It pairs lines with `_unpaired`, as `same`
+    does, so it is empty exactly when the brief means what was approved."""
+    was = dict(approved)
+    found = []
+    for label, lines in _fields(text).items():
+        if label not in (MEANING if parse.TITLE in was else LEGACY):
+            continue
+        now = sorted(lines, key=lambda one: one[1])
+        out, left = _unpaired(was.get(label, []), now, _alike, key=lambda one: one[1])
+        shown = 0
+        for one in lines:
+            if one in left:
+                left.remove(one)
+                found.append(f"{label}: {one[0]}")
+                shown += 1
+        found += [f"{label}: a line taken out"] * (len(out) - shown)
+    return found
+
+
+def _alike(approved: Line, now: Line) -> bool:
+    return _pairs(approved, now, _near)
 
 
 def same(approved: Meaning, now: Meaning) -> bool:
     """Whether a brief whose fingerprint is `now` asks for what the approved one did."""
     was, here = dict(approved), dict(now)
     labels = MEANING if parse.TITLE in was else LEGACY
-    return all(
-        _pairs(
-            was.get(label, []), here.get(label, []), lambda one, other: _pairs(one, other, _near)
-        )
-        for label in labels
-    )
+    return all(_pairs(was.get(label, []), here.get(label, []), _alike) for label in labels)

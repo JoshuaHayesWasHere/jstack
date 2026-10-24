@@ -504,7 +504,7 @@ def page(config: jbus.Config, now: datetime, say: Callable[[str], None], line: s
     wake.notify(line)
     if config.projects:
         first = config.projects[0]
-        wake.Box(config.state(first), first, config.webhook).send("", "alert", line, machine=True)
+        alert.queue(wake.Box(config.state(first), first, config.webhook), line, machine=True)
 
 
 def show(found: list[Reading]) -> list[str]:

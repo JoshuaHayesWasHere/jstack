@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from crew_helpers import BRIEF, Failed, git, run
+from crew_helpers import BRIEF, Failed, git, run, spent
 from testing.paths import REPO
 
 
@@ -25,6 +25,14 @@ def in_the_template(line):
 def test_a_failure_the_check_command_shows_here_is_the_changes_own(holds_base, tmp_path):
     failed = Failed(tmp_path, holds_base)
     assert failed.says("failed").split(": ")[0] == "fix"
+    assert failed.reruns() == []
+
+
+def test_with_github_s_budget_at_its_floor_the_block_asks_nothing_and_is_held(tmp_path):
+    failed = Failed(tmp_path)
+    spent(failed.stub)
+    said = failed.says("passed", wait=0)
+    assert said.startswith("held: GitHub's core budget has 0 of 5000 calls left")
     assert failed.reruns() == []
 
 

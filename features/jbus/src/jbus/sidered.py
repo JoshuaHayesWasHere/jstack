@@ -14,10 +14,12 @@ check run at main's tip stays red with nobody's row on it:
 `judge` reads one workflow's own runs on the default branch, newest first. The workflow is red
 when its last run that passed or failed within `WINDOW` failed: a run cancelled or skipped says
 nothing, and while a run of it is still going nothing is judged, since that run's answer is the
-newest (the gate's run at a new tip, below which the last red would look like a side red). A
-red is left to the gate's rule, as before, when its newest run is a push run at
-main's tip that ran a job. It is left to the account (S9's class) when its runs ran no job and
-neither did any other workflow's run on main since. Every other red is a `Red`: `FAILED` when one
+newest (the gate's run at a new tip, below which the last red would look like a side red). Nor
+is anything judged while a push run of it at main's tip was cancelled: `watch._check` holds that
+tip pending and runs it again, so its answer is still to come. A red is left to the gate's rule,
+as before, when its newest run is a push run at main's tip that ran a job. It is left to the
+account (S9's class) when its runs ran no job and neither did any other workflow's run on main
+since. Every other red is a `Red`: `FAILED` when one
 of its runs ran a job, and `NOT_RUN` when none did, which is a file GitHub cannot run, so its fix
 is the file, or the workflow's removal where nothing needs it. jbus removes no workflow. A run
 ran no job when it failed within `NO_JOB` of its start, as `jbus flow` counts it.
@@ -107,13 +109,19 @@ def ran_a_job(one: dict[str, Any]) -> bool:
     return not _red(one) or _ended(one) - began >= NO_JOB
 
 
+def _pushed_at(one: dict[str, Any], tip: str) -> bool:
+    return one.get("event") == "push" and one.get("head_sha") == tip
+
+
 def judge(
     path: str, runs: list[dict[str, Any]], others: list[dict[str, Any]], tip: str, now: datetime
 ) -> Red | None:
     """Return the red of the workflow at `path` that no other rule owns, or None. `runs` is its
     runs on the default branch, one still going included, `others` the other workflows' runs
     there, and `tip` main's commit now."""
-    if any(one.get("status") != "completed" for one in runs):
+    if any(one.get("status") != "completed" for one in runs) or any(
+        _pushed_at(one, tip) and one.get("conclusion") == "cancelled" for one in runs
+    ):
         return None
     settled = sorted((one for one in runs if one.get("conclusion") not in IDLE), key=_order)[::-1]
     if not settled or now - _ended(settled[0]) > WINDOW:
@@ -122,7 +130,7 @@ def judge(
     if not streak:
         return None
     newest = streak[0]
-    if newest.get("event") == "push" and newest.get("head_sha") == tip and ran_a_job(newest):
+    if _pushed_at(newest, tip) and ran_a_job(newest):
         return None
     if any(ran_a_job(one) for one in streak):
         return Red(path, FAILED, streak)
@@ -302,4 +310,4 @@ def owe(run: Pass) -> None:
     write_json(run.state / NAME, {"asked": run.now.isoformat(), "filed": filed})
 
 
-STEPS = (verbs.Step("tellers", 45, "sidered.owe", lambda half: owe(half.run)),)
+STEPS = (verbs.Step("tellers", 45, "sidered.owe", lambda half: owe(half.run), ("budget",)),)

@@ -33,7 +33,7 @@ import subprocess
 from pathlib import Path
 
 import jbus
-from jbriefs import findings
+from jbriefs import findings, home
 from jbus import mirror, queue, verbs, watch
 from jmerge import ready
 
@@ -86,7 +86,8 @@ def brief(
     """Return the cleanup row's brief for the brief `text` of `slug`, or nothing where the
     row would list no finding. `said` is `ready.said_of(text)` and `kept` is `filed(text)`, which
     the caller reads once each. `merge` is the merge commit, or nothing while the pull request
-    is open."""
+    is open. The row has the `Home:` line of `text`, so its Result goes to the home of
+    the work."""
     sent, dropped = kept
     if said.mode not in (ready.AFTER, ready.TWICE) or not sent:
         return ""
@@ -120,6 +121,7 @@ def brief(
             f"Task: {slug} said `Review: after`, {why} review's findings come here."
             f"{'' if merge else waits} Pull request: {pull}.\n"
         )
+    named = home.named(text)
     return head + (
         f"Done when:\n{listed}\n"
         "- Each finding above is fixed, or the Result says why it stands, citing a path:line.\n"
@@ -133,6 +135,7 @@ def brief(
         "Review: review\n"
         "Playbook: bug-fix\n"
         f"Builds on: {slug}: the code of its pull request, which the findings are in\n"
+        + (f"Home: {named}\n" if named else "")
     )
 
 

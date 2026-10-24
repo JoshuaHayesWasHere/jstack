@@ -314,23 +314,16 @@ def left(run: Pass, world: World, rows: list[queue.Row]) -> list[Item]:
 
 
 def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> list[Item]:
-    """Return the open pull requests `jmerge` holds. `holds` uses what `jmerge` printed in this
-    pass, or, where the home merges, by the last line that `jmerge` logged for each pull request. A
-    pull request that is still open and that `jmerge` said nothing about keeps its earlier hold,
-    since in that case `jmerge` did not run.
+    """Return the open pull requests `jmerge` holds, by what it said in this pass (`merge.shown`),
+    also where the home merges. A pull request that is still open and that `jmerge` said nothing
+    about keeps its earlier hold, since in that case `jmerge` did not reach it.
 
     A pass that could not ask T3 Code or GitHub has no `world`, and trusts `jmerge`. Such a pass
     counts a pull request that `jmerge` holds in this pass as open. A pull request that `jmerge`
     said nothing about keeps its earlier hold. So the list gets a hold even when nothing but
-    `jmerge` answers. `keep` calls `holds` only when `jmerge` ran in the pass. Nothing ever removes
-    the last lines that a home logged, and with no `world` nothing says which of those lines are
-    about a pull request that is still open.
+    `jmerge` answers.
     """
-    lines = [line.strip() for line in pulls]
-    if merge.home_thread(run):
-        last = read_json(run.home / "merge.log.last", {})
-        lines = [line for line in (last.values() if isinstance(last, dict) else [])]
-    lines = [line for line in lines if isinstance(line, str)]
+    lines = [line.strip() for line in pulls if isinstance(line, str)]
     is_open = None if world is None else {pull["number"] for pull in world.open.values()}
     parsed = [(line, merge.parse(line)) for line in lines]
     said = {line.number for _, line in parsed if line}
@@ -406,8 +399,7 @@ def keep(
     else:
         found += had("row") + had("left")
     found += unapproved(run, rows) if rows is not None else had("approve")
-    stale = world is None and merge.home_thread(run)
-    found += had("hold") if stale else holds(run, world, pulls, had("hold"))
+    found += holds(run, world, pulls, had("hold"))
     secret = run.config.secrets()
     items = {one["key"]: one for one in redact(found, secret)}
     for root in redact(roots, secret):
@@ -663,10 +655,11 @@ def cadence(
 
 
 def _keep(half: Half) -> None:
-    """Rewrite the list, and store it for `cadence`."""
-    run, world, rows = half.run, half.seen.world, half.table
+    """Rewrite the list, and store it for `cadence`. The holds come from `Half.shown`, which where
+    the home merges is what `jmerge --check` said in this pass (`merge.shown`)."""
+    run, world, rows, pulls = half.run, half.seen.world, half.table, half.shown.crews(half.crews)
     half.listed = keep(
-        run, world, rows, half.users, half.roots, derived=half.derived, read_all=half.read
+        run, world, rows, pulls, half.roots, derived=half.derived, read_all=half.read
     )
 
 

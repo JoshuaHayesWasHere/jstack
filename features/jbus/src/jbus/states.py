@@ -10,7 +10,19 @@ from datetime import UTC
 from typing import TYPE_CHECKING
 
 from jbriefs.home import home_of, thread_of
-from jbus import dispatch, leftover, merge, mirror, queue, stall, threads, verbs, watch, work
+from jbus import (
+    cancelled,
+    dispatch,
+    leftover,
+    merge,
+    mirror,
+    queue,
+    stall,
+    threads,
+    verbs,
+    watch,
+    work,
+)
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -32,8 +44,8 @@ def judged(half: Half) -> None:
     if world is None and half.out is None and half.seen.out is not None and client is not None:
         half.out = threads.out(run, client, stall.watched(run))
         stall.hung(run, half.out)
-    said = dict(watch.waits(run, half.said, merge.home_thread(run)).said) if world else {}
-    if half.said.failed:
+    said = dict(watch.waits(half.shown).said) if world else {}
+    if half.shown.failed:
         for row in rows:
             number = str(row.get("pr", "")).removeprefix("#")
             if row.get("status") == "pr" and number and number not in said:
@@ -46,14 +58,15 @@ def judged(half: Half) -> None:
 def derive(half: Half) -> None:
     """Rewrite the table's derived columns (`queue.derive`), and say whether the table changed."""
     run, world, states = half.run, half.seen.world, half.states
-    waits = watch.waits(run, half.said, merge.home_thread(run))
+    waits = watch.waits(half.shown)
     unread = watch.unread(run, half.read)
 
     def facts(row: queue.Row) -> queue.Row:
         slug = row["slug"]
         launched = dispatch.launched(run, slug)
         found = watch.status(run, world, slug, states.of(row, launched), launched)
-        return {**found, "why": watch.why(run, row, found, waits, unread)}
+        said = cancelled.why(run, slug) if found["status"] == "pr" else ""
+        return {**found, "why": said or watch.why(run, row, found, waits, unread)}
 
     at = run.now.astimezone(UTC).isoformat(timespec="seconds")
     half.table, half.changed = queue.derive(run.state, facts, run.user.stamp(run.now), at)

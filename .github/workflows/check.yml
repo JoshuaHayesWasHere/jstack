@@ -34,10 +34,12 @@ jobs:
   # GitHub's merge of the pull request the first parent, HEAD^1, is the tip of main, so two
   # commits of history are enough and the diff is read from the local git, with no cap on
   # its files. A change the whole suite rests on runs all of it, but for the tests that open a
-  # real browser, which browser.yml runs. It is the check the ruleset
-  # requires, and jmerge's REQUIRED, so its name stays `check`.
-  check:
+  # real browser, which browser.yml runs. The tests run as four jobs side by side, each with a
+  # quarter of what the change selected (`SHARD`, testing/shard.py), and the job `check` below
+  # passes only when all four did.
+  check-shard:
     if: github.event_name == 'pull_request'
+    name: check ${{ matrix.shard }} of 4
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
     # cost nothing. The image is pinned, not ubuntu-latest, so a new Ubuntu release comes only
@@ -46,6 +48,15 @@ jobs:
     runs-on: ubuntu-24.04
     # A change the whole suite rests on runs all of it, as `full` does, so the cap is full's.
     timeout-minutes: 30
+    strategy:
+      # Every part runs to its end, so a red check names every failing test, not only the
+      # first part's.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    outputs:
+      selection: ${{ steps.suite.outputs.selection }}
+      tree: ${{ steps.tree.outputs.name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,35 +80,16 @@ jobs:
       # when its selection is 80% of the test files or more.
       - name: make check-fast
         id: suite
-        run: make check-fast BASE=HEAD^1
+        run: make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/4
       # A pull request whose title, body or any commit from base to head credits an AI tool as a
       # co-author fails here, with each line named. It runs whatever the suite said, so a red
-      # suite does not hide it. The commits come from GitHub's compare API, not this checkout's
-      # two commits of history.
+      # suite does not hide it, and in the first part only, since it reads no test. The commits
+      # come from GitHub's compare API, not this checkout's two commits of history.
       - name: no AI co-author trailer
-        if: "!cancelled() && steps.suite.outcome != 'skipped'"
+        if: "!cancelled() && steps.suite.outcome != 'skipped' && matrix.shard == 1"
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: uv run python scripts/no_ai_trailers.py
-      # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
-      # tree, and a fast run leaves none, since a marker says the full suite passed. A later
-      # run of the same tree, main's after a squash merge or jmerge's fresh check, skips the
-      # suite on it. A marker that cannot be kept costs that skip and nothing else.
-      - name: green tree marker
-        id: marker
-        if: steps.suite.outcome == 'success' && steps.suite.outputs.selection == 'all'
-        env:
-          NAME: ${{ steps.tree.outputs.name }}
-        run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        id: upload
-        if: steps.marker.outcome == 'success'
-        continue-on-error: true
-        with:
-          name: ${{ steps.tree.outputs.name }}
-          path: ${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}
-          retention-days: 7
-          if-no-files-found: error
       # Whether the suite ran whole, and on which tree, in the job summary and as the job's
       # telemetry, which `jbus ci` keeps in ci.jsonl: the full runs a pull request had.
       - name: full suite
@@ -107,15 +99,58 @@ jobs:
           FULL: ${{ steps.suite.outputs.selection == 'all' }}
           NAME: ${{ steps.tree.outputs.name }}
         run: 'echo "full suite: $([ "$FULL" = true ] && echo yes || echo no), tree ${NAME#green-tree-}" >> "$GITHUB_STEP_SUMMARY" && uv run jbus ci --notice full="$FULL" tree="${NAME#green-tree-}"'
+  # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
+  # whatever the parts did, and passes only when all four passed: a part that failed, was
+  # cancelled or never ran fails it, where a skipped required check would count as passed.
+  check:
+    if: always() && github.event_name == 'pull_request'
+    needs: check-shard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: every part passed
+        env:
+          PARTS: ${{ needs.check-shard.result }}
+        run: '[ "$PARTS" = success ] || { echo "::error::the parts of the check ended $PARTS, not success"; exit 1; }'
+      # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
+      # tree, and a fast run leaves none, since a marker says the full suite passed. A later
+      # run of the same tree, main's after a squash merge or jmerge's fresh check, skips the
+      # suite on it. A marker that cannot be kept costs that skip and nothing else.
+      - name: green tree marker
+        id: marker
+        if: needs.check-shard.result == 'success' && needs.check-shard.outputs.selection == 'all'
+        env:
+          NAME: ${{ needs.check-shard.outputs.tree }}
+        run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: upload
+        if: steps.marker.outcome == 'success'
+        continue-on-error: true
+        with:
+          name: ${{ needs.check-shard.outputs.tree }}
+          path: ${{ runner.temp }}/green-tree/${{ needs.check-shard.outputs.tree }}
+          retention-days: 7
+          if-no-files-found: error
   # The full suite, on each push to main, after the merge, and by hand. The tests that open a
-  # real browser are not in it: browser.yml runs them, nightly and on a release.
-  full:
+  # real browser are not in it: browser.yml runs them, nightly and on a release. It runs as
+  # four jobs side by side, as the check does, and the job `full` below passes only when all
+  # four did.
+  full-shard:
     if: github.event_name != 'pull_request'
+    name: full ${{ matrix.shard }} of 4
     # GitHub's hosted runner, as the check's. The job took 9 and 15 minutes on two runs of
     # 2026-10-22, the same suite on runners of the same image: 30 leaves room for a slow one,
     # and a hung run still stops.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    outputs:
+      tree: ${{ steps.tree.outputs.name }}
+      lookup: ${{ steps.tree.outcome }}
+      suite: ${{ steps.suite.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -147,7 +182,7 @@ jobs:
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'
-        run: make check JUNIT="$RUNNER_TEMP/junit.xml"
+        run: make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4
       # One line on the job's summary for ci.jsonl, after the suite ran, passed or failed: the
       # workers, the CPU quota they were counted from, the suite's wall, the test time summed
       # over every test, the tail (the wall less that sum shared out over the workers: the time
@@ -194,24 +229,36 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write(line + "\n")
           EOF
-      # Only after the suite ran and passed. A marker that cannot be kept costs the next run
-      # of this tree its skip and nothing else.
+  # What a push's run reports, as `check` does for a pull request: it passes only when all four
+  # parts passed, and fails on a part that failed, was cancelled or never ran.
+  full:
+    if: always() && github.event_name != 'pull_request'
+    needs: full-shard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: every part passed
+        env:
+          PARTS: ${{ needs.full-shard.result }}
+        run: '[ "$PARTS" = success ] || { echo "::error::the parts of the full run ended $PARTS, not success"; exit 1; }'
+      # Only after the suite ran and passed in the parts. A marker that cannot be kept costs
+      # the next run of this tree its skip and nothing else.
       - name: green tree marker
         id: marker
-        if: steps.suite.outcome == 'success' && steps.tree.outputs.name != ''
+        if: needs.full-shard.result == 'success' && needs.full-shard.outputs.suite == 'success' && needs.full-shard.outputs.tree != ''
         env:
-          NAME: ${{ steps.tree.outputs.name }}
+          NAME: ${{ needs.full-shard.outputs.tree }}
         run: mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: upload
         if: steps.marker.outcome == 'success'
         continue-on-error: true
         with:
-          name: ${{ steps.tree.outputs.name }}
-          path: ${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}
+          name: ${{ needs.full-shard.outputs.tree }}
+          path: ${{ runner.temp }}/green-tree/${{ needs.full-shard.outputs.tree }}
           retention-days: 7
           if-no-files-found: error
       # A lookup or an upload that does not work never fails the run, so it says so here.
       - name: green tree warnings
-        if: steps.tree.outcome == 'failure' || steps.upload.outcome == 'failure'
-        run: echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"
+        if: needs.full-shard.outputs.lookup == 'failure' || steps.upload.outcome == 'failure'
+        run: echo "::warning::green-tree, the lookup ended ${{ needs.full-shard.outputs.lookup }} and the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"

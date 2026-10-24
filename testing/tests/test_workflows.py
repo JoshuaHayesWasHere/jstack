@@ -2,9 +2,11 @@
 and on every pull request. The next run never cancels a run on any of them, because each push's
 run is a concurrency group of its own. A pull request gets the job `check`, the fast one, which
 runs the lint and the tests its change reaches. A push to main or to an integration branch, and
-a manual run, get the job `full`, the whole suite. The workflow checks a push to an integration
-branch as it checks a push to main. jmerge holds a pull request into an integration branch
-while that branch is red, so jmerge has a check to read on the branch's tip.
+a manual run, get the job `full`, the whole suite. Each runs its tests as four parts side by
+side, the jobs `check-shard` and `full-shard`, and passes only when all four did. The workflow
+checks a push to an integration branch as it checks a push to main. jmerge holds a pull request
+into an integration branch while that branch is red, so jmerge has a check to read on the
+branch's tip.
 
 The test reads the workflow file as YAML with two small readers, `mapping` and `block`, which handle
 only mappings by their indentation, a scalar, and a list in brackets.
@@ -176,7 +178,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
     assert {path.name: jobs(path.read_text()) for path in sorted(WORKFLOWS.glob("*.yml"))} == {
         "borders.yml": {"borders": HOSTED},
         "browser.yml": {"browser": HOSTED},
-        "check.yml": {"check": HOSTED, "full": HOSTED},
+        "check.yml": {"check-shard": HOSTED, "check": HOSTED, "full-shard": HOSTED, "full": HOSTED},
         "macos.yml": {"macos": MACOS},
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
@@ -398,8 +400,10 @@ def cap(text, job):
 CAPS = {
     ("borders.yml", "borders"): "5",
     ("browser.yml", "browser"): "15",
-    ("check.yml", "check"): "30",
-    ("check.yml", "full"): "30",
+    ("check.yml", "check-shard"): "30",
+    ("check.yml", "check"): "5",
+    ("check.yml", "full-shard"): "30",
+    ("check.yml", "full"): "5",
     ("macos.yml", "macos"): "15",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
@@ -420,7 +424,7 @@ def test_every_job_has_a_cap_that_stops_a_hung_run():
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
 ZSH = "sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh"
-SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml"'
+SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 
 
@@ -437,12 +441,78 @@ def ran_on(job):
             inside = indent == 2 and line.strip() == f"{job}:"
         elif inside and indent == 4 and line.startswith("    if: "):
             when = line.partition(": ")[2]
-    return [e for e in EVENTS if worked(when, {"github.event_name": e})]
+    return [e for e in EVENTS if worked(when, {"always()": True, "github.event_name": e})]
 
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
-    assert jobs(CHECK.read_text()) == {"check": HOSTED, "full": HOSTED}
-    assert (ran_on("check"), ran_on("full")) == (["pull_request"], ["push", "workflow_dispatch"])
+    assert jobs(CHECK.read_text()) == {
+        "check-shard": HOSTED,
+        "check": HOSTED,
+        "full-shard": HOSTED,
+        "full": HOSTED,
+    }
+    pull, push = ["pull_request"], ["push", "workflow_dispatch"]
+    assert [ran_on(job) for job in ("check-shard", "check", "full-shard", "full")] == [
+        pull,
+        pull,
+        push,
+        push,
+    ]
+
+
+def job_section(job, key):
+    """One mapping key of a job, `strategy` or `outputs`, as a mapping."""
+    lines, inside, at = [], False, None
+    for line in CHECK.read_text().splitlines():
+        indent = len(line) - len(line.lstrip())
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if indent <= 2:
+            inside = indent == 2 and line.strip() == f"{job}:"
+        elif inside and indent == 4:
+            at = line.strip() == f"{key}:"
+        elif inside and at:
+            lines.append(line)
+    return mapping(lines, 6)[0]
+
+
+def job_line(job, key):
+    """One scalar key of a job, as written, or None."""
+    inside = False
+    for line in CHECK.read_text().splitlines():
+        indent = len(line) - len(line.lstrip())
+        if indent <= 2 and line.strip() and not line.lstrip().startswith("#"):
+            inside = indent == 2 and line.strip() == f"{job}:"
+        elif inside and indent == 4 and line.strip().startswith(f"{key}:"):
+            return scalar(line.partition(":")[2])
+    return None
+
+
+PARTS = ["1", "2", "3", "4"]
+RESULTS = ("success", "failure", "cancelled", "skipped")
+
+
+@pytest.mark.parametrize("gate,parts", [("check", "check-shard"), ("full", "full-shard")])
+def test_the_suite_runs_as_four_parts_side_by_side_and_one_job_passes_only_when_all_four_did(
+    gate, parts, tmp_path
+):
+    """The ruleset and jmerge require the job named `check`, so it stays one job: it waits on the
+    four parts whatever they did, and this runs its first step on each result GitHub can give."""
+    assert job_section(parts, "strategy") == {"fail-fast": False, "matrix": {"shard": PARTS}}
+    assert job_line(parts, "name") == f"{gate} ${{{{ matrix.shard }}}} of 4"
+    assert job_line(gate, "needs") == parts
+    assert job_line(gate, "if").startswith("always() && ")
+    (every, *_), _ = steps(CHECK.read_text(), gate)
+    assert every["env"] == {"PARTS": f"${{{{ needs.{parts}.result }}}}"}
+    ran = {
+        result: subprocess.run(
+            ["sh", "-c", every["run"]], env={"PARTS": result}, capture_output=True, text=True
+        )
+        for result in RESULTS
+    }
+    assert [result for result in RESULTS if ran[result].returncode == 0] == ["success"]
+    assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
+    assert "SHARD=${{ matrix.shard }}/4" in " ".join(map(str, steps(CHECK.read_text(), parts)[0]))
 
 
 def test_macos_runs_on_every_pull_request_and_on_nothing_else():
@@ -514,14 +584,14 @@ def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_
 
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
-    found, keys = steps(CHECK.read_text(), "check")
+    found, keys = steps(CHECK.read_text(), "check-shard")
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:6] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
         ZSH,
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
-        "make check-fast BASE=HEAD^1",
+        "make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/4",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
     assert all("if" not in step for step in found[:6])
@@ -530,34 +600,47 @@ def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_
 
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
     """A pull request's check skips nothing: its own run is the proof that the suite passed,
-    and a marker records that."""
+    and a marker records that. The parts ask, and the one job over them leaves it."""
     asking = ("green_tree.py", "steps.tree.outputs.marker")
-    leaving = ("green-tree", "upload-artifact", "steps.suite", "steps.marker")
-    for job, asks in (("check", False), ("full", True)):
+    leaving = ("green-tree", "upload-artifact", "needs.", "steps.marker")
+    for job, gate, asks in (("check-shard", "check", False), ("full-shard", "full", True)):
         said = " ".join(map(str, steps(CHECK.read_text(), job)[0]))
         assert [word for word in asking if word in said] == (list(asking) if asks else []), job
-        assert [word for word in leaving if word in said] == list(leaving), job
+        assert "upload-artifact" not in said, job
+        said = " ".join(map(str, steps(CHECK.read_text(), gate)[0]))
+        assert [word for word in leaving if word in said] == list(leaving), gate
 
 
 def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_and_passed():
-    *_, mark, upload, report = steps(CHECK.read_text(), "check")[0]
+    *_, mark, upload = steps(CHECK.read_text(), "check")[0]
+    assert job_section("check-shard", "outputs") == {
+        "selection": "${{ steps.suite.outputs.selection }}",
+        "tree": "${{ steps.tree.outputs.name }}",
+    }
     assert [
-        (outcome, selection)
-        for outcome in OUTCOMES
+        (result, selection)
+        for result in RESULTS
         for selection in ("all", "some", "")
         if worked(
-            mark["if"], {"steps.suite.outcome": outcome, "steps.suite.outputs.selection": selection}
+            mark["if"],
+            {
+                "needs.check-shard.result": result,
+                "needs.check-shard.outputs.selection": selection,
+            },
         )
     ] == [("success", "all")]
-    assert (mark["id"], mark["env"]) == ("marker", {"NAME": "${{ steps.tree.outputs.name }}"})
+    assert (mark["id"], mark["env"]) == (
+        "marker",
+        {"NAME": "${{ needs.check-shard.outputs.tree }}"},
+    )
     assert (
         mark["run"] == 'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"'
     )
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
     assert (upload["id"], upload["continue-on-error"]) == ("upload", True)
     assert upload["with"] == {
-        "name": "${{ steps.tree.outputs.name }}",
-        "path": "${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}",
+        "name": "${{ needs.check-shard.outputs.tree }}",
+        "path": "${{ runner.temp }}/green-tree/${{ needs.check-shard.outputs.tree }}",
         "retention-days": "7",
         "if-no-files-found": "error",
     }
@@ -565,7 +648,7 @@ def test_a_pull_requests_check_leaves_a_marker_only_when_it_ran_the_whole_suite_
 
 def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tree(tmp_path):
     """This runs the step as the runner runs it, with a `uv` that records what it was asked."""
-    *_, report = steps(CHECK.read_text(), "check")[0]
+    *_, report = steps(CHECK.read_text(), "check-shard")[0]
     assert report["continue-on-error"] is True
     assert [
         o
@@ -596,8 +679,8 @@ def test_a_pull_requests_check_says_whether_the_suite_ran_whole_and_on_which_tre
 
 
 def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
-    found, keys = steps(CHECK.read_text(), "full")
-    assert "if" in keys and ran_on("full") == ["push", "workflow_dispatch"]
+    found, keys = steps(CHECK.read_text(), "full-shard")
+    assert "if" in keys and ran_on("full-shard") == ["push", "workflow_dispatch"]
     assert [step.get("uses", step.get("run")).partition("@")[0] for step in found] == [
         "actions/checkout",
         "python3 scripts/green_tree.py",
@@ -606,10 +689,14 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         ZSH,
         SUITE,
         "|",
+    ]
+    gate, _ = steps(CHECK.read_text(), "full")
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in gate][1:] == [
         'mkdir -p "$RUNNER_TEMP/green-tree" && touch "$RUNNER_TEMP/green-tree/$NAME"',
         "actions/upload-artifact",
-        'echo "::warning::green-tree, the lookup ended ${{ steps.tree.outcome }} and the upload'
-        ' ${{ steps.upload.outcome }}, so a later run of this tree may not skip the suite"',
+        'echo "::warning::green-tree, the lookup ended ${{ needs.full-shard.outputs.lookup }} and'
+        " the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the"
+        ' suite"',
     ]
     checkout, ask, setup, sync, zsh, suite, *_ = found
     assert "if" not in checkout
@@ -630,7 +717,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
 
 def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
-    found, _ = steps(CHECK.read_text(), "full")
+    found, _ = steps(CHECK.read_text(), "full-shard")
     _, _, setup, sync, _, suite, *_ = found
     assert (sync["run"], suite["run"]) == ("uv sync --locked", SUITE)
     ran = {
@@ -657,20 +744,31 @@ OUTCOMES = ("success", "failure", "cancelled", "skipped", "")
 
 def test_the_marker_is_left_only_after_the_suite_ran_and_passed():
     *_, mark, upload, warn = steps(CHECK.read_text(), "full")[0]
+    assert job_section("full-shard", "outputs") == {
+        "tree": "${{ steps.tree.outputs.name }}",
+        "lookup": "${{ steps.tree.outcome }}",
+        "suite": "${{ steps.suite.outcome }}",
+    }
     assert [
-        (outcome, name)
+        (result, outcome, name)
+        for result in RESULTS
         for outcome in OUTCOMES
         for name in ("green-tree-1", "")
-        if worked(mark["if"], {"steps.suite.outcome": outcome, "steps.tree.outputs.name": name})
-    ] == [("success", "green-tree-1")]
+        if worked(
+            mark["if"],
+            {
+                "needs.full-shard.result": result,
+                "needs.full-shard.outputs.suite": outcome,
+                "needs.full-shard.outputs.tree": name,
+            },
+        )
+    ] == [("success", "success", "green-tree-1")]
     assert mark["id"] == "marker"
     assert [o for o in OUTCOMES if worked(upload["if"], {"steps.marker.outcome": o})] == ["success"]
-    text = CHECK.read_text()
-    assert "\n          NAME: ${{ steps.tree.outputs.name }}\n" in text
-    assert "\n          name: ${{ steps.tree.outputs.name }}\n" in text
-    assert (
-        "\n          path: ${{ runner.temp }}/green-tree/${{ steps.tree.outputs.name }}\n" in text
-    )
+    tree = "${{ needs.full-shard.outputs.tree }}"
+    assert mark["env"] == {"NAME": tree}
+    assert upload["with"]["name"] == tree
+    assert upload["with"]["path"] == f"${{{{ runner.temp }}}}/green-tree/{tree}"
 
 
 def test_a_lookup_or_an_upload_that_failed_never_fails_the_run_and_is_a_warning_on_it():
@@ -680,7 +778,9 @@ def test_a_lookup_or_an_upload_that_failed_never_fails_the_run_and_is_a_warning_
         (tree, sent)
         for tree in ("success", "failure")
         for sent in ("success", "failure", "skipped")
-        if worked(warn["if"], {"steps.tree.outcome": tree, "steps.upload.outcome": sent})
+        if worked(
+            warn["if"], {"needs.full-shard.outputs.lookup": tree, "steps.upload.outcome": sent}
+        )
     ] == [
         ("success", "failure"),
         ("failure", "success"),
@@ -714,7 +814,7 @@ def summary_step(name="suite summary", path=CHECK):
 def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_pressure(tmp_path):
     """This runs the step on a report of 100 seconds of test time, in 100 seconds of wall-clock
     time, on 4 workers under a quota of 4 CPUs."""
-    found, _ = steps(CHECK.read_text(), "full")
+    found, _ = steps(CHECK.read_text(), "full-shard")
     (summary,) = [step for step in found if step.get("name") == "suite summary"]
     ran = {"!cancelled()": True}
     assert [o for o in OUTCOMES if worked(summary["if"], ran | {"steps.suite.outcome": o})] == [
@@ -1143,7 +1243,7 @@ def test_a_push_runs_the_browser_tests_for_a_version_tag_and_never_for_a_branch(
 def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_name_that_target():
     found, _ = steps(BROWSER.read_text(), "browser")
     assert found[-1] == {"name": "make check-browser", "run": "make check-browser"}
-    for job in ("check", "full"):
+    for job in ("check-shard", "check", "full-shard", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
@@ -1353,10 +1453,12 @@ HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
 
 
 def test_a_pull_requests_check_fails_on_an_ai_trailer_after_the_suite_whatever_it_said():
-    found, _ = steps(CHECK.read_text(), "check")
+    found, _ = steps(CHECK.read_text(), "check-shard")
     (trailer,) = [step for step in found if step.get("name") == "no AI co-author trailer"]
     assert trailer["run"] == "uv run python scripts/no_ai_trailers.py"
-    assert trailer["if"] == "!cancelled() && steps.suite.outcome != 'skipped'"
+    assert trailer["if"] == (
+        "!cancelled() && steps.suite.outcome != 'skipped' && matrix.shard == 1"
+    )
     assert trailer["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
     assert found.index(trailer) > [step.get("id") for step in found].index("suite")
 

@@ -606,7 +606,10 @@ def test_a_brief_changed_again_after_a_second_go_is_a_gate_again(kitchen):
         kitchen.config(dispatch=False)
         kitchen.poll(NOW + timedelta(minutes=3))
         kitchen.config()
-    assert gates(kitchen) == ["condition alpha: brief changed after approval"] * 2
+    assert gates(kitchen) == [
+        f"condition alpha: brief changed after approval: Done when: {line}"
+        for line in ("One.", "Two.")
+    ]
 
 
 def test_an_approved_row_whose_slug_has_a_settled_thread_is_a_gate(kitchen):
@@ -647,7 +650,9 @@ def test_a_brief_changed_after_the_go_is_a_gate_until_it_is_approved_again(kitch
     add(kitchen, "alpha", approve=False, text=widened("alpha"))
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert gates(kitchen) == ["condition alpha: brief changed after approval"]
+    assert gates(kitchen) == [
+        "condition alpha: brief changed after approval: Done when: One more line."
+    ]
     assert kitchen.t3.launches == [] and rows(kitchen)["alpha"]["status"] == "gate"
     assert go(kitchen, "alpha")[0] == 0
     kitchen.poll(NOW + timedelta(minutes=6))
@@ -1194,20 +1199,23 @@ def test_a_thread_line_changed_in_the_head_leaves_the_approval_standing(kitchen)
 
 
 @pytest.mark.parametrize(
-    "again",
+    "again, named",
     [
-        brief("alpha").replace("a new test", "another test"),
-        widened("alpha"),
-        brief("alpha").replace("Size: S", "Size: L"),
-        brief("alpha").replace('Task: "do alpha"', 'Task: "do alpha twice"'),
+        (brief("alpha").replace("a new test", "another test"), "Where: `src/alpha/`, another test"),
+        (widened("alpha"), "Done when: One more line."),
+        (brief("alpha").replace("Size: S", "Size: L"), "Size: L"),
+        (
+            brief("alpha").replace('Task: "do alpha"', 'Task: "do alpha twice"'),
+            'Task: "do alpha twice"',
+        ),
     ],
     ids=["where", "done when", "size", "task"],
 )
-def test_a_change_to_the_goal_or_the_scope_still_voids_the_approval(kitchen, again):
+def test_a_change_to_the_goal_or_the_scope_still_voids_the_approval(kitchen, again, named):
     add(kitchen, "alpha")
     add(kitchen, "alpha", approve=False, text=again)
     kitchen.poll()
-    assert gates(kitchen) == ["condition alpha: brief changed after approval"]
+    assert gates(kitchen) == [f"condition alpha: brief changed after approval: {named}"]
     assert kitchen.t3.launches == []
 
 
@@ -1215,7 +1223,8 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
     kitchen,
 ):
     """The sha once covered every line of the brief, the `Home:` and `Thread:` lines included. A
-    row that the user approved in that time holds the sha of the whole text."""
+    row that the user approved in that time holds the sha of the whole text, and its first `add`
+    binds it to the meaning, so only a change to what the brief asks for voids it."""
     kitchen.config(max_running=6)
     for slug in ("alpha", "beta", "gamma"):
         add(kitchen, slug)
@@ -1227,10 +1236,13 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
     (kitchen.state / "queue.json").write_text(json.dumps(table))
     add(kitchen, "beta", approve=False, text=readdressed("beta"))
     assert rows(kitchen)["beta"]["brief_sha"] == queue.brief_sha(brief("beta"))
-    add(kitchen, "gamma", approve=False, text=readdressed("gamma") + "One more line.\n")
+    wider = readdressed("gamma").replace("- it is done\n", "- it is done\n- One more line.\n")
+    add(kitchen, "gamma", approve=False, text=wider)
     kitchen.poll()
     assert sorted(given["title"] for given in kitchen.t3.launches) == ["crew: alpha", "crew: beta"]
-    assert gates(kitchen) == ["condition gamma: brief changed after approval"]
+    assert gates(kitchen) == [
+        "condition gamma: brief changed after approval: Done when: One more line."
+    ]
 
 
 def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):

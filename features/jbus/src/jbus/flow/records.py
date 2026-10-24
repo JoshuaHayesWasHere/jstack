@@ -6,7 +6,7 @@ on fixture text with no command run. `ask` is the one function that runs a comma
 only commands that read: `journalctl`, `git remote get-url` and `gh` with `pr list` and `api` on
 a `GET` address. The jobs of each run are a call per run, so they are asked for only on
 `--jobs`, and only when the calls leave at least half of GitHub's hourly budget, which jbus's
-own passes share (`affordable`).
+own passes share, and above the floor of `jbus.budget` (`affordable`).
 
 A row's `Sighting` is what a table of the event log said of it at one time: its status, its
 checks, its pull request, its thread, the rows it depends on or merges after, why it waits, and
@@ -30,6 +30,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from jbus import budget
 from jmerge import lines
 
 ZONES = {"EDT": timezone(timedelta(hours=-4)), "EST": timezone(timedelta(hours=-5))}
@@ -380,12 +381,14 @@ def github_runs(repo: str, since: datetime, until: datetime, jobs: bool) -> list
 
 
 class Unaffordable(Exception):
-    """Asking for each run's jobs would spend more than `SHARE` of what GitHub has left."""
+    """Asking for each run's jobs would spend more than `SHARE` of what GitHub has left, or take
+    it to the floor (`jbus.budget`)."""
 
     def __init__(self, repo: str, runs: int) -> None:
         super().__init__(
             f"refused: the jobs of {repo}'s {runs} runs are a call each, more than "
-            f"{SHARE:.0%} of the GitHub calls left this hour, which every pass of jbus shares: "
+            f"{SHARE:.0%} of the GitHub calls left this hour or past the floor of "
+            f"{budget.FLOOR} kept for merges, which every pass of jbus and every thread share: "
             "run again without --jobs, or later"
         )
 
@@ -394,13 +397,11 @@ SHARE = 0.5
 
 
 def affordable(calls: int) -> bool:
-    """Return whether `calls` more calls leave GitHub's hourly budget at least half full. Asking
-    for the budget is itself free."""
-    said = ask(["gh", "api", "rate_limit", "--jq", ".resources.core.remaining"])
-    try:
-        return calls <= int((said or "0").strip()) * SHARE
-    except ValueError:
-        return False
+    """Return whether `calls` more calls leave GitHub's hourly budget at least half full, and
+    above the floor that jbus and the threads keep (`jbus.budget`). Asking for the budget is
+    itself free."""
+    left = budget.read(ask)
+    return left is not None and not budget.held(left, calls) and calls <= left.low.remaining * SHARE
 
 
 def github_merges(repo: str, since: datetime) -> dict[str, datetime] | None:

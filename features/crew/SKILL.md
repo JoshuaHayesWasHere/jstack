@@ -172,6 +172,10 @@ On an `Update on pull request` message for a comment or review, and on no messag
 
 ```sh
 remarks() {
+    if ! said=$(uv run --project "$T/.." jbus budget --calls 10); then
+        echo "not known: ${said#held: }, so no comment is acted on"
+        return
+    fi
     owner=$(gh api 'repos/{owner}/{repo}' --jq '.owner.login') || owner=
     number=$(gh pr view --json number --jq '.number') || number=
     if [ -z "$owner" ] || [ -z "$number" ]; then
@@ -292,23 +296,23 @@ A line about a pull request is sent only while the home is the one that merges: 
 ```sh
 B="$H/tasks/<slug>.md"
 line='<fixed or waits>'
-D=$(uv run --project "$T/.." jbus home --directory "$B")
-scope=
-if [ "$D" != "$H" ]; then scope=${D##*/}; fi
 if [ "$line" != fixed ] && [ "$line" != waits ]; then
     echo "not filled in: put fixed or waits in place of the placeholder"
 elif [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then
     echo "home merges: send the line to the thread the block below prints"
-elif [ "$line" = fixed ] && [ -z "$scope" ]; then
-    echo "jbus merges: send nothing, jbus reads the brief and the pull request on each pass"
 elif [ "$line" = fixed ]; then
-    echo "jbus merges: send no line, and park it as a gate with the default that the pull request waits: jbus merges no pull request of the scoped home $scope"
+    echo "jbus merges: send nothing, jbus reads the brief and the pull request on each pass"
 else
     echo "jbus merges: send no line, and park it as a gate with the default that the pull request waits"
 fi
 ```
 
-On `home merges`, **the thread that hears of a pull request** is the one the block below prints. On `jbus merges: send nothing`, write the lines the Result is owed and go on: `jmerge`, run by jbus, reads them. On `jbus merges: send no line, and park it as a gate`, the line asks for somebody's word and jbus's `jmerge` says only `wait` of such a pull request: park a gate ("Do the task") whose question is the line without its `at <head>`, with the default that the pull request waits and the head on its `Built on it:` line. jbus tells one gate from another by its slug and its question, so a later head of the same pull request is the same gate, and `already sent` is no fault. A brief of a scoped home is the one case where `fixed` is parked: jbus runs `jmerge` as the root home would and merges no pull request of another home, so a ready one is the user's to merge. A block beside a send that prints `tell the home` is answered by this one.
+On `home merges`, **the thread that hears of a pull request** is the one the block below prints.
+On `jbus merges: send nothing`, write the lines the Result is owed and go on: `jmerge`, run by jbus, reads them.
+On `jbus merges: send no line, and park it as a gate`, the line asks for somebody's word and jbus's `jmerge` says only `wait` of such a pull request: park a gate ("Do the task") whose question is the line without its `at <head>`, with the default that the pull request waits and the head on its `Built on it:` line.
+jbus tells one gate from another by its slug and its question, so a later head of the same pull request is the same gate, and `already sent` is no fault.
+A brief of a scoped home is told the same way: jbus merges its pull request as it merges the root home's.
+A block beside a send that prints `tell the home` is answered by this one.
 
 Whom to send it to is this. Shell variables do not last from one call to the next, so run it in one call with the block at the top and `B` set to the brief, `$H/tasks/<slug>.md`:
 
