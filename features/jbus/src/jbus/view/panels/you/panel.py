@@ -17,7 +17,9 @@ is a question for its home, not for the user, so it is on neither queue.
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
 page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
 last `seen` at. Every other need has those two empty. Each need names the task it is about, its
-`slug`, or none, so the page draws that task once. Where a proposed item's row waits for its
+`slug`, or none, so the page draws that task once. Every need names its subject, `subj`: the row
+or question it is about (`waiting.subject`), or the title of a thread of no row, so that no need
+reads only as its question. Where a proposed item's row waits for its
 approval, the panel leaves the item to that row. A go by the item's id is no go of the row. But
 for a row whose item was redirected, the item's id is the only thing that approves it
 (`jbus.steer.approvable`). So the item's need then takes the row's place."""
@@ -92,6 +94,7 @@ _NEED = {
         "item",
         "seen",
         "slug",
+        "subj",
         "home",
     )
 } | {"answerable": None, "unblocks": [None]}
@@ -274,6 +277,7 @@ def _need(
     words, the one verb that moves it, what it risks, what it unblocks and where it opens."""
     kind, slug = waits["kind"], waits["slug"]
     line = _after(waits["line"], slug)
+    rowed = any(row["slug"] == slug for row in read.rows)
     if kind == "gate":
         what, why = waits["question"], _cut(waits["context"])
     else:
@@ -299,6 +303,7 @@ def _need(
         "item": "",
         "seen": "",
         "slug": slug,
+        "subj": waiting.subject(waits | ({} if rowed else {"slug": ""})),
         "home": read.homes.of_gate(waits["home"])
         if waits["home"]
         else read.homes.of_task(slug).name,
@@ -340,6 +345,7 @@ def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict
                 "item": one.id,
                 "seen": one.last_event,
                 "slug": one.slug or "",
+                "subj": one.slug or one.id,
                 "home": read.homes.of_task(one.slug or "").name,
             }
         )
@@ -397,6 +403,7 @@ def _rows(read: Read, listed: dict[str, dict[str, Any]]) -> list[dict[str, Any]]
                 "why": _cut(said if what != said else "", WHY),
                 "since": task["since"] or (one["since"] if one else None),
                 "unblocks": list(dict.fromkeys([*(one["unblocks"] if one else []), *depends])),
+                "subj": slug,
                 "home": task["home"],
             }
             | _work(read, value, slug, one)
@@ -430,6 +437,7 @@ def _threads(read: Read) -> list[dict[str, Any]]:
                 "why": _cut(said or text(line.get("waits")), WHY),
                 "since": wrote.get(line.get("key")),
                 "unblocks": [],
+                "subj": slug or _cut(text(line.get("title")) or key, 100),
                 "home": (owner or Owner()).name,
             }
             | _work(read, value, slug, None)

@@ -157,3 +157,29 @@ def test_each_need_names_the_row_or_question_it_is_about(tmp_path, monkeypatch):
     assert subjects["#14"] == "oat-honey"
     gate = next(one for one in given["needs"] + given["proceeds"] if one["kind"] == "gate")
     assert gate["subj"] == "question 4"
+
+
+def test_a_stall_of_a_head_no_record_counts_now_and_one_of_a_leftover_are_not_wrong(
+    tmp_path, monkeypatch
+):
+    """A stall that names a head stands while jbus still counts that head. A stall of a
+    leftover is a need, and is not drawn again here."""
+    scene = Scene(tmp_path, monkeypatch)
+    troubled(scene)
+    moved = idle(12) | {"head": "fedcba987654" * 3 + "fedc"}
+    scene.write("expedite.json", {"oat-spoon": moved})
+    assert ("stall", "oat-spoon") not in found(stack(scene))
+    scene.write("expedite.json", {})
+    left = "stall oat-spoon: it ended with something left, and its home did not close it; left: x"
+    scene.events(("stall", "quiet", "oat-spoon", left, 6))
+    assert ("stall", "oat-spoon") not in found(stack(scene))
+
+
+def test_a_red_ci_of_main_in_each_project_is_an_entry_each(tmp_path, monkeypatch):
+    """Only what one machine shares merges: each project's CI is its own."""
+    scene = Scene(tmp_path, monkeypatch)
+    stacked(scene)
+    scene.github([("main", "completed", "failure")])
+    ci = [one for one in stack(scene)["wrong"] if one["kind"] == "ci"]
+    assert sorted(one["where"][0]["project"] for one in ci) == ["demo", "larder", "pantry"]
+    assert all(len(one["where"]) == 1 for one in ci)
