@@ -59,11 +59,11 @@ class Reviewer:
         gh.write_text(f"#!/bin/sh\n{said}\n")
         gh.chmod(0o755)
 
-    def brief(self, mode="after", verdict="findings"):
+    def brief(self, mode="after", verdict="findings", home=""):
         listed = FOUND if verdict == "findings" else "- none\n"
         (self.tasks / "alpha.md").write_text(
             f'# alpha: a task\nTask: "do it"\nPull request: open one when done\n'
-            f"Review: {mode}\n\n"
+            f"Review: {mode}\n{home}\n"
             f"## Result\nStatus: done\nBranch: alpha   Pull request: {PULL}\n"
             "Reviewer: mcp:9\n\n"
             f"## Review\nBy: codex\nVerdict: {verdict}\nHead: {HEAD}\nFindings:\n{listed}"
@@ -117,6 +117,16 @@ def test_findings_on_an_after_brief_make_exactly_one_row_that_waits_for_the_go(r
     assert f"{PULL}, merged as {MERGE}" in stored
     assert reviewer.run().strip() == cleanup.THERE.format(slug="cleanup-alpha")
     assert len(reviewer.rows()) == 1
+
+
+@pytest.mark.parametrize("home", ["Home: flow\n", ""])
+def test_the_cleanup_row_belongs_to_the_home_of_its_parent(reviewer, home):
+    reviewer.merged(MERGE)
+    reviewer.brief(home=home)
+    reviewer.run()
+    stored = queue.brief_path(reviewer.state, "cleanup-alpha").read_text()
+    said = [one + "\n" for one in stored.splitlines() if one.startswith("Home:")]
+    assert said == ([home] if home else []), "its Result goes to the home that owns the work"
 
 
 def test_a_parent_row_removed_from_the_queue_still_gets_its_cleanup_row(reviewer):
