@@ -31,7 +31,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:935-936
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:921-922
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
@@ -58,7 +58,7 @@ CrewFix(p) ==
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1083, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:289-292, red_only
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:284-287, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1039-1040, base moved
     /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1154, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:216, once a head and tip
