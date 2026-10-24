@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import Config, Project, alert, wake
+from jbus import Config, Project, alert, passes
 from jbus.ci import numbers
 
 
@@ -102,7 +102,7 @@ def escalate(
         return 0
     which = "; ".join(f"{one.name} {one.shown} (held to {one.target})" for one in late)
     line = f"ci week {config.user.day(now)}: missed {which}. Report: {path}"
-    run = wake.Pass(config, project, now, say)
+    run = passes.Pass(config, project, now, say)
     run.box.send("", "alert", line, key=f"ci-week-{config.user.day(now)}")
     alert.flush(run)
     say(f"ci: alert for {len(late)} missed")

@@ -12,7 +12,7 @@ from jsonschema import Draft202012Validator
 
 import jbus
 import test_tool_calls as tools
-from jbus import cli, queue, wake
+from jbus import cli, passes, queue, wake
 from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
@@ -66,8 +66,9 @@ def go(kitchen, slug, sha=None, project="demo"):
 
 def add(kitchen, slug, priority=1, depends="", approve=True, text=None, project="demo"):
     argv = ["--project", project, "queue", "add", slug, "--priority", str(priority)]
+    built = brief(slug, f"Builds on: {depends}\n") if depends else brief(slug)
     code, said = kitchen.main(
-        *argv, *(["--depends", depends] if depends else []), stdin=text or brief(slug)
+        *argv, *(["--depends", depends] if depends else []), stdin=text or built
     )
     assert code == 0, said
     if approve:
@@ -294,14 +295,15 @@ def stored(kitchen):
 
 def test_a_batch_applies_every_verb_and_prints_one_line_for_each(kitchen):
     add(kitchen, "old")
-    alpha, beta = sha12(brief("alpha")), sha12(brief("beta"))
+    built = brief("beta", "Builds on: alpha, old\n")
+    alpha, beta = sha12(brief("alpha")), sha12(built)
     code, said = kitchen.main(
         "queue",
         "apply",
         stdin=batch(
             adds("alpha", "--priority 1"),
             "\n",
-            adds("beta", "--priority 2 --depends alpha,old"),
+            adds("beta", "--priority 2 --depends alpha,old", built),
             approves("alpha", alpha),
             "hold old\n",
         ),
@@ -687,7 +689,7 @@ def test_a_row_whose_files_a_brief_still_out_names_is_launched_all_the_same(kitc
     )
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert gates(kitchen) == [] and "--claims" in kitchen.log("jmerge")
+    assert gates(kitchen) == [] and "--claims" in kitchen.log("claims")
     assert len(kitchen.t3.launches) == 1
 
 
@@ -941,14 +943,14 @@ def test_a_changed_brief_is_recorded_with_the_sha_it_has_now(kitchen):
     add(kitchen, "alpha")
     changed = widened("alpha")
     add(kitchen, "alpha", approve=False, text=changed)
-    assert reasons(kitchen) == {"alpha": wake.Changed(sha12(changed))}
+    assert reasons(kitchen) == {"alpha": passes.Changed(sha12(changed))}
 
 
 def test_a_row_that_depends_is_recorded_with_the_slugs_that_are_not_merged(kitchen):
     add(kitchen, "delta", depends="alpha,beta,gamma")
     kitchen.brief("alpha", RESULT)
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
-    assert reasons(kitchen) == {"delta": wake.Depends(("beta", "gamma"))}
+    assert reasons(kitchen) == {"delta": passes.Depends(("beta", "gamma"))}
 
 
 def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_a_slot(kitchen):
@@ -957,7 +959,7 @@ def test_the_row_the_limit_stops_and_every_row_after_it_wait_for_a_slot(kitchen)
     add(kitchen, "alpha", priority=1)
     add(kitchen, "beta", priority=2)
     add(kitchen, "gamma", priority=3, approve=False)
-    assert reasons(kitchen) == {"alpha": wake.Slot(), "beta": wake.Slot()}
+    assert reasons(kitchen) == {"alpha": passes.Slot(), "beta": passes.Slot()}
 
 
 def test_a_row_with_no_room_and_every_row_after_it_wait_for_a_slot(kitchen):
@@ -965,7 +967,7 @@ def test_a_row_with_no_room_and_every_row_after_it_wait_for_a_slot(kitchen):
     add(kitchen, "alpha", priority=1)
     add(kitchen, "beta", priority=2)
     kitchen.machine(load="30.00")
-    assert reasons(kitchen) == {"alpha": wake.Slot(), "beta": wake.Slot()}
+    assert reasons(kitchen) == {"alpha": passes.Slot(), "beta": passes.Slot()}
     assert kitchen.t3.launches == []
 
 
@@ -1358,7 +1360,7 @@ def test_an_order_that_could_never_be_kept_is_refused_and_nothing_is_queued(
             "1",
             "--depends",
             "gamma",
-            stdin=brief("beta"),
+            stdin=brief("beta", "Builds on: gamma\n"),
         )
         before = stored(kitchen)
     argv = ["queue", "add", slug, "--priority", "1", "--merge-after", given]

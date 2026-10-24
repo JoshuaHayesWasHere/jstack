@@ -34,8 +34,9 @@ Each kind of step matches the code as follows:
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
   (`features/jbus/src/jbus/watch.py:797-828`): `green`, `failed`, `cancelled` (a later attempt that
-  was cancelled too) or `refused` (a run GitHub did not start again). `main_check` asks without
-  `again` (`features/jbus/src/jbus/mainmoved.py:77-86`). So the last two answers reach `tell` only
+  was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
+  run's job ran no step, `watch.NO_JOB`). `main_check` asks without `again`
+  (`features/jbus/src/jbus/mainmoved.py`). So `cancelled` and `refused` reach `tell` only
   through `checks.json`, where watch's retro writes them (`_check(..., again=True)`). No `settles`
   event reaches a tip whose check never ends, and that tip stays `pending`.
 - **rerun passes**: the newest tip's check failed, and a rerun of that check on the same tip passes
@@ -89,7 +90,7 @@ RED_PR = "alpha"
 THREAD = "mcp:thread-1"
 HEAD = "c" * 40
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
-SETTLES = ("green", "failed", "cancelled", "refused")
+SETTLES = ("green", "failed", "cancelled", "refused", "nojob")
 ANSWERS, LOSES, REFUSES = "answers", "loses the send", "refuses the send"
 
 
@@ -149,7 +150,7 @@ class Asked:
 
 @dataclass
 class FakePass:
-    """`FakePass` has what `tell` reads of a `jbus.wake.Pass`, over the model's state directory."""
+    """`FakePass` has what `tell` reads of a `jbus.passes.Pass`, over the state of the model."""
 
     state: Path
     checks: dict[str, str]

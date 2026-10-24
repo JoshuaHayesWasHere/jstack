@@ -25,6 +25,13 @@ the top-level one (`wake.Box`), and only once where the two pairs are the same. 
 project with only one of the two keys, because half a pair beside the top-level one would post with
 the wrong key. The top-level pair is secret whether a project uses it or not.
 
+`wake` picks where a project's events for the user go: `home`, the project's home thread through T3
+Code, which is the default; `webhook`, the webhook pair alone; or `both`. Above the first
+`[[project]]` it holds for every project, and a project's own `wake` wins over it. `load` refuses
+any other value, and `webhook` or `both` for a project with no pair to post to. A pair beside
+`wake = "home"` is kept and not posted to. A `home_thread` above the first `[[project]]` is
+`Config.home_thread`: the thread that gets a project's wakes when the project's home has none.
+
 A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the second
 target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to several
 places. jbus posts no event to it. It posts only each blocking item when the item opens, each
@@ -104,6 +111,15 @@ class Project:
     migrations: str = ""
     migration_names: str = NUMBERED
     ci_report: bool = False
+    wake: str = "home"
+
+    @property
+    def to_home(self) -> bool:
+        return self.wake in ("home", "both")
+
+    @property
+    def to_webhook(self) -> bool:
+        return self.wake in ("webhook", "both")
 
 
 @dataclass(frozen=True)
@@ -117,7 +133,7 @@ class Scratch:
 
     def addressee(self) -> Project:
         """Return the home as `word` addresses it: a `Project` with no checkout. It is
-        for the `wake.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
+        for the `passes.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
         nothing else. Its state and its home are `<name>`, as a repo's are."""
         return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
 
@@ -141,6 +157,7 @@ class Config:
     webhook: Hook = ("", "")
     blocking: Hook = ("", "")
     scratch: tuple[Scratch, ...] = ()
+    home_thread: str = ""
 
     @property
     def token_path(self) -> Path:
@@ -283,6 +300,7 @@ def _tabled(raw: dict[str, Any]) -> tuple[Hook, ...]:
 
 
 PAIR = ("webhook_url", "webhook_key")
+WAKES = ("home", "webhook", "both")
 BLOCKING = ("blocking_url", "blocking_key")
 
 
@@ -305,6 +323,22 @@ def _pair(table: dict[str, Any], default: Hook, pair: tuple[str, str] = PAIR) ->
     if not any(name in table for name in pair):
         return default
     return str(table[pair[0]]), str(table[pair[1]])
+
+
+def _wake(name: str, picked: Any, url: str) -> str:
+    """Return a project's `wake`, or `Refused` naming the setting when it is not one of `WAKES` or
+    asks for a webhook the project does not have."""
+    if picked not in WAKES:
+        raise Refused(
+            f"refused: project {name} has wake = {json.dumps(picked)}: "
+            'give "home", "webhook" or "both", or leave it out for "home"'
+        )
+    if picked != "home" and not url:
+        raise Refused(
+            f'refused: project {name} has wake = "{picked}" and no webhook_url and webhook_key '
+            'to post to: give the pair, or wake = "home"'
+        )
+    return picked
 
 
 def load(directory: Path | None = None) -> Config:
@@ -354,6 +388,7 @@ def load(directory: Path | None = None) -> Config:
                     "other: give it both, or neither to take the top-level pair"
                 )
             url, key = _pair(entry, webhook)
+            wake = _wake(str(entry["name"]), entry.get("wake", raw.get("wake", "home")), url)
             migrations, names = _migrations(entry)
             if not isinstance(entry.get("ci_report", False), bool):
                 raise Refused(
@@ -370,6 +405,7 @@ def load(directory: Path | None = None) -> Config:
                     migrations=migrations,
                     migration_names=names,
                     ci_report=entry.get("ci_report", False),
+                    wake=wake,
                 )
             )
         server = str(raw["server"]).rstrip("/")
@@ -403,6 +439,7 @@ def load(directory: Path | None = None) -> Config:
         webhook=webhook,
         blocking=blocking,
         scratch=tuple(scratch),
+        home_thread=str(raw.get("home_thread") or ""),
     )
 
 

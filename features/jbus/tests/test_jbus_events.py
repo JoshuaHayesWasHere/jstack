@@ -50,7 +50,9 @@ def clock(monkeypatch):
 
 
 def box(tmp_path, webhook):
-    project = Project("demo", tmp_path / "checkout", "demo", "project-1", webhook.url, HOOK_KEY)
+    project = Project(
+        "demo", tmp_path / "checkout", "demo", "project-1", webhook.url, HOOK_KEY, wake="webhook"
+    )
     return wake.Box(tmp_path / "state", project)
 
 
@@ -291,6 +293,7 @@ TABLE = {
     "mainmoved": "quiet",
     "resume": "quiet",
     "slot-wake": "quiet",
+    "pool-wake": "quiet",
     "retro": "quiet",
     "snapshot": "quiet",
     "jmerge": "quiet",

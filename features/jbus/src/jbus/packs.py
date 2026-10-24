@@ -16,7 +16,7 @@ The check is a step of the pass's `close` slot, after the sweep.
 from __future__ import annotations
 
 from jbus import read_json, verbs, write_json
-from jbus.wake import Pass
+from jbus.passes import Pass
 from jpack import Refused, stale
 from jpack.verify import git
 

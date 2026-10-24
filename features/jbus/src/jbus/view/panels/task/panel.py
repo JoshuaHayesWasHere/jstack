@@ -43,6 +43,7 @@ _TASK = {
     "checks": None,
     "updated": None,
     "thread": None,
+    "gone": None,
     "depends": [{"slug": None, "state": None}],
     "history": [{"at": None, "word": None, "step": None, "reason": None}],
     "events": [_EVENT],
@@ -58,6 +59,8 @@ _TASK = {
     },
     "wave": None,
     "waits_on": None,
+    "home": None,
+    "retired": None,
 }
 SHAPE = {"tasks": [_TASK], "ended": [_TASK]}
 SOURCES = (PASS_FILE, WORK_FILE, QUEUE_FILE, WAITING_FILE, MOVES_FILE, EVENTS_FILE, MERGE_LOG)

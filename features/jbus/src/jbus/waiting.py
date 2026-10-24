@@ -24,7 +24,7 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `approve`: a row with no approval, or a row whose brief changed after its approval, with its
   `slug`. The line is the command that approves it;
 - `hold`: a pull request that `jmerge` holds, with its `number` and `url`;
-- `config`: a webhook that is not set, or no sign-in to T3 Code.
+- `config`: no sign-in to T3 Code.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
 such an item out of what the last pass left, and `keep` leaves it out of what the pass finds. So the
@@ -101,7 +101,8 @@ from jbus import (
     verbs,
     write_json,
 )
-from jbus.wake import CONDITION, Pass, Slot, renamed
+from jbus.passes import CONDITION, Pass, Slot
+from jbus.wake import renamed
 from jbus.watch import LIVE, World
 
 if TYPE_CHECKING:
@@ -189,6 +190,20 @@ def short(one: Item) -> str:
     what = one.get(by) or one["key"].rpartition(":")[2].lstrip("#")
     home = f"{one['home']}#" if one.get("home") else ""
     return f"{'question' if questions.listed(one) else one['kind']} {home}{what}"
+
+
+def subject(one: Item) -> str:
+    """Return the row or question an item is about: the slug of its row, else `question <n>`
+    for a gate (`question <home>#<n>` for a scoped home's), else `#<n>` for a hold, else what
+    its key names after its kind."""
+    if one.get("slug"):
+        return str(one["slug"])
+    if one["kind"] in ("gate", "hold") and one.get("number"):
+        if one["kind"] == "hold":
+            return f"#{one['number']}"
+        home = f"{one['home']}#" if one.get("home") else ""
+        return f"question {home}{one['number']}"
+    return str(one["key"]).rpartition(":")[2]
 
 
 def read(state: Path) -> list[Item] | None:
@@ -401,6 +416,8 @@ def keep(
         items[key] = {"kind": kind(key), **named, **items.get(key, {}), **root}
     for key in [key for key in items if kind(key) == "approve"]:
         items.pop(f"row:{key.partition(':')[2]}", None)
+        if not _approvable(run, key.partition(":")[2]):
+            del items[key]
     now = run.now.isoformat()
     for key, one in items.items():
         stamps = [one.get("since", now), before.get(key, {}).get("since", now)]
@@ -422,6 +439,13 @@ def keep(
         with contextlib.suppress(OSError):
             file.unlink()
     return listed
+
+
+def _approvable(run: Pass, slug: str) -> bool:
+    """Say whether a row has a brief for the user to approve. The rows a pass read can be older
+    than a removal that ran while the pass did, so this reads `removed.json` and the stored brief
+    again. A row that is there with no brief is `_briefless`'s to report."""
+    return slug not in run.removed and bool((queue.brief(run.state, slug) or "").strip())
 
 
 def paused(text: str) -> str:
@@ -493,7 +517,8 @@ def _alarms(run: Pass) -> list[Item]:
     """Return the streaks that alerted and are still open, of this project or of the pass. Leave out
     the second target's own streak, since jbus would post it to the same webhook that fails."""
     name = run.project.name
-    mine = {alert.PASS, alert.webhook(name), alert.top_level(name), alert.jmerge(name)}
+    mine = {alert.PASS, alert.home(name), alert.webhook(name), alert.top_level(name)}
+    mine.add(alert.jmerge(name))
     found = []
     for key, one in sorted(alert.streaks(run.config.state_dir).items()):
         if key in mine and one.get("alerted"):
@@ -511,7 +536,7 @@ def _briefless(run: Pass, rows: list[queue.Row] | None, listed: list[Item]) -> l
         slug = row["slug"]
         if row.get("status", "queued") not in ("queued", "gate") or f"approve:{slug}" in keys:
             continue
-        if slug in run.removed or queue.brief(run.state, slug) is not None:
+        if slug in run.removed or (queue.brief(run.state, slug) or "").strip():
             continue
         line = f"brief {slug}: the queue has no brief for it, add it again"
         item = {"key": f"brief:{slug}", "kind": "brief", "line": line, "slug": slug}

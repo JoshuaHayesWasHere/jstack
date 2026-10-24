@@ -209,3 +209,31 @@ def test_a_lost_send_is_tried_again_with_the_same_key(kitchen, slots):
 def test_no_waiters_is_a_pass_that_sends_nothing(kitchen):
     kitchen.poll()
     assert sends(kitchen) == [] and kitchen.lines("slot-wake") == []
+
+
+def about(said, thread):
+    return [line for line in said if thread in line]
+
+
+def test_a_waiter_t3_code_no_longer_has_is_dropped_with_one_line(kitchen, slots):
+    slots.hold("short")
+    thread = waiter(kitchen, ago=3)
+    kitchen.t3.threads.remove(next(t for t in kitchen.t3.threads if t["threadId"] == thread))
+    (line,) = about(kitchen.poll(), thread)
+    assert "is gone" in line and "no longer available" in line
+    assert waiters.read(slot.locks_dir()) == []
+    assert about(kitchen.poll(NOW + timedelta(minutes=1)), thread) == []
+
+
+def test_a_waiter_t3_code_will_not_send_to_is_dropped_with_one_line(kitchen, slots):
+    slots.hold("short")
+    thread = waiter(kitchen, ago=3)
+    slots.free("short")
+    kitchen.t3.lose_read = True
+    kitchen.t3.forgot.add(thread)
+    said = kitchen.poll()
+    (line,) = [line for line in about(said, thread) if "is gone" in line]
+    assert "was not found" in line and not any("could not be told" in one for one in said)
+    assert waiters.read(slot.locks_dir()) == [] and told(kitchen) == [thread]
+    assert about(kitchen.poll(NOW + timedelta(minutes=1)), thread) == []
+    assert told(kitchen) == [thread]

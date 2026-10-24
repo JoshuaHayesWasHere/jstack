@@ -371,7 +371,7 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     tests = selected(copy)
     assert (
         "features/jdrift/tests/test_drift.py" in tests
-        and "features/jbus/tests/test_jbus.py" not in tests
+        and "features/jbus/tests/test_jbus_queue.py" not in tests
     )
     assert asked.read_text().splitlines() == [
         *LINT,

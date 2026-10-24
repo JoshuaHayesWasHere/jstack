@@ -16,8 +16,8 @@ A party's folder, `_<name>`, such as an expert's, is no repo's home, and jbus do
 A folder that is a link to a project's home is that home.
 The pass says `homes not on the bus: <names>` in the journal when the list changes, and `jbus status` prints the list as `homes_off_bus`.
 While there is one, the view's machine row shows a Homes item with the count, and the names in its tip.
-jbus adds none of them.
-`jbus project add` adds one, or the home's next start does.
+The pass adds none of these homes.
+You add one with `jbus project add`, or the home's next start does.
 
 - `<name>` is the repo's folder name, which is also the name of its directory under `~/.local/state/home`.
 - `--checkout` is the path of the repo's main checkout.
@@ -31,8 +31,8 @@ The command first copies the config to `config.toml.<time>.bak` beside it.
 Both files are mode 600.
 Every other table stays as it is.
 The new table has `name`, `checkout` and `projectId`, and no webhook.
-The new project uses the top-level webhook when the config has one ([Events and the webhook](events-and-the-webhook.md)).
-With none there, jbus POSTs nothing for it.
+Its wakes go to its home thread, or as the top-level `wake` picks ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
+It uses the top-level webhook when the config has one and its `wake` posts to a webhook.
 A scratch home's table has `name`, `kind` and `projectId` instead.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`.

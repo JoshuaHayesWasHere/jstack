@@ -208,17 +208,8 @@
   .sec { font-size: 20px; margin: 22px 0 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
   .sec .cnt { font-size: 15px; font-weight: 700; color: var(--ink-2); }
   .sec .btn { margin-left: auto; }
-  .prs, .pgl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--hair); }
-  .prs > li, .pgl > li { border-bottom: 1px solid var(--hair); }
-  .prl { display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; padding: 7px 4px; color: var(--ink); text-decoration: none; border-radius: 8px; }
-  .prl:hover { background: var(--sunk); }
-  .pd { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink-3); flex: none; align-self: center; }
-  .pd.op { background: var(--due); border-color: var(--due); }
-  .pd.bad { background: var(--missed); border-color: var(--missed); }
-  .pn { font-size: 18px; }
-  .pwhy { color: var(--missed); font-weight: 600; }
-  .pc { color: var(--ink-2); font-size: 15px; }
-  .pc:first-of-type { margin-left: auto; }
+  .pgl { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--hair); }
+  .pgl > li { border-bottom: 1px solid var(--hair); }
   .pg { display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; padding: 6px 4px; }
   .pgs { border: 0; background: transparent; padding: 0; cursor: pointer; font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--ink); text-align: left; }
   .pgs:hover { text-decoration: underline; }
@@ -227,6 +218,8 @@
   .pgw.bad b { color: var(--missed); }
   .pgw.ask b { color: var(--due); }
   .pga { margin-left: auto; color: var(--ink-2); font-size: 15px; }
+  .pgh { font-size: 16px; margin: 14px 0 4px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .pgh .cnt { font-size: 15px; font-weight: 700; color: var(--ink-2); }
   .chip.bad { background: var(--missed-tint); color: var(--missed); }
   .merged > summary { cursor: pointer; font-size: 20px; font-weight: 700; margin-top: 22px; }
   .merged ul { margin-top: 6px; }
@@ -239,12 +232,50 @@
   .hk.op { color: var(--due); font-weight: 600; }
   .qn { margin: 10px 0 0; }
   .calm { color: var(--ink-2); font-weight: 700; margin: 4px 0; }
+  .tri .needs.wrong { border-left-color: var(--missed); }
+  .tri .needs.wrong h2 b { color: var(--missed); }
+  .tri .tail { margin: 2px 0 0; font-size: 15px; }
+  .tri .tail a, .tri .tail button { color: var(--ink-2); font: inherit; font-weight: 700; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+  .tri .calm { margin-top: 12px; font-weight: 400; }
+  .tri .nr { flex-wrap: nowrap; }
+  .tri .nb { flex: 1 1 0; }
+  .needs.bar:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+  .needs.bar h2 { flex: 1 1 0; min-width: 0; flex-wrap: wrap; }
+  .needs.bar h2 .nm { font-weight: 400; }
+  .needs .go:not([hidden]) { display: inline-flex; align-items: center; min-height: 40px; text-decoration: none; }
+  .map .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 10px; margin-top: 10px; }
+  .card { min-width: 0; border: 1.5px solid var(--hair); border-top: 5px solid var(--ink-3); border-radius: 10px; background: var(--surface); padding: 4px 12px 6px; }
+  .card.op { border-top-color: var(--due); }
+  .card.bad { border-top-color: var(--missed); }
+  .hm { display: flex; flex-wrap: wrap; gap: 0 8px; align-items: baseline; font-size: 15px; padding: 2px 0; min-width: 0; }
+  .hm.root { font-size: 16px; }
+  .hm .cn { font-size: 18px; font-weight: 700; text-decoration: none; }
+  .hm .cn:hover { text-decoration: underline; }
+  .hm .hp { font-weight: 700; white-space: nowrap; }
+  .hm .hh.op { color: var(--due); font-weight: 700; }
+  .hm .hh.bad { color: var(--missed); font-weight: 700; }
+  .hm .ct, .hm .ha { color: var(--ink-2); }
+  .hm .ha { margin-left: auto; }
+  .hf { color: var(--missed); font-weight: 700; text-decoration: none; }
+  .wl { display: block; font-size: 15px; color: var(--missed); text-decoration: none; padding: 1px 0 1px 12px; border-left: 2px solid var(--missed); margin: 1px 0 3px; }
+  .wl code { color: var(--ink); }
+  .wl .wa { color: var(--ink-2); }
+  .wl:hover, .hf:hover { text-decoration: underline; }
+  #map-m .wl { margin-top: 8px; }
+  #map-q .sec { margin-top: 14px; }
+  .ql { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 0 14px; }
+  .ql a { display: flex; gap: 8px; align-items: baseline; text-decoration: none; padding: 2px 0; font-size: 15px; }
+  .ql a b { font-weight: 600; }
+  .ql a span { color: var(--ink-2); }
+  .tab { font-size: 15px; font-weight: 700; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; white-space: nowrap; }
+  .tab[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
 
   @media (max-width: 640px) {
     main { padding: 8px 10px 32px; }
     .hdr { position: static; padding: 4px 10px; gap: 0 10px; }
-    .hdr h1 { order: 3; flex-basis: 100%; }
+    .hdr h1.every, #pick, #theme, .readat:not(.stale), .machw:not(.op):not(.bad) { display: none; }
     .brand { min-height: 44px; display: inline-flex; align-items: center; }
+    .tab { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; }
     .tok { min-height: 44px; border-radius: 10px; padding: 4px 12px; line-height: 1.3; }
     .tok .lb { white-space: normal; overflow: visible; text-align: left; }
     .tok .src { white-space: nowrap; }
@@ -256,6 +287,7 @@
     .merged > summary { min-height: 44px; }
     .theme { padding: 0 14px; }
     .bk { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; white-space: normal; font-size: 15px; }
+    .nm .ilk { min-height: 44px; display: inline-flex; align-items: center; }
     button.bk { border-bottom: 0; text-decoration: underline dotted; }
     .flow { grid-template-columns: minmax(0, 1fr); }
     .fr { min-height: 44px; }
@@ -302,8 +334,10 @@
     .theme.help { display: inline-flex; align-items: center; justify-content: center; }
   }
   @media (max-width: 640px) {
-    .back, .pgs, .prl, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
+    .back, .pgs, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
     .nq .btn, .soon > summary { min-height: 44px; display: flex; align-items: center; }
+    .needs .go:not([hidden]), .hm .cn, .hf, .ql a { min-height: 44px; display: inline-flex; align-items: center; }
+    .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   }
 </style>
@@ -313,6 +347,7 @@
 <header class="hdr">
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
+  <a class="tab" id="tri" href="#/triage" hidden></a>
   <select class="pick" id="pick" aria-label="Project"></select>
   <span class="readat" id="readat"></span>
   <a class="machw" id="mach" hidden></a>
@@ -324,21 +359,28 @@
   <div class="dead" id="dead" role="alert"></div>
   <section class="needs" id="needs" aria-labelledby="needs-h" hidden>
     <h2 id="needs-h"></h2>
+    <a class="btn fill go" id="needs-go" href="#/triage" hidden>Open</a>
     <ol class="nq clean" id="nq"></ol>
     <details class="soon" id="np-w"><summary id="np-h"></summary><ol class="nq clean soon" id="np"></ol></details>
     <div id="nsaid" role="status"></div>
   </section>
   <p class="nx" id="nx"></p>
-  <div id="stack" hidden>
-    <h2 class="sec" id="projects-h">Projects</h2>
-    <ul class="prs" id="rows" aria-labelledby="projects-h"></ul>
+  <div class="tri" id="triage" hidden>
+    <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
+    <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
+    <p class="calm" data-role="calm" id="tri-calm"></p>
+  </div>
+  <div class="map" id="stack" hidden>
+    <div id="map-m"></div>
+    <div class="grid" id="map-c"></div>
+    <section id="map-q" aria-labelledby="map-qh" hidden><h2 class="sec" id="map-qh"></h2><ul class="ql clean" id="map-ql"></ul></section>
   </div>
   <div class="none" id="none" role="alert" hidden></div>
   <div id="one" hidden>
     <section aria-labelledby="prog-h">
       <h2 class="sec" id="prog-h"></h2>
       <p class="calm" id="calm" hidden>Nothing in progress</p>
-      <ol class="pgl" id="prog" aria-labelledby="prog-h"></ol>
+      <div id="prog"></div>
     </section>
     <details class="merged" id="merged-d" hidden><summary id="merged-s"></summary><ul class="clean" id="merged-l"></ul></details>
     <section aria-labelledby="health-h">
@@ -359,12 +401,13 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, ITEMS = {}, ITEM_OF = {};
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
-  var STACK = null, NOSUCH = "", PROJECT = null, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
+  var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
   function parse(hash) {
     var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {};
     parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
+    if (segs[0] === "triage") return { project: "", target: "", more: more, triage: true };
     if (segs[0] === "help") return { project: "", target: "help" + (segs[1] ? ":" + segs.slice(1).map(name).join(":") : ""), more: more };
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
   }
@@ -528,6 +571,7 @@
     if (!m) return;
     var e = machineEdges(m), r = m.room, word = "Machine ok", cls = "";
     if (e.stopped) { word = "jbus stopped"; cls = "bad"; }
+    else if (m.jbus.failed) { word = plural(m.jbus.failed, "pass", "passes") + " failed"; cls = "bad"; }
     else if (e.room) { word = "Machine: room " + (r.answer === "wait" ? "full" : "not known"); cls = "op"; }
     else if (e.runners) { word = "Machine: runners down"; cls = "op"; }
     else if (e.plan) { word = "Machine: plan at its limit"; cls = "op"; }
@@ -539,27 +583,153 @@
     box.title = "jbus, the room, the runners and the plan: open the pulse";
   }
   function renderHeader() {
-    var at = PROJECT || NOSUCH;
-    put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    var at = PROJECT || NOSUCH, tab = $("tri");
+    $("title").classList.toggle("every", !at && !TRIAGE);
+    put($("title"), '<nav class="crumbs" aria-label="You are here">' + (at ? '<a href="' + esc(href("")) + '">All</a><a href="' + esc(href(at)) + '" aria-current="page"><code>' + esc(at) + '</code></a>' : TRIAGE ? '<a href="' + esc(href("")) + '">All</a><a href="#/triage" aria-current="page">Triage</a>' : '<a href="' + esc(href("")) + '" aria-current="page">All projects</a>') + '</nav>');
+    tab.hidden = !STACK;
+    if (STACK) { put(tab, 'Triage <b>' + STACK.needs.length + '</b>'); tab.setAttribute("aria-label", "Triage: " + plural(STACK.needs.length, "thing is", "things are") + " yours"); }
+    if (TRIAGE) tab.setAttribute("aria-current", "page"); else tab.removeAttribute("aria-current");
     var names = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
     if (at && names.indexOf(at) < 0) names.push(at);
     put($("pick"), '<option value=""' + (at ? "" : " selected") + '>All projects</option>' + names.map(function (n) { return '<option value="' + esc(n) + '"' + (n === at ? " selected" : "") + '>' + esc(n) + '</option>'; }).join(""));
     $("pick").hidden = !names.length;
     machineWord();
     $("helpme").setAttribute("href", href(PROJECT, "help"));
-    var named = PROJECT ? "jbus: " + PROJECT : "jbus: every project";
+    var named = PROJECT ? "jbus: " + PROJECT : TRIAGE ? "jbus: triage" : "jbus: every project";
     if (document.title !== named) document.title = named;
   }
-  function projectRow(p) {
-    var why = (STACK.machine.jbus.stopped ? ["jbus stopped"] : []).concat(p.broken.map(function (b) { return b.what; })).join(", "), dot = why ? "bad" : p.waits ? "op" : "", says = [];
-    if (p.waits) says.push(p.waits + " need you");
-    if (why) says.push(why);
-    return '<a class="prl" href="' + esc(href(p.name)) + '"' + (says.length ? ' aria-description="' + esc(says.join(", ")) + '"' : "") + '><i class="pd ' + dot + '"></i><b class="pn">' + esc(p.name) + '</b>' + (why ? '<span class="pwhy">' + esc(why) + '</span>' : "") +
-      '<span class="pc">' + p.open + ' open</span><span class="pc">' + p.merged + ' merged today</span></a>';
+  function brokeSince(b) { var at = ms(b.since); return b.what + (at == null ? ", since not known" : " since " + day(at)); }
+  function passWord(end) { var j = jb(); return j && j.failed ? plural(j.failed, "pass", "passes") + " failed" : end == null ? "" : "last pass " + hm(end); }
+  var HEALTH = { moving: ["moving", ""], waiting: ["waits on a request", "op"], quiet: ["quiet", "op"], hung: ["hung", "bad"], ended: ["ended, work out", "op"], rest: ["at rest", ""] };
+  var FLAG = { stall: "stalled", idle: "idle" };
+  function wrongKey(w) { return w.kind + "/" + w.subj + "/" + w.cause; }
+  function wrongLine(w, where) { return '<a class="wl" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(w.where.length ? linkOf(w.where[0].open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span><code>' + esc(w.subj) + '</code> ' + esc(w.cause) + (where ? " &middot; " + esc(where) : "") + (ms(w.since) == null ? "" : ' <span class="wa">' + esc(ago(w.since)) + '</span>') + '</span></a>'; }
+  function mapOf() {
+    var by = {}, machine = [];
+    STACK.projects.forEach(function (p) {
+      var m = by[p.name] = { p: p, homes: {}, lines: {}, flags: {}, said: {}, asks: 0 };
+      p.homes.forEach(function (h) { m.homes[h.name] = h; m.lines[h.name] = []; m.flags[h.name] = []; });
+    });
+    STACK.wrong.forEach(function (w) {
+      var at = w.where.length === 1 ? w.where[0] : null, m = at && by[at.project];
+      if (!m) { machine.push(w); return; }
+      var home = m.homes[at.home] ? at.home : "";
+      if (FLAG[w.kind]) m.flags[home].push(w);
+      else if (/\/thread\/home\//.test(at.open)) m.said[home] = w;
+      else m.lines[home].push(w);
+    });
+    STACK.proceeds.forEach(function (w) { if (by[w.project]) by[w.project].asks += 1; });
+    var cards = [], quiet = [];
+    STACK.projects.forEach(function (p) {
+      var m = by[p.name], bad = false, op = m.asks > 0;
+      p.homes.forEach(function (h) {
+        var tone = (HEALTH[h.health] || [])[1];
+        if (m.lines[h.name].length || m.flags[h.name].length || m.said[h.name] || tone === "bad") bad = true;
+        if (h.name === "" && p.unplaced.length) bad = true;
+        if (h.waits || tone === "op") op = true;
+      });
+      m.tone = bad ? "bad" : op ? "op" : "";
+      (m.tone ? cards : quiet).push(m);
+    });
+    cards.sort(function (a, b) { return (a.tone !== "bad") - (b.tone !== "bad") || b.p.waits - a.p.waits || (a.p.name < b.p.name ? -1 : 1); });
+    return { machine: machine, cards: cards, quiet: quiet };
+  }
+  function homeLine(m, h) {
+    var root = h.name === "", hs = HEALTH[h.health], said = m.said[h.name], counts = [h.open + " open"];
+    if (h.waits) counts.push(plural(h.waits, "waits", "wait") + " on you");
+    if (root && m.asks) counts.push(m.asks + " on default");
+    var bits = [root ? '<a class="cn" href="' + esc(href(m.p.name)) + '">' + esc(m.p.name) + '</a>' : '<span class="hp">' + esc(homePath(m.p.name, h.name)) + '</span>'];
+    if (hs) bits.push('<span class="hh' + (hs[1] ? " " + hs[1] : "") + '"' + (said ? ' data-wrong="' + esc(wrongKey(said)) + '"' : "") + '>' + esc(hs[0] + (h.since ? " " + ago(h.since) : "")) + '</span>');
+    bits.push('<span class="ct">' + counts.join(" &middot; ") + '</span>');
+    m.flags[h.name].forEach(function (w) { bits.push('<a class="hf" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(linkOf(w.where[0].open)) + '" title="' + esc(w.cause) + '">' + esc(w.subj + " " + FLAG[w.kind]) + '</a>'); });
+    if (!root && h.started) bits.push('<span class="ha">' + esc(ago(h.started)) + ' old</span>');
+    var lines = m.lines[h.name].map(function (w) { return wrongLine(w); });
+    if (root && m.p.unplaced.length) lines.push('<a class="wl" href="' + esc(href(m.p.name)) + '"><span>cannot place ' + esc(m.p.unplaced.join(", ")) + '</span></a>');
+    return '<div class="hm' + (root ? " root" : " child") + '" data-home="' + esc(h.name) + '">' + bits.join(" ") + '</div>' + lines.join("");
+  }
+  function card(m) {
+    return '<section class="card ' + m.tone + '" aria-label="' + esc(m.p.name) + '">' + m.p.homes.map(function (h) { return homeLine(m, h); }).join("") + '</section>';
   }
   function renderStack() {
-    keyed($("rows"), "li", "pr", STACK.projects.map(function (p) { return { key: p.name, html: projectRow(p) }; }));
+    var map = mapOf();
+    put($("map-m"), (STACK.machine.jbus.stopped ? '<a class="wl" href="' + esc(href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span>jbus stopped, so this is as its last pass left it</span></a>' : "") + map.machine.map(function (w) { return wrongLine(w, listed(w.where.map(function (p) { return homePath(p.project, p.home); })) || "this machine"); }).join(""));
+    keyed($("map-c"), "div", "cw", map.cards.map(function (m) { return { key: m.p.name, html: card(m) }; }));
+    $("map-q").hidden = !map.quiet.length;
+    put($("map-qh"), 'Quiet <span class="cnt">' + map.quiet.length + '</span>');
+    keyed($("map-ql"), "li", "", map.quiet.map(function (m) { return { key: m.p.name, html: '<a href="' + esc(href(m.p.name)) + '"><b>' + esc(m.p.name) + '</b> <span>' + m.p.open + ' open</span></a>' }; }));
   }
+  function idle(t) { return t.health === "ended"; }
+  var TRI_MAX = 6, TRI_ALL = {};
+  var WRONG_VERB = { main: "Open pulse", ci: "Open checks", bus: "Open bus", source: "Open pulse", unasked: "Open pulse", thread: "Open thread", stall: "Open task", idle: "Open task" };
+  function linkOf(open) { var at = parse(open); return href(at.project, at.target); }
+  function ago(t) { var v = ms(t); return v == null ? "no time kept" : NOW - v < 60e3 ? "new" : short(NOW - v); }
+  function homePath(project, home) { return project + (home ? " \u203a " + home : ""); }
+  function listed(names) { return names.length > 3 ? names.slice(0, 2).join(", ") + " and " + (names.length - 2) + " more" : names.join(", "); }
+  function yours() {
+    var rows = [], batch = {};
+    STACK.needs.forEach(function (w) {
+      var row = { key: w.project + "/" + w.key, subj: w.subj || w.what, what: w.what, where: homePath(w.project, w.home), since: w.since, verb: w.verb, href: linkOf(w.open) };
+      if (w.kind !== "approve") { rows.push(row); return; }
+      var k = w.project + "/" + w.kind;
+      if (batch[k]) { batch[k].push(w); return; }
+      row.batch = batch[k] = [w];
+      rows.push(row);
+    });
+    rows.forEach(function (r) {
+      var b = r.batch;
+      if (!b || b.length < 2) return;
+      r.key = "batch:" + b[0].project + "/" + b[0].kind;
+      r.subj = plural(b.length, "approval", "approvals");
+      r.what = listed(b.map(function (w) { return w.subj || w.what; }));
+      r.where = b[0].project;
+      r.verb = "Approve " + b.length;
+      r.href = href(b[0].project, "you:approve");
+    });
+    return rows;
+  }
+  function wrongRows() {
+    return STACK.wrong.map(function (w) {
+      var first = w.where[0], places = w.where.map(function (p) { return homePath(p.project, p.home); });
+      return { key: w.kind + "/" + w.subj + "/" + w.cause, subj: w.subj, what: w.cause, where: places.length ? listed(places) : "this machine", since: w.since, verb: WRONG_VERB[w.kind] || "Open it",
+        href: first ? linkOf(first.open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse") };
+    });
+  }
+  function triRow(r, n, fill) {
+    return '<div class="nb"><span class="nw"><code>' + esc(r.subj) + '</code>' + (r.what && r.what !== r.subj ? " " + esc(r.what) : "") + '</span><span class="nm">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></div>' +
+      '<div class="na"><a class="btn' + (fill && n === 0 ? " fill" : "") + '" href="' + esc(r.href) + '">' + esc(r.verb) + '</a></div>';
+  }
+  function triList(part, rows, count, title, fill) {
+    var box = $("tri-" + part), sec = box.parentElement, shown = TRI_ALL[part] ? rows : rows.slice(0, TRI_MAX), rest = rows.length - shown.length;
+    sec.hidden = !rows.length;
+    put($("tri-" + part.charAt(0) + "h"), '<b>' + count + '</b> ' + title);
+    keyed(box, "li", "nr", shown.map(function (r, n) { return { key: r.key, html: triRow(r, n, fill) }; }));
+    return rest ? '<p class="tail"><button type="button" data-tri="' + part + '">' + rest + ' more &rsaquo;</button></p>' : "";
+  }
+  function soonTail() {
+    var soon = STACK.proceeds;
+    if (!soon.length) return "";
+    var due = soon.map(function (w) { return ms(w.due); }).filter(function (v) { return v != null; }), first = due.length ? Math.min.apply(null, due) : null;
+    return '<p class="tail"><a href="' + esc(linkOf(soon[0].open)) + '">' + (soon.length === 1 ? "1 takes its default" : soon.length + " take their default") + ' if you say nothing' + (first == null ? "" : ", the first at " + hm(first)) + ' &rsaquo;</a></p>';
+  }
+  function calmLine(mine, wrong) {
+    var open = 0, merged = 0, out = 0;
+    STACK.projects.forEach(function (p) { open += p.open; merged += p.merged; out += p.health.threads || 0; });
+    var lead = !mine && !wrong ? "Nothing waits on you and nothing is wrong. " : !mine ? "Nothing waits on you. " : !wrong ? "Nothing is wrong. " : "";
+    return lead + "Everything else moves: " + open + " open in " + plural(STACK.projects.length, "project", "projects") + ", " + merged + " merged today, " + plural(out, "thread", "threads") + " out.";
+  }
+  function renderTriage() {
+    var mine = yours(), wrong = wrongRows();
+    put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail());
+    $("tri-yl").parentElement.hidden = !mine.length && !STACK.proceeds.length;
+    put($("tri-wt"), triList("wl", wrong, wrong.length, "Wrong", false));
+    say($("tri-calm"), calmLine(STACK.needs.length, wrong.length));
+  }
+  document.addEventListener("click", function (e) {
+    var more = e.target.closest && e.target.closest("[data-tri]");
+    if (!more) return;
+    TRI_ALL[more.getAttribute("data-tri")] = true;
+    renderTriage();
+  });
   var LIVEWORD = { moving: "Working", quiet: "Quiet", hung: "Hung", waiting: "Waiting", unknown: "Unknown" };
   function chipsOf(t) {
     var out = [], live = t.seen.live;
@@ -567,9 +737,11 @@
     function liveness(who, word) { if (word === "hung") add(who + " hung", "bad"); else if (word === "quiet") add(who + " quiet", "user"); }
     if (live !== t.state.kind) liveness("thread", live);
     (S.threads || []).forEach(function (r) { if (r.role === "reviewer" && r.slug === t.slug && r.out && r.live !== t.state.kind) liveness("reviewer", r.live); });
+    if (t.gone) add("crewmate gone", "bad");
     if (t.seen.check && /fail/.test(t.seen.check.state)) add("check failed", "bad");
     if (t.state.kind === "behind") add("behind " + (t.waits_on || (t.blockers[0] && t.blockers[0].what) || "another task"), "plain");
     if (t.unconfirmed) add(t.unconfirmed.since ? "not confirmed since " + hm(ms(t.unconfirmed.since)) : "not confirmed", "gap");
+    if (t.retired) add("home " + t.retired + " retired, so under the root", "plain");
     return out.join(" ");
   }
   var ITEM_WORD = { proposed: "Proposed", approved: "Approved", queued: "Queued", running: "Running", waiting_on_you: "Needs you", held: "Held", done: "Done", dropped: "Dropped" };
@@ -580,34 +752,61 @@
     var tone = r.rank === 0 ? " bad" : r.rank === 1 ? " ask" : "";
     return '<span class="pgs-w"><button type="button" class="pgs" data-open="' + esc(r.open) + '">' + esc(r.slug) + '</button>' + (r.item ? " " + itemLink(r.item) : "") + '</span><span class="pgw' + tone + '"><b>' + esc(r.state) + '</b> &middot; ' + esc(r.holder) + '</span>' + (r.chips ? '<span class="pgc">' + r.chips + '</span>' : "") + '<span class="pga">' + esc(r.age) + '</span>';
   }
+  function needed() {
+    var out = {};
+    S.needs.forEach(function (w) { if (w.slug) out[w.slug] = 1; });
+    return out;
+  }
   function progress() {
-    var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key; }).map(function (t) {
+    var you = needed();
+    var rows = S.tasks.filter(function (t) { return t.step !== UNKNOWN.key && !you[t.slug]; }).map(function (t) {
       var it = ITEM_OF[t.slug], held = it && it.state === "held" ? ' <span class="chip user">held</span>' : "";
-      return { key: t.slug, slug: t.slug, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
+      return { key: t.slug, slug: t.slug, home: t.home, item: it, open: "task:" + t.slug, rank: t.rank, since: ms(t.since), state: t.state.name, holder: WHO[t.who], chips: chipsOf(t) + held, age: ms(t.since) == null ? "" : short(NOW - ms(t.since)) };
     });
-    S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key); }).forEach(function (it) {
+    S.items.filter(function (it) { return ITEM_ROWS[it.state] && !(it.slug && (you[it.slug] || TASK[it.slug] && TASK[it.slug].step !== UNKNOWN.key)); }).forEach(function (it) {
       var at = itemAt(it);
-      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "item:" + it.id, slug: it.title || it.slug || it.id, home: it.slug && TASK[it.slug] ? TASK[it.slug].home : "", open: "item:" + it.id, rank: it.state === "waiting_on_you" ? 1 : 2, since: at, state: ITEM_WORD[it.state], holder: it.owner, chips: "", age: at == null ? "" : short(NOW - at) });
     });
-    (S.threads || []).filter(function (t) { return t.out && (t.role === "scout" || t.role === "reviewer") && !TASK[t.slug] && !ENDED[t.slug]; }).forEach(function (t) {
+    (S.threads || []).filter(function (t) { return (t.out || idle(t)) && !(t.slug && known(t.slug)); }).forEach(function (t) {
       var at = ms(t.created) || ms(t.updated);
-      rows.push({ key: "thread:" + t.role + ":" + t.slug, slug: t.slug || t.title, open: threadAt(t), rank: t.rank, since: at, state: LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
+      rows.push({ key: "thread:" + t.role + ":" + (t.slug || t.title), slug: t.slug || t.title, home: t.home || "", open: threadAt(t), rank: t.rank, since: at, state: idle(t) ? "Idle" : LIVEWORD[t.live], holder: ROLE[t.role].called, chips: "", age: at == null ? "" : short(NOW - at) });
     });
     return rows.sort(function (a, b) { return a.rank - b.rank || (a.since == null) - (b.since == null) || a.since - b.since || (a.key < b.key ? -1 : 1); });
   }
   function hk(text, open, tone) { return '<button type="button" class="hk' + (tone ? " " + tone : "") + '" data-open="' + esc(open) + '">' + esc(text) + '</button>'; }
   function healthLine(sm) {
-    var h = sm.health, parts = sm.broken.map(function (b) { return hk(b.what, b.open, "bad"); }), t = jb(), end = t && ms(t.last_end);
+    var h = sm.health, parts = sm.broken.map(function (b) { return hk(brokeSince(b), b.open, "bad"); }), t = jb(), end = t && ms(t.last_end);
+    if (t && t.failed) parts.unshift(hk(passWord(end), "pulse", "bad"));
     if (h.blind) parts.push(hk(plural(h.blind, "blind spot", "blind spots"), "blind", "op"));
-    var well = !parts.length, line = well ? ['<span class="hh">All well' + (end == null ? "" : " &middot; last pass " + hm(end)) + '</span>'] : parts;
+    var well = !parts.length, line = well ? ['<span class="hh">All well' + (end == null ? "" : " &middot; " + passWord(end)) + '</span>'] : parts;
     if (h.threads) line.push(hk(plural(h.threads, "thread", "threads") + " out", "threads"));
     return line.join(" &middot; ");
+  }
+  function byHome(rows, homes) {
+    var named = {};
+    homes.forEach(function (h) { named[h.name] = 1; });
+    return homes.map(function (h) { return { home: h, rows: rows.filter(function (r) { return (named[r.home] ? r.home : "") === h.name; }) }; });
+  }
+  function homeHead(h) {
+    return esc(h.name || "root") + ' <span class="cnt">' + h.open + ' open</span>' + (h.waits ? ' <span class="chip user">' + plural(h.waits, "waits", "wait") + ' on you</span>' : "");
+  }
+  function renderProgress(rows, homes) {
+    var box = $("prog"), groups = byHome(rows, homes.length ? homes : [{ name: "", open: 0, waits: 0 }]), split = groups.length > 1, keys = groups.map(function (g) { return g.home.name; }).join("\n");
+    if (box.__keys !== keys) {
+      box.innerHTML = groups.map(function (g, n) { return '<section class="pgg" data-key="' + esc(g.home.name) + '"><h3 class="pgh" id="pgh-' + n + '"' + (split ? "" : " hidden") + '></h3><ol class="pgl" aria-labelledby="' + (split ? "pgh-" + n : "prog-h") + '"></ol></section>'; }).join("");
+      box.__keys = keys;
+    }
+    groups.forEach(function (g, n) {
+      var sec = box.children[n];
+      if (split) put(sec.firstChild, homeHead(g.home));
+      keyed(sec.lastChild, "li", "pg", g.rows.map(function (r) { return { key: r.key, html: progRow(r) }; }));
+    });
   }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
     put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : ""));
     $("calm").hidden = rows.length > 0;
-    keyed($("prog"), "li", "pg", rows.map(function (r) { return { key: r.key, html: progRow(r) }; }));
+    renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
     $("merged-d").hidden = !merged.length && !done.length;
     say($("merged-s"), "Merged today \u00b7 " + (merged.length + done.length));
@@ -629,7 +828,8 @@
     renderHeader();
     $("none").hidden = !NOSUCH;
     if (NOSUCH) put($("none"), noSuch());
-    $("stack").hidden = !!PROJECT || !STACK;
+    $("stack").hidden = !!PROJECT || !STACK || TRIAGE;
+    $("triage").hidden = !!PROJECT || !STACK || !TRIAGE;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
     if (!J) { say($("readat"), gone || NOSUCH ? "" : "asking the server"); document.body.classList.toggle("stopped", gone); renderDead(); PANELS.you.draw(); return; }
@@ -640,7 +840,8 @@
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
-    if (!PROJECT) renderStack(); else renderProject();
+    if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
+    if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else renderStack();
     freshen();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
@@ -798,6 +999,7 @@
   }
   function openDrawer(target, focus) {
     var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
+    count("drawer", kind);
     if (!p || !p.drawer) { mark(null); show({}, missing(kind, arg)); return; }
     if (p.first) {
       mark(p, null);
@@ -885,6 +1087,12 @@
   document.addEventListener("change", function (e) { if (e.target.id === "pick") location.hash = href(e.target.value); });
   window.addEventListener("scroll", hidePeek, true);
   document.addEventListener("click", function (e) {
+    if (clicked || !e.target.closest) return;
+    var b = e.target.closest("[data-open]"), row = e.target.closest("#stack .cn, #map-ql a");
+    clicked = true;
+    count("click", b ? b.getAttribute("data-open").split(":")[0] : row ? "project" : e.target.closest("#helpme") ? "help" : "other");
+  }, true);
+  document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
   });
   document.addEventListener("keydown", function (e) {
@@ -895,7 +1103,8 @@
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  var gAt = 0, CHORD_MS = 1500;
+  var gAt = 0, CHORD_MS = 1500, clicked = false;
+  function count(kind, what) { if (!gone) ask("/usage", { kind: kind, name: what, project: PROJECT || "" }).catch(function () {}); }
   function typing(el) { return el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(el.type)) || !!el.isContentEditable; }
   function nextProject() {
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
@@ -906,8 +1115,6 @@
     e.preventDefault(); $("main").focus();
   });
   document.addEventListener("click", function (e) {
-    var row = e.target.closest("#rows .proj");
-    if (row && !e.target.closest("a")) { location.hash = href(row.getAttribute("data-key")); return; }
     var b = e.target.closest("[data-open]");
     if (b) { go(b.getAttribute("data-open"), drawer.open && drawer.contains(b), b.hasAttribute("aria-pressed")); return; }
     if (e.target.closest("#dw-back")) { up(); return; }
@@ -975,10 +1182,11 @@
       var put = href(at.project, wanted.length ? wanted[wanted.length - 1].target : "");
       st = { layers: wanted, back: false }; history.replaceState(st, "", put); at = parse(put);
     }
-    HASH = at.more; PROJECT = at.project; LAYERS = st.layers; BACK = !!st.back;
+    HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; LAYERS = st.layers; BACK = !!st.back;
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
     if (PROJECT !== was) {
+      count("route", PROJECT ? "project" : "stack");
       S = null; NOSUCH = ""; turnOf += 1;
       shutDrawer(first); render();
       pending = top();

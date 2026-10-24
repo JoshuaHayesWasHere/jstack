@@ -52,6 +52,14 @@ SESSION = "a-home-session"
 GO = f"your word, {SAID_AT} (time typed); run {RAN} by the demo home"
 
 
+def gone(thread, said):
+    """Return T3 Code's answer, as it gives it today (2026-10-23), for a thread it no longer
+    has: a read says the thread `is no longer available`, a send that it `was not found`."""
+    failure = {"_tag": "OrchestratorMcpFailure", "code": "thread_not_found"}
+    text = json.dumps({**failure, "message": f"Thread {thread} {said}."}, separators=(",", ":"))
+    return {"isError": True, "content": [{"type": "text", "text": text}]}
+
+
 def iso(moment):
     return moment.isoformat().replace("+00:00", "Z")
 
@@ -96,13 +104,13 @@ class Server:
 class Webhook(Server):
     def __init__(self):
         self.posts, self.keys, self.sleep, self.status = [], [], 0, 200
-        self.said, self.bodies = [], []
+        self.said, self.bodies, self.refused = [], [], {}
         super().__init__()
 
     def answer(self, handler, body):
         time.sleep(self.sleep)
         if self.status != 200:
-            return self.reply(handler, {}, self.status)
+            return self.reply(handler, self.refused, self.status)
         self.keys.append(handler.headers.get(wake.HEADER))
         taken = json.loads(body)
         self.bodies.append(taken)
@@ -112,14 +120,15 @@ class Webhook(Server):
 
 
 class T3(Server):
-    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls."""
+    """`T3` fakes T3 Code's MCP endpoint and its sign-in, with the eight tools that jbus calls.
+    A thread not in `threads` is gone to a read, and one in `forgot` is gone to a send."""
 
     def __init__(self):
         self.threads, self.launches, self.calls, self.lose, self.refuse = [], [], [], None, ""
         self.messages, self.refuse_send, self.lose_send = {}, False, False
         self.status, self.on_list, self.down, self.lose_read = 200, None, set(), False
         self.challenges, self.registered, self.at_work = {}, [], set()
-        self.said = {}
+        self.said, self.forgot = {}, set()
         super().__init__()
 
     def thread(
@@ -264,7 +273,7 @@ class T3(Server):
                 return {"structuredContent": made, "content": []}
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]
             if not found:
-                return {"isError": True, "content": [{"type": "text", "text": "thread not found"}]}
+                return gone(given["threadId"], "is no longer available")
             (thread,) = found
             said = {k: v for k, v in thread.items() if k != "runs"}
             made = {
@@ -277,6 +286,8 @@ class T3(Server):
                 return None
             if self.refuse_send:
                 return {"isError": True, "content": [{"type": "text", "text": "no"}]}
+            if given["threadId"] in self.forgot:
+                return gone(given["threadId"], "was not found")
             self.messages.setdefault(given["clientRequestId"], given)
             for thread in self.threads:
                 if thread["threadId"] == given["threadId"]:
@@ -338,8 +349,10 @@ def fake_gh(stub, args, cwd):
     gives a list of pages, here two. A job comes from `jobs.json` by its id, or is one step at the
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
     not found. A commit asked for by its sha lists the files it changed, from `commit-files.json`.
-    The runs of the browser workflow are in `browser-runs.json`. A run's jobs come from
-    `run-jobs.json` by the run's id, and the call fails where that entry is null.
+    The runs of the browser workflow are in `browser-runs.json`. The repo's workflows are in
+    `workflows.json`, and the runs of each other workflow in `workflow-runs.json` by its id. A
+    run's jobs come from `run-jobs.json` by the run's id, and the call fails where that entry is
+    null.
     """
     with open(stub / "gh.log", "a") as log:
         log.write(" ".join(args) + "\n")
@@ -407,9 +420,16 @@ def fake_gh(stub, args, cwd):
         kept = stub / "jobs.json"
         job = (json.loads(kept.read_text()) if kept.exists() else {}).get(args[1].split("/")[-1])
         said = json.dumps(job or {"steps": [{"name": "make check"}], "run_attempt": 1})
-    elif args[0] == "api" and "/actions/workflows/" in args[1]:
+    elif args[0] == "api" and args[1].split("?")[0].endswith("/actions/workflows"):
+        kept = stub / "workflows.json"
+        said = json.dumps({"workflows": json.loads(kept.read_text()) if kept.exists() else []})
+    elif args[0] == "api" and "/actions/workflows/browser.yml/" in args[1]:
         kept = stub / "browser-runs.json"
         said = json.dumps({"workflow_runs": json.loads(kept.read_text()) if kept.exists() else []})
+    elif args[0] == "api" and "/actions/workflows/" in args[1]:
+        kept, flow = stub / "workflow-runs.json", args[1].split("/actions/workflows/")[1]
+        every = json.loads(kept.read_text()) if kept.exists() else {}
+        said = json.dumps({"workflow_runs": every.get(flow.split("/")[0], [])})
     elif (
         args[0] == "api" and "/actions/runs/" in args[1] and args[1].split("?")[0].endswith("/jobs")
     ):
@@ -431,9 +451,10 @@ def fake_jmerge(stub, args, cwd):
     `jmerge-dies` ends it the way a `SystemExit` with a message ends the real command: the line on
     stderr, and exit 1. `jmerge-says` ends it the way the real command ends when it cannot ask
     GitHub: the line on stdout, and exit 1. An accept of a held pull request does nothing where the
-    test wrote no `accept.txt`.
+    test wrote no `accept.txt`. Each pass reads `--claims`, which changes nothing, so its runs go
+    in `claims.log` and `jmerge.log` keeps the runs that may merge.
     """
-    with open(stub / "jmerge.log", "a") as log:
+    with open(stub / ("claims.log" if args == ["--claims"] else "jmerge.log"), "a") as log:
         log.write(" ".join(args) + "\n")
     if args == ["--claims"]:
         if (stub / "claims-fail").exists():
@@ -646,9 +667,12 @@ class Kitchen:
         }
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
-    def config(self, url=None, **top):
-        """Write the config. A top-level key given as None stays out of the file."""
+    def config(self, url=None, project_wake="webhook", **top):
+        """Write the config. A top-level key given as None stays out of the file. The kitchen's
+        projects send their wakes to their webhook alone unless a test says otherwise:
+        `project_wake` is the `wake` of each project's own table, and None leaves it out."""
         top = {"dispatch": True, "max_running": 1, "runtimeMode": "full-access", **top}
+        own = [f"wake = {json.dumps(project_wake)}"] if project_wake else []
         lines = [f"server = {json.dumps(self.t3.url)}"]
         for key, value in top.items():
             if value is None:
@@ -666,6 +690,7 @@ class Kitchen:
             f"projectId = {json.dumps(PROJECT)}",
             f"webhook_url = {json.dumps(self.webhook.url + '/wake' if url is None else url)}",
             f"webhook_key = {json.dumps(KEY)}",
+            *own,
         ]
         for side in self.sides:
             lines += [
@@ -675,6 +700,7 @@ class Kitchen:
                 f"projectId = {json.dumps(side.project)}",
                 f"webhook_url = {json.dumps(side.webhook.url + '/wake')}",
                 f"webhook_key = {json.dumps(KEY)}",
+                *own,
             ]
         self.write(self.config_dir / "config.toml", "\n".join(lines) + "\n")
 
@@ -828,7 +854,8 @@ def test_a_fake_says_the_same_called_here_and_started_as_a_command(kitchen, comm
         there.stdout,
         there.stderr.splitlines()[-1:],
     )
-    log = kitchen.log(command[0].removesuffix("-send"))
+    name = "claims" if command == ["jmerge", "--claims"] else command[0].removesuffix("-send")
+    log = kitchen.log(name)
     assert len(log) == 2 and log[0] == log[1]
 
 

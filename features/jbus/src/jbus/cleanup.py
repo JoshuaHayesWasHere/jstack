@@ -4,16 +4,19 @@ needs.
 The pull request of a brief whose `Review:` line says `after` merges on its check alone
 (`jmerge.ready.after`). Its review's findings do not block the merge, and a crew fixes them
 later, in a row of their own. The reviewer runs this command once it has written its section, and
-pipes what it prints into `jbus queue add cleanup-<slug>`. That command queues the row
-without approving it, so the row waits for the user's go like any other.
+pipes what it prints into `jbus queue add cleanup-<slug>`. That command approves the row by the
+home's follow-up rule where the reviewed row had the user's go (`queue.FOLLOW_UP`), and otherwise
+the row waits for the user's go like any other.
 
 The command prints that row's brief, `cleanup-<slug>`, when the last round's verdict is `findings`.
 The brief lists each finding that would have gone to the crew, with its path:line, the pull request,
 and the pull request's merge commit as GitHub gives it. Where the pull request has not merged yet,
-the brief gives the head the review saw instead. Where the review needs no row, the command prints
-nothing but the reason, on one line, and exits with status 1. That is when the brief does not say
-`after` or `twice`, when the review is clean or has no verdict, or when the row is already in the
-queue. A `queue add` on a row that is already there would withdraw its approval.
+the brief gives the head the review saw instead, says it has not merged, and says the row launches
+after it merges. A finding with no repo path, `-` or none, stays out of the brief's `Where:`.
+Where the review needs no row, the command prints nothing but the reason, on one line, and exits
+with status 1. That is when the brief does not say `after` or `twice`, when the review is clean or
+has no verdict, or when the row is already in the queue. A `queue add` on a row that is already
+there would withdraw its approval.
 
 For a brief that says `twice`, the crew answers the first review in one fix round. The row's brief
 lists the findings of the second review (`ready.second_review`): each one of severity `warning` or
@@ -95,19 +98,27 @@ def brief(
     )
     twice = said.mode == ready.TWICE
     listed = "\n".join(f"- {_shown(one, twice)}" for one in sent)
-    places = sorted(dict.fromkeys(one.path for one in sent if one.path))
+    places = sorted(dict.fromkeys(one.path for one in sent if one.path not in ("", "-")))
+    waits = " Its pull request is open and has not merged, so this row launches after it merges."
     if twice:
+        why = (
+            "so it merged once its second review was written, and that review's"
+            if merge
+            else "and its second review's"
+        )
         head = (
             f"# {slug_of(slug)}: fix what the second review of {slug} found\n"
-            f"Task: {slug} said `Review: twice`, so it merged once its second review was "
-            f"written, and that review's warning and error findings come here; its {dropped} "
-            f"info findings were dropped. Pull request: {pull}.\n"
+            f"Task: {slug} said `Review: twice`, {why} warning and error findings "
+            f"come here; its {dropped} info findings were dropped.{'' if merge else waits} "
+            f"Pull request: {pull}.\n"
         )
     else:
+        why = "so it merged on its check and its" if merge else "and its"
         head = (
-            f"# {slug_of(slug)}: fix what the review of {slug} found after it merged\n"
-            f"Task: {slug} said `Review: after`, so it merged on its check and its review's "
-            f"findings come here. Pull request: {pull}.\n"
+            f"# {slug_of(slug)}: fix what the review of {slug} found"
+            f"{' after it merged' if merge else ''}\n"
+            f"Task: {slug} said `Review: after`, {why} review's findings come here."
+            f"{'' if merge else waits} Pull request: {pull}.\n"
         )
     return head + (
         f"Done when:\n{listed}\n"
@@ -121,6 +132,7 @@ def brief(
         "Pull request: open one when done\n"
         "Review: review\n"
         "Playbook: bug-fix\n"
+        f"Builds on: {slug}: the code of its pull request, which the findings are in\n"
     )
 
 

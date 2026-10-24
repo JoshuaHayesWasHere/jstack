@@ -78,7 +78,7 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     opened = clean(seen)
     drawers = {one["target"]: one["said"] for one in seen["opened"]}
     by_rule = (
-        "rule 6, follow-up of nut-shell; run 2026-10-12 09:00 ET by the demo home; he did not "
+        "rule 6, follow-up of nut-shell; run 2026-10-12 09:00 ET by the demo home; you did not "
         "speak of this row by rule 6"
     )
     assert by_rule in drawers["task:nut-meat"]
@@ -96,7 +96,7 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     )
     now = {one["target"].removeprefix("task:"): one["now"] for one in seen["opened"]}
     assert {f"task:{slug}" for slug in expected} <= opened
-    assert [one["acts"][0]["text"] for one in seen["needs"]["now"]].count("Close it") == 2
+    assert [one["acts"][0]["text"] for one in seen["needs"]["now"]].count("Close it") == 3
     for slug, kind in expected.items():
         name = "Ended, not closed" if slug in ("fig-burr", "fig-rind") else NAMES[kind]
         assert now[slug].startswith(f"NOW: {name.upper()} "), now[slug]

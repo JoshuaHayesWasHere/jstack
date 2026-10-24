@@ -6,9 +6,12 @@
    goes into the page that holds the frame. */
 window.__errs = [];
 /* Record each change to the page from the start: when it came, and the part it is in. The part
-   is the nearest element with an id, or a row of every project by its key. */
+   is the nearest element with an id, or a row of every project by its key. What the probe itself
+   adds while `__quiet` is set is no change of the page. */
 window.__changes = [];
+window.__quiet = false;
 new MutationObserver(function (records) {
+  if (window.__quiet) return;
   records.forEach(function (r) {
     var el = r.target.nodeType === 1 ? r.target : r.target.parentElement;
     while (el && !el.id && !(el.getAttribute && el.getAttribute("data-key"))) el = el.parentElement;
@@ -81,20 +84,24 @@ window.addEventListener("load", function () { setTimeout(function () {
     var b = el.getBoundingClientRect();
     return b.width > 0 && b.height > 0 && b.top < vh && b.bottom > 0 && b.left < vw && b.right > 0;
   }
-  function words(root) {
-    var n = 0, walk = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT);
+  /* The text the first screen shows of `root`, one string for each run of text. Outside the
+     drawer that leaves the drawer out; inside it, the first screen is what the drawer shows. */
+  function texts(root) {
+    var found = [], walk = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT);
+    var inside = drawer.contains(root || document.body), clip = inside ? drawer.getBoundingClientRect() : { top: 0, bottom: vh, left: 0, right: vw };
+    var top = Math.max(0, clip.top), bottom = Math.min(vh, clip.bottom), left = Math.max(0, clip.left), right = Math.min(vw, clip.right);
     while (walk.nextNode()) {
       var node = walk.currentNode, p = node.parentElement;
-      if (!p || /^(SCRIPT|STYLE|TITLE|TEMPLATE|TEXTAREA|PRE)$/.test(p.tagName) || drawer.contains(p)) continue;
-      var found = node.textContent.match(/\S+/g) || [];
-      if (!found.length || !p.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      if (!p || /^(SCRIPT|STYLE|TITLE|TEMPLATE|TEXTAREA|PRE)$/.test(p.tagName) || (!inside && drawer.contains(p))) continue;
+      if (!/\S/.test(node.textContent) || !p.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
       var range = document.createRange(); range.selectNodeContents(node);
       var rects = range.getClientRects(), shown = false;
-      for (var i = 0; i < rects.length; i++) { var b = rects[i]; if (b.width > 0 && b.height > 0 && b.top < vh && b.bottom > 0 && b.left < vw && b.right > 0) shown = true; }
-      if (shown) n += found.length;
+      for (var i = 0; i < rects.length; i++) { var b = rects[i]; if (b.width > 0 && b.height > 0 && b.top < bottom && b.bottom > top && b.left < right && b.right > left) shown = true; }
+      if (shown) found.push(node.textContent.replace(/\s+/g, " ").trim());
     }
-    return n;
+    return found;
   }
+  function words(root) { return texts(root).reduce(function (n, one) { return n + one.split(" ").length; }, 0); }
   function all(q, root) { return Array.prototype.slice.call((root || document).querySelectorAll(q)); }
   function text(el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; }
   function written(el) { return el.textContent.replace(/\s+/g, " ").trim(); }
@@ -116,11 +123,44 @@ window.addEventListener("load", function () { setTimeout(function () {
      shows no words. */
   function called(el) { return el.getAttribute("aria-description") || el.getAttribute("aria-label"); }
   function border(el) { return el ? getComputedStyle(el).borderTopStyle : ""; }
+  /* The colours of the two states that ask for a look, due and missed, and their tints, as the
+     browser computes them for this page and its scheme. */
+  var TONES = (function () {
+    var i = document.createElement("i"), found = {};
+    window.__quiet = true;
+    document.body.appendChild(i);
+    ["due", "due-tint", "missed", "missed-tint"].forEach(function (name) { i.style.color = "var(--" + name + ")"; found[getComputedStyle(i).color] = name.split("-")[0]; });
+    i.remove();
+    setTimeout(function () { window.__quiet = false; }, 0);
+    return found;
+  })();
+  /* Each shown element of `root` that paints due or missed: as its background, a border, an SVG
+     fill or stroke, or the colour of its own words. With it, the words it holds, which are what
+     say the state to someone who does not see the colour. A swatch of a legend, `.key`, is told
+     by the words of its entry, and is marked `key`: it names a colour and claims no state. */
+  function paints(root) {
+    var inside = drawer.contains(root);
+    return all("*", root).filter(function (el) {
+      return (inside || !drawer.contains(el)) && el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && el.getBoundingClientRect().width > 0;
+    }).map(function (el) {
+      var cs = getComputedStyle(el), own = Array.prototype.some.call(el.childNodes, function (n) { return n.nodeType === 3 && /\S/.test(n.textContent); });
+      var hues = [cs.backgroundColor, cs.fill, cs.stroke, own ? cs.color : ""];
+      ["Top", "Right", "Bottom", "Left"].forEach(function (side) { if (parseFloat(cs["border" + side + "Width"]) > 0) hues.push(cs["border" + side + "Color"]); });
+      var tones = hues.map(function (c) { return TONES[c]; }).filter(Boolean);
+      if (!tones.length) return null;
+      var entry = el.closest(".key > *"), said = ((entry || el).innerText === undefined ? el.textContent : (entry || el).innerText).replace(/\s+/g, " ").trim();
+      return { tone: tones.indexOf("missed") >= 0 ? "missed" : "due", what: (el.getAttribute("class") || el.tagName) + " " + said.slice(0, 40), words: (said.match(/\S+/g) || []).length, key: !!entry };
+    }).filter(Boolean);
+  }
   var main = document.querySelector("main"), dead = document.getElementById("dead");
   var out = {
     /* The view's words, and apart from them the words of the shell, which is the header. */
     words: words(document.querySelector("main")),
     shell: words(document.querySelector("header")),
+    /* The first screen's text, the header's and the view's, and what the page paints due or
+       missed anywhere outside the drawer. */
+    screen: texts(document.body),
+    paints: paints(document.body),
     bottom: Math.round(main.getBoundingClientRect().bottom),
     scrollWidth: document.documentElement.scrollWidth,
     width: vw,
@@ -149,10 +189,17 @@ window.addEventListener("load", function () { setTimeout(function () {
     merged: { shown: seen(document.getElementById("merged-d")), head: text(document.getElementById("merged-s")), open: document.getElementById("merged-d").open },
     health: { shown: seen(document.getElementById("health")), text: text(document.getElementById("health")), links: all("#health [data-open]").map(function (b) { return [text(b), b.getAttribute("data-open")]; }), unplaced: text(document.getElementById("unplaced")) },
     first: all("[data-open]").filter(function (b) { return !drawer.contains(b) && seen(b); }).map(function (b) { return b.getAttribute("data-open"); }),
+    /* The homes map of every project: each card, then each line of the quiet ones, in the page's
+       order, with the lines of what is wrong apart from the cards under `machine`. */
     stack: (function () {
       var view = document.getElementById("stack"), none = document.getElementById("none");
       return { shown: seen(view), title: text(document.getElementById("title")), none: none && seen(none) ? text(none) : "",
-        rows: all("#rows .prl").map(function (r) { return { project: r.parentElement.getAttribute("data-key"), seen: seen(r), box: box(r), name: text(r.querySelector(".pn")), dot: r.querySelector(".pd").className, why: text(r.querySelector(".pwhy")), counts: all(".pc", r).map(text), href: r.getAttribute("href"), said: r.getAttribute("aria-description") }; }) };
+        machine: all("#map-m .wl").map(text),
+        rows: all("#map-c > [data-key], #map-ql > [data-key]").map(function (r) {
+          var name = r.querySelector(".cn, b"), root = r.querySelector(".hm.root, a");
+          return { project: r.getAttribute("data-key"), seen: seen(r), box: box(r), name: text(name), quiet: r.parentElement.id === "map-ql", tone: (r.querySelector(".card") || r).className,
+            why: all(".wl", r).map(text).join(", "), counts: text(root.querySelector(".ct, span")), href: name.closest("a").getAttribute("href") };
+        }) };
     })(),
     links: [],
     opened: []
@@ -168,7 +215,9 @@ window.addEventListener("load", function () { setTimeout(function () {
     from.click();
     if (made) made.remove();
     var dw = document.getElementById("dw"), said = dw.innerText;
-    out.opened.push({ target: target, open: drawer.open, title: text(document.getElementById("dw-title")), now: text(dw.querySelector(".now")), said: said.replace(/\s+/g, " "), words: (said.match(/\S+/g) || []).length, bad: /NaN|undefined|\[object/.test(said), errors: window.__errs.length - before, fresh: seen(document.getElementById("dw-fresh")) ? text(document.getElementById("dw-fresh")) : "", box: box(drawer), small: small(dw), cut: cut(dw) });
+    var links = all(".dw-h .crumbs a", drawer), tag = drawer.querySelector(".dw-h .tag");
+    out.opened.push({ target: target, open: drawer.open, title: text(document.getElementById("dw-title")), now: text(dw.querySelector(".now")), said: said.replace(/\s+/g, " "), words: (said.match(/\S+/g) || []).length, bad: /NaN|undefined|\[object/.test(said), errors: window.__errs.length - before, fresh: seen(document.getElementById("dw-fresh")) ? text(document.getElementById("dw-fresh")) : "", box: box(drawer), small: small(dw), cut: cut(dw),
+      first: words(drawer), crumb: links.length ? box(links[links.length - 1]) : null, tag: tag && seen(tag) ? box(tag) : null, paints: paints(drawer) });
     all("[data-open]", dw).forEach(function (b) { queue.push(b.getAttribute("data-open")); });
     if (target === "bus") out.links = all("li [data-open]", dw).map(function (b) { return b.getAttribute("data-open"); });
     document.getElementById("dw-close").click();
@@ -253,8 +302,31 @@ window.addEventListener("load", function () { setTimeout(function () {
       (window.top === window ? document : window.top.document).body.appendChild(pre);
     }, 1500);
   }
+  /* With `__hops`, each thing to tap on the first screen, tapped once from where the page
+     started: what it opened, and the drawer's words when it opened one. A link is followed by
+     its address and a button is tapped where the page drew it, so each starts from the same page. */
+  function hops(then) {
+    var from = location.hash, goes = [];
+    all("[data-open], a[href^='#']").filter(function (el) { return !drawer.contains(el) && seen(el); }).forEach(function (el) {
+      var to = el.getAttribute("data-open") || el.getAttribute("href");
+      if (goes.indexOf(to) < 0) goes.push(to);
+    });
+    out.hops = [];
+    (function hop(n) {
+      if (n >= goes.length) return then();
+      var real = goes[n].charAt(0) === "#" ? null : all('[data-open="' + CSS.escape(goes[n]) + '"]').filter(function (el) { return !drawer.contains(el); })[0];
+      if (goes[n].charAt(0) === "#") location.hash = goes[n]; else if (real) real.click(); else go(goes[n]);
+      setTimeout(function () {
+        out.hops.push({ to: goes[n], hash: location.hash, open: drawer.open, title: drawer.open ? text(document.getElementById("dw-title")) : "", said: drawer.open ? text(document.getElementById("dw")) : "" });
+        if (drawer.open) { document.getElementById("dw-close").click(); drawer.close(); }
+        if (location.hash !== from) location.hash = from;
+        setTimeout(function () { hop(n + 1); }, 500);
+      }, 500);
+    })(0);
+  }
   var told = window.__gates;
   out.answered = [];
-  if (!told) end();
+  if (window.__hops) hops(end);
+  else if (!told) end();
   else answer(told.ways || [], function () { (told.batch ? batch : function (then) { then(); })(function () { left(end); }); });
 }, window.__at); });

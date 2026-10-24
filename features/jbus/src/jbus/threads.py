@@ -40,8 +40,8 @@ from jbus import (
     work,
 )
 from jbus.live import Facts, judge
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import ENDED, LIVE, STARTING, World, after_merge, unfinished, when
 from jmerge import ready
 

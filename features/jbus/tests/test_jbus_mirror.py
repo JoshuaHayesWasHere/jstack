@@ -108,6 +108,55 @@ def test_a_gate_piped_to_jbus_and_written_in_the_brief_goes_once(kitchen):
     assert kitchen.lines("gate") == ["gate alpha: question 1: which way?"]
 
 
+def test_a_scoped_homes_open_gate_is_one_event_that_names_its_home(kitchen):
+    root, scoped = kitchen.home / "gates.md", kitchen.home / "quay" / "gates.md"
+    scoped.parent.mkdir()
+    kitchen.quiet()
+    root.write_text(GATE.format(n=1, asked="which cup?", status="open", slug="alpha"))
+    scoped.write_text(
+        GATE.format(n=1, asked="which berth?", status="open", slug="home")
+        + "\n"
+        + GATE.format(n=2, asked="which cup?", status="open", slug="alpha")
+    )
+    kitchen.poll()
+    assert sorted((one["slug"], one["line"]) for one in kitchen.events("gate")) == [
+        ("alpha", "gate alpha in quay: which cup?"),
+        ("alpha", "gate alpha: which cup?"),
+        ("home", "gate home in quay: which berth?"),
+    ]
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert len(kitchen.events("gate")) == 3
+
+
+def test_a_scoped_gate_answered_later_is_one_event_and_one_answered_before_is_none(kitchen):
+    scoped = kitchen.home / "quay" / "gates.md"
+    scoped.parent.mkdir()
+    old = GATE.format(n=1, asked="an old one?", status="answered 2026-10-01: yes", slug="home")
+    scoped.write_text(old)
+    kitchen.quiet()
+    kitchen.poll()
+    assert kitchen.events("gate answered") == []
+    scoped.write_text(old + "\n" + GATE.format(n=2, asked="a new one?", status="open", slug="home"))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    answered = GATE.format(n=2, asked="a new one?", status="answered 2026-10-23: no", slug="home")
+    scoped.write_text(old + "\n" + answered)
+    kitchen.poll(NOW + timedelta(minutes=6))
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert kitchen.lines("gate") == ["gate home in quay: a new one?"]
+    assert kitchen.lines("gate answered") == ["gate home in quay: gate 2 answered"]
+
+
+def test_a_gate_a_scoped_home_piped_to_jbus_and_wrote_in_its_file_goes_once(kitchen):
+    scoped = kitchen.home / "quay" / "gates.md"
+    scoped.parent.mkdir()
+    kitchen.quiet()
+    lines = GATE.format(n="<n>", asked="which berth?", status="open", slug="home")
+    assert kitchen.main("gate", "home", stdin=lines)[1] == "queued: question 1\n"
+    scoped.write_text(lines.replace("<n>", "1"))
+    kitchen.poll()
+    assert kitchen.lines("gate") == ["gate home: question 1: which berth?"]
+
+
 OLD = (
     RESULT.replace("Left: none\n", "Noticed: an old line from another machine.\nLeft: none\n")
     + "\n## Review\nVerdict: findings\nFindings:\n- warning a.py:1 off by one\n"

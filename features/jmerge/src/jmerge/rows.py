@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -106,12 +107,28 @@ def base_red(base: str, runs: list[dict], slug: str) -> str:
     return ready.BASE_RED.format(base=base, sha=str(failed[0].get("head_sha"))[: mainjson.SHA])
 
 
-def short(rows: list[queue.Row] | None, slug: str) -> str:
+def ordered(rows: list[queue.Row] | None) -> set[str]:
+    """The slugs of the rows that are not over and name a row they merge after: the only rows
+    whose commits, carried by another pull request, can hold that one back."""
+    return {
+        row["slug"]
+        for row in rows or []
+        if row.get("status") not in queue.FINAL and row.get("merge_after")
+    }
+
+
+def short(
+    rows: list[queue.Row] | None, slug: str, carries: Sequence[tuple[str, int, bool]] = ()
+) -> str:
+    """Why the pull request of `slug` waits on the queue, or nothing. `carries` holds the open
+    pull requests that a merge of this one may land, each as its slug, its number and whether
+    its head could be read: one whose commits this head contains and its base does not. This
+    one waits on their rows' `merge_after` as on its own, and on one it could not read."""
     if rows is None:
         return ready.QUEUE_UNREADABLE
     table = {row["slug"]: row for row in rows}
-    row = table.get(slug)
-    if row is None or row.get("status") in queue.FINAL:
+    row = table.get(slug, {})
+    if row.get("status") in queue.FINAL:
         return ""
     if row.get("held"):
         return ready.ROW_HELD
@@ -119,4 +136,17 @@ def short(rows: list[queue.Row] | None, slug: str) -> str:
         ahead = table.get(other)
         if ahead is not None and ahead.get("status") not in queue.FINAL:
             return ready.MERGES_AFTER.format(slug=other, open=ahead.get("pr") or NO_PULL)
+    for carried, number, read in carries:
+        under = table.get(carried, {})
+        if under.get("status") in queue.FINAL:
+            continue
+        for other in under.get("merge_after", []):
+            ahead = table.get(other)
+            if other == slug or ahead is None or ahead.get("status") in queue.FINAL:
+                continue
+            if not read:
+                return ready.CARRIES_UNKNOWN.format(carried=carried, number=number)
+            return ready.CARRIES_AFTER.format(
+                carried=carried, number=number, slug=other, open=ahead.get("pr") or NO_PULL
+            )
     return ""

@@ -36,9 +36,16 @@ class Claims:
         (home.state / "home-id").write_text(f"{ME}\n")
         self.open()
 
-    def open(self, *numbers):
-        """The pull requests that GitHub lists as open."""
-        listed = [{"number": number, "url": PULLS.format(number)} for number in numbers]
+    def open(self, *numbers, files=None):
+        """The pull requests that GitHub lists as open, and the files each one changes."""
+        listed = [
+            {
+                "number": number,
+                "url": PULLS.format(number),
+                "files": [{"path": path} for path in (files or {}).get(number, [])],
+            }
+            for number in numbers
+        ]
         (self.home.stub / "list.json").write_text(json.dumps(listed))
 
     def write(self, slug, **said):
@@ -77,6 +84,46 @@ def test_the_last_result_is_the_one_that_counts(claims):
     assert claims.run() == [f"alpha pull request 12 root Where: {WHERE}"]
     claims.open(7)
     assert claims.run() == []
+
+
+def test_a_pull_request_whose_diff_leaves_its_where_is_claimed_on_its_diff(claims):
+    claims.write("alpha", result=result(PULLS.format(12)))
+    claims.write("beta", result=result(PULLS.format(7)))
+    changed = ["src/alpha/one.py", "src/beta/two.py", "docs/how.md"]
+    claims.open(7, 12, files={12: changed, 7: ["src/alpha/three.py"]})
+    assert claims.run() == [
+        f"alpha pull request 12 root Where: {WHERE} Diff: `docs/how.md`, `src/beta/two.py`",
+        f"beta pull request 7 root Where: {WHERE}",
+    ]
+
+
+def test_a_wider_line_is_claimed_beside_the_diff_and_a_brief_with_no_pull_has_no_diff(claims):
+    wider = "Wider: `features/x/test_x.py`: a test the change breaks\n"
+    claims.write("alpha", result=result(PULLS.format(12)) + wider)
+    claims.write("beta", result="\n## Result\nStatus: paused\n" + wider)
+    claims.open(12, files={12: ["src/beta/two.py"]})
+    assert claims.run() == [
+        f"alpha pull request 12 root Where: {WHERE} "
+        "Diff: `features/x/test_x.py`, `src/beta/two.py`",
+        f"beta paused root Where: {WHERE}",
+    ]
+
+
+def test_a_claims_line_reads_back_as_the_paths_it_holds(claims):
+    claims.write("alpha", result=result(PULLS.format(12)))
+    claims.write("beta", thread=False)
+    claims.open(12, files={12: ["src/beta/two.py"]})
+    alpha, beta = (rules.held(line) for line in claims.run())
+    assert alpha == rules.Held("alpha", ("src/alpha",), ("src/beta/two.py",))
+    assert beta is None
+
+
+def test_a_diff_path_with_parentheses_or_a_space_reads_back_whole(claims):
+    claims.write("alpha", result=result(PULLS.format(12)))
+    changed = ["client/src/routes/(app)/calendar/+page.svelte", "docs/a file.md"]
+    claims.open(12, files={12: changed})
+    (line,) = claims.run()
+    assert rules.held(line).diff == tuple(changed)
 
 
 def test_a_brief_whose_pull_request_is_no_longer_open_claims_nothing(claims):
@@ -223,7 +270,7 @@ def test_it_asks_github_once_and_merges_removes_and_logs_nothing(claims):
     assert len(claims.run()) == 2
     assert claims.home.code == 0
     calls = (claims.home.stub / "calls").read_text().splitlines()
-    assert calls == ["pr list --state open --limit 1000 --json number,url"]
+    assert calls == ["pr list --state open --limit 1000 --json number,url,files"]
     after = {path: path.read_bytes() for path in kept(claims.home.state)}
     assert after == before
 

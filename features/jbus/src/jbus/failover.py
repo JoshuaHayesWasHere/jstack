@@ -73,8 +73,8 @@ from typing import Any
 import jbus
 import jroles
 from jbus import dispatch, read_json, threads, verbs
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.wake import Pass
 from jbus.watch import World
 from jroles import ledger, pool
 

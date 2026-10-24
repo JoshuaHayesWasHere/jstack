@@ -52,6 +52,7 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
         "/steer",
         "/steer?project=",
         "/task/",
+        "/usage",
     ]
     assert sorted(set(re.findall(r'ask\("(/[^"]*)"', page))) == asks
     assert "fetch(path," in page and page.count("fetch(") == 1
@@ -196,3 +197,29 @@ def test_the_usage_line_of_a_task_says_not_known_when_its_ask_fails(scene, tmp_p
     finally:
         proxy.close()
         served.close()
+
+
+def test_a_homes_drawer_names_its_scope_and_an_idle_home_is_a_row_in_progress(scene, tmp_path):
+    """A scoped home's drawer names its scope and counts its own open tasks, and the root's
+    says it is the root's. A home that ended with a task of its own open is a row of In
+    progress that says it is idle."""
+    (scene.home / "second").mkdir()
+    (scene.home / "second" / "home-id").write_text("mcp:home: demo second\n")
+    (scene.home / "tasks").mkdir(exist_ok=True)
+    (scene.home / "tasks" / "jam-jar.md").write_text("# jam-jar: a jar\nHome: second\n")
+    scene.passed(
+        20, threads=[out("home: demo", minutes=3), out("home: demo second", "ended", "completed")]
+    )
+    served = Served(scene)
+    try:
+        second = shown(served.port, tmp_path, "thread:home:demo%20second")
+        root = shown(served.port, tmp_path, "thread:home:demo")
+        seen = look(scene, tmp_path, port=served.port)
+    finally:
+        served.close()
+    assert "The home of the scope second of demo: " in second
+    assert "1 open task of its own now" in second
+    assert "The root home of demo: " in root
+    rows = {one["slug"]: one for one in seen["prog"]}
+    assert rows["demo second"]["state"] == "Idle"
+    assert rows["demo"]["state"] == "Working"

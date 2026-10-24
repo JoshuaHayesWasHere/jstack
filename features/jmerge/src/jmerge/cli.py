@@ -32,6 +32,7 @@ from jmerge import (
     proof,
     rangediff,
     ready,
+    rejudge,
     rows,
     sweep,
     trailers,
@@ -589,8 +590,12 @@ class Repo:
         self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
         self.trunk = ""
         self.reds: dict[str, list[dict]] = {}
+        self.open: list[ready.PullRequest] = []
+        self.heads: dict[int, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
+        self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(fresh and fresh.run))
+        self.again_of: int | None = None
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
 
@@ -620,6 +625,7 @@ class Repo:
         return self.numbers_on.get(base)
 
     def line_up(self, listed: list[ready.PullRequest], default: str) -> list[ready.PullRequest]:
+        listed = sorted(listed, key=lambda one: one.number)
         settings = self.migrations
         mine = {
             one.number: one
@@ -654,7 +660,58 @@ class Repo:
             return ready.MIGRATION_MERGING.format(number=self.through)
         return ""
 
+    def has(self, one: ready.PullRequest) -> bool:
+        """GitHub keeps each pull request's head as `refs/pull/<number>/head`, also one from a
+        fork, so `jmerge` fetches a head the main checkout does not have from that ref:
+        https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/reviewing-changes-in-pull-requests/checking-out-pull-requests-locally
+        """
+        if one.number not in self.heads:
+            commit = f"{one.head}^{{commit}}"
+            if _run(self.main, "git", "cat-file", "-e", commit).returncode:
+                _run(self.main, "git", "fetch", "-q", "origin", f"refs/pull/{one.number}/head")
+            self.heads[one.number] = not _run(self.main, "git", "cat-file", "-e", commit).returncode
+        return self.heads[one.number]
+
+    def outside(self, commit: str, of: str) -> bool:
+        """Whether `of` lacks `commit`. A ref that cannot be read lacks it too, which keeps a
+        pull request waiting rather than merging what it may carry."""
+        return bool(_run(self.main, "git", "merge-base", "--is-ancestor", commit, of).returncode)
+
+    @functools.cached_property
+    def ordered(self) -> dict[int, str]:
+        """The open pull requests whose rows merge after another row, by number, with their
+        slugs. Only these can hold back a pull request that carries them (`rows.short`)."""
+        slugs = rows.ordered(self.queue)
+        found = {}
+        for one in self.open:
+            brief = ready.brief_of(one.url, self.state / "tasks")
+            if brief is not None and brief.stem in slugs:
+                found[one.number] = brief.stem
+        return found
+
+    def carries(self, one: ready.PullRequest) -> list[tuple[str, int, bool]]:
+        """The open pull requests in `ordered` whose commits a merge of `one` would land: those
+        whose head `one`'s head contains and its base does not. Each comes with whether both
+        heads could be read, and one that could not is kept, since it may be carried."""
+        found = []
+        for other in self.open:
+            slug = self.ordered.get(other.number)
+            if slug is None or other.number == one.number:
+                continue
+            if not (self.has(other) and self.has(one)):
+                found.append((slug, other.number, False))
+            elif not self.outside(other.head, one.head) and self.outside(
+                other.head, f"origin/{one.base}"
+            ):
+                found.append((slug, other.number, True))
+        return found
+
     def others(self, text: str) -> bool:
+        """Whether the brief is another home's to merge. While `home-thread` is empty, jbus is
+        the one runner and every home's brief is its own: none is another's, except to a thread
+        that is no home now. With an id in the switch, each home merges its own."""
+        if self.asking != claims.NOBODY and not _read(self.state / "home-thread").strip():
+            return False
         return claims.home_of(text, self.homes.known) != self.asking
 
     @functools.cached_property
@@ -691,19 +748,24 @@ class Repo:
             "--limit",
             "1000",
             "--json",
-            "number,url",
+            "number,url,files",
             *self.about,
         )
         try:
-            open_pulls = {str(one["url"]): int(one["number"]) for one in json.loads(asked.stdout)}
-        except (ValueError, KeyError, TypeError):
-            open_pulls = None
+            listed = json.loads(asked.stdout)
+            open_pulls = {str(one["url"]): int(one["number"]) for one in listed}
+            files = {
+                str(one["url"]): [str(each["path"]) for each in one.get("files") or []]
+                for one in listed
+            }
+        except (ValueError, KeyError, TypeError, AttributeError):
+            open_pulls, files = None, {}
         if asked.returncode or open_pulls is None:
             print(f"wait: could not ask GitHub{asked_why(asked)}", flush=True)
             return 1
         homes = self.homes.known
         for brief in sorted((self.state / "tasks").glob("*.md")):
-            claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes)
+            claim = claims.of_brief(brief.stem, _read(brief), open_pulls, homes, files)
             if claim:
                 print(claim.line(), flush=True)
         return 0
@@ -953,9 +1015,8 @@ class Repo:
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", "", ""
         tip, paths = moved
-        stale = ready.stale_paths(one.files, left, paths, self.ci) or self.related(
-            one, left, tip, paths
-        )
+        own = ready.stale_paths(one.files, left, paths, self.ci)
+        stale = own or self.related(one, left, tip, paths)
         if not stale:
             return "", tip, ""
         path = ready.guarded_path(one, self.guarded, left)
@@ -963,10 +1024,28 @@ class Repo:
             short = ready.short_on_main(stale, one.started, one.base, "a rebase", user=self.user)
             return f"guarded (touches {path}), {short}", "", ""
         asks = self.fresh is not None and self.fresh.command
+        if not asks and not own:
+            return "", tip, ready.related_note(stale)
         found = self.fresh.of(one.number, one.head, tip, files) if asks else None
         if found is None:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         return found.short, "" if found.short else tip, found.note
+
+    def again(self, one: ready.PullRequest, left: tuple[str, ...] | None, red: str) -> str:
+        """Why a pull request whose check failed waits, judged over today's base. Its check is
+        its own fault, `red`, unless the base moved since the check started. Then the fresh
+        check runs on the head over the base's tip, where the repo has one and the pull request
+        touches no guarded path, and on a pass, or with none, GitHub merges the base into it."""
+        moved = None if one.started is None else self.moved(one.base, one.started)
+        if moved is None or not moved[1]:
+            return red
+        tip = moved[0]
+        guarded = ready.guarded_path(one, self.guarded, left or ())
+        if self.fresh is not None and self.fresh.command and not guarded:
+            found = self.fresh.of(one.number, one.head, tip, None)
+            if found is None or found.short:
+                return found.short if found else ready.FRESH_QUEUED
+        return self.base_merge.of(one, tip)
 
     def related(
         self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
@@ -1002,6 +1081,17 @@ class Repo:
         return found
 
     def judge(self, one: ready.PullRequest, default: str) -> Judgement:
+        """The judgement of the pull request. Where all that holds it is a required check that
+        failed, it is judged again as if that check had passed, and a judgement that gets as far
+        as freshness judges it over today's base (`again`)."""
+        found = self.judged(one, default)
+        if not ready.red_only(one) or found.why != ready.short_on_github(one):
+            return found
+        self.again_of = None
+        green = self.judged(replace(one, waiting=(), failed=()), default, found.why)
+        return green if self.again_of == one.number else found
+
+    def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
         self.carried.pop(one.number, None)
         if one.draft:
@@ -1056,6 +1146,11 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         short = (
             rows.short(self.queue, brief.stem)
+            or (
+                rows.short(self.queue, brief.stem, self.carries(one))
+                if ready.stack_of(text) is None
+                else ""
+            )
             or self.red(one, default, brief.stem)
             or self.short_on_migrations(one, one.base)
         )
@@ -1078,6 +1173,9 @@ class Repo:
             hold = ""
         if hold:
             return Judgement(brief.stem, "hold", hold, note, None)
+        if red:
+            self.again_of = one.number
+            return Judgement(brief.stem, "wait", self.again(one, left, red), note, None)
         short, tip, fresh = self.stale(one, left)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
@@ -1669,7 +1767,8 @@ def parser() -> argparse.ArgumentParser:
         "with its state, its home and its Where line. With --accept it lifts the hold of one "
         "pull request, at the head the hold was said at, when a review proved its one safety "
         "fact at that head, and merges it as any other. With --checks it changes nothing: it "
-        "prints the state of one pull request's checks in a line.",
+        "prints the state of one pull request's checks in a line. With --range-diff it "
+        "changes nothing: it prints whether a rebase changed the content of a branch.",
     )
     top.add_argument(
         "--check",
@@ -1706,10 +1805,23 @@ def parser() -> argparse.ArgumentParser:
         "or a branch, by default the current branch's; merge, remove and log nothing",
     )
     instead.add_argument(
+        "--range-diff",
+        metavar="BEFORE..HEAD",
+        help="print 'clean: <why>' when the branch at HEAD has the content it had at BEFORE, "
+        "by the range-diff over origin/<--base> that jmerge carries a review over with, else "
+        "'changed: <why>'; run it in the checkout that has both; merge, remove and log nothing",
+    )
+    instead.add_argument(
         "--accept",
         metavar="NUMBER",
         help="lift the hold of this pull request at its current head and merge it: the "
         "user's hand-merge, with --by and --at; with --check alone, say what it would do",
+    )
+    top.add_argument(
+        "--base",
+        metavar="BRANCH",
+        default="main",
+        help="with --range-diff: the branch both heads sit on (default: main)",
     )
     top.add_argument(
         "--by", metavar="WHO", help="with --accept: who accepts it, the user jstack's config names"
@@ -1736,6 +1848,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.checks is not None:
         print(said_of_checks(args.checks))
+        return 0
+    if args.range_diff:
+        before, _, head = args.range_diff.partition("..")
+        found = rangediff.verdict(Path.cwd(), before, head, args.base)
+        print(f"{'clean' if found.clean else 'changed'}: {found.why}, by {found.command}")
         return 0
     try:
         user = jsettings.load()
@@ -1828,6 +1945,7 @@ def main(argv: list[str] | None = None) -> int:
         say(f"wait: could not ask GitHub{silent}")
         return 1
     listed = [repo.in_full(one) for one in listed]
+    repo.open = listed
 
     if args.accept is not None:
         found = next((one for one in listed if one.number == int(args.accept)), None)

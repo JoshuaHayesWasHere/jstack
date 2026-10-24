@@ -16,9 +16,10 @@ from datetime import timedelta
 import jbus.queue
 import jbus.wake
 import test_jbus_main_moved
+from jbus import questions
 from jmerge import mainjson
 from jmerge import rows as jmerge_rows
-from test_jbus_kitchen import NOW, approved, complete, go, queued
+from test_jbus_kitchen import NOW, RESULT, approved, complete, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
 from test_jbus_watch import main_of, main_red
 
@@ -226,3 +227,90 @@ def test_a_launch_with_no_green_main_known_sends_the_brief_as_approved(kitchen):
     kitchen.poll()
     (given,) = kitchen.t3.launches
     assert "Green main" not in given["message"]
+
+
+def no_job(kitchen, sha, n):
+    """Give a commit on main the check run GitHub gives when it starts no job, a spent Actions
+    limit or a failed payment: it failed 3 s after it started, and its job ran no step on no
+    runner."""
+    began = NOW + timedelta(minutes=3 * n)
+    run = {
+        "id": 5000 + n,
+        "name": "make check",
+        "status": "completed",
+        "conclusion": "failure",
+        "started_at": iso(began),
+        "completed_at": iso(began + timedelta(seconds=3)),
+    }
+    job = {"id": run["id"], "conclusion": "failure", "steps": [], "runner_id": 0, "runner_name": ""}
+    for name, key, value in (("check-runs.json", sha, [run]), ("jobs.json", str(run["id"]), job)):
+        kept = kitchen.stub / name
+        kitchen.set(name, {**(json.loads(kept.read_text()) if kept.exists() else {}), key: value})
+
+
+def landed(kitchen, n, conclusion=""):
+    """Land a merge on main, list it first among main's commits, and return its sha."""
+    sha = move(kitchen, conclusion)
+    kept = json.loads((kitchen.stub / "commits.json").read_text())
+    kitchen.set("commits.json", [kitchen.commit(sha, ago=-timedelta(minutes=3 * n)), *kept])
+    return sha
+
+
+def replay_no_job_runs(kitchen, runs=20):
+    """Merge alpha at a green main, then land `runs` merges whose check starts no job, each
+    seen by a pass of its own 3 minutes after the one before."""
+    kitchen.brief("alpha", RESULT)
+    green = tip(kitchen)
+    checks(kitchen, green, "success")
+    kitchen.set("commits.json", [kitchen.commit(green, ago=timedelta(hours=1))])
+    kitchen.quiet()
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, green, ago=timedelta(minutes=30))])
+    for n in range(1, runs + 1):
+        no_job(kitchen, landed(kitchen, n), n)
+        kitchen.poll(NOW + timedelta(minutes=3 * n))
+    return green, runs
+
+
+def asked(kitchen):
+    return questions.load(kitchen.state)
+
+
+def test_twenty_runs_that_start_no_job_are_one_account_decision_and_no_red_main(kitchen):
+    green, runs = replay_no_job_runs(kitchen)
+    assert main_red(kitchen) == []
+    assert not [line for line in kitchen.lines("retro") if "failed" in line]
+    assert kept(kitchen) == mainjson.Main(green=green)
+    (decision,) = asked(kitchen)
+    assert decision.answer is None
+    assert len(kitchen.lines("gate")) == 1
+    passed = landed(kitchen, runs + 1, "success")
+    kitchen.poll(NOW + timedelta(minutes=3 * (runs + 1)))
+    (decision,) = asked(kitchen)
+    assert decision.answer is not None
+    assert decision.answer.closed_by != questions.SILENCE
+    assert kept(kitchen) == mainjson.Main(green=passed)
+    red = landed(kitchen, runs + 2, "failure")
+    kitchen.poll(NOW + timedelta(minutes=3 * (runs + 2)))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"main-red-{red[:12]}"]
+    assert len(asked(kitchen)) == 1
+
+
+def test_a_run_that_starts_no_job_after_the_account_was_put_right_is_a_new_decision(kitchen):
+    _, runs = replay_no_job_runs(kitchen, runs=2)
+    landed(kitchen, runs + 1, "success")
+    kitchen.poll(NOW + timedelta(minutes=3 * (runs + 1)))
+    no_job(kitchen, landed(kitchen, runs + 2), runs + 2)
+    kitchen.poll(NOW + timedelta(minutes=3 * (runs + 2)))
+    first, second = asked(kitchen)
+    assert first.answer is not None and second.answer is None
+    assert main_red(kitchen) == []
+
+
+def test_a_rerun_on_the_same_tip_whose_jobs_pass_closes_the_decision(kitchen):
+    _, runs = replay_no_job_runs(kitchen, runs=1)
+    at = tip(kitchen)
+    checks(kitchen, at, "success")
+    kitchen.poll(NOW + timedelta(minutes=3 * (runs + 1)))
+    (decision,) = asked(kitchen)
+    assert decision.answer is not None
+    assert kept(kitchen) == mainjson.Main(green=at)

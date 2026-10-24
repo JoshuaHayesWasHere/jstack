@@ -95,11 +95,13 @@ from datetime import UTC, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import jsettings
 from jbus import (
     current_level,
     dispatch,
+    expedite,
     item,
     leftover,
     merge,
@@ -117,6 +119,7 @@ from jbus.threads import OTHER, REPORT, ROLES
 from jbus.threads import shown as shown_roles
 from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
+from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
 
 APPROVAL = 400
@@ -167,6 +170,10 @@ LOST = {
 UNKNOWN_WAITS = work.UNKNOWN.waits
 NOT_CONFIRMED = "not confirmed: the last pass judged it from what it could not ask"
 PULLED = frozenset(str(one) for one in work.STEPPED)
+GONE = frozenset(
+    str(one)
+    for one in (work.Thread.FAILED, work.Thread.SETTLED, work.Thread.ARCHIVED, work.Thread.MISSING)
+)
 BROKEN, ASKS, WORKS, WAITS, QUEUED, OVER = range(6)
 RANK = {
     "hung": BROKEN,
@@ -673,6 +680,7 @@ def _tasks(
             if waited >= REVIEW_MINUTES and NO_REVIEW in said["say"]:
                 said |= {"say": NO_REVIEWER, "waits": "its crewmate to start a reviewer"}
         crew = crews[slug][0] if len(crews.get(slug, [])) == 1 else {}
+        thread = line["facts"].get("thread") if line else None
         doubt = unconfirmed
         if doubt is None and line is not None and line.get("confirmed") is False:
             doubt = {"since": None, "source": "", "line": NOT_CONFIRMED}
@@ -701,6 +709,7 @@ def _tasks(
                 "checks": text(row.get("checks"), 20),
                 "updated": when(row.get("updated"), user),
                 "thread": text(row.get("thread"), 80),
+                "gone": who == "crew" and thread in GONE,
                 "depends": depends,
                 "history": logged[-HISTORY:],
                 "events": [one for one in events if one["slug"] == slug][-TASK_EVENTS:],
@@ -783,8 +792,10 @@ THREAD = {
         "pending",
         "page",
         "rank",
+        "open",
+        "health",
     )
-} | {"request": REQUEST}
+} | {"request": REQUEST, "home": None, "retired": None}
 
 
 def request(home: Path, slug: str) -> dict[str, str]:
@@ -816,12 +827,16 @@ def request(home: Path, slug: str) -> dict[str, str]:
     return {"state": state, "status": status, "asks": asks}
 
 
-def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[str, Any]] | None:
+def _threads(
+    left: Any, home: Path | None = None, day: str = "", homes: Homes | None = None
+) -> list[dict[str, Any]] | None:
     """Every thread the last pass listed as not settled, or None where it left no list.
 
     `out` marks a thread in which a turn may be under way. That is any thread except one
     that ended. `today` marks a thread that is out, or that last wrote since `day` began. A
-    scout's thread also has what its `request` says."""
+    scout's thread also has what its `request` says, and with `homes` each thread has its
+    `home`, None where it has none (`homes.Homes.of_thread`). `open` is nothing until
+    `_home_work` counts a home's open tasks."""
     if not isinstance(left, list):
         return None
     found = []
@@ -844,11 +859,49 @@ def _threads(left: Any, home: Path | None = None, day: str = "") -> list[dict[st
             "queued": count(one.get("queued")),
             "pending": count(one.get("pending")),
             "page": one.get("page") is True,
+            "open": 0,
         }
         if thread["role"] == "scout" and home is not None and _SLUG.fullmatch(thread["slug"]):
             thread["request"] = request(home, thread["slug"])
+        if homes is not None:
+            owner = homes.of_thread(thread, text(one.get("id"), 80))
+            thread |= owner.said() if owner else {"home": None, "retired": ""}
         found.append(thread)
     return found
+
+
+def _home_work(
+    found: list[dict[str, Any]] | None, tasks: list[dict[str, Any]]
+) -> list[dict[str, Any]] | None:
+    """The threads, with each home's count of its own open tasks, the tasks whose `home` is
+    the home's. A home's thread whose id is in no `home-id` and on no `Was home:` line is the
+    home its title names: the words after the project's name, which a root home's title has
+    none of. A home whose turn ended while a task of its own is open is idle: nothing moves it
+    but the user, so it ranks with what asks.
+
+    A home's thread also has its `health`: the word of its liveness while it is out,
+    `ended` where its turn ended with a task of its own open, and `rest` where it ended with
+    nothing open."""
+    if found is None:
+        return None
+    owned: dict[str, int] = {}
+    for task in tasks:
+        owned[task["home"]] = owned.get(task["home"], 0) + 1
+    made = []
+    for thread in found:
+        if thread["role"] == "home":
+            name = thread["home"]
+            if name is None:
+                name = thread["slug"].partition(" ")[2]
+            thread = thread | {"home": name, "open": owned.get(name, 0)}
+            if thread["out"]:
+                thread["health"] = thread["live"]
+            else:
+                thread["health"] = "ended" if thread["open"] else "rest"
+            if thread["health"] == "ended":
+                thread["rank"] = ASKS
+        made.append(thread)
+    return made
 
 
 def _blocks(tasks: list[dict[str, Any]], ended: list[dict[str, Any]]) -> None:
@@ -1140,9 +1193,20 @@ class Read:
         return mine if isinstance(mine, dict) else {}
 
     @cached_property
-    def out(self) -> list[dict[str, Any]] | None:
+    def threads_listed(self) -> list[dict[str, Any]] | None:
         """The threads the last pass listed, or None where it left no list."""
-        return _threads(self.mine.get("threads"), self.home, self.day)
+        return _threads(self.mine.get("threads"), self.home, self.day, self.homes)
+
+    @cached_property
+    def out(self) -> list[dict[str, Any]] | None:
+        """The threads the last pass listed, each home with its open tasks (`_home_work`), or
+        None where the pass left no list."""
+        return _home_work(self.threads_listed, self.tasks)
+
+    @cached_property
+    def homes(self) -> Homes:
+        """The project's homes, which each task, thread and need belongs to."""
+        return Homes(self.home, self.state)
 
     @cached_property
     def unconfirmed(self) -> dict[str, Any] | None:
@@ -1183,7 +1247,7 @@ class Read:
             if one.get("kind") == "row" and isinstance(one.get("line"), str) and one.get("slug")
         }
         seen = self.mine.get("rows")
-        return _tasks(
+        made = _tasks(
             self.rows,
             _history(self.log or [], self.user),
             self.judged,
@@ -1193,11 +1257,14 @@ class Read:
             seen if isinstance(seen, dict) else {},
             self.user,
             lambda slug: _whole(self.state, self.home, slug),
-            self.out,
+            self.threads_listed,
             self.now,
             self.unconfirmed,
             leftover.read(self.state) if self.name else {},
         )
+        for task in made[0] + made[1]:
+            task |= self.homes.of_task(task["slug"]).said()
+        return made
 
     @property
     def tasks(self) -> list[dict[str, Any]]:
@@ -1342,7 +1409,8 @@ SUMMARY = {
     "steps": {ANY: None},
     "merged": None,
     "threads": [THREAD],
-    "broken": [{"what": None, "open": None}],
+    "homes": [GROUP],
+    "broken": [{"what": None, "open": None, "since": None}],
     "unplaced": [None],
     "health": {
         "checks": {"running": None, "waiting": None, "failed": None, "error": None},
@@ -1363,27 +1431,213 @@ def oldest(needs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     )
 
 
-def broken(checks: dict[str, Any], bus: dict[str, Any], unwell: list[Any]) -> list[dict[str, str]]:
-    """What is broken in a project, each as a plain reason and the drawer that has it.
+WRONG = {
+    "kind": None,
+    "subj": None,
+    "cause": None,
+    "since": None,
+    "where": [{"project": None, "home": None, "open": None}],
+}
+SHARED = ("bus", "source", "unasked")
+STALLED = "stall"
+QUIET_OR_HUNG = {
+    "hung": "its turn has written nothing, and may be hung",
+    "quiet": "it has written nothing for a while",
+}
+SOURCE_IS = {"unreadable": "cannot be read", "stale": "is stale"}
+_STALLED = re.compile(r"stall (\S+): (.+)", re.S)
+_ASIDE = re.compile(r'thread "|it ended with something left')
+_AT_HEAD = re.compile(r"\bat ([0-9a-f]{12})\b")
+_CAPPED = re.compile(r"\bcapped until (\d{4}-\S+)$")
 
-    It names the checks that failed or that the view could not read, the bus when a wake
-    failed, and the sources the view could not read. It says nothing of what is well, and
-    nothing of what is only quiet."""
+
+def _wrong(
+    read: Read, kind: str, subj: str, cause: str, since: Any, route: str, home: Any = ""
+) -> dict[str, Any]:
+    """One thing that is wrong in the project, and the drawer of the page that has it."""
+    place = {
+        "project": read.name,
+        "home": home or "",
+        "open": f"#/{quote(read.name, safe='')}/{route}",
+    }
+    return {"kind": kind, "subj": subj, "cause": cause, "since": since, "where": [place]}
+
+
+def _unwell(read: Read) -> list[dict[str, Any]]:
+    """Each source of the project that is not ok, except one that a session writes, one that
+    is missing and one of the machine. A missing file is one jbus has not written for the
+    project, as `ci.jsonl` where no `jbus ci` runs: the pulse lists it, and it is no fault. A
+    file that is there and cannot be read is."""
+    machine = {one.name for panel in read.panels for one in panel.sources if one.machine}
+    return [
+        one
+        for one in read.listed
+        if one["state"] not in ("ok", "missing")
+        and one["by"] != "session"
+        and one["name"] not in machine
+    ]
+
+
+def _stalls(read: Read, tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The last stall of each open row that still stands, by slug, from the log.
+
+    A stall stands while its row is open and has not moved since. One that names a head (`at
+    <head>`) stands while `expedite.json` or `guarded.json` still counts that head, and one of a
+    cap (`capped until <time>`) while the cap lasts. A stall of a hung thread is the thread's,
+    which the list of threads says as it is now, and a stall of a leftover is a need of the
+    user: neither is here."""
+    moved: dict[str, str] = {}
+    for one in read.moves or []:
+        at = when(one.get("at"))
+        if at and isinstance(one.get("slug"), str):
+            moved[one["slug"]] = max(moved.get(one["slug"], ""), at)
+    last = {}
+    for one in read.events:
+        said = _STALLED.fullmatch(one["line"]) if one["kind"] == STALLED else None
+        if said and one["slug"] in tasks and not _ASIDE.match(said[2]):
+            last[one["slug"]] = one | {"cause": said[2]}
+    counted = {
+        slug: text(entry.get("head"), 40)
+        for file in (expedite.FILE, "guarded.json")
+        for slug, entry in (read.table(file) or {}).items()
+        if isinstance(entry, dict)
+    }
+    found = {}
+    for slug, one in last.items():
+        head, capped = _AT_HEAD.search(one["cause"]), _CAPPED.search(one["cause"])
+        if moved.get(slug, "") >= one["at"]:
+            continue
+        if head and not counted.get(slug, "").startswith(head[1]):
+            continue
+        if capped and (when(capped[1]) or "") <= iso(read.now):
+            continue
+        found[slug] = one
+    return found
+
+
+def wrongs(read: Read) -> list[dict[str, Any]]:
+    """What is wrong in the project, each with its kind, its subject, its cause, since when,
+    and where: the project, the home and the drawer of the page that has it.
+
+    The kinds are `main`, red at its tip; `ci`, a branch whose newest run failed, or CI that
+    could not be read; `bus`, the wakes of the route in effect failing, or wakes stranded in a
+    route the project no longer takes; `source`, a source that is there and cannot be read, or
+    is stale; `unasked`, a source the last pass could not ask; `thread`, a thread that is
+    `hung` or `quiet`; `stall`, a row jbus logged a stall of that still stands (`_stalls`); and
+    `idle`, a pull request whose crew jbus told what it is short of and found nobody at work
+    after (`jbus.expedite`), while no stall of it stands and the hold is not the user's. A
+    `since` is None where nothing kept says. Each reads its source as it is now, so an entry
+    goes once its source works again."""
+    checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
+    main = read.panel("pulse")["main"]
     found = []
+    if main["red"]:
+        since = main["at"] if main["red"] == main["sha"] else None
+        found.append(_wrong(read, "main", "main", f"red at {main['red'][:7]}", since, "pulse"))
     if checks["error"]:
-        found.append({"what": "CI not read", "open": "checks"})
-    elif checks["failed"]:
-        found.append({"what": f"CI {checks['failed']} failed", "open": "checks"})
+        found.append(_wrong(read, "ci", "CI", "could not be read", None, "checks"))
+    else:
+        for at in checks["now"]["failed"]:
+            run = checks["runs"][at]
+            cause = f"{run['name']} failed"
+            found.append(_wrong(read, "ci", run["branch"], cause, run["created"], "checks"))
+    status = read.panel("pulse")["jbus"]["status"]
+    route = "the home thread" if status["wake"] in ("home", "both") else "its webhook"
     if bus["failed_wakes"] or bus["last_error"]:
-        what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
-        found.append({"what": what, "open": "bus"})
-    if unwell:
+        error = f": {bus['last_error']}" if bus["last_error"] else ""
+        cause = f"wakes to {route} fail{error}"
+        found.append(_wrong(read, "bus", "bus", cause, bus.get("since"), "bus"))
+    elif bus.get("stranded"):
+        cause = "wakes wait in a route it no longer takes"
+        found.append(_wrong(read, "bus", "bus", cause, None, "bus"))
+    for one in _unwell(read):
+        cause = SOURCE_IS.get(one["state"], one["state"])
+        found.append(_wrong(read, "source", one["name"], cause, one["at"], "pulse"))
+    if read.unconfirmed:
+        cause, since = "did not answer the last pass", read.unconfirmed["since"]
+        found.append(_wrong(read, "unasked", read.unconfirmed["source"], cause, since, "pulse"))
+    for one in read.out or []:
+        if one["live"] in QUIET_OR_HUNG:
+            parts = ("thread", one["role"], one["slug"]) if one["slug"] else ("threads",)
+            route = "/".join(quote(part, safe="") for part in parts)
+            cause = QUIET_OR_HUNG[one["live"]]
+            if one["queued"]:
+                cause += f", and {one['queued']} run{'' if one['queued'] == 1 else 's'} wait"
+            home = one.get("home")
+            found.append(_wrong(read, "thread", one["title"], cause, one["updated"], route, home))
+    tasks = {task["slug"]: task for task in read.tasks}
+    stalls = _stalls(read, tasks)
+    for slug, one in stalls.items():
+        route = f"task/{quote(slug, safe='')}"
         found.append(
-            {
-                "what": f"{len(unwell)} source{'' if len(unwell) == 1 else 's'} unread",
-                "open": "pulse",
-            }
+            _wrong(read, "stall", slug, one["cause"], one["at"], route, tasks[slug]["home"])
         )
+    told = {one["slug"]: one["at"] for one in read.events if one["kind"] == expedite.EXPEDITE}
+    for slug, entry in (read.table(expedite.FILE) or {}).items():
+        if not isinstance(entry, dict) or slug not in tasks or slug in stalls:
+            continue
+        if "told" not in entry or not entry.get("idle") or entry.get("users"):
+            continue
+        short = text(entry.get("reason"))
+        cause = f"#{entry.get('number')} is short, {short}, and its crew has not acted"
+        route = f"task/{quote(slug, safe='')}"
+        found.append(_wrong(read, "idle", slug, cause, told.get(slug), route, tasks[slug]["home"]))
+    return found
+
+
+def merged(wrong: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The list of what is wrong across the projects, oldest first and an entry with no time
+    last. Entries of a kind that one machine shares (`SHARED`: the bus, a source, a source the
+    pass could not ask) with the same subject and cause are one entry, which names each place
+    and is wrong since the oldest of them. Any other entry stays one per project, so a red main
+    of two repos is two entries."""
+    found: dict[Any, dict[str, Any]] = {}
+    for at, one in enumerate(wrong):
+        key = (one["kind"], one["subj"], one["cause"]) if one["kind"] in SHARED else at
+        if key not in found:
+            found[key] = one | {"where": list(one["where"])}
+            continue
+        kept = found[key]
+        kept["where"] += one["where"]
+        times = [time for time in (kept["since"], one["since"]) if time]
+        kept["since"] = min(times) if times else None
+    return sorted(found.values(), key=lambda one: (one["since"] is None, one["since"] or ""))
+
+
+def broken(wrong: list[dict[str, Any]], bus: dict[str, Any]) -> list[dict[str, str | None]]:
+    """What is broken in a project, each as a plain reason, the drawer that has it, and
+    `since`, when it broke, or None where nothing kept says. It says the kinds `main`, `ci`,
+    `bus`, `source` and `unasked` of `wrong`, the project's list of what is wrong (`wrongs`),
+    so the two never disagree. The failed branches are one reason, since the oldest of their
+    runs, and so are the sources, since the oldest was written. It says nothing of what is
+    well, and nothing of what is only quiet."""
+    found: list[dict[str, str | None]] = []
+    for kind, drawer in (("main", "pulse"), ("ci", "checks"), ("bus", "bus")):
+        mine = [one for one in wrong if one["kind"] == kind]
+        times = [one["since"] for one in mine if one["since"]]
+        since = min(times) if times else None
+        if not mine:
+            continue
+        if kind == "main":
+            what = f"main red {mine[0]['cause'].rpartition(' ')[2]}"
+        elif kind == "ci":
+            what = "CI not read" if mine[0]["subj"] == "CI" else f"CI {len(mine)} failed"
+        elif bus["failed_wakes"] or bus["last_error"]:
+            what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
+        else:
+            held = bus["stranded"]
+            what = f"{held} wake{'' if held == 1 else 's'} stranded in an outbox"
+        found.append({"what": what, "open": drawer, "since": since})
+    unread = [one for one in wrong if one["kind"] == "source"]
+    if unread:
+        times = [one["since"] for one in unread if one["since"]]
+        what = f"{len(unread)} source{'' if len(unread) == 1 else 's'} unread"
+        found.append({"what": what, "open": "pulse", "since": min(times) if times else None})
+    for one in wrong:
+        if one["kind"] == "unasked":
+            found.append(
+                {"what": f"{one['subj']} did not answer", "open": "pulse", "since": one["since"]}
+            )
     return found
 
 
@@ -1397,28 +1651,25 @@ def summary(read: Read) -> dict[str, Any]:
     the last pass left no list. `blind` is what the project's page cannot say now. It leaves
     out what the page never can say. It also leaves out a source the view could not read,
     because that source is in `unwell`. `unwell` is each source of the project that is not ok,
-    except one that a session writes. A source or a blind spot of the machine is on no
-    project's row."""
+    except one that a session writes and one that is missing. A missing file is one jbus has
+    not written for the project, as `ci.jsonl` where no `jbus ci` runs: the pulse lists it,
+    and it is no fault. A file that is there and cannot be read is. A source or a blind spot of
+    the machine is on no project's row."""
     held = [task["step"] for task in read.tasks]
     steps = {key: held.count(key) for key in STEP if key in held}
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
-    machine = {one.name for panel in read.panels for one in panel.sources if one.machine}
     own = [
         spot
         for panel in read.panels
         for spot in (panel.data.blind(read) if hasattr(panel.data, "blind") else [])
         if not spot.machine
     ]
-    unwell = [
-        {"name": one["name"], "state": one["state"]}
-        for one in read.listed
-        if one["state"] != "ok" and one["by"] != "session" and one["name"] not in machine
-    ]
+    unwell = _unwell(read)
     failed = {key: len(at) for key, at in checks["now"].items()} | {"error": checks["error"]}
     return {
         "name": read.name,
         "repo": read.where,
-        "broken": broken(failed, bus, unwell),
+        "broken": broken(read.once(wrongs), bus),
         "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
         "waits": len(read.panel("you")["needs"]),
         "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
@@ -1426,12 +1677,13 @@ def summary(read: Read) -> dict[str, Any]:
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
         "threads": read.out,
+        "homes": read.homes.group(read.tasks, read.panel("you")["needs"], read.out),
         "health": {
             "checks": failed,
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},
             "threads": None if read.out is None else sum(1 for one in read.out if one["out"]),
             "blind": len(own),
-            "unwell": unwell,
+            "unwell": [{"name": one["name"], "state": one["state"]} for one in unwell],
         },
     }
 
@@ -1449,7 +1701,9 @@ def stack(
     It has the machine once, the steps of the line and the roles of a thread
     (`threads.ROLES`). It has a summary of each project of `names`, or of each project the
     state directory has. It has the user's two queues across the projects: `needs`, oldest
-    first, and `proceeds`, the soonest to go ahead first.
+    first, and `proceeds`, the soonest to go ahead first. It has `wrong`, what is wrong across
+    the projects (`wrongs`), with the machine's sources that are not ok, and one cause that
+    several projects share as one entry (`merged`).
 
     The machine is what one jbus and one room provide for every project: the pass and the
     timer, the room and the plan's use, and the runner units. A `Read` of its own reads each
@@ -1494,6 +1748,16 @@ def stack(
         key=lambda one: (one["due"] or "~", one["project"], one["key"]),
     )
     line = [{"key": one.key, "name": one.name, "who": one.who} for one in (*STEPS, UNKNOWN)]
+    machine_wrong = [
+        {
+            "kind": "source",
+            "subj": one["name"],
+            "cause": SOURCE_IS.get(one["state"], one["state"]),
+            "since": None,
+            "where": [],
+        }
+        for one in machine["unwell"]
+    ]
     return {
         "at": iso(now),
         "machine": machine,
@@ -1502,4 +1766,7 @@ def stack(
         "projects": every,
         "needs": needs,
         "proceeds": proceeds,
+        "wrong": merged(
+            machine_wrong + [one for read in reads for one in keep(read.once(wrongs), [WRONG])]
+        ),
     }

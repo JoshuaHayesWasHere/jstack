@@ -17,34 +17,57 @@ The unit's `RestartForceExitStatus=75` starts it again on the new code, and `Suc
 [The view's look](../working-on-jbus/the-views-look.md) has its colours and type, for working on the page.
 
 To show the page, the view reads no config of jbus and no secret.
-It takes `GET` requests and two writes, `POST /answer` and `POST /steer`.
+It takes `GET` requests and three writes, `POST /answer`, `POST /steer` and `POST /usage`.
 Any other method gets 405.
 
 ### What the bare link shows
 
-The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once.
+The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once, as a map of each project and its homes.
 A project is a directory of `~/.local/state/jbus` that holds a `queue.json`.
 The view never reads or shows a project retired to `~/.local/state/jbus-retired`.
 From the top, the page has these parts:
 
 | Part | What it shows |
 |---|---|
-| Needs you | One queue that leads every view (`#/` and `#/<project>`), oldest first across projects. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover or a setup. A gate with a default, or one that closes after 2 hours of silence, is in the folded list "Will proceed on default" under the queue, with the time it goes ahead. Its "Accept default" is the one filled button of the page. It waits 10 seconds, and Undo stops it. Only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page, a token beside the queue shows the new noticed lines, labelled "not counted". With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
-| Projects | One link for each project, to its page. The link has a name, a dot, a reason when something is broken, and the counts of open tasks and of today's merges. The dot is amber when something of the project needs you, red when something is broken, and hollow otherwise. The reason is plain, such as "CI 3 failed", "bus outbox 2" or "1 source unread". A healthy project shows nothing else. |
+| Waits on you | One line: how many things wait on you across the projects, how long the oldest has waited, and how many go ahead on their default. Its Open goes to the triage tab, `#/triage`, which lists them. |
+| Homes | A card for each project with something wrong or something for you, what is wrong first, then what waits on you most. The card's first line is the root home: the project's name, which opens its page, the home's health, its open tasks, what of it waits on you and what goes ahead on its default. Each child home is a line under it, by name: its path (`demo › ui`), its health, its open tasks, what waits on you, a flag for each row of it jbus logged a stall or an idle of, and how old the home is. Each thing that is wrong in the project is a line under its home that opens its drawer, with how long ago it went wrong. A thing wrong in more than one project, and a stopped jbus, is a line over the cards. A home's health is its own thread's: moving, waiting on a request, quiet or hung with how long, ended with work out, or at rest. A child home with nothing wrong and nothing for you is its one line. |
+| Quiet | Every other project, one line each: its name, which opens its page, and its open tasks. |
+
+A project's page leads with the queue of what needs you in that project, oldest first:
+
+| Part | What it shows |
+|---|---|
+| Needs you | The project's queue. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover or a setup. A gate with a default, or one that closes after 2 hours of silence, is in the folded list "Will proceed on default" under the queue, with the time it goes ahead. Its "Accept default" is the one filled button of the page. It waits 10 seconds, and Undo stops it. Only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page, a token beside the queue shows the new noticed lines, labelled "not counted". With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
 
 The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine's state.
 The state is "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red.
 Those words link to the pulse drawer, which lists the machine's parts.
 When jbus has stopped or the server does not answer, one line under the header says so once.
+On a phone the header is one row, and it leaves out the switcher, the theme, the time of the last read while it is fresh, and the machine's state while it is ok.
 
-A project's row opens its page, `#/<project>`, which has nothing else on its first screen but:
+A project's card or line opens its page, `#/<project>`, which has nothing else on its first screen but:
 
 | Part | What it shows |
 |---|---|
-| Needs you | The same queue, of this project. |
-| In progress | One row for each open task, and one for each scout or reviewer thread with no task. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
+| Needs you | The project's queue, as above. |
+| In progress | One row for each open task that is not in Needs you, and one for each scout or reviewer thread with no task. A task in Needs you is drawn there only. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
 | Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
+
+A project with child homes draws In progress under one heading per home, the root first and then each child home by name.
+Each heading gives the home's open tasks and what of it waits on you, and a child home with nothing open is that heading alone.
+A row's home is the one `jbriefs.home_of` gives its brief's `Home:` line, and the root for a row with no such line.
+A row whose `Home:` line names a scope that has retired is under the root, with a chip that names the scope.
+In `/state.json` and `/stack.json` each task, thread and need has its `home`, the scope's name or an empty string for the root, and the summary lists the homes with their counts under `homes`.
+Each home there also has its `health`, from its own home thread, `since` for a home that is quiet or hung, and `started`, the day of the `Goal (<day>, ...)` line the block that made the scope wrote in its `plan.md`.
+Each need also has its `subj`, the row or question it is about, so that no need reads only as its question.
+
+`/stack.json` has one list of what is wrong across the projects, `wrong`, oldest first.
+Its kinds are a red main, a failed or unread CI, failing or stranded wakes, a source that is there and cannot be read, a source the last pass could not ask, a thread that is hung or quiet, a stall jbus logged that still stands, and a pull request whose crew was told what it lacks and has not acted (`expedite.json`).
+A file a project has never had is no entry.
+Each entry has its `kind`, its `subj`, its `cause`, `since` when it went wrong, and `where`: each project and home it is in, with the drawer that has it.
+An entry of the bus or of a source with the same subject and cause in several projects is one entry that names them all, and any other entry stays one per project.
+A project's red reasons (`broken`) are built from the same list, so the two never disagree.
 
 ### Every view is a link
 
@@ -140,3 +163,13 @@ The answer is `{at, item, say, state, last_event}`, read from the record after t
 A message goes to the item's home in the same request.
 Where T3 Code does not take it, the view still records the line, `say` tells why it was not sent, and the next pass sends it.
 `/steer` has the checks `/answer` has: a foreign `Host` or `Origin` gets 403, a body that is too long or not of that shape gets 400, and a project the state directory lacks gets 404.
+
+### Count what the page opens
+
+The page posts one line to `POST /usage` for each route it shows, each drawer it opens, and the first click after it loads.
+The server writes each line itself, as `{at, kind, name, project}`, into `view-usage.jsonl` in jbus's state directory.
+It takes a name only from its own routes and panels and a project only from its state directory, and it refuses anything else with 400.
+So a line holds no row text, slug, thread id or address, and nothing of it leaves the machine.
+Like the other writes, a count is taken only from the view's own origin.
+Past 256 KiB the file keeps only its newest lines, up to half that size.
+`jbus view usage [--since <time>]` prints how many of each kind and name it holds, over the last 7 days by default.

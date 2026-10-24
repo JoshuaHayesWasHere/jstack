@@ -16,6 +16,7 @@ from test_jbus_kitchen import sends
 
 NAME = "scratch"
 SCRATCH_ID = "mcp:the-no-project-id"
+HOME = "mcp:" + "-".join("5c" * (size // 2) for size in (8, 4, 4, 4, 12))
 AT = "2026-10-12 10:55 ET"
 SAID = ("--by", "user", "--at", AT, "tidy", "this", "draft")
 
@@ -31,7 +32,7 @@ def scratch(kitchen):
     assert code == 0, out
     home = kitchen.root / "home" / NAME
     home.mkdir(parents=True)
-    (home / "home-id").write_text("mcp:scratch-home\n")
+    (home / "home-id").write_text(f"{HOME}\n")
     return home
 
 
@@ -78,24 +79,22 @@ def test_status_lists_the_scratch_home_with_its_thread_and_no_repo_fields(kitche
     kitchen.poll()
     status = kitchen.status()
     assert NAME not in status["projects"]
-    assert status["scratch"] == {
-        NAME: {"project_id": SCRATCH_ID, "home_thread": "mcp:scratch-home"}
-    }
+    assert status["scratch"] == {NAME: {"project_id": SCRATCH_ID, "home_thread": HOME}}
     assert NAME not in status["homes_off_bus"]
     code, out = kitchen.main("status")
-    assert code == 0 and '"home_thread": "mcp:scratch-home"' in out
+    assert code == 0 and f'"home_thread": "{HOME}"' in out
 
 
 def test_a_word_to_the_scratch_home_reaches_its_thread(kitchen, scratch):
     code, out = kitchen.main("word", "--to", NAME, *SAID)
-    assert code == 0 and out.startswith(f"sent: {NAME}, to mcp:scratch-home, word "), out
+    assert code == 0 and out.startswith(f"sent: {NAME}, to {HOME}, word "), out
     (sent,) = sends(kitchen)
-    assert sent["threadId"] == "mcp:scratch-home"
+    assert sent["threadId"] == HOME
     assert sent["message"].endswith("tidy this draft")
 
 
 def test_a_word_recorded_from_the_scratch_homes_own_thread_is_kept_and_not_posted(kitchen, scratch):
-    code, out = kitchen.main("word", "--to", NAME, "--from", "mcp:scratch-home", *SAID)
+    code, out = kitchen.main("word", "--to", NAME, "--from", HOME, *SAID)
     assert code == 0 and out.startswith(f"kept: {NAME}, not posted,"), out
     assert sends(kitchen) == []
 
@@ -104,9 +103,9 @@ def test_a_word_that_waited_for_the_home_id_goes_on_the_next_pass(kitchen, scrat
     (scratch / "home-id").unlink()
     code, out = kitchen.main("word", "--to", NAME, *SAID)
     assert code == 0 and out.startswith(f"waits: {NAME},"), out
-    (scratch / "home-id").write_text("mcp:scratch-home\n")
+    (scratch / "home-id").write_text(f"{HOME}\n")
     kitchen.poll()
-    assert [one["threadId"] for one in sends(kitchen)] == ["mcp:scratch-home"]
+    assert [one["threadId"] for one in sends(kitchen)] == [HOME]
 
 
 def test_a_config_of_scratch_homes_alone_still_delivers_a_word_that_waited(kitchen, scratch):
@@ -122,7 +121,7 @@ def test_a_config_of_scratch_homes_alone_still_delivers_a_word_that_waited(kitch
     (scratch / "home-id").unlink()
     code, out = kitchen.main("word", "--to", NAME, *SAID)
     assert code == 0 and out.startswith(f"waits: {NAME},"), out
-    (scratch / "home-id").write_text("mcp:scratch-home\n")
+    (scratch / "home-id").write_text(f"{HOME}\n")
     kitchen.poll()
-    assert [one["threadId"] for one in sends(kitchen)] == ["mcp:scratch-home"]
-    assert kitchen.status()["scratch"][NAME]["home_thread"] == "mcp:scratch-home"
+    assert [one["threadId"] for one in sends(kitchen)] == [HOME]
+    assert kitchen.status()["scratch"][NAME]["home_thread"] == HOME

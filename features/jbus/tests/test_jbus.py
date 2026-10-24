@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import queue, t3, wake
+from jbus import queue, strays, t3, wake
 from jbus.view.panels.usage import panel as usage
 from jmerge import cli
 from test_jbus_kitchen import FIXTURE, NOW, REPO
@@ -47,6 +47,7 @@ def test_the_source_imports_no_model_client_and_names_no_other_t3_tool():
         "jpack",
     }, roots
     named = source.replace(queue.SESSION, "").replace(f'KEPT = "{usage.KEPT}"', "", 1)
+    named = named.replace(f'AGENT = "{strays.AGENT}"', "", 1)
     assert not re.search(r"anthropic|openai|claude|api\.|/v1/messages", named, re.I)
     assert set(re.findall(r"\bt3_[a-z_]+\b", source)) == {t for t in t3.TOOLS if t[:3] == "t3_"}
 
@@ -118,8 +119,8 @@ def test_the_example_config_ships_with_dispatch_on_and_only_placeholders():
     given = tomllib.loads(example)
     assert given["dispatch"] is True and "max_running" not in given
     (project,) = given["project"]
-    assert set(project) == {"name", "checkout", "state", "projectId", "webhook_url", "webhook_key"}
-    assert all("<" in project[key] for key in ("projectId", "webhook_url", "webhook_key"))
+    assert set(project) == {"name", "checkout", "state", "projectId"}
+    assert all("<" in project[key] for key in ("projectId",))
 
 
 def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
@@ -159,6 +160,7 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
     )
     kitchen.poll()
     written = {
+        "alerts": [],
         "last_pass": "2026-10-12 11:00 ET",
         "projects": {
             "demo": {
@@ -167,9 +169,11 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
                 "outbox": 0,
                 "sign_in": "",
                 "sweep": "",
+                "wake": "webhook",
             }
         },
         "streaks": {},
+        "stranded": {},
         "homes_off_bus": [],
         "scratch": {},
         "token_expires": "2026-11-11 10:00 ET",

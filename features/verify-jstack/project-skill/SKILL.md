@@ -31,7 +31,8 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
 - `uv tool install` is the real one, with `UV_TOOL_DIR` in the sandbox and the host's cache and Pythons. On the real machine uv keeps its tools under the user's HOME.
 - A release is a wheel `make dist` built from this checkout, served by a local web server named in `JSTACK_RELEASE_URL`, and the uv installer `install.sh` fetches when uv is missing is a stand-in named in `JSTACK_UV_INSTALLER`. On the real machine both come from GitHub's release and astral.sh, over the network.
 - `PROC` and `LIMITS` name files Launch wrote: an idle machine and a plan at 10% of its limits. The real machine reads `/proc` and the plan's own limits.
-- `config/config.toml` is written by Launch: one project, `dispatch = true`, `max_running = 1`. On the real machine the user writes `~/.config/jbus/config.toml`.
+- `config/config.toml` is written by Launch: one project, `dispatch = true`, `max_running = 1`, and `wake = "both"`, so wakes go to the webhook stand-in as well as to the home thread.
+  On the real machine the user writes `~/.config/jbus/config.toml`.
 - The demo repo's origin is a bare directory beside it, and HOME is new and empty. On the real machine the origin is GitHub and HOME is the user's.
 - The commands come from this checkout's `.venv/bin` after `uv sync`, and `jbus poll` is typed. The real machine has them from `uv tool install --editable`, and a systemd timer runs the pass.
 

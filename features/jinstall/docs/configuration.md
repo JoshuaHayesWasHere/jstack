@@ -82,7 +82,8 @@ To grow a pool by one instance, add one line to `providers.json` and one more id
 `jinstall --setup` writes it once, where there is none, with mode 600 and no project.
 It sets `server` from the sign-in beside it, `t3.json`, when that file names one, else to `http://127.0.0.1:3773`.
 It sets `dispatch = false`, so nothing launches until you set it to `true`.
-The file holds a webhook's key, so its mode must be 600.
+It asks for no webhook: wakes go to each project's home thread by default.
+The file may hold a webhook's key, so its mode must be 600.
 `jbus` refuses a file that group or others can read.
 `JBUS_CONFIG_DIR` names another directory for it.
 
@@ -96,8 +97,6 @@ name = "<project>"
 checkout = "<path of the main checkout>"
 state = "<the repo's directory name under ~/.local/state/home>"
 projectId = "<the T3 Code project id>"
-webhook_url = "<the Chef's webhook>"
-webhook_key = "<its key>"
 ```
 
 These keys go above the first `[[project]]`. `jbus` reads every key on this page, and so does the doctor, through the same loader.
@@ -111,7 +110,9 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
-| `webhook_url` | Empty | The top-level webhook, which monitors every project. `jbus` POSTs every project's events to it. It is also the URL of every project that has no `webhook_url` and no `webhook_key` of its own. |
+| `wake` | The home thread | Where wakes go: `"home"`, the project's home thread through T3 Code; `"webhook"`, the webhook pair alone; or `"both"`. A project's own `wake` wins over it. `jbus` refuses any other value, and `"webhook"` or `"both"` for a project with no pair ([Where wakes go](../../jbus/docs/jbus/events-and-the-webhook.md#where-wakes-go)). |
+| `home_thread` | Empty | The thread that gets a project's wakes when the project's home has no thread in its `home-id`. |
+| `webhook_url` | Empty | Optional. The top-level webhook, which monitors every project, posted only where `wake` is `"webhook"` or `"both"`. `jbus` POSTs every project's events to it. It is also the URL of every project that has no `webhook_url` and no `webhook_key` of its own. |
 | `webhook_key` | Empty | The key that goes with the top-level `webhook_url`. Set both or neither, because `jbus` refuses half a pair. |
 | `blocking_url` | Empty | A second webhook, for what blocks, which jbus-relay fans out. `jbus` POSTs to it each blocking item as it opens, one reminder for each item still open 15 minutes later, and the hourly refresh. It POSTs no event there. With no `blocking_url`, `jbus` POSTs nothing more. [jbus](../../jbus/docs/jbus/what-blocks.md) has the bodies. |
 | `blocking_key` | Empty | The key that goes with `blocking_url`, which `jbus` sends in the same two headers as a project's `webhook_key`. Set both or neither, because `jbus` refuses half a pair. Keep both secret, like the webhook's pair. |
@@ -129,7 +130,8 @@ Each `[[project]]` table is one repo:
 | `projectId` | None, required | The T3 Code project that the launches go to. |
 | `kind` | A repo | `scratch` for a scratch home, which has `name` and `projectId` and no other key. `jbus` runs no repo step for it ([A scratch home](../../jbus/docs/jbus/a-scratch-home.md)). `jbus` refuses any other value. |
 | `state` | The value of `name` | The repo's directory name under `~/.local/state/home`. |
-| `webhook_url` | The top-level one | Where `jbus` POSTs the project's events, as well as to the top-level one. With the same pair in both it POSTs once. With none here and none at the top, `jbus` POSTs nothing for the project. |
+| `wake` | The top-level one | Where this project's wakes go, as the top-level `wake` says. |
+| `webhook_url` | The top-level one | Optional. Where `jbus` POSTs the project's events when its `wake` is `"webhook"` or `"both"`, as well as to the top-level one. With the same pair in both it POSTs once. |
 | `webhook_key` | The top-level one | The key `jbus` sends in two headers of each POST to the project's own `webhook_url`. `jbus` refuses a table with only one of `webhook_url` and `webhook_key`. |
 | `migrations` | Empty | The directory of the repo's migrations, from the root of its checkout, such as `db/migrations`. `jmerge` merges the pull requests that add a file there one at a time, in the order `merge_after` gives. When such a pull request lands, `jmerge` gives a numbered migration its number ([jmerge](../../jmerge/docs/jmerge.md#migrations)). `jbus` refuses a directory that is absolute or has `..` in it. With none, `jmerge` holds no pull request for its migrations. |
 | `ci_report` | Off | `true` turns on the project's weekly CI report, which `jbus-ci.timer` writes each Monday at 09:00. The install enables that timer only while a project asks ([Measure the CI](../../jbus/docs/jbus/measure-the-ci.md#the-weeks-report)). `jbus` refuses a value that is not `true` or `false`. |
@@ -141,7 +143,7 @@ A table that still has `loud` loads, but `jbus` ignores the key, and each pass s
 
 `jbus t3 login` writes the sign-in beside the config, as `t3.json`.
 You do not write that file.
-[jbus](../../jbus/docs/jbus/set-up-jbus.md) has the setup steps, and [The Chef](../../jbus/docs/chef.md) says what to put behind `webhook_url`.
+[jbus](../../jbus/docs/jbus/set-up-jbus.md) has the setup steps, and [The Chef](../../jbus/docs/chef.md) says what to put behind the optional `webhook_url`.
 
 Two more paths change what `jbus` does:
 

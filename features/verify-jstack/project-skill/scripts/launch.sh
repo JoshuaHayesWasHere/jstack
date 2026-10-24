@@ -83,6 +83,7 @@ server = "$url"
 dispatch = true
 max_running = 1
 runtimeMode = "full-access"
+wake = "both"
 [[project]]
 name = "demo"
 checkout = "$S/demo"

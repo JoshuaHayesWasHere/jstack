@@ -44,8 +44,8 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "name": "larder",
         "repo": "",
         "broken": [
-            {"what": "CI not read", "open": "checks"},
-            {"what": "13 sources unread", "open": "pulse"},
+            {"what": "CI not read", "open": "checks", "since": None},
+            {"what": "1 source unread", "open": "pulse", "since": None},
         ],
         "unplaced": [],
         "waits": 0,
@@ -54,28 +54,15 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         "steps": {},
         "merged": 0,
         "threads": None,
+        "homes": [
+            {"name": "", "open": 0, "waits": 0, "health": "unknown", "since": None, "started": None}
+        ],
         "health": {
             "checks": {"running": 0, "waiting": 0, "failed": 0, "error": "the repo is not known"},
             "bus": {"outbox": 0, "failed_wakes": 0, "last_error": ""},
             "threads": None,
             "blind": 1,
-            "unwell": [
-                {"name": name, "state": "missing"}
-                for name in (
-                    "work.json",
-                    "waiting-on-user.json",
-                    "transitions.jsonl",
-                    "events.jsonl",
-                    "main.json",
-                    "checks.json",
-                    "stall.json",
-                    "wake.json",
-                    "sent.json",
-                    "merge.log",
-                )
-            ]
-            + [{"name": "GitHub", "state": "unreadable"}]
-            + [{"name": name, "state": "missing"} for name in ("ci.jsonl", "ci-prs.jsonl")],
+            "unwell": [{"name": "GitHub", "state": "unreadable"}],
         },
     }
     pantry = by["pantry"]

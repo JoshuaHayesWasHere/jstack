@@ -20,7 +20,9 @@ from testing.layouts import assembled
 
 SKILLS = assembled() / "skills"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
-RUNS = re.compile(r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:checks|claims|scope)\b)", re.M)
+RUNS = re.compile(
+    r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:checks|claims|scope|range-diff)\b)", re.M
+)
 FILLED = re.compile(r"'<[^'<>\n]+>'")
 NAME = "demo"
 ME = "mcp:this-home"
@@ -437,17 +439,22 @@ def test_whose_a_brief_is_agrees_with_jmerge(repo):
     assert {slug: claims.of_brief(slug, NAMED[slug], {}, homes).home for slug in NAMED} == OWNERS
     for me, name in ((ME, claims.ROOT), ("mcp:scoped", "billing"), (None, claims.ROOT)):
         theirs = [slug for slug in NAMED if OWNERS[slug] == name]
-        asking = cli.Repo(repo.main, repo.state, me, False, user=jsettings.DEFAULTS)
-        assert [slug for slug in NAMED if not asking.others(NAMED[slug])] == theirs
+        assert mine(repo, me) == theirs
         if me:
             (_, *told) = repo.merge(me=me)
             assert [line.split()[2] for line in told] == theirs
 
 
 def mine(repo, me):
-    """The briefs `jmerge --home <me>` does not leave to another home."""
-    asking = cli.Repo(repo.main, repo.state, me, False, user=jsettings.DEFAULTS)
-    return [slug for slug in NAMED if not asking.others(NAMED[slug])]
+    """The briefs `jmerge --home <me>` does not leave to another home, run while the switch holds
+    an id, as a home runs it. With the switch empty, jbus merges every home's."""
+    switch = repo.state / "home-thread"
+    switch.write_text("mcp:some-home\n")
+    try:
+        asking = cli.Repo(repo.main, repo.state, me, False, user=jsettings.DEFAULTS)
+        return [slug for slug in NAMED if not asking.others(NAMED[slug])]
+    finally:
+        switch.unlink()
 
 
 def test_a_brief_has_one_home_whoever_asks(repo):

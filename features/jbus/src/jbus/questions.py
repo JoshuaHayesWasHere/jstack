@@ -1,5 +1,5 @@
 """A question for the user is one numbered record: `jbus gate` writes it, `jbus answer`
-closes it, and nothing else does either.
+closes it, and a pass does either only as this module says (`park`, `silent`, `clear`).
 
 `questions.json` in a project's state directory is `{"next", "records"}`. A record is a
 `Question`:
@@ -29,10 +29,10 @@ closes it, and nothing else does either.
   either;
 - `asked_at`: when `jbus gate` took the question;
 - `answer`: empty while the question is open. Once it is closed, it is an `Answer`.
-  `closed_by` is `jbus answer`, a home's `gates.md`, or `silence`. `words`, `by` and `at` are
-  the user's words, who gave them and when. `where` is where the command ran, and `keeps`
-  marks an answer that is the default. `told` is when jbus sent a differing answer to the
-  asker. For an answer given as
+  `closed_by` is `jbus answer`, a home's `gates.md`, `silence`, or `cleared`. `words`, `by`
+  and `at` are the user's words, who gave them and when. `where` is where the command ran,
+  and `keeps` marks an answer that is the default. `told` is when jbus sent a differing answer
+  to the asker. For an answer given as
   `--message`, `ref` is the `<thread id>/<message id>` that jbus read from T3 Code, `said_in` is
   that thread's title, and `checked` is true. For an answer typed with `--by` and `--at`,
   those three are empty and false. When a home closed the question in its file, the answer
@@ -48,6 +48,12 @@ also closes a record by silence, with its default, when the record has been open
 (`QUIET`) and has no `Holds:` line (`silent`). If the user answers after that, their answer
 replaces the close by silence as the record's one answer, and jbus carries an answer that
 differs as it carries any other.
+
+A pass raises a question of its own through the path a piped gate takes (`park`): the record, and
+the `gate` event the Chef reads. `mainmoved` raises one when main's check starts no job. When the
+cause passes, the pass closes such a question that still waits (`clear`), with `closed_by`
+`cleared`, `by` jbus and words that say what passed. That close is not the user's word either, and
+a question the user answered keeps the answer.
 
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
 question waits for the user. Its `Holds:` line names the case, one of `HOLDS`, and its
@@ -113,8 +119,8 @@ from typing import Any
 import jsettings
 from jbriefs import skills
 from jbus import END_TURN, Config, Refused, dispatch, mirror, queue, verbs, write_json
+from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused, typed
-from jbus.wake import Pass
 
 EVENTS = {"note": "quiet"}
 NAME = "questions.json"
@@ -143,7 +149,7 @@ MESSAGE = (
 )
 _THREAD = re.compile(r"\bthread (\S+)")
 _GROUP = re.compile(r"\([^()]*\)$")
-COMMAND, HOME, SILENCE = "jbus answer", "gates.md", "silence"
+COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
 QUIET = timedelta(hours=2)
 UNANSWERED = "no answer in 2 hours"
 HOLDS = (
@@ -198,6 +204,8 @@ class Answer:
             return f'closed by its home in {self.where}, "{self.words}"'
         if self.closed_by == SILENCE:
             return f"closed with its default by {self.by}, {self.at}: {self.where}"
+        if self.closed_by == CLEARED:
+            return f"closed by {self.by}, {self.at}, since its cause passed: {self.words}"
         kind = "the default stands" if self.keeps else "not the default"
         return f'"{self.words}", by {self.by}, {self.at}, in {self.where} ({kind})'
 
@@ -472,6 +480,38 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
         made = Question(number=number, slug=slug, question=asked, asked_at=at, **said)
         _write(state, number + 1, [*records, made])
     return made, True
+
+
+def park(run: Pass, slug: str, lines: str) -> tuple[Question, bool]:
+    """Keep a gate as a question (`ask`), and queue its `gate` event while it waits for an
+    answer. It is the one path a gate takes, piped by a thread to `jbus gate` or raised by a
+    pass."""
+    one, new = ask(run.state, run.home, slug, lines, run.now)
+    if not one.answer:
+        line = f"gate {slug}: question {one.number}: {one.question}"
+        run.find(slug, "gate", line, lines, key=one.key)
+    return one, new
+
+
+def clear(run: Pass, number: int, words: str) -> None:
+    """Close a question that waits for an answer (`_open`) because what it asked about has
+    passed, and say so in `words`. A question the user answered keeps that answer. jbus sends
+    nothing, and writes one quiet `note` event."""
+    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    given = Answer(words, SOURCE, at, "a jbus pass", True, closed_by=CLEARED)
+    with _locked(run.state):
+        count, records = _kept(run.state)
+        found = [one for one in records if one.number == number and _open(one)]
+        if not found:
+            return
+        _write(
+            run.state,
+            count,
+            [replace(one, answer=given) if one in found else one for one in records],
+        )
+    line = f"{NOTE} {found[0].slug}: question {number} closed, {words}"
+    run.find(found[0].slug, NOTE, line, key=f"cleared {number}")
+    run.say(line)
 
 
 def answer(
@@ -830,12 +870,10 @@ def _gate(args: argparse.Namespace, config: Config) -> int:
     gone = queue.was_removed(run.state, args.slug)
     if gone:
         raise Refused(f"refused: {gone}, and a removed slug asks nothing")
-    one, new = ask(run.state, run.home, args.slug, text, run.now)
+    one, new = park(run, args.slug, text)
     if one.answer:
         print(f"already answered: question {one.number}: {one.answer.line()}")
         return 0
-    line = f"gate {args.slug}: question {one.number}: {one.question}"
-    run.find(args.slug, "gate", line, text, key=one.key)
     print(f"queued: question {one.number}" if new else f"already sent: question {one.number}")
     return 0
 

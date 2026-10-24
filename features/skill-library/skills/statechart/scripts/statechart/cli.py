@@ -18,6 +18,7 @@ from statechart.lib import (
     ChartError,
     join_and,
     parse_dot,
+    shared_variables,
     tla_variables,
     tlc_output_warning,
     uncited_conditions,
@@ -583,7 +584,7 @@ def rules_as_expected(now, other, expected):
 
 def scaffold(name, spec):
     text = without_comments(spec)
-    variables = tla_variables(text)
+    variables = [*tla_variables(text), *shared_variables(spec)]
     # A definition that only another action calls is listed too, though TLC names no step after it.
     actions = sorted(
         {
@@ -1063,7 +1064,7 @@ def warn_uncited(models):
     for m in models:
         spec = m["spec"]
         with open(spec, encoding="utf-8") as handle:
-            found = uncited_conditions(handle.read())
+            found = uncited_conditions(handle.read(), shared_variables(spec))
         held = [t["rule"] for t in [*m["traces"], *m["properties"]] if not t["broken"]]
 
         def short(s):

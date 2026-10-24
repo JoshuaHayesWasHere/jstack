@@ -6,6 +6,7 @@ Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 import os
 import subprocess
 import textwrap
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -259,3 +260,120 @@ def test_a_queue_that_does_not_parse_is_a_gate_and_nothing_is_launched(kitchen, 
     assert kitchen.lines() == ["condition demo: queue.json does not parse"]
     assert kitchen.t3.launches == []
     assert (kitchen.state / "queue.json").read_text() == written
+
+
+def test_a_bare_where_shares_a_path_with_a_ticked_where_under_it(kitchen):
+    bare = "Where: client/src/routes/sitter/, client/src/lib/components/ui/ (new X)"
+    text = complete("alpha").replace("Where: `src/alpha/`", bare)
+    assert kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=text)[0] == 0
+    assert go(kitchen, "alpha")[0] == 0
+    button = "client/src/lib/components/ui/Button.svelte"
+    kitchen.set(
+        "claims.txt", f"alpha out root {bare}\nother out root Where: `{button}`, `server/app.py`\n"
+    )
+    kitchen.poll()
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha"]
+    assert kitchen.lines("overlap") == [
+        f"overlap alpha: shares {button} with other; whichever merges second rebases"
+    ]
+
+
+SHARED = "whichever merges second rebases"
+
+
+def test_two_pull_requests_whose_diffs_meet_are_one_overlap_and_a_second_pass_none(kitchen):
+    """Neither brief's `Where:` names the other's files, but both pull requests change one
+    file under `src/shared/`. No row is queued: the pass compares the briefs that are out."""
+    kitchen.set(
+        "claims.txt",
+        "alpha pull request 7 root Where: `src/alpha/` Diff: `src/shared/x.py`\n"
+        "beta pull request 8 root Where: `src/beta/` Diff: `docs/b.md`, `src/shared/`\n"
+        "gamma not launched root Where: `src/shared/`\n",
+    )
+    kitchen.poll()
+    line = f"overlap alpha: shares src/shared/x.py with beta, by both diffs; {SHARED}"
+    assert kitchen.lines("overlap") == [line]
+    (event,) = kitchen.events("overlap")
+    assert event["slug"] == "alpha"
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kitchen.lines("overlap") == [line]
+    assert kitchen.t3.launches == [] and kitchen.lines("gate") == []
+
+
+def test_a_widening_found_after_launch_names_the_side_that_came_from_a_diff_once(kitchen):
+    kitchen.set(
+        "claims.txt",
+        "alpha out root Where: `src/alpha/`\nbeta out root Where: `src/beta/`\n",
+    )
+    kitchen.poll()
+    assert kitchen.lines("overlap") == []
+    kitchen.set(
+        "claims.txt",
+        "alpha out root Where: `src/alpha/`\n"
+        "beta pull request 8 root Where: `src/beta/` Diff: `src/alpha/routes.py`\n",
+    )
+    kitchen.poll(NOW + timedelta(minutes=3))
+    line = f"overlap alpha: shares src/alpha/routes.py with beta, by beta's diff; {SHARED}"
+    assert kitchen.lines("overlap") == [line]
+    kitchen.set(
+        "claims.txt",
+        "alpha out root Where: `src/alpha/`\n"
+        "beta pull request 8 root Where: `src/beta/` Diff: `src/alpha/`, `src/alpha/more.py`\n",
+    )
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert kitchen.lines("overlap") == [line]
+
+
+def test_where_lines_that_meet_name_no_diff_even_when_the_diffs_meet_too(kitchen):
+    kitchen.set(
+        "claims.txt",
+        "alpha out root Where: `src/jbus/cli.py`\n"
+        "beta pull request 8 root Where: `src/jbus/` Diff: `docs/x.md`\n"
+        "gamma pull request 9 root Where: `docs/` Diff: `src/zeta.py`\n",
+    )
+    kitchen.poll()
+    assert kitchen.lines("overlap") == [
+        f"overlap alpha: shares src/jbus/cli.py with beta; {SHARED}",
+        f"overlap beta: shares docs/x.md with gamma, by beta's diff; {SHARED}",
+    ]
+
+
+def test_ten_pull_requests_of_a_hundred_files_each_are_compared_in_well_under_a_pass(kitchen):
+    """The timer runs a pass every minute, so comparing the briefs out takes a small part of
+    one: 10 pull requests that change 100 files each, and two of them share one file."""
+    lines = []
+    for n in range(10):
+        files = [f"src/b{n}/d{d}/f{f}.py" for d in range(10) for f in range(10)]
+        files += ["src/shared/x.py"] if n in (2, 7) else []
+        diff = ", ".join(f"`{path}`" for path in files)
+        lines.append(f"b{n} pull request {n + 1} root Where: `docs/b{n}.md` Diff: {diff}\n")
+    kitchen.set("claims.txt", "".join(lines))
+    began = time.perf_counter()
+    kitchen.poll()
+    assert time.perf_counter() - began < 5
+    assert kitchen.lines("overlap") == [
+        f"overlap b2: shares src/shared/x.py with b7, by both diffs; {SHARED}"
+    ]
+
+
+def test_a_glob_where_shares_the_files_it_matches_and_a_dot_where_shares_every_file(kitchen):
+    kitchen.set(
+        "claims.txt",
+        "alpha out root Where: `src/*/x.py`, `docs/**/*.md`\n"
+        "beta pull request 8 root Where: `src/beta/` Diff: `src/a/x.py`, `src/a/y.py`\n"
+        "gamma pull request 9 root Where: `lib/` Diff: `docs/deep/er/g.md`, `docs/g.txt`\n",
+    )
+    kitchen.poll()
+    assert kitchen.lines("overlap") == [
+        f"overlap alpha: shares src/a/x.py with beta, by beta's diff; {SHARED}",
+        f"overlap alpha: shares docs/deep/er/g.md with gamma, by gamma's diff; {SHARED}",
+    ]
+    kitchen.set(
+        "claims.txt",
+        "delta out root Where: `.`\n"
+        "epsilon pull request 10 root Where: `lib/e.py` Diff: `src/e.py`\n",
+    )
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert kitchen.lines("overlap")[2:] == [
+        f"overlap delta: shares lib/e.py with epsilon; {SHARED}"
+    ]

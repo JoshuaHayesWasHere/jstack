@@ -12,7 +12,7 @@ function dBus(arg) {
   if (arg === "events") return head("Under the line", "The last " + b.events.length + " events") + '<ul class="clean steps">' + b.events.slice().reverse().map(eventRow).join("") + '</ul>';
   var last = b.events.slice(-LAST_EVENTS).reverse();
   return head("Under the line", "The bus") +
-    busNow(t ? "Outbox, own webhook" : "Outbox", b, "The count is from <code>status.json</code>: the outbox itself is never read.") +
+    busNow(t ? "Outbox, own route" : "Outbox", b, "The count is from <code>status.json</code>, with any route the project no longer takes: the outbox itself is never read." + (b.stranded ? " " + plural(b.stranded, "event waits", "events wait") + " in a route the project no longer takes, and the next pass moves them." : "") + (b.since ? " Wakes fail since " + day(ms(b.since)) + "." : "")) +
     (t ? busNow("Outbox, top-level webhook", t, "What waits on the user, posted to the monitor of every project beside the project's own webhook.") : "") +
     (b.blocking ? busNow("Outbox, second target", b.blocking, "What blocks: each item as it opens, its one reminder and the hourly refresh, posted to the webhook jbus-relay fans out. Its outbox holds whole bodies.") : "") +
     '<h3>Sent today, by kind and loudness</h3>' +

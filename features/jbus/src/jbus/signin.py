@@ -20,9 +20,10 @@ jbus cannot read the file, it does not treat the expiry that it finds as a renew
 
 The sign-in is the machine's, so jbus gives the reminder once, not once for each project. jbus
 queues the reminder in the box of the config's first project, as an event of the machine
-(`wake.Box.send`). Such an event waits for the top-level webhook alone
-(`wake.Box.machine_route`), and that project's flush posts it. `jbus events` of that project
-lists it.
+(`wake.Box.send`). Such an event waits for the project's home thread where its `wake` picks it, and
+for one webhook where its `wake` picks the webhook: the top-level one, or the project's own where
+the config has none (`wake.Box.machine_routes`). That project's flush posts it. `jbus events`
+of that project lists it.
 
 The `sign_in` line of each project in the status file is separate from the reminder, and
 stays as it was: `expiring`, within `warn_days`.
@@ -109,7 +110,7 @@ def remind(config: Config, now: datetime) -> None:
 
 
 def plan(config: Config, now: datetime) -> str:
-    """Return what `jbus status` says of the reminder: the webhook that receives it, and the
+    """Return what `jbus status` says of the reminder: the route that receives it, and the
     days still ahead."""
     expires = t3.expiry(config.token_path)
     if expires is None:
@@ -117,12 +118,14 @@ def plan(config: Config, now: datetime) -> str:
     if not config.projects:
         return "none: the config has no project to carry it"
     first_project = config.projects[0]
-    if config.webhook[0]:
-        where = "the top-level webhook"
-    elif first_project.webhook_url:
-        where = f"the webhook of {first_project.name}"
-    else:
-        return f"none: no top-level webhook, and {first_project.name} has none of its own"
+    where = " and ".join(
+        "the top-level webhook"
+        if route.top
+        else f"the home thread of {first_project.name}"
+        if route.home
+        else f"the webhook of {first_project.name}"
+        for route in _box(config).machine_routes
+    )
     stamp = config.user.stamp(expires)
     if now >= expires:
         return f"{KIND} to {where}: it ran out at {stamp}, run jbus t3 login"
