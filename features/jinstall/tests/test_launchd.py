@@ -128,6 +128,19 @@ def test_check_and_the_doctor_read_each_agent_from_launchctl_print(mac):
     assert mac.bootstraps().count(str(mac.plist("jgauge-sample.timer"))) == 2
 
 
+def test_agents_stay_due_after_the_jbus_config_is_gone_and_say_what_they_lack(mac):
+    mac.with_jbus()
+    setup(mac.machine())
+    (mac.jbus / "config.toml").unlink()
+    mac.plist("jbus-stale.timer").unlink()
+
+    assert mac.said_by(install, False) == [
+        f"old optional {mac.line} -> lacks jstack.jbus-stale.plist"
+    ]
+    assert mac.said_by(install, True) == [f"ok optional {mac.line}"]
+    assert mac.plist("jbus-stale.timer").exists()
+
+
 def test_a_plist_the_templates_no_longer_make_is_rewritten_and_loaded_again(mac):
     mac.with_jbus()
     setup(mac.machine())
