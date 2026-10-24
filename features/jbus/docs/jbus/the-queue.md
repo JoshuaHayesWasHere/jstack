@@ -117,7 +117,7 @@ When the row had a go and its brief changed, `add` prints a line above the table
 The line ends `, its go holds` or `, its go does not hold for it: approve it again` ([What an approval is bound to](#what-an-approval-is-bound-to)).
 
 `--priority` is an integer, and the lowest launches first.
-`--depends` is optional, and names the slugs that must end before this row launches.
+`--depends` is optional, and names the slugs that must end before this row launches, or, for the one slug left, open its pull request: the row then launches stacked on that pull request's branch ([What a pass launches](what-a-pass-launches.md)).
 A slug ends by a merge, or by a row that ended `done` with no pull request.
 Such a row's thread ended, and its last Result says `Status: done`, `Left: none` and a `Branch:` line that is not a URL.
 `--merge-after` is optional too, and names the slugs whose pull requests merge before this row's.
