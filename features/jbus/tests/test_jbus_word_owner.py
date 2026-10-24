@@ -50,6 +50,12 @@ def test_a_word_that_names_a_scoped_homes_report_goes_to_that_home_alone(kitchen
     assert to(kitchen) == [FLOW]
 
 
+def test_a_slug_that_ends_a_sentence_is_still_that_slug(kitchen):
+    kitchen.brief("fl-other")
+    assert says(kitchen, "fix", "fl-statechart.", "Then", "stop.")[0] == 0
+    assert to(kitchen) == [FLOW]
+
+
 def test_a_word_that_names_a_row_with_a_scoped_homes_home_line_goes_to_that_home(kitchen):
     assert says(kitchen, "land", "fl-s1-stack", "first")[0] == 0
     assert to(kitchen) == [FLOW]
