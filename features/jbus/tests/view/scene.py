@@ -195,7 +195,10 @@ def logged(minutes, word, number, reason):
 
 
 class Scene:
-    """A machine as the passes left it: the state directory, the home's, and the stand-ins."""
+    """A machine as the passes left it: the state directory, the home's, and the stand-ins.
+
+    It is a Linux machine, whose units systemd runs, whatever machine the test runs on: the
+    stand-in is `systemctl`. A test of a Mac sets `sys.platform` to darwin itself."""
 
     def __init__(self, root, monkeypatch, name="demo"):
         self.root, self.name, self.now = root, name, NOW
@@ -227,6 +230,7 @@ class Scene:
             "df",
             'printf "Filesystem Inodes IUsed IFree IUse%% Mounted\\nt 1000 100 900 10%% /\\n"\n',
         )
+        monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setenv("PATH", f"{self.bin}{os.pathsep}{os.environ['PATH']}")
         monkeypatch.setenv("JBUS_CONFIG_DIR", str(root / "config"))
         monkeypatch.delenv("JBUS_VIEW_HOST", raising=False)
