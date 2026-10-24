@@ -64,7 +64,7 @@ Rejudge(p) ==
     /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:216, once a head and tip
     /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1044, a fresh-check file
         IF fresh /\ breaks[p]
-            \* features/jmerge/src/jmerge/cli.py:1045-1047: it fails over today's base, one message
+            \* features/jmerge/src/jmerge/cli.py:1064-1066: it fails over today's base, one message
             THEN /\ told' = [told EXCEPT ![p] = TRUE] /\ UNCHANGED ci
             \* features/jmerge/src/jmerge/rejudge.py:63: GitHub merges the base in, check runs again
             ELSE /\ ci' = [ci EXCEPT ![p] = "none"] /\ UNCHANGED told
