@@ -1,8 +1,8 @@
-"""jbus runs `jmerge` with no `--home`, as the root home would. While the repo's `home-thread`
-switch is empty, jbus is the one runner, and it merges for every home of the repo: the pull
-request of a brief whose `Home:` line names a scoped home merges by the same rules as the root
-home's. A pull request is another home's only while a home merges for itself, with an id in
-that switch.
+"""jbus runs `jmerge` with no `--home`, and it is the only merger: it merges for every home of the
+repo, whatever the repo's `home-thread` switch holds. The pull request of a brief whose `Home:`
+line names a scoped home merges by the same rules as the root home's. A home's own run, with
+`--home`, merges nothing: it says what it would do of its own pull requests, and another home's
+is `another home's` to it alone.
 
 The tests run the command as a jbus pass does, against a real origin and the fake `gh` of
 `features/jmerge/tests/test_jmerge_fresh.py`."""
@@ -49,8 +49,17 @@ def test_a_pass_merges_a_scoped_homes_pull_request_as_it_merges_the_root_homes(k
     assert kitchen.at_main("b.txt") == (LINES + "ours\n").strip()
 
 
-def test_with_the_switch_set_for_the_scoped_home_its_pull_request_is_another_homes(kitchen):
+def test_with_the_switch_set_a_pass_still_merges_every_homes_pull_request(kitchen):
     (kitchen.home.state / "home-thread").write_text(f"{SCOPED}\n")
     first, second = a_pass(kitchen)
-    assert first.startswith("merged 6 root-task ")
-    assert second == f"wait 7 {url(7)}: another home's"
+    assert first.startswith("merged 6 root-task ") and second.startswith("merged 7 fl-task ")
+
+
+def test_a_homes_own_run_merges_nothing_and_leaves_the_other_homes_out(kitchen):
+    said = kitchen.home.sh(
+        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge --home {SCOPED}'
+    )
+    assert (kitchen.home.code, kitchen.home.stderr) == (0, "")
+    assert said[0] == f"wait 6 {url(6)}: another home's"
+    assert said[1].startswith("ready 7 ")
+    assert kitchen.calls() == []

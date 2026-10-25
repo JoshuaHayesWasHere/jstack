@@ -82,14 +82,10 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
        echo "not written: this needs the thread's id, and root or scope and its name as step 1 printed it"
    else
        printf '%s\n' "$ME" > "$M/home-id"
-       switch=$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')
-       if [ -n "$switch" ]; then
-           echo "jbus does not merge here: $H/home-thread holds $switch. Nothing empties it but the user, by hand."
-       fi
    fi
    ```
 
-   The file is that one line and nothing else, in this home's own directory, and it replaces whatever an earlier home left there. The `handoff` skill removes it. On `jbus does not merge here`, tell the user that line as it is, at once: `$H/home-thread` is the merge switch, an id in it keeps jbus from running `jmerge` for this repo, and a home that started before the id moved to `home-id` left its own there. The block reads the switch and never writes it.
+   The file is that one line and nothing else, in this home's own directory, and it replaces whatever an earlier home left there. The `handoff` skill removes it.
 
    Writing the file is all it takes for the threads this home's last thread left out to report here. A brief or a request names its home by its scope, or names none for the root home, and never a thread: each thread reads this file when it sends, so the block rewrites no brief and no request, and an approval of a queued one stands. Until this runs, those threads report to nobody, and what they wrote waits on disk. On `not written:`, nothing is: fill in what it names and run it again. With no tool that gives the id, skip this step as the root home. A scoped home cannot go on without its id: tell the user and stop.
 
@@ -225,9 +221,9 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    It keeps each line once. The lines under `## to read` are never cut, so each is the heading as it is. The status of "When a thread sends a message" runs step 4's block too, and marks in the same way.
 5. First, where step 4 printed `no project:` under `## questions`, do what "On the bus" says, below these steps: a repo with a home is a jbus project.
-   Then do steps 2 and 3 of "When a thread sends a message", once, without waiting for a word: run the merge step, which merges what is ready or, while jbus merges, prints what jbus merged since the last home read the log and what each open pull request waits for, update the plan, and launch what can start.
+   Then do steps 2 and 3 of "When a thread sends a message", once, without waiting for a word: run the merge step, which prints what jbus merged since the last home read the log and what each open pull request waits for, update the plan, and launch what can start.
    Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run.
-   Both go by the block of "Who merges", and run no `jmerge` on `jbus merges`.
+   The merge step runs no `jmerge`, and the sweep runs one only while `$H/home-thread` holds an id.
    A message sent between the last home's handoff and this start reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
    Then, on either start, run the first block of "A queue and its hourly audit" and do what it prints: an audit is its home's own, so this home schedules one for a queue that is out and deletes the one the last home left.
    Then do what "Its thread" says, under "The home before this one".

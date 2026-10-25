@@ -60,7 +60,6 @@ GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
 RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
 MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
-MERGING = Reason("check", "another run of jmerge is merging into its base")
 NO_MESSAGES = Reason("check", "its commit messages could not be read for the squash")
 NO_SETTINGS = Reason("check", "the repo's merge settings could not be read")
 LANDING_UNALLOWED = Reason("hold", "the repo allows {allowed} only, not a merge commit or a squash")
@@ -1148,3 +1147,6 @@ def gate_held(why: str) -> bool:
 def first_line(output: str, code: int) -> str:
     """The gate's first line of output, or its exit code where it printed none."""
     return next((line.strip() for line in output.splitlines() if line.strip()), f"exit {code}")
+
+
+MERGING = Reason("check", "another run of jmerge is merging into its base")

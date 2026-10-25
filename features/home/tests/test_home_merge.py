@@ -261,18 +261,17 @@ class Home:
         (self.stub / "list.json").write_text(json.dumps([listed]))
         (self.stub / "head").write_text(f"{head}\n")
 
-    def run(self, *flags, cwd=None, path=None, about="flags=''"):
-        """Run the command as the skill says to: from the main checkout, with the block at
-        the top and the block that says who merges, and this home's id in place of the name
-        in angle brackets. The switch holds an id, so the home is the one that merges."""
+    def run(self, *flags, cwd=None, path=None, about=None):
+        """Run the command as jbus's pass does: `jmerge` from the main checkout, with no `--home`,
+        whatever the switch holds. With `about`, run the skill's block that holds that text, in
+        one call with the block at the top, with the flags added to its `jmerge` line."""
+        if about is None:
+            script = f'{paths()}\nuv run --project "$T/.." jmerge {" ".join(flags)}'
+            return self.sh(script, cwd, path)
         text = block(about)
         (line,) = [line for line in text.splitlines() if "jmerge --" in line]
-        asked = f"{line.removesuffix(' ;;')} {' '.join(flags)}".replace("<threadId>", ME)
-        asked += " ;;" if line.endswith(" ;;") else ""
-        script = f'{paths()}\nM="$H"\n{block("merges=")}\n{text.replace(line, asked)}'
-        said = self.sh(script, cwd, path)
-        assert said[:1] == ["home merges"]
-        return said[1:]
+        asked = f"{line} {' '.join(flags)}".rstrip()
+        return self.sh(f'{paths()}\nM="$H"\n{text.replace(line, asked)}', cwd, path)
 
     def sh(self, script, cwd=None, path=None):
         """Run a script as a thread of this user would, with the fake `gh` first on PATH."""
@@ -774,7 +773,6 @@ def test_with_no_gh_it_fails_and_prints_no_line(home, tmp_path):
 WHOSE = {
     "a brief that names this home": (f"Home: {ME}\n", OTHER, "", (), True),
     "a brief that names another home": (f"Home: {OTHER} (a second home)\n", ME, "", (), False),
-    "another home's, and told to merge them all": (f"Home: {OTHER}\n", ME, "", ("--all",), True),
     "no line, and this home is the listed one": ("", ME, "", (), True),
     "no line, and another home is the listed one": ("", OTHER, "", (), False),
     "a brief that names this home by its directory": (
@@ -807,7 +805,7 @@ WHOSE = {
 
 
 @pytest.mark.parametrize("case", WHOSE)
-def test_a_home_merges_its_own_pull_requests(home, case):
+def test_a_home_that_asks_sees_its_own_pull_requests(home, case):
     line, listed, was, flags, mine = WHOSE[case]
     (home.tasks / "alpha.md").write_text(brief(review("clean"), field=line))
     if listed:
@@ -820,7 +818,7 @@ def test_a_home_merges_its_own_pull_requests(home, case):
         (home.state / "handoff.md").write_text(f"# a handoff\n\nWas home: {was}\n")
     home.open_pull_request(REVIEWED)
     wanted = f"ready 7 {REVIEWED} alpha alpha" if mine else f"wait 7 {URL}: another home's"
-    assert home.ready(*flags) == [wanted]
+    assert home.ready("--home", ME, *flags) == [wanted]
 
 
 PLAN = """\
@@ -964,7 +962,7 @@ def test_a_head_that_moved_after_the_check_is_not_merged(merged):
     assert merged.untouched()
 
 
-def test_another_homes_pull_request_is_left_until_the_command_is_told(merged):
+def test_another_homes_pull_request_is_left_by_a_home_and_merged_by_jbus(merged):
     (merged.home.state / "home-id").write_text(f"{ME}\n")
     (merged.home.tasks / "alpha.md").write_text(
         brief(review("clean", merged.head), field=f"Home: {OTHER}\n")
@@ -974,9 +972,9 @@ def test_another_homes_pull_request_is_left_until_the_command_is_told(merged):
     theirs.write_text(PLAN)
     (theirs.parent / "home-id").write_text(f"{OTHER}\n")
     merged.plan.write_text("# a demo repo: plan\n")
-    assert merged.run() == [f"wait 7 {URL}: another home's"]
+    assert merged.run("--home", ME) == [f"wait 7 {URL}: another home's"]
     assert merged.on_main() == (merged.start, merged.start)
-    said = merged.run("--all")
+    said = merged.run()
     commit, _ = merged.on_main()
     assert said == [merged_line(commit)]
     assert theirs.read_text() == PLAN
@@ -1070,7 +1068,7 @@ def test_a_repo_with_no_merge_off_file_is_merged_as_ever(merged):
     assert merged.run() == [merged_line(merged.on_main()[0])]
 
 
-@pytest.mark.parametrize("flags", [(), ("--all",), ("--land", "demo"), ("--home", OTHER, "--all")])
+@pytest.mark.parametrize("flags", [(), ("--land", "demo"), ("--home", OTHER)])
 def test_a_merge_off_file_merges_nothing_whoever_runs_it(merged, flags):
     merged.home.nohome("/nohome merge")
     assert (merged.home.state / "merge-off").is_file()
@@ -1096,7 +1094,7 @@ def test_switched_back_on_the_repo_is_merged_again(merged):
 DRAFT = f"wait 7 {URL}: draft"
 
 
-@pytest.mark.parametrize("flags", [(), ("--all",), ("--land", "demo")])
+@pytest.mark.parametrize("flags", [(), ("--land", "demo")])
 def test_a_draft_that_is_otherwise_ready_is_never_merged(merged, flags):
     merged.home.open_pull_request(merged.head, draft=True)
     assert merged.run("--check", *flags) == [DRAFT]

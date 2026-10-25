@@ -134,13 +134,10 @@ SAID = {
 
 @pytest.mark.parametrize(("switch", "merges"), SWITCHES)
 @pytest.mark.parametrize("line", ["fixed", "waits"])
-def test_a_crewmate_asks_who_merges_by_the_test_the_home_makes(quiet, switch, merges, line):
+def test_a_crewmate_asks_who_merges_by_the_switch(quiet, switch, merges, line):
     if switch is not None:
         quiet.switch.write_text(switch)
     crew = quiet.who_merges(line)
-    assert quiet.says("home", block("home", 'echo "$merges merges"'), quiet.main) == (
-        f"{merges} merges"
-    )
     assert crew.startswith(f"{merges} merges: {SAID[merges, line]}")
 
 

@@ -179,8 +179,7 @@ class Kitchen:
 
     def run(self, *flags):
         said = self.home.sh(
-            f'PYTHONPATH="{self.source}" "{sys.executable}" -m jmerge --home {merge.ME} '
-            + " ".join(flags)
+            f'PYTHONPATH="{self.source}" "{sys.executable}" -m jmerge ' + " ".join(flags)
         )
         assert (self.home.code, self.home.stderr) == (0, "")
         return said

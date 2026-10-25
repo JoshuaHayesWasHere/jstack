@@ -22,11 +22,14 @@ from test_jbus_queue import add
 from test_jbus_row_ends import PULL, listed, result, sends
 
 
-def test_with_the_home_on_jbus_leaves_the_merge_to_it(kitchen):
+def test_jbus_merges_whatever_the_switch_holds(kitchen):
+    """jbus is the only merger: with an id in `home-thread`, the pass still runs `jmerge`, with
+    no `--home`, and sends each line it prints."""
     kitchen.set("jmerge.txt", "merged 7 alpha abc1234\n")
     (kitchen.home / "home-thread").write_text("mcp:the-home\n")
-    assert "skipped demo: the home mcp:the-home merges" in kitchen.poll()
-    assert kitchen.log("jmerge") == ["--check"] and kitchen.events("jmerge") == []
+    assert not any(line.startswith("skipped") for line in kitchen.poll())
+    assert kitchen.log("jmerge") == [""]
+    assert kitchen.lines("jmerge") == ["merged 7 alpha abc1234"]
 
 
 REMOVABLE = [

@@ -20,9 +20,8 @@ Nothing is sent when a pull request opens, when a review is written or when its 
 On each message, do this without waiting for a word from the user.
 
 1. Read what landed: the last result, the review or the report the message is about, from disk. Not the thread that sent it. A gate that came as a message is one jbus could not take: do what the end of "Gates" says for it. A line `Gate: question <number>` in what you just read is a question jbus holds, and asks nothing here. The lines of a gate itself under "Noticed" in a Result or "Findings" in a Report are from a thread that had no home to send them to, or from one that wrote them under the skill as it was: hand them to jbus with the block of "Ask one", under that thread's slug, and only on `not asked` do the same for it as for one that came as a message.
-2. Run the merge step of "Merging a pull request that is ready", after its block "Who merges".
-   On `home merges` it runs `jmerge`, which merges what is ready and writes no plan.
-   On `jbus merges` it runs none, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
+2. Run the merge step of "Merging a pull request that is ready".
+   It runs no `jmerge`, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
    Then clear this home's blockers, as "Clearing its own blockers" says: a start and an audit tick run this step too, so every wake clears them.
 3. Run `jbus plan` and close each entry it prints `finished: close it` for ("Planning"). Write no status: the plan holds none. Then launch the next planned task, by "Handing a task to a crewmate" or "Sending a scout", when all of these hold. Any one that fails leaves the task where it is, with the reason kept for step 4:
    - its plan entry's `Stage:` line says `planned`, its own brief is not out (`tasks/<slug>.md` has no `Thread:` line, and its row, where it has one, is still `queued`), and nothing it waits on is unmerged: a task is never stacked on another's branch, but in a plan whose head names `autopilot-stack` ("A stack the user lands");
