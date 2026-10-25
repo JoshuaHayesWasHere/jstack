@@ -5,9 +5,11 @@ run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's
 the design's `Rejudge`, each name a file and line."""
 
 import importlib
+import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -20,7 +22,8 @@ sys.path.insert(0, str(SPEC))
 
 flow = importlib.import_module("flow_canaries")
 lib = importlib.import_module("statechart.lib")
-find_java = importlib.import_module("statechart.tools").find_java
+tools = importlib.import_module("statechart.tools")
+find_java = tools.find_java
 
 
 def test_every_condition_of_the_code_model_names_its_file_and_line():
@@ -108,3 +111,18 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
         for rule in flow.RULES:
             said = "breaks" if rule in breaks else "holds"
             assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)
+
+
+def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
+    """A run by hand holds a test slot, and starts TLC on 2 workers and not one for each core."""
+    java = tmp_path / "java"
+    java.write_text('#!/bin/sh\necho "slot ${JGAUGE_TEST_SLOT:-none}: $*"\n')
+    java.chmod(0o755)
+    for name in ("JGAUGE_TEST_SLOT", "TLC_WORKERS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path))
+    monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+    _, module, cfg, *_ = next(flow.runs())
+    out = flow.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
+    assert out.startswith("slot full: "), out
+    assert " -workers 2 " in out, out
