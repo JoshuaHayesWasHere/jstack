@@ -23,6 +23,7 @@ from jbus import cli, t3, verbs
 from test_jbus_kitchen import GATE
 
 HELP = Path(__file__).parent / "fixtures" / "jbus-help"
+READ_SET = ("features/jbus/tests/fixtures/jbus-help/",)
 PAGES = sorted(path.stem for path in HELP.glob("*.txt"))
 
 
