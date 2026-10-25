@@ -192,7 +192,8 @@ def aside_path(state: Path, slug: str, text: str) -> Path:
 
 
 def removed(state: Path) -> dict[str, dict[str, str]]:
-    """Return the slugs removed for good, each with the `at` and `by` that its `remove` got."""
+    """Return the slugs removed for good, each with the `at` and `by` that its `remove` got, and
+    the `why` of a `withdraw`."""
     try:
         text = removed_path(state).read_text()
     except (FileNotFoundError, NotADirectoryError):
