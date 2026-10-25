@@ -453,11 +453,11 @@ def reference(scene, folder):
     script = folder / "reference.sh"
     script.write_text(
         'cd "$1" || exit 1\n'
-        "for n in 1 2 3 4 5; do git rev-parse --git-dir > /dev/null; done\n"
+        "for n in 1 2 3 4; do git rev-parse --git-dir > /dev/null; done\n"
         "for n in 1 2; do jq -n 1 > /dev/null; done\n"
         'tail -c 1 "$0" > /dev/null\n'
         'mkdir -p "$2" && date +%s > "$2/new" && mv "$2/new" "$2/old"\n'
-        'basename "$2" > /dev/null && dirname "$2" > /dev/null\n'
+        'basename "$2" > /dev/null && dirname "$2" > /dev/null && dirname "$0" > /dev/null\n'
     )
     began = cpu()
     subprocess.run(["sh", str(script), str(scene.main), str(folder / "made")], check=True)
