@@ -105,11 +105,6 @@ def test_the_run_says_what_it_should(tlc, module, cfg, rule, want):
     assert canaries.verdict(out, rule) == want, out[-4000:]
 
 
-# The bug stories of HomeTreeToday-statechart/stories.md, each replayed against the real code one
-# step per model action, through what a home, a pass or a user runs: the handoff skill's blocks, a
-# jbus pass against a fake T3 Code, and jmerge against a real origin and a fake gh.
-
-
 @pytest.fixture
 def handing_off(tmp_path):
     from test_scoped_handoff import HandingOff
