@@ -417,12 +417,24 @@ def test_a_read_set_of_a_module_of_the_tests_selects_the_tests_that_import_it(gl
     assert globbed.selected(head) == ["testing/tests/test_u.py"]
 
 
-def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test():
+@pytest.mark.parametrize(
+    ("changed", "reader"),
+    [
+        (
+            "features/lessons/skills/reflect/references/synthesizer.md",
+            "features/lessons/tests/test_lessons.py",
+        ),
+        ("features/crew/playbooks/bug-fix.md", "features/tdd/tests/test_tdd_skill.py"),
+    ],
+    ids=["a skill's own file", "a playbook a skill names"],
+)
+def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test(changed, reader):
     """`test_lessons.py` reads every file of the lessons skills through `rglob`, and an em dash
-    in one of them fails it. Its feature lists no test, and no test spells the file."""
-    tests, _ = select.selection(["features/lessons/skills/reflect/references/synthesizer.md"])
+    in one of them fails it. `test_tdd_skill.py` checks each playbook the tdd skill names, through
+    `skill_blocks`. Neither feature lists the test, and no test spells the file."""
+    tests, _ = select.selection([changed])
 
-    assert "features/lessons/tests/test_lessons.py" in tests
+    assert reader in tests
 
 
 def test_a_star_stays_within_one_part_of_the_path(repo):
