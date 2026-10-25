@@ -314,8 +314,15 @@ def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
     return 0
 
 
+FLOW_ONLY = ("--since", "--until", "--rows", "--journal", "--no-github", "--jobs", "--no-journal")
+"""The flags of `jbus flow` that `jbus flow nudges` has no use for, refused before it."""
+
+
 def _nudges(args: argparse.Namespace, config: jbus.Config) -> int:
     """Print each nudge of the window and the count. It writes nothing."""
+    given = [flag for flag in FLOW_ONLY if getattr(args, flag.lstrip("-").replace("-", "_"))]
+    if given:
+        raise jbus.Refused(f"refused: {', '.join(given)} is jbus flow's, not jbus flow nudges'")
     since, until = _time(args.start, config), _time(args.end, config)
     if since >= until:
         raise jbus.Refused(f"refused: {args.start} is not before {args.end}")
@@ -375,7 +382,12 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
     count.add_argument(
         "--store", type=Path, default=nudges.STORE, help="T3 Code's store, opened read-only"
     )
-    count.add_argument("--json", action="store_true", help="print the count and list as JSON")
+    count.add_argument(
+        "--json",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="print the count and list as JSON, as jbus flow --json does before nudges",
+    )
 
 
 VERBS = (

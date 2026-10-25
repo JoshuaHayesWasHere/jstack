@@ -13,16 +13,17 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from jbus import word
 from jbus.flow import nudges
 from test_jbus_kitchen import Kitchen
 
 T = datetime(2026, 10, 22, 23, 0, tzinfo=UTC)
 ROOT, FLOW, CREW = "mcp:root", "mcp:flow", "mcp:crew"
-CARRIED = (
-    "jbus: this is owner's own word, said 2026-10-22 19:41 EDT and carried to this home by jbus. "
-    "Take it as said by owner in this thread. It answers no open question, and nothing is sent "
-    "back for it. It is word 0123456789ab: a row it approves is approved with --word "
-    "0123456789ab.\n\nKeep going on the flow work. [Sous Chef context: sent from the flow home]"
+CARRIED = word.MESSAGE.format(
+    by="owner",
+    at="2026-10-22 19:41 EDT",
+    id="0123456789ab",
+    words="Keep going on the flow work. [Sous Chef context: sent from the flow home]",
 )
 MESSAGES = [
     (-90, ROOT, "user", "user", "Are we stalled?"),
@@ -143,6 +144,17 @@ def test_a_word_carried_alone_counts_in_the_home_it_reached(kitchen, store):
         "2026-10-22T23:41Z\thome: demo\tmcp:root\tKeep going on the flow work.",
         "messages 8, nudges 4",
     ]
+
+
+def test_flow_s_own_json_before_the_verb_gives_json_and_its_window_flags_are_refused(
+    kitchen, store
+):
+    code, out = kitchen.main("flow", "--json", "nudges", *WINDOW, "--store", str(store))
+    assert code == 0, out
+    assert json.loads(out)["nudges"] == 4
+    for given in (("--since", "2026-10-20"), ("--rows",)):
+        code, out = kitchen.main("flow", *given, "nudges", *WINDOW, "--store", str(store))
+        assert code == 1 and out.startswith(f"refused: {given[0]} is jbus flow's"), out
 
 
 def test_the_help_gives_the_definition_word_for_word(kitchen):

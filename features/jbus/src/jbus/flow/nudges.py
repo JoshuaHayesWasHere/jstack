@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jbus import Refused
+from jbus import Refused, word
 
 DEFINITION = (
     "Definition: a nudge is a message from Josh in a home thread that restarts work that had "
@@ -37,7 +37,11 @@ STORE = Path.home() / ".t3" / "userdata" / "statev2.sqlite"
 TITLE = "home: %"
 THREADS = "orchestration_v2_projection_threads"
 MESSAGES = "orchestration_v2_projection_messages"
-CARRIED = re.compile(r"^jbus: this is \S+'s own word, said ")
+CARRIED = re.compile(
+    re.escape(word.MESSAGE.split("{by}")[0])
+    + r"\S+"
+    + re.escape(word.MESSAGE.split("{by}")[1].split("{at}")[0])
+)
 BRACKET = re.compile(r"\[[^]]*context[^]]*\]")
 LINK = re.compile(r"\[[^]]*\]\([^)]*\)")
 STALL = re.compile(
