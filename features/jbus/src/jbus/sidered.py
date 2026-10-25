@@ -50,7 +50,16 @@ from typing import Any
 from jbus import Refused, queue, read_json, verbs, write_json
 from jbus.flow.measure import NO_JOB
 from jbus.passes import Pass
-from jbus.watch import NIGHTLIES, NOT_RED, _api, _default_branch, _log_failed, when
+from jbus.watch import (
+    NIGHTLIES,
+    NOT_RED,
+    Failed,
+    _api,
+    _default_branch,
+    _log_failed,
+    tests_said,
+    when,
+)
 
 NAME = "workflows.json"
 PREFIX = "workflow-red-"
@@ -157,10 +166,10 @@ def _changed(run: Pass, red: Red, default: str) -> tuple[bool, datetime | None]:
     return True, when(dates[0]) if dates else None
 
 
-def brief(red: Red, day: str, jobs: list[tuple[str, str, list[str]]]) -> str:
+def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]]) -> str:
     """Return the brief for the fix of `red`, in the shape of `features/jbriefs/templates/brief.md`.
     `jobs` is each failed job's name, URL and failed tests, of the newest red run."""
-    tests = [test for _, _, failed in jobs for test in failed]
+    tests = [test for _, _, failed in jobs for test in failed.tests]
     where = ", ".join(
         f"`{file}`" for file in dict.fromkeys([red.path, *(t.split("::")[0] for t in tests)])
     )
@@ -178,10 +187,13 @@ def brief(red: Red, day: str, jobs: list[tuple[str, str, list[str]]]) -> str:
             f"- each failed job named under Read passes in a run of {red.file} on main",
             "- the Result names the cause: the merge that broke it, or a flake with its evidence",
         ]
-        said = f"{runs} runs failed on main since {day}, {len(tests)} tests named"
+        said = f"{runs} runs failed on main since {day}, {tests_said(jobs)}"
     read = [
         f"- the job `{job}`, {url or 'with no URL'}: "
-        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
+        + (
+            ", ".join(f"`{test}`" for test in failed.tests)
+            or "its log names no failed test, read it"
+        )
         for job, url, failed in jobs
     ]
     read += [
@@ -213,7 +225,7 @@ def brief(red: Red, day: str, jobs: list[tuple[str, str, list[str]]]) -> str:
     )
 
 
-def _jobs(run: Pass, red: Red) -> list[tuple[str, str, list[str]]]:
+def _jobs(run: Pass, red: Red) -> list[tuple[str, str, Failed]]:
     """Return each failed job of the newest red run, with its URL and the tests its log names."""
     if red.kind == NOT_RUN:
         return []
@@ -225,19 +237,21 @@ def _jobs(run: Pass, red: Red) -> list[tuple[str, str, list[str]]]:
         if job.get("status") == "completed" and job.get("conclusion") not in NOT_RED
     ]
     return [
-        (job.get("name") or "?", job.get("html_url") or "", _log_failed(run, job.get("id")) or [])
+        (
+            job.get("name") or "?",
+            job.get("html_url") or "",
+            _log_failed(run, job.get("id")) or Failed(),
+        )
         for job in failed
     ]
 
 
-def _line(red: Red, day: str, jobs: list[tuple[str, str, list[str]]]) -> str:
+def _line(red: Red, day: str, jobs: list[tuple[str, str, Failed]]) -> str:
     runs = f"{len(red.runs)} run{'s' if len(red.runs) > 1 else ''} since {day}"
     if red.kind == NOT_RUN:
         why = "GitHub could not run it, so fix its file or remove it"
         return f"retro {red.name}: {red.file} ran no job on main in {runs}: {why}"
-    tests = sum(len(failed) for _, _, failed in jobs)
-    named = f"{tests} test{'' if tests == 1 else 's'} named"
-    return f"retro {red.name}: {red.file} failed on main in {runs}, {named}"
+    return f"retro {red.name}: {red.file} failed on main in {runs}, {tests_said(jobs)}"
 
 
 def owe(run: Pass) -> None:

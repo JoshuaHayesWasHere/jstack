@@ -34,7 +34,7 @@ from jbriefs.home import home_of, thread_of
 from jbus import read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
-from jbus.watch import NEVER, World, brief_of, job
+from jbus.watch import NEVER, World, brief_of, job, job_log
 from jmerge import ready
 from jmerge.checks import latest_of_each
 
@@ -216,8 +216,8 @@ def _at(minutes: list[int | None]) -> str:
 
 def _cause(run: Pass, repo: str, at: str, check: dict) -> str:
     """Return what the job's log says stopped it, or nothing where it names no cause."""
-    log = run.run("gh", "api", f"repos/{repo}/actions/jobs/{at}/logs")
-    found = _TIMEOUT.search(log.stdout) if log.returncode == 0 else None
+    log = job_log(run, repo, at)
+    found = _TIMEOUT.search(log) if log is not None else None
     if found:
         return f"its timeout of {found[1]} min"
     return "its timeout" if check.get("conclusion") == "TIMED_OUT" else ""

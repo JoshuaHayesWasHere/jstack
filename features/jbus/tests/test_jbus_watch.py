@@ -671,6 +671,11 @@ def macos_run(conclusion="failure", ref="train/macos", **more):
     return browser_run(77, conclusion, display_title=f"macos-nightly on {ref}", **more)
 
 
+def macos_green(ref="train/macos"):
+    """Return a run of macos-nightly.yml on `ref` that passed the night before the run 77."""
+    return macos_run("success", ref, id=76, ago=timedelta(days=1))
+
+
 def macos_runs(kitchen, *runs, log=MACOS_LOG):
     """Set the runs of macos-nightly.yml, newest first, and a failed job and its log for the run
     77. A nightly's runs are on main, whatever branch its `ref` checked out."""
@@ -688,7 +693,7 @@ def red_rows(kitchen, prefix):
 def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_naming_its_tests(
     kitchen,
 ):
-    macos_runs(kitchen, macos_run())
+    macos_runs(kitchen, macos_run(), macos_green())
     kitchen.poll()
     brief = kitchen.home / "tasks" / "macos-red-2026-10-12.md"
     text = brief.read_text()
@@ -715,7 +720,7 @@ def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_namin
 
 def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_each(kitchen):
     browser_runs(kitchen, browser_run())
-    kitchen.set("workflow-runs.json", {"macos-nightly.yml": [macos_run()]})
+    kitchen.set("workflow-runs.json", {"macos-nightly.yml": [macos_run(), macos_green()]})
     macos = {"id": 712, "name": "macos", "status": "completed", "html_url": MACOS_JOB}
     browser = {"id": 911, "name": "browser", "status": "completed", "html_url": BROWSER_JOB}
     kitchen.set(
@@ -738,7 +743,7 @@ def test_a_red_browser_run_and_a_red_macos_nightly_of_one_night_file_a_brief_eac
 
 
 def test_a_macos_nightly_that_timed_out_is_red_with_no_test_named_and_is_filed_once(kitchen):
-    macos_runs(kitchen, macos_run("timed_out"), log="The job was cancelled.\n")
+    macos_runs(kitchen, macos_run("timed_out"), macos_green(), log="The job was cancelled.\n")
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     text = (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
@@ -758,9 +763,111 @@ def test_a_macos_nightly_that_passed_or_was_cancelled_files_nothing(kitchen, con
 def test_a_red_manual_macos_run_on_a_fixs_ref_files_nothing_and_one_on_the_train_does(kitchen):
     """Every run of macos-nightly.yml is on main, so its title is what names the ref it ran."""
     manual = {"event": "workflow_dispatch", "head_branch": "main"}
-    macos_runs(kitchen, macos_run(ref="mac-room-fix", **manual))
+    macos_runs(kitchen, macos_run(ref="mac-room-fix", **manual), macos_green())
     kitchen.poll()
     assert red_rows(kitchen, "macos-red-") == []
-    macos_runs(kitchen, macos_run(**manual))
+    macos_runs(kitchen, macos_run(**manual), macos_green())
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
+
+
+NEVER_GREEN = (
+    "retro macos-nightly: the macOS nightly run {} failed on {}, and no run of it on train/macos "
+    "has passed yet, so no row is filed"
+)
+
+
+def test_a_red_macos_nightly_on_a_train_that_never_passed_files_no_row_and_pages_nobody(kitchen):
+    """train/macos has never been green while its fixes are open: its red nights are its home's
+    known work, so each is one quiet line in the log, and no row asks the user anything."""
+    macos_runs(kitchen, macos_run(), macos_green(ref="mac-room-fix"))
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert list((kitchen.home / "tasks").glob("macos-red-*")) == []
+    assert red_rows(kitchen, "macos-red-") == []
+    assert kitchen.lines("retro") == [NEVER_GREEN.format(77, "2026-10-12")]
+    assert kitchen.webhook.posts == []
+
+
+def test_once_the_train_passed_a_red_night_after_it_files_one_row_and_one_before_it_none(kitchen):
+    before = macos_run(id=75, ago=timedelta(days=2))
+    macos_runs(kitchen, macos_run(), macos_green(), before)
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
+    assert (
+        "the macOS nightly run 77 failed"
+        in (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
+    )
+    assert kitchen.lines("retro") == [
+        NEVER_GREEN.format(75, "2026-10-10"),
+        "retro macos-red-2026-10-12: the macOS nightly run 77 failed on 2026-10-12, 2 tests named",
+    ]
+
+
+def test_a_pass_on_the_train_is_kept_after_github_lists_it_no_more(kitchen):
+    """GitHub lists the last 20 runs, so a night that passed slides out of the list."""
+    macos_runs(kitchen, macos_green())
+    kitchen.poll()
+    kitchen.set("workflow-runs.json", {"macos-nightly.yml": [macos_run()]})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
+
+
+def macos_check_log():
+    """Return a log in the shape of a macos-nightly job whose suite failed: pytest's summary,
+    whose ids cut a parameter with spaces short and leave out an error at teardown, its last line,
+    then the step that prints every failed test, whose script GitHub echoes in colour."""
+    at = "2026-10-12T09:{}.0000000Z "
+    lines = [
+        '##[group]Run make check JUNIT="$RUNNER_TEMP/junit.xml"',
+        "FAILED features/jlog/tests/test_log.py::test_one - AssertionError: assert [] == ['x']",
+        "FAILED features/jlog/tests/test_log.py::test_two[a note under a heading] - KeyError",
+        "ERROR features/jlog/tests/test_tail.py::test_three - OSError: [Errno 24]",
+        "= 2 failed, 40 passed, 3 skipped, 1 xfailed, 2 errors in 31.07s (0:00:31) =",
+        "##[error]Process completed with exit code 2.",
+        "##[group]Run python3 - << 'EOF'",
+        '\x1b[36;1m    line = f"macOS: {len(failed)} tests failed, the suite step ended"\x1b[0m',
+        '\x1b[36;1m    print(f"FAILED {test}")\x1b[0m',
+        "##[endgroup]",
+        "##[warning]macOS: 4 tests failed, the suite step ended failure",
+        "FAILED features/jlog/tests/test_log.py::test_one",
+        "FAILED features/jlog/tests/test_log.py::test_two[a note under a heading]",
+        "FAILED features/jlog/tests/test_tail.py::test_three",
+        "FAILED features/jlog/tests/test_tail.py::test_four",
+        "Post job cleanup.",
+    ]
+    return "".join(f"{at.format(f'{n:02}:00')}{line}\n" for n, line in enumerate(lines))
+
+
+def test_a_red_night_names_every_test_the_failed_tests_step_prints(kitchen):
+    """GitHub's log of the job has escape sequences, which `gh api` gives only when asked to."""
+    macos_runs(kitchen, macos_run(), macos_green(), log=macos_check_log())
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
+    read = text.split("\nRead:\n")[1].splitlines()[0]
+    assert read == f"- the job `macos`, {MACOS_JOB}: " + ", ".join(
+        f"`features/jlog/tests/{test}`"
+        for test in (
+            "test_log.py::test_one",
+            "test_log.py::test_two[a note under a heading]",
+            "test_tail.py::test_three",
+            "test_tail.py::test_four",
+        )
+    )
+    assert (
+        "\nWhere: `features/jlog/tests/test_log.py`, `features/jlog/tests/test_tail.py`\n" in text
+    )
+    assert "run 77 failed on 2026-10-12, 4 tests named" in text
+    assert kitchen.lines("retro") == [
+        "retro macos-red-2026-10-12: the macOS nightly run 77 failed on 2026-10-12, 4 tests named"
+    ]
+
+
+def test_a_red_night_whose_log_counts_failures_it_does_not_name_says_how_many(kitchen):
+    log = "2026-10-12T09:01:00.0000000Z = 3 failed, 9 passed, 1 error in 2.50s =\n"
+    macos_runs(kitchen, macos_run(), macos_green(), log=log)
+    kitchen.poll()
+    said = "the macOS nightly run 77 failed on 2026-10-12, 4 tests failed, none named"
+    assert said in (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
+    assert kitchen.lines("retro") == [f"retro macos-red-2026-10-12: {said}"]

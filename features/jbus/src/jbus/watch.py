@@ -66,7 +66,15 @@ NO_JOB = "nojob"
 NIGHTLY_RED = ("failure", "timed_out")
 NIGHTLY_WINDOW = timedelta(days=3)
 NIGHTLY_GRACE = timedelta(hours=1)
+GREEN = "passed"
+"""What a nightly's `seen` keeps for a run of it that passed on its `branch`."""
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
+_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_STAMP = r"^(?:\S+Z )?"
+_STEP_COUNT = re.compile(_STAMP + r"(?:##\[warning\]|::warning::).*?\b(\d+) tests? failed\b", re.M)
+_STEP_TEST = re.compile(_STAMP + r"FAILED (\S.*?)\s*$", re.M)
+_SUMMARY = re.compile(_STAMP + r"=+ (.*\bin [0-9.]+s\b.*?) =+\s*$", re.M)
+_SUMMARY_COUNT = re.compile(r"(\d+) (?:failed|errors?)\b")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup"
 NEVER = "neverStarted"
@@ -905,15 +913,59 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     return known.get(sha, "pending")
 
 
-def _log_failed(run: Pass, job: object) -> list[str] | None:
-    """Return the ids of the tests that a job's log reports as failed, from pytest's summary, in
-    order, or None where jbus could not read the log."""
-    log = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/actions/jobs/{job}/logs")
-    return list(dict.fromkeys(_FAILED_TEST.findall(log.stdout))) if log.returncode == 0 else None
+@dataclass(frozen=True)
+class Failed:
+    """The tests a job's log reports as failed: `tests` their ids, in order, and `count` how many
+    failed, more than the ids where the log counts failures it does not name."""
+
+    tests: tuple[str, ...] = ()
+    count: int = 0
+
+
+def failed_in(log: str) -> Failed:
+    """Return the failed tests a job's log reports. A step that prints a warning `<n> tests
+    failed` and then a `FAILED <id>` line for each (macos-nightly.yml's "failed tests") names them
+    whole. Where it names none, the ids are pytest's summary lines. The count is the largest of
+    the step's, the ids' and pytest's last line's failed plus errors."""
+    log = _ESCAPE.sub("", log)
+    steps = list(_STEP_COUNT.finditer(log))
+    tests = _STEP_TEST.findall(log, steps[-1].end()) if steps else []
+    count = int(steps[-1][1]) if steps else 0
+    tests = tests or _FAILED_TEST.findall(log)
+    summaries = _SUMMARY.findall(log)
+    if summaries:
+        count = max(count, sum(int(n) for n in _SUMMARY_COUNT.findall(summaries[-1])))
+    named = tuple(dict.fromkeys(tests))
+    return Failed(named, max(count, len(named)))
+
+
+def job_log(run: Pass, repo: str, job: object) -> str | None:
+    """Return a job's log, or None where GitHub did not give it. GitHub's log has escape
+    sequences in it, which gh 2.102 gives only when asked to."""
+    path = f"repos/{repo}/actions/jobs/{job}/logs"
+    log = run.run("gh", "api", path, "--allow-escape-sequences")
+    return log.stdout if log.returncode == 0 else None
+
+
+def _log_failed(run: Pass, job: object) -> Failed | None:
+    """Return the tests that a job's log reports as failed, or None where jbus could not read
+    the log."""
+    log = job_log(run, "{owner}/{repo}", job)
+    return None if log is None else failed_in(log)
 
 
 def _failed_tests(run: Pass, job: object) -> list[str]:
-    return _log_failed(run, job) or []
+    return list((_log_failed(run, job) or Failed()).tests)
+
+
+def tests_said(jobs: list[tuple[str, str, Failed]]) -> str:
+    """Return how many tests the failed jobs report, and how many of them they name."""
+    count = sum(failed.count for _, _, failed in jobs)
+    named = sum(len(failed.tests) for _, _, failed in jobs)
+    tests = f"{count} test{'' if count == 1 else 's'}"
+    if count == named:
+        return f"{tests} named"
+    return f"{tests} failed, {named or 'none'} named"
 
 
 def red_brief(
@@ -1019,7 +1071,9 @@ class Nightly:
     names no test, `done` and `proves` how the fix is shown, `pull` its `Pull request:`, and
     `home` the scoped home it is filed under, or an empty string for the root home. `title`,
     where it is set, is the title of the runs jbus files for: a run of the workflow with any
-    other title checked out another ref, and is that ref's concern.
+    other title checked out another ref, and is that ref's concern. `branch`, where it is set, is
+    the integration branch those runs check out: until one run of it there has passed, its red
+    runs are that branch's known work, which its home's plan holds, and file no row.
     """
 
     file: str
@@ -1033,6 +1087,7 @@ class Nightly:
     pull: str = "open one when done"
     home: str = ""
     title: str = ""
+    branch: str = ""
 
 
 BROWSER = Nightly(
@@ -1060,6 +1115,7 @@ MACOS = Nightly(
     pull="open one against train/macos when done",
     home="macos",
     title="macos-nightly on train/macos",
+    branch="train/macos",
 )
 NIGHTLIES = (BROWSER, MACOS)
 """The nightly workflows, each with its own rule for a red run (`_nightly_red`)."""
@@ -1070,25 +1126,28 @@ def nightly_red_brief(
     name: str,
     day: str,
     one: dict[str, Any],
-    jobs: list[tuple[str, str, list[str]]],
+    jobs: list[tuple[str, str, Failed]],
 ) -> str:
     """Return the brief for the fix of a red run of a nightly workflow, in the shape of
     `features/jbriefs/templates/brief.md`. `one` is the run as GitHub lists it, and `jobs`
     is each failed job's name, URL and failed tests."""
-    tests = [test for _, _, failed in jobs for test in failed]
+    tests = [test for _, _, failed in jobs for test in failed.tests]
     files = list(dict.fromkeys(test.split("::")[0] for test in tests))
     where = ", ".join(f"`{file}`" for file in files) or nightly.where
     number, event = one.get("id"), one.get("event") or "an event"
     read = [
         f"- the job `{job}`, {url or 'with no URL'}: "
-        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
+        + (
+            ", ".join(f"`{test}`" for test in failed.tests)
+            or "its log names no failed test, read it"
+        )
         for job, url, failed in jobs
     ]
     read += [f"- the run {one.get('html_url') or number}, from {event}, at {one.get('head_sha')}"]
     return "\n".join(
         [
             f"# {name}: {nightly.failed} on {day}",
-            f'Task: "{nightly.run} {number} failed on {day}, {len(tests)} tests named" '
+            f'Task: "{nightly.run} {number} failed on {day}, {tests_said(jobs)}" '
             f"(jbus, from {nightly.file})",
             "Done when:",
             f"- {nightly.done}",
@@ -1131,6 +1190,10 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
     names. jbus files nothing for a manual run on a branch other than the default: that run is
     the branch's concern. A run of macos-nightly.yml is on the default branch whatever it checks
     out, so a nightly with a `title` files only for the runs that carry it.
+
+    A nightly with a `branch` files a row only for a red run after a run that passed: jbus keeps
+    each run that passed as `GREEN` in `seen`, since GitHub lists only the last 20. A red run
+    before any is one quiet line, under the workflow's name, and no row asks the user anything.
     """
     said = _api(
         run,
@@ -1142,20 +1205,32 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
         return
     seen: dict[str, str] = read_json(run.state / nightly.seen, {})
     default = _default_branch(run)
+    green = GREEN in seen.values()
     for one in sorted(runs, key=lambda r: r.get("created_at") or ""):
         number = str(one.get("id"))
         ended = when(one.get("updated_at") or one["created_at"])
         stale = run.now - ended > NIGHTLY_WINDOW
-        if number in seen or one.get("conclusion") not in NIGHTLY_RED or stale:
-            continue
         if one.get("event") == "workflow_dispatch" and one.get("head_branch") != default:
             continue
         if nightly.title and one.get("display_title") != nightly.title:
             continue
+        if nightly.branch and one.get("conclusion") == "success":
+            green, seen[number] = True, GREEN
+            continue
+        if number in seen or one.get("conclusion") not in NIGHTLY_RED or stale:
+            continue
+        day = run.user.day(when(one["created_at"]))
+        if nightly.branch and not green:
+            line = (
+                f"retro {nightly.file.removesuffix('.yml')}: {nightly.run} {number} failed on "
+                f"{day}, and no run of it on {nightly.branch} has passed yet, so no row is filed"
+            )
+            run.find(nightly.file.removesuffix(".yml"), "retro", line, key=number, past=True)
+            seen[number] = ""
+            continue
         if run.first:
             seen[number] = ""
             continue
-        day = run.user.day(when(one["created_at"]))
         name = _nightly_name(nightly, day, {*seen.values(), *run.removed})
         if queue.fresh(run.state, name) is None:
             asked = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs/{number}/jobs?per_page=100")
@@ -1172,7 +1247,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
             if None in logs and run.now - ended < NIGHTLY_GRACE:
                 continue
             jobs = [
-                (j.get("name") or "?", j.get("html_url") or "", failed or [])
+                (j.get("name") or "?", j.get("html_url") or "", failed or Failed())
                 for j, failed in zip(red, logs, strict=True)
             ]
             text = nightly_red_brief(nightly, name, day, one, jobs)
@@ -1183,8 +1258,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
             except Refused as refused:
                 run.condition(name, f"its brief was not queued: {refused}")
                 continue
-            tests = sum(len(failed) for _, _, failed in jobs)
-            line = f"retro {name}: {nightly.run} {number} failed on {day}, {tests} tests named"
+            line = f"retro {name}: {nightly.run} {number} failed on {day}, {tests_said(jobs)}"
             run.find(name, "retro", line, key=f"{nightly.file} {number}", past=True)
         seen[number] = name
         write_json(run.state / nightly.seen, seen)
