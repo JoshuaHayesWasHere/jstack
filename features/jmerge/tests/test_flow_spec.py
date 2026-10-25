@@ -49,12 +49,12 @@ CITED = {
     "features/jmerge/src/jmerge/ready.py:935-936": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:294-297": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
-    "features/jmerge/src/jmerge/cli.py:217": 'was.get("result")',
-    "features/jmerge/src/jmerge/cli.py:1058-1059": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:1063": "self.fresh.command",
-    "features/jmerge/src/jmerge/cli.py:1064-1066": "self.fresh.of(",
-    "features/jmerge/src/jmerge/cli.py:1102": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:1175": "self.red(one, default",
+    "features/jmerge/src/jmerge/cli.py:219": 'was.get("result")',
+    "features/jmerge/src/jmerge/cli.py:1038-1039": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:1043": "self.fresh.command",
+    "features/jmerge/src/jmerge/cli.py:1044-1046": "self.fresh.of(",
+    "features/jmerge/src/jmerge/cli.py:1082": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:1155": "self.red(one, default",
     "features/jmerge/src/jmerge/rejudge.py:63": "self.ask(one)",
 }
 
