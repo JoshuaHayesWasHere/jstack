@@ -56,18 +56,29 @@ def test_a_slow_github_holds_no_other_request_and_none_for_long(scene, served):
     asks = (scene.bin / "gh").read_text().removeprefix("#!/bin/sh\n")
     scene.script("gh", "sleep 0.7\n" + asks)
     began = time.monotonic()
-    drawer = threading.Thread(target=served.json, args=("/task/oat-milk/github?project=demo",))
+    answered = []
+
+    def ask(path):
+        sent = time.monotonic() - began
+        said = served.json(path)
+        answered.append(f"{path.split('?')[0]} {sent:.3f} to {time.monotonic() - began:.3f} s")
+        return said
+
+    def parts():
+        return "each request, sent to answered, from the first: " + ", ".join(answered)
+
+    drawer = threading.Thread(target=ask, args=("/task/oat-milk/github?project=demo",))
     drawer.start()
     time.sleep(0.05)
-    state = served.json("/state.json?project=demo")
-    assert time.monotonic() - began < 1.0
+    state = ask("/state.json?project=demo")
+    assert time.monotonic() - began < 1.0, parts()
     assert len(state["checks"]["runs"]) == 3
     drawer.join()
-    waiting = served.json("/task/oat-milk/github?project=demo")
+    waiting = ask("/task/oat-milk/github?project=demo")
     assert (waiting["pull"], waiting["error"]) == (None, "GitHub has not answered yet")
     scene.now = NOW + timedelta(seconds=61)
-    stale = served.json("/state.json?project=demo")
-    assert time.monotonic() - began < 1.2
+    stale = ask("/state.json?project=demo")
+    assert time.monotonic() - began < 1.2, parts()
     assert (len(stale["checks"]["runs"]), stale["checks"]["error"]) == (3, "")
     time.sleep(1.7)
     assert served.json("/task/oat-milk/github?project=demo")["pull"]["number"] == 13

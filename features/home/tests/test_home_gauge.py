@@ -6,7 +6,9 @@ the hook on a made-up transcript."""
 import json
 import os
 import re
+import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -409,17 +411,49 @@ def test_a_hook_that_cannot_read_the_transcript_denies_nothing(scene, how):
     assert scene.gauge(event="PreToolUse", tool_name="Agent", transcript_path=7) == ""
 
 
-def test_before_a_tool_call_it_takes_under_100_ms_on_a_transcript_of_2_mb(scene):
+def timed(scene, tmp_path, given):
+    """The seconds each `tail` and `jq` the hook runs takes, and its CPU seconds, in one call
+    before the tool call with the input `given`: each runs through a shim that times the real
+    one. A `jq` that reads a pipe waits for what comes in it, and its CPU time does not."""
+    shims = tmp_path / "shims"
+    shims.mkdir(exist_ok=True)
+    log = tmp_path / "timed.log"
+    log.write_text("")
+    for tool in ("tail", "jq"):
+        shim = shims / tool
+        shim.write_text(
+            f"#!{sys.executable}\n"
+            "import resource, subprocess, sys, time\n"
+            "began = time.perf_counter()\n"
+            f"done = subprocess.run([{shutil.which(tool)!r}, *sys.argv[1:]])\n"
+            "took = time.perf_counter() - began\n"
+            "used = resource.getrusage(resource.RUSAGE_CHILDREN)\n"
+            f"with open({str(log)!r}, 'a') as log:\n"
+            f"    log.write(f'{tool} {{took:.3f}} {{used.ru_utime + used.ru_stime:.3f}}\\n')\n"
+            "sys.exit(done.returncode)\n"
+        )
+        shim.chmod(0o755)
+    path = f"{shims}{os.pathsep}{os.environ['PATH']}"
+    scene.gauge(event="PreToolUse", path=path, tool_name="Read", tool_input=given)
+    times = map(str.split, log.read_text().splitlines())
+    return ", ".join(f"{tool} {took} s ({used} CPU s)" for tool, took, used in times)
+
+
+def test_before_a_tool_call_it_takes_under_100_ms_on_a_transcript_of_2_mb(scene, tmp_path):
     said = {"type": "user", "message": {"role": "user", "content": "x" * 2000}}
     lines = [json.dumps(entry) + "\n" for entry in (said, call("m1", 4, 250000, 50000))]
     scene.transcript.write_text("".join(lines) * (2_000_000 // sum(map(len, lines)) + 1))
     assert scene.transcript.stat().st_size > 2_000_000
+    given = {"file_path": str(scene.main / "README.md")}
     took = []
     for _ in range(5):
         start = time.perf_counter()
-        assert scene.before("Read", file_path=str(scene.main / "README.md")) == ""
+        assert scene.before("Read", **given) == ""
         took.append(time.perf_counter() - start)
-    assert min(took) < 0.1
+    assert min(took) < 0.1, (
+        f"the best of five calls took {min(took):.3f} s: the five took"
+        f" {', '.join(f'{one:.3f}' for one in took)} s; in a sixth, {timed(scene, tmp_path, given)}"
+    )
     assert scene.record().split()[0] == "300004"
 
 
