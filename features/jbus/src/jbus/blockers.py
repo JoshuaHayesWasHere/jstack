@@ -2,9 +2,11 @@
 
 A blocker is one thing that holds a home's work up, named by a key: an open question (`question
 <n>`), a pull request whose check failed (`check:<slug>`), a row that was refused or is stuck
-(`row:<slug>`), and a row whose Result left something (`left:<slug>`). `jbus clear` is what a home
-runs each time it wakes. It reads only what jbus keeps (`questions.json`, `queue.json`), asks no
-service, and prints one line for each blocker of that home:
+(`row:<slug>`), and a row whose Result left something (`left:<slug>`). A check that was only
+cancelled, which jbus runs again and has not yet told the home of (`cancelled.owns`), is no blocker.
+`jbus clear` is what a home runs each time it wakes. It reads only what jbus keeps
+(`questions.json`, `queue.json`, `cancelled.json`), asks no service, and prints one line for each
+blocker of that home:
 
 - `cleared question <n>`: a question that does not need the user, open `--after` minutes or more
   (30 by default, `leftover.CLOSE_MINUTES`). The thread acted on its default when it asked, so
@@ -78,6 +80,7 @@ from jbus import (
     Config,
     Project,
     Refused,
+    cancelled,
     dispatch,
     leftover,
     questions,
@@ -428,6 +431,8 @@ def _rows(run: Pass, home: Directory) -> list[str]:
     for row in mine:
         slug, status = row["slug"], row.get("status")
         if row.get("checks") == "failed":
+            if cancelled.owns(run, slug):
+                continue
             kind = "check"
         elif status in STUCK:
             kind = "row"

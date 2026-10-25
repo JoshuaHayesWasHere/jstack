@@ -16,7 +16,9 @@ once for the run, and journals one `cancelled` line that names the pull request 
 later attempt the check was cancelled twice, and a third run is not jbus's to start: `rerun` tells
 the brief's home one line, once for the head, with how long each attempt ran and the cause where the
 job's log names one. A rerun that GitHub refuses is told the same way, and never tried again. The
-line the home got is the row's `why` (`why`) while the check stays stopped at that head.
+line the home got is the row's `why` (`why`) while the check stays stopped at that head. Until then,
+a row whose every failed check is of a run this module runs again is its own (`owns`), and no
+blocker the home's `jbus clear` asks a fix for.
 
 Only the head's own runs count. A check run whose job GitHub says ran on another commit belongs to
 a head that a newer push displaced, and `rerun` neither runs it again nor tells anyone of it.
@@ -36,7 +38,7 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.watch import NEVER, World, brief_of, job, job_log
 from jmerge import ready
-from jmerge.checks import latest_of_each
+from jmerge.checks import check_state, latest_of_each
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -100,6 +102,13 @@ def why(run: Pass, slug: str) -> str:
     return str((read_json(run.state / FILE, {}).get(slug) or {}).get("why", ""))
 
 
+def owns(run: Pass, slug: str) -> bool:
+    """Return whether the slug's failed checks are all this module's, run again or to be, and its
+    home has not been told of them."""
+    kept = read_json(run.state / FILE, {}).get(slug)
+    return kept is not None and not kept.get("why")
+
+
 def rerun(run: Pass, client: Client, world: World, slugs: set[str]) -> None:
     """Run each cancelled required check of an open row's pull request again once, at its first
     attempt, and tell the home of one cancelled again or that GitHub would not run again."""
@@ -112,26 +121,36 @@ def rerun(run: Pass, client: Client, world: World, slugs: set[str]) -> None:
             continue
         never = frozenset(pull.get(NEVER) or ())
         latest = latest_of_each(pull.get("statusCheckRollup") or [])
+        mine = False
         for check in latest:
             if cause := stopped(check, latest, never, names):
                 said = _one(run, client, slug, pull, check, cause)
+                mine = mine or said is not None
                 if said:
                     kept[slug] = {"head": head, "why": said}
+        theirs = runs(latest, never, names)
+        failed = [one for one in latest if check_state(one, never) == "failed"]
+        if (
+            mine
+            and slug not in kept
+            and all(run_of(one.get("detailsUrl")) in theirs for one in failed)
+        ):
+            kept[slug] = {"head": head, "why": ""}
     if kept != was:
         write_json(run.state / FILE, kept)
 
 
-def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: dict) -> str:
+def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: dict) -> str | None:
     """Act on one cancelled check, which the job `stop` stopped, and return the line its home is
-    told, or nothing."""
+    told, or nothing while it is run again. Return None for a check this module leaves alone."""
     found = _JOB.match(urlsplit(stop.get("detailsUrl") or "").path)
     if not found:
-        return ""
+        return None
     repo, number, at = found.groups()
     head, pr = pull["headRefOid"], pull["number"]
     given = job(run, repo, at)
     if given.get("head_sha", head) != head:
-        return ""
+        return None
     attempt = int(given.get("run_attempt") or 1)
     name = check.get("name") or check.get("context") or "check"
     its = "its check" if name == "check" else f"its check {name}"
