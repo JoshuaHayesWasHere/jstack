@@ -44,8 +44,8 @@ def outside_a_slot(monkeypatch, tmp_path):
 
 
 def test_no_call_in_the_repo_starts_tlc_with_a_worker_for_each_core():
-    """`-workers auto` starts a worker for each core of the machine, and several such runs at
-    once loaded a 24-core machine to 126: no file the repo tracks passes it."""
+    """TLC's `auto` count of workers starts one for each core of the machine, and several such
+    runs at once loaded a 24-core machine to 126: no file the repo tracks passes it."""
     files = subprocess.run(
         ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True
     ).stdout

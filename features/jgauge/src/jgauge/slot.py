@@ -19,6 +19,10 @@ and with every slot of its lane taken it registers the thread as a waiter (`jgau
 exits with code 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the
 lane is free. The thread then runs its command again. That run takes the slot and takes the
 thread out of the waiters file.
+
+The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a run it starts
+knows a slot is held: a TLC model check in a suite takes no second slot, and cannot wait on the
+one its own suite holds.
 """
 
 from __future__ import annotations
@@ -40,6 +44,7 @@ LOOK_EVERY_SECONDS = 0.2
 STOP_GRACE_SECONDS = 5.0
 TIMED_OUT = 124
 WAITING = 76
+HELD = "JGAUGE_TEST_SLOT"
 
 
 @dataclass(frozen=True)
@@ -193,7 +198,11 @@ def run(command: list[str], lane: Lane, thread: str = "") -> int:
     for told in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(told, pass_on)
     try:
-        child = subprocess.Popen(command, process_group=None if lane.limit is None else 0)
+        child = subprocess.Popen(
+            command,
+            env={**os.environ, HELD: name(lane)},
+            process_group=None if lane.limit is None else 0,
+        )
     except OSError as error:
         print(f"test-slot: {command[0]}: {error.strerror}", file=sys.stderr)
         return 126 if isinstance(error, PermissionError) else 127

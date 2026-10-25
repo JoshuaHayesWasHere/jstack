@@ -126,3 +126,31 @@ def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
     out = flow.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
     assert out.startswith("slot full: "), out
     assert " -workers 2 " in out, out
+
+
+def test_the_script_by_hand_holds_one_slot_for_all_its_runs(tmp_path):
+    """flow_canaries.py run by hand takes a test slot once, and each of its TLC runs is in it:
+    no run waits for a slot of its own behind the suites that hold the others."""
+    java = tmp_path / "java"
+    java.write_text(
+        '#!/bin/sh\necho "$JGAUGE_TEST_SLOT $(ps -o comm= -p $PPID)" >> "$LOG"\n'
+        'echo "Model checking completed. No error has been found."\n'
+    )
+    java.chmod(0o755)
+    (tmp_path / "tla2tools.jar").write_text("")
+    env = {k: v for k, v in os.environ.items() if k not in ("JGAUGE_TEST_SLOT", "TLC_WORKERS")}
+    env |= {
+        "JAVA": str(java),
+        "TLA2TOOLS": str(tmp_path / "tla2tools.jar"),
+        "LOG": str(tmp_path / "java.log"),
+        "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"),
+        "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}",
+    }
+    ran = subprocess.run(
+        [sys.executable, str(SPEC / "flow_canaries.py")], capture_output=True, text=True, env=env
+    )
+    assert ran.stdout.splitlines()[0].startswith("ok    design: every rule holds"), ran.stderr
+    runs = (tmp_path / "java.log").read_text().splitlines()
+    assert len(runs) == len(list(flow.runs()))
+    assert {run.split()[0] for run in runs} == {"full"}
+    assert not any("jgauge" in run for run in runs), runs

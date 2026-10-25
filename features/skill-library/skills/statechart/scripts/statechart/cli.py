@@ -24,7 +24,7 @@ from statechart.lib import (
     uncited_conditions,
 )
 from statechart.mapping import load_mapping
-from statechart.tools import MERMAID_CLI, TLA2TOOLS_URL, NoTlc, find_tlc
+from statechart.tools import MERMAID_CLI, TLA2TOOLS_URL, NoTlc, find_tlc, in_test_slot, workers
 
 USAGE = {
     "from-spec": (
@@ -190,9 +190,10 @@ TLC
   {TLA2TOOLS_URL} the first time, checked against its pinned sha256. With STATECHART_OFFLINE set
   it does not download, and says where to get TLC and exits 2. JAVA is the java binary. When it is
   not set, the command uses the Java of the jdk4py package, which uv installs with the command.
-  TLC checks each rule with one worker per CPU. When a rule is broken, TLC checks it again with one
-  worker, which finds the shortest bug paths, the same on every run. The command then prints how
-  many times TLC ran and how long that took.
+  TLC checks each rule with 2 workers, or as many as TLC_WORKERS says. When a rule is broken, TLC
+  checks it again with one worker, which finds the shortest bug paths, the same on every run. The
+  command then prints how many times TLC ran and how long that took. Where jgauge is on PATH, each
+  run of TLC holds one of its test slots, or runs in the slot a suite around it holds already.
   TLC can find that a rule is broken and then fail with a Java exception while it reports the rule.
   The command then keeps the paths that TLC printed, marks the rule broken, and warns that the
   charts can miss states that break it. The failure is in TLC, so do not weaken the rule because of
@@ -312,6 +313,7 @@ def cfg_of(spec):
 
 def find_tools():
     try:
+        workers()
         return find_tlc()
     except NoTlc as e:
         raise CannotFinish(str(e)) from e
@@ -410,7 +412,7 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
     ]
     try:
         r = subprocess.run(
-            command,
+            in_test_slot(command),
             cwd=os.path.dirname(os.path.abspath(spec)),
             capture_output=True,
             text=True,
@@ -532,7 +534,7 @@ def check(tools, model, work, out, expected):
     for rule in rules:
         file = os.path.join(tlc_dir, f"{name}-{rule}")
         cfg = f"{cfg_without_rules}INVARIANT {rule}\nCONSTRAINT {rule}\n"
-        result = run(cfg, file, workers="auto")
+        result = run(cfg, file, workers=workers())
         # Several workers can reach a bad state by a longer path first. One worker searches breadth
         # first in a fixed order, so the chart's bug paths are the shortest, and the same every run.
         if re.search(r"^Error: Invariant ", result["stdout"], re.M):
@@ -545,7 +547,7 @@ def check(tools, model, work, out, expected):
     temporal = []
     for prop in properties:
         file = os.path.join(tlc_dir, f"{name}-{prop}")
-        stdout = run(f"{cfg_without_rules}PROPERTY {prop}\n", file, workers="auto")["stdout"]
+        stdout = run(f"{cfg_without_rules}PROPERTY {prop}\n", file, workers=workers())["stdout"]
         broken = bool(BROKEN_PROPERTY.search(stdout))
         read = (
             " The chart draws only INVARIANT rules, so read TLC's counterexample in"
