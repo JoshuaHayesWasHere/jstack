@@ -362,6 +362,69 @@ def test_a_test_no_rule_selects_runs_beside_what_a_change_selects(tmp_path):
     ]
 
 
+TEE = """\
+# Tee
+
+What tee does.
+
+Paths:
+- `a/`
+Tests:
+- `testing/tests/test_t.py`
+"""
+GLOBBED = {
+    "conftest.py": "",
+    "a/x.py": "X = 1\n",
+    "b/x.md": "fine\n",
+    "c/y.md": "fine\n",
+    "testing/tests/test_t.py": (
+        "from pathlib import Path\n\nREAD_SET = ('b/*.md',)\n\n\n"
+        "def test_t():\n"
+        "    assert all('broken' not in one.read_text() for one in Path('b').glob('*.md'))\n"
+    ),
+    "testing/tests/globbing.py": (
+        "from pathlib import Path\n\nREAD_SET = ('c/',)\n\n\n"
+        "def texts():\n    return [one.read_text() for one in Path('c').rglob('*.md')]\n"
+    ),
+    "testing/tests/test_u.py": "from globbing import texts\n",
+}
+
+
+@pytest.fixture
+def globbed(tmp_path):
+    return Repo(tmp_path, features={"README.md": README, "tee.md": TEE}, files=GLOBBED)
+
+
+def test_a_test_owned_for_another_path_runs_when_a_file_its_glob_reads_changes(globbed):
+    """A rule owns `test_t.py` for `a/`, so the catch-all leaves it out, and it spells no path
+    of `b/`. It reads `b/*.md` through a glob and declares so in its `READ_SET`, and a change to
+    `b/x.md` that breaks it selects it."""
+    head = globbed.change(["b/x.md"], text="broken\n")
+    ran = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "testing/tests/test_t.py"],
+        cwd=globbed.root,
+        capture_output=True,
+        text=True,
+    )
+
+    assert ran.returncode == 1, ran.stdout
+    assert globbed.selected(head) == ["testing/tests/test_t.py"]
+
+
+def test_a_read_set_of_a_module_of_the_tests_selects_the_tests_that_import_it(globbed):
+    head = globbed.change(["c/y.md"])
+
+    assert globbed.selected(head) == ["testing/tests/test_u.py"]
+
+
+def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test():
+    """`test_lessons.py` reads every file of the lessons skills through `rglob`, and an em dash
+    in one of them fails it. Its feature lists no test, and no test spells the file."""
+    tests, _ = select.selection(["features/lessons/skills/reflect/references/synthesizer.md"])
+
+    assert "features/lessons/tests/test_lessons.py" in tests
+
+
 def test_a_star_stays_within_one_part_of_the_path(repo):
     head = repo.change(["docs/other/alpha.md"])
 
