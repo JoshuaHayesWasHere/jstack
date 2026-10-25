@@ -382,7 +382,7 @@ class Fresh:
         tree = _run(self.main, "git", "rev-parse", "--verify", "-q", f"{commit}^{{tree}}")
         if tree.returncode:
             return _said(tree)
-        ref = sweep.marker(tree.stdout.strip())
+        ref = green.ref(tree.stdout.strip(), green.covers(self.command))
         pushed = _run(self.main, "git", "push", "-q", "origin", f"+{commit}:{ref}")
         if not pushed.returncode:
             return ""
@@ -1671,7 +1671,8 @@ class Sweep:
     def markers_past(self, say: Callable[[str], None], check: bool) -> list[tuple[str, str]]:
         kept: list[tuple[str, str]] = []
         for ref, commit in sorted(self.markers.items()):
-            label = f"green-tree/{ref.removeprefix(sweep.MARKERS)[:12]}"
+            kind, _, tree = ref.removeprefix(sweep.MARKERS).rpartition("/")
+            label = f"green-tree/{kind}{'/' if kind else ''}{tree[:12]}"
             made = self.marked(ref, commit)
             if made is None:
                 kept.append((label, "the commit its marker is at could not be read"))
