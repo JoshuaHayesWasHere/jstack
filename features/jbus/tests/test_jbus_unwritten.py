@@ -14,6 +14,7 @@ from jbus import leftover, watch
 from jgauge import slot, waiters
 from test_jbus_kitchen import NOW, iso
 from test_jbus_leftover import home
+from test_jbus_live import written
 from test_jbus_queue import add, rows
 from test_jbus_row_ends import column, listed, result, sends
 from test_jbus_slot_wake import Slots
@@ -146,3 +147,34 @@ def test_a_waiter_still_silent_after_its_wake_is_left(kitchen, slots):
     assert column(kitchen)[0] == "stale" and told(kitchen, at) == []
     kitchen.poll(NOW + (watch.UNWRITTEN_MINUTES + 2) * MIN)
     assert column(kitchen)[0] == "left" and len(told(kitchen, at)) == 1
+
+
+@pytest.mark.parametrize("approval", [True, False], ids=["an approval", "no approval"])
+def test_a_crew_whose_approval_was_just_answered_is_not_hung_on_the_silence_it_left(
+    kitchen, approval
+):
+    """The crew hometree-today, 2026-10-25: its last item at 20:22Z, an approval that waited from
+    20:22Z to 20:39Z, and nothing written until 20:45Z. T3 Code counts the requests that wait and
+    keeps no time for the answer, and the answer writes no item. So the pass that sees the count
+    fall to 0 counts that as the thread's last write. Without the approval, the same silence is a
+    hang at 20 minutes, at the 20:42Z pass."""
+    add(kitchen, "alpha")
+    assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - 30 * MIN)
+    (thread,) = kitchen.t3.threads
+    thread |= {"status": "running", "updatedAt": iso(NOW), "itemCount": 40}
+    kitchen.t3.at_work.discard(thread["threadId"])
+    at = home(kitchen)["threadId"]
+    words = {}
+    for minute in range(1, 24):
+        if approval:
+            thread["pendingRequestCount"] = 1 if minute <= 17 else 0
+        kitchen.poll(NOW + minute * MIN)
+        (found,) = [one for one in written(kitchen) if one["id"] == thread["threadId"]]
+        words[minute] = found["live"]
+    hung = kitchen.state / "hung.jsonl"
+    if approval:
+        assert "hung" not in words.values(), words
+        assert told(kitchen, at) == [] and not hung.exists()
+    else:
+        assert [minute for minute, word in words.items() if word == "hung"][0] == 20
+        assert "its turn hung with nothing written" in told(kitchen, at)[0]["message"]
