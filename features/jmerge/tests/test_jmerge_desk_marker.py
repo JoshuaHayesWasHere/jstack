@@ -123,6 +123,7 @@ def merged_on_the_desk(kitchen):
     kitchen.on_main({"wake.py": "0\n1\n"})
     (said,) = kitchen.after_check()
     assert said.startswith("merged 332 long "), said
+    del kitchen.pulls["long"]
     return kitchen.tip()
 
 
