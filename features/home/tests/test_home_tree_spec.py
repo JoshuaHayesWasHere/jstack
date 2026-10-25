@@ -5,12 +5,11 @@ no Java runs TLC. The code model's conditions each name a file and line, as the 
 checks."""
 
 import importlib
-import json
 import os
 import re
 import subprocess
 import sys
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -169,13 +168,15 @@ def test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired(retiring):
     its home. 2. Child a launches a crew: a jbus pass launches the scope's approved row. 3. You
     retire child a: its home hands off with no open entry in its plan, and the scope stays open,
     with a next home, while its crew is out. Once the row is over, the same handoff closes it."""
-    from test_jbus_kitchen import NOW
     from test_jbus_queue import add, brief, rows
+    from test_jbus_row_ends import result
     from test_scoped_handoff import CLOSED, THE_HOME
 
     kitchen = retiring.kitchen
     add(kitchen, "sc-crew", text=brief("sc-crew").replace("Home: mcp:a-home", "Home: sc"))
-    assert any(line.startswith("launched sc-crew: ") for line in kitchen.poll(NOW))
+    now = datetime.now(UTC)
+    assert any(line.startswith("launched sc-crew: ") for line in kitchen.poll(now))
+    kitchen.poll(now)
     assert rows(kitchen)["sc-crew"]["status"] == "launched"
 
     said = retiring.retires()
@@ -184,14 +185,14 @@ def test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired(retiring):
     assert any(line.startswith("kept open: ") and "sc-crew" in line for line in said), said
     assert "Scope closed:" not in (retiring.scope / "handoff.md").read_text()
 
-    table = json.loads((kitchen.state / "queue.json").read_text())
-    for row in table:
-        row["status"] = "done"
-    (kitchen.state / "queue.json").write_text(json.dumps(table))
-    kitchen.t3.threads = [one for one in kitchen.t3.threads if one["title"] != "crew: sc-crew"]
-    kitchen.poll(NOW + timedelta(minutes=1))
+    kitchen.brief("sc-crew", result())
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-crew"]
+    crew |= {"status": "completed", "settled": True}
+    kitchen.poll(now)
+    assert rows(kitchen)["sc-crew"]["status"] == "done"
     (retiring.scope / "home-id").write_text(f"{retiring.child}\n")
-    assert retiring.retires()[0] == CLOSED
+    again = retiring.retires()
+    assert again[0] == CLOSED, again
     assert "\nScope closed: " in (retiring.scope / "handoff.md").read_text()
 
 

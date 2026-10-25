@@ -142,7 +142,14 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
            exit 1
        fi
        open=$(awk '/^## / && $(2) ~ /:$/ {open++} END {print open + 0}' "$M/plan.md" 2> /dev/null)
-       if [ -n "$scope" ] && [ "${open:-0}" -eq 0 ]; then closed=yes; fi
+       still=
+       if [ -n "$scope" ] && [ "${open:-0}" -eq 0 ]; then
+           if ! still=$(jbus out --scope "$scope" 2>&1); then
+               still=${still:-jbus could not say what $scope has out}
+           elif [ -z "$still" ]; then
+               closed=yes
+           fi
+       fi
        kept=$M/log/$(date +%F-%H%M).md
        if [ -e "$kept" ]; then kept=$M/log/$(date +%F-%H%M%S).md; fi
        if ! { [ ! -f "$M/handoff.md" ] || { mkdir -p "$M/log" && mv "$M/handoff.md" "$kept"; }; } ||
@@ -171,6 +178,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
    else
        echo "the home: start the next home, then rename and settle this thread"
    fi
+   if [ -n "$still" ]; then printf '%s\n' "$still" | sed 's/^/kept open: /'; fi
    printf 'title: home: %s%s\n' "$R" "${scope:+ $scope}"
    if [ -z "$closed" ]; then printf 'message: /home %s<seed>\n' "${scope:+$scope }"; fi
    jq -rs --arg me "$ME" --arg audit "audit: $R queue" '
@@ -185,7 +193,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
        echo "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
    ```
 
-   It does it all, in this order: it reads the note, moves the old one to `log/` under a dated name, puts the note in its place as `handoff.md` with a `Scope closed:` line for a scoped home whose plan has no open entry, then the `Was home:` line with this thread's id, and removes `home-id`. A second run changes nothing and prints `closed before`, with the same `title:` and `message:` lines. Its first line is what the steps below go by, and the `title:` and `message:` lines are what step 4 sends: keep all of them.
+   It does it all, in this order: it reads the note, moves the old one to `log/` under a dated name, puts the note in its place as `handoff.md` with a `Scope closed:` line for a scoped home whose plan has no open entry and that has nothing out, then the `Was home:` line with this thread's id, and removes `home-id`. A second run changes nothing and prints `closed before`, with the same `title:` and `message:` lines. Its first line is what the steps below go by, and the `title:` and `message:` lines are what step 4 sends: keep all of them.
 
    - `not known:` and `not written:`: nothing is changed. Put right what it names in the note, and run it again. A note whose lines will not fit in ten is cut, not split: the next home reads the rest from jbus.
    - `not the home`: this thread's id is in no `home-id`, or the session gives no id. With no id, the note is the root's `handoff.md` now and `home-id` is left. Tell the user, in three lines at most, what was written, the one thing that is next, and: "Open a new thread in this project and type `/home`", or `/home <scope>` for a scoped home. Launch nothing, rename nothing, settle nothing. The skill ends here.
@@ -195,11 +203,15 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
 
    Under those lines it prints one line for each scheduled task that posts into this thread, and never a task's address. On `delete <id>`, delete that task now, as "A home that hands off" in `$T/../skills/home/SKILL.md` says. A `Scheduled task` line asks nothing of a home that is followed by another: this thread cannot hand a task on, since a task is bound only by the thread that calls, and the next home's start takes each one over by the `Was home:` line, until when a run of one makes this thread active again. On `not read`, in a session with no such tool, there is nothing to do: the next home's start lists them.
 
-   A home's own `home-id` holds its id: the home's start wrote it there, and nothing else does. `home-thread` is another file, the switch that hands merging from jbus to a home: it is set by hand, and the block leaves it as it is. The block changes only this home's directory, and no other home's files.
+   A home's own `home-id` holds its id: the home's start wrote it there, and nothing else does. `home-thread` is another file, the switch that has a home run the sweep: it is set by hand, and the block leaves it as it is. The block changes only this home's directory, and no other home's files.
 
    The `Was home:` line is the last line of the note, on a line of its own. It is the record of the thread that handed off, and nobody's address: the start of this home's next thread reads it to take over this thread's scheduled tasks and to settle this thread (`skills/home/SKILL.md`, "The home before this one"), and "After the handoff" reads it to say whose mail a late message is. No brief and no request is rewritten, now or at that start. From here to that start `home-id` is gone, for the root home and for a scoped one alike: a thread that has something to tell finds nobody, sends nothing, and its report waits on disk for the next home to read.
 
-   A scoped home whose plan has no open entry is done: an entry is open for as long as its `## <slug>:` section is in `plan.md`, whatever a line under it says, since `jbus plan close` moves a finished one out. Nobody is sent a message: the root home reads the `Scope closed:` line when the user asks it where things stand. The root home is never closed.
+   A scoped home whose plan has no open entry is done: an entry is open for as long as its `## <slug>:` section is in `plan.md`, whatever a line under it says, since `jbus plan close` moves a finished one out.
+   It is closed only while it also has nothing out: `jbus out --scope <scope>` prints each queue row of its briefs that is not over, each of their crew or reviewer threads that is not settled, each question jbus holds for it and each open gate of its `gates.md`, and nothing when nothing is out (`NoRetireWithOpen` in `features/home/spec/HomeTree.tla`).
+   On any line, or when jbus cannot say, the scope stays open: the block prints `the home: start the next home`, then each line after `kept open: `, and the next home carries the work out.
+   Nobody is sent a message: the root home reads the `Scope closed:` line when the user asks it where things stand.
+   The root home is never closed.
 
 4. **Launch the next home.** A home has one thread open at a time, so the home that hands off starts its next thread itself and then closes.
 
