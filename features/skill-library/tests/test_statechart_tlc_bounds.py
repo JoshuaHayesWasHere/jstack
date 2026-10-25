@@ -24,7 +24,6 @@ from statechart_support import (
 from testing.paths import REPO
 
 BIN = Path(sys.executable).parent
-# Spelled in two pieces, so this file holds no TLC call of its own for the guard to find.
 AUTO = "au" + "to"
 ANY_CORE = re.compile(rf"""-workers["',\s]*{AUTO}\b|\bworkers\s*=\s*["']{AUTO}["']""")
 
@@ -45,7 +44,8 @@ def outside_a_slot(monkeypatch, tmp_path):
 
 def test_no_call_in_the_repo_starts_tlc_with_a_worker_for_each_core():
     """TLC's `auto` count of workers starts one for each core of the machine, and several such
-    runs at once loaded a 24-core machine to 126: no file the repo tracks passes it."""
+    runs at once loaded a 24-core machine to 126: no file the repo tracks passes it. `AUTO` is
+    spelled in two pieces, so this file passes no such count itself."""
     files = subprocess.run(
         ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True
     ).stdout
