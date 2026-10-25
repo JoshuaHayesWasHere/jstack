@@ -458,16 +458,15 @@ def test_a_red_tip_filed_is_not_filed_again_on_the_next_pass(kitchen):
     assert [row["slug"] for row in main_red(kitchen)] == [f"main-red-{shas[-1][:12]}"]
 
 
-def test_a_red_tip_that_turns_green_leaves_its_row_and_says_so_once(kitchen):
+def test_a_red_tip_that_turns_green_at_a_later_commit_withdraws_its_row_and_says_so_once(kitchen):
     main_of(kitchen, "failure")
     kitchen.poll()
     shas = main_of(kitchen, "failure", "success")
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(minutes=6))
     name = f"main-red-{shas[0][:12]}"
-    assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [(name, "")]
-    assert (kitchen.home / "tasks" / f"{name}.md").exists()
-    green = f"retro {name}: main is green again at {shas[1][:12]}, and its row is left as it is"
+    assert main_red(kitchen) == []
+    green = f"retro {name}: main is green again at {shas[1][:12]}, and its row is withdrawn"
     assert [line for line in kitchen.lines("retro") if "green again" in line] == [green]
 
 
