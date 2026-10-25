@@ -85,7 +85,8 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    fi
    ```
 
-   The file is that one line and nothing else, in this home's own directory, and it replaces whatever an earlier home left there. The `handoff` skill removes it.
+   The file is that one line and nothing else, in this home's own directory, and it replaces whatever an earlier home left there.
+   The `handoff` skill removes it.
 
    Writing the file is all it takes for the threads this home's last thread left out to report here. A brief or a request names its home by its scope, or names none for the root home, and never a thread: each thread reads this file when it sends, so the block rewrites no brief and no request, and an approval of a queued one stands. Until this runs, those threads report to nobody, and what they wrote waits on disk. On `not written:`, nothing is: fill in what it names and run it again. With no tool that gives the id, skip this step as the root home. A scoped home cannot go on without its id: tell the user and stop.
 
