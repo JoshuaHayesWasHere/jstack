@@ -6,6 +6,7 @@ the hook on a made-up transcript."""
 import json
 import os
 import re
+import resource
 import shutil
 import subprocess
 import sys
@@ -439,19 +440,52 @@ def timed(scene, tmp_path, given):
     return ", ".join(f"{tool} {took} s ({used} CPU s)" for tool, took, used in times)
 
 
-def test_before_a_tool_call_it_takes_under_100_ms_on_a_transcript_of_2_mb(scene, tmp_path):
+def cpu():
+    """The CPU seconds the children this process waited on have used: a runner whose cores are
+    busy makes the hook wait longer, and does not make it use more."""
+    children = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return children.ru_utime + children.ru_stime
+
+
+def reference(scene, folder):
+    """The CPU seconds of a fixed run of the programs the hook starts, each started the times
+    the hook starts it, on nothing it reads: the yardstick of this machine."""
+    script = folder / "reference.sh"
+    script.write_text(
+        'cd "$1" || exit 1\n'
+        "for n in 1 2 3 4 5; do git rev-parse --git-dir > /dev/null; done\n"
+        "for n in 1 2; do jq -n 1 > /dev/null; done\n"
+        'tail -c 1 "$0" > /dev/null\n'
+        'mkdir -p "$2" && date +%s > "$2/new" && mv "$2/new" "$2/old"\n'
+        'basename "$2" > /dev/null && dirname "$2" > /dev/null\n'
+    )
+    began = cpu()
+    subprocess.run(["sh", str(script), str(scene.main), str(folder / "made")], check=True)
+    return cpu() - began
+
+
+def test_before_a_tool_call_on_a_transcript_of_2_mb_it_uses_under_2_2_references(scene, tmp_path):
+    """Before each tool call the hook reads the transcript's tail, so on 2 MB it uses about 1.7
+    times the reference's CPU time, and reading it all, or its tail three times, takes it to 2.5
+    or more. Its wall time tells nothing on a busy runner: a call that took 16 ms on an idle
+    Linux took 131 ms at best of five on a macOS runner under the whole suite."""
     said = {"type": "user", "message": {"role": "user", "content": "x" * 2000}}
     lines = [json.dumps(entry) + "\n" for entry in (said, call("m1", 4, 250000, 50000))]
     scene.transcript.write_text("".join(lines) * (2_000_000 // sum(map(len, lines)) + 1))
     assert scene.transcript.stat().st_size > 2_000_000
     given = {"file_path": str(scene.main / "README.md")}
-    took = []
+    took, used, yardsticks = [], [], []
     for _ in range(5):
-        start = time.perf_counter()
+        began, start = cpu(), time.perf_counter()
         assert scene.before("Read", **given) == ""
         took.append(time.perf_counter() - start)
-    assert min(took) < 0.1, (
-        f"the best of five calls took {min(took):.3f} s: the five took"
+        used.append(cpu() - began)
+        yardsticks.append(reference(scene, tmp_path))
+    times = min(used) / min(yardsticks)
+    assert times < 2.2, (
+        f"the hook used {min(used):.4f} CPU s before a tool call, {times:.2f} times the"
+        f" reference's {min(yardsticks):.4f} s, {times / 2.2:.2f} times the limit of 2.2;"
+        f" the five used {', '.join(f'{one:.4f}' for one in used)} CPU s and took"
         f" {', '.join(f'{one:.3f}' for one in took)} s; in a sixth, {timed(scene, tmp_path, given)}"
     )
     assert scene.record().split()[0] == "300004"
