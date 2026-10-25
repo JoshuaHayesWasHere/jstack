@@ -329,7 +329,7 @@
     <li>Only the root home makes a scope, and only on your word.</li>
     <li>No home writes another home's directory.</li>
     <li>A scoped home's slugs and branches start with its prefix.</li>
-    <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home</code> merges nothing.</li>
+    <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home &lt;threadId&gt;</code> merges nothing.</li>
     <li>Homes do not message each other, except about a decision that crosses scopes.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
     <li>A scoped home whose plan has no open entry closes at its handoff, and it starts no next home.</li>
