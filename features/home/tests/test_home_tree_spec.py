@@ -132,12 +132,15 @@ def test_bug_1_a_child_retires_with_its_crew_out(handing_off):
 def test_bug_2_a_quiet_child_with_a_crew_out_is_flagged_to_nobody(kitchen):
     """StallFlagged. 1. The root makes child a: the root home and the scope `sc` each have a
     home thread, and the child's has written nothing for six hours. 2. Child a launches a crew: a
-    pass launches the scope's approved row. 3. The root's check runs: an hour of passes, and none
-    sends the root, the child or the user a word about the quiet child."""
+    pass launches the scope's approved row, and its turn then hangs. 3. The root's check runs: an
+    hour of passes. Each pass reads the child's thread and its six hours of silence, and logs a
+    stall for the hung crew, the control that it reports what it judges stuck, yet none sends the
+    root, the child or the user a word about the quiet child."""
     from datetime import timedelta
 
-    from test_jbus_kitchen import NOW
+    from test_jbus_kitchen import NOW, iso
     from test_jbus_leftover import home
+    from test_jbus_live import run, written
     from test_jbus_queue import add, brief, rows
     from test_jbus_row_ends import sends
 
@@ -147,13 +150,21 @@ def test_bug_2_a_quiet_child_with_a_crew_out_is_flagged_to_nobody(kitchen):
     add(kitchen, "sc-alpha", text=text)
     launched = kitchen.poll(NOW - timedelta(minutes=90))
     assert any(line.startswith("launched sc-alpha: ") for line in launched)
+    crew = kitchen.t3.threads[-1]
+    crew |= {"activeRunId": "run-1", "latestRunId": "run-1", "runs": [run(1)], "itemCount": 40}
+    crew["updatedAt"] = iso(NOW - timedelta(minutes=25))
+    kitchen.t3.at_work.discard(crew["threadId"])
     kitchen.forget()
     for minutes in range(0, 70, 10):
         kitchen.poll(NOW + timedelta(minutes=minutes))
+    seen = {one["id"]: one for one in written(kitchen)}
+    assert (seen[child]["role"], seen[child]["silent"]) == ("home", 420)
+    assert seen[crew["threadId"]]["live"] == "hung"
+    assert [line.split(":")[0] for line in kitchen.lines("stall")] == ["stall sc-alpha"]
     assert rows(kitchen)["sc-alpha"]["status"] == "launched"
     assert [one for one in sends(kitchen) if one["threadId"] in (root, child)] == []
     assert kitchen.waiting() == []
-    assert not any("sc" in line.split(":")[0] for line in kitchen.lines() if "stall" in line)
+    assert not any(child in line or "demo sc" in line for line in kitchen.lines())
 
 
 @pytest.fixture
