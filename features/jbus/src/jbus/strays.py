@@ -10,7 +10,7 @@ for each task whose threads are not at work:
   session of that worktree. The worktree is the one git lists for the task's branch in the main
   checkout, or `WORKTREES/<project>/<slug>`, where T3 Code makes it. A worktree that was removed
   still counts: its processes have a working directory that ends ` (deleted)`. A task counts
-  while a thread of it is listed, and while it is a row of the queue, once its row ended too.
+  while a thread of it is listed, and while it is a row of the queue.
 - A scout works in the main checkout, beside its home, so a folder alone does not tell its
   processes from the home's. A scout's processes are those under the main checkout or a
   temporary folder that its own session started: a session whose first message from the user
@@ -25,13 +25,12 @@ name, which spells the config folder's variable (`CONFIG`) and its default (`KEP
 A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own `systemd
 --user`, which adopts what a unit of it left, as it is for jbus, a user service. A process is
 never stopped when its parent is not a reaper, when it is not the user's, when it is jbus
-or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, a
-crew's process is stopped busy or idle once the crew's row ended: its row is one of `ENDS`, its
-pull request merged or its thread ended, or none of its folders is still there, its worktree
-removed. Any other is stopped only when it used CPU over `GAP` seconds of the pass, since a
-crew that waits on its pull request may come back to what it left. `stop` sends each one TERM,
-and KILL to one still running `GRACE` seconds later, for a process that has the same start
-time.
+or one of its ancestors, when it is T3 Code's or the agent's own (`OWN`), or when it or a process
+under it holds a test slot (`SLOT`): a check or a proof that still runs. Of those left, a crew's
+process is stopped busy or idle once the turn that left it ended, whatever its row waits on:
+a crew's next turn starts afresh and cannot count on what it left. A scout's is stopped only
+when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and KILL to one
+still running `GRACE` seconds later, for a process that has the same start time.
 
 For each task with a process stopped, `stop` says one line, which the unit's journal keeps, with
 the count and the commands. It also adds one `Left running:` line at the end of the brief's last
@@ -69,7 +68,7 @@ CONFIG = f"{AGENT.upper()}_CONFIG_DIR"
 KEPT = Path.home() / f".{AGENT}"
 OWN = re.compile(rf"(^|/)(t3|t3code[^/]*|{AGENT}|jbus|jgauge)$|t3code|/{AGENT}/versions/")
 SHOWN = 3
-ENDS = ("merged", "done", "left")
+SLOT = re.compile(r"/test-slot(-short)?\.\d+\.lock$")
 
 
 @dataclass
@@ -96,12 +95,10 @@ class Proc:
 
 @dataclass(frozen=True)
 class Task:
-    """A `Task` is a crew's slug, the folders it and its reviewers work in, and whether its row
-    ended."""
+    """A `Task` is a crew's slug and the folders it and its reviewers work in."""
 
     slug: str
     folders: tuple[Path, ...]
-    ended: bool = False
 
 
 def _stat(pid: str) -> tuple[int, int, int] | None:
@@ -168,6 +165,51 @@ def _ancestors() -> set[int]:
         stat = _stat(str(pid))
         pid = stat[0] if stat else 0
     return found
+
+
+def _slotted(pid: int) -> bool:
+    """Whether the process holds a test slot: one of its files is a lock of `jgauge.slot`."""
+    try:
+        files = list((ROOT / str(pid) / "fd").iterdir())
+    except OSError:
+        return False
+    for one in files:
+        try:
+            if SLOT.search(os.readlink(one)):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def in_slot(found: Iterable[Proc]) -> set[int]:
+    """The processes that hold a test slot, themselves or through a process under them: a check
+    or a proof that still runs."""
+    found = list(found)
+    if not found:
+        return set()
+    try:
+        pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
+    except OSError:
+        pids = []
+    children: dict[int, list[int]] = {}
+    for pid in pids:
+        if (stat := _stat(pid)) is not None:
+            children.setdefault(stat[0], []).append(int(pid))
+    return {one.pid for one in found if _holds(one.pid, children)}
+
+
+def _holds(pid: int, children: dict[int, list[int]]) -> bool:
+    seen, left = set(), [pid]
+    while left:
+        one = left.pop()
+        if one in seen:
+            continue
+        if _slotted(one):
+            return True
+        seen.add(one)
+        left += children.get(one, [])
+    return False
 
 
 def orphans() -> list[Proc]:
@@ -299,7 +341,6 @@ def tasks(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> list[
     """The crews of the project, listed or a row of its queue, whose threads are all done with
     their turn."""
     rows = list(rows)
-    ends = {row["slug"] for row in rows if row.get("status") in ENDS}
     listed = run.run("git", "worktree", "list", "--porcelain")
     trees, path = {}, ""
     for line in listed.stdout.splitlines() if listed.returncode == 0 else []:
@@ -316,9 +357,7 @@ def tasks(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> list[
             continue
         places = [trees.get(slug), WORKTREES / run.project.name / slug]
         places.append(WORKTREES / run.project.checkout.name / slug)
-        folders = tuple(dict.fromkeys(one for one in places if one is not None))
-        gone = not any(one.is_dir() for one in folders)
-        made.append(Task(slug, folders, slug in ends or gone))
+        made.append(Task(slug, tuple(dict.fromkeys(one for one in places if one is not None))))
     return made
 
 
@@ -330,19 +369,17 @@ def stop(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> None:
         _note(run, {})
         return
     claimed: dict[tuple[str, str], list[Proc]] = {}
-    over = set()
     for task in tasks(run, out, rows):
         claimed[("crew", task.slug)] = [one for one in left if owns(task, one)]
-        if task.ended:
-            over |= {one.pid for one in claimed[("crew", task.slug)]}
     taken = {one.pid for found in claimed.values() for one in found}
     at_work = working(out)
     for one in left:
         slug = "" if one.pid in taken else scout_of(one, run.project.checkout)
         if slug and ("scout", slug) not in at_work:
             claimed.setdefault(("scout", slug), []).append(one)
-    rest = (one for found in claimed.values() for one in found if one.pid not in over)
-    burning = over | {one.pid for one in busy(rest)}
+    scouts = (one for (role, _), found in claimed.items() if role == "scout" for one in found)
+    every = [one for found in claimed.values() for one in found]
+    burning = (taken | {one.pid for one in busy(scouts)}) - in_slot(every)
     notes = {}
     for (role, slug), found in sorted(claimed.items()):
         found = [one for one in found if one.pid in burning]

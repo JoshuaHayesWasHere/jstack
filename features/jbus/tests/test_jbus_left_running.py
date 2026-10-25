@@ -9,12 +9,13 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from datetime import timedelta
 
 import pytest
 
-from jbus import mirror, strays
+from jbus import mirror, queue, strays
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import add
 
@@ -202,7 +203,7 @@ def test_a_process_with_a_live_parent_is_never_touched(kitchen, tmp_path, stray)
         child.wait()
 
 
-def test_a_process_of_a_crew_still_at_work_or_one_that_uses_no_cpu_is_left(
+def test_a_process_of_a_crew_still_in_its_turn_is_left_and_stopped_once_the_turn_ended(
     kitchen, tmp_path, stray
 ):
     tree, thread = ended_crew(kitchen, tmp_path)
@@ -212,7 +213,7 @@ def test_a_process_of_a_crew_still_at_work_or_one_that_uses_no_cpu_is_left(
     assert all(alive(pid) for pid in stray)
     thread["status"] = "completed"
     kitchen.poll()
-    assert [alive(pid) for pid in stray] == [False, True]
+    assert [alive(pid) for pid in stray] == [False, False]
 
 
 def test_a_scout_stops_only_what_its_own_session_started(kitchen, tmp_path, stray):
@@ -326,9 +327,9 @@ def test_an_idle_process_of_an_ended_row_whose_crew_is_at_work_again_is_left(
     kitchen, tmp_path, stray
 ):
     tree, thread = ended_crew(kitchen, tmp_path)
-    stray.append(orphan(tree, "sleep", "300"))
     end(kitchen, tree, "done")
     thread.update({"status": "running", "settled": False})
+    stray.append(orphan(tree, "sleep", "300"))
     kitchen.poll()
     assert alive(stray[0])
     thread["status"] = "completed"
@@ -337,9 +338,8 @@ def test_an_idle_process_of_an_ended_row_whose_crew_is_at_work_again_is_left(
     assert not alive(stray[0])
 
 
-def test_an_idle_process_of_an_ended_row_with_a_live_parent_is_never_touched(kitchen, tmp_path):
-    tree, _ = ended_crew(kitchen, tmp_path)
-    end(kitchen, tree, "merged")
+def test_an_idle_process_with_a_live_parent_is_never_touched(kitchen, tmp_path, monkeypatch):
+    tree, _, _ = at_its_pull_request(kitchen, tmp_path, monkeypatch)
     child = subprocess.Popen(["sleep", "300"], cwd=tree)
     try:
         kitchen.poll()
@@ -350,11 +350,10 @@ def test_an_idle_process_of_an_ended_row_with_a_live_parent_is_never_touched(kit
 
 
 @pytest.mark.parametrize("name", ["t3code-server", "claude", "jbus"])
-def test_an_idle_process_of_t3_code_or_jbus_in_an_ended_rows_worktree_is_never_touched(
-    kitchen, tmp_path, stray, name
+def test_an_idle_process_of_t3_code_or_jbus_in_a_crews_worktree_is_never_touched(
+    kitchen, tmp_path, stray, monkeypatch, name
 ):
-    tree, _ = ended_crew(kitchen, tmp_path)
-    end(kitchen, tree, "merged")
+    tree, _, _ = at_its_pull_request(kitchen, tmp_path, monkeypatch)
     own = tmp_path / "bin" / name
     own.parent.mkdir()
     own.symlink_to(shutil.which("sleep"))
@@ -363,9 +362,10 @@ def test_an_idle_process_of_t3_code_or_jbus_in_an_ended_rows_worktree_is_never_t
     assert alive(stray[0])
 
 
-def test_the_homes_idle_processes_are_left_when_a_crews_row_ended(kitchen, tmp_path, stray):
-    tree, _ = ended_crew(kitchen, tmp_path)
-    end(kitchen, tree, "merged")
+def test_the_homes_idle_processes_are_left_when_a_crews_turn_ended(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    at_its_pull_request(kitchen, tmp_path, monkeypatch)
     made = tmp_path / "lwr" / "h"
     made.mkdir(parents=True)
     homes = session_of(tmp_path, kitchen.checkout, "the-home", "/home")
@@ -374,3 +374,72 @@ def test_the_homes_idle_processes_are_left_when_a_crews_row_ended(kitchen, tmp_p
     stray.append(orphan(kitchen.checkout, "sleep", "302"))
     kitchen.poll()
     assert all(alive(pid) for pid in stray)
+
+
+def at_its_pull_request(kitchen, tmp_path, monkeypatch):
+    """A crew whose turn ended with its pull request open and its Result written: its row stays
+    at `pr` while the pull request waits on review, a red main or the base it merges after."""
+    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    tree, thread = ended_crew(kitchen, tmp_path, under="worktrees/demo")
+    brief = kitchen.home / "tasks" / "alpha.md"
+    url = "https://example.test/pull/7"
+    brief.write_text(brief.read_text() + RESULT.replace("Pull request: none", url))
+    kitchen.set("open.json", [kitchen.opened("alpha", 7, state=None)])
+    return tree, thread, brief
+
+
+def test_an_idle_process_a_crew_left_is_stopped_once_its_turn_ended_at_its_pull_request(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    tree, _, brief = at_its_pull_request(kitchen, tmp_path, monkeypatch)
+    made = tmp_path / "lwr" / "c"
+    made.mkdir(parents=True)
+    stray.append(orphan(tree, "sleep", "300"))
+    stray.append(orphan(made, "sleep", "301", env=session_of(tmp_path, tree)))
+    said = kitchen.poll() + kitchen.poll()
+    assert {row["slug"]: row["status"] for row in queue.load(kitchen.state)} == {"alpha": "pr"}
+    assert [alive(pid) for pid in stray] == [False, False]
+    lines = [one for one in said if one.startswith("left running")]
+    assert lines == [
+        f"left running crew alpha: stopped 2: sleep 300 in {tree}, sleep 301 in {made}"
+    ]
+    assert brief.read_text().splitlines()[-1].startswith("Left running: 2 stopped by jbus ")
+
+
+def test_a_check_the_crew_left_under_a_test_slot_is_left_while_it_runs(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    """The crew's check block starts its check with `setsid sh -c`, which holds a test slot
+    through `jgauge test-slot` and outlives the shell that started it."""
+    tree, _, _ = at_its_pull_request(kitchen, tmp_path, monkeypatch)
+    env = {**os.environ, "JGAUGE_LOCKS_DIR": str(tmp_path / "locks")}
+    slot = [sys.executable, "-m", "jgauge", "test-slot", "--short", "--", "sleep", "300"]
+    check = orphan(tree, "sh", "-c", '"$@"; echo $? > exit', "check", *slot, env=env)
+    stray.append(check)
+    for _ in range(100):
+        if any(strays.SLOT.search(one.name) for one in (tmp_path / "locks").glob("*")):
+            break
+        time.sleep(0.05)
+    time.sleep(0.3)
+    started = tree_of(check)
+    try:
+        kitchen.poll()
+        assert alive(check)
+    finally:
+        for pid in reversed(started):
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+def tree_of(pid):
+    """The process and every process under it, each parent before its children."""
+    parents = {}
+    for one in os.listdir("/proc"):
+        if one.isdecimal() and (ppid := parent(int(one))) is not None:
+            parents.setdefault(ppid, []).append(int(one))
+    found = [pid]
+    for one in found:
+        found += parents.get(one, [])
+    return found
