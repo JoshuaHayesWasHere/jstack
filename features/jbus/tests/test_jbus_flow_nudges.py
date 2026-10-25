@@ -7,13 +7,14 @@ a status question, a word carried to a second home, a slash command, and a "Go" 
 one thread.
 """
 
+import argparse
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from jbus import word
+from jbus import flow, word
 from jbus.flow import nudges
 from test_jbus_kitchen import Kitchen
 
@@ -155,6 +156,21 @@ def test_flow_s_own_json_before_the_verb_gives_json_and_its_window_flags_are_ref
     for given in (("--since", "2026-10-20"), ("--rows",)):
         code, out = kitchen.main("flow", *given, "nudges", *WINDOW, "--store", str(store))
         assert code == 1 and out.startswith(f"refused: {given[0]} is jbus flow's"), out
+
+
+def test_every_flag_of_flow_but_json_is_refused_before_nudges(kitchen, store):
+    parser = argparse.ArgumentParser()
+    flow._arguments(parser)
+    flags = {
+        action.option_strings[0]: action.nargs != 0
+        for action in parser._actions
+        if action.option_strings and action.dest not in ("help", "json")
+    }
+    assert set(flags) == set(flow.FLOW_ONLY)
+    for flag, takes_value in flags.items():
+        given = (flag, "2026-10-20") if takes_value else (flag,)
+        code, out = kitchen.main("flow", *given, "nudges", *WINDOW, "--store", str(store))
+        assert code == 1 and out.startswith(f"refused: {flag} is jbus flow's"), out
 
 
 def test_the_help_gives_the_definition_word_for_word(kitchen):
