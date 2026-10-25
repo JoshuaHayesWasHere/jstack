@@ -133,6 +133,30 @@ def test_a_launch_whose_stand_in_does_not_start_says_what_its_log_holds(tmp_path
     assert sorted(tmp.glob("verify-jstack.*")) == []
 
 
+def test_a_launch_is_ready_where_a_reverse_lookup_of_127_0_0_1_never_answers(tmp_path, monkeypatch):
+    """As on GitHub's macOS runner, where the lookup waits in mDNS."""
+    hangs = tmp_path / "hangs"
+    hangs.mkdir()
+    (hangs / "sitecustomize.py").write_text(
+        "import socket, time\n"
+        "def getfqdn(name=''):\n"
+        "    time.sleep(60)\n"
+        "    return name\n"
+        "socket.getfqdn = getfqdn\n"
+    )
+    monkeypatch.setenv("PYTHONPATH", str(hangs))
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+
+    ran = launch(tmp)
+    if ran.returncode == 0:
+        env_sh = Path(ran.stdout.strip().removeprefix("ready: . "))
+        subprocess.run([SCRIPTS / "cleanup.sh", env_sh.parent], capture_output=True)
+
+    assert ran.returncode == 0, ran.stderr
+    assert ran.stdout.startswith("ready: . ")
+
+
 def test_doctor_passes_every_feature_on_a_new_sandbox(sandbox):
     ran = inside(sandbox, '"$VERIFY_JSTACK_SCRIPTS/doctor.sh"')
 
