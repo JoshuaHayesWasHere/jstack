@@ -1,6 +1,8 @@
 """Check the merge flow's rules with TLC: today's code breaks the rules it breaks today, the design
 holds all four, and each canary (the design with one fix taken out) breaks the rule that rests on
-that fix. Run it from the repo root:
+that fix. Two controls run today's code with another gap of jbus.strays: the code before #416,
+which breaks the same rules as today, and the gap closed, which breaks only the one rule the
+gap is not behind. Run it from the repo root:
 
     python3 features/jmerge/spec/flow_canaries.py
 
@@ -33,12 +35,24 @@ CANARIES = {
     "NoSweep": ["FlowsWhenGreen", "MachineNotLeftFull"],
 }
 
-# Today's code breaks every rule: a full machine also blocks main's fix.
+# Today's code breaks every rule. A check that skips a test reading the whole tree merges a
+# broken change. An idle process a crew left at its pull request, which jbus.strays stops only
+# once its row ended, keeps the machine full: nothing new starts, and main's fix cannot launch.
 TODAY_BREAKS = RULES
 
+# What jbus.strays stops of an idle process a finished turn left (FlowToday.tla's `Gap`), and
+# the rules today's code breaks with it. Before #416 only a busy one is stopped, which leaves
+# the same rules broken as today. With the gap closed only the check's selection is left.
+TODAY = "ended"
+CONTROLS = {
+    "today, before #416 (busy leftovers only)": ("busy", TODAY_BREAKS),
+    "today, idle swept at the turn's end": ("turn", ["NoMergeTurnsMainRed"]),
+}
 
-def config(rules):
-    lines = ["SPECIFICATION Spec", "INVARIANT TypeOK", *(f"INVARIANT {rule}" for rule in rules)]
+
+def config(rules, gap=None):
+    lines = ["SPECIFICATION Spec", *([f'CONSTANT Gap = "{gap}"'] if gap else [])]
+    lines += ["INVARIANT TypeOK", *(f"INVARIANT {rule}" for rule in rules)]
     return "\n".join(lines) + "\n"
 
 
@@ -94,7 +108,11 @@ def runs():
         for rule in rules:
             yield f"canary {canary}: {rule}", canary, config([rule]), rule, "breaks"
     for rule in TODAY_BREAKS:
-        yield f"today: {rule}", "FlowToday", config([rule]), rule, "breaks"
+        yield f"today: {rule}", "FlowToday", config([rule], TODAY), rule, "breaks"
+    for label, (gap, breaks) in CONTROLS.items():
+        for rule in RULES:
+            want = "breaks" if rule in breaks else "holds"
+            yield f"{label}: {rule}", "FlowToday", config([rule], gap), rule, want
 
 
 def main():
