@@ -145,3 +145,14 @@ exec "$REAL_JAVA" "$@"
     runs = log.read_text().splitlines()
     assert [re.search(r"-workers (\S+)", run)[1] for run in runs] == ["1", "3"]
     assert all(run.startswith("slot full: ") for run in runs), runs
+
+
+def test_a_java_that_cannot_start_in_a_slot_is_said_as_without_one(tmp_path, outside_a_slot):
+    """jgauge, holding the slot, is the one that starts Java, and from-spec still says that it
+    cannot run TLC, and why."""
+    write_slow_pay(tmp_path, 0)
+    write(tmp_path / "Pay.cfg", "SPECIFICATION Spec\nINVARIANT ChargedAtMostTwice\n")
+    write(tmp_path / "tla2tools.jar", "")
+    env = {"JAVA": str(tmp_path / "no-java"), "TLA2TOOLS": str(tmp_path / "tla2tools.jar")}
+    r = node("statechart", ["from-spec", "Pay.tla"], tmp_path, env)
+    assert (r.returncode, r.stderr) == (2, "cannot run TLC: No such file or directory\n")

@@ -421,6 +421,10 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
         raise CannotFinish(f"cannot run TLC: {e.strerror or e}") from e
     finally:
         shutil.rmtree(metadir, ignore_errors=True)
+    # jgauge, which holds the slot, says so when Java cannot start, as the OSError above does.
+    could_not_start = re.search(rf"^test-slot: {re.escape(tools.java)}: (.*)$", r.stderr, re.M)
+    if r.returncode in (126, 127) and could_not_start:
+        raise CannotFinish(f"cannot run TLC: {could_not_start[1]}")
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
         handle.write(r.stdout)
     try:
