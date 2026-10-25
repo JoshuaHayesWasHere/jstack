@@ -36,7 +36,7 @@ GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
-USER = ["alert", "decision", "sign-in"]
+USER = ["alert", "decision", "home-stall", "sign-in"]
 DECIDED = "decision alpha: which one?"
 WHY_APPROVE = "a row with no approval of its brief"
 HOLDING_9 = (
@@ -81,7 +81,7 @@ def listed(kitchen):
     return json.loads((kitchen.state / "waiting-on-user.json").read_text())
 
 
-def test_the_kinds_that_start_a_post_are_these_three_and_no_level_is_between():
+def test_the_kinds_that_start_a_post_are_these_four_and_no_level_is_between():
     assert sorted(kind for kind, loud in wake.LOUDNESS.items() if loud == "user") == USER
     assert set(wake.LOUDNESS.values()) == {"user", "quiet"} == set(jbus.LEVELS)
 

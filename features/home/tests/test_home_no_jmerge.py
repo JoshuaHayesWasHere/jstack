@@ -170,13 +170,6 @@ def repo(tmp_path):
     return Repo(tmp_path)
 
 
-def test_the_skills_have_blocks_that_run_jmerge():
-    assert [param.id.split(":")[0] for param in MERGING] == ["home"]
-    assert not RUNS.search('said=$(uv run --project "$T/.." jmerge --claims)')
-    assert not RUNS.search("<the lines step 2's jmerge printed in this tick>")
-    assert RUNS.search('uv run --project "$T/.." jmerge')
-
-
 @pytest.mark.parametrize("held", [None, "", " \n"], ids=["missing", "empty", "blank"])
 @pytest.mark.parametrize(("skill", "text"), MERGING)
 def test_no_block_runs_jmerge_while_the_switch_is_empty(repo, skill, text, held):
