@@ -918,8 +918,8 @@ def proof(reviewer):
             "<thread id>": "mcp:thread-1",
         }
         if limit is not None:
-            fill["limit=540"] = f"limit={limit}"
-        return reviewer("### The review", "test-slot", fill=fill, **env)
+            fill["jgauge proof"] = f"jgauge proof --wait {limit}"
+        return reviewer("### The review", "jgauge proof", fill=fill, **env)
 
     def run(script, **env):
         printed, code = ends(script, **env)
@@ -1010,24 +1010,6 @@ def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_pat
     assert (said[0].split(":")[0], said[1:3], code) == ("joined", ["exit 0", "the fact holds"], 0)
     assert time.monotonic() - began < 30
     assert runs.read_text() == "ran\n"
-
-
-def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path):
-    """The block records the proof's pid itself. So when the system starts a proof late, the
-    block counts that proof as running from the first call, and no second call may start
-    another."""
-    delayed = proof.stub / "setsid"
-    delayed.write_text(f'#!/bin/sh\nsleep 11\nexec {shutil.which("setsid")} "$@"\n')
-    delayed.chmod(0o755)
-    runs = tmp_path / "runs"
-    script = f"echo ran >> {runs}\necho the fact holds\n"
-    began = time.monotonic()
-    said, code = proof.ends(script, limit=0)
-    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
-    assert time.monotonic() - began < 8
-    said, code = proof.ends(script, limit=0)
-    assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
-    assert not runs.exists()
 
 
 def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):

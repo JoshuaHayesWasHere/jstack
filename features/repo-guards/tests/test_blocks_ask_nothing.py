@@ -14,7 +14,8 @@ quotes, `$(...)`, backticks, here-documents, `case` patterns and wrappers such a
 `xargs` and `env`, so a word in quotes or a `case` pattern is no command. `ASKS_TODAY` holds the
 blocks that ap-blocks-rest moves into commands of their owners, by file and count. It may only
 shrink: a file that holds one more fails, and so does a file that holds one fewer until its line
-leaves the list.
+leaves the list. A block that fails is fixed by moving its delete or its background run into a
+jstack command, as `jgauge check` does, and never by a comment or a list entry.
 """
 
 import re
@@ -26,6 +27,7 @@ import pytest
 
 from testing.paths import REPO
 
+READ_SET = ("*.md",)
 FENCED = re.compile(r"^[ \t]*```(?:sh|bash|shell|zsh)\n(.*?)^[ \t]*```[ \t]*$", re.M | re.S)
 DELETES = frozenset({"rm", "rmdir", "unlink"})
 SHELLS = frozenset({"sh", "bash", "zsh", "dash"})
@@ -341,22 +343,14 @@ def blocks_that_ask():
 def test_no_block_a_thread_runs_deletes_or_starts_an_inner_shell():
     found = blocks_that_ask()
     counts = Counter(relative for relative, _, _ in found)
-    new = [
-        f"{relative}:{line}: {'; '.join(said)}"
-        for relative, line, said in found
-        if counts[relative] > ASKS_TODAY.get(relative, 0)
-    ]
-    assert new == [], (
-        "a step a thread runs may not delete or start an inner shell, since Claude Code asks the"
-        " user before it runs one: move the delete or the background run into a jstack command,"
-        " as `jgauge check` does"
-    )
+    new = [one for one in found if counts[one[0]] > ASKS_TODAY.get(one[0], 0)]
+    assert new == []
     fixed = {
         relative: (allowed, counts[relative])
         for relative, allowed in ASKS_TODAY.items()
         if counts[relative] < allowed
     }
-    assert fixed == {}, "a file asks less than ASKS_TODAY says: lower its count, or drop its line"
+    assert fixed == {}
 
 
 @pytest.mark.parametrize(
