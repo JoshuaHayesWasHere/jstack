@@ -795,9 +795,10 @@ def test_once_the_train_passed_a_red_night_after_it_files_one_row_and_one_before
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
-    assert "the macOS nightly run 77 failed" in (
-        kitchen.home / "tasks" / "macos-red-2026-10-12.md"
-    ).read_text()
+    assert (
+        "the macOS nightly run 77 failed"
+        in (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
+    )
     assert kitchen.lines("retro") == [
         NEVER_GREEN.format(75, "2026-10-10"),
         "retro macos-red-2026-10-12: the macOS nightly run 77 failed on 2026-10-12, 2 tests named",
@@ -845,7 +846,9 @@ def test_a_red_night_names_every_test_the_failed_tests_step_prints(kitchen):
             "test_tail.py::test_four",
         )
     )
-    assert "\nWhere: `features/jlog/tests/test_log.py`, `features/jlog/tests/test_tail.py`\n" in text
+    assert (
+        "\nWhere: `features/jlog/tests/test_log.py`, `features/jlog/tests/test_tail.py`\n" in text
+    )
     assert "run 77 failed on 2026-10-12, 4 tests named" in text
     assert kitchen.lines("retro") == [
         "retro macos-red-2026-10-12: the macOS nightly run 77 failed on 2026-10-12, 4 tests named"

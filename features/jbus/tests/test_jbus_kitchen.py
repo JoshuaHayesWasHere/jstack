@@ -357,7 +357,8 @@ def fake_gh(stub, args, cwd):
     gives a list of pages, here two. A job comes from `jobs.json` by its id, or is one step at the
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
     not found, and a log with an escape sequence in it is refused unless asked for with
-    `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it changed, from `commit-files.json`.
+    `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
+    changed, from `commit-files.json`.
     The runs of the browser workflow are in `browser-runs.json`. The repo's workflows are in
     `workflows.json`, and the runs of each other workflow in `workflow-runs.json` by its id. A
     run's jobs come from `run-jobs.json` by the run's id, and the call fails where that entry is
