@@ -182,23 +182,39 @@ def _slotted(pid: int) -> bool:
     return False
 
 
-def _in_slot(pid: int, children: dict[int, list[int]]) -> bool:
-    """Whether the process or one under it holds a test slot."""
+def in_slot(found: Iterable[Proc]) -> set[int]:
+    """The processes that hold a test slot, themselves or through a process under them: a check
+    or a proof that still runs."""
+    found = list(found)
+    if not found:
+        return set()
+    try:
+        pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
+    except OSError:
+        pids = []
+    children: dict[int, list[int]] = {}
+    for pid in pids:
+        if (stat := _stat(pid)) is not None:
+            children.setdefault(stat[0], []).append(int(pid))
+    return {one.pid for one in found if _holds(one.pid, children)}
+
+
+def _holds(pid: int, children: dict[int, list[int]]) -> bool:
     seen, left = set(), [pid]
     while left:
         one = left.pop()
         if one in seen:
             continue
-        seen.add(one)
         if _slotted(one):
             return True
+        seen.add(one)
         left += children.get(one, [])
     return False
 
 
 def orphans() -> list[Proc]:
     """Every process of the user whose parent is a reaper, but for jbus's, T3 Code's and the
-    agent's, and a check or a proof that holds a test slot."""
+    agent's."""
     try:
         pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
     except OSError:
@@ -208,11 +224,7 @@ def orphans() -> list[Proc]:
     mine = _ancestors()
     left = [_read(pid, stat) for pid, stat in stats.items() if stat[0] in adopting]
     found = [one for one in left if one is not None and one.pid not in mine]
-    found = [one for one in found if not any(OWN.search(arg) for arg in one.args[:3])]
-    children: dict[int, list[int]] = {}
-    for pid, stat in stats.items():
-        children.setdefault(stat[0], []).append(int(pid))
-    return [one for one in found if not _in_slot(one.pid, children)]
+    return [one for one in found if not any(OWN.search(arg) for arg in one.args[:3])]
 
 
 def under(path: str, folder: Path) -> bool:
@@ -366,7 +378,8 @@ def stop(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> None:
         if slug and ("scout", slug) not in at_work:
             claimed.setdefault(("scout", slug), []).append(one)
     scouts = (one for (role, _), found in claimed.items() if role == "scout" for one in found)
-    burning = taken | {one.pid for one in busy(scouts)}
+    every = [one for found in claimed.values() for one in found]
+    burning = (taken | {one.pid for one in busy(scouts)}) - in_slot(every)
     notes = {}
     for (role, slug), found in sorted(claimed.items()):
         found = [one for one in found if one.pid in burning]
