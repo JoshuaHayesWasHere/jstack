@@ -152,21 +152,27 @@ def reviewer(tmp_path):
     work = tmp_path / "worktrees" / "a-task"
     subprocess.run(["git", "init", "-q", work], check=True)
 
-    def start(heading="### The review", about="", findings=(), fill=None, **more):
+    def start(heading="### The review", about="", findings=(), fill=None, then=None, **more):
+        """Run one block. The test calls `then` once the block has printed its first line, while
+        the block still runs."""
         script = block(heading, about).replace("<slug>", "a-task").replace("<url>", URL)
         script = script.replace("<the findings, one to a line>", "\n".join(findings))
         for words, value in (fill or {}).items():
             assert words in script
             script = script.replace(words, value)
-        ran = subprocess.run(
+        ran = subprocess.Popen(
             ["sh", "-c", script],
             env={**env, **more},
             cwd=work,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             text=True,
-            timeout=20,
         )
-        return ran.stdout.splitlines(), ran.returncode
+        first = ran.stdout.readline() if then else ""
+        if then:
+            then()
+        rest, _ = ran.communicate(timeout=20)
+        return (first + rest).splitlines(), ran.returncode
 
     def output(heading, about="", findings=(), **more):
         printed, code = start(heading, about, findings, **more)
@@ -909,7 +915,7 @@ def proof(reviewer):
     beside = reviewer.prompt().parent
     kept = crew.git(reviewer.work, "rev-parse", "HEAD")
 
-    def ends(script, limit=None, **env):
+    def ends(script, limit=None, then=None, **env):
         (beside / "proof.sh").write_text(script)
         fill = {
             "<the directory of the prompt file>": str(beside),
@@ -919,7 +925,7 @@ def proof(reviewer):
         }
         if limit is not None:
             fill["jgauge proof"] = f"jgauge proof --wait {limit}"
-        return reviewer("### The review", "jgauge proof", fill=fill, **env)
+        return reviewer("### The review", "jgauge proof", fill=fill, then=then, **env)
 
     def run(script, **env):
         printed, code = ends(script, **env)
@@ -1004,9 +1010,8 @@ def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_pat
     assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
     assert time.monotonic() - began >= 1
 
-    go.touch()
     began = time.monotonic()
-    said, code = proof.ends(script, limit=30)
+    said, code = proof.ends(script, limit=30, then=go.touch)
     assert (said[0].split(":")[0], said[1:3], code) == ("joined", ["exit 0", "the fact holds"], 0)
     assert time.monotonic() - began < 30
     assert runs.read_text() == "ran\n"
@@ -1041,8 +1046,7 @@ def test_a_proof_rewritten_while_it_runs_is_no_proof_of_the_new_one(proof, tmp_p
         time.sleep(0.1)
     said, code = proof.ends("echo the new fact\n", limit=1)
     assert said[0].split(":")[0] == "joined" and said[-1].split(":")[0] == "running"
-    go.touch()
-    said, code = proof.ends("echo the new fact\n", limit=30)
+    said, code = proof.ends("echo the new fact\n", limit=30, then=go.touch)
     assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("joined", "stale", 75)
     assert "exit 0" not in said
     said, code = proof.ends("echo the new fact\n")

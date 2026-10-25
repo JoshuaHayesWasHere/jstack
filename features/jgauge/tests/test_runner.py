@@ -92,3 +92,10 @@ def test_a_step_with_no_command_on_stdin_starts_nothing(tmp_path):
         tmp_path, work, "proof", "--dir", str(folder), "--kept", "x", stdin="\n"
     )
     assert (said, code, list(folder.iterdir())) == ([], 2, [])
+
+
+def test_a_repo_with_a_module_named_for_the_stdlib_is_checked_with_the_stdlib(tmp_path):
+    work = repo(tmp_path)
+    (work / "shutil.py").write_text('raise SystemExit("the repo shadowed the stdlib")\n')
+    said, code, _ = jgauge(tmp_path, work, "check", stdin="echo checked\n")
+    assert (said[-2:], code) == (["checked", "done: the check exited 0"], 0)

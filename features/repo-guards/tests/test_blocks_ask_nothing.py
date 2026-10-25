@@ -31,6 +31,7 @@ READ_SET = ("*.md",)
 FENCED = re.compile(r"^[ \t]*```(?:sh|bash|shell|zsh)\n(.*?)^[ \t]*```[ \t]*$", re.M | re.S)
 DELETES = frozenset({"rm", "rmdir", "unlink"})
 SHELLS = frozenset({"sh", "bash", "zsh", "dash"})
+SHELL_ARGUED = frozenset({"--rcfile", "--init-file"})
 KEEP_EXPECTING = frozenset({"if", "then", "else", "elif", "do", "while", "until", "!", "{", "}"})
 ENDS = frozenset({"fi", "done", "esac"})
 WRAPPERS = frozenset(
@@ -288,9 +289,12 @@ def why(words):
     if name == "eval":
         return "eval runs a script the check cannot read"
     if name in SHELLS:
-        for one in words[1:]:
-            if not one.startswith("-") or one == "--":
+        flags = iter(words[1:])
+        for one in flags:
+            if one == "--" or one[:1] not in ("-", "+"):
                 break
+            if one in SHELL_ARGUED or (one[1:2] != "-" and one[-1] in "oO"):
+                next(flags, None)
             if one.startswith("-") and not one.startswith("--") and "c" in one:
                 return f"{name} {one} runs a script the check cannot read"
     if name == "find":
@@ -367,6 +371,13 @@ def test_no_block_a_thread_runs_deletes_or_starts_an_inner_shell():
         ("setsid sh -c 'exec sleep 1' &", ["sh -c runs a script the check cannot read"]),
         ("bash -lc true", ["bash -lc runs a script the check cannot read"]),
         ("env A=1 dash -e -c true", ["dash -c runs a script the check cannot read"]),
+        ("bash -o pipefail -c true", ["bash -c runs a script the check cannot read"]),
+        (
+            "bash -O extglob +o posix -eo pipefail -c true",
+            ["bash -c runs a script the check cannot read"],
+        ),
+        ("bash --rcfile f -c true", ["bash -c runs a script the check cannot read"]),
+        ("bash -o pipefail run.sh", []),
         ('eval "$cmd"', ["eval runs a script the check cannot read"]),
         ("flock -n lock -c true", ["sh -c runs a script the check cannot read"]),
         ("X=1 /bin/rm x", ["rm deletes"]),

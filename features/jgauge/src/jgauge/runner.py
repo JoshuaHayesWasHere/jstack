@@ -17,6 +17,9 @@ tree,told,run}`, so a check that block started is joined and not started twice. 
 tree of the worktree as it is now, written with an index of its own. `jgauge proof` keeps the
 pr-review block's `proof.*` files beside the prompt, and its key is a hash of the proof and of
 `proof.sh`.
+
+The run starts with `python -P`, which keeps the worktree off `sys.path`, so a module of the repo
+under check that has a stdlib name is never imported in place of the stdlib's.
 """
 
 from __future__ import annotations
@@ -112,7 +115,7 @@ class Run:
         files = self.files
         files.key.write_text(f"{key}\n")
         files.command.write_text(command)
-        launch = [sys.executable, "-m", "jgauge.runner", str(files.path("exit")), thread]
+        launch = [sys.executable, "-P", "-m", "jgauge.runner", str(files.path("exit")), thread]
         launch += ["--short"] if short else []
         with files.path("out").open("wb") as out:
             self.child = subprocess.Popen(
