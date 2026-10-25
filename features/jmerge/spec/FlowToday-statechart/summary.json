@@ -12,12 +12,12 @@
     ]
   },
   "modelStates": 4163,
-  "modelTransitions": 10020,
-  "chartStates": 82,
-  "chartTransitions": 82,
+  "modelTransitions": 11151,
+  "chartStates": 44,
+  "chartTransitions": 44,
   "chartStatus": {
-    "works": 51,
-    "wrong": 29,
+    "works": 36,
+    "wrong": 6,
     "fixed": 2
   },
   "chartGroups": [
@@ -29,7 +29,7 @@
     {
       "name": "Moving",
       "color": "#e8eef9",
-      "states": 39
+      "states": 23
     },
     {
       "name": "Waits on you",
@@ -38,73 +38,18 @@
     }
   ],
   "mixedGroups": [
-    "Main green, machine full: 1 passed, merges after the other, 1 waiting to launch",
-    "Main red from a merge, machine full: 1 merged, 1 passed, waiting to merge",
-    "Main red from a merge, machine full: 1 merged, 1 red only from main's break",
-    "Main red from a merge, machine full: 1 merged, 1 red, its own break hidden behind main's",
     "Main red from a merge: 1 merged, 1 red only from main's break",
     "Main red from a merge: 1 merged, 1 red, its own break hidden behind main's",
-    "Main red from outside, machine full: 1 merged, 1 passed, waiting to merge",
-    "Main red from outside, machine full: 1 merged, 1 red only from main's break",
-    "Main red from outside, machine full: 1 merged, 1 red, its own break hidden behind main's",
-    "Main red from outside, machine full: 1 passed, merges after the other, 1 passed, waiting to merge",
-    "Main red from outside, machine full: 1 passed, merges after the other, 1 red only from main's break",
-    "Main red from outside, machine full: 1 passed, merges after the other, 1 red, its own break hidden behind main's",
-    "Main red from outside, machine full: 1 passed, merges after the other, 1 waiting to launch",
-    "Main red from outside, machine full: 1 passed, stacked on the other, 1 passed, waiting to merge",
-    "Main red from outside, machine full: 1 passed, stacked on the other, 1 red only from main's break",
-    "Main red from outside, machine full: 1 passed, stacked on the other, 1 red, its own break hidden behind main's",
-    "Main red from outside, machine full: 1 passed, waiting to merge, 1 red only from main's break",
-    "Main red from outside, machine full: 1 passed, waiting to merge, 1 red, its own break hidden behind main's",
-    "Main red from outside, machine full: 1 passed, waiting to merge, 1 waiting to launch",
-    "Main red from outside, machine full: 1 red only from main's break, 1 red, its own break hidden behind main's",
-    "Main red from outside, machine full: 1 red only from main's break, 1 waiting to launch",
-    "Main red from outside, machine full: 1 red, its own break hidden behind main's, 1 waiting to launch",
-    "Main red from outside, machine full: 2 red only from main's break",
-    "Main red from outside, machine full: 2 red, its own break hidden behind main's",
     "Main red from outside: 1 merged, 1 red only from main's break",
     "Main red from outside: 1 merged, 1 red, its own break hidden behind main's"
   ],
   "regions": {
     "drawn": false,
-    "why": "\"Main green, machine full: 1 passed, merges after the other, 1 waiting to launch\" is \"Breaks a rule today\", and its two region states would show \"Works today\""
+    "why": "\"Main red from outside: 1 merged, 1 red, its crew told\" is \"Breaks a rule today\", and its two region states would show \"Works today\""
   },
   "classes": [
     {
       "n": 1,
-      "end": "Main green, machine full: 1 passed, merges after the other, 1 waiting to launch",
-      "invariant": "FlowsWhenGreen",
-      "rule": "\"Work never stops flowing: once nothing more happens on its own and main is green, every pull request has merged.\"",
-      "cause": "a crew left an idle process running at its pull request, which jbus stops only once its row ended, so the machine stays full and the next row never launches",
-      "readerSteps": 2,
-      "modelSteps": 3,
-      "counterexamples": 8,
-      "against": "starts on another screen"
-    },
-    {
-      "n": 2,
-      "end": "Main green, machine full: 1 passed, merges after the other, 1 waiting to launch",
-      "invariant": "MachineNotLeftFull",
-      "rule": "\"Once nothing more happens on its own, the machine has room.\"",
-      "cause": "a crew left an idle process running at its pull request, and jbus stops an idle one only once its row ended",
-      "readerSteps": 2,
-      "modelSteps": 3,
-      "counterexamples": 267,
-      "against": "starts on another screen"
-    },
-    {
-      "n": 3,
-      "end": "Main red from outside, machine full: 1 passed, waiting to merge, 1 waiting to launch",
-      "invariant": "MainFixWaitsOnlyOnYou",
-      "rule": "\"While main is red and nothing else can happen, its fix waits only on your approval.\"",
-      "cause": "an idle process a crew left fills the machine, so even an approved fix for main cannot start",
-      "readerSteps": 3,
-      "modelSteps": 4,
-      "counterexamples": 261,
-      "against": "starts on another screen"
-    },
-    {
-      "n": 4,
       "end": "Main red from a merge, machine full: 1 merged, 1 waiting to launch",
       "invariant": "NoMergeTurnsMainRed",
       "rule": "\"A merge never turns main red.\"",

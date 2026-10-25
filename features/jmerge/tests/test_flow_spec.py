@@ -39,11 +39,11 @@ CITED = {
     "features/jbus/src/jbus/rebase.py:250": "world.open.items()",
     "features/jbus/src/jbus/stack.py:65": "world.open.items()",
     "features/jbus/src/jbus/stack.py:72-73": "world.merged.get(stacked.slug)",
-    "features/jbus/src/jbus/strays.py:315": '("crew", slug) in busy',
-    "features/jbus/src/jbus/strays.py:336-337,345": "over | {one.pid for one in busy(rest)}",
+    "features/jbus/src/jbus/strays.py:356": '("crew", slug) in busy',
+    "features/jbus/src/jbus/strays.py:373-374,382": "burning = (taken |",
     "features/jbus/src/jbus/watch.py:1034-1054": "queue.add(run.state, name, top, [], text)",
-    "features/jbus/src/jbus/watch.py:1292,1337,1341,1344": "no briefed merge came in",
-    "features/jbus/src/jbus/watch.py:1343-1344": "_file(run, slug, sha,",
+    "features/jbus/src/jbus/watch.py:1330,1373,1377,1380": "no briefed merge came in",
+    "features/jbus/src/jbus/watch.py:1379-1380": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:135-138": 'row.get("merge_after", [])',
     "features/jmerge/src/jmerge/cli.py:684-692": "ready.STACKED_UNMOVED.format(",
     "features/jmerge/src/jmerge/ready.py:935-936": "NOT_PASSED",
@@ -103,9 +103,8 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
     for canary, rules in flow.CANARIES.items():
         for rule in rules:
             assert any(line.startswith(f"ok    canary {canary}: {rule} breaks") for line in lines)
-    for rule in flow.TODAY_BREAKS:
-        assert any(line.startswith(f"ok    today: {rule} breaks") for line in lines)
-    for label, (_, breaks) in flow.CONTROLS.items():
+    runs = {"today": (flow.TODAY, flow.TODAY_BREAKS), **flow.CONTROLS}
+    for label, (_, breaks) in runs.items():
         for rule in flow.RULES:
             said = "breaks" if rule in breaks else "holds"
             assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)

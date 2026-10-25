@@ -1,15 +1,15 @@
 ---- MODULE FlowToday ----
 \* What jstack does today with two pull requests, a main that can go red, and a machine that can fill.
-\* Code as of main 33558be3 (2026-10-25): the flow-statechart scout's FlowNow.tla at 6485914, with
-\* #416 since, cut down to the variables FlowDesign.tla's four rules read.
+\* Code as of main 4b593993 (2026-10-25): the flow-statechart scout's FlowNow.tla at 6485914, with
+\* #416 and #427 since, cut down to the variables FlowDesign.tla's four rules read.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
-\*   "ended": the code since #416: a busy process, and an idle one once its row ended
+\*   "turn":  the code since #427: a crew's process, busy or idle, once the turn that left it ended.
+\*   "ended": the code from #416 to #427: a busy process, and an idle one once its row ended
 \*            (merged, done, left, or its worktree gone); in this model a row ends by merging.
 \*   "busy":  the code before #416 (main 6485914): only a process that used CPU over the pass,
 \*            so an idle one (a `sleep`, a headless browser waiting) is left for ever.
-\*   "turn":  the gap closed: an idle one too, once the turn that left it ended, as a busy one.
 CONSTANT Gap
 
 PRs == {"a", "b"}
@@ -86,7 +86,7 @@ Merge(p) ==
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1343-1344: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1379-1380: main's red tip after a briefed merge is filed.
     /\ fixRow' = (fixRow \/ breaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine>>
 
@@ -134,16 +134,16 @@ Rejudge(p) ==
     /\ UNCHANGED <<st, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
-\* (features/jbus/src/jbus/strays.py:315), and in this model a crew's turn is one step.
+\* (features/jbus/src/jbus/strays.py:356), and in this model a crew's turn is one step.
 Stoppable(p) ==
     CASE Gap = "busy" -> FALSE
       [] Gap = "ended" -> st[p] = "merged"
       [] Gap = "turn" -> TRUE
 
-\* jbus.strays stops what a finished turn left (#351, #363, #416): a busy process, and an idle
-\* one only as Gap says.
+\* jbus.strays stops what a finished turn left (#351, #363, #416, #427): a busy process, and an
+\* idle one only as Gap says.
 Sweep ==
-    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:336-337,345
+    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:373-374,382
     /\ busy' = FALSE
     /\ idle' = [p \in PRs |-> idle[p] /\ ~Stoppable(p)]
     /\ full' = (\E p \in PRs : idle'[p])
@@ -166,7 +166,7 @@ OutsideBreak ==
     /\ mainRed' = TRUE
     /\ redBy' = "outside"
     /\ outsideLeft' = outsideLeft - 1
-    \* features/jbus/src/jbus/watch.py:1292,1337,1341,1344: since #392 the fix row is filed for a red
+    \* features/jbus/src/jbus/watch.py:1330,1373,1377,1380: since #392 the fix row is filed for a red
     \* tip with no briefed merge in the day before it too, under the row's own name.
     /\ fixRow' = TRUE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine>>
