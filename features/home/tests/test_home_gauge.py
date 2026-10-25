@@ -465,10 +465,11 @@ def reference(scene, folder):
 
 
 def test_before_a_tool_call_on_a_transcript_of_2_mb_it_uses_under_2_2_references(scene, tmp_path):
-    """Before each tool call the hook reads the transcript's tail, so on 2 MB it uses about 1.7
-    times the reference's CPU time, and reading it all, or its tail three times, takes it to 2.5
-    or more. Its wall time tells nothing on a busy runner: a call that took 16 ms on an idle
-    Linux took 131 ms at best of five on a macOS runner under the whole suite."""
+    """Before each tool call the hook reads the transcript's tail, so on 2 MB it uses 1.5 to 1.9
+    times the reference's CPU time (1.50 on a macOS runner under the whole suite), and reading
+    it all, or its tail three times, takes it to 2.5 or more. Its wall time tells nothing on a
+    busy runner: a call that took 16 ms on an idle Linux took 131 ms at best of five on a macOS
+    runner under the whole suite."""
     said = {"type": "user", "message": {"role": "user", "content": "x" * 2000}}
     lines = [json.dumps(entry) + "\n" for entry in (said, call("m1", 4, 250000, 50000))]
     scene.transcript.write_text("".join(lines) * (2_000_000 // sum(map(len, lines)) + 1))
