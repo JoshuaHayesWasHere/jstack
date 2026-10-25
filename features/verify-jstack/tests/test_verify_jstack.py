@@ -229,7 +229,11 @@ def test_a_host_that_exports_its_own_directories_does_not_reach_into_the_sandbox
     )
     assert in_the_sandbox in lines
     assert lines[-1] == "doctor: ok"
-    assert (sandbox.parent / "home" / ".config" / "systemd" / "user" / "jbus.timer").is_symlink()
+    home = sandbox.parent / "home"
+    if sys.platform == "darwin":
+        assert (home / "Library" / "LaunchAgents" / "jstack.jbus.plist").is_file()
+    else:
+        assert (home / ".config" / "systemd" / "user" / "jbus.timer").is_symlink()
     assert not (tmp_path / "host").exists()
 
 
