@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import http.server
 import json
+import socketserver
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -143,15 +144,25 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
     return Handler
 
 
+class Server(http.server.ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address.
+
+    `HTTPServer.server_bind` calls `socket.getfqdn`, and on GitHub's macOS runner that reverse
+    lookup of 127.0.0.1 waits in mDNS, so the stand-in never listened.
+    """
+
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("directory", type=Path)
     parser.add_argument("--token", required=True, help="the sandbox's made-up token")
     args = parser.parse_args()
     args.directory.mkdir(parents=True, exist_ok=True)
-    server = http.server.ThreadingHTTPServer(
-        ("127.0.0.1", 0), handler(Fake(args.directory, args.token))
-    )
+    server = Server(("127.0.0.1", 0), handler(Fake(args.directory, args.token)))
     (args.directory / "port").write_text(f"{server.server_address[1]}\n")
     server.serve_forever()
 
