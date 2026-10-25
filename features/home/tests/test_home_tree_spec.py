@@ -48,8 +48,8 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
 
 def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
     """canaries.py runs the design in each scene once for its invariants and once for each
-    property, each canary once, and today's code once for each rule it breaks or keeps, and the
-    canaries between them break every rule."""
+    property, each canary once, and today's code in each scene as the design, and the canaries
+    between them break every rule."""
     assert all(path.is_file() for path in FILES)
     labels = [label for label, *_ in RUNS]
     assert labels == [
@@ -62,8 +62,11 @@ def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_t
             f"canary {guard}, scene {scene}: {rule}"
             for guard, (rule, scene) in canaries.CANARIES.items()
         ),
-        *(f"today, scene {scene}: {rule}" for rule, scene in canaries.TODAY_BREAKS.items()),
-        *(f"today, scene a: {rule}" for rule in canaries.TODAY_HOLDS),
+        *(
+            f"today, scene {scene}: {name}"
+            for scene in canaries.SCENES
+            for name in ["every invariant", *canaries.PROPERTIES]
+        ),
     ]
     assert {rule for rule, _ in canaries.CANARIES.values()} == set(canaries.RULES)
 
@@ -105,7 +108,7 @@ def tlc():
 )
 def test_the_run_says_what_it_should(tlc, module, cfg, rule, want):
     """TLC says each rule holds in the design's scene, the canary breaks the rule on its guard,
-    and today's code breaks or keeps the rule it breaks or keeps today."""
+    and each rule holds in today's code in each scene."""
     out = canaries.tlc(tlc, module, cfg)
     assert canaries.verdict(out, rule) == want, out[-4000:]
 

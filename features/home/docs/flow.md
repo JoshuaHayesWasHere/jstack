@@ -30,8 +30,7 @@ You say yes to the plan entry there, and the home launches the crewmate itself a
 With `jbus` alone, `jbus` launches only the approved rows of the queue.
 A release install writes a `jbus` config with `dispatch = false`, so `jbus` launches nothing until you [set it up](../../jbus/docs/jbus/set-up-jbus.md).
 
-Nothing merges by itself until you choose who runs `jmerge`.
-Either the `jbus` timer runs it on each pass, or one home runs it while its thread id is in `home-thread` in the state directory.
+The `jbus` timer runs `jmerge` on each pass, and no home runs it to merge.
 A home writes its own id into `home-id` when it starts, and only you write `home-thread`.
 Until you choose, run `jmerge` in the repo's main checkout.
 [Configuration](../../jinstall/docs/configuration.md#switches-for-one-repo) has both switches.
