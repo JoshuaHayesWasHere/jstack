@@ -28,6 +28,7 @@ import http.server
 import json
 import re
 import secrets
+import socketserver
 import time
 import urllib.error
 import urllib.parse
@@ -117,7 +118,14 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
         def log_message(self, *_: Any) -> None:
             pass
 
-    listener = http.server.HTTPServer(("127.0.0.1", 0), Callback)
+    class Listener(http.server.HTTPServer):
+        # `HTTPServer.server_bind` asks DNS for a name of 127.0.0.1, which on a Mac can wait
+        # on mDNS: bind without it.
+        def server_bind(self) -> None:
+            socketserver.TCPServer.server_bind(self)
+            self.server_name, self.server_port = self.server_address[:2]
+
+    listener = Listener(("127.0.0.1", 0), Callback)
     try:
         redirect = f"http://127.0.0.1:{listener.server_address[1]}/callback"
         _, said = _post(
