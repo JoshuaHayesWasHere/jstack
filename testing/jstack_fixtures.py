@@ -110,6 +110,14 @@ def no_machine_state(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def homes_state(tmp_path_factory, monkeypatch):
+    """Point `JBUS_HOME_DIR` at the run's temporary root, so that `jbus forget`, which deletes
+    only inside the homes' state or a repo's git dir, takes a file of a test's `tmp_path` as a
+    file of the homes' state. A test that needs another state sets the variable again itself."""
+    monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path_factory.getbasetemp()))
+
+
+@pytest.fixture(autouse=True)
 def no_step_files(monkeypatch):
     """Keep the step's own output and summary files, which GitHub Actions sets for the job that
     runs the suite, out of each test. A script a test runs, `select_tests.py` above all, writes to
