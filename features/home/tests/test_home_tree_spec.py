@@ -103,3 +103,83 @@ def test_the_run_says_what_it_should(tlc, module, cfg, rule, want):
     and today's code breaks or keeps the rule it breaks or keeps today."""
     out = canaries.tlc(tlc, module, cfg)
     assert canaries.verdict(out, rule) == want, out[-4000:]
+
+
+# The bug stories of HomeTreeToday-statechart/stories.md, each replayed against the real code one
+# step per model action, through what a home, a pass or a user runs: the handoff skill's blocks, a
+# jbus pass against a fake T3 Code, and jmerge against a real origin and a fake gh.
+
+
+@pytest.fixture
+def handing_off(tmp_path):
+    from test_scoped_handoff import HandingOff
+
+    return HandingOff(tmp_path)
+
+
+def test_bug_1_a_child_retires_with_its_crew_out(handing_off):
+    """NoRetireWithOpen. 1. The root makes child a: the scene starts with the scope `second` and
+    its home. 2. Child a launches a crew: the scope's brief carries the crew's `Thread:` line, as
+    jbus's launch writes it, and no Result. 3. You retire child a: its home hands off with no
+    open entry in its plan, and the handoff closes the scope with the crew still out."""
+    from test_scoped_handoff import CLOSED
+    from test_scoped_home import SCOPE, SCOPED
+
+    brief = handing_off.sent("tasks", "sc-crew", f"Home: {SCOPE}", "Thread: mcp:the-crew")
+    (handing_off.scope_dir / "plan.md").write_text("# the second home: plan\n")
+    _, said = handing_off.hands_off(SCOPED, handing_off.scope_dir)
+    assert said[0] == CLOSED
+    assert "\nScope closed: " in (handing_off.scope_dir / "handoff.md").read_text()
+    left = brief.read_text()
+    assert "Thread: mcp:the-crew" in left and "## Result" not in left
+
+
+def test_bug_2_a_quiet_child_with_a_crew_out_is_flagged_to_nobody(kitchen):
+    """StallFlagged. 1. The root makes child a: the root home and the scope `sc` each have a
+    home thread, and the child's has written nothing for six hours. 2. Child a launches a crew: a
+    pass launches the scope's approved row. 3. The root's check runs: an hour of passes, and none
+    sends the root, the child or the user a word about the quiet child."""
+    from datetime import timedelta
+
+    from test_jbus_kitchen import NOW
+    from test_jbus_leftover import home
+    from test_jbus_queue import add, brief, rows
+    from test_jbus_row_ends import sends
+
+    root = home(kitchen)["threadId"]
+    child = home(kitchen, "sc", idle=timedelta(hours=6))["threadId"]
+    text = brief("sc-alpha").replace("Home: mcp:a-home", "Home: sc")
+    add(kitchen, "sc-alpha", text=text)
+    launched = kitchen.poll(NOW - timedelta(minutes=90))
+    assert any(line.startswith("launched sc-alpha: ") for line in launched)
+    kitchen.forget()
+    for minutes in range(0, 70, 10):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert rows(kitchen)["sc-alpha"]["status"] == "launched"
+    assert [one for one in sends(kitchen) if one["threadId"] in (root, child)] == []
+    assert kitchen.waiting() == []
+    assert not any("sc" in line.split(":")[0] for line in kitchen.lines() if "stall" in line)
+
+
+@pytest.fixture
+def merging(tmp_path):
+    """jmerge's scene of a root home and the scoped home `flow` with a ready pull request, number
+    7, while a home merges: the root's id is in home-thread."""
+    from test_jmerge_homes import ROOT, kitchen
+
+    made = kitchen.__wrapped__(tmp_path)
+    (made.home.state / "home-thread").write_text(f"{ROOT}\n")
+    return made
+
+
+@pytest.mark.parametrize(
+    "runs", ["--all", "--home mcp:the-flow-home"], ids=["the root, with --all", "child a itself"]
+)
+def test_bug_3_a_home_merges_child_a_s_pull_request(merging, runs):
+    """OneMerger. 1. The root makes child a: the scope `flow` has its home-id. 2-4. Child a
+    launches a crew, which opens its pull request, green and reviewed: the scene's number 7. 5.
+    The root reads main to merge child a's pull request, with `--all` as the merge skill's sweep
+    runs it, or child a runs jmerge for its own: either way a home, not jbus, merges it."""
+    said = merging.home.sh(f'PYTHONPATH="{merging.source}" "{sys.executable}" -m jmerge {runs}')
+    assert merging.home.code == 0
+    assert any(line.startswith("merged 7 fl-task ") for line in said)

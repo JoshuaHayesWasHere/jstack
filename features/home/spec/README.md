@@ -49,6 +49,16 @@ A ready pull request that never merges (`ReadyMerges`) is a property, and today'
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it since pull request 332 moved what waits for a route the setting dropped.
 The merge race (`NoBlindMerge`) needs two pull requests, so it is in the siblings' run of `canaries.py` and not in the chart.
 
+## The bugs
+
+Each bug of `HomeTreeToday-statechart/stories.md`, by its number there, with the rule it breaks, its steps as the chart numbers them, and the test in `features/home/tests/test_home_tree_spec.py` that replays it against the real code one step per model action.
+
+1. `NoRetireWithOpen`, steps 1 to 3 (the root makes child a, child a launches a crew, you retire child a): reproduced by `test_bug_1_a_child_retires_with_its_crew_out`, where the handoff skill's own block closes the scope while its crew's brief has a `Thread:` line and no Result.
+2. `StallFlagged`, steps 1 to 3 (the root makes child a, child a launches a crew, the root's check runs): reproduced by `test_bug_2_a_quiet_child_with_a_crew_out_is_flagged_to_nobody`, where an hour of real jbus passes sends the root, the child and the user nothing while the child's home thread is six hours quiet.
+3. `OneMerger`, steps 1 to 5 (the root makes child a, its crew opens a pull request, it is green and reviewed, the root reads main to merge it): reproduced by `test_bug_3_a_home_merges_child_a_s_pull_request`, where with an id in `home-thread` real `jmerge` merges child a's pull request run by the root with `--all` and run by child a itself.
+
+`NoBlindMerge` breaks in the siblings' scene of `canaries.py` and is no story of the chart, and no test replays its race: reading `jmerge/cli.py:1402-1431` at main 64859143 shows the check of main's tip and the merge with no lock between them.
+
 ## What the model leaves out
 
 - The wake setting `both`, which posts to the home thread and the webhook at once.
