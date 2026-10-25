@@ -222,7 +222,7 @@ def test_with_no_config_or_no_jbus_the_line_says_what_the_user_does(machine):
     bare = machine.bin.parent / "bare"
     bare.mkdir()
     for tool in ("sh", "basename"):
-        (bare / tool).symlink_to(f"/usr/bin/{tool}")
+        (bare / tool).symlink_to(shutil.which(tool, path="/usr/bin:/bin"))
     assert machine.run(
         "jbus project add",
         path=str(bare),

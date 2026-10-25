@@ -209,6 +209,10 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
     assert ran.returncode == 0, ran.stderr
 
 
+@pytest.mark.skipif(
+    not hasattr(os, "sched_getaffinity"),
+    reason="os.sched_getaffinity is Linux only: a Mac cannot hold a process to one processor",
+)
 def test_a_caller_held_to_one_processor_counts_the_same_sizes_as_one_that_is_not(tmp_path):
     """The sizes are the whole machine's: a shell, `jbus.service` and a CI container count the
     same slots whatever CPUs or quota they are given. The test runs on the real /proc."""

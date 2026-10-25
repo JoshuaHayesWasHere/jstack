@@ -43,7 +43,7 @@ fi
 if [ -z "$why" ]; then
     case $prefix in
     '' | *'<'* | *'>'*) why="the slug prefix is not filled in" ;;
-    *[!a-z0-9-]* | -* | *[!-]) why="the slug prefix $prefix is not lower-case letters and digits that end in a dash, as rs- is" ;;
+    *[!abcdefghijklmnopqrstuvwxyz0123456789-]* | -* | *[!-]) why="the slug prefix $prefix is not lower-case letters and digits that end in a dash, as rs- is" ;;
     *)
         for sent in "$H"/tasks/"$prefix"*.md "$H"/scouts/"$prefix"*.md; do
             if [ -f "$sent" ]; then why="a brief or a request already starts with $prefix: $sent"; fi

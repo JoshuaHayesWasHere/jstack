@@ -22,3 +22,7 @@ features/jmerge/tests/test_jmerge_fresh_marker.py
 features/jmerge/tests/test_jmerge_callers.py
 features/jmerge/tests/test_jmerge_rejudge.py
 testing/tests/test_test_plugins.py
+features/crew/tests/test_crew_check_command.py
+features/home/tests/test_new_home_skill.py
+testing/tests/test_check_command.py
+features/home/tests/test_scope_root.py
