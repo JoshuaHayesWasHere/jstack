@@ -460,7 +460,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
                 if since is not None and (silent is None or since < silent):
                     wrote, silent = started, since
                 kept, asked = asked, pending if type(pending) is int else 0
-                if kept and not asked:
+                if kept and type(pending) is int and pending == 0:
                     wrote, silent = record.stamp(run.now), 0
                 facts = replace(facts, silent=silent, queued=queued, pending=asked)
                 word = judge(facts).word
