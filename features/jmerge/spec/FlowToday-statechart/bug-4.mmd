@@ -6,35 +6,28 @@ config:
     useMaxWidth: false
 ---
 stateDiagram-v2
-  %% second model (fix): the three fixes
-  classDef plainFixed fill:#f4f6f7,stroke:#1e8449,stroke-width:4px,color:#145a32
+  %% second model (against): the design
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1 fill:#e8eef9,stroke:#74777d,color:#1b2631
+  classDef group1Wrong fill:#e8eef9,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1Path fill:#e8eef9,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
     state "Moving" as legendGroup1
-    state "Fixed by the three fixes" as legendFixed
+    state "Breaks a rule today" as legendWrong
   }
   class legendGroup1 group1
-  class legendFixed plainFixed
+  class legendWrong plainWrong
   state "Main green, machine full" as g0 {
-    state "1 merged, 1 red, its own<br/>break" as s0
-    state "1 merged, 1 waiting for a<br/>check" as s1
-    state "1 passed, waiting to<br/>merge, 1 waiting for a<br/>check" as s2
-    state "2 waiting for a check" as s3
+    state "1 passed, waiting to<br/>merge, 1 waiting to launch" as s0
+    state "1 waiting for a check, 1<br/>waiting to launch" as s1
   }
-  state "Main green" as g1 {
-    state "1 red, its own break, 1<br/>waiting for a check" as s4
-    state "2 waiting for a check" as s5
-  }
-  [*] --> s5
-  s5 --> s4 : 1. its check runs
-  s4 --> s3 : 2. its crew fixes its change
-  s3 --> s2 : 3. its check runs
-  s2 --> s1 : 4. it merges
-  s1 --> s0 : 5. its check runs
-  class s0 plainFixed
+  state "Main green: 2 waiting to<br/>launch" as s2
+  state "Main red from a merge,<br/>machine full: 1 merged, 1<br/>waiting to launch" as s3
+  [*] --> s2
+  s2 --> s1 : 1. jbus launches its crew,<br/>which opens its pull request
+  s1 --> s0 : 2. its check runs
+  s0 --> s3 : 3. it merges
+  class s0 group1Path
   class s1 group1Path
   class s2 group1Path
-  class s3 group1Path
-  class s4 group1Path
-  class s5 group1Path
+  class s3 group1Wrong
