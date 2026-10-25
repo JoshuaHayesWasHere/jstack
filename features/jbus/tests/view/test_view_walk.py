@@ -9,6 +9,9 @@ carries for its chip is checked here. An entry that today's view gets wrong is a
 that names its finding (`walk.KNOWN`).
 """
 
+import json
+import resource
+import subprocess
 import time
 
 import pytest
@@ -22,21 +25,52 @@ ON_PAGE = ("role",)
 
 BUILT = {}
 
+SLOWER = 30
+
+
+def cpu():
+    """The CPU seconds this process and the children it waited on have used: a runner whose
+    cores are busy makes a build wait longer, and does not make it use more."""
+    children = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return time.process_time() + children.ru_utime + children.ru_stime
+
+
+def reference(folder):
+    """The CPU seconds of a fixed piece of the work the build does, JSON written to files and
+    read back and a few shells run, the least of three tries: the yardstick of this machine."""
+    data = {f"k{n}": {"n": n, "text": "x" * 50, "list": list(range(20))} for n in range(400)}
+    tries = []
+    for _ in range(3):
+        began = cpu()
+        for n in range(40):
+            file = folder / f"reference-{n % 5}.json"
+            file.write_text(json.dumps(data))
+            json.loads(file.read_text())
+        for _ in range(4):
+            subprocess.run(["sh", "-c", ":"], check=True)
+        tries.append(cpu() - began)
+    return min(tries)
+
 
 @pytest.fixture
 def walked(tmp_path, monkeypatch):
-    """The walk's project and the three answers over it, with how long they took to build.
-    The first test that asks builds them, under the isolation every test has (the zone of
-    `testing/jstack_fixtures.py` among it), and the tests after it read the same answers."""
+    """The walk's project and the three answers over it, with the CPU time they took to build
+    and the reference's on the same machine in the same run. The first test that asks builds
+    them, under the isolation every test has (the zone of `testing/jstack_fixtures.py` among
+    it), and the tests after it read the same answers."""
     if not BUILT:
-        began = time.monotonic()
+        (tmp_path / "reference").mkdir()
+        yardstick = reference(tmp_path / "reference")
+        began = cpu()
         scene = Scene(tmp_path, monkeypatch)
         made = walk.build(scene)
         seen = {}
         for who in ("", work.T3, work.GITHUB):
             walk.silent(scene, who)
             seen[who] = walk.view(scene)
-        BUILT["walk"] = made, seen, time.monotonic() - began
+        took = cpu() - began
+        yardstick = min(yardstick, reference(tmp_path / "reference"))
+        BUILT["walk"] = made, seen, (took, yardstick)
     return BUILT["walk"]
 
 
@@ -57,8 +91,10 @@ def test_a_state_with_no_entry_fails_the_walk():
     assert set(walk.KNOWN) <= set(walk.SURFACES)
 
 
-def test_the_walk_has_each_state_and_builds_in_under_5_seconds(walked):
-    made, _, took = walked
+def test_the_walk_has_each_state_and_builds_in_under_30_references(walked):
+    """The build is held to `SLOWER` times the reference's CPU time: it takes about 12 times
+    it, idle or on a runner whose every core is busy, so a build three times slower fails."""
+    made, _, (took, yardstick) = walked
     pairs = walk.reached()
     assert set(made.rows) == set(pairs)
     assert {value for value, _ in pairs} == set(work.VALUES)
@@ -66,7 +102,11 @@ def test_the_walk_has_each_state_and_builds_in_under_5_seconds(walked):
     assert set(made.items) == walk.states()["kind"]
     assert len(made.gates) == 12
     assert set(made.owners) == walk.states()["owner"]
-    assert took < 5, f"the walk took {took:.1f} s to build"
+    times = took / yardstick
+    assert times < SLOWER, (
+        f"the walk took {took:.2f} CPU s to build, {times:.0f} times the reference's"
+        f" {yardstick:.3f} s, {times / SLOWER:.1f} times the limit of {SLOWER}"
+    )
 
 
 def needed(stack, slug, pr):
