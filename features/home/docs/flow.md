@@ -19,10 +19,7 @@ A message wakes a thread, and the records are files in that directory.
 | 6. The check | The check command | The repo's check command runs once, under a test slot. CI runs the repo's checks on the pull request the crewmate opens, and `jmerge` waits for the check named `check`, or for the checks the repo lists in `required-checks`. |
 | 7. The review | The reviewer | One fresh thread reviews each pull request, with no reviewer subagents. It reads the diff itself, judges what it found, and proves one safety fact by running code. It fixes nothing, and jbus archives it once the pull request merges or closes. |
 | 8. The findings | The crewmate | It ends every finding with a `Finding:` line, fixed or not fixed and why, then writes one `Fixed:` line. |
-| 9.
-`jmerge` | A command | It merges what is reviewed, fixed and green, at the head that was checked.
-For the rest it prints `wait` or `hold` and the reason.
-`jbus` runs it on each pass, and no home runs it to merge. |
+| 9. `jmerge` | A command | It merges what is reviewed, fixed and green, at the head that was checked. For the rest it prints `wait` or `hold` and the reason. `jbus` runs it on each pass, and no home runs it to merge. |
 | 10. The sweep | A command | `jmerge --sweep` removes the worktree and the branches a finished thread left, and prints what it kept and why. |
 
 A **scout** goes first, before step 2, when the home cannot write the brief from what it knows. It reads the code and the docs and writes down what it found. The home itself never reads the code.
