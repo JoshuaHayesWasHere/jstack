@@ -254,7 +254,10 @@ On `on the bus`, there is nothing to do. On `jbus is not installed`, tell the us
 2. Read step 3 of `$T/../skills/new-home/SKILL.md` now, and run its block in the main checkout, with the checkout and the project id filled in.
 3. Read its lines as `/new-home` does: `done`, `already`, or `needs you:` and what the user runs. Tell the user the `jbus project` line.
 
-The block runs `jbus project add`, the only writer of jbus's config. Never open, print or edit that file. It never writes `home-thread`, whatever the home's rules say: a repo it adds is one jbus merges for, unless the user has put an id in that switch by hand. A home that cannot add its repo goes on with step 5: the pass names it among the homes not on the bus, in `jbus status` and on the view's machine row, until somebody adds it.
+The block runs `jbus project add`, the only writer of jbus's config.
+Never open, print or edit that file.
+It never writes `home-thread`, whatever the home's rules say: a repo it adds is one jbus merges for, whatever that switch holds.
+A home that cannot add its repo goes on with step 5: the pass names it among the homes not on the bus, in `jbus status` and on the view's machine row, until somebody adds it.
 
 ### The home before this one
 

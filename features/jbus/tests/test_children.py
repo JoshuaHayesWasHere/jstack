@@ -9,7 +9,7 @@ from datetime import timedelta
 import pytest
 
 from jbus import children
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, PROJECT
 from test_jbus_leftover import home
 from test_jbus_queue import add, brief
 from test_jbus_row_ends import sends
@@ -109,3 +109,14 @@ def test_jbus_out_says_unknown_when_the_last_pass_is_too_old_to_trust(child, mon
     monkeypatch.setattr(children.queue, "clock", lambda: late)
     code, said = kitchen.main("--project", "demo", "out", "--scope", "sc")
     assert code == 1 and said.startswith("unknown: jbus's last pass is ")
+
+
+def test_jbus_out_says_unknown_while_the_last_pass_could_not_ask_t3_code(child):
+    """The pass that cannot list the project's threads keeps the list an earlier pass left, so a
+    crew launched since is not on it: `jbus out` says so, and the handoff keeps the scope open."""
+    kitchen, _, _ = child
+    kitchen.t3.down.add(PROJECT)
+    kitchen.poll(minutes(1))
+    code, said = kitchen.main("--project", "demo", "out", "--scope", "sc")
+    assert code == 1
+    assert said.startswith("unknown: jbus's last pass could not ask T3 Code about demo")

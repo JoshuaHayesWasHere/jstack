@@ -232,7 +232,7 @@
     <div class="row rev">
       <div class="cell h"><div class="box plain"><b>Woken by the message</b><small>It runs no watch and polls nothing.</small></div><i class="ar l"></i></div>
       <div class="cell s"><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</b></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green, and only while a home merges. While <code>jbus</code> merges, the crewmate sends nothing.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green, and only while <code>home-thread</code> holds an id: the home then reads what <code>jbus</code> merged. With it empty, the crewmate sends nothing.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -266,7 +266,7 @@
   <table>
     <thead><tr><th>The message</th><th>From, to</th><th>Sent when</th></tr></thead>
     <tbody>
-      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The crewmate sends it only when a home is the one that merges, and that home merges the pull request on it.</td></tr>
+      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The crewmate sends it only while <code>home-thread</code> holds an id, and the home reads what <code>jbus</code> did of it: <code>jbus</code> merges it either way.</td></tr>
       <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to its home</td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It waits for your word.</td></tr>
       <tr><td>The task ended with no pull request</td><td>Crewmate, to its home</td><td>Its Result names none. At most five lines.</td></tr>
       <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end. Once more only if a page's feedback changed the report.</td></tr>

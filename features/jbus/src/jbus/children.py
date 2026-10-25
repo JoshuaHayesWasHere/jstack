@@ -46,7 +46,7 @@ PATIENCE = 60
 """The minutes a child with work out may be quiet before the root flags it."""
 STALE = 10
 """The minutes after which the last pass's list of threads is too old to say what is out."""
-QUEUED = ("queued", "gate")
+QUEUED = ("row queued", "row gate")
 STEPS_OF = ("calm", "nudged1", "nudged2", "asked")
 NUDGE = (
     "jbus: the home {scope} has had {what} out and has done nothing jbus can see for {minutes} "
@@ -97,9 +97,15 @@ def _read(path: Path) -> str:
         return ""
 
 
-def _stale(config: Config, now: datetime) -> str:
-    """Say how old the last pass is, where it is too old to trust, or nothing."""
-    started = record.read(config).get("started")
+def _stale(config: Config, name: str, now: datetime) -> str:
+    """Say why the last pass's list of the project's threads cannot be trusted, or nothing: the
+    pass is too old, or it could not ask T3 Code or GitHub about this project, so the list is
+    the one an earlier pass left."""
+    kept = record.read(config)
+    silent = kept.get("silent")
+    if isinstance(silent, dict) and silent.get(name):
+        return f"jbus's last pass could not ask {silent[name]} about {name}"
+    started = kept.get("started")
     try:
         at = datetime.fromisoformat(str(started))
     except ValueError:
@@ -116,7 +122,7 @@ def _out(args: argparse.Namespace, config: Config) -> int:
     scope = root / args.scope
     if not (scope / "plan.md").exists():
         raise Refused(f"refused: {scope} has no plan.md, so {args.scope} is no scoped home")
-    old = _stale(config, queue.clock())
+    old = _stale(config, project.name, queue.clock())
     if old:
         print(f"unknown: {old}, so its list of threads cannot say what {args.scope} has out")
         return 1
@@ -175,7 +181,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
     for scope, _, _ in homes.scopes(run.home):
         thread = homes.thread_of(scope)
         lines = out(run.home, scope, run.state, threads)
-        launched = [line for line in lines if line.split(": ", 1)[1].split()[-1] not in QUEUED]
+        launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]
         beat = _rhythm(scope)
         if not thread or not (launched or beat):
             continue
