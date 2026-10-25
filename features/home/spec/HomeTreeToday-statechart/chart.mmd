@@ -6,11 +6,11 @@ config:
 ---
 stateDiagram-v2
   %% second model (against): the design
-  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef plainFixed fill:#f4f6f7,stroke:#1e8449,stroke-width:4px,color:#145a32
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group0Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0Fixed fill:#d1f2eb,stroke:#1e8449,stroke-width:4px,color:#145a32
   state "Legend" as legend {
     state "Fine" as legendGroup0
     state "Wrong today" as legendWrong
@@ -40,17 +40,17 @@ stateDiagram-v2
   s6 --> s5 : you retire child a
   s6 --> s0 : the root's check runs
   s7 --> s3 : child a's pull request is<br/>green and reviewed
+  s3 --> s2 : jbus reads main to merge child<br/>a's pull request
   s3 --> s4 : the root reads main to merge<br/>child a's pull request
   s6 --> s1 : in the design, the root's<br/>check nudges a quiet child
-  s3 --> s2 : in the design, jbus reads main<br/>to merge child a's pull<br/>request
   s6 --> s6 : in the design, you retire<br/>child a cannot happen
   class s5 group0Wrong
   class s0 group0Wrong
-  class s1 plainFixed
-  class s6 plain
-  class s7 plain
-  class s2 plainFixed
-  class s3 plain
+  class s1 group0Fixed
+  class s6 group0
+  class s7 group0
+  class s2 group0
+  class s3 group0
   class s4 group0Wrong
-  class s8 plain
+  class s8 group0
   class s9 group0

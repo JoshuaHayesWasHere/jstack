@@ -41,11 +41,11 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, one `bug-N` chart for each bug, `stories.md` and `summary.json`.
 Its `tlc/` folder holds TLC's output, which is not committed.
-The chart's scene, in `HomeTreeToday.cfg` and `HomeTreeDesign.cfg`, is child a alone with one call and K at 1.
+The chart's scene, in `HomeTreeToday.cfg` and `HomeTreeDesign.cfg`, is child a alone with one call, routes that stay, and K at 1.
 TLC 2.19 fails in a run of one worker with `-continue` once a rule breaks in some thousands of states, and the statechart command runs one worker, so the chart's scene is small.
+With routes that move, the chart's run of `NoRetireWithOpen` stops at its 2981st broken state with an `ArrayIndexOutOfBoundsException` (or `Failed to recover the initial state from its fingerprint`), so the routes stay in the chart and move in the scenes `a` and `b` of `canaries.py`.
 The chart draws only the rules that are invariants.
-A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request.
-Since that change TLC 2.19 stops the chart's run of `NoRetireWithOpen` with `Failed to recover the initial state from its fingerprint`, so the committed chart is the one drawn before it.
+A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request, which the chart draws as a step of today's code.
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it since pull request 332 moved what waits for a route the setting dropped.
 The merge race (`NoBlindMerge`) needs two pull requests, so it is in the siblings' run of `canaries.py` and not in the chart.
 
