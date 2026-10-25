@@ -17,6 +17,7 @@ from testing.paths import skills
 
 SKILLS = skills()
 COPY = assembled()
+READ_SET = ("features/*/SKILL.md", "features/*/references/", "features/*/skills/")
 DAY = 24 * 60 * 60
 FROM_ROOT = re.compile(r"`((?:playbooks|principles|skills)/[^`<>*\s]+\.md)`")
 

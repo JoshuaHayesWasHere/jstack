@@ -13,6 +13,7 @@ import pytest
 from testing.paths import REPO
 
 FEATURE = Path(__file__).parents[1]
+READ_SET = ("features/lessons/skills/correct/", "features/lessons/skills/reflect/")
 SKILLS = {name: FEATURE / "skills" / name / "SKILL.md" for name in ("correct", "reflect")}
 FIXTURE = Path(__file__).parent / "fixtures" / "projects"
 EM_DASH = "\N{EM DASH}"

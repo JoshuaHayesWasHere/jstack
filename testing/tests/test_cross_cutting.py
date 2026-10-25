@@ -1,18 +1,19 @@
-"""Every test file that reads the real tree is on the `Cross-cutting:` list of verify-jstack's map,
-so every diff runs it.
+"""Every module of the tests that reads the real tree declares the paths it reads in a `READ_SET`,
+or is a test file on the `Cross-cutting:` list of verify-jstack's map, which every diff runs.
 
 `scripts/select_tests.py` selects a test by what it imports and the paths it spells. A test
 that globs, walks or lists a folder of the checkout reads files it neither imports nor spells,
 so a change to one of them does not select it, and main goes red after the merge: #330 grew
 `jbus/wake.py` over `test_module_size.py`'s cap, and #337 put a URL in a view test that
-`test_view_sources.py` reads.
+`test_view_sources.py` reads. A change to a path a read set matches selects the test, and the
+tests that import the module that declares it.
 
-A test reads the real tree when it calls `glob`, `rglob`, `iterdir` or `walk` on a path built from
-`REPO`, `ROOT` or `assembled()` (this checkout placed as a layout), when it iterates what
-`sources()`, `skills()` or `playbooks()` of `testing.paths` found there, or when it runs
-`git ls-files` with `REPO`. A path the test builds from `tmp_path` is no read of the tree. Nor
-is a helper whose result the test only looks one name up in, such as `skills()["home"]`: the
-test spells the name, and the script follows it.
+A test reads the real tree when it calls `glob`, `rglob`, `iterdir`, `walk`, `listdir` or
+`scandir` on a path built from `REPO`, `ROOT`, `__file__` or `assembled()` (this checkout placed
+as a layout), when it iterates what `sources()`, `skills()` or `playbooks()` of `testing.paths`
+found there, or when it runs `git ls-files` with `REPO`. A path the test builds from `tmp_path`
+is no read of the tree. Nor is a helper whose result the test only looks one name up in, such as
+`skills()["home"]`: the test spells the name, and the script follows it.
 """
 
 import ast
@@ -27,10 +28,10 @@ SPEC = importlib.util.spec_from_file_location("select_tests", SCRIPT)
 select = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(select)
 
-ROOTS = {"REPO", "ROOT"}
+ROOTS = {"REPO", "ROOT", "__file__"}
 HELPERS = {"sources", "skills", "playbooks"}
 LAYOUTS = {"assembled"}
-READS = {"glob", "rglob", "iterdir", "walk"}
+READS = {"glob", "rglob", "iterdir", "walk", "listdir", "scandir"}
 WRAPPERS = {"sorted", "list", "tuple", "set", "Path"}
 
 
@@ -142,20 +143,42 @@ def reads(source):
     return Reader(source).reads()
 
 
-def every_test_file():
-    return sorted(path for path in select.modules().values() if select.TEST.fullmatch(path))
+def declares(source):
+    """Whether a module assigns its `READ_SET` at its top level."""
+    return any(
+        isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == select.DECLARED
+        for node in ast.parse(source).body
+    )
 
 
-def test_every_test_file_that_reads_the_real_tree_is_cross_cutting():
+def every_module_of_the_tests():
+    return sorted(path for path in select.modules().values() if select.TESTS.match(path))
+
+
+def test_every_module_of_the_tests_that_reads_the_real_tree_declares_what_it_reads():
     cross = set(select.cross_cutting())
 
     missing = [
-        f"{path}: {reads((REPO / path).read_text())[0]}"
-        for path in every_test_file()
-        if path not in cross and reads((REPO / path).read_text())
+        f"{path}: {reads(source)[0]}"
+        for path in every_module_of_the_tests()
+        if path not in cross and reads(source := (REPO / path).read_text()) and not declares(source)
     ]
 
-    assert missing == [], f"add each to Cross-cutting: in {select.CROSS}"
+    assert missing == [], (
+        f"give each a {select.DECLARED} of the paths it reads, or put it on Cross-cutting: in"
+        f" {select.CROSS}"
+    )
+
+
+def test_every_pattern_of_a_read_set_matches_a_file_the_repo_tracks():
+    stale = [
+        f"{test}: {pattern}"
+        for test, patterns in select.read_sets().items()
+        for pattern in sorted(patterns)
+        if not any(select.owns([pattern], path) for path in select.tracked())
+    ]
+
+    assert stale == []
 
 
 @pytest.mark.parametrize(
@@ -168,6 +191,8 @@ def test_every_test_file_that_reads_the_real_tree_is_cross_cutting():
         "listed = subprocess.run(['git', '-C', REPO, 'ls-files'], capture_output=True)\n",
         "for at, dirs, files in os.walk(ROOT / 'features'):\n    pass\n",
         "SKILLS = assembled() / 'skills'\nfiles = sorted(SKILLS.glob('*/SKILL.md'))\n",
+        "FEATURE = Path(__file__).parents[1]\nfiles = (FEATURE / 'skills').rglob('*')\n",
+        "names = os.listdir(REPO / 'features')\n",
     ],
     ids=[
         "a glob of the root",
@@ -177,6 +202,8 @@ def test_every_test_file_that_reads_the_real_tree_is_cross_cutting():
         "git ls-files",
         "a walk",
         "a layout",
+        "a folder beside the test",
+        "a listing",
     ],
 )
 def test_a_read_of_the_checkout_is_a_read_of_the_tree(source):
