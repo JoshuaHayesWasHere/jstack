@@ -32,7 +32,7 @@ NAMED = "<party>"
 KEPT = re.compile(r"_desk/log/\d{4}-\d\d-\d\d-\d{4}-handoff\.md")
 NOT_A_PARTY = "not a party's home: "
 SECTION = re.compile(r"^## A party's home\n.*?(?=^## )", re.M | re.S)
-NOT_ITS_OWN = re.compile(r"\b(jmerge|jbus|jroles|jgauge|room)\b|/crew|/scout")
+NOT_ITS_OWN = re.compile(r"\b(jmerge|jbus(?! forget\b)|jroles|jgauge|room)\b|/crew|/scout")
 ITS_ROLE = 'model=$(uv run --project "$T/.." jroles expert) || model='
 
 

@@ -18,6 +18,7 @@ import test_home_merge as merge
 import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded
 from jbriefs import findings
+from jmerge import gate as merge_gate
 from jmerge import ready
 from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
@@ -1396,7 +1397,9 @@ def gated(reviewer, gate=None, fill=None):
         json.dumps({"baseRefName": "main", "headRefOid": head})
     )
     if gate is not None:
-        (reviewer.state / "merge-gate").write_text(f"\n  {gate}  \n")
+        state = reviewer.state / "home" / ".local" / "state" / "home" / work.name
+        state.mkdir(parents=True, exist_ok=True)
+        (state / "merge-gate").write_text(f"\n  {gate}  \n")
     fill = {"<the head kept at the start>": head, **(fill or {})}
     printed, code = reviewer("### The merge gate", fill=fill)
     return printed, code, fork, head
@@ -1434,9 +1437,20 @@ def test_a_merge_gate_that_cannot_start_is_a_finding_too(reviewer, tmp_path):
     assert printed.endswith("(principle: none) (bucket: Act on)")
 
 
-def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(reviewer):
-    printed, code, _, head = gated(reviewer, "sleep 30; :", fill={"limit=540": "limit=1"})
-    assert code == 0
+def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(
+    reviewer, monkeypatch, capsys
+):
+    """The block's limit is 9 minutes, so the test runs the step's command with a limit of 1 s."""
+    _, _, _, head = gated(reviewer, "true")
+    state = reviewer.state / "home" / ".local" / "state" / "home" / reviewer.work.name
+    (state / "merge-gate").write_text("sleep 30; :\n")
+    monkeypatch.chdir(reviewer.work)
+    monkeypatch.setenv("PATH", f"{reviewer.stub}:{os.environ['PATH']}")
+    monkeypatch.setenv("STUB", str(reviewer.stub))
+    began = time.monotonic()
+    code = merge_gate.review(state, head, URL, limit=1)
+    printed = capsys.readouterr().out.splitlines()
+    assert code == 0 and time.monotonic() - began < 20
     assert printed == [
         f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
         "(principle: none) (bucket: Act on)"

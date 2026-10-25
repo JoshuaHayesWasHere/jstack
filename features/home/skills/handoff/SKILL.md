@@ -159,7 +159,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
                    printf '\nScope closed: %s, its plan has no open entry and no home was started after this one. /home %s starts it again.\n' "$(date +%F)" "$scope"
                fi
                if [ -n "$ME" ]; then printf '\nWas home: %s\n' "$ME"; fi
-           } > "$M/handoff.md" || ! rm "$note"; then
+           } > "$M/handoff.md" || ! uv run --project "$T/.." jbus forget "$note" > /dev/null; then
            echo "not closed: the old note could not be moved to $M/log, or the new one not written to $M/handoff.md. Launch nothing, and run this again once that is put right."
            exit 1
        fi
@@ -167,7 +167,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
            echo "not the home: start nothing, tell the user"
            exit
        fi
-       rm -f "$M/home-id"
+       uv run --project "$T/.." jbus forget "$M/home-id" > /dev/null
    fi
    if [ -n "$again" ] && [ -n "$closed" ]; then
        echo "closed before, the home of a closed scope: start no home, then rename and settle this thread"
@@ -315,7 +315,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
        if { [ ! -f "$M/handoff.md" ] || { mkdir -p "$log" && mv "$M/handoff.md" "$kept"; }; } &&
            sed '/^Was home:/d' "$M/handoff.next.md" > "$M/handoff.md" &&
            printf '\nWas home: %s\n' "$ME" >> "$M/handoff.md" &&
-           rm "$M/handoff.next.md" "$M/home-id"; then
+           uv run --project "$T/.." jbus forget "$M/handoff.next.md" "$M/home-id" > /dev/null; then
            echo "a party's home: start its next thread, then rename and settle this thread"
        else
            echo "not closed: the old page could not be moved to $log, or the new one not written to $M/handoff.md. Launch nothing, and run this again once that is put right."

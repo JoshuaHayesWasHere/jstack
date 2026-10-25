@@ -61,7 +61,7 @@ class HandingOff(Homes):
     def closes(self, thread):
         """Run step 6, the block that says who starts the next home, and return the lines it
         prints."""
-        ran = self.does('rm -f "$M/home-id"', thread)
+        ran = self.does('jbus forget "$M/home-id"', thread)
         assert ran.returncode == 0
         return ran.stdout.splitlines()
 
@@ -120,7 +120,7 @@ def test_a_handoff_by_a_thread_that_is_no_home_writes_nothing_and_says_so(homes,
         f"no home: thread {thread} is no home of {NAME} now, its id is in no home-id "
         f"under {homes.home_dir}. Nothing is written.\n"
     )
-    ran = homes.does('rm -f "$M/home-id"', thread)
+    ran = homes.does('jbus forget "$M/home-id"', thread)
     unfilled = "<" in thread or ">" in thread
     assert ran.returncode == (1 if unfilled else 0)
     assert ran.stdout.startswith("not known: " if unfilled else NOT_THE_HOME)

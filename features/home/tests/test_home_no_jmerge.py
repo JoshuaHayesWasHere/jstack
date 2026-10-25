@@ -22,7 +22,7 @@ from testing.layouts import assembled
 SKILLS = assembled() / "skills"
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
 RUNS = re.compile(
-    r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:checks|claims|scope|range-diff)\b)", re.M
+    r"\bjmerge(?=[ \t]*(?:$|[;|&)]|-))(?![ \t]+--(?:checks|claims|scope|range-diff|remake|gate)\b)", re.M
 )
 FILLED = re.compile(r"'<[^'<>\n]+>'")
 NAME = "demo"

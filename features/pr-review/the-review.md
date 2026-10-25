@@ -9,16 +9,16 @@ pstack's two reviewers are one reading here, so that a pull request has one revi
 ```sh
 BRIEF="$H/tasks/<slug>.md"
 [ "$(awk '/^Review:/ {print $(2); exit}' "$BRIEF")" = none ] && exit 78
-W="${TMPDIR:-/tmp}/pr-review-<slug>.$(git rev-parse HEAD 2> /dev/null).sends"
+W="$(git rev-parse --path-format=absolute --git-dir)/pr-review-<slug>.$(git rev-parse HEAD 2> /dev/null).sends"
 echo sent >> "$W"
 said=$(uv run --project "$T/.." jgauge room --light --wait 540) || [ "$?" = 75 ] || said="wait: jgauge room did not run"
 if [ "$said" != go ]; then
   printf '%s\n' "$said"
   [ "$(grep -c . "$W")" -lt 6 ] && exit 75
-  rm -f "$W"
+  uv run --project "$T/.." jbus forget "$W" > /dev/null
   exit 69
 fi
-rm -f "$W"
+uv run --project "$T/.." jbus forget "$W" > /dev/null
 SCOPE=$(cat <<'SCOPE'
 Scope of this review. It overrides anything above that reads wider.
 Review only the lines this pull request changes: its diff against its base branch.
