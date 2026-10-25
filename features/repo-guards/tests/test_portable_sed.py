@@ -152,8 +152,9 @@ def test_a_brace_that_ends_no_group_is_not_found(script):
 
 def test_a_planted_brace_is_named_by_its_line_and_its_ended_form_reads_the_same_on_gnu(tmp_path):
     """The guard names the line of a block whose sed runs a `p` into `}`. With `;` before each
-    `}` it names nothing, and GNU sed prints the same lines from both forms, so the fix leaves
-    what a Linux run reads as it was."""
+    `}` it names nothing. Both forms print the same lines where sed is GNU, so the fix leaves what
+    a Linux run reads as it was; elsewhere, as on a Mac, the ended form prints them and the other
+    is refused, the break the guard is for."""
     gnu, portable = (
         "sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p" + ends + '}\' "$B"'
         for ends in ("}", ";};")
@@ -169,13 +170,19 @@ def test_a_planted_brace_is_named_by_its_line_and_its_ended_form_reads_the_same_
     brief.write_text("Size: S\nTask: make it so\nSkills: tdd\nWhere: a.py\nPull request: yes\n")
 
     def run(line):
-        said = subprocess.run(
+        return subprocess.run(
             ["sh", "-c", line],
             env={"B": str(brief), "PATH": "/usr/bin:/bin"},
             text=True,
             capture_output=True,
-            check=True,
         )
-        return said.stdout
 
-    assert run(gnu) == run(portable) == "Task: make it so\nWhere: a.py\n"
+    read = "Task: make it so\nWhere: a.py\n"
+    said = run(portable)
+    assert (said.returncode, said.stdout) == (0, read)
+    said = run(gnu)
+    version = run("sed --version")
+    if version.returncode == 0:
+        assert (said.returncode, said.stdout) == (0, read)
+    else:
+        assert said.returncode != 0 and said.stdout == "", (version, said)
