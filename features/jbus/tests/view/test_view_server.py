@@ -328,6 +328,29 @@ def test_code_that_does_not_start_keeps_the_server_and_ends_it_once_it_starts(pr
     assert process.run.wait(timeout=20) == view.NEWER_CODE
 
 
+NO_NAMES = """import socket
+import threading
+
+
+def never(*_):
+    threading.Event().wait()
+
+
+socket.gethostbyaddr = never
+"""
+
+
+def test_the_server_answers_when_no_reverse_lookup_of_its_address_ever_answers(process, scene):
+    """On a Mac the reverse lookup of 127.0.0.1 can wait on mDNS longer than a start may take.
+    The stub is a sitecustomize the server's own process imports, ahead of its packages."""
+    names = scene.root / "no-names"
+    names.mkdir()
+    (names / "sitecustomize.py").write_text(NO_NAMES)
+    process.env["PYTHONPATH"] = os.pathsep.join([str(names), process.env["PYTHONPATH"]])
+    process.start()
+    assert process.ask("/healthz") == {"ok": True}
+
+
 @pytest.mark.parametrize(
     "outcome",
     [
