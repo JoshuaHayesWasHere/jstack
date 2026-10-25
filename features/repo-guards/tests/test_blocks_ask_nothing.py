@@ -11,16 +11,13 @@ in the background calls a jstack command that does it, as `jgauge check` and `jg
 The lint reads every fenced `sh` block of the thread files, `features/**/*.md` but docs, tests,
 `evals/evals/` and READMEs, and splits each into commands with a small shell reader: it follows
 quotes, `$(...)`, backticks, here-documents, `case` patterns and wrappers such as `setsid`,
-`xargs` and `env`, so a word in quotes or a `case` pattern is no command. `ASKS_TODAY` holds the
-blocks that ap-blocks-rest moves into commands of their owners, by file and count. It may only
-shrink: a file that holds one more fails, and so does a file that holds one fewer until its line
-leaves the list. A block that fails is fixed by moving its delete or its background run into a
-jstack command, as `jgauge check` does, and never by a comment or a list entry.
+`xargs` and `env`, so a word in quotes or a `case` pattern is no command. No block is let off:
+one that fails is fixed by moving its delete or its background run into a jstack command, as
+`jbus forget`, `jmerge --remake` and `jgauge check` do, and never by a comment or a list.
 """
 
 import re
 import textwrap
-from collections import Counter
 from pathlib import PurePosixPath
 
 import pytest
@@ -55,19 +52,6 @@ ARGUED_FLAGS = {
 ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?\+?=")
 OPERATORS = ("<<<", "<<-", ";;&", "&&", "||", ";;", ";&", "|&", "&>", ">>", ">&", "<&", ">|", "<<")
 REDIRECTS = frozenset({"<", ">", ">>", "&>", ">&", "<&", ">|", "<<<"})
-ASKS_TODAY = {
-    "features/crew/SKILL.md": 1,
-    "features/crew/a-conflict.md": 3,
-    "features/expert/when-an-expert-starts.md": 1,
-    "features/home/skills/handoff/SKILL.md": 2,
-    "features/home/skills/home/gates.md": 1,
-    "features/home/skills/home/queue-and-its-hourly-audit.md": 1,
-    "features/home/skills/home/scoped-homes.md": 1,
-    "features/home/skills/home/when-a-home-starts.md": 1,
-    "features/home/skills/nohome/SKILL.md": 2,
-    "features/pr-review/SKILL.md": 1,
-    "features/pr-review/the-review.md": 1,
-}
 
 
 class Reader:
@@ -345,16 +329,7 @@ def blocks_that_ask():
 
 
 def test_no_block_a_thread_runs_deletes_or_starts_an_inner_shell():
-    found = blocks_that_ask()
-    counts = Counter(relative for relative, _, _ in found)
-    new = [one for one in found if counts[one[0]] > ASKS_TODAY.get(one[0], 0)]
-    assert new == []
-    fixed = {
-        relative: (allowed, counts[relative])
-        for relative, allowed in ASKS_TODAY.items()
-        if counts[relative] < allowed
-    }
-    assert fixed == {}
+    assert blocks_that_ask() == []
 
 
 @pytest.mark.parametrize(
