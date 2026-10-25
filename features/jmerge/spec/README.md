@@ -29,6 +29,20 @@ With `busy`, the code before #416, which stops only a process that uses CPU, it 
 With `turn`, an idle process stopped once the turn that left it ended, it breaks only `NoMergeTurnsMainRed`.
 `features/jmerge/tests/test_flow_spec.py` runs it, and skips where no Java runs TLC.
 
+## Draw the chart
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+W=$(mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    statechart from-spec FlowToday.tla --against FlowDesign.tla --label "the design" \
+    --title "Does work keep flowing?" --out out --png \
+    --expect-broken FlowsWhenGreen,NoMergeTurnsMainRed,MachineNotLeftFull,MainFixWaitsOnlyOnYou)
+```
+
+Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
+The design starts with both pull requests open, so each story says the design starts on another screen.
+
 ## What the code model leaves out
 
 `FlowToday.tla` has only the variables the four rules read, and the scout's `FlowNow.tla` has the rest.
