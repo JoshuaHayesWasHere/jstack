@@ -1,7 +1,7 @@
 ## 1. Main red from a merge, machine full: 1 merged, 1 waiting to launch
 
 Rule broken: "A merge never turns main red."
-Why: its check selects the test that reads the whole tree only by chance, so a change that breaks that test merges.
+Why: its check missed a test that reads the changed path past what the selector sees, so a change that breaks that test merges.
 There are 244 ways to get here in the model. This is the shortest.
 
 0. Start: Main green: 2 waiting to launch

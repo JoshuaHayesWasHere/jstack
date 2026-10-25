@@ -3,8 +3,8 @@
 Two rows, a main that can go red from a merge or from outside, and a machine that a crew can leave full.
 The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and it came in with rejudge-red-prs.
 
-- `FlowToday.tla` models the code as of main 4b593993, and each of its conditions names the file and line that checks it.
-  It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416 and #427 since and cut down to what the four rules read.
+- `FlowToday.tla` models the code as of main 479438dd, and each of its conditions names the file and line that checks it.
+  It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416, #426 and #427 since and cut down to what the four rules read.
 - `FlowDesign.tla` models the design: cross-cutting-guard (`Check`), rejudge-red-prs (`Rejudge`) and crew-leftover-procs (`Sweep`).
 - `canary/` holds the design with each fix taken out: `NoGuard`, `NoRejudge` and `NoSweep`.
 - `flow_canaries.py` runs TLC on all of it, and `FlowToday.map.py` labels the chart in `FlowToday-statechart/`.
@@ -19,7 +19,10 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 Run it from the repo root.
 Today's code breaks one rule, `NoMergeTurnsMainRed`, and holds the other three.
-It breaks because a check selects a test that reads the whole tree only by chance: `scripts/select_tests.py` runs every test no rule owns (#397), but not one a rule owns for another path.
+It breaks because a check can still miss a test that reads the changed path.
+`scripts/select_tests.py` runs every test no rule owns (#397), and each test whose `READ_SET` matches the changed path (#426).
+`testing/tests/test_cross_cutting.py` makes a test that globs or walks the tree declare a read set, but it sees only the reads it knows.
+A test that reads the path another way, or past its read set, is selected by chance, so the model keeps that chance.
 The design holds all four.
 `NoGuard` breaks `NoMergeTurnsMainRed`, `NoRejudge` breaks `FlowsWhenGreen`, and `NoSweep` breaks `FlowsWhenGreen` and `MachineNotLeftFull`.
 Two controls run the model with an earlier `Gap`, `FlowToday.tla`'s constant, which `FlowToday.cfg` sets to `turn`, the code since #427.

@@ -112,7 +112,7 @@ def cause(v, facts, invariant):
         return None
     if invariant == "NoMergeTurnsMainRed":
         return (
-            "its check selects the test that reads the whole tree only by chance, "
+            "its check missed a test that reads the changed path past what the selector sees, "
             "so a change that breaks that test merges"
         )
     if invariant == "MachineNotLeftFull":

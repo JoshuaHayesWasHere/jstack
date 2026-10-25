@@ -1,7 +1,7 @@
 ---- MODULE FlowToday ----
 \* What jstack does today with two pull requests, a main that can go red, and a machine that can fill.
-\* Code as of main 4b593993 (2026-10-25): the flow-statechart scout's FlowNow.tla at 6485914, with
-\* #416 and #427 since, cut down to the variables FlowDesign.tla's four rules read.
+\* Code as of main 479438dd (2026-10-25): the flow-statechart scout's FlowNow.tla at 6485914, with
+\* #416, #426 and #427 since, cut down to the variables FlowDesign.tla's four rules read.
 EXTENDS Naturals
 
 \* Gap: what jbus.strays stops of what a finished turn left running.
@@ -66,9 +66,10 @@ Launch(p) ==
 Check(p) ==
     /\ st[p] = "open"                       \* .github/workflows/check.yml:4, a pull request's check
     /\ ci[p] = "none"
-    \* scripts/select_tests.py:616-625: the rules' tests, plus every test no rule owns (#397).
-    \* A test some rule owns for another path, that also reads the changed path through a glob or
-    \* a walk, is still not selected, so a diff selects it by chance.
+    \* scripts/select_tests.py:666-675,385: the rules' tests, every test no rule owns (#397), and
+    \* each test whose READ_SET matches the changed path (#426). A test that reads the tree through
+    \* a glob or a walk needs a read set, but that guard sees only the reads it knows, so a test
+    \* that reads the changed path another way, or past its read set, is selected by chance.
     /\ \E sel \in BOOLEAN :
         ci' = [ci EXCEPT ![p] = IF sel /\ (mainRed \/ breaks[p]) THEN "fail" ELSE "pass"]
     /\ ranRed' = [ranRed EXCEPT ![p] = mainRed]

@@ -32,7 +32,7 @@ CITE = re.compile(r"((?:features|scripts|\.github)/[\w./-]+):(\d+(?:-\d+)?(?:,\d
 
 CITED = {
     ".github/workflows/check.yml:4": "pull_request:",
-    "scripts/select_tests.py:616-625": "lone = unowned()",
+    "scripts/select_tests.py:666-675,385": "lone = unowned()",
     "features/crew/the-checks.md:79-84": "`jmerge` judges a red pull request again by itself",
     "features/jbus/src/jbus/dispatch.py:324-356": "no room",
     "features/jbus/src/jbus/dispatch.py:459-461": "on = world.stack_on(unmerged)",
