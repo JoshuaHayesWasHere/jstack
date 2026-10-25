@@ -1,5 +1,5 @@
 usage: jbus word [-h] (--to PROJECT | --all) [--by BY] [--at AT]
-                 [--message THREAD/MESSAGE] [--from THREAD]
+                 [--message THREAD/MESSAGE] [--from THREAD] [--page FILE]
                  [words ...]
 
 positional arguments:
@@ -17,3 +17,5 @@ options:
                         --at and the words
   --from THREAD         the thread running this: a word recorded by a
                         project's home is not posted to it
+  --page FILE           the page the word was given on: the word goes to the
+                        home whose page it is

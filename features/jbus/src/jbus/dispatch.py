@@ -52,6 +52,7 @@ from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, crew_threads, ended
 from jmerge import claims, mainjson
+from jmerge import stacked as stacks
 from jroles import ledger, pool
 
 EVENTS = {"overlap": "quiet"}
@@ -146,6 +147,28 @@ def green_main(brief: str, green: str) -> str:
         return plain
     first, _, rest = plain.partition("\n")
     return f"{first}\n{GREEN_MAIN} {green}\n{rest}"
+
+
+def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
+    """Return the brief a launch sends: with the `Green main:` line (`green_main`), or for a row
+    that launches stacked, with its `Stacked on:` line in that place and no `Green main:`. A
+    stacked crew starts from its base's branch, never from main, so the line that tells a crew
+    which main to rebase onto has no place in its brief."""
+    if on is None:
+        return green_main(brief, green)
+    return stacked(green_main(brief, ""), on)
+
+
+def stacked(brief: str, on: stacks.Stacked) -> str:
+    """Return the brief with `on`'s `Stacked on:` line under its first line, in place of any such
+    line its head had."""
+    kept, head = [], True
+    for line in brief.splitlines(keepends=True):
+        head = head and not line.startswith("## ")
+        if not (head and line.startswith(stacks.LINE)):
+            kept.append(line)
+    first, _, rest = "".join(kept).partition("\n")
+    return f"{first}\n{stacks.line(on)}\n{rest}"
 
 
 def arguments(
@@ -379,16 +402,24 @@ class Turns:
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
 
-    def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str]]:
-        """Read rows off `left`, and yield each row, with its brief, that waits only for a
-        free slot.
+    def _ready(self, full: bool) -> Iterator[tuple[queue.Row, str, stacks.Stacked | None]]:
+        """Read rows off `left`, and yield each row, with its brief and the stack it launches
+        on, that waits only for a free slot.
 
         The method skips every other row. jbus never launches a row again once the row's thread
         has ended with a Result. When a row waits because its brief changed, or waits on a slug
         it depends on, the method adds the reason to `Pass.reasons`. A row waits on a slug until
-        that slug has merged, or has ended `done` with no pull request. Once the pass is `full`,
+        that slug has merged, or has ended `done` with no pull request, or until the one slug it
+        still waits on has opened its pull request: it then launches stacked on that pull
+        request's branch (`World.stack_on`). Once the pass is `full`,
         the method reads a row only for its reason, sends no gate for it, and adds the row to
         `Pass.held`.
+
+        The pass read the table before it merged and asked T3 Code, and the home may have added
+        and approved the brief again since. So a go that does not hold for the stored brief is
+        judged once more with the row and the brief as they are now, read together
+        (`queue.current`), and the row is gated only when that go does not hold either. Each pass
+        judges the row again, so the gate goes the pass its go holds.
         """
         run, world = self.run, self.world
         merged = set(world.merged) - set(world.open)
@@ -411,21 +442,26 @@ class Turns:
                 continue
             brief = queue.brief(run.state, slug)
             if brief is None or not queue.approved_text(row, brief):
+                row, brief = queue.current(run.state, slug)
+                if row is None or not row.get("approved"):
+                    continue
+            if brief is None or not queue.approved_text(row, brief):
                 now = queue.brief_sha(brief or "")[:12]
+                lines = tuple(queue.changed(row, brief))
                 if not full:
-                    lines = "; ".join(queue.changed(row, brief))
-                    what = f"brief changed after approval: {lines}"
+                    what = f"brief changed after approval: {'; '.join(lines)}"
                     run.gate(slug, what, key=f"brief changed, now {now}")
-                run.reasons[slug] = Changed(now)
+                run.reasons[slug] = Changed(now, row.get("brief_sha", "")[:12], lines)
                 continue
             met = merged | {
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
             unmerged = [other for other in row.get("depends", []) if other not in met]
-            if unmerged:
+            on = world.stack_on(unmerged)
+            if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
                 continue
-            yield row, brief
+            yield row, brief, on
 
     def take(self) -> str:
         """Take one turn: launch the first row that may launch, and return how the turn
@@ -436,7 +472,7 @@ class Turns:
         the machine.
         """
         run, client = self.run, self.client
-        for row, brief in self._ready(full=False):
+        for row, brief, on in self._ready(full=False):
             slug = row["slug"]
             refs = run.run(
                 "git",
@@ -459,7 +495,7 @@ class Turns:
                 continue
             plain = queue.body(brief)
             green = mainjson.read(run.state).green
-            text = green_main(plain, green)
+            text = launched_text(plain, green, on)
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
             on_disk = "" if wrote else queue.body(target.read_text(errors="replace"))
@@ -508,7 +544,9 @@ class Turns:
             if wrote:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(text)
-            elif (named := green_main(kept := target.read_text(errors="replace"), green)) != kept:
+            elif (
+                named := launched_text(kept := target.read_text(errors="replace"), green, on)
+            ) != kept:
                 target.write_text(named)
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
@@ -517,7 +555,13 @@ class Turns:
             try:
                 reply = client.call(
                     "t3_thread_launch",
-                    arguments(run, slug, text, base.stdout.strip().removeprefix("origin/"), routed),
+                    arguments(
+                        run,
+                        slug,
+                        text,
+                        on.branch if on else base.stdout.strip().removeprefix("origin/"),
+                        routed,
+                    ),
                 )
             except T3Refused as error:
                 path.unlink()
@@ -545,8 +589,9 @@ class Turns:
                 },
             )
             write_thread(run, slug, reply["threadId"])
-            on = f" on {choice.instance}, {choice.why}" if choice.why else ""
-            run.say(f"launched {slug}: {reply['threadId']}{on}")
+            where = f" on {choice.instance}, {choice.why}" if choice.why else ""
+            where += f", stacked on {on.slug}'s branch {on.branch}" if on else ""
+            run.say(f"launched {slug}: {reply['threadId']}{where}")
             return LAUNCHED
         return NOTHING
 
@@ -558,8 +603,8 @@ class Turns:
         Then the pass names each row that waits, with the time it began to wait for a slot:
         its `since`, or now for a new wait.
         """
-        waits = [row for row, _ in itertools.islice(self._ready(full=False), 1)]
-        waits += [row for row, _ in self._ready(full=True)]
+        waits = [row for row, _, _ in itertools.islice(self._ready(full=False), 1)]
+        waits += [row for row, _, _ in self._ready(full=True)]
         limit = self.run.config.max_running
         for row in waits:
             self.run.reasons[row["slug"]] = Slot()

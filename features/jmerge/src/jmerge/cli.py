@@ -37,6 +37,7 @@ from jmerge import (
     sweep,
     trailers,
 )
+from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 
 LIST = (
@@ -381,7 +382,7 @@ class Fresh:
         tree = _run(self.main, "git", "rev-parse", "--verify", "-q", f"{commit}^{{tree}}")
         if tree.returncode:
             return _said(tree)
-        ref = sweep.marker(tree.stdout.strip())
+        ref = green.ref(tree.stdout.strip(), green.covers(self.command))
         pushed = _run(self.main, "git", "push", "-q", "origin", f"+{commit}:{ref}")
         if not pushed.returncode:
             return ""
@@ -671,6 +672,24 @@ class Repo:
                 _run(self.main, "git", "fetch", "-q", "origin", f"refs/pull/{one.number}/head")
             self.heads[one.number] = not _run(self.main, "git", "cat-file", "-e", commit).returncode
         return self.heads[one.number]
+
+    def on_stack(self, one: ready.PullRequest, default: str, stacked: stacks.Stacked | None) -> str:
+        """Why a link jbus stacked waits, or nothing. It waits while its line names its base's
+        branch, whatever base GitHub gives it now: GitHub bases it on the default branch by
+        itself when the base's branch is deleted on its merge, and its head still holds the
+        base's commits then. Once jbus wrote the commit that merged its base, it waits until its
+        head holds that commit: its crew rebased its own commits onto the default branch."""
+        if stacked is None:
+            return ""
+        if not stacked.at or stacked.branch != default or one.base != default:
+            return ready.STACKED_ON.format(
+                branch=stacked.branch, slug=stacked.slug, default=default
+            )
+        if not self.has(one) or self.outside(stacked.at, one.head):
+            return ready.STACKED_UNMOVED.format(
+                slug=stacked.slug, sha=stacked.at[:12], default=default
+            )
+        return ""
 
     def outside(self, commit: str, of: str) -> bool:
         """Whether `of` lacks `commit`. A ref that cannot be read lacks it too, which keeps a
@@ -1102,8 +1121,10 @@ class Repo:
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
-        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration)
-        short = short or ready.rebase_held(text, one.head) or ready.short_of(text, one.head)
+        stacked = stacks.of(text)
+        short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
+        short = short or self.on_stack(one, default, stacked)
+        short = short or ready.short_of(text, one.head)
         rebase = ready.rebase_of(text, one.head)
         covered = ready.to_range_diff(rebase, text, one.head)
         lost: tuple[ready.Drop, ...] = ()
@@ -1678,7 +1699,8 @@ class Sweep:
     def markers_past(self, say: Callable[[str], None], check: bool) -> list[tuple[str, str]]:
         kept: list[tuple[str, str]] = []
         for ref, commit in sorted(self.markers.items()):
-            label = f"green-tree/{ref.removeprefix(sweep.MARKERS)[:12]}"
+            kind, _, tree = ref.removeprefix(sweep.MARKERS).rpartition("/")
+            label = f"green-tree/{kind}{'/' if kind else ''}{tree[:12]}"
             made = self.marked(ref, commit)
             if made is None:
                 kept.append((label, "the commit its marker is at could not be read"))

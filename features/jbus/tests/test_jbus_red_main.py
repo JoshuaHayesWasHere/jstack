@@ -14,13 +14,16 @@ import json
 from datetime import timedelta
 
 import jbus.queue
+import jbus.waiting
 import jbus.wake
 import test_jbus_main_moved
 from jbus import questions
-from jmerge import mainjson
+from jmerge import mainjson, ready
 from jmerge import rows as jmerge_rows
+from test_jbus_chains import queue_add
 from test_jbus_kitchen import NOW, RESULT, approved, complete, go, iso, queued
 from test_jbus_main_moved import checks, move, pull, tip
+from test_jbus_queue import go as queue_go
 from test_jbus_watch import main_of, main_red
 
 
@@ -77,13 +80,67 @@ def test_a_red_tip_keeps_the_green_tip_before_it(kitchen):
     assert kept(kitchen) == mainjson.Main(green=green, red=red)
 
 
-def test_a_red_main_with_no_merge_in_a_day_is_still_kept_as_red(kitchen):
+def test_a_red_main_with_no_merge_in_a_day_is_kept_as_red_and_gets_its_fix_row(kitchen):
+    """The pass that first sees the red keeps it in `main.json`, and the next files its row."""
     kitchen.quiet()
     red = tip(kitchen)
     checks(kitchen, red, "failure")
+    kitchen.set("commits.json", [kitchen.commit(red)])
     kitchen.poll()
     assert kept(kitchen) == mainjson.Main(red=red)
-    assert main_red(kitchen) == []
+    kitchen.poll(NOW + timedelta(minutes=1))
+    (fix,) = main_red(kitchen)
+    assert fix["slug"] == f"{mainjson.FIX}{red[:12]}" and fix["approved"] == ""
+
+
+def red_after_a_quiet_day(kitchen, briefed_ago):
+    """Main's tip is a commit made outside the queue (a hand merge, a tool update) whose check
+    fails. The last merge jbus briefed landed `briefed_ago` before it."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.quiet()
+    red, base = tip(kitchen), "f" * 40
+    done = {"status": "completed"}
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, base, ago=briefed_ago)])
+    kitchen.set(
+        "commits.json",
+        [
+            kitchen.commit(red, "chore: a hand merge", ago=timedelta(minutes=10)),
+            kitchen.commit(base, "feat: alpha (#7)", ago=briefed_ago),
+        ],
+    )
+    kitchen.set(
+        "check-runs.json",
+        {
+            red: [{**done, "conclusion": "failure", "name": "check"}],
+            base: [{**done, "conclusion": "success", "name": "check"}],
+        },
+    )
+    return red
+
+
+def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_for_the_user(kitchen):
+    """fl-statechart's bug 1: a red nobody's merge caused still holds every merge in `jmerge`,
+    so it gets the same unapproved row a red after a briefed merge gets, once."""
+    assert queue_add(kitchen, "beta")[0] == 0
+    assert queue_go(kitchen, "beta")[0] == 0
+    red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=25))
+    name = f"{mainjson.FIX}{red[:12]}"
+    for minutes in (0, 3, 60, 6 * 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert kept(kitchen).red == red
+        assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [(name, "")]
+    assert jmerge_rows.red(kept(kitchen), "beta") == ready.MAIN_RED.format(sha=red[:12])
+    text = (kitchen.home / "tasks" / f"{name}.md").read_text()
+    assert f"# {name}: main's check failed at {red[:12]}" in text
+    assert "chore: a hand merge" in text
+
+
+def test_the_same_red_within_a_day_of_a_briefed_merge_is_filed_once(kitchen):
+    red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=2))
+    for minutes in (0, 3, 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
+    assert "after alpha merged" in (kitchen.home / "tasks" / f"main-red-{red[:12]}.md").read_text()
 
 
 def test_a_later_green_tip_clears_the_red_and_becomes_the_green(kitchen):
@@ -306,6 +363,20 @@ def test_a_run_that_starts_no_job_after_the_account_was_put_right_is_a_new_decis
     assert main_red(kitchen) == []
 
 
+def test_a_tip_that_started_no_job_with_no_briefed_merge_is_the_accounts_and_files_no_row(kitchen):
+    """The no-job class (S9) owns such a tip with its one decision: the red tip rule files no fix
+    row beside it, however many passes look."""
+    kitchen.quiet()
+    at = tip(kitchen)
+    kitchen.set("commits.json", [kitchen.commit(at)])
+    no_job(kitchen, at, 1)
+    for minutes in (3, 6, 60):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert main_red(kitchen) == []
+    assert kept(kitchen) == mainjson.Main()
+    assert len(asked(kitchen)) == 1
+
+
 def test_a_rerun_on_the_same_tip_whose_jobs_pass_closes_the_decision(kitchen):
     _, runs = replay_no_job_runs(kitchen, runs=1)
     at = tip(kitchen)
@@ -346,3 +417,110 @@ def test_a_run_that_started_no_job_beside_one_that_ran_and_passed_is_no_account_
     kitchen.poll(NOW + timedelta(minutes=3))
     assert asked(kitchen) == []
     assert kept(kitchen) == mainjson.Main(green=green, red=red)
+
+
+def waits_on_the_user(state):
+    return [one["key"] for one in jbus.waiting.read(state) or []]
+
+
+def withdrawn(state, name):
+    """Return the line of `transitions.jsonl` that took the row out, or None."""
+    log = state / "transitions.jsonl"
+    moves = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+    return next((m for m in moves if m["slug"] == name and m["to"] == "removed"), None)
+
+
+def test_a_fix_row_waiting_for_its_go_is_withdrawn_once_main_is_green_at_a_later_commit(kitchen):
+    """fl-red-row-withdraw: infra's two fix rows asked the user for a go for two days after
+    main was green again. A fix for a problem already gone is no decision."""
+    red = main_of(kitchen, "failure")[0]
+    kitchen.poll()
+    name = f"{mainjson.FIX}{red[:12]}"
+    assert [row["slug"] for row in main_red(kitchen)] == [name]
+    assert f"approve:{name}" in waits_on_the_user(kitchen.state)
+    green = main_of(kitchen, "failure", "success")[1]
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert main_red(kitchen) == []
+    assert waits_on_the_user(kitchen.state) == []
+    move = withdrawn(kitchen.state, name)
+    assert move["by"] == "jbus" and f"main is green at {green[:12]}" in move["why"]
+    code, said = kitchen.main("queue", "verify", name)
+    assert code == 1 and f"main is green at {green[:12]}" in said, said
+
+
+def test_a_fix_row_that_launched_is_left_to_its_crew_when_main_turns_green(kitchen):
+    red = main_of(kitchen, "failure")[0]
+    kitchen.poll()
+    name = f"{mainjson.FIX}{red[:12]}"
+    assert go(kitchen, name)[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert launched(kitchen) == [f"crew: {name}"]
+    green = main_of(kitchen, "failure", "success")[1]
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert [row["slug"] for row in main_red(kitchen)] == [name]
+    assert withdrawn(kitchen.state, name) is None
+    left = f"retro {name}: main is green again at {green[:12]}, and its row launched, so it is "
+    assert [line for line in kitchen.lines("retro") if line.startswith(left)]
+
+
+def test_a_red_main_after_a_withdrawn_fix_files_one_row_for_the_new_red(kitchen):
+    main_of(kitchen, "failure")
+    kitchen.poll()
+    main_of(kitchen, "failure", "success")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    shas = main_of(kitchen, "failure", "success", "failure")
+    kitchen.poll(NOW + timedelta(minutes=6))
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{shas[2][:12]}"]
+    assert withdrawn(kitchen.state, f"{mainjson.FIX}{shas[0][:12]}")
+
+
+def test_a_red_rerun_green_on_its_own_commit_leaves_its_row(kitchen):
+    """A green at the commit the row was filed for is no later green: the row stays."""
+    red = main_of(kitchen, "failure")[0]
+    kitchen.poll()
+    checks(kitchen, red, "success")
+    jbus.write_json(kitchen.state / "checks.json", {})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
+
+
+def test_a_fix_row_for_a_red_with_no_briefed_merge_is_withdrawn_on_a_later_green(kitchen):
+    red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=25))
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=1))
+    name = f"{mainjson.FIX}{red[:12]}"
+    assert [row["slug"] for row in main_red(kitchen)] == [name]
+    green = "e" * 40
+    commits = json.loads((kitchen.stub / "commits.json").read_text())
+    kitchen.set("commits.json", [kitchen.commit(green, "chore: a fix", ago=timedelta(0)), *commits])
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    done = {"status": "completed", "conclusion": "success", "name": "check"}
+    kitchen.set("check-runs.json", {**runs, green: [done]})
+    kitchen.poll(NOW + timedelta(minutes=4))
+    assert main_red(kitchen) == []
+    assert waits_on_the_user(kitchen.state) == []
+
+
+def test_infra_s_two_fix_rows_are_withdrawn_once_its_main_has_three_green_commits(kitchen):
+    """The replay of infra's 2026-10-23: a red after one merge, a second red after the next,
+    each filed as a row for the user, then three commits whose checks pass. jstack's own rows
+    and another project's are withdrawn alike."""
+    infra = kitchen.second("infra")
+    alpha = f"# alpha: a task\nWhere: `src/alpha/`\n{RESULT}"
+    (infra.home / "tasks" / "alpha.md").write_text(alpha)
+    main_of(kitchen, "failure")
+    kitchen.poll()
+    first, second = main_of(kitchen, "failure", "failure")[:2]
+    kitchen.poll(NOW + timedelta(minutes=4))
+    names = sorted(f"{mainjson.FIX}{sha[:12]}" for sha in (first, second))
+    for state in (kitchen.state, infra.state):
+        rows = jbus.queue.load(state)
+        assert sorted(row["slug"] for row in rows if mainjson.fix_of(row["slug"])) == names
+        assert {f"approve:{name}" for name in names} <= set(waits_on_the_user(state))
+    main_of(kitchen, "failure", "failure", "success", "success", "success")
+    kitchen.poll(NOW + timedelta(hours=2))
+    for state in (kitchen.state, infra.state):
+        assert [row for row in jbus.queue.load(state) if mainjson.fix_of(row["slug"])] == []
+        assert waits_on_the_user(state) == []
+        assert all(withdrawn(state, name) for name in names)

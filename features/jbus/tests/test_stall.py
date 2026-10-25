@@ -68,11 +68,14 @@ def held(kitchen, accept=ACCEPTED):
 
 
 def test_four_rows_behind_a_held_pull_request_are_one_root_beside_a_running_crew(kitchen):
+    """The four launch stacked on the held pull request's branch, and their merges still wait on
+    it: it is one root that unblocks them all."""
     held(kitchen)
     kitchen.poll()
     assert waits(kitchen) == [MERGE]
     assert [event["slug"] for event in kitchen.events("waiting-on-user")] == ["#286"]
-    assert kitchen.t3.launches == []
+    bases = [given["workspaceStrategy"]["baseRef"] for given in kitchen.t3.launches]
+    assert bases == ["ps-agnostic"] * len(ROWS)
 
 
 NO_FACT = f"no proven safety fact at {HEAD[:12]} (blast-radius, review step 5)"
@@ -122,7 +125,8 @@ def test_a_brief_changed_after_the_go_is_a_root_to_approve_it_again(kitchen):
     kitchen.poll()
     now, was = sha12(changed), sha12(brief("alpha"))
     assert waits(kitchen) == [
-        f"waiting-on-user demo: re-approve alpha (brief now {now}, approved {was}): "
+        f"waiting-on-user demo: re-approve alpha (brief now {now}, approved {was}; "
+        "changed: Done when: One more line.): "
         f"jbus --project demo queue approve alpha --sha {now} {BASES}"
         " · unblocks alpha, beta · since 11:00 ET"
     ]
@@ -171,19 +175,21 @@ def test_a_pass_that_could_not_ask_github_keeps_the_roots_it_had(kitchen):
 
 def test_a_row_that_takes_the_last_slot_does_not_hide_the_chain_behind_it(kitchen):
     held(kitchen)
+    add(kitchen, "jbus-e", priority=5, depends="jbus-d")
     kitchen.poll()
     kitchen.config(max_running=1)
     add(kitchen, "ready", priority=0)
-    changed = widened("jbus-d")
-    add(kitchen, "jbus-d", priority=4, depends="ps-agnostic", approve=False, text=changed)
+    built = brief("jbus-e", "Builds on: jbus-d\n")
+    changed = built.replace("- it is done\n", "- it is done\n- more\n")
+    add(kitchen, "jbus-e", priority=5, depends="jbus-d", approve=False, text=changed)
     said = kitchen.poll(later(3))
     assert any(
         line.startswith("max_running is 1 across all projects: ready waits, since ")
         for line in said
     )
     assert not any(line.startswith("cleared") for line in said)
-    assert [one["key"] for one in shown(kitchen)] == ["re-approve:jbus-d", "#286"]
-    assert shown(kitchen)[1]["unblocks"] == ROWS[:3]
+    assert [one["key"] for one in shown(kitchen)] == ["re-approve:jbus-e", "#286"]
+    assert shown(kitchen)[1]["unblocks"] == ROWS
     assert kitchen.lines("gate") == [] and kitchen.lines("jmerge") == [HOLD.strip()]
 
 

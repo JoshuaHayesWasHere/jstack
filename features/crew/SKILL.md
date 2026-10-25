@@ -214,6 +214,10 @@ On a message that the pull request is in conflict, that its check fails over tod
 
 ### A link that moved
 
+A link jbus stacked, a brief with a `Stacked on:` line in its head, is moved by jbus and not by the home.
+jbus sends it the line, once for each move: when its base's head moves, naming the branch it sits on, and when its base merged, naming the commit its base merged at once its pull request is based on the default branch.
+Such a link sends the home nothing for a conflict: on jbus's message that it is in conflict, it runs the block below at once, with the branch its `Stacked on:` line names while that line names no commit, and otherwise with the commit jbus's last line named.
+
 A link of a stack is based on the branch of the link under it until that one merges. Then the home changes the base of this pull request to the default branch and sends this thread one line that names the branch it sat on. The same line comes when this link has a conflict, and then it names the branch the link sits on now. That line is the only reason a link is rebased, and the base is never this thread's to change. On jbus's message that it is in conflict, send the home one line, once for a head, to the thread that hears of a pull request ("Telling the home"): `<slug>: <pull request url> has a conflict, and it is a link of a stack`. Then end your turn and wait for the line. Run this on it, with the branch the message names in place of the words in angle brackets, or the commit when the message gives one. It moves the link's own commits onto the new base: the ones above the commit this branch started from. That commit is the tip of the branch it sat on, or, when that branch was itself moved since, the tip it had before, which git's log of the remote branch still has:
 
 ```sh

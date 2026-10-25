@@ -5,7 +5,8 @@ pull request has none, and `rebase.tell` finds nothing in it to act on. The pull
 has ended its turn, and a fix to main wakes nobody.
 
 `tell` records the default branch's commit from pass to pass. When main goes from red to
-green, it sends one message to the crew of each open pull request that is red. When main
+green, it sends one message to the crew of each open pull request that is red, but a stacked
+link still on its base's branch, whose move is `stack`'s to tell. When main
 moves while green, a branch has no reason to move.
 
 `main.json` is the one record of main's red tip, which `jmerge.mainjson` reads for a launch
@@ -64,6 +65,7 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import NO_JOB, World, _api, _check, checks
 from jmerge import mainjson
+from jmerge import stacked as stacks
 from jmerge.mainjson import SETTLED
 
 EVENTS = {"mainmoved": "quiet"}
@@ -237,6 +239,8 @@ def tell(run: Pass, client: Client, world: World) -> None:
             brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
         except OSError:
             brief = ""
+        if stacks.unmoved(brief):
+            continue
         thread = dispatch.thread_of(brief)
         if not thread:
             run.gate(slug, NO_THREAD, f"#{number}: {why}", key=f"{NO_THREAD} {fixed[:12]}")

@@ -131,10 +131,6 @@ def kept(record: Record, found: Found) -> str:
     return found.based
 
 
-def marker(tree: str) -> str:
-    return f"{MARKERS}{tree}"
-
-
 def past(committed: int, now: float) -> int:
     age = now - committed
     return int(age // 86400) if age > MARKER_DAYS * 86400 else 0

@@ -296,7 +296,7 @@ SELECTED = {
     "conftest.py": "",
     "testing/tests/test_one.py": "import demo.one\n",
     "testing/tests/test_two.py": "import demo.two\n",
-    "testing/tests/test_whole.py": "",
+    "testing/tests/test_whole.py": "import demo\n",
 }
 
 
@@ -348,6 +348,20 @@ def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_p
     the pull request therefore run main's change to `one.py`."""
     kitchen = Kitchen(tmp_path, SELECTED)
     checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen)
+    kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
+    before = known(kitchen)
+    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
+    settled(kitchen, before)
+    assert len(checked.ran()) == 2
+
+
+def test_a_test_no_rule_owns_is_one_in_common(tmp_path):
+    """`test_lone.py` imports nothing and spells no path, so the selector's catch-all runs it on
+    every change. Main's change to `one.py` then meets the pull request's tests there."""
+    kitchen = Kitchen(tmp_path, {**SELECTED, "testing/tests/test_lone.py": ""})
+    checked = Checked(kitchen, "true", "src/demo/two.py")
     assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
     settled(kitchen)
     kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
@@ -904,7 +918,7 @@ def test_a_pass_marks_its_tree_on_the_origin_before_it_is_said(kitchen):
     ((ref, commit),) = markers(kitchen).items()
     assert said == ("", checked.passed())
     tree = git(kitchen.origin, "rev-parse", f"{commit}^{{tree}}")
-    assert ref == f"refs/jstack/green-tree/{tree}"
+    assert ref == f"refs/jstack/green-tree/selected/{tree}"
     assert git(kitchen.origin, "log", "-1", "--format=%P %s", commit) == (
         f"{checked.main} {checked.head} jmerge: {checked.head} over {checked.main}"
     )
@@ -946,18 +960,19 @@ def test_a_marker_the_origin_refuses_leaves_the_check_passed_and_the_note_says_w
 
 def test_a_sweep_deletes_a_marker_on_the_origin_that_is_more_than_seven_days_old(kitchen):
     """Another clone pushed the old marker, so its commit is not in the main checkout. The
-    clone that sweeps need not be the clone that pushed the marker."""
+    clone that sweeps need not be the clone that pushed the marker. A marker pushed before a
+    marker named what ran is swept the same way."""
     main, other = kitchen.home.main, kitchen.tmp / "other"
     git(kitchen.tmp, "clone", "-q", str(kitchen.origin), str(other))
     aged = {}
-    for days, repo in ((8, other), (6, main)):
+    for days, repo, kind in ((8, other, "selected/"), (6, main, "")):
         at = f"{int(time.time()) - days * 86400} +0000"
         write(repo, {"a.txt": f"{days} days ago\n"})
         marked = git(repo, "write-tree")
         commit = git(repo, "commit-tree", marked, "-p", "HEAD", "-m", "a pass", at=at)
-        git(repo, "push", "-q", "origin", f"{commit}:refs/jstack/green-tree/{marked}")
+        git(repo, "push", "-q", "origin", f"{commit}:refs/jstack/green-tree/{kind}{marked}")
         git(repo, "reset", "-q", "--hard")
-        aged[days] = (f"refs/jstack/green-tree/{marked}", commit, marked[:12])
+        aged[days] = (f"refs/jstack/green-tree/{kind}{marked}", commit, kind + marked[:12])
     old, young = aged[8], aged[6]
     kept = {young[0]: young[1]}
     assert markers(kitchen) == {old[0]: old[1]} | kept

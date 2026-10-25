@@ -367,7 +367,7 @@ def test_a_merge_that_fell_out_of_the_list_is_asked_for_by_the_address_the_brief
     kitchen.poll()
     assert column(kitchen) == ("merged", "#9", "")
     assert [line for line in kitchen.log("gh") if line.startswith("pr view")] == [
-        f"pr view {PULL} --json number,url,title,headRefName,mergeCommit,mergedAt,state"
+        f"pr view {PULL} --json number,url,title,headRefName,headRefOid,mergeCommit,mergedAt,state"
     ]
     kitchen.poll()
     assert len([line for line in kitchen.log("gh") if line.startswith("pr view")]) == 1

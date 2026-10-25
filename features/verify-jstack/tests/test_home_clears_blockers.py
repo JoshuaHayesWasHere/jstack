@@ -280,7 +280,9 @@ def test_a_stuck_row_and_then_its_leftover_each_get_a_fix_line_with_no_event(dem
     assert posted(demo) == []
 
 
-def test_a_fix_at_work_is_waited_on_and_a_key_at_its_cap_is_one_decision(demo):
+def test_a_fix_at_work_is_waited_on_one_removed_unrun_gives_its_try_back_and_a_cap_is_one_decision(
+    demo,
+):
     launched(demo, "mu")
     end_thread(demo, "mu", "idle")
     run(demo, "jbus poll")
@@ -290,15 +292,18 @@ def test_a_fix_at_work_is_waited_on_and_a_key_at_its_cap_is_one_decision(demo):
     waits = run(demo, "jbus clear").stdout
     for slug in ("mu-fix-1", "mu-fix-2"):
         assert remove(demo, slug).returncode == 0
-    capped = run(demo, "jbus clear").stdout
-    third = run(demo, "jbus queue add mu-fix-3 --priority 1", fix("mu-fix-3", "row:mu"))
-    run(demo, "jbus poll")
-    run(demo, "jbus clear")
+    freed = run(demo, "jbus clear").stdout
+    for slug in ("mu-fix-3", "mu-fix-4"):
+        added = run(demo, f"jbus queue add {slug} --priority 1", fix(slug, "row:mu"))
+        assert added.returncode == 0, added.stdout + added.stderr
+    fifth = run(demo, "jbus queue add mu-fix-5 --priority 1", fix("mu-fix-5", "row:mu"))
     run(demo, "jbus poll")
 
     assert waits.startswith("wait row:mu: mu-fix-1, mu-fix-2 is at work on it")
-    assert capped.startswith("decision row:mu: row:mu had 2 fixes (mu-fix-1, mu-fix-2), the retry")
-    assert third.returncode == 1
+    assert freed.startswith("fix row:mu: it was refused or is stuck"), freed
+    assert "try 1 of 2" in freed
+    assert fifth.returncode == 1
+    assert "row:mu had 2 fixes (mu-fix-3, mu-fix-4)" in fifth.stdout + fifth.stderr
     (event,) = [one for one in posted(demo) if "row:mu had" in one["line"]]
     assert 'Reply: "demo row:mu: I take it"' in event["say"]
 

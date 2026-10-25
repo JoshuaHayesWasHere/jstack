@@ -22,7 +22,9 @@
    A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
 
    Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's work in hand when it starts, code it changes or calls, or a Result it reads?
-   Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows: the row launches once that row has merged.
+   Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.
+   The row launches once that row has merged, or once it has opened its pull request: jbus then launches it stacked on that pull request's branch, writes its `Stacked on:` line, and moves it onto the default branch once that row merged.
+   A row that builds on two rows whose pull requests are both open waits until one of them merged, since a stack sits on one branch.
    Every other order is only about merging, such as two rows that touch the same files or that must land in a set order: the row is queued with `--merge-after <that row>`, and has no `Builds on:` line.
    It launches at once, and `jmerge` holds its pull request until that row has merged.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.
@@ -128,11 +130,12 @@
    Briefs and requests are in the repo's directory, whichever home launches from them.
    Write no status in the plan.
    A launch by this section adds no row to the queue, and `jbus plan` counts an entry from its rows, so where the brief has no row yet, add one for its entry.
-   Run this in the main checkout with the block at the top, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets, and with the row's order from step 1 added as `--merge-after <slugs>` or `--depends <slugs>`:
+   Run this in the main checkout with the block at the top and the block that finds this home, with the brief's slug, a priority and the entry's slug in place of the words in angle brackets, and with the row's order from step 1 added as `--merge-after <slugs>` or `--depends <slugs>`:
 
    ```sh
+   : "${M:?run the block that finds this home first}"
    if command -v jbus > /dev/null && jbus plan > /dev/null 2>&1; then
-       if said=$(jbus queue add '<slug>' --priority '<n>' --entry '<entry>' < "$H/tasks/<slug>.md" 2>&1); then
+       if said=$(jbus queue add '<slug>' --priority '<n>' --entry '<entry>' --from "$ME" < "$H/tasks/<slug>.md" 2>&1); then
            echo "added: the row <slug>, of the entry <entry>"
        else
            printf '%s\n' "$said"
@@ -143,6 +146,7 @@
    ```
 
    `jbus plan` answers only for the repo it is run in, and `jbus queue add` with no project takes the config's only project whatever the repo: so the row is added only where `jbus plan` answered, and on `no row` none is, since it would be another repo's row. On `refused:`, nothing is queued: mend the brief as the lines under it say, and run it again. A row with no approval is never launched again. Then give the user the link: `[<slug>](t3-thread://v1/<threadId>)`.
+   `--from "$ME"` says which home adds the row, and jbus refuses a brief whose `Home:` line names another home, so two homes never brief one fix unseen: that home briefs it, or this home hands it over on purpose by adding `--for <that home>`, `root` or the scope's name.
 
 No fixed count limits the threads out, crewmates and durable scouts together, and no file does: each crew has its own worktree and branch, and two pull requests that change the same file are settled at the merge, where the second to merge rebases. What holds a launch is the machine: it has to have room.
 

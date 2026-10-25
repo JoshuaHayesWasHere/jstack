@@ -11,6 +11,7 @@ from pathlib import Path
 
 from jbriefs import findings, skills
 from jmerge.rangediff import Verdict
+from jmerge.stacked import Stacked
 from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
@@ -25,7 +26,6 @@ _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
 _CI_FIX = re.compile(r"CI fix: ([0-9a-f]{40}), after the review of ([0-9a-f]{40})")
-_HELD = re.compile(r"Rebase hold: at ([0-9a-f]{40}), |Rebase hold lifted: ")
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -149,12 +149,17 @@ MAIN_CHANGED = Reason(
 )
 FRESH_CHECK = "a fresh check"
 FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's main {tip}")
-REBASE_HELD = Reason(
-    "hold",
-    "its crew held a third rebase after fixed and green, and its gate asks the user",
-)
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
+STACKED_ON = Reason(
+    "check",
+    "it is stacked on {branch}, and merges after {slug} merged and jbus moved it onto {default}",
+)
+STACKED_UNMOVED = Reason(
+    "check",
+    "{slug} merged as {sha}, which its head does not hold: it merges after its crew rebased it "
+    "onto {default}",
+)
 CARRIES_AFTER = Reason(
     "check",
     "carries {carried}'s commits (#{number}), which merges after {slug} ({open}), not merged yet",
@@ -389,21 +394,16 @@ def held(
     stack: str | None,
     land: str | None,
     integration: tuple[str, ...] = (),
+    stacked: Stacked | None = None,
 ) -> str:
-    if one.base != default and one.base not in integration:
+    """Why a pull request is held by its base or its stack, or nothing. A link jbus stacked sits
+    on its base's branch until that row merged: it is not held for it, and waits (`on_stack`)."""
+    on_base = stacked is not None and one.base == stacked.branch
+    if one.base != default and one.base not in integration and not on_base:
         return BASE.format(base=one.base, default=default)
     if stack is None or (stack and stack == land):
         return ""
     return IN_STACK.format(stack=stack) if stack else IN_UNNAMED_STACK
-
-
-def rebase_held(text: str, head: str) -> str:
-    last = ""
-    for line in text.splitlines():
-        found = _HELD.match(line)
-        if found:
-            last = found[1] or ""
-    return REBASE_HELD if last and last == head else ""
 
 
 def migrations(one: PullRequest, directory: str) -> tuple[str, ...]:

@@ -83,6 +83,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
 - **Its base is the default branch or an integration branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
   It merges a pull request whose brief has a `Stack:` line only when you pass `--land <stack>`.
+  A link jbus stacked, whose brief has a `Stacked on:` line, is no such hold: it waits as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>` while its line names its base's branch, whatever base GitHub gives it.
+  Once jbus wrote the commit its base merged as, it waits as `<slug> merged as <sha>, which its head does not hold: it merges after its crew rebased it onto <default>` until its head holds that commit.
   An integration branch is one the project's `integration` file names ("Integration branches").
 - **The review is done.**
   The brief has a `## Review` section with a verdict.
@@ -207,7 +209,6 @@ These rules make no pull request wait in a repo with no `migrations` key, and no
   It renumbers the migration that the reason names to the number the reason gives.
   It renumbers each later migration of the pull request to the numbers that follow, one each and in their order.
   It changes the files and every reference to an old number, then pushes.
-  The crew counts that rebase like any other rebase after fixed and green, so a third rebase whose range-diff is not empty gets a hold (`REBASE_HELD`), and its gate asks the user.
   `jmerge` judges the renumbered head again, and the content change needs the scoped review that "After a rebase" describes.
 - **A repo can name its migrations by timestamp instead.**
   With `migration_names = "timestamped"` the names cannot collide, and `jmerge` skips the number check.
@@ -258,7 +259,7 @@ It first asks GitHub for a green marker of that merge's tree (`features/jmerge/s
 A green marker is one of two things:
 
 - a `green-tree-<tree>` artifact of a successful run of the repo's own `.github/workflows/check.yml`, not a fork's
-- the ref `refs/jstack/green-tree/<tree>` on the origin
+- the ref `refs/jstack/green-tree/full/<tree>` or `refs/jstack/green-tree/selected/<tree>` on the origin
 
 A marker counts only for the exact tree it names.
 With a marker, `jmerge` does not run the suite again.
@@ -275,8 +276,10 @@ It runs the command in a worktree at `<state>/fresh/<number>` with a 15-minute l
 It never changes the crewmate's branch or worktree.
 The `ready` and `merged` lines report a pass.
 A pass is the only thing `jmerge` pushes.
-It pushes the merge that passed to `refs/jstack/green-tree/<tree>` on the origin, named for that merge's tree, before it reports the pass.
-The merge that lands has the same tree, so a CI that looks for the ref on main's run can skip its suite there.
+It pushes the merge that passed to `refs/jstack/green-tree/<kind>/<tree>` on the origin, named for that merge's tree and for what the command ran, before it reports the pass.
+`<kind>` is `full` when the command's last words are `make check`, the whole suite, and `selected` for any other command, such as `make check-fast BASE=origin/main`.
+The merge that lands has the same tree, so a CI that looks for the ref on main's run can skip its suite there, on a `full` ref only.
+A `selected` ref skips `jmerge`'s own fresh check of the same tree, and never main's suite: on 2026-10-23 a `make check-fast` pass skipped main's suite on a tree whose whole suite failed, main read green, and four pull requests merged onto it.
 A CI that uploads the artifact for a tree whose whole suite passed lets `jmerge` skip the check for that tree.
 [An example CI: jstack's own](jmerge/example-ci.md) shows a CI that does both.
 If `jmerge` cannot push the marker, the pass still counts, and the note ends `, its tree is not marked (<why>)`.
@@ -511,11 +514,11 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 |---|---|
 | `--check` | Prints `ready` lines in place of merging. It merges nothing, logs nothing and runs no `fresh-check` command. It does run the merge gate, and prints its hold. |
 | `--accept <number>` | Lifts the hold of one pull request and merges it, with `--by` and `--at`. |
-| `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each `refs/jstack/green-tree/<tree>` marker on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. It keeps a worktree while a process works in it, and also when it cannot read `/proc` to tell. With `--check` it prints what is removable and removes nothing. |
+| `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each marker under `refs/jstack/green-tree/` on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. It keeps a worktree while a process works in it, and also when it cannot read `/proc` to tell. With `--check` it prints what is removable and removes nothing. |
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. For a brief with an open pull request, the line goes on with `Diff:` and each file that pull request changes, or that its last Result's `Wider:` line names, which its `Where:` does not cover, in backticks. GitHub lists up to 100 files of each pull request here. jbus reads the lines on each pass to tell an `overlap`. |
 | `--scope <slug>` | Changes nothing. It prints, for the brief's branch against the branch it left (the default branch, or for a link of a stack the branch it sits on), `outside: <path>` for each changed file the brief's `Where:` line does not cover, and `wider: <path>: <why>` for each one the last Result's `Wider: <path>: <why>` line gives a reason for. It prints nothing when every file is inside, and exits 1 with a reason on stderr when the brief's `Where:` names no path or neither the branch nor its pull request can be read. For a branch that is gone, it asks the branch's pull request. |
 | `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks. The crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on is narrower: the required checks alone, as the merge rule on green says. |
-| `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`, for the crew skill's third rebase after fixed and green. |
+| `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`. |
 | `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
 | `--home <id>` | The home that is asking. Defaults to the id in the state directory's `home-id`. |
 | `--all` | Merges the pull requests of the repo's other homes too. |

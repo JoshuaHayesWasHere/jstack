@@ -350,13 +350,19 @@ def fake_gh(stub, args, cwd):
     view shows it. `run rerun` starts a run again and says nothing, or fails when `gh-no-rerun` is
     there.
 
+    `pr edit` changes nothing and says nothing: the log is its record. With `gh-edit-refused`
+    there, it fails and says nothing.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
+    `api .../compare/<base>...<head>` gives the status `compare.json` keeps for `<base>...<head>`,
+    or `diverged`.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
     request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
     gives a list of pages, here two. A job comes from `jobs.json` by its id, or is one step at the
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
-    not found. A commit asked for by its sha lists the files it changed, from `commit-files.json`.
+    not found, and a log with an escape sequence in it is refused unless asked for with
+    `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
+    changed, from `commit-files.json`.
     The runs of the browser workflow are in `browser-runs.json`. The repo's workflows are in
     `workflows.json`, and the runs of each other workflow in `workflow-runs.json` by its id. A
     run's jobs come from `run-jobs.json` by the run's id, and the call fails where that entry is
@@ -393,6 +399,14 @@ def fake_gh(stub, args, cwd):
         pushed = stub / "head-now.json"
         now = json.loads(pushed.read_text()) if pushed.exists() else {}
         said = json.dumps(dict(found[0], **now.get(str(found[0]["number"]), {})))
+    elif args[:2] == ["pr", "edit"]:
+        if (stub / "gh-edit-refused").exists():
+            return 1, "", ""
+        said = ""
+    elif args[0] == "api" and "/compare/" in args[1]:
+        kept = stub / "compare.json"
+        known = json.loads(kept.read_text()) if kept.exists() else {}
+        said = json.dumps({"status": known.get(args[1].split("/compare/")[1], "diverged")})
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
         said = json.dumps({"check_runs": runs.get(args[1].split("/")[-2], [])})
@@ -429,6 +443,9 @@ def fake_gh(stub, args, cwd):
         if args[1].split("/")[-2] not in logs:
             return 1, "", "gh: Not Found (HTTP 404)\n"
         said = logs[args[1].split("/")[-2]]
+        if "\x1b" in said and "--allow-escape-sequences" not in args:
+            refused = "the response contains terminal escape sequences; pass "
+            return 1, "", refused + "--allow-escape-sequences to output it anyway\n"
     elif args[0] == "api" and "/actions/jobs/" in args[1]:
         kept = stub / "jobs.json"
         job = (json.loads(kept.read_text()) if kept.exists() else {}).get(args[1].split("/")[-1])
@@ -803,6 +820,7 @@ class Kitchen:
             "url": f"https://example.test/pull/{number}",
             "title": title or f"feat: {slug}",
             "headRefName": slug,
+            "headRefOid": "d" * 40,
             "mergeCommit": {"oid": sha},
             "mergedAt": iso(NOW - ago),
         }
@@ -814,6 +832,7 @@ class Kitchen:
             "title": f"feat: {slug}",
             "headRefName": slug,
             "headRefOid": "c" * 40,
+            "baseRefName": "main",
             "statusCheckRollup": [
                 {"status": "COMPLETED" if state else "IN_PROGRESS", "conclusion": state}
             ],
@@ -835,6 +854,8 @@ class Kitchen:
         (["gh", "api", "repos/{owner}/{repo}"], {}),
         (["gh", "api", "repos/o/r/pulls/7/reviews", "--slurp"], {}),
         (["gh", "api", "repos/o/r/commits"], {}),
+        (["gh", "api", "repos/o/r/compare/a...b"], {"compare.json": '{"a...b": "ahead"}'}),
+        (["gh", "pr", "edit", "7", "--base", "main"], {}),
         (["gh", "pr", "list", "--state", "open"], {"gh-down": ""}),
         (["gh", "something", "else"], {}),
         (["jmerge"], {"jmerge.txt": "wait 7 a line\n"}),

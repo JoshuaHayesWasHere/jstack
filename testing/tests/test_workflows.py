@@ -12,10 +12,13 @@ The test reads the workflow file as YAML with two small readers, `mapping` and `
 only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
-of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for the
-workflow `macos`: on each pull request it runs the test files listed in `testing/macos-quick.txt`,
-the ones whose code branches on macOS or that guard a break only a Mac has, and it never fails a
-run or a check, since jbus and jmerge read every check of a pull request.
+of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
+two workflows. The workflow `macos`: on each pull request it runs the test files listed in
+`testing/macos-quick.txt`, the ones whose code branches on macOS or that guard a break only a
+Mac has, and it never fails a run or a check, since jbus and jmerge read every check of a pull
+request. The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour
+after the browser run, and by hand, over the branch its `ref` names, `train/macos` unless a
+manual run names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
@@ -58,6 +61,7 @@ DRIFT = WORKFLOWS / "pstack-drift.yml"
 BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
 BORDERS = WORKFLOWS / "borders.yml"
+NIGHTLY = WORKFLOWS / "macos-nightly.yml"
 MAC = WORKFLOWS / "macos.yml"
 MAC_QUICK = REPO / "testing" / "macos-quick.txt"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
@@ -179,6 +183,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "borders.yml": {"borders": HOSTED},
         "browser.yml": {"browser": HOSTED},
         "check.yml": {"check-shard": HOSTED, "check": HOSTED, "full-shard": HOSTED, "full": HOSTED},
+        "macos-nightly.yml": {"macos": MACOS},
         "macos.yml": {"macos": MACOS},
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
@@ -404,6 +409,7 @@ CAPS = {
     ("check.yml", "check"): "5",
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
+    ("macos-nightly.yml", "macos"): "90",
     ("macos.yml", "macos"): "15",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
@@ -800,7 +806,7 @@ JUNIT = """<?xml version="1.0" encoding="utf-8"?>
 
 
 def summary_step(name="suite summary", path=CHECK):
-    """The shell of the step with this name, `full`'s `suite summary` unless named, as the
+    """The shell of one step's block `run`, by default the `suite summary` step of `full`, as the
     runner gets it."""
     lines = path.read_text().splitlines()
     at = lines.index(f"      - name: {name}")
@@ -935,7 +941,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     ).stdout.strip()
     if callable(answers):
         answers = answers(tree)
-    for path, body in ({f"{REFS}/{tree}": []} | (answers or {})).items():
+    for path, body in ({f"{FULL}/{tree}": [], f"{SELECTED}/{tree}": []} | (answers or {})).items():
         (said / path.replace("/", "_")).write_text(json.dumps(body))
     (bin / "git").symlink_to(shutil.which("git"))
     if answers is not None:
@@ -976,6 +982,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
 
 
 REFS = "repos/owner/repo/git/matching-refs/jstack/green-tree"
+FULL, SELECTED = f"{REFS}/full", f"{REFS}/selected"
 COMMIT = "repos/owner/repo/git/commits/c0ffee"
 ARTIFACTS = "repos/owner/repo/actions/artifacts"
 RUN = "repos/owner/repo/actions/runs/7"
@@ -1004,7 +1011,7 @@ def test_a_tree_with_a_marker_is_green_and_the_log_names_the_run_it_is_from(tmp_
     assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
     assert asked == [
-        f"api {REFS}/{tree}",
+        f"api {FULL}/{tree}",
         f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
         f"api {RUN}",
     ]
@@ -1033,7 +1040,7 @@ def test_a_run_that_is_refused_the_answer_runs_the_suite(tmp_path):
         f"::warning::green-tree: tree {tree}: could not ask"
         " (HTTP 403: Resource not accessible by integration), so the suite runs"
     )
-    assert asked == [f"api {REFS}/{tree}", f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
+    assert asked == [f"api {FULL}/{tree}", f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
 
 
 def test_a_runner_with_no_gh_runs_the_suite(tmp_path):
@@ -1118,31 +1125,32 @@ def test_a_manual_run_and_a_run_again_never_ask_and_run_the_suite(tmp_path, env,
     assert (printed, asked) == (f"green-tree: tree {tree}: {why}", [])
 
 
-def ref(tree, **changed):
-    """What GitHub lists for the ref the desk pushed for a tree, at the commit c0ffee."""
-    name = f"refs/jstack/green-tree/{tree}"
+def ref(tree, kind="full", **changed):
+    """What GitHub lists for the ref the desk pushed for a tree after a check of this kind, at
+    the commit c0ffee."""
+    name = f"refs/jstack/green-tree/{kind}/{tree}"
     return [{"ref": name, "object": {"sha": "c0ffee", "type": "commit"}} | changed]
 
 
 def test_a_tree_the_desk_marked_is_green_and_the_log_names_the_desk(tmp_path):
     outputs, printed, tree, asked = green_tree(
-        tmp_path, lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
+        tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
     )
     assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "desk"}
     assert printed == (
         f"green-tree: tree {tree}: passed a fresh check on the desk, which marked it with the"
         " commit c0ffee, so the suite is skipped"
     )
-    assert asked == [f"api {REFS}/{tree}", f"api {COMMIT}"]
+    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
 
 
 @pytest.mark.parametrize(
     "listed",
     [
-        lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": "0ther"}}},
-        lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {}},
-        lambda tree: {f"{REFS}/{tree}": ref(tree, ref=f"refs/jstack/green-tree/{tree}0")},
-        lambda tree: {f"{REFS}/{tree}": ref(tree, object={"sha": "c0ffee", "type": "tag"})},
+        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": "0ther"}}},
+        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {}},
+        lambda tree: {f"{FULL}/{tree}": ref(tree, ref=f"refs/jstack/green-tree/full/{tree}0")},
+        lambda tree: {f"{FULL}/{tree}": ref(tree, object={"sha": "c0ffee", "type": "tag"})},
     ],
 )
 def test_a_ref_whose_commit_has_another_tree_is_no_marker_and_the_artifact_is_asked_for(
@@ -1154,19 +1162,48 @@ def test_a_ref_whose_commit_has_another_tree_is_no_marker_and_the_artifact_is_as
     )
     assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
     assert printed.endswith(": no green run of the check left a marker, so the suite runs")
-    assert asked[-1] == f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"
+    assert asked[-2:] == [
+        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
+        f"api {SELECTED}/{tree}",
+    ]
+
+
+def test_a_tree_the_desk_marked_after_selected_tests_only_runs_the_suite_and_the_log_says_so(
+    tmp_path,
+):
+    """On 2026-10-23 the desk's `make check-fast` pass skipped main's suite on a tree whose
+    whole suite failed."""
+    outputs, printed, tree, asked = green_tree(
+        tmp_path,
+        lambda tree: {
+            f"{SELECTED}/{tree}": ref(tree, "selected"),
+            COMMIT: {"tree": {"sha": tree}},
+            ARTIFACTS: {"artifacts": []},
+        },
+    )
+    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
+    assert printed == (
+        f"green-tree: tree {tree}: passed only selected tests on the desk, which marked it with"
+        " the commit c0ffee, so the suite runs"
+    )
+    assert asked == [
+        f"api {FULL}/{tree}",
+        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
+        f"api {SELECTED}/{tree}",
+        f"api {COMMIT}",
+    ]
 
 
 def test_a_ref_whose_commit_cannot_be_read_runs_the_suite(tmp_path):
-    outputs, printed, tree, asked = green_tree(tmp_path, lambda tree: {f"{REFS}/{tree}": ref(tree)})
+    outputs, printed, tree, asked = green_tree(tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree)})
     assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
     assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
-    assert asked == [f"api {REFS}/{tree}", f"api {COMMIT}"]
+    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
 
 
 def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tmp_path):
     def marked(tree):
-        return {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
+        return {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
 
     for at, env in enumerate(
         ({"GITHUB_EVENT_NAME": "workflow_dispatch"}, {"GITHUB_RUN_ATTEMPT": "2"})
@@ -1247,6 +1284,151 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
+TRAIN = "train/macos"
+
+
+def dispatch_inputs(path):
+    """The inputs of a workflow's `workflow_dispatch`, as a mapping of each input's keys."""
+    lines = [
+        line
+        for line in path.read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    start = lines.index("    inputs:") + 1
+    end = next(at for at in range(start, len(lines)) if not lines[at].startswith("      "))
+    return mapping(lines[start:end], 6)[0]
+
+
+def test_the_macos_nightly_runs_on_a_schedule_and_by_hand_and_on_no_pull_request_or_push():
+    found = triggers(NIGHTLY.read_text())
+    assert list(found) == ["schedule", "workflow_dispatch"]
+    assert "concurrency" not in NIGHTLY.read_text()
+
+
+def test_the_macos_nightly_runs_every_day_an_hour_after_the_browser_run():
+    (browser,) = triggers(BROWSER.read_text())["schedule"]
+    (night,) = triggers(NIGHTLY.read_text())["schedule"]
+    minute, hour, *every = night["cron"].split()
+    assert every == ["*", "*", "*"]
+    at = datetime(2026, 10, 18, int(hour), int(minute), tzinfo=UTC)
+    assert at.astimezone(ZoneInfo("America/New_York")).strftime("%H:%M") == "04:00"
+    assert browser["cron"].split()[:2] == [minute, str(int(hour) - 1)]
+
+
+def test_the_macos_nightly_checks_out_the_train_unless_a_manual_run_names_another_ref():
+    """A scheduled run has no inputs, so the checkout's own fallback is the input's default."""
+    assert list(dispatch_inputs(NIGHTLY)) == ["ref"]
+    assert dispatch_inputs(NIGHTLY)["ref"]["default"] == TRAIN
+    found, _ = steps(NIGHTLY.read_text(), "macos")
+    checkout = found[0]
+    assert checkout["uses"].partition("@")[0] == "actions/checkout"
+    assert checkout["with"]["persist-credentials"] is False
+    ref = checkout["with"]["ref"].removeprefix("${{").removesuffix("}}")
+    assert [worked(ref, {"inputs.ref": given}) for given in ("", "fix-branch")] == [
+        TRAIN,
+        "fix-branch",
+    ]
+
+
+def test_a_run_of_the_train_is_titled_as_jbus_files_it_and_a_run_on_another_ref_is_not():
+    """Every run of the nightly is on main, so the title is what tells jbus which ref it ran."""
+    from jbus import watch
+
+    lines = NIGHTLY.read_text().splitlines()
+    (named,) = [line for line in lines if line.startswith("run-name: ")]
+    title = named.removeprefix("run-name: ")
+    head, _, rest = title.partition("${{")
+    expression = rest.removesuffix("}}")
+    titled = [head + worked(expression, {"inputs.ref": given}) for given in ("", "fix-branch")]
+    assert titled[0] == watch.MACOS.title and titled[1] != watch.MACOS.title
+    assert watch.MACOS.file == NIGHTLY.name and watch.MACOS in watch.NIGHTLIES
+
+
+def test_the_macos_nightly_installs_as_the_macos_job_does_and_runs_make_check_into_a_report():
+    from jmerge import ready
+
+    found, _ = steps(NIGHTLY.read_text(), "macos")
+    assert [
+        step.get("uses", step.get("run", step.get("name"))).partition("@")[0] for step in found
+    ][:3] == ["actions/checkout", "astral-sh/setup-uv", "uv sync --locked"]
+    assert [step.get("name") for step in found][3:5] == ["tools", "make check"]
+    assert "brew install bash; } && zsh --version" in NIGHTLY.read_text()
+    (suite,) = [step for step in found if step.get("id") == "suite"]
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    assert suite["run"] == 'make check JUNIT="$RUNNER_TEMP/junit.xml"'
+    assert listed["env"]["JUNIT"] == "${{ runner.temp }}/junit.xml"
+    assert int(suite["timeout-minutes"]) < int(cap(NIGHTLY.read_text(), "macos"))
+    assert found.index(listed) == found.index(suite) + 1
+    assert "continue-on-error" not in NIGHTLY.read_text()
+    assert "macos" not in ready.REQUIRED and "macos-nightly" not in ready.REQUIRED
+
+
+FAILED = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="4" time="9.0">
+<testcase classname="features.jgauge.tests.test_room" name="test_go" time="1.0" />
+<testcase classname="features.jgauge.tests.test_room" name="test_load[idle]" time="1.0">
+<failure message="no /proc/loadavg" /></testcase>
+<testcase classname="features.crew.tests.test_check.TestSetsid" name="test_starts" time="1.0">
+<error message="setsid: command not found" /></testcase>
+<testcase classname="features.jbus.tests.test_view" name="test_skipped" time="0.0">
+<skipped message="linux only" /></testcase>
+</testsuite></testsuites>
+"""
+
+
+def test_the_macos_nightly_names_each_failed_test_in_its_log_and_summary_after_any_suite(tmp_path):
+    """jbus reads the failed tests of a red run from its log's `FAILED <test>` lines, so the step
+    prints one for each failed test of the report, also when the suite stopped at its cap and
+    pytest printed no summary of its own."""
+    found, _ = steps(NIGHTLY.read_text(), "macos")
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    assert (
+        worked(listed["if"], {"!cancelled()": True}),
+        worked(listed["if"], {"!cancelled()": False}),
+    ) == (True, False)
+    assert listed["env"]["SUITE"] == "${{ steps.suite.outcome }}"
+
+    def run(junit):
+        out = tmp_path / "summary"
+        out.write_text("")
+        ran = subprocess.run(
+            ["bash", "-e", "-c", summary_step("failed tests", NIGHTLY)],
+            env={"PATH": "/usr/bin:/bin", "JUNIT": str(junit), "SUITE": "failure"}
+            | {"GITHUB_STEP_SUMMARY": str(out)},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return ran.stdout, out.read_text()
+
+    junit = tmp_path / "junit.xml"
+    junit.write_text(FAILED)
+    room = "features/jgauge/tests/test_room.py::test_load[idle]"
+    setsid = "features/crew/tests/test_check.py::TestSetsid::test_starts"
+    assert run(junit) == (
+        "::warning::macOS: 2 tests failed, the suite step ended failure\n"
+        f"FAILED {room}\nFAILED {setsid}\n",
+        f"macOS: 2 tests failed, the suite step ended failure\n- `{room}`\n- `{setsid}`\n",
+    )
+    assert run(tmp_path / "gone") == (
+        "::warning::macOS: no test report, the suite step ended failure\n",
+        "macOS: no test report, the suite step ended failure\n",
+    )
+
+
+def test_every_action_is_pinned_to_one_commit_with_its_version_beside_it():
+    pins = {}
+    for path in sorted(WORKFLOWS.glob("*.yml")):
+        for line in path.read_text().splitlines():
+            if line.strip().startswith("- uses: "):
+                used, _, version = line.strip()[len("- uses: ") :].partition(" # ")
+                action, _, commit = used.partition("@")
+                assert len(commit) == 40 and all(c in "0123456789abcdef" for c in commit), line
+                assert version.startswith("v"), line
+                pins.setdefault(action, set()).add(used)
+    assert pins and all(len(used) == 1 for used in pins.values()), pins
+
+
 PIN = "${{ env.UV_VERSION }}"
 
 
@@ -1271,6 +1453,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
     assert {name: len(versions) for name, versions in found.items()} == {
         "browser.yml": 1,
         "check.yml": 2,
+        "macos-nightly.yml": 1,
         "macos.yml": 1,
         "pstack-drift.yml": 1,
         "release.yml": 1,

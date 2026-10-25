@@ -3,10 +3,13 @@
 The check workflow runs this after its checkout and before anything else. A tree that passed
 has a marker. There are two kinds, and the script asks for them in this order:
 
-- the desk's: a ref `refs/jstack/green-tree/<tree id>`. `jmerge` builds a head merged over main,
-  checks the result again, and pushes the ref when that check passes. The ref is at the commit
-  that passed, and it counts only when that commit's tree is the one checked out. Only somebody
-  who may push to the repo can write a ref, so a fork cannot leave one.
+- the desk's: a ref `refs/jstack/green-tree/<kind>/<tree id>`. `jmerge` builds a head merged
+  over main, checks the result again, and pushes the ref when that check passes. The ref is at
+  the commit that passed, and it counts only when that commit's tree is the one checked out.
+  Only somebody who may push to the repo can write a ref, so a fork cannot leave one. `<kind>`
+  says what the check ran: `full` for a command that ends `make check`, the whole suite, and
+  `selected` for any other, such as `make check-fast`. Only a `full` ref skips the suite: on
+  2026-10-23 a `make check-fast` pass skipped main's suite on a tree whose whole suite failed.
 - a run's: an artifact named `green-tree-<tree id>`. A run of the check uploads it for the
   tree it checked out, once the whole suite passed on that tree. Two jobs upload it: the
   `full` job, and a pull request's `check` job whose selection was the whole suite.
@@ -17,10 +20,12 @@ head over main, so the tree contains main as of that merge.
 
 The script answers in one word, the step's output `marker`:
 
-- `green`: the desk marked this tree, or a successful run of this workflow in this repo
-  left a marker for it. The line it prints names the desk's commit or that run.
-- `none`: the desk did not mark this tree, and no such run left a marker for it. The line says
-  so when a marker was a fork's.
+- `green`: the desk marked this tree after a run of the whole suite, or a successful run of
+  this workflow in this repo left a marker for it. The line it prints names the desk's commit
+  or that run.
+- `none`: the desk did not mark this tree after a run of the whole suite, and no such run left
+  a marker for it. The line says so when the desk's marker was of selected tests, and when a
+  marker was a fork's.
 - `unknown`: the script could not ask (no `gh`, no network, no permission). It prints the
   line as a warning on the run, so that a skip that never works is visible.
 - `unasked`: the run is a manual run or a rerun, which always runs the suite.
@@ -71,6 +76,9 @@ def answer(tree, env):
         return "none", "a marker came from a fork's run, so the suite runs", ""
     if found is None:
         return "none", "no green run of the check left a marker, so the suite runs", ""
+    if found.source == "desk" and found.covers != green.FULL:
+        why = f"passed only selected tests on the desk, which marked it with the commit {found.at}"
+        return "none", f"{why}, so the suite runs", ""
     if found.source == "desk":
         why = f"passed a fresh check on the desk, which marked it with the commit {found.at}"
         return "green", f"{why}, so the suite is skipped", "desk"

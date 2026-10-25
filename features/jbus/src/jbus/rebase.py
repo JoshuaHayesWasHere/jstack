@@ -56,10 +56,12 @@ with no step run means CI started no job. No push repairs that, so `github` send
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
-The second is a conflict with the base at a head. Before the reviewer writes the review, `github`
-sends a message under the key `conflict|<slug>|<head 12>`. After the reviewer has written the
-review, `github` sends the rebase message instead, whatever `jmerge` says first. `github` does not
-wait for `jmerge` here, because a red check hides the conflict from the line that `jmerge` prints.
+The second is a conflict with the base at a head, of a pull request that is not a stacked link
+still on its base's branch (`stack` tells that one when to move). Before the reviewer writes the
+review, `github` sends a message under the key `conflict|<slug>|<head 12>`. After the reviewer
+has written the review, `github` sends the rebase message instead, whatever `jmerge` says first.
+`github` does not wait for `jmerge` here, because a red check hides the conflict from the line
+that `jmerge` prints.
 
 The third is a head at which every check passed, under the key `green|<slug>|<head 12>`. `github`
 sends this message only where the crew owes a line on green and no reviewer that the crew launched
@@ -78,6 +80,7 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
 from jmerge import ready
+from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
 
 EVENTS = {
@@ -256,7 +259,7 @@ def github(run: Pass, client: Client, world: World) -> None:
         if failed and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
             deliver(run, client, world, number, failed, ask)
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
-        if pull.get("mergeable") == "CONFLICTING" and not told:
+        if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
             if _REVIEWED.search(brief):
                 ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)

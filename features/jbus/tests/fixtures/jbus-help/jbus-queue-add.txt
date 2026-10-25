@@ -1,6 +1,6 @@
 usage: jbus queue add [-h] --priority PRIORITY [--depends DEPENDS]
                       [--merge-after MERGE_AFTER] [--entry ENTRY]
-                      [--item ITEM]
+                      [--item ITEM] [--from THREAD] [--for HOME]
                       slug
 
 Queue a row, with its brief on stdin. A follow-up: a row is a follow-up of the
@@ -29,3 +29,8 @@ options:
                         slug
   --item ITEM           the work item the row is, by its id; with none, one is
                         made
+  --from THREAD         the thread of the home that adds the row, empty for
+                        the root home: a brief whose Home: line names another
+                        home is refused
+  --for HOME            root, or the scope the brief's Home: line names: the
+                        row is that home's, handed over on purpose
