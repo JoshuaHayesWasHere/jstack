@@ -25,13 +25,9 @@ name, which spells the config folder's variable (`CONFIG`) and its default (`KEP
 A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own `systemd
 --user`, which adopts what a unit of it left, as it is for jbus, a user service. A process is
 never stopped when its parent is not a reaper, when it is not the user's, when it is jbus
-or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, a
-crew's process is stopped busy or idle once the crew's row ended: its row is one of `ENDS`, its
-pull request merged or its thread ended, or none of its folders is still there, its worktree
-removed. Any other is stopped only when it used CPU over `GAP` seconds of the pass, since a
-crew that waits on its pull request may come back to what it left. `stop` sends each one TERM,
-and KILL to one still running `GRACE` seconds later, for a process that has the same start
-time.
+or one of its ancestors, or when it is T3 Code's or the agent's own (`OWN`). Of those left, it is
+stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and
+KILL to one still running `GRACE` seconds later, for a process that has the same start time.
 
 For each task with a process stopped, `stop` says one line, which the unit's journal keeps, with
 the count and the commands. It also adds one `Left running:` line at the end of the brief's last
@@ -69,7 +65,6 @@ CONFIG = f"{AGENT.upper()}_CONFIG_DIR"
 KEPT = Path.home() / f".{AGENT}"
 OWN = re.compile(rf"(^|/)(t3|t3code[^/]*|{AGENT}|jbus|jgauge)$|t3code|/{AGENT}/versions/")
 SHOWN = 3
-ENDS = ("merged", "done", "left")
 
 
 @dataclass
@@ -96,12 +91,10 @@ class Proc:
 
 @dataclass(frozen=True)
 class Task:
-    """A `Task` is a crew's slug, the folders it and its reviewers work in, and whether its row
-    ended."""
+    """A `Task` is a crew's slug and the folders it and its reviewers work in."""
 
     slug: str
     folders: tuple[Path, ...]
-    ended: bool = False
 
 
 def _stat(pid: str) -> tuple[int, int, int] | None:
@@ -295,11 +288,9 @@ def working(out: list[threads.Out]) -> set[tuple[str, str]]:
     }
 
 
-def tasks(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> list[Task]:
+def tasks(run: Pass, out: list[threads.Out], slugs: Iterable[str]) -> list[Task]:
     """The crews of the project, listed or a row of its queue, whose threads are all done with
     their turn."""
-    rows = list(rows)
-    ends = {row["slug"] for row in rows if row.get("status") in ENDS}
     listed = run.run("git", "worktree", "list", "--porcelain")
     trees, path = {}, ""
     for line in listed.stdout.splitlines() if listed.returncode == 0 else []:
@@ -307,8 +298,7 @@ def tasks(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> list[
             path = line.removeprefix("worktree ")
         elif line.startswith("branch refs/heads/"):
             trees[line.removeprefix("branch refs/heads/")] = Path(path)
-    found = {one["slug"] for one in out if one["role"] in ("crew", "reviewer")}
-    found |= {row["slug"] for row in rows}
+    found = {one["slug"] for one in out if one["role"] in ("crew", "reviewer")} | set(slugs)
     busy = working(out)
     made = []
     for slug in sorted(found):
@@ -316,13 +306,11 @@ def tasks(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> list[
             continue
         places = [trees.get(slug), WORKTREES / run.project.name / slug]
         places.append(WORKTREES / run.project.checkout.name / slug)
-        folders = tuple(dict.fromkeys(one for one in places if one is not None))
-        gone = not any(one.is_dir() for one in folders)
-        made.append(Task(slug, folders, slug in ends or gone))
+        made.append(Task(slug, tuple(dict.fromkeys(one for one in places if one is not None))))
     return made
 
 
-def stop(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> None:
+def stop(run: Pass, out: list[threads.Out], slugs: Iterable[str]) -> None:
     """Stop what the threads of each task left running, say so, and note it in the task's
     Result or Report."""
     left = orphans()
@@ -330,19 +318,15 @@ def stop(run: Pass, out: list[threads.Out], rows: Iterable[queue.Row]) -> None:
         _note(run, {})
         return
     claimed: dict[tuple[str, str], list[Proc]] = {}
-    over = set()
-    for task in tasks(run, out, rows):
+    for task in tasks(run, out, slugs):
         claimed[("crew", task.slug)] = [one for one in left if owns(task, one)]
-        if task.ended:
-            over |= {one.pid for one in claimed[("crew", task.slug)]}
     taken = {one.pid for found in claimed.values() for one in found}
     at_work = working(out)
     for one in left:
         slug = "" if one.pid in taken else scout_of(one, run.project.checkout)
         if slug and ("scout", slug) not in at_work:
             claimed.setdefault(("scout", slug), []).append(one)
-    rest = (one for found in claimed.values() for one in found if one.pid not in over)
-    burning = over | {one.pid for one in busy(rest)}
+    burning = {one.pid for one in busy(one for found in claimed.values() for one in found)}
     notes = {}
     for (role, slug), found in sorted(claimed.items()):
         found = [one for one in found if one.pid in burning]
@@ -386,7 +370,7 @@ def _note(run: Pass, notes: dict[str, str]) -> None:
 
 def _stop(half: Half) -> None:
     if half.out is not None and not half.blind:
-        stop(half.run, half.out, half.rows or [])
+        stop(half.run, half.out, [row["slug"] for row in half.rows or []])
 
 
 STEPS = (verbs.Step("after-expedite", 5, "strays.stop", _stop, ("client", "world")),)

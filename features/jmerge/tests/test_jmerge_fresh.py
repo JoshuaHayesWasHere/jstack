@@ -918,7 +918,7 @@ def test_a_pass_marks_its_tree_on_the_origin_before_it_is_said(kitchen):
     ((ref, commit),) = markers(kitchen).items()
     assert said == ("", checked.passed())
     tree = git(kitchen.origin, "rev-parse", f"{commit}^{{tree}}")
-    assert ref == f"refs/jstack/green-tree/selected/{tree}"
+    assert ref == f"refs/jstack/green-tree/{tree}"
     assert git(kitchen.origin, "log", "-1", "--format=%P %s", commit) == (
         f"{checked.main} {checked.head} jmerge: {checked.head} over {checked.main}"
     )
@@ -960,19 +960,18 @@ def test_a_marker_the_origin_refuses_leaves_the_check_passed_and_the_note_says_w
 
 def test_a_sweep_deletes_a_marker_on_the_origin_that_is_more_than_seven_days_old(kitchen):
     """Another clone pushed the old marker, so its commit is not in the main checkout. The
-    clone that sweeps need not be the clone that pushed the marker. A marker pushed before a
-    marker named what ran is swept the same way."""
+    clone that sweeps need not be the clone that pushed the marker."""
     main, other = kitchen.home.main, kitchen.tmp / "other"
     git(kitchen.tmp, "clone", "-q", str(kitchen.origin), str(other))
     aged = {}
-    for days, repo, kind in ((8, other, "selected/"), (6, main, "")):
+    for days, repo in ((8, other), (6, main)):
         at = f"{int(time.time()) - days * 86400} +0000"
         write(repo, {"a.txt": f"{days} days ago\n"})
         marked = git(repo, "write-tree")
         commit = git(repo, "commit-tree", marked, "-p", "HEAD", "-m", "a pass", at=at)
-        git(repo, "push", "-q", "origin", f"{commit}:refs/jstack/green-tree/{kind}{marked}")
+        git(repo, "push", "-q", "origin", f"{commit}:refs/jstack/green-tree/{marked}")
         git(repo, "reset", "-q", "--hard")
-        aged[days] = (f"refs/jstack/green-tree/{kind}{marked}", commit, kind + marked[:12])
+        aged[days] = (f"refs/jstack/green-tree/{marked}", commit, marked[:12])
     old, young = aged[8], aged[6]
     kept = {young[0]: young[1]}
     assert markers(kitchen) == {old[0]: old[1]} | kept

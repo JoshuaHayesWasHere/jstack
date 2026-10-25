@@ -19,6 +19,9 @@ jobs and merged pull requests of each configured project's repo, and prints for 
   any record of the row (`no record`), with when each source's records begin, since a window
   that starts before them is time no record covers.
 
+`jbus flow nudges <since> <until>` counts the owner's nudges in the home threads instead, from
+T3 Code's store (`jbus.flow.nudges`).
+
 It writes nothing: no state, no lock, no file. It takes no lock, so it runs beside a pass. What it
 prints is passed through `jbus.redact` with the config's secrets, so no webhook URL, key or token
 is in it. `--no-github` skips GitHub. `--jobs` asks for each run's jobs, which give the queue time
@@ -39,7 +42,7 @@ from typing import Any
 import jbus
 from jbus import digest, verbs
 from jbus.ci import ledger
-from jbus.flow import measure, records
+from jbus.flow import measure, nudges, records
 
 DEFAULT_DAYS = 7
 
@@ -290,6 +293,8 @@ def text(said: dict[str, Any]) -> str:
 
 def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
     """Print the measure of the window. It writes nothing."""
+    if args.measure == "nudges":
+        return _nudges(args, config)
     until = _time(args.until, config) or datetime.now(UTC)
     since = _time(args.since, config) or until - timedelta(days=DEFAULT_DAYS)
     if since >= until:
@@ -306,6 +311,25 @@ def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
     said |= {"missing": missing}
     said = jbus.redact(said, config.secrets())
     print(json.dumps(said, indent=2, sort_keys=True) if args.json else text(said))
+    return 0
+
+
+def _nudges(args: argparse.Namespace, config: jbus.Config) -> int:
+    """Print each nudge of the window and the count. It writes nothing."""
+    since, until = _time(args.start, config), _time(args.end, config)
+    if since >= until:
+        raise jbus.Refused(f"refused: {args.start} is not before {args.end}")
+    said = nudges.messages(nudges.read(args.store, args.title), since, until)
+    found = nudges.nudges(said)
+    if args.json:
+        rows = [
+            {"at": one.at.isoformat(), "home": one.home, "thread": one.thread, "first": one.first}
+            for one in found
+        ]
+        out = json.dumps({"messages": len(said), "nudges": len(found), "list": rows}, indent=2)
+    else:
+        out = nudges.text(said, found)
+    print(jbus.redact(out, config.secrets()))
     return 0
 
 
@@ -335,6 +359,23 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
         "--jobs", action="store_true", help="ask each run's jobs for queue time: a call per run"
     )
     parser.add_argument("--no-journal", action="store_true", help="read no journal")
+    measures = parser.add_subparsers(dest="measure")
+    count = measures.add_parser(
+        "nudges",
+        help="the owner's nudges in the home threads, from T3 Code's store",
+        description=nudges.DEFINITION,
+    )
+    count.add_argument("start", metavar="since", help="from this time, the user's zone with none")
+    count.add_argument("end", metavar="until", help="to this time, as since")
+    count.add_argument(
+        "--title",
+        default=nudges.TITLE,
+        help="threads whose title is like this, as SQL's like (default: 'home: %%', every home)",
+    )
+    count.add_argument(
+        "--store", type=Path, default=nudges.STORE, help="T3 Code's store, opened read-only"
+    )
+    count.add_argument("--json", action="store_true", help="print the count and list as JSON")
 
 
 VERBS = (

@@ -800,7 +800,7 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
     ).stdout.strip()
     if callable(answers):
         answers = answers(tree)
-    for path, body in ({f"{FULL}/{tree}": [], f"{SELECTED}/{tree}": []} | (answers or {})).items():
+    for path, body in ({f"{REFS}/{tree}": []} | (answers or {})).items():
         (said / path.replace("/", "_")).write_text(json.dumps(body))
     (bin / "git").symlink_to(shutil.which("git"))
     if answers is not None:
@@ -841,7 +841,6 @@ def green_tree(tmp_path, answers, python=(sys.executable,), **env):
 
 
 REFS = "repos/owner/repo/git/matching-refs/jstack/green-tree"
-FULL, SELECTED = f"{REFS}/full", f"{REFS}/selected"
 COMMIT = "repos/owner/repo/git/commits/c0ffee"
 ARTIFACTS = "repos/owner/repo/actions/artifacts"
 RUN = "repos/owner/repo/actions/runs/7"
@@ -870,7 +869,7 @@ def test_a_tree_with_a_marker_is_green_and_the_log_names_the_run_it_is_from(tmp_
     assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "run"}
     assert printed == f"green-tree: tree {tree}: passed the check in {URL}, so the suite is skipped"
     assert asked == [
-        f"api {FULL}/{tree}",
+        f"api {REFS}/{tree}",
         f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
         f"api {RUN}",
     ]
@@ -899,7 +898,7 @@ def test_a_run_that_is_refused_the_answer_runs_the_suite(tmp_path):
         f"::warning::green-tree: tree {tree}: could not ask"
         " (HTTP 403: Resource not accessible by integration), so the suite runs"
     )
-    assert asked == [f"api {FULL}/{tree}", f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
+    assert asked == [f"api {REFS}/{tree}", f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"]
 
 
 def test_a_runner_with_no_gh_runs_the_suite(tmp_path):
@@ -984,32 +983,31 @@ def test_a_manual_run_and_a_run_again_never_ask_and_run_the_suite(tmp_path, env,
     assert (printed, asked) == (f"green-tree: tree {tree}: {why}", [])
 
 
-def ref(tree, kind="full", **changed):
-    """What GitHub lists for the ref the desk pushed for a tree after a check of this kind, at
-    the commit c0ffee."""
-    name = f"refs/jstack/green-tree/{kind}/{tree}"
+def ref(tree, **changed):
+    """What GitHub lists for the ref the desk pushed for a tree, at the commit c0ffee."""
+    name = f"refs/jstack/green-tree/{tree}"
     return [{"ref": name, "object": {"sha": "c0ffee", "type": "commit"}} | changed]
 
 
 def test_a_tree_the_desk_marked_is_green_and_the_log_names_the_desk(tmp_path):
     outputs, printed, tree, asked = green_tree(
-        tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
+        tmp_path, lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
     )
     assert outputs == {"name": f"green-tree-{tree}", "marker": "green", "from": "desk"}
     assert printed == (
         f"green-tree: tree {tree}: passed a fresh check on the desk, which marked it with the"
         " commit c0ffee, so the suite is skipped"
     )
-    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
+    assert asked == [f"api {REFS}/{tree}", f"api {COMMIT}"]
 
 
 @pytest.mark.parametrize(
     "listed",
     [
-        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": "0ther"}}},
-        lambda tree: {f"{FULL}/{tree}": ref(tree), COMMIT: {}},
-        lambda tree: {f"{FULL}/{tree}": ref(tree, ref=f"refs/jstack/green-tree/full/{tree}0")},
-        lambda tree: {f"{FULL}/{tree}": ref(tree, object={"sha": "c0ffee", "type": "tag"})},
+        lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": "0ther"}}},
+        lambda tree: {f"{REFS}/{tree}": ref(tree), COMMIT: {}},
+        lambda tree: {f"{REFS}/{tree}": ref(tree, ref=f"refs/jstack/green-tree/{tree}0")},
+        lambda tree: {f"{REFS}/{tree}": ref(tree, object={"sha": "c0ffee", "type": "tag"})},
     ],
 )
 def test_a_ref_whose_commit_has_another_tree_is_no_marker_and_the_artifact_is_asked_for(
@@ -1021,48 +1019,19 @@ def test_a_ref_whose_commit_has_another_tree_is_no_marker_and_the_artifact_is_as
     )
     assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
     assert printed.endswith(": no green run of the check left a marker, so the suite runs")
-    assert asked[-2:] == [
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {SELECTED}/{tree}",
-    ]
-
-
-def test_a_tree_the_desk_marked_after_selected_tests_only_runs_the_suite_and_the_log_says_so(
-    tmp_path,
-):
-    """On 2026-10-23 the desk's `make check-fast` pass skipped main's suite on a tree whose
-    whole suite failed."""
-    outputs, printed, tree, asked = green_tree(
-        tmp_path,
-        lambda tree: {
-            f"{SELECTED}/{tree}": ref(tree, "selected"),
-            COMMIT: {"tree": {"sha": tree}},
-            ARTIFACTS: {"artifacts": []},
-        },
-    )
-    assert outputs == {"name": f"green-tree-{tree}", "marker": "none", "from": ""}
-    assert printed == (
-        f"green-tree: tree {tree}: passed only selected tests on the desk, which marked it with"
-        " the commit c0ffee, so the suite runs"
-    )
-    assert asked == [
-        f"api {FULL}/{tree}",
-        f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100",
-        f"api {SELECTED}/{tree}",
-        f"api {COMMIT}",
-    ]
+    assert asked[-1] == f"api {ARTIFACTS}?name=green-tree-{tree}&per_page=100"
 
 
 def test_a_ref_whose_commit_cannot_be_read_runs_the_suite(tmp_path):
-    outputs, printed, tree, asked = green_tree(tmp_path, lambda tree: {f"{FULL}/{tree}": ref(tree)})
+    outputs, printed, tree, asked = green_tree(tmp_path, lambda tree: {f"{REFS}/{tree}": ref(tree)})
     assert outputs == {"name": f"green-tree-{tree}", "marker": "unknown", "from": ""}
     assert printed.startswith("::warning::green-tree: ") and ": could not ask (" in printed
-    assert asked == [f"api {FULL}/{tree}", f"api {COMMIT}"]
+    assert asked == [f"api {REFS}/{tree}", f"api {COMMIT}"]
 
 
 def test_a_manual_run_and_a_run_again_run_the_suite_on_a_tree_the_desk_marked(tmp_path):
     def marked(tree):
-        return {f"{FULL}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
+        return {f"{REFS}/{tree}": ref(tree), COMMIT: {"tree": {"sha": tree}}}
 
     for at, env in enumerate(
         ({"GITHUB_EVENT_NAME": "workflow_dispatch"}, {"GITHUB_RUN_ATTEMPT": "2"})

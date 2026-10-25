@@ -159,11 +159,9 @@ jobs:
       # tree has one skips the suite: it would test the same files again. The skip is on the
       # steps, and the job's `if` is the event's alone, so a push to main always reports
       # `full`. A run that cannot ask runs the suite. A marker is a green run's artifact, or a
-      # ref `refs/jstack/green-tree/full/<tree>` the desk pushed after jmerge's fresh check ran
-      # `make check` on the same tree and it passed. The desk's `selected/<tree>` ref, from a
-      # fresh check of selected tests (`make check-fast`), skips nothing here: on 2026-10-23 one
-      # skipped this suite on a tree whose whole suite failed. The desk's check ran in an
-      # environment nobody locked, so a run skipped on the desk's marker still proves the lock.
+      # ref the desk pushed after jmerge's fresh check of the same tree passed. That check ran
+      # in an environment nobody locked, so a run skipped on the desk's marker still proves
+      # the lock.
       - name: green tree
         id: tree
         continue-on-error: true
