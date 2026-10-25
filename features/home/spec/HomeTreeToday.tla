@@ -190,10 +190,10 @@ Check ==
 
 \* jbus runs jmerge on each pass whatever home-thread holds, so it judges every home's pull
 \* request, and mode plays no part (jbus/merge.py:147 `ran = run.run("jmerge",
-\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1905-1906
+\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1906-1907
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==
-    /\ a = "jbus"     \* jmerge/cli.py:1905-1906 `if args.home: args.check = True`
+    /\ a = "jbus"     \* jmerge/cli.py:1906-1907 `if args.home: args.check = True`
 \* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1415 `while lock.take():`), a
 \* run that finds it held merges nothing (jmerge/cli.py:1433 `return lines.waits("wait", number,
 \* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1405 `lock.give()`).
