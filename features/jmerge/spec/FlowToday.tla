@@ -138,7 +138,7 @@ Rejudge(p) ==
 Stoppable(p) ==
     CASE Gap = "busy" -> FALSE
       [] Gap = "ended" -> st[p] = "merged"
-      [] OTHER -> TRUE
+      [] Gap = "turn" -> TRUE
 
 \* jbus.strays stops what a finished turn left (#351, #363, #416): a busy process, and an idle
 \* one only as Gap says.
