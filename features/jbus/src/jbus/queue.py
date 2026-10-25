@@ -67,6 +67,11 @@ line of `transitions.jsonl`, and the stored brief moves to
 `removed.json` that does not parse is `Unparsable`, as the table is: nothing launches and no
 verb writes until someone mends it.
 
+`withdraw` is jbus's own `remove`, on no one's word, of a row that never launched and whose work
+is gone, such as a fix for a red main that a later commit turned green (`watch._withdraw`). It
+takes the row out the same way, by `jbus`, and keeps its reason as `why` in both its line of
+`transitions.jsonl` and `removed.json`, so `was_removed` says why. It refuses a row that launched.
+
 `hold` sets `held` and `approve` clears it; a row that was never approved has none. `merge_after` is
 the slugs of rows whose pull requests merge before this row's. `add` writes `merge_after` again,
 along with `depends`, using the value of `--merge-after`, and refuses an order that jmerge could
@@ -128,6 +133,8 @@ STATUSES = (
     "left",
 )
 FINAL = ("merged", "done")
+UNLAUNCHED = ("queued", "gate")
+WITHDRAWN_BY = "jbus"
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 _SENT_TO = ("Home:", "Thread:", "Green main:", "Stacked on:")
 PAGE = "page"
@@ -185,7 +192,8 @@ def aside_path(state: Path, slug: str, text: str) -> Path:
 
 
 def removed(state: Path) -> dict[str, dict[str, str]]:
-    """Return the slugs removed for good, each with the `at` and `by` that its `remove` got."""
+    """Return the slugs removed for good, each with the `at` and `by` that its `remove` got, and
+    the `why` of a `withdraw`."""
     try:
         text = removed_path(state).read_text()
     except (FileNotFoundError, NotADirectoryError):
@@ -562,7 +570,9 @@ def order(row: Row) -> tuple[int, str]:
 
 
 def _was(slug: str, gone: dict[str, dict[str, str]]) -> str:
-    return f"{slug} was removed {gone[slug].get('at', '')} by {gone[slug].get('by', '')}"
+    why = gone[slug].get("why", "")
+    said = f"{slug} was removed {gone[slug].get('at', '')} by {gone[slug].get('by', '')}"
+    return f"{said}: {why}" if why else said
 
 
 def was_removed(state: Path, slug: str) -> str:
@@ -626,7 +636,17 @@ class Remove:
     at: str
 
 
-Verb = Add | Approve | Hold | Remove
+@dataclass(frozen=True)
+class Withdraw:
+    """`Withdraw` is jbus's own removal of a row that never launched, for `why`: the work it
+    asks for is no longer there to do (`withdraw`). `at` is when, in the user's zone."""
+
+    slug: str
+    why: str
+    at: str
+
+
+Verb = Add | Approve | Hold | Remove | Withdraw
 
 
 @dataclass(frozen=True)
@@ -1091,6 +1111,12 @@ def _do(
         row.pop("rebound", None)
         row.update(approved=made.line(), approval=held(made), brief_sha=stored)
         return f"approved {verb.slug}: brief {stored[:12]}, {made.line()}"
+    if isinstance(verb, Withdraw):
+        row = batch.row(verb.slug)
+        if row.get("thread") or row.get("status", "queued") not in UNLAUNCHED:
+            raise Refused(f"refused: {verb.slug} launched, and its crew has it")
+        _waited_on(rows, verb.slug)
+        return _take_out(batch, row, verb.slug, WITHDRAWN_BY, verb.at, verb.why)
     if user is None:
         raise Refused("refused: remove was given no settings to check --by and --at with")
     if verb.by != user.user:
@@ -1098,15 +1124,7 @@ def _do(
     if not user.takes(verb.at):
         raise Refused(f'refused: --at is "{user.form(verb.at)}"')
     row = batch.row(verb.slug)
-    text = batch.brief(verb.slug)
-    waits = sorted(
-        other["slug"]
-        for other in rows
-        if verb.slug in (*other.get("depends", []), *other.get("merge_after", []))
-        and other.get("status") != "merged"
-    )
-    if waits:
-        raise Refused(f"refused: {', '.join(waits)} wait on {verb.slug}: remove them first")
+    _waited_on(rows, verb.slug)
     if asks is None:
         raise Refused("refused: remove was given nothing to ask what is out with")
     is_out = out[verb.slug]
@@ -1115,30 +1133,49 @@ def _do(
     is_out = is_out or asks.launched(verb.slug)
     if is_out:
         raise Refused(f"refused: {is_out}")
+    return _take_out(batch, row, verb.slug, verb.by, verb.at)
+
+
+def _waited_on(rows: list[Row], slug: str) -> None:
+    """Refuse to take out a row that another row depends on or merges after."""
+    waits = sorted(
+        other["slug"]
+        for other in rows
+        if slug in (*other.get("depends", []), *other.get("merge_after", []))
+        and other.get("status") != "merged"
+    )
+    if waits:
+        raise Refused(f"refused: {', '.join(waits)} wait on {slug}: remove them first")
+
+
+def _take_out(batch: _Batch, row: Row, slug: str, by: str, at: str, why: str = "") -> str:
+    """Take the row out of the batch for good: its line of `transitions.jsonl`, its slug in
+    `removed.json` and its brief kept aside. `why` is a withdraw's reason, kept in both."""
+    rows, text = batch.rows, batch.brief(slug)
     kept = None
     if text is not None:
-        kept = aside_path(batch.state, verb.slug, text)
+        kept = aside_path(batch.state, slug, text)
         batch.aside[kept] = text
     was = row.get("status", "queued")
-    batch.moves.append(
-        {
-            "slug": verb.slug,
-            "from": was,
-            "to": "removed",
-            "at": clock().astimezone(UTC).isoformat(timespec="seconds"),
-            "by": verb.by,
-            "said": verb.at,
-            "row": dict(row),
-            "brief": str(kept) if kept else "",
-        }
-    )
+    move = {
+        "slug": slug,
+        "from": was,
+        "to": "removed",
+        "at": clock().astimezone(UTC).isoformat(timespec="seconds"),
+        "by": by,
+        "said": at,
+        "row": dict(row),
+        "brief": str(kept) if kept else "",
+    }
+    batch.moves.append(move | ({"why": why} if why else {}))
     rows.remove(row)
-    batch.gone[verb.slug] = {"at": verb.at, "by": verb.by}
-    batch.briefs[verb.slug] = None
+    batch.gone[slug] = {"at": at, "by": by} | ({"why": why} if why else {})
+    batch.briefs[slug] = None
     where = f"brief kept at {kept}" if kept else "it had no stored brief"
-    also = [] if was == "merged" else _unfollow(rows, verb.slug)
+    also = [] if was == "merged" else _unfollow(rows, slug)
     more = f", and held {', '.join(also)}: {FOLLOWED}" if also else ""
-    return f"removed {verb.slug}: was {was}, {verb.at} by {verb.by}, {where}{more}"
+    said = f"removed {slug}: was {was}, {at} by {by}, {where}{more}"
+    return f"{said}: {why}" if why else said
 
 
 def _none(line: int, error: Exception) -> Refused:
@@ -1267,6 +1304,14 @@ def hold(state: Path, slug: str) -> str:
 def remove(state: Path, slug: str, by: str, at: str, user: jsettings.Settings, asks: Asks) -> str:
     """Take the row out for good, and return the line that says what was done."""
     return _run(state, [(0, Remove(slug, by, at))], user, asks)[0]
+
+
+def withdraw(state: Path, slug: str, why: str, at: str) -> str:
+    """Take out, as jbus and on no one's word, a row that never launched (no thread, and at
+    `queued` or `gate`) whose work is no longer there to do, and return the line that says so.
+    `why` goes into its line of `transitions.jsonl` and into `removed.json`. A row that
+    launched, or that another row waits on, is refused."""
+    return _run(state, [(0, Withdraw(slug, why, at))])[0]
 
 
 def _options(verb: str, words: list[str]) -> dict[str, str]:
