@@ -119,8 +119,9 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
             pass
 
     class Listener(http.server.HTTPServer):
-        # `HTTPServer.server_bind` asks DNS for a name of 127.0.0.1, which on a Mac can wait
-        # on mDNS: bind without it.
+        """An `HTTPServer` that binds without asking DNS for a name of 127.0.0.1, a reverse
+        lookup that on a Mac can wait on mDNS."""
+
         def server_bind(self) -> None:
             socketserver.TCPServer.server_bind(self)
             self.server_name, self.server_port = self.server_address[:2]
