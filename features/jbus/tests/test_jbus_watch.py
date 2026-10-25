@@ -805,6 +805,15 @@ def test_once_the_train_passed_a_red_night_after_it_files_one_row_and_one_before
     ]
 
 
+def test_a_pass_on_the_train_is_kept_after_github_lists_it_no_more(kitchen):
+    """GitHub lists the last 20 runs, so a night that passed slides out of the list."""
+    macos_runs(kitchen, macos_green())
+    kitchen.poll()
+    kitchen.set("workflow-runs.json", {"macos-nightly.yml": [macos_run()]})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
+
+
 def macos_check_log():
     """Return a log in the shape of a macos-nightly job whose suite failed: pytest's summary,
     whose ids cut a parameter with spaces short and leave out an error at teardown, its last line,

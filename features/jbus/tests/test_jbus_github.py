@@ -352,10 +352,14 @@ def test_a_check_cancelled_at_its_first_attempt_is_run_again_once_and_journaled(
     assert sends(launched) == []
 
 
-def test_a_check_cancelled_again_at_its_rerun_is_told_to_the_home_once_and_not_run_again(launched):
+@pytest.mark.parametrize("line", ["a line", "\x1b[36;1ma line in colour\x1b[0m"])
+def test_a_check_cancelled_again_at_its_rerun_is_told_to_the_home_once_and_not_run_again(
+    launched, line
+):
+    """GitHub's log has escape sequences in it, which `gh api` gives only when asked to."""
     (launched.home / "home-id").write_text("mcp:home\n")
     ran(launched, attempt=2)
-    launched.set("logs.json", {"11": "a line\n" + TIMEOUT + "\n"})
+    launched.set("logs.json", {"11": line + "\n" + TIMEOUT + "\n"})
     launched.set("open.json", [pull(launched, [cancelled()])])
     passes(launched, 0, 3, 6)
     said = "alpha: #7: its check was cancelled twice, at 30 min each: its timeout of 30 min"
