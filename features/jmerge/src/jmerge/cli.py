@@ -39,6 +39,7 @@ from jmerge import (
 )
 from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
+from jmerge.lock import MergeLock
 
 LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
@@ -1393,15 +1394,30 @@ class Repo:
         rebase: str = "",
         judged: ready.Judged | None = None,
     ) -> str:
-        number = str(one.number)
         judged = judged or ready.Judged()
         if self.own and self.unruly is None:
             self.unruly = self.rules()
+        lock = MergeLock(self.state)
+        try:
+            return self.merge_holding(lock, one, slug, rebase, judged)
+        finally:
+            lock.give()
+
+    def merge_holding(
+        self, lock: MergeLock, one: ready.PullRequest, slug: str, rebase: str, judged: ready.Judged
+    ) -> str:
+        """Merge `one` while this run holds the repo's merge lock, from the read of its base's
+        tip to the merge. A tip that moved since it was judged gives the lock back while the pull
+        request is judged again, so a fresh check holds up no other run."""
+        number = str(one.number)
         again = 0
-        while judged.tip:
+        while lock.take():
+            if not judged.tip:
+                break
             at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")
             if not at.returncode and _first_word(at.stdout) == judged.tip:
                 break
+            lock.give()
             if again == JUDGED_AGAIN_AT_MOST:
                 guarded = f"guarded (touches {judged.path}), " if judged.path else ""
                 moved = ready.MAIN_MOVED.format(base=one.base)
@@ -1412,6 +1428,8 @@ class Repo:
             if again_judged.judged is None:
                 return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
             rebase, judged = again_judged.note, again_judged.judged
+        else:
+            return lines.waits("wait", number, one.url, ready.MERGING)
         landing = one.base == self.trunk and one.branch in self.integration
         method, why = self.landing if landing else ("--squash", "")
         if not method:
