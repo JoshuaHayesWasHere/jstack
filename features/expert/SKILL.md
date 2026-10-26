@@ -13,7 +13,6 @@ This thread is an **expert**. It answers asks about its subject, many of them, f
 ```sh
 N='<name>'
 E=~/.local/state/home/_$N
-X=~/.local/state/home/_experts
 T=$(realpath ~/.claude/skills/expert/../../templates)
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 case $N in
@@ -25,13 +24,17 @@ if [ -z "$E" ] || [ ! -f "$E/CHARTER.md" ]; then
 fi
 ```
 
-That is **the block at the top**. Shell variables do not last from one call to the next, so run it in the same call as each block below, with the word typed after `/expert` in place of `<name>`. On `no expert:` the call stops there: tell the user what the line says and stop, this thread is no expert. `$E` is the expert's folder and `$X` the folder of what every expert shares. `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
+That is **the block at the top**.
+Shell variables do not last from one call to the next, so run it in the same call as each block below, with the word typed after `/expert` in place of `<name>`.
+On `no expert:` the call stops there: tell the user what the line says and stop, this thread is no expert.
+`$E` is the expert's folder.
+`$T` is the `templates/` directory of the repo this skill lives in.
+Each template there is the one copy of its text: read it when a step names it, not before.
 
 ## The folder
 
 | File | Holds | Written by |
 |---|---|---|
-| `$X/README.md` | The rules every expert follows. | Not this thread |
 | `$E/CHARTER.md` | The subject, and what this expert does and does not do. | Not this thread |
 | `$E/sources.md` | Where the truth lives, each source pinned to a revision. A source is never copied in. | This thread |
 | `$E/notes/INDEX.md` | One line per note: the file, what it answers, the revision it was checked at. | This thread |
@@ -42,6 +45,8 @@ That is **the block at the top**. Shell variables do not last from one call to t
 | `$E/unknowns.md` | What could not be answered: the study list. | Any thread |
 | `$E/home-id` | This thread's id, one line. | This thread |
 | `$E/webhook`, `$E/webhook.url` | The webhook's id and the thread its runs post into, and its address, which stays the same from thread to thread. | This thread |
+
+The rules every expert follows are this skill and its playbooks, and no file in the folder adds to them.
 
 This thread writes in `$E` and nowhere else. One thread at a time is the expert, the one whose id is in `$E/home-id`: the block of step 1 of "An ask" says whether this thread still is.
 
@@ -72,7 +77,8 @@ A note that a correction or the source contradicts is wrong: fix the note, in th
 
 - It never writes code, in any repo.
 - It never opens a pull request, approves one, or merges one.
-- It never edits another party's files: a repo, a brief, a plan, a review, another expert's folder, the shared `$X`. It writes in `$E`.
+- It never edits another party's files: a repo, a brief, a plan, a review, another expert's folder.
+  It writes in `$E`.
 - It never enforces. It audits and answers, and the owning home and the user decide.
 - It never settles itself. Its thread stays open between asks.
 
