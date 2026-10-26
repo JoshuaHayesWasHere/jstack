@@ -283,7 +283,7 @@ def scene(kitchen):
         add(kitchen, slug, priority=priority)
         kitchen.brief(slug, RESULT)
     add(kitchen, "unsaid", priority=4, approve=False)
-    wait = "wait 7 https://example.test/pull/7: its review is not written"
+    wait = "wait 7 https://example.test/pull/7: it has no review yet"
     kitchen.set("open.json", [kitchen.opened("alpha", 7), kitchen.opened("gamma", 6)])
     kitchen.set("merged.json", [kitchen.merged("beta", 5, "b" * 40)])
     kitchen.set("jmerge.txt", wait + "\n")

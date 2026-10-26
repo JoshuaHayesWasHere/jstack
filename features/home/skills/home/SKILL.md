@@ -102,6 +102,7 @@ The key names a decision or a stop so the same one has the same key on every tur
 
 A blocker `jbus clear` prints as `decision` is raised by jbus itself, and its wake brings it: write no line for it until then.
 A wait, a hold and a stalled thread are no stop while jbus or a thread is at work on them: jbus lists each on what waits on the user ("Needs you").
+Rows held by one reason that no thread works on for 30 minutes are a stop: jbus wakes their home once, with the reason, the rows and how long they have been held, and lists the hold on "Needs you" until it clears or a thread takes it up.
 
 Run this in one call with the block at the top and the block that finds this home, with the turn's lines in place of the line in angle brackets:
 

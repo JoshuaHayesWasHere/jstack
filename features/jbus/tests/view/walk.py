@@ -124,6 +124,7 @@ SURFACES = {
     ("kind", "approve"): Surface(needs=True),
     ("kind", "hold"): Surface(needs=True),
     ("kind", "config"): Surface(needs=True),
+    ("kind", "held"): Surface(needs=True),
     ("source", "ok"): Surface(),
     ("source", "missing"): Surface(),
     ("source", "unreadable"): Surface(broken="unread"),
@@ -332,7 +333,9 @@ def build(scene):
     gate = PIPED.format(n="<n>", asked="walk the whole line?", status="open", slug="walker")
     asked = questions.ask(scene.state, scene.home, "walker", gate + HOLDS, ago(minutes=20))[0]
     listed.append(item("config", "config:t3", "no sign-in to T3 Code", hours=1))
+    listed.append(item("held", "held:0123456789ab", "held a, b: 31 minutes by the walk", hours=1))
     items |= {"gate": [questions.item(asked)["key"]], "config": ["config:t3"]}
+    items["held"] = ["held:0123456789ab"]
     scene.waiting(listed)
     alone = {}
     for role, liveness in itertools.product(threads.ROLES, live.LIVENESS):
