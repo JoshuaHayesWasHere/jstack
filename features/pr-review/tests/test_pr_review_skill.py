@@ -1458,25 +1458,24 @@ def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(
     ]
 
 
-def test_a_merge_gate_is_stopped_on_the_tools_of_macos_too(reviewer, tmp_path):
+def test_a_merge_gate_is_stopped_on_the_tools_of_macos_too(reviewer, tmp_path, monkeypatch, capsys):
     """macOS has no `timeout`: with only its tools on PATH, a gate past the limit is still
     stopped, it and what it started, and said so."""
     tools = bsd_tools(tmp_path / "bsd")
+    _, _, _, head = gated(reviewer, "true")
+    state = reviewer.state / "home" / ".local" / "state" / "home" / reviewer.work.name
+    (state / "merge-gate").write_text("sleep 30; :\n")
+    monkeypatch.chdir(reviewer.work)
+    monkeypatch.setenv("PATH", f"{reviewer.stub}:{BIN}:{tools}")
+    monkeypatch.setenv("STUB", str(reviewer.stub))
     began = time.monotonic()
-    printed, code, _, head = gated(
-        reviewer,
-        "sleep 30; :",
-        fill={"limit=540": "limit=1"},
-        PATH=f"{reviewer.stub}:{BIN}:{tools}",
-    )
-    assert (code, printed) == (
-        0,
-        [
-            f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
-            "(principle: none) (bucket: Act on)"
-        ],
-    )
-    assert time.monotonic() - began < 15
+    code = merge_gate.review(state, head, URL, limit=1)
+    printed = capsys.readouterr().out.splitlines()
+    assert code == 0 and time.monotonic() - began < 15
+    assert printed == [
+        f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
+        "(principle: none) (bucket: Act on)"
+    ]
 
 
 def test_the_open_pull_requests_that_share_a_file_are_listed(reviewer):
