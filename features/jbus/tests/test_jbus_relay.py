@@ -744,7 +744,9 @@ def put_away(pid: int) -> None:
 
 
 @pytest.mark.parametrize(
-    ("how", "more"), [("fail", ()), ("hang", ("--timeout", "0.1"))], ids=["assert", "timeout"]
+    ("how", "more"),
+    [("fail", ()), ("hang", ("--timeout", "0.1", "-o", "timeout_func_only=true"))],
+    ids=["assert", "timeout"],
 )
 def test_a_test_that_fails_or_times_out_leaves_no_relay(tmp_path, how, more):
     pytest_run = run_leaves(tmp_path, how, *more)
