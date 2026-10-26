@@ -33,7 +33,7 @@ def drawn(found):
 
 def unreached(seen, names):
     """The panels that nothing on the first screen and nothing in a drawer opens: the
-    browser found no `data-open` that names them."""
+    browser found no `data-open` and no link of a Needs you row that names them."""
     opened = {one["target"].partition(":")[0] for one in seen["opened"]}
     return sorted(set(names) - opened)
 
@@ -53,13 +53,14 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
     assert FONT in page
     asks = [
         "/answer",
-        "/answer?project=",
         "/panel/",
         "/panel/steps.json?project=",
+        "/panel/you/approve",
+        "/panel/you/hold?project=",
+        "/panel/you/steer",
         "/stack.json",
         "/state.json",
         "/steer",
-        "/steer?project=",
         "/task/",
         "/usage",
     ]
@@ -132,7 +133,7 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         seen = look(scene, tmp_path, port=process.port)
         clean(seen)
         assert unreached(seen, ["sample", "lost", "thrown"]) == ["lost", "thrown"]
-        assert seen["needs"]["head"] == "3 Needs you"
+        assert seen["needs"]["head"] == "3 Needs you · 1 goes ahead on its default"
         assert (seen["needs"]["extra"][-1]["text"], seen["needs"]["extra"][-1]["open"]) == (
             "1 sample",
             "sample",

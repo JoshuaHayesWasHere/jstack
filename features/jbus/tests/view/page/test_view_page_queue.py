@@ -96,7 +96,8 @@ def test_a_drawer_says_one_state_and_the_line_names_what_blocks_a_task(scene, tm
     )
     now = {one["target"].removeprefix("task:"): one["now"] for one in seen["opened"]}
     assert {f"task:{slug}" for slug in expected} <= opened
-    assert [one["acts"][0]["text"] for one in seen["needs"]["now"]].count("Close it") == 3
+    left = [one for one in seen["needs"]["now"] if one["key"].partition("/")[2].startswith("left:")]
+    assert len(left) == 3, "each task left over is one need of the one list"
     for slug, kind in expected.items():
         name = "Ended, not closed" if slug in ("fig-burr", "fig-rind") else NAMES[kind]
         assert now[slug].startswith(f"NOW: {name.upper()} "), now[slug]
