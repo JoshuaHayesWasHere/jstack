@@ -50,7 +50,8 @@ def review(fields: Fields, unfilled: str) -> str:
 _EVERY_CORE = re.compile(
     r"stress-ng\b[^\n`]*?--cpu[ =]+0\b"
     r"|--cpu[ =]+[\"']?(?:\$\(nproc\)|`nproc`)"
-    r"|\b(?:every|all(?: the)?) (?:cpu )?cores?\b",
+    r"|\ball(?: the)? (?:cpu )?cores\b"
+    r"|\bevery (?:cpu )?core(?=\s*(?:[^\w\s-]|$)| (?:busy|loaded|saturated|pinned|maxed|at|of)\b)",
     re.I,
 )
 _UNASKED = re.compile(
@@ -63,7 +64,9 @@ _CLAUSE = re.compile(r"[.;!?](?:\s|$)")
 def load(fields: Fields) -> str:
     """Why a brief asks for a load that takes every core. `fields` are the brief's head.
 
-    It reads them for `stress-ng --cpu 0`, `--cpu $(nproc)` or every core. A `Ruled out:` field
+    It reads them for `stress-ng --cpu 0`, `--cpu $(nproc)` or every core: `all cores`, or
+    `every core` where `core` is the noun, at a stop or before a load word (`busy`, `loaded`), so
+    `every core module` and `all core tests` ask for no load. A `Ruled out:` field
     names what was set aside, and a clause that turns the ask down (`never`, `not`, `instead
     of`) does not ask for it either. Such a load starves every other thread on the machine, and
     the way to load it is a bounded one, a few cores or `taskset`, inside `jgauge test-slot`.

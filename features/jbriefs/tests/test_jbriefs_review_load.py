@@ -58,6 +58,7 @@ def test_review_or_after_with_the_word_passes(mode, decisions):
         ("Load: run `stress-ng --cpu=`nproc`` beside the test\n", "--cpu=`nproc`"),
         ("Done when:\n- the test passes with every core busy\n", "every core"),
         ("Proves it: the timing holds with all the cores loaded\n", "all the cores"),
+        ("Load: load every core, then time the test\n", "every core"),
     ],
 )
 def test_a_load_that_takes_every_core_is_refused(line, asked):
@@ -73,6 +74,11 @@ def test_a_load_that_takes_every_core_is_refused(line, asked):
         "Load: bounded, never `stress-ng --cpu 0`\n",
         "Load: a few cores instead of every core\n",
         "## Result\nProof: stress-ng --cpu 0 was not run\n",
+        "Ruled out: `stress-ng --cpu 0`, it takes every core\n",
+        "Done when:\n- every core module has a test\n",
+        "Task: run all core tests\n",
+        "Proves it: the check passes on every core path\n",
+        "Where: all the core files\n",
     ],
 )
 def test_a_bounded_load_or_one_turned_down_passes(line):

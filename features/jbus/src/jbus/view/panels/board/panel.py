@@ -14,8 +14,9 @@ request, where it has one (`STAGE_OF_PULL`). A task the pass did not judge is on
 its row's status (`STAGE_OF_STATUS`). So no worker is ever on an unknown stage, and the tables
 are checked against every step, facet and status when the module loads.
 
-A reviewer at work is in review. Once its turn ended, it is where its task is, and it is off
-the board once that task merged or is gone, since the crew stands for the work. A scout is
+A reviewer at work is in review. Once its turn ended, it is where its task is, for as long as
+its task has been there, and it is off the board once that task merged or is gone, since the
+crew stands for the work. A scout is
 running until its request has a Report that is done, and green from then until its home
 settles its thread. `tone` says what asks: `bad` for what is broken, `ask` for what waits on
 the user, as `state.RANK` groups it.
@@ -194,14 +195,17 @@ def _crew(read: Read, task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _thread(thread: dict[str, Any], stages: dict[str, str]) -> dict[str, Any] | None:
+def _thread(thread: dict[str, Any], crews: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
     role, slug = thread["role"], thread["slug"]
     tone = TONE.get(thread["rank"], "")
     if role == "reviewer":
-        stage = "review" if thread["out"] else stages.get(slug)
-        if stage in (None, "merged"):
+        state = LIVE_WORD[thread["live"]]
+        if thread["out"]:
+            stage, since = "review", thread["created"]
+        elif slug in crews and crews[slug]["stage"] != "merged":
+            stage, since = crews[slug]["stage"], crews[slug]["since"]
+        else:
             return None
-        state, since = LIVE_WORD[thread["live"]], thread["created"]
     elif role == "scout":
         said = (thread.get("request") or {}).get("state", "missing")
         stage, state, asks = SCOUT[said]
@@ -250,10 +254,10 @@ def _plan(home: Path, rows: list[queue.Row]) -> tuple[str, list[dict[str, Any]]]
 def build(read: Read) -> dict[str, Any]:
     order = {key: at for at, (key, _) in enumerate(STAGES)}
     crews = [_crew(read, task) for task in read.tasks + read.ended]
-    stages = {one["slug"]: one["stage"] for one in crews}
+    by_slug = {one["slug"]: one for one in crews}
     homes = {task["slug"]: task["home"] for task in read.tasks + read.ended}
     for one in read.panel("merged")["merged"]:
-        if one["slug"] in stages:
+        if one["slug"] in by_slug:
             continue
         crews.append(
             {
@@ -270,7 +274,7 @@ def build(read: Read) -> dict[str, Any]:
         homes[one["slug"]] = read.homes.of_task(one["slug"]).name
     placed = [(homes[one["slug"]], one) for one in crews]
     for thread in read.out or []:
-        made = _thread(thread, stages)
+        made = _thread(thread, by_slug)
         if made is not None and thread["home"] is not None:
             placed.append((thread["home"], made))
     cards = read.homes.group(read.tasks, read.panel("you")["needs"], read.out)
