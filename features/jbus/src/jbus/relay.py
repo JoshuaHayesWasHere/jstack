@@ -85,7 +85,6 @@ import math
 import os
 import re
 import shutil
-import socketserver
 import subprocess
 import threading
 import time
@@ -99,6 +98,7 @@ from pathlib import Path
 from typing import Any
 
 from jbus import chat, leftover, silent, verbs
+from jbus.bind import NoLookup
 
 Body = dict[str, Any]
 Say = Callable[[str], None]
@@ -534,15 +534,9 @@ class Pager:
             self.page(f"unheard-{id}", line)
 
 
-class Server(http.server.ThreadingHTTPServer):
-    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address.
-
-    `HTTPServer.server_bind` calls `socket.getfqdn`, and on a Mac that reverse lookup of
-    127.0.0.1 can wait on mDNS for longer than the relay may take to start."""
-
-    def server_bind(self) -> None:
-        socketserver.TCPServer.server_bind(self)
-        self.server_name, self.server_port = self.server_address[:2]
+class Server(NoLookup, http.server.ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address
+    (`jbus.bind`)."""
 
 
 class Relay:

@@ -120,7 +120,6 @@ import json
 import os
 import re
 import socket
-import socketserver
 import subprocess
 import sys
 import threading
@@ -137,6 +136,7 @@ from urllib.parse import parse_qs
 import jbus
 import jsettings
 from jbus import Refused, digest, record, verbs
+from jbus.bind import NoLookup
 from jbus.view import panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
@@ -587,21 +587,14 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-class Door(ThreadingHTTPServer):
-    """A listener that binds without asking DNS for a name of its address.
-
-    `HTTPServer.server_bind` calls `socket.getfqdn`, and on a Mac that reverse lookup of
-    127.0.0.1 can wait on mDNS for longer than the server may take to start."""
+class Door(NoLookup, ThreadingHTTPServer):
+    """A listener that binds without asking DNS for a name of its address (`jbus.bind`)."""
 
     daemon_threads = True
     allow_reuse_address = True
     app: App
     names: frozenset[str]
     origins: frozenset[str]
-
-    def server_bind(self) -> None:
-        socketserver.TCPServer.server_bind(self)
-        self.server_name, self.server_port = self.server_address[:2]
 
 
 class Door6(Door):

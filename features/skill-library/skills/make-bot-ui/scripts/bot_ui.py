@@ -55,6 +55,7 @@ class Refused(Exception):
     """A config, an address or a request this server will not take."""
 
 
+# A copy of jbus.bind.NoLookup: this script runs standalone and cannot import jbus.
 class Server(ThreadingHTTPServer):
     """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address.
 
