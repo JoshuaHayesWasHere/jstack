@@ -113,6 +113,21 @@ def test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_defau
         assert seen["small"] == []
 
 
+def test_the_inbox_opened_in_one_project_is_folded_in_the_next(scene, tmp_path):
+    """Opening the inbox is for the project it was opened in. A route to another project shows
+    that project's first screen: each need as its question and the line of what goes ahead."""
+    lineup(scene, TODAY)
+    stacked(scene)
+    screen = (DESK[0], DESK[1] + NEEDS)
+    walk = ["tap:#nfold [data-fold]", "hash:#/pantry", "look"]
+    seen = look(scene, tmp_path, screen=screen, walk=walk, at=4000 + 500 * len(walk), budget=20000)
+    assert seen["errors"] == []
+    assert seen["walked"][-1]["hash"] == "#/pantry"
+    now = seen["needs"]["now"]
+    assert [one["what"] for one in now] == ["which tin?"]
+    assert all(one["ahead"].startswith("Goes ahead: ") for one in now)
+
+
 def test_folding_the_inbox_keeps_an_accept_that_is_counting_on_screen_with_its_undo(
     scene, tmp_path
 ):
