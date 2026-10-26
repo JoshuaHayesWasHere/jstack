@@ -3,13 +3,15 @@ default it goes ahead on, and an action taken on the page reaches jbus as the us
 path `jbus answer`, `jbus queue approve --word` and `jbus word` take. Once it is recorded, the
 need leaves the list."""
 
+from datetime import timedelta
+
 import pytest
 
 from jbus import queue, word
 from jbus.view.panels.you import panel as panel_you
 from test_jbus_kitchen import complete
 from view.scene import EVIL, GATE, Scene, Served
-from view.test_view_answer import Counter
+from view.test_view_answer import POLLED, Counter
 from view.test_view_you import needing
 
 HOME = "mcp:home-demo"
@@ -39,6 +41,11 @@ def unapproved(counter, slug="oat-milk"):
 
 def needs(served):
     return {one["key"]: one for one in served.json("/state.json?project=demo")["needs"]}
+
+
+def seen(counter):
+    """A pass before the view's time, which gives each gate of the home's file its `since`."""
+    counter.kitchen.poll(POLLED - timedelta(minutes=10))
 
 
 def words(counter):
@@ -140,12 +147,15 @@ def test_undo_while_a_launch_is_out_is_refused_and_keeps_no_word(counter):
 
 def test_steer_gives_the_users_line_to_the_home_and_the_need_moves_to_steered(counter):
     """A gate of the home's own file is no question jbus holds, so the user steers it: the line
-    is a word for the home, and the need leaves the list for the list of what was steered."""
+    is a word for the home, and the need, which a pass gave its time, leaves the list for the
+    list of what was steered."""
     counter, served = counter
     (counter.kitchen.home / "gates.md").write_text(
         GATE.format(n=40, asked="which jar?", status="open", default="")
     )
+    seen(counter)
     (one,) = [one for one in needs(served).values() if one["what"] == "which jar?"]
+    assert one["since"]
     assert (one["act"], one["default"]) == ("steer", panel_you.IDLE["gate"])
     status, said = act(served, "steer", {"subj": one["subj"], "words": "  the blue  one "})
     assert status == 200, said
@@ -200,6 +210,7 @@ def test_one_count_on_every_screen_and_a_steered_need_leaves_each_of_them(counte
     (counter.kitchen.home / "gates.md").write_text(
         GATE.format(n=40, asked="which jar?", status="open", default="")
     )
+    seen(counter)
     before = counts(served)
     assert len(set(before)) == 1 and before[0] >= 1, before
     for read in (served.json("/state.json?project=demo"), served.json("/stack.json")):

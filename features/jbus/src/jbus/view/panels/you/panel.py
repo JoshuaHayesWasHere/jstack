@@ -40,7 +40,9 @@ with the need's subject, as a word. A need goes from the list as soon as its act
 a question that closed, a row with a go that holds for its brief as it is now (whose proposed
 item then stays left to the row, as it was while the row waited), an item approved, and a need
 whose subject a word kept after the need began names (`steered`). A steered need is on the list
-`steered`, with its home, and comes back to `needs` if its state changes after the word."""
+`steered`, with its home, and comes back to `needs` if its state changes after the word. A need
+that keeps no time (`since`) has no change to come back on, so a steer leaves it on `needs`, with
+the time of the line."""
 
 from __future__ import annotations
 
@@ -584,6 +586,12 @@ def _steered(one: dict[str, Any], words: list[word.Word]) -> str | None:
     return max((at for at in kept if at > began), default=None) if one["subj"] else None
 
 
+def _quiet(one: dict[str, Any]) -> bool:
+    """Whether a steered need leaves the lists until it changes. A need that keeps no time has
+    no change to come back on, so it stays, with when it was steered."""
+    return bool(one["steered"] and one["since"])
+
+
 def _acted(read: Read, one: dict[str, Any], words: list[word.Word]) -> dict[str, Any]:
     """A need with its one action, the default it goes ahead on, the sha of the brief that a
     row to approve has now, and when the user steered it."""
@@ -613,9 +621,9 @@ def build(read: Read) -> dict[str, Any]:
     return {
         "waiting": waits,
         "gates": _gates(read.state, read.home),
-        "needs": [one for one in needs if not one["steered"]],
-        "proceeds": [one for one in proceeds if not one["steered"]],
-        "steered": [one for one in [*needs, *proceeds] if one["steered"]],
+        "needs": [one for one in needs if not _quiet(one)],
+        "proceeds": [one for one in proceeds if not _quiet(one)],
+        "steered": [one for one in [*needs, *proceeds] if _quiet(one)],
     }
 
 
