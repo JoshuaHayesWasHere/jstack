@@ -33,8 +33,9 @@ A reading over its limit is an incident, with the key `health <the reading's key
 when a reading under the limit ends it (`alert.closed`). When jbus could not take a reading
 (`over` None), it leaves that reading's incident as it is. When jbus no longer takes an
 incident's reading, because a mount or an instance is gone or the config no longer posts to
-a relay, jbus ends the incident with no line. jbus sends a page to the desk, and once to
-the top-level webhook as an event of the machine (`wake.Box.send`).
+a relay, jbus ends the incident with no line. jbus sends a page to the desk, to the home thread of
+every project whose `wake` picks it, and once to the top-level webhook as an event of the machine
+(`wake.Box.send`), from the first project's box alone.
 
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
@@ -53,7 +54,7 @@ import tempfile
 import time
 import urllib.parse
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -499,12 +500,16 @@ def first(half: Any) -> None:
 
 
 def page(config: jbus.Config, now: datetime, say: Callable[[str], None], line: str) -> None:
-    """Say the line, raise it on the desk, and queue it once for the top-level webhook."""
+    """Say the line, raise it on the desk, and queue it into every project's box: each home thread
+    gets it, and the top-level webhook once, from the first project's box."""
     say(line)
     wake.notify(line)
-    if config.projects:
-        first = config.projects[0]
-        alert.queue(wake.Box(config.state(first), first, config.webhook), line, machine=True)
+    for rank, project in enumerate(config.projects):
+        if rank and not project.to_home:
+            continue
+        if rank:
+            project = replace(project, wake="home")
+        alert.queue(wake.Box(config.state(project), project, config.webhook), line, machine=True)
 
 
 def show(found: list[Reading]) -> list[str]:
