@@ -22,10 +22,20 @@ Any other method gets 405.
 
 ### What the bare link shows
 
-The bare link, `http://127.0.0.1:4388/` or `#/`, shows every project at once, as a map of each project and its homes.
+The bare link, `http://127.0.0.1:4388/` or `#/` (and its alias `#/flow`), shows every project at once, as the board of every open row in its stage, from `/panel/board.json`.
 A project is a directory of `~/.local/state/jbus` that holds a `queue.json`.
 The view never reads or shows a project retired to `~/.local/state/jbus-retired`.
-From the top, the page has these parts:
+From the top, the board has these parts, under the line of what waits on you:
+
+| Part | What it shows |
+|---|---|
+| Headlines | Most stuck: the stage with the most rows not moving, and its oldest such row with its cause. Waiting longest: the row not moving for the longest, its stage and its cause. Longest chain: how deep it is, how many chains there are, and its head with the head's stage and cause. |
+| Stages | A strip with each stage's count, its oldest age and a bar of its rows not moving. The stages are Scout, Queued, Crew, Needs you, Review, Fix, Review 2, Check, Merge, Train and Merged (today's). |
+| Home chips | A chip for each home with its count, and "Not moving only". They filter the cards, and the choice is kept in the address: `#/?home=<home>&still=1`. |
+| Cards | A column for each stage, the most stuck one outlined, with a card for each row: its slug, home, age and cause, and an amber edge when it is not moving. Picking a card marks what it waits on and what waits on it, back to the head, links them over the columns and dims the rest; the pick is kept as `pick=<slug>`, and Esc clears it. On a phone each stage is a fold with its count and oldest age, the most stuck one open. |
+
+The header's Homes tab, `#/homes`, shows every project as a map of each project and its homes.
+From the top, it has these parts:
 
 | Part | What it shows |
 |---|---|

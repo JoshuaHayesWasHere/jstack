@@ -14,7 +14,8 @@
     ".bd-hd .tag { display: block; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }" +
     ".bd-v { display: block; font-size: 19px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }" +
     ".bd-d { display: block; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    ".bd-l { font: inherit; font-family: var(--mono); color: var(--ink); background: none; border: 0; border-bottom: 1.5px solid var(--line); padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; }" +
+    ".bd-l { font: inherit; font-family: var(--mono); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }" +
+    ".bd-hm { display: none; font-size: 15px; color: var(--ink); align-self: center; }" +
     ".bd-strip { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }" +
     ".bd-st { min-width: 0; display: grid; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); padding: 4px 6px 5px; }" +
     ".bd-st.hot { border-color: var(--due); box-shadow: inset 0 0 0 1px var(--due); }" +
@@ -33,11 +34,11 @@
     ".bd-c { width: 100%; min-width: 0; display: grid; gap: 1px; text-align: left; font: inherit; font-size: 13px; line-height: 1.3; color: var(--ink); background: var(--surface); border: 1.5px solid var(--hair); border-left: 4px solid var(--hair); border-radius: 6px; padding: 3px 6px 4px; cursor: pointer; }" +
     ".bd-c.still { border-left-color: var(--due); }" +
     ".bd-c.pk { border-color: var(--focus); border-left-color: var(--focus); box-shadow: 0 0 0 1.5px var(--focus); }" +
-    ".bd-c.up, .bd-c.dn { border-color: var(--ink); }" +
-    ".bd-c.dim { background: var(--canvas); color: var(--ink-2); }" +
+    ".bd-c.up, .bd-c.dn { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }" +
+    ".bd-c.dim, .bd-c.dim .bd-m, .bd-c.dim .bd-u { background: var(--canvas); color: var(--ink-3); border-color: var(--hair); font-weight: 400; }" +
     ".bd-c.dim.still { border-left-color: var(--hair); }" +
     ".bd-s { font-family: var(--mono); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }" +
-    ".bd-m, .bd-u { color: var(--ink-2); overflow-wrap: anywhere; } .bd-w { overflow-wrap: anywhere; }" +
+    ".bd-m, .bd-u { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; } .bd-w { overflow-wrap: anywhere; }" +
     "svg.bd-links { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }" +
     "svg.bd-links path { fill: none; stroke: var(--focus); stroke-width: 2; }" +
     ".bd-det { border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 0 10px; }" +
@@ -48,7 +49,7 @@
     ".bd-unpl { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
     "@media (max-width: 1180px) { .bd-strip, .bd-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
     "@media (max-width: 640px) { .bd-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .bd-strip { display: none; } .bd-board { gap: 6px; }" +
-    " .bd-chips button, .bd-l { min-height: 44px; } .bd-c { min-height: 44px; font-size: 15px; } }";
+    " .bd-chips button, .bd-hm { min-height: 44px; } .bd-hm { display: inline-flex; align-items: center; padding: 0 6px; } .bd-c { min-height: 44px; font-size: 15px; } #homes { display: none; } }";
   document.head.appendChild(css);
 })();
 
@@ -135,7 +136,7 @@ function boardChips(view) {
   return '<div class="bd-chips" data-role="chips" role="group" aria-label="Show the rows of">' +
     chip("data-bhome", "", "All homes " + boardRows().length, !view.home) +
     named.map(function (h) { return chip("data-bhome", h, esc(h) + " " + homes[h], view.home === h); }).join("") +
-    chip("data-bstill", "1", "Not moving only " + still, view.still) + '</div>';
+    chip("data-bstill", "1", "Not moving only " + still, view.still) + '<a class="bd-hm" href="#/homes">Homes map</a></div>';
 }
 
 function boardCard(r, marks, on) {
@@ -151,10 +152,10 @@ function boardCards(stages, hot, marks, on) {
   return '<div class="bd-board' + (phone ? "" : " cols") + '" data-role="cards"' + (phone ? "" : ' style="grid-template-columns: ' + boardCols(stages) + '"') + '>' + stages.map(function (s) {
     var age = s.key === "merged" ? "today" : s.oldest ? "oldest " + boardAge(s.oldest.since) : "";
     var list = s.rows.length ? '<ol>' + s.rows.map(function (r) { return boardCard(r, marks, on); }).join("") + '</ol>' : s.count ? '<p class="bd-u">' + plural(s.count, "row", "rows") + ', none drawn</p>' : "";
-    if (!phone) return '<section class="bd-col' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><h3>' + esc(s.name) + ' ' + s.count + (age ? ' <span>· ' + age + '</span>' : "") + '</h3>' + list + '</section>';
+    if (!phone) return '<section class="bd-col' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><h3>' + esc(s.name) + ' <b>' + s.count + '</b>' + (age ? ' <span>· ' + age + '</span>' : "") + '</h3>' + list + '</section>';
     var marked = on && s.rows.some(function (r) { return marks[boardKey(r.project, r.slug)]; });
     var open = marked || (BOARD_OPEN[s.key] === undefined ? s.key === hot : BOARD_OPEN[s.key]);
-    return '<details class="bd-det' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"' + (open ? " open" : "") + '><summary>' + esc(s.name) + ' ' + s.count +
+    return '<details class="bd-det' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"' + (open ? " open" : "") + '><summary>' + esc(s.name) + ' <b>' + s.count + '</b>' +
       (s.still && s.key !== "merged" ? ' <span>· ' + s.still + ' not moving</span>' : "") + (age ? ' <span>· ' + age + '</span>' : "") + '</summary>' + list + '</details>';
   }).join("") + '<svg class="bd-links" aria-hidden="true" focusable="false"></svg></div>';
 }
