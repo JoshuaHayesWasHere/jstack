@@ -166,4 +166,4 @@ On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>
 On `not sent`, nothing was queued: fill in the line it names and run it again.
 An answer that differs from the default comes back as a message here, from jbus.
 A review finding you cannot settle without the user's word is such a question.
-Only the four pauses of "Carry on" are asked here and waited on.
+The four things "Carry on" never does on a default are such gates, each one that holds.

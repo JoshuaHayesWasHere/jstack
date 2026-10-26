@@ -331,3 +331,97 @@ def test_a_short_holder_told_to_stop_stops_what_its_command_started(slots):
     holder.wait(timeout=5)
     pid = int((slots.state / "pid").read_text())
     assert slots.waits(lambda: not Path(f"/proc/{pid}").exists())
+
+
+WAITS_IN_PYTEST = """\
+import os, pathlib, time
+
+def test_waits(tmp_path):
+    state = pathlib.Path(os.environ["D"])
+    (tmp_path / "left").touch()
+    (state / "pid").write_text(str(os.getpid()))
+    (state / "basetemp").write_text(str(tmp_path))
+    until = time.monotonic() + 60
+    while not (state / "release.a").exists() and time.monotonic() < until:
+        time.sleep(0.02)
+"""
+
+USES_TMP_PATH = """\
+def test_writes(tmp_path):
+    (tmp_path / "file").write_text("x")
+"""
+
+
+def pytest_in(folder, test, *more):
+    """A pytest run of one test file, with no config of the repo's and no cache, so the only
+    place it writes is its basetemp, under pytest's default unless it is told another."""
+    (folder / "test_one.py").write_text(test)
+    return [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "no:xdist"] + [
+        "--rootdir",
+        str(folder),
+        "-o",
+        "tmp_path_retention_policy=all",
+        *more,
+        str(folder / "test_one.py"),
+    ]
+
+
+@pytest.fixture
+def stand_in(tmp_path):
+    """A stand-in for /tmp: pytest's default basetemp is `pytest-of-<user>` under it, so a run
+    that leaves its basetemp to the default writes there and never to the real one."""
+    made = tmp_path / "tmp"
+    made.mkdir()
+    return made
+
+
+def test_a_killed_runs_basetemp_is_gone_once_the_next_run_takes_its_slot(slots, tmp_path, stand_in):
+    (tmp_path / "suite").mkdir()
+    holder = slots(
+        "--slots", "1", command=pytest_in(tmp_path / "suite", WAITS_IN_PYTEST), TMPDIR=str(stand_in)
+    )
+    assert slots.waits(lambda: (slots.state / "basetemp").exists())
+    basetemp = Path((slots.state / "basetemp").read_text())
+    pid = int((slots.state / "pid").read_text())
+    holder.send_signal(signal.SIGKILL)
+    assert holder.wait(timeout=5) == -signal.SIGKILL
+    slots.release("a")
+    assert slots.waits(lambda: not Path(f"/proc/{pid}").exists())
+    assert (basetemp / "left").exists()
+
+    looks = ["sh", "-c", f'test -e "{basetemp}" && echo kept || echo gone']
+    after = slots("--slots", "1", command=looks, TMPDIR=str(stand_in))
+    assert after.communicate(timeout=5) == ("gone\n", "")
+    assert not basetemp.exists()
+    assert list(stand_in.iterdir()) == []
+
+
+@pytest.mark.parametrize("end", ["exits", "is told to stop"])
+def test_a_runs_temporary_directory_goes_when_it_lets_its_slot_go(slots, stand_in, end):
+    says = f'echo "$TMPDIR" > "$D/tmpdir"; touch "$TMPDIR/left"; {RUNS_UNTIL_RELEASED}'
+    holder = slots("--slots", "1", command=["sh", "-c", says, "sh", "a"], TMPDIR=str(stand_in))
+    assert slots.waits(lambda: slots.started() == ["a"])
+    own = Path((slots.state / "tmpdir").read_text().strip())
+    assert (own / "left").exists() and own != stand_in
+    if end == "exits":
+        slots.release("a")
+    else:
+        holder.terminate()
+    holder.wait(timeout=5)
+    assert not own.exists()
+    assert list(stand_in.iterdir()) == []
+
+
+def test_twenty_pytest_runs_at_once_under_slots_leave_nothing_in_pytests_default(
+    slots, tmp_path, stand_in
+):
+    runs = []
+    for n in range(20):
+        (tmp_path / f"suite{n}").mkdir()
+        command = pytest_in(tmp_path / f"suite{n}", USES_TMP_PATH)
+        runs.append(slots("--slots", "4", command=command, TMPDIR=str(stand_in)))
+    for ran in runs:
+        out, err = ran.communicate(timeout=60)
+        assert ran.returncode == 0, out + err
+    assert list(stand_in.iterdir()) == []
+    assert list(slots.locks.glob("*.tmp")) == []
