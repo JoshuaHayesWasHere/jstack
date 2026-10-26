@@ -24,9 +24,16 @@ list of `Word`:
 
 A word goes to one home of the project, the one that owns its subject (`owner`): the home whose
 directory or brief the page it was given on (`--page`) is of, else the home of the briefs, requests
-and rows its words name by slug, when they are all one home's, else the root home. So a word about a
-scoped home's work reaches that home alone, and two homes never act on one word. A home that
-records such a word with `--from` forwards it to the home that owns it.
+and rows its words name by slug, when they are all one home's, else the home it was said in (the
+thread of `--message`) or recorded by (`--from`), else the root home. So a word about a scoped
+home's work reaches that home alone, a scoped home's own word that names no other home's work stays
+in that scope, and two homes never act on one word. A home that records a word about another home's
+work with `--from` forwards it to the home that owns it.
+
+A word given with neither `--from` nor `--message` names no thread, so when no page or slug decides
+it goes to the root home. In a project with scoped homes that may be a scope's own word, so the
+command still keeps and sends it, and says on stderr that it went to the root home and why
+(`unseen`). It does not refuse it: the user's word typed outside every home has no thread to give.
 
 A word goes once, as one queued message to the thread in that home's `home-id`. jbus reads that file
 when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends the word
@@ -61,6 +68,7 @@ import fcntl
 import hashlib
 import json
 import re
+import sys
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
@@ -90,6 +98,10 @@ NO_ANSWER = "T3 Code gave no answer"
 REFUSED = "T3 Code refused it"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
+UNSEEN = (
+    "note: {project}'s word went to the root home: no page or slug of its words names a home, "
+    "and with neither --from nor --message jbus cannot tell the home it was said in"
+)
 THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 SLUG = re.compile(r"[a-z0-9]+(?:\.[a-z0-9]+)*(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)+")
 
@@ -163,14 +175,9 @@ def _named(home: Path, name: str) -> str | None:
     return found.pop() if len(found) == 1 and "" not in found else None
 
 
-def owner(home: Path, words: str, page: str = "") -> str:
-    """The scope of the home that owns a word's subject, or an empty string for the root home.
-
-    A page under a scope's directory is that scope's, and a page named for a brief or a request,
-    as `reports/<slug>/` or `reports/<slug>.html`, is the home's of that brief or request. A page
-    decides over the words. Without one, the briefs, requests and rows that the words name by slug
-    decide when they are all one home's (`_named`), and a word that names none, or the work of two
-    homes, is the root home's."""
+def _decided(home: Path, words: str, page: str) -> str | None:
+    """The scope that a page or the words' slugs give a word (`owner`), or None when neither
+    decides."""
     if page:
         where = Path(page).resolve()
         if where.is_relative_to(home.resolve()):
@@ -182,7 +189,33 @@ def owner(home: Path, words: str, page: str = "") -> str:
                 if found is not None:
                     return found
     named = {_named(home, slug) for slug in SLUG.findall(words)} - {None}
-    return named.pop() or "" if len(named) == 1 else ""
+    if len(named) == 1:
+        return named.pop() or ""
+    return "" if named else None
+
+
+def owner(home: Path, words: str, page: str = "", *threads: str) -> str:
+    """The scope of the home that owns a word's subject, or an empty string for the root home.
+
+    A page under a scope's directory is that scope's, and a page named for a brief or a request,
+    as `reports/<slug>/` or `reports/<slug>.html`, is the home's of that brief or request. A page
+    decides over the words. Without one, the briefs, requests and rows that the words name by slug
+    decide when they are all one home's (`_named`), and a word that names the work of two homes is
+    the root home's. A word that names none is the home's whose thread is the first of `threads`
+    that is a home's thread: the thread it was said in, then the one that recorded it. So a scoped
+    home's own word stays in that scope. With no such thread, it is the root home's."""
+    decided = _decided(home, words, page)
+    if decided is not None:
+        return decided
+    homes = {thread_of(home): "", **{thread_of(scope): scope.name for scope, _, _ in scopes(home)}}
+    homes.pop("", None)
+    return next((homes[one] for one in threads if one in homes), "")
+
+
+def unseen(home: Path, words: str, page: str) -> bool:
+    """Whether a word given with no thread fell to the root home in a project that has scoped
+    homes, so that `owner` could not tell whether it was a scope's own word."""
+    return bool(scopes(home)) and _decided(home, words, page) is None
 
 
 def _homes_dir(run: Pass, one: Word) -> Path:
@@ -233,7 +266,8 @@ def keep(
             if one.id == name:
                 return one
         kept_at = run.now.astimezone(UTC).isoformat(timespec="seconds")
-        made = Word(name, words, by, at, kept_at, home=owner(run.home, words, page))
+        whose = owner(run.home, words, page, ref.partition("/")[0], recorder)
+        made = Word(name, words, by, at, kept_at, home=whose)
         if heard:
             made = replace(made, ref=ref, said_in=heard.said_in, checked=heard.checked)
         mine = thread_of(_homes_dir(run, made))
@@ -371,7 +405,9 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     home that recorded it.
 
     The word goes to the home of the project that owns its subject (`owner`), so a home that
-    records a word about another home's work forwards it there.
+    records a word about another home's work forwards it there, and a word that names no home's
+    work stays with the home it was said in or recorded by. A word with no thread that falls to
+    the root home of a project with scoped homes gets a line on stderr (`unseen`).
 
     `--to` names a project or a scratch home (`jbus.Scratch`). `--all` means every project
     and no scratch home, since a scratch home takes no word about the repos. When a project
@@ -405,6 +441,8 @@ def _word(args: argparse.Namespace, config: Config) -> int:
             was = keep(run, words, by, at, heard, args.recorder or "", args.page or "")
             deliver(run, client)
             print(line(run, was))
+            if not (heard or args.recorder) and unseen(run.home, words, args.page or ""):
+                print(UNSEEN.format(project=project.name), file=sys.stderr)
         except Refused as error:
             print(error)
             code = 1
