@@ -19,7 +19,8 @@ from typing import Any
 from urllib.parse import quote
 
 from jbus import alert
-from jbus.view.state import Read, _table, count, when, wrongs
+from jbus.view.panels.merged import panel as merged
+from jbus.view.state import Read, _table, count, iso, when, wrongs
 
 FIRST = False
 TIERS = ("wrong", "yours", "moving")
@@ -38,7 +39,7 @@ VERDICT = {
 }
 SHAPE = {"glance": {"calm": None, "verdict": VERDICT, "items": [ITEM]}}
 WINDOW = 3
-"""The hours over which the verdict counts merges an hour: the last three, of the user's day."""
+"""The hours over which the verdict counts merges an hour: the last three, across midnight too."""
 RANK = ("jbus", "main", "ci", "stall", "thread", "idle", "bus", "source", "unasked")
 """The kinds of `wrong` by how much each holds the work back, most first: the verdict names the
 first, and of two of one kind the older."""
@@ -170,6 +171,12 @@ def _top(wrong: list[dict[str, Any]], yours: list[dict[str, Any]]) -> dict[str, 
     return {key: first[key] for key in TOP}
 
 
+def _start(read: Read) -> str:
+    """Where the merges the band reads start: the start of the user's day, or the start of the
+    window where that is earlier, so a merge before midnight still counts in the window."""
+    return min(read.day, iso(read.now - timedelta(hours=WINDOW)))
+
+
 def _verdict(
     answer: dict[str, Any], merges: list[str], now: datetime, top: dict[str, Any]
 ) -> dict[str, Any]:
@@ -198,8 +205,8 @@ def band(
     failed_since: str | None = None,
 ) -> dict[str, Any]:
     """The band of `answer`, which holds what `/stack.json` holds, at `now`. `merges` are the
-    times of today's merges across the projects, and `failed_since` is since when jbus's passes
-    fail, where they do."""
+    times of the merges across the projects since `_start`, and `failed_since` is since when
+    jbus's passes fail, where they do."""
     names = [one["name"] for one in answer["projects"]]
     wrong = _jbus(answer["machine"]["jbus"], failed_since, names) + _wrong(answer["wrong"], names)
     wrong, yours = _oldest(wrong), _yours(answer["needs"])
@@ -210,12 +217,12 @@ def band(
 
 def stack(base: Read, reads: list[Read], answer: dict[str, Any]) -> dict[str, Any]:
     """What the band adds to `/stack.json`: `base` is the machine's read, `reads` each
-    project's, and `answer` the rest of `/stack.json`. Today's merges are each project's
-    panel `merged`, so the band counts none of its own."""
+    project's, and `answer` the rest of `/stack.json`. The merges are what the panel `merged`
+    reads, from the start of the user's day or of the window, whichever is earlier."""
     streaks = _table(base.sources.state_dir / "streaks.json") or {}
     failed = streaks.get(alert.PASS) if isinstance(streaks.get(alert.PASS), dict) else {}
     since = when(failed.get("since")) if count(failed.get("count")) else None
-    merges = [one["at"] for read in reads for one in read.panel("merged")["merged"]]
+    merges = [one["at"] for read in reads for one in merged.since(read, _start(read))]
     return band(answer, base.now, merges, since)
 
 
@@ -225,7 +232,7 @@ def build(read: Read) -> dict[str, Any]:
     needs = read.panel("you")["needs"] if read.name else []
     names = [read.name] if read.name else []
     wrong, yours = _oldest(_wrong(read.once(wrongs), names)), _yours(needs)
-    merges = [one["at"] for one in read.panel("merged")["merged"]] if read.name else []
+    merges = [one["at"] for one in merged.since(read, _start(read))] if read.name else []
     project = {"projects": [{"open": len(read.tasks)}]}
     verdict = _verdict(project, merges, read.now, _top(wrong, yours))
     return {"glance": {"calm": not wrong and not yours, "verdict": verdict, "items": wrong + yours}}

@@ -3,9 +3,14 @@ whether the work moves. `/stack.json` has it as `glance`: its items in the order
 them, each with its subject, its cause and since when, and `calm` where nothing is wrong and
 nothing waits on the user, when the band is the one line that says the work moves."""
 
+from datetime import timedelta
+
+import jsettings
+from jbus.view import state as built
 from jbus.view.state import iso
-from view.scene import Scene, Served, ago, et, out, row
+from view.scene import NOW, Scene, Served, ago, et, out, row
 from view.test_view_wrong import STALL, idle
+from view.walk import runs, sources
 
 RED = "badc0de" + "1" * 33
 
@@ -105,6 +110,19 @@ def test_merges_an_hour_count_the_window_and_none_in_it_is_still(tmp_path, monke
     assert (verdict["motion"], verdict["per_hour"]) == ("still", 0.0)
     assert verdict["last_merge"] == iso(ago(minutes=200))
     assert verdict["top"]["tier"] == ""
+
+
+def test_a_merge_before_midnight_counts_in_the_window_after_it(tmp_path, monkeypatch):
+    """The window of the verdict crosses the start of the user's day: an hour after midnight,
+    a merge ten minutes before it is the last merge and counts in the merges an hour."""
+    scene = Scene(tmp_path, monkeypatch)
+    quiet(scene)
+    midnight = jsettings.load().local(NOW).replace(hour=0, minute=0, second=0, microsecond=0)
+    before = iso(midnight - timedelta(minutes=10))
+    scene.lines("transitions.jsonl", [{"slug": "rye", "from": "pr", "to": "merged", "at": before}])
+    verdict = built.stack(sources(scene), midnight + timedelta(hours=1), runs)["glance"]["verdict"]
+    assert (verdict["motion"], verdict["last_merge"]) == ("moving", before)
+    assert verdict["per_hour"] == 0.3
 
 
 def test_a_quiet_machine_is_one_calm_line(tmp_path, monkeypatch):
