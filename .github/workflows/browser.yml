@@ -9,10 +9,11 @@ name: browser
 # The pull request trigger has check.yml's `types`, and the job's `if` skips a draft as
 # check.yml's jobs do, so a pull request runs it once it is marked ready. #464 merged with 19
 # of these tests red, as no pull request ran them. The run is no required check: a merge does
-# not wait on it, and its red is the pull request's to read.
+# not wait on it.
 #
 # A red run is not told from here: jbus reads this workflow's runs and files and queues the
-# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py).
+# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py). It skips a manual
+# run off main, and no other, so a pull request's red run is filed too.
 on:
   pull_request:
     branches: [main]
