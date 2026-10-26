@@ -485,7 +485,7 @@ def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]])
         if not own and queue.fresh(run.state, name) is not None:
             own = [name]
         for slug in own:
-            _tell(run, client, home, slug, branch, held)
+            _tell(run, client, home_of(run.home, brief_of(run, slug)), slug, branch, held)
 
 
 STEPS = (
