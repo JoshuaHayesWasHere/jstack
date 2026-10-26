@@ -22,7 +22,7 @@ import pytest
 
 import jbus
 from jbus import snapshot
-from test_jbus_kitchen import NOW, REPO
+from test_jbus_kitchen import NOW, REPO, queued
 
 UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer", "jbus-snapshot-failed.service")
 FAILED = (
@@ -273,6 +273,81 @@ def test_systemd_reads_the_units_with_no_complaint(tmp_path):
     assert (ran.returncode, ran.stdout + ran.stderr) == (0, "")
 
 
+def standing(kitchen, tree, *rules, codes=None, where="demo"):
+    """Write a home's standing.md of made-up rules under a heading, one numbered rule each, and
+    queue the row each rule's `Code:` line names. Rule n names `rule-<n>` unless `codes` gives
+    its slug, and a slug of None leaves its `Code:` line out. A slug in `codes` that starts
+    `ghost` names no row."""
+    codes = codes or [f"rule-{n}" for n in range(1, len(rules) + 1)]
+    have = {row["slug"] for row in jbus.queue.load(kitchen.state)}
+    for slug in codes:
+        if slug and not slug.startswith("ghost") and slug not in have:
+            queued(kitchen, slug)
+    lines = [
+        f"{n}. {rule}." + (f" Code: {slug}." if slug else "") + "\n  More words of it.\n"
+        for n, (rule, slug) in enumerate(zip(rules, codes, strict=True), 1)
+    ]
+    path = tree / where / "standing.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("# demo: standing rules (at most 3)\n\nWhy the cap.\n\n" + "".join(lines))
+    return path
+
+
+def refused(path, *why):
+    return (1, [f"snapshot: refused, nothing committed: {path} {'; '.join(why)}"])
+
+
+def test_three_rules_each_made_code_by_a_queued_row_are_snapshotted(kitchen, tree):
+    standing(kitchen, tree, "one", "two", "three")
+    standing(kitchen, tree, "a scoped one", where="demo/flow")
+    assert take() == (0, [no_remote(tree)])
+    shown = git(tree, "show", "--name-only", "--format=", "HEAD").splitlines()
+    assert sorted(shown) == ["demo/flow/standing.md", "demo/standing.md"]
+
+
+def test_a_fourth_rule_is_refused_and_nothing_is_committed_or_left_staged(kitchen, tree):
+    before = git(tree, "rev-parse", "HEAD")
+    path = standing(kitchen, tree, "one", "two", "three", "four")
+    (tree / "demo" / "notes.md").write_text("# notes\nheld back\n")
+    assert take() == refused(path, "has 4 rules, and a standing.md holds at most 3")
+    assert git(tree, "rev-parse", "HEAD") == before
+    assert git(tree, "diff", "--cached", "--name-only") == ""
+
+
+def test_a_rule_with_no_code_row_is_refused(kitchen, tree):
+    before = git(tree, "rev-parse", "HEAD")
+    path = standing(kitchen, tree, "one", "two", codes=["rule-1", None])
+    assert take() == refused(path, "rule 2 has no Code: <slug>, the queue row that makes it code")
+    assert git(tree, "rev-parse", "HEAD") == before
+
+
+def test_a_code_slug_that_is_in_no_queue_is_refused(kitchen, tree):
+    path = standing(kitchen, tree, "one", codes=["ghost-row"])
+    assert take() == refused(path, "rule 1 names Code: ghost-row, which is in no queue of demo")
+
+
+def test_a_scoped_homes_standing_md_is_held_to_the_same_cap(kitchen, tree):
+    path = standing(kitchen, tree, "a", "b", "c", "d", codes=["rule-1"] * 4, where="demo/flow")
+    assert take() == refused(path, "has 4 rules, and a standing.md holds at most 3")
+
+
+def test_the_verb_says_the_refusal_on_stderr_and_exits_1(kitchen, tree, capsys):
+    path = standing(kitchen, tree, "one", codes=[None])
+    assert snapshot.snapshot(jbus.load(), NOW, print) == 1
+    out, err = capsys.readouterr()
+    assert out == ""
+    why = "rule 1 has no Code: <slug>, the queue row that makes it code"
+    assert err == f"{refused(path, why)[1][0]}\n"
+
+
+def test_the_alarm_of_a_refused_snapshot_says_which_rule_and_why(kitchen, tree):
+    path = standing(kitchen, tree, "one", codes=[None])
+    assert take()[0] == 1
+    said = alarm()
+    why = f"{path} rule 1 has no Code: <slug>, the queue row that makes it code"
+    assert said[1] == f"demo: {FAILED}: {why}"
+
+
 def with_origin(tree, tmp_path):
     bare = tmp_path / "state-tree.git"
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
@@ -283,7 +358,7 @@ def with_origin(tree, tmp_path):
 def test_an_edit_snapshotted_with_why_is_one_pushed_commit_that_says_why(kitchen, tree, tmp_path):
     bare = with_origin(tree, tmp_path)
     before = git(tree, "rev-parse", "HEAD")
-    (tree / "demo" / "standing.md").write_text("1. 2026-10-15: a rule\n")
+    standing(kitchen, tree, "2026-10-15: a rule")
     assert kitchen.main("snapshot", "--why", "x") == (0, "snapshot: committed, pushed\n")
     assert git(tree, "rev-list", "--count", f"{before}..HEAD") == "1"
     subject = git(tree, "log", "-1", "--format=%s")
@@ -320,10 +395,9 @@ def undo_section():
 
 def test_the_documented_undo_brings_back_the_text_before_a_bad_edit(kitchen, tree, tmp_path):
     with_origin(tree, tmp_path)
-    standing = tree / "demo" / "standing.md"
-    standing.write_text("1. keep this\n")
+    kept = standing(kitchen, tree, "keep this").read_text()
     assert kitchen.main("snapshot", "--why", "demo standing rule 1 added")[0] == 0
-    standing.write_text("1. a bad merge\n")
+    path = standing(kitchen, tree, "a bad merge")
     assert kitchen.main("snapshot", "--why", "demo standing rule 1 merged")[0] == 0
     bad = git(tree, "rev-parse", "HEAD")
     find, restore, again = undo_section()
@@ -336,7 +410,7 @@ def test_the_documented_undo_brings_back_the_text_before_a_bad_edit(kitchen, tre
     found = subprocess.run(run(find), shell=True, capture_output=True, text=True, check=True)
     assert bad in found.stdout and "+1. a bad merge" in found.stdout
     subprocess.run(run(restore), shell=True, check=True)
-    assert standing.read_text() == "1. keep this\n"
+    assert path.read_text() == kept
     words = shlex.split(run(again))
     assert words[:2] == ["jbus", "snapshot"]
     assert kitchen.main(*words[1:]) == (0, "snapshot: committed, pushed\n")
@@ -346,28 +420,27 @@ def test_the_documented_undo_brings_back_the_text_before_a_bad_edit(kitchen, tre
 
 def test_the_documented_undo_of_a_commit_that_is_not_there_writes_nothing(kitchen, tree, tmp_path):
     with_origin(tree, tmp_path)
-    standing = tree / "demo" / "standing.md"
-    standing.write_text("1. the first rule\n")
+    path = standing(kitchen, tree, "the first rule")
+    first = path.read_text()
     assert kitchen.main("snapshot", "--why", "demo standing rule 1 added")[0] == 0
     _, restore, _ = undo_section()
     for commit in ("0123abc", git(tree, "rev-list", "--max-parents=0", "HEAD")):
         line = restore.replace("~/.local/state/home", shlex.quote(str(tree)))
         line = line.replace("<repo>", "demo").replace("<commit>", commit)
         assert subprocess.run(line, shell=True, capture_output=True).returncode != 0
-        assert standing.read_text() == "1. the first rule\n"
+        assert path.read_text() == first
 
 
 def test_the_documented_undo_of_the_edit_that_made_the_file_removes_it(kitchen, tree, tmp_path):
     with_origin(tree, tmp_path)
-    standing = tree / "demo" / "standing.md"
-    standing.write_text("1. the first rule\n")
+    path = standing(kitchen, tree, "the first rule")
     assert kitchen.main("snapshot", "--why", "demo standing rule 1 added")[0] == 0
     made = git(tree, "rev-parse", "HEAD")
     _, restore, _ = undo_section()
     line = restore.replace("~/.local/state/home", shlex.quote(str(tree)))
     line = line.replace("<repo>", "demo").replace("<commit>", made)
     subprocess.run(line, shell=True, check=True)
-    assert not standing.exists()
+    assert not path.exists()
     assert kitchen.main("snapshot", "--why", "undone") == (0, "snapshot: committed, pushed\n")
     assert git(tree, "show", "--name-status", "--format=", "HEAD") == "D\tdemo/standing.md"
 
@@ -376,7 +449,7 @@ def test_a_snapshot_waits_for_one_that_is_running(tree, tmp_path):
     """Each home takes a snapshot after an edit, on top of the timer's runs. A second run waits
     and never collides with the first."""
     with_origin(tree, tmp_path)
-    (tree / "demo" / "standing.md").write_text("1. a rule\n")
+    (tree / "demo" / "notes.md").write_text("# notes\nwaited\n")
     before = git(tree, "rev-parse", "HEAD")
     lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
     said = []
@@ -390,12 +463,12 @@ def test_a_snapshot_waits_for_one_that_is_running(tree, tmp_path):
         assert git(tree, "diff", "--cached", "--name-only") == ""
     second.join(10)
     assert said == [(0, ["snapshot: committed, pushed"])]
-    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/standing.md"
+    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/notes.md"
 
 
 def test_a_snapshot_that_waits_too_long_for_another_fails_and_commits_nothing(tree, monkeypatch):
     monkeypatch.setattr(snapshot, "WAIT", 0.3)
-    (tree / "demo" / "standing.md").write_text("1. a rule\n")
+    (tree / "demo" / "notes.md").write_text("# notes\nwaited\n")
     before = git(tree, "rev-parse", "HEAD")
     lock = Path(git(tree, "rev-parse", "--absolute-git-dir")) / "jbus-snapshot.lock"
     with lock.open("a") as held:
