@@ -19,7 +19,7 @@ from testing.paths import REPO
 class Pushed:
     """A crewmate's worktree at the head its pull request has, and the brief with its Result."""
 
-    def __init__(self, tmp_path, rollup):
+    def __init__(self, tmp_path, rollup, draft=False):
         self.work = tmp_path / "work"
         self.work.mkdir()
         git(self.work, "init", "-q", "-b", "a-task")
@@ -30,7 +30,7 @@ class Pushed:
         self.brief = self.state / "tasks" / "alpha.md"
         self.brief.write_text(BRIEF)
         self.stub = tmp_path / "stub"
-        stub_gh(self.stub, self.head, rollup)
+        stub_gh(self.stub, self.head, rollup, draft=draft)
 
     def says(self):
         ran = subprocess.run(
@@ -70,6 +70,23 @@ def test_checks_that_did_not_run_are_not_green_whatever_the_result_says_stood_in
     with pushed.brief.open("a") as result:
         result.write(f"CI: did not run at {pushed.head}, `make check` passed in this worktree\n")
     assert pushed.says() == unrun
+
+
+@pytest.mark.parametrize("case", ["all passed", "all skipped", "one ran and failed"])
+def test_a_drafts_checks_are_a_wait_and_its_review_launches_beside_them(case, tmp_path):
+    """CI runs no check on a draft (check.yml), so what its rollup holds is a check that was
+    skipped, or one from before it was turned back to a draft: either way it is not green, not
+    red, and not a repo whose CI starts no job."""
+    pushed = Pushed(tmp_path, ROLLUPS[case][0], draft=True)
+    printed = pushed.says()
+    assert (
+        printed == f"wait: a draft, so CI runs its check once it is marked ready, at {pushed.head}"
+    )
+    when = block("The review", "checked=").replace(
+        '<the line the block of "The checks" printed>', printed
+    )
+    ran = subprocess.run(["sh", "-c", when], capture_output=True, text=True, check=True)
+    assert ran.stdout.startswith("launch beside the checks")
 
 
 def test_the_result_has_a_line_for_checks_that_did_not_run_and_none_that_stands_in(tmp_path):

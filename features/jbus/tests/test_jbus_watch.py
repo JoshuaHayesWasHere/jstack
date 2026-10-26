@@ -665,12 +665,12 @@ MACOS_LOG = (
 )
 
 
-def macos_run(conclusion="failure", ref="train/macos", **more):
+def macos_run(conclusion="failure", ref="main", **more):
     """Return a run of macos-nightly.yml, whose title names the ref it checked out."""
     return browser_run(77, conclusion, display_title=f"macos-nightly on {ref}", **more)
 
 
-def macos_green(ref="train/macos"):
+def macos_green(ref="main"):
     """Return a run of macos-nightly.yml on `ref` that passed the night before the run 77."""
     return macos_run("success", ref, id=76, ago=timedelta(days=1))
 
@@ -702,7 +702,7 @@ def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_namin
         "`features/crew/tests/test_check.py::TestSetsid::test_starts`",
         "\nWhere: `features/jgauge/tests/test_room.py`, `features/crew/tests/test_check.py`\n",
         "\nHome: macos\n",
-        "\nPull request: open one against train/macos when done\n",
+        "\nPull request: open one when done\n",
         "\nPlaybook: bug-fix\n",
         "https://example.test/o/r/actions/runs/77",
     ):
@@ -747,7 +747,10 @@ def test_a_macos_nightly_that_timed_out_is_red_with_no_test_named_and_is_filed_o
     kitchen.poll(NOW + timedelta(minutes=3))
     text = (kitchen.home / "tasks" / "macos-red-2026-10-12.md").read_text()
     assert "its log names no failed test, read it" in text
-    assert "\nWhere: the tests the macOS nightly runs, on train/macos\n" in text
+    assert (
+        "\nWhere: the tests the macOS nightly runs on main, under `features/` and `testing/`\n"
+        in text
+    )
     assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
 
 
@@ -759,7 +762,7 @@ def test_a_macos_nightly_that_passed_or_was_cancelled_files_nothing(kitchen, con
     assert kitchen.lines("retro") == []
 
 
-def test_a_red_manual_macos_run_on_a_fixs_ref_files_nothing_and_one_on_the_train_does(kitchen):
+def test_a_red_manual_macos_run_on_a_fixs_ref_files_nothing_and_one_on_main_does(kitchen):
     """Every run of macos-nightly.yml is on main, so its title is what names the ref it ran."""
     manual = {"event": "workflow_dispatch", "head_branch": "main"}
     macos_runs(kitchen, macos_run(ref="mac-room-fix", **manual), macos_green())
@@ -771,14 +774,14 @@ def test_a_red_manual_macos_run_on_a_fixs_ref_files_nothing_and_one_on_the_train
 
 
 NEVER_GREEN = (
-    "retro macos-nightly: the macOS nightly run {} failed on {}, and no run of it on train/macos "
+    "retro macos-nightly: the macOS nightly run {} failed on {}, and no run of it on main "
     "has passed yet, so no row is filed"
 )
 
 
-def test_a_red_macos_nightly_on_a_train_that_never_passed_files_no_row_and_pages_nobody(kitchen):
-    """train/macos has never been green while its fixes are open: its red nights are its home's
-    known work, so each is one quiet line in the log, and no row asks the user anything."""
+def test_a_red_macos_nightly_on_a_main_that_never_passed_files_no_row_and_pages_nobody(kitchen):
+    """main's macOS nightly has not been green yet while its fixes are open: its red nights are its
+    home's known work, so each is one quiet line in the log, and no row asks the user anything."""
     macos_runs(kitchen, macos_run(), macos_green(ref="mac-room-fix"))
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
@@ -788,7 +791,7 @@ def test_a_red_macos_nightly_on_a_train_that_never_passed_files_no_row_and_pages
     assert kitchen.webhook.posts == []
 
 
-def test_once_the_train_passed_a_red_night_after_it_files_one_row_and_one_before_it_none(kitchen):
+def test_once_main_passed_a_red_night_after_it_files_one_row_and_one_before_it_none(kitchen):
     before = macos_run(id=75, ago=timedelta(days=2))
     macos_runs(kitchen, macos_run(), macos_green(), before)
     kitchen.poll()

@@ -83,6 +83,11 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 
    ```sh
    ME='<threadId>'
+   the_reply() {
+       cat << 'THE_REPLY_ENDS_HERE'
+   <the reply of list_scheduled_tasks>
+   THE_REPLY_ENDS_HERE
+   }
    id=
    by=
    if [ -s "$E/webhook" ]; then read -r id by < "$E/webhook"; fi
@@ -91,12 +96,9 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
    *)
        if [ -z "$id" ]; then
            echo "not written: no webhook is kept for $N, so there is none to take"
-       elif ! now=$(jq -rs --arg id "$id" '
+       elif ! now=$(the_reply | jq -rs --arg id "$id" '
            if length == 1 and (.[0].tasks | type) == "array" then .[0] else error("no tasks") end
-           | [.tasks[] | select(.scheduledTaskId == $id)][0].boundThreadId // "no thread"' 2> /dev/null << 'THE_REPLY_ENDS_HERE'
-   <the reply of list_scheduled_tasks>
-   THE_REPLY_ENDS_HERE
-       ); then
+           | [.tasks[] | select(.scheduledTaskId == $id)][0].boundThreadId // "no thread"' 2> /dev/null); then
            echo "not written: put the whole reply of list_scheduled_tasks in place of the placeholder"
        elif [ "$now" = "$ME" ]; then
            printf '%s %s\n' "$id" "$ME" > "$E/webhook"

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-here=$(readlink -f "$0") || exit 1
+here=$(realpath "$0") || exit 1
 source=${here%/features/jleak/hooks/*}
 if [ ! -d "$source/features/jleak/src/jleak" ]; then
   python=${source%/share/jstack}/bin/python

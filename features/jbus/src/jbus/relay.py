@@ -98,6 +98,7 @@ from pathlib import Path
 from typing import Any
 
 from jbus import chat, leftover, silent, verbs
+from jbus.bind import NoLookup
 
 Body = dict[str, Any]
 Say = Callable[[str], None]
@@ -533,6 +534,11 @@ class Pager:
             self.page(f"unheard-{id}", line)
 
 
+class Server(NoLookup, http.server.ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address
+    (`jbus.bind`)."""
+
+
 class Relay:
     def __init__(self, config: Settings, say: Say) -> None:
         self.config, self.say = config, say
@@ -742,7 +748,7 @@ class Relay:
         return Handler
 
     def serve(self) -> None:
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", self.config.port), self.handler())
+        server = Server(("127.0.0.1", self.config.port), self.handler())
         self.say(f"relay: listening on 127.0.0.1:{server.server_address[1]}")
         server.serve_forever()
 

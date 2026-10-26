@@ -28,10 +28,10 @@ round=1
 while [ "$round" -le "$rounds" ]; do
     side=A
     for command in "$@"; do
-        start=$(date +%s.%N)
+        start=$(perl -MTime::HiRes=time -e 'printf "%.6f\n", time')
         code=0
         sh -c "$command" > "$out" 2>&1 || code=$?
-        end=$(date +%s.%N)
+        end=$(perl -MTime::HiRes=time -e 'printf "%.6f\n", time')
         row=$(awk -v r="$round" -v s="$side" -v a="$start" -v b="$end" -v c="$code" \
             'BEGIN {printf "%d\t%s\t%.3f\t%d", r, s, b - a, c}')
         printf '%s\t%s\n' "$row" "$(awk 'NF {last = $(0)} END {print last}' "$out" | tr '\t\r' '  ')"

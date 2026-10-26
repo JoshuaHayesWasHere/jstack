@@ -8,7 +8,7 @@ A second run writes nothing.
 |---|---|---|
 | `done <name>` | This run wrote it: a config that was not there, or a part the install puts. | Nothing. |
 | `already <name>` | It was there and `ok`. | Nothing. |
-| `needs you <program> -> <command>` | The program is missing or too old. `<command>` is the program's name, or on a machine with `pacman` it is `yay -S <package>`. | Install the program, as [The platform and the programs](the-platform-and-the-programs.md#where-to-get-each-program) shows, then run `--setup` again. |
+| `needs you <program> -> <command>` | The program is missing or too old. `<command>` is `brew install <formula>` on macOS, `yay -S <package>` on a machine with `pacman`, and the program's name on any other Linux machine. On Windows it is `run jstack inside WSL2`. | Install the program, as [The platform and the programs](the-platform-and-the-programs.md#where-to-get-each-program) shows, then run `--setup` again. |
 | `needs you gh sign-in -> gh auth login` | `gh` is not signed in. | Run `gh auth login`. |
 | `missing optional <name> -> <command>` | A layer you have not set up, such as the relay or the backup. Nothing is wrong without it, and setup's exit code does not count it. | Nothing, or run the command to set the layer up. |
 | `missing optional jbus sign-in <path> -> jbus t3 login` | `jbus` has its config and no sign-in. | Run `jbus t3 login`, as [Set up jbus](../../../jbus/docs/jbus/set-up-jbus.md) says. |

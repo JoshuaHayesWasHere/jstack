@@ -74,7 +74,9 @@ def checkout_with(tmp_path, tool, body):
 
 def gone(pid):
     for _ in range(50):
-        if not Path(f"/proc/{pid}").exists():
+        try:
+            os.kill(int(pid), 0)
+        except ProcessLookupError:
             return True
         time.sleep(0.1)
     return False
@@ -114,6 +116,70 @@ def test_a_launch_whose_command_fails_is_not_ready_and_tears_down(tmp_path, tool
     assert gone(stopped[0].rstrip(")").split()[-1])
     assert list(tmp.iterdir()) == [tmp / "verify-jstack-evidence"]
     assert list((tmp / "verify-jstack-evidence").iterdir()) == []
+
+
+def test_a_launch_whose_stand_in_does_not_start_says_what_its_log_holds(tmp_path):
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    scripts, path = checkout_with(
+        tmp_path, "python", "echo 'python: broken on purpose' >&2; exit 3"
+    )
+
+    ran = launch(tmp, scripts, path)
+
+    assert ran.returncode == 1
+    assert "launch.sh: the stand-in for T3 Code did not start" in ran.stderr
+    assert "python: broken on purpose" in ran.stderr
+    assert sorted(tmp.glob("verify-jstack.*")) == []
+
+
+def test_a_launch_whose_stand_in_hangs_stops_it_and_never_aborts_it(tmp_path):
+    """An abort on macOS can raise a crash report: the stand-in is stopped, never aborted."""
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    aborted = tmp_path / "aborted"
+    scripts, path = checkout_with(
+        tmp_path,
+        "python",
+        f"trap 'echo aborted >> \"{aborted}\"; exit 134' ABRT\n"
+        "echo 'python: hangs on purpose' >&2\n"
+        "while :; do sleep 0.1; done",
+    )
+
+    ran = launch(tmp, scripts, path)
+
+    assert ran.returncode == 1
+    assert "launch.sh: the stand-in for T3 Code did not start" in ran.stderr
+    assert "python: hangs on purpose" in ran.stderr
+    stopped = [line for line in ran.stderr.splitlines() if line.startswith("stopped the stand-in")]
+    assert len(stopped) == 1
+    assert gone(stopped[0].rstrip(")").split()[-1])
+    assert not aborted.exists()
+    assert sorted(tmp.glob("verify-jstack.*")) == []
+
+
+def test_a_launch_is_ready_where_a_reverse_lookup_of_127_0_0_1_never_answers(tmp_path, monkeypatch):
+    """As on GitHub's macOS runner, where the lookup waits in mDNS."""
+    hangs = tmp_path / "hangs"
+    hangs.mkdir()
+    (hangs / "sitecustomize.py").write_text(
+        "import socket, time\n"
+        "def getfqdn(name=''):\n"
+        "    time.sleep(60)\n"
+        "    return name\n"
+        "socket.getfqdn = getfqdn\n"
+    )
+    monkeypatch.setenv("PYTHONPATH", str(hangs))
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+
+    ran = launch(tmp)
+    if ran.returncode == 0:
+        env_sh = Path(ran.stdout.strip().removeprefix("ready: . "))
+        subprocess.run([SCRIPTS / "cleanup.sh", env_sh.parent], capture_output=True)
+
+    assert ran.returncode == 0, ran.stderr
+    assert ran.stdout.startswith("ready: . ")
 
 
 def test_doctor_passes_every_feature_on_a_new_sandbox(sandbox):
@@ -188,7 +254,11 @@ def test_a_host_that_exports_its_own_directories_does_not_reach_into_the_sandbox
     )
     assert in_the_sandbox in lines
     assert lines[-1] == "doctor: ok"
-    assert (sandbox.parent / "home" / ".config" / "systemd" / "user" / "jbus.timer").is_symlink()
+    home = sandbox.parent / "home"
+    if sys.platform == "darwin":
+        assert (home / "Library" / "LaunchAgents" / "jstack.jbus.plist").is_file()
+    else:
+        assert (home / ".config" / "systemd" / "user" / "jbus.timer").is_symlink()
     assert not (tmp_path / "host").exists()
 
 

@@ -19,6 +19,7 @@ import pytest
 
 import daemons
 import jleak
+from jbus.launchd import label
 from jinstall import layout
 from jinstall.__main__ import install as run_install
 from jinstall.harnesses import HARNESSES
@@ -76,6 +77,39 @@ RELAY_KEYS = (
     "PAGER_HA_SERVICE=mobile_app_phone\n"
 )
 SCRUBBED = ("XDG_", "UV_", "JBUS_", "VERIFY_JSTACK_", "LIMITS")
+MAC = sys.platform == "darwin"
+"""Whether the tests run on a Mac. `install.sh` runs jinstall in a Python of its own, which
+takes its platform from the machine the test runs on, and no test can set it there. So a test of
+the script expects this platform's output, and a test of systemd's units runs on Linux only,
+beside its Darwin case (`linux_only`)."""
+UNITS_DIR = Path("Library", "LaunchAgents") if MAC else Path(".config", "systemd", "user")
+"""Where the install puts the units, under HOME: launchd's agents on a Mac."""
+UNITS_MADE = (
+    ["Library", "Library/LaunchAgents", "Library/Logs", "Library/Logs/jstack"]
+    if MAC
+    else [".config/systemd", ".config/systemd/user", ".config/systemd/user/timers.target.wants"]
+)
+"""The folders the units take that the install makes, under HOME, beside `.config/jstack`."""
+UNITS_PUT = (
+    sorted(f"{label(name)}.plist" for name in TIMERS)
+    if MAC
+    else sorted([*UNITS, "timers.target.wants"])
+)
+"""What the units folder holds once a machine with jbus and no opted config has its units: a
+link to each unit, or on a Mac an agent for each timer."""
+T3_GET = "brew install --cask t3-code" if MAC else "yay -S t3code-bin"
+"""How setup says to get T3 Code on this platform, on Arch where it is not a Mac."""
+T3_WHERE = "on a Mac with Apple Silicon: " + T3_GET if MAC else "on Arch: t3code-bin"
+"""Where the doctor says T3 Code comes from on this platform."""
+
+
+def linux_only(darwin):
+    """Mark a test of `install.sh` that holds on Linux only, as systemd's units do. `darwin` is
+    the test of its Darwin case, `<file>::<name>` in this folder, which sets the machine's
+    platform itself and so runs on every platform."""
+    file, name = darwin.split("::")
+    assert f"def {name}(" in (Path(__file__).parent / file).read_text(), darwin
+    return pytest.mark.skipif(MAC, reason=f"Linux's case: the Darwin case is {darwin}")
 
 
 def template(name):
@@ -170,7 +204,7 @@ class User:
         self.settings = self.home / ".claude" / "settings.json"
         self.codex = self.home / ".codex" / "hooks.json"
         self.bin = self.home / ".local" / "bin"
-        self.units = self.home / ".config" / "systemd" / "user"
+        self.units = self.home / UNITS_DIR
         self.patterns = self.home / ".config" / "jstack" / "outbound.toml"
         self.providers = self.home / ".config" / "jstack" / "providers.json"
         self.cursor = self.home / ".cursor" / "cli-config.json"
@@ -317,6 +351,13 @@ class User:
         )
         for each in names:
             self.write(self.bin / each, "#!/bin/sh\n")
+
+    def removed_units(self):
+        """What `--uninstall` says of the units that `with_jbus` puts: each unit, or on a Mac
+        each timer's agent."""
+        if MAC:
+            return [f"removed agent {self.units / f'{label(name)}.plist'}" for name in TIMERS]
+        return [f"removed unit {self.units / name}" for name in UNITS]
 
     def with_jbus(self):
         self.write(self.jbus / "config.toml", "")
@@ -612,6 +653,9 @@ def test_the_units_are_not_due_on_a_machine_with_no_jbus_config(user):
     assert line_for(user.run("--check")[1], "units") == []
 
 
+@linux_only(
+    "test_launchd.py::test_setup_writes_and_bootstraps_each_agent_and_a_second_run_writes_nothing"
+)
 def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user):
     units = user.with_jbus()
     assert user.run("--check") == (1, user.every("missing", units))
@@ -629,6 +673,9 @@ def test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config(user)
     assert user.snapshot() == before
 
 
+@linux_only(
+    "test_launchd.py::test_setup_writes_and_bootstraps_each_agent_and_a_second_run_writes_nothing"
+)
 def test_a_strangers_machine_enables_no_ci_relay_or_snapshot_unit_and_nothing_fails(user):
     units = user.with_jbus()
     assert user.run() == (0, user.every("ok", units))
@@ -638,6 +685,9 @@ def test_a_strangers_machine_enables_no_ci_relay_or_snapshot_unit_and_nothing_fa
     assert all((user.units / name).is_symlink() for name in OPTED)
 
 
+@linux_only(
+    "test_launchd.py::test_the_owners_mac_runs_the_ci_relay_and_snapshot_agents_and_drops_one_nothing_asks_for"
+)
 def test_the_owners_machine_enables_the_ci_relay_and_snapshot_units(user):
     units = user.as_owner()
     assert user.run() == (0, user.every("ok", units))
@@ -649,6 +699,9 @@ def test_the_owners_machine_enables_the_ci_relay_and_snapshot_units(user):
     assert user.snapshot() == before
 
 
+@linux_only(
+    "test_launchd.py::test_the_owners_mac_runs_the_ci_relay_and_snapshot_agents_and_drops_one_nothing_asks_for"
+)
 def test_a_unit_whose_config_is_gone_is_disabled_and_one_whose_config_is_wrong_is_left_on(user):
     units = user.as_owner()
     user.run()
@@ -663,6 +716,9 @@ def test_a_unit_whose_config_is_gone_is_disabled_and_one_whose_config_is_wrong_i
     assert os.readlink(user.units / "jbus-relay.service") == str(template("jbus-relay.service"))
 
 
+@linux_only(
+    "test_launchd.py::test_agents_stay_due_after_the_jbus_config_is_gone_and_say_what_they_lack"
+)
 def test_units_stay_due_after_the_jbus_config_is_gone_and_say_what_they_lack(user):
     units = user.with_jbus()
     user.run()
@@ -673,6 +729,7 @@ def test_units_stay_due_after_the_jbus_config_is_gone_and_say_what_they_lack(use
     assert user.run() == (0, user.every("ok", units))
 
 
+@linux_only("test_launchd.py::test_check_and_the_doctor_read_each_agent_from_launchctl_print")
 def test_a_timer_that_is_not_enabled_is_old_and_a_run_enables_it(user):
     units = user.with_jbus()
     user.run()
@@ -682,6 +739,9 @@ def test_a_timer_that_is_not_enabled_is_old_and_a_run_enables_it(user):
     assert user.run() == (0, user.every("ok", units))
 
 
+@linux_only(
+    "test_launchd.py::test_a_plist_the_templates_no_longer_make_is_rewritten_and_loaded_again"
+)
 def test_units_linked_where_templates_kept_them_before_a_move_are_old_and_a_run_relinks_them(
     user,
 ):
@@ -705,6 +765,7 @@ def test_units_linked_where_templates_kept_them_before_a_move_are_old_and_a_run_
     assert os.readlink(wanted) == str(template("jroles-mirror.timer"))
 
 
+@linux_only("test_launchd.py::test_a_plist_no_install_made_is_left_as_it_is")
 def test_a_unit_copied_by_hand_becomes_a_link_and_one_that_differs_is_left_alone(user):
     units = user.with_jbus()
     for name in UNITS:
@@ -747,9 +808,7 @@ def test_the_record_holds_the_containers_the_install_created_and_nothing_else(us
             ".codex/skills",
             ".config",
             ".config/jstack",
-            ".config/systemd",
-            ".config/systemd/user",
-            ".config/systemd/user/timers.target.wants",
+            *UNITS_MADE,
             ".local",
             ".local/bin",
             ".local/share",
@@ -776,12 +835,13 @@ def test_uninstall_leaves_a_new_home_as_it_was_and_a_second_one_prints_nothing(u
         f"removed hook {user.settings} PreToolUse",
         f"removed statusline {user.settings}",
         "removed commands jstack",
-        *(f"removed unit {user.units / name}" for name in UNITS),
+        *user.removed_units(),
     }
     assert all(line.startswith("removed ") for line in said)
     assert user.listing() == []
-    disabled = {f"--user disable --now {t}" for t in [*TIMERS, *OPTED]}
-    assert disabled <= set(user.said(user.systemctl_log))
+    if not MAC:
+        disabled = {f"--user disable --now {t}" for t in [*TIMERS, *OPTED]}
+        assert disabled <= set(user.said(user.systemctl_log))
     assert user.said(user.uv_log)[-1] == "tool uninstall jstack"
     assert user.run("--uninstall") == (0, [])
     assert user.listing() == []
@@ -810,6 +870,7 @@ def test_uninstall_removes_only_what_names_this_checkout(user):
     assert os.readlink(elsewhere) == "/elsewhere/skills/home"
 
 
+@linux_only("test_launchd.py::test_a_sandbox_never_runs_the_systems_launchctl")
 def test_with_a_manager_that_reads_another_home_only_the_links_are_made_and_removed(user):
     units = user.with_jbus()
     log = user.systemctl_log

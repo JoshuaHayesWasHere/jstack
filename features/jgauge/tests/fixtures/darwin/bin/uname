@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stands in for macOS's uname: `uname -s` prints Darwin.
+[ "$*" = -s ] || exit 64
+echo Darwin

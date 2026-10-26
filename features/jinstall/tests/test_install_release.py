@@ -14,16 +14,20 @@ import sys
 import threading
 import tomllib
 import zipfile
+from pathlib import Path
 
 import pytest
 
-from jinstall import layout
+from jbus.launchd import label
+from jinstall import launchd, layout
 from jinstall.harnesses import HARNESSES
 from test_install import (
     INSTALL,
+    MAC,
     ROOTS,
     SCRUBBED,
     SYSTEMCTL,
+    UNITS_DIR,
     hook_parts,
     laid,
     layouts,
@@ -147,6 +151,18 @@ def release_parts(home, source):
     ]
 
 
+def made_from(home):
+    """The tree the install made jbus's timer from: the one its unit links into, or on a Mac the
+    one its agent's plist names."""
+    if MAC:
+        return Path(
+            launchd.made_from((home / UNITS_DIR / f"{label('jbus.timer')}.plist").read_text())
+        )
+    link = Path(os.readlink(home / UNITS_DIR / "jbus.timer"))
+    assert link.relative_to(link.parents[3]) == Path("features", "jbus", "units", "jbus.timer")
+    return link.parents[3]
+
+
 def stand_ins(tmp_path):
     """A directory with the fake systemctl, for a release's commands to find first on PATH."""
     stub = tmp_path / "stub"
@@ -194,9 +210,8 @@ def test_a_release_with_jbus_set_up_links_its_units_into_its_source(released, tm
     (home / ".local" / "bin").mkdir(parents=True)
     (home / ".local" / "bin" / "jbus").symlink_to(released.bin / "jbus")
     put = released.run(home, "jinstall", **env)
-    assert put.stdout.splitlines()[-1] == f"ok optional units {home / '.config/systemd/user'}"
-    unit = home / ".config" / "systemd" / "user" / "jbus.timer"
-    assert os.readlink(unit) == str(released.source / "features" / "jbus" / "units" / "jbus.timer")
+    assert put.stdout.splitlines()[-1] == f"ok optional units {home / UNITS_DIR}"
+    assert made_from(home) == released.source
 
 
 def test_a_release_whose_version_is_not_its_plugins_is_told_so_and_not_put_over(released, tmp_path):
@@ -240,7 +255,7 @@ def test_a_releases_outbound_hook_checks_a_push_on_the_tools_own_python_with_no_
     assert released.run(home, "jinstall", **env).returncode == 0
     narrow = tmp_path / "narrow"
     narrow.mkdir()
-    for program in ("dirname", "readlink", "cat"):
+    for program in ("dirname", "realpath", "cat"):
         (narrow / program).symlink_to(shutil.which(program))
     hook = laid(home) / "hooks" / "outbound-command.sh"
 
@@ -330,12 +345,9 @@ def test_a_releases_install_sh_piped_to_sh_with_no_checkout_and_no_uv_installs_a
         [str(bin / "jinstall"), "--check"], env=env, cwd=home, capture_output=True, text=True
     )
     assert checked.returncode == 0, checked.stdout
-    units = f"optional units {home / '.config' / 'systemd' / 'user'}"
-    parts = [*release_parts(home, source), units]
+    parts = [*release_parts(home, source), f"optional units {home / UNITS_DIR}"]
     assert checked.stdout.splitlines() == lines_of("ok", parts, home)
-    assert os.readlink(home / ".config/systemd/user/jbus.timer") == str(
-        source / "features/jbus/units/jbus.timer"
-    )
+    assert made_from(home) == source
     for harness in HARNESSES:
         for link in (home / harness.root).iterdir():
             assert os.readlink(link) == str(laid(home, harness.name) / "skills" / link.name)
@@ -412,7 +424,7 @@ def test_a_repo_a_release_set_up_strips_an_ai_trailer_from_a_commit_with_no_chec
         assert os.readlink(hooks / name) == str(script)
     narrow = tmp_path / "narrow"
     narrow.mkdir()
-    for program in ("git", "readlink"):
+    for program in ("git", "realpath"):
         (narrow / program).symlink_to(shutil.which(program))
     named = ["-c", "user.name=Sam Doe", "-c", "user.email=sam@example.test"]
     trailer = "Co-Authored-By: Claude <noreply@anthropic.com>"

@@ -1,0 +1,59 @@
+#!/bin/sh
+# The sandbox's stand-in for `launchctl` on macOS: it loads and unloads agents in the gui
+# domain as launchd does, keeping each loaded label as a file in a folder, and runs none of
+# them. A `<label>.pid` file beside a label is an agent that runs, with that process id. Every
+# call is a line in the log. Its answers and exit codes are launchd's own.
+log=${FAKE_LAUNCHCTL_LOG:-${VERIFY_JSTACK_SANDBOX:?}/launchctl.log}
+loaded=${FAKE_LAUNCHCTL_LOADED:-${log%/*}/launchd}
+echo "$*" >>"$log"
+mkdir -p "$loaded"
+case ${1-} in
+bootstrap)
+  [ -f "${3-}" ] || {
+    echo "Bootstrap failed: 2: No such file or directory" >&2
+    exit 2
+  }
+  label=${3##*/}
+  label=${label%.plist}
+  [ ! -f "$loaded/$label" ] || {
+    echo "Bootstrap failed: 5: Input/output error" >&2
+    exit 5
+  }
+  echo "$3" >"$loaded/$label"
+  ;;
+bootout)
+  label=${2##*/}
+  [ -f "$loaded/$label" ] || {
+    echo "Boot-out failed: 3: No such process" >&2
+    exit 3
+  }
+  rm -f "$loaded/$label" "$loaded/$label.pid"
+  ;;
+print)
+  label=${2##*/}
+  [ -f "$loaded/$label" ] || {
+    uid=${2#gui/}
+    echo "Could not find service \"$label\" in domain for user gui: ${uid%%/*}" >&2
+    exit 113
+  }
+  state="not running"
+  [ ! -f "$loaded/$label.pid" ] || state="running
+	pid = $(cat "$loaded/$label.pid")"
+  printf '%s = {\n\tpath = %s\n\ttype = LaunchAgent\n\tstate = %s\n\truns = 1\n\tlast exit code = 0\n}\n' \
+    "$2" "$(cat "$loaded/$label")" "$state"
+  ;;
+list)
+  printf 'PID\tStatus\tLabel\n'
+  for each in "$loaded"/*; do
+    case $each in *.pid) continue ;; esac
+    [ -f "$each" ] || continue
+    pid=-
+    [ ! -f "$each.pid" ] || pid=$(cat "$each.pid")
+    printf '%s\t0\t%s\n' "$pid" "${each##*/}"
+  done
+  ;;
+*)
+  echo "fake-launchctl: no stand-in for $*" >&2
+  exit 64
+  ;;
+esac

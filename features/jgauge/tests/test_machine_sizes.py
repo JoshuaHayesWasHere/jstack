@@ -51,6 +51,40 @@ def test_a_fact_that_cannot_be_read_is_taken_as_its_fallback(tmp_path):
     )
 
 
+DARWIN = Path(__file__).parent / "fixtures" / "darwin"
+
+
+@pytest.fixture
+def mac(tmp_path, monkeypatch):
+    """A Mac: `sys.platform` is darwin and `sysctl` prints the output in fixtures/darwin, 12
+    processors and 16 GiB. `PROC` is unset, as on a Mac."""
+    shown = tmp_path / "darwin"
+    shown.mkdir()
+    (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setenv("DARWIN", str(shown))
+    monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
+    monkeypatch.delenv("PROC", raising=False)
+    return shown
+
+
+def test_the_facts_of_a_mac_are_its_processors_and_memory_from_sysctl(mac):
+    found = Machine.here()
+    assert found == Machine(12, 16)
+    assert found.says() == "12 cores, 16 GiB"
+
+
+def test_a_mac_given_a_proc_reads_that_proc_and_not_sysctl(mac, tmp_path, monkeypatch):
+    """A caller that names a /proc in `PROC` has that machine read on every system."""
+    monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
+    assert Machine.here() == Machine(24, 62)
+
+
+def test_a_mac_whose_sysctl_says_nothing_takes_the_fallbacks(mac):
+    (mac / "sysctl.txt").write_text("")
+    assert Machine.here() == Machine(sizes.FALLBACK_CORES, sizes.FALLBACK_GIB, ("cores", "memory"))
+
+
 @pytest.mark.parametrize(
     ("cores", "gib", "full", "short", "crews"),
     [
@@ -158,6 +192,8 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
         "__future__",
         "os",
         "re",
+        "subprocess",
+        "sys",
         "tomllib",
         "collections",
         "dataclasses",
@@ -173,6 +209,10 @@ def test_the_module_runs_with_the_standard_library_alone(machine):
     assert ran.returncode == 0, ran.stderr
 
 
+@pytest.mark.skipif(
+    not hasattr(os, "sched_getaffinity"),
+    reason="os.sched_getaffinity is Linux only: a Mac cannot hold a process to one processor",
+)
 def test_a_caller_held_to_one_processor_counts_the_same_sizes_as_one_that_is_not(tmp_path):
     """The sizes are the whole machine's: a shell, `jbus.service` and a CI container count the
     same slots whatever CPUs or quota they are given. The test runs on the real /proc."""

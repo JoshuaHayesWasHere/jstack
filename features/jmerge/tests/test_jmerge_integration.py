@@ -133,6 +133,21 @@ def test_a_pull_request_into_an_integration_branch_is_ready_and_check_merges_not
     assert kitchen.calls() == []
 
 
+def test_a_pull_request_into_an_integration_branch_waits_on_no_check_of_its_own(kitchen):
+    """check.yml runs a pull request's check only into main: work into a train is checked on
+    each push to the train, whose red hold stands for it, and once more at main's gate when the
+    train lands. So a pull request into the train is ready with no `check` run, and one into
+    main is not."""
+    head = kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES}, checks=())
+    kitchen.pulls["one"]["baseRefName"] = TRAIN
+    kitchen.brief("one", head)
+    integration(kitchen, TRAIN)
+    assert kitchen.run("--check") == [f"ready 6 {head} one one"]
+    kitchen.pulls["one"]["baseRefName"] = "main"
+    kitchen.brief("one", head)
+    assert kitchen.run("--check") == [f"wait 6 {url(6)}: {ready.NOT_PASSED.format(check='check')}"]
+
+
 def test_it_squashes_into_that_branch_and_the_merged_line_names_it(kitchen):
     main = tip(kitchen, "main")
     head = into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES})
