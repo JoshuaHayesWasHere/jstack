@@ -1,11 +1,11 @@
-"""A follow-up of an approved row is approved by the home's follow-up rule when it is queued.
+"""A follow-up of an approved row is approved by the follow-up rule when it is queued.
 
 The rule (`queue.FOLLOW_UP`) reads the row, its brief and the parent's row: the row names its
 parent P (a `Follows: P` line, or the slug `cleanup-P`), the row is P's (its slug is `cleanup-P`,
-or its entry is P's), and P's go is the user's own. The home's `follow-rule` file names the rule of
-its `standing.md` that says so. A row of new work waits for the user's go, and only its decision
-reaches the user. Every test runs the real `jbus queue add` and `approve`, and a pass, against the
-kitchen's fakes.
+or its entry is P's), and P's go holds. jbus knows the rule by what it says, and reads no file of
+the home for it. A row of new work waits for the user's go, and only its decision reaches the
+user. Every test runs the real `jbus queue add` and `approve`, and a pass, against the kitchen's
+fakes. The pass's own approvals are in `test_jbus_follow_up_pass.py`.
 """
 
 import json
@@ -15,11 +15,13 @@ import pytest
 
 import jbus
 from jbus import queue
-from test_jbus_approve_by_rule import RULE, STANDING
 from test_jbus_kitchen import RAN, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
-BY_RULE = "rule 6, follow-up of {parent}; run {ran} by the demo home; you did not speak of this row"
+BY_RULE = (
+    "the follow-up rule, follow-up of {parent}; run {ran} by the demo home; you did not speak of "
+    "this row"
+)
 NIGHT = datetime(2026, 10, 13, 3, 0, tzinfo=UTC)
 BUILDS_ON = "Builds on: alpha: the code of its pull request, which the findings are in\n"
 
@@ -27,8 +29,6 @@ BUILDS_ON = "Builds on: alpha: the code of its pull request, which the findings 
 @pytest.fixture
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
-    (made.home / "standing.md").write_text(STANDING)
-    (made.home / "follow-rule").write_text("6\n")
     made.word()
     yield made
     made.close()
@@ -79,11 +79,10 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
         line = BY_RULE.format(parent="alpha", ran=RAN)
         assert said[slug] == [f"approved {slug}: brief {sha12(brief_of(kitchen, slug))}, {line}"]
         made = rows(kitchen)[slug]["approval"]
-        assert (made["basis"], made["ref"], made["follows"], made["words"]) == (
-            "rule",
-            "6",
-            "alpha",
-            RULE,
+        assert (made["basis"], made["ref"], made["follows"]) == ("rule", "follow-up", "alpha")
+        assert (
+            made["words"]
+            == f"{queue.FOLLOW_RULE}; alpha's go: {rows(kitchen)['alpha']['approved']}"
         )
     assert said["delta"] == [] and rows(kitchen)["delta"]["approved"] == ""
     for hour in range(4):
@@ -126,7 +125,8 @@ def brief_of(kitchen, slug):
             "beta",
             (),
             brief("beta", follows("alpha")),
-            "beta does not do work for alpha's plan entry alpha: its entry is beta",
+            "beta is no follow-up's kind (cleanup-, a fix jbus filed, a train's sync) and does not "
+            "do work for alpha's plan entry alpha: its entry is beta",
         ),
         (
             "cleanup-gone",
@@ -154,7 +154,7 @@ def test_new_work_waits_for_the_users_go_and_its_decision_is_sent(kitchen, slug,
     assert kitchen.main("queue", "remove", "gone", "--by", "user", "--at", at)[0] == 0
     kitchen.quiet()
     said = add(kitchen, slug, *more, text=text)
-    assert said == [f"{slug} waits for the user's go, not a follow-up by rule 6: {why}"]
+    assert said == [f"{slug} waits for the user's go, not a follow-up: {why}"]
     assert rows(kitchen)[slug]["approved"] == ""
     kitchen.poll()
     assert sorted(decided(kitchen)) == sorted([f"decision {slug}", "decision unsaid"])
@@ -167,39 +167,14 @@ def test_a_row_that_names_no_parent_waits_and_add_says_nothing_of_the_rule(kitch
     assert rows(kitchen)["beta"]["approved"] == ""
 
 
-def test_a_home_with_no_follow_rule_file_approves_no_row_by_rule(kitchen):
-    (kitchen.home / "follow-rule").unlink()
-    add(kitchen, "alpha")
-    assert go(kitchen, "alpha")[0] == 0
-    kitchen.quiet()
-    assert add(kitchen, "cleanup-alpha") == []
-    assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
-    kitchen.poll()
-    assert decided(kitchen) == ["decision cleanup-alpha"]
-
-
-def test_a_follow_rule_the_standing_rules_lack_approves_nothing_and_says_so(kitchen):
-    (kitchen.home / "follow-rule").write_text("9\n")
-    add(kitchen, "alpha")
-    assert go(kitchen, "alpha")[0] == 0
-    standing = kitchen.home / "standing.md"
-    assert add(kitchen, "cleanup-alpha") == [
-        f"cleanup-alpha waits for the user's go, not a follow-up by rule 9: {standing} has no "
-        "rule 9"
-    ]
-    assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
-
-
-def test_a_follow_up_of_a_follow_up_waits_for_the_user(kitchen):
+def test_a_follow_up_of_a_follow_up_is_approved_on_its_parents_go(kitchen):
     add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
     add(kitchen, "cleanup-alpha")
-    assert add(kitchen, "cleanup-cleanup-alpha") == [
-        "cleanup-cleanup-alpha waits for the user's go, not a follow-up by rule 6: "
-        "cleanup-cleanup-alpha cannot follow cleanup-alpha: cleanup-alpha was approved by rule 6 "
-        "as a follow-up of alpha, and a chain is one step: follow alpha, or take the user's word "
-        "for cleanup-cleanup-alpha"
-    ]
+    said = add(kitchen, "cleanup-cleanup-alpha")
+    line = BY_RULE.format(parent="cleanup-alpha", ran=RAN)
+    text = brief_of(kitchen, "cleanup-cleanup-alpha")
+    assert said == [f"approved cleanup-cleanup-alpha: brief {sha12(text)}, {line}"]
 
 
 def test_a_batch_approves_a_follow_up_whose_parent_gets_its_go_later_in_the_batch(kitchen):
@@ -219,8 +194,8 @@ def test_a_batch_approves_a_follow_up_whose_parent_gets_its_go_later_in_the_batc
 def test_the_users_go_for_a_parent_approves_its_waiting_follow_ups(kitchen):
     add(kitchen, "alpha")
     assert add(kitchen, "cleanup-alpha") == [
-        "cleanup-alpha waits for the user's go, not a follow-up by rule 6: cleanup-alpha cannot "
-        "follow alpha: alpha has no approval"
+        "cleanup-alpha waits for the user's go, not a follow-up: cleanup-alpha cannot follow "
+        "alpha: alpha has no approval"
     ]
     code, said = go(kitchen, "alpha")
     line = BY_RULE.format(parent="alpha", ran=RAN)
@@ -267,11 +242,11 @@ def test_a_follow_up_whose_brief_changed_meaning_is_approved_by_rule_again(kitch
     assert queue.approved_text(rows(kitchen)["cleanup-alpha"], wider)
 
 
-def test_queue_add_help_gives_the_follow_up_rule_and_the_file_that_names_it(kitchen):
+def test_queue_add_help_gives_the_follow_up_rule_by_what_it_says(kitchen):
     code, said = kitchen.main("queue", "add", "--help")
     assert code == 0
     assert queue.FOLLOW_UP in " ".join(said.split())
-    assert "follow-rule file names that rule of its standing.md" in " ".join(said.split())
+    assert "follow-rule" not in said
 
 
 def test_a_follow_up_whose_work_item_was_redirected_is_not_approved_by_rule(kitchen):

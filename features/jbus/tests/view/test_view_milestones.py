@@ -24,12 +24,13 @@ SCOPED = "# demo, pantry: plan\n\n## jam-shelf: a shelf of jam\nStage: planned\n
 AGAINST = "Pull request: open one against train/tea when done\n"
 
 
-def sandbox(scene):
+def sandbox(scene, behind_pot=False):
     """A plan whose entry `tea-set` has seven rows: four merged, one at a pull request, one
     running, and one queued behind the running one. Three of them open against `train/tea`, as
     `jbus` reads a `Pull request:` line, and `tea-7`, whose line names the train only in passing,
     does not. The entry `tea-pot` has a row whose thread hung, and one that waits on a row of
-    `tea-set`."""
+    `tea-set`. With `behind_pot`, the train has a fourth row, `tea-8`, in no plan entry, that
+    waits on the hung row of `tea-pot`."""
     rows = [row(f"tea-{n}", "merged", pr=f"#{n}", entry="tea-set") for n in range(1, 5)]
     rows += [
         row("tea-5", "pr", pr="#5", checks="pending", why="wait: check has not passed"),
@@ -42,6 +43,8 @@ def sandbox(scene):
         row("pot-1", depends=["tea-6"], why="depends on tea-6", entry="tea-pot"),
         row("pot-2", "running", thread="mcp:0008", value="hung", entry="tea-pot"),
     ]
+    if behind_pot:
+        rows.append(row("tea-8", depends=["pot-2"], why="depends on pot-2"))
     scene.queue(table() + rows)
     (scene.home / "plan.md").write_text(PLAN)
     (scene.home / "pantry").mkdir()
@@ -54,6 +57,8 @@ def sandbox(scene):
     (scene.home / "tasks" / "tea-6.md").write_text(
         "# tea-6: a piece\nPull request: open one against train/tea, when done\n"
     )
+    if behind_pot:
+        (scene.home / "tasks" / "tea-8.md").write_text(f"# tea-8: a piece\n{AGAINST}")
     (scene.home / "tasks" / "tea-7.md").write_text(
         "# tea-7: a piece\nPull request: open one when done, not against train/tea\n"
     )
@@ -131,6 +136,13 @@ def test_a_train_counts_the_rows_whose_brief_opens_against_it_and_how_many_are_l
     assert [one["slug"] for one in tea["steps"]] == ["tea-1", "tea-5", "tea-6"]
     assert (tea["over"], tea["total"], tea["to_go"]) == (1, 3, 2)
     assert trains["migration"]["total"] == 0
+
+
+def test_a_train_step_behind_a_row_of_a_plan_entry_names_that_entry(scene, served):
+    sandbox(scene, behind_pot=True)
+    tea = {one["branch"]: one for one in milestones(served)["trains"]}["train/tea"]
+    assert tea["waits_on"] == [{"milestone": "tea-pot", "slug": "pot-2", "mark": "stuck"}]
+    assert (tea["holder"]["slug"], tea["holder"]["by"]) == ("tea-8", "pot-2")
 
 
 def test_a_home_with_no_plan_and_a_project_with_no_trains_say_so(scene, served):
