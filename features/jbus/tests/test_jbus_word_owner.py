@@ -15,8 +15,8 @@ from jbus import word
 from test_jbus_kitchen import Kitchen, complete, sends
 from test_jbus_word import AT, thread
 
-ROOT, FLOW, NEXT, CREW = thread("a"), thread("f"), thread("e"), thread("c")
-SCOPE = "flow"
+ROOT, FLOW, NEXT, CREW, VIEW = thread("a"), thread("f"), thread("e"), thread("c"), thread("d")
+SCOPE, OTHER = "flow", "view"
 SAID = ("--by", "user", "--at", AT)
 
 
@@ -30,6 +30,9 @@ def kitchen(tmp_path, monkeypatch):
     made.brief("fl-statechart", f"Home: {SCOPE}\n", kind="scouts")
     made.brief("fl-s1-stack", f"Home: {SCOPE}\n")
     made.brief("fix-login")
+    (made.home / OTHER).mkdir()
+    (made.home / OTHER / "home-id").write_text(f"{VIEW}\n")
+    made.brief("vw-board", f"Home: {OTHER}\n")
     yield made
     made.close()
 
@@ -103,6 +106,51 @@ def test_the_root_that_records_a_scoped_homes_word_forwards_it_and_the_scope_kee
     assert to(kitchen) == [FLOW]
     (_, kept) = word.load(kitchen.state)
     assert kept.thread == FLOW
+
+
+def test_a_word_that_names_no_slug_stays_in_the_home_that_recorded_it(kitchen):
+    code, out = says(kitchen, "show", "me", "the", "board", more=("--from", FLOW))
+    assert (code, out.startswith("kept: demo, not posted, it was recorded by ")) == (0, True)
+    assert to(kitchen) == []
+    (kept,) = word.load(kitchen.state)
+    assert (kept.home, kept.thread) == (SCOPE, FLOW)
+    kitchen.poll()
+    assert to(kitchen) == []
+
+
+def test_a_word_said_in_a_scoped_homes_thread_stays_in_that_scope(kitchen):
+    kitchen.t3.says(FLOW, "m1", "show me the board", title="home: demo flow")
+    code, out = kitchen.main("word", "--to", "demo", "--message", f"{FLOW}/m1", "--from", ROOT)
+    assert (code, out.startswith("kept: demo, not posted, it was said in ")) == (0, True)
+    assert to(kitchen) == []
+    (kept,) = word.load(kitchen.state)
+    assert (kept.home, kept.thread) == (SCOPE, FLOW)
+
+
+def test_the_same_word_recorded_by_the_root_is_the_roots(kitchen):
+    code, out = says(kitchen, "show", "me", "the", "board", more=("--from", ROOT))
+    assert (code, out.startswith("kept: demo, not posted, it was recorded by ")) == (0, True)
+    (kept,) = word.load(kitchen.state)
+    assert (kept.home, kept.thread) == ("", ROOT)
+
+
+def test_a_scoped_homes_word_that_names_another_scopes_slug_goes_to_that_scope(kitchen):
+    code, out = says(kitchen, "show", "vw-board", "first", more=("--from", FLOW))
+    assert (code, out.startswith(f"sent: demo, to the {OTHER} home at {VIEW}, word ")) == (0, True)
+    assert to(kitchen) == [VIEW]
+
+
+def test_a_scoped_homes_word_that_names_the_roots_slug_goes_to_the_root(kitchen):
+    assert says(kitchen, "fix-login", "can", "wait", more=("--from", FLOW))[0] == 0
+    assert to(kitchen) == [ROOT]
+
+
+def test_a_word_from_no_home_that_falls_to_the_root_says_so(kitchen):
+    code, out = says(kitchen, "show", "me", "the", "board")
+    assert code == 0
+    assert to(kitchen) == [ROOT]
+    assert "went to the root home" in out
+    assert "went to the root home" not in says(kitchen, "fix", "fl-statechart")[1]
 
 
 def test_a_scoped_homes_word_waits_for_its_home_and_not_for_the_root(kitchen):
