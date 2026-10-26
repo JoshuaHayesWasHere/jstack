@@ -89,7 +89,7 @@ def test_the_page_draws_each_state_of_the_walk_where_surfaces_says(scene, tmp_pa
     assert seen["errors"] == []
     rows = {one["slug"]: one for one in seen["prog"]}
     assert len(rows) == len(seen["prog"])
-    shown = look(scene, tmp_path, route="#/")
+    shown = look(scene, tmp_path, route="#/homes")
     assert shown["errors"] == []
     (one,) = shown["stack"]["rows"]
     overview = " ".join([one["name"], one["why"], one["counts"], *shown["stack"]["machine"]])

@@ -70,6 +70,9 @@ window.addEventListener("load", function () { setTimeout(function () {
   }
   var first = drawer.open ? location.hash : "view";
   if (drawer.open) ring(drawer, first); else ring(document, first);
+  /* The ring walk scrolls to each stop in turn: the view is checked as it opens, at the top,
+     so no target that scrolled under the sticky header counts as a neighbour of the header's. */
+  window.scrollTo(0, 0);
   check(first, document).then(next).catch(function (e) { errors.push(String(e && e.message || e)); }).then(function () {
     var pre = document.createElement("pre");
     pre.id = "probe";

@@ -1,0 +1,1338 @@
+{
+ "at": "2026-10-26T12:06:00Z",
+ "stages": [
+  {
+   "key": "scout",
+   "name": "Scout",
+   "count": 4,
+   "still": 1,
+   "oldest": {
+    "slug": "oat-kettle",
+    "project": "jstack",
+    "since": "2026-10-26T02:08:00Z"
+   }
+  },
+  {
+   "key": "queued",
+   "name": "Queued",
+   "count": 9,
+   "still": 9,
+   "oldest": {
+    "slug": "leek-kettle",
+    "project": "jstack",
+    "since": "2026-10-26T02:08:00Z"
+   }
+  },
+  {
+   "key": "crew",
+   "name": "Crew",
+   "count": 12,
+   "still": 10,
+   "oldest": {
+    "slug": "fig-saucer",
+    "project": "jstack",
+    "since": "2026-10-26T02:27:00Z"
+   }
+  },
+  {
+   "key": "you",
+   "name": "Needs you",
+   "count": 4,
+   "still": 4,
+   "oldest": {
+    "slug": "mint-ladle",
+    "project": "jstack",
+    "since": "2026-10-26T03:59:00Z"
+   }
+  },
+  {
+   "key": "review",
+   "name": "Review",
+   "count": 6,
+   "still": 5,
+   "oldest": {
+    "slug": "jam-whisk",
+    "project": "pantry",
+    "since": "2026-10-26T04:12:00Z"
+   }
+  },
+  {
+   "key": "fix",
+   "name": "Fix",
+   "count": 4,
+   "still": 3,
+   "oldest": {
+    "slug": "plum-whisk",
+    "project": "jstack",
+    "since": "2026-10-26T03:36:00Z"
+   }
+  },
+  {
+   "key": "review2",
+   "name": "Review 2",
+   "count": 4,
+   "still": 1,
+   "oldest": {
+    "slug": "jam-platter",
+    "project": "jstack",
+    "since": "2026-10-26T08:06:00Z"
+   }
+  },
+  {
+   "key": "check",
+   "name": "Check",
+   "count": 22,
+   "still": 13,
+   "oldest": {
+    "slug": "fig-colander",
+    "project": "jstack",
+    "since": "2026-10-26T02:48:00Z"
+   }
+  },
+  {
+   "key": "merge",
+   "name": "Merge",
+   "count": 5,
+   "still": 3,
+   "oldest": {
+    "slug": "leek-colander",
+    "project": "jstack",
+    "since": "2026-10-26T02:59:00Z"
+   }
+  },
+  {
+   "key": "train",
+   "name": "Train",
+   "count": 4,
+   "still": 4,
+   "oldest": {
+    "slug": "tea-sieve",
+    "project": "jstack",
+    "since": "2026-10-26T06:00:00Z"
+   }
+  },
+  {
+   "key": "merged",
+   "name": "Merged",
+   "count": 6,
+   "still": 0,
+   "oldest": {
+    "slug": "leek-sieve",
+    "project": "jstack",
+    "since": "2026-10-26T03:54:00Z"
+   }
+  }
+ ],
+ "rows": [
+  {
+   "slug": "tea-kettle",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "scout",
+   "since": "2026-10-26T05:20:00Z",
+   "cause": "reported, waits on the home",
+   "cause_since": "2026-10-26T05:21:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-kettle",
+   "depth": 1
+  },
+  {
+   "slug": "jam-kettle",
+   "project": "jstack",
+   "home": "root",
+   "stage": "scout",
+   "since": "2026-10-26T02:56:00Z",
+   "cause": "researching",
+   "cause_since": "2026-10-26T02:57:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-kettle",
+   "depth": 1
+  },
+  {
+   "slug": "oat-kettle",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "scout",
+   "since": "2026-10-26T02:08:00Z",
+   "cause": "researching",
+   "cause_since": "2026-10-26T02:09:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-kettle",
+   "depth": 1
+  },
+  {
+   "slug": "rye-kettle",
+   "project": "pantry",
+   "home": "root",
+   "stage": "scout",
+   "since": "2026-10-26T11:26:00Z",
+   "cause": "researching",
+   "cause_since": "2026-10-26T11:27:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "rye-kettle",
+   "depth": 1
+  },
+  {
+   "slug": "fig-kettle",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "queued",
+   "since": "2026-10-26T04:56:00Z",
+   "cause": "behind plum-kettle (Queued)",
+   "cause_since": "2026-10-26T04:57:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "plum-kettle",
+     "project": "jstack",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [],
+   "head": "rye-platter",
+   "depth": 4
+  },
+  {
+   "slug": "plum-kettle",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "queued",
+   "since": "2026-10-26T10:32:00Z",
+   "cause": "behind rye-saucer (Crew)",
+   "cause_since": "2026-10-26T10:33:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "rye-saucer",
+     "project": "jstack",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [
+    "fig-kettle"
+   ],
+   "head": "rye-platter",
+   "depth": 3
+  },
+  {
+   "slug": "kale-kettle",
+   "project": "jstack",
+   "home": "root",
+   "stage": "queued",
+   "since": "2026-10-26T02:25:00Z",
+   "cause": "behind rye-saucer (Crew)",
+   "cause_since": "2026-10-26T02:26:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "rye-saucer",
+     "project": "jstack",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [],
+   "head": "rye-platter",
+   "depth": 3
+  },
+  {
+   "slug": "leek-kettle",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "queued",
+   "since": "2026-10-26T02:08:00Z",
+   "cause": "behind fig-platter (Check)",
+   "cause_since": "2026-10-26T02:09:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "fig-platter",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "fig-platter",
+   "depth": 2
+  },
+  {
+   "slug": "mint-kettle",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "queued",
+   "since": "2026-10-26T11:14:00Z",
+   "cause": "behind sage-whisk (Review 2)",
+   "cause_since": "2026-10-26T11:15:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "sage-whisk",
+     "project": "jstack",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [],
+   "head": "sage-whisk",
+   "depth": 2
+  },
+  {
+   "slug": "sage-kettle",
+   "project": "jstack",
+   "home": "root",
+   "stage": "queued",
+   "since": "2026-10-26T02:34:00Z",
+   "cause": "ready, waits for room",
+   "cause_since": "2026-10-26T02:35:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-kettle",
+   "depth": 1
+  },
+  {
+   "slug": "tea-saucer",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "queued",
+   "since": "2026-10-26T04:55:00Z",
+   "cause": "ready, waits for room",
+   "cause_since": "2026-10-26T04:56:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "jam-saucer",
+   "project": "jstack",
+   "home": "root",
+   "stage": "queued",
+   "since": "2026-10-26T02:20:00Z",
+   "cause": "ready, waits for room",
+   "cause_since": "2026-10-26T02:21:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "oat-saucer",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "queued",
+   "since": "2026-10-26T10:19:00Z",
+   "cause": "waits for a test slot",
+   "cause_since": "2026-10-26T10:20:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "rye-saucer",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T05:43:00Z",
+   "cause": "thread hung",
+   "cause_since": "2026-10-26T05:44:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "rye-platter",
+     "project": "jstack",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [
+    "kale-kettle",
+    "plum-kettle"
+   ],
+   "head": "rye-platter",
+   "depth": 2
+  },
+  {
+   "slug": "fig-saucer",
+   "project": "jstack",
+   "home": "root",
+   "stage": "crew",
+   "since": "2026-10-26T02:27:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T02:28:00Z",
+   "moving": true,
+   "waits_on": [
+    {
+     "slug": "kale-platter",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "kale-platter",
+   "depth": 2
+  },
+  {
+   "slug": "plum-saucer",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T03:36:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T03:37:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "kale-saucer",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "crew",
+   "since": "2026-10-26T06:43:00Z",
+   "cause": "thread hung",
+   "cause_since": "2026-10-26T06:44:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "kale-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "leek-saucer",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "crew",
+   "since": "2026-10-26T05:54:00Z",
+   "cause": "thread silent 12m",
+   "cause_since": "2026-10-26T05:55:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "leek-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "mint-saucer",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T09:00:00Z",
+   "cause": "thread silent 12m",
+   "cause_since": "2026-10-26T09:01:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mint-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "sage-saucer",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T10:41:00Z",
+   "cause": "thread hung",
+   "cause_since": "2026-10-26T10:42:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-saucer",
+   "depth": 1
+  },
+  {
+   "slug": "tea-ladle",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "crew",
+   "since": "2026-10-26T03:07:00Z",
+   "cause": "thread hung",
+   "cause_since": "2026-10-26T03:08:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "jam-ladle",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "crew",
+   "since": "2026-10-26T04:25:00Z",
+   "cause": "thread silent 12m",
+   "cause_since": "2026-10-26T04:26:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "oat-ladle",
+   "project": "jstack",
+   "home": "root",
+   "stage": "crew",
+   "since": "2026-10-26T10:04:00Z",
+   "cause": "thread silent 12m",
+   "cause_since": "2026-10-26T10:05:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "rye-ladle",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "crew",
+   "since": "2026-10-26T09:16:00Z",
+   "cause": "thread hung",
+   "cause_since": "2026-10-26T09:17:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "rye-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "fig-ladle",
+   "project": "pantry",
+   "home": "root",
+   "stage": "crew",
+   "since": "2026-10-26T03:44:00Z",
+   "cause": "thread silent 12m",
+   "cause_since": "2026-10-26T03:45:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "fig-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "plum-ladle",
+   "project": "jstack",
+   "home": "root",
+   "stage": "you",
+   "since": "2026-10-26T10:45:00Z",
+   "cause": "approve it",
+   "cause_since": "2026-10-26T10:46:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "kale-ladle",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "you",
+   "since": "2026-10-26T06:06:00Z",
+   "cause": "approve it",
+   "cause_since": "2026-10-26T06:07:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "kale-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "leek-ladle",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "you",
+   "since": "2026-10-26T10:54:00Z",
+   "cause": "approve it",
+   "cause_since": "2026-10-26T10:55:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "leek-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "mint-ladle",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "you",
+   "since": "2026-10-26T03:59:00Z",
+   "cause": "a gate waits on you",
+   "cause_since": "2026-10-26T04:00:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mint-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "sage-ladle",
+   "project": "jstack",
+   "home": "root",
+   "stage": "review",
+   "since": "2026-10-26T06:47:00Z",
+   "cause": "reviewer working",
+   "cause_since": "2026-10-26T06:48:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-ladle",
+   "depth": 1
+  },
+  {
+   "slug": "tea-whisk",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "review",
+   "since": "2026-10-26T05:29:00Z",
+   "cause": "no reviewer has started",
+   "cause_since": "2026-10-26T05:30:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "jam-whisk",
+   "project": "pantry",
+   "home": "root",
+   "stage": "review",
+   "since": "2026-10-26T04:12:00Z",
+   "cause": "no reviewer has started",
+   "cause_since": "2026-10-26T04:13:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "oat-whisk",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "review",
+   "since": "2026-10-26T10:05:00Z",
+   "cause": "no reviewer has started",
+   "cause_since": "2026-10-26T10:06:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "rye-whisk",
+   "project": "jstack",
+   "home": "root",
+   "stage": "review",
+   "since": "2026-10-26T08:21:00Z",
+   "cause": "no reviewer has started",
+   "cause_since": "2026-10-26T08:22:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "rye-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "fig-whisk",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "review",
+   "since": "2026-10-26T07:51:00Z",
+   "cause": "no reviewer has started",
+   "cause_since": "2026-10-26T07:52:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "fig-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "plum-whisk",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "fix",
+   "since": "2026-10-26T03:36:00Z",
+   "cause": "findings not handled yet",
+   "cause_since": "2026-10-26T03:37:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "kale-whisk",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "fix",
+   "since": "2026-10-26T04:25:00Z",
+   "cause": "crew fixing findings",
+   "cause_since": "2026-10-26T04:26:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "kale-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "leek-whisk",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "fix",
+   "since": "2026-10-26T09:44:00Z",
+   "cause": "findings not handled yet",
+   "cause_since": "2026-10-26T09:45:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "leek-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "mint-whisk",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "fix",
+   "since": "2026-10-26T04:59:00Z",
+   "cause": "findings not handled yet",
+   "cause_since": "2026-10-26T05:00:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mint-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "sage-whisk",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "review2",
+   "since": "2026-10-26T08:08:00Z",
+   "cause": "second review not written",
+   "cause_since": "2026-10-26T08:09:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "mint-kettle"
+   ],
+   "head": "sage-whisk",
+   "depth": 1
+  },
+  {
+   "slug": "tea-platter",
+   "project": "jstack",
+   "home": "root",
+   "stage": "review2",
+   "since": "2026-10-26T09:04:00Z",
+   "cause": "second reviewer working",
+   "cause_since": "2026-10-26T09:05:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-platter",
+   "depth": 1
+  },
+  {
+   "slug": "jam-platter",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "review2",
+   "since": "2026-10-26T08:06:00Z",
+   "cause": "second reviewer working",
+   "cause_since": "2026-10-26T08:07:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-platter",
+   "depth": 1
+  },
+  {
+   "slug": "oat-platter",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "review2",
+   "since": "2026-10-26T08:58:00Z",
+   "cause": "second reviewer working",
+   "cause_since": "2026-10-26T08:59:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-platter",
+   "depth": 1
+  },
+  {
+   "slug": "rye-platter",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "check",
+   "since": "2026-10-26T12:00:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T12:01:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "rye-saucer"
+   ],
+   "head": "rye-platter",
+   "depth": 1
+  },
+  {
+   "slug": "fig-platter",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "check",
+   "since": "2026-10-26T02:57:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T02:58:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [
+    "leek-kettle"
+   ],
+   "head": "fig-platter",
+   "depth": 1
+  },
+  {
+   "slug": "plum-platter",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "check",
+   "since": "2026-10-26T09:56:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T09:57:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-platter",
+   "depth": 1
+  },
+  {
+   "slug": "kale-platter",
+   "project": "jstack",
+   "home": "root",
+   "stage": "check",
+   "since": "2026-10-26T04:17:00Z",
+   "cause": "check passed 9m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T04:18:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "fig-saucer"
+   ],
+   "head": "kale-platter",
+   "depth": 1
+  },
+  {
+   "slug": "leek-platter",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "check",
+   "since": "2026-10-26T05:17:00Z",
+   "cause": "check passed 9m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T05:18:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "mint-platter",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "mint-platter",
+   "depth": 2
+  },
+  {
+   "slug": "mint-platter",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "check",
+   "since": "2026-10-26T10:18:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T10:19:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "leek-platter"
+   ],
+   "head": "mint-platter",
+   "depth": 1
+  },
+  {
+   "slug": "sage-platter",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "check",
+   "since": "2026-10-26T11:01:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T11:02:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-platter",
+   "depth": 1
+  },
+  {
+   "slug": "tea-skillet",
+   "project": "jstack",
+   "home": "root",
+   "stage": "check",
+   "since": "2026-10-26T08:31:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T08:32:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "jam-skillet",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T10:12:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T10:13:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "oat-skillet",
+   "project": "pantry",
+   "home": "root",
+   "stage": "check",
+   "since": "2026-10-26T10:20:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T10:21:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "rye-skillet",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T02:55:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T02:56:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "rye-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "fig-skillet",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "check",
+   "since": "2026-10-26T11:38:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T11:39:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "fig-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "plum-skillet",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T05:39:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T05:40:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "kale-skillet",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "check",
+   "since": "2026-10-26T06:09:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T06:10:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "kale-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "leek-skillet",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "check",
+   "since": "2026-10-26T03:59:00Z",
+   "cause": "check passed 9m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T04:00:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "leek-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "mint-skillet",
+   "project": "jstack",
+   "home": "root",
+   "stage": "check",
+   "since": "2026-10-26T03:45:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T03:46:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mint-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "sage-skillet",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "check",
+   "since": "2026-10-26T03:49:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T03:50:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-skillet",
+   "depth": 1
+  },
+  {
+   "slug": "tea-colander",
+   "project": "jstack",
+   "home": "root",
+   "stage": "check",
+   "since": "2026-10-26T09:37:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T09:38:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-colander",
+   "depth": 1
+  },
+  {
+   "slug": "jam-colander",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "check",
+   "since": "2026-10-26T07:33:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T07:34:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-colander",
+   "depth": 1
+  },
+  {
+   "slug": "oat-colander",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T03:16:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T03:17:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-colander",
+   "depth": 1
+  },
+  {
+   "slug": "rye-colander",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T03:04:00Z",
+   "cause": "check 2 of 4 running 6m",
+   "cause_since": "2026-10-26T03:05:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "rye-colander",
+   "depth": 1
+  },
+  {
+   "slug": "fig-colander",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T02:48:00Z",
+   "cause": "check failed 20m ago",
+   "cause_since": "2026-10-26T02:49:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "fig-colander",
+   "depth": 1
+  },
+  {
+   "slug": "plum-colander",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "merge",
+   "since": "2026-10-26T10:31:00Z",
+   "cause": "fresh check running",
+   "cause_since": "2026-10-26T10:32:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-colander",
+   "depth": 1
+  },
+  {
+   "slug": "kale-colander",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "merge",
+   "since": "2026-10-26T09:13:00Z",
+   "cause": "conflicts with its base",
+   "cause_since": "2026-10-26T09:14:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "kale-colander",
+   "depth": 1
+  },
+  {
+   "slug": "leek-colander",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "merge",
+   "since": "2026-10-26T02:59:00Z",
+   "cause": "conflicts with its base",
+   "cause_since": "2026-10-26T03:00:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "leek-colander",
+   "depth": 1
+  },
+  {
+   "slug": "mint-colander",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "merge",
+   "since": "2026-10-26T08:45:00Z",
+   "cause": "conflicts with its base",
+   "cause_since": "2026-10-26T08:46:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mint-colander",
+   "depth": 1
+  },
+  {
+   "slug": "sage-colander",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "merge",
+   "since": "2026-10-26T08:12:00Z",
+   "cause": "fresh check running",
+   "cause_since": "2026-10-26T08:13:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-colander",
+   "depth": 1
+  },
+  {
+   "slug": "tea-sieve",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "train",
+   "since": "2026-10-26T06:00:00Z",
+   "cause": "waits for the train to land",
+   "cause_since": "2026-10-26T06:01:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "tea-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "jam-sieve",
+   "project": "jstack",
+   "home": "root",
+   "stage": "train",
+   "since": "2026-10-26T07:18:00Z",
+   "cause": "waits for the train to land",
+   "cause_since": "2026-10-26T07:19:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "jam-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "oat-sieve",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "train",
+   "since": "2026-10-26T08:46:00Z",
+   "cause": "waits for the train to land",
+   "cause_since": "2026-10-26T08:47:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "rye-sieve",
+   "project": "pantry",
+   "home": "shelf",
+   "stage": "train",
+   "since": "2026-10-26T06:07:00Z",
+   "cause": "waits for the train to land",
+   "cause_since": "2026-10-26T06:08:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "rye-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "fig-sieve",
+   "project": "jstack",
+   "home": "root",
+   "stage": "merged",
+   "since": "2026-10-26T08:19:00Z",
+   "cause": "merged",
+   "cause_since": "2026-10-26T08:20:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "fig-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "plum-sieve",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "merged",
+   "since": "2026-10-26T04:03:00Z",
+   "cause": "merged",
+   "cause_since": "2026-10-26T04:04:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "plum-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "kale-sieve",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "merged",
+   "since": "2026-10-26T08:35:00Z",
+   "cause": "merged",
+   "cause_since": "2026-10-26T08:36:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "kale-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "leek-sieve",
+   "project": "jstack",
+   "home": "root",
+   "stage": "merged",
+   "since": "2026-10-26T03:54:00Z",
+   "cause": "merged",
+   "cause_since": "2026-10-26T03:55:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "leek-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "mint-sieve",
+   "project": "jstack",
+   "home": "root",
+   "stage": "merged",
+   "since": "2026-10-26T10:02:00Z",
+   "cause": "merged",
+   "cause_since": "2026-10-26T10:03:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mint-sieve",
+   "depth": 1
+  },
+  {
+   "slug": "sage-sieve",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "merged",
+   "since": "2026-10-26T03:55:00Z",
+   "cause": "merged",
+   "cause_since": "2026-10-26T03:56:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "sage-sieve",
+   "depth": 1
+  }
+ ],
+ "unplaced": [
+  {
+   "slug": "loose-end",
+   "project": "pantry",
+   "cause": "jmerge said: draft"
+  }
+ ],
+ "stuck": {
+  "stage": "check",
+  "still": 13,
+  "count": 22
+ },
+ "longest_wait": {
+  "slug": "leek-kettle",
+  "project": "jstack",
+  "stage": "queued",
+  "since": "2026-10-26T02:08:00Z",
+  "cause": "behind fig-platter (Check)"
+ },
+ "longest": {
+  "depth": 4,
+  "head": "rye-platter",
+  "head_project": "jstack",
+  "head_stage": "check",
+  "head_cause": "check failed 20m ago",
+  "chains": 5
+ }
+}

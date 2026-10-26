@@ -36,6 +36,13 @@ env:
   # each job. check.yml, browser.yml and pstack-drift.yml name the same one
   # (testing/tests/test_workflows.py).
   UV_VERSION: "0.13.2"
+  # What both zsh steps install: noble's two .debs, each after its SHA-256, from Ubuntu's own
+  # archive. apt fetches from the image's Azure mirror, which at times serves 39 kB/s: its
+  # `apt-get update` and install took the step 140 to 270 seconds. Noble's release pocket
+  # keeps these files for as long as noble lives, and a file that is not this one fails the
+  # step before anything is installed.
+  ZSH_POOL: http://archive.ubuntu.com/ubuntu/pool/main/z/zsh
+  ZSH_DEBS: "56d160585b417af0cc04d7372f74a3b734609d7cc43ef8ea6e92bfdfc27f77c3 zsh-common_5.9-6ubuntu2_all.deb bd5cc8dd3a01a6db38c0a815d75202c356a9c7f378674ba7bed9bc86dcba8af0 zsh_5.9-6ubuntu2_amd64.deb"
 
 jobs:
   # A pull request's check is the fast one: the lint, and the tests its change reaches. On
@@ -76,9 +83,10 @@ jobs:
       # Fails if uv.lock does not match pyproject.toml, so CI runs the locked versions.
       - run: uv sync --locked
       # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
-      # shell may be zsh, and GitHub's image has no zsh.
+      # shell may be zsh, and GitHub's image has no zsh. It ends with `zsh --version`, so a
+      # step that installed none fails.
       - name: zsh
-        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
+        run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
       # The tree checked out, GitHub's merge of the head over main: what a marker is named by.
       - name: green tree
         id: tree
@@ -199,10 +207,11 @@ jobs:
       - run: uv sync --locked
         if: steps.tree.outputs.marker != 'green' || steps.tree.outputs.from == 'desk'
       # The suite runs the skills' shell blocks under zsh as well as sh, since a crewmate's
-      # shell may be zsh, and GitHub's image has no zsh.
+      # shell may be zsh, and GitHub's image has no zsh. It ends with `zsh --version`, so a
+      # step that installed none fails.
       - name: zsh
         if: steps.tree.outputs.marker != 'green'
-        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
+        run: 'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\n" $ZSH_DEBS > zsh.sha256 && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4" && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
       # TLC's kept output, as in the check's parts.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         if: steps.tree.outputs.marker != 'green'
