@@ -9,12 +9,25 @@ import shutil
 import stat
 import subprocess
 import tomllib
+from dataclasses import replace
 
 import pytest
 
 from jinstall.__main__ import setup as run_setup
+from jinstall.kinds import StateRepo
 from test_doctor import T3_STABLE, Doctored
-from test_install import REPO, SCRUBBED, UNITS, line_for, machine, worktree
+from test_install import (
+    REPO,
+    SCRUBBED,
+    T3_GET,
+    UNITS_PUT,
+    Machine,
+    Ran,
+    line_for,
+    linux_only,
+    machine,
+    worktree,
+)
 from testing.paths import skills
 
 GIT = 'case "$1" in config) echo "Sam Doe" ;; *) echo "git version 2.51.0" ;; esac'
@@ -46,7 +59,7 @@ def test_a_fresh_home_is_set_up_in_one_pass_and_the_doctor_then_says_ok(user):
 
     assert code == 0
     assert said[:8] == [
-        "already linux",
+        "already platform",
         "already t3",
         "already claude",
         "already uv",
@@ -112,9 +125,7 @@ def test_it_seeds_a_private_jbus_config_that_dispatches_nothing(user):
     user.setup()
     assert stat.S_IMODE(user.jbus_config.stat().st_mode) == 0o600
     assert tomllib.loads(user.jbus_config.read_text()) == {"server": SERVER, "dispatch": False}
-    assert sorted(path.name for path in user.units.iterdir()) == sorted(
-        [*UNITS, "timers.target.wants"]
-    )
+    assert sorted(path.name for path in user.units.iterdir()) == UNITS_PUT
 
 
 def test_the_jbus_server_is_the_one_the_t3_sign_in_names(user):
@@ -145,6 +156,9 @@ def test_a_file_that_is_there_is_never_written_over(user):
     assert user.roles.read_text() == "crew: nonsense\n"
 
 
+@linux_only(
+    "test_setup.py::test_each_missing_program_is_named_with_the_command_that_gets_it_on_the_platform"
+)
 def test_a_missing_program_names_the_one_command_to_get_it(user):
     path = user.without("gh")
     assert line_for(user.setup(path=path)[1], "gh") == [
@@ -159,12 +173,95 @@ def test_a_missing_program_names_the_one_command_to_get_it(user):
     ]
 
 
+WSL2 = "run jstack inside WSL2"
+
+
+@pytest.mark.parametrize(
+    ("platform", "lines"),
+    [
+        (
+            "linux",
+            [
+                "already platform",
+                "needs you t3 -> t3",
+                "needs you claude -> claude",
+                "needs you uv -> uv",
+                "needs you git -> git",
+                "needs you jq -> jq",
+                "needs you gh -> gh",
+            ],
+        ),
+        (
+            "darwin",
+            [
+                "already platform",
+                "needs you t3 -> brew install --cask t3-code",
+                "needs you claude -> brew install --cask claude-code",
+                "needs you uv -> brew install uv",
+                "needs you git -> brew install git",
+                "needs you jq -> brew install jq",
+                "needs you gh -> brew install gh",
+            ],
+        ),
+        (
+            "win32",
+            [
+                f"needs you platform -> this is win32: {WSL2}",
+                f"needs you t3 -> {WSL2}",
+                f"needs you claude -> {WSL2}",
+                f"needs you uv -> {WSL2}",
+                f"needs you git -> {WSL2}",
+                f"needs you jq -> {WSL2}",
+                f"needs you gh -> {WSL2}",
+            ],
+        ),
+    ],
+)
+def test_each_missing_program_is_named_with_the_command_that_gets_it_on_the_platform(
+    tmp_path, platform, lines
+):
+    bare = machine(REPO, tmp_path / "home", tmp_path / "account")
+    done = run_setup(replace(bare, platform=platform))
+    assert list(done.lines[:7]) == lines
+    assert done.code == 1
+
+
+@pytest.mark.parametrize(
+    ("platform", "pacman", "ask"),
+    [
+        ("linux", False, "gitleaks"),
+        ("linux", True, "yay -S gitleaks"),
+        ("darwin", False, "brew install gitleaks"),
+        ("win32", False, WSL2),
+    ],
+)
+def test_a_backup_with_no_gitleaks_names_the_command_that_gets_it_on_the_platform(
+    tmp_path, platform, pacman, ask
+):
+    programs = tmp_path / "bin"
+    programs.mkdir()
+    if pacman:
+        (programs / "pacman").write_text("#!/bin/sh\n")
+        (programs / "pacman").chmod(0o755)
+    state = tmp_path / "state"
+    answers = {"rev-parse": Ran(0, f"{state}\n"), "remote": Ran(0, "git@example.com:me/s\n")}
+    here = Machine(
+        REPO,
+        tmp_path,
+        {"PATH": str(programs)},
+        lambda args: answers[args[3]],
+        tmp_path,
+        platform=platform,
+    )
+    assert StateRepo(state).ask(here) == ask
+
+
 def test_a_hard_need_left_to_the_user_exits_1(user):
     user.program("t3", "echo 't3 v0.1.1'")
     user.program("pacman", "exit 0")
     code, said = user.setup()
     assert code == 1
-    assert "needs you t3 -> yay -S t3code-bin" in said
+    assert f"needs you t3 -> {T3_GET}" in said
     user.program("t3", f"echo 't3 v{T3_STABLE}'")
     assert user.setup()[0] == 0
 
@@ -295,8 +392,11 @@ def narrow_path(tmp_path, **stubs):
 JINSTALL = """#!/bin/sh
 echo "$*" >> "$JINSTALL_LOG"
 case "$1" in
---setup) printf 'already linux\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'; exit 1 ;;
---doctor) printf 'ok hard linux\ndoctor: not ok, 1 hard\n'; exit 1 ;;
+--setup)
+    printf 'already platform\ndone patterns x\nneeds you gh sign-in -> gh auth login\n'
+    exit 1
+    ;;
+--doctor) printf 'ok hard platform -> linux\ndoctor: not ok, 1 hard\n'; exit 1 ;;
 esac
 exit 2
 """
@@ -316,7 +416,7 @@ def test_the_skill_on_a_release_runs_jinstall_setup_then_the_doctor(tmp_path):
     assert (done.returncode, done.stderr) == (0, "")
     assert done.stdout.splitlines() == [
         f"release: {narrow / 'jinstall'}",
-        "already linux",
+        "already platform",
         "done patterns x",
         "needs you gh sign-in -> gh auth login",
         "setup: 1 done, 1 already, 1 needs you, 0 optional left, exit 1",

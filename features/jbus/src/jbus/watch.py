@@ -76,7 +76,7 @@ _STEP_TEST = re.compile(_STAMP + r"FAILED (\S.*?)\s*$", re.M)
 _SUMMARY = re.compile(_STAMP + r"=+ (.*\bin [0-9.]+s\b.*?) =+\s*$", re.M)
 _SUMMARY_COUNT = re.compile(r"(\d+) (?:failed|errors?)\b")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
-OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup"
+OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,isDraft"
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does."""
@@ -327,8 +327,9 @@ def checks(pull: dict[str, Any]) -> str:
     (`jmerge.checks`), counting the failed checks that the pass found whose job ran no step
     (`NEVER`). A check that never started, beside checks that passed, gives `failed`, the
     first word that `jmerge --checks` prints for such a check. `jmerge` decides a merge, not
-    `checks`."""
-    word = reading.checks(pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ()))
+    `checks`. A draft's word is `draft`: CI runs no check on one."""
+    rollup, never = pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ())
+    word = reading.checks(rollup, never, bool(pull.get("isDraft")))
     return "failed" if word == "unstarted" else word
 
 
@@ -1124,15 +1125,15 @@ MACOS = Nightly(
     seen="macos-nightly-runs.json",
     run="the macOS nightly run",
     failed="the macOS suite failed",
-    where="the tests the macOS nightly runs, on train/macos",
+    where="the tests the macOS nightly runs on main, under `features/` and `testing/`",
     done="each failed test named under Read passes on macOS, in a manual run of "
     "macos-nightly.yml with `ref` set to the fix's branch",
-    proves="`make check-fast BASE=origin/train/macos` passes, and so does a manual run of "
+    proves="`make check-fast BASE=origin/main` passes, and so does a manual run of "
     "macos-nightly.yml (`gh workflow run macos-nightly.yml -f ref=<the fix's branch>`)",
-    pull="open one against train/macos when done",
+    pull="open one when done",
     home="macos",
-    title="macos-nightly on train/macos",
-    branch="train/macos",
+    title="macos-nightly on main",
+    branch="main",
 )
 NIGHTLIES = (BROWSER, MACOS)
 """The nightly workflows, each with its own rule for a red run (`_nightly_red`)."""

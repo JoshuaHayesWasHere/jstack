@@ -19,7 +19,8 @@ The routes that read are `routes()`, all `GET`:
 - `/state.json?project=<project>`: the state of one project (`state.Read.answer`): the
   frame, and what each panel of the first screen builds;
 - `/panel/<name>.json?project=<project>`: what one panel builds, for each folder of
-  `panels/` (`panels`);
+  `panels/` (`panels`). With no project, a panel that is `alone` gives what its `stack` builds
+  across every project (`App._across`);
 - `/digest.json?since=`: what `jbus digest --json` prints (`digest.build`);
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
@@ -135,6 +136,7 @@ from urllib.parse import parse_qs
 import jbus
 import jsettings
 from jbus import Refused, digest, record, verbs
+from jbus.bind import NoLookup
 from jbus.view import panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
@@ -401,6 +403,31 @@ class App(Writes):
         built = state.stack(self.sources, self.clock(), runs, self.code.said(), self.panels, names)
         return clean(built, tuple(repos))
 
+    def _across(self, name: str) -> dict[str, Any] | None:
+        """What `/panel/<name>.json` with no project holds for a panel that is `alone`: what its
+        `stack` gives across every project, cut to its shape, and how each project's sources it
+        names are now. Its `answer` is the frame alone. None for any other name."""
+        panel = next((one for one in self.panels if one.name == name and one.alone), None)
+        if panel is None:
+            return None
+        now, code, names = self.clock(), self.code.said(), state.projects(self.sources)
+        shared: dict[Any, Any] = {}
+        runs = self.github.runs
+        base = state.Read(self.sources, "", now, runs, code, self.panels, shared)
+        reads = [
+            state.Read(self.sources, one, now, runs, code, self.panels, shared, self.github.merged)
+            for one in names
+        ]
+        built = {
+            "at": state.iso(now),
+            "panel": name,
+            "data": keep(panel.data.stack(base, reads, {"at": state.iso(now)}), panel.shape),
+            "sources": [
+                one | {"project": read.name} for read in reads for one in read.read_by(panel)
+            ],
+        }
+        return clean(built, tuple(sorted({state.repo(self.sources, one) for one in names} - {""})))
+
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
             return Answer(200, page(self.panels), HTML)
@@ -419,8 +446,11 @@ class App(Writes):
             built = keep(digest.build(config, since, self.clock()), DIGEST)
             repos = tuple(state.repo(self.sources, project.name) for project in config.projects)
             return said(200, clean(built, repos))
-        name = self._project(query)
         task, panel = _TASK.fullmatch(path), _PANEL.fullmatch(path)
+        if panel and not query.get("project", [""])[-1]:
+            built = self._across(panel[1])
+            return NOT_FOUND if built is None else said(200, built)
+        name = self._project(query)
         if name is None or not (task or panel or path == "/state.json"):
             return NOT_FOUND
         repo = state.repo(self.sources, name)
@@ -557,7 +587,9 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-class Door(ThreadingHTTPServer):
+class Door(NoLookup, ThreadingHTTPServer):
+    """A listener that binds without asking DNS for a name of its address (`jbus.bind`)."""
+
     daemon_threads = True
     allow_reuse_address = True
     app: App

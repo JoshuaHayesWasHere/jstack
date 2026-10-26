@@ -97,9 +97,9 @@ Preconditions:
 - **Add the row.** Pipe a brief in. Run `printf '# alpha: a demo task\nWhere: `src/alpha/`\nPull request: none\n' | record queue-row jbus queue add alpha --priority 1`. The table has one row, `alpha`, priority 1, status `queued`, with `approved` and `brief_sha` empty.
 - **Try a derived column.** Run `record queue-row jbus queue add gamma --priority 2 --status launched`. It prints `refused: status is derived from T3 Code and GitHub, and no command writes it` and exits 2. No `gamma` row is added.
 - **Approve it.**
-  Run `sha=$(sha256sum "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)`, then `record queue-row jbus queue approve alpha --by user --at "2026-10-12 00:30 $(date -d '2026-10-12 00:30' +%Z)" --sha "$sha"`.
+  Run `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)`, then `record queue-row jbus queue approve alpha --by user --at "2026-10-12 00:30 $(perl -MPOSIX -e 'print strftime("%Z", localtime(mktime(0, 30, 0, 12, 9, 126, 0, 0, -1)))')" --sha "$sha"`.
   The sandbox has no config of jstack's own, so the name is `user`.
-  The word after the time is the abbreviation of the machine's zone at that time, and `date` prints it.
+  The word after the time is the abbreviation of the machine's zone at that time, and perl's `strftime` prints it.
   The row's `approved` reads `2026-10-12 00:30 <that word> by user` and its `brief_sha` is the 12 characters.
 - **Hold it, and pass.** Run `record queue-row jbus queue hold alpha`, then `record queue-row jbus poll`. The row's `approved` is empty again, the pass prints no `launched` line, and `$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl` has no `t3_thread_launch`.
 - **Approve again, and pass.** Run the approve command again, then `record queue-row jbus poll`. It prints `launched alpha: mcp:sandbox-thread-1`.
@@ -186,7 +186,7 @@ Preconditions:
   ```sh
   red=dddddddddddddddddddddddddddddddddddddddd green=ffffffffffffffffffffffffffffffffffffffff
   printf '# alpha: a demo task\nWhere: `src/alpha/`\n' > "$HOME/.local/state/home/demo/tasks/alpha.md"
-  now=$(date -u +%Y-%m-%dT%H:%M:%SZ) before=$(date -u -d '-2 hours' +%Y-%m-%dT%H:%M:%SZ)
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ) before=$(perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - 7200))')
   jq -n --arg red "$red" --arg now "$now" '[{number: 7, url: "https://example.test/pull/7", title: "feat: alpha", headRefName: "alpha", mergeCommit: {oid: $red}, mergedAt: $now}]' > "$VERIFY_JSTACK_SANDBOX/gh/merged.json"
   jq -n --arg red "$red" --arg green "$green" --arg now "$now" --arg before "$before" '[{sha: $red, commit: {message: "feat: alpha (#7)", committer: {date: $now}}}, {sha: $green, commit: {message: "feat: older (#6)", committer: {date: $before}}}]' > "$VERIFY_JSTACK_SANDBOX/gh/commits.json"
   jq -n --arg red "$red" --arg green "$green" '{($red): [{name: "check", status: "completed", conclusion: "success", id: 900}, {name: "full", status: "completed", conclusion: "failure", id: 901, html_url: "https://example.test/o/r/actions/runs/77/job/901"}], ($green): [{name: "full", status: "completed", conclusion: "success", id: 800}]}' > "$VERIFY_JSTACK_SANDBOX/gh/checks.json"

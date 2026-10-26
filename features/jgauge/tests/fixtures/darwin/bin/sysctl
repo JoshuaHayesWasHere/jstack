@@ -1,0 +1,10 @@
+#!/bin/sh
+# Stands in for macOS's sysctl: `sysctl -n <name>` prints the value that $DARWIN/sysctl.txt
+# gives the name, in the form `<name>: <value>` that `sysctl <name>` prints.
+[ "$#" = 2 ] && [ "$1" = -n ] || exit 64
+value=$(sed -n "s/^$2: //p" "$DARWIN/sysctl.txt")
+if [ -z "$value" ]; then
+  echo "sysctl: unknown oid '$2'" >&2
+  exit 1
+fi
+echo "$value"

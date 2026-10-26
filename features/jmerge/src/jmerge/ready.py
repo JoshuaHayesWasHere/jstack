@@ -54,7 +54,9 @@ OTHER_HOME = Reason("", "another home's")
 REQUIRED = ("check",)
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")
-DRAFT = Reason("", "draft")
+DRAFT = Reason("findings", "draft")
+UNREADIED = Reason("findings", "draft, and gh pr ready refused it: {said}")
+READIED = Reason("check", "reviewed and fixed, so marked ready, and CI runs its check at {head}")
 RULES = "features/jmerge/src/jmerge/"
 GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
 RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
@@ -72,6 +74,7 @@ IN_STACK = Reason("hold", "it is in the stack {stack}, which the user lands")
 IN_UNNAMED_STACK = Reason("hold", "it is in a stack its brief does not name, which the user lands")
 REVIEW, NONE, AFTER, TWICE = "review", "none", "after", "twice"
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
+READY_ON = (DRAFT, REVIEW_NONE)
 NO_REVIEW = Reason("review", "it has no review yet")
 SKILLS_UNRUN = Reason(
     "result",
@@ -337,6 +340,20 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         started=started(listed.get("statusCheckRollup") or [], required),
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
         failed=failed(listed.get("statusCheckRollup") or [], required),
+    )
+
+
+def unchecked_into(one: PullRequest, integration: tuple[str, ...]) -> PullRequest:
+    """`one` with no wait on the pull request's own check where its base is an integration
+    branch. check.yml runs that check on a pull request into main alone: work into a train is
+    checked on each push to the train, whose red hold stands for it, and at main's gate when
+    the train lands."""
+    if one.base not in integration:
+        return one
+    return replace(
+        one,
+        waiting=tuple(name for name in one.waiting if name not in REQUIRED),
+        failed=tuple(name for name in one.failed if name not in REQUIRED),
     )
 
 

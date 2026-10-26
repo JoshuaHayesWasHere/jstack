@@ -1,5 +1,6 @@
 """Whether the bus is alive: the timer and the service as systemd reports them, the last pass,
-the status file, and which code of the view answers.
+the status file, and which code of the view answers. On macOS launchd runs the timer and the
+service as one agent (`jbus.launchd`), and `launchd` gives its answer in systemd's words.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than `QUIET`
 seconds ago and systemd does not report a pass running now. A pass that starts and crashes each
@@ -8,12 +9,14 @@ minute has stopped too, because only the end of a pass counts, not its start.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 from datetime import datetime
 from typing import Any
 
 from jbus import alert
+from jbus import launchd as agents
 from jbus.view.clean import ANY
 from jbus.view.state import (
     PASS_FILE,
@@ -43,6 +46,7 @@ SHAPE = {
         "quiet": None,
         "last_end": None,
         "said": None,
+        "manager": None,
         "failed": None,
         "failed_since": None,
         "pass": {"started": None, "ended": None, "seconds": None, "running": None},
@@ -101,12 +105,43 @@ def systemd(read: Read) -> dict[str, dict[str, str]] | None:
     return units if TIMER in units else None
 
 
+def launchd(read: Read) -> dict[str, dict[str, str]] | None:
+    """What launchd says of jbus's agent, as systemd would say it of the timer and the service,
+    or None where launchd did not answer. A loaded agent is an active timer, and a running one
+    a service at work. Its last exit code is the service's result."""
+    label = agents.label(TIMER)
+    try:
+        asked = subprocess.run(
+            ["launchctl", "print", f"gui/{os.getuid()}/{label}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if asked.returncode in agents.NOT_LOADED:
+        return {TIMER: {"Id": label, "ActiveState": "inactive"}, SERVICE: {"Id": label}}
+    if asked.returncode:
+        return None
+    said = agents.parse_print(asked.stdout)
+    running = said.get("state") == "running"
+    code = said.get("last exit code", "")
+    result = "success" if code == "0" else "exit-code" if code.isdigit() else ""
+    timer = {"Id": label, "ActiveState": "active", "SubState": "running" if running else "waiting"}
+    service = {"Id": label, "ActiveState": "activating" if running else "inactive"}
+    return {
+        TIMER: timer | {"UnitFileState": "loaded"},
+        SERVICE: service | {"Result": result, "ExecMainStatus": code},
+    }
+
+
 def pulse(read: Read) -> dict[str, Any]:
     """What systemd, `pass.json` and `status.json` say, and whether systemd `answered`."""
     sources, name, now = read.sources, read.name, read.now
     record = read.record
     status = _table(sources.state_dir / "status.json") or {}
-    units = read.machine(systemd)
+    manager = agents.manager()
+    units = read.machine(launchd if manager == "launchd" else systemd)
     timer, service = (units or {}).get(TIMER, {}), (units or {}).get(SERVICE, {})
     started, ended = when(record.get("started")), when(record.get("ended"))
     last = ended or when(status.get("last_pass"), sources.user)
@@ -124,19 +159,14 @@ def pulse(read: Read) -> dict[str, Any]:
     held = stranded.get(name) if isinstance(stranded.get(name), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
     scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
-    said = "systemd did not answer"
-    if units is not None:
-        said = (
-            f"{TIMER} {text(timer.get('ActiveState'), 60)} ({text(timer.get('SubState'), 60)}), "
-            f"{SERVICE} {text(service.get('Result'), 60)}, "
-            f"exit {text(service.get('ExecMainStatus'), 60)}"
-        )
+    said = f"{manager} did not answer" if units is None else _said(timer, service)
     return {
         "stopped": stopped,
         "why": "the timer is not active" if down else f"no pass in the last {QUIET} s" * stopped,
         "quiet": QUIET,
         "last_end": last,
         "said": said,
+        "manager": manager,
         "answered": units is not None,
         "failed": failed,
         "failed_since": failed_since if failed else None,
@@ -192,6 +222,21 @@ def _hook(one: Any) -> dict[str, Any] | None:
         "last_error": text(one.get("last_error")),
         "outbox": count(one.get("outbox")),
     }
+
+
+def _said(timer: dict[str, str], service: dict[str, str]) -> str:
+    """The manager's answer in one line, `jbus.timer active (waiting), jbus.service success,
+    exit 0`, with each field it did not give left out. launchd gives no state of an agent it has
+    not loaded, and no result of one that has not exited."""
+    sub = text(timer.get("SubState"), 60)
+    result = text(service.get("Result"), 60)
+    code = text(service.get("ExecMainStatus"), 60)
+    said = f"{timer.get('Id', TIMER)} {text(timer.get('ActiveState'), 60)}"
+    said += f" ({sub})" if sub else ""
+    if result or code:
+        said += f", {service.get('Id', SERVICE)}" + (f" {result}" if result else "")
+        said += f", exit {code}" if code else ""
+    return said
 
 
 def _streak(streaks: dict[str, Any], key: str) -> tuple[int, str | None]:

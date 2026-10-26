@@ -9,6 +9,7 @@ The slots stop many threads at once from overloading the machine or using up the
 
 - `jgauge session` and `jgauge context` read only the transcripts Claude Code writes under `~/.claude/projects/`.
 - `jgauge room` reads `/proc`, `df`, your role map and the ledger files of your plan's limits.
+  On macOS it reads `sysctl` and `vm_stat` in place of `/proc`, and no `df`.
 - `jgauge limits` reads your Claude OAuth access token and calls Anthropic's usage API with it.
   The Claude homes are `~/.claude` and each home that `~/.config/jstack/providers.json` declares.
   For each home, it reads the token from `<home>/.credentials.json`.
@@ -59,7 +60,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge limits --check` | Reads no account: prints `stale <instance>: <why>` for each Claude instance whose ledger file is missing or was written 15 min ago or more, and exits 1 when there is one. |
 | `jgauge sample` | Appends one row of load and pressure to the log ("jgauge sample"). |
 | `jgauge sample --report [--since <time>] [--until <time>] [--pressure <line>]` | Counts the rows of the log ("jgauge sample"). |
-| `jgauge sizes` | Prints the machine's three sizes, `test_slots`, `short_slots` and `max_running`, each as its caller gets it and where it came from (a flag or `TEST_SLOTS`, `~/.config/jstack/machine.toml` or jbus's config, else derived from the processors of `/proc/stat` and `MemTotal`), with the derived value beside an override, then room's six lines. [The limits and how to change them](jgauge/change-a-limit.md) has each one. |
+| `jgauge sizes` | Prints the machine's three sizes, `test_slots`, `short_slots` and `max_running`, each as its caller gets it and where it came from (a flag or `TEST_SLOTS`, `~/.config/jstack/machine.toml` or jbus's config, else derived from the processors of `/proc/stat` and `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`), with the derived value beside an override, then room's six lines. [The limits and how to change them](jgauge/change-a-limit.md) has each one. |
 | `jgauge test-slot [--slots N] -- <command>` | Runs the command while it holds one of N machine-wide test slots, and ends with the command's exit code. A slot is a lock file, `~/.local/state/locks/test-slot.<n>.lock`. When all are held it prints `test-slot: waiting for one of <N> slots` on stderr and waits. N is `--slots`, else `TEST_SLOTS`, else `test_slots` in `~/.config/jstack/machine.toml`, else what the machine derives: every slot at once runs at most one desk worker a processor, 4 on most machines of 8 cores or more, 5 on 10, 11 or 15. |
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
 | `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once. With a slot free it runs the command as above and takes the thread out of the waiters. With every slot of the lane taken it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line saying it waits and that jbus will wake it, and ends 76. `jbus poll` sends the oldest waiter on a lane one message when a slot of the lane is free (`slotwait.wake`, features/jbus/docs/jbus.md), and the thread runs the same command again. `JGAUGE_LOCKS_DIR` moves the lock files and the waiters file, for a test. |
@@ -83,6 +84,11 @@ It checks these readings, each against its line:
 If `jgauge room` cannot read a machine reading, it prints `wait: `.
 If it cannot read a plan limit, it does not wait on that limit.
 It prints `go`, and writes a `note: ` line on stderr.
+
+On macOS, which has no `/proc`, it reads the load from `sysctl -n vm.loadavg`, the cores from `sysctl -n hw.ncpu`, and the memory available from `vm_stat`, as its free, inactive and speculative pages.
+macOS has no pressure lines and APFS no fixed count of file slots, so on macOS the CPU pressure, the memory pressure and the file slots are not read and hold no launch.
+On Linux a pressure file that cannot be read still prints `wait: `.
+On macOS `jgauge room` also skips its sweep of stale pytest runs from a full `/tmp`: the sweep finds the runs a live process holds through `/proc`, so with no `/proc` every run would look unheld.
 
 | Flag | What it does |
 |---|---|
@@ -120,8 +126,8 @@ The columns are, in order:
 
 - the time in seconds since the epoch
 - the number of cores
-- the three loads of `/proc/loadavg`
-- `some` and `full`, each as `avg10` and `avg60`, of `/proc/pressure/cpu`, `memory` and `io`
+- the three loads of `/proc/loadavg`, or of `sysctl -n vm.loadavg` on macOS
+- `some` and `full`, each as `avg10` and `avg60`, of `/proc/pressure/cpu`, `memory` and `io`, empty on macOS, which has no pressure lines
 - the file slots of `/tmp`, and how many of them are used
 
 `TMPFS` sets another path in place of `/tmp`.

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import view
+from jbus import launchd, view
 from jbus.view import panels
 from jbus.view import state as built
 from view.scene import LINKED, LINKS, NOW, REPO, SAMPLE, Scene, folder
@@ -137,6 +137,8 @@ def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_stat
         for key in set(panel.shape) - live:
             if panel.first:
                 assert said["data"][key] == state[key], key
+            elif key == "at":
+                assert said["data"]["at"] == state["at"]
             else:
                 assert key not in state, key
         names = {source.name for source in panel.sources}
@@ -245,7 +247,11 @@ def test_a_folder_added_under_a_running_server_is_served_once_it_loads(scene, pr
     assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
 
 
-def test_a_panel_asked_for_by_itself_looks_at_its_own_sources_and_no_other(scene, served):
+def test_a_panel_asked_for_by_itself_looks_at_its_own_sources_and_no_other(
+    scene, served, monkeypatch
+):
+    """The pulse panel asks the service manager, which is systemd here: on a Mac it is launchd."""
+    monkeypatch.setattr(launchd, "manager", lambda: "systemd")
     scene.script("systemctl", f"echo asked >> {scene.root}/systemctl.calls\n")
     served.json("/panel/merged.json?project=demo")
     assert not (scene.root / "systemctl.calls").exists()

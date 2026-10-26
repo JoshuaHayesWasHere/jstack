@@ -1,6 +1,8 @@
 import json
 import os
+import sys
 import time
+from pathlib import Path
 
 import pytest
 
@@ -50,8 +52,13 @@ def rows(log):
     return [line.split("\t") for line in log.read_text().splitlines()[1:]]
 
 
-def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
+def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine, monkeypatch):
+    """APFS works out f_ffree from the free blocks and f_files as used plus free, so on a Mac the
+    total moves with every write on the volume: the row is held to the read it was made of."""
     proc, log = machine
+    reads = []
+    statvfs = os.statvfs
+    monkeypatch.setattr(os, "statvfs", lambda path: reads.append(statvfs(path)) or reads[-1])
     before = int(time.time())
     assert cli.main(["sample"]) == 0
     assert cli.main(["sample"]) == 0
@@ -61,18 +68,31 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
     assert len(lines) == 3
     row = lines[1].split("\t")
     assert before <= int(row[0]) <= int(time.time())
-    files = os.statvfs(machine[0].parent)
+    files = reads[0]
     if files.f_files:
         assert int(row[17]) == files.f_files and 0 < int(row[18]) <= files.f_files
+        assert int(row[18]) == files.f_files - files.f_ffree
+        if sys.platform == "linux":
+            assert statvfs(proc.parent).f_files == files.f_files
     else:
         assert row[17:] == ["", ""]
     assert row[1:17] == [
-        str(len(os.sched_getaffinity(0))),
+        str(len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()),
         *("11.54", "8.96", "7.51"),
         *("5.00", "5.72", "0.00", "0.10"),
         *("0.01", "0.02", "0.03", "0.04"),
         *("1.50", "2.25", "0.75", "1.25"),
     ]
+
+
+def test_a_system_with_no_affinity_counts_every_core(machine, monkeypatch):
+    """macOS has no `sched_getaffinity`: a sample of a given /proc there counts every core."""
+    _, log = machine
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
+    monkeypatch.setattr(os, "cpu_count", lambda: 7)
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[1:5] == ["7", "11.54", "8.96", "7.51"]
 
 
 def test_a_missing_pressure_file_writes_empty_fields_and_not_a_crash(machine):
@@ -95,6 +115,55 @@ def test_a_machine_with_no_pressure_and_no_loadavg_still_writes_a_row(machine):
     assert cli.main(["sample"]) == 0
     (row,) = rows(log)
     assert len(row) == 19 and row[2:17] == [""] * 15
+
+
+DARWIN = Path(__file__).parent / "fixtures" / "darwin"
+
+
+@pytest.fixture
+def mac(machine, monkeypatch, tmp_path):
+    """The machine above as a Mac: `sys.platform` is darwin and `sysctl` prints the output in
+    fixtures/darwin. `PROC` is unset, as on a Mac, and the /proc of the machine fixture is
+    still there, so a value read from it would show."""
+    shown = tmp_path / "darwin"
+    shown.mkdir()
+    (shown / "sysctl.txt").write_text((DARWIN / "sysctl.txt").read_text())
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setenv("DARWIN", str(shown))
+    monkeypatch.setenv("PATH", f"{DARWIN / 'bin'}:{os.environ['PATH']}")
+    monkeypatch.delenv("PROC")
+    return shown, machine[1]
+
+
+def test_a_sample_on_a_mac_given_a_proc_reads_that_proc_and_not_sysctl(mac, machine, monkeypatch):
+    """A caller that names a /proc in `PROC` has that machine sampled on every system."""
+    _, log = mac
+    monkeypatch.setenv("PROC", str(machine[0]))
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[2:17] == [
+        *("11.54", "8.96", "7.51"),
+        *("5.00", "5.72", "0.00", "0.10"),
+        *("0.01", "0.02", "0.03", "0.04"),
+        *("1.50", "2.25", "0.75", "1.25"),
+    ]
+
+
+def test_a_sample_on_a_mac_has_its_load_and_cores_and_no_pressure(mac):
+    """macOS has no pressure (PSI) lines: their fields are empty, as on a kernel without them."""
+    _, log = mac
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert row[1:5] == ["12", "1.62", "1.88", "2.03"]
+    assert row[5:17] == [""] * 12
+
+
+def test_a_sample_on_a_mac_whose_sysctl_says_nothing_still_writes_a_row(mac):
+    shown, log = mac
+    (shown / "sysctl.txt").write_text("")
+    assert cli.main(["sample"]) == 0
+    (row,) = rows(log)
+    assert len(row) == 19 and row[1:17] == [""] * 16
 
 
 def test_rows_older_than_30_days_are_dropped_by_the_sampler(machine):

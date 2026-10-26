@@ -54,7 +54,7 @@ NOTED = re.compile(r"^ {0,3}\[[^\]]+\]:\s*<?([^\s>]+)", re.M)
 TAGGED = re.compile(r"<(img|a|source)\b[^>]*?\b(?:src|href|srcset)=[\"']([^\"']+)", re.I)
 PERSONAL = ("~/repos/jstack",)
 HARD = {
-    "Linux": ("linux",),
+    "Linux or macOS": ("platform",),
     "T3 Code": ("t3",),
     "Claude Code": ("claude",),
     "`uv`": ("uv",),

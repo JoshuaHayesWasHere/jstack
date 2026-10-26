@@ -215,6 +215,23 @@ def test_a_green_pull_request_whose_brief_asks_for_no_review_is_told_once_for_a_
     ]
 
 
+def test_a_draft_is_told_neither_green_nor_red_since_ci_runs_no_check_on_it(launched):
+    """CI runs no check on a draft (check.yml), so what its rollup holds, a skipped check or one
+    from before it was turned back to a draft, says nothing of the head: its crew marks it ready
+    once its fix round is pushed, and the check that runs then is the one jbus tells of."""
+    brief = launched.home / "tasks" / "alpha.md"
+    brief.write_text(brief.read_text().replace("Review: review\n", "Review: none\n"))
+    launched.set("jmerge.txt", "")
+    launched.set("open.json", [{**pull(launched), "isDraft": True}])
+    passes(launched, 0, 3)
+    launched.set("open.json", [{**pull(launched, [failed()]), "isDraft": True}])
+    passes(launched, 6, 9)
+    assert sends(launched) == []
+    launched.set("open.json", [{**pull(launched), "isDraft": False}])
+    passes(launched, 12, 15)
+    assert keys(launched) == ["green|alpha|cccccccccccc"]
+
+
 REVIEWED = f"\n## Review\nVerdict: findings\nHead: {'b' * 40}\nFindings:\n- warning: a thing\n"
 
 

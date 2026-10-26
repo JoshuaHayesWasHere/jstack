@@ -1748,7 +1748,8 @@ def stack(
     asks systemd, the room script and the runner units once each, however many projects
     there are. It calls `runs` once for each repo, and `runs` keeps its answer. Under `unwell`, the
     machine lists each of its own sources that is not ok, except one that a session writes.
-    No project's row gives those sources.
+    No project's row gives those sources. Each panel with a `stack` adds what it gives, except one
+    that is `alone` (`panels.Panel.alone`).
     """
     found = panels.found() if found is None else found
     keys(found)
@@ -1808,7 +1809,7 @@ def stack(
         ),
     }
     for panel in found:
-        if hasattr(panel.data, "stack"):
+        if hasattr(panel.data, "stack") and not panel.alone:
             added = keep(panel.data.stack(base, reads, answer), panel.shape)
             if taken := set(added) & set(answer):
                 raise ValueError(f"the panel {panel.name} gives {sorted(taken)}, which are taken")
