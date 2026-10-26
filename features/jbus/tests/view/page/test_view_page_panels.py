@@ -54,6 +54,7 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
     asks = [
         "/answer",
         "/panel/",
+        "/panel/pipeline.json",
         "/panel/steps.json?project=",
         "/panel/you/approve",
         "/panel/you/hold?project=",

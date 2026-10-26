@@ -62,7 +62,6 @@ import subprocess
 import tempfile
 import threading
 import time
-import types
 import urllib.parse
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -71,7 +70,6 @@ from pathlib import Path
 import pytest
 
 from jbus import questions, view
-from jbus.view import panels
 from jbus.view.writes import said
 from test_jbus_kitchen import GATE as PIPED
 from testing.paths import REPO
@@ -647,24 +645,9 @@ def board(rows):
 
 
 def boarded(patch, rows):
-    """Make the server answer `/panel/pipeline.json` with `board(rows)`, and give it back. Where
-    the folder `panels/pipeline` has no `panel.py` yet, the server is given a board panel that
-    builds nothing, so the page has the board's script. Call it before the server starts."""
+    """Make the server answer `/panel/pipeline.json` with `board(rows)`, and give it back.
+    Call it before the server starts."""
     made = board(rows)
-    if "pipeline" not in panels.names():
-        stub = panels.Panel(
-            "pipeline",
-            types.SimpleNamespace(FIRST=False, SHAPE={}, SOURCES=(), build=lambda read: {}),
-            panels.HERE / "pipeline" / panels.SCRIPT,
-        )
-        found, real_names = (
-            tuple(sorted((*panels.found(), stub), key=lambda p: p.name)),
-            panels.names,
-        )
-        patch.setattr(panels, "found", lambda: found)
-        patch.setattr(
-            panels, "names", lambda *here: tuple(sorted((*real_names(*here), "pipeline")))
-        )
     real_get = view.App.get
 
     def get(app, path, query):
