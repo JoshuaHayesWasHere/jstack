@@ -1,5 +1,5 @@
 var NEEDS_FOR = 10, FIRST = 3;
-var ACCEPTING = {}, SAID = [], FORM = {}, TYPED = {}, UNFOLDED = false;
+var ACCEPTING = {}, SAID = [], FORM = {}, TYPED = {}, UNFOLDED = "";
 var LOST_APPROVAL = "The view server did not answer, so it is not known whether the approval was written. Read the list again before you approve.";
 var LOST_LINE = "The view server did not answer, so it is not known whether your line was kept. Read the list again before you send it again.";
 var ACT_VERB = { answer: "Answer", approve: "Approve", steer: "Steer" };
@@ -113,10 +113,11 @@ function foldLine(all) {
   var box = $("nfold"), more = all.length - FIRST;
   if (!box) { $("nq").insertAdjacentHTML("afterend", '<p id="nfold"></p>'); box = $("nfold"); }
   box.hidden = more <= 0;
-  put(box, more <= 0 ? "" : '<button type="button" class="btn" data-fold="1" aria-controls="nq" aria-expanded="' + UNFOLDED + '">' + (UNFOLDED ? "Show the first " + FIRST : "+" + more + " more need you") + '</button>');
+  put(box, more <= 0 ? "" : '<button type="button" class="btn" data-fold="1" aria-controls="nq" aria-expanded="' + !!UNFOLDED + '">' + (UNFOLDED ? "Show the first " + FIRST : "+" + more + " more need you") + '</button>');
 }
 function renderNeeds() {
   leaveAccepts();
+  if (UNFOLDED !== PROJECT) UNFOLDED = "";
   var src = PROJECT ? S : STACK, box = $("needs");
   box.hidden = !src || !!NOSUCH;
   if (box.hidden) return;
@@ -224,7 +225,7 @@ document.addEventListener("click", function (e) {
   else if (x) { delete FORM[x.getAttribute("data-shut")]; renderNeeds(); }
   else if (e.target.closest("[data-unsay]")) unsay();
   else if (e.target.closest("[data-fold]")) {
-    UNFOLDED = !UNFOLDED; renderNeeds();
+    UNFOLDED = UNFOLDED ? "" : PROJECT; renderNeeds();
     var next = UNFOLDED ? document.querySelector("#nq > .nr:nth-child(" + (FIRST + 1) + ") .nw") : document.querySelector("#nfold [data-fold]"); if (next) next.focus();
   }
 });
