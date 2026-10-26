@@ -155,3 +155,17 @@ def test_failed_passes_are_wrong_with_their_count(tmp_path, monkeypatch):
     scene.write("streaks.json", {"pass": {"count": 3, "since": since}}, scene.state_dir)
     (first,) = [one for one in stack(scene)["glance"]["items"] if one["tier"] == "wrong"]
     assert (first["kind"], first["cause"], first["since"]) == ("jbus", "3 passes failed", since)
+
+
+def test_an_unreadable_streaks_file_is_a_wrong_source_and_says_no_pass_failed(
+    tmp_path, monkeypatch
+):
+    """With `streaks.json` unreadable the band cannot say whether passes fail, so it says the
+    file is unreadable instead; with no file, no streak is open and nothing is wrong."""
+    scene = Scene(tmp_path, monkeypatch)
+    quiet(scene)
+    assert stack(scene)["glance"]["calm"] is True
+    (scene.state_dir / "streaks.json").write_text("{not json")
+    glance = stack(scene)["glance"]
+    assert ("wrong", "source", "streaks.json") in drawn(glance)
+    assert all(one["kind"] != "jbus" for one in glance["items"])

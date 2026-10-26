@@ -1288,6 +1288,36 @@ class Read:
         """The start of the user's day."""
         return iso(self.user.local(self.now).replace(hour=0, minute=0, second=0, microsecond=0))
 
+    def merged_since(self, start: str) -> list[dict[str, Any]]:
+        """Each merge at or after `start`, oldest first: each row that moved to merged in the
+        queue, and each row that `merge.log` records as merged while the row says another
+        state. The view works it out once for each `start`: the panel `merged` and the band
+        `glance` ask for the same one for most of the day."""
+        if ("merged", start) not in self._kept:
+            self._kept["merged", start] = self._merged_since(start)
+        return self._kept["merged", start]
+
+    def _merged_since(self, start: str) -> list[dict[str, Any]]:
+        pull = {row["slug"]: row for row in self.rows}
+        merged = []
+        for move in self.moves or []:
+            slug, at = text(move.get("slug"), 80), when(move.get("at"))
+            if move.get("to") == "merged" and at and at >= start:
+                was = pull.get(slug, {})
+                approved = when(queue.ran_at(was), self.user)
+                merged.append(
+                    {"slug": slug, "pr": text(was.get("pr"), 20), "at": at, "approved": approved}
+                )
+        for one in self.ended:
+            at = one["since"] if one["state"]["kind"] == "merged" else None
+            if at and at >= start and one["slug"] not in {m["slug"] for m in merged}:
+                approved = one["approved_at"]
+                merged.append(
+                    {"slug": one["slug"], "pr": one["pr"], "at": at, "approved": approved}
+                )
+        merged.sort(key=lambda one: one["at"])
+        return merged
+
     @cached_property
     def listed(self) -> list[dict[str, Any]]:
         """Every source a panel names, once, in the order of its rank, and how it is now."""
@@ -1718,7 +1748,8 @@ def stack(
     asks systemd, the room script and the runner units once each, however many projects
     there are. It calls `runs` once for each repo, and `runs` keeps its answer. Under `unwell`, the
     machine lists each of its own sources that is not ok, except one that a session writes.
-    No project's row gives those sources.
+    No project's row gives those sources. Each panel with a `stack` adds what it gives, except one
+    that is `alone` (`panels.Panel.alone`).
     """
     found = panels.found() if found is None else found
     keys(found)
@@ -1778,7 +1809,7 @@ def stack(
         ),
     }
     for panel in found:
-        if hasattr(panel.data, "stack"):
+        if hasattr(panel.data, "stack") and not panel.alone:
             added = keep(panel.data.stack(base, reads, answer), panel.shape)
             if taken := set(added) & set(answer):
                 raise ValueError(f"the panel {panel.name} gives {sorted(taken)}, which are taken")

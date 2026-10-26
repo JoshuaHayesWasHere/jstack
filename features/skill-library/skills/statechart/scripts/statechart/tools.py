@@ -1,9 +1,11 @@
 """Where the statechart command finds TLC, the Java that runs it, and Mermaid's renderer. Each is
 pinned here, the one place its version is written."""
 
+import functools
 import hashlib
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import urllib.request
@@ -34,9 +36,61 @@ class Tlc:
     java: str
 
 
-def cached_jar():
+def cache_root():
     cache = os.environ.get("XDG_CACHE_HOME") or os.path.join(Path.home(), ".cache")
-    return Path(cache) / "jstack" / "tla2tools" / TLA2TOOLS_VERSION / "tla2tools.jar"
+    return Path(cache) / "jstack"
+
+
+def cached_jar():
+    return cache_root() / "tla2tools" / TLA2TOOLS_VERSION / "tla2tools.jar"
+
+
+def tlc_cache():
+    """Where `kept` keeps each TLC run's output, one file named by the sha256 of its inputs."""
+    return cache_root() / "tlc"
+
+
+def kept(output_of, inputs, done):
+    """`output_of()`, kept under the sha256 of `inputs`, each a str or bytes: a later call with
+    the same inputs returns the kept output and calls nothing. An output is kept only when
+    `done(output)` says the run finished, so a run that failed or was cut short runs again."""
+    key = hashlib.sha256()
+    for one in inputs:
+        key.update(hashlib.sha256(one.encode() if isinstance(one, str) else one).digest())
+    path = tlc_cache() / key.hexdigest()
+    try:
+        return path.read_text()
+    except FileNotFoundError:
+        pass
+    out = output_of()
+    if done(out):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, part = tempfile.mkstemp(dir=path.parent, prefix=".tlc-")
+        with os.fdopen(fd, "w") as handle:
+            handle.write(out)
+        os.replace(part, path)
+    return out
+
+
+def tlc_inputs(found):
+    """What a TLC run reads besides its spec and its config: this file, the pinned jar's version
+    and sha256, the bytes of the jar it runs, and the first line `java -version` says of the Java
+    that runs it."""
+    return [
+        Path(__file__).read_bytes(),
+        TLA2TOOLS_VERSION,
+        TLA2TOOLS_SHA256,
+        Path(found.jar).read_bytes(),
+        java_version(found.java),
+    ]
+
+
+@functools.cache
+def java_version(java):
+    """The first line `java -version` says, past the one a set JAVA_TOOL_OPTIONS adds."""
+    said = subprocess.run([java, "-version"], capture_output=True, text=True)
+    lines = (said.stderr + said.stdout).splitlines()
+    return next((line for line in lines if not line.startswith("Picked up ")), "")
 
 
 def find_java():

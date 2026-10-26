@@ -1,5 +1,5 @@
-var NEEDS_FOR = 10;
-var ACCEPTING = {}, SAID = [], FORM = {}, TYPED = {};
+var NEEDS_FOR = 10, FIRST = 3;
+var ACCEPTING = {}, SAID = [], FORM = {}, TYPED = {}, UNFOLDED = false;
 var LOST_APPROVAL = "The view server did not answer, so it is not known whether the approval was written. Read the list again before you approve.";
 var LOST_LINE = "The view server did not answer, so it is not known whether your line was kept. Read the list again before you send it again.";
 var ACT_VERB = { answer: "Answer", approve: "Approve", steer: "Steer" };
@@ -12,8 +12,10 @@ document.head.insertAdjacentHTML("beforeend", '<style>' +
   '#nfall { margin: 2px 0 4px; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }' +
   '#nfall b { color: var(--ink); font-weight: 600; }' +
   '.needs.bar #nfall { flex: 1 1 100%; order: 3; margin: 0 0 2px; }' +
+  '#nq > .nr[hidden] { display: none; }' +
+  '#nfold { margin: 4px 0 0; }' +
   '#nsaid .stl { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }' +
-  '@media (max-width: 600px) { .nq .na { flex: 1 1 100%; } .nq .na .btn { flex: 1 1 auto; min-height: 44px; } .nq .nf input { min-height: 44px; flex-basis: 100%; } }' +
+  '@media (max-width: 600px) { #nq .na { flex: 1 1 100%; } #nq .na .btn { flex: 1 1 auto; min-height: 44px; } .nq .nf input { min-height: 44px; flex-basis: 100%; } }' +
   '</style>');
 function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
@@ -49,9 +51,9 @@ function everywhere(src) {
   return !PROJECT || all == null || all === src.needs.length ? "" : '<b data-gloss="count:waits">' + all + "</b> " + (all === 1 ? "waits" : "wait") + " on you in every project";
 }
 function fallLine(src) {
-  var box = $("nfall");
+  var box = $("nfall"), brief = !PROJECT || !UNFOLDED, due = src.proceeds.some(function (w) { return ms(w.due) != null; });
   if (!box) { $("needs-h").insertAdjacentHTML("afterend", '<p id="nfall"></p>'); box = $("nfall"); }
-  var bits = [falls(src), everywhere(src)].filter(Boolean);
+  var bits = brief ? [due ? falls(src) : ""].filter(Boolean) : [falls(src), everywhere(src)].filter(Boolean);
   box.hidden = !bits.length;
   put(box, bits.join(" &middot; "));
 }
@@ -76,9 +78,11 @@ function needAct(w) {
   return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Accepts the default of question ' + esc(needNumber(w)) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">Accept default</button>' + form;
 }
 function saysNow(now) { return now.w.act === "answer" && !now.words ? "Accepting the default" : ACT_SAYS[now.w.act]; }
-function needRow(w) {
-  var act = needAct(w);
-  return '<div class="nb"><a class="nw" href="' + esc(needLink(w)) + '"><b>' + esc(w.what) + '</b></a>' + (w.why ? '<span class="ny">' + esc(w.why) + '</span>' : "") +
+function needRow(w, brief) {
+  var act = needAct(w), title = '<a class="nw" href="' + esc(needLink(w)) + '"><b>' + esc(w.what) + '</b></a>';
+  if (brief) return '<div class="nb">' + title + '<span class="nd"><b>Goes ahead:</b> ' + esc(w["default"]) + '</span></div>' +
+    (act ? '<div class="na">' + act + '</div>' : "") + (typed(w) && !ACCEPTING[needId(w)] ? needForm(w) : "");
+  return '<div class="nb">' + title + (w.why ? '<span class="ny">' + esc(w.why) + '</span>' : "") +
     '<span class="nd"><b>If you do nothing:</b> ' + esc(w["default"]) + '</span><span class="nm"' + (ms(w.since) == null ? "" : ' title="Since ' + esc(day(ms(w.since))) + '"') + '>' + needMeta(w) + '</span></div>' +
     (act ? '<div class="na">' + act + '</div>' : "") + (typed(w) && !ACCEPTING[needId(w)] ? needForm(w) : "");
 }
@@ -105,6 +109,12 @@ function leaveAccepts() {
     clearInterval(now.timer); delete ACCEPTING[id];
   });
 }
+function foldLine(all) {
+  var box = $("nfold"), more = all.length - FIRST;
+  if (!box) { $("nq").insertAdjacentHTML("afterend", '<p id="nfold"></p>'); box = $("nfold"); }
+  box.hidden = more <= 0;
+  put(box, more <= 0 ? "" : '<button type="button" class="btn" data-fold="1" aria-controls="nq" aria-expanded="' + UNFOLDED + '">' + (UNFOLDED ? "Show the first " + FIRST : "+" + more + " more need you") + '</button>');
+}
 function renderNeeds() {
   leaveAccepts();
   var src = PROJECT ? S : STACK, box = $("needs");
@@ -119,14 +129,18 @@ function renderNeeds() {
     put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> ' + (needs.length === 1 ? "waits" : "wait") + ' on you' : "Nothing waits on you" + lastPass()) + (tail.length ? ' <span class="nm">' + (needs.length ? "" : "&middot; ") + esc(tail.join(" \u00b7 ")) + '</span>' : ""));
     keyed($("nq"), "li", "nr", []);
     $("nq").hidden = true;
+    if ($("nfold")) $("nfold").hidden = true;
     put($("nsaid"), saidRows());
     put($("nx"), "");
     return;
   }
   var all = oneList(src), focus = document.activeElement, at = focus && focus.getAttribute && focus.getAttribute("data-type"), caret = at ? focus.selectionStart : 0;
   put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + (soon.length ? ' <span class="nm">&middot; ' + soon.length + (soon.length === 1 ? " goes" : " go") + ' ahead on ' + (soon.length === 1 ? "its" : "their") + ' default</span>' : ""));
-  keyed($("nq"), "li", "nr", all.map(function (w) { return { key: needId(w), html: needRow(w) }; }));
+  var folded = !UNFOLDED && all.length > FIRST;
+  keyed($("nq"), "li", "nr", all.map(function (w) { return { key: needId(w), html: needRow(w, !UNFOLDED) }; }));
+  [].forEach.call($("nq").children, function (li, n) { li.hidden = folded && n >= FIRST && !ACCEPTING[li.getAttribute("data-key")]; });
   $("nq").hidden = !all.length;
+  foldLine(all);
   put($("nsaid"), saidRows());
   put($("nx"), !PROJECT ? "" : added("you").map(function (a) {
     return '<button type="button" class="tok sans faint" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it"><b' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb">' + esc(a.said.label) + '</span></button>';
@@ -209,6 +223,10 @@ document.addEventListener("click", function (e) {
   else if (f) { var id = f.getAttribute("data-form"); FORM[id] = true; renderNeeds(); var box = document.querySelector('#needs [data-type="' + CSS.escape(id) + '"]'); if (box) box.focus(); }
   else if (x) { delete FORM[x.getAttribute("data-shut")]; renderNeeds(); }
   else if (e.target.closest("[data-unsay]")) unsay();
+  else if (e.target.closest("[data-fold]")) {
+    UNFOLDED = !UNFOLDED; renderNeeds();
+    var next = UNFOLDED ? document.querySelector("#nq > .nr:nth-child(" + (FIRST + 1) + ") .nw") : document.querySelector("#nfold [data-fold]"); if (next) next.focus();
+  }
 });
 document.addEventListener("input", function (e) {
   var t = e.target.closest && e.target.closest("[data-type]"); if (!t) return;

@@ -56,14 +56,19 @@ def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_hi
     assert "not the default" not in said
 
 
+ACCEPT = "[data-accept][aria-description^='Accepts the default']"
+"""The gate's own Accept default in its row of Needs you, beside the rows to approve, which
+accept inline too."""
+
+
 def test_the_inline_accept_waits_ten_seconds_undo_stops_it_and_one_write_follows(scene, tmp_path):
     """A gate has a default and no hold, and the user accepts it from the queue. Undo within the
     10-second window sends nothing, a second accept sends one write after the window, and the
     page shows the server's sentence. At the start, nothing on the page or in the drawer has the
-    focus."""
+    focus. Each row of the list has its one action filled, and no more."""
     tea, _, _ = gated(scene)
-    walk = ["look", "tap:[data-accept]", "look", "tap:[data-undo]", *["look"] * 23]
-    walk += ["tap:[data-accept]", *["look"] * 23]
+    walk = ["look", f"tap:{ACCEPT}", "look", "tap:[data-undo]", *["look"] * 23]
+    walk += [f"tap:{ACCEPT}", *["look"] * 23]
     seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=40000)
     assert seen["errors"] == []
     before, started, counting, undone, *_ = seen["walked"]
@@ -74,14 +79,15 @@ def test_the_inline_accept_waits_ten_seconds_undo_stops_it_and_one_write_follows
     assert seen["walked"][-1]["acc"] == ""
     assert [one["body"] for one in seen["writes"]] == [{"numbers": [tea]}]
     assert seen["walked"][-1]["nsaid"], "the server's sentence is on the page"
-    assert seen["needs"]["filled"] <= 1
+    rows = [one for one in seen["needs"]["now"] if one["seen"]]
+    assert rows and all(sum(act["fill"] for act in one["acts"]) <= 1 for one in rows), "one each"
 
 
 def test_an_accept_still_counting_is_dropped_when_the_route_leaves_its_project(scene, tmp_path):
     """Going to another project hides the queue and its Undo. So the countdown ends there,
     and no write follows."""
     gated(scene)
-    walk = ["look", "tap:[data-accept]", "hash:#/nowhere", *["look"] * 25]
+    walk = ["look", f"tap:{ACCEPT}", "hash:#/nowhere", *["look"] * 25]
     seen = look(scene, tmp_path, walk=walk, at=4000 + 500 * len(walk), budget=40000)
     assert seen["errors"] == []
     assert seen["writes"] == []

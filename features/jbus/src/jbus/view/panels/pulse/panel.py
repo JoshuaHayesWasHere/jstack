@@ -36,6 +36,7 @@ from jmerge import mainjson
 FIRST = True
 QUIET = 150
 TIMER, SERVICE = "jbus.timer", "jbus.service"
+STREAKS = "streaks.json"
 ASKED = "Id,ActiveState,SubState,UnitFileState,Result,ExecMainStatus,LastTriggerUSec"
 _SHA = re.compile(r"[0-9a-f]{7,40}")
 SHAPE = {
@@ -47,6 +48,7 @@ SHAPE = {
         "said": None,
         "manager": None,
         "failed": None,
+        "failed_since": None,
         "pass": {"started": None, "ended": None, "seconds": None, "running": None},
         "timer": {"active": None, "sub": None, "enabled": None, "last_trigger": None},
         "status": {
@@ -149,7 +151,8 @@ def pulse(read: Read) -> dict[str, Any]:
     mine = status.get("projects", {}).get(name) if isinstance(status.get("projects"), dict) else {}
     mine = mine if isinstance(mine, dict) else {}
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
-    open_now = _table(sources.state_dir / "streaks.json") or {}
+    open_now = _table(sources.state_dir / STREAKS) or {}
+    failed, failed_since = _streak(open_now, alert.PASS)
     wake = text(mine.get("wake"), 20)
     route = alert.home(name) if wake in ("home", "both") else alert.webhook(name)
     stranded = status.get("stranded") if isinstance(status.get("stranded"), dict) else {}
@@ -165,7 +168,8 @@ def pulse(read: Read) -> dict[str, Any]:
         "said": said,
         "manager": manager,
         "answered": units is not None,
-        "failed": _streak(open_now, alert.PASS)[0],
+        "failed": failed,
+        "failed_since": failed_since if failed else None,
         "pass": {
             "started": started,
             "ended": ended,
@@ -260,6 +264,13 @@ def _timer(read: Read) -> dict[str, Any]:
     return {"at": iso(read.now), "read": read.once(pulse)["answered"]}
 
 
+def _streaks(read: Read) -> dict[str, Any]:
+    """`streaks.json`, where no file is no streak open and only a file the view cannot read
+    is wrong."""
+    path = read.sources.state_dir / STREAKS
+    return {"at": _mtime(path), "read": not path.exists() or _table(path) is not None, "path": path}
+
+
 def _status(read: Read) -> dict[str, Any]:
     path = read.sources.state_dir / "status.json"
     return {"at": _mtime(path), "read": _table(path) is not None, "path": path}
@@ -269,6 +280,7 @@ SOURCES = (
     Source(TIMER, "server", _timer, 10, machine=True),
     Source("status.json", "jbus", _status, 20, machine=True),
     PASS_FILE,
+    Source(STREAKS, "jbus", _streaks, 25, machine=True),
     kept(mainjson.NAME, lambda read: read.table(mainjson.NAME), 80),
 )
 

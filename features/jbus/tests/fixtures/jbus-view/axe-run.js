@@ -1,10 +1,10 @@
 /* The axe run that the page test adds to the page, after axe itself (`axe.min.js` beside this
    file, which the test reads and the view never serves). A moment after the page loads, it runs
-   axe over the view, with WCAG 2.2's target size on. Then it opens every drawer that the view
-   and each drawer name, and runs axe over each one. It also puts the focus on everything that
-   takes it, as a keyboard would, and measures the ring each one draws. It writes what it found
-   into a pre that the browser prints. When the page is in a frame, the pre goes into the page
-   that holds the frame, as the probe does. */
+   axe over the view, with WCAG 2.2's target size on. Then it opens every drawer that the view,
+   each link of a Needs you row and each drawer name, and runs axe over each one. It also puts
+   the focus on everything that takes it, as a keyboard would, and measures the ring each one
+   draws. It writes what it found into a pre that the browser prints. When the page is in a
+   frame, the pre goes into the page that holds the frame, as the probe does. */
 window.addEventListener("load", function () { setTimeout(function () {
   var drawer = document.getElementById("drawer"), found = [], rings = [], looked = [], errors = [];
   window.addEventListener("error", function (e) { errors.push(String(e.message)); });
@@ -35,7 +35,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     });
   }
   function open(target) { var b = document.createElement("button"); b.setAttribute("data-open", target); document.body.appendChild(b); b.click(); b.remove(); }
-  var queue = all("[data-open]").filter(function (b) { return !drawer.contains(b) && shown(b); }).map(function (b) { return b.getAttribute("data-open"); });
+  /* The drawer a link of the Needs you list opens: the path after the project, `#/demo/gate/6`
+     opens `gate:6`. A row folded under its control counts, since the control opens it. */
+  function linked(a) {
+    var segs = a.getAttribute("href").replace(/^#\//, "").split("&")[0].split("/").map(decodeURIComponent);
+    return segs.length > 1 ? segs.slice(1).join(":") : "";
+  }
+  var queue = all("[data-open]").filter(function (b) { return !drawer.contains(b) && shown(b); }).map(function (b) { return b.getAttribute("data-open"); })
+    .concat(all("#needs:not([hidden]) #nq a[href^='#/']").map(linked).filter(Boolean));
   var done = {};
   if (drawer.open) queue = all("#dw [data-open]").map(function (b) { return b.getAttribute("data-open"); });
   function next() {

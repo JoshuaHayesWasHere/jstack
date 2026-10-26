@@ -174,13 +174,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     /* The shell: the header, with its one switcher and its machine word. */
     header: { box: box(document.querySelector("header")), brand: text(document.querySelector("header .brand")), crumbs: all("#title a").map(function (a) { return [text(a), a.getAttribute("href"), a.getAttribute("aria-current") || ""]; }), where: text(document.getElementById("title")), read: text(document.getElementById("readat")), stale: document.getElementById("readat").classList.contains("stale"),
       pick: all("#pick option").map(function (o) { return [o.value, text(o), o.selected]; }), machine: seen(document.getElementById("mach")) ? { text: text(document.getElementById("mach")), cls: document.getElementById("mach").className, href: document.getElementById("mach").getAttribute("href") } : null },
-    /* The Needs you section: its heading, and each row of its two queues. */
+    /* The Needs you section: its heading, each row of its one list, shown or folded, and the
+       control that unfolds the rest. */
     needs: (function (sec) {
       function row(r) {
-        return { key: r.getAttribute("data-key"), seen: seen(r), what: written(r.querySelector(".nw")), why: all(".ny", r).map(written), meta: written(r.querySelector(".nm")), box: box(r),
-          acts: all(".na .btn", r).map(function (b) { return { text: written(b), tag: b.tagName, href: b.getAttribute("href"), fill: b.classList.contains("fill"), seen: seen(b), box: box(b), border: border(b) }; }), acting: text(r.querySelector(".acc")) };
+        return { key: r.getAttribute("data-key"), seen: seen(r), what: written(r.querySelector(".nw")), why: all(".ny", r).map(written), meta: r.querySelector(".nm") ? written(r.querySelector(".nm")) : "", ahead: written(r.querySelector(".nd")), box: box(r),
+          acts: all(".na .btn, .nf .btn", r).map(function (b) { return { text: written(b), tag: b.tagName, href: b.getAttribute("href"), fill: b.classList.contains("fill"), seen: seen(b), box: box(b), border: border(b) }; }), acting: text(r.querySelector(".acc")) };
       }
-      return { shown: seen(sec), words: words(sec), text: text(sec), head: text(document.getElementById("needs-h")), count: text(document.querySelector("#needs-h b")), now: all("#nq .nr").map(row), soon: all("#np .nr").map(row), said: text(document.getElementById("nsaid")),
+      return { shown: seen(sec), words: words(sec), text: text(sec), head: text(document.getElementById("needs-h")), count: text(document.querySelector("#needs-h b")), now: all("#nq .nr").map(row), fold: (function (b) { return b && shown(b) ? { text: text(b), expanded: b.getAttribute("aria-expanded") } : null; })(document.querySelector("#nfold [data-fold]")), said: text(document.getElementById("nsaid")),
         extra: all("#nx .tok").map(function (t) { return { text: text(t), open: t.getAttribute("data-open"), seen: seen(t), border: border(t) }; }),
         filled: all("button.fill, a.fill").filter(seen).length, focus: document.activeElement ? document.activeElement.id || document.activeElement.tagName : "" };
     })(document.getElementById("needs")),
@@ -204,7 +205,14 @@ window.addEventListener("load", function () { setTimeout(function () {
     links: [],
     opened: []
   };
-  var queue = all("[data-open]").filter(function (b) { return !drawer.contains(b) && shown(b); }).map(function (b) { return b.getAttribute("data-open"); }), done = {};
+  /* The drawer a link of the Needs you list opens: the path after the project, `#/demo/gate/6`
+     opens `gate:6`. A row folded under its control counts, since the control opens it. */
+  function linked(a) {
+    var segs = a.getAttribute("href").replace(/^#\//, "").split("&")[0].split("/").map(decodeURIComponent);
+    return segs.length > 1 ? segs.slice(1).join(":") : "";
+  }
+  var queue = all("[data-open]").filter(function (b) { return !drawer.contains(b) && shown(b); }).map(function (b) { return b.getAttribute("data-open"); })
+    .concat(all("#needs:not([hidden]) #nq a[href^='#/']").map(linked).filter(Boolean)), done = {};
   while (queue.length && out.opened.length < 400) {
     var target = queue.shift();
     if (done[target]) continue;

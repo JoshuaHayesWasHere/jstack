@@ -119,9 +119,11 @@ def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
     for name in ("JGAUGE_TEST_SLOT", "TLC_WORKERS"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+    (tmp_path / "tla2tools.jar").write_bytes(b"")
     _, module, cfg, *_ = next(flow.runs())
-    out = flow.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
+    out = flow.tlc(tools.Tlc(jar=str(tmp_path / "tla2tools.jar"), java=str(java)), module, cfg)
     assert out.startswith("slot full: "), out
     assert " -workers 2 " in out, out
 
@@ -131,7 +133,9 @@ def test_the_script_by_hand_holds_one_slot_for_all_its_runs(tmp_path):
     no run waits for a slot of its own behind the suites that hold the others."""
     java = tmp_path / "java"
     java.write_text(
-        '#!/bin/sh\necho "$JGAUGE_TEST_SLOT $(ps -o comm= -p $PPID)" >> "$LOG"\n'
+        "#!/bin/sh\n"
+        'if [ "$1" = -version ]; then echo \'openjdk version "21"\' >&2; exit 0; fi\n'
+        'echo "$JGAUGE_TEST_SLOT $(ps -o comm= -p $PPID)" >> "$LOG"\n'
         'echo "Model checking completed. No error has been found."\n'
     )
     java.chmod(0o755)
@@ -141,6 +145,7 @@ def test_the_script_by_hand_holds_one_slot_for_all_its_runs(tmp_path):
         "JAVA": str(java),
         "TLA2TOOLS": str(tmp_path / "tla2tools.jar"),
         "LOG": str(tmp_path / "java.log"),
+        "XDG_CACHE_HOME": str(tmp_path / "cache"),
         "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"),
         "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}",
     }
@@ -152,3 +157,39 @@ def test_the_script_by_hand_holds_one_slot_for_all_its_runs(tmp_path):
     assert len(runs) == len(list(flow.runs()))
     assert {run.split()[0] for run in runs} == {"full"}
     assert not any("jgauge" in run for run in runs), runs
+
+
+def test_a_run_whose_inputs_are_kept_starts_no_java_and_a_canary_s_change_runs_it(
+    tmp_path, monkeypatch
+):
+    """A flow run TLC finished is kept under its inputs, so the same run starts no java, and a
+    line added to a canary's spec, which each run copies, misses the cache and runs TLC again."""
+    log = tmp_path / "java.log"
+    java = tmp_path / "java"
+    java.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = -version ]; then echo \'openjdk version "21"\' >&2; exit 0; fi\n'
+        'echo "$*" >> "$LOG"\n'
+        "echo 'Error: Invariant NoMergeTurnsMainRed is violated.'\nexit 13\n"
+    )
+    java.chmod(0o755)
+    (tmp_path / "tla2tools.jar").write_bytes(b"the jar")
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    monkeypatch.setenv("JGAUGE_TEST_SLOT", "test")
+    monkeypatch.setenv("LOG", str(log))
+    found = tools.Tlc(jar=str(tmp_path / "tla2tools.jar"), java=str(java))
+    _, module, cfg, rule, want = next(run for run in flow.runs() if run[4] == "breaks")
+    out = flow.tlc(found, module, cfg)
+    assert flow.verdict(out, rule) == want
+    assert flow.tlc(found, module, cfg) == out
+    assert len(log.read_text().splitlines()) == 1
+
+    spec = tmp_path / "spec"
+    (spec / "canary").mkdir(parents=True)
+    for one in flow.specs():
+        (spec / one.relative_to(SPEC)).write_text(one.read_text())
+    canary = spec / "canary" / f"{next(iter(flow.CANARIES))}.tla"
+    canary.write_text(canary.read_text() + "\\* a line\n")
+    monkeypatch.setattr(flow, "HERE", spec)
+    flow.tlc(found, module, cfg)
+    assert len(log.read_text().splitlines()) == 2

@@ -42,6 +42,7 @@ workflow names the same one: with no version, setup-uv fetches the latest releas
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -433,6 +434,7 @@ UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
 ZSH = "sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh"
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
+TLC = "~/.cache/jstack/tlc"
 
 
 EVENTS = ("pull_request", "push", "workflow_dispatch")
@@ -596,17 +598,48 @@ def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
     found, keys = steps(CHECK.read_text(), "check-shard")
-    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:6] == [
+    assert [step.get("uses", step.get("run")).partition("@")[0] for step in found][:7] == [
         "actions/checkout",
         "astral-sh/setup-uv",
         "uv sync --locked",
         ZSH,
         'echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"',
+        "actions/cache",
         "make check-fast BASE=HEAD^1 SHARD=${{ matrix.shard }}/4",
     ]
     assert found[0]["with"] == {"persist-credentials": False, "fetch-depth": "2"}
-    assert all("if" not in step for step in found[:6])
-    assert found[5]["id"] == "suite"
+    assert all("if" not in step for step in found[:7])
+    assert found[6]["id"] == "suite"
+
+
+@pytest.mark.parametrize("job", ["check-shard", "full-shard"])
+def test_each_part_restores_and_saves_tlcs_kept_runs_right_before_its_suite(job):
+    """The cache of TLC's output (statechart's `kept`) is restored before the suite and saved
+    after it, under a key of each run's own in its part, so each run saves what it added. It
+    restores the latest of its part with the same spec files, else the latest of its part, and
+    the files its key hashes are every file a kept run reads from the repo."""
+    found, _ = steps(CHECK.read_text(), job)
+    names = [step.get("uses", step.get("run")) for step in found]
+    (kept,) = [step for step in found if step.get("uses", "").startswith("actions/cache@")]
+    assert names[names.index(kept["uses"]) + 1].startswith("make check")
+    assert re.fullmatch(r"actions/cache@[0-9a-f]{40}", kept["uses"])
+    part = "tlc-${{ matrix.shard }}-"
+    specs = re.fullmatch(
+        rf"{re.escape(part)}\$\{{\{{ (hashFiles\(.*\)) \}}\}}-\$\{{\{{ github\.run_id \}}\}}",
+        kept["with"]["key"],
+    )[1]
+    assert (kept["with"]["path"], kept["with"]["restore-keys"]) == (TLC, "|")
+    assert f"\n            {part}${{{{ {specs} }}}}-\n            {part}\n" in CHECK.read_text()
+    globs = [f":(glob){one}" for one in re.findall(r"'([^']+)'", specs)]
+    hashed = subprocess.run(
+        ["git", "ls-files", "--", *globs], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split()
+    reads = ["*/spec/*.tla", "*/spec/canary/*.tla", "*/spec/*canaries.py", "*/statechart/tools.py"]
+    read = subprocess.run(
+        ["git", "ls-files", "--", *reads], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split()
+    assert read
+    assert set(read) - set(hashed) == set()
 
 
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
@@ -698,6 +731,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         "astral-sh/setup-uv",
         "uv sync --locked",
         ZSH,
+        "actions/cache",
         SUITE,
         "|",
     ]
@@ -709,12 +743,13 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
         " the upload ${{ steps.upload.outcome }}, so a later run of this tree may not skip the"
         ' suite"',
     ]
-    checkout, ask, setup, sync, zsh, suite, *_ = found
+    checkout, ask, setup, sync, zsh, kept, suite, *_ = found
     assert "if" not in checkout
     assert (ask.get("if"), ask["id"], ask["continue-on-error"]) == (None, "tree", True)
-    assert [step["if"] for step in (setup, sync, zsh, suite)] == [
+    assert [step["if"] for step in (setup, sync, zsh, kept, suite)] == [
         OR_THE_DESKS,
         OR_THE_DESKS,
+        UNLESS_GREEN,
         UNLESS_GREEN,
         UNLESS_GREEN,
     ]
@@ -729,7 +764,7 @@ def test_a_green_tree_skips_the_suite_by_its_steps_and_the_job_always_runs():
 def test_a_run_skipped_on_the_desks_marker_still_proves_the_lock_and_skips_only_the_suite():
     """The desk's `make check` ran in an environment nobody locked, so the run still syncs."""
     found, _ = steps(CHECK.read_text(), "full-shard")
-    _, _, setup, sync, _, suite, *_ = found
+    _, _, setup, sync, _, _, suite, *_ = found
     assert (sync["run"], suite["run"]) == ("uv sync --locked", SUITE)
     ran = {
         (marker, by): [
