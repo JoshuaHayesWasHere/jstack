@@ -240,6 +240,10 @@ function sendBatch() {
   BATCH = { busy: true, error: "" }; draw();
   send({ numbers: ns.map(Number) }, function (why) { BATCH = { busy: false, error: why }; draw(); });
 }
+function approveLine(w) {
+  var need = S.needs.filter(function (x) { return x.key === w.key; })[0];
+  return (need && need.sha ? "brief <code>" + esc(need.sha) + "</code> &middot; " : "") + '<a href="' + esc(href(PROJECT)) + '">Approve it in Needs you</a>';
+}
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.needs.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
   h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes, and also hold the gates that go ahead on their default. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
@@ -253,7 +257,7 @@ function dYou(arg) {
       if (k === "gate") return '<li' + (here ? ' class="hit"' : "") + '>' + gateRow(w) + '</li>';
       var body = (w.slug ? taskBtn(w.slug) + " " : "") + (k === "hold" ? link(w.url, "#" + w.number) + " " : "");
       return '<li' + (here ? ' class="hit"' : "") + '>' + body + ' ' + ageChip(w.since, "user") +
-        '<br>' + (k === "approve" ? '<code>' + esc(w.line) + '</code>' : esc(w.line)) +
+        '<br>' + (k === "approve" ? approveLine(w) : esc(w.line)) +
         (w.unblocks && w.unblocks.length ? '<br><span class="tag">Unblocks</span> ' + w.unblocks.map(taskBtn).join(" ") : "") + '</li>';
     }).join("") + '</ul>' : '<p class="src">None.</p>') +
       (k === "gate" && can.length ? '<div id="bfoot">' + batchFoot() + '</div>' : "") +
