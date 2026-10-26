@@ -15,10 +15,10 @@ Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and n
 of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
 two workflows. The workflow `macos`: on each pull request it runs the test files listed in
 `testing/macos-quick.txt`, the ones whose code branches on macOS or that guard a break only a
-Mac has, and it never fails a run or a check, since jbus and jmerge read every check of a pull
-request. The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour
-after the browser run, and by hand, over the branch its `ref` names, `train/macos` unless a
-manual run names another. It runs on no pull request and no push, and no merge waits on it.
+Mac has, and its check fails when those tests do, so the home can name it in `required-checks`.
+The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
+browser run, and by hand, over the branch its `ref` names, `train/macos` unless a manual run
+names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
@@ -410,7 +410,7 @@ CAPS = {
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
     ("macos-nightly.yml", "macos"): "90",
-    ("macos.yml", "macos"): "15",
+    ("macos.yml", "macos"): "25",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
 }
@@ -529,23 +529,27 @@ def test_macos_runs_on_every_pull_request_and_on_nothing_else():
     }
 
 
-def test_the_macos_job_never_fails_a_run_or_a_check_and_no_merge_waits_on_it():
-    """jbus and jmerge read every check of a pull request, so a red `macos` would read as a failed
-    pull request and wake its crew. A job's own `continue-on-error` keeps the run green but still
-    reports the job's check as failed, so every step carries the flag too. A job that meets its
-    cap is cancelled, which reads as failed, so the suite's step stops before the job's cap."""
-    from jmerge import checks, ready
+def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_on_it():
+    """macOS on Apple Silicon is supported, so `macos` is a required check: the home's
+    `required-checks` names it beside `check` and `borders`, and jmerge waits on it. A job's or a
+    step's `continue-on-error` reports the check as passed whatever the suite did, so neither the
+    job nor any step that sets up or runs the tests carries it. Only the step that lists the
+    failed tests does, which runs after the tests and changes nothing they decided. Its tests'
+    step cap is then a failure of the check too, so it leaves the slowest run twice its time:
+    the step took 423 to 639 s on the last twelve runs, and the list grows with each mac- fix."""
+    from jmerge import ready
 
-    passed = {"name": "check", "status": "COMPLETED", "conclusion": "SUCCESS"}
-    red = {"name": "macos", "status": "COMPLETED", "conclusion": "FAILURE"}
-    assert (checks.checks([passed]), checks.checks([passed, red])) == ("passed", "failed")
+    rollup = [
+        {"name": name, "status": "COMPLETED", "conclusion": "SUCCESS"}
+        for name in ("check", "borders")
+    ] + [{"name": "macos", "status": "COMPLETED", "conclusion": "FAILURE"}]
+    assert ready.waiting(rollup, ready.required_of("check\nborders\nmacos\n")) == ("macos",)
     text = MAC.read_text()
-    assert job_value(text, "macos", "continue-on-error") is True
+    assert job_value(text, "macos", "continue-on-error") is None
     found, _ = steps(text, "macos")
-    assert found and all(step.get("continue-on-error") is True for step in found)
+    assert [step.get("name") for step in found if "continue-on-error" in step] == ["failed tests"]
     (suite,) = [step for step in found if step.get("id") == "suite"]
-    assert int(suite["timeout-minutes"]) < int(cap(text, "macos"))
-    assert "macos" not in ready.REQUIRED
+    assert 2 * 639 <= 60 * int(suite["timeout-minutes"]) < 60 * int(cap(text, "macos")) - 120
 
 
 def test_the_macos_job_runs_the_quick_list_on_three_workers_into_the_report_its_summary_reads(

@@ -39,8 +39,8 @@ jstack runs only when every **hard** need is met.
 
 | Need | Level | Notes |
 |---|---|---|
-| Linux or macOS | hard | Apple Silicon, or [WSL2](features/jinstall/docs/windows-wsl2.md). |
-| T3 Code | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Stable or nightly, `0.1.2-nightly.20261022.3526` or newer, which stable `0.1.2` meets. jstack is tested on that nightly, and on stable `0.1.2` by its source, which holds that nightly. |
+| Linux or macOS | hard | Supported: macOS on Apple Silicon, and Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). |
+| T3 Code | hard | T3 Code, from `pingdotgg/t3code` on GitHub, is the desktop app the threads run in, with Claude Code as their agent. Stable or nightly, `0.1.2-nightly.20261022.3526` or newer, which stable `0.1.2` meets. |
 | Claude Code | hard | The `claude` command on `PATH`. |
 | `uv` | hard | It installs the nine commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
@@ -57,7 +57,7 @@ jstack runs without it.
 | Need | What you lose without it |
 |---|---|
 | `jbus`, with its config, its sign-in and a webhook | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself or hand the merge to a home. `jbus` sends its wakes to each project's home thread, and a webhook is an optional add-on (`wake = "webhook"` or `"both"`). |
-| systemd `--user` | No background jobs. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
+| systemd `--user` | No background jobs. On macOS, launchd runs them in its place. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 | `lavish-axi` | No visual pages. A scout writes its report with no page, and a round of questions is asked as text. |
@@ -69,7 +69,7 @@ It writes outside jstack's own folders for each of the three.
 - Claude Code: a link for each skill in `~/.claude/skills`, and hook entries, a status line and the attribution keys in `~/.claude/settings.json`.
 - Codex: a link for each skill in `~/.codex/skills`, and hook entries in `~/.codex/hooks.json`.
 - Cursor: a link for each skill in `~/.agents/skills`, and the attribution keys in `~/.cursor/cli-config.json` once Cursor's CLI has made it.
-- systemd: the units, linked in `~/.config/systemd/user`.
+- The units: in `~/.config/systemd/user`, or `~/Library/LaunchAgents` on macOS.
 - Configs, where none is there: `~/.config/jstack/config.toml`, a role map, and a `jbus` config that launches nothing.
 
 [jinstall](features/jinstall/docs/jinstall.md) lists every file, and [AI co-author trailers](features/jinstall/docs/jinstall.md#ai-co-author-trailers) says which keys it sets.
