@@ -20,7 +20,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
        result && $(1) == "Branch:" {pr = $(NF)}
        /^## Review$/ || (/^Reviewer:/ && $(2) !~ /^none/) {had = 1}
        END {if (NR) count(); print n + 0}' "$H"/tasks/<slug>.md 2> /dev/null)
-   if ! said=$(uv run --project "$T/.." jbus budget --wait 540 --calls $((3 * ${asked:-0}))); then
+   if ! said=$(uv run --project "$T/../source" jbus budget --wait 540 --calls $((3 * ${asked:-0}))); then
        echo "$said: run this block again, in this turn"
        exit 75
    fi
@@ -46,7 +46,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
        elif [ "$(awk '/^Review:/ {print $(2); exit}' "$B")" = none ]; then
            why="its brief asks for no review"
        else
-           said=$(uv run --project "$T/.." jmerge --checks "$pr")
+           said=$(uv run --project "$T/../source" jmerge --checks "$pr")
            case $said in
            passed*) head=${said##* } ;;
            "wait: a check has not finished" | "wait: no check is reported yet")
@@ -98,7 +98,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    }
    ```
 
-   Before this launch, run `uv run --project "$T/.." jroles review` with the block at the top.
+   Before this launch, run `uv run --project "$T/../source" jroles review` with the block at the top.
    It prints one JSON object a line, one for each reviewer the role map lists, in order: each line is a `<model selection>`, and each is one `t3_thread_launch` call, this one, which starts that reviewer on the model the line names.
    A pull request gets a review from each.
    The call for line `<n>` (1 for the first) has the title `review: <slug>, <n>` and the message `/pr-review run <slug> <n>`, with one line too: the number is how the reviewer knows which line it is, and it writes it on its `By:` line, `#<n>`.

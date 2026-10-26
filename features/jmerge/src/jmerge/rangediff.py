@@ -99,7 +99,9 @@ def _same_changes(repo: Path, old: tuple[str, str], new: tuple[str, str]) -> str
     return ""
 
 
-def verdict(repo: Path, reviewed: str, head: str, default: str) -> Verdict:
+def verdict(repo: Path, reviewed: str, head: str, default: str, since: str = "") -> Verdict:
+    """Whether `head` carries `reviewed`'s patch. Each head's commits are counted from its fork
+    from `default`, the reviewed one's from `since` where the caller knows better."""
     command = f"git range-diff --no-color origin/{default}..{reviewed} origin/{default}..{head}"
     if not (_COMMIT.fullmatch(reviewed) and _COMMIT.fullmatch(head)):
         return Verdict(False, command, "the reviewed head and the head are not both full commits")
@@ -107,7 +109,7 @@ def verdict(repo: Path, reviewed: str, head: str, default: str) -> Verdict:
     try:
         for commit in (reviewed, head):
             _have(repo, commit)
-        base_old = _git(repo, "merge-base", reviewed, f"origin/{default}").strip()
+        base_old = since or _git(repo, "merge-base", reviewed, f"origin/{default}").strip()
         base_new = _git(repo, "merge-base", head, f"origin/{default}").strip()
         old, new = f"{base_old}..{reviewed}", f"{base_new}..{head}"
         command = f"git range-diff --no-color {old} {new}"

@@ -128,7 +128,15 @@ def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_wi
     item's button is its kind's verb. So a kind added to `waiting.KINDS` shows in the drawer
     with no other edit."""
     kinds = served.json("/state.json?project=demo")["kinds"]
-    assert [one["name"] for one in kinds] == ["row", "left", "hold", "approve", "gate", "config"]
+    assert [one["name"] for one in kinds] == [
+        "row",
+        "left",
+        "hold",
+        "approve",
+        "gate",
+        "config",
+        "held",
+    ]
     assert {one["name"]: one["verb"] for one in kinds}["gate"] == "Accept default"
     added = waiting.Kind("chore", "Chores for you", "Do it", 7)
     monkeypatch.setattr(waiting, "KINDS", (*waiting.KINDS, added))
@@ -344,3 +352,13 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
     assert [one["question"] for one in gates if one["home"] == "old-shelf"] == [
         "was old-shelf swept?"
     ]
+
+
+def test_a_hold_no_thread_works_on_is_a_need_of_the_user_s(scene, served):
+    """A hold that woke its home (`clock.held`) is on Needs you, with its rows and reason."""
+    line = "held one, two: 31 minutes by main is red at abcdef123456, its fix merges first"
+    scene.waiting([item("held", "held:0123456789ab", line, minutes=1)])
+    needs = served.json("/state.json?project=demo")["needs"]
+    (need,) = [one for one in needs if one["kind"] == "held"]
+    assert "one, two" in need["what"] and "main is red" in need["what"]
+    assert need["verb"] == "Pick it up"

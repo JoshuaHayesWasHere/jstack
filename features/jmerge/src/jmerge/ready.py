@@ -64,10 +64,6 @@ NO_MESSAGES = Reason("check", "its commit messages could not be read for the squ
 NO_SETTINGS = Reason("check", "the repo's merge settings could not be read")
 LANDING_UNALLOWED = Reason("hold", "the repo allows {allowed} only, not a merge commit or a squash")
 KEPT = "every line kept"
-PASSED = "passed"
-FAILED = "failed"
-TIMED_OUT = "timed out"
-FRESH_QUEUED = Reason("check", "a fresh check is queued")
 FRESH_CONFLICT = Reason("rebase", "it conflicts with today's main")
 NO_HEAD = Reason("second", "its review names no head to compare its rebase with")
 
@@ -148,7 +144,6 @@ MAIN_CHANGED = Reason(
     "{default} changed {paths} after its check started at {since}; it needs {needs}",
 )
 FRESH_CHECK = "a fresh check"
-FRESH_FAILS = Reason("rebase", "{command} fails on {head} over today's main {tip}")
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
 STACKED_ON = Reason(
@@ -193,6 +188,14 @@ BASE_MERGE_REFUSED = Reason("check", "GitHub did not merge {base} at {tip} into 
 BASE_MERGE_DUE = Reason(
     "check", "its check failed before {base} moved: GitHub is to merge {base} at {tip} into it"
 )
+BASE_MOVED_ASKED = Reason(
+    "check",
+    "GitHub was asked to merge {base} at {tip} into it: {base} moved after its check started",
+)
+BASE_MOVED_DUE = Reason(
+    "check", "{base} moved after its check started: GitHub is to merge {base} at {tip} into it"
+)
+UNMERGED = Reason("check", "its head could not be merged over today's base ({why})")
 GATE_FAILED = Reason("hold", "its merge gate failed: {first}")
 GATE_UNSTARTED = Reason("hold", "its merge gate could not start: {why}")
 GATE_TIMED_OUT = Reason("hold", "its merge gate ran over {limit} and was stopped")
@@ -210,8 +213,6 @@ _REFUSED = "{file}: {why}"
 _RULED = "{id}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
-_FRESH_NOTE = "fresh: {command} {passed} on {head} over {tip}"
-_FRESH_KEPT = ", kept over {tip}: main's change since meets none of its tests"
 _FRESH_SKIPPED = "fresh: skipped, tree {tree} passed in {at}, on {head} over {tip}"
 _RELATED_NOTE = "fresh: none, main changed related {paths}; no fresh-check file"
 
@@ -1117,22 +1118,8 @@ def _first_five(paths: tuple[str, ...]) -> str:
     return " ".join(paths[:5]) + more
 
 
-def fresh_note(command: str, head: str, tip: str) -> str:
-    return _FRESH_NOTE.format(command=command, passed=PASSED, head=head[:12], tip=tip[:12])
-
-
-def fresh_kept(command: str, head: str, was: str, tip: str) -> str:
-    return fresh_note(command, head, was) + _FRESH_KEPT.format(tip=tip[:12])
-
-
 def fresh_skipped(tree: str, at: str, head: str, tip: str) -> str:
     return _FRESH_SKIPPED.format(tree=tree, at=at, head=head[:12], tip=tip[:12])
-
-
-def short_on_fresh(result: str, command: str, head: str, tip: str) -> str:
-    if result == PASSED:
-        return ""
-    return FRESH_FAILS.format(command=command, head=head[:12], tip=tip[:12])
 
 
 def fresh_command(text: str) -> str:

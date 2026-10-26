@@ -9,7 +9,8 @@ import textwrap
 
 import pytest
 
-from testing.paths import REPO, skills
+from testing.layouts import assembled
+from testing.paths import skills
 
 NAME = "a demo repo"
 SLUG = "fix-login"
@@ -110,28 +111,13 @@ def git(cwd, *args):
     subprocess.run(["git", *identity, *args], cwd=cwd, check=True, capture_output=True)
 
 
-def installed(user):
-    """Link each skill under `user`'s ~/.claude/skills as an install does: to a folder of its own
-    in a layout, with `templates/` beside `skills/`, so a skill's `T=` line finds a folder that
-    is there (`jinstall.layout`). A skill linked to its folder in the source would find none."""
-    layout = user.parent / "layout"
-    (layout / "templates").mkdir(parents=True)
-    for template in REPO.glob("features/*/templates/*"):
-        (layout / "templates" / template.name).symlink_to(template)
-    (user / ".claude" / "skills").mkdir(parents=True)
-    for name, folder in skills().items():
-        (layout / "skills" / name).mkdir(parents=True)
-        for one in folder.iterdir():
-            (layout / "skills" / name / one.name).symlink_to(one)
-        (user / ".claude" / "skills" / name).symlink_to(layout / "skills" / name)
-
-
 class Scene:
     """A user's home directory with the skills, a repo with a worktree, and that repo's home."""
 
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
-        installed(self.user)
+        (self.user / ".claude").mkdir(parents=True)
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         self.home_dir = self.user / ".local" / "state" / "home" / NAME
         self.home_dir.mkdir(parents=True)
         self.file = self.home_dir / "home-id"

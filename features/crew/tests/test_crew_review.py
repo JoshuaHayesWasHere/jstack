@@ -25,7 +25,7 @@ from crew_helpers import (
     with_field,
 )
 from test_home_thread import as_read
-from testing.paths import REPO
+from testing.layouts import assembled
 
 FIXED_ONE = "Finding: fixed, it runs twice\n"
 
@@ -330,7 +330,7 @@ def test_the_launch_of_a_fix_s_review_asks_no_tool_so_it_waits_for_no_green_chec
         env={
             **os.environ,
             "H": str(fix.state),
-            "T": str(REPO / "features" / "crew" / "templates"),
+            "T": str(assembled() / "templates"),
             "PATH": path,
         },
         check=True,

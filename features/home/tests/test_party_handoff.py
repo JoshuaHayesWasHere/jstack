@@ -16,6 +16,7 @@ import pytest
 
 from test_home_thread import FENCED, TYPED, block, git, paths
 from test_tool_calls import CALLS, errors
+from testing.layouts import assembled
 from testing.paths import REPO
 
 DESK = "mcp:the-desk-home"
@@ -33,7 +34,7 @@ KEPT = re.compile(r"_desk/log/\d{4}-\d\d-\d\d-\d{4}-handoff\.md")
 NOT_A_PARTY = "not a party's home: "
 SECTION = re.compile(r"^## A party's home\n.*?(?=^## )", re.M | re.S)
 NOT_ITS_OWN = re.compile(r"\b(jmerge|jbus(?! forget\b)|jroles|jgauge|room)\b|/crew|/scout")
-ITS_ROLE = 'model=$(uv run --project "$T/.." jroles expert) || model='
+ITS_ROLE = 'model=$(uv run --project "$T/../source" jroles expert) || model='
 
 
 class Party:
@@ -43,7 +44,7 @@ class Party:
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
-        (self.user / ".claude" / "skills").symlink_to(REPO / "features" / "home" / "skills")
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         self.root = self.user / ".local" / "state" / "home"
         self.own = self.folder("desk", DESK)
         (self.own / "log").mkdir()

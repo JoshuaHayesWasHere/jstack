@@ -93,7 +93,7 @@ for slug in $slugs; do
         echo "$slug: no brief at $f"
         continue
     fi
-    if said=$(uv run --project "$T/.." python -c '
+    if said=$(uv run --project "$T/../source" python -c '
 import sys
 from jbriefs.parse import faults
 from jbriefs.skills import named

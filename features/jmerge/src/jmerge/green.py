@@ -20,12 +20,6 @@ class Marker:
     covers: str = FULL
 
 
-def covers(command: str) -> str:
-    """What a fresh check's command tests: the whole suite when its last words are `make check`,
-    and otherwise a selection, which is all a command can be known to run."""
-    return FULL if command.split()[-2:] == ["make", "check"] else SELECTED
-
-
 def ref(tree: str, kind: str) -> str:
     """The desk's marker of a tree that a check of this kind passed."""
     return f"{REF}{kind}/{tree}"

@@ -201,6 +201,7 @@ def made(tmp_path, asks=""):
     `Run by:` line goes on to ask of the brief."""
     repo = tmp_path / "repo"
     (repo / "templates").mkdir(parents=True)
+    (repo / "source").symlink_to(repo)
     (repo / "playbooks").mkdir()
     for skill in WHOSE:
         (repo / "skills" / skill).mkdir(parents=True)

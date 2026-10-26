@@ -24,7 +24,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 
    ```sh
    B="$H/tasks/<slug>.md"
-   uv run --project "$T/.." jbus playbook crewmate "$B"
+   uv run --project "$T/../source" jbus playbook crewmate "$B"
    ```
 
    It prints nothing when the brief says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the Result under "Noticed". On `not a crewmate's`, the file is for a scout or the home: do the same again. When its first line is a path, read that file now. Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order. A step you do not do stays in the list as `skip: <reason>`. The Result's `Playbook:` line reports each step, as `$T/result.md` shows. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the task is in another repo. A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the brief to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the Result under "Noticed". On `lacks the line`, the brief stands as the home wrote it: say what it printed in the Result under "Noticed". The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the Result under "Noticed".
@@ -32,7 +32,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 
    ```sh
    B="$H/tasks/<slug>.md"
-   uv run --project "$T/.." jbriefs --skills "$B"
+   uv run --project "$T/../source" jbriefs --skills "$B"
    ```
 
    It prints nothing when the brief has no `Skills:` line or says `none`. Otherwise its first line, `loaded: <names>`, names each skill and principle the line names, by its canonical name, and under it each one's file in full: read them now, with the playbook, and do what each says while you work. A principle's old name, `model-the-domain`, is read as `principle-model-the-domain`. Last it prints the artifact each one owes, from `$T/skill-artifacts.md`: the Result's `Skills run:` section has one item for each, `- <name>: <the artifact>`, as `$T/result.md` shows. `jmerge` merges no pull request whose Result leaves a named one with no artifact, an empty one or a placeholder. A line `unknown skill: <name>` is a name jstack does not have, which the launch gates: say it in the Result under "Noticed", and go on with the rest.
@@ -41,7 +41,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 ## Carry on
 
 Proceed on reversible work without asking: do it, then say what you did and why. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first. When in doubt, act and write down what you did.
-A command you write yourself deletes nothing whose target is a variable or a glob, clears scratch with `uv run --project "$T/.." jbus forget <path>` or leaves it in `/tmp`, and uses only bash expansions, never a zsh one such as `${(s:,:)…}`, since Claude Code stops the thread to ask the user before it runs any of those.
+A command you write yourself deletes nothing whose target is a variable or a glob, clears scratch with `uv run --project "$T/../source" jbus forget <path>` or leaves it in `/tmp`, and uses only bash expansions, never a zsh one such as `${(s:,:)…}`, since Claude Code stops the thread to ask the user before it runs any of those.
 
 ## Do the task
 
@@ -120,7 +120,7 @@ Once the pull request is open:
    Run this in this worktree, with the block at the top:
 
    ```sh
-   said=$(uv run --project "$T/.." jbus wakes 2>&1)
+   said=$(uv run --project "$T/../source" jbus wakes 2>&1)
    case $said in
    'wakes fail: '*)
        sleep 240
@@ -173,7 +173,7 @@ On an `Update on pull request` message for a comment or review, and on no messag
 
 ```sh
 remarks() {
-    if ! said=$(uv run --project "$T/.." jbus budget --calls 10); then
+    if ! said=$(uv run --project "$T/../source" jbus budget --calls 10); then
         echo "not known: ${said#held: }, so no comment is acted on"
         return
     fi
@@ -282,7 +282,7 @@ else
             echo "the rebase stopped: resolve these, then git rebase --continue"
             git diff --name-only --diff-filter=U
         else
-            uv run --project "$T/.." jbus forget "$G/crew-before-rebase" > /dev/null
+            uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
             echo "the rebase did not start: no rebase"
             echo "$said"
         fi
@@ -322,7 +322,7 @@ A block beside a send that prints `tell the home` is answered by this one.
 Whom to send it to is this. Shell variables do not last from one call to the next, so run it in one call with the block at the top and `B` set to the brief, `$H/tasks/<slug>.md`:
 
 ```sh
-uv run --project "$T/.." jbus home "$B"
+uv run --project "$T/../source" jbus home "$B"
 ```
 
 It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`.
