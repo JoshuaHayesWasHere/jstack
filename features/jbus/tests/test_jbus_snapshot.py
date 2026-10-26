@@ -64,7 +64,7 @@ def tree(kitchen, monkeypatch):
 
 def take(now=NOW):
     said = []
-    code = snapshot.snapshot(jbus.load(), now, said.append)
+    code = snapshot.snapshot(jbus.load(), now, said.append, warn=said.append)
     return code, said
 
 
