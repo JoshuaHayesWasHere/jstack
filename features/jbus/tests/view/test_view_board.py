@@ -179,6 +179,27 @@ def test_a_scout_that_reported_is_green_until_its_home_settles_it(scene):
     assert (got["scout", "peek"]["stage"], got["scout", "peek"]["tone"]) == ("running", "ask")
 
 
+def test_a_reviewer_whose_turn_ended_is_where_its_task_is_and_leaves_with_it(scene):
+    """A reviewer that ended its turn is on its task's stage. Once the task merged, or is gone
+    from the queue, the reviewer is off the board: only the crew counts as merged."""
+    scene.queue([row("oat-milk", "pr", pr="#13"), row("rye-loaf", "merged", pr="#9")])
+    scene.passed(
+        20,
+        threads=[
+            out("review: oat-milk", "ended", "idle"),
+            out("review: rye-loaf", "ended", "idle"),
+            out("review: long-gone", "ended", "idle"),
+        ],
+    )
+    said = board(scene)
+    got = workers(said)
+    assert got["reviewer", "oat-milk"]["stage"] == got["crew", "oat-milk"]["stage"]
+    assert ("reviewer", "rye-loaf") not in got
+    assert ("reviewer", "long-gone") not in got
+    merged = [(one["kind"], one["slug"]) for home in said["homes"] for one in home["merged"]]
+    assert merged == [("crew", "rye-loaf")]
+
+
 def test_the_time_on_a_stage_spans_the_steps_inside_it(scene):
     """oat-milk came to review 30 minutes ago and to its second pass 10 minutes ago: both are
     in review, so it has been in review for 30 minutes. A step outside the stage before that

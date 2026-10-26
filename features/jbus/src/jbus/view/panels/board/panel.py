@@ -14,7 +14,8 @@ request, where it has one (`STAGE_OF_PULL`). A task the pass did not judge is on
 its row's status (`STAGE_OF_STATUS`). So no worker is ever on an unknown stage, and the tables
 are checked against every step, facet and status when the module loads.
 
-A reviewer at work is in review. Once its turn ended, it is where its task is. A scout is
+A reviewer at work is in review. Once its turn ended, it is where its task is, and it is off
+the board once that task merged or is gone, since the crew stands for the work. A scout is
 running until its request has a Report that is done, and green from then until its home
 settles its thread. `tone` says what asks: `bad` for what is broken, `ask` for what waits on
 the user, as `state.RANK` groups it.
@@ -197,7 +198,9 @@ def _thread(thread: dict[str, Any], stages: dict[str, str]) -> dict[str, Any] | 
     role, slug = thread["role"], thread["slug"]
     tone = TONE.get(thread["rank"], "")
     if role == "reviewer":
-        stage = "review" if thread["out"] else stages.get(slug, "merged")
+        stage = "review" if thread["out"] else stages.get(slug)
+        if stage in (None, "merged"):
+            return None
         state, since = LIVE_WORD[thread["live"]], thread["created"]
     elif role == "scout":
         said = (thread.get("request") or {}).get("state", "missing")
