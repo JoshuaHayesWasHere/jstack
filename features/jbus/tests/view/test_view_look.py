@@ -105,23 +105,33 @@ def test_every_token_a_rule_names_is_defined():
     assert named - tokens == set()
 
 
+GROUP = re.compile(r"@(media|supports|container|layer|scope|keyframes)\b")
+
+
 def stray(css):
     """What the stylesheet holds outside every rule: a closing brace with no rule to close,
     or a declaration between two rules. A browser drops such text together with the rule
-    after it, so that rule silently stops applying."""
+    after it, so that rule silently stops applying. Rules sit at the top of the sheet and
+    directly inside a grouping at-rule such as `@media` (not `@font-face`, which holds
+    declarations), so text is looked at in both places."""
     css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    depth, between, found = 0, "", []
+    opened, between, found = [], "", []
     for char in css:
+        among_rules = not opened or opened[-1]
         if char == "{":
-            if depth == 0 and ";" in between:
+            if among_rules and ";" in between:
                 found.append(between.strip())
-            depth, between = depth + 1, ""
+            opened, between = [*opened, bool(GROUP.match(between.strip()))], ""
         elif char == "}":
-            if depth == 0:
-                found.append(f"{between.strip()} }}")
-            depth, between = max(depth - 1, 0), ""
+            if not opened:
+                found.append(f"{between.strip()} }}".strip())
+            elif among_rules and between.strip():
+                found.append(between.strip())
+            opened, between = opened[:-1], ""
         else:
             between += char
+    if between.strip():
+        found.append(between.strip())
     return found
 
 
