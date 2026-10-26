@@ -31,7 +31,8 @@ Never done here, and who does it:
 - **A timer, a loop or a watcher that wakes this thread.** Nobody arms one. Before the pull request the run is this thread's turn. After it, `watch_pull_request` wakes the thread.
 - **A fix outside the brief's Where, in a pull request of its own.** The home plans it, from a line under "Noticed".
 - **Loosening "Done when".** The user does, in this thread or through the home. A line you think is wrong is a gate, and the run goes on to the line as written.
-- **Stopping to ask.** Nobody does.
+- **Stopping to ask.**
+  Nobody does.
   A gate holds the question, and each of the four things "Carry on" never does on a default holds its action too.
 - **Merging, to make a line hold.** The home merges. A "Done when" line that needs a merge is reported as waiting on it.
 
