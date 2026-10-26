@@ -75,7 +75,7 @@ If the block prints `no entry`, the page gave no go that jbus can read, so ask t
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
 In one case a row launches on a go given for another row: a follow-up of approved work needs no new approval.
-jbus knows that rule by what it says, in code, and reads no number from `standing.md` or a `follow-rule` file for it.
+The rule is known by what it says, in code: jbus reads no number for it from `standing.md` or a `follow-rule` file.
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
 
 - the row names its parent P, by a line `Follows: P` in its brief's head, or by its slug `cleanup-P`, the row a review files with `jbus cleanup`;
