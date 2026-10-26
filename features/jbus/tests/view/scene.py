@@ -218,6 +218,7 @@ class Scene:
             f"*actions/runs*) cat {root}/runs.json ;;\n"
             f"*check-runs*) cat {root}/check-runs.json ;;\n"
             f"*pulls/*) cat {root}/pull.json ;;\n"
+            f"list) cat {root}/merged.json ;;\n"
             "*) exit 1 ;;\nesac\n",
         )
         self.script(
@@ -461,6 +462,12 @@ class Scene:
             "html_url": RUN.format(502) + "/job/9",
         }
         self.write("check-runs.json", {"total_count": 1, "check_runs": [check]}, self.root)
+
+    def merged(self, *times):
+        """What the stand-in `gh pr list --state merged` answers: one merged pull request for
+        each time, numbered from 100, as `gh` gives `--json number,mergedAt`."""
+        made = [{"number": 100 + at, "mergedAt": iso(one)} for at, one in enumerate(times)]
+        self.write("merged.json", made, self.root)
 
     def asked(self):
         """Each call of the stand-in `gh`, as its arguments."""
