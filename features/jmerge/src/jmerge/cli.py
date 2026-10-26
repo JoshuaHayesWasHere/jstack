@@ -1058,6 +1058,17 @@ class Repo:
             return {}
         return holds if isinstance(holds, dict) else {}
 
+    def readied(self, one: ready.PullRequest, found: Judgement) -> Judgement:
+        """Mark ready a draft whose review is written and whose fix is pushed, so CI runs its one
+        check now, on this head (check.yml runs none on a draft). A brief that says
+        `Review: none` is marked too, and still holds for the user's word."""
+        ran = _run(self.main, "gh", "pr", "ready", str(one.number), *self.about)
+        if ran.returncode:
+            return found._replace(verb="wait", why=ready.UNREADIED.format(said=_said(ran)))
+        if found.why == ready.DRAFT:
+            return found._replace(why=ready.READIED.format(head=one.head))
+        return found
+
     def hold(self, one: ready.PullRequest) -> None:
         self.holds_are({**self.holds(), str(one.number): one.head})
 
@@ -1881,6 +1892,8 @@ def main(argv: list[str] | None = None) -> int:
 
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)
+        if one.draft and found.slug and found.why in ready.READY_ON and not args.check:
+            found = repo.readied(one, found)
         if found.verb == "hold" and not args.check and not ready.gate_held(found.why):
             repo.hold(one)
         if found.judged is None:

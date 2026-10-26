@@ -30,7 +30,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:950-951
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:953-954
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])

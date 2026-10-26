@@ -55,6 +55,8 @@ REQUIRED = ("check",)
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")
 DRAFT = Reason("findings", "draft")
+UNREADIED = Reason("findings", "draft, and gh pr ready refused it: {said}")
+READIED = Reason("check", "reviewed and fixed, so marked ready, and CI runs its check at {head}")
 RULES = "features/jmerge/src/jmerge/"
 GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
 RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
@@ -72,6 +74,7 @@ IN_STACK = Reason("hold", "it is in the stack {stack}, which the user lands")
 IN_UNNAMED_STACK = Reason("hold", "it is in a stack its brief does not name, which the user lands")
 REVIEW, NONE, AFTER, TWICE = "review", "none", "after", "twice"
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
+READY_ON = (DRAFT, REVIEW_NONE)
 NO_REVIEW = Reason("review", "it has no review yet")
 SKILLS_UNRUN = Reason(
     "result",

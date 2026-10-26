@@ -77,7 +77,9 @@ The section "Protected and guarded paths" describes one more hold and a stricter
 - **A draft waits.**
   `jmerge` never merges a draft, whatever flags you pass.
   A crew opens its pull request as a draft, and CI runs no check on one, so a draft is judged by its brief as far as its review and fix, and waits on the first of those reasons that holds.
-  Once none holds it prints `wait <number> <url>: draft`, never a wait on its check, until its crew marks it ready.
+  Once none holds, a run without `--check` marks it ready (`gh pr ready`) and prints `wait <number> <url>: reviewed and fixed, so marked ready, and CI runs its check at <head>`, so its one check runs on the head that merges.
+  With `--check`, or where GitHub refuses the mark, it prints `wait <number> <url>: draft`, never a wait on its check.
+  A draft whose brief says `Review: none` is marked ready too, so the user's word has a check to go by, and it still holds for that word.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
   jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.

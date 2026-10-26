@@ -93,7 +93,9 @@ def test_a_pull_request_built_on_another_waits_on_that_ones_order(built_on):
     assert said[0] == CARRIED
     assert said[2].startswith("ready 10 ")
     listing(built_on, 7, 8)
-    assert built_on.run() == [CARRIED, f"wait 8 {BETA_URL}: {ready.DRAFT}"]
+    carried, draft = built_on.run()
+    assert carried == CARRIED
+    assert draft.startswith(f"wait 8 {BETA_URL}: {ready.READIED.format(head='')}")
     assert built_on.on_main() == (built_on.start, built_on.start)
 
 

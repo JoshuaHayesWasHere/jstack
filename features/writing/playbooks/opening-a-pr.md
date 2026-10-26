@@ -43,7 +43,7 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
    fi
    ```
 
-   CI checks no draft: `skills/crew/SKILL.md` "Ready for its check" readies it.
+   CI checks no draft: `jmerge` readies it once reviewed and fixed.
    A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there.
    Run `gh pr view` before you say anything about its state.
 7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, start the one review beside the checks, end the turn.

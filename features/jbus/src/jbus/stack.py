@@ -56,9 +56,7 @@ MOVED = (
     "{onto}, so its block rebases onto origin/{onto}. "
     + _MOVE
     + " That commit is the head {base} merged at. If the block prints `not found`, run it again "
-    'with {branch}. Once the move is pushed, run the block of "Ready for its check" in "The '
-    'review", which marks the pull request ready where its fix round is pushed, so CI runs its '
-    "one check on the moved head. " + END_TURN
+    "with {branch}. " + END_TURN
 )
 
 

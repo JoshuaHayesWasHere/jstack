@@ -41,10 +41,8 @@ A brief with no such line is `review`, and so is one whose line says more than `
 The same words inside the task's text or a result do not count.
 
 - `none: launch no reviewer`: the home wrote that the task gets no review. Add the line `Reviewer: none, the brief says Review: none` to the Result, once, and tell the home, as "With no reviewer" below says: on a later message the line is already there. Then go on as "Stay on the pull request" says. There will be no findings and no `Fixed:` line, and `jmerge` does not merge it, whoever runs it: the pull request waits for the user's word.
-  Run the block of "Ready for its check" below first, so its check runs.
 - `review`, and `launch no reviewer`: a review has been written (`## Review`), or the Result has a `Reviewer:` line because this thread launched one before. A reviewer of such a line that ended its turn writing nothing is sent back to work with `/pr-review run <slug> again`, never the plain line: `$T/rerun.md` is the one statement of why, and jbus's nudge for it reads the same file. Write what you sent in the Result as `Woke: jbus, sent <that line>`.
 - `after`: launch the reviewer as for `review`, and do not wait for it.
-  Run the block of "Ready for its check" below at the launch: no fix round of this thread comes before the merge.
   The pull request merges once its check passes, and the reviewer turns its findings into a cleanup row, `cleanup-<slug>`, a follow-up that `jbus queue add` approves by the home's follow-up rule, so no findings come to this thread and the Result gets no `Finding` lines and no `Fixed:` line.
   While a home merges, jbus wakes this thread when every check has passed, and on `passed` it sends the thread that hears of a pull request ("Telling the home") one line, once for a head: `<slug>: <pull request url> at <full head commit> is green, and its brief says Review: after`.
 - `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
@@ -110,11 +108,10 @@ uv run --project "$T/../source" jbriefs --findings "$H/tasks/<slug>.md" --left
 On `wait`, the reviewer has sent its message and not yet written its section: handle the findings, and run it again before the `Fixed:` line. On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above. On `not yet`, a finding has no answer that counts: the ids after its colon are the ones, each with why its answer is refused where it has one, and a review from before the ids names none. Give each its line. Otherwise it says which `Fixed:` line to write. After a second pass or a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them. The sections of one head are one review, one from each reviewer. Where the last review has findings and none of them is fixed, it says `none needed` whatever an earlier pass fixed. The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head. `jmerge` reads both: it merges on the `Fixed:` line, and waits, on every path, until each `Act on` finding has an answer that counts.
 
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
+Before it, run the check command at that head (in jstack `make check-fast BASE=origin/main`), add `Checked: <the command> exit <its exit> at <the full head>` to the Result, and write `Fixed:` only after exit 0 there, since `jmerge` marks the draft ready on the `Fixed:` line and CI's run must not be the first check that head gets.
 
 - `Fixed: <full commit>`: the head you pushed, from `git rev-parse HEAD` after the push;
 - `Fixed: none needed, <reason>`: after a clean review, or when you decline every finding. Nothing was pushed.
-
-Then run the block of "Ready for its check" below: the fix round is pushed, so the draft is marked ready and its check runs.
 
 The Result has one `Fixed:` line. If you push again for a failed check after writing it with a commit, set it to the new head. A rebase leaves it as it is: `jmerge` compares the rebased head with the commit that line names ("A conflict").
 
@@ -124,36 +121,3 @@ While the home merges, nothing else brings it back to the pull request, so tell 
 - after `Fixed: none needed`: the same, on jbus's message that every check passed at the head, whether or not it was green when the line was written.
 
 Where no check ran, the head is not green and the line is not sent: "The checks" parks it as a gate.
-
-### Ready for its check
-
-A crew opens its pull request as a draft, and CI runs no check on a draft (`.github/workflows/check.yml`), nor on a pull request into any branch but main.
-It is marked ready once, when its fix round is pushed, so its check runs once, on the head that goes to the merge gate: the `Fixed:` line is that mark, and a brief whose `Review:` is `none` or `after` owes no fix round of this thread.
-A link stacked on another pull request's branch stays a draft until its move onto the default branch is pushed ("A link that moved"), and is marked then.
-A pull request into an integration branch is marked as one into main is, since `jmerge` merges no draft.
-Run this in this worktree, with the block at the top, after the `Fixed:` line, at the launch for `none` and `after`, and after the push of a move.
-It is the only check:
-
-```sh
-B="$H/tasks/<slug>.md"
-asked=$(awk '/^Review:/ {print $(2); exit}' "$B")
-if [ "$asked" != none ] && [ "$asked" != after ] && ! grep -q '^Fixed: ' "$B"; then
-    echo "draft: its fix round is not pushed, so it stays a draft and CI runs no check on it"
-elif ! view=$(gh pr view --json isDraft,baseRefName,headRefOid) || ! base=$(printf %s "$view" | jq -er .baseRefName); then
-    echo "wait: could not ask GitHub"
-elif [ "$(printf %s "$view" | jq -r .isDraft)" != true ]; then
-    echo "ready: it is marked ready, and CI runs its check on each push"
-elif ! default=$(git symbolic-ref -q --short refs/remotes/origin/HEAD); then
-    echo "wait: the remote's default branch is not known here"
-elif [ "$base" != "${default#origin/}" ] && ! grep -qxF "$base" "$H/integration" 2> /dev/null; then
-    echo "draft: its base is $base, another pull request's branch, so it is marked ready once it is moved onto ${default#origin/}"
-elif gh pr ready > /dev/null; then
-    echo "ready: marked ready at $(printf %s "$view" | jq -r .headRefOid), so CI runs its check once, on this head"
-else
-    echo "wait: gh pr ready did not mark it ready"
-fi
-```
-
-On `ready`, nothing more: the check's result wakes this thread as "Stay on the pull request" says.
-On `draft`, end your turn: the `Fixed:` line, or the move, runs the block again.
-On `wait`, run it again on the next wake.

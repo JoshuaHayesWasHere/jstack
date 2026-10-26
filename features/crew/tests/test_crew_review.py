@@ -22,10 +22,12 @@ from crew_helpers import (
     opened,
     reviewed,
     said,
+    sections,
     with_field,
 )
 from test_home_thread import as_read
 from testing.layouts import assembled
+from testing.paths import REPO
 
 FIXED_ONE = "Finding: fixed, it runs twice\n"
 
@@ -491,3 +493,20 @@ def test_the_lines_that_end_a_finding_change_nothing_the_other_blocks_read(endin
         "send nothing: https://example.test/pull/1 is open, "
         "and a home that merges hears of it once, when its checks have passed"
     ]
+
+
+def test_the_fixed_line_that_marks_the_draft_ready_comes_after_a_green_check_at_its_head():
+    """jmerge marks a draft ready on the pass that finds its `Fixed:` line, and CI checks it
+    then, so the skill has the crew run the check command at that head first, name its exit and
+    head on a `Checked:` line, and write `Fixed:` only on exit 0: CI's run is never the first
+    check a head gets."""
+    review = sections()["The review"]
+    (gate,) = [line for line in review.splitlines() if line.startswith("Before it, run the check")]
+    assert "`make check-fast BASE=origin/main`" in gate
+    assert "`Checked: <the command> exit <its exit> at <the full head>`" in gate
+    run, checked, fixed = (gate.index(word) for word in ("run the check", "Checked:", "only after"))
+    assert run < checked < fixed and "exit 0" in gate[fixed:]
+    assert review.index(gate) < review.index("- `Fixed: <full commit>`")
+    named = re.search(r"`(make check-fast BASE=origin/main)`", gate).group(1).split()
+    ran = subprocess.run([named[0], "-n", *named[1:]], cwd=REPO, capture_output=True, text=True)
+    assert ran.returncode == 0 and "scripts/select_tests.py 'origin/main' HEAD" in ran.stdout

@@ -78,7 +78,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:936-937
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:953-954
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
     /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:458-466
@@ -87,7 +87,7 @@ Merge(p) ==
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1396-1397: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1397-1398: main's red tip after a briefed merge is filed.
     /\ fixRow' = (fixRow \/ breaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine>>
 
@@ -109,7 +109,7 @@ CrewFix(p) ==
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
     \* message, which jbus sends it.
-    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:79-84
+    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:80-85
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ told' = [told EXCEPT ![p] = FALSE]
@@ -124,7 +124,7 @@ Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:874, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:836, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:947, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:945, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
@@ -148,7 +148,7 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew fixes main.
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1049-1071, queued with no approval
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1050-1072, queued with no approval
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py:324-356, no room
     /\ mainRed' = FALSE
     /\ redBy' = "none"
@@ -162,7 +162,7 @@ OutsideBreak ==
     /\ mainRed' = TRUE
     /\ redBy' = "outside"
     /\ outsideLeft' = outsideLeft - 1
-    \* features/jbus/src/jbus/watch.py:1347,1390,1394,1397: since #392 the fix row is filed for a red
+    \* features/jbus/src/jbus/watch.py:1348,1391,1395,1398: since #392 the fix row is filed for a red
     \* tip with no briefed merge in the day before it too, under the row's own name.
     /\ fixRow' = TRUE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine>>

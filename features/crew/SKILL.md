@@ -317,7 +317,6 @@ fi
 ```
 
 The block keeps the head before the move under `refs/jstack/pre-rebase/<slug>/<its first 12 characters>` and writes the same record as "A conflict" does. On `moved`, or once a rebase that stopped is finished (its generated files made again by the block of "A conflict"), go on as "A conflict" does after its rebase: run its block that looks for dropped lines, run the check command, and push with its push block and no other way. The Result gets no line and its `Fixed:` line stays as it is. Against the old base the patch held the changes of the links under this one too, and now it does not, so `jmerge` finds the content changed and the move gets its scoped review, on the message "A conflict" names. On any line that ends `no rebase`, add what it printed to the Result and end your turn; on `not found`, also tell the home, which sends the commit this branch started from. `already on` is what a line that came before the home changed the base prints: nothing moved. As a conflict does, the move waits for a review that is running.
-After that push, run the block of "Ready for its check" ("The review"): a link stays a draft while it sits on another pull request's branch, and is marked ready on the moved head once its fix round is pushed.
 
 ## Telling the home
 

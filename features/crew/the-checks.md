@@ -11,7 +11,7 @@ Its first word is one of four answers:
 - `passed`: every check passed. The pull request is green.
 - `failed`: a check ran and failed. Run the check command in this worktree (`notes.md` names it) with the block of "Do the task" that runs it, until it prints `done`, in this turn. On `waiting`, stop as "Do the task" says. Then run the block of "A failed check" below, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, the pull request is a draft, or GitHub could not be asked.
-  CI runs no check on a draft, so a draft's answer is `wait` whatever its rollup holds, until the block of "Ready for its check" ("The review") marks it ready.
+  CI runs no check on a draft, so a draft's answer is `wait` whatever its rollup holds, until `jmerge` marks it ready once it is reviewed and fixed.
   End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.
 - `unrun`: no check ran. Every check either failed with no step run or was skipped, which is a repo whose CI starts no job (no runner, a failed payment), and nothing a push repairs. It is not green, and nothing stands in for a check that did not run: the check command passing in this worktree does not, and no line in the Result does. If the Result has no `Unrun:` line for this head, add `Unrun: at <head>, no check ran` and park a gate ("Do the task") that says `no check ran at <head>` and asks what to do, with the default that the pull request waits. Launch no reviewer and send no `fixed and green` line. Then end your turn: the gate's answer wakes this thread, or jbus's message when a check runs and fails.
 
