@@ -123,7 +123,8 @@ def faults(slug: str, text: str) -> list[str]:
     each label of `labels` has a field whose lines are filled in (not the template's own
     placeholders), its `Questions:` has at least one item, and its `Out of bounds:` starts
     `read-only`. It has no line that only a crewmate's brief has, and its `Request:` line is no
-    longer than `jbriefs.parse.LONGEST`.
+    longer than `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task
+    (`jbus.queue.asks`).
     """
     found = []
     held = parse.fields(text)
@@ -150,7 +151,7 @@ def faults(slug: str, text: str) -> list[str]:
             found.append(f"a {label}: line, which only a crewmate's brief has")
     if long := parse.overlong(text, "Request"):
         found.append(long)
-    return found
+    return [*found, *queue.asks(text, "request")]
 
 
 def state_of(row: Row, text: str | None) -> str:

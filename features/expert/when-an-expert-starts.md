@@ -6,7 +6,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 
    ```sh
    printf 'expert %s\ntitle: expert: %s\n' "$N" "$N"
-   for f in "$X/README.md" "$E/CHARTER.md" "$E/sources.md" "$E/notes/INDEX.md" "$E/corrections.md"; do
+   for f in "$E/CHARTER.md" "$E/sources.md" "$E/notes/INDEX.md" "$E/corrections.md"; do
        if [ -f "$f" ]; then echo "read: $f"; else echo "missing: $f"; fi
    done
    ```

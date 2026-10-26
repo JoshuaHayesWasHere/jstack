@@ -87,7 +87,7 @@ Merge(p) ==
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1392-1393: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1396-1397: main's red tip after a briefed merge is filed.
     /\ fixRow' = (fixRow \/ breaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine>>
 
@@ -148,7 +148,7 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew fixes main.
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1047-1067, queued with no approval
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1049-1071, queued with no approval
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py:324-356, no room
     /\ mainRed' = FALSE
     /\ redBy' = "none"
@@ -162,7 +162,7 @@ OutsideBreak ==
     /\ mainRed' = TRUE
     /\ redBy' = "outside"
     /\ outsideLeft' = outsideLeft - 1
-    \* features/jbus/src/jbus/watch.py:1343,1386,1390,1393: since #392 the fix row is filed for a red
+    \* features/jbus/src/jbus/watch.py:1347,1390,1394,1397: since #392 the fix row is filed for a red
     \* tip with no briefed merge in the day before it too, under the row's own name.
     /\ fixRow' = TRUE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine>>

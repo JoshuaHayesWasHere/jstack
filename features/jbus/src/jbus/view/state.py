@@ -47,7 +47,8 @@ how many tasks wait behind it. A task that the last pass did not confirm says so
 scout's, a reviewer's, a home's or any other, each with its liveness (`jbus.live`). It is
 null where the pass left no list. A null is a blind spot, never a count of none. A task
 gives its own thread's liveness under `seen.live`. A pull request that has had no review
-for `REVIEW_MINUTES`, with no reviewer's thread listed, says so.
+for `REVIEW_MINUTES`, with no reviewer's thread listed, says so. A task's `seen.reviewer` is
+whether a reviewer's thread of its own is out, and null where the pass left no list.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than
 `QUIET` seconds ago and systemd does not say that a pass is running now. A pass that starts
@@ -91,7 +92,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -297,7 +298,7 @@ def text(given: Any, cap: int = LINE) -> str:
 
 
 def by_rule(row: queue.Row) -> dict[str, str] | None:
-    """The rule and the parent of a row that a home approved by a standing rule. The page
+    """The rule and the parent of a row approved by the follow-up rule. The page
     marks the row with them. The function gives None for a row the user gave their own word
     for, and for a row with no approval."""
     made = queue.record(row)
@@ -631,6 +632,7 @@ def _tasks(
         if one["role"] == "crew":
             crews.setdefault(one["slug"], []).append(one)
     reviewed = {one["slug"] for one in out or [] if one["role"] == "reviewer"}
+    reviewing = {one["slug"] for one in out or [] if one["role"] == "reviewer" and one["out"]}
     status = {row["slug"]: text(row.get("status")) or "queued" for row in rows}
     through = {slug for slug, line in judged.items() if line.get("who") == "ok"}
     tasks, ended = [], []
@@ -721,6 +723,7 @@ def _tasks(
                     "wrote": crew.get("updated"),
                     "run_started": crew.get("run_started"),
                     "queued": count(crew.get("queued")),
+                    "reviewer": None if out is None else slug in reviewing,
                     "check": check
                     and {
                         "name": text(check.get("name"), 60),
@@ -1093,7 +1096,9 @@ class Read:
 
     A panel's `build` gets it as its argument. What more than one panel reads is a property
     here, and its source is one of the six above. A panel calls `panel` to get what another
-    panel works out. `once` keeps what a panel works out for its own functions.
+    panel works out. `once` keeps what a panel works out for its own functions. `merged` asks
+    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and is
+    None where no server asks.
     """
 
     def __init__(
@@ -1105,8 +1110,10 @@ class Read:
         code: dict[str, Any] | None = None,
         found: tuple[panels.Panel, ...] | None = None,
         shared: dict[Any, Any] | None = None,
+        merged: Callable[[str, date], dict[str, Any]] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
+        self.merged = merged
         self.code = code or {}
         self.user = sources.user
         self.state, self.home = sources.state(name), sources.home(name)
@@ -1758,7 +1765,7 @@ def stack(
         }
         for one in machine["unwell"]
     ]
-    return {
+    answer = {
         "at": iso(now),
         "machine": machine,
         "steps": line,
@@ -1770,3 +1777,10 @@ def stack(
             machine_wrong + [one for read in reads for one in keep(read.once(wrongs), [WRONG])]
         ),
     }
+    for panel in found:
+        if hasattr(panel.data, "stack"):
+            added = keep(panel.data.stack(base, reads, answer), panel.shape)
+            if taken := set(added) & set(answer):
+                raise ValueError(f"the panel {panel.name} gives {sorted(taken)}, which are taken")
+            answer |= added
+    return answer

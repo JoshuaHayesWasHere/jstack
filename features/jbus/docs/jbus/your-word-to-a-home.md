@@ -5,7 +5,9 @@
 A word goes to the one home of the project that owns its subject, so two homes never act on one word.
 With `jbus word --page <file>`, that is the home whose page the word was given on: a page under a scope's directory, or one named for a brief or a request, as `reports/<slug>/` is.
 Otherwise it is the home of the briefs, requests and rows the words name by slug, when they are all one home's, and a new slug is a scope's when every brief with its prefix is that scope's.
-A word that names none, or the work of two homes, goes to the root home.
+A word that names the work of two homes goes to the root home.
+A word that names none goes to the home it was said in (the thread of `--message`) or recorded by (`--from`), so a scoped home's own word stays in that scope, and otherwise to the root home.
+A word with neither `--from` nor `--message` that goes to the root home of a project with scoped homes gets a line on stderr saying so, since jbus cannot tell whether a scope said it.
 A home that records a word about another home's work with `--from` forwards it to that home, and the command prints `sent: <project>, to the <scope> home at <thread>, word <id>`.
 
 A home is not told a word it recorded itself. A word said in the home's own thread (`--message` whose thread is the one in that project's `home-id`), or recorded by it (`--from <thread id>`, since no environment variable names the calling thread), is kept with `thread` and `sent_at` set and `skipped` saying why, and the command and the pass post no message for it. It prints `kept: <project>, not posted, <why>, word <id>`. The word is still a word: `jbus queue approve --word <id>` takes it. With `--all` only the recording home's own copy is skipped, and every other home gets it once. A project with no `home-id` (a home that handed off) is nobody, so the word waits there as any other does.

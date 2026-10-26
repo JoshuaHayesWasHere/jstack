@@ -221,6 +221,7 @@ class Scene:
             f"*actions/runs*) cat {root}/runs.json ;;\n"
             f"*check-runs*) cat {root}/check-runs.json ;;\n"
             f"*pulls/*) cat {root}/pull.json ;;\n"
+            f"list) cat {root}/merged.json ;;\n"
             "*) exit 1 ;;\nesac\n",
         )
         self.script(
@@ -401,6 +402,7 @@ class Scene:
 
     def machine(self, load="2.50 2.00 1.50 3/900 1234", five_hour=23.0):
         (self.proc / "loadavg").write_text(load + "\n")
+        (self.proc / "locks").write_text("")
         (self.proc / "meminfo").write_text("MemTotal: 32000000 kB\nMemAvailable: 16000000 kB\n")
         (self.proc / "pressure" / "memory").write_text(
             "some avg10=0.00 avg60=0.50 avg300=0.00 total=1\n"
@@ -465,6 +467,12 @@ class Scene:
             "html_url": RUN.format(502) + "/job/9",
         }
         self.write("check-runs.json", {"total_count": 1, "check_runs": [check]}, self.root)
+
+    def merged(self, *times):
+        """What the stand-in `gh pr list --state merged` answers: one merged pull request for
+        each time, numbered from 100, as `gh` gives `--json number,mergedAt`."""
+        made = [{"number": 100 + at, "mergedAt": iso(one)} for at, one in enumerate(times)]
+        self.write("merged.json", made, self.root)
 
     def asked(self):
         """Each call of the stand-in `gh`, as its arguments."""
@@ -1042,3 +1050,41 @@ def homed(scene):
             out("a thread he opened"),
         ],
     )
+
+
+IN_CHECK = [(f"pie-{n}", 20 + n, 10 * n) for n in range(1, 7)]
+
+
+def in_check(scene):
+    """Six pull requests whose check has not passed: `pie-6`'s wait is the oldest, an hour."""
+    scene.queue(
+        [
+            row(slug, "pr", pr=f"#{number}", checks="pending", why="wait: check has not passed")
+            for slug, number, _ in IN_CHECK
+        ]
+    )
+    scene.merge_log(
+        *(
+            logged(minutes, "wait", number, "check has not passed")
+            for _, number, minutes in IN_CHECK
+        )
+    )
+
+
+def slots(scene, monkeypatch, held, total=4):
+    """`total` full test slots, of which the first `held` are held, as `/proc/locks` lists a
+    held flock: by the device and the inode of its lock file."""
+    locks = scene.root / "locks"
+    locks.mkdir(exist_ok=True)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(locks))
+    monkeypatch.setenv("TEST_SLOTS", str(total))
+    lines = []
+    for n in range(1, total + 1):
+        path = locks / f"test-slot.{n}.lock"
+        path.touch()
+        if n <= held:
+            seen = path.stat()
+            where = f"{os.major(seen.st_dev):02x}:{os.minor(seen.st_dev):02x}:{seen.st_ino}"
+            lines.append(f"{n}: FLOCK  ADVISORY  WRITE {4000 + n} {where} 0 EOF")
+    (scene.proc / "locks").write_text("".join(line + "\n" for line in lines))
+    return locks

@@ -20,9 +20,11 @@ state is.
 
 `holder` is the step that holds the chain: the first stuck or needs-you step, else the first
 blocked one, with what the last pass said of it. `waits_on` is each other milestone that a step
-of this chain waits on, by a row of it that is not over. A row merged into a train is in it, not
-on the default branch: `to_go` is the train's rows that have not merged into it yet, and the
-train lands only when its own pull request merges, which no file the view reads records.
+of this chain waits on, by a row of it that is not over. A row's milestone is its train or its
+plan entry, an entry's chain naming the entry first and a train's the train, and nothing where
+it is in neither. A row merged into a train is in it, not on the default branch: `to_go` is the
+train's rows that have not merged into it yet, and the train lands only when its own pull request
+merges, which no file the view reads records, so the drawer says it does not know.
 
 The panel reads the plans, the briefs and the integration file each time it is asked, and
 writes nothing.
@@ -180,13 +182,36 @@ def _chain(read: Read, key: str, rows: list[queue.Row], owner: dict[str, str]) -
     }
 
 
+def _wheres(read: Read) -> list[tuple[str, Path]]:
+    return [("", read.home)] + [(scope.name, scope) for scope, _, _ in read.homes.scopes]
+
+
+def _entry_of(read: Read) -> dict[str, str]:
+    """The plan entry of each row of the queue whose entry is in a home's plan."""
+    slugs = {
+        one.slug
+        for _, where in _wheres(read)
+        for one in plan.entries(_read(where / "plan.md") or "")
+    }
+    return {row["slug"]: queue.entry(row) for row in read.rows if queue.entry(row) in slugs}
+
+
+def _train_of(read: Read) -> dict[str, str]:
+    """The train of each row of the queue whose brief opens its pull request against one."""
+    branches = ready.integration_of(_read(read.home / INTEGRATION) or "")
+    if not branches:
+        return {}
+    by = {row["slug"]: _target(read, row["slug"]) for row in read.rows}
+    return {slug: branch for slug, branch in by.items() if branch in branches}
+
+
 def _home(read: Read, name: str, where: Path) -> dict[str, Any]:
     """The entries of one home's plan, or none, with `plan` saying whether it has one."""
     said = _read(where / "plan.md")
     if said is None:
         gone = not (where / "plan.md").exists()
         return {"name": name, "plan": "missing" if gone else "unreadable", "entries": []}
-    owner = {row["slug"]: queue.entry(row) for row in read.rows}
+    owner = read.once(_train_of) | read.once(_entry_of)
     entries = []
     for one in plan.entries(said):
         rows = plan.rows_of(one.slug, read.rows)
@@ -212,17 +237,16 @@ def _trains(read: Read) -> list[dict[str, Any]]:
     branches = ready.integration_of(_read(read.home / INTEGRATION) or "")
     if not branches:
         return []
-    by = {row["slug"]: _target(read, row["slug"]) for row in read.rows}
-    owner = {slug: branch for slug, branch in by.items() if branch in branches}
+    train_of = read.once(_train_of)
+    owner = read.once(_entry_of) | train_of
     found = []
     for branch in branches:
-        rows = [row for row in read.rows if by[row["slug"]] == branch]
+        rows = [row for row in read.rows if train_of.get(row["slug"]) == branch]
         chain = _chain(read, branch, rows, owner)
         found.append({"branch": text(branch, 80), "to_go": chain["total"] - chain["over"]} | chain)
     return found
 
 
 def build(read: Read) -> dict[str, Any]:
-    homes = [_home(read, "", read.home)]
-    homes += [_home(read, scope.name, scope) for scope, _, _ in read.homes.scopes]
+    homes = [_home(read, name, where) for name, where in _wheres(read)]
     return {"milestones": {"homes": homes, "trains": _trains(read)}}

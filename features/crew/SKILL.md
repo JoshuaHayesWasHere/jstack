@@ -19,6 +19,28 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 ## Start
 
 1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`. If the brief does not exist and the message that started this thread has text below its first line, write that text, as is, to `$H/tasks/<slug>.md` and read it; otherwise say so and stop.
+   Then ask jbus whether the user's go holds for the brief on disk.
+   Run this with the block at the top:
+
+   ```sh
+   B="$H/tasks/<slug>.md"
+   if said=$(uv run --project "$T/../source" jbus queue verify '<slug>' --brief "$B"); then
+       echo "go: $(printf '%s\n' "$said" | jq -r .approved)"
+   else
+       case $said in
+       'refused: no config at '* | 'refused: no project '*) echo "no jbus: $said" ;;
+       *)
+           line=$(printf '%s\n' "$said" | jq -r 'if .approved == "" then "no go: jbus holds no go for \(.slug)" else "the go does not hold for \(.brief.path): \(.approved)" end' 2> /dev/null) || line=$said
+           [ -n "$line" ] || line="jbus printed nothing"
+           printf '\n## Result\nStatus: not done\nDone when: none started, the crew stopped at its start\nProof:\n- the go: %s\nBranch: %s   Pull request: none\nChanged: nothing\nSteers: none\nNoticed: none\nLeft: none\n' "$line" "$(git branch --show-current)" >> "$B"
+           echo "stop: $line"
+           ;;
+       esac
+   fi
+   ```
+
+   On `go` or `no jbus`, go on.
+   On `stop`, the block has written the Result: say its line here and do nothing else, not even "End".
 2. Check where you are: `git status -sb`. A home that launched this thread has already given it a worktree and a branch named for the task: work there. If this is instead the repo's main checkout on its default branch, make a branch first. Never commit on the default branch.
 3. See whether the brief names a playbook. Run this with the block at the top:
 
@@ -40,7 +62,11 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 
 ## Carry on
 
-Proceed on reversible work without asking: do it, then say what you did and why. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first. When in doubt, act and write down what you did.
+Proceed on reversible work without asking: do it, then say what you did and why.
+Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`).
+Each is a gate that holds, parked as "Do the task" says: the action is its default, you do its fail-safe instead, its `Holds:` line names the case written beside it, its `Fail-safe:` line what you prepared, and you carry on with what does not depend on it.
+What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other acts at once on the default that it is not done.
+When in doubt, act and write down what you did.
 A command you write yourself deletes nothing whose target is a variable or a glob, clears scratch with `uv run --project "$T/../source" jbus forget <path>` or leaves it in `/tmp`, and uses only bash expansions, never a zsh one such as `${(s:,:)…}`, since Claude Code stops the thread to ask the user before it runs any of those.
 
 ## Do the task

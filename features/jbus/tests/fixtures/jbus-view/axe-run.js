@@ -1,10 +1,10 @@
 /* The axe run that the page test adds to the page, after axe itself (`axe.min.js` beside this
    file, which the test reads and the view never serves). A moment after the page loads, it runs
-   axe over the view. Then it opens every drawer that the view and each drawer name, and runs axe
-   over each one. It also puts the focus on everything that takes it, as a keyboard would, and
-   measures the ring each one draws. It writes what it found into a pre that the browser prints.
-   When the page is in a frame, the pre goes into the page that holds the frame, as the probe
-   does. */
+   axe over the view, with WCAG 2.2's target size on. Then it opens every drawer that the view
+   and each drawer name, and runs axe over each one. It also puts the focus on everything that
+   takes it, as a keyboard would, and measures the ring each one draws. It writes what it found
+   into a pre that the browser prints. When the page is in a frame, the pre goes into the page
+   that holds the frame, as the probe does. */
 window.addEventListener("load", function () { setTimeout(function () {
   var drawer = document.getElementById("drawer"), found = [], rings = [], looked = [], errors = [];
   window.addEventListener("error", function (e) { errors.push(String(e.message)); });
@@ -21,11 +21,15 @@ window.addEventListener("load", function () { setTimeout(function () {
       el.blur();
     });
   }
+  /* A rule of WCAG 2.2 at level A or AA fails the run at any impact; any other rule fails it
+     when axe calls it serious or critical. */
+  var WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"];
   function check(where, context) {
-    return axe.run(context, { resultTypes: ["violations"] }).then(function (r) {
+    return axe.run(context, { resultTypes: ["violations"], rules: { "target-size": { enabled: true } } }).then(function (r) {
       looked.push(where);
       r.violations.forEach(function (v) {
-        if (v.impact !== "serious" && v.impact !== "critical") return;
+        var wcag = v.tags.some(function (t) { return WCAG.indexOf(t) >= 0; });
+        if (!wcag && v.impact !== "serious" && v.impact !== "critical") return;
         found.push({ where: where, rule: v.id, impact: v.impact, nodes: v.nodes.slice(0, 5).map(function (n) { return n.target.join(" ") + " " + (n.failureSummary || "").replace(/\s+/g, " ").slice(0, 160); }) });
       });
     });

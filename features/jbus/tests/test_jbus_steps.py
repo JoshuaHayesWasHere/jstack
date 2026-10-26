@@ -56,6 +56,7 @@ from test_jbus_verbs import fresh
 ORDER = [
     "before-watch 6 health.first",
     "before-watch 7 item.settle",
+    "before-watch 8 queue.follow_ups",
     "before-watch 10 word.deliver",
     "before-watch 15 item.deliver (client)",
     "before-watch 20 questions.closed_in_files",
@@ -286,8 +287,9 @@ SECOND = (
 
 
 def moved(before):
-    """Return the calls recorded before the move, with the two that moved put where they are now."""
-    calls = before.split()
+    """Return the calls recorded before the move, with the two that moved put where they are now,
+    and the `queue.load` of `queue.follow_ups`, a step added since, first."""
+    calls = ["queue.load", *before.split()]
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
     if "watch.gone" in calls:

@@ -5,6 +5,7 @@ test runs the hook and takes the blocks from the skill that gives them."""
 import json
 import os
 import re
+import shutil
 import subprocess
 import textwrap
 
@@ -402,6 +403,36 @@ def test_however_much_is_there_a_start_prints_under_6000_characters(bus):
     assert said["to read"][-1] == "... and 22 more: mark these read, then run this block again"
     shown = printed.replace(str(bus.shown_dir), "$H")
     assert [line for line in shown.splitlines() if len(line) > 150] == []
+
+
+def test_a_start_asks_whose_the_briefs_are_as_often_for_thirty_as_for_one(bus, tmp_path):
+    """Each `jbus home` a start runs is a Python process, a quarter of a second on a quiet machine
+    and a second on a loaded one, so a start that asked once per row, merge and Result took
+    minutes on a repo with a long queue."""
+    log = tmp_path / "uv.log"
+    shim = tmp_path / "shim"
+    shim.mkdir()
+    (shim / "uv").write_text(f'#!/bin/sh\necho "$*" >> "{log}"\nexec "{shutil.which("uv")}" "$@"\n')
+    (shim / "uv").chmod(0o755)
+    bus.env["PATH"] = f"{shim}{os.pathsep}{bus.env['PATH']}"
+    a_note(bus)
+    (bus.dir / "read-seen").write_text("")
+    (bus.dir / "merge-seen").write_text("0\n")
+
+    def asked(many):
+        rows(bus, *((f"row-{n:02}", "queued", "", "") for n in range(many)))
+        for n in range(many):
+            bus.kitchen.brief(f"row-{n:02}", "\n## Result\nStatus: done\n")
+        merged = '2026-10-13 17:00 merged {0} row-{0:02} abc "a title", revert: gh pr revert x\n'
+        (bus.dir / "merge.log").write_text("".join(merged.format(n) for n in range(many)))
+        log.write_text("")
+        said = parts(bus.home(START))
+        assert len(said["merged"]) == min(many, 5) + (many > 5), said
+        assert said["queue"][0].startswith("row-00 | queued"), said
+        return [line for line in log.read_text().splitlines() if " jbus home " in f" {line} "]
+
+    one = asked(1)
+    assert len(asked(30)) == len(one)
 
 
 def test_a_start_with_no_jbus_reads_the_plan_whole_and_says_why_it_has_no_queue(scene):

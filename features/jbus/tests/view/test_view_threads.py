@@ -250,6 +250,27 @@ def test_a_pull_request_ten_minutes_on_review_with_no_reviewer_listed_says_so(
     assert task["state"]["waits"] == waits
 
 
+@pytest.mark.parametrize(
+    ("threads", "reviewer"),
+    [
+        ([out("review: fig-read")], True),
+        ([out("review: fig-read", "quiet", minutes=12)], True),
+        ([out("review: fig-read", "ended", "completed")], False),
+        ([out("crew: fig-read"), out("review: fig-other")], False),
+        ([], False),
+        (None, None),
+    ],
+)
+def test_a_task_says_whether_a_reviewer_of_its_own_is_out(scene, served, threads, reviewer):
+    """True only where the pass listed a reviewer's thread of the task that has not ended, and
+    None where the pass left no list: a missing list is no proof that none is out."""
+    scene.queue([row("fig-read", "pr", pr="#31", why="wait: it has no review yet")])
+    scene.merge_log(logged(3, "wait", 31, "it has no review yet"))
+    scene.passed(20, threads=threads)
+    task = tasks(served.json("/state.json?project=demo"))["fig-read"]
+    assert (task["step"], task["seen"]["reviewer"]) == ("review", reviewer)
+
+
 def test_a_home_names_its_scope_and_one_that_ended_with_its_own_tasks_open_asks(scene, served):
     """A home's title is `home: <project>`, and a scoped home's names its scope after the
     project. A home owns the open tasks whose brief its `Home:` line gives it, and a brief with

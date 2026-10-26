@@ -37,8 +37,6 @@ from jbus import (
 )
 from jmerge.asked import Silent
 
-FOLLOW_RULE = "follow-rule"
-
 
 def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     """Return what `queue remove` and `queue approve` ask, and the one quiet event a removal
@@ -46,9 +44,9 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
 
     `said` returns the words an approval names: a word of the project's `words.json`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
-    read from Lavish's state file, or a rule of the home's `standing.md`. `follow` is the number
-    in the home's `follow-rule` file (`FOLLOW_RULE`): the rule of `standing.md` by which jbus
-    approves a follow-up when it is queued.
+    read from Lavish's state file. `trains` is the integration branches of the home's
+    `integration` file, whose syncs are follow-ups (`queue.KINDS`). A follow-up's go reads no
+    file of the home: jbus knows the rule by what it says.
 
     `out` asks T3 Code and GitHub now for a thread that is at work, an open pull request, or a
     merged one. A thread that ended or settled is not out. Where `out` cannot ask either of
@@ -108,15 +106,13 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
             return t3.heard(config, ref)
         if basis == queue.PAGE:
             return lavish.picked(config.user, ref)
-        if basis == queue.RULE:
-            return queue.rule(config.home(project) / "standing.md", ref)
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
 
     try:
-        follow = (config.home(project) / FOLLOW_RULE).read_text().strip()
+        trains = tuple((config.home(project) / queue.TRAINS).read_text().split())
     except OSError:
-        follow = ""
-    return queue.Asks(out, launched, told, said, follow)
+        trains = ()
+    return queue.Asks(out, launched, told, said, trains)
 
 
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
@@ -257,9 +253,7 @@ def _table(table: argparse.ArgumentParser) -> None:
     add = table_verbs.add_parser(
         "add",
         help="a row, with its brief on stdin",
-        description=f"Queue a row, with its brief on stdin. A follow-up: {queue.FOLLOW_UP}. "
-        f"The home's {FOLLOW_RULE} file names that rule of its standing.md, and with no such "
-        "file no row is approved by rule when it is queued.",
+        description=f"Queue a row, with its brief on stdin. A follow-up: {queue.FOLLOW_UP}.",
         allow_abbrev=False,
     )
     add.add_argument("slug")
@@ -302,10 +296,14 @@ def _table(table: argparse.ArgumentParser) -> None:
         "--page", metavar="SESSION/ENTRY", help="the user's own send from a Lavish page"
     )
     approve.add_argument(
-        "--rule", metavar="N", help="a rule of the home's standing.md, with --follows"
+        "--rule",
+        metavar="N",
+        help="taken beside --follows and not read: the follow-up rule is known by what it says",
     )
     approve.add_argument(
-        "--follows", metavar="SLUG", help="the row the user approved that this one follows up"
+        "--follows",
+        metavar="SLUG",
+        help="the approved row that this one follows up: its go is the ground",
     )
     approve.add_argument("--by", help=argparse.SUPPRESS)
     approve.add_argument("--at", help=argparse.SUPPRESS)

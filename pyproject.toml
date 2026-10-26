@@ -25,6 +25,7 @@ jroles = "jroles.cli:main"
 [dependency-groups]
 dev = [
     "jsonschema>=4.26.0",
+    "pillow>=11",
     "pytest>=8",
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.8.0",

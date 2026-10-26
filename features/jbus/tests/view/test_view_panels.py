@@ -15,7 +15,8 @@ import pytest
 from jbus import launchd, view
 from jbus.view import panels
 from jbus.view import state as built
-from view.scene import LINKED, LINKS, REPO, SAMPLE, folder
+from view.scene import LINKED, LINKS, NOW, REPO, SAMPLE, Scene, folder
+from view.walk import runs, sources
 
 PANELS = ["blind", "bus", "checks", "flow", "merged", "pulse", "room", "rounds", "steps", "task"]
 
@@ -91,6 +92,20 @@ def test_a_key_that_two_panels_give_is_refused():
         built.keys((panel("one", True, "repo"),))
     asked = built.keys((panel("one", True, "a"), panel("two", False, "a", "repo")))
     assert asked == (*built.FRAME, "a")
+
+
+def test_a_panel_adds_to_the_stack_only_a_key_the_stack_does_not_have(tmp_path, monkeypatch):
+    def panel(name, *keys):
+        data = types.SimpleNamespace(
+            SHAPE=dict.fromkeys(keys), stack=lambda base, reads, answer: dict.fromkeys(keys, 1)
+        )
+        return panels.Panel(name, data, Path("panel.js"))
+
+    found = sources(Scene(tmp_path, monkeypatch))
+    given = built.stack(found, NOW, runs, found=(*panels.found(), panel("one", "added")))
+    assert given["added"] == 1
+    with pytest.raises(ValueError, match=r"the panel one gives \['wrong'\], which are taken"):
+        built.stack(found, NOW, runs, found=(*panels.found(), panel("one", "wrong")))
 
 
 def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_state(served):
