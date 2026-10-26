@@ -26,10 +26,12 @@ A path such as `principles/<name>.md` or `skills/expert/SKILL.md` is from the ro
 6. Write the answer in the four parts of `templates/expert-answer.md`, in its order: read it now. A false premise comes first. A number comes with what limits it (`principles/principle-explain-the-number.md`). Each line under Sources says its layer: a correction, the source or a note. A pin that is behind goes under the last part, with the notes written at it. Run this with the skill's top block, the answer in place of the line in angle brackets, until it prints `four parts, in order`. Then give the answer as it is, in this thread.
 
    ```sh
-   answer=$(cat << 'THE_ANSWER_ENDS_HERE'
+   the_answer() {
+       cat << 'THE_ANSWER_ENDS_HERE'
    <the answer>
    THE_ANSWER_ENDS_HERE
-   )
+   }
+   answer=$(the_answer)
    printf '%s\n' "$answer" | awk '
        FNR == 1 {file++; part = ""}
        /^## / {if (file == 1) want = want $(0) "\n"; else have = have $(0) "\n"; part = $(0); next}

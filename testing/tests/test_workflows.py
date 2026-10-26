@@ -12,10 +12,13 @@ The test reads the workflow file as YAML with two small readers, `mapping` and `
 only mappings by their indentation, a scalar, and a list in brackets.
 
 Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and none names a runner
-of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for the
-workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the browser
-run, and by hand, over the branch its `ref` names, `train/macos` unless a manual run names another.
-It runs on no pull request and no push, and no merge waits on it.
+of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
+two workflows. The workflow `macos`: on each pull request it runs the test files listed in
+`testing/macos-quick.txt`, the ones whose code branches on macOS or that guard a break only a
+Mac has, and it never fails a run or a check, since jbus and jmerge read every check of a pull
+request. The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour
+after the browser run, and by hand, over the branch its `ref` names, `train/macos` unless a
+manual run names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
@@ -59,6 +62,8 @@ BROWSER = WORKFLOWS / "browser.yml"
 RELEASE = WORKFLOWS / "release.yml"
 BORDERS = WORKFLOWS / "borders.yml"
 NIGHTLY = WORKFLOWS / "macos-nightly.yml"
+MAC = WORKFLOWS / "macos.yml"
+MAC_QUICK = REPO / "testing" / "macos-quick.txt"
 GREEN_TREE = REPO / "scripts" / "green_tree.py"
 HOSTED = "ubuntu-24.04"
 MACOS = "macos-15"
@@ -179,6 +184,7 @@ def test_every_job_of_every_workflow_runs_on_githubs_hosted_runner():
         "browser.yml": {"browser": HOSTED},
         "check.yml": {"check-shard": HOSTED, "check": HOSTED, "full-shard": HOSTED, "full": HOSTED},
         "macos-nightly.yml": {"macos": MACOS},
+        "macos.yml": {"macos": MACOS},
         "pstack-drift.yml": {"drift": HOSTED},
         "release.yml": {"release": HOSTED},
     }
@@ -329,12 +335,15 @@ def test_an_env_is_read_from_its_own_step_and_no_other():
 
 
 def steps(text, job):
-    """The steps of one job, each as the keys written on it, and the job's own keys."""
-    found, keys, inside, at = [], [], False, None
+    """The steps of one job, each as the keys written on it, and the job's own keys. A value
+    folded with `>-` is read as its lines joined by spaces."""
+    found, keys, inside, at, folded = [], [], False, None, None
     for line in text.splitlines():
         indent = len(line) - len(line.lstrip())
         if not line.strip() or line.lstrip().startswith("#"):
             continue
+        if indent < 10:
+            folded = None
         if indent <= 2:
             inside, at = line.strip() == f"{job}:" and indent == 2, None
         elif not inside:
@@ -351,6 +360,10 @@ def steps(text, job):
         elif at is not None and indent == 10 and isinstance(found[-1][key], dict):
             under, _, value = line.strip().partition(":")
             found[-1][key][under] = scalar(value)
+        elif at is not None and indent == 10 and found[-1][key] == ">-":
+            found[-1][key], folded = line.strip(), key
+        elif at is not None and indent == 10 and key == folded:
+            found[-1][key] += " " + line.strip()
     return found, keys
 
 
@@ -359,28 +372,34 @@ def test_steps_are_read_with_their_own_keys_and_the_job_with_its_own():
         "jobs:\n  other:\n    if: false\n    steps:\n      - run: true\n"
         "  check:\n    runs-on: x\n    steps:\n      - uses: a/b@1 # v1\n        with:\n"
         "          if: no\n          depth: 2\n      - name: one\n        if: a != 'b'\n"
-        "        run: make check\n"
+        "        run: make check\n      - run: >-\n          make\n          check\n"
     )
     assert steps(text, "check") == (
         [
             {"uses": "a/b@1", "with": {"if": "no", "depth": "2"}},
             {"name": "one", "if": "a != 'b'", "run": "make check"},
+            {"run": "make check"},
         ],
         ["runs-on", "steps"],
     )
     assert steps(text, "other") == ([{"run": True}], ["if", "steps"])
 
 
-def cap(text, job):
-    """The minutes after which GitHub cancels one job, as the job says them."""
+def job_value(text, job, key):
+    """One key of a job, as the job says it, and None when the job has no such key."""
     inside = False
     for line in text.splitlines():
         indent = len(line) - len(line.lstrip())
         if indent <= 2 and line.strip() and not line.lstrip().startswith("#"):
             inside = line.strip() == f"{job}:" and indent == 2
-        elif inside and indent == 4 and line.strip().startswith("timeout-minutes:"):
+        elif inside and indent == 4 and line.strip().startswith(f"{key}:"):
             return scalar(line.partition(":")[2])
     return None
+
+
+def cap(text, job):
+    """The minutes after which GitHub cancels one job, as the job says them."""
+    return job_value(text, job, "timeout-minutes")
 
 
 CAPS = {
@@ -391,6 +410,7 @@ CAPS = {
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
     ("macos-nightly.yml", "macos"): "90",
+    ("macos.yml", "macos"): "15",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
 }
@@ -499,6 +519,74 @@ def test_the_suite_runs_as_four_parts_side_by_side_and_one_job_passes_only_when_
     assert [result for result in RESULTS if ran[result].returncode == 0] == ["success"]
     assert all("::error::" in ran[result].stdout for result in RESULTS[1:])
     assert "SHARD=${{ matrix.shard }}/4" in " ".join(map(str, steps(CHECK.read_text(), parts)[0]))
+
+
+def test_macos_runs_on_every_pull_request_and_on_nothing_else():
+    assert block("on", MAC) == {"pull_request": None}
+    assert block("concurrency", MAC) == {
+        "group": "macos-${{ github.ref }}",
+        "cancel-in-progress": True,
+    }
+
+
+def test_the_macos_job_never_fails_a_run_or_a_check_and_no_merge_waits_on_it():
+    """jbus and jmerge read every check of a pull request, so a red `macos` would read as a failed
+    pull request and wake its crew. A job's own `continue-on-error` keeps the run green but still
+    reports the job's check as failed, so every step carries the flag too. A job that meets its
+    cap is cancelled, which reads as failed, so the suite's step stops before the job's cap."""
+    from jmerge import checks, ready
+
+    passed = {"name": "check", "status": "COMPLETED", "conclusion": "SUCCESS"}
+    red = {"name": "macos", "status": "COMPLETED", "conclusion": "FAILURE"}
+    assert (checks.checks([passed]), checks.checks([passed, red])) == ("passed", "failed")
+    text = MAC.read_text()
+    assert job_value(text, "macos", "continue-on-error") is True
+    found, _ = steps(text, "macos")
+    assert found and all(step.get("continue-on-error") is True for step in found)
+    (suite,) = [step for step in found if step.get("id") == "suite"]
+    assert int(suite["timeout-minutes"]) < int(cap(text, "macos"))
+    assert "macos" not in ready.REQUIRED
+
+
+def test_the_macos_job_runs_the_quick_list_on_three_workers_into_the_report_its_summary_reads(
+    tmp_path,
+):
+    """The step runs pytest itself and not `make check`: this runs its shell against a `uv` that
+    writes down what it was given. pytest reads the arguments of `@<file>` from that file, one a
+    line, so the list's paths are the tests the job runs."""
+    found, _ = steps(MAC.read_text(), "macos")
+    (suite,) = [step for step in found if step.get("id") == "suite"]
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    bin, said = tmp_path / "bin", tmp_path / "said"
+    bin.mkdir()
+    (bin / "uv").write_text(f'#!/bin/sh\nprintf "%s\\n" "$@" > {said}\n')
+    (bin / "uv").chmod(0o755)
+    subprocess.run(
+        ["bash", "-e", "-c", suite["run"]],
+        cwd=REPO,
+        env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)},
+        check=True,
+    )
+    given = said.read_text().splitlines()
+    assert given[:2] == ["run", "pytest"]
+    assert given[given.index("-n") + 1] == "3"
+    report = listed["env"]["JUNIT"].replace("${{ runner.temp }}", str(tmp_path))
+    assert f"--junitxml={report}" in given
+    (read,) = [arg for arg in given if arg.startswith("@")]
+    assert (REPO / read[1:]).resolve() == MAC_QUICK
+
+
+def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_of_the_repo():
+    """A path that moved or went would make pytest stop with no test run."""
+    paths = MAC_QUICK.read_text().splitlines()
+    assert paths and len(paths) == len(set(paths))
+    for path in paths:
+        found = REPO / path
+        assert (
+            found.is_file()
+            and fnmatch(found.name, "test_*.py")
+            or (found.is_dir() and found.name == "tests")
+        ), path
 
 
 def test_the_fast_check_reads_two_commits_and_runs_the_tests_its_change_reaches_over_main():
@@ -778,6 +866,59 @@ def test_the_suite_summary_is_one_line_of_workers_quota_wall_test_time_tail_and_
         check=True,
     )
     assert ", quota none, " in ran.stdout and ran.stdout.endswith("cpu none, cgroup cpu none\n")
+
+
+FAILED = """<?xml version="1.0" encoding="utf-8"?>
+<testsuites><testsuite name="pytest" tests="4" time="9.0">
+<testcase classname="features.jgauge.tests.test_room" name="test_go" time="1.0" />
+<testcase classname="features.jgauge.tests.test_room" name="test_load[idle]" time="1.0">
+<failure message="no /proc/loadavg" /></testcase>
+<testcase classname="features.crew.tests.test_check.TestSetsid" name="test_starts" time="1.0">
+<error message="setsid: command not found" /></testcase>
+<testcase classname="features.jbus.tests.test_view" name="test_skipped" time="0.0">
+<skipped message="linux only" /></testcase>
+</testsuite></testsuites>
+"""
+
+
+def test_the_macos_job_lists_each_failed_test_in_its_summary_and_warns_with_the_count(tmp_path):
+    found, _ = steps(MAC.read_text(), "macos")
+    (listed,) = [step for step in found if step.get("name") == "failed tests"]
+    assert found.index(listed) > [step.get("id") for step in found].index("suite")
+    assert (
+        worked(listed["if"], {"!cancelled()": True}),
+        worked(listed["if"], {"!cancelled()": False}),
+    ) == (True, False)
+    assert listed["env"] == {
+        "JUNIT": "${{ runner.temp }}/junit.xml",
+        "SUITE": "${{ steps.suite.outcome }}",
+    }
+
+    def run(junit):
+        out = tmp_path / "summary"
+        out.write_text("")
+        ran = subprocess.run(
+            ["bash", "-e", "-c", summary_step("failed tests", MAC)],
+            env={"PATH": "/usr/bin:/bin", "JUNIT": str(junit), "SUITE": "failure"}
+            | {"GITHUB_STEP_SUMMARY": str(out)},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return ran.stdout, out.read_text()
+
+    junit = tmp_path / "junit.xml"
+    junit.write_text(FAILED)
+    assert run(junit) == (
+        "::warning::macOS: 2 tests failed, the suite step ended failure\n",
+        "macOS: 2 tests failed, the suite step ended failure\n"
+        "- `features/jgauge/tests/test_room.py::test_load[idle]`\n"
+        "- `features/crew/tests/test_check.py::TestSetsid::test_starts`\n",
+    )
+    assert run(tmp_path / "gone") == (
+        "::warning::macOS: no test report, the suite step ended failure\n",
+        "macOS: no test report, the suite step ended failure\n",
+    )
 
 
 def green_tree(tmp_path, answers, python=(sys.executable,), **env):
@@ -1313,6 +1454,7 @@ def test_every_setup_uv_step_installs_one_exact_uv_named_once_in_each_workflow()
         "browser.yml": 1,
         "check.yml": 2,
         "macos-nightly.yml": 1,
+        "macos.yml": 1,
         "pstack-drift.yml": 1,
         "release.yml": 1,
     }

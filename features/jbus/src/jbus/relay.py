@@ -85,6 +85,7 @@ import math
 import os
 import re
 import shutil
+import socketserver
 import subprocess
 import threading
 import time
@@ -533,6 +534,17 @@ class Pager:
             self.page(f"unheard-{id}", line)
 
 
+class Server(http.server.ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address.
+
+    `HTTPServer.server_bind` calls `socket.getfqdn`, and on a Mac that reverse lookup of
+    127.0.0.1 can wait on mDNS for longer than the relay may take to start."""
+
+    def server_bind(self) -> None:
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
+
 class Relay:
     def __init__(self, config: Settings, say: Say) -> None:
         self.config, self.say = config, say
@@ -742,7 +754,7 @@ class Relay:
         return Handler
 
     def serve(self) -> None:
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", self.config.port), self.handler())
+        server = Server(("127.0.0.1", self.config.port), self.handler())
         self.say(f"relay: listening on 127.0.0.1:{server.server_address[1]}")
         server.serve_forever()
 

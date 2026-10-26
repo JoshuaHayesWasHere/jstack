@@ -49,20 +49,15 @@ def orphan(cwd, *command, env=None):
 
 
 def parent(pid):
-    try:
-        with open(f"/proc/{pid}/stat") as stat:
-            return int(stat.read().rsplit(")", 1)[1].split()[1])
-    except (OSError, IndexError, ValueError):
-        return None
+    """The process's parent, as `ps` says, which reads it on Linux and on macOS alike."""
+    said = subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)], capture_output=True, text=True)
+    return int(said.stdout) if said.stdout.strip().isdecimal() else None
 
 
 def alive(pid):
-    """Whether the process runs: a zombie that pid 1 has not reaped yet has stopped."""
-    try:
-        with open(f"/proc/{pid}/stat") as stat:
-            return stat.read().rsplit(")", 1)[1].split()[0] != "Z"
-    except OSError:
-        return False
+    """Whether the process runs: a zombie that its reaper has not reaped yet has stopped."""
+    said = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True)
+    return said.stdout.strip()[:1] not in ("", "Z")
 
 
 @pytest.fixture
@@ -123,13 +118,13 @@ def test_the_crew_left_is_said_in_one_journal_line_and_under_its_result(kitchen,
     tree, _ = ended_crew(kitchen, tmp_path)
     brief = kitchen.home / "tasks" / "alpha.md"
     brief.write_text(brief.read_text() + RESULT)
-    stray += [orphan(tree, "yes"), orphan(tree, "yes", "two")]
+    stray += [orphan(tree, "yes"), orphan(tree, "cat", "/dev/zero")]
     said = kitchen.poll()
     lines = [one for one in said if one.startswith("left running")]
-    assert lines == [f"left running crew alpha: stopped 2: yes in {tree}, yes two in {tree}"]
+    assert lines == [f"left running crew alpha: stopped 2: yes in {tree}, cat /dev/zero in {tree}"]
     last = brief.read_text().splitlines()[-1]
     assert last.startswith("Left running: 2 stopped by jbus ")
-    assert last.endswith(f": yes in {tree}, yes two in {tree}")
+    assert last.endswith(f": yes in {tree}, cat /dev/zero in {tree}")
     assert mirror.field(mirror.last_result(brief.read_text()), "Left") == "none"
     kitchen.poll()
     assert brief.read_text().count("Left running:") == 1
@@ -155,11 +150,15 @@ def test_a_worktree_removed_under_a_busy_process_still_counts(
     tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
     stray.append(orphan(tree, "yes"))
     kitchen.git("worktree", "remove", "--force", str(tree))
-    assert os.readlink(f"/proc/{stray[0]}/cwd").endswith(" (deleted)")
+    if os.path.isdir("/proc"):
+        assert os.readlink(f"/proc/{stray[0]}/cwd").endswith(" (deleted)")
     kitchen.poll()
     assert not alive(stray[0])
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
+)
 def test_a_temporary_folder_the_crews_session_made_counts(kitchen, tmp_path, stray):
     tree, _ = ended_crew(kitchen, tmp_path)
     made = tmp_path / "lwr" / "c"
@@ -216,6 +215,9 @@ def test_a_process_of_a_crew_still_in_its_turn_is_left_and_stopped_once_the_turn
     assert [alive(pid) for pid in stray] == [False, False]
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
+)
 def test_a_scout_stops_only_what_its_own_session_started(kitchen, tmp_path, stray):
     kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=2), title="scout: alpha")
     (kitchen.home / "scouts" / "alpha.md").write_text("# alpha\n\n## Report\nFound it.\n")
@@ -286,6 +288,21 @@ def test_a_process_that_ignores_term_is_killed_after_the_grace(
     assert not alive(stray[0])
 
 
+def test_with_no_proc_to_read_as_on_a_mac_a_busy_stray_is_still_stopped(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    """macOS has no /proc, and there `ps` and `lsof` say what a process is. A missing `ROOT`
+    stands in for it here. The process names its worktree, since this machine may have no `lsof`
+    to give its working directory, and the gap is over a second, since Linux's `ps` gives CPU
+    time in whole seconds."""
+    monkeypatch.setattr(strays, "ROOT", tmp_path / "no-proc")
+    monkeypatch.setattr(strays, "GAP", 1.5)
+    tree, _ = ended_crew(kitchen, tmp_path)
+    stray.append(orphan(tree, "yes", str(tree)))
+    kitchen.poll()
+    assert not alive(stray[0])
+
+
 def end(kitchen, tree, how):
     """End the crew's row: its pull request merged and its thread settled, its thread ended
     with a Result, or its worktree removed with no Result written. Run the pass that derives
@@ -302,6 +319,27 @@ def end(kitchen, tree, how):
     return kitchen.poll()
 
 
+@pytest.mark.parametrize("how", ["merged", "done", "removed"])
+def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_once_its_row_ended(
+    kitchen, tmp_path, stray, monkeypatch, how
+):
+    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
+    stray.append(orphan(tree, "sleep", "300"))
+    said = end(kitchen, tree, how) + kitchen.poll()
+    assert not alive(stray[0])
+    lines = [one for one in said if one.startswith("left running")]
+    assert lines == [f"left running crew alpha: stopped 1: sleep 300 in {tree}"]
+    if how != "removed":
+        last = (kitchen.home / "tasks" / "alpha.md").read_text().splitlines()[-1]
+        assert last.startswith("Left running: 1 stopped by jbus ")
+
+
+@pytest.mark.skipif(
+    not strays.ROOT.is_dir(),
+    reason="with no /proc, as on macOS, strays reads no environment, since ps -E showed none for"
+    " the user's own processes on the macOS job: a temporary folder ties no process to a task",
+)
 @pytest.mark.parametrize("how", ["merged", "done", "removed"])
 def test_an_idle_process_a_crew_left_is_stopped_once_its_row_ended(
     kitchen, tmp_path, stray, monkeypatch, how

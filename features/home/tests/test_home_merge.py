@@ -15,7 +15,7 @@ from datetime import date, datetime
 import pytest
 
 import repo_template
-from test_home_thread import as_read
+from test_home_thread import as_read, installed
 from testing.paths import skills
 
 SKILL = skills()["home"] / "SKILL.md"
@@ -207,9 +207,7 @@ class Home:
 
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
-        (self.user / ".claude" / "skills").mkdir(parents=True)
-        for name, folder in skills().items():
-            (self.user / ".claude" / "skills" / name).symlink_to(folder)
+        installed(self.user)
         self.tasks = self.user / ".local" / "state" / "home" / NAME / "tasks"
         self.tasks.mkdir(parents=True)
         self.state = self.tasks.parent

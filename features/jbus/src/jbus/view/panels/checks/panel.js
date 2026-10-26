@@ -12,8 +12,9 @@ function runStats() {
 function checksSay(rs) { return CHECKS.map(function (c) { return rs.now[c[0]].length + " " + c[1]; }).join(", "); }
 function runnerList() {
   var c = S.checks;
-  if (!c.runners_read) return '<p class="src">systemd did not answer, so the runners of this machine are not known.</p>';
-  if (!c.runners.length) return '<p class="src">systemd lists no unit <code>actions-runner-*</code> on this machine.</p>';
+  var manager = esc(c.manager || "systemd");
+  if (!c.runners_read) return '<p class="src">' + manager + ' did not answer, so the runners of this machine are not known.</p>';
+  if (!c.runners.length) return '<p class="src">' + manager + ' lists no ' + (c.manager === "launchd" ? 'agent <code>actions.runner.*</code>' : 'unit <code>actions-runner-*</code>') + ' on this machine.</p>';
   return '<ul class="clean steps">' + c.runners.map(function (u) {
     return '<li><span class="t"></span><span><code>' + esc(u.unit) + '</code></span><span class="d"><span class="chip ' + (u.active === "active" ? "ok" : "user") + '">' + esc(u.active) + (u.sub ? ", " + esc(u.sub) : "") + '</span></span></li>';
   }).join("") + '</ul>';

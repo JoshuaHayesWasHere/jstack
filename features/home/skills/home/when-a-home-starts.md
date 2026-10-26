@@ -22,10 +22,12 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
        echo "a party's home: ${party%%/*}'s, in $root/_${party%%/*}, and not a repo's, so /home starts nothing here. Nothing is written."
        exit ;;
    esac
-   typed=$(cat << 'THE_TEXT_ENDS_HERE'
+   the_text() {
+       cat << 'THE_TEXT_ENDS_HERE'
    <the text after /home>
    THE_TEXT_ENDS_HERE
-   )
+   }
+   typed=$(the_text)
    word=$(printf '%s\n' "$typed" | awk 'NF {print $(1); exit}')
    case $word in
    '' | .* | *[!A-Za-z0-9._-]* | tasks | scouts | reports | log) scope= ;;
@@ -267,6 +269,11 @@ A handoff leaves two things that only the next home can see to. Both go by the `
 
 ```sh
 refused='<the ids a call was refused for>'
+the_reply() {
+    cat << 'THE_REPLY_ENDS_HERE'
+<the reply of list_scheduled_tasks>
+THE_REPLY_ENDS_HERE
+}
 case $refused in
 *'<'* | *'>'*) refused= ;;
 esac
@@ -274,17 +281,14 @@ was=$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$M/handoff.md" 
 if [ -z "$was" ] || [ "$was" = "$ME" ]; then
     echo "no home before this one: $M/handoff.md names none, so no task is taken over"
 else
-    said=$(jq -rs --arg was "$was" --arg audit "audit: $R queue" --arg refused " $refused " '
+    said=$(the_reply | jq -rs --arg was "$was" --arg audit "audit: $R queue" --arg refused " $refused " '
         if length == 1 and (.[0].tasks | type) == "array" then .[0] else error("no tasks") end
         | [.tasks[] | select(.boundThreadId == $was)]
         | if length == 0 then "none: no scheduled task posts into \($was)" else .[] end
         | if type == "string" then .
           elif (.scheduledTaskId as $id | $refused | index(" \($id) ")) then "left \(.scheduledTaskId): \(.title) still posts into \($was), the call for it was refused"
           elif .title == $audit then "delete \(.scheduledTaskId): the audit of the home before this one"
-          else "take \(.scheduledTaskId): \(.title) posts into \($was), the home before this one" end' 2> /dev/null << 'THE_REPLY_ENDS_HERE'
-<the reply of list_scheduled_tasks>
-THE_REPLY_ENDS_HERE
-    ) || said="not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
+          else "take \(.scheduledTaskId): \(.title) posts into \($was), the home before this one" end' 2> /dev/null) || said="not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
     printf '%s\n' "$said"
     kept=
     if [ -s "$M/audit" ]; then read -r kept by < "$M/audit"; fi

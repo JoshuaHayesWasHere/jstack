@@ -1,0 +1,98 @@
+name: macos
+
+# The tests a Mac can break, on macOS on Apple Silicon, on each pull request, in minutes: the
+# files in testing/macos-quick.txt, whose code branches on Darwin or that guard a break only a
+# Mac has. Each mac- fix adds its regression test file there. The whole suite on macOS is
+# mac-nightly's (the owner's word, 2026-10-24: "changes should stay quick with mac bugs being
+# caught during larger regression runs").
+# It is a workflow of its own and not a job of check.yml: a run of check.yml has no conclusion
+# until its last job ends, and jmerge counts a green-tree marker only from a run that concluded
+# success (features/jmerge/src/jmerge/green.py), so a slow macOS job there would hold up every
+# marker. It runs on no push, so main's check never has it.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The same uv as check.yml's (testing/tests/test_workflows.py).
+  UV_VERSION: "0.13.2"
+
+jobs:
+  # It never fails a run or a check. jbus and jmerge read every check of a pull request, not
+  # only the required ones, and a job's own continue-on-error still reports its check as
+  # failed, so each step carries the flag as well. A job cancelled at its cap reads as failed
+  # too, so the suite's step stops first. What failed is in the job's summary, and in one
+  # warning with the count. No merge waits on it: it is in no required-checks.
+  # The whole suite took 51 minutes there (run 40108766945); the list is about 640 tests.
+  macos:
+    runs-on: macos-15
+    continue-on-error: true
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        continue-on-error: true
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        continue-on-error: true
+        with:
+          version: ${{ env.UV_VERSION }}
+      - run: uv sync --locked
+        continue-on-error: true
+      # GitHub's macOS image has gh and jq, and zsh is the system's shell. This installs gh or
+      # jq where a later image drops one. The suite fakes gitleaks, as it does on Linux. Its only
+      # bash is /bin/bash, 3.2, and test_portable_shell reads each block with a bash 5 first.
+      - name: tools
+        continue-on-error: true
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: >-
+          for tool in gh jq; do command -v "$tool" || brew install "$tool"; done &&
+          { [ -x "$(brew --prefix)/bin/bash" ] || brew install bash; } && zsh --version
+      # pytest reads the arguments of @<file> from that file, one a line. The runner has three
+      # cores. No lint: check.yml's job lints on Linux.
+      - name: quick tests
+        id: suite
+        continue-on-error: true
+        timeout-minutes: 12
+        run: >-
+          uv run pytest -n 3 --dist worksteal --durations=25 -m "not browser"
+          --junitxml="$RUNNER_TEMP/junit.xml" @testing/macos-quick.txt
+      - name: failed tests
+        if: "!cancelled()"
+        continue-on-error: true
+        env:
+          JUNIT: ${{ runner.temp }}/junit.xml
+          SUITE: ${{ steps.suite.outcome }}
+        run: |
+          python3 - << 'EOF'
+          import os, xml.etree.ElementTree as tree
+
+          def named(case):
+              parts, classes = (case.get("classname") or "").split("."), []
+              while len(parts) > 1 and parts[-1].startswith("Test"):
+                  classes.insert(0, parts.pop())
+              return "::".join(["/".join(parts) + ".py", *classes, case.get("name") or ""])
+
+          try:
+              report = tree.parse(os.environ["JUNIT"]).getroot()
+          except (OSError, tree.ParseError):
+              failed = []
+              line = f"macOS: no test report, the suite step ended {os.environ['SUITE']}"
+          else:
+              failed = [
+                  named(case)
+                  for case in report.iter("testcase")
+                  if case.find("failure") is not None or case.find("error") is not None
+              ]
+              line = f"macOS: {len(failed)} tests failed, the suite step ended {os.environ['SUITE']}"
+          print(f"::warning::{line}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write(line + "\n" + "".join(f"- `{test}`\n" for test in failed))
+          EOF

@@ -19,7 +19,8 @@ if [ "$said" != go ]; then
   exit 69
 fi
 uv run --project "$T/.." jbus forget "$W" > /dev/null
-SCOPE=$(cat <<'SCOPE'
+the_scope() {
+    cat <<'SCOPE'
 Scope of this review. It overrides anything above that reads wider.
 Review only the lines this pull request changes: its diff against its base branch.
 Report a finding only when it is about a changed line, or about something a changed line breaks. Give every finding the file and line of the changed line, and when the damage is elsewhere, say where in the text.
@@ -50,9 +51,10 @@ Read the changed code the way a tech lead would, and answer these about it:
    - A removal the change did not earn: an import, variable or function that was already unused before this change is named in the finding, not deleted. What the change itself made unused goes in the same change, and one left behind is a finding too.
 7. Does it change a file outside the "Where" line above? Each such file is a finding.
 SCOPE
-)
+}
+SCOPE=$(the_scope)
 INTENT=$(
-  sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p}}' "$BRIEF"
+  sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p;};}' "$BRIEF"
   run=$(uv run --project "$T/.." jbriefs --skills-run "$BRIEF")
   if [ -n "$run" ]; then
     skills=$(awk '/^## / {exit} /^Skills:/ {sub(/^Skills:[ \t]*/, ""); print; exit}' "$BRIEF")

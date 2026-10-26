@@ -21,7 +21,7 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 
 ```sh
 : "${M:?run the block that finds this home first}"
-SEP=$(printf '\001')
+SEP=$(printf '\037')
 own=home
 if [ "$M" != "$H" ]; then own=home-$(basename "$M"); fi
 mine() {
@@ -54,7 +54,7 @@ elif [ -z "$P" ]; then
     WHY="no project: jbus's config names no project for $R, so it holds no question of this repo"
 elif [ ! -e "$Q" ]; then
     WHY=
-elif ! found=$(jq -r '.records[] | select(.answer == null) | [.number, .slug, .question, .default, .built_on, .undo, (.holds // ""), (.fail_safe // "")] | map(tostring) | join("\u0001")' "$Q" 2> /dev/null); then
+elif ! found=$(jq -r '.records[] | select(.answer == null) | [.number, .slug, .question, .default, .built_on, .undo, (.holds // ""), (.fail_safe // "")] | map(tostring) | join("\u001f")' "$Q" 2> /dev/null); then
     WHY="jbus could not be read: $Q is not the record jbus writes"
 else
     WHY=
@@ -73,12 +73,14 @@ It prints nothing. `$P` is this repo's project in jbus's config, and `$OPEN` the
 ```sh
 : "${SEP:?run the block that reads jbus first}"
 slug='own'
-gate=$(cat << 'THE_GATE_ENDS_HERE'
+the_gate() {
+    cat << 'THE_GATE_ENDS_HERE'
 <the gate, filled in>
 Context: <what the user needs to know to answer it, in one line, with the links to it>
 Option: <an option's short name> (default, recommended): <what follows from it>
 THE_GATE_ENDS_HERE
-)
+}
+gate=$(the_gate)
 if [ "$slug" = own ]; then
     slug=$own
     gate=$(printf '%s\n' "$gate" | sed "s/^Asked by: [^,]*/Asked by: $own/")
@@ -153,7 +155,7 @@ elif [ ! -f "$F" ]; then
     echo "no page: $F is not there, make it first with $slug as the slug"
 else
     ROUND=$(printf '%s\n' "$OPEN" | jq -R --arg slug "$slug" '
-        split("\u0001") | {
+        split("\u001f") | {
             id: "gate-\(.[0])", title: .[2],
             body: (if (.[6] // "") != "" then "Asked by \(.[1]). It holds (\(.[6])) for your answer, with its fail-safe: \(.[7])" else "Asked by \(.[1]). Its default is acted on already" end),
             built_on: .[4], undo: .[5],
@@ -226,10 +228,12 @@ n='<number>'
 by="<the user's name>"
 at='<YYYY-MM-DD HH:MM ZONE>'
 which='<default or differs>'
-ANSWER=$(paste -sd ' ' - << 'THE_ANSWER_ENDS_HERE'
+the_answer() {
+    paste -sd ' ' - << 'THE_ANSWER_ENDS_HERE'
 <the user's answer, in their words>
 THE_ANSWER_ENDS_HERE
-)
+}
+ANSWER=$(the_answer)
 case $which in
 default | differs)
     if ! command -v jbus > /dev/null; then

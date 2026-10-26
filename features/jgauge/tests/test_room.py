@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -231,6 +232,11 @@ def test_a_core_count_that_cannot_be_read_waits(tmp_path):
         (
             table(1000, 1000).splitlines(keepends=True)[0],
             "wait: the file slots of {} could not be read",
+        ),
+        (
+            "Filesystem 512-blocks Used Available Capacity iused ifree %iused Mounted on\n"
+            "/dev/disk3s1s1 965595304 20152344 400000000 5% 851 149 85% /made/up\n",
+            "wait: {} has 851 of 1000 file slots used, over 85%",
         ),
     ],
 )
@@ -573,21 +579,54 @@ def test_a_room_asked_with_no_wait_answers_at_once_and_exits_0_as_before(tmp_pat
 
 
 STALE = 21 * 60
+TOOLS = ["gnu", "bsd"]
 
 
-def tmpfs(where, slots):
+def bsd(stub):
+    """A Mac's own `wc` and `find` in `stub`, made of this machine's: `wc` pads its count to
+    eight places, as BSD's does, and `find` refuses `-printf`, which BSD's does not have."""
+    put(
+        stub / "wc",
+        f'#!/bin/sh\n{shutil.which("wc")} "$@" | awk \'{{printf "%8d", $(1)\n'
+        f'for (i = 2; i <= NF; i++) printf " %s", $(i); print ""}}\'\n',
+        0o755,
+    )
+    put(
+        stub / "find",
+        '#!/bin/sh\nfor one; do [ "$one" = -printf ] && echo "find: -printf: unknown primary or '
+        f'operator" >&2 && exit 1; done\nexec {shutil.which("find")} "$@"\n',
+        0o755,
+    )
+
+
+def tmpfs(where, slots, tools="gnu"):
     """A machine whose `$TMPFS` is made of files: `df` counts every entry under it as a used
-    slot, out of `slots`, so a file removed from it frees its slot at once."""
+    slot, out of `slots`, so a file removed from it frees its slot at once. With `bsd`, the
+    machine has a Mac's `wc` and `find`."""
     env = machine(where, **IDLE, slots=None)
     put(
         where / "stub" / "df",
         '#!/bin/sh\n[ "$#" = 2 ] && [ "$1" = -Pi ] || exit 64\n'
-        f'used=$(find "$2" -mindepth 1 | wc -l)\n'
+        f'used=$(($(find "$2" -mindepth 1 | wc -l)))\n'
         f'echo "Filesystem Inodes IUsed IFree IUse% Mounted on"\n'
         f'echo "tmpfs {slots} $used $(({slots} - used)) - $2"\n',
         0o755,
     )
+    if tools == "bsd":
+        bsd(where / "stub")
     return env, Path(env["TMPFS"])
+
+
+def holding(where, cwd=None, fd=None, pid=4242):
+    """A live process in the machine's /proc: its working directory `cwd`, or a file it holds
+    open as `fd`."""
+    made = where / "proc" / str(pid)
+    (made / "fd").mkdir(parents=True)
+    if cwd:
+        (made / "cwd").symlink_to(cwd)
+    if fd:
+        (made / "fd" / "0").symlink_to(fd)
+    return pid
 
 
 def runs(tmp, user, numbers, files=10, age=STALE):
@@ -604,8 +643,9 @@ def runs(tmp, user, numbers, files=10, age=STALE):
     return made
 
 
-def test_a_full_tmp_of_stale_pytest_runs_is_cleared_and_then_goes(tmp_path):
-    env, tmp = tmpfs(tmp_path, 60)
+@pytest.mark.parametrize("tools", TOOLS)
+def test_a_full_tmp_of_stale_pytest_runs_is_cleared_and_then_goes(tmp_path, tools):
+    env, tmp = tmpfs(tmp_path, 60, tools)
     runs(tmp, "joshua", [1, 2, 3])
     runs(tmp, "other", [7])
     (tmp / "keep").mkdir()
@@ -623,62 +663,43 @@ def test_a_full_tmp_of_stale_pytest_runs_is_cleared_and_then_goes(tmp_path):
     ]
 
 
+@pytest.mark.parametrize("tools", TOOLS)
 @pytest.mark.parametrize("how", ["cwd", "fd"])
-def test_a_pytest_run_a_live_process_holds_is_never_removed(tmp_path, how):
-    env, tmp = tmpfs(tmp_path, 99)
+def test_a_pytest_run_a_live_process_holds_is_never_removed(tmp_path, how, tools):
+    env, tmp = tmpfs(tmp_path, 99, tools)
     held, *stale = runs(tmp, "joshua", [1, 2, 3, 4, 5, 6, 7])
     inside = held / "test_it0"
-    with open(inside / "f0") as open_file:
-        live = subprocess.Popen(
-            ["sleep", "60"],
-            cwd=inside if how == "cwd" else tmp_path,
-            stdin=open_file if how == "fd" else subprocess.DEVNULL,
-        )
-    try:
-        (tmp_path / "proc" / str(live.pid)).symlink_to(f"/proc/{live.pid}")
-        alone = ran(env)
-    finally:
-        live.kill()
-        live.wait()
+    holding(tmp_path, **{"cwd": inside} if how == "cwd" else {"fd": inside / "f0"})
+    alone = ran(env)
     assert alone.stdout == "go\n"
     assert alone.stderr.startswith("room: removed 6 stale pytest directories under ")
     assert held.is_dir() and len(list(inside.iterdir())) == 10
     assert not any(path.exists() for path in stale)
 
 
-def test_a_pytest_run_whose_lock_names_a_live_process_is_never_removed(tmp_path):
-    env, tmp = tmpfs(tmp_path, 99)
+@pytest.mark.parametrize("tools", TOOLS)
+def test_a_pytest_run_whose_lock_names_a_live_process_is_never_removed(tmp_path, tools):
+    env, tmp = tmpfs(tmp_path, 99, tools)
     live_run, dead_run, *stale = runs(tmp, "joshua", [1, 2, 3, 4, 5, 6, 7])
-    gone = subprocess.Popen(["true"])
-    gone.wait()
-    live = subprocess.Popen(["sleep", "60"], cwd=tmp_path)
-    try:
-        (tmp_path / "proc" / str(live.pid)).symlink_to(f"/proc/{live.pid}")
-        for run, pid in [(live_run, live.pid), (dead_run, gone.pid)]:
-            (run / ".lock").write_text(str(pid))
-            os.utime(run, (time.time() - STALE,) * 2)
-        alone = ran(env)
-    finally:
-        live.kill()
-        live.wait()
+    live = holding(tmp_path, cwd=tmp_path)
+    for run, pid in [(live_run, live), (dead_run, live + 1)]:
+        (run / ".lock").write_text(str(pid))
+        os.utime(run, (time.time() - STALE,) * 2)
+    alone = ran(env)
     assert alone.stdout == "go\n"
     assert alone.stderr.startswith("room: removed 6 stale pytest directories under ")
     assert live_run.is_dir() and len(list((live_run / "test_it0").iterdir())) == 10
     assert not dead_run.exists() and not any(path.exists() for path in stale)
 
 
-def test_held_or_fresh_pytest_runs_still_wait_and_nothing_is_removed(tmp_path):
-    env, tmp = tmpfs(tmp_path, 50)
+@pytest.mark.parametrize("tools", TOOLS)
+def test_held_or_fresh_pytest_runs_still_wait_and_nothing_is_removed(tmp_path, tools):
+    env, tmp = tmpfs(tmp_path, 50, tools)
     fresh = runs(tmp, "joshua", [1, 2, 3], age=60)
     (held,) = runs(tmp, "joshua", [4])
     before = sorted(tmp.rglob("*"))
-    live = subprocess.Popen(["sleep", "60"], cwd=held)
-    try:
-        (tmp_path / "proc" / str(live.pid)).symlink_to(f"/proc/{live.pid}")
-        full = ran(env)
-    finally:
-        live.kill()
-        live.wait()
+    holding(tmp_path, cwd=held)
+    full = ran(env)
     assert full.stdout == f"wait: {tmp} has 49 of 50 file slots used, over 85%\n"
     assert full.stderr == ""
     assert sorted(tmp.rglob("*")) == before and all(path.is_dir() for path in fresh)
@@ -953,6 +974,124 @@ def test_a_pooled_instance_whose_file_is_a_directory_is_not_known_and_has_room(t
     looked = ran(env)
     assert looked.stdout == "go\n"
     assert looked.stderr.endswith(f"the pool has room on {PRIME}\n")
+
+
+DARWIN = Path(__file__).parent / "fixtures" / "darwin"
+
+
+def mac(where, sysctl=None, vm_stat=None, env=None):
+    """A Mac as `room` reads one: `uname -s` says Darwin, and `sysctl` and `vm_stat` print the
+    output in fixtures/darwin, with each name in `sysctl` and each line in `vm_stat` given the
+    value there (None leaves the line out). `PROC` is unset, as on a Mac, so room reads the
+    Mac's own readers."""
+    env = env or machine(where, **IDLE)
+    shown = where / "darwin"
+    shown.mkdir(exist_ok=True)
+    for name, changed in (("sysctl", sysctl or {}), ("vm_stat", vm_stat or {})):
+        lines = []
+        for line in (DARWIN / f"{name}.txt").read_text().splitlines():
+            key = line.split(":")[0] if line.startswith(("Pages", "vm.", "hw.")) else line
+            if key not in changed:
+                lines.append(line)
+            elif changed[key] is not None:
+                lines.append(f"{key}: {changed[key]}")
+        (shown / f"{name}.txt").write_text("".join(f"{line}\n" for line in lines))
+    return {
+        **{key: value for key, value in env.items() if key != "PROC"},
+        "DARWIN": str(shown),
+        "PATH": f"{DARWIN / 'bin'}:{env['PATH']}",
+    }
+
+
+def test_an_idle_mac_has_room_with_no_pressure_lines_to_read(tmp_path):
+    """macOS has no /proc and no pressure (PSI) lines: the load, the cores and the memory come
+    from sysctl and vm_stat, and the two pressure readings are not available there, which is
+    no reason to wait."""
+    looked = ran(mac(tmp_path))
+    assert (looked.stdout, looked.stderr) == ("go\n", "")
+
+
+def test_a_mac_given_a_proc_is_judged_by_that_proc_and_not_by_sysctl(tmp_path):
+    """A caller that names a /proc in `PROC`, as these tests' made-up machines do, has that
+    machine judged on every system: on a Mac too, the load of 60 that sysctl gives is not
+    read."""
+    busy = {"vm.loadavg": "{ 60.00 50.00 40.00 }"}
+    for load, said in (
+        ("0.42", "go"),
+        ("24.00", "wait: load 24.00 is at or over 200% of 12 cores"),
+    ):
+        env = mac(tmp_path, sysctl=busy, env=machine(tmp_path, **{**IDLE, "load": load}))
+        assert says({**env, "PROC": str(tmp_path / "proc")}) == said
+
+
+def test_a_mac_with_its_load_at_the_line_waits_and_says_its_cores(tmp_path):
+    env = mac(tmp_path, sysctl={"vm.loadavg": "{ 24.00 20.12 18.40 }"})
+    assert says(env) == "wait: load 24.00 is at or over 200% of 12 cores"
+    env = mac(tmp_path, sysctl={"vm.loadavg": "{ 23.99 20.12 18.40 }"})
+    assert says(env) == "go"
+
+
+@pytest.mark.parametrize(
+    ("size", "pages"),
+    [("16384", (100000, 20000, 11072)), ("4096", (400000, 80000, 44288))],
+)
+def test_a_mac_short_of_memory_waits_on_its_free_inactive_and_speculative_pages(
+    tmp_path, size, pages
+):
+    """The available memory is the free, inactive and speculative pages, at the page size that
+    vm_stat's first line gives: 2 GB on both page sizes here."""
+    free, inactive, speculative = (f"{n}." for n in pages)
+    header = f"Mach Virtual Memory Statistics: (page size of {size} bytes)"
+    env = mac(
+        tmp_path,
+        vm_stat={
+            "Mach Virtual Memory Statistics: (page size of 16384 bytes)": None,
+            "Pages free": free,
+            "Pages inactive": inactive,
+            "Pages speculative": speculative,
+        },
+    )
+    text = (tmp_path / "darwin" / "vm_stat.txt").read_text()
+    (tmp_path / "darwin" / "vm_stat.txt").write_text(f"{header}\n{text}")
+    assert says(env) == "wait: 2.0 GB of memory available, under 6"
+
+
+@pytest.mark.parametrize(
+    ("sysctl", "vm_stat", "said"),
+    [
+        ({"vm.loadavg": None}, {}, "the load or the core count could not be read"),
+        ({"vm.loadavg": "{ }"}, {}, "the load or the core count could not be read"),
+        ({"hw.ncpu": None}, {}, "the load or the core count could not be read"),
+        ({}, {"Pages inactive": None}, "the available memory could not be read"),
+        ({}, {"Pages free": "lots."}, "the available memory could not be read"),
+        (
+            {},
+            {"Mach Virtual Memory Statistics: (page size of 16384 bytes)": None},
+            "the available memory could not be read",
+        ),
+    ],
+)
+def test_a_mac_reading_that_cannot_be_read_waits(tmp_path, sysctl, vm_stat, said):
+    assert says(mac(tmp_path, sysctl=sysctl, vm_stat=vm_stat)) == f"wait: {said}"
+
+
+def test_a_light_look_on_a_mac_skips_its_load_as_on_linux(tmp_path):
+    env = mac(tmp_path, sysctl={"vm.loadavg": "{ 60.00 50.00 40.00 }"})
+    assert says(env) == "wait: load 60.00 is at or over 200% of 12 cores"
+    assert light(env) == (["go"], 0)
+
+
+def test_a_mac_neither_sweeps_tmp_nor_counts_its_file_slots(tmp_path):
+    """The sweep finds the live runs from /proc, which macOS lacks, so there every stale run
+    would look unheld: it is skipped. APFS gives inodes as files are made, with no fixed table
+    to fill, so the file slots are not a reading there either."""
+    linux, tmp = tmpfs(tmp_path, 60)
+    made = runs(tmp, "joshua", [1, 2, 3])
+    before = sorted(tmp.rglob("*"))
+    looked = ran(mac(tmp_path, env=linux))
+    assert (looked.stdout, looked.stderr) == ("go\n", "")
+    assert sorted(tmp.rglob("*")) == before and all(path.is_dir() for path in made)
+    assert not (tmp_path / "stub" / "asked").exists()
 
 
 def processes(where, *each, uptime=1000.0):

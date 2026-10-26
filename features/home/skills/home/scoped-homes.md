@@ -17,10 +17,12 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 ```sh
 scope='<scope>'
 prefix='<prefix>'
-owns=$(paste -sd ' ' - << 'WHAT_IT_OWNS_ENDS_HERE'
+what_it_owns() {
+    cat << 'WHAT_IT_OWNS_ENDS_HERE'
 <what the scope owns>
 WHAT_IT_OWNS_ENDS_HERE
-)
+}
+owns=$(what_it_owns | paste -sd ' ' -)
 why=
 if [ "${M:?run the block that finds this home first}" != "$H" ]; then
     why="this is the home of the scope $(basename "$M"), and only the root home makes a scope: the user asks the root home for it"
@@ -42,7 +44,7 @@ fi
 if [ -z "$why" ]; then
     case $prefix in
     '' | *'<'* | *'>'*) why="the slug prefix is not filled in" ;;
-    *[!a-z0-9-]* | -* | *[!-]) why="the slug prefix $prefix is not lower-case letters and digits that end in a dash, as rs- is" ;;
+    *[!abcdefghijklmnopqrstuvwxyz0123456789-]* | -* | *[!-]) why="the slug prefix $prefix is not lower-case letters and digits that end in a dash, as rs- is" ;;
     *)
         for sent in "$H"/tasks/"$prefix"*.md "$H"/scouts/"$prefix"*.md; do
             if [ -f "$sent" ]; then why="a brief or a request already starts with $prefix: $sent"; fi

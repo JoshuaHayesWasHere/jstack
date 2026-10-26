@@ -46,7 +46,7 @@ class Senses(health.Senses):
 @pytest.fixture
 def senses(monkeypatch):
     made = Senses()
-    monkeypatch.setattr(health, "SENSES", made)
+    monkeypatch.setattr(health, "machine_senses", lambda: made)
     monkeypatch.setattr(health, "clock", lambda: NOW)
     return made
 

@@ -77,7 +77,7 @@ else
             } > "$H/scouts/$S.md"
             echo "wrote: scouts/$S.md"
         done
-        echo "run: $run, $(printf '%s\n' $features | wc -l) feature files, launch them ten at a time"
+        echo "run: $run, $(($(printf '%s\n' $features | wc -l))) feature files, launch them ten at a time"
     fi
 fi
 ```

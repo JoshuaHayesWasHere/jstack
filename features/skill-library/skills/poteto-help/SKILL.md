@@ -34,10 +34,12 @@ Infer the need from the message. When it is still unclear, ask one multiple-choi
 The pick comes from the tree, not from a list in this file. Run this, with what the user typed after `/poteto-help` in place of the line in angle brackets, as typed:
 
 ```sh
-said=$(cat << 'THE_ASK_ENDS_HERE'
+the_ask() {
+    cat << 'THE_ASK_ENDS_HERE'
 <what the user typed after the skill's name>
 THE_ASK_ENDS_HERE
-)
+}
+said=$(the_ask)
 if R=$(realpath ~/.claude/skills/poteto-help/../.. 2> /dev/null) && [ -f "$R/skills/poteto-help/SKILL.md" ]; then
     repo=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null) && H=~/.local/state/home/$(basename "$(dirname "$repo")") || H=
     path=

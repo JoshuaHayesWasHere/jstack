@@ -115,7 +115,7 @@ def added(machine):
 
 
 def test_a_home_whose_repo_jbus_lacks_adds_it_and_leaves_the_merge_to_jbus(machine):
-    step3 = assembled() / "templates" / ".." / "skills" / "new-home" / "SKILL.md"
+    step3 = assembled().resolve() / "templates" / ".." / "skills" / "new-home" / "SKILL.md"
     assert step3.is_file()
     assert machine.start() == [
         "not on the bus: Winnie has no project in jbus's config: add it with the block of "
