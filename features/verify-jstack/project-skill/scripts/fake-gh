@@ -38,6 +38,12 @@ case "$1 $2" in
     cat "$G/${state:-open}.json"
   fi
   ;;
+"pr view")
+  case $3 in
+  -* | '') jq -c '.[0] // error("no pull request")' "$G/open.json" ;;
+  *) jq -c --arg pr "$3" 'map(select((.number | tostring) == $pr or .url == $pr or .headRefName == $pr)) | .[0] // error("no pull request")' "$G/open.json" ;;
+  esac
+  ;;
 "repo view") echo main ;;
 "api --paginate") ;;
 api\ *)
