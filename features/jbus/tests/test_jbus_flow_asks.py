@@ -170,6 +170,7 @@ def test_a_missing_store_and_a_window_that_ends_first_are_refused(kitchen, store
         "Thanks. And now?",
         "Looks good\nStatus?",
         "Thanks\nAnd now?",
+        "Looks good\n  Status?",
     ],
 )
 def test_a_short_status_question_asks_where_we_are_after_another_sentence_too(text):
