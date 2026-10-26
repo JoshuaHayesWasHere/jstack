@@ -6,6 +6,8 @@ kitchen's fakes, a pass a minute."""
 
 from datetime import timedelta
 
+import pytest
+
 import jbus
 from jmerge import ready
 from test_jbus_kitchen import NOW, sends
@@ -113,3 +115,21 @@ def test_the_hold_leaves_what_waits_on_the_user_once_it_clears_or_a_thread_takes
     kitchen.t3.thread(f"main-red-{SHA}")
     held.until(70)
     assert held.needs() == [] and len(held.told()) == 1
+
+
+AHEAD = "first"
+FOLLOWS = (
+    ready.MERGES_AFTER.format(slug=AHEAD, open=url(10)),
+    ready.STACKED_ON.format(branch=AHEAD, slug=AHEAD, default="main"),
+    ready.CARRIES_AFTER.format(carried="two", number=12, slug=AHEAD, open=url(10)),
+    ready.MIGRATION_REBASING.format(number=10),
+)
+
+
+@pytest.mark.parametrize("reason", FOLLOWS)
+def test_rows_that_wait_on_a_row_ahead_wake_nobody(kitchen, reason):
+    """The row ahead, in CI or held by a reason of its own, is what holds them: its own wait is
+    watched, so the rows behind it are no hold of their own."""
+    held = Held(kitchen, reason)
+    held.until(45)
+    assert held.told() == [] and held.needs() == []
