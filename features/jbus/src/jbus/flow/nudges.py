@@ -82,7 +82,7 @@ class Said:
     before: str
 
 
-def _flat(text: str) -> str:
+def flat(text: str) -> str:
     text = LINK.sub("", text).replace("‘", "'").replace("’", "'")
     return " ".join(text.split())
 
@@ -107,10 +107,10 @@ def messages(found: list[Message], since: datetime, until: datetime) -> list[Sai
         said = words(one)
         if said is None or not since <= one.at < until:
             continue
-        flat = _flat(said)
-        if not flat or flat.startswith("/"):
+        line = flat(said)
+        if not line or line.startswith("/"):
             continue
-        head = flat[:SAME].lower()
+        head = line[:SAME].lower()
         if any(
             other.thread != one.thread
             and other.words[:SAME].lower() == head
@@ -118,8 +118,8 @@ def messages(found: list[Message], since: datetime, until: datetime) -> list[Sai
             for other in kept
         ):
             continue
-        first = _flat(next(line for line in said.splitlines() if line.strip()))
-        kept.append(Said(one.thread, one.home, one.at, flat, first, before.get(one.thread, "")))
+        first = flat(next(each for each in said.splitlines() if each.strip()))
+        kept.append(Said(one.thread, one.home, one.at, line, first, before.get(one.thread, "")))
     return kept
 
 

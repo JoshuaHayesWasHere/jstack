@@ -22,6 +22,15 @@ PAGE = Path(view.__file__).with_name("page.html")
 FONT = 'src: url("/font.woff2") format("woff2");'
 
 
+DRAWER = re.compile(r"\bdrawer\s*:")
+
+
+def drawn(found):
+    """The names of the panels that have a drawer: a panel with only a card, or only what it
+    adds to another panel, has nothing to open."""
+    return [one.name for one in found if DRAWER.search(one.script.read_text())]
+
+
 def unreached(seen, names):
     """The panels that nothing on the first screen and nothing in a drawer opens: the
     browser found no `data-open` that names them."""
@@ -72,7 +81,8 @@ def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp
     a_noticed(scene, ("alpha", "new", 5, {}))
     scene.passed(20, threads=[out("home: demo")])
     seen = look(scene, tmp_path)
-    assert unreached(seen, [one.name for one in panels.found()]) == []
+    assert unreached(seen, drawn(panels.found())) == []
+    assert "since" not in drawn(panels.found()), "the line of `#/` has no drawer"
 
 
 def test_an_approval_by_a_pick_on_a_lavish_page_says_so_with_the_pages_file(scene, tmp_path):
