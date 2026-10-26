@@ -639,22 +639,24 @@ def unbounded(text: str) -> str:
     """Why a brief asks for a load that takes every core, as one line. It is an empty string
     when it asks for none.
 
-    It reads the brief's head, the lines above its first `## `, for `stress-ng --cpu 0`,
-    `--cpu $(nproc)` or every core. A clause that turns the ask down (`never`, `not`,
-    `instead of`) does not ask for it. Such a load starves every other thread on the machine,
-    and the way to load it is a bounded one, a few cores or `taskset`, inside `jgauge
-    test-slot`.
+    It reads the brief's head, the fields above its first `## `, for `stress-ng --cpu 0`,
+    `--cpu $(nproc)` or every core. A `Ruled out:` field names what was set aside, and a clause
+    that turns the ask down (`never`, `not`, `instead of`) does not ask for it either. Such a
+    load starves every other thread on the machine, and the way to load it is a bounded one, a
+    few cores or `taskset`, inside `jgauge test-slot`.
     """
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        for found in _EVERY_CORE.finditer(line):
-            clause = _CLAUSE.split(line[: found.start()])[-1]
-            if not _UNASKED.search(clause):
-                return (
-                    f"brief asks for {found[0]}, a load that takes every core: name a bounded "
-                    "load (a few cores, or taskset) and run it inside `jgauge test-slot`"
-                )
+    for label, lines in fields(text):
+        if label in (REST, "Ruled out"):
+            continue
+        for line in lines:
+            for found in _EVERY_CORE.finditer(line):
+                clause = _CLAUSE.split(line[: found.start()])[-1]
+                if not _UNASKED.search(clause):
+                    return (
+                        f"brief asks for {found[0]}, a load that takes every core: name a "
+                        "bounded load (a few cores, or taskset) and run it inside `jgauge "
+                        "test-slot`"
+                    )
     return ""
 
 
