@@ -25,7 +25,7 @@ Proves it: `make check` runs the tests above
 Size: M
 Where: `src/jbus/queue.py`, `src/jbriefs/`
 Do not touch: `~/.config/`
-Decisions: none yet
+Decisions: "review it once and fix every finding"
 Design: none, the Done when list pins it
 Pull request: open one when done
 Review: review
@@ -77,7 +77,10 @@ def approved(kitchen, text=APPROVED):
     [
         lambda text: REWORDED,
         lambda text: text.replace("wording-only", "wordnig-only"),
-        lambda text: text.replace("Decisions: none yet", "Decisions: use the user's word 13bb"),
+        lambda text: text.replace(
+            'Decisions: "review it once and fix every finding"',
+            "Decisions: use the user's word 13bb",
+        ),
         lambda text: text.replace("Design: none, the", "Design: none, because the"),
         lambda text: text.replace(
             "Proves it: `make check`", "Proves it: the user, and `make check`"
@@ -227,12 +230,15 @@ def test_queue_add_says_every_fault_one_line_each(kitchen):
     code, said = add(kitchen, text)
     assert code == 1
     assert said.splitlines() == [
-        "refused: alpha's brief has 6 faults, and nothing is queued",
+        "refused: alpha's brief has 7 faults, and nothing is queued",
         "- brief's Task: line is the template's own text",
         "- brief's Done when: line is empty",
         "- brief's Proves it: line names the crewmate, the agent's own word (name a test, a "
         "command, a metric, a dataset, an external judge or the user)",
         "- brief's Size: line says medium (S, M, L or XL)",
+        "- brief's Review: line says review with no Decisions: line giving the user's words for "
+        "it: write Review: twice, the default, or none for text-only or throwaway work, or put "
+        "the user's words on a Decisions: line",
         "- brief's Playbook: line names autopilot-full, which is not a crewmate's playbook (name a "
         "file in playbooks/, without its .md, or none)",
         "- brief has no Design: line (run /architect or say none, <why>)",
@@ -436,7 +442,9 @@ def test_a_lint_added_after_an_approval_neither_refuses_the_brief_nor_voids_its_
     assert parse.faults(APPROVED) == ["brief's Where: names a file"]
     code, said = add(kitchen, APPROVED)
     assert code == 0, said
-    edited = APPROVED.replace("Decisions: none yet", "Decisions: none, said again")
+    edited = APPROVED.replace(
+        'Decisions: "review it once and fix every finding"', "Decisions: said again"
+    )
     code, said = add(kitchen, edited)
     assert code == 0 and ", its go holds\n" in said, said
     kitchen.poll()

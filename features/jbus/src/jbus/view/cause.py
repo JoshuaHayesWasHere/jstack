@@ -130,11 +130,16 @@ def _asking(task: dict[str, Any], now: datetime) -> Cause:
 
 
 def _review(task: dict[str, Any], now: datetime) -> Cause:
-    since = task.get("since")
-    if _say(task) == NO_REVIEWER:
+    """A review runs only where a reviewer's thread of the task is out (`seen.reviewer`). The
+    view's say tells no running reviewer: it gives NO_REVIEWER only after `REVIEW_MINUTES`."""
+    since, reviewer = task.get("since"), _seen(task).get("reviewer")
+    if reviewer:
+        return Cause(_join("review running", age(since, now)), since, True)
+    if reviewer is False or _say(task) == NO_REVIEWER:
         waited = f"in {age(since, now)}" if since else ""
         return Cause(_join(NO_REVIEWER, waited), since, False)
-    return Cause(_join("review running", age(since, now)), since, True)
+    on = _join("on review", age(since, now))
+    return Cause(f"{on}, with no list of threads to show a reviewer", since, False)
 
 
 def _second(task: dict[str, Any], now: datetime) -> Cause:

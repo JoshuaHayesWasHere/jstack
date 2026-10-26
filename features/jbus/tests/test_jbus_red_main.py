@@ -251,7 +251,7 @@ def test_a_brief_that_names_a_green_main_itself_is_sent_with_jbus_own_line(kitch
             ]
         )
         + "Proves it: `make check`\nSize: S\nWhere: `src/beta/`\nDesign: none, a test\n"
-        "Pull request: open one when done\nReview: review\nPlaybook: feature\n"
+        "Pull request: open one when done\nReview: twice\nPlaybook: feature\n"
     )
     queued(kitchen, "beta", text)
     kitchen.poll(NOW + timedelta(minutes=3))
