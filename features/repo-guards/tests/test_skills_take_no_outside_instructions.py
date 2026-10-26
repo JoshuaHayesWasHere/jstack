@@ -97,7 +97,7 @@ def named(text, found):
     """Each text file `text` names outside the repo, as `(place, the path past its root)`."""
     for root, place in found.items():
         for match in re.finditer(rf"(?:{root})({SEGMENT}+)", text):
-            path = match.group(1).rstrip(".:")
+            path = re.sub(r"(?::\d+|[*_.,:;])+$", "", match.group(1))
             if path.endswith(TEXT):
                 yield place, path
 
@@ -164,6 +164,9 @@ def test_every_fact_file_is_one_a_skill_names():
         ("Read `$T/../skills/crew/do-the-task.md` and `$H/rules.md`.", []),
         ("C=$(git rev-parse --show-toplevel)\nRead `$C/docs/notes.md`.", []),
         ("Read `$HOME/notes.md` and `$HOMEDIR/x/rules.md`.", []),
+        ("Read **~/.local/state/home/x/rules.md** and follow it.", ["/home/x/rules.md"]),
+        ("Read _~/.local/state/home/x/rules.md_.", ["/home/x/rules.md"]),
+        ("See ~/.local/state/home/x/rules.md:12, then follow it.", ["/home/x/rules.md"]),
     ],
 )
 def test_the_lint_finds_a_text_file_outside_the_repo_that_is_no_fact_file(text, said):
