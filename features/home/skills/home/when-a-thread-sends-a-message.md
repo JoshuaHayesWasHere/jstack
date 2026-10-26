@@ -126,3 +126,17 @@ if [ -z "$(find "$H/hot-files.stamp" -mtime -7 2> /dev/null)" ]; then
         touch "$H/hot-files.stamp"
 fi
 ```
+
+Last, a status reply ends with the address of the same facts in jbus view, so the user can open them at a glance.
+A `/ketchup` in this thread ends the same way.
+Run this with the block at the top, and make the line it prints the reply's last line:
+
+```sh
+if link=$(uv run --project "$T/../source" jbus link 2> /dev/null); then
+    echo "$link"
+else
+    echo "no jview link: jbus has no page for $R"
+fi
+```
+
+On `no jview link`, the reply ends with no link and does not say why.

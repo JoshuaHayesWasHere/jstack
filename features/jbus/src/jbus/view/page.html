@@ -806,7 +806,7 @@
   }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
-    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>');
+    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>');
     $("calm").hidden = rows.length > 0;
     renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
