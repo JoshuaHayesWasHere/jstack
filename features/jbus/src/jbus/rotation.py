@@ -38,7 +38,8 @@ def keep(config: Config, last: str) -> None:
 
 def share(config: Config, halves: list[Half], say: Callable[[str], None]) -> None:
     """Launch across all the projects. `share` counts the crews out once for all of them,
-    and gives out the free slots in turns.
+    and gives out the free slots of `max_running` in turns. Each project's `Turns` keeps its
+    own caps, by home and for the project (`dispatch.Caps`).
 
     The turns start at the project that the rotation file names. If jbus does not know how
     many crews any one project has out, it does not know the total, and `share` launches
@@ -51,7 +52,7 @@ def share(config: Config, halves: list[Half], say: Callable[[str], None]) -> Non
     for half in halves:
         if half.seen.out is None:
             say(f"wait: crews out not known ({half.run.project.name}: {half.seen.why})")
-    slots = config.max_running - sum(known) if len(known) == len(out) else None
+    slots = config.max_running - sum(map(len, known)) if len(known) == len(out) else None
     made = dispatch.dispatch(turns, slots)
     if made:
         keep(config, made[-1])

@@ -138,6 +138,19 @@ class Scratch:
         return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
 
 
+MAX_PER_HOME, MAX_PER_PROJECT = 6, 24
+"""The crews a pass lets one home and one project have out, where the config sets no
+`max_per_home` or `max_per_project`. `max_running` is the third cap, for the whole machine."""
+
+
+def _cap(raw: dict[str, Any], key: str, default: int, path: Path) -> int:
+    """Return the config's count for a launch cap, or its default when the config has none."""
+    written = raw.get(key, default)
+    if type(written) is not int or written < 1:
+        raise Refused(f"refused: {key} in {path} is {written!r}, and it is 1 or more")
+    return written
+
+
 @dataclass(frozen=True)
 class Config:
     server: str
@@ -152,6 +165,8 @@ class Config:
     state_dir: Path
     home_dir: Path
     user: jsettings.Settings
+    max_per_home: int = MAX_PER_HOME
+    max_per_project: int = MAX_PER_PROJECT
     ignored: tuple[str, ...] = ()
     tabled: tuple[Hook, ...] = ()
     webhook: Hook = ("", "")
@@ -426,6 +441,8 @@ def load(directory: Path | None = None) -> Config:
         runtime_mode=raw.get("runtimeMode") or None,
         dispatch=bool(raw.get("dispatch", True)),
         max_running=cap.value,
+        max_per_home=_cap(raw, "max_per_home", MAX_PER_HOME, path),
+        max_per_project=_cap(raw, "max_per_project", MAX_PER_PROJECT, path),
         warn_days=int(raw.get("warn_days", 5)),
         wake_alert=int(raw.get("wake_alert", 12)),
         room_passes=int(raw.get("room_passes", 10)),
