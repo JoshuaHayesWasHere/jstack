@@ -944,7 +944,7 @@ class Repo:
                 if ready.stack_of(text) is None
                 else ""
             )
-            or self.red(one, default, brief.stem)
+            or self.red(one, default, brief.stem, text)
             or self.short_on_migrations(one, one.base)
         )
         if short:
@@ -996,7 +996,7 @@ class Repo:
         judged = ready.Judged(path, tip, rules, fresh, gated.note if gated else "")
         return Judgement(brief.stem, "", "", note, judged)
 
-    def red(self, one: ready.PullRequest, default: str, slug: str) -> str:
+    def red(self, one: ready.PullRequest, default: str, slug: str, text: str) -> str:
         """The red hold on a pull request. For a pull request into main it is main's hold, and
         for a pull request into an integration branch it is that branch's hold. It reads the
         latest checks of the branch's tip, and asks GitHub once per run. When GitHub gives no
@@ -1017,7 +1017,7 @@ class Repo:
             except (ValueError, KeyError, TypeError):
                 runs = []
             self.reds[one.base] = runs if isinstance(runs, list) else []
-        return rows.base_red(one.base, self.reds[one.base], slug)
+        return rows.base_red(one.base, self.reds[one.base], slug, text)
 
     def patches(
         self, base: str, compared: tuple[str, ...], stacked: stacks.Stacked | None
