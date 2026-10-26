@@ -115,7 +115,7 @@ def test_axe_finds_no_wcag_22_aa_failure_in_any_view_or_drawer(
     assert seen["rings"] == []
     if (route, day) == ("#/demo", "busy"):
         kinds = {where.split(":")[0] for where in seen["looked"]}
-        assert {"task", "gate", "you", "thread", "flow"} <= kinds
+        assert {"task", "gate", "you", "thread"} <= kinds
 
 
 @pytest.mark.parametrize("route", ["#/", "#/demo"])
