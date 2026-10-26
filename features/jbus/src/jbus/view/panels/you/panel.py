@@ -54,7 +54,7 @@ from urllib.parse import quote
 
 import jbus
 from jbriefs import home as jbriefs
-from jbus import asks, item, mirror, passes, questions, queue, steer, t3, waiting, word
+from jbus import asks, dispatch, item, mirror, passes, questions, queue, steer, t3, waiting, word
 from jbus.view.homes import Owner
 from jbus.view.state import (
     _SLUG,
@@ -151,7 +151,6 @@ A need of such a row has its kind's verb. A value with no kind, such as `hung`, 
 and its need opens the task."""
 ROWS = frozenset(KIND_OF.values())
 LOOK = "Look at it"
-STEER = "Steer"
 ANSWERS, APPROVES, STEERS, OPENS = "answer", "approve", "steer", "open"
 ACTS = {"approve": APPROVES, ITEM: APPROVES, "config": OPENS}
 """The action of a need by its kind. A gate's is `answer` where jbus holds its question, and
@@ -638,11 +637,15 @@ def _config(app: Any) -> jbus.Config:
     return replace(app.config(), state_dir=app.sources.state_dir, home_dir=app.sources.home_dir)
 
 
+def _pass(app: Any, name: str) -> passes.Pass:
+    config = _config(app)
+    return passes.Pass(config, config.project(name), app.clock(), say=lambda line: None)
+
+
 def _keep(app: Any, name: str, words: str) -> tuple[passes.Pass, word.Word]:
     """Keep the user's word for the project, said in the view now, as `jbus word` keeps it."""
-    config, now, user = _config(app), app.clock(), app.sources.user
-    run = passes.Pass(config, config.project(name), now, say=lambda line: None)
-    return run, word.keep(run, words, user.user, user.stamp(now))
+    run, user = _pass(app, name), app.sources.user
+    return run, word.keep(run, words, user.user, user.stamp(run.now))
 
 
 def _went(run: passes.Pass, kept: word.Word) -> str:
@@ -698,7 +701,8 @@ def _approve(app: Any, name: str, body: bytes) -> Answer:
 
 def _hold(app: Any, name: str, body: bytes) -> Answer:
     """Take back a go that `_approve` gave on the word the body names, as `jbus queue hold`
-    does, while the row has not launched, and tell its home with a word of its own."""
+    does, while the row has not launched and no pass has begun its launch, and then tell its
+    home with a word of its own. A hold that is refused keeps no word."""
     asked = _asked(body, "slug", "word")
     if asked is None or not _SLUG.fullmatch(asked["slug"]):
         return _refused(400, "An undo is the slug of a row and the word that approved it.")
@@ -707,9 +711,13 @@ def _hold(app: Any, name: str, body: bytes) -> Answer:
     approval = row.get("approval") or {}
     if (approval.get("basis"), approval.get("ref")) != ("word", given) or row.get("thread"):
         return _refused(409, f"{slug}'s go is not the one word {given} gave, or it launched.")
+    run = _pass(app, name)
+    out = dispatch.launched(run, slug) or asks._asks(run.config, run.project).launched(slug)
+    if out:
+        return _refused(409, f"{slug}'s go stands, since a launch is out: {out}.")
     try:
-        run, kept = _keep(app, name, f"Hold {slug}: undo of word {given}, in {SAID_IN}")
         held = queue.hold(state, slug)
+        run, kept = _keep(app, name, f"Hold {slug}: undo of word {given}, in {SAID_IN}")
     except jbus.Refused as error:
         return _refused(409, f"{slug} was not held: {str(error).removeprefix('refused: ')}.")
     return said(200, {"say": f"{held}: its go is taken back. {_went(run, kept)}", "slug": slug})
