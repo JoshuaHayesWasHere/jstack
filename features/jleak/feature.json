@@ -30,6 +30,15 @@
         "codex"
       ],
       "refuses": true
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+      "script": "hooks/infra-files.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "refuses": true
     }
   ],
   "gitHooks": [
