@@ -40,8 +40,8 @@ CITED = {
     "features/jbus/src/jbus/dispatch.py:324-356": "no room",
     "features/jbus/src/jbus/dispatch.py:459-461": "on = world.stack_on(unmerged)",
     "features/jbus/src/jbus/rebase.py:250": "world.open.items()",
-    "features/jbus/src/jbus/stack.py:65": "world.open.items()",
-    "features/jbus/src/jbus/stack.py:72-73": "world.merged.get(stacked.slug)",
+    "features/jbus/src/jbus/stack.py:69": "world.open.items()",
+    "features/jbus/src/jbus/stack.py:75-76": "world.merged.get(stacked.slug)",
     "features/jbus/src/jbus/strays.py:356": '("crew", slug) in busy',
     "features/jbus/src/jbus/strays.py:373-374,382": "burning = (taken |",
     "features/jbus/src/jbus/watch.py:1034-1054": "queue.add(run.state, name, top, [], text)",
@@ -53,9 +53,9 @@ CITED = {
     "features/jmerge/src/jmerge/ready.py:295-298": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
     "features/jmerge/src/jmerge/rejudge.py:64": 'was.get("tip")',
-    "features/jmerge/src/jmerge/cli.py:833": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:871": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:944": "self.red(one, default",
+    "features/jmerge/src/jmerge/cli.py:836": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:874": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:947": "self.red(one, default",
     "features/jmerge/src/jmerge/rejudge.py:69": "self.ask(one)",
 }
 

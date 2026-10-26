@@ -94,9 +94,9 @@ Merge(p) ==
 \* Its base merged: jbus moves the stacked pull request onto main and tells its crew, which
 \* rebases its own commits onto main ("A link that moved"), and its check runs again.
 Restack(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:65, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:69, open ones only
     /\ on[p] # "main"
-    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:72-73, its base merged
+    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:75-76, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine>>
@@ -121,10 +121,10 @@ CrewFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:871, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:874, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:833, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:944, base not red
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:836, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:947, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
