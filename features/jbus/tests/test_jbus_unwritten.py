@@ -199,7 +199,9 @@ def test_a_read_with_no_request_count_keeps_the_count_until_one_reads_0(kitchen,
             del thread["pendingRequestCount"]
         elif minute == 18 and gap != "a failed read":
             thread["pendingRequestCount"] = {"None": None, "a string": "0"}[gap]
-        kitchen.poll(NOW + minute * MIN)
+        said = kitchen.poll(NOW + minute * MIN)
+        if minute == 18 and gap == "a failed read":
+            assert any(line.startswith("wait alpha: its thread could not be read") for line in said)
         (found[minute],) = [one for one in written(kitchen) if one["id"] == thread["threadId"]]
     assert (found[18]["pending"], found[18]["silent"]) == (1, 18), found[18]
     assert (found[19]["pending"], found[19]["silent"]) == (0, 0), found[19]
