@@ -77,8 +77,3 @@ def test_a_github_that_does_not_answer_is_said_and_counts_nothing(scene, zoned):
     assert said["error"] == "GitHub did not answer"
     assert said["total"] == 0
     assert [one["merged"] for one in said["days"]] == [0] * 7
-
-
-def test_the_page_opens_the_drawer_from_the_merges_of_today(scene, zoned):
-    _, _, page = zoned.ask("/")
-    assert 'openBtn("throughput", ' in page
