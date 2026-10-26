@@ -1,10 +1,10 @@
 /* The axe run that the page test adds to the page, after axe itself (`axe.min.js` beside this
    file, which the test reads and the view never serves). A moment after the page loads, it runs
    axe over the view, with WCAG 2.2's target size on. Then it opens every drawer that the view
-   and each drawer name, and runs axe over each one. It also puts the focus on everything that takes it, as a keyboard would, and
-   measures the ring each one draws. It writes what it found into a pre that the browser prints.
-   When the page is in a frame, the pre goes into the page that holds the frame, as the probe
-   does. */
+   and each drawer name, and runs axe over each one. It also puts the focus on everything that
+   takes it, as a keyboard would, and measures the ring each one draws. It writes what it found
+   into a pre that the browser prints. When the page is in a frame, the pre goes into the page
+   that holds the frame, as the probe does. */
 window.addEventListener("load", function () { setTimeout(function () {
   var drawer = document.getElementById("drawer"), found = [], rings = [], looked = [], errors = [];
   window.addEventListener("error", function (e) { errors.push(String(e.message)); });
