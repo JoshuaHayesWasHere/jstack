@@ -41,9 +41,11 @@ holds on one reason, with no thread at work on the cause, wake the home that own
 hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
 have been held. A thread is at work on the cause when it is a held row's crew or reviewer, when
 the reason names its slug, or when it is a fix row of a red main (`mainjson.fix_of`) and the reason
-is that red. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`), whose own wait
-is what holds it, a hold that is the user's (step `hold`, already on what waits on the user) and a
-wait with its own clock above are no such hold. `held.json`
+is that red. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`) whose pull
+request is open, since that row's own wait is what holds it, a hold that is the user's (step
+`hold`, already on what waits on the user) and a wait with its own clock above are no such hold.
+A row ahead with no open pull request, closed with no merge or not opened yet, holds its rows
+with nothing watching it, so that wait is a hold. `held.json`
 keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
 on it, or in which no row waits on it, drops it, and the next one starts afresh. From the wake
 on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
@@ -53,6 +55,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import string
 from datetime import datetime
 from typing import Any
 
@@ -109,13 +112,14 @@ RUNNER = (
 """The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, and
 CI."""
 AHEAD = (
-    ready.MERGES_AFTER,
-    ready.STACKED_ON,
-    ready.CARRIES_AFTER,
-    ready.MIGRATION_REBASING,
+    (ready.MERGES_AFTER, "slug"),
+    (ready.STACKED_ON, "slug"),
+    (ready.CARRIES_AFTER, "slug"),
+    (ready.MIGRATION_REBASING, "number"),
 )
-"""The waits on a row ahead. What holds that row is its own wait, which the merge runner, a thread,
-`held` or a clock above is on, so the rows behind it are no hold of their own."""
+"""The waits on a row ahead, each with the field that names that row. While its pull request is
+open, what holds it is its own wait, which the merge runner, a thread, `held` or a clock above is
+on, so the rows behind it are no hold of their own."""
 HELD_HOME = (
     "jbus: {rows} of this home's have been held {minutes} minutes by one reason, {reason}, and "
     "no thread is at work on it. Nobody picks it up by itself: pick it up as the home skill's "
@@ -317,6 +321,19 @@ def tick(
         write_json(run.state / FILE, kept)
 
 
+def _ahead(reason: str, world: World) -> bool:
+    """Say whether the reason is a wait on a row ahead whose pull request is open."""
+    numbers = {str(pull["number"]) for pull in world.open.values()}
+    for one, field in AHEAD:
+        pattern = "".join(
+            re.escape(literal) + ("" if name is None else "(.+?)" if name == field else ".+")
+            for literal, name, _, _ in string.Formatter().parse(one)
+        )
+        if found := re.fullmatch(pattern, reason):
+            return found[1] in (world.open if field == "slug" else numbers)
+    return False
+
+
 def _on(slug: str, reason: str, rows: list[str]) -> bool:
     """Say whether a thread of the slug works on what holds the rows: it is one of theirs, the
     reason names it, or it is the fix of the red main the reason names."""
@@ -336,7 +353,9 @@ def held(
     groups: dict[str, dict[str, Any]] = {}
     for slug, pull in sorted(world.open.items(), key=lambda one: one[1]["number"]):
         word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
-        if word != "wait" or not reason or class_of(reason) or _of(reason, RUNNER + AHEAD):
+        if word != "wait" or not reason or class_of(reason) or _of(reason, RUNNER):
+            continue
+        if _ahead(reason, world):
             continue
         scope = home_of(run.home, _brief(run, slug))
         name = "" if scope == run.home else scope.name
