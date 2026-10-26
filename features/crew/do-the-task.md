@@ -15,18 +15,23 @@
 
   `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). With `--thread` the call waits for no slot. When every slot of the lane is taken it registers this thread as a waiter, prints one line saying so, and ends 76. Then end your turn at once, with one line: `Waiting on a test slot: jbus will wake this thread when one is free.` Never poll for a slot, never loop on the call, never wait in a background job, and never end the turn with nothing said: `jbus poll` sends this thread one message when a slot of the lane is free, and that message is the wake. On it, run the same command again. If the slots are taken again by then, the call registers this thread again and you stop again: each wait is woken once. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.
 - Once every **Done when** line holds, with the work committed, run the check of the change, once.
-  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the check is the lint and only the tests that cover the files the branch changed since it left `origin/main`, in the short lane.
+  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the check is the lint and only the tests that cover the files the branch changed since it left its base, in the short lane.
+  The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` or `Stack:` line, and `origin/main` for a brief with neither.
   It never takes a full slot: CI's check on the pull request runs every test the selection leaves out, and CI's check is the gate.
   In any other repo the check is the repo's check command (`notes.md` names it), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
-  Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets.
+  Run this in this worktree, with the block at the top, and the brief's slug and the check command in place of the words in angle brackets.
   Every run of the check this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
   if [ -f scripts/select_tests.py ]; then
-      if ! base=$(git merge-base origin/main HEAD); then
-          echo "no check: the branch shares no commit with origin/main"
+      on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit} /^Stack:/ {print $(5); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
+      on=origin/${on:-main}
+      if ! base=$(git merge-base "$on" HEAD); then
+          echo "no check: the branch shares no commit with $on"
+          false
       elif ! tests=$(python3 scripts/select_tests.py "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not select the tests"
+          false
       else
           lint=
           case $tests in
@@ -52,6 +57,7 @@
   fi
   ```
 
+  A `no check:` line ends the block 1: nothing was checked, and it is no proof.
   In jstack the block prints its `selected:` line first, with the test files it runs, and `make check-fast` runs the lint and those files in a slot of the short lane.
   `PYTEST=:` is what keeps a selection of none or of all to the lint.
   Give the call a time limit of 3 minutes (`timeout: 180000` in Claude Code), and never send it to the background.

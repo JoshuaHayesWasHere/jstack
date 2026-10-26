@@ -31,7 +31,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
         room.uv(stub)
     script = block(heading, "<check command>").replace("<check command>", command)
     script = script.replace("jgauge check", f"jgauge check --wait {limit}")
-    script = script.replace("<thread id>", "mcp:thread-1")
+    script = script.replace("<thread id>", "mcp:thread-1").replace("<slug>", "a-task")
     began = time.monotonic()
     ran = subprocess.Popen(
         ["sh", "-c", script],
@@ -45,6 +45,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
             "TEST_SLOTS": "3",
             "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
             "T": str(REPO / "features" / "crew" / "templates"),
+            "H": str(tmp_path / "state"),
         },
     )
     first = ran.stdout.readline()
@@ -328,7 +329,7 @@ def lanes(stub, locks, log):
     (stub / "make").chmod(0o755)
 
 
-def selected(tmp_path, repo):
+def selected(tmp_path, repo, on="origin/main"):
     """Run the check block once in `repo`, a worktree whose `origin/main` the test has set, with
     a `make` that records each run. It returns what the block printed, its exit code, the
     runs of `make` and the commit the branch left `origin/main` at."""
@@ -342,11 +343,27 @@ def selected(tmp_path, repo):
     lanes(stub, locks, log)
     said, code, _ = checked(tmp_path, "echo the full lane")
     base = subprocess.run(
-        ["git", "merge-base", "origin/main", "HEAD"], cwd=repo, capture_output=True, text=True
+        ["git", "merge-base", on, "HEAD"], cwd=repo, capture_output=True, text=True
     ).stdout.strip()
     waiting = locks / "test-slot-waiters.json"
     assert not waiting.exists() or json.loads(waiting.read_text()) == []
     return said, code, log.read_text().splitlines() if log.exists() else [], base
+
+
+def stubbed(tmp_path, selector):
+    """A repo whose `scripts/select_tests.py` is `selector`, with `origin/main` at its first
+    commit and a doc changed on the branch above it."""
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "select_tests.py").write_text(selector + "\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the selector")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (repo / "page.md").write_text("A page.\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "a doc")
+    return repo
 
 
 def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(tmp_path):
@@ -384,16 +401,34 @@ def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(t
 def test_a_selection_of_no_test_or_of_every_test_runs_only_the_lint(tmp_path, selection, first):
     """A change no test covers, a doc only, still gets the lint, and a change every test covers
     gets only the lint here: `PYTEST=:` stops `make check-fast` before any test."""
-    repo = tmp_path / "repo"
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
-    (repo / "scripts").mkdir()
-    (repo / "scripts" / "select_tests.py").write_text(f"print({selection!r})\n")
-    git(repo, "add", "-A")
-    git(repo, "commit", "-qm", "the selector")
-    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
-    (repo / "page.md").write_text("A page.\n")
-    git(repo, "add", "-A")
-    git(repo, "commit", "-qm", "a doc")
+    repo = stubbed(tmp_path, f"print({selection!r})")
     said, code, ran, base = selected(tmp_path, repo)
     assert (said, code) == ([first], 0)
     assert ran == [f"check-fast BASE={base} PYTEST=: short=held full=free"]
+
+
+def test_a_selector_that_fails_is_no_check_and_ends_the_block_1(tmp_path):
+    repo = stubbed(tmp_path, "import sys; sys.exit('the selector broke')")
+    said, code, ran, _ = selected(tmp_path, repo)
+    assert (said, code, ran) == (
+        ["no check: scripts/select_tests.py could not select the tests"],
+        1,
+        [],
+    )
+
+
+def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacked_on(tmp_path):
+    """A link stacked on another pull request's branch is checked from where it left that
+    branch, as its pull request is based on it, and not from `origin/main`, which would select
+    the change of every link under it too."""
+    repo = stubbed(tmp_path, "print('all')")
+    git(repo, "update-ref", "refs/remotes/origin/below", "HEAD")
+    (repo / "mine.md").write_text("This link's own page.\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "this link")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
+    said, code, ran, base = selected(tmp_path, repo, on="origin/below")
+    assert base == git(repo, "rev-parse", "HEAD~1")
+    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
