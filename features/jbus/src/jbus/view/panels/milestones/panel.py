@@ -5,7 +5,7 @@ section of a home's `plan.md`, the root's first and then each scope's by name, a
 is the outcome it names. A scope with no plan has no entries. A train is an integration branch
 that the home's `integration` file names, as `jmerge` reads it (`ready.integration_of`), and its
 outcome is that the branch lands on the default branch. Its rows are the rows whose brief's
-`Pull request:` line opens the pull request against it.
+`Pull request:` line opens the pull request against it, as `jbus.watch.against` reads the line.
 
 The panel counts a milestone's rows with `jbus plan`'s own count (`plan.progress`), and gives an
 entry the line `jbus plan` prints for it (`plan.status`), so the bar and the words are one count.
@@ -30,7 +30,6 @@ writes nothing.
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +48,7 @@ from jbus.view.state import (
     Read,
     text,
 )
+from jbus.watch import against
 from jmerge import ready
 
 FIRST = False
@@ -83,7 +83,6 @@ _TRAIN = {"branch": None, "to_go": None} | _CHAIN
 SHAPE = {"milestones": {"homes": [_HOME], "trains": [_TRAIN]}}
 SOURCES = (QUEUE_FILE,)
 INTEGRATION = "integration"
-_AGAINST = re.compile(r"\bagainst (\S+)")
 MARK = {
     BROKEN: "stuck",
     ASKS: "needs you",
@@ -199,18 +198,13 @@ def _home(read: Read, name: str, where: Path) -> dict[str, Any]:
 
 
 def _target(read: Read, slug: str) -> str:
-    """The branch the slug's brief opens its pull request against, or nothing."""
+    """The branch the slug's brief opens its pull request against, as jbus reads it, or nothing."""
     if not _SLUG.fullmatch(slug):
         return ""
     for path in (read.home / "tasks" / f"{slug}.md", read.state / "briefs" / f"{slug}.md"):
         said = _read(path)
-        if said is None:
-            continue
-        for line in said.split("\n## ", 1)[0].splitlines():
-            if line.startswith("Pull request:"):
-                found = _AGAINST.search(line)
-                return found[1] if found else ""
-        return ""
+        if said is not None:
+            return against(said)
     return ""
 
 
