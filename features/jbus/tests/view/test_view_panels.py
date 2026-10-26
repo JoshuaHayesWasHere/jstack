@@ -280,7 +280,7 @@ def test_a_folder_whose_second_file_is_written_after_the_first_is_still_served(s
 
 
 def test_no_panel_and_no_route_names_flow_as_a_drawer():
-    """The queue as a flow was a drawer, and the board at `#/flow` took its place: no panel
+    """The queue as a flow was a drawer, and the board at `#/` took its place: no panel
     is called flow, and nothing on the page opens a drawer of that name."""
     assert "flow" not in panels.names()
     page = Path(view.__file__).with_name("page.html").read_text()
