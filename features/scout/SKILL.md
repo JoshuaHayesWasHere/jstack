@@ -51,7 +51,11 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
 
 ## Carry on
 
-Proceed on reversible work without asking: do it, then say what you did and why. Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`). Each is a gate that holds, parked as "Research" says: the action is its default, you do its fail-safe instead, its `Holds:` line names the case written beside it, its `Fail-safe:` line what you prepared, and you carry on with what does not depend on it. What the user's global instructions or the repo's own instructions tell a thread to confirm first is confirmed the same way. When in doubt, act and write down what you did.
+Proceed on reversible work without asking: do it, then say what you did and why.
+Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`).
+Each is a gate that holds, parked as "Research" says: the action is its default, you do its fail-safe instead, its `Holds:` line names the case written beside it, its `Fail-safe:` line what you prepared, and you carry on with what does not depend on it.
+What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other acts at once on the default that it is not done.
+When in doubt, act and write down what you did.
 
 ## Research
 
