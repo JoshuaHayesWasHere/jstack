@@ -9,6 +9,7 @@ import textwrap
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import skills
 
 NAME = "a demo repo"
@@ -115,9 +116,8 @@ class Scene:
 
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
-        (self.user / ".claude" / "skills").mkdir(parents=True)
-        for name, folder in skills().items():
-            (self.user / ".claude" / "skills" / name).symlink_to(folder)
+        (self.user / ".claude").mkdir(parents=True)
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         self.home_dir = self.user / ".local" / "state" / "home" / NAME
         self.home_dir.mkdir(parents=True)
         self.file = self.home_dir / "home-id"

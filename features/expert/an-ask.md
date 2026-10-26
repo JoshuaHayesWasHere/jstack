@@ -28,7 +28,7 @@ An ask is one of five kinds. Three come from anybody: a `question` (a short answ
        echo "not filled in: put this thread's id, and the kind of ask or a playbook's name, in place of the placeholders"
        exit 1
        ;;
-   *) uv run --project "$T/.." jbus playbook expert --name "$name" ;;
+   *) uv run --project "$T/../source" jbus playbook expert --name "$name" ;;
    esac
    ```
 

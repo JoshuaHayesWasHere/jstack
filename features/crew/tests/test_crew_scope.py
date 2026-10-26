@@ -8,7 +8,7 @@ import subprocess
 import test_room as room
 from crew_helpers import PullRequest, block
 from test_crew_failed_check import in_the_template
-from testing.paths import REPO
+from testing.layouts import assembled
 
 NOTHING_NEW = "nothing new: every changed file outside Where has its Wider: line"
 
@@ -31,7 +31,7 @@ def scoping(tmp_path, result=""):
         **os.environ,
         "HOME": str(user),
         "PATH": f"{pr.stub}:{room.BIN}:{os.environ['PATH']}",
-        "T": str(REPO / "features" / "crew" / "templates"),
+        "T": str(assembled() / "templates"),
     }
 
     def asked():

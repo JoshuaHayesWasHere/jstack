@@ -37,7 +37,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    The first line of the `SCOPE` text reads "Review only what this range-diff shows a rebase or a fix changed in a patch that was reviewed before it: the lines with two signs, and a commit on one side alone.
    The rest of the patch has had its review."
    And the code the reading is given is the range-diff: `git range-diff --no-color '<old range>' '<new range>'` in place of `gh pr diff <url>` on the line that writes `$D/code`.
-   And the `INTENT` has the earlier findings and the crew's answers to them: right above its last line, `printf '\n%s\n' "$SCOPE"`, goes the line `printf '\nThe findings of the reviews before this pass, and the answers of the crew to them, as jbriefs --findings prints them. This pass rules on each blocking decline.\n%s\n' "$(uv run --project "$T/.." jbriefs --findings "$BRIEF")"`.
+   And the `INTENT` has the earlier findings and the crew's answers to them: right above its last line, `printf '\n%s\n' "$SCOPE"`, goes the line `printf '\nThe findings of the reviews before this pass, and the answers of the crew to them, as jbriefs --findings prints them. This pass rules on each blocking decline.\n%s\n' "$(uv run --project "$T/../source" jbriefs --findings "$BRIEF")"`.
    The reading, the lead's judgment and the verdict are as they are for a first pass.
    The safety fact of step 5 is the one fact the rebased or fixed patch is still safe because of, proven at this head: it is never left out.
    A finding is about one of those lines, or about something it breaks.
@@ -73,7 +73,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
 
    ```sh
    B="$H/tasks/<slug>.md"
-   listed=$(uv run --project "$T/.." jbriefs --findings "$B")
+   listed=$(uv run --project "$T/../source" jbriefs --findings "$B")
    declined=$(printf '%s\n' "$listed" | awk '/^F[0-9]+ / {id = $(1)} /^  ruling: / {printf "%s%s", (n++ ? " " : ""), id}')
    if [ -z "$declined" ]; then
        echo "no declines: no blocking finding is declined by id"

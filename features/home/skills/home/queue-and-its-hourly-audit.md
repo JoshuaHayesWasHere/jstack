@@ -6,7 +6,7 @@ While a queue is out, and only then, the home has one scheduled run: the audit, 
 
 ```sh
 A="${M:?run the block that finds this home first}/audit"
-name=$(uv run --project "$T/.." jbus playbook home "$M/plan.md" --named 2> /dev/null)
+name=$(uv run --project "$T/../source" jbus playbook home "$M/plan.md" --named 2> /dev/null)
 case $name in
 autopilot-full | orchestrate) ;;
 *) name= ;;
@@ -66,7 +66,7 @@ After either call, keep what is so. In one call with the same two blocks, with t
 A="${M:?run the block that finds this home first}/audit"
 id='<scheduledTaskId>'
 case $id in
-'') uv run --project "$T/.." jbus forget "$A" "$M/audit-seen" > /dev/null && echo "no audit is kept" ;;
+'') uv run --project "$T/../source" jbus forget "$A" "$M/audit-seen" > /dev/null && echo "no audit is kept" ;;
 *'<'* | *'>'* | *' '*) echo "not written: put the scheduledTaskId the call returned in place of the placeholder, or nothing after a delete" ;;
 *) printf '%s %s\n' "$id" "$ME" > "$A" && echo "kept: audit $id, in $A" ;;
 esac
@@ -87,7 +87,7 @@ esac
    TICKS=2 # ticks in a row with nothing written or pushed before a thread is stuck
    mine=root
    if [ "$M" != "$H" ]; then mine=$(basename "$M"); fi
-   said=$(uv run --project "$T/.." jmerge --claims)
+   said=$(uv run --project "$T/../source" jmerge --claims)
    case $said in
    wait:*) echo "$said: nothing was judged" ;;
    *)

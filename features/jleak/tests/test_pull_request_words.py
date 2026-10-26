@@ -13,6 +13,7 @@ import textwrap
 import pytest
 
 from jleak import sources
+from testing.layouts import assembled
 from testing.paths import REPO
 
 FENCED = re.compile(r"^[ \t]*```sh\n(.*?)^[ \t]*```$", re.M | re.S)
@@ -66,7 +67,7 @@ def run(tmp_path):
         env = {
             **os.environ,
             "PATH": f"{stub}{os.pathsep}{os.environ['PATH']}",
-            "T": str(REPO / "features" / "crew" / "templates"),
+            "T": str(assembled() / "templates"),
         }
         done = subprocess.run(["sh", "-c", text], capture_output=True, text=True, env=env)
         log = stub / "gh.log"

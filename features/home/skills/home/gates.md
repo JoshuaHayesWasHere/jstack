@@ -174,7 +174,7 @@ else
         END { exit !seen }' "$F" > "$F.new" && mv "$F.new" "$F"; then
         echo "round written: $open questions, in $F"
     else
-        uv run --project "$T/.." jbus forget "$F.new" > /dev/null
+        uv run --project "$T/../source" jbus forget "$F.new" > /dev/null
         echo "no page: $F has no round-data block to write the round into"
     fi
 fi

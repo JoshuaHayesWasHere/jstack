@@ -16,7 +16,7 @@ There are no subagents doing the work. Each task is one ordinary thread, and its
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
 H=~/.local/state/home/$R
 T=$(realpath ~/.claude/skills/home/../../templates)
-whose() { if [ -z "${1}" ]; then echo "$H"; else uv run --project "$T/.." jbus home --directory "${1}"; fi; }
+whose() { if [ -z "${1}" ]; then echo "$H"; else uv run --project "$T/../source" jbus home --directory "${1}"; fi; }
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 ```
 
@@ -211,7 +211,7 @@ A row `the home` runs, in what the block in "Handing a task to a crewmate" that 
 
 ```sh
 name='<name>'
-uv run --project "$T/.." jbus playbook home "$M/plan.md" --name "$name"
+uv run --project "$T/../source" jbus playbook home "$M/plan.md" --name "$name"
 ```
 
 It prints nothing when the name is `none`, or when none is given and the plan's head has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and tell the user what it printed. On `not the home's`, the file is for a crewmate or a scout: do the same again, and put its name on a brief or a request instead. When its first line is a path, read that file now. Copy its numbered steps into your todo list, word for word, before any todo of your own (with no todo tool, write the list in this thread), and work them in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the work is in another repo. A line under the path, `asks of its brief:`, is a line to write in each brief the playbook has you hand out. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so to the user.
@@ -275,7 +275,7 @@ A new thread on the same worktree when it cannot: the send fails, the thread is 
 }
 ```
 
-Before this launch, run `uv run --project "$T/.." jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, every instance of the role's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
+Before this launch, run `uv run --project "$T/../source" jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, every instance of the role's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
 
 ```json
 {

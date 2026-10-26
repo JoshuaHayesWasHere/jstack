@@ -20,7 +20,7 @@ Write the line into every link's brief before the first launch. A crewmate opens
 }
 ```
 
-Before this launch, run `uv run --project "$T/.." jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, every instance of the role's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
+Before this launch, run `uv run --project "$T/../source" jroles crew` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. When it exits 75 and prints no JSON, every instance of the role's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line. A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed. Leave the project and modes out, and the model unless `jroles` printed one.
 
 ```json
 {
