@@ -94,6 +94,7 @@ Proves it: $proves
 Size: $size
 Where: $where
 Design: none, the candidates $(words) are the design
+Decisions: none, the user asked for the arena, and its graft is the one pull request, reviewed once with every finding fixed
 Pull request: open one when done
 Review: review
 Playbook: none
