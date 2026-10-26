@@ -27,8 +27,9 @@ The routes that read are `routes()`, all `GET`:
 The two writes are `WRITES`, `POST /answer` and `POST /steer`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
 have, gets 404. A panel may take writes of its own, `POST /panel/<panel>/<write>`, held to the
-same checks (`panels`). One more write, `POST /usage`, names no project: it counts a route, a drawer
-or a first click of the page, and `jbus view usage` prints the counts (`usage`).
+same checks (`panels`). One more write, `POST /usage`, names no project: it keeps an event of the
+page, the view opened, a route, an item opened or an action taken (`usage`). `jbus view usage`
+counts them, and `jbus view pace` gives the median seconds to each first action, week on week.
 
 The body of `/answer` is JSON. Its `numbers` are the questions to close. When it closes one
 question only, it also has the name of the `option` picked and the user's own `words`. The
@@ -435,14 +436,14 @@ class App(Writes):
         return said(200, clean(self.github.pull(repo, task[1], pulls[task[1]]), (repo,)))
 
     def _count(self, body: bytes) -> Answer:
-        """One line of what the page opened (`usage`), written from names the server has."""
+        """One event of the page (`usage`), written from names the server has."""
         drawers = (panel.name for panel in self.panels)
         try:
             one = usage.line(body, drawers, state.projects(self.sources), self.clock())
         except Refused as error:
             return said(400, {"error": str(error).removeprefix("refused: ")})
         self.sources.state_dir.mkdir(parents=True, exist_ok=True)
-        usage.append(self.sources.state_dir / usage.FILE, one)
+        usage.append(self.sources.state_dir / usage.FILE, one, self.clock())
         return said(200, {"counted": True})
 
     def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
@@ -708,21 +709,25 @@ def _port(shown: argparse.ArgumentParser) -> None:
     shown.add_argument(
         "what",
         nargs="?",
-        choices=("usage",),
-        help="with usage, count each route, drawer and first click the page opened",
+        choices=("usage", "pace"),
+        help="with usage, count each event the page kept; with pace, give the median seconds "
+        "from page load to each first action, this week against last",
     )
     shown.add_argument("--port", type=int, default=PORT, help="the one port it listens on")
     usage.arguments(shown)
 
 
 def _run(args: argparse.Namespace) -> int:
-    """Serve the page, or with `usage`, print what it opened."""
+    """Serve the page, or with `usage` or `pace`, print what it kept."""
     if args.what != "usage" and args.since:
         raise Refused("refused: --since is for jbus view usage")
-    if args.what != "usage":
+    if args.what is None:
         return doors(args.port).serve()
     sources = _sources()
-    return usage.report(sources.state_dir / usage.FILE, sources.user, datetime.now(UTC), args)
+    path, now = sources.state_dir / usage.FILE, datetime.now(UTC)
+    if args.what == "pace":
+        return usage.pace(path, sources.user, now)
+    return usage.report(path, sources.user, now, args)
 
 
 VERBS = (

@@ -995,7 +995,6 @@
   }
   function openDrawer(target, focus) {
     var i = target.indexOf(":"), kind = i < 0 ? target : target.slice(0, i), arg = i < 0 ? "" : target.slice(i + 1), p = PANELS[kind], mine = ++turn;
-    count("drawer", kind);
     if (!p || !p.drawer) { mark(null); show({}, missing(kind, arg)); return; }
     if (p.first) {
       mark(p, null);
@@ -1083,10 +1082,8 @@
   document.addEventListener("change", function (e) { if (e.target.id === "pick") location.hash = href(e.target.value); });
   window.addEventListener("scroll", hidePeek, true);
   document.addEventListener("click", function (e) {
-    if (clicked || !e.target.closest) return;
-    var b = e.target.closest("[data-open]"), row = e.target.closest("#stack .cn, #map-ql a");
-    clicked = true;
-    count("click", b ? b.getAttribute("data-open").split(":")[0] : row ? "project" : e.target.closest("#helpme") ? "help" : "other");
+    var b = e.target.closest && e.target.closest("[data-open], #helpme");
+    if (b) note("item", b.id === "helpme" ? "help" : b.getAttribute("data-open").split(":")[0]);
   }, true);
   document.addEventListener("click", function (e) {
     if (e.target.closest && e.target.closest("#helpme") && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopImmediatePropagation(); glossary(); }
@@ -1099,8 +1096,15 @@
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  var gAt = 0, CHORD_MS = 1500, clicked = false;
-  function count(kind, what) { if (!gone) ask("/usage", { kind: kind, name: what, project: PROJECT || "" }).catch(function () {}); }
+  var gAt = 0, CHORD_MS = 1500, FIRSTS = {}, TIMED = { item: true, action: true }, WRITTEN = { "/answer": "answer", "/steer": "" }, SHOWN = "";
+  var HEADLESS = !!navigator.webdriver || /HeadlessChrome/.test(navigator.userAgent);
+  function routeName() { return PROJECT ? "project" : TRIAGE ? "triage" : "stack"; }
+  function note(kind, what) {
+    var timed = TIMED[kind] && !FIRSTS[kind + ":" + what];
+    if (timed) FIRSTS[kind + ":" + what] = true;
+    var seconds = timed ? Math.round(performance.now() / 100) / 10 : null;
+    if (!gone) ask("/usage", { kind: kind, name: what, project: PROJECT || "", route: routeName(), seconds: seconds, headless: HEADLESS }).catch(function () {});
+  }
   function typing(el) { return el.tagName === "TEXTAREA" || el.tagName === "SELECT" || (el.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset)$/.test(el.type)) || !!el.isContentEditable; }
   function nextProject() {
     var ps = STACK ? STACK.projects.map(function (p) { return p.name; }) : [];
@@ -1134,6 +1138,8 @@
   drawer.addEventListener("close", function () { if (ours) ours -= 1; else if (!drawer.open && LAYERS.length) shut(); });
 
   function ask(path, body) {
+    var wrote = body ? WRITTEN[path.split("?")[0]] : undefined;
+    if (wrote !== undefined) note("action", wrote || String(body.action));
     var stop = new AbortController(), timer = setTimeout(function () { stop.abort(); }, body ? WRITE_TIMEOUT_MS : READ_TIMEOUT_MS);
     var how = { cache: "no-store", signal: stop.signal };
     if (body) { how.method = "POST"; how.headers = { "Content-Type": "application/json" }; how.body = JSON.stringify(body); }
@@ -1181,8 +1187,8 @@
     HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; LAYERS = st.layers; BACK = !!st.back;
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
+    if (routeName() !== SHOWN) { SHOWN = routeName(); note("route", SHOWN); }
     if (PROJECT !== was) {
-      count("route", PROJECT ? "project" : "stack");
       S = null; NOSUCH = ""; turnOf += 1;
       shutDrawer(first); render();
       pending = top();
@@ -1199,6 +1205,7 @@
   window.addEventListener("hashchange", function () { route(); });
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
   route();
+  note("open", routeName());
   setInterval(function () { poll(); }, POLL_MS);
 })();
 </script>
