@@ -53,6 +53,23 @@ def test_a_quiet_child_is_nudged_twice_then_the_user_is_asked_and_nothing_more(c
     assert "nudged it" in first and "after two nudges" in asked
 
 
+def test_each_step_of_a_spell_waits_a_patience_after_the_last_one_after_a_long_gap(child):
+    """A child first checked long after it went quiet (jbus stopped overnight) is nudged at once,
+    and the second nudge and the question each wait a patience after the step before."""
+    kitchen, found, _ = child
+    start = 10 * P
+    for n in [start, start + 1, start + 2, start + P - 1]:
+        kitchen.poll(minutes(n))
+    assert len([one for one in sends(kitchen) if one["threadId"] == found["threadId"]]) == 1
+    assert len(told(kitchen)) == 1
+    kitchen.poll(minutes(start + P))
+    assert len([one for one in sends(kitchen) if one["threadId"] == found["threadId"]]) == 2
+    kitchen.poll(minutes(start + 2 * P - 1))
+    assert len(told(kitchen)) == 1
+    kitchen.poll(minutes(start + 2 * P))
+    assert len(told(kitchen)) == 2
+
+
 def test_a_write_of_its_crew_ends_the_spell(child):
     kitchen, found, crew = child
     kitchen.poll(minutes(P + 1))
