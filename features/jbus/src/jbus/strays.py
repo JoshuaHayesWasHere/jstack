@@ -24,19 +24,19 @@ name, which spells the config folder's variable (`CONFIG`) and its default (`KEP
 
 A process is an orphan when its parent is a reaper (`reaper`): 1, or the user's own
 `systemd --user`, which adopts what a unit of it left, as it is for jbus, a user service. Where
-there is no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory,
-and the one reaper is 1, launchd. There the environment is not read, since macOS's `ps -E` showed
-none for the user's own processes on the macOS job: a temporary folder and a scout's session then
-tie no process to a task, and only a folder or an argument under a worktree does. `ps` gives the
-command line as one string, so its arguments are split at spaces there: a path with a space in it,
-as an app bundle's, is read as several arguments. A process is never stopped when its parent is not
-a reaper, when it is not the user's, when it is jbus or one of its ancestors, when it is T3 Code's
-or the agent's own (`OWN`), or when it or a process under it holds a test slot (`SLOT`): a check or
-a proof that still runs. Of those left, a crew's process is stopped busy or idle once the turn that
-left it ended, whatever its row waits on: a crew's next turn starts afresh and cannot count on what
-it left. A scout's is stopped only when it used CPU over `GAP` seconds of the pass. `stop` sends
-each one TERM, and KILL to one still running `GRACE` seconds later, for a process that has the same
-start time.
+there is no /proc (`ROOT`), as on macOS, `ps` says what a process is, `lsof` its working directory
+and the files it holds open, and the one reaper is 1, launchd. There the environment is not read,
+since macOS's `ps -E` showed none for the user's own processes on the macOS job: a temporary
+folder and a scout's session then tie no process to a task, and only a folder or an argument
+under a worktree does. `ps` gives the command line as one string, so its arguments are split at
+spaces there: a path with a space in it, as an app bundle's, is read as several arguments.
+A process is never stopped when its parent is not a reaper, when it is not the user's, when it is
+jbus or one of its ancestors, when it is T3 Code's or the agent's own (`OWN`), or when it or a
+process under it holds a test slot (`SLOT`): a check or a proof that still runs. Of those left, a
+crew's process is stopped busy or idle once the turn that left it ended, whatever its row waits on:
+a crew's next turn starts afresh and cannot count on what it left. A scout's is stopped only when
+it used CPU over `GAP` seconds of the pass. `stop` sends each one TERM, and KILL to one still
+running `GRACE` seconds later, for a process that has the same start time.
 
 For each task with a process stopped, `stop` says one line, which the unit's journal keeps, with
 the count and the commands. It also adds one `Left running:` line at the end of the brief's last
@@ -294,6 +294,8 @@ def in_slot(found: Iterable[Proc]) -> set[int]:
     found = list(found)
     if not found:
         return set()
+    if not ROOT.is_dir():
+        return _in_slot_ps(found)
     try:
         pids = [one.name for one in ROOT.iterdir() if one.name.isdecimal()]
     except OSError:
@@ -316,6 +318,31 @@ def _holds(pid: int, children: dict[int, list[int]]) -> bool:
         seen.add(one)
         left += children.get(one, [])
     return False
+
+
+def _in_slot_ps(found: list[Proc]) -> set[int]:
+    """The same, where there is no /proc: `ps` says which process is under which, and one `lsof`
+    over each found process and every process under it says which has a lock of a slot open."""
+    children: dict[int, list[int]] = {}
+    for pid, one in _ps().items():
+        children.setdefault(one.ppid, []).append(pid)
+    trees = {}
+    for one in found:
+        tree, left = set(), [one.pid]
+        while left:
+            pid = left.pop()
+            if pid not in tree:
+                tree.add(pid)
+                left += children.get(pid, [])
+        trees[one.pid] = tree
+    held, pid = set(), 0
+    every = ",".join(str(one) for one in sorted(set().union(*trees.values())))
+    for line in _run("lsof", "-Fn", "-p", every).splitlines():
+        if line.startswith("p"):
+            pid = int(line[1:])
+        elif line.startswith("n") and SLOT.search(line[1:]):
+            held.add(pid)
+    return {top for top, tree in trees.items() if tree & held}
 
 
 def orphans() -> list[Proc]:

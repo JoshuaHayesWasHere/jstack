@@ -19,6 +19,12 @@ from jbus import mirror, queue, strays
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import add
 
+NO_ENVIRONMENT = pytest.mark.skipif(
+    not strays.ROOT.is_dir(),
+    reason="with no /proc, as on macOS, strays reads no environment, since ps -E showed none for"
+    " the user's own processes on the macOS job: a temporary folder ties no process to a task",
+)
+
 
 @pytest.fixture
 def kitchen(tmp_path, monkeypatch):
@@ -335,11 +341,7 @@ def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_once_its_row_end
         assert last.startswith("Left running: 1 stopped by jbus ")
 
 
-@pytest.mark.skipif(
-    not strays.ROOT.is_dir(),
-    reason="with no /proc, as on macOS, strays reads no environment, since ps -E showed none for"
-    " the user's own processes on the macOS job: a temporary folder ties no process to a task",
-)
+@NO_ENVIRONMENT
 @pytest.mark.parametrize("how", ["merged", "done", "removed"])
 def test_an_idle_process_a_crew_left_is_stopped_once_its_row_ended(
     kitchen, tmp_path, stray, monkeypatch, how
@@ -426,6 +428,20 @@ def at_its_pull_request(kitchen, tmp_path, monkeypatch):
     return tree, thread, brief
 
 
+def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_at_its_pull_request(
+    kitchen, tmp_path, stray, monkeypatch
+):
+    tree, _, brief = at_its_pull_request(kitchen, tmp_path, monkeypatch)
+    stray.append(orphan(tree, "sleep", "300"))
+    said = kitchen.poll() + kitchen.poll()
+    assert {row["slug"]: row["status"] for row in queue.load(kitchen.state)} == {"alpha": "pr"}
+    assert not alive(stray[0])
+    lines = [one for one in said if one.startswith("left running")]
+    assert lines == [f"left running crew alpha: stopped 1: sleep 300 in {tree}"]
+    assert brief.read_text().splitlines()[-1].startswith("Left running: 1 stopped by jbus ")
+
+
+@NO_ENVIRONMENT
 def test_an_idle_process_a_crew_left_is_stopped_once_its_turn_ended_at_its_pull_request(
     kitchen, tmp_path, stray, monkeypatch
 ):
@@ -473,11 +489,34 @@ def test_a_check_the_crew_left_under_a_test_slot_is_left_while_it_runs(
 
 def tree_of(pid):
     """The process and every process under it, each parent before its children."""
+    said = subprocess.run(["ps", "-A", "-o", "pid=,ppid="], capture_output=True, text=True)
     parents = {}
-    for one in os.listdir("/proc"):
-        if one.isdecimal() and (ppid := parent(int(one))) is not None:
-            parents.setdefault(ppid, []).append(int(one))
+    for line in said.stdout.splitlines():
+        one, ppid = map(int, line.split())
+        parents.setdefault(ppid, []).append(one)
     found = [pid]
     for one in found:
         found += parents.get(one, [])
     return found
+
+
+def test_with_no_proc_to_read_a_slot_held_under_a_process_is_found_by_ps_and_lsof(
+    tmp_path, monkeypatch
+):
+    """macOS has no /proc: `ps` says which process is under which and `lsof` the files each
+    holds open. Both are stood in for here, since this machine may have no `lsof`; the check
+    above runs them for real on the macOS job."""
+    monkeypatch.setattr(strays, "ROOT", tmp_path / "no-proc")
+    at = "Mon Oct 26 01:00:00 2026"
+    said = {
+        "ps": f"10 1 501 {at} 0:00.01 Ss sh -c check\n"
+        f"11 10 501 {at} 0:00.20 S python -m jgauge test-slot\n"
+        f"12 11 501 {at} 0:00.00 S sleep 300\n"
+        f"20 1 501 {at} 0:00.00 S sleep 301\n",
+        "lsof": "p10\nfcwd\nn/tmp/tree\n"
+        "p11\nf3\nn/Users/me/.local/state/locks/test-slot-short.0.lock\n"
+        "p12\np20\nf3\nn/tmp/other.lock\n",
+    }
+    monkeypatch.setattr(strays, "_run", lambda *argv: said[argv[0]])
+    found = [strays.Proc(10, 1, 0, 0, ["sh"], ""), strays.Proc(20, 1, 0, 0, ["sleep"], "")]
+    assert strays.in_slot(found) == {10}
