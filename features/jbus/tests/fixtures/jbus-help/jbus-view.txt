@@ -1,8 +1,9 @@
-usage: jbus view [-h] [--port PORT] [--since SINCE] [{usage}]
+usage: jbus view [-h] [--port PORT] [--since SINCE] [{usage,pace}]
 
 positional arguments:
-  {usage}        with usage, count each route, drawer and first click the page
-                 opened
+  {usage,pace}   with usage, count each event the page kept; with pace, give
+                 the median seconds from page load to each first action, this
+                 week against last
 
 options:
   -h, --help     show this help message and exit
