@@ -1,6 +1,5 @@
 var SLOW_NAME = { runner: "Runner", review: "Review", rebase: "Rebase", you: "You" };
 var SLOW_SAYS = { runner: "in check", review: "in review", rebase: "to rebase", you: "wait on you" };
-/* Whether the reader opened the band (true) or folded it (false), or null where they have not: a redraw keeps what they chose. */
 var SLOW_OPEN = null;
 document.addEventListener("click", function (e) { var s = e.target.closest && e.target.closest('[data-role="slow"] > summary'); if (s) SLOW_OPEN = !s.parentNode.open; });
 (function () {

@@ -124,14 +124,14 @@ def used(proc: Path, locks: Path, total: int) -> int | None:
 
 def slots(read: Read) -> dict[str, Any]:
     """The full lane's slots: how many are held of how many, and the threads that wait for one,
-    with the oldest wait."""
+    with the oldest wait. The view reads and never writes, so the waiters come from
+    `waiters._read`: `waiters.read` takes the file's lock, and makes it."""
     locks = slot.locks_dir()
     try:
         total: int | None = slot.count(None)
     except slot.BadCount:
         total = None
     held = used(read.sources.proc, locks, total) if total else None
-    # The view reads and never writes: `waiters.read` takes the file's lock, and makes it.
     waits = [one for one in waiters._read(locks) if one.lane == LANE]
     return {
         "read": held is not None,
