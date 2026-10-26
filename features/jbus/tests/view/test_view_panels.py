@@ -19,7 +19,7 @@ from jbus.view import state as built
 from view.scene import LINKED, LINKS, NOW, REPO, SAMPLE, Scene, folder
 from view.walk import runs, sources
 
-PANELS = ["blind", "bus", "checks", "flow", "merged", "pulse", "room", "rounds", "steps", "task"]
+PANELS = ["blind", "bus", "checks", "merged", "pulse", "room", "rounds", "steps", "task"]
 
 
 PANELS.append("threads")
@@ -277,3 +277,13 @@ def test_a_folder_whose_second_file_is_written_after_the_first_is_still_served(s
     process.start()
     assert process.ask("/panel/sample.json?project=demo")["panel"] == "sample"
     assert process.code()["stale"] is False
+
+
+def test_no_panel_and_no_route_names_flow_as_a_drawer():
+    """The queue as a flow was a drawer, and the board at `#/flow` took its place: no panel
+    is called flow, and nothing on the page opens a drawer of that name."""
+    assert "flow" not in panels.names()
+    page = Path(view.__file__).with_name("page.html").read_text()
+    scripts = [page, *(one.read_text() for one in Path(view.__file__).parent.glob("panels/*/*.js"))]
+    opens = re.compile(r"""data-open=\\?["']flow\b|(?:openBtn|go|openDrawer)\(["']flow\b""")
+    assert [hit.group() for one in scripts for hit in opens.finditer(one)] == []
