@@ -11,7 +11,7 @@ The kinds are `merged`, a row that moved to merged (as the panel `merged` reads 
 `KEEP` and not only today); `stuck`, a stall or an idle crew that stands now, from the
 project's list of what is wrong (`state.wrongs`), since its first stall after the row last
 moved (`_began`); and `default`, a question
-that jbus closed with its default, since nobody answered it in 2 hours. A stuck row that moved
+that jbus closed with its default at once, in the first pass that saw it. A stuck row that moved
 again is no longer stuck, so it is not on the list: the line says what stands, not what was."""
 
 from __future__ import annotations

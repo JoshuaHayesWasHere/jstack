@@ -38,16 +38,16 @@ closes it, and a pass does either only as this module says (`park`, `silent`, `c
   those three are empty and false. When a home closed the question in its file, the answer
   has the file's `Status:` line as its `words`, the file as `where`, and no `by` and no `at`,
   since jbus knows neither. When silence closed the question, the answer has the words
-  `default`, `by` jbus, `at` the pass that closed it, `where` "no answer in 2 hours", and
+  `default`, `by` jbus, `at` the pass that closed it, `where` "settled at once", and
   `keeps`: it is not the user's word.
 
 A gate is act-unless-stopped: the thread acts on its default at once, and the question is the
 user's chance to stop it. A record stays open until `jbus answer` closes it, and it closes
 once: `jbus answer` refuses a second answer and puts the first one in the refusal. A pass
-also closes a record by silence, with its default, when the record has been open for 2 hours
-(`QUIET`) and has no `Holds:` line (`silent`). If the user answers after that, their answer
-replaces the close by silence as the record's one answer, and jbus carries an answer that
-differs as it carries any other.
+also closes a record by silence, with its default, in the first pass that sees it (`QUIET` is
+no time at all) when it has no `Holds:` line (`silent`). If the user answers after that, their
+answer replaces the close by silence as the record's one answer, and jbus carries an answer
+that differs as it carries any other.
 
 A pass raises a question of its own through the path a piped gate takes (`park`): the record, and
 the `gate` event the Chef reads. `mainmoved` raises one when main's check starts no job. When the
@@ -150,8 +150,8 @@ MESSAGE = (
 _THREAD = re.compile(r"\bthread (\S+)")
 _GROUP = re.compile(r"\([^()]*\)$")
 COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
-QUIET = timedelta(hours=2)
-UNANSWERED = "no answer in 2 hours"
+QUIET = timedelta(0)
+UNANSWERED = "settled at once"
 HOLDS = (
     "deletes data",
     "rewrites history",
@@ -621,10 +621,10 @@ def _open(one: Question) -> bool:
 
 
 def silent(run: Pass) -> None:
-    """Close by silence, with its default, each open question that has no `Holds:` line and
-    has been open for 2 hours or more (`QUIET`). The thread acted on the default when it asked
-    the question, so jbus sends nothing. jbus writes one quiet `note` event for each question
-    it closes."""
+    """Close by silence, with its default, each open question that has no `Holds:` line, in the
+    first pass that sees it (`QUIET` is no time at all). The thread acted on the default when it
+    asked the question, so jbus sends nothing. jbus writes one quiet `note` event for each
+    question it closes."""
     if not path(run.state).exists():
         return
     at = run.now.astimezone(UTC).isoformat(timespec="seconds")

@@ -1,7 +1,7 @@
-"""Every gate carries a default that is the recommended option, and the thread acts on it at once. The
-first pass that sees a question closes it with that default, unless its gate holds. A gate holds
-when its default is irreversible or slow to revert, and it names its fail-safe, and it waits for
-the user however long.
+"""Every gate carries a default that is the recommended option, and the thread acts on it at once.
+The first pass that sees a question closes it with that default, unless its gate holds. A gate
+holds when its default is irreversible or slow to revert, and it names its fail-safe, and it
+waits for the user however long.
 
 The tests run the real `jbus gate`, `jbus answer` and pass against the faked T3 Code server of
 `test_jbus_kitchen`, with the clock of `jbus gate` held at `NOW`.

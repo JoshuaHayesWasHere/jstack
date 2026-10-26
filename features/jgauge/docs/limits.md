@@ -135,7 +135,7 @@ This page records the pool numbers and changes none of them.
 | The hourly list of what blocks | `features/jbus/src/jbus/leftover.py:65` | `REFRESH_MINUTES = 60` | #22 | The relay's list stays whole | Design choice | Kept |
 | A blocker's one reminder | `features/jbus/src/jbus/leftover.py:64` | `REMIND_MINUTES = 15` | #22 | A blocker is not forgotten | Design choice | Kept |
 | A left row is told | `features/jbus/src/jbus/leftover.py:63` | `CLOSE_MINUTES = 30` | Before this repo's history | The 30-minute leftover nag | Design choice | Kept |
-| A gate acts on its default | `features/jbus/src/jbus/questions.py:137` | `QUIET = timedelta(hours=2)` | #36 | Nothing waits on a question for long | Design choice | Kept |
+| A gate acts on its default | `features/jbus/src/jbus/questions.py:153` | `QUIET = timedelta(0)` | #36, settled at once since word 3d4718ca72ab | Nothing waits on a question | Design choice | Kept |
 | A pass at one head is a stall | `features/jbus/src/jbus/stall.py:66` | `PASSES = 10` | Before this repo's history | A stuck pull request is told | Design choice | Kept |
 | A review's time before a stall | `features/jbus/src/jbus/stall.py:67` | `REVIEWING = 30` | Before this repo's history | A stuck review is told | Design choice | Kept |
 | What is left, before a stall | `features/jbus/src/jbus/stall.py:68` | `LEFT = 300` | Before this repo's history | A left row is told | Design choice | Kept |
