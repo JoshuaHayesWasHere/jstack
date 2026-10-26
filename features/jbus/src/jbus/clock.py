@@ -190,24 +190,26 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
 
 
-def _send(run: Pass, client: Client, thread: str, message: str, key: str) -> str:
+def _send(run: Pass, client: Client, thread: str, message: str, key: str, who: str = "") -> str:
     """Queue one message to a thread, once for the key. Return `sent`, or `refused` where T3 Code
     refused it, as it does for a thread that is gone, which no later pass would change, or nothing
-    for a call that got no answer, which the next pass tries again."""
+    for a call that got no answer, which the next pass tries again. `who` names what the line is
+    about in a `wait` line, the slug of the key where it is not given."""
+    who = who or key.split("|")[1]
     if key in run.box.sent():
         return "sent"
-    if expedite.waits_on_cap(run, client, thread, key.split("|")[1], "its clock's line"):
+    if expedite.waits_on_cap(run, client, thread, who, "its clock's line"):
         return ""
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
         client.call("t3_thread_send", asked)
     except T3Refused as error:
-        run.say(f"wait {key.split('|')[1]}: T3 Code refused {thread} its clock's line ({error})")
+        run.say(f"wait {who}: T3 Code refused {thread} its clock's line ({error})")
         run.box.mark(key)
         return "refused"
     except T3Error as error:
-        run.say(f"wait {key.split('|')[1]}: {thread} could not be sent its clock's line ({error})")
+        run.say(f"wait {who}: {thread} could not be sent its clock's line ({error})")
         return ""
     run.box.mark(key)
     return "sent"
@@ -382,7 +384,8 @@ def held(
         rows = ", ".join(f"{slug} (#{number})" for slug, number in pairs)
         text = HELD_HOME.format(rows=rows, minutes=minutes, reason=hold["reason"])
         at = thread_of(run.home / hold["home"])
-        went = _send(run, client, at, text, f"{HELD}|{key}|{hold['since']}") if at else "no home"
+        sending = f"{HELD}|{key}|{hold['since']}"
+        went = _send(run, client, at, text, sending, rows) if at else "no home"
         if not went:
             continue
         hold["woke"] = True

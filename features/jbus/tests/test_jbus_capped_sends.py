@@ -156,6 +156,11 @@ def test_the_clock_s_line_to_the_home_waits_for_the_home_s_reset(kitchen):
 def test_a_hold_stall_line_waits_for_the_reset(kitchen):
     held = Held(kitchen)
     cap("claudeAgent")
+    held.until(31)
+    for said in until(kitchen, 32, 35):
+        rows = "one (#11), two (#12), three (#13), four (#14)"
+        assert len(waits(said, rows, "its clock's line")) == 1, said
+    held.minute = 36
     held.until(39)
     assert held.told() == [] and kitchen.lines("hold-stall") == []
     held.until(44)
