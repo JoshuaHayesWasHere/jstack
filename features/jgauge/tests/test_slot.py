@@ -30,7 +30,7 @@ def slots(tmp_path):
     state.mkdir()
     proc = fake_proc(tmp_path / "proc", 24, 62)
     env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc)}
-    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME"):
+    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT"):
         env.pop(name, None)
     going, taken = [], []
 
@@ -105,6 +105,14 @@ def test_the_exit_code_and_the_output_are_the_commands_own(slots):
     ran = slots(command=["sh", "-c", "echo out; echo err >&2; exit 7"])
     assert ran.communicate(timeout=5) == ("out\n", "err\n")
     assert ran.returncode == 7
+
+
+def test_the_command_is_told_the_lane_of_the_slot_it_holds(slots):
+    """A command learns from JGAUGE_TEST_SLOT that it holds a slot, so a run it starts, a TLC
+    model check in a suite, takes no second one and cannot wait on its own."""
+    says = ["sh", "-c", 'echo "$JGAUGE_TEST_SLOT"']
+    assert slots("--slots", "1", command=says).communicate(timeout=5) == ("full\n", "")
+    assert slots("--short", command=says).communicate(timeout=5) == ("short\n", "")
 
 
 def test_a_command_ended_by_a_signal_ends_as_a_shell_would_say(slots):

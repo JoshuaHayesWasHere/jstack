@@ -15,6 +15,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from jmerge import gate
+
 DEFAULT = "uv.lock -> uv lock"
 GENERATED = re.compile(r"^[-* ]*Generated:\s*(.*)$")
 
@@ -71,6 +73,7 @@ def remake(state: Path | None) -> list[str]:
             and not subprocess.run(
                 ["sh", "-c", command],
                 cwd=top_dir,
+                env=gate.outside_venv(),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,

@@ -5,9 +5,11 @@ run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's
 the design's `Rejudge`, each name a file and line."""
 
 import importlib
+import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -20,7 +22,8 @@ sys.path.insert(0, str(SPEC))
 
 flow = importlib.import_module("flow_canaries")
 lib = importlib.import_module("statechart.lib")
-find_java = importlib.import_module("statechart.tools").find_java
+tools = importlib.import_module("statechart.tools")
+find_java = tools.find_java
 
 
 def test_every_condition_of_the_code_model_names_its_file_and_line():
@@ -45,17 +48,15 @@ CITED = {
     "features/jbus/src/jbus/watch.py:1330,1373,1377,1380": "no briefed merge came in",
     "features/jbus/src/jbus/watch.py:1379-1380": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:135-138": 'row.get("merge_after", [])',
-    "features/jmerge/src/jmerge/cli.py:664-672": "ready.STACKED_UNMOVED.format(",
-    "features/jmerge/src/jmerge/ready.py:935-936": "NOT_PASSED",
-    "features/jmerge/src/jmerge/ready.py:294-297": "def red_only",
+    "features/jmerge/src/jmerge/cli.py:458-466": "ready.STACKED_UNMOVED.format(",
+    "features/jmerge/src/jmerge/ready.py:936-937": "NOT_PASSED",
+    "features/jmerge/src/jmerge/ready.py:295-298": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
-    "features/jmerge/src/jmerge/cli.py:219": 'was.get("result")',
-    "features/jmerge/src/jmerge/cli.py:1038-1039": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:1043": "self.fresh.command",
-    "features/jmerge/src/jmerge/cli.py:1044-1046": "self.fresh.of(",
-    "features/jmerge/src/jmerge/cli.py:1082": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:1155": "self.red(one, default",
-    "features/jmerge/src/jmerge/rejudge.py:63": "self.ask(one)",
+    "features/jmerge/src/jmerge/rejudge.py:64": 'was.get("tip")',
+    "features/jmerge/src/jmerge/cli.py:833": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:871": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:944": "self.red(one, default",
+    "features/jmerge/src/jmerge/rejudge.py:69": "self.ask(one)",
 }
 
 
@@ -108,3 +109,46 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
         for rule in flow.RULES:
             said = "breaks" if rule in breaks else "holds"
             assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)
+
+
+def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
+    """A run by hand holds a test slot, and starts TLC on 2 workers and not one for each core."""
+    java = tmp_path / "java"
+    java.write_text('#!/bin/sh\necho "slot ${JGAUGE_TEST_SLOT:-none}: $*"\n')
+    java.chmod(0o755)
+    for name in ("JGAUGE_TEST_SLOT", "TLC_WORKERS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path))
+    monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+    _, module, cfg, *_ = next(flow.runs())
+    out = flow.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
+    assert out.startswith("slot full: "), out
+    assert " -workers 2 " in out, out
+
+
+def test_the_script_by_hand_holds_one_slot_for_all_its_runs(tmp_path):
+    """flow_canaries.py run by hand takes a test slot once, and each of its TLC runs is in it:
+    no run waits for a slot of its own behind the suites that hold the others."""
+    java = tmp_path / "java"
+    java.write_text(
+        '#!/bin/sh\necho "$JGAUGE_TEST_SLOT $(ps -o comm= -p $PPID)" >> "$LOG"\n'
+        'echo "Model checking completed. No error has been found."\n'
+    )
+    java.chmod(0o755)
+    (tmp_path / "tla2tools.jar").write_text("")
+    env = {k: v for k, v in os.environ.items() if k not in ("JGAUGE_TEST_SLOT", "TLC_WORKERS")}
+    env |= {
+        "JAVA": str(java),
+        "TLA2TOOLS": str(tmp_path / "tla2tools.jar"),
+        "LOG": str(tmp_path / "java.log"),
+        "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"),
+        "PATH": f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}",
+    }
+    ran = subprocess.run(
+        [sys.executable, str(SPEC / "flow_canaries.py")], capture_output=True, text=True, env=env
+    )
+    assert ran.stdout.splitlines()[0].startswith("ok    design: every rule holds"), ran.stderr
+    runs = (tmp_path / "java.log").read_text().splitlines()
+    assert len(runs) == len(list(flow.runs()))
+    assert {run.split()[0] for run in runs} == {"full"}
+    assert not any("jgauge" in run for run in runs), runs

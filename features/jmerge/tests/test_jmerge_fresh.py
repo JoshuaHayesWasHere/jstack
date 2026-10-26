@@ -1,7 +1,8 @@
 """`jmerge` merges a pull request only when its passing check still applies to today's main.
 When a pull request's check started before main changed one of its files, or a file that CI
-reads, the pull request waits for a fresh check. Where the repo asks for it, that check is the
-repo's own command on the head merged over today's main, and otherwise it is a rebase. When a
+reads, the pull request waits for a fresh check. Where the repo asks for it, that check is
+GitHub's, at the head GitHub merged today's main into (`test_jmerge_rejudge.py`), and otherwise
+it is a rebase. When a
 rebase drops a line, the pull request waits until its crew says why
 (`features/jmerge/tests/test_jmerge_drops.py`), and `jmerge` keeps a branch that moved after
 its merge.
@@ -9,7 +10,6 @@ its merge.
 The tests run the command against a real origin with several crewmates' worktrees, and a
 fake `gh` whose merge is a squash of the head over the origin's main."""
 
-import fcntl
 import json
 import os
 import shutil
@@ -184,15 +184,6 @@ class Kitchen:
         assert (self.home.code, self.home.stderr) == (0, "")
         return said
 
-    def after_check(self, *flags):
-        """A run that starts a fresh check says that the check is queued, and returns. When the
-        check ends, it records its result, and the next run reads that result."""
-        before = known(self)
-        queued = self.run(*flags)
-        assert any(line.endswith(ready.FRESH_QUEUED) for line in queued), queued
-        settled(self, before)
-        return self.run(*flags)
-
     def calls(self, verb="pr merge"):
         return [call for call in merge.calls(self.home) if call.startswith(verb)]
 
@@ -283,118 +274,6 @@ def test_a_main_that_moved_on_other_files_leaves_the_check_standing(kitchen):
     assert said.startswith("merged 7 two ")
 
 
-SELECTOR = REPO / "scripts" / "select_tests.py"
-SELECTED = {
-    "pyproject.toml": "[project]\nname = 'demo'\n",
-    "Makefile": "check:\n",
-    "scripts/select_tests.py": SELECTOR.read_text(),
-    "features/verify-jstack/project-skill/map.md": "Cross-cutting:\n",
-    "src/demo/__init__.py": "",
-    "src/demo/one.py": LINES,
-    "src/demo/two.py": LINES,
-    "conftest.py": "",
-    "testing/tests/test_one.py": "import demo.one\n",
-    "testing/tests/test_two.py": "import demo.two\n",
-    "testing/tests/test_whole.py": "import demo\n",
-}
-
-
-@pytest.fixture
-def selected(tmp_path):
-    """A repo with its own `scripts/select_tests.py`, and a pull request whose check passed
-    over a main that changed the module `src/demo/two.py`. The test `testing/tests/test_two.py`
-    imports that module. No test file is one that every change selects."""
-    kitchen = Kitchen(tmp_path, SELECTED)
-    checked = Checked(kitchen, "true", "src/demo/two.py")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    assert checked.known()["7"]["result"] == ready.PASSED
-    return kitchen, checked
-
-
-def test_a_pass_over_an_older_main_stands_when_main_moved_only_off_its_tests(selected):
-    kitchen, checked = selected
-    now = kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
-    kept = (
-        f"fresh: {checked.command} passed on {checked.head[:12]} over {checked.main[:12]}, "
-        f"kept over {now[:12]}: main's change since meets none of its tests"
-    )
-    assert kitchen.run("--check") == [f"ready 7 {checked.head} two two, {kept}"]
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ") and f", {kept}, revert: " in said
-    assert len(checked.ran()) == 1
-
-
-@pytest.mark.parametrize(
-    "theirs",
-    [
-        pytest.param({"testing/tests/test_two.py": "import demo.two\nimport os\n"}, id="its-tests"),
-        pytest.param({"pyproject.toml": "[project]\nname = 'other'\n"}, id="all"),
-    ],
-)
-def test_a_pass_over_an_older_main_is_checked_again_when_main_moved_on_its_tests(selected, theirs):
-    kitchen, checked = selected
-    kitchen.on_main(theirs)
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2 and checked.known()["7"]["main"] == kitchen.tip()
-
-
-def test_an_import_the_pull_request_adds_is_read_from_the_tree_it_lands_as(tmp_path):
-    """In main's checkout `two.py` imports nothing. In the pull request's head, `two.py`
-    imports `one.py`, so `testing/tests/test_two.py` also runs `one.py` there. The tests of
-    the pull request therefore run main's change to `one.py`."""
-    kitchen = Kitchen(tmp_path, SELECTED)
-    checked = Checked(kitchen, "true", "src/demo/two.py", LINES + "import demo.one\n")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
-def test_a_test_no_rule_owns_is_one_in_common(tmp_path):
-    """`test_lone.py` imports nothing and spells no path, so the selector's catch-all runs it on
-    every change. Main's change to `one.py` then meets the pull request's tests there."""
-    kitchen = Kitchen(tmp_path, {**SELECTED, "testing/tests/test_lone.py": ""})
-    checked = Checked(kitchen, "true", "src/demo/two.py")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    kitchen.on_main({"src/demo/one.py": "theirs\n" + LINES})
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
-def test_a_test_every_change_selects_is_one_in_common(selected):
-    """A test that reads the whole tree can fail on the two changes together."""
-    kitchen, checked = selected
-    map_file = "features/verify-jstack/project-skill/map.md"
-    whole = {map_file: "Cross-cutting: `testing/tests/test_whole.py`\n"}
-    write(kitchen.home.main, whole)
-    git(kitchen.home.main, "commit", "-q", "-m", "a whole-tree test")
-    git(kitchen.home.main, "push", "-q")
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
-def test_a_pass_stands_only_in_a_repo_that_says_what_its_tests_select(kitchen):
-    checked = Checked(kitchen, "true")
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    kitchen.on_main({"a.txt": "theirs\n" + LINES})
-    before = known(kitchen)
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen, before)
-    assert len(checked.ran()) == 2
-
-
 def test_more_than_five_files_are_counted_not_named(kitchen):
     files = {f"f{n}.txt": "ours\n" for n in range(7)}
     kitchen.crew("two", 7, files)
@@ -430,14 +309,14 @@ def test_a_guarded_path_main_changed_waits_for_a_rebase_and_gets_no_local_check(
     assert not (kitchen.home.state / "fresh.json").exists()
 
 
-def repo(kitchen, monkeypatch, fresh=None):
+def repo(kitchen, monkeypatch, merged=None):
     """The command's own view of the repo, in this process, with the fake `gh`."""
     home = kitchen.home
     monkeypatch.setenv("PATH", f"{home.stub}:{os.environ['PATH']}")
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
     return cli.Repo(
-        home.main, home.state, merge.ME, False, None, PROTECTED, GUARDED, CI, fresh=fresh, user=ET
+        home.main, home.state, merge.ME, False, None, PROTECTED, GUARDED, CI, merged=merged, user=ET
     )
 
 
@@ -651,311 +530,10 @@ def test_lines_are_counted_as_text_with_blank_ones_and_trailing_space_left_out()
     assert ready.dropped(DIFF.format("-ours\n"), ours, "") == (0, 0)
 
 
-class Checked:
-    """A repo that asks for a fresh check, and a pull request with a file that main also
-    changed since the check. Main changed other lines of the file, so the pull request and
-    main merge cleanly. The command is a script that counts its runs."""
-
-    def __init__(self, kitchen, script, path="b.txt", ours=LINES + "ours\n"):
-        self.kitchen = kitchen
-        self.runs = kitchen.tmp / "runs"
-        self.script = kitchen.tmp / "check.sh"
-        self.wrote(script)
-        self.command = f"sh {self.script}"
-        (kitchen.home.state / "fresh-check").write_text(f"{self.command}\n")
-        self.head = kitchen.crew("two", 7, {path: ours})
-        self.main = kitchen.on_main({path: "theirs\n" + LINES})
-
-    def wrote(self, script):
-        self.script.write_text(f'pwd >> "{self.runs}"\n{script}\n')
-
-    def ran(self):
-        return self.runs.read_text().splitlines() if self.runs.exists() else []
-
-    def over(self, head=None, main=None):
-        return f"on {(head or self.head)[:12]} over today's main {(main or self.main)[:12]}"
-
-    def passed(self):
-        return f"fresh: {self.command} passed on {self.head[:12]} over {self.main[:12]}"
-
-    def known(self):
-        return json.loads((self.kitchen.home.state / "fresh.json").read_text())
-
-
-BOTH = "grep -qx theirs b.txt && grep -qx ours b.txt"
-HOLD = 60
-
-
-def test_a_stale_pull_request_whose_head_passes_over_todays_main_is_merged(kitchen):
-    checked = Checked(kitchen, BOTH)
-    state = kitchen.home.state
-    assert kitchen.run("--check") == [f"wait 7 {url(7)}: {STALE.format('b.txt')}"]
-    assert checked.ran() == [] and not (state / "fresh.json").exists()
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
-    assert checked.ran() == [str(state / "fresh" / "7")]
-    assert not (state / "fresh" / "7").exists()
-    assert git(kitchen.home.main, "worktree", "list", "--porcelain").count("worktree ") == 1
-    record = checked.known()["7"]
-    assert record.pop("at").startswith(str(date.today().year))
-    assert record == {
-        "head": checked.head,
-        "main": checked.main,
-        "command": checked.command,
-        "result": "passed",
-    }
-    assert kitchen.at_main("b.txt") == ("theirs\n" + LINES + "ours\n").strip()
-
-
-def test_a_pass_is_remembered_for_that_head_over_that_main(kitchen):
-    checked = Checked(kitchen, BOTH)
-    (kitchen.home.state / "merge-off").write_text("")
-    off = [f"wait 7 {url(7)}: auto-merge is off for this repo"]
-    assert kitchen.run() == [f"wait 7 {url(7)}: {ready.FRESH_QUEUED}"]
-    settled(kitchen)
-    assert kitchen.run() == off
-    assert kitchen.run() == off
-    (kitchen.home.state / "merge-off").unlink()
-    assert kitchen.run("--check") == [f"ready 7 {checked.head} two two, {checked.passed()}"]
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
-    assert len(checked.ran()) == 1
-
-
-def test_a_head_that_fails_over_todays_main_waits_and_is_not_checked_twice(kitchen):
-    checked = Checked(kitchen, "echo it broke; exit 3")
-    fails = [f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"]
-    assert kitchen.after_check() == fails
-    assert kitchen.run() == fails
-    assert kitchen.run("--check") == fails
-    assert len(checked.ran()) == 1 and checked.known()["7"]["result"] == "failed"
-    assert (kitchen.home.state / "fresh" / "7.log").read_text() == "it broke\n"
-    assert kitchen.calls() == []
-    checked.wrote(BOTH)
-    again = kitchen.on_main({"a.txt": "theirs\n"})
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ") and f"over {again[:12]}, revert: " in said
-    assert len(checked.ran()) == 2
-
-
-def test_a_command_that_runs_over_its_time_is_stopped_and_queued_again_not_failed(
-    kitchen, monkeypatch
-):
-    """The limit counts the wait for a test slot too, so a run that goes over the limit shows
-    nothing about the tree. The pull request waits for a fresh check, which `jmerge` starts
-    again."""
-    checked = Checked(kitchen, "sleep 30")
-    home = kitchen.home
-    fresh = cli.Fresh(home.main, home.state, timeout=0.5)
-    here = repo(kitchen, monkeypatch, fresh)
-    one = ready.pull_request(kitchen.pulls["two"])
-    assert here.waits(one, "main")[1:3] == ("wait", ready.FRESH_QUEUED)
-    settled(kitchen)
-    assert checked.known()["7"]["result"] == "timed out"
-    assert markers(kitchen) == {} and not (home.state / "fresh" / "7").exists()
-    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state, timeout=0.5))
-    assert here.waits(one, "main")[1:] == ("wait", ready.FRESH_QUEUED, "", None)
-    end = time.monotonic() + 60
-    while len(checked.ran()) < 2:
-        assert time.monotonic() < end, "no second check was started"
-        time.sleep(0.05)
-    settled(kitchen)
-    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state, run=False))
-    assert here.waits(one, "main")[1:] == ("wait", ready.FRESH_QUEUED, "", None)
-    asleep = subprocess.run(["pgrep", "-f", "^sleep 30$"], capture_output=True, text=True)
-    assert [
-        pid
-        for pid in asleep.stdout.split()
-        if os.readlink(f"/proc/{pid}/cwd").startswith(str(home.state))
-    ] == []
-
-
-def test_a_head_that_does_not_merge_over_todays_main_waits_and_runs_nothing(kitchen):
-    (kitchen.home.state / "fresh-check").write_text("true\n")
-    kitchen.crew("two", 7, {"b.txt": "ours\n" + LINES})
-    kitchen.on_main({"b.txt": "theirs\n" + LINES})
-    assert kitchen.run() == [f"wait 7 {url(7)}: it conflicts with today's main"]
-    assert not (kitchen.home.state / "fresh.json").exists()
-    assert not (kitchen.home.state / "fresh").exists()
-
-
-def test_one_fresh_check_is_run_in_a_run_and_the_others_are_queued(kitchen):
-    checked = Checked(kitchen, "exit 1")
-    kitchen.crew("three", 8, {"a.txt": LINES + "ours\n"})
-    kitchen.on_main({"a.txt": "theirs\n" + LINES})
-    checked.main = kitchen.tip()
-    queued = [
-        f"wait 7 {url(7)}: a fresh check is queued",
-        f"wait 8 {url(8)}: a fresh check is queued",
-    ]
-    assert kitchen.run() == queued
-    settled(kitchen)
-    assert len(checked.ran()) == 1
-    checked.wrote("true")
-    before = known(kitchen)
-    fails = f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"
-    assert kitchen.run() == [fails, f"wait 8 {url(8)}: a fresh check is queued"]
-    settled(kitchen, before)
-    first, second = kitchen.run()
-    assert first == fails
-    assert second.startswith("merged 8 three ")
-    assert len(checked.ran()) == 2
-
-
-def test_a_fresh_check_another_run_is_making_is_not_started_again(kitchen):
-    checked = Checked(kitchen, BOTH)
-    with (kitchen.home.state / "fresh.lock").open("w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
-        assert checked.ran() == [] and not (kitchen.home.state / "fresh" / "7").exists()
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ")
-
-
-def test_the_command_holds_the_lock_itself_for_as_long_as_any_of_it_runs(kitchen, monkeypatch):
-    """A jmerge that is stopped leaves its command running. The command holds the lock too, so
-    the next run starts no second command while the first one runs. Here a background
-    process of the command keeps running after the check ends."""
-    checked = Checked(kitchen, "sleep 3 > /dev/null 2>&1 &")
-    home = kitchen.home
-    here = repo(kitchen, monkeypatch, cli.Fresh(home.main, home.state))
-    one = ready.pull_request(kitchen.pulls["two"])
-    assert here.waits(one, "main")[1:3] == ("wait", ready.FRESH_QUEUED)
-    recorded(kitchen, 7)
-    *_, judged = here.waits(one, "main")
-    assert judged.fresh == checked.passed()
-    other = cli.Fresh(home.main, home.state)
-    assert other.of(8, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
-
-
-def test_a_fresh_check_pushes_nothing_and_leaves_the_crewmates_worktree_alone(kitchen):
-    checked = Checked(kitchen, "echo scratch > scratch.txt; echo more >> b.txt; exit 1")
-    tree = kitchen.tmp / "trees" / "two"
-    real = shutil.which("git")
-    (kitchen.home.stub / "git").write_text(
-        f'#!/bin/sh\necho "$*" >> "$STUB/git-calls"\nexec {real} "$@"\n'
-    )
-    (kitchen.home.stub / "git").chmod(0o755)
-
-    def seen():
-        files = {
-            str(path.relative_to(tree)): (path.stat().st_mtime_ns, path.read_bytes())
-            for path in sorted(tree.rglob("*"))
-            if path.is_file()
-        }
-        refs = git(kitchen.origin, "for-each-ref", "--format=%(refname) %(objectname)")
-        local = git(kitchen.home.main, "for-each-ref", "--format=%(refname) %(objectname)")
-        return (
-            files,
-            refs,
-            local,
-            git(tree, "status", "--porcelain"),
-            git(tree, "rev-parse", "HEAD"),
-        )
-
-    before = seen()
-    assert kitchen.after_check() == [f"wait 7 {url(7)}: {checked.command} fails {checked.over()}"]
-    assert seen() == before
-    ran = (kitchen.home.stub / "git-calls").read_text().splitlines()
-    assert any(call.startswith("merge-tree --write-tree ") for call in ran)
-    assert any(call.startswith("worktree add -q --detach ") for call in ran)
-    assert [call for call in ran if "push" in call.split()] == []
-    assert [call for call in ran if str(tree) in call] == []
-    assert len(checked.ran()) == 1
-
-
-def settled(kitchen, before=None, limit=60.0):
-    """A run started a fresh check in the background. Wait until that check ends. The check ends
-    when it records something newer than what `fresh.json` had `before`. It then releases
-    `fresh.lock`, which it holds until it pushes its marker."""
-    fresh = cli.Fresh(kitchen.home.main, kitchen.home.state)
-    end = time.monotonic() + limit
-    while fresh.known() == (before or {}):
-        assert time.monotonic() < end, "the fresh check recorded nothing"
-        time.sleep(0.05)
-    with (kitchen.home.state / "fresh.lock").open("w") as lock:
-        while True:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return
-            except OSError:
-                assert time.monotonic() < end, "the fresh check did not end"
-                time.sleep(0.05)
-
-
-def known(kitchen):
-    return cli.Fresh(kitchen.home.main, kitchen.home.state).known()
-
-
-def recorded(kitchen, number, limit=60.0):
-    """Wait until the fresh check records what it found. A run started that check in the
-    background."""
-    end = time.monotonic() + limit
-    while str(number) not in cli.Fresh(kitchen.home.main, kitchen.home.state).known():
-        assert time.monotonic() < end, "the fresh check recorded nothing"
-        time.sleep(0.05)
-
-
-def checked_of(kitchen, fresh, checked):
-    """What `Fresh.of` says of the pull request once the fresh check that it started has ended."""
-    before = known(kitchen)
-    assert fresh.of(7, checked.head, checked.main, ("b.txt",)) == (ready.FRESH_QUEUED, "")
-    settled(kitchen, before)
-    return fresh.of(7, checked.head, checked.main, ("b.txt",))
-
-
 def markers(kitchen):
     """The trees marked on the origin, each with the commit its ref points at."""
     listed = git(kitchen.origin, "for-each-ref", "--format=%(refname) %(objectname)", sweep.MARKERS)
     return dict(line.split() for line in listed.splitlines())
-
-
-def test_a_pass_marks_its_tree_on_the_origin_before_it_is_said(kitchen):
-    checked = Checked(kitchen, BOTH)
-    home = kitchen.home
-    assert markers(kitchen) == {}
-    said = checked_of(kitchen, cli.Fresh(home.main, home.state), checked)
-    ((ref, commit),) = markers(kitchen).items()
-    assert said == ("", checked.passed())
-    tree = git(kitchen.origin, "rev-parse", f"{commit}^{{tree}}")
-    assert ref == f"refs/jstack/green-tree/selected/{tree}"
-    assert git(kitchen.origin, "log", "-1", "--format=%P %s", commit) == (
-        f"{checked.main} {checked.head} jmerge: {checked.head} over {checked.main}"
-    )
-    assert "unmarked" not in checked.known()["7"]
-    (merged,) = kitchen.run()
-    assert merged.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in merged
-    assert git(kitchen.origin, "rev-parse", "refs/heads/main^{tree}") == tree
-    assert markers(kitchen) == {ref: commit}
-
-
-def test_a_fail_marks_no_tree(kitchen):
-    checked = Checked(kitchen, "exit 3")
-    home = kitchen.home
-    why, note = checked_of(kitchen, cli.Fresh(home.main, home.state), checked)
-    assert (why.startswith(f"{checked.command} fails "), note) == (True, "")
-    assert checked.known()["7"]["result"] == "failed"
-    assert markers(kitchen) == {}
-
-
-def test_a_marker_the_origin_refuses_leaves_the_check_passed_and_the_note_says_why(kitchen):
-    checked = Checked(kitchen, BOTH)
-    home = kitchen.home
-    hook = kitchen.origin / "hooks" / "pre-receive"
-    hook.write_text(
-        "#!/bin/sh\nwhile read -r was now ref; do\n"
-        '    case $ref in refs/jstack/*) echo "no markers here" >&2; exit 1 ;; esac\ndone\n'
-    )
-    hook.chmod(0o755)
-    unmarked = f"{checked.passed()}, its tree is not marked (pre-receive hook declined)"
-    assert checked_of(kitchen, cli.Fresh(home.main, home.state), checked) == ("", unmarked)
-    assert markers(kitchen) == {}
-    record = checked.known()["7"]
-    assert (record["result"], record["unmarked"]) == ("passed", "pre-receive hook declined")
-    assert kitchen.run("--check") == [f"ready 7 {checked.head} two two, {unmarked}"]
-    (merged,) = kitchen.run()
-    assert merged.startswith("merged 7 two ") and f", {unmarked}, revert: " in merged
-    assert len(checked.ran()) == 1
 
 
 def test_a_sweep_deletes_a_marker_on_the_origin_that_is_more_than_seven_days_old(kitchen):
@@ -1013,68 +591,3 @@ def test_a_remote_branch_that_moved_after_the_merge_is_kept(kitchen):
     assert said.startswith("merged 7 two ") and f", {kept}, revert: " in said
     assert git(kitchen.origin, "rev-parse", "refs/heads/two") == late != head
     assert not (kitchen.tmp / "trees" / "two").exists()
-
-
-def test_a_slow_fresh_check_is_queued_at_once_and_a_later_run_reads_its_pass(kitchen):
-    """The 03:26 outage: the suite ran longer than the 300 s that jbus gives jmerge, so the
-    check never recorded its result. The run now returns while the check goes on, and the check
-    records when it ends. The check holds until the test releases it, or for HOLD s, and then
-    marks that it ended: a run that returns before that mark did not wait on the check, however
-    long a busy machine makes the run take."""
-    release, ended = kitchen.tmp / "release", kitchen.tmp / "ended"
-    checked = Checked(
-        kitchen,
-        f"end=$(($(date +%s) + {HOLD}))\n"
-        f'until [ -e "{release}" ] || [ "$(date +%s)" -ge "$end" ]; do sleep 0.05; done\n'
-        f'touch "{ended}"\n{BOTH}',
-    )
-    began = time.monotonic()
-    assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
-    took = time.monotonic() - began
-    assert not ended.exists(), (
-        f"the run waited on the check: it returned after {took:.1f} s, "
-        f"{took - HOLD:.1f} s after the check's {HOLD} s hold ended"
-    )
-    assert not (kitchen.home.state / "fresh.json").exists()
-    end = time.monotonic() + 60
-    while not checked.ran():
-        assert time.monotonic() < end, "the fresh check did not start"
-        time.sleep(0.05)
-    assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
-    release.touch()
-    settled(kitchen)
-    assert checked.known()["7"]["result"] == "passed"
-    (said,) = kitchen.run()
-    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
-    assert len(checked.ran()) == 1
-
-
-def test_the_check_is_a_transient_user_unit_with_the_runs_environment(kitchen, monkeypatch):
-    checked = Checked(kitchen, BOTH)
-    calls = kitchen.tmp / "systemd-run-calls"
-    monkeypatch.setenv("SYSTEMD_RUN_CALLS", str(calls))
-    monkeypatch.setenv("INVOCATION_ID", "the pass's own")
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
-    (call,) = calls.read_text().splitlines()
-    unit = f"jmerge-fresh-{kitchen.home.state.name.replace(' ', '-')}-7"
-    assert call.startswith(f"--user --quiet --collect --unit={unit} --setenv=")
-    assert " --setenv=PATH " in call and " --setenv=STUB " in call
-    assert "INVOCATION_ID" not in call
-
-
-def test_where_systemd_cannot_start_a_unit_the_check_is_a_process_of_its_own(
-    kitchen, no_user_units, monkeypatch
-):
-    """This test covers a check that runs outside a systemd unit. Inside a unit, such as a
-    pass, a plain process would end when the unit ends."""
-    (no_user_units / "systemd-run").write_text("#!/bin/sh\necho no user manager >&2\nexit 1\n")
-    checked = Checked(kitchen, f"sleep 1; {BOTH}")
-    monkeypatch.setenv("INVOCATION_ID", "the pass's own")
-    could_not = f"wait 7 {url(7)}: a fresh check could not be run (no user manager)"
-    assert kitchen.run() == [could_not]
-    assert kitchen.run() == [could_not] and checked.ran() == []
-    monkeypatch.delenv("INVOCATION_ID")
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ") and f", {checked.passed()}, revert: " in said
-    assert len(checked.ran()) == 1
