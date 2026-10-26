@@ -63,6 +63,8 @@ The fingerprint of those fields uses no model.
 An edit to `Skills:`, `Decisions:`, `Design:`, `Proves it:`, `Review:`, `Playbook:`, `Pull request:` or a note keeps the go (`NOT_MEANING` lists them).
 After a change to any of the six fields, the user must give the go again.
 `jbus queue add` runs the checks of `jbriefs.parse.faults` when it first queues a row.
+Among them, a brief whose `Review:` is `review` or `after` needs a `Decisions:` line with the user's words for it, or `none, <why>` where jbus files the brief, since `twice` is the default.
+Another refuses a brief whose head asks for a load that takes every core (`stress-ng --cpu 0`, `--cpu $(nproc)`, every core), and names a bounded load inside `jgauge test-slot` instead.
 A check added after a row got its go does not apply to that row, so it refuses neither the row's brief nor its launch.
 [What an approval is bound to](../../jbus/docs/jbus/the-queue.md#what-an-approval-is-bound-to) has the rules.
 
