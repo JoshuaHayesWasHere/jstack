@@ -70,31 +70,32 @@ def rows_of(slug: str, rows: list[queue.Row]) -> list[queue.Row]:
     return [row for row in rows if queue.entry(row) == slug]
 
 
-def status(entry: Entry, rows: list[queue.Row]) -> str:
-    """Return the progress of the entry's work. `rows` are the rows of the entry.
+@dataclass(frozen=True)
+class Progress:
+    """The count of some rows, in the parts `status` says. `finished` is each final status with
+    its count of the rows that are over, in the order of `queue.FINAL`. `pulls` is each open row
+    that has a pull request, as its number and its status, by number. `rest` is each other open
+    row's word with its count, in the order of `queue.STATUSES`. Each row is in one part."""
 
-    With rows, the function counts them: the finished ones first, `4 of 7 merged`, then each open
-    row that has a pull request, by its number, `#383 at pr`, then the rest by status,
-    `1 queued not approved`. With every row over, it says to close the entry. With no rows, it
-    returns the entry's stage, or its typed line, or `no stage`.
-    """
-    if not rows:
-        if entry.stage:
-            return entry.stage
-        return f"(typed) {entry.typed}" if entry.typed else "no stage"
-    done = [row for row in rows if queue.over(row)]
-    if len(done) == len(rows):
-        counted = "its row" if len(rows) == 1 else f"all {len(rows)} rows"
-        return f"{counted} finished: close it"
-    finished = Counter(row["status"] for row in done)
-    parts = [f"{finished[name]} {name}" for name in queue.FINAL if finished[name]] or ["0 merged"]
-    count, _, name = parts[0].partition(" ")
-    parts[0] = f"{count} of {len(rows)} {name}"
+    total: int
+    finished: tuple[tuple[str, int], ...]
+    pulls: tuple[tuple[str, str], ...]
+    rest: tuple[tuple[str, int], ...]
+
+    @property
+    def over(self) -> int:
+        return sum(count for _, count in self.finished)
+
+
+def progress(rows: list[queue.Row]) -> Progress:
+    """Count the rows: the finished ones by status, each open row with a pull request, and the
+    rest by status, where a queued row with no approval is `queued not approved` and a final
+    row that is not over is `<status> and waiting`."""
+    finished = Counter(row["status"] for row in rows if queue.over(row))
     still = [row for row in rows if not queue.over(row)]
     pulls = sorted(
         (row for row in still if row.get("pr")), key=lambda row: (len(row["pr"]), row["pr"])
     )
-    parts += [f"{row['pr']} at {row.get('status', 'queued')}" for row in pulls]
     rest: Counter[str] = Counter()
     for row in still:
         if row.get("pr"):
@@ -105,10 +106,40 @@ def status(entry: Entry, rows: list[queue.Row]) -> str:
         elif word in queue.FINAL:
             word = f"{word} and waiting"
         rest[word] += 1
-    for name in queue.STATUSES:
-        for word in (name, f"{name} not approved", f"{name} and waiting"):
-            if rest[word]:
-                parts.append(f"{rest[word]} {word}")
+    return Progress(
+        len(rows),
+        tuple((name, finished[name]) for name in queue.FINAL if finished[name]),
+        tuple((row["pr"], row.get("status", "queued")) for row in pulls),
+        tuple(
+            (word, rest[word])
+            for name in queue.STATUSES
+            for word in (name, f"{name} not approved", f"{name} and waiting")
+            if rest[word]
+        ),
+    )
+
+
+def status(entry: Entry, rows: list[queue.Row]) -> str:
+    """Return the progress of the entry's work. `rows` are the rows of the entry.
+
+    With rows, the function says their `progress`: the finished ones first, `4 of 7 merged`,
+    then each open row that has a pull request, by its number, `#383 at pr`, then the rest by
+    status, `1 queued not approved`. With every row over, it says to close the entry. With no
+    rows, it returns the entry's stage, or its typed line, or `no stage`.
+    """
+    if not rows:
+        if entry.stage:
+            return entry.stage
+        return f"(typed) {entry.typed}" if entry.typed else "no stage"
+    counted = progress(rows)
+    if counted.over == counted.total:
+        every = "its row" if counted.total == 1 else f"all {counted.total} rows"
+        return f"{every} finished: close it"
+    parts = [f"{count} {name}" for name, count in counted.finished] or ["0 merged"]
+    count, _, name = parts[0].partition(" ")
+    parts[0] = f"{count} of {counted.total} {name}"
+    parts += [f"{pr} at {word}" for pr, word in counted.pulls]
+    parts += [f"{count} {word}" for word, count in counted.rest]
     return ", ".join(parts)
 
 
