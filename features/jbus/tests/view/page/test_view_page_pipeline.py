@@ -44,7 +44,7 @@ SIZES = {"5": 5, "27": 27, "80": 81}
 SCREENS = {1440: DESK, 390: PHONE}
 
 
-def shown(root, rows, screen, route="#/", pick="", tap="", script=PROBE):
+def shown(root, rows, screen, route="#/", pick="", tap="", script=PROBE, at=2000, **how):
     """What the probe found on the board the fixture `board-<rows>.json` gives, with `pick`
     tapped once the page has drawn, and the board JSON."""
     with pytest.MonkeyPatch.context() as patch:
@@ -60,9 +60,10 @@ def shown(root, rows, screen, route="#/", pick="", tap="", script=PROBE):
                 port=served.port,
                 pick=pick,
                 tap=tap,
-                at=2000,
+                at=at,
                 budget=9000,
                 script=script,
+                **how,
             )
         finally:
             served.close()
@@ -268,6 +269,31 @@ def test_home_chips_count_and_filter_and_the_choice_is_in_the_address(tmp_path):
     assert cards == sorted(
         one["slug"] for one in made["rows"] if one["home"] == "macos" and not one["moving"]
     )
+
+
+@pytest.mark.parametrize("where", ["homes", "board"])
+def test_a_drawer_opened_over_the_homes_map_or_a_filtered_board_closes_back_to_it(tmp_path, where):
+    """A drawer keeps the view it opened over: closing it comes back to `#/homes`, or to the
+    board with its home, its filter and its pick."""
+    route = "#/homes" if where == "homes" else f"#/?home=jview&still=1&pick={a_middle(board('27'))}"
+    seen, _ = shown(
+        tmp_path, "27", DESK, route=route, script="", walk=["open:help", "close"], at=4000
+    )
+    assert seen["errors"] == []
+    opened, closed = seen["walked"]
+    joined = route + ("&" if "?" in route else "?") + "open=help"
+    assert opened["open"] and opened["hash"] == joined, opened["hash"]
+    assert (closed["open"], closed["hash"]) == (False, route)
+
+
+def test_a_chip_that_has_the_focus_filters_the_board_and_keeps_the_focus(tmp_path):
+    """A click focuses a chip before it filters, as a pointer does: the board draws again and
+    gives the focus back to the same chip."""
+    chip = '[data-bhome="jview"]'
+    seen, _ = shown(tmp_path, "27", DESK, script="", walk=[f"focus:{chip}", f"tap:{chip}"], at=4000)
+    assert seen["errors"] == []
+    assert seen["walked"][-1]["hash"] == "#/?home=jview"
+    assert seen["walked"][-1]["focus"] == "bh-jview"
 
 
 def test_the_homes_map_moved_to_its_own_tab(tmp_path):

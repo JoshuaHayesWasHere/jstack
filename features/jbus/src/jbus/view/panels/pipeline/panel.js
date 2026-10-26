@@ -132,7 +132,7 @@ function boardChips(view) {
   var homes = {}, still = 0;
   boardRows().forEach(function (r) { homes[r.home] = (homes[r.home] || 0) + 1; if (!r.moving && (!view.home || r.home === view.home)) still += 1; });
   var named = Object.keys(homes).sort(function (a, b) { return homes[b] - homes[a] || (a < b ? -1 : 1); });
-  function chip(attr, value, said, on) { return '<button type="button" ' + attr + '="' + esc(value) + '" aria-pressed="' + on + '">' + said + '</button>'; }
+  function chip(attr, value, said, on) { return '<button type="button" id="bh-' + esc(attr === "data-bstill" ? "still" : value || "all") + '" ' + attr + '="' + esc(value) + '" aria-pressed="' + on + '">' + said + '</button>'; }
   return '<div class="bd-chips" data-role="chips" role="group" aria-label="Show the rows of">' +
     chip("data-bhome", "", "All homes " + boardRows().length, !view.home) +
     named.map(function (h) { return chip("data-bhome", h, esc(h) + " " + homes[h], view.home === h); }).join("") +
@@ -198,7 +198,7 @@ function boardLinks() {
 function boardWhere(el) {
   if (!el || !el.getAttribute || !$("board").contains(el)) return "";
   var cls = el.className.split(" ")[0];
-  for (var i = 0, a = ["data-bpick", "data-bproj", "data-bhome", "data-bstill"], sel = "." + cls, any = false; i < a.length; i++) {
+  for (var i = 0, a = ["data-bpick", "data-bproj", "data-bhome", "data-bstill"], sel = cls ? "." + cls : el.tagName.toLowerCase(), any = false; i < a.length; i++) {
     if (el.hasAttribute(a[i])) { sel += "[" + a[i] + '="' + CSS.escape(el.getAttribute(a[i])) + '"]'; any = true; }
   }
   return any ? sel : "";
@@ -241,15 +241,10 @@ function boardDraw() {
 }
 
 function boardSet(change) {
-  var view = boardView(), keep = [];
+  var view = boardView();
   Object.keys(change).forEach(function (k) { view[k] = change[k]; });
-  if (view.home) keep.push("home=" + encodeURIComponent(view.home));
-  if (view.still) keep.push("still=1");
-  if (view.pick) keep.push("pick=" + encodeURIComponent(view.pick));
-  Object.keys(HASH).forEach(function (k) { if (["home", "still", "pick", "theme"].indexOf(k) < 0) keep.push(k + "=" + encodeURIComponent(HASH[k])); });
-  if (HASH.theme === "light" || HASH.theme === "dark") keep.push("theme=" + HASH.theme);
   HASH.home = view.home; HASH.still = view.still ? "1" : ""; HASH.pick = view.pick;
-  history.replaceState(history.state, "", (/^#\/flow/.test(location.hash) ? "#/flow" : "#/") + (keep.length ? "?" + keep.join("&") : ""));
+  history.replaceState(history.state, "", href("", top()));
   boardDraw();
 }
 

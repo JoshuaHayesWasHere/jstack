@@ -421,8 +421,11 @@
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
   }
   function href(project, target) {
-    var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "";
-    return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + (HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "");
+    var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "", theme = HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "";
+    var q = project || TRIAGE ? [] : ["home", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
+    if (target) q.push("open=" + encodeURIComponent(target));
+    if (!project && !TRIAGE && (HOMES || q.length > !!target)) return "#/" + (HOMES ? "homes" : "") + (q.length ? "?" + q.join("&") : "") + theme;
+    return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + theme;
   }
   (function () {
     var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
