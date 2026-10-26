@@ -42,10 +42,6 @@ function glanceTier(tier, items) {
 }
 function glanceWhen(t) { var v = ms(t); return v == null ? "" : NOW - v < 60e3 ? "just now" : short(NOW - v) + " ago"; }
 function glanceMoving(it) { return esc(it.cause) + ' &middot; ' + (ms(it.since) == null ? "no pass kept" : "last pass " + glanceWhen(it.since)); }
-/* The user looks at the band while its tab shows: each render then keeps NOW as the last look,
-   for every tab. A visit starts when the tab shows, and its line says what changed between the
-   look before it and its start, so the line stays the same while the user reads it and goes on
-   the next visit. A tab nobody sees keeps no look. */
 var GLANCE_KEY = "jbus.glance.looked", GLANCE_VISIT = null;
 function glanceStamp() { try { return Number(localStorage.getItem(GLANCE_KEY)) || null; } catch (e) { return null; } }
 function glanceShown() { return document.visibilityState !== "hidden"; }

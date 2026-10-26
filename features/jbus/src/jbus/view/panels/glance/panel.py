@@ -10,7 +10,12 @@ oldest comes first, and an item with no time last. The band reads what `/stack.j
 says and counts nothing of its own, so it never disagrees with the triage tab.
 
 Where nothing is wrong and nothing waits on the user, the band is `calm`: its one item is the
-line that says the work moves."""
+line that says the work moves.
+
+The page keeps when the user last looked, for every tab: each render while the tab shows keeps
+its time, and a tab nobody sees keeps none. A visit starts when the tab shows, and its "since you
+looked" line says what changed between the look before it and its start, so the line stays the
+same while the user reads it and is gone on the next visit."""
 
 from __future__ import annotations
 
