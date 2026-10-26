@@ -524,3 +524,40 @@ def test_infra_s_two_fix_rows_are_withdrawn_once_its_main_has_three_green_commit
         assert [row for row in jbus.queue.load(state) if mainjson.fix_of(row["slug"])] == []
         assert waits_on_the_user(state) == []
         assert all(withdrawn(state, name) for name in names)
+
+
+def test_a_fix_row_another_row_merges_after_is_kept_and_not_said_to_be_withdrawn(kitchen):
+    """A withdraw `queue` refuses leaves the row in: the home hears that it was not withdrawn,
+    and no line says it was."""
+    red = main_of(kitchen, "failure")[0]
+    kitchen.poll()
+    name = f"{mainjson.FIX}{red[:12]}"
+    assert queue_add(kitchen, "beta", "--merge-after", name)[0] == 0
+    main_of(kitchen, "failure", "success")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in main_red(kitchen)] == [name]
+    assert withdrawn(kitchen.state, name) is None
+    assert [line for line in kitchen.lines("retro") if "its row is withdrawn" in line] == []
+    refused = f"condition {name}: its row was not withdrawn: "
+    assert [line for line in kitchen.lines("condition") if line.startswith(refused)]
+
+
+def test_a_fix_row_left_on_its_own_green_and_launched_is_named_once_on_a_later_green(kitchen):
+    """The line for a row left on a rerun's green and the line for a launched row each have
+    their own key: the first does not stop the second, and the second is sent once."""
+    red = main_of(kitchen, "failure")[0]
+    kitchen.poll()
+    name = f"{mainjson.FIX}{red[:12]}"
+    checks(kitchen, red, "success")
+    jbus.write_json(kitchen.state / "checks.json", {})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    kept_line = f"retro {name}: main is green again at {red[:12]}, and its row is left as it is"
+    assert kitchen.lines("retro").count(kept_line) == 1
+    assert go(kitchen, name)[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert launched(kitchen) == [f"crew: {name}"]
+    green = main_of(kitchen, "failure", "success")[1]
+    kitchen.poll(NOW + timedelta(minutes=9))
+    kitchen.poll(NOW + timedelta(minutes=12))
+    left = f"retro {name}: main is green again at {green[:12]}, and its row launched, so it is "
+    assert len([line for line in kitchen.lines("retro") if line.startswith(left)]) == 1

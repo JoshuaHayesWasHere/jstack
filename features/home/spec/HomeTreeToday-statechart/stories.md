@@ -3,7 +3,7 @@
 Rule broken: No child retires while a call, gate, pull request or crew thread of its is open.
 Why: nothing checks what a scope has out when its handoff ends it.
 Not listed: no config of HomeTreeDesign.tla expects TLC to break this rule. None of its configs expects TLC to break a rule.
-There are 2696 ways to get here in the model. This is the shortest.
+There are 680 ways to get here in the model. This is the shortest.
 
 0. Start: No child yet: nothing for you
 1. The root makes child a. Now: Child a working: nothing for you
@@ -17,7 +17,7 @@ In the design, step 3 (you retire child a) cannot happen, so you stay at: Child 
 Rule broken: The root flags a child within K checks of observable quiet with work out, and a routine on a missed beat, from signals the child does not send.
 Why: a hung thread is a quiet event, logged and sent to nobody.
 Not listed: no config of HomeTreeDesign.tla expects TLC to break this rule. None of its configs expects TLC to break a rule.
-There are 2144 ways to get here in the model. This is the shortest.
+There are 272 ways to get here in the model. This is the shortest.
 
 0. Start: No child yet: nothing for you
 1. The root makes child a. Now: Child a working: nothing for you
@@ -31,7 +31,7 @@ In the design, step 3 (the root's check runs) takes you to: Child a working, cre
 Rule broken: jbus is the only merger; child homes never merge their own pull requests.
 Why: on home merges a child runs jmerge for its own pull request, and the root may too.
 Not listed: no config of HomeTreeDesign.tla expects TLC to break this rule. None of its configs expects TLC to break a rule.
-There are 629 ways to get here in the model. This is the shortest.
+There are 240 ways to get here in the model. This is the shortest.
 
 0. Start: No child yet: nothing for you
 1. The root makes child a. Now: Child a working: nothing for you

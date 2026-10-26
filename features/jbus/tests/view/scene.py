@@ -6,6 +6,9 @@ it over HTTP as a browser would. `gh` and `systemctl` are stand-ins on `PATH` th
 down how the test called them. A test of an answer that is sent runs the server over a kitchen
 of `test_jbus_kitchen`, whose T3 Code is a stand-in too. Nothing reaches the network, and every name
 here is made up.
+
+The server runs over a copy of every folder of packages. Its read set is empty: what that server
+runs is the modules of `jbus` and what they import, which the selector already follows from here.
 """
 
 import hashlib
@@ -29,6 +32,8 @@ from jbus.view import state as built
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
 from testing.paths import REPO, sources
+
+READ_SET = ()
 
 NOW = datetime(2026, 10, 12, 20, 0, tzinfo=UTC)
 

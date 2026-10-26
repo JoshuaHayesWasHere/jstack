@@ -441,3 +441,42 @@ def test_a_check_told_cancelled_twice_that_then_passes_at_the_same_head_leaves_t
     launched.set("open.json", [pull(launched)])
     passes(launched, 6)
     assert "cancelled" not in rows(launched)["alpha"]["why"]
+
+
+def blockers(kitchen):
+    code, said = kitchen.main("--project", "demo", "clear")
+    assert code == 0, said
+    return said.strip()
+
+
+@pytest.mark.parametrize("conclusion", ["CANCELLED", "TIMED_OUT"])
+def test_a_cancelled_check_jbus_runs_again_is_no_blocker_jbus_clear_asks_a_fix_for(
+    launched, conclusion
+):
+    """FlowBlockers' OneOwnerPerCancel: in the pass that runs a cancelled check again, the home's
+    `jbus clear` briefs no fix of it, and spends no try of the retry cap."""
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched)
+    launched.set("open.json", [pull(launched, [cancelled(conclusion)])])
+    passes(launched, 0)
+    assert reruns(launched) == ["run rerun 5 --failed"]
+    assert blockers(launched) == "nothing blocks this home"
+    passes(launched, 3)
+    assert blockers(launched) == "nothing blocks this home"
+
+
+def test_a_check_cancelled_again_at_its_rerun_is_a_blocker_once_the_home_is_told(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    ran(launched, attempt=2)
+    launched.set("open.json", [pull(launched, [cancelled()])])
+    passes(launched, 0)
+    assert len(to_home(launched)) == 1
+    assert blockers(launched).startswith("fix check:alpha: its check failed, brief a fix")
+
+
+def test_a_check_that_failed_is_a_blocker_at_the_first_pass(launched):
+    (launched.home / "home-id").write_text("mcp:home\n")
+    launched.set("open.json", [pull(launched, [failed()])])
+    passes(launched, 0)
+    assert reruns(launched) == []
+    assert blockers(launched).startswith("fix check:alpha: its check failed, brief a fix")
