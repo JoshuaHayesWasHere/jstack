@@ -26,7 +26,8 @@ The routes that read are `routes()`, all `GET`:
 
 The two writes are `WRITES`, `POST /answer` and `POST /steer`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
-have, gets 404. One more write, `POST /usage`, names no project: it counts a route, a drawer
+have, gets 404. A panel may take writes of its own, `POST /panel/<panel>/<write>`, held to the
+same checks (`panels`). One more write, `POST /usage`, names no project: it counts a route, a drawer
 or a first click of the page, and `jbus view usage` prints the counts (`usage`).
 
 The body of `/answer` is JSON. Its `numbers` are the questions to close. When it closes one
@@ -172,6 +173,13 @@ FIXED = (
 )
 BODY = 65536
 POSTS = (*WRITES, usage.USAGE)
+
+
+def posted(path: str) -> bool:
+    """Whether a path takes a POST: one of `POSTS`, or a panel's write (`panels.WRITE`)."""
+    return path in POSTS or panels.WRITE.fullmatch(path) is not None
+
+
 POLICY = (
     "default-src 'none'; font-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
@@ -442,6 +450,10 @@ class App(Writes):
         if path == usage.USAGE:
             return self._count(body)
         name = self._project(query)
+        named = panels.WRITE.fullmatch(path)
+        if named and name:
+            take = next((p.writes for p in self.panels if p.name == named[1]), {}).get(named[2])
+            return take(self, name, body) if take else NOT_FOUND
         if path not in WRITES or not name:
             return NOT_FOUND
         if path == STEER:
@@ -499,7 +511,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path, _, query = self.path.partition("?")
-        if path not in POSTS:
+        if not posted(path):
             self._refuse()
             return
         if not self._known():
@@ -523,7 +535,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(answer)
 
     def _refuse(self) -> None:
-        only = "POST" if self.path.partition("?")[0] in POSTS else "GET"
+        only = "POST" if posted(self.path.partition("?")[0]) else "GET"
         self._send(said(405, {"error": f"this address only takes {only}"}), allow=only)
 
     def __getattr__(self, name: str) -> Any:
