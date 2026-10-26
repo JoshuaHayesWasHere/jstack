@@ -5,7 +5,7 @@ with the chains its rows make and what holds the line.
 gave it (`STAGE_OF_STEP`). On the step `running`, who holds the task decides (`RUNNING_BY_WHO`):
 a hung, waiting or lost thread is the user's, so it is in `you`, and any other is the crew's. A
 task on no step the view knows is `unplaced`. A row merged into a train, a branch the home's
-`integration` file names (`milestones.panel._train_of`), is in `train` until the train lands,
+`integration` file names (the `milestones` panel's trains), is in `train` until the train lands,
 which no file the view reads records. A scout of `scouts.json` is in `scout` from its launch until
 its request has a Report (`state.request`). `merged` is a count of what merged today, less what
 merged into a train, and has no rows.
@@ -41,7 +41,6 @@ import jbus
 from jbus import queue, scouts
 from jbus.view import cause as causes
 from jbus.view.homes import ROOT
-from jbus.view.panels.milestones.panel import _train_of
 from jbus.view.state import (
     MOVES_FILE,
     PASS_FILE,
@@ -173,6 +172,12 @@ def _older(card: Card) -> tuple[bool, str]:
     return card.since is None, card.since or ""
 
 
+def _trained(read: Read) -> dict[str, str]:
+    """The train of each row of a train, as the `milestones` panel gives its trains."""
+    trains = read.panel("milestones")["milestones"]["trains"]
+    return {step["slug"]: train["branch"] for train in trains for step in train["steps"]}
+
+
 def _stage(task: dict[str, Any]) -> str | None:
     if task["step"] == "running":
         return RUNNING_BY_WHO.get(task["who"], STAGE_OF_STEP["running"])
@@ -229,7 +234,7 @@ def cards(read: Read) -> list[Card]:
                 links,
             )
         )
-    for slug, branch in read.once(_train_of).items():
+    for slug, branch in read.once(_trained).items():
         row = rows[slug]
         if slug in tasks or row.get("status") != "merged":
             continue
