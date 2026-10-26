@@ -116,9 +116,9 @@ function renderNeeds() {
   fallLine(src);
   if (bar) {
     var tail = (needs.length ? ["oldest " + ago(needs[0].since)] : []).concat(soon.length ? [soon.length + (needs.length ? " more" : "") + " on default"] : []);
-    put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> ' + (needs.length === 1 ? "waits" : "wait") + ' on you' : "Nothing waits on you" + lastPass()) + (tail.length ? ' <span class="nm">' + (needs.length ? "" : "&middot; ") + esc(tail.join(" · ")) + '</span>' : ""));
-    keyed($("nq"), "li", "nr", []); keyed($("np"), "li", "nr", []);
-    $("nq").hidden = true; $("np-w").hidden = true;
+    put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> ' + (needs.length === 1 ? "waits" : "wait") + ' on you' : "Nothing waits on you" + lastPass()) + (tail.length ? ' <span class="nm">' + (needs.length ? "" : "&middot; ") + esc(tail.join(" \u00b7 ")) + '</span>' : ""));
+    keyed($("nq"), "li", "nr", []);
+    $("nq").hidden = true;
     put($("nsaid"), saidRows());
     put($("nx"), "");
     return;
@@ -127,8 +127,6 @@ function renderNeeds() {
   put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + (soon.length ? ' <span class="nm">&middot; ' + soon.length + (soon.length === 1 ? " goes" : " go") + ' ahead on ' + (soon.length === 1 ? "its" : "their") + ' default</span>' : ""));
   keyed($("nq"), "li", "nr", all.map(function (w) { return { key: needId(w), html: needRow(w) }; }));
   $("nq").hidden = !all.length;
-  keyed($("np"), "li", "nr", []);
-  $("np-w").hidden = true;
   put($("nsaid"), saidRows());
   put($("nx"), !PROJECT ? "" : added("you").map(function (a) {
     return '<button type="button" class="tok sans faint" data-open="' + esc(a.said.open || a.from) + '" aria-description="' + esc(a.said.n + " " + a.said.label) + ': open it"><b' + (a.said.count ? ' data-gloss="' + esc(a.said.count) + '"' : "") + '>' + esc(a.said.n) + '</b> <span class="lb">' + esc(a.said.label) + '</span></button>';
