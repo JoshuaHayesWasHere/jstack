@@ -92,15 +92,20 @@ def a_day(scene, day):
         ("#/demo", "stopped", DESK),
         ("#/", "gone", DESK),
         ("#/demo", "gone", DESK),
+        ("#/triage", "busy", DESK),
         ("#/", "busy", PHONE),
         ("#/demo", "busy", PHONE),
+        ("#/help", "busy", PHONE),
+        ("#/triage", "busy", PHONE),
+        ("#/no-such-pot", "busy", PHONE),
     ],
 )
-def test_axe_finds_no_serious_issue_in_any_view_or_drawer(
+def test_axe_finds_no_wcag_22_aa_failure_in_any_view_or_drawer(
     scene, tmp_path, route, day, screen, theme
 ):
     """axe runs in the page over the view, then over every drawer the view or a drawer
-    opens. It runs at a desk and on a phone, where the sidebar is a row of chips. Each thing
+    opens, and finds no failure of WCAG 2.2 at level A or AA, and nothing else it calls serious.
+    Each route runs at a desk, 1440 wide, and on a phone, 390 wide. Each thing
     that takes the focus draws a ring when it has it."""
     when = {"budget": 60000, "screen": screen} | a_day(scene, day)
     seen = look(scene, tmp_path, route=route, fragment=f"theme={theme}", script=AXE, **when)

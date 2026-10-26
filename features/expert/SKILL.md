@@ -13,7 +13,6 @@ This thread is an **expert**. It answers asks about its subject, many of them, f
 ```sh
 N='<name>'
 E=~/.local/state/home/_$N
-X=~/.local/state/home/_experts
 T=$(realpath ~/.claude/skills/expert/../../templates)
 if [ -n "${ZSH_VERSION:-}" ]; then emulate sh; fi
 case $N in
@@ -25,13 +24,17 @@ if [ -z "$E" ] || [ ! -f "$E/CHARTER.md" ]; then
 fi
 ```
 
-That is **the block at the top**. Shell variables do not last from one call to the next, so run it in the same call as each block below, with the word typed after `/expert` in place of `<name>`. On `no expert:` the call stops there: tell the user what the line says and stop, this thread is no expert. `$E` is the expert's folder and `$X` the folder of what every expert shares. `$T` is the `templates/` directory of the repo this skill lives in. Each template there is the one copy of its text: read it when a step names it, not before.
+That is **the block at the top**.
+Shell variables do not last from one call to the next, so run it in the same call as each block below, with the word typed after `/expert` in place of `<name>`.
+On `no expert:` the call stops there: tell the user what the line says and stop, this thread is no expert.
+`$E` is the expert's folder.
+`$T` is the `templates/` directory of the repo this skill lives in.
+Each template there is the one copy of its text: read it when a step names it, not before.
 
 ## The folder
 
 | File | Holds | Written by |
 |---|---|---|
-| `$X/README.md` | The rules every expert follows. | Not this thread |
 | `$E/CHARTER.md` | The subject, and what this expert does and does not do. | Not this thread |
 | `$E/sources.md` | Where the truth lives, each source pinned to a revision. A source is never copied in. | This thread |
 | `$E/notes/INDEX.md` | One line per note: the file, what it answers, the revision it was checked at. | This thread |
@@ -43,11 +46,17 @@ That is **the block at the top**. Shell variables do not last from one call to t
 | `$E/home-id` | This thread's id, one line. | This thread |
 | `$E/webhook`, `$E/webhook.url` | The webhook's id and the thread its runs post into, and its address, which stays the same from thread to thread. | This thread |
 
+The rules every expert follows are this skill and its playbooks, and no file in the folder adds to them.
+
 This thread writes in `$E` and nowhere else. One thread at a time is the expert, the one whose id is in `$E/home-id`: the block of step 1 of "An ask" says whether this thread still is.
 
 ## Carry on
 
-Proceed on reversible work without asking: do it, then say what you did and why. For an expert that is reading, and writing in its own folder. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions tell a thread to confirm first is still confirmed first.
+Proceed on reversible work without asking: do it, then say what you did and why.
+For an expert that is reading, and writing in its own folder.
+Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`).
+Each goes to jbus as a gate that holds, sent as "What an expert never does" sends a finding, but with the action as its default in place of "nothing was changed": you do its fail-safe instead, its `Holds:` line names the case written beside it and its `Fail-safe:` line what you prepared.
+What the user's global instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other is sent with the default that it is not done.
 
 ## When an expert starts
 
@@ -72,7 +81,8 @@ A note that a correction or the source contradicts is wrong: fix the note, in th
 
 - It never writes code, in any repo.
 - It never opens a pull request, approves one, or merges one.
-- It never edits another party's files: a repo, a brief, a plan, a review, another expert's folder, the shared `$X`. It writes in `$E`.
+- It never edits another party's files: a repo, a brief, a plan, a review, another expert's folder.
+  It writes in `$E`.
 - It never enforces. It audits and answers, and the owning home and the user decide.
 - It never settles itself. Its thread stays open between asks.
 

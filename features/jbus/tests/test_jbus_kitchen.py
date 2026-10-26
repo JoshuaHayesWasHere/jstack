@@ -409,7 +409,8 @@ def fake_gh(stub, args, cwd):
         said = json.dumps({"status": known.get(args[1].split("/compare/")[1], "diverged")})
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
-        said = json.dumps({"check_runs": runs.get(args[1].split("/")[-2], [])})
+        ref = args[1].split("/commits/")[-1].removesuffix("/check-runs")
+        said = json.dumps({"check_runs": runs.get(ref, [])})
     elif args[0] == "api" and "/actions/runs?head_sha=" in args[1]:
         kept, sha = stub / "push-runs.json", args[1].split("head_sha=")[1].split("&")[0]
         pushed = json.loads(kept.read_text()) if kept.exists() else {}

@@ -14,6 +14,7 @@ import json
 
 import pytest
 
+from jbus import sidered
 from jmerge import ready, rows
 from test_jmerge_fresh import LINES, STALE, Kitchen, git, url, write
 from test_jmerge_order import main_says, queue_of
@@ -331,6 +332,77 @@ def test_the_fix_of_a_red_main_is_not_held_by_a_red_train():
     assert rows.base_red(TRAIN, failed, "main-red-cccccccccccc") == ""
 
 
+def fixes(text, line):
+    """The brief `text` with `line` in its head."""
+    return text.replace("Pull request:", f"{line}\nPull request:", 1)
+
+
+@pytest.mark.parametrize(
+    ("slug", "line"),
+    [
+        (f"train-red-{TRAIN}-{'d' * 12}", ""),
+        ("sync-main", f"Fixes red: {TRAIN} at {'d' * 12}"),
+        ("sync-main", f"Fixes red: {TRAIN} at {'d' * 40}"),
+    ],
+)
+def test_the_fix_of_a_red_train_at_its_tip_is_not_held_by_it(slug, line):
+    failed = [check_run("check", "failure", "2026-10-21T10:00:00Z")]
+    assert rows.base_red(TRAIN, failed, slug, fixes(f"# {slug}\nPull request: x\n", line)) == ""
+
+
+@pytest.mark.parametrize(
+    ("slug", "line"),
+    [
+        (f"train-red-other-{'d' * 12}", ""),
+        (f"train-red-{TRAIN}-{'e' * 12}", ""),
+        (f"train-red-{TRAIN}", ""),
+        ("sync-main", f"Fixes red: other at {'d' * 12}"),
+        ("sync-main", f"Fixes red: {TRAIN} at {'e' * 12}"),
+        ("sync-main", f"Fixes red: {TRAIN} at {'d' * 6}"),
+        ("sync-main", f"Fixes red: {TRAIN}"),
+        ("sync-main", f"Fixes: {TRAIN} at {'d' * 12}"),
+    ],
+)
+def test_a_fix_of_another_red_is_held_by_a_red_train(slug, line):
+    failed = [check_run("check", "failure", "2026-10-21T10:00:00Z")]
+    hold = ready.BASE_RED.format(base=TRAIN, sha="d" * 12)
+    assert rows.base_red(TRAIN, failed, slug, fixes(f"# {slug}\nPull request: x\n", line)) == hold
+
+
+def test_a_fixes_red_line_under_the_result_is_no_fix():
+    failed = [check_run("check", "failure", "2026-10-21T10:00:00Z")]
+    text = f"# one\nPull request: x\n\n## Result\nFixes red: {TRAIN} at {'d' * 12}\n"
+    assert rows.base_red(TRAIN, failed, "one", text) == ready.BASE_RED.format(
+        base=TRAIN, sha="d" * 12
+    )
+
+
+@pytest.mark.parametrize("named", ["slug", "line"])
+def test_a_red_train_lets_only_its_fix_through_and_a_green_tip_judges_all_again(kitchen, named):
+    integration(kitchen, TRAIN)
+    red = runs(kitchen, TRAIN, "success", "failure")
+    fix = f"train-red-{TRAIN}-{red[:12]}" if named == "slug" else "sync"
+    heads = {
+        "one": into(kitchen, "one", 6, {"a.txt": "ours\n" + LINES}),
+        "two": into(kitchen, "two", 7, {"b.txt": LINES + "ours\n"}),
+        fix: into(kitchen, fix, 8, {"c.txt": "fixed\n"}),
+    }
+    if named == "line":
+        brief = kitchen.home.tasks / f"{fix}.md"
+        brief.write_text(fixes(brief.read_text(), f"Fixes red: {TRAIN} at {red[:12]}"))
+    hold = ready.BASE_RED.format(base=TRAIN, sha=red[:12])
+    assert kitchen.run("--check") == [
+        f"wait 6 {url(6)}: {hold}",
+        f"wait 7 {url(7)}: {hold}",
+        f"ready 8 {heads[fix]} {fix} {fix}",
+    ]
+    runs(kitchen, TRAIN, "success", "success")
+    assert kitchen.run("--check") == [
+        f"ready {number} {heads[slug]} {slug} {slug}"
+        for number, slug in ((6, "one"), (7, "two"), (8, fix))
+    ]
+
+
 def viewed(kitchen, number, head, base):
     """What GitHub returns when a sweep asks about a merged pull request."""
     said = {"state": "MERGED", "headRefOid": head, "baseRefName": base}
@@ -359,3 +431,17 @@ def test_a_sweep_counts_a_pull_request_merged_into_the_train_as_merged(kitchen):
     viewed(kitchen, 6, head, TRAIN)
     said = kitchen.run("--sweep", "--check")
     assert [line for line in said if line.startswith("removable one ")], said
+
+
+@pytest.mark.parametrize(
+    ("branch", "slug"),
+    [
+        ("train/macos", "train-red-macos-aaaaaaaaaaaa"),
+        ("train/Mac OS+x", "train-red-mac-os-x-aaaaaaaaaaaa"),
+        ("-é.", "train-red-train-aaaaaaaaaaaa"),
+    ],
+)
+def test_the_fix_row_of_a_train_is_named_by_its_branch_and_its_red_tip(branch, slug):
+    """jmerge lets through the row by the name jbus files it under (`jbus.sidered.train_name`)."""
+    assert rows.train_fix(branch, "a" * 40) == slug == sidered.train_name(branch, "a" * 40)
+    assert rows.train_fix(branch, "") == sidered.train_name(branch, "")

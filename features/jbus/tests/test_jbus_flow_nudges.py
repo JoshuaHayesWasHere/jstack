@@ -51,15 +51,16 @@ MESSAGES = [
 THREADS = {ROOT: "home: demo", FLOW: "home: demo flow", CREW: "fl-nudges-tool"}
 
 
-def stamp(minutes):
+def stamp(minutes, at=T):
     return (
-        (T + timedelta(minutes=minutes)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        (at + timedelta(minutes=minutes)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
     )
 
 
-@pytest.fixture
-def store(tmp_path):
-    path = tmp_path / "statev2.sqlite"
+def write(path, threads, messages, at=T):
+    """Write a store at `path` with T3 Code's two tables: `threads` maps a thread id to its
+    title, and each of `messages` is `(minutes after at, thread, role, createdBy, text)`, with a
+    sixth item for one still streaming."""
     with sqlite3.connect(path) as db:
         db.execute(
             "create table orchestration_v2_projection_threads"
@@ -70,14 +71,14 @@ def store(tmp_path):
             " thread_id text not null, role text not null, streaming integer not null,"
             " created_at text not null, updated_at text not null, payload_json text not null)"
         )
-        for thread, title in THREADS.items():
+        for thread, title in threads.items():
             payload = {"createdBy": "system", "id": thread, "title": title}
             db.execute(
                 "insert into orchestration_v2_projection_threads values (?, ?, ?)",
                 (thread, title, json.dumps(payload)),
             )
-        for n, (minutes, thread, role, by, text, *streaming) in enumerate(MESSAGES):
-            at = stamp(minutes)
+        for n, (minutes, thread, role, by, text, *streaming) in enumerate(messages):
+            when = stamp(minutes, at)
             payload = {
                 "createdBy": by,
                 "creationSource": "web" if by == "user" else "server",
@@ -87,14 +88,19 @@ def store(tmp_path):
                 "text": text,
                 "attachments": [],
                 "streaming": bool(streaming),
-                "createdAt": at,
-                "updatedAt": at,
+                "createdAt": when,
+                "updatedAt": when,
             }
             db.execute(
                 "insert into orchestration_v2_projection_messages values (?, ?, ?, ?, ?, ?, ?)",
-                (f"m{n}", thread, role, int(bool(streaming)), at, at, json.dumps(payload)),
+                (f"m{n}", thread, role, int(bool(streaming)), when, when, json.dumps(payload)),
             )
     return path
+
+
+@pytest.fixture
+def store(tmp_path):
+    return write(tmp_path / "statev2.sqlite", THREADS, MESSAGES)
 
 
 @pytest.fixture

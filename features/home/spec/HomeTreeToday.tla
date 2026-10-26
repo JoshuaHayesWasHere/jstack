@@ -26,7 +26,7 @@ Calm(k) ==
 
 \* ---- a child's own steps
 
-\* Only the root home makes a scope, on the user's word (home/scoped-homes.md:15 `**Making a scope**
+\* Only the root home makes a scope, on the user's word (home/scoped-homes.md:55 `**Making a scope**
 \* is the root home's, and only on the user's word`).
 MakeChild(k) ==
     /\ k \in Made /\ life[k] = "unmade" /\ life' = Set(life, k, "working")
@@ -35,23 +35,23 @@ MakeChild(k) ==
 \* row, and the pass launches what is queued. A launched row is a change in what the child has
 \* out, so its spell ends.
 LaunchCrew(k) ==
-    /\ life[k] = "working"     \* jbus/dispatch.py:557 `"t3_thread_launch",`
+    /\ life[k] = "working"     \* jbus/dispatch.py:558 `"t3_thread_launch",`
     /\ work[k] = "none" /\ work' = Set(work, k, "crew") /\ Calm(k)
     /\ UNCHANGED <<life, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The crew opens the pull request ("Do the task" in the crew skill).
 OpenPr(k) ==
     /\ work[k] = "crew" /\ work' = Set(work, k, "open")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* Its checks pass (jmerge/cli.py:915 `short = short or ready.short_on_github(one)`) and its
-\* review is written (jmerge/cli.py:896 `short = short or ready.short_of(text, one.head)`).
+\* Its checks pass (jmerge/cli.py:918 `short = short or ready.short_on_github(one)`) and its
+\* review is written (jmerge/cli.py:899 `short = short or ready.short_of(text, one.head)`).
 PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* A check turns red or a review goes stale (jmerge/cli.py:915 `ready.short_on_github(one)`,
-\* jmerge/cli.py:896 `ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
+\* A check turns red or a review goes stale (jmerge/cli.py:918 `ready.short_on_github(one)`,
+\* jmerge/cli.py:899 `ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
 \* judges it again. A merge it had begun fails at the head it checked, and its run gives the merge
-\* lock back as it returns (jmerge/cli.py:1174 `lock.give()`).
+\* lock back as it returns (jmerge/cli.py:1211 `lock.give()`).
 PrDrops(k) ==
     /\ work[k] = "ready" /\ work' = Set(work, k, "again")
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
@@ -192,23 +192,23 @@ Check ==
 
 \* jbus runs jmerge on each pass whatever home-thread holds, so it judges every home's pull
 \* request, and mode plays no part (jbus/merge.py:147 `ran = run.run("jmerge",
-\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1723-1724
+\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1760-1761
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==
-    /\ a = "jbus"     \* jmerge/cli.py:1723-1724 `if args.home: args.check = True`
-\* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1184 `while lock.take():`), a
-\* run that finds it held merges nothing (jmerge/cli.py:1202 `return lines.waits("wait", number,
-\* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1174 `lock.give()`).
+    /\ a = "jbus"     \* jmerge/cli.py:1760-1761 `if args.home: args.check = True`
+\* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1221 `while lock.take():`), a
+\* run that finds it held merges nothing (jmerge/cli.py:1239 `return lines.waits("wait", number,
+\* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1211 `lock.give()`).
 Read(a, k) ==
-    /\ MayMerge(a, k)     \* jmerge/cli.py:890 `if self.others(text) and not self.every:`
-    /\ Ready(k)     \* jmerge/cli.py:994 `return Judgement(brief.stem, "", "", note, judged)`
-    /\ lock = "free"     \* jmerge/cli.py:1184 `while lock.take():`
-    /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1187 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
+    /\ MayMerge(a, k)     \* jmerge/cli.py:893 `if self.others(text) and not self.every:`
+    /\ Ready(k)     \* jmerge/cli.py:997 `return Judgement(brief.stem, "", "", note, judged)`
+    /\ lock = "free"     \* jmerge/cli.py:1221 `while lock.take():`
+    /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1224 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
     /\ lock' = k
     /\ UNCHANGED <<life, work, msg, quiet, watch, wake, moved, up, broke, tip, blind, mode>>
 Merge(a, k) ==
-    /\ seen[k][a] # NoTip     \* jmerge/cli.py:1188 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
-    /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1219 `"merge",`
+    /\ seen[k][a] # NoTip     \* jmerge/cli.py:1225 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
+    /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1256 `"merge",`
     /\ blind' = (blind \/ seen[k][a] # tip)
     /\ tip' = Up(tip, 2)
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])

@@ -51,7 +51,11 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
 
 ## Carry on
 
-Proceed on reversible work without asking: do it, then say what you did and why. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first. When in doubt, act and write down what you did.
+Proceed on reversible work without asking: do it, then say what you did and why.
+Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`).
+Each is a gate that holds, parked as "Research" says: the action is its default, you do its fail-safe instead, its `Holds:` line names the case written beside it, its `Fail-safe:` line what you prepared, and you carry on with what does not depend on it.
+What the user's global instructions or the repo's own instructions tell a thread to confirm first is a gate too: one of the six cases of `$T/gates.md` holds as above, and any other acts at once on the default that it is not done.
+When in doubt, act and write down what you did.
 
 ## Research
 
@@ -97,7 +101,7 @@ Go by it, and take the default back where it differs.
 On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread the block in step 3 of "End" prints, and with no home there put them in the report under "Findings", the one place left that can hold them.
 On `not sent`, nothing was queued: fill in the line it names and run it again.
 An answer that differs from the default comes back as a message here, from jbus.
-Only the four pauses of "Carry on" are asked here and waited on.
+The four things "Carry on" never does on a default are such gates, each one that holds.
 Besides a gate jbus could not take, a scout sends its home nothing before the End.
 
 ## Write it down

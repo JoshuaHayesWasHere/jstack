@@ -180,6 +180,12 @@ class User:
         self.GAUGE = group("home-gauge.sh", self.home, matcher=None)
         self.OUTBOUND = group("outbound-command.sh", self.home, matcher="Bash", refuses=True)
         self.TRAILER = group("ai-trailer.sh", self.home, matcher="Bash", refuses=True)
+        self.INFRA = group(
+            "infra-files.sh",
+            self.home,
+            matcher="Bash|Write|Edit|MultiEdit|NotebookEdit",
+            refuses=True,
+        )
         self.CODEX_TRAILER = group(
             "ai-trailer.sh", self.home, matcher="Bash", refuses=True, harness="codex"
         )
@@ -1180,13 +1186,14 @@ def test_a_machine_with_the_gauge_only_after_a_tool_call_gets_it_before_one_too(
     code, said = user.run("--check")
     assert (code, line_for(said, part)) == (
         1,
-        [f"missing hard {part}", f"missing hard {part}", f"ok hard {part}"],
+        [f"missing hard {part}", f"missing hard {part}", f"missing hard {part}", f"ok hard {part}"],
     )
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
         user.OUTBOUND,
         user.TRAILER,
         user.GAUGE,
+        user.INFRA,
     ]
     assert user.run("--check") == (0, user.every("ok"))
 

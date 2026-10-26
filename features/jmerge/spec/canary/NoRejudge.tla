@@ -55,10 +55,10 @@ CrewFix(p) ==
 \* started and is green now, is checked again over today's base: GitHub merges the base into
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:871, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:874, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:833, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:944, base not red
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:836, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:947, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full>>
