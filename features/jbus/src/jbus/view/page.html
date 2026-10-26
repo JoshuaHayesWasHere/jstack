@@ -61,8 +61,6 @@
   .needs { margin-top: 10px; border: 1.5px solid var(--hair); border-left: 5px solid var(--due); border-radius: 10px; background: var(--surface); padding: 6px 14px 8px; }
   .needs h2 { font-size: 20px; margin: 0; display: flex; align-items: baseline; gap: 9px; }
   .needs h2 b { font-size: 30px; line-height: 1.1; color: var(--due); }
-  .soon > summary { margin-top: 6px; padding: 4px 0; font-size: 15px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
-  details.soon[open] > summary { margin-bottom: 2px; }
   .nq { margin-top: 4px; }
   .nr { display: flex; flex-wrap: wrap; gap: 4px 17.5px; align-items: center; justify-content: space-between; padding: 4px 0; border-top: 1px solid var(--hair); }
   .nr:first-child { border-top: 0; }
@@ -71,7 +69,6 @@
   .ny { font-size: 15px; overflow-wrap: anywhere; }
   .nm { font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }
   .na { flex: none; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; }
-  .nq.soon .nw { font-size: 15px; font-weight: 600; }
   .nq .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; text-decoration: none; color: var(--ink); }
   .nq .btn:hover { border-color: var(--ink); }
   .btn.fill { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 700; }
@@ -335,7 +332,7 @@
   }
   @media (max-width: 640px) {
     .back, .pgs, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
-    .nq .btn, .soon > summary { min-height: 44px; display: flex; align-items: center; }
+    .nq .btn { min-height: 44px; display: flex; align-items: center; }
     .needs .go:not([hidden]), .hm .cn, .hf, .ql a { min-height: 44px; display: inline-flex; align-items: center; }
     .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
@@ -357,11 +354,11 @@
 </header>
 <main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
+  <div id="cards"></div>
   <section class="needs" id="needs" aria-labelledby="needs-h" hidden>
     <h2 id="needs-h"></h2>
     <a class="btn fill go" id="needs-go" href="#/triage" hidden>Open</a>
     <ol class="nq clean" id="nq"></ol>
-    <details class="soon" id="np-w"><summary id="np-h"></summary><ol class="nq clean soon" id="np"></ol></details>
     <div id="nsaid" role="status"></div>
   </section>
   <p class="nx" id="nx"></p>
@@ -805,7 +802,7 @@
   }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
-    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : ""));
+    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>');
     $("calm").hidden = rows.length > 0;
     renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
@@ -842,6 +839,7 @@
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
+    put($("cards"), PROJECT || TRIAGE || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
     if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else renderStack();
     freshen();
