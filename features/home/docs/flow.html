@@ -232,12 +232,12 @@
     <div class="row rev">
       <div class="cell h"><div class="box plain"><b>Woken by the message</b><small>It runs no watch and polls nothing.</small></div><i class="ar l"></i></div>
       <div class="cell s"><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</b></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green, and only while a home merges. While <code>jbus</code> merges, the crewmate sends nothing.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green, and only while <code>home-thread</code> holds an id: the home then reads what <code>jbus</code> merged. With it empty, the crewmate sends nothing.</small></div></div>
       <div class="cell g"></div>
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">12</span>Merge</b><small><code>jbus</code> runs <code>jmerge</code>, which has no model, on each pass. While <code>home-thread</code> holds this home's id, <code>jbus</code> runs none, and the home runs <code>jmerge --home &lt;threadId&gt;</code> on the <code>fixed and green</code> line. It merges what is reviewed, fixed and green, and prints <code>wait</code> and the reason for the rest. The home tells you.</small></div><i class="ar r"></i></div>
+      <div class="cell h"><div class="box"><b><span class="n">12</span>Merge</b><small><code>jbus</code> runs <code>jmerge</code>, which has no model, on each pass, whatever <code>home-thread</code> holds: it is the only merger. It merges what is reviewed, fixed and green, and prints <code>wait</code> and the reason for the rest. The home reads what it printed and tells you.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>merge.log</b><small>what was merged, dated. <code>jmerge</code> changes no plan entry.</small></div></div>
       <div class="cell c"><div class="box plain"><b>Worktree and branches removed</b><small>By <code>jmerge</code>, when clean. T3 Code settles the thread when its linked pull request merges.</small></div></div>
       <div class="cell g"><div class="box"><b>Merged</b><small>A squash, at the exact head that was checked.</small></div></div>
@@ -266,7 +266,7 @@
   <table>
     <thead><tr><th>The message</th><th>From, to</th><th>Sent when</th></tr></thead>
     <tbody>
-      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The crewmate sends it only when a home is the one that merges, and that home merges the pull request on it.</td></tr>
+      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The crewmate sends it only while <code>home-thread</code> holds an id, and the home reads what <code>jbus</code> did of it: <code>jbus</code> merges it either way.</td></tr>
       <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to its home</td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It waits for your word.</td></tr>
       <tr><td>The task ended with no pull request</td><td>Crewmate, to its home</td><td>Its Result names none. At most five lines.</td></tr>
       <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end. Once more only if a page's feedback changed the report.</td></tr>
@@ -329,7 +329,7 @@
     <li>Only the root home makes a scope, and only on your word.</li>
     <li>No home writes another home's directory.</li>
     <li>A scoped home's slugs and branches start with its prefix.</li>
-    <li><code>jbus</code> runs <code>jmerge</code> as the root home while <code>home-thread</code> is empty, and then it merges every home's pull request, a scoped home's too. While <code>home-thread</code> holds a home's id, each home merges its own instead. <code>jmerge --all</code> takes the other homes' pull requests too, on your word.</li>
+    <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home &lt;threadId&gt;</code> merges nothing.</li>
     <li>Homes do not message each other, except about a decision that crosses scopes.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
     <li>A scoped home whose plan has no open entry closes at its handoff, and it starts no next home.</li>
@@ -339,17 +339,16 @@
 
 <section>
   <h2><code>jmerge</code>: the merge, with no model</h2>
-  <p class="lead">One command does the merge, the sweep and the launch check. <code>jbus</code> runs the merge on each pass. While <code>home-thread</code> holds a home's id, that home runs it instead and relays what it printed.</p>
+  <p class="lead">One command does the merge, the sweep and the launch check. <code>jbus</code> runs the merge on each pass, whatever <code>home-thread</code> holds, and a home relays what it printed.</p>
   <table>
     <thead><tr><th>Run as</th><th>When</th><th>Prints</th><th>Changes</th></tr></thead>
     <tbody>
       <tr><td><code>jmerge</code></td><td>Each <code>jbus</code> pass, or by hand in the main checkout</td><td><code>merged</code>, <code>wait</code> or <code>hold</code> and the reason, one line per open pull request</td><td>Merges, pulls the main checkout, removes the worktree and both branches. It writes no plan.</td></tr>
-      <tr><td><code>jmerge --home &lt;threadId&gt;</code></td><td>While <code>home-thread</code> holds that home's id: on a <code>fixed and green</code> message, on status, at the home's start</td><td>As the first row, for that home's pull requests</td><td>As the first row</td></tr>
+      <tr><td><code>jmerge --home &lt;threadId&gt;</code></td><td>By a home, to see what is ready</td><td><code>ready</code> in place of merging, for that home's pull requests</td><td>Nothing</td></tr>
       <tr><td><code>jmerge --check</code></td><td>To see what is ready</td><td><code>ready</code> in place of merging</td><td>Nothing</td></tr>
-      <tr><td><code>jmerge --all</code></td><td>Only on your word</td><td>As the first row</td><td>Merges the pull requests of the repo's other homes too</td></tr>
       <tr><td><code>jmerge --accept &lt;number&gt; --by &lt;user&gt; --at "YYYY-MM-DD HH:MM &lt;zone&gt;"</code></td><td>Only on your word, for a pull request it holds</td><td><code>accepted</code> and then the lines of the first row, or <code>refused</code> and the reason</td><td>Merges that pull request at the head where <code>jmerge</code> printed the hold, if its review proved its safety fact at that head</td></tr>
       <tr><td><code>jmerge --land &lt;name&gt;</code></td><td>Only on your word, for a stack</td><td>As the first row</td><td>Merges the pull requests of that stack too, each once its base is the default branch</td></tr>
-      <tr><td><code>jmerge --sweep</code></td><td>Once at a home's start, after the merge, while that home merges</td><td><code>removed</code> or <code>kept</code> and the reason</td><td>Removes the worktree, the branches and the gate's ref of each finished thread whose work is all merged or pushed</td></tr>
+      <tr><td><code>jmerge --sweep</code></td><td>Once at a home's start, after the merge, while <code>home-thread</code> holds an id</td><td><code>removed</code> or <code>kept</code> and the reason</td><td>Removes the worktree, the branches and the gate's ref of each finished thread whose work is all merged or pushed</td></tr>
       <tr><td><code>jmerge --sweep --check</code></td><td>To see both lists</td><td><code>removable</code> in place of <code>removed</code></td><td>Nothing</td></tr>
       <tr><td><code>jmerge --claims</code></td><td>Before every launch</td><td>One line per brief that still holds files, across the homes of the repo</td><td>Nothing</td></tr>
       <tr><td><code>jmerge --scope &lt;slug&gt;</code></td><td>Before a pull request opens, and in its review</td><td>Each changed file the brief's <code>Where:</code> does not cover</td><td>Nothing</td></tr>

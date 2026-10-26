@@ -15,7 +15,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `off` | Present when the automatic home is switched off for the repo. |
 | `merge-off` | Present when the automatic merge is switched off for the repo. |
 | `fresh-check` | One line, the command `jmerge` runs as the repo's local check. Optional. |
-| `home-thread` | The merge switch. Empty or missing, `jbus` runs `jmerge`. With a thread id in it, that home runs `jmerge` and `jbus` does not. You write it by hand. |
+| `home-thread` | The sweep switch. With a thread id in it, the home runs `jmerge --sweep` at its start; empty or missing, nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. You write it by hand. |
 
 A home's own directory is the repo's directory for the root home, and `~/.local/state/home/<repo>/<scope>/` for a scoped one:
 

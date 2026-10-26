@@ -726,11 +726,11 @@ class Repo:
         return found
 
     def others(self, text: str) -> bool:
-        """Whether the brief is another home's to merge. While `home-thread` is empty, jbus is
-        the one runner and every home's brief is its own: none is another's, except to a thread
-        that is no home now. With an id in the switch, each home merges its own."""
-        if self.asking != claims.NOBODY and not _read(self.state / "home-thread").strip():
-            return False
+        """Whether the brief is another home's, to a home that asks with `--home`. A home sees
+        its own pull requests alone, and merges none: only a run that names no home, jbus's,
+        merges, and it judges every home's brief as its own (`every`). The `home-thread` file
+        plays no part: a home that asks never merges, whatever the file holds, since jbus is
+        the only merger."""
         return claims.home_of(text, self.homes.known) != self.asking
 
     @functools.cached_property
@@ -1393,15 +1393,32 @@ class Repo:
         rebase: str = "",
         judged: ready.Judged | None = None,
     ) -> str:
-        number = str(one.number)
         judged = judged or ready.Judged()
         if self.own and self.unruly is None:
             self.unruly = self.rules()
+        from jmerge.lock import MergeLock
+
+        lock = MergeLock(self.state)
+        try:
+            return self.merge_holding(lock, one, slug, rebase, judged)
+        finally:
+            lock.give()
+
+    def merge_holding(
+        self, lock, one: ready.PullRequest, slug: str, rebase: str, judged: ready.Judged
+    ) -> str:
+        """Merge `one` while this run holds the repo's merge lock, from the read of its base's
+        tip to the merge. A tip that moved since it was judged gives the lock back while the pull
+        request is judged again, so a fresh check holds up no other run."""
+        number = str(one.number)
         again = 0
-        while judged.tip:
+        while lock.take():
+            if not judged.tip:
+                break
             at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")
             if not at.returncode and _first_word(at.stdout) == judged.tip:
                 break
+            lock.give()
             if again == JUDGED_AGAIN_AT_MOST:
                 guarded = f"guarded (touches {judged.path}), " if judged.path else ""
                 moved = ready.MAIN_MOVED.format(base=one.base)
@@ -1412,6 +1429,8 @@ class Repo:
             if again_judged.judged is None:
                 return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
             rebase, judged = again_judged.note, again_judged.judged
+        else:
+            return lines.waits("wait", number, one.url, ready.MERGING)
         landing = one.base == self.trunk and one.branch in self.integration
         method, why = self.landing if landing else ("--squash", "")
         if not method:
@@ -1852,16 +1871,16 @@ def parser() -> argparse.ArgumentParser:
         "--at", metavar="WHEN", help='with --accept: when it was said, "YYYY-MM-DD HH:MM ZONE"'
     )
     top.add_argument(
-        "--all", action="store_true", help="merge the pull requests of this repo's other homes too"
-    )
-    top.add_argument(
         "--land",
         metavar="STACK",
         help="the stack the user said to land: merge its pull requests as any other, each "
         "once its base is the default branch",
     )
     top.add_argument(
-        "--home", metavar="ID", help="the home that is asking (default: the id in home-id)"
+        "--home",
+        metavar="ID",
+        help="the home that is asking: say what jmerge would do of its own pull requests, as "
+        "--check does, and merge nothing, since jbus alone merges",
     )
     return top
 
@@ -1884,6 +1903,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("jmerge: --by and --at go with --accept")
     if args.accept is not None and not args.accept.isdigit():
         raise SystemExit(f"jmerge: --accept takes a pull request's number, not {args.accept}")
+    if args.home:
+        args.check = True
     said = args.accept is not None and not (args.check and not args.by and not args.at)
     if said and args.by != user.user:
         raise SystemExit(f"jmerge: only {user.user} accepts a hold, not {args.by or 'nobody'}")
@@ -1897,9 +1918,9 @@ def main(argv: list[str] | None = None) -> int:
     main_checkout = Path(here.stdout.strip()).parent
     state = Path.home() / ".local" / "state" / "home" / main_checkout.name
     if args.claims:
-        return Repo(main_checkout, state, args.home, args.all, user=user).claimed()
+        return Repo(main_checkout, state, args.home, not args.home, user=user).claimed()
     if args.scope:
-        return Repo(main_checkout, state, args.home, args.all, user=user).scoped(args.scope)
+        return Repo(main_checkout, state, args.home, not args.home, user=user).scoped(args.scope)
 
     def rules() -> str:
         found = rules_are_mains(PACKAGE)
@@ -1910,7 +1931,7 @@ def main(argv: list[str] | None = None) -> int:
         main_checkout,
         state,
         args.home,
-        args.all,
+        not args.home,
         args.land,
         patterns(PROTECTED),
         patterns(GUARDED),

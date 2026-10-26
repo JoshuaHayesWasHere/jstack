@@ -1,11 +1,10 @@
 """Merging is `jmerge`'s job and nobody else's: jbus runs the command and reads its lines.
 
-jbus runs `jmerge` only when the project's home is off, that is, when the home's `home-thread` file
-is missing or empty. A home that is switched on does its own merging, and two merges at once would
-race. The pass holds the pass lock around the run, so two passes never run `jmerge` together either.
-Where the home merges, the pass still asks `jmerge` what it says of each pull request, with `CHECK`,
-which merges and logs nothing (`shown`). A row's reason is then what `jmerge` says in this pass, and
-not the last line a run of the home's logged, which only the home's next run brings up to date.
+jbus is the only merger: it runs `jmerge` on each pass whatever the home's `home-thread` file
+says, with no `--home`, so the run judges the pull requests of every home of the repo, and a
+home's own run of `jmerge --home` merges nothing. The pass holds the pass lock around the run, so
+two passes never run `jmerge` together, and `jmerge` holds the repo's merge lock from its read of
+main's tip to its merge, so a hand run of the user's never merges between them either.
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
@@ -52,7 +51,6 @@ _NO_LIST = re.compile(
 )
 NO_LIST = "jmerge has no readable protected-paths list, nothing merges"
 SWEEP = ("jmerge", "--sweep", "--check")
-CHECK = ("jmerge", "--check")
 UNRULED = re.compile(
     re.escape(ready.UNRULED_DROPS)
     .replace(r"\{user\}", ".+?")
@@ -134,13 +132,6 @@ class Said(list[str]):
         return kept
 
 
-def home_thread(run: Pass) -> str:
-    try:
-        return (run.home / "home-thread").read_text().strip()
-    except OSError:
-        return ""
-
-
 def merge(run: Pass) -> Said:
     """Run `jmerge`, send each line it prints about a pull request, and return the lines.
 
@@ -153,10 +144,6 @@ def merge(run: Pass) -> Said:
     a run always did, and the pass says that `jmerge` stopped. The `Said` that this function returns
     is then `failed`, so jbus keeps what it knew of the rows that `jmerge` did not reach.
     """
-    home = home_thread(run)
-    if home:
-        run.say(f"skipped {run.project.name}: the home {home} merges")
-        return Said()
     ran = run.run("jmerge", timeout=JMERGE_TIMEOUT)
     lines = Said()
     for text in map(str.strip, ran.stdout.splitlines()):
@@ -185,33 +172,10 @@ def merge(run: Pass) -> Said:
     return lines
 
 
-def shown(run: Pass, said: Said) -> Said:
-    """Return the lines a row's reason and the list of holds are read from: what `merge` printed
-    in this pass, `said`, or, where the home merges, what `jmerge` says with `CHECK`.
-
-    The lines of `CHECK` are kept apart from `said`, since jbus acts on `said` (a rebase, an
-    expedite), and where the home merges, acting on a pull request is the home's. They are not
-    sent as events either: the home's own run of `jmerge` logs its lines. The `Said` is `failed`
-    when `CHECK` did not run to its end, so the pass keeps what it knew of the rows."""
-    if not home_thread(run):
-        return said
-    ran = run.run(*CHECK, timeout=JMERGE_TIMEOUT)
-    lines = Said(
-        text
-        for text in map(str.strip, ran.stdout.splitlines())
-        if (line := parse(text)) and line.word != "refused"
-    )
-    lines.failed = bool(ran.returncode)
-    if lines.failed:
-        run.say(f"wait {run.project.name}: {' '.join(CHECK)} did not run to its end ({_why(ran)})")
-    return lines
-
-
 def _shown(half: Half) -> None:
-    """Keep the lines of `shown`, and what `merge` printed as the user is to hear it (`Said.crews`).
-    `stall.tell` reads `users`: where the home merges, a hold is the home's to act on, so `users`
-    holds no line of `CHECK`, and `waiting.keep` lists the holds from `shown`."""
-    half.shown = shown(half.run, half.said)
+    """Keep the lines a row's reason and the list of holds are read from, which are what `merge`
+    printed in this pass, and those lines as the user is to hear them (`Said.crews`)."""
+    half.shown = half.said
     half.users = half.said.crews(half.crews)
 
 

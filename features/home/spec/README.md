@@ -18,7 +18,7 @@ python3 features/home/spec/canaries.py
 Run it from the repo root.
 It checks that each rule holds in the design in each scene.
 It checks that each canary, the design with one guard taken out, breaks the rule that rests on that guard, so no rule holds by construction.
-It checks that today's code breaks the four rules it breaks today, and keeps the two it keeps.
+It checks that each rule holds in today's code in each scene, with the merge switch either way.
 It prints one line for each run and ends 0 when every run says what it should.
 TLC is the statechart skill's pinned `tla2tools.jar`, and Java is `JAVA` or a `java` on `PATH`.
 `features/home/tests/test_home_tree_spec.py` runs it, and skips where no Java runs TLC.
@@ -35,29 +35,34 @@ In the siblings' scene the rules on calls hold with little to check, since only 
 S=features/skill-library/skills/statechart/scripts
 cd features/home/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
-    statechart from-spec HomeTreeToday.tla --against HomeTreeDesign.tla --label "the design" \
-    --expect-broken NoRetireWithOpen --expect-broken StallFlagged --expect-broken OneMerger --png
+    statechart from-spec HomeTreeToday.tla --against HomeTreeDesign.tla --label "the design" --png
 ```
 
-It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, one `bug-N` chart for each bug, `stories.md` and `summary.json`.
+It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`.
+Today's code breaks no rule, so it draws no `bug-N` chart and `stories.md` is empty.
 Its `tlc/` folder holds TLC's output, which is not committed.
 The chart's scene, in `HomeTreeToday.cfg` and `HomeTreeDesign.cfg`, is child a alone with one call, routes that stay, and K at 1.
 TLC 2.19 fails in a run of one worker with `-continue` once a rule breaks in some thousands of states, and the statechart command runs one worker, so the chart's scene is small.
-With routes that move, the chart's run of `NoRetireWithOpen` stops at its 2981st broken state with an `ArrayIndexOutOfBoundsException` (or `Failed to recover the initial state from its fingerprint`), so the routes stay in the chart and move in the scenes `a` and `b` of `canaries.py`.
+The routes stay in the chart's scene and move in the scenes `a` and `b` of `canaries.py`.
 The chart draws only the rules that are invariants.
 A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request, which the chart draws as a step of today's code.
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it since pull request 332 moved what waits for a route the setting dropped.
 The merge race (`NoBlindMerge`) needs two pull requests, so it is in the siblings' run of `canaries.py` and not in the chart.
 
-## The bugs
+## The four rules today's code broke
 
-Each bug of `HomeTreeToday-statechart/stories.md`, by its number there, with the rule it breaks, its steps as the chart numbers them, and the test in `features/home/tests/test_home_tree_spec.py` that replays it against the real code one step per model action.
+Until the branch hometree-rules, today's code broke four rules, each along a story of the chart.
+Each now holds by the guard the design names for it, and a test in `features/home/tests/test_home_tree_spec.py` drives the real code along that story and fails on the code before it.
 
-1. `NoRetireWithOpen`, steps 1 to 3 (the root makes child a, child a launches a crew, you retire child a): reproduced by `test_bug_1_a_child_retires_with_its_crew_out`, where the handoff skill's own block closes the scope while its crew's brief has a `Thread:` line and no Result.
-2. `StallFlagged`, steps 1 to 3 (the root makes child a, child a launches a crew, the root's check runs): reproduced by `test_bug_2_a_quiet_child_with_a_crew_out_is_flagged_to_nobody`, where an hour of real jbus passes sends the root, the child and the user nothing while the child's home thread is six hours quiet.
-3. `OneMerger`, steps 1 to 5 (the root makes child a, its crew opens a pull request, it is green and reviewed, the root reads main to merge it): reproduced by `test_bug_3_a_home_merges_child_a_s_pull_request`, where with an id in `home-thread` real `jmerge` merges child a's pull request run by the root with `--all` and run by child a itself.
-
-`NoBlindMerge` breaks in the siblings' scene of `canaries.py` and is no story of the chart, and no test replays its race: reading `jmerge/cli.py:1402-1431` at main 64859143 shows the check of main's tip and the merge with no lock between them.
+1. `NoRetireWithOpen`, by the retire guard: the handoff skill closes a scope only when `jbus out --scope <scope>` says it has nothing out (`jbus/children.py`).
+   The test is `test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired`, where the handoff keeps the scope open while a crew jbus launched for it is out, and closes it once the crew's row is done.
+2. `StallFlagged`, with `FirstStrike`, `NudgesBounded` and `AsksAfterTwo`, by the root's watch of its children: a jbus pass nudges a child that has been quiet for its patience with work out, tells the user at once, nudges it once more and then asks the user (`jbus/children.py`, `watch`).
+   The test is `test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged`, where real jbus passes nudge the child's home thread an hour after its crew stopped, and the user hears of it.
+3. `OneMerger`, by jbus as the only merger: jbus runs `jmerge` whatever `home-thread` holds, and a home's `jmerge --home` merges nothing (`jbus/merge.py`, `jmerge/cli.py`).
+   The test is `test_one_merger_no_home_merges_and_jbus_merges_child_a_s_pull_request`, where with an id in `home-thread` neither the root's run nor child a's merges, and jbus's merges child a's pull request.
+4. `NoBlindMerge`, by the merge lock: a run of `jmerge` holds `$H/merge.lock` from its read of main's tip to its merge (`jmerge/lock.py`).
+   It breaks only in the siblings' scene, so no story of the chart has it.
+   The test is `test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging`, where a second run started in the middle of the first one's merge merges nothing.
 
 ## What the model leaves out
 

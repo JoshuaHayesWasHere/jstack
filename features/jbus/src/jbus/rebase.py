@@ -7,6 +7,7 @@ branch moved under the pull request or when the pull request conflicts with its 
 so on a `wait` line. `tell` reads those lines and sends the crew one message for each head. The
 message names a backup ref for the head that the rebase rewrites, and a lease that names that head.
 With the backup ref and the lease, a rebase never loses what was on the branch.
+jbus alone merges, so no home waits on a crew's line on green after a fix (`owed`).
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
 the key in `sent.json` as a mark of the send. So a pass that got no answer tries again, and jbus
@@ -75,7 +76,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbus import END_TURN, cancelled, dispatch, merge, queue, read_json, verbs
+from jbus import END_TURN, cancelled, dispatch, queue, read_json, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
@@ -163,7 +164,6 @@ _OWED = re.compile(r"^Reviewer: none\b", re.M)
 _LAUNCHED = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): (?!none\b)\S", re.M)
 _REVIEWED = re.compile(r"^## Review\n(?:(?!## ).*\n)*?Head: ", re.M)
 _MODE = re.compile(r"^Review:[ \t]*(\S*)", re.M)
-_FIXED = re.compile(r"^Fixed: \S", re.M)
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
 
 
@@ -293,25 +293,23 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     """Say whether the crew owes a line on green.
 
     The crew never owes the line while a reviewer that it launched has not yet written a
-    `## Review`, since the reviewer's findings decide the line. Otherwise the crew owes the line in
-    two cases. In the first, the brief's first `Review:` line says `none`, and the brief has no
-    `Reviewer: none` line and no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew
-    writes the `Reviewer: none` line when it sends its message. Each of the other three lines comes
-    with a gate or a message that already tells of the pull request. In the second case, the crew
-    has fixed the pull request and a home merges, and that home hears of the fix only on green. A
-    brief that says `Review: after` merges on green whatever its review says. So while a home
-    merges, the crew of such a brief owes the line whether its reviewer is out or not.
+    `## Review`, since the reviewer's findings decide the line. Otherwise it owes the line where
+    the brief's first `Review:` line says `none`, and the brief has no `Reviewer: none` line and
+    no `Unrun:`, `Stuck:` or `Stale base:` line at this head. The crew writes the `Reviewer: none`
+    line when it sends its message. Each of the other three lines comes with a gate or a message
+    that already tells of the pull request. jbus alone merges, so no home waits to hear of a fix
+    on green, and a brief that says `Review: after` owes no line.
     """
     mode = _MODE.search(brief)
     if mode and mode[1] == "after":
-        return bool(merge.home_thread(run))
+        return False
     launched = len(_LAUNCHED.findall(brief))
     if launched > len(_REVIEWED.findall(brief)):
         return False
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
     reviewer = launched or _OWED.search(brief) or _REVIEWED.search(brief) or gated
     unsaid = not reviewer and mode and mode[1] == "none"
-    return bool(unsaid or (merge.home_thread(run) and _FIXED.search(brief)))
+    return bool(unsaid)
 
 
 def _asked(kind: str, message: str, head: str) -> Ask:

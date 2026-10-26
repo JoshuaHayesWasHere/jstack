@@ -93,11 +93,6 @@ class Machine:
             body = body.replace(placeholder, value)
         return self.sh(body)
 
-    def who_merges(self):
-        top = block("home", "R=$(basename")
-        merges = block("home", 'echo "$merges merges"')
-        return self.sh(f"{top}\n{merges}")
-
     def tables(self):
         return [one["name"] for one in tomllib.loads(self.config.read_text())["project"]]
 
@@ -130,7 +125,6 @@ def test_a_home_whose_repo_jbus_lacks_adds_it_and_leaves_the_merge_to_jbus(machi
     assert machine.tables() == ["first", "Winnie"]
     assert machine.seen.read_text() == "none\n"
     assert not machine.switch.exists()
-    assert machine.who_merges() == ["jbus merges"]
     assert machine.start() == ["on the bus: Winnie is jbus project Winnie"]
 
 
@@ -154,7 +148,6 @@ def test_registration_writes_no_switch_whatever_the_homes_rules_say(machine):
     assert machine.add() == [added(machine), hooks(machine)]
     assert machine.seen.read_text() == "none\n", "no switch was on when jbus was asked"
     assert not machine.switch.exists()
-    assert machine.who_merges() == ["jbus merges"]
 
 
 def homes(kitchen):

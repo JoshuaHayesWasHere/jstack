@@ -53,7 +53,7 @@ Each POST to a webhook is `{"kind": "events", "say": [...], "events": [...]}`, a
 <!-- built: events -->
 | `loud` | Kinds | What happens |
 |---|---|---|
-| `user` | `alert`, `decision`, `sign-in` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
+| `user` | `alert`, `decision`, `home-stall`, `sign-in` | It starts a POST. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
 | `quiet` | `cancelled`, `clock`, `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate`, `gate answered`, `green`, `heartbeat`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.sent`, `item.steered`, `item.waiting`, `jmerge`, `leftover`, `mainmoved`, `merged`, `note`, `overlap`, `pack`, `pool-wake`, `proof`, `queue`, `rebase`, `recovered`, `refailed`, `relayed`, `report`, `rereview`, `restack`, `result`, `resume`, `retro`, `review`, `slot-wake`, `snapshot`, `stale`, `stall`, `sweep`, `unplaced`, `waiting`, `waiting-on-user` | It is never posted. It is in the log, which `jbus events` prints and the view shows. |
 <!-- built: end -->
 

@@ -193,14 +193,12 @@ def test_a_row_that_takes_the_last_slot_does_not_hide_the_chain_behind_it(kitche
     assert kitchen.lines("gate") == [] and kitchen.lines("jmerge") == [HOLD.strip()]
 
 
-@pytest.mark.parametrize("silent", ["jmerge did not run", "the home merges", "a stop file"])
+@pytest.mark.parametrize("silent", ["jmerge did not run", "a stop file"])
 def test_a_pass_that_does_not_judge_a_held_pull_request_keeps_its_root(kitchen, silent):
     held(kitchen)
     kitchen.poll()
     if silent == "jmerge did not run":
         (kitchen.stub / "jmerge-dies").write_text("jmerge: could not ask GitHub")
-    elif silent == "the home merges":
-        (kitchen.home / "home-thread").write_text("mcp:the-home\n")
     else:
         (kitchen.state_dir / "stop").touch()
     said = kitchen.poll(later(3))
@@ -421,14 +419,3 @@ def test_a_wait_that_is_not_a_guarded_one_and_a_pass_jmerge_said_nothing_in_are_
     guarded(kitchen)
     kitchen.poll(later(22))
     assert stalls(kitchen) == []
-
-
-def test_where_the_home_merges_a_held_pull_request_is_listed_and_no_root_is_paged(kitchen):
-    """The pass reads the hold from `jmerge --check`, for the list, and leaves acting on it to the
-    home: no `hand-merge` root, no accept asked for, no `waiting-on-user` event."""
-    held(kitchen)
-    (kitchen.home / "home-thread").write_text("mcp:a-home\n")
-    kitchen.poll()
-    assert waits(kitchen) == []
-    assert kitchen.log("jmerge") == ["--check"]
-    assert [one["line"] for one in shown(kitchen) if one["kind"] == "hold"] == [HOLD.strip()]
