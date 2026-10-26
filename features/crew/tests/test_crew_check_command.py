@@ -443,3 +443,38 @@ def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
     (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
     said, code, ran, base = selected(tmp_path, repo)
     assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
+
+
+def test_the_check_block_runs_jstacks_jgauge_from_a_worktree_whose_venv_has_an_older_one(tmp_path):
+    """The check block runs `jgauge` by a project path under `$T`. A crew's worktree based on an
+    older main has a `.venv` whose `jgauge` has no `check`, and uv takes a virtual environment
+    from the working directory when the project path holds no project. The block run from such
+    a worktree, with `T` in an installed layout, still gets jstack's own `jgauge`."""
+    from testing.layouts import assembled
+
+    work = tmp_path / "worktree"
+    subprocess.run(["git", "init", "-q", str(work)], check=True)
+    env = {
+        k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT")
+    }
+    subprocess.run(["uv", "venv", "-q", str(work / ".venv")], check=True, env=env)
+    old = work / ".venv" / "bin" / "jgauge"
+    old.write_text("#!/bin/sh\necho \"jgauge: invalid choice: 'check'\" >&2\nexit 2\n")
+    old.chmod(0o755)
+    (prefix,) = set(
+        re.findall(
+            r'(uv run --project "[^"]*") jgauge check', block("Do the task", "<check command>")
+        )
+    )
+    ran = subprocess.run(
+        ["sh", "-c", f"{prefix} jgauge check --help"],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**env, "T": str(assembled() / "templates")},
+    )
+    assert (ran.returncode, ran.stdout.splitlines()[:1]) == (
+        0,
+        ["usage: jgauge check [-h] [--thread ID] [--wait SECONDS]"],
+    ), ran.stderr
