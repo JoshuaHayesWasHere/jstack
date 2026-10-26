@@ -58,7 +58,8 @@ def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(
 def test_a_task_in_needs_you_is_written_once_on_the_first_screen_of_a_project(scene, tmp_path):
     """A row of Needs you is the task's one row on the page: the row writes the task's slug,
     and In progress does not draw the task again. `state.json` says which task each need is
-    about, and the screen is counted for each: once, in its row of Needs you."""
+    about. The first 3 needs are shown and the screen writes each of their tasks once, in its
+    row. The rest fold under one control that counts them, and In progress draws none of them."""
     open_rows = lineup(scene, TODAY)
     served = Served(scene)
     try:
@@ -70,14 +71,45 @@ def test_a_task_in_needs_you_is_written_once_on_the_first_screen_of_a_project(sc
     screen = (DESK[0], DESK[1] + NEEDS)
     seen = look(scene, tmp_path, screen=screen)
     clean(seen, screen)
-    rows = [" ".join([one["what"], *one["why"], one["meta"]]) for one in seen["needs"]["now"]]
-    assert len([one for one in seen["needs"]["now"] if one["seen"]]) == 4
+    now = seen["needs"]["now"]
+    rows = [" ".join([one["what"], *one["why"], one["meta"]]) for one in now if one["seen"]]
+    assert len(rows) == 3
+    assert seen["needs"]["fold"] == {"text": f"+{len(now) - 3} more need you", "expanded": "false"}
     written = [slug for line in rows for slug in re.findall(r"[a-z0-9][a-z0-9._-]*", line)]
     drawn = [row["slug"] for row in seen["prog"] if row["seen"]]
-    assert {slug: written.count(slug) + drawn.count(slug) for slug in asked} == dict.fromkeys(
-        asked, 1
+    assert all(one["ahead"].startswith("Goes ahead: ") for one in now if one["seen"])
+    first = [slug for slug in asked if slug in written]
+    assert len(first) == 3
+    assert {slug: written.count(slug) + drawn.count(slug) for slug in first} == dict.fromkeys(
+        first, 1
     )
+    assert [slug for slug in asked if slug in drawn] == []
     assert sorted({slug for slug in drawn if drawn.count(slug) > 1}) == []
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_default_and_action(
+    scene, tmp_path, screen
+):
+    """The first screen shows the first 3 needs, each as its question and the line of what goes
+    ahead, and folds the rest under one control. Tapped, it opens the whole inbox: every need is
+    shown with what happens if you do nothing and its one action, and on a phone each link of a
+    row, its title and its chips, takes a thumb."""
+    lineup(scene, TODAY)
+    screen = (screen[0], screen[1] + NEEDS)
+    walk = ["look", "tap:#nfold [data-fold]", "look"]
+    seen = look(scene, tmp_path, screen=screen, walk=walk, at=4000 + 500 * len(walk), budget=20000)
+    clean(seen, screen)
+    folded, opened = seen["walked"][0], seen["needs"]
+    now = opened["now"]
+    assert len(now) > 3
+    assert opened["fold"] == {"text": "Show the first 3", "expanded": "true"}
+    assert all(one["box"][2] > 0 for one in now), "no row is folded"
+    assert all(one["ahead"].startswith("If you do nothing: ") for one in now)
+    assert all(len([act for act in one["acts"] if act["fill"]]) == 1 for one in now)
+    assert folded["changes"] < seen["walked"][1]["changes"]
+    if screen[0] == PHONE[0]:
+        assert seen["small"] == []
 
 
 def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, tmp_path):
@@ -105,7 +137,7 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert seen["header"]["machine"]["text"] == "Machine ok"
     needs = seen["needs"]
     assert needs["head"] == "4 wait on you oldest 50m · 1 more on default"
-    assert (needs["now"], needs["soon"], needs["filled"]) == ([], [], 1)
+    assert (needs["now"], needs["fold"], needs["filled"]) == ([], None, 1)
     assert [row["project"] for row in stack["rows"]] == ["larder", "demo", "pantry"]
     assert all(row["seen"] and not row["quiet"] for row in stack["rows"])
     assert [(row["name"], row["counts"]) for row in stack["rows"]] == [
@@ -228,7 +260,7 @@ def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_pan
     opened = clean(seen)
     tile = seen["needs"]["extra"][-1]
     assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
-    assert not any("noticed" in one["what"] for one in seen["needs"]["now"] + seen["needs"]["soon"])
+    assert not any("noticed" in one["what"] for one in seen["needs"]["now"])
     assert "noticed" in opened
     drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
     assert drawer["title"] == "2 new lines of 3, newest first"
