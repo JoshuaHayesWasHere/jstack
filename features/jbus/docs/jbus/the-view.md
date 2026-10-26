@@ -166,10 +166,16 @@ Where T3 Code does not take it, the view still records the line, `say` tells why
 
 ### Count what the page opens
 
-The page posts one line to `POST /usage` for each route it shows, each drawer it opens, and the first click after it loads.
-The server writes each line itself, as `{at, kind, name, project}`, into `view-usage.jsonl` in jbus's state directory.
-It takes a name only from its own routes and panels and a project only from its state directory, and it refuses anything else with 400.
+The page posts one event to `POST /usage` when the view opens, for each route it shows, for each item it opens and for each action it takes.
+One listener on the page reads an item from the `data-open` attribute of what was tapped, and one hook reads an action from each answer or steer the page sends, so no panel posts an event of its own.
+The first item or action of each name in a page carries the seconds from page load to it.
+A route is `stack`, `triage` or `project`.
+A page loaded by a headless or driven browser, an agent's look or a test, marks each of its events `headless`.
+The server writes each event itself, as `{at, kind, name, project, route, seconds, headless}`, into `view-usage.jsonl` in jbus's state directory.
+It takes a name only from its own routes, panels and writes, a project only from its state directory and seconds only as a number up to a week, and it refuses anything else with 400.
 So a line holds no row text, slug, thread id or address, and nothing of it leaves the machine.
-Like the other writes, a count is taken only from the view's own origin.
-Past 256 KiB the file keeps only its newest lines, up to half that size.
-`jbus view usage [--since <time>]` prints how many of each kind and name it holds, over the last 7 days by default.
+Like the other writes, an event is taken only from the view's own origin.
+A line is kept 90 days, and past 16 MiB the file keeps only its newest lines, up to half that size.
+Both commands below count a person's loads only, and leave the headless ones out.
+`jbus view usage [--since <time>]` prints how many of each kind and name it holds, over the last 7 days by default, and how many headless lines it left out.
+`jbus view pace` prints, for each route and action, the median seconds from page load to its first time in a page over the last 7 days, against the 7 days before, and the change.
