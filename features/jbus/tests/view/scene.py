@@ -397,6 +397,7 @@ class Scene:
 
     def machine(self, load="2.50 2.00 1.50 3/900 1234", five_hour=23.0):
         (self.proc / "loadavg").write_text(load + "\n")
+        (self.proc / "locks").write_text("")
         (self.proc / "meminfo").write_text("MemTotal: 32000000 kB\nMemAvailable: 16000000 kB\n")
         (self.proc / "pressure" / "memory").write_text(
             "some avg10=0.00 avg60=0.50 avg300=0.00 total=1\n"

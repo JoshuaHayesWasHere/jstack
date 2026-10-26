@@ -64,6 +64,7 @@ def test_what_jbus_wrote_is_frozen_and_what_the_server_reads_is_live(served):
         "scouts/",
         "GitHub",
         "runner units",
+        "test slots",
         "the machine",
         "~/.claude/projects",
     }

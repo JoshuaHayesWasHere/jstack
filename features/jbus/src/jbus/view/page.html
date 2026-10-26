@@ -357,6 +357,7 @@
 </header>
 <main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
+  <div id="cards"></div>
   <section class="needs" id="needs" aria-labelledby="needs-h" hidden>
     <h2 id="needs-h"></h2>
     <a class="btn fill go" id="needs-go" href="#/triage" hidden>Open</a>
@@ -840,6 +841,7 @@
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
+    put($("cards"), PROJECT || TRIAGE || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
     if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else renderStack();
     freshen();
