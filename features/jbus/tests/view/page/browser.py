@@ -275,6 +275,7 @@ class Proxy:
         walk=None,
         script="",
         hops=False,
+        at_port=None,
     ):
         self.upstream, self.dark, self.states = upstream, False, 0
         self.dark_after = None
@@ -365,7 +366,7 @@ class Proxy:
             def log_message(self, *args):
                 return
 
-        self.port = free_port()
+        self.port = at_port or free_port()
         self.server = ThreadingHTTPServer(("127.0.0.1", self.port), Handler)
         self.server.daemon_threads = True
         threading.Thread(target=self.server.serve_forever, args=(0.05,), daemon=True).start()
@@ -470,6 +471,7 @@ def look(
     script="",
     system="light",
     hops=False,
+    at_port=None,
 ):
     """Open the page in the browser and give back what the probe found.
 
@@ -483,13 +485,23 @@ def look(
     0.5 s, such as `back` or `open:task:oat-bowl`. `system` is the scheme the browser asks
     for, `light` or `dark`. With `hops`, the probe taps each thing on the first screen once,
     each from the page as it opened, and what it found has what each tap opened under
-    `hops`. With `gates`, the probe answers the gates, and what it found has
-    each write the page made under `writes`, and each count it posted under `counted`. The
-    proxy calls `on_write` with the count of each write before it passes the write on. A
-    write for which `on_write` answers `dark` reaches no server."""
+    `hops`. The proxy listens on `at_port` where it is given, so two looks at one port are one
+    origin to the browser, and the page keeps what it stored. With `gates`, the probe answers
+    the gates, and what it found has each write the page made under `writes`, and each count it
+    posted under `counted`. The proxy calls `on_write` with the count of each write before it
+    passes the write on. A write for which `on_write` answers `dark` reaches no server."""
     served = None if port else Served(scene)
     proxy = Proxy(
-        port or served.port, at, task, pick, gates, tap=tap, walk=walk, script=script, hops=hops
+        port or served.port,
+        at,
+        task,
+        pick,
+        gates,
+        tap=tap,
+        walk=walk,
+        script=script,
+        hops=hops,
+        at_port=at_port,
     )
     proxy.on_write = on_write or proxy.on_write
     proxy.alter = alter or proxy.alter
