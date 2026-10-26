@@ -121,6 +121,23 @@ def test_undo_takes_back_the_go_that_one_word_gave_and_tells_the_home(counter):
     assert told[0].sent_at
 
 
+def test_undo_while_a_launch_is_out_is_refused_and_keeps_no_word(counter):
+    """A pass that has begun the launch has written its intent and has no thread yet: the go
+    is not taken back under it, and no Hold word is left for the home."""
+    counter, served = counter
+    sha = unapproved(counter)
+    _, given = act(served, "approve", {"slug": "oat-milk", "sha": sha})
+    record = counter.kitchen.state_dir / "launches" / "demo" / "oat-milk" / "0123456789ab.json"
+    record.parent.mkdir(parents=True)
+    record.write_text('{"key": "0123456789ab", "state": "intent"}')
+    kept = set(words(counter))
+    status, said = act(served, "hold", {"slug": "oat-milk", "word": given["word"]})
+    assert status == 409, said
+    assert "launch" in said["say"]
+    assert queue.fresh(counter.state, "oat-milk").get("approved")
+    assert set(words(counter)) == kept
+
+
 def test_steer_gives_the_users_line_to_the_home_and_the_need_moves_to_steered(counter):
     """A gate of the home's own file is no question jbus holds, so the user steers it: the line
     is a word for the home, and the need leaves the list for the list of what was steered."""
