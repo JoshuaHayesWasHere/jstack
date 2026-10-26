@@ -8,8 +8,9 @@ to a shared branch, a deploy, deleting data or a message to anyone outside, hold
 `Holds:` and `Fail-safe:` lines. Nothing in the thread waits on an answer typed into it.
 
 The lint reads every file of the three skills but their tests, outside fenced blocks, one
-sentence at a time, and fails on a sentence that tells the thread to pause, or that asks and
-waits in one breath. A sentence it fails on is reworded into a gate, never let off by a list.
+sentence at a time, and fails on a sentence that tells the thread to pause, that names the four
+pauses (Carry on's old word for what are now gates that hold), or that asks and waits in one
+breath. A sentence it fails on is reworded into a gate, never let off by a list.
 """
 
 import re
@@ -21,7 +22,7 @@ from testing.paths import REPO
 READ_SET = ("features/crew/", "features/scout/", "features/expert/")
 FENCED = re.compile(r"^[ \t]*```.*?^[ \t]*```[ \t]*$", re.M | re.S)
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n\s*\n|\n(?=\s*(?:[-*]|\d+\.)\s)")
-PAUSE = re.compile(r"\bpause[ds]? (?:for|before|until|on)\b", re.I)
+PAUSE = re.compile(r"\bpause[ds]? (?:for|before|until|on)\b|\bfour pauses\b", re.I)
 ASK = re.compile(r"\bask(?:s|ed|ing)? (?:the user|them|here|in (?:this|its own) thread)\b", re.I)
 WAIT = re.compile(r"\bwait(?:s|ed|ing)?\b", re.I)
 
