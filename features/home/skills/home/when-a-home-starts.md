@@ -105,6 +105,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    W=110 # characters a line is cut at
    clip() { awk -v w="${1:-$W}" '{ if (length($(0)) > w) print substr($(0), 1, w - 3) "..."; else print }'; }
    atmost() { awk -v n="${1}" -v more="${2}" 'NR <= n {print} END {if (NR > n) print "... and " NR - n " more: " more}'; }
+   ours() { uv run --project "$T/../source" jbus home --keep "$M"; }
    scope=
    if [ "$M" != "$H" ]; then scope=${M##*/}; fi
    for f in "$H/standing.md" "$M/handoff.md" "$M/handoff.next.md"; do
@@ -139,9 +140,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
            NF { print (head ? "end" : "waits") "\t" $(0) }')
        printf '%s\n' "$rows" | awk -F '\t' '$(1) == "waits" && n++ == 0 {print $(2)}'
        printf '%s\n' "$rows" | awk -F '\t' '$(1) == "waits" && n++ > 0 {print $(2)}' | clip | atmost 3 "jbus --project $P queue show"
-       printf '%s\n' "$rows" | awk -F '\t' '$(1) == "row" {print $(2) "\t" $(3)}' | while IFS="$(printf '\t')" read -r slug line; do
-           if [ "$(whose "$H/tasks/$slug.md")" = "$M" ]; then printf '%s\n' "$line"; fi
-       done | clip | atmost 10 "jbus --project $P queue show"
+       printf '%s\n' "$rows" | awk -F '\t' -v h="$H" '$(1) == "row" {print h "/tasks/" $(2) ".md\t" $(3)}' | ours | clip | atmost 10 "jbus --project $P queue show"
        printf '%s\n' "$rows" | awk -F '\t' '$(1) == "end" {print $(2)}' | clip | atmost 2 "jbus --project $P queue show"
    fi
    echo "## questions"
@@ -178,24 +177,17 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    '' | *[!0-9]*) seen=$lines ;;
    esac
    if [ "$seen" -gt "$lines" ]; then seen=0; fi
-   tail -n "+$((seen + 1))" "$L" 2> /dev/null | while IFS= read -r line; do
-       said=$(printf '%s\n' "$line" | cut -c18-)
-       case $said in
-       'merged '*)
-           slug=${said#merged * }
-           if [ "$(whose "$H/tasks/${slug%% *}.md")" = "$M" ]; then printf '%s\n' "$line"; fi ;;
-       esac
-   done | clip | atmost 5 "$L"
+   tail -n "+$((seen + 1))" "$L" 2> /dev/null | awk -v h="$H" 'substr($(0), 18) ~ /^merged / {split(substr($(0), 18), w, " "); print h "/tasks/" w[3] ".md\t" $(0)}' | ours | clip | atmost 5 "$L"
    echo "## to read"
    S="$M/read-seen"
    unread=$(for f in "$H"/tasks/*.md "$H"/scouts/*.md; do
        [ -f "$f" ] || continue
        heading=$(grep -E '^## (Result|Report)' "$f" | tail -n 1)
        said="${f#"$H"/}: $heading"
-       if [ -n "$heading" ] && ! grep -qxF -e "$said" "$S" 2> /dev/null && [ "$(whose "$f")" = "$M" ]; then
-           printf '%s\n' "$said"
+       if [ -n "$heading" ] && ! grep -qxF -e "$said" "$S" 2> /dev/null; then
+           printf '%s\t%s\n' "$f" "$said"
        fi
-   done)
+   done | ours)
    if [ ! -e "$S" ]; then
        printf '%s\n' "$unread" | grep . > "$S"
        echo "no mark yet: $(grep -c '' "$S") headings of this home's are marked read in $S, and none is shown"
