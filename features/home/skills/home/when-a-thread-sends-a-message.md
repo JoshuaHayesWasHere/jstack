@@ -132,10 +132,10 @@ A `/ketchup` in this thread ends the same way.
 Run this with the block at the top and the block that finds this home:
 
 ```sh
-route='#/flow' scope=root
+route='#/' scope=root
 if [ "${M:?run the block that finds this home first}" != "$H" ]; then
     scope=${M##*/}
-    route="#/flow?home=$scope"
+    route="#/?home=$scope"
 fi
 if ! link=$(uv run --project "$T/../source" jbus link 2> /dev/null); then
     echo "no jview link: jbus has no page for $R"
@@ -150,14 +150,17 @@ else
           + "."' 2> /dev/null
     shot=$(uv run --project "$T/../source" jbus view-shot "$route" --out "jview-flow-$R-$scope.png" 2> /dev/null | tail -n 1)
     case $shot in
-    /*.png) [ -f "$shot" ] && echo "attach: $shot" ;;
+    /*.png) [ -f "$shot" ] && echo "attach: $shot $(wc -c < "$shot" | tr -d ' ')" ;;
     esac
     echo "$view$route"
 fi
 ```
 
 Make the `first:` line, without its `first: `, the reply's first line, so the words name what the picture shows.
-Send the `attach:` path to the user's thread with the `t3-code` server's `t3_thread_send_attachments` (if your harness defers it, load it first).
+An `attach: <path> <bytes>` line is the picture, sent to this thread, where the user reads the reply, with three calls of the `t3-code` server (if your harness defers them, load them first).
+First `t3_attachment_prepare_upload` with `{"upload": {"type": "image", "name": "<the path's file name>", "mimeType": "image/png", "sizeBytes": <bytes>}}`.
+Then POST the file's bytes, as they are, to the `relativeUrl` it returns, on that server's HTTP origin.
+Last `t3_thread_send_attachments` with that `attachmentId`, the same name, type, MIME type and size, and no `threadId`.
 Make the last line the reply's last line.
 With no `first:` or no `attach:` line, the reply goes without it and says nothing of it.
 On `no jview link`, the reply ends with no link and does not say why.
