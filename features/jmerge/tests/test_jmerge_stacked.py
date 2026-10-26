@@ -64,10 +64,9 @@ def test_a_link_rebased_onto_its_bases_merge_on_a_train_merges_as_any_other(buil
     assert said.startswith("ready 7 ")
 
 
-def test_a_link_rebased_over_its_bases_squash_on_a_train_with_its_patch_unchanged_merges(built_on):
-    """A base squash-merged into a train leaves the link's old head forking from the train before
-    the base, so that head's diff from the fork holds the base's commits too. The patch the
-    `Rebase:` line speaks of is the link's own commits, and those the rebase left as they were."""
+def squash_rebased(built_on, rebase):
+    """Squash beta into `train/x`, move alpha's own commit onto it and let `rebase` change the
+    moved head; what jmerge says of alpha with `Rebase: patch unchanged` on its brief."""
     home, tree, old = built_on.home, built_on.tree, built_on.head
     merge.git(tree, "switch", "-q", "--detach", built_on.start)
     merge.git(tree, "restore", "--source", built_on.beta, "--", ".")
@@ -76,6 +75,7 @@ def test_a_link_rebased_over_its_bases_squash_on_a_train_with_its_patch_unchange
     squash = merge.git(tree, "rev-parse", "HEAD")
     merge.git(tree, "push", "-q", "origin", f"{squash}:refs/heads/train/x")
     merge.git(tree, "cherry-pick", old)
+    rebase(tree)
     new = merge.git(tree, "rev-parse", "HEAD")
     merge.git(tree, "push", "-q", "--force", "origin", f"{new}:refs/heads/alpha")
     merge.git(home.main, "fetch", "-q", "origin")
@@ -91,8 +91,36 @@ def test_a_link_rebased_over_its_bases_squash_on_a_train_with_its_patch_unchange
     listed = json.loads((home.stub / "list.json").read_text())
     listed[0].update(baseRefName="train/x", headRefOid=new)
     (home.stub / "list.json").write_text(json.dumps(listed))
-    said = built_on.run("--check")[0]
+    return built_on.run("--check")[0]
+
+
+def test_a_link_rebased_over_its_bases_squash_on_a_train_with_its_patch_unchanged_merges(built_on):
+    """A base squash-merged into a train leaves the link's old head forking from the train before
+    the base, so that head's diff from the fork holds the base's commits too. The patch the
+    `Rebase:` line speaks of is the link's own commits, and those the rebase left as they were."""
+    said = squash_rebased(built_on, lambda tree: None)
     assert said.startswith("ready 7 "), said
+
+
+def amended(tree):
+    (tree / "b.txt").write_text("the cleanup, changed on the rebase\n")
+    merge.git(tree, "commit", "-q", "-a", "--amend", "--no-edit")
+
+
+def one_more(tree):
+    (tree / "e.txt").write_text("a commit the rebase added\n")
+    merge.git(tree, "add", "e.txt")
+    merge.git(tree, "commit", "-q", "-m", "one more")
+
+
+@pytest.mark.parametrize("rebase", [amended, one_more])
+def test_a_link_rebased_over_its_bases_squash_on_a_train_that_changed_its_patch_waits(
+    built_on, rebase
+):
+    """The old head's own commits are cut by a count, and a rebase that changed them, in content
+    or in number, is still a changed patch: no cut may make the two sides equal."""
+    said = squash_rebased(built_on, rebase)
+    assert said == f"wait 7 {merge.URL}: {ready.REBASE_UNTRUE}"
 
 
 @pytest.mark.parametrize(
