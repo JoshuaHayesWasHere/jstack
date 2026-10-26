@@ -91,7 +91,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -1093,7 +1093,9 @@ class Read:
 
     A panel's `build` gets it as its argument. What more than one panel reads is a property
     here, and its source is one of the six above. A panel calls `panel` to get what another
-    panel works out. `once` keeps what a panel works out for its own functions.
+    panel works out. `once` keeps what a panel works out for its own functions. `merged` asks
+    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and is
+    None where no server asks.
     """
 
     def __init__(
@@ -1105,8 +1107,10 @@ class Read:
         code: dict[str, Any] | None = None,
         found: tuple[panels.Panel, ...] | None = None,
         shared: dict[Any, Any] | None = None,
+        merged: Callable[[str, date], dict[str, Any]] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
+        self.merged = merged
         self.code = code or {}
         self.user = sources.user
         self.state, self.home = sources.state(name), sources.home(name)
@@ -1758,7 +1762,7 @@ def stack(
         }
         for one in machine["unwell"]
     ]
-    return {
+    answer = {
         "at": iso(now),
         "machine": machine,
         "steps": line,
@@ -1770,3 +1774,10 @@ def stack(
             machine_wrong + [one for read in reads for one in keep(read.once(wrongs), [WRONG])]
         ),
     }
+    for panel in found:
+        if hasattr(panel.data, "stack"):
+            added = keep(panel.data.stack(base, reads, answer), panel.shape)
+            if taken := set(added) & set(answer):
+                raise ValueError(f"the panel {panel.name} gives {sorted(taken)}, which are taken")
+            answer |= added
+    return answer

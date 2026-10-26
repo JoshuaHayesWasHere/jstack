@@ -9,7 +9,10 @@ data:
 - `FIRST`, True where the first screen needs the dict: then its keys are keys of `/state.json`.
   The page asks for any other panel when its drawer opens, at `/panel/<name>.json`;
 - `blind(read)`, the lines it cannot say now, and `NOT_KEPT`, the ones it never can
-  (`state.Spot`). Each line opens the panel.
+  (`state.Spot`). Each line opens the panel;
+- `WRITES`, the writes it takes, by name: `WRITES[name](app, project, body)` answers
+  `POST /panel/<panel>/<name>?project=<project>` with a `writes.Answer`. The server holds such a
+  write to the checks of its own two writes, the `Host` and the `Origin`, and to a known project.
 
 `panel.js` draws the panel, with one call of `panel` that passes whichever of these it has:
 
@@ -44,6 +47,7 @@ from typing import Any
 HERE = Path(__file__).parent
 DATA, SCRIPT = "panel.py", "panel.js"
 NAME = re.compile(r"[a-z][a-z0-9_]*")
+WRITE = re.compile(rf"/panel/({NAME.pattern})/({NAME.pattern})")
 
 
 @dataclass(frozen=True)
@@ -65,6 +69,10 @@ class Panel:
     @property
     def sources(self) -> tuple[Any, ...]:
         return tuple(getattr(self.data, "SOURCES", ()))
+
+    @property
+    def writes(self) -> dict[str, Any]:
+        return dict(getattr(self.data, "WRITES", {}))
 
     @property
     def not_kept(self) -> tuple[Any, ...]:

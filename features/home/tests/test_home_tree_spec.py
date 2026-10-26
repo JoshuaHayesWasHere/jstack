@@ -120,6 +120,23 @@ def test_canaries_py_prints_a_line_for_each_run_and_ends_0_when_each_says_what_i
     ]
 
 
+def test_a_property_runs_on_its_scene_alone_and_every_invariant_shows_nothing_else_moves():
+    """Each run of a property gives TLC only the scene's children, calls and notices, and each
+    run of every invariant checks on the whole model that nothing outside the scene moves, in
+    each scene of the design and of today's code."""
+    alone = [label for label, _, cfg, *_ in RUNS if "    Kids <- Made\n" in cfg]
+    still = [label for label, _, cfg, *_ in RUNS if "INVARIANT SceneStill\n" in cfg]
+    for label, _, cfg, *_ in RUNS:
+        assert ("PROPERTY " in cfg) == (label in alone), label
+        if label in alone:
+            assert "    Calls <- Raised\n    Notices <- SceneNotices\n" in cfg, label
+    assert still == [
+        f"{model}, scene {scene}: every invariant"
+        for model in ["design", "today"]
+        for scene in canaries.SCENES
+    ]
+
+
 @pytest.fixture(scope="module")
 def tlc():
     return tools.find_tlc()

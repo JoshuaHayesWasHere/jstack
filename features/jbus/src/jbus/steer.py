@@ -27,7 +27,6 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbriefs import parse as briefs
 from jbriefs.home import thread_of
 from jbus import Refused, questions, queue, read_json, t3, verbs, wake, word, write_json
 from jbus.item import (
@@ -177,12 +176,12 @@ def chat(message: str, words: str, user: jsettings.Settings, now: datetime) -> B
 def _redirectable(state: Path, item: Item, text: str) -> None:
     """Before `steer` writes the line, refuse a redirect that the queue would refuse. The
     queue refuses a redirect for an item with no row, and a redirect whose new brief has
-    faults that a launch would refuse (`jbriefs.parse.faults`)."""
+    faults that `queue add` would refuse (`queue.faults`)."""
     if not item.slug:
         raise Refused(f"refused: {item.id} has no row, so it has no brief to redirect")
     if queue.fresh(state, item.slug) is None:
         raise Refused(f"refused: the queue has no row {item.slug}")
-    faults = briefs.faults(queue.body(text))
+    faults = queue.faults(queue.body(text))
     if faults:
         lines = "".join(f"\n- {fault}" for fault in faults)
         raise Refused(

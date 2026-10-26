@@ -26,8 +26,10 @@ The routes that read are `routes()`, all `GET`:
 
 The two writes are `WRITES`, `POST /answer` and `POST /steer`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
-have, gets 404. One more write, `POST /usage`, names no project: it counts a route, a drawer
-or a first click of the page, and `jbus view usage` prints the counts (`usage`).
+have, gets 404. A panel may take writes of its own, `POST /panel/<panel>/<write>`, held to the
+same checks (`panels`). One more write, `POST /usage`, names no project: it keeps an event of the
+page, the view opened, a route, an item opened or an action taken (`usage`). `jbus view usage`
+counts them, and `jbus view pace` gives the median seconds to each first action, week on week.
 
 The body of `/answer` is JSON. Its `numbers` are the questions to close. When it closes one
 question only, it also has the name of the `option` picked and the user's own `words`. The
@@ -172,6 +174,13 @@ FIXED = (
 )
 BODY = 65536
 POSTS = (*WRITES, usage.USAGE)
+
+
+def posted(path: str) -> bool:
+    """Whether a path takes a POST: one of `POSTS`, or a panel's write (`panels.WRITE`)."""
+    return path in POSTS or panels.WRITE.fullmatch(path) is not None
+
+
 POLICY = (
     "default-src 'none'; font-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
     "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
@@ -417,7 +426,13 @@ class App(Writes):
         repo = state.repo(self.sources, name)
         if not task:
             read = state.Read(
-                self.sources, name, self.clock(), self.github.runs, self.code.said(), self.panels
+                self.sources,
+                name,
+                self.clock(),
+                self.github.runs,
+                self.code.said(),
+                self.panels,
+                merged=self.github.merged,
             )
             built = read.asked(panel[1]) if panel else read.answer()
             return NOT_FOUND if built is None else said(200, clean(built, (repo,)))
@@ -427,14 +442,14 @@ class App(Writes):
         return said(200, clean(self.github.pull(repo, task[1], pulls[task[1]]), (repo,)))
 
     def _count(self, body: bytes) -> Answer:
-        """One line of what the page opened (`usage`), written from names the server has."""
+        """One event of the page (`usage`), written from names the server has."""
         drawers = (panel.name for panel in self.panels)
         try:
             one = usage.line(body, drawers, state.projects(self.sources), self.clock())
         except Refused as error:
             return said(400, {"error": str(error).removeprefix("refused: ")})
         self.sources.state_dir.mkdir(parents=True, exist_ok=True)
-        usage.append(self.sources.state_dir / usage.FILE, one)
+        usage.append(self.sources.state_dir / usage.FILE, one, self.clock())
         return said(200, {"counted": True})
 
     def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
@@ -442,6 +457,10 @@ class App(Writes):
         if path == usage.USAGE:
             return self._count(body)
         name = self._project(query)
+        named = panels.WRITE.fullmatch(path)
+        if named and name:
+            take = next((p.writes for p in self.panels if p.name == named[1]), {}).get(named[2])
+            return take(self, name, body) if take else NOT_FOUND
         if path not in WRITES or not name:
             return NOT_FOUND
         if path == STEER:
@@ -499,7 +518,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path, _, query = self.path.partition("?")
-        if path not in POSTS:
+        if not posted(path):
             self._refuse()
             return
         if not self._known():
@@ -523,7 +542,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(answer)
 
     def _refuse(self) -> None:
-        only = "POST" if self.path.partition("?")[0] in POSTS else "GET"
+        only = "POST" if posted(self.path.partition("?")[0]) else "GET"
         self._send(said(405, {"error": f"this address only takes {only}"}), allow=only)
 
     def __getattr__(self, name: str) -> Any:
@@ -696,21 +715,25 @@ def _port(shown: argparse.ArgumentParser) -> None:
     shown.add_argument(
         "what",
         nargs="?",
-        choices=("usage",),
-        help="with usage, count each route, drawer and first click the page opened",
+        choices=("usage", "pace"),
+        help="with usage, count each event the page kept; with pace, give the median seconds "
+        "from page load to each first action, this week against last",
     )
     shown.add_argument("--port", type=int, default=PORT, help="the one port it listens on")
     usage.arguments(shown)
 
 
 def _run(args: argparse.Namespace) -> int:
-    """Serve the page, or with `usage`, print what it opened."""
+    """Serve the page, or with `usage` or `pace`, print what it kept."""
     if args.what != "usage" and args.since:
         raise Refused("refused: --since is for jbus view usage")
-    if args.what != "usage":
+    if args.what is None:
         return doors(args.port).serve()
     sources = _sources()
-    return usage.report(sources.state_dir / usage.FILE, sources.user, datetime.now(UTC), args)
+    path, now = sources.state_dir / usage.FILE, datetime.now(UTC)
+    if args.what == "pace":
+        return usage.pace(path, sources.user, now)
+    return usage.report(path, sources.user, now, args)
 
 
 VERBS = (

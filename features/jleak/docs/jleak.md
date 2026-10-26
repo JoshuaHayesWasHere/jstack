@@ -148,6 +148,32 @@ jleak: took out of the commit message: Co-Authored-By: Claude Opus 5.5 <noreply@
 It never stops a commit, even when it cannot clean the message.
 The install links it at `.git/hooks/commit-msg` of each repo jstack works in, beside `pre-push`, and the repo's worktrees run it too.
 
+## Infra's files
+
+Infra's files, port 3773 and T3 Code's tailnet setup are the infra home's to change.
+`features/jleak/hooks/infra-files.sh` is a `PreToolUse` hook on Claude Code's `Bash`, `Write`, `Edit`, `MultiEdit` and `NotebookEdit` calls.
+It runs `jleak --infra`, and `jleak.infra` (`features/jleak/src/jleak/infra.py`) says in full what it refuses, with exit code 2:
+
+- A call that writes `~/.config/jstack/roles`, `~/.config/jbus/config.toml`, the file a link of either points to, `~/.t3/userdata/server-runtime.json` (T3 Code's host and port), a `~/.config/systemd/user/t3-port-*` unit, or `~/.local/bin/t3-port-follow`.
+- A command that changes port 3773 or T3 Code's tailnet setup: `tailscale serve` or `funnel` on 3773, or its `reset`, a `systemctl` verb that is not a read on a `t3-port-*` unit, a listener on 3773, or `fuser -k` on it.
+
+A shell command writes a file when it redirects into it, or names it and is not a command that only reads it.
+It reads `~`, `$HOME` and `${HOME}` as the shell does, and follows a `cd`.
+`cat`, `grep`, `jq` and `diff` read, `cp` reads its sources, and `sed`, `perl`, `awk`, `yq` and `tomlq` write only with `-i`.
+A program it does not know is taken to write, `sort` among them.
+`find` writes the file its `-fprint` names, an `-exec` is read as a command, and `-delete` or a writing `-exec` writes in a start folder that holds one of the files.
+It reads the string that `sh -c`, `bash -lc` or `eval` runs as a command of its own.
+The refusal says to send the lines to the infra home:
+
+```text
+jleak: ~/.config/jbus/config.toml is infra's, so the call is refused: send the infra home the lines to change, and it makes the change
+```
+
+The infra home and its crew are let through.
+The hook's test of which home runs a call reads the project the session started in, Claude Code's `CLAUDE_PROJECT_DIR`, and the hook's `cwd` when that is not set.
+A call passes when that folder is a checkout of the repo named `infra`, or a worktree of it.
+A thread of another repo whose shell moves into infra's checkout is still refused, since its project has not changed.
+
 ## Which repos get the git hooks
 
 The install links both git hooks into jstack's own checkout, the checkout of each project of `jbus`'s config, and each repo set up with `jinstall --repo`.
