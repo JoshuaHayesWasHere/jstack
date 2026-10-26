@@ -138,3 +138,14 @@ def test_a_missing_store_and_a_window_that_ends_first_are_refused(kitchen, store
     assert code == 1 and out.startswith("refused:")
     code, out = kitchen.main("flow", "asks", *reversed(WINDOW), "--store", str(store))
     assert code == 1 and out.startswith("refused:")
+
+
+@pytest.mark.parametrize(
+    "text", ["Status?", "Looks good. Status?", "Ok.\nStatus?", "Thanks. And now?"]
+)
+def test_a_short_status_question_asks_where_we_are_after_another_sentence_too(text):
+    assert asks.jobs(text) == ("J2",)
+
+
+def test_what_needs_to_be_done_asks_what_is_left_and_not_what_needs_the_owner():
+    assert asks.jobs("what has been done? what needs to be done?") == ("J2",)
