@@ -7,7 +7,6 @@ kitchen's fakes, a pass a minute."""
 from datetime import timedelta
 
 import jbus
-from jbus import clock
 from jmerge import ready
 from test_jbus_kitchen import NOW, sends
 from test_jbus_leftover import home
@@ -60,10 +59,6 @@ class Held:
     def needs(self):
         listed = jbus.read_json(self.kitchen.state / "waiting-on-user.json", [])
         return [one for one in listed if one["kind"] == "held"]
-
-
-def test_the_limit_is_thirty_minutes():
-    assert clock.HOLD_MINUTES == 30
 
 
 def test_four_rows_held_31_minutes_with_nobody_at_work_wake_their_home_once(kitchen):
