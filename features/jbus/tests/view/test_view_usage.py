@@ -151,16 +151,41 @@ def test_past_its_cap_the_file_drops_its_oldest_lines(served, scene, monkeypatch
     monkeypatch.setattr(usage, "CAP", 2000)
     monkeypatch.setattr(usage, "KEEP", 1000)
     path = scene.state_dir / usage.FILE
-    young = (scene.now - timedelta(hours=1)).isoformat(timespec="seconds")
-    old = [{"at": young, **event("route", "stack", "stack", None)} for _ in range(40)]
+    old = [
+        {
+            "at": (scene.now - timedelta(minutes=60 - n)).isoformat(timespec="seconds"),
+            **event("route", "stack", "stack", None),
+        }
+        for n in range(40)
+    ]
     path.write_text("".join(json.dumps(one) + "\n" for one in old))
     assert path.stat().st_size > 2000
     for _ in range(3):
         assert served.write(event("item", "task"), path="/usage")[0] == 200
         assert path.stat().st_size <= 2000
     kept = lines(scene)
-    assert kept[-1]["name"] == "task"
-    assert len(kept) < len(old)
+    assert [one["name"] for one in kept[-3:]] == ["task"] * 3
+    assert 0 < len(kept) - 3 < len(old)
+    assert kept[:-3] == old[-(len(kept) - 3) :]
+
+
+def test_a_first_line_with_no_readable_time_is_dropped_with_the_old_lines(served, scene):
+    """A first line the server cannot date, garbage or a time with no zone, neither stops the
+    next write nor keeps the old lines past 90 days."""
+    path = scene.state_dir / usage.FILE
+    old = scene.now - usage.KEPT - timedelta(days=2)
+    young = scene.now - timedelta(days=1)
+    naive = {"at": old.replace(tzinfo=None).isoformat(), **event("route", "stack", "stack", None)}
+    made = [
+        {"at": moment.isoformat(timespec="seconds"), **event("route", "stack", "stack", None)}
+        for moment in (old, young)
+    ]
+    for first in ("not a line", json.dumps(naive)):
+        path.write_text(first + "\n" + "".join(json.dumps(one) + "\n" for one in made))
+        assert served.write(event("item", "task"), path="/usage")[0] == 200
+        kept = lines(scene)
+        assert kept[0] == made[1]
+        assert [one["name"] for one in kept] == ["stack", "task"]
 
 
 def write_lines(scene, made):
@@ -280,15 +305,14 @@ def test_jbus_view_pace_over_no_file_says_there_is_nothing_to_time(scene, monkey
 
 
 def test_the_page_has_one_listener_that_posts_to_its_own_origin_and_the_policy_holds(scene):
-    """One listener reads what was tapped from its data attribute, and one hook reads each
-    write the page sends: nothing else on the page posts an event."""
+    """Only `note()` posts an event: what the listener and the hook post is driven in the
+    browser by `page/test_view_page_usage.py`."""
     served = Served(scene)
     try:
         _, headers, page = served.ask("/")
     finally:
         served.close()
     assert page.count('ask("/usage", ') == 1
-    assert page.count('closest("[data-open]")') >= 1
     assert headers["Content-Security-Policy"] == (
         "default-src 'none'; font-src 'self'; script-src 'unsafe-inline'; "
         "style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; "

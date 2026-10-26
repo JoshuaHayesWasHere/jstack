@@ -119,10 +119,12 @@ def line(body: bytes, drawers: Iterable[str], projects: Iterable[str], now: date
 
 
 def _at(raw: bytes) -> datetime | None:
+    """The time of a line, or None for a line with no readable time and zone."""
     try:
-        return datetime.fromisoformat(json.loads(raw)["at"])
+        at = datetime.fromisoformat(json.loads(raw)["at"])
     except (ValueError, TypeError, KeyError):
         return None
+    return at if at.tzinfo else None
 
 
 def _replace(path: Path, kept: list[bytes]) -> None:
@@ -132,8 +134,9 @@ def _replace(path: Path, kept: list[bytes]) -> None:
 
 
 def append(path: Path, one: Line, now: datetime) -> None:
-    """Append one line to the file. Once its oldest line is `SLACK` past `KEPT`, drop every line
-    older than `KEPT`, and past `CAP` keep only its newest lines in `KEEP`."""
+    """Append one line to the file. Once its first line is `SLACK` past `KEPT`, or has no time it
+    can read, drop every line older than `KEPT` or with no such time, and past `CAP` keep only its
+    newest lines in `KEEP`."""
     text = json.dumps(asdict(one), sort_keys=True) + "\n"
     with _LOCK:
         with path.open("a") as file:
@@ -141,10 +144,10 @@ def append(path: Path, one: Line, now: datetime) -> None:
             size = file.tell()
         with path.open("rb") as file:
             first = _at(file.readline())
-        if first is not None and first < now - KEPT - SLACK:
+        if first is None or first < now - KEPT - SLACK:
             young = now - KEPT
             every = path.read_bytes().splitlines(keepends=True)
-            _replace(path, [each for each in every if (_at(each) or now) >= young])
+            _replace(path, [each for each in every if (_at(each) or young - SLACK) >= young])
             size = path.stat().st_size
         if size <= CAP:
             return
