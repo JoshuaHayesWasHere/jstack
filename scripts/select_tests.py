@@ -38,6 +38,14 @@ selects that feature's tests: its `Tests:` and every test file that imports a mo
 The map's page, `CROSS`, lists the test files that read the whole tree (`Cross-cutting:`), and
 every change runs them.
 
+A test that reads files through a glob or a walk declares the paths it reads in a `READ_SET`
+at the top level of its module: a tuple of patterns in jmerge's syntax, as `Paths:` takes them.
+A module of the tests that globs for the tests that import it declares one the same way. A
+changed path that a pattern of the read set matches selects the test files whose read set it is,
+or that import such a module, and the summary counts them with the names.
+`testing/tests/test_cross_cutting.py` fails on a test that reads the tree so with neither a
+read set nor a place on the `Cross-cutting:` list.
+
 A test file that no change to any other path selects is owned by no rule: it imports nothing,
 spells no path and is on no list. A change it reads in some other way (a glob, a walk) would merge
 with it unrun. So every change also runs each such test, the catch-all, and the summary counts
@@ -94,6 +102,7 @@ BACKTICKED = re.compile(r"`([^`]+)`")
 LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
+DECLARED = "READ_SET"
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 
 
@@ -221,10 +230,28 @@ def spelled(node):
     return [None]
 
 
+def declared(tree):
+    """The patterns of a module's `READ_SET`: the paths it reads through a glob. This raises
+    `Unread` if the read set is not a tuple or a list of strings jmerge can read as patterns."""
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == DECLARED:
+            items = getattr(node.value, "elts", None)
+            if not isinstance(node.value, (ast.Tuple, ast.List)) or not all(
+                isinstance(one, ast.Constant) and isinstance(one.value, str) for one in items
+            ):
+                raise Unread(f"{DECLARED} is not a tuple of strings: {ast.unparse(node.value)}")
+            patterns = tuple(one.value for one in items)
+            try:
+                return ready().patterns_of("\n".join(patterns))
+            except ValueError as error:
+                raise Unread(f"{DECLARED}: {error}") from error
+    return ()
+
+
 def read(tree):
     """Return what this script reads from a module's tree: the names the module imports, the
     words of its string constants, whether it imports by name, the names of its functions'
-    arguments, and the paths it spells."""
+    arguments, the paths it spells, and its read set."""
     names, words, dynamic, args, paths = set(), set(), False, set(), set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -242,7 +269,7 @@ def read(tree):
             args.add(node.arg)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             paths.add(tuple(spelled(node)))
-    return names, words, dynamic, args, paths
+    return names, words, dynamic, args, paths, declared(tree)
 
 
 def parents(name):
@@ -274,7 +301,7 @@ def edges():
             package = path[at.end() :].split("/")[0]
             packages[package] = path[: at.end()] + package
     found = {}
-    for name, (names, _, dynamic, _, paths) in sources().items():
+    for name, (names, _, dynamic, _, paths, _) in sources().items():
         reached = set().union(*map(parents, names)) & known.keys()
         if dynamic:
             below = Path(known[name]).parent.as_posix() + "/"
@@ -324,16 +351,38 @@ def test_files(names):
 
 
 @cache
-def spells(name):
-    """The paths a test module spells, and the test modules it imports."""
-    found, todo, seen = set(), [name], set()
+def reached(name):
+    """A test module and the modules of the tests it imports, through any chain."""
+    todo, seen = [name], set()
     while todo:
         one = todo.pop()
         if one not in seen and of_tests(modules()[one]):
             seen.add(one)
             todo += edges()[one]
-            found |= sources()[one][4]
-    return frozenset(found)
+    return frozenset(seen)
+
+
+@cache
+def spells(name):
+    """The paths a test module spells, and the test modules it imports."""
+    return frozenset().union(*(sources()[one][4] for one in reached(name)))
+
+
+@cache
+def read_sets():
+    """Each test file, with the patterns of its read set and of the read sets of the modules of
+    the tests it imports."""
+    found = {}
+    for name, path in modules().items():
+        if TEST.fullmatch(path):
+            if patterns := {pattern for one in reached(name) for pattern in sources()[one][5]}:
+                found[path] = patterns
+    return found
+
+
+def globbers(path):
+    """The test files whose read set matches this path."""
+    return {test for test, patterns in read_sets().items() if owns(patterns, path)}
 
 
 def inside(parts, spelling):
@@ -542,7 +591,7 @@ def asking(module):
         hit |= more
     return {
         modules()[name]
-        for name, (_, words, _, args, _) in sources().items()
+        for name, (_, words, _, args, _, _) in sources().items()
         if TEST.fullmatch(modules()[name]) and (hit - own(name)) & (args | words)
     }
 
@@ -578,6 +627,7 @@ def ruled(changed):
                 found["imports"] |= test_files(importers(users(path)))
             for one in {path} | includers(path):
                 found["names"] |= readers(one)
+        found["names"] |= globbers(path)
     where = pages()
     for name, (owned, listed_tests) in features().items():
         if any(owns(owned, path) for path in changed):
