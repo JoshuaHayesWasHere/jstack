@@ -5,8 +5,10 @@ Each test drives the real commands in a verify-jstack sandbox, as a home types t
 `t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
 """
 
+import hashlib
 import json
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -117,11 +119,22 @@ def fix(slug, key, green="When green: `check` passes on the fix's pull request a
     return brief(slug, f"Fix of: {key}", *([green] if green else []))
 
 
+def at_zoned():
+    """AT with this machine's time zone at that time, as `jbus word --at` takes it."""
+    return f"{AT} {datetime.strptime(AT, '%Y-%m-%d %H:%M').astimezone().tzname()}"
+
+
+def brief_sha(sandbox, slug):
+    """The first 12 hex of the sha256 of the slug's brief in jbus's state, as `--sha` takes it."""
+    kept = sandbox.parent / "state" / "demo" / "briefs" / f"{slug}.md"
+    return hashlib.sha256(kept.read_bytes()).hexdigest()[:12]
+
+
 def approve(sandbox, slug):
     """Approve a row on the user's word, as `jbus word` keeps it."""
-    at = f"--at \"{AT} $(date -d '{AT}' +%Z)\""
+    at = f'--at "{at_zoned()}"'
     said = run(sandbox, f"jbus word --to demo --by user {at} go {slug}").stdout.split()
-    sha = f'$(sha256sum "$JBUS_STATE_DIR/demo/briefs/{slug}.md" | cut -c1-12)'
+    sha = brief_sha(sandbox, slug)
     return run(sandbox, f"jbus queue approve {slug} --sha {sha} --word {said[-1]}")
 
 
@@ -166,7 +179,7 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
     added = run(demo, "jbus queue add beta-fix --priority 1", fix("beta-fix", "check:beta"))
     standing = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "standing.md"
     standing.write_text("1. A home approves the fix of its own row's red check.\n")
-    sha = '$(sha256sum "$JBUS_STATE_DIR/demo/briefs/beta-fix.md" | cut -c1-12)'
+    sha = brief_sha(demo, "beta-fix")
     ruled = run(demo, f"jbus queue approve beta-fix --sha {sha} --rule 1 --follows beta")
     run(demo, "jbus poll")
 
@@ -264,7 +277,7 @@ def launched(sandbox, slug):
 
 
 def remove(sandbox, slug):
-    at = f"--at \"{AT} $(date -d '{AT}' +%Z)\""
+    at = f'--at "{at_zoned()}"'
     return run(sandbox, f"jbus queue remove {slug} --by user {at}")
 
 
@@ -384,7 +397,7 @@ def red_fix(sandbox, slug, key, path):
     """Queue a fix of the key, approve it on the standing rule, launch it and fail its check."""
     added = run(sandbox, f"jbus queue add {slug} --priority 1", fix(slug, key))
     assert added.returncode == 0, added.stdout + added.stderr
-    sha = f'$(sha256sum "$JBUS_STATE_DIR/demo/briefs/{slug}.md" | cut -c1-12)'
+    sha = brief_sha(sandbox, slug)
     ruled = run(sandbox, f"jbus queue approve {slug} --sha {sha} --rule 1 --follows rho")
     assert ruled.returncode == 0, ruled.stdout + ruled.stderr
     assert f"launched {slug}" in run(sandbox, "jbus poll").stdout
