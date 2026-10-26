@@ -1,9 +1,11 @@
-"""A home may approve a follow-up by a standing rule, and the approval names the parent row.
+"""A home may approve a follow-up by the follow-up rule, and the approval names the parent row.
 
-`queue approve --rule <n> --follows <parent slug>` is the fourth basis. This basis has two parts.
-The first is a rule of the home's `standing.md`, which jbus reads itself. The second is a parent row
-that the user approved in their own words. The row says that the user did not mention the follow-up.
-Every test runs the real command against the faked T3 Code server of `test_jbus_kitchen`.
+`queue approve --follows <parent slug>` is the fourth basis. Its ground is the go of the parent
+row, which holds: the user's word, or the rule's own for a parent that is itself a follow-up. jbus
+knows the rule by what it says (`queue.FOLLOW_RULE`), so a `--rule <n>` beside `--follows` is taken
+and not read, and a home that renumbers its `standing.md` breaks nothing. The row says that the
+user did not mention the follow-up. Every test runs the real command against the faked T3 Code
+server of `test_jbus_kitchen`.
 """
 
 import json
@@ -32,7 +34,10 @@ STANDING = f"""# demo: standing rules
 ## How he wants the work
 8. Real fixes.
 """
-BY_RULE = f"rule 6, follow-up of alpha; run {RAN} by the demo home; you did not speak of this row"
+BY_RULE = (
+    f"the follow-up rule, follow-up of alpha; run {RAN} by the demo home; you did not speak of "
+    "this row"
+)
 
 
 @pytest.fixture
@@ -83,10 +88,11 @@ def test_an_approval_by_rule_is_a_record_of_the_rule_and_the_parent_and_the_row_
     assert (code, cell(kitchen, "beta")) == (0, BY_RULE)
     assert said.splitlines()[-1].split(" | ")[4] == BY_RULE
     row = rows(kitchen)["beta"]
+    ground = rows(kitchen)["alpha"]["approved"]
     assert row["approval"] == {
         "basis": "rule",
-        "ref": "6",
-        "words": RULE,
+        "ref": queue.FOLLOW_REF,
+        "words": f"{queue.FOLLOW_RULE}; alpha's go: {ground}",
         "said_at": "",
         "said_in": "",
         "checked": True,
@@ -111,7 +117,6 @@ def test_an_approval_by_rule_is_a_record_of_the_rule_and_the_parent_and_the_row_
         ("--rule", "6", "--follows", "alpha", "--answer", "1"),
         ("--rule", "6", "--follows", "alpha", "--message", "mcp:a-home/a-message"),
         ("--rule", "6"),
-        ("--follows", "alpha"),
         ("--word", SAID, "--follows", "alpha"),
         ("--rule", "6", "--follows", "alpha", "--by", "user"),
     ],
@@ -136,16 +141,15 @@ def test_a_parent_that_is_no_row_or_has_no_go_or_is_the_row_itself_is_refused(ki
     )
 
 
-def test_a_parent_approved_by_rule_is_refused_and_the_refusal_names_its_own_parent(kitchen):
+def test_a_parent_approved_by_rule_is_followed_and_its_go_is_the_ground(kitchen):
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
     add(kitchen, "gamma", approve=False)
     assert follow(kitchen, "beta", "alpha")[0] == 0
-    assert refusal(kitchen, "gamma", "--rule", "6", "--follows", "beta") == (
-        "refused: gamma cannot follow beta: beta was approved by rule 6 as a follow-up of alpha, "
-        "and a chain is one step: follow alpha, or take the user's word for gamma"
-    )
-    assert follow(kitchen, "gamma", "alpha")[0] == 0
+    assert follow(kitchen, "gamma", "beta")[0] == 0
+    made = rows(kitchen)["gamma"]["approval"]
+    assert made["follows"] == "beta"
+    assert made["words"] == f"{queue.FOLLOW_RULE}; beta's go: {BY_RULE}"
 
 
 def test_a_parent_that_holds_only_the_old_string_is_followed(kitchen):
@@ -176,26 +180,21 @@ def test_a_removed_parent_is_followed_only_where_its_row_went_as_merged(kitchen,
         )
 
 
-def test_a_rule_is_read_from_the_homes_standing_rules_up_to_the_next_rule_or_heading(kitchen):
+@pytest.mark.parametrize("number", ["6", "9", "six"])
+def test_the_rule_is_known_by_what_it_says_and_no_number_is_read(kitchen, number):
+    """A home renumbered its standing rules, or has none: the number beside --follows is not
+    read, and the go is the same."""
+    (kitchen.home / "standing.md").unlink()
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
-    standing = kitchen.home / "standing.md"
-    assert refusal(kitchen, "beta", "--rule", "9", "--follows", "alpha") == (
-        f"refused: {standing} has no rule 9"
-    )
-    assert refusal(kitchen, "beta", "--rule", "six", "--follows", "alpha") == (
-        "refused: --rule is a rule's number, not six"
-    )
-    assert follow(kitchen, "beta", "alpha", rule="7")[0] == 0
-    assert rows(kitchen)["beta"]["approval"]["words"] == (
-        "Batch the asks,\n   and recommend.\n- a note under rule 7"
-    )
-    assert standing.read_text() == STANDING
-    standing.unlink()
-    add(kitchen, "gamma", approve=False)
-    assert refusal(kitchen, "gamma", "--rule", "6", "--follows", "alpha") == (
-        f"refused: {standing} has no rule 6"
-    )
+    assert follow(kitchen, "beta", "alpha", rule=number)[0] == 0
+    assert rows(kitchen)["beta"]["approved"] == BY_RULE
+    assert rows(kitchen)["beta"]["approval"]["ref"] == queue.FOLLOW_REF
+
+
+def test_a_record_from_before_names_the_rule_by_its_number(kitchen):
+    made = queue.Approval("rule", "6", RULE, "", "", True, {}, RAN, follows="alpha")
+    assert made.line().startswith("rule 6, follow-up of alpha; ")
 
 
 def test_the_home_of_the_folder_it_ran_in_is_named_as_who_ran_it(kitchen):
@@ -219,7 +218,7 @@ def test_the_views_row_says_the_same_line_and_is_marked_as_a_rule_approval(kitch
         one["slug"]: one for one in view_state.build(sources, "demo", NOW, lambda _: {})["tasks"]
     }
     assert tasks["beta"]["approved"] == BY_RULE == cell(kitchen, "beta")
-    assert tasks["beta"]["by_rule"] == {"rule": "6", "follows": "alpha"}
+    assert tasks["beta"]["by_rule"] == {"rule": queue.FOLLOW_REF, "follows": "alpha"}
     assert tasks["alpha"]["by_rule"] is None
 
 
@@ -230,8 +229,13 @@ def test_the_digest_counts_the_rows_approved_by_rule_since_the_time_asked_for(ki
     assert follow(kitchen, "beta", "alpha")[0] == 0
     kitchen.monkeypatch.setattr(queue, "clock", lambda: NOW.replace(hour=18))
     assert follow(kitchen, "gamma", "alpha")[0] == 0
-    one = {"slug": "beta", "rule": "6", "follows": "alpha", "at": RAN}
-    two = {"slug": "gamma", "rule": "6", "follows": "alpha", "at": "2026-10-12 14:00 ET"}
+    one = {"slug": "beta", "rule": queue.FOLLOW_REF, "follows": "alpha", "at": RAN}
+    two = {
+        "slug": "gamma",
+        "rule": queue.FOLLOW_REF,
+        "follows": "alpha",
+        "at": "2026-10-12 14:00 ET",
+    }
     code, said = kitchen.main("digest", "--json", "--since", "2026-10-12T10:00")
     assert (code, json.loads(said)["projects"]["demo"]["by_rule"]) == (0, [one, two])
     late = digest.build(jbus.load(), since=NOW.replace(hour=17))
@@ -255,7 +259,7 @@ def test_a_batch_takes_the_rule_and_the_parent_and_a_parent_approved_in_the_same
         f"approved beta: brief {sha12(brief('beta'))}, {BY_RULE}",
     )
     assert queue.parse("approve beta --rule 6 --follows alpha --sha 0\n") == [
-        (1, queue.Approve("beta", "rule", "6", "0", "alpha"))
+        (1, queue.Approve("beta", "rule", queue.FOLLOW_REF, "0", "alpha"))
     ]
     with pytest.raises(jbus.Refused, match="line 1: approve takes one basis"):
         queue.parse(f"approve beta --rule 6 --follows alpha --word {SAID} --sha 0\n")
@@ -265,9 +269,9 @@ def test_a_batch_takes_the_rule_and_the_parent_and_a_parent_approved_in_the_same
 
 def test_the_command_the_home_skill_gives_for_a_follow_up_approves_one(kitchen):
     skill = as_read(REPO / "features" / "home" / "skills" / "home" / "SKILL.md")
-    section = skill.partition("### A follow-up approved by a standing rule\n")[2].partition("\n#")[
-        0
-    ]
+    section = skill.partition("### A follow-up approved by the follow-up rule\n")[2].partition(
+        "\n#"
+    )[0]
     (command,) = [line for line in section.splitlines() if line.startswith("jbus ")]
     add(kitchen, "alpha")
     add(kitchen, "beta", approve=False)
@@ -342,7 +346,7 @@ def test_a_parent_removed_earlier_in_the_batch_is_followed_only_where_it_went_as
         lambda _: "",
         lambda _: "",
         lambda _: None,
-        lambda *_: queue.rule(kitchen.home / "standing.md", "6"),
+        lambda *_: queue.Said("", "", "", True),
     )
     said = queue.apply(kitchen.state, text, jbus.load().user, asks)
     assert said[1] == f"approved beta: brief {sha12(brief('beta'))}, {BY_RULE}"
@@ -355,7 +359,12 @@ def test_an_approval_run_in_the_minute_a_digest_is_asked_from_is_listed(kitchen)
     ran = NOW.replace(hour=18, minute=7, second=40)
     kitchen.monkeypatch.setattr(queue, "clock", lambda: ran)
     assert follow(kitchen, "beta", "alpha")[0] == 0
-    one = {"slug": "beta", "rule": "6", "follows": "alpha", "at": "2026-10-12 14:07 ET"}
+    one = {
+        "slug": "beta",
+        "rule": queue.FOLLOW_REF,
+        "follows": "alpha",
+        "at": "2026-10-12 14:07 ET",
+    }
     for since, listed in ((ran.replace(second=30), [one]), (ran.replace(second=55), [one])):
         assert digest.build(jbus.load(), since=since)["projects"]["demo"]["by_rule"] == listed
     late = digest.build(jbus.load(), since=ran.replace(minute=8, second=0))
@@ -375,7 +384,7 @@ def test_queue_hold_of_a_parent_prints_the_follow_ups_it_held(kitchen):
     assert kitchen.main("queue", "hold", "alpha")[1].startswith("| slug |")
 
 
-def test_a_row_that_another_row_follows_is_not_approved_by_rule_itself(kitchen):
+def test_a_row_whose_users_go_holds_is_not_approved_by_rule_over_it(kitchen):
     add(kitchen, "alpha")
     add(kitchen, "beta")
     add(kitchen, "gamma", approve=False)
@@ -384,7 +393,6 @@ def test_a_row_that_another_row_follows_is_not_approved_by_rule_itself(kitchen):
     code, said = follow(kitchen, "beta", "alpha")
     assert (code, said.strip()) == (
         1,
-        "refused: beta cannot follow alpha: gamma follow beta, and a chain is one step: take "
-        "the user's word for beta",
+        "refused: beta has the user's go, which holds, and a follow-up's go would write over it",
     )
     assert rows(kitchen)["beta"]["approval"] == word

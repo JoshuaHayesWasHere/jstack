@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import skills
+from jbriefs import skills, standing
 
 NO_RESULT = "no result yet"
 DONE = "done"
@@ -600,19 +600,22 @@ CHECKS = (
     ("Size", sized),
     ("Playbook", playbook),
     ("Where", wheres),
+    ("Review", lambda text: standing.review(fields(text), _filled(text, "Decisions"))),
+    ("Load", lambda text: standing.load(one for one in fields(text) if one[0] != REST)),
 )
-_SAYS_MISSING = ("Design", "Size", "Skills")
+_SAYS_MISSING = ("Design", "Size", "Skills", "Load")
 
 
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
-    filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their own checks.
-    Those checks report a missing line, and for `Skills` the check reports instead that a
-    brief with no line names no skill. A brief with no fault is complete. This check runs
-    when a row is first queued and does not run again at a launch, so a brief that already
-    has a go launches without being checked again (`jbus.queue`).
+    filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills` and `Load` to their own
+    checks. Those checks report a missing line, for `Skills` the check reports instead that a
+    brief with no line names no skill, and `Load` (`standing`) needs no line. A brief with no
+    fault is complete. This check runs when a row is first queued and does not
+    run again at a launch, so a brief that already has a go launches without being checked
+    again (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []

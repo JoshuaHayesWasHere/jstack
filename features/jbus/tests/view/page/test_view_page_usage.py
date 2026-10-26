@@ -9,6 +9,7 @@ import pytest
 
 from jbus.view import usage
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, gated, look
+from view.scene import ago, iso
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -60,3 +61,24 @@ def test_a_write_the_page_sends_is_kept_as_an_action_with_its_seconds(scene, tmp
     assert (action["name"], action["route"], action["project"]) == ("answer", "project", "demo")
     assert 0 < action["seconds"] < 60
     assert action["headless"] is True
+
+
+def test_a_steer_the_page_sends_is_kept_as_an_action_named_by_its_action(scene, tmp_path):
+    """The page opens the drawer of a proposed work item and the walk taps its Approve. The
+    page sends the steer as one write to `/steer`, and keeps one action, named `approve` after
+    the steer's action, which the server takes."""
+    made = {"id": "w1.1", "item": "w1", "at": iso(ago(minutes=9)), "by": "Josh", "where": "chat"}
+    made |= {"line": "proposed", "verb": "proposed", "project": "demo", "slug": "jam-jar"}
+    (scene.state / "items.jsonl").write_text(json.dumps(made) + "\n")
+    route = "#/demo/item/w1"
+    seen = look(scene, tmp_path, route=route, walk=["tap:#iapprove", "look"], at=4000, budget=12000)
+    assert [(one["path"].partition("?")[0], one["body"]["action"]) for one in seen["writes"]] == [
+        ("/steer", "approve")
+    ]
+    actions = [body for body in bodies(seen) if body["kind"] == "action"]
+    assert [(one["name"], one["route"], one["project"]) for one in actions] == [
+        ("approve", "project", "demo")
+    ]
+    assert 2.5 <= actions[0]["seconds"] < 60, "the walk taps it from 2.5 s on"
+    kept = [json.loads(one) for one in (scene.state_dir / usage.FILE).read_text().splitlines()]
+    assert [one["name"] for one in kept if one["kind"] == "action"] == ["approve"]

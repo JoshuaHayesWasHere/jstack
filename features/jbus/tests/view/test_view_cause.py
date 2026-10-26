@@ -103,7 +103,18 @@ def test_a_row_in_check_with_no_check_seen_gives_what_the_view_says():
             task("review", "no reviewer has started", ago(14)),
             Cause("no reviewer has started in 14m", ago(14), False),
         ),
-        (task("review", "no review yet", ago(3)), Cause("review running 3m", ago(3), True)),
+        (
+            task("review", "no review yet", ago(3), seen={"reviewer": True}),
+            Cause("review running 3m", ago(3), True),
+        ),
+        (
+            task("review", "no review yet", ago(3), seen={"reviewer": False}),
+            Cause("no reviewer has started in 3m", ago(3), False),
+        ),
+        (
+            task("review", "no review yet", ago(3), seen={"reviewer": None}),
+            Cause("on review 3m, with no list of threads to show a reviewer", ago(3), False),
+        ),
         (task("asking", "which base?", ago(2)), Cause("asks you: which base?", ago(2), False)),
         (task("launching", "x", ago(1)), Cause("thread starting", ago(1), True)),
         (

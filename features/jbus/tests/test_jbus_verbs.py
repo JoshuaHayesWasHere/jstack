@@ -47,7 +47,7 @@ def test_help_prints_what_it_printed_before_the_verbs_moved(page, monkeypatch):
 
 def listed(page):
     """Return the verbs a help page lists, in its order."""
-    return re.search(r"\{([a-z0-9,]+)\}", page).group(1).split(",")
+    return re.search(r"\{([a-z0-9,-]+)\}", page).group(1).split(",")
 
 
 def test_the_verbs_there_were_are_listed_first_and_each_has_its_help_kept(monkeypatch):

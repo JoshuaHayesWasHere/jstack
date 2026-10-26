@@ -47,7 +47,8 @@ how many tasks wait behind it. A task that the last pass did not confirm says so
 scout's, a reviewer's, a home's or any other, each with its liveness (`jbus.live`). It is
 null where the pass left no list. A null is a blind spot, never a count of none. A task
 gives its own thread's liveness under `seen.live`. A pull request that has had no review
-for `REVIEW_MINUTES`, with no reviewer's thread listed, says so.
+for `REVIEW_MINUTES`, with no reviewer's thread listed, says so. A task's `seen.reviewer` is
+whether a reviewer's thread of its own is out, and null where the pass left no list.
 
 jbus has stopped when the timer is not active, or when the last pass ended more than
 `QUIET` seconds ago and systemd does not say that a pass is running now. A pass that starts
@@ -297,7 +298,7 @@ def text(given: Any, cap: int = LINE) -> str:
 
 
 def by_rule(row: queue.Row) -> dict[str, str] | None:
-    """The rule and the parent of a row that a home approved by a standing rule. The page
+    """The rule and the parent of a row approved by the follow-up rule. The page
     marks the row with them. The function gives None for a row the user gave their own word
     for, and for a row with no approval."""
     made = queue.record(row)
@@ -631,6 +632,7 @@ def _tasks(
         if one["role"] == "crew":
             crews.setdefault(one["slug"], []).append(one)
     reviewed = {one["slug"] for one in out or [] if one["role"] == "reviewer"}
+    reviewing = {one["slug"] for one in out or [] if one["role"] == "reviewer" and one["out"]}
     status = {row["slug"]: text(row.get("status")) or "queued" for row in rows}
     through = {slug for slug, line in judged.items() if line.get("who") == "ok"}
     tasks, ended = [], []
@@ -721,6 +723,7 @@ def _tasks(
                     "wrote": crew.get("updated"),
                     "run_started": crew.get("run_started"),
                     "queued": count(crew.get("queued")),
+                    "reviewer": None if out is None else slug in reviewing,
                     "check": check
                     and {
                         "name": text(check.get("name"), 60),

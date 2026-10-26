@@ -136,7 +136,7 @@ from urllib.parse import parse_qs
 import jbus
 import jsettings
 from jbus import Refused, digest, record, verbs
-from jbus.view import panels, state, usage
+from jbus.view import panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
 from jbus.view.state import Sources
@@ -772,6 +772,13 @@ VERBS = (
         _port,
         lambda args, _: _run(args),
         abbrev=False,
+        config=False,
+    ),
+    verbs.Verb(
+        "view-shot",
+        "write a PNG of one route of jbus view",
+        shot.arguments,
+        lambda args, _: shot.run(args),
         config=False,
     ),
 )

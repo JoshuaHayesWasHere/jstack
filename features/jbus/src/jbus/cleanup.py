@@ -4,8 +4,8 @@ needs.
 The pull request of a brief whose `Review:` line says `after` merges on its check alone
 (`jmerge.ready.after`). Its review's findings do not block the merge, and a crew fixes them
 later, in a row of their own. The reviewer runs this command once it has written its section, and
-pipes what it prints into `jbus queue add cleanup-<slug>`. That command approves the row by the
-home's follow-up rule where the reviewed row had the user's go (`queue.FOLLOW_UP`), and otherwise
+pipes what it prints into `jbus queue add cleanup-<slug>`. That command, or the next pass, approves
+the row by the follow-up rule where the reviewed row's go holds (`queue.FOLLOW_UP`), and otherwise
 the row waits for the user's go like any other.
 
 The command prints that row's brief, `cleanup-<slug>`, when the last round's verdict is `findings`.
@@ -131,6 +131,8 @@ def brief(
         "Size: S\n"
         f"Where: {', '.join(f'`{one}`' for one in places) or 'the files the findings name'}\n"
         "Design: none, each finding names its own fix\n"
+        f"Decisions: none, jbus files this follow-up of {slug}'s review, and its findings "
+        "are the task\n"
         "Pull request: open one when done\n"
         "Review: review\n"
         "Playbook: bug-fix\n"
