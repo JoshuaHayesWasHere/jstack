@@ -45,7 +45,7 @@ CITED = {
     "features/jbus/src/jbus/watch.py:1330,1373,1377,1380": "no briefed merge came in",
     "features/jbus/src/jbus/watch.py:1379-1380": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:135-138": 'row.get("merge_after", [])',
-    "features/jmerge/src/jmerge/cli.py:684-692": "ready.STACKED_UNMOVED.format(",
+    "features/jmerge/src/jmerge/cli.py:664-672": "ready.STACKED_UNMOVED.format(",
     "features/jmerge/src/jmerge/ready.py:935-936": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:294-297": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
