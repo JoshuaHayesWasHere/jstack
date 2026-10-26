@@ -143,24 +143,26 @@ else
     view=${link%%#*}
     curl -fsS --max-time 5 "${view%/}/panel/board.json" 2> /dev/null | jq -r '
         (.stages | map({(.key): .name}) | add) as $name
-        | "first: Most stuck: "
-          + (if .stuck then "\($name[.stuck.stage] // .stuck.stage), \(.stuck.still) of \(.stuck.count)" else "none" end)
-          + ". Waiting longest: "
-          + (if .longest_wait then "\(.longest_wait.slug), \($name[.longest_wait.stage] // .longest_wait.stage) since \(.longest_wait.since), \(.longest_wait.cause)" else "none" end)
-          + "."' 2> /dev/null
+        | "first: "
+          + (if (.stuck.still // 0) > 0 then "Most stuck: \($name[.stuck.stage] // .stuck.stage), \(.stuck.still) of \(.stuck.count)." else "Every row is moving." end)
+          + (if .longest_wait then " Waiting longest: \(.longest_wait.slug), \($name[.longest_wait.stage] // .longest_wait.stage) since \(.longest_wait.since), \(.longest_wait.cause)." else " No row waits." end)' 2> /dev/null
     shot=$(uv run --project "$T/../source" jbus view-shot "$route" --out "jview-flow-$R-$scope.png" 2> /dev/null | tail -n 1)
+    t3=$(uv run --project "$T/../source" python -c 'import jbus; print(jbus.load().server)' 2> /dev/null)
     case $shot in
-    /*.png) [ -f "$shot" ] && echo "attach: $shot $(wc -c < "$shot" | tr -d ' ')" ;;
+    /*.png) [ -f "$shot" ] && [ -n "$t3" ] && echo "attach: $shot $(wc -c < "$shot" | tr -d ' ') $t3" ;;
     esac
     echo "$view$route"
 fi
 ```
 
 Make the `first:` line, without its `first: `, the reply's first line, so the words name what the picture shows.
-An `attach: <path> <bytes>` line is the picture, sent to this thread, where the user reads the reply, with three calls of the `t3-code` server (if your harness defers them, load them first).
+It names a stage only when a row of it is not moving, and otherwise says what the board's head says then, `Every row is moving`.
+An `attach: <path> <bytes> <origin>` line is the picture, sent to this thread, where the user reads the reply, with three calls of the `t3-code` server (if your harness defers them, load them first).
+The origin is that server's, the `server` of jbus's config, and with none the block prints no `attach:` line.
 First `t3_attachment_prepare_upload`, with an `upload` of type `image`, the path's file name as its `name`, `image/png` as its `mimeType`, and the bytes as its `sizeBytes`.
-Then POST the file's bytes, as they are, to the `relativeUrl` it returns, on that server's HTTP origin.
-Last `t3_thread_send_attachments` with that `attachmentId`, the same name, type, MIME type and size, and no `threadId`.
+Then POST the file's bytes, as they are, to the `relativeUrl` it returns on that origin: `curl -fsS -X POST -H 'Content-Type: image/png' --data-binary @<path> '<origin><relativeUrl>'`.
+Last `t3_thread_send_attachments` with that `attachmentId`, the same name, type, MIME type and size, and no `threadId`, which sends it to the thread that calls it, this one.
+A call of the three that fails sends no picture, and the reply says nothing of it.
 Make the last line the reply's last line.
 With no `first:` or no `attach:` line, the reply goes without it and says nothing of it.
 On `no jview link`, the reply ends with no link and does not say why.
