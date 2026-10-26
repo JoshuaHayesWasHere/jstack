@@ -1,7 +1,8 @@
 """`jbus view-shot` in a browser: it draws a route of the running view with the test browser, at
 1440 or 390 wide, writes the PNG to the one path `--out` names, and prints that path. A bare name
-goes into the runtime directory."""
+goes into the runtime directory, and an `--out` that cannot be written is said so."""
 
+import os
 import struct
 
 import pytest
@@ -59,3 +60,17 @@ def test_a_bare_name_goes_into_the_runtime_directory(shooting, tmp_path, capsys,
     code, said = shot(capsys, "#/", "--out", "shot.png", "--home", "jview", "--port", shooting)
     assert (code, said) == (0, str(runtime / "shot.png"))
     assert size(runtime / "shot.png")[0] == 1440
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root writes into a read-only directory")
+def test_an_out_that_cannot_be_written_says_so(shooting, tmp_path, capsys):
+    shut = tmp_path / "shut"
+    shut.mkdir()
+    shut.chmod(0o500)
+    out = shut / "shot.png"
+    try:
+        code, said = shot(capsys, "#/", "--out", str(out), "--port", shooting)
+    finally:
+        shut.chmod(0o700)
+    assert (code, said) == (1, f"no shot: {out} could not be written (Permission denied)")
+    assert not out.exists()

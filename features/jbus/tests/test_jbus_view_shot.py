@@ -1,6 +1,6 @@
 """`jbus view-shot` says why it writes no PNG: no view running, no Chromium, a route that is not
-one of the page's, or an `--out` in a state directory. The shots it draws are tested in a browser
-(`view/page/test_view_page_shot.py`)."""
+one of the page's, an `--out` in a state directory or that is a directory, or a Chromium that drew
+nothing. The shots it draws are tested in a browser (`view/page/test_view_page_shot.py`)."""
 
 import pytest
 
@@ -58,3 +58,26 @@ def test_it_refuses_a_route_that_is_not_the_page_s(served, tmp_path, capsys):
     code, said = shot(capsys, "/demo", "--out", str(out), "--port", str(served.port))
     assert (code, said) == (1, "no shot: '/demo' is no route of the page, which starts with #")
     assert not out.exists()
+
+
+def test_it_refuses_an_out_that_is_a_directory(served, tmp_path, capsys):
+    out = tmp_path / "shots"
+    out.mkdir()
+    code, said = shot(capsys, "#/", "--out", str(out), "--port", str(served.port))
+    assert (code, said) == (1, f"no shot: {out} is a directory")
+    assert list(out.iterdir()) == []
+
+
+def test_a_chromium_that_draws_no_png_leaves_the_out_as_it_was(
+    served, tmp_path, capsys, monkeypatch
+):
+    fake = tmp_path / "fake"
+    fake.mkdir()
+    (fake / "chromium").write_text("#!/bin/sh\nexit 0\n")
+    (fake / "chromium").chmod(0o755)
+    monkeypatch.setenv("PATH", str(fake))
+    out = tmp_path / "shot.png"
+    out.write_bytes(b"the last shot")
+    code, said = shot(capsys, "#/", "--out", str(out), "--port", str(served.port))
+    assert (code, said) == (1, "no shot: chromium wrote no PNG (exit 0)")
+    assert out.read_bytes() == b"the last shot"
