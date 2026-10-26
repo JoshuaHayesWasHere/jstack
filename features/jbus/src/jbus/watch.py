@@ -116,8 +116,11 @@ class World:
             return live[0] if len(live) == 1 else None
         return self.settled.get(slug) or self.archived.get(slug)
 
-    def live(self) -> int:
-        return sum(t["status"] in LIVE for found in self.threads.values() for t in found)
+    def live(self) -> tuple[str, ...]:
+        """The slug of each crew thread at work, once for each such thread."""
+        return tuple(
+            slug for slug, found in self.threads.items() for t in found if t["status"] in LIVE
+        )
 
     def stack_on(self, run: Pass, unmet: list[str], brief: str) -> stacks.Stacked | None:
         """The open pull request a row whose depends `unmet` are not over launches stacked on: the
@@ -150,13 +153,14 @@ class Look:
     """A `Look` holds what a pass could learn. `world` is set when T3 Code and GitHub both
     answered.
 
-    `out` is the number of crews that T3 Code lists as live, which jbus knows whenever T3 Code
-    answered. `why` is the reason T3 Code did not answer. `held` is why the pass asked GitHub
-    nothing to save its API budget, or why it could not tell what is left of it.
+    `out` is the slug of each crew thread that T3 Code lists as live, once for each thread, which
+    jbus knows whenever T3 Code answered. A pass counts them by home and by project
+    (`dispatch.Caps`). `why` is the reason T3 Code did not answer. `held` is why the pass asked
+    GitHub nothing to save its API budget, or why it could not tell what is left of it.
     """
 
     world: World | None = None
-    out: int | None = None
+    out: tuple[str, ...] | None = None
     why: str = ""
     held: str = ""
 

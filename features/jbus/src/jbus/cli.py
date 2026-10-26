@@ -173,7 +173,7 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
         half.crews = expedite.told(run, half.said)
     steps(half, "after-expedite")
     if world is not None and client is not None and rows is not None:
-        half.turns = dispatch.turns(run, client, world, rows)
+        half.turns = dispatch.turns(run, client, world, rows, half.seen.out or ())
     return half
 
 

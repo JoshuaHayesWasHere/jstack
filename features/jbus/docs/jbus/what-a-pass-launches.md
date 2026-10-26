@@ -6,6 +6,8 @@ A pass launches a row only when all of these hold:
 - every slug in `depends` is merged, or every one but one, whose pull request is open: the row then launches stacked on that pull request's branch;
 - no branch of its name exists, and no settled thread has its slug;
 - fewer than `max_running` crewmates are out across every project in the config (`jgauge sizes` prints `max_running`, which jbus derives from the machine unless the config sets it);
+- fewer than `max_per_project` crewmates are out in the row's project, 24 unless the config sets it;
+- fewer than `max_per_home` crewmates are out for the row's home, 6 unless the config sets it;
 - `jgauge room` prints `go`.
 
 Rows launch lowest `priority` first.
@@ -45,6 +47,23 @@ The free slots go to the projects in turns, in the order of the config, one row 
 If T3 Code does not answer for one project, that pass launches nothing in any project.
 Once the count is reached, each pass prints one line for every row that waits, `max_running is <n> across all projects: <slug> waits, since <time>`.
 The time is when the row began to wait for a slot.
+
+Two more caps hold inside each project, and both are top-level keys of `~/.config/jbus/config.toml`, beside `max_running`.
+`max_per_project` caps the crewmates out in one project, 24 when the config does not set it.
+`max_per_home` caps the crewmates out for one home of a project, the root home or one scope, 6 when the config does not set it.
+A config that sets either to anything but a whole number of 1 or more is refused.
+A crewmate out counts toward the home its queued brief names on its `Home:` line (`jbriefs.home.home_of`), and toward the root home when that brief is gone.
+A row whose home is full waits, and the rows of the project's other homes still take its turns.
+A project at its cap takes no more turns in the pass.
+A scout and a reviewer are not crewmates, and count toward no cap.
+Each pass prints one line for every row a cap holds, with the first cap that holds it, its home's, its project's or the machine's:
+
+```
+max_per_home is 6 in the root home: <slug> waits, since <time>
+max_per_home is 6 in the flow home: <slug> waits, since <time>
+max_per_project is 24 in jstack: <slug> waits, since <time>
+max_running is 24 across all projects: <slug> waits, since <time>
+```
 
 ## A scout
 
