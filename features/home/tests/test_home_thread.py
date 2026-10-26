@@ -89,7 +89,7 @@ def about_the_home_id(skill):
     """The one block the skill gives that touches the root home's `home-id`. In the home skill
     it is the block that writes a home's own id, step 3 of its start. In the handoff skill it is
     the block that removes that id, its step 6."""
-    own = {"home": '> "$M/home-id"', "handoff": 'rm -f "$M/home-id"'}
+    own = {"home": '> "$M/home-id"', "handoff": 'jbus forget "$M/home-id"'}
     return block(skill, own.get(skill, 'jbus home "$B"'))
 
 

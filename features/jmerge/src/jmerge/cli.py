@@ -33,10 +33,12 @@ from jmerge import (
     rangediff,
     ready,
     rejudge,
+    remake,
     rows,
     sweep,
     trailers,
 )
+from jmerge import gate as merge_gate
 from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 
@@ -447,7 +449,6 @@ class Gate:
 
     TIMEOUT = 10 * 60
     BUDGET = 5 * 60
-    NAME = "merge-gate"
 
     def __init__(
         self, main: Path, state: Path, timeout: float = TIMEOUT, budget: float = BUDGET
@@ -457,7 +458,7 @@ class Gate:
         self.timeout = timeout
         self.budget = budget
         self.spent = 0.0
-        self.command = ready.fresh_command(_read(state / self.NAME))
+        self.command = merge_gate.command(state)
         self.answers: dict[tuple[int, str, str], Gated] = {}
         self.output: dict[int, str] = {}
 
@@ -495,40 +496,19 @@ class Gate:
         added = _run(self.main, "git", "worktree", "add", "-q", "--detach", str(at), head)
         if added.returncode:
             return self._unstarted(f"its head could not be checked out ({_said(added)})")
-        env = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
-        env |= {"BASE": base, "HEAD": head}
-        out = at.with_name(f"{number}.log")
         try:
-            with out.open("wb") as log:
-                ran = subprocess.Popen(
-                    ["sh", "-c", f'{self.command} "$@"', self.NAME, base, head],
-                    cwd=at,
-                    env=env,
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    pass_fds=(lock,),
-                    start_new_session=True,
-                )
-                try:
-                    code = ran.wait(self.timeout)
-                except subprocess.TimeoutExpired:
-                    os.killpg(ran.pid, signal.SIGKILL)
-                    ran.wait()
-                    code = None
+            code, said = merge_gate.run(self.command, at, base, head, self.timeout, (lock,))
         except OSError as error:
             return self._unstarted(str(error))
         finally:
             _run(self.main, "git", "worktree", "remove", "--force", str(at))
-        said = _read(out)
-        out.unlink(missing_ok=True)
         if code == 0:
             return Gated("", "", lines.GATE_OK)
         self.output[number] = said
         if code is None:
-            limit = self.timeout
-            told = f"{limit // 60:g} minutes" if limit % 60 == 0 else f"{limit:g} s"
-            return Gated("hold", ready.GATE_TIMED_OUT.format(limit=told), "")
+            return Gated(
+                "hold", ready.GATE_TIMED_OUT.format(limit=merge_gate.over(self.timeout)), ""
+            )
         first = ready.first_line(said, code)
         if code in (126, 127):
             return self._unstarted(first)
@@ -1775,6 +1755,20 @@ def said_of_checks(pull: str) -> str:
     return checks.SAID[checks.checks(rollup, never)].format(head=head)
 
 
+def state_of(cwd: Path) -> Path | None:
+    """The repo's state in the homes' state, the directory named for its main checkout, or None
+    outside a repo."""
+    here = _run(cwd, "git", "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if here.returncode:
+        return None
+    return homes_state(Path(here.stdout.strip()).parent)
+
+
+def homes_state(main_checkout: Path) -> Path:
+    """The repo's state in the homes' state, the directory named for its main checkout."""
+    return Path.home() / ".local" / "state" / "home" / main_checkout.name
+
+
 def parser() -> argparse.ArgumentParser:
     top = argparse.ArgumentParser(
         prog="jmerge",
@@ -1853,6 +1847,22 @@ def parser() -> argparse.ArgumentParser:
         "'changed: <why>'; run it in the checkout that has both; merge, remove and log nothing",
     )
     instead.add_argument(
+        "--remake",
+        action="store_true",
+        help="while a rebase is stopped, name the files to resolve by hand, or make each "
+        "generated file again over the base's version, by the command the Generated: lines "
+        "of the state's notes.md give it (uv.lock by uv lock where none does); merge, remove "
+        "and log nothing",
+    )
+    instead.add_argument(
+        "--gate",
+        metavar="HEAD",
+        help="run the repo's merge gate in this worktree on HEAD, as a reviewer does, with "
+        "BASE and HEAD set and a limit of 9 minutes; print nothing when there is no gate or it "
+        "passes, else one finding; exit 1 when the base could not be worked out; merge, "
+        "remove and log nothing",
+    )
+    instead.add_argument(
         "--accept",
         metavar="NUMBER",
         help="lift the hold of this pull request at its current head and merge it: the "
@@ -1863,6 +1873,13 @@ def parser() -> argparse.ArgumentParser:
         metavar="BRANCH",
         default="main",
         help="with --range-diff: the branch both heads sit on (default: main)",
+    )
+    top.add_argument(
+        "--pr",
+        metavar="PR",
+        default="",
+        help="with --gate: the pull request, a number, an address or a branch (default: the "
+        "current branch's)",
     )
     top.add_argument(
         "--by", metavar="WHO", help="with --accept: who accepts it, the user jstack's config names"
@@ -1895,6 +1912,16 @@ def main(argv: list[str] | None = None) -> int:
         found = rangediff.verdict(Path.cwd(), before, head, args.base)
         print(f"{'clean' if found.clean else 'changed'}: {found.why}, by {found.command}")
         return 0
+    if args.remake or args.gate is not None:
+        found = state_of(Path.cwd())
+        if args.gate is not None:
+            if not args.gate:
+                raise SystemExit("jmerge: --gate takes the head the review keeps, not nothing")
+            if found is None:
+                raise SystemExit("jmerge: not in a git repository")
+            return merge_gate.review(found, args.gate, args.pr)
+        print("\n".join(remake.remake(found)))
+        return 0
     try:
         user = jsettings.load()
     except jsettings.Invalid as error:
@@ -1916,7 +1943,7 @@ def main(argv: list[str] | None = None) -> int:
     if not shutil.which("gh"):
         raise SystemExit("jmerge: gh is not installed")
     main_checkout = Path(here.stdout.strip()).parent
-    state = Path.home() / ".local" / "state" / "home" / main_checkout.name
+    state = homes_state(main_checkout)
     if args.claims:
         return Repo(main_checkout, state, args.home, not args.home, user=user).claimed()
     if args.scope:

@@ -66,7 +66,7 @@ After either call, keep what is so. In one call with the same two blocks, with t
 A="${M:?run the block that finds this home first}/audit"
 id='<scheduledTaskId>'
 case $id in
-'') rm -f "$A" "$M/audit-seen" && echo "no audit is kept" ;;
+'') uv run --project "$T/.." jbus forget "$A" "$M/audit-seen" > /dev/null && echo "no audit is kept" ;;
 *'<'* | *'>'* | *' '*) echo "not written: put the scheduledTaskId the call returned in place of the placeholder, or nothing after a delete" ;;
 *) printf '%s %s\n' "$id" "$ME" > "$A" && echo "kept: audit $id, in $A" ;;
 esac

@@ -235,26 +235,7 @@ The reviewer runs the same command on the head it reviews, so that the crewmate 
 Run this in this worktree, with the block at the top and the head kept at the start in place of the words in angle brackets:
 
 ```sh
-kept='<the head kept at the start>'
-limit=540
-gate=$(sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}' "$H/merge-gate" 2> /dev/null)
-if [ -z "$gate" ]; then
-    exit 0
-fi
-if ! view=$(gh pr view <url> --json baseRefName) || ! base=$(printf %s "$view" | jq -er .baseRefName) ||
-    ! git fetch -q origin "$base" || ! fork=$(git merge-base "origin/$base" "$kept"); then
-    echo "not run: where the pull request left its base could not be worked out" >&2
-    exit 1
-fi
-out=$(BASE=$fork HEAD=$kept timeout "$limit" sh -c "$gate"' "$@"' merge-gate "$fork" "$kept" < /dev/null 2>&1)
-code=$?
-if [ "$code" = 124 ]; then
-    if [ $((limit % 60)) = 0 ]; then over="$((limit / 60)) minutes"; else over="$limit s"; fi
-    echo "error - the merge gate fails at $(printf %s "$kept" | cut -c1-12): it ran over $over and was stopped (principle: none) (bucket: Act on)"
-elif [ "$code" != 0 ]; then
-    first=$(printf '%s\n' "$out" | sed -n '/[^[:space:]]/{s/^[[:space:]]*//;s/[[:space:]]*$//;p;q;}')
-    echo "error - the merge gate fails at $(printf %s "$kept" | cut -c1-12): ${first:-exit $code} (principle: none) (bucket: Act on)"
-fi
+uv run --project "$T/.." jmerge --gate '<the head kept at the start>' --pr <url>
 ```
 
 Send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.

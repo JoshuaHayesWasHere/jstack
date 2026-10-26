@@ -470,6 +470,7 @@ class Link(PullRequest):
             cwd=self.work,
             env={
                 **os.environ,
+                "T": str(REPO / "features" / "crew" / "templates"),
                 **env,
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
@@ -485,10 +486,10 @@ class Link(PullRequest):
 STOPPED = "the rebase stopped: resolve these, then git rebase --continue"
 
 
-def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh"):
+def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh", **env):
     """What a block of "Stay on the pull request" prints in a crewmate's worktree. The test
     fills in the slug, puts the home's state beside the worktree, and passes `stale` where
-    the test gives it."""
+    the test gives it, and the variables in `env`."""
     state = state or pr.stub.parent / "home"
     (state / "tasks").mkdir(parents=True, exist_ok=True)
     if brief is not None:
@@ -499,7 +500,7 @@ def stays(pr, about, brief=None, why=None, slug="a-task", state=None, shell="sh"
         assert filled == 1
     if shell != "sh":
         text = f"exec {shell} -c {shlex.quote(text)}"
-    return Link.run_text(pr, text, H=str(state)).splitlines()
+    return Link.run_text(pr, text, H=str(state), **env).splitlines()
 
 
 def asked(pr, mergeable):
