@@ -105,6 +105,33 @@ def test_a_row_in_check_with_no_check_seen_gives_what_the_view_says():
         ),
         (task("review", "no review yet", ago(3)), Cause("review running 3m", ago(3), True)),
         (task("asking", "which base?", ago(2)), Cause("asks you: which base?", ago(2), False)),
+        (task("launching", "x", ago(1)), Cause("thread starting", ago(1), True)),
+        (
+            task("lost", "x", ago(40)),
+            Cause("thread gone with nothing written, needs your word", ago(40), False),
+        ),
+        (task("unapproved", "x", ago(9)), Cause("waits for your approval", ago(9), False)),
+        (
+            task("leftover", "x", ago(50)),
+            Cause("ended with something left: close it or say why", ago(50), False),
+        ),
+        (task("second", "x", ago(6)), Cause("second review not written yet", ago(6), False)),
+        (
+            task("findings", "x", ago(8)),
+            Cause("findings not handled yet by its crewmate", ago(8), False),
+        ),
+        (
+            task("rebase", "it conflicts with its base", ago(4)),
+            Cause("needs a rebase by its crewmate: it conflicts with its base", ago(4), False),
+        ),
+        (
+            task("proof", "the guard needs a proof", ago(4)),
+            Cause("needs a proof from its reviewer: the guard needs a proof", ago(4), False),
+        ),
+        (
+            task("hold", "needs Josh, touches CI", ago(7)),
+            Cause("held for your word: needs Josh, touches CI", ago(7), False),
+        ),
         (task("merged", "it merged", ago(1)), Cause("it merged", ago(1), False)),
         (task("ready", "", ago(1)), Cause("ready", ago(1), False)),
     ],
