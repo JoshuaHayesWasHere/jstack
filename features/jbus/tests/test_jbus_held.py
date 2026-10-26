@@ -28,21 +28,28 @@ class Held:
     them. A first pass has recorded what is so, and from minute 0 `jmerge` says each one waits on
     the same reason."""
 
-    def __init__(self, kitchen, reason=REASON):
+    def __init__(self, kitchen, reason=REASON, ahead=False):
         self.kitchen = kitchen
         self.desk = home(kitchen)
         self.crews = {}
-        for number, slug in enumerate(ROWS, start=11):
+        self.ahead = ahead
+        rows = ((AHEAD, 10),) if ahead else ()
+        rows += tuple((slug, number) for number, slug in enumerate(ROWS, start=11))
+        for slug, number in rows:
             kitchen.brief(slug, RESULT.format(slug=slug, url=url(number)))
             self.crews[slug] = kitchen.t3.thread(slug, "completed", idle=timedelta(hours=2))
-        opened = [kitchen.opened(slug, number) for number, slug in enumerate(ROWS, start=11)]
+        opened = [kitchen.opened(slug, number) for slug, number in rows]
+        if ahead:
+            opened[0] = kitchen.opened(AHEAD, 10, state=None)
         kitchen.set("open.json", opened)
         kitchen.quiet()
         self.say(reason)
         self.minute = 0
 
     def say(self, reason):
-        lines = (f"wait {n} {url(n)}: {reason}\n" for n, _ in enumerate(ROWS, start=11))
+        lines = [f"wait {n} {url(n)}: {reason}\n" for n, _ in enumerate(ROWS, start=11)]
+        if self.ahead:
+            lines.insert(0, f"wait 10 {url(10)}: {ready.NOT_PASSED.format(check='check')}\n")
         self.kitchen.set("jmerge.txt", "".join(lines) if reason else "")
 
     def until(self, minute):
@@ -127,9 +134,21 @@ FOLLOWS = (
 
 
 @pytest.mark.parametrize("reason", FOLLOWS)
-def test_rows_that_wait_on_a_row_ahead_wake_nobody(kitchen, reason):
-    """The row ahead, in CI or held by a reason of its own, is what holds them: its own wait is
-    watched, so the rows behind it are no hold of their own."""
-    held = Held(kitchen, reason)
+def test_rows_that_wait_on_an_open_row_ahead_in_ci_wake_nobody(kitchen, reason):
+    """The row ahead is open and in CI, so its own wait is what holds them, and the merge runner
+    is on it: the rows behind it are no hold of their own."""
+    held = Held(kitchen, reason, ahead=True)
     held.until(45)
     assert held.told() == [] and held.needs() == []
+
+
+@pytest.mark.parametrize("reason", FOLLOWS)
+def test_rows_that_wait_on_a_row_ahead_with_no_open_pull_request_wake_their_home(kitchen, reason):
+    """The row ahead has no open pull request, closed with no merge or not opened yet, so no wait
+    of its own is watched: the rows behind it are a hold, and wake their home."""
+    held = Held(kitchen, reason)
+    held.until(31)
+    (told,) = held.told()
+    assert reason in told and "31 minutes" in told
+    (need,) = held.needs()
+    assert need["rows"] == list(ROWS)
