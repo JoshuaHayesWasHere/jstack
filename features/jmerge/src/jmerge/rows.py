@@ -91,20 +91,20 @@ def red(main: mainjson.Main, slug: str) -> str:
 
 def base_red(base: str, runs: list[dict], slug: str) -> str:
     """The red hold of a pull request into an integration branch. It holds when a check of the
-    branch's tip ended without passing on its latest run, as GitHub's check runs list them.
-    A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`). This hold does
-    not apply to a fix of a red main, just as `red` does not hold such a fix."""
-    latest: dict[str, dict] = {}
-    for one in sorted(runs, key=lambda run: str(run.get("started_at") or "")):
-        latest[str(one.get("name"))] = one
-    failed = [
-        one
-        for one in latest.values()
-        if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
-    ]
-    if not failed or mainjson.fix_of(slug):
+    branch's tip ended without passing on its latest run, as GitHub's check runs list them
+    (`failed`). A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`).
+
+    This hold does not apply to a fix of a red main, just as `red` does not hold such a fix,
+    nor to the fix row jbus files for a red train (`TRAIN_FIX`): that row's pull request is
+    into the red train, and only its merge turns the train green. jbus's rule for a red train
+    (`jbus.sidered.trains`) reads the runs with the same `failed`, so it files a row for each
+    train that jmerge holds pull requests on. `failed`, `latest` and `TRAIN_FIX` are at the end
+    of this module.
+    """
+    red = failed(runs)
+    if not red or mainjson.fix_of(slug) or slug.startswith(TRAIN_FIX):
         return ""
-    return ready.BASE_RED.format(base=base, sha=str(failed[0].get("head_sha"))[: mainjson.SHA])
+    return ready.BASE_RED.format(base=base, sha=str(red[0].get("head_sha"))[: mainjson.SHA])
 
 
 def ordered(rows: list[queue.Row] | None) -> set[str]:
@@ -150,3 +150,26 @@ def short(
                 carried=carried, number=number, slug=other, open=ahead.get("pr") or NO_PULL
             )
     return ""
+
+
+TRAIN_FIX = "train-red-"
+"""The start of the slug of a fix row jbus files for a red integration branch
+(`jbus.sidered.trains`)."""
+
+
+def latest(runs: list[dict]) -> list[dict]:
+    """The latest run of each check, as GitHub's check runs of a commit list them."""
+    found: dict[str, dict] = {}
+    for one in sorted(runs, key=lambda run: str(run.get("started_at") or "")):
+        found[str(one.get("name"))] = one
+    return list(found.values())
+
+
+def failed(runs: list[dict]) -> list[dict]:
+    """The checks whose latest run ended without passing. A cancelled run is no failed check,
+    as on main (`jbus.watch.NOT_RED`)."""
+    return [
+        one
+        for one in latest(runs)
+        if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
+    ]

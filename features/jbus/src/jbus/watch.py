@@ -1265,41 +1265,41 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
     write_json(run.state / nightly.seen, seen)
 
 
-def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str) -> None:
-    """Withdraw each fix row filed for a red that main's tip, `green`, has since passed: a fix
-    for a problem already gone is no decision for the user. A row that never launched is taken
-    out (`queue.withdraw`), with why in its record. A row that launched is left to its crew and
-    its pull request, since its fix may still be needed for a test that turned green by chance,
-    and the home hears of it once. The line that says a row is withdrawn is sent once the row is
-    out, and a withdrawn row is never one of `fixes` again. A row filed for `green` itself, whose
-    check passed on a rerun, is left as it is, and the home hears of that once too. A row with a
-    launch record, a launch T3 Code may not have answered, is left for the pass that reads the
-    answer. It imports `dispatch` inside the function, since `dispatch` imports this module."""
+def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = "main") -> None:
+    """Withdraw each fix row filed for a red (its slug ends in the red's commit) that the tip of
+    `branch`, main or a train, `green`, has since passed: a fix for a problem already gone is no
+    decision. A row that never launched is taken out (`queue.withdraw`), with why in its record.
+    A row that launched is left to its crew and its pull request, since its fix may still be
+    needed for a test that turned green by chance, and the home hears of it once. The line that
+    says a row is withdrawn is sent once the row is out, and a withdrawn row is never one of
+    `fixes` again. A row filed for `green` itself, whose check passed on a rerun, is left as it
+    is, and the home hears of that once too. A row with a launch record is left for the pass that
+    reads T3 Code's answer. It imports `dispatch` here, since `dispatch` imports this module."""
     from jbus import dispatch
 
     for row in fixes:
         name = row["slug"]
-        if green.startswith(name.removeprefix(mainjson.FIX)):
-            line = f"retro {name}: main is green again at {green[:12]}, and its row is left"
+        if green.startswith(name.rsplit("-", 1)[-1]):
+            line = f"retro {name}: {branch} is green again at {green[:12]}, and its row is left"
             line += " as it is"
             run.find(name, "retro", line, key=f"green {name}", past=True)
             continue
         if row.get("thread") or row.get("status") not in queue.UNLAUNCHED:
             line = (
-                f"retro {name}: main is green again at {green[:12]}, and its row launched, so it "
-                "is left to its crew and its pull request"
+                f"retro {name}: {branch} is green again at {green[:12]}, and its row launched, so "
+                "it is left to its crew and its pull request"
             )
             run.find(name, "retro", line, key=f"launched {name}", past=True)
             continue
         if dispatch.records(run, name):
             continue
-        why = f"main is green at {green[:12]}, a later commit than the red it was filed for"
+        why = f"{branch} is green at {green[:12]}, a later commit than the red it was filed for"
         try:
             said = queue.withdraw(run.state, name, why, run.user.stamp(run.now))
         except (Refused, queue.Unparsable) as refused:
             run.condition(name, f"its row was not withdrawn: {refused}")
             continue
-        line = f"retro {name}: main is green again at {green[:12]}, and its row is withdrawn"
+        line = f"retro {name}: {branch} is green again at {green[:12]}, and its row is withdrawn"
         run.box.send(name, "retro", line)
         run.box.send(name, "queue", f"queue {run.project.name}: {said}", queue.render([row]))
         run.say(said)
