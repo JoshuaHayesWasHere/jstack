@@ -9,8 +9,10 @@ import shutil
 import subprocess
 import time
 
+import pytest
+
 import test_room as room
-from crew_helpers import FENCED, block, held_open, sections
+from crew_helpers import FENCED, block, git, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
 from testing.paths import REPO
@@ -29,7 +31,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
         room.uv(stub)
     script = block(heading, "<check command>").replace("<check command>", command)
     script = script.replace("jgauge check", f"jgauge check --wait {limit}")
-    script = script.replace("<thread id>", "mcp:thread-1")
+    script = script.replace("<thread id>", "mcp:thread-1").replace("<slug>", "a-task")
     began = time.monotonic()
     ran = subprocess.Popen(
         ["sh", "-c", script],
@@ -43,6 +45,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
             "TEST_SLOTS": "3",
             "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
             "T": str(REPO / "features" / "crew" / "templates"),
+            "H": str(tmp_path / "state"),
         },
     )
     first = ran.stdout.readline()
@@ -186,7 +189,7 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     said, code, _ = checked(tmp_path, "echo ran")
     assert (said[-2:], code) == (["ran", "done: the check exited 0"], 0)
     ran = slot_script(
-        block("Do the task", "test-slot --short").replace("<the targeted tests>", "echo ran"),
+        block("Do the task", "<the targeted tests>").replace("<the targeted tests>", "echo ran"),
         tmp_path / "home",
     )
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
@@ -213,7 +216,9 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
             held.append(fd)
     try:
         ran = slot_script(
-            block("Do the task", "test-slot --short").replace("<the targeted tests>", "echo ran"),
+            block("Do the task", "<the targeted tests>").replace(
+                "<the targeted tests>", "echo ran"
+            ),
             home,
         )
         assert (ran.returncode, ran.stderr) == (76, "")
@@ -241,7 +246,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
     took = f"! flock -n {locks}/test-slot-short.1.lock true && echo short; exit 3"
-    script = block("Do the task", "test-slot --short").replace(
+    script = block("Do the task", "<the targeted tests>").replace(
         "<the targeted tests>", f"sh -c '{took}'"
     )
     script = script.replace("<thread id>", "mcp:thread-1")
@@ -308,3 +313,133 @@ def test_a_check_the_old_block_started_is_joined_and_not_started_twice(tmp_path)
     assert said[0].startswith("joined: the check an earlier call started on this worktree")
     assert (said[-2:], code) == (["the old block's run", "done: the check exited 0"], 0)
     assert not runs.exists()
+
+
+def lanes(stub, locks, log):
+    """A `make` on the path that records its arguments, and which lane's slot was held while it
+    ran: `short` when the first slot of the short lane was, `full` when any of the full lane's
+    were."""
+    (stub / "make").write_text(
+        "#!/bin/sh\nshort=free\nfull=free\n"
+        f"! flock -n {locks}/test-slot-short.1.lock true && short=held\n"
+        f'for one in {locks}/test-slot.*.lock; do [ -e "$one" ] && ! flock -n "$one" true '
+        "&& full=held; done\n"
+        f'echo "$* short=$short full=$full" >> {log}\n'
+    )
+    (stub / "make").chmod(0o755)
+
+
+def selected(tmp_path, repo, on="origin/main"):
+    """Run the check block once in `repo`, a worktree whose `origin/main` the test has set, with
+    a `make` that records each run. It returns what the block printed, its exit code, the
+    runs of `make` and the commit the branch left `origin/main` at."""
+    stub, locks, log = (
+        tmp_path / "stub",
+        tmp_path / "home" / ".local" / "state" / "locks",
+        tmp_path / "make.log",
+    )
+    stub.mkdir()
+    room.uv(stub)
+    lanes(stub, locks, log)
+    said, code, _ = checked(tmp_path, "echo the full lane")
+    base = subprocess.run(
+        ["git", "merge-base", on, "HEAD"], cwd=repo, capture_output=True, text=True
+    ).stdout.strip()
+    waiting = locks / "test-slot-waiters.json"
+    assert not waiting.exists() or json.loads(waiting.read_text()) == []
+    return said, code, log.read_text().splitlines() if log.exists() else [], base
+
+
+def stubbed(tmp_path, selector):
+    """A repo whose `scripts/select_tests.py` is `selector`, with `origin/main` at its first
+    commit and a doc changed on the branch above it."""
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "select_tests.py").write_text(selector + "\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the selector")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (repo / "page.md").write_text("A page.\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "a doc")
+    return repo
+
+
+def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(tmp_path):
+    """In jstack, the check of a change is the tests `scripts/select_tests.py` selects for it,
+    in the short lane, and never the whole suite under a full slot: CI's check is the gate."""
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(repo)], check=True)
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
+        page.write("\nA line the test adds.\n")
+    git(repo, "commit", "-qam", "a change to the crew feature")
+    said, code, ran, base = selected(tmp_path, repo)
+    chosen = subprocess.run(
+        ["python3", "scripts/select_tests.py", base, "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert "all" not in chosen
+    assert "features/crew/tests/test_crew_checks.py" in chosen
+    assert said[0] == f"selected: {len(chosen)} test files, in the short lane:"
+    assert said[1 : 1 + len(chosen)] == chosen
+    assert "the full lane" not in said
+    assert (ran, code) == ([f"check-fast BASE={base} short=held full=free"], 0)
+
+
+@pytest.mark.parametrize(
+    ("selection", "first"),
+    [
+        ("", "selected: none, no test covers this change: lint only"),
+        ("all", "selected: all, the whole suite: lint only here, and CI's check runs every test"),
+    ],
+)
+def test_a_selection_of_no_test_or_of_every_test_runs_only_the_lint(tmp_path, selection, first):
+    """A change no test covers, a doc only, still gets the lint, and a change every test covers
+    gets only the lint here: `PYTEST=:` stops `make check-fast` before any test."""
+    repo = stubbed(tmp_path, f"print({selection!r})")
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (said, code) == ([first], 0)
+    assert ran == [f"check-fast BASE={base} PYTEST=: short=held full=free"]
+
+
+def test_a_selector_that_fails_is_no_check_and_ends_the_block_1(tmp_path):
+    repo = stubbed(tmp_path, "import sys; sys.exit('the selector broke')")
+    said, code, ran, _ = selected(tmp_path, repo)
+    assert (said, code, ran) == (
+        ["no check: scripts/select_tests.py could not select the tests"],
+        1,
+        [],
+    )
+
+
+def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacked_on(tmp_path):
+    """A link stacked on another pull request's branch is checked from where it left that
+    branch, as its pull request is based on it, and not from `origin/main`, which would select
+    the change of every link under it too."""
+    repo = stubbed(tmp_path, "print('all')")
+    git(repo, "update-ref", "refs/remotes/origin/below", "HEAD")
+    (repo / "mine.md").write_text("This link's own page.\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "this link")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
+    said, code, ran, base = selected(tmp_path, repo, on="origin/below")
+    assert base == git(repo, "rev-parse", "HEAD~1")
+    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
+
+
+def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
+    """A link's base branch is deleted once it merges, before jbus rewrites the brief's
+    `Stacked on:` line, and the link is then checked from `origin/main`, which holds it."""
+    repo = stubbed(tmp_path, "print('all')")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
