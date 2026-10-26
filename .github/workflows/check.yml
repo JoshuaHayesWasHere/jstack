@@ -75,6 +75,19 @@ jobs:
       - name: green tree
         id: tree
         run: echo "name=green-tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+      # TLC's output for each run of the specs, kept by the sha256 of what the run reads
+      # (statechart's `kept`): a run whose spec, config, script, jar and Java are those of a run
+      # kept here starts no Java. A test's part is fixed by its id, so each part keeps its own
+      # runs. Every run saves under a key of its own, and restores the latest of its part, of
+      # the same spec files first, else of any: a stale entry is never read, since each file is
+      # named by the hash of its own inputs.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/jstack/tlc
+          key: tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-${{ github.run_id }}
+          restore-keys: |
+            tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-${{ matrix.shard }}-
       # scripts/select_tests.py adds its selection to the job summary, as one line, and gives
       # this step the output `selection`: `all` where it ran the whole suite, which it does
       # when its selection is 80% of the test files or more.
@@ -181,6 +194,15 @@ jobs:
       - name: zsh
         if: steps.tree.outputs.marker != 'green'
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh
+      # TLC's kept output, as in the check's parts.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: steps.tree.outputs.marker != 'green'
+        with:
+          path: ~/.cache/jstack/tlc
+          key: tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-${{ github.run_id }}
+          restore-keys: |
+            tlc-${{ matrix.shard }}-${{ hashFiles('features/home/spec/**', 'features/jmerge/spec/**', 'features/skill-library/skills/statechart/scripts/**') }}-
+            tlc-${{ matrix.shard }}-
       - name: make check
         id: suite
         if: steps.tree.outputs.marker != 'green'

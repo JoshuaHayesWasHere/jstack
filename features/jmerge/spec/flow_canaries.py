@@ -56,11 +56,26 @@ def config(rules, gap=None):
     return "\n".join(lines) + "\n"
 
 
+def specs():
+    """The .tla files a run copies into its folder."""
+    return sorted([*HERE.glob("*.tla"), *HERE.glob("canary/*.tla")])
+
+
 def tlc(found, module, cfg):
-    """TLC's output for `module` with the config `cfg`, run in a copy of this folder."""
+    """TLC's output for `module` with the config `cfg`, run in a copy of this folder. A run whose
+    inputs (the specs, the config, this script, the jar and the Java) are those of one that
+    finished before returns that run's output, kept by `tools.kept`, and starts no Java."""
+    inputs = [Path(__file__).read_bytes(), module, cfg, *tools.tlc_inputs(found)]
+    for spec in specs():
+        inputs += [spec.name, spec.read_bytes()]
+    return tools.kept(lambda: run(found, module, cfg), inputs, finished)
+
+
+def run(found, module, cfg):
+    """TLC's output for `module` with the config `cfg`, run now in a copy of this folder."""
     with tempfile.TemporaryDirectory(prefix="merge-flow-") as folder:
         work = Path(folder)
-        for spec in [*HERE.glob("*.tla"), *HERE.glob("canary/*.tla")]:
+        for spec in specs():
             shutil.copy(spec, work)
         (work / "run.cfg").write_text(cfg)
         ran = subprocess.run(
@@ -96,6 +111,12 @@ def verdict(out, rule=None):
     if rule and f"Invariant {rule} is violated" in out:
         return "breaks"
     return "error"
+
+
+def finished(out):
+    """Whether TLC ran to its verdict, so its output is kept: it found no error or broke a rule,
+    and did not fail or stop short."""
+    return any(verdict(out, rule) != "error" for rule in [None, *RULES])
 
 
 def states(out):
