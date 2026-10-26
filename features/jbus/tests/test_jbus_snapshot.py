@@ -331,6 +331,18 @@ def test_a_scoped_homes_standing_md_is_held_to_the_same_cap(kitchen, tree):
     assert take() == refused(path, "has 4 rules, and a standing.md holds at most 3")
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="root reads a file with no read bit")
+def test_an_unreadable_standing_md_is_refused_and_the_alarm_still_alerts(kitchen, tree):
+    path = standing(kitchen, tree, "one")
+    path.chmod(0)
+    try:
+        assert take() == refused(path, "cannot be read: Permission denied")
+        said = alarm()
+    finally:
+        path.chmod(0o644)
+    assert said[1] == f"demo: {FAILED}: {path} cannot be read: Permission denied"
+
+
 def test_the_verb_says_the_refusal_on_stderr_and_exits_1(kitchen, tree, capsys):
     path = standing(kitchen, tree, "one", codes=[None])
     assert snapshot.snapshot(jbus.load(), NOW, print) == 1

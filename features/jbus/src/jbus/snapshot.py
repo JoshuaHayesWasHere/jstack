@@ -157,7 +157,11 @@ def refusals(config: jbus.Config) -> list[str]:
         for standing in sorted({home / "standing.md", *home.glob("*/standing.md")}):
             if not standing.is_file():
                 continue
-            rules = _rules(standing.read_text(errors="replace"))
+            try:
+                rules = _rules(standing.read_text(errors="replace"))
+            except OSError as error:
+                lines.append(f"{standing} cannot be read: {error.strerror or error}")
+                continue
             why = []
             if len(rules) > CAP:
                 why.append(f"has {len(rules)} rules, and a standing.md holds at most {CAP}")
