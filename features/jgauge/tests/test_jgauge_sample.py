@@ -53,9 +53,9 @@ def rows(log):
 
 
 def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine, monkeypatch):
+    """APFS works out f_ffree from the free blocks and f_files as used plus free, so on a Mac the
+    total moves with every write on the volume: the row is held to the read it was made of."""
     proc, log = machine
-    # APFS works out f_ffree from the free blocks and f_files as used plus free, so on a Mac
-    # the total moves with every write on the volume: the row is held to the read it was made of.
     reads = []
     statvfs = os.statvfs
     monkeypatch.setattr(os, "statvfs", lambda path: reads.append(statvfs(path)) or reads[-1])
