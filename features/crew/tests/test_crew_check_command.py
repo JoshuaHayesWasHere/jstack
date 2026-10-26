@@ -9,8 +9,10 @@ import shutil
 import subprocess
 import time
 
+import pytest
+
 import test_room as room
-from crew_helpers import FENCED, block, held_open, sections
+from crew_helpers import FENCED, block, git, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
 from testing.paths import REPO
@@ -308,3 +310,88 @@ def test_a_check_the_old_block_started_is_joined_and_not_started_twice(tmp_path)
     assert said[0].startswith("joined: the check an earlier call started on this worktree")
     assert (said[-2:], code) == (["the old block's run", "done: the check exited 0"], 0)
     assert not runs.exists()
+
+
+def lanes(stub, locks, log):
+    """A `make` on the path that records its arguments, and which lane's slot was held while it
+    ran: `short` when the first slot of the short lane was, `full` when any of the full lane's
+    were."""
+    (stub / "make").write_text(
+        "#!/bin/sh\nshort=free\nfull=free\n"
+        f"! flock -n {locks}/test-slot-short.1.lock true && short=held\n"
+        f'for one in {locks}/test-slot.*.lock; do [ -e "$one" ] && ! flock -n "$one" true '
+        "&& full=held; done\n"
+        f'echo "$* short=$short full=$full" >> {log}\n'
+    )
+    (stub / "make").chmod(0o755)
+
+
+def selected(tmp_path, repo):
+    """Run the check block once in `repo`, a worktree whose `origin/main` the test has set, with
+    a `make` that records each run. It returns what the block printed, its exit code, the
+    runs of `make` and the commit the branch left `origin/main` at."""
+    stub, locks, log = (
+        tmp_path / "stub",
+        tmp_path / "home" / ".local" / "state" / "locks",
+        tmp_path / "make.log",
+    )
+    stub.mkdir()
+    room.uv(stub)
+    lanes(stub, locks, log)
+    said, code, _ = checked(tmp_path, "echo the full lane")
+    base = subprocess.run(
+        ["git", "merge-base", "origin/main", "HEAD"], cwd=repo, capture_output=True, text=True
+    ).stdout.strip()
+    waiting = locks / "test-slot-waiters.json"
+    assert not waiting.exists() or json.loads(waiting.read_text()) == []
+    return said, code, log.read_text().splitlines() if log.exists() else [], base
+
+
+def test_a_change_to_one_feature_runs_only_that_features_tests_in_a_short_slot(tmp_path):
+    """In jstack, the check of a change is the tests `scripts/select_tests.py` selects for it,
+    in the short lane, and never the whole suite under a full slot: CI's check is the gate."""
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(repo)], check=True)
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
+        page.write("\nA line the test adds.\n")
+    git(repo, "commit", "-qam", "a change to the crew feature")
+    said, code, ran, base = selected(tmp_path, repo)
+    chosen = subprocess.run(
+        ["python3", "scripts/select_tests.py", base, "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert "all" not in chosen
+    assert "features/crew/tests/test_crew_checks.py" in chosen
+    assert said[0] == f"selected: {len(chosen)} test files, in the short lane:"
+    assert said[1 : 1 + len(chosen)] == chosen
+    assert "the full lane" not in said
+    assert (ran, code) == ([f"check-fast BASE={base} short=held full=free"], 0)
+
+
+@pytest.mark.parametrize(
+    ("selection", "first"),
+    [
+        ("", "selected: none, no test covers this change: lint only"),
+        ("all", "selected: all, the whole suite: lint only here, and CI's check runs every test"),
+    ],
+)
+def test_a_selection_of_no_test_or_of_every_test_runs_only_the_lint(tmp_path, selection, first):
+    """A change no test covers, a doc only, still gets the lint, and a change every test covers
+    gets only the lint here: `PYTEST=:` stops `make check-fast` before any test."""
+    repo = tmp_path / "repo"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    (repo / "scripts").mkdir()
+    (repo / "scripts" / "select_tests.py").write_text(f"print({selection!r})\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "the selector")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (repo / "page.md").write_text("A page.\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-qm", "a doc")
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (said, code) == ([first], 0)
+    assert ran == [f"check-fast BASE={base} PYTEST=: short=held full=free"]
