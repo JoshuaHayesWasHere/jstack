@@ -20,17 +20,19 @@ last thing it did that the root can see: a write of one of its crew or reviewer 
 in what it has out, or, before the root nudged it in this spell, a write of its home thread. A
 turn the root's own nudge started is no progress, so once nudged the home thread's writes do not
 end the spell. At its patience (`PATIENCE`, or the routine's beat) the root nudges the child's
-home thread and the user hears of it at once, the first strike (`FirstStrike`); at twice its
-patience it nudges it again; at three times it asks the user, and nudges no more
-(`NudgesBounded`, `AsksAfterTwo`). `children.json` keeps each spell: when it began, how far it
-went, and what the child had out.
+home thread and the user hears of it at once, the first strike (`FirstStrike`); a patience
+after that nudge it nudges it again; a patience after the second it asks the user, and nudges no
+more (`NudgesBounded`, `AsksAfterTwo`). Each step waits a patience after the last, so a child
+first checked long after it went quiet still gets that time to act on a nudge. `children.json`
+keeps each spell: when it began, how far it went, when it took its last step, and what the child
+had out.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -208,10 +210,15 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
         quiet = int((run.now - since).total_seconds() // 60)
         rank = STEPS_OF.index(step)
         spell = {"since": since.isoformat(), "step": step, "sig": sig}
-        if step != "asked" and quiet >= patience * (rank + 1):
+        last = _at(prev.get("at", "")) if rank else None
+        start = last or since + timedelta(minutes=patience * rank)
+        if last:
+            spell["at"] = last.isoformat()
+        if step != "asked" and run.now - start >= timedelta(minutes=patience):
             what = f"{len(launched)} things" if launched else "its beat"
             if _act(run, client, name, thread, spell, quiet, what):
                 spell["step"] = STEPS_OF[rank + 1]
+                spell["at"] = run.now.isoformat()
         kept[name] = spell
     if kept != was:
         write_json(run.state / FILE, kept)

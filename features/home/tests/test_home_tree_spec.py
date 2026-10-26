@@ -46,6 +46,30 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
     assert lib.uncited_conditions(today.read_text(), shared) == []
 
 
+QUOTE = re.compile(r"([\w./-]+\.(?:py|md)):(\d+(?:-\d+)?)\s*`([^`]+)`")
+"""A citation of HomeTreeToday.tla with the code it quotes: `jbus/children.py:184 `...``."""
+
+
+def test_each_quote_of_the_code_model_is_on_the_lines_it_cites():
+    """Each `file:line` the code model quotes holds the quoted text on those lines, so a quote
+    the code has moved off or changed fails here, also where no Java runs TLC."""
+    text = (SPEC / "HomeTreeToday.tla").read_text()
+    flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
+    files = subprocess.run(
+        ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split()
+    quotes = QUOTE.findall(flat)
+    assert len(quotes) > 40
+    stale = []
+    for path, span, quote in quotes:
+        (found,) = [one for one in files if one.endswith(f"/{path}")]
+        first, _, last = span.partition("-")
+        lines = (REPO / found).read_text().splitlines()[int(first) - 1 : int(last or first)]
+        if " ".join(quote.split()) not in " ".join(" ".join(lines).split()):
+            stale.append(f"{path}:{span} `{quote}`")
+    assert stale == []
+
+
 def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
     """canaries.py runs the design in each scene once for its invariants and once for each
     property, each canary once, and today's code in each scene as the design, and the canaries
