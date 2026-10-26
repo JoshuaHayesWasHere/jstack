@@ -1,6 +1,3 @@
-/* Find: a box over every row of the queue. Each word typed must be in the row's slug or the
-   title of its brief, and each match gives its stage, its pull request and when it merged.
-   `find:<words>` opens the drawer with those words in the box. */
 var FOUND = [], FIND_MAX = 50;
 function findRows(words) {
   var want = words.toLowerCase().split(/\s+/).filter(Boolean);

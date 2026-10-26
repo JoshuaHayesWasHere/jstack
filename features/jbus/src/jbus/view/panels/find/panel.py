@@ -4,7 +4,8 @@ the title of its brief. Each row gives its stage, its pull request and when it m
 The stage of a row with a task is the task's state, as the task's drawer names it. A row that
 ended with no task gives its status. The merged time is that of the row's last move in
 `transitions.jsonl`, where that move is to merged. The open rows come first, in the queue's
-order, then the rest, the newest merge first."""
+order, then the rest, the newest merge first. The page filters them as the user types, and
+`find:<words>` opens the drawer with those words in its box."""
 
 from __future__ import annotations
 
