@@ -71,32 +71,33 @@ jbus refuses a state file that is not there, a session or an entry the file does
 The row then reads `your pick on a Lavish page, <time>, <page file name>; run <time> by the <repo> home`.
 If the block prints `no entry`, the page gave no go that jbus can read, so ask the user for their word another way.
 
-### A follow-up approved by a standing rule
+### A follow-up approved by the follow-up rule
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
-In one case a row launches on a word the user gave for another row: a follow-up of work the user approved.
-A rule of `standing.md` must say that a follow-up needs no new approval, and in this repo that is rule 6.
-The home's `follow-rule` file holds that rule's number, on one line, and with no such file jbus approves no row by rule.
+In one case a row launches on a go given for another row: a follow-up of approved work needs no new approval.
+jbus knows that rule by what it says, in code, and reads no number from `standing.md` or a `follow-rule` file for it.
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
 
 - the row names its parent P, by a line `Follows: P` in its brief's head, or by its slug `cleanup-P`, the row a review files with `jbus cleanup`;
-- the row is P's, since its slug is `cleanup-P`, or since it does work for P's plan entry (`--entry`), as a second unit of that entry does;
-- P's go is the user's own and still holds: P is a row of this queue, or one that was removed as merged, and the user's word approved it, not a rule.
+- the row is of a follow-up's kind: `cleanup-P`; a fix row jbus files (`main-red-`, `train-red-`, `workflow-red-`), which carries the `Follows:` line itself; a sync of a train, whose slug says `sync-main` and whose pull request goes against a branch of the home's `integration` file; or, when it is queued, a row that does work for P's plan entry (`--entry`), as a second unit of that entry does;
+- P's go still holds: P is a row of this queue, or one that was removed as merged, and the user's word or this rule approved it.
 
-`jbus queue add` checks the rule when it queues the row, and approves a row that meets it by the rule in the same write, so no pass asks the user for it.
-It also checks the waiting rows that name P when the user's word approves P.
+Each pass approves a waiting row of the first three kinds by itself, before any launch, so neither the home nor the user is asked.
+`jbus queue add` checks the rule when it queues the row, and approves a row that meets it in the same write.
+It also checks the waiting rows that name P when P gets its go.
+To file a train sync, write `Follows: <the approved row it serves>` in its brief's head.
 It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
 `jbus queue add --help` gives the same rule.
 To queue a second unit, write `Follows: <parent>` in its brief's head and queue it with `--entry <the parent's plan entry>`.
 A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go however small it is.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.
-A chain has one step, so a follow-up of a follow-up waits for the user.
-Where jbus did not approve a follow-up whose parent the user did approve, the home may still name the rule and the parent itself:
+A follow-up of a follow-up is approved on its parent's go, so a chain goes back to the user's word one go at a time.
+Where jbus did not approve a follow-up whose parent has a go, the home may still name the parent itself:
 
 ```sh
-jbus --project <project> queue approve <slug> --sha <sha12> --rule 6 --follows <parent>
+jbus --project <project> queue approve <slug> --sha <sha12> --follows <parent>
 ```
 
-`jbus` refuses a parent that is not a row of this queue, a parent with no approval, and a parent that a rule approved.
-The row then reads `rule 6, follow-up of <parent>; run <time> by the <repo> home; you did not speak of this row`, the page marks it, and the digest counts it for the user.
+`jbus` refuses a parent that is not a row of this queue, a parent with no approval, and a parent whose brief changed after its go.
+The row then reads `the follow-up rule, follow-up of <parent>; run <time> by the <repo> home; you did not speak of this row`, the page marks it, and the digest counts it for the user.
 That is how the user audits a rule approval, so a follow-up the home doubts is held (`jbus queue hold`) and asked as a gate.

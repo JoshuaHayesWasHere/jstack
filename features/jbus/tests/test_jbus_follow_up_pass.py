@@ -14,7 +14,7 @@ with `queue.add` and no approval, and the real pass runs against the kitchen's f
 import pytest
 
 import jbus
-from jbus import queue
+from jbus import queue, sidered, watch
 from test_jbus_kitchen import SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
@@ -171,6 +171,22 @@ def test_queue_add_approves_a_follow_up_whatever_number_the_follow_rule_file_hol
     argv = ("queue", "add", "cleanup-alpha", "--priority", "1")
     code, said = kitchen.main(*argv, stdin=brief("cleanup-alpha"))
     assert code == 0, said
-    assert said.startswith("added cleanup-alpha")
-    assert "approved cleanup-alpha" in said
+    assert said.startswith("approved cleanup-alpha: brief ")
     assert went(kitchen, "cleanup-alpha") == ("alpha", queue.RULE)
+
+
+def test_the_fix_rows_jbus_files_name_the_row_they_follow():
+    """A red main names the briefed merge before it, a red train the first pull request it holds,
+    and a red workflow the row whose pull request its run's commit merged."""
+    main = watch.red_brief("alpha", "a" * 40, [], [], [])
+    assert queue.named_parent(RED, main) == "alpha"
+    assert queue.named_parent(RED, watch.red_brief("", "a" * 40, [], [], [])) == ""
+    train = sidered.train_brief(TRAIN_RED, TRAIN, "b" * 40, "", [7], [], "alpha")
+    assert queue.named_parent(TRAIN_RED, train) == "alpha"
+    table = [
+        {"slug": "beta", "pr": "https://x/pull/6"},
+        {"slug": "alpha", "pr": "https://x/pull/7"},
+    ]
+    assert sidered.merged_row(table, {"display_title": "feat: alpha (#7)"}) == "alpha"
+    assert sidered.merged_row(table, {"head_commit": {"message": "feat: x (#8)\n\nbody"}}) == ""
+    assert sidered.merged_row(table, {"display_title": "nightly"}) == ""

@@ -29,23 +29,26 @@ commit to the file on main since is a fix that no run has judged yet: release.ym
 run on a pushed tag alone, so no run on main ever ends its red. Such a red waits for the next
 run of the workflow on main, and files nothing.
 
-`owe` files one brief for each red, named for the workflow and the commit of the run that turned
-it red, and queues it unapproved, as `_nightly_red` does: the user approves it like any other
-row. `workflows.json` keeps, for each workflow, the row its red got and the red runs it has seen.
-A red that shares a run with them is the same red, though its oldest run has slid out of the
-`RUNS` that GitHub lists: it is not filed again, nor is it after its row was removed. A red that
+`owe` files one brief for each red, named for the workflow and the commit of the run that turned it
+red, and queues it unapproved, as `_nightly_red` does. Where that commit is the merge of a row's
+pull request, the brief follows that row (`Follows:`, `merged_row`) and a pass approves it on the
+row's go (`queue.follow_ups`); otherwise the user approves it like any other row. `workflows.json`
+keeps, for each workflow, the row its red got and the red runs it has seen. A red that shares a run
+with them is the same red, though its oldest run has slid out of the `RUNS` that GitHub lists: it is
+not filed again, nor is it after its row was removed. A red that
 a green run ended, and a new failure began, is a new row. On a
 project's first pass `owe` only records the reds it sees. It asks GitHub at most once in `EVERY`,
 since a pass runs each minute and a side workflow runs a few times a day.
 
-`trains` does the same for an integration branch, a train, which `jmerge` holds every pull
-request into while the latest run of a check at its tip failed (`jmerge.rows.base_red`). It asks
-GitHub of a train only while an open pull request is into it or from it, or a fix row of it is
-open. A failed check at its tip gets one fix row, `train-red-<train>-<commit>`, queued unapproved
-ahead of every row as `watch._file` queues a red main's, under the home that the briefs of the
-train's pull requests name (`jbriefs.home`), and that home's thread is sent it once. A train with
-a fix row open files nothing more, whatever its tip. Once every check at its tip has passed, at
-a later commit than a row's, the row is withdrawn as a red main's is (`watch._withdraw`).
+`trains` does the same for an integration branch, a train, which `jmerge` holds every pull request
+into while the latest run of a check at its tip failed (`jmerge.rows.base_red`). It asks GitHub of a
+train only while an open pull request is into it or from it, or a fix row of it is open. A failed
+check at its tip gets one fix row, `train-red-<train>-<commit>`, queued unapproved ahead of every
+row as `watch._file` queues a red main's, following the row of the first pull request the red holds
+(or else the one from the train), so a pass approves it on that row's go, under the home that the
+briefs of the train's pull requests name (`jbriefs.home`), and that home's thread is sent it once. A
+train with a fix row open files nothing more, whatever its tip. Once every check at its tip has
+passed, at a later commit than a row's, the row is withdrawn as a red main's is (`watch._withdraw`).
 """
 
 from __future__ import annotations
@@ -184,9 +187,24 @@ def _changed(run: Pass, red: Red, default: str) -> tuple[bool, datetime | None]:
     return True, when(dates[0]) if dates else None
 
 
-def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]]) -> str:
+_PULL = re.compile(r"\(#(\d+)\)\s*$")
+
+
+def merged_row(table: list[dict[str, Any]], one: dict[str, Any]) -> str:
+    """Return the slug of the row whose pull request the run's commit merged, by the `(#<n>)` that
+    a squash merge ends its title with, or nothing."""
+    title = str(one.get("display_title") or (one.get("head_commit") or {}).get("message") or "")
+    found = _PULL.search(title.splitlines()[0] if title else "")
+    if not found:
+        return ""
+    end = f"/pull/{found.group(1)}"
+    return next((row["slug"] for row in table if str(row.get("pr", "")).endswith(end)), "")
+
+
+def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]], follows: str = "") -> str:
     """Return the brief for the fix of `red`, in the shape of `features/jbriefs/templates/brief.md`.
-    `jobs` is each failed job's name, URL and failed tests, of the newest red run."""
+    `jobs` is each failed job's name, URL and failed tests, of the newest red run. `follows` is
+    the row whose merge turned it red, or nothing."""
     tests = [test for _, _, failed in jobs for test in failed.tests]
     where = ", ".join(
         f"`{file}`" for file in dict.fromkeys([red.path, *(t.split("::")[0] for t in tests)])
@@ -236,6 +254,7 @@ def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]]) -> str:
             "Pull request: open one when done",
             "Review: review",
             "Playbook: bug-fix",
+            *([f"Follows: {follows}"] if follows else []),
             "Read:",
             *read,
             "",
@@ -323,7 +342,7 @@ def owe(run: Pass) -> None:
         ):
             day = run.user.day(when(red.first["created_at"]))
             jobs = _jobs(run, red)
-            text = brief(red, day, jobs)
+            text = brief(red, day, jobs, merged_row(queue.load(run.state), red.first))
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)
             (run.home / "tasks" / f"{red.name}.md").write_text(text)
             try:
@@ -354,10 +373,17 @@ def train_name(branch: str, sha: str) -> str:
 
 
 def train_brief(
-    name: str, branch: str, sha: str, scope: str, numbers: list[int], jobs: list[tuple]
+    name: str,
+    branch: str,
+    sha: str,
+    scope: str,
+    numbers: list[int],
+    jobs: list[tuple],
+    follows: str = "",
 ) -> str:
     """Return the brief for the fix of a red train, in the shape of `watch.red_brief`. `jobs` is
-    each failed check's name, URL and failed tests, and `numbers` the pull requests it holds."""
+    each failed check's name, URL and failed tests, `numbers` the pull requests it holds, and
+    `follows` the row whose work the fix is a follow-up of, or nothing."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys(test.split("::")[0] for test in tests))
     where = ", ".join(f"`{file}`" for file in files) or (
@@ -389,6 +415,7 @@ def train_brief(
             "Review: review",
             "Playbook: bug-fix",
             *([f"Home: {scope}"] if scope else []),
+            *([f"Follows: {follows}"] if follows else []),
             "Read:",
             *read,
             "",
@@ -470,7 +497,8 @@ def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]])
                     for r in failed
                 ]
                 scope = "" if home == run.home else home.name
-                text = train_brief(name, branch, sha, scope, numbers, jobs)
+                first = [slug for _, slug, into in pulls if into] or [slug for _, slug, _ in pulls]
+                text = train_brief(name, branch, sha, scope, numbers, jobs, first[0])
                 (run.home / "tasks").mkdir(parents=True, exist_ok=True)
                 (run.home / "tasks" / f"{name}.md").write_text(text)
                 try:

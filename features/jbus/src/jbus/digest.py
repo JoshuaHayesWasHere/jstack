@@ -18,11 +18,11 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
     request and is not merged. Its `waits` is the last line `jmerge` logged for it, as
     `<wait or hold>: <why>`, from `merge.log.last`, or empty where `jmerge` logged none.
   - `by_rule` holds `{"slug", "rule", "follows", "at"}` for each row of the queue, open or
-    not, that a home approved by a standing rule at or after `since`, oldest first. The user
-    said nothing about such a row. The list's length is the count jbus tells the user.
-    `follows` is the row the user did approve. `at` is when the home ran the approval, to the
-    minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so the digest
-    lists a row twice at worst and never misses it.
+    not, that a home or a pass approved by the follow-up rule at or after `since`, oldest
+    first. The user said nothing about such a row. The list's length is the count jbus tells
+    the user. `follows` is the parent row whose go is the ground. `at` is when the approval
+    ran, to the minute, as the row has it. `_by_rule` rounds a `since` down to its minute, so
+    the digest lists a row twice at worst and never misses it.
   - `waiting` is the list of what waits on the user, as the last pass left it (`waiting`).
   - `routine` holds `{"at", "event", "slug", "line"}` for each event of a kind in `ROUTINE`
     that the log has at or after `since`, oldest first. These are quiet: no webhook is posted
@@ -146,8 +146,8 @@ def _pulls(config: Config, project: Project, rows: list[queue.Row]) -> list[dict
 
 
 def _by_rule(config: Config, table: list[queue.Row], start: datetime) -> list[dict[str, str]]:
-    """Return each row a home approved by a standing rule at or after `start`, and skip a row
-    whose record has no time jbus stamped.
+    """Return each row a home or a pass approved by the follow-up rule at or after `start`, and
+    skip a row whose record has no time jbus stamped.
 
     A record's time is to the minute, so this rounds `start` down to its minute. A row that a
     home approved in the minute a digest was built is in the next digest too, and no digest

@@ -67,7 +67,7 @@ add alpha --priority 1 --depends beta,gamma --merge-after delta
 # alpha: the brief, as it will be launched
 --- end
 approve alpha --word 0a1b2c3d4e5f --sha 1a2b3c4d5e6f
-approve epsilon --rule 6 --follows alpha --sha 6f5e4d3c2b1a
+approve epsilon --follows alpha --sha 6f5e4d3c2b1a
 hold delta
 ```
 
@@ -160,37 +160,36 @@ An approval also names the words of yours that it is based on.
 | `--page <session key>/<entry id>` | What you sent from a page of Lavish, an optional tool. It is the entry with that `id` in that session's `chat`. jbus reads it at the approval from Lavish's state file, `state.json` under `LAVISH_AXI_STATE_DIR` or `~/.lavish-axi`, and never writes that file. The record keeps the entry's `text` as the words, its `at` as when, and the page's file as where, and the row reads `your pick on a Lavish page, <time>, <page file name>`. jbus refuses, in one line, a state file that is not there, a session or an entry the file does not have, an entry whose `role` is not `user`, and a reference with no `/`. The grilling skill prints the reference of a page's last send. |
 
 It takes no name and no time.
-With no basis, with two, or with `--by` or `--at`, it prints `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id> or --page <session key>/<entry id>, or --rule <n> with --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
+With no basis, with two, or with `--by` or `--at`, it prints `refused: approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message id> or --page <session key>/<entry id>, or --follows <parent slug>, and no --by and no --at: jbus writes who ran it and when`.
 
 There is one more basis, and it is not your word for the row.
-A home can approve a follow-up of work you approved by citing one of your standing rules, and it names the row you did approve:
+A follow-up of approved work needs no new approval: that is the follow-up rule, and jbus knows it by what it says, not by its number in a home's `standing.md`.
+A home can approve a follow-up by naming the approved row it follows:
 
 ```sh
-jbus queue approve <slug> --sha <sha12> --rule <n> --follows <parent slug>
+jbus queue approve <slug> --sha <sha12> --follows <parent slug>
 ```
 
-`--rule` and `--follows` go together, and with none of the bases above.
+`--follows` goes with none of the bases above.
+A `--rule <n>` beside it, from the days when jbus read the rule out of `standing.md`, is taken and not read, so a home that renumbers its standing rules breaks nothing.
 Any other mix gets the refusal above.
-jbus checks two things and judges nothing else.
+jbus checks the parent and judges nothing else.
 The home decides whether the brief is really a follow-up, and you audit that call through the mark on the row and the count in the digest.
 
-- **The rule** is rule `<n>` of the home's `standing.md`, in the home's state directory: the line that starts `<n>. `, read up to the next numbered line or heading.
-  jbus reads the file and never writes it.
-  If the file has no such rule, `approve` prints `refused: <path> has no rule <n>`.
 - **The parent** is a row of the same queue, or one that was removed after it merged.
-  It must have an approval of its own, by `--word`, `--answer`, `--message` or `--page`, or as the typed string of an older row.
-  A parent that is no row gets `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, and one with no approval gets `refused: <slug> cannot follow <parent>: <parent> has no approval`.
-  `approve` also refuses a rule approval for a row that another row already follows.
-  Such an approval would write over the word that the follow-ups are based on: `refused: <slug> cannot follow <parent>: <followers> follow <slug>, and a chain is one step: take the user's word for <slug>`.
-  A chain is one step.
-  A parent that was itself approved by rule gets `refused: <slug> cannot follow <parent>: <parent> was approved by rule <n> as a follow-up of <its parent>, and a chain is one step: follow <its parent>, or take the user's word for <slug>`.
+  It must have a go that holds for its brief: your word, the typed string of an older row, or the follow-up rule's own, so a chain of follow-ups goes back to your word one go at a time.
+  A parent that is no row gets `refused: <slug> cannot follow <parent>: the queue has no row <parent>`, one with no approval gets `refused: <slug> cannot follow <parent>: <parent> has no approval`, and one whose brief changed after its go gets `refused: <slug> cannot follow <parent>: <parent>'s brief changed after its approval`.
+- **The ground** is the parent's go: the record keeps the rule's words and the line of that go, and the row reads `the follow-up rule, follow-up of <parent>; run <time> by <who>; you did not speak of this row`.
+  A row whose own go from your word still holds is refused: `refused: <slug> has the user's go, which holds, and a follow-up's go would write over it`.
 
-jbus also gives this approval itself, when `queue add` queues a follow-up, so that a follow-up never asks you.
-A row is a follow-up of P when it names P (a line `Follows: P` in its brief's head, or the slug `cleanup-P`), when it is P's (the slug `cleanup-P`, or the same `--entry` as P), and when P passes the parent checks above.
-The rule is the one that the home's `follow-rule` file names, one number on one line, and a home with no such file gets no approval by rule from jbus.
-`queue add` approves such a row in the same write, and so does an `approve` by your word of P, for the waiting rows that name P.
-A row that names a parent and is no follow-up gets one line, `<slug> waits for the user's go, not a follow-up by rule <n>: <why>`, and waits for your go.
-A row that was queued already, and waited for you, is not approved by a later `add`, and a held row stays held.
+jbus also gives this approval itself, so that a follow-up never asks you and no home approves it.
+A row is a follow-up of P when it names P (a line `Follows: P` in its brief's head, or the slug `cleanup-P`), when it is of a follow-up's kind, and when P passes the parent check above.
+The kinds are a `cleanup-P`, a fix row jbus files from P's work (`main-red-`, `train-red-`, `workflow-red-`, each with the `Follows:` line jbus writes), and a sync of a train: its slug says `sync-main`, its `Pull request:` line opens it against a branch of the home's `integration` file, and its brief has a `Follows:` line.
+Each pass approves every waiting row of those kinds whose parent's go holds, before anything launches, and asks again until a round approves none, so a follow-up of a follow-up goes on the same pass.
+`queue add` approves such a row in the same write, and so does an `approve` of P, for the waiting rows that name P; there a row that does work for P's plan entry (the same `--entry` as P) is a follow-up too.
+A row that names a parent and is no follow-up gets one line from `queue add`, `<slug> waits for the user's go, not a follow-up: <why>`, and waits for your go.
+A row whose go an edit voided is approved again only where its brief still follows the parent its go named, and a row your word approved waits for your word again.
+A held row stays held, and a `hold` of P takes back the go of every queued follow-up down the chain from P.
 The help that `jbus queue add` prints gives the rule.
 
 The row's `approval` field records the approval:
