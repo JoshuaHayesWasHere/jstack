@@ -14,6 +14,11 @@ profile of its own, in a temporary directory that is removed after it, and draws
 file at `--out` is replaced only by a PNG that Chromium wrote. The command reads no config and no
 state. The page it loads counts its route, as for any visit, so the view adds a line to its
 `view-usage.jsonl` for each shot (`usage`).
+
+Chromium runs in its sandbox. Where it cannot make the sandbox's namespaces, as in a container that
+gives it none, it aborts before it loads anything, and the shot is drawn again once with
+`--no-sandbox` (`UNSANDBOXED`). The page is the view on this machine and nothing else, as the
+view's page tests draw it.
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ SIZES = {1440: (1440, 900), 390: (390, 844)}
 BUDGET_MS = 4000
 TIMEOUT = 60
 CHROMIUMS = ("chromium", "chromium-browser", "google-chrome-stable", "google-chrome")
+UNSANDBOXED = ("Failed to move to new namespace", "No usable sandbox")
 
 
 class NoShot(Exception):
@@ -94,6 +100,35 @@ def address(port: int, route: str, home: str | None) -> str:
     return f"http://127.0.0.1:{port}/{route}"
 
 
+def draw(
+    browser: str, profile: Path, size: tuple[int, int], page: str, *more: str
+) -> subprocess.CompletedProcess[str]:
+    """Have Chromium draw the page into `shot.png` in its own new profile."""
+    profile.mkdir()
+    try:
+        return subprocess.run(
+            [
+                browser,
+                "--headless=new",
+                *more,
+                f"--user-data-dir={profile}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-gpu",
+                "--hide-scrollbars",
+                f"--window-size={size[0]},{size[1]}",
+                f"--virtual-time-budget={BUDGET_MS}",
+                f"--screenshot={profile / 'shot.png'}",
+                page,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+        )
+    except subprocess.TimeoutExpired as error:
+        raise NoShot(f"no shot: chromium took longer than {TIMEOUT} s") from error
+
+
 def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port: int = 0) -> Path:
     """Write the PNG of the route and return its path."""
     port = port or view.PORT
@@ -103,29 +138,13 @@ def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port
         raise NoShot("no shot: jbus view is not running")
     browser = chromium()
     size = SIZES[width]
-    with tempfile.TemporaryDirectory(prefix="jbus-view-shot-") as profile:
-        drawn = Path(profile) / "shot.png"
-        try:
-            done = subprocess.run(
-                [
-                    browser,
-                    "--headless=new",
-                    f"--user-data-dir={profile}",
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--disable-gpu",
-                    "--hide-scrollbars",
-                    f"--window-size={size[0]},{size[1]}",
-                    f"--virtual-time-budget={BUDGET_MS}",
-                    f"--screenshot={drawn}",
-                    page,
-                ],
-                capture_output=True,
-                text=True,
-                timeout=TIMEOUT,
-            )
-        except subprocess.TimeoutExpired as error:
-            raise NoShot(f"no shot: chromium took longer than {TIMEOUT} s") from error
+    with tempfile.TemporaryDirectory(prefix="jbus-view-shot-") as scratch:
+        profile = Path(scratch) / "sandboxed"
+        done = draw(browser, profile, size, page)
+        if done.returncode != 0 and any(one in done.stderr for one in UNSANDBOXED):
+            profile = Path(scratch) / "unsandboxed"
+            done = draw(browser, profile, size, page, "--no-sandbox")
+        drawn = profile / "shot.png"
         if done.returncode != 0 or not drawn.is_file():
             said = [line for line in done.stderr.splitlines() if line.strip()]
             why = f": {said[-1].strip()}" if said else ""
