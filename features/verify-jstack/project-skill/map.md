@@ -150,6 +150,7 @@ Cross-cutting:
 - `testing/tests/test_test_plugins.py`
 - `features/repo-guards/tests/test_test_size.py`
 - `features/repo-guards/tests/test_tool_calls.py`
+- `features/repo-guards/tests/test_tool_project.py`
 - `features/verify-jstack/tests/test_verify_jstack.py`
 - `features/jbus/tests/view/test_view_sources.py`
 - `testing/tests/test_workflows.py`
