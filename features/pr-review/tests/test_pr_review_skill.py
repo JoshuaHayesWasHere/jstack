@@ -1874,7 +1874,7 @@ def test_the_budget_counts_only_the_briefs_github_is_asked_about(tmp_path):
 
 def test_checks_that_could_not_be_read_are_not_ready_though_a_later_call_names_the_head(tmp_path):
     launcher = Launcher(tmp_path, crew.ROLLUPS["one ran and failed"][0])
-    rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup ] &&'
+    rollup = '"pr view") [ "$5" != headRefOid,statusCheckRollup,isDraft ] &&'
     (launcher.stub / "gh").write_text(crew.GH.replace('"pr view")', rollup))
     assert launcher.says() == ["a-task: not ready, its checks, wait: could not ask GitHub"]
 

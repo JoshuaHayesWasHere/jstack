@@ -76,7 +76,7 @@ _STEP_TEST = re.compile(_STAMP + r"FAILED (\S.*?)\s*$", re.M)
 _SUMMARY = re.compile(_STAMP + r"=+ (.*\bin [0-9.]+s\b.*?) =+\s*$", re.M)
 _SUMMARY_COUNT = re.compile(r"(\d+) (?:failed|errors?)\b")
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
-OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup"
+OPEN = "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,isDraft"
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does."""
@@ -327,8 +327,9 @@ def checks(pull: dict[str, Any]) -> str:
     (`jmerge.checks`), counting the failed checks that the pass found whose job ran no step
     (`NEVER`). A check that never started, beside checks that passed, gives `failed`, the
     first word that `jmerge --checks` prints for such a check. `jmerge` decides a merge, not
-    `checks`."""
-    word = reading.checks(pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ()))
+    `checks`. A draft's word is `draft`: CI runs no check on one."""
+    rollup, never = pull.get("statusCheckRollup") or [], frozenset(pull.get(NEVER) or ())
+    word = reading.checks(rollup, never, bool(pull.get("isDraft")))
     return "failed" if word == "unstarted" else word
 
 

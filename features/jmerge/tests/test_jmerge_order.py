@@ -393,7 +393,8 @@ def test_a_draft_migration_pull_request_ahead_holds_none_behind_it(lined, mergea
     pulls(lined.home, alpha=("0004_alpha",), mergeable=mergeable)
     mark(lined.home, 7, isDraft=True)
     said = lined.run("--check")
-    assert said[0] == f"wait 7 {merge.URL}: {ready.DRAFT}"
+    why = said[0].removeprefix(f"wait 7 {merge.URL}: ")
+    assert ready.being_rebased(why)
     assert said[1].startswith(f"ready 8 {lined.head} beta beta")
 
 

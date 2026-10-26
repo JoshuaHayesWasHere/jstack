@@ -15,6 +15,7 @@ from datetime import date, datetime
 import pytest
 
 import repo_template
+from jmerge import ready
 from test_home_thread import as_read
 from testing.layouts import assembled
 from testing.paths import skills
@@ -134,6 +135,12 @@ case "$1 $2" in
         fi
         [ "$4 $5 $6 $7" = "--json mergeCommit --jq .mergeCommit.oid" ] || exit 64
         cat "$STUB/merged" ;;
+    "pr ready")
+        [ -n "$3" ] || exit 64
+        if [ -e "$STUB/ready-refused" ]; then
+            echo "could not mark #$3 ready" >&2
+            exit 1
+        fi ;;
     "pr revert")
         [ "$#" = 3 ] || exit 64
         main=$(git -C "$ORIGIN" rev-parse refs/heads/main)
@@ -1092,13 +1099,21 @@ def test_switched_back_on_the_repo_is_merged_again(merged):
 
 
 DRAFT = f"wait 7 {URL}: draft"
+READIED = f"wait 7 {URL}: reviewed and fixed, so marked ready, and CI runs its check at "
+
+
+def readied(merged):
+    """The calls of this run that marked the pull request ready."""
+    asked = (merged.home.stub / "calls").read_text().splitlines()
+    return [call for call in asked if call.startswith("pr ready")]
 
 
 @pytest.mark.parametrize("flags", [(), ("--land", "demo")])
 def test_a_draft_that_is_otherwise_ready_is_never_merged(merged, flags):
     merged.home.open_pull_request(merged.head, draft=True)
     assert merged.run("--check", *flags) == [DRAFT]
-    assert merged.run(*flags) == [DRAFT]
+    assert readied(merged) == []
+    assert merged.run(*flags) == [READIED + merged.head]
     assert merged.untouched()
     asked = (merged.home.stub / "calls").read_text().splitlines()
     assert not [call for call in asked if call.startswith("pr merge")]
@@ -1106,25 +1121,62 @@ def test_a_draft_that_is_otherwise_ready_is_never_merged(merged, flags):
     assert merged.run(*flags) == [merged_line(merged.on_main()[0])]
 
 
-HELD_AS_A_DRAFT = {
-    "no review yet": brief(),
-    "findings that are not handled": brief(review("findings")),
-    "another home's": brief(review("clean"), field=f"Home: {OTHER}\n"),
-    "no brief names it": None,
+PLACED_AS_A_DRAFT = {
+    "no review yet": (brief(), ready.NO_REVIEW),
+    "findings that are not handled": (brief(review("findings")), ready.NO_FIXED),
+    "no brief names it": (None, ready.DRAFT),
 }
 
 
-@pytest.mark.parametrize("case", HELD_AS_A_DRAFT)
-def test_a_draft_is_said_to_be_one_before_anything_its_brief_lacks(merged, case):
-    written = HELD_AS_A_DRAFT[case]
+@pytest.mark.parametrize("case", PLACED_AS_A_DRAFT)
+def test_a_draft_waits_on_the_step_it_is_at_and_its_skipped_check_is_not_one(merged, case):
+    """A crew opens its pull request as a draft, so CI runs no check on it while the review and
+    the fix go on: a draft is placed on the step its brief is at, and a check that never ran is
+    not that step."""
+    written, why = PLACED_AS_A_DRAFT[case]
     (merged.home.state / "home-id").write_text(f"{ME}\n")
     if written is None:
         (merged.home.tasks / "alpha.md").unlink()
     else:
         (merged.home.tasks / "alpha.md").write_text(written)
-    merged.home.open_pull_request(merged.head, draft=True)
-    assert merged.run() == [DRAFT]
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,), draft=True)
+    assert merged.run() == [f"wait 7 {URL}: {why}"]
     assert merged.untouched()
+
+
+@pytest.mark.parametrize("field", ["", f"Home: {OTHER}\n"])
+def test_a_reviewed_and_fixed_draft_is_marked_ready_so_its_one_check_runs(merged, field):
+    """The one step left to a draft whose review and fix are done is the mark that it is ready,
+    which starts its check. jmerge makes it on the run that finds nothing else holds it, so no
+    turn a crew might not end on leaves it a draft; another home's is marked too, as jbus judges
+    every home. With `--check` nothing is marked, and the draft waits on `draft`, never on the
+    check."""
+    (merged.home.tasks / "alpha.md").write_text(brief(review("clean", merged.head), field=field))
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,), draft=True)
+    assert merged.run("--check") == [DRAFT] and readied(merged) == []
+    assert merged.run() == [READIED + merged.head]
+    assert [call.split()[:3] for call in readied(merged)] == [["pr", "ready", "7"]]
+    assert merged.untouched()
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,))
+    assert merged.run() == [f"wait 7 {URL}: {ready.NOT_PASSED.format(check='check')}"]
+
+
+def test_a_mark_github_refuses_leaves_the_draft_waiting_on_it_with_githubs_reason(merged):
+    (merged.home.stub / "ready-refused").write_text("")
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,), draft=True)
+    said = ready.UNREADIED.format(said="could not mark #7 ready")
+    assert merged.run() == [f"wait 7 {URL}: {said}"]
+    assert merged.untouched()
+
+
+def test_a_draft_whose_brief_says_review_none_is_marked_ready_and_still_holds(merged):
+    """`Review: none` waits for the user's word: the draft is marked ready, so that word has a
+    check to go by, and the line still says it waits for the word."""
+    (merged.home.tasks / "alpha.md").write_text(brief(field="Review: none\n"))
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,), draft=True)
+    (said,) = merged.run()
+    assert said.endswith(f"7 {URL}: {ready.REVIEW_NONE}")
+    assert [call.split()[:3] for call in readied(merged)] == [["pr", "ready", "7"]]
 
 
 def test_a_repo_no_home_ever_started_in_can_be_switched_off(home):

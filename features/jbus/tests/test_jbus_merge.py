@@ -208,17 +208,18 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     rules' path, the section that has the lists' grammar, the words of a note and of a local
     check's result, and the four review modes a brief's `Review:` line says.
 
-    Two reasons are on no step, and the view shows them as Unknown and tells no home.
-    `OTHER_HOME` is a pull request of another home, which that home's own view places. `DRAFT` is
-    a pull request whose author has not said it is done, and no rule of a merge's steps is about
-    that."""
+    One reason is on no step, and the view shows it as Unknown and tells no home: `OTHER_HOME`,
+    a pull request of another home, which that home's own view places. `DRAFT` is a pull request
+    whose review and fix are done and whose crew has not yet marked it ready, the last act of its
+    fix round, so it is on the findings step and never on the check's: CI runs no check on a
+    draft."""
     named = {
         name
         for name, value in vars(ready).items()
         if name.isupper() and isinstance(value, str) and not name.startswith("_")
     }
     assert named - WORDS == set(STEPS)
-    assert (STEPS["OTHER_HOME"], STEPS["DRAFT"]) == ("", "")
+    assert (STEPS["OTHER_HOME"], STEPS["DRAFT"]) == ("", "findings")
     reasons = {name: _filled(getattr(ready, name)) for name in STEPS}
     assert {name: merge.step(f"wait: {reason}") for name, reason in reasons.items()} == STEPS
 
