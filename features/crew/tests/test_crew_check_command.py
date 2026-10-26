@@ -15,6 +15,7 @@ import test_room as room
 from crew_helpers import FENCED, block, git, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
+from testing.layouts import assembled
 from testing.paths import REPO
 
 
@@ -44,7 +45,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
             "HOME": str(home),
             "TEST_SLOTS": "3",
             "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
-            "T": str(REPO / "features" / "crew" / "templates"),
+            "T": str(assembled() / "templates"),
             "H": str(tmp_path / "state"),
         },
     )
@@ -173,7 +174,7 @@ def slot_script(text, home):
             "HOME": str(home),
             "TEST_SLOTS": "3",
             "PATH": f"{home.parent / 'stub'}:{room.BIN}:{os.environ['PATH']}",
-            "T": str(REPO / "features" / "crew" / "templates"),
+            "T": str(assembled() / "templates"),
         },
     )
 
@@ -232,6 +233,10 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
             os.close(fd)
     waiting = json.loads((locks / "test-slot-waiters.json").read_text())
     assert [(one["thread"], one["lane"]) for one in waiting] == [("mcp:thread-1", "full")]
+    assert [one["command"] for one in waiting] == [["jgauge", "check"]], (
+        "jbus's wake names what the thread runs again: the check block's `jgauge check`, and"
+        " not the run file the check removed when it found no slot"
+    )
 
 
 def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp_path):
@@ -260,7 +265,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
                 **os.environ,
                 "HOME": str(home),
                 "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
-                "T": str(REPO / "features" / "crew" / "templates"),
+                "T": str(assembled() / "templates"),
             },
         )
     finally:
@@ -447,3 +452,36 @@ def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
     (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
     said, code, ran, base = selected(tmp_path, repo)
     assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
+
+
+def test_the_check_block_runs_jstacks_jgauge_from_a_worktree_whose_venv_has_an_older_one(tmp_path):
+    """The check block runs `jgauge` by a project path under `$T`. A crew's worktree based on an
+    older main has a `.venv` whose `jgauge` has no `check`, and uv takes a virtual environment
+    from the working directory when the project path holds no project. The block run from such
+    a worktree, with `T` in an installed layout, still gets jstack's own `jgauge`."""
+    work = tmp_path / "worktree"
+    subprocess.run(["git", "init", "-q", str(work)], check=True)
+    env = {
+        k: v for k, v in os.environ.items() if k not in ("VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT")
+    }
+    subprocess.run(["uv", "venv", "-q", str(work / ".venv")], check=True, env=env)
+    old = work / ".venv" / "bin" / "jgauge"
+    old.write_text("#!/bin/sh\necho \"jgauge: invalid choice: 'check'\" >&2\nexit 2\n")
+    old.chmod(0o755)
+    (prefix,) = set(
+        re.findall(
+            r'(uv run --project "[^"]*") jgauge check', block("Do the task", "<check command>")
+        )
+    )
+    ran = subprocess.run(
+        ["sh", "-c", f"{prefix} jgauge check --help"],
+        cwd=work,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**env, "T": str(assembled() / "templates")},
+    )
+    assert (ran.returncode, ran.stdout.splitlines()[:1]) == (
+        0,
+        ["usage: jgauge check [-h] [--thread ID] [--wait SECONDS]"],
+    ), ran.stderr

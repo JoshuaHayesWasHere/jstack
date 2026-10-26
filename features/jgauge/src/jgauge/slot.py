@@ -182,8 +182,10 @@ def _stop(child: subprocess.Popen, lane: Lane) -> int:
     return TIMED_OUT
 
 
-def run(command: list[str], lane: Lane, thread: str = "") -> int:
-    held = take(lane, thread, command)
+def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None = None) -> int:
+    """Run `command` under a slot of `lane`. A waiter registers `wake`, what the thread runs
+    again once jbus wakes it, which is `command` itself unless the caller names another."""
+    held = take(lane, thread, wake or command)
     if held is None:
         return WAITING
     child: subprocess.Popen | None = None

@@ -132,7 +132,7 @@ The home does not fix what a pull request is short of.
 Its crewmate does.
 Settling a merged crewmate's thread is not the command's: T3 Code settles a thread whose linked pull request merges.
 
-To see what is ready and merge nothing, run `uv run --project "$T/.." jmerge --home '<threadId>'` from the main checkout, in one call with the block at the top, with this thread's id in place of `<threadId>`.
+To see what is ready and merge nothing, run `uv run --project "$T/../source" jmerge --home '<threadId>'` from the main checkout, in one call with the block at the top, with this thread's id in place of `<threadId>`.
 It merges nothing whatever the switch says, and prints `ready <number> <head> <branch> <slug>` for each of this home's pull requests that is ready.
 A pull request that is held, or whose repo's merge is off, is printed as it is without the flag: it is not `ready`.
 
@@ -152,7 +152,7 @@ Run the sweep once at the start of a home, after the merge step, from the main c
 
 ```sh
 if [ -n "$(cat "$H/home-thread" 2> /dev/null | tr -d '[:space:]')" ]; then
-    uv run --project "$T/.." jmerge --sweep
+    uv run --project "$T/../source" jmerge --sweep
 else
     echo "no sweep: $H/home-thread is empty, and this home sweeps nothing"
 fi

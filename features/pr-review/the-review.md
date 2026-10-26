@@ -11,14 +11,14 @@ BRIEF="$H/tasks/<slug>.md"
 [ "$(awk '/^Review:/ {print $(2); exit}' "$BRIEF")" = none ] && exit 78
 W="$(git rev-parse --path-format=absolute --git-dir)/pr-review-<slug>.$(git rev-parse HEAD 2> /dev/null).sends"
 echo sent >> "$W"
-said=$(uv run --project "$T/.." jgauge room --light --wait 540) || [ "$?" = 75 ] || said="wait: jgauge room did not run"
+said=$(uv run --project "$T/../source" jgauge room --light --wait 540) || [ "$?" = 75 ] || said="wait: jgauge room did not run"
 if [ "$said" != go ]; then
   printf '%s\n' "$said"
   [ "$(grep -c . "$W")" -lt 6 ] && exit 75
-  uv run --project "$T/.." jbus forget "$W" > /dev/null
+  uv run --project "$T/../source" jbus forget "$W" > /dev/null
   exit 69
 fi
-uv run --project "$T/.." jbus forget "$W" > /dev/null
+uv run --project "$T/../source" jbus forget "$W" > /dev/null
 SCOPE=$(cat <<'SCOPE'
 Scope of this review. It overrides anything above that reads wider.
 Review only the lines this pull request changes: its diff against its base branch.
@@ -53,13 +53,13 @@ SCOPE
 )
 INTENT=$(
   sed -n '/^Task:/,/^Pull request:/{/^Pull request:/!{/^Skills:/!p}}' "$BRIEF"
-  run=$(uv run --project "$T/.." jbriefs --skills-run "$BRIEF")
+  run=$(uv run --project "$T/../source" jbriefs --skills-run "$BRIEF")
   if [ -n "$run" ]; then
     skills=$(awk '/^## / {exit} /^Skills:/ {sub(/^Skills:[ \t]*/, ""); print; exit}' "$BRIEF")
     printf '\nSkills: %s. The crewmate loaded each in full and ran it, and its Result owes one artifact for each under Skills run:, the one templates/skill-artifacts.md names. jmerge waits on one that is missing, empty or a placeholder. Judge whether each is the real one: an artifact that restates the brief, or that running the skill plainly did not produce, is a finding about the change as a whole.\n' "$skills"
     printf 'What the Results hold under Skills run:, as jmerge reads it:\n%s\n' "$run"
   fi
-  play=$(uv run --project "$T/.." jbus playbook reviewer "$BRIEF")
+  play=$(uv run --project "$T/../source" jbus playbook reviewer "$BRIEF")
   if [ -n "$play" ]; then printf '\n%s\n' "$play"; fi
   printf '\n%s\n' "$SCOPE"
 )
@@ -130,7 +130,7 @@ echo "$D/prompt.md"
 D='<the directory of the prompt file>'
 kept='<the head kept at the start>'
 : "${T:?is not set: send this with the block at the top}"
-uv run --project "$T/.." jgauge proof --dir "$D" --kept "$kept" --thread '<thread id>' << 'THE_PROOF_ENDS_HERE'
+uv run --project "$T/../source" jgauge proof --dir "$D" --kept "$kept" --thread '<thread id>' << 'THE_PROOF_ENDS_HERE'
 <the proof>
 THE_PROOF_ENDS_HERE
 ```
@@ -140,7 +140,8 @@ THE_PROOF_ENDS_HERE
 - **Never end your turn while your own proof waits or runs, and never say you will go on once it finishes**: nothing wakes a reviewer when a command ends, only a message does, and the Review would never be written. A proof an earlier call or an earlier turn started is joined (`joined`), not started again, and one that ended after the last call gives what it said (`checked`). A proof sent again after it gave its answer runs afresh, so fix `$D/proof.sh` and send the block again. On `stale`, the proof ran for a command that has changed since and is no proof: send the block again.
 - The one time the turn ends is when the block prints `waiting` and ends 76: with `--thread` the proof waits for no slot, so with every slot of the lane taken it registers this thread as a waiter, writes one line saying so into `$D/proof.out`, and nothing runs. End your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and send the block again when jbus wakes you with its one message. Never poll for a slot, and never end the turn with nothing said. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the proof waits for its slot in place, on `running`. A proof still running at the short lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and `$D/proof.out` says so: it proved nothing, so make it smaller, a single test, and send the block again. Never take the `--short` off to get past the limit. An `exit 76` or `waiting` proved nothing either.
 - The crewmate's thread may rebase or push in this worktree while the review is out. The block runs the proof only at the head kept at the start with no rebase going on, and looks again after it. On a line that starts `unproven:`, whatever else it printed is not a proof of that head: the `Proof:` line is `unproven, the head moved under the proof`, with the finding below.
-- The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`. The block's own `uv run --project "$T/.."` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
+- The proof command enters the reviewed repo's own environment by itself: in a `uv` repo it is `uv run pytest <the test>` from this worktree, never a bare `pytest`.
+  The block's own `uv run --project "$T/../source"` leaves the environment of the repo this skill lives in first on `PATH`, and a bare command would run there.
 - The reviewer changes no file in the worktree. The script and what it printed are under `/tmp`, beside the prompt, and the last line of the block shows the worktree: it prints nothing. If it prints a file, the proof wrote there: say so in the section, and its `Unchanged by the review:` is `no`.
 - What ran and its last lines go on the section's `Proof:` line, in the one form `$T/review.md` shows, with a comma between its parts: the command, `exit <code>`, and the last line or two it printed. A passed proof names no failed exit code in its command or its fact, since any `exit <n>` with n not 0 refuses the line: write `the hook ended with status 1`, not `the hook said exit 1`, and put a command that holds one in `$D/proof.sh`, so that the line names the script.
 - Read `$D/proof.out` before judging a proof that did not exit 0. One that ran the real code and failed has found the fact false: that is a finding, an `error` against the changed line that breaks it. One that never reached the real code (a command not found, an import that failed, a usage error) proved nothing either way: fix the proof and run it again, and if it still cannot run, the fact is unproven. A fact that could not be proven by running code is written `Proof: unproven, <the fact>`, and that is itself a finding: `warning - the one fact the change is safe because of is unproven: <the fact>`.

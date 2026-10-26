@@ -14,7 +14,7 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 
 1. Have the word. A stack lands on the user's word and on nothing else: "land <name>", said in this thread. Write it, dated and in their words, under `Decisions:` in the plan entry of every link, so the next home has it too. With no such word, say that the stack waits for it and stop: every later step is `skip: the user has not said to land it`.
 2. Read the order from disk, not from memory (`principles/principle-encode-lessons-in-structure.md`): the command of "A stack the user lands" prints each link's `Stack:` line. The bottom link is the one with the lowest place whose plan entry is not done.
-3. See what would land: `uv run --project "$T/.." jmerge --home '<threadId>' --land <name>` from the main checkout, which merges nothing.
+3. See what would land: `uv run --project "$T/../source" jmerge --home '<threadId>' --land <name>` from the main checkout, which merges nothing.
    The bottom link prints `ready`, or `wait` and the first thing it is short of.
    Every link above it prints `its base is <branch>, not <default branch>`: that is the order holding, not a fault.
    Ready is what that command says of a reviewed head, never green checks alone and never what a message said (`principles/principle-prove-it-works.md`).

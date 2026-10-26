@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "home" / "spec"
@@ -144,13 +145,11 @@ class Retiring:
     handoff skill runs it."""
 
     def __init__(self, kitchen, tmp_path):
-        from test_home_thread import skills
         from test_jbus_leftover import home
 
         self.kitchen, self.user = kitchen, tmp_path / "user"
-        (self.user / ".claude" / "skills").mkdir(parents=True)
-        for name, folder in skills().items():
-            (self.user / ".claude" / "skills" / name).symlink_to(folder)
+        (self.user / ".claude").mkdir(parents=True)
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         (self.user / ".local" / "state").mkdir(parents=True)
         (self.user / ".local" / "state" / "home").symlink_to(kitchen.home.parent)
         jbus = kitchen.stub / "jbus"

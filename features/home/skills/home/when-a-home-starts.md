@@ -289,7 +289,7 @@ THE_REPLY_ENDS_HERE
     kept=
     if [ -s "$M/audit" ]; then read -r kept by < "$M/audit"; fi
     case $said in
-    *"delete ${kept:-no audit is kept}: "*) uv run --project "$T/.." jbus forget "$M/audit" "$M/audit-seen" > /dev/null ;;
+    *"delete ${kept:-no audit is kept}: "*) uv run --project "$T/../source" jbus forget "$M/audit" "$M/audit-seen" > /dev/null ;;
     esac
 fi
 ```

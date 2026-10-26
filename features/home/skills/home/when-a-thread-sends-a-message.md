@@ -51,7 +51,7 @@ On each message, do this without waiting for a word from the user.
    slug='<slug>'
    if [ -f "$H/scouts/$slug.md" ] && ! [ -f "$H/tasks/$slug.md" ]; then
        echo "go: a scout changes no files, so it overlaps nothing"
-   elif ! said=$(uv run --project "$T/.." jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
+   elif ! said=$(uv run --project "$T/../source" jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
        case $said in
        wait:*) printf '%s\n' "$said" ;;
        *) echo "wait: jmerge --claims did not finish, no overlap was read" ;;
