@@ -320,6 +320,27 @@ def end(kitchen, tree, how):
 
 
 @pytest.mark.parametrize("how", ["merged", "done", "removed"])
+def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_once_its_row_ended(
+    kitchen, tmp_path, stray, monkeypatch, how
+):
+    monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
+    tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
+    stray.append(orphan(tree, "sleep", "300"))
+    said = end(kitchen, tree, how) + kitchen.poll()
+    assert not alive(stray[0])
+    lines = [one for one in said if one.startswith("left running")]
+    assert lines == [f"left running crew alpha: stopped 1: sleep 300 in {tree}"]
+    if how != "removed":
+        last = (kitchen.home / "tasks" / "alpha.md").read_text().splitlines()[-1]
+        assert last.startswith("Left running: 1 stopped by jbus ")
+
+
+@pytest.mark.skipif(
+    not strays.ROOT.is_dir(),
+    reason="with no /proc, as on macOS, strays reads no environment, since ps -E showed none for"
+    " the user's own processes on the macOS job: a temporary folder ties no process to a task",
+)
+@pytest.mark.parametrize("how", ["merged", "done", "removed"])
 def test_an_idle_process_a_crew_left_is_stopped_once_its_row_ended(
     kitchen, tmp_path, stray, monkeypatch, how
 ):
