@@ -29,14 +29,13 @@ request whose base branch is deleted, and what to do with the work is the home's
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import replace
 from typing import Any
 
 from jbus import END_TURN, dispatch, read_json, rebase, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
-from jbus.watch import World
+from jbus.watch import World, against
 from jmerge import stacked as stacks
 
 EVENTS = {"restack": "quiet"}
@@ -59,7 +58,6 @@ MOVED = (
     + " That commit is the head {base} merged at. If the block prints `not found`, run it again "
     "with {branch}. " + END_TURN
 )
-_AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
 
 
 def move(run: Pass, client: Client, world: World) -> None:
@@ -184,9 +182,9 @@ def _onto(run: Pass, brief: str, merged: dict[str, Any]) -> str:
     """Return the branch a link goes on once its base merged: the one its brief's `Pull request:`
     line opens it against, or else the one the base merged into, asked of GitHub. Empty when
     GitHub does not say."""
-    named = _AGAINST.search(brief.split("\n## ", 1)[0])
+    named = against(brief)
     if named:
-        return named["branch"]
+        return named
     asked = run.run("gh", "pr", "view", str(merged["number"]), "--json", "baseRefName")
     try:
         said = json.loads(asked.stdout) if asked.returncode == 0 else {}
