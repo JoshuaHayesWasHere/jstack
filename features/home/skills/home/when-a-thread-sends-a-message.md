@@ -127,16 +127,37 @@ if [ -z "$(find "$H/hot-files.stamp" -mtime -7 2> /dev/null)" ]; then
 fi
 ```
 
-Last, a status reply ends with the address of the same facts in jbus view, so the user can open them at a glance.
+Last, a status reply opens with the board's two headlines and ends with the board itself, its link and its picture, for this home's scope.
 A `/ketchup` in this thread ends the same way.
-Run this with the block at the top, and make the line it prints the reply's last line:
+Run this with the block at the top and the block that finds this home:
 
 ```sh
-if link=$(uv run --project "$T/../source" jbus link 2> /dev/null); then
-    echo "$link"
-else
+route='#/flow' scope=root
+if [ "${M:?run the block that finds this home first}" != "$H" ]; then
+    scope=${M##*/}
+    route="#/flow?home=$scope"
+fi
+if ! link=$(uv run --project "$T/../source" jbus link 2> /dev/null); then
     echo "no jview link: jbus has no page for $R"
+else
+    view=${link%%#*}
+    curl -fsS --max-time 5 "${view%/}/panel/board.json" 2> /dev/null | jq -r '
+        (.stages | map({(.key): .name}) | add) as $name
+        | "first: Most stuck: "
+          + (if .stuck then "\($name[.stuck.stage] // .stuck.stage), \(.stuck.still) of \(.stuck.count)" else "none" end)
+          + ". Waiting longest: "
+          + (if .longest_wait then "\(.longest_wait.slug), \($name[.longest_wait.stage] // .longest_wait.stage) since \(.longest_wait.since), \(.longest_wait.cause)" else "none" end)
+          + "."' 2> /dev/null
+    shot=$(uv run --project "$T/../source" jbus view-shot "$route" --out "jview-flow-$R-$scope.png" 2> /dev/null | tail -n 1)
+    case $shot in
+    /*.png) [ -f "$shot" ] && echo "attach: $shot" ;;
+    esac
+    echo "$view$route"
 fi
 ```
 
+Make the `first:` line, without its `first: `, the reply's first line, so the words name what the picture shows.
+Send the `attach:` path to the user's thread with the `t3-code` server's `t3_thread_send_attachments` (if your harness defers it, load it first).
+Make the last line the reply's last line.
+With no `first:` or no `attach:` line, the reply goes without it and says nothing of it.
 On `no jview link`, the reply ends with no link and does not say why.
