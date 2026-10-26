@@ -55,6 +55,7 @@ _TASK = {
         "wrote": None,
         "run_started": None,
         "queued": None,
+        "reviewer": None,
         "check": {"name": None, "state": None, "started": None, "completed": None},
     },
     "wave": None,
