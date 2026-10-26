@@ -18,8 +18,9 @@ and else is the root's, `root`.
 A row waits on each row its `depends` and `merge_after` name that is still open: a task of its
 project, so not merged, done or judged through. `waited_by` is the reverse, among the rows the
 board places. `head` and `depth` follow `waits_on` back to a row that waits on none: depth is one
-more than the deepest row it waits on, and head is that row's head, the oldest among equals. A
-loop counts as depth 1 where it closes, as `state.waves` counts it.
+more than the deepest row it waits on, and head is that row's head, the oldest among equals. The
+rows of a loop count as one row: each has the loop's depth and head, and a loop that waits on
+nothing outside it is depth 1, with its oldest row as head.
 
 `stuck` is the stage with the most rows not moving, the first in order among equals.
 `longest_wait` is the row not moving that came to its stage first. `longest` is the deepest
@@ -251,22 +252,43 @@ def cards(read: Read) -> list[Card]:
 
 
 def _chains(every: list[Card]) -> dict[tuple[str, str], tuple[int, tuple[str, str]]]:
-    """The depth of each card and the key of its head."""
+    """The depth of each card and the key of its head. The cards of a loop count as one card,
+    found by Tarjan's walk of the links: each has the depth and head the loop has."""
     by = {card.key: card for card in every}
-    found: dict[tuple[str, str], tuple[int, tuple[str, str]]] = {}
+    ups = {key: [(card.project, slug) for slug, _ in card.waits_on] for key, card in by.items()}
+    loop: dict[tuple[str, str], int] = {}
+    low: dict[tuple[str, str], int] = {}
+    held: list[tuple[str, str]] = []
+    loops: list[list[tuple[str, str]]] = []
 
-    def walk(key: tuple[str, str]) -> tuple[int, tuple[str, str]]:
-        if key not in found:
-            found[key] = (1, key)
-            card = by[key]
-            ups = [walk((card.project, slug)) for slug, _ in card.waits_on]
-            if ups:
-                depth, head = min(ups, key=lambda up: (-up[0], _older(by[up[1]])))
-                found[key] = (depth + 1, head)
-        return found[key]
+    def tie(key: tuple[str, str]) -> None:
+        loop[key] = low[key] = len(loop)
+        held.append(key)
+        for up in ups[key]:
+            if up not in loop:
+                tie(up)
+                low[key] = min(low[key], low[up])
+            elif up in held:
+                low[key] = min(low[key], loop[up])
+        if low[key] == loop[key]:
+            one = held[held.index(key) :]
+            del held[held.index(key) :]
+            loops.append(one)
 
     for key in by:
-        walk(key)
+        if key not in loop:
+            tie(key)
+    found: dict[tuple[str, str], tuple[int, tuple[str, str]]] = {}
+    for one in loops:
+        inside = set(one)
+        out = [found[up] for key in one for up in ups[key] if up not in inside]
+        if out:
+            depth, head = min(out, key=lambda up: (-up[0], _older(by[up[1]])))
+            made = (depth + 1, head)
+        else:
+            made = (1, min(one, key=lambda key: (_older(by[key]), key)))
+        for key in one:
+            found[key] = made
     return found
 
 

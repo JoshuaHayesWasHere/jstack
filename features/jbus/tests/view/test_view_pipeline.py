@@ -3,7 +3,7 @@ chains its rows make and what holds the line, as `/panel/pipeline.json` answers 
 
 import pytest
 
-from view.scene import CAPTURED, Scene, Served, ago, captured, iso, piped, row
+from view.scene import CAPTURED, Scene, Served, ago, captured, et, iso, piped, row
 
 KEYS = ["scout", "queued", "crew", "you", "review", "fix", "review2", "check", "merge", "train"]
 
@@ -223,3 +223,19 @@ def test_a_row_is_placed_by_its_step(scene, status, value, stage):
     unplaced = {one["slug"] for one in got["unplaced"]}
     assert placed.get("one-row") == stage
     assert ("one-row" in unplaced) == (stage is None)
+
+
+def test_the_rows_of_a_loop_share_one_depth_and_head_and_a_row_behind_it_is_one_deeper(scene):
+    scene.queue(
+        [
+            row("loop-a", depends=["loop-b"], since=et(ago(minutes=30))),
+            row("loop-b", depends=["loop-a"], since=et(ago(minutes=20))),
+            row("loop-c", depends=["loop-b"], since=et(ago(minutes=10))),
+        ]
+    )
+    rows = {one["slug"]: one for one in board(scene)["data"]["rows"]}
+    assert {slug: (one["depth"], one["head"]) for slug, one in rows.items()} == {
+        "loop-a": (1, "loop-a"),
+        "loop-b": (1, "loop-a"),
+        "loop-c": (2, "loop-a"),
+    }
