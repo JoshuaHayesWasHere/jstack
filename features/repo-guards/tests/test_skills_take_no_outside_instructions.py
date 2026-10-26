@@ -139,13 +139,18 @@ def outside():
             yield name, place, path
 
 
+def disagreements():
+    """Where the skills and `FACTS` disagree: each text file outside the repo a skill names
+    that `FACTS` does not cover, as `(file, place, path)`, then each `FACTS` line that covers
+    no file a skill names, so that the list cannot keep a fact file no skill reads."""
+    found = list(outside())
+    flagged = {(name, place, path) for name, place, path in found if not fact(place, path)}
+    covered = {fact(place, path) for _, place, path in found}
+    return sorted(flagged) + [("FACTS", "unused", key) for key in FACTS if key not in covered]
+
+
 def test_no_skill_takes_instructions_from_outside_the_repo():
-    flagged = {(name, place, path) for name, place, path in outside() if not fact(place, path)}
-    assert sorted(flagged) == []
-
-
-def test_every_fact_file_is_one_a_skill_names():
-    assert set(FACTS) - {fact(place, path) for _, place, path in outside()} == set()
+    assert disagreements() == []
 
 
 @pytest.mark.parametrize(
