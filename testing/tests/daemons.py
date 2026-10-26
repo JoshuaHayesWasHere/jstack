@@ -14,6 +14,8 @@ test starts each daemon from the thread that pytest runs the test in.
 `GUARD` is what the child runs before the command. It asks for SIGKILL when the parent dies. It
 exits with code 97 if the parent died before the request, since the kernel would never send the
 signal to a child whose parent is gone. Then it `exec`s the command, which keeps the setting.
+macOS has no `prctl` and no such signal, so there the guard asks for nothing, and the autouse
+fixture alone stops each daemon: one is left behind only when pytest itself is killed.
 """
 
 from __future__ import annotations
@@ -29,7 +31,8 @@ import pytest
 GUARD = """\
 import ctypes, os, signal, sys
 parent = int(sys.argv[1])
-if ctypes.CDLL(None, use_errno=True).prctl(1, signal.SIGKILL) != 0 or os.getppid() != parent:
+prctl = getattr(ctypes.CDLL(None, use_errno=True), "prctl", None)
+if (prctl is not None and prctl(1, signal.SIGKILL) != 0) or os.getppid() != parent:
     os._exit(97)
 os.execvp(sys.argv[2], sys.argv[2:])
 """

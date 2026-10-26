@@ -79,7 +79,7 @@ Preconditions:
 - **Install.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`. Every line starts with `ok`, and it exits 0.
 - **See where a link points.** Run `record install-skills readlink "$HOME/.claude/skills/crew" "$HOME/.codex/skills/crew" "$HOME/.agents/skills/crew"`. It prints `<HOME>/.local/share/jstack/harness/claude-code/skills/crew`, then the same under `codex` and `cursor`.
 - **See every link resolve into the checkout.**
-  Run `record install-skills sh -c 'for l in "$HOME"/.claude/skills/* "$HOME"/.codex/skills/* "$HOME"/.agents/skills/*; do for f in $(find -L "$l" -type f); do r=$(readlink -f "$f"); case $r in "$VERIFY_JSTACK_REPO"/*) ;; *) echo "outside: $f -> $r";; esac; done; done; echo checked'`.
+  Run `record install-skills sh -c 'for l in "$HOME"/.claude/skills/* "$HOME"/.codex/skills/* "$HOME"/.agents/skills/*; do for f in $(find -L "$l" -type f); do r=$(realpath "$f"); case $r in "$VERIFY_JSTACK_REPO"/*) ;; *) echo "outside: $f -> $r";; esac; done; done; echo checked'`.
   It prints only `checked`, except for the two files of `skills/home` that the layout writes because they link into `docs/`.
 - **See the templates beside the skills.** Run `record install-skills realpath "$HOME/.claude/skills/crew/../../templates"`. It prints `<HOME>/.local/share/jstack/harness/claude-code/templates`.
 - **See the hooks.**
@@ -92,7 +92,9 @@ Preconditions:
   Run `record install-skills readlink "$HOME/.config/systemd/user/jbus.timer"`, then `record install-skills cat "$VERIFY_JSTACK_SANDBOX/systemctl.log"`.
   The link points at `<this checkout>/features/jbus/units/jbus.timer`, and the log has `--user daemon-reload` and `--user enable --now jbus.timer`.
 - **Check again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
-- **Stand in for a tool built before a move.** Run `sed -i '\|/features/jsettings/src$|d' "$UV_TOOL_DIR"/jstack/lib/python*/site-packages/_editable_impl_jstack.pth`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. The line for the commands is `old hard commands jstack -> stale: its editable paths lack <this checkout>/features/jsettings/src`, and it exits 1.
+- **Stand in for a tool built before a move.**
+  Run `sed -i.bak '\|/features/jsettings/src$|d' "$UV_TOOL_DIR"/jstack/lib/python*/site-packages/_editable_impl_jstack.pth && rm "$UV_TOOL_DIR"/jstack/lib/python*/site-packages/_editable_impl_jstack.pth.bak`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`.
+  The line for the commands is `old hard commands jstack -> stale: its editable paths lack <this checkout>/features/jsettings/src`, and it exits 1.
 - **Install it again.** Run `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh" --check`. Every line starts with `ok`, and it exits 0.
 - **Put a directory where a link goes.**
   Run `rm "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew" && mkdir "${VERIFY_JSTACK_SANDBOX:?}/home/.claude/skills/crew"`, then `record install-skills sh "$VERIFY_JSTACK_REPO/install.sh"`.
@@ -110,7 +112,7 @@ To check the checkout's own skills, clone the repo inside the sandbox's HOME:
 - **Clone and install.**
   Run `git clone -q "$VERIFY_JSTACK_REPO" "$HOME/jstack" && cd "$HOME/jstack"`, then `record project-skills sh install.sh`.
 - **See each project skill resolve.**
-  Run `record project-skills sh -c 'readlink -f .claude/skills/verify-jstack/SKILL.md .claude/skills/verify-main-red/SKILL.md .cursor/skills/verify-jstack/SKILL.md'`.
+  Run `record project-skills sh -c 'realpath .claude/skills/verify-jstack/SKILL.md .claude/skills/verify-main-red/SKILL.md .cursor/skills/verify-jstack/SKILL.md'`.
   It prints the path of each skill's `SKILL.md` in its feature's folder.
 - **See git track none of it.**
   Run `record project-skills git ls-files .claude .cursor`, which prints nothing.
@@ -158,7 +160,9 @@ A sandbox cannot reach `jmerge`'s own merge, because the stand-in `gh` refuses a
 `features/jmerge/tests/test_jmerge_follow.py` drives the run that `jmerge` makes after such a merge.
 
 - **Clone at the commit before #202, which moved pr-review into `features/`.** Run `git clone -q --bare "$VERIFY_JSTACK_REPO" "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" && git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413~1 && git clone -q -b main "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" "$VERIFY_JSTACK_SANDBOX/jstack" && cd "$VERIFY_JSTACK_SANDBOX/jstack"`.
-- **Install from it.** Run `record install-skills sh install.sh`. Every layout line is `ok`, and `readlink -f "$HOME/.claude/skills/pr-review/SKILL.md"` is `<the clone>/skills/pr-review/SKILL.md`.
+- **Install from it.**
+  Run `record install-skills sh install.sh`.
+  Every layout line is `ok`, and `realpath "$HOME/.claude/skills/pr-review/SKILL.md"` is `<the clone>/skills/pr-review/SKILL.md`.
 - **Merge the move.** Run `git -C "$VERIFY_JSTACK_SANDBOX/jstack-origin.git" update-ref refs/heads/main 382f413`, then `record install-skills git pull -q --ff-only`.
 - **See it stale.** Run `record install-skills sh install.sh --check`. The three layout lines are `old hard layout <harness> <layout> -> stale: skills/pr-review/SKILL.md, and 7 more`, and `record install-skills sh -c 'find -L "$HOME"/.claude/skills/ -type l; echo checked'` lists each file of `pr-review` before `checked`.
 - **Run what `jmerge` runs after the merge.**

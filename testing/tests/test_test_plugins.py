@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from testing.paths import REPO
@@ -55,3 +56,29 @@ def test_a_test_in_a_features_own_folder_gets_the_isolation_and_the_shared_helpe
         text=True,
     )
     assert ran.returncode == 0 and "1 passed" in ran.stdout, ran.stdout + ran.stderr
+
+
+def test_the_fake_systemd_run_starts_its_command_in_a_session_of_its_own_with_no_setsid(
+    no_user_units, tmp_path
+):
+    """A Mac has no `setsid`, and the fake starts its command there too. A fake that started
+    nothing and said nothing left each fresh check of `jmerge` unrun on macOS."""
+    out = tmp_path / "session"
+    write = "import os, sys; open(sys.argv[1] + '.part', 'w').write(str(os.getsid(0))); "
+    write += "os.rename(sys.argv[1] + '.part', sys.argv[1])"
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    ran = subprocess.run(
+        [no_user_units / "systemd-run", "--user", "--quiet", "--"]
+        + [sys.executable, "-c", write, str(out)],
+        env=os.environ | {"PATH": str(empty)},
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    end = time.monotonic() + 10
+    while not out.exists():
+        assert time.monotonic() < end, f"the fake started nothing with no setsid: {ran}"
+        time.sleep(0.05)
+    assert ran.returncode == 0
+    assert int(out.read_text()) != os.getsid(0)

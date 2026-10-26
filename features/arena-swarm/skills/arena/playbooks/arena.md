@@ -41,18 +41,24 @@ where='<the paths the artifact is in, each in backticks>'
 priority='<n>'
 scope=''
 have='a b'
-prompt=$(cat << 'THE_PROMPT_ENDS_HERE'
+the_prompt() {
+    cat << 'THE_PROMPT_ENDS_HERE'
 <the one prompt both runners get>
 THE_PROMPT_ENDS_HERE
-)
-rubric=$(cat << 'THE_RUBRIC_ENDS_HERE'
+}
+prompt=$(the_prompt)
+the_rubric() {
+    cat << 'THE_RUBRIC_ENDS_HERE'
 - <a criterion that can be marked held or not held>
 THE_RUBRIC_ENDS_HERE
-)
-done_when=$(cat << 'THE_DONE_ENDS_HERE'
+}
+rubric=$(the_rubric)
+the_done() {
+    cat << 'THE_DONE_ENDS_HERE'
 - <a line of the entry's Done when>
 THE_DONE_ENDS_HERE
-)
+}
+done_when=$(the_done)
 proves='<the entry Proves it line>'
 export H slug entry size where priority scope have prompt rubric done_when proves
 sh "$T/../skills/arena/briefs.sh"

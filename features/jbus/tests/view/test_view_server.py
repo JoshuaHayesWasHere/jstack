@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from jbus import cli, view
+from testing import loopback
 from view.scene import EVIL, IPV6, NOW, PANTRY, PROXIED, REPO, Served, asks, et, free_port, kept
 
 
@@ -128,21 +129,23 @@ def test_it_never_listens_on_every_address(scene):
 
 
 def test_it_listens_on_the_address_in_jbus_view_host_too(scene):
-    served = Served(scene, host="127.0.0.2")
+    second = loopback.second()
+    served = Served(scene, host=second)
     try:
-        assert served.doors.addresses() == [("127.0.0.1", served.port), ("127.0.0.2", served.port)]
-        status, _, _ = served.ask("/healthz", host=f"127.0.0.2:{served.port}", to="127.0.0.2")
+        assert served.doors.addresses() == [("127.0.0.1", served.port), (second, served.port)]
+        status, _, _ = served.ask("/healthz", host=f"{second}:{served.port}", to=second)
         assert status == 200
     finally:
         served.close()
 
 
 def test_with_that_address_down_it_serves_loopback_and_tries_again(scene):
-    port = free_port("127.0.0.2")
+    second = loopback.second()
+    port = free_port(second)
     taken = socket.socket()
-    taken.bind(("127.0.0.2", port))
+    taken.bind((second, port))
     taken.listen()
-    served = Served(scene, host="127.0.0.2", retry=0.05, port=port)
+    served = Served(scene, host=second, retry=0.05, port=port)
     try:
         assert served.doors.addresses() == [("127.0.0.1", port)]
         assert served.json("/healthz") == {"ok": True}
@@ -150,8 +153,8 @@ def test_with_that_address_down_it_serves_loopback_and_tries_again(scene):
         until = time.monotonic() + 10
         while len(served.doors.addresses()) < 2 and time.monotonic() < until:
             time.sleep(0.02)
-        assert served.doors.addresses() == [("127.0.0.1", port), ("127.0.0.2", port)]
-        assert served.ask("/healthz", host=f"127.0.0.2:{port}", to="127.0.0.2")[0] == 200
+        assert served.doors.addresses() == [("127.0.0.1", port), (second, port)]
+        assert served.ask("/healthz", host=f"{second}:{port}", to=second)[0] == 200
     finally:
         taken.close()
         served.close()
@@ -323,6 +326,29 @@ def test_code_that_does_not_start_keeps_the_server_and_ends_it_once_it_starts(pr
     assert process.ask("/healthz") == {"ok": True}
     module.write_text(whole)
     assert process.run.wait(timeout=20) == view.NEWER_CODE
+
+
+NO_NAMES = """import socket
+import threading
+
+
+def never(*_):
+    threading.Event().wait()
+
+
+socket.gethostbyaddr = never
+"""
+
+
+def test_the_server_answers_when_no_reverse_lookup_of_its_address_ever_answers(process, scene):
+    """On a Mac the reverse lookup of 127.0.0.1 can wait on mDNS longer than a start may take.
+    The stub is a sitecustomize the server's own process imports, ahead of its packages."""
+    names = scene.root / "no-names"
+    names.mkdir()
+    (names / "sitecustomize.py").write_text(NO_NAMES)
+    process.env["PYTHONPATH"] = os.pathsep.join([str(names), process.env["PYTHONPATH"]])
+    process.start()
+    assert process.ask("/healthz") == {"ok": True}
 
 
 @pytest.mark.parametrize(

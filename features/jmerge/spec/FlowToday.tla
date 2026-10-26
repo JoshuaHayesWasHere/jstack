@@ -130,7 +130,7 @@ Rejudge(p) ==
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
-\* (features/jbus/src/jbus/strays.py:356), and in this model a crew's turn is one step.
+\* (features/jbus/src/jbus/strays.py:484), and in this model a crew's turn is one step.
 Stoppable(p) ==
     CASE Gap = "busy" -> FALSE
       [] Gap = "ended" -> st[p] = "merged"
@@ -139,7 +139,7 @@ Stoppable(p) ==
 \* jbus.strays stops what a finished turn left (#351, #363, #416, #427): a busy process, and an
 \* idle one only as Gap says.
 Sweep ==
-    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:373-374,382
+    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:501-502,510
     /\ busy' = FALSE
     /\ idle' = [p \in PRs |-> idle[p] /\ ~Stoppable(p)]
     /\ full' = (\E p \in PRs : idle'[p])

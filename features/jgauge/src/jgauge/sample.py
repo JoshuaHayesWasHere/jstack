@@ -4,7 +4,8 @@ pressure was low, gives the peaks against room's other lines, and lists the stal
 recorded in the span.
 
 The log is one TSV file under a header of COLUMNS. The sampler leaves a field empty when it
-cannot read it (no /proc/pressure/io, a kernel with no `full` line for cpu), and does not crash.
+cannot read it (no /proc/pressure/io, a kernel with no `full` line for cpu, the pressure lines
+macOS lacks), and does not crash.
 The log holds 30 days at most. Once its first row is older than that, the sampler writes the
 log again with the last 29 days. The sampler thus rewrites the file about once a day, not on
 every sample.
@@ -24,6 +25,8 @@ import os
 import re
 import time
 from pathlib import Path
+
+from jgauge import sizes
 
 RESOURCES = ("cpu", "memory", "io")
 KINDS = ("some", "full")
@@ -55,6 +58,14 @@ def log_path() -> Path:
 
 def proc() -> Path:
     return Path(os.environ.get("PROC") or "/proc")
+
+
+def available_cores() -> int | None:
+    """The cores this process may run on, or every core where the system cannot say, as on
+    macOS, which has no `sched_getaffinity`."""
+    if hasattr(os, "sched_getaffinity"):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count()
 
 
 def tmpfs() -> Path:
@@ -99,15 +110,23 @@ def _pressure(text: str) -> dict[str, str]:
 
 
 def row(now: int) -> list[str]:
-    root = proc()
-    load = _read(root / "loadavg").split()[:3]
+    """One row of the log. On macOS the load and the cores come from `sysctl`, whose
+    `vm.loadavg` prints `{ 1.62 1.88 2.03 }`, and the pressure fields stay empty, since macOS has
+    no pressure lines. A /proc named in `PROC` is read on every system."""
+    if sizes.from_sysctl():
+        load, cores = (
+            sizes.sysctl("vm.loadavg").strip("{} ").split()[:3],
+            sizes.sysctl_count("hw.ncpu"),
+        )
+    else:
+        load, cores = _read(proc() / "loadavg").split()[:3], available_cores()
     fields = {
         "time": str(now),
-        "cores": str(len(os.sched_getaffinity(0))),
+        "cores": str(cores or ""),
         **dict(zip(("load1", "load5", "load15"), load, strict=False)),
     }
-    for resource in RESOURCES:
-        read = _pressure(_read(root / "pressure" / resource))
+    for resource in () if sizes.from_sysctl() else RESOURCES:
+        read = _pressure(_read(proc() / "pressure" / resource))
         fields |= {f"{resource}_{key}": value for key, value in read.items()}
     try:
         files = os.statvfs(tmpfs())
