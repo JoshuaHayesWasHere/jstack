@@ -73,18 +73,31 @@
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
 - Before the pull request opens, with the work committed, ask which changed files the brief's **Where** does not cover.
+  Ask again after each push for a review's findings ("The review") and for a failed check ("The checks"), since a fix can add a file outside **Where** after the `Wider:` lines were written.
   Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
 
   ```sh
-  uv run --project "$T/.." jmerge --scope <slug>
+  if ! said=$(uv run --project "$T/.." jmerge --scope <slug>); then
+      echo "not known: jmerge --scope failed, so no file is known to be inside Where"
+  else
+      printf '%s\n' "$said" | awk '
+          /^outside: / {
+              path = substr($(0), 10)
+              print
+              print "  ask: Wider: " path ": <why it had to change>, or take " path " out of the diff"
+              asked++
+          }
+          END {if (!asked) print "nothing new: every changed file outside Where has its Wider: line"}'
+  fi
   ```
 
-  It prints nothing when every changed file is inside **Where**.
-  It prints `outside: <path>` for a file that is not, and `wider: <path>: <why>` for one the Result's `Wider:` line already gives a reason for.
+  It prints `nothing new` when every changed file is inside **Where** or has its reason on the last Result's `Wider:` line.
+  It prints `outside: <path>` for a file that has neither, with an `ask:` line under it.
   Do not reason about it from the diff: this is the answer.
   For each `outside:` line, take the file out of the diff when the task does not need it.
-  When it does, a test the change breaks, a page tied to a changed `--help`, keep one line for each file, `Wider: <path>: <why it had to change>`, for the Result.
-  It goes in the Result "End" writes, after the pull request opens, and not in a `## Result` of its own before it: the command reads the last Result, and prints `wider:` for the file from then on.
+  When it does, a test the change breaks, a page tied to a changed `--help`, write one line for each file, `Wider: <path>: <why it had to change>`.
+  Before the pull request opens, it goes in the Result "End" writes, and not in a `## Result` of its own before it: the command reads the last Result, and asks for the file no more from then on.
+  After a push, it goes in the last Result, beside the line that says what you pushed.
   The pull request opens either way.
   A file left `outside:` with no `Wider:` line is a finding of the review.
 
