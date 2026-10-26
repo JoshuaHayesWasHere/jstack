@@ -45,7 +45,7 @@ def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_pe
     assert "27 open" in root["text"] and "4 wait on you" in root["text"]
     assert "6 on default" in root["text"]
     assert docs["text"] == "demo › docs 0 open 2d old"
-    assert ui["text"].startswith("demo › ui ended, work out 1 open")
+    assert ui["text"].startswith("demo › ui home not running 1 open")
     assert (ui["flags"], ui["age"]) == (["oat-saucer stalled"], "3d old")
     assert demo["wrong"] == [
         "tea-saucer check failed 30m",
@@ -67,6 +67,24 @@ def test_a_project_with_nothing_wrong_and_nothing_for_the_user_is_one_line_among
         {"project": "larder", "text": "larder 0 open", "href": "#/larder"},
     ]
     assert seen["machine"] == []
+
+
+def test_a_home_that_is_not_running_with_work_open_lifts_its_project_out_of_the_quiet(
+    scene, tmp_path
+):
+    """A home whose thread ended while rows of it are open is nothing wrong, but its work
+    does not move until somebody starts the home: its project is a card, not a quiet line."""
+
+    def ended(nth, body):
+        (cellar,) = [one for one in body["projects"] if one["name"] == "cellar"]
+        cellar["homes"][0]["health"] = "ended"
+        return body
+
+    seen, _ = mapped(scene, tmp_path, alter=ended)
+    assert "cellar" not in [one["project"] for one in seen["quiet"]]
+    (cellar,) = [one for one in seen["cards"] if one["project"] == "cellar"]
+    assert cellar["tone"] == "card op"
+    assert cellar["homes"][0]["health"] == "home not running"
 
 
 def test_the_bar_counts_what_waits_on_the_user_and_opens_the_triage_tab(scene, tmp_path):
