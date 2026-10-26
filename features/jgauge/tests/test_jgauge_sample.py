@@ -52,8 +52,13 @@ def rows(log):
     return [line.split("\t") for line in log.read_text().splitlines()[1:]]
 
 
-def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
+def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine, monkeypatch):
     proc, log = machine
+    # APFS works out f_ffree from the free blocks and f_files as used plus free, so on a Mac
+    # the total moves with every write on the volume: the row is held to the read it was made of.
+    reads = []
+    statvfs = os.statvfs
+    monkeypatch.setattr(os, "statvfs", lambda path: reads.append(statvfs(path)) or reads[-1])
     before = int(time.time())
     assert cli.main(["sample"]) == 0
     assert cli.main(["sample"]) == 0
@@ -63,9 +68,12 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine):
     assert len(lines) == 3
     row = lines[1].split("\t")
     assert before <= int(row[0]) <= int(time.time())
-    files = os.statvfs(machine[0].parent)
+    files = reads[0]
     if files.f_files:
         assert int(row[17]) == files.f_files and 0 < int(row[18]) <= files.f_files
+        assert int(row[18]) == files.f_files - files.f_ffree
+        if sys.platform == "linux":
+            assert statvfs(proc.parent).f_files == files.f_files
     else:
         assert row[17:] == ["", ""]
     assert row[1:17] == [
