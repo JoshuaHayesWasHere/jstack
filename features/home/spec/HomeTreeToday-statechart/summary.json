@@ -9,65 +9,42 @@
       "breaks": {}
     }
   },
-  "modelStates": 2164,
-  "modelTransitions": 8848,
-  "chartStates": 10,
-  "chartTransitions": 10,
+  "modelStates": 2668,
+  "modelTransitions": 11944,
+  "chartStates": 55,
+  "chartTransitions": 120,
   "chartStatus": {
-    "works": 6,
-    "wrong": 3,
-    "fixed": 1
+    "works": 55,
+    "fixed": 0,
+    "wrong": 0
   },
   "chartGroups": [
     {
       "name": "Fine",
       "color": "#d1f2eb",
-      "states": 10
+      "states": 17
+    },
+    {
+      "name": "Stalled",
+      "color": "#fdebd0",
+      "states": 14
     }
   ],
   "mixedGroups": [],
   "regions": {
-    "drawn": false,
-    "why": "\"Child a retired: a call for you\" is \"Wrong today\", and its two region states would show \"Works today\""
-  },
-  "classes": [
-    {
-      "n": 1,
-      "end": "Child a retired, crew out: nothing for you",
-      "invariant": "NoRetireWithOpen",
-      "rule": "No child retires while a call, gate, pull request or crew thread of its is open.",
-      "cause": "nothing checks what a scope has out when its handoff ends it",
-      "readerSteps": 3,
-      "modelSteps": 4,
-      "counterexamples": 680,
-      "against": "Child a working, crew out: nothing for you",
-      "listed": []
-    },
-    {
-      "n": 2,
-      "end": "Child a working, crew out, quiet for its patience: nothing for you",
-      "invariant": "StallFlagged",
-      "rule": "The root flags a child within K checks of observable quiet with work out, and a routine on a missed beat, from signals the child does not send.",
-      "cause": "a hung thread is a quiet event, logged and sent to nobody",
-      "readerSteps": 3,
-      "modelSteps": 4,
-      "counterexamples": 272,
-      "against": "Child a working, crew out, quiet for its patience: the root nudged a once",
-      "listed": []
-    },
-    {
-      "n": 3,
-      "end": "Child a working, pull request ready: the root merging child a's pull request",
-      "invariant": "OneMerger",
-      "rule": "jbus is the only merger; child homes never merge their own pull requests.",
-      "cause": "on home merges a child runs jmerge for its own pull request, and the root may too",
-      "readerSteps": 5,
-      "modelSteps": 6,
-      "counterexamples": 240,
-      "against": "Child a working, pull request ready: jbus merging child a's pull request",
-      "listed": []
+    "drawn": true,
+    "states": [
+      31,
+      24
+    ],
+    "transitions": 120,
+    "all": 233,
+    "flat": {
+      "states": 219,
+      "transitions": 888
     }
-  ],
+  },
+  "classes": [],
   "codeLike": [],
   "uncited": {
     "HomeTreeToday.tla": []

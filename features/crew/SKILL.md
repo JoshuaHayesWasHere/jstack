@@ -41,6 +41,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 ## Carry on
 
 Proceed on reversible work without asking: do it, then say what you did and why. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first. When in doubt, act and write down what you did.
+A command you write yourself deletes nothing whose target is a variable or a glob, clears scratch with `uv run --project "$T/.." jbus forget <path>` or leaves it in `/tmp`, and uses only bash expansions, never a zsh one such as `${(s:,:)…}`, since Claude Code stops the thread to ask the user before it runs any of those.
 
 ## Do the task
 
@@ -281,7 +282,7 @@ else
             echo "the rebase stopped: resolve these, then git rebase --continue"
             git diff --name-only --diff-filter=U
         else
-            rm "$G/crew-before-rebase"
+            uv run --project "$T/.." jbus forget "$G/crew-before-rebase" > /dev/null
             echo "the rebase did not start: no rebase"
             echo "$said"
         fi

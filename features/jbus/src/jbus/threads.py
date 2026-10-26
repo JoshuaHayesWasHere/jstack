@@ -400,6 +400,13 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     read gives the active run a later `startedAt`, `out` counts the silence from that time. So a
     turn that just started on a thread that ended long ago is not hung at once.
 
+    An answered request moves neither the count of items nor `updatedAt`, and T3 Code keeps no time
+    for the answer. So a pass that reads a request count of 0, where the pass before kept one above
+    0 and the count of items has not changed, counts the answer as the thread's last write, and
+    `wrote` is the time of this pass. A thread that is not read, or that is read with no count,
+    keeps the count the pass before kept. So a crew that waited on an approval for 17 minutes is
+    not hung 3 minutes after the answer.
+
     `out` reads a thread only when the thread is `quiet` or `hung` by the listed data alone. The
     read gives the active run, when it started, the runs queued behind it and the requests that
     wait. A pass with no quiet thread reads no thread. `out` also reads the threads in `also`,
@@ -430,6 +437,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
         page = role == "scout" and bool(held.get(slug))
         facts = Facts(str(thread.get("status", "")), silent, page=page)
         active, started, runs = None, None, None
+        asked = was.get("pending") if same and type(was.get("pending")) is int else 0
         word = judge(facts).word
         if word in ("quiet", "hung") or at in also:
             try:
@@ -451,12 +459,10 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
                 since = _silent(run.now, started)
                 if since is not None and (silent is None or since < silent):
                     wrote, silent = started, since
-                facts = replace(
-                    facts,
-                    silent=silent,
-                    queued=queued,
-                    pending=pending if type(pending) is int else 0,
-                )
+                kept, asked = asked, pending if type(pending) is int else asked
+                if kept and not asked:
+                    wrote, silent = record.stamp(run.now), 0
+                facts = replace(facts, silent=silent, queued=queued, pending=asked)
                 word = judge(facts).word
         found.append(
             {
@@ -474,7 +480,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
                 "run": active,
                 "run_started": started,
                 "queued": facts.queued,
-                "pending": facts.pending,
+                "pending": asked,
                 "page": facts.page,
                 "runs": runs,
             }

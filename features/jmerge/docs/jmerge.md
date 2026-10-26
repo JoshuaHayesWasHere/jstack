@@ -78,8 +78,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   `jmerge` never merges a draft, whatever flags you pass, and prints `wait <number> <url>: draft`.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
-  While `home-thread` is empty, jbus runs `jmerge` for every home of the repo, and a scoped home's pull request merges as the root home's does.
-  While it holds an id, each home merges its own: a brief of another home of the repo waits as `another home's`, unless you pass `--all`.
+  jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.
+  A home's own run, with `--home`, merges nothing, and a brief of another home of the repo is `another home's` to it alone.
 - **Its base is the default branch or an integration branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
   It merges a pull request whose brief has a `Stack:` line only when you pass `--land <stack>`.
@@ -351,7 +351,7 @@ A run starts no more gates after its gates have used 5 minutes in total (`Gate.B
 So one more gate, stopped at 10 minutes, still ends inside the 17 minutes jbus gives `jmerge`.
 A pull request whose gate did not start waits with `its merge gate waits for the next run: this run's gates used their time`.
 A repo with no `merge-gate` file runs no gate.
-The reviewer runs the same gate on the head it reviews (the pr-review skill, "The merge gate").
+The reviewer runs the same gate on the head it reviews with `jmerge --gate <head>` (the pr-review skill, "The merge gate").
 
 ## Integration branches
 
@@ -520,8 +520,10 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 | `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks. The crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on is narrower: the required checks alone, as the merge rule on green says. |
 | `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`. |
 | `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
-| `--home <id>` | The home that is asking. Defaults to the id in the state directory's `home-id`. |
-| `--all` | Merges the pull requests of the repo's other homes too. |
+| `--remake` | Merges nothing. While a rebase is stopped in this worktree it prints the files to resolve by hand, under `resolve these by hand and git add them, then run this again:`. Once only generated files are left, it makes each one again: it takes the base's version and runs the command the `Generated: <file> -> <command>` lines of the state's `notes.md` give it, `uv lock` for `uv.lock` where no line does, and prints `made again: <file>, by <command> over the base's version`, or `not made: ...` where the command did not write it. With no rebase stopped it prints `no rebase is stopped here: nothing to make again`, and with nothing left `nothing is left to resolve: git rebase --continue`. The crew skill's "A conflict" runs it each time the rebase stops. |
+| `--gate <head>` | Merges nothing. It runs the repo's merge gate in this worktree on `<head>`, as the reviewer does: with where the pull request left its base and `<head>` as its last two arguments and as `BASE` and `HEAD`, and a limit of 9 minutes. It prints nothing for a repo with no gate or a gate that passes, and one `error` finding for a gate that fails or runs over. It exits 1, with why on stderr, when that base could not be worked out. |
+| `--pr <pr>` | With `--gate`, the pull request whose base the gate takes: a number, an address or a branch, and by default the current branch's. |
+| `--home <id>` | The home that is asking: says what `jmerge` would do of that home's pull requests, as `--check` does, and merges nothing. |
 | `--land <stack>` | Merges the pull requests of a stack you said to land, each once its base is the default branch. |
 
 `jmerge` stops most of the `git` and `gh` commands it runs after 120 seconds, or after `JMERGE_TIMEOUT` seconds when that variable is set, and counts such a command as failed.

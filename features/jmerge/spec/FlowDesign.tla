@@ -56,14 +56,14 @@ CrewFix(p) ==
 \* broken change fails there and its crew gets one message; otherwise GitHub merges the base into
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1102, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1082, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:294-297, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1058-1059, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1175, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:217, once a head and tip
-    /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1063, a fresh-check file
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1038-1039, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1155, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:219, once a head and tip
+    /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1043, a fresh-check file
         IF fresh /\ breaks[p]
-            \* features/jmerge/src/jmerge/cli.py:1064-1066: it fails over today's base, one message
+            \* features/jmerge/src/jmerge/cli.py:1044-1046: it fails over today's base, one message
             THEN /\ told' = [told EXCEPT ![p] = TRUE] /\ UNCHANGED ci
             \* features/jmerge/src/jmerge/rejudge.py:63: GitHub merges the base in, check runs again
             ELSE /\ ci' = [ci EXCEPT ![p] = "none"] /\ UNCHANGED told

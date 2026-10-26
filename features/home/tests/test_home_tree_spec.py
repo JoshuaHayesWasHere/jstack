@@ -5,8 +5,11 @@ no Java runs TLC. The code model's conditions each name a file and line, as the 
 checks."""
 
 import importlib
+import os
 import re
+import subprocess
 import sys
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -31,6 +34,8 @@ lib = importlib.import_module("statechart.lib")
 tools = importlib.import_module("statechart.tools")
 
 RUNS = list(canaries.runs())
+PATIENCE = timedelta(hours=1)
+"""How long a child with work out may be quiet before the root flags it."""
 
 
 def test_every_condition_of_the_code_model_names_its_file_and_line():
@@ -43,8 +48,8 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
 
 def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
     """canaries.py runs the design in each scene once for its invariants and once for each
-    property, each canary once, and today's code once for each rule it breaks or keeps, and the
-    canaries between them break every rule."""
+    property, each canary once, and today's code in each scene as the design, and the canaries
+    between them break every rule."""
     assert all(path.is_file() for path in FILES)
     labels = [label for label, *_ in RUNS]
     assert labels == [
@@ -57,8 +62,11 @@ def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_t
             f"canary {guard}, scene {scene}: {rule}"
             for guard, (rule, scene) in canaries.CANARIES.items()
         ),
-        *(f"today, scene {scene}: {rule}" for rule, scene in canaries.TODAY_BREAKS.items()),
-        *(f"today, scene a: {rule}" for rule in canaries.TODAY_HOLDS),
+        *(
+            f"today, scene {scene}: {name}"
+            for scene in canaries.SCENES
+            for name in ["every invariant", *canaries.PROPERTIES]
+        ),
     ]
     assert {rule for rule, _ in canaries.CANARIES.values()} == set(canaries.RULES)
 
@@ -100,77 +108,130 @@ def tlc():
 )
 def test_the_run_says_what_it_should(tlc, module, cfg, rule, want):
     """TLC says each rule holds in the design's scene, the canary breaks the rule on its guard,
-    and today's code breaks or keeps the rule it breaks or keeps today."""
+    and each rule holds in today's code in each scene."""
     out = canaries.tlc(tlc, module, cfg)
     assert canaries.verdict(out, rule) == want, out[-4000:]
 
 
+class Retiring:
+    """The kitchen's repo with its root home and the scoped home `sc`, whose plan has no open
+    entry, a user's home directory that links the skills, and the real `jbus` on PATH, as the
+    handoff skill runs it."""
+
+    def __init__(self, kitchen, tmp_path):
+        from test_home_thread import skills
+        from test_jbus_leftover import home
+
+        self.kitchen, self.user = kitchen, tmp_path / "user"
+        (self.user / ".claude" / "skills").mkdir(parents=True)
+        for name, folder in skills().items():
+            (self.user / ".claude" / "skills" / name).symlink_to(folder)
+        (self.user / ".local" / "state").mkdir(parents=True)
+        (self.user / ".local" / "state" / "home").symlink_to(kitchen.home.parent)
+        jbus = kitchen.stub / "jbus"
+        jbus.write_text(f'#!/bin/sh\nexec "{sys.executable}" -m jbus "$@"\n')
+        jbus.chmod(0o755)
+        home(kitchen)
+        self.child = home(kitchen, "sc")["threadId"]
+        self.scope = kitchen.home / "sc"
+        (self.scope / "plan.md").write_text("# the sc home: plan\n")
+
+    def does(self, holding, thread):
+        from test_home_thread import block, paths
+
+        found = block("handoff", holding).replace("<threadId>", thread)
+        return subprocess.run(
+            ["sh", "-c", f"{paths('handoff')}\n{found}"],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "HOME": str(self.user)},
+            cwd=self.kitchen.checkout,
+        )
+
+    def retires(self):
+        """You retire child a: its home writes its note and hands off. Return what the close
+        prints, but its line about scheduled tasks."""
+        from test_home_thread import NOTE
+        from test_scoped_handoff import WHERE
+
+        assert self.does(WHERE, self.child).returncode == 0
+        (self.scope / "handoff.next.md").write_text(NOTE)
+        ran = self.does('jbus forget "$M/home-id"', self.child)
+        assert (ran.returncode, ran.stderr) == (0, "")
+        return [line for line in ran.stdout.splitlines() if not line.startswith("not read:")]
+
+
 @pytest.fixture
-def handing_off(tmp_path):
-    from test_scoped_handoff import HandingOff
-
-    return HandingOff(tmp_path)
+def retiring(kitchen, tmp_path):
+    return Retiring(kitchen, tmp_path / "retiring")
 
 
-def test_bug_1_a_child_retires_with_its_crew_out(handing_off):
-    """NoRetireWithOpen. 1. The root makes child a: the scene starts with the scope `second` and
-    its home. 2. Child a launches a crew: the scope's brief carries the crew's `Thread:` line, as
-    jbus's launch writes it, and no Result. 3. You retire child a: its home hands off with no
-    open entry in its plan, and the handoff closes the scope with the crew still out."""
-    from test_scoped_handoff import CLOSED
-    from test_scoped_home import SCOPE, SCOPED
-
-    brief = handing_off.sent("tasks", "sc-crew", f"Home: {SCOPE}", "Thread: mcp:the-crew")
-    (handing_off.scope_dir / "plan.md").write_text("# the second home: plan\n")
-    _, said = handing_off.hands_off(SCOPED, handing_off.scope_dir)
-    assert said[0] == CLOSED
-    assert "\nScope closed: " in (handing_off.scope_dir / "handoff.md").read_text()
-    left = brief.read_text()
-    assert "Thread: mcp:the-crew" in left and "## Result" not in left
-
-
-def test_bug_2_a_quiet_child_with_a_crew_out_is_flagged_to_nobody(kitchen):
-    """StallFlagged. 1. The root makes child a: the root home and the scope `sc` each have a
-    home thread, and the child's has written nothing for six hours. 2. Child a launches a crew: a
-    pass launches the scope's approved row, and its turn then hangs. 3. The root's check runs: an
-    hour of passes. Each pass reads the child's thread and its six hours of silence, and logs a
-    stall for the hung crew, the control that it reports what it judges stuck, yet none sends the
-    root, the child or the user a word about the quiet child."""
-    from datetime import timedelta
-
-    from test_jbus_kitchen import NOW, iso
-    from test_jbus_leftover import home
-    from test_jbus_live import run, written
+def test_no_retire_with_open_a_child_with_its_crew_out_is_not_retired(retiring):
+    """NoRetireWithOpen, along bug 1 of the chart. 1. The root makes child a: the scope `sc` has
+    its home. 2. Child a launches a crew: a jbus pass launches the scope's approved row. 3. You
+    retire child a: its home hands off with no open entry in its plan, and the scope stays open,
+    with a next home, while its crew is out. Once the row is over, the same handoff closes it."""
     from test_jbus_queue import add, brief, rows
+    from test_jbus_row_ends import result
+    from test_scoped_handoff import CLOSED, THE_HOME
+
+    kitchen = retiring.kitchen
+    add(kitchen, "sc-crew", text=brief("sc-crew").replace("Home: mcp:a-home", "Home: sc"))
+    now = datetime.now(UTC)
+    assert any(line.startswith("launched sc-crew: ") for line in kitchen.poll(now))
+    kitchen.poll(now)
+    assert rows(kitchen)["sc-crew"]["status"] == "launched"
+
+    said = retiring.retires()
+
+    assert said[0] == THE_HOME
+    assert any(line.startswith("kept open: ") and "sc-crew" in line for line in said), said
+    assert "Scope closed:" not in (retiring.scope / "handoff.md").read_text()
+
+    kitchen.brief("sc-crew", result())
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-crew"]
+    crew |= {"status": "completed", "settled": True}
+    kitchen.poll(now)
+    assert rows(kitchen)["sc-crew"]["status"] == "done"
+    (retiring.scope / "home-id").write_text(f"{retiring.child}\n")
+    again = retiring.retires()
+    assert again[0] == CLOSED, again
+    assert "\nScope closed: " in (retiring.scope / "handoff.md").read_text()
+
+
+def test_stall_flagged_a_quiet_child_with_its_crew_out_is_flagged(kitchen):
+    """StallFlagged and FirstStrike, along bug 2 of the chart. 1. The root makes child a: the
+    root home and the scope `sc` each have a home thread, and the child's has written nothing
+    for six hours. 2. Child a launches a crew: a pass launches the scope's approved row, and its
+    crew then writes nothing more. 3. The root's check runs: once the child and its crew have
+    been quiet for the child's patience, a pass nudges the child's home thread, and the user
+    hears of it at once."""
+    from test_jbus_kitchen import NOW
+    from test_jbus_leftover import home
+    from test_jbus_queue import add, brief
     from test_jbus_row_ends import sends
 
     root = home(kitchen)["threadId"]
     child = home(kitchen, "sc", idle=timedelta(hours=6))["threadId"]
     text = brief("sc-alpha").replace("Home: mcp:a-home", "Home: sc")
     add(kitchen, "sc-alpha", text=text)
-    launched = kitchen.poll(NOW - timedelta(minutes=90))
-    assert any(line.startswith("launched sc-alpha: ") for line in launched)
-    crew = kitchen.t3.threads[-1]
-    crew |= {"activeRunId": "run-1", "latestRunId": "run-1", "runs": [run(1)], "itemCount": 40}
-    crew["updatedAt"] = iso(NOW - timedelta(minutes=25))
+    assert any(line.startswith("launched sc-alpha: ") for line in kitchen.poll(NOW))
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: sc-alpha"]
     kitchen.t3.at_work.discard(crew["threadId"])
     kitchen.forget()
-    for minutes in range(0, 70, 10):
+    for minutes in range(10, 60, 10):
         kitchen.poll(NOW + timedelta(minutes=minutes))
-    seen = {one["id"]: one for one in written(kitchen)}
-    assert (seen[child]["role"], seen[child]["silent"]) == ("home", 420)
-    assert seen[crew["threadId"]]["live"] == "hung"
-    assert [line.split(":")[0] for line in kitchen.lines("stall")] == ["stall sc-alpha"]
-    assert rows(kitchen)["sc-alpha"]["status"] == "launched"
     assert [one for one in sends(kitchen) if one["threadId"] in (root, child)] == []
-    assert kitchen.waiting() == []
-    assert not any(child in line or "demo sc" in line for line in kitchen.lines())
+    kitchen.poll(NOW + PATIENCE + timedelta(minutes=1))
+    assert [one["threadId"] for one in sends(kitchen)] == [child]
+    told = [e["line"] for e in kitchen.events() if e["loud"] == "user" and " sc" in e["line"]]
+    assert len(told) == 1, kitchen.events()
 
 
 @pytest.fixture
 def merging(tmp_path):
     """jmerge's scene of a root home and the scoped home `flow` with a ready pull request, number
-    7, while a home merges: the root's id is in home-thread."""
+    7, while a home's id is in home-thread."""
     from test_jmerge_homes import ROOT, kitchen
 
     made = kitchen.__wrapped__(tmp_path)
@@ -178,14 +239,52 @@ def merging(tmp_path):
     return made
 
 
+def jmerge(kitchen, *flags):
+    said = kitchen.home.sh(
+        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge {" ".join(flags)}'
+    )
+    assert (kitchen.home.code, kitchen.home.stderr) == (0, "")
+    return said
+
+
 @pytest.mark.parametrize(
-    "runs", ["--all", "--home mcp:the-flow-home"], ids=["the root, with --all", "child a itself"]
+    "home", ["mcp:the-root-home", "mcp:the-flow-home"], ids=["the root", "child a itself"]
 )
-def test_bug_3_a_home_merges_child_a_s_pull_request(merging, runs):
-    """OneMerger. 1. The root makes child a: the scope `flow` has its home-id. 2-4. Child a
-    launches a crew, which opens its pull request, green and reviewed: the scene's number 7. 5.
-    The root reads main to merge child a's pull request, with `--all` as the merge skill's sweep
-    runs it, or child a runs jmerge for its own: either way a home, not jbus, merges it."""
-    said = merging.home.sh(f'PYTHONPATH="{merging.source}" "{sys.executable}" -m jmerge {runs}')
-    assert merging.home.code == 0
-    assert any(line.startswith("merged 7 fl-task ") for line in said)
+def test_one_merger_no_home_merges_and_jbus_merges_child_a_s_pull_request(merging, home):
+    """OneMerger, along bug 3 of the chart. 1. The root makes child a: the scope `flow` has its
+    home-id. 2-4. Child a launches a crew, which opens its pull request, green and reviewed: the
+    scene's number 7. 5. A home runs jmerge for it, the root or child a itself, and merges
+    nothing, while an id is in home-thread. jbus's run, with no flag, merges it."""
+    said = jmerge(merging, "--home", home)
+    assert not any(line.startswith("merged ") for line in said), said
+    assert merging.calls() == []
+    said = jmerge(merging)
+    assert any(line.startswith("merged 7 fl-task ") for line in said), said
+
+
+def test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging(tmp_path):
+    """NoBlindMerge, in the siblings' scene: two ready pull requests, one of each home. A second
+    run of jmerge starts while the first is in the middle of its merge, after it read main's tip
+    and before that merge lands. The second run merges nothing, so nothing lands over a tip its
+    merger did not read, and the first merges both, one after the other."""
+    from test_jmerge_fresh import GH
+    from test_jmerge_homes import kitchen
+
+    made = kitchen.__wrapped__(tmp_path)
+    stub = made.home.stub
+    second = f'PYTHONPATH="{made.source}" "{sys.executable}" -m jmerge > "$STUB/second.out" 2>&1'
+    hook = f'    "pr merge")\n        if [ -e "$STUB/hook" ]; then rm "$STUB/hook"; {second}; fi\n'
+    assert '    "pr merge")\n' in GH
+    (stub / "gh").write_text(GH.replace('    "pr merge")\n', hook))
+    (stub / "hook").write_text("")
+
+    first = jmerge(made)
+
+    assert not (stub / "hook").exists()
+    second = (stub / "second.out").read_text().splitlines()
+    assert second and not any(line.startswith("merged ") for line in second), second
+    assert [line.split()[:3] for line in first] == [
+        ["merged", "6", "root-task"],
+        ["merged", "7", "fl-task"],
+    ]
+    assert [call.split()[2] for call in made.calls()] == ["6", "7"]
