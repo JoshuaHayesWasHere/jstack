@@ -13,12 +13,15 @@ Each pass reads every open pull request whose brief has the line and has not mov
   of the base, under the key `restack|<slug>|<head 12>|<base head 12>`. A link whose head holds
   the base's head is told nothing: GitHub's compare says so, and the answer is kept under the key
   `stacked|<slug>|<head 12>|<base head 12>` so it is asked once.
-- Once the base merged, jbus bases the link's pull request on the default branch, where GitHub
-  has not done so itself on deleting the base's branch, and tells the crew to move its own
-  commits onto it, from the base's last head, under the key `restack|<slug>|<head 12>|<merge
-  12>`. Only once that message went does the line say `Stacked on: <slug> <default> at
-  <merge>`, so a message held for a thread at work is sent on a later pass. `jmerge` then waits
-  until the link's head holds that commit (`ready.STACKED_UNMOVED`), and merges it as any other.
+- Once the base merged, jbus bases the link's pull request on the branch the base merged into,
+  or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done
+  so itself on deleting the base's branch. A base merged into a train leaves its link on that
+  train: a rebase onto the default branch would carry the train's commits there. jbus tells the
+  crew to move its own commits onto that branch, from the base's last head, under the key
+  `restack|<slug>|<head 12>|<merge 12>`. Only once that message went does the line say
+  `Stacked on: <slug> <branch> at <merge>`, so a message held for a thread at work is sent on a
+  later pass. `jmerge` then waits until the link's head holds that commit
+  (`ready.STACKED_UNMOVED`), and merges it as any other.
 
 A base closed with no merge leaves its link waiting on `jmerge`'s line: GitHub closes a pull
 request whose base branch is deleted, and what to do with the work is the home's."""
@@ -26,6 +29,7 @@ request whose base branch is deleted, and what to do with the work is the home's
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import replace
 from typing import Any
 
@@ -50,18 +54,18 @@ RESTACK = (
 )
 MOVED = (
     "jbus: {base} merged as {merge}, and your stacked pull request #{number} is now based on "
-    "{default}. "
+    "{onto}, so its block rebases onto origin/{onto}. "
     + _MOVE
     + " That commit is the head {base} merged at. If the block prints `not found`, run it again "
     "with {branch}. " + END_TURN
 )
+_AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
 
 
 def move(run: Pass, client: Client, world: World) -> None:
     """Tell the crew of each stacked link whose base moved, once for each move, and base a link
-    whose base merged on the default branch."""
+    whose base merged on the branch it merged into, or the one its brief names."""
     sent = set(read_json(run.state / "sent.json", []))
-    default = ""
     for slug, pull in world.open.items():
         head = str(pull.get("headRefOid") or "")
         brief = _brief(run, slug)
@@ -71,13 +75,11 @@ def move(run: Pass, client: Client, world: World) -> None:
         base = world.open.get(stacked.slug)
         merged = None if base else world.merged.get(stacked.slug)
         if merged:
-            if not default:
-                asked = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-                default = asked.stdout.strip().removeprefix("origin/")
-            if default:
-                _moved(run, client, world, slug, pull, stacked, merged, default, sent)
+            onto = _onto(run, brief, merged)
+            if onto:
+                _moved(run, client, world, slug, pull, stacked, merged, onto, sent)
             else:
-                run.say(f"wait {slug}: the default branch is not known, so it is not moved")
+                run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
         elif base:
             _restack(run, client, world, slug, pull, stacked, base, sent)
 
@@ -123,30 +125,30 @@ def _moved(
     pull: dict[str, Any],
     stacked: stacks.Stacked,
     merged: dict[str, Any],
-    default: str,
+    onto: str,
     sent: set[str],
 ) -> None:
     head, number = str(pull["headRefOid"]), pull["number"]
     merge = str((merged.get("mergeCommit") or {}).get("oid") or "")
     if not merge or rebase.mark(KIND, slug, head, merge[:12]) in sent:
         return
-    if pull.get("baseRefName") not in (None, "", default):
-        asked = run.run("gh", "pr", "edit", str(number), "--base", default)
+    if pull.get("baseRefName") not in (None, "", onto):
+        asked = run.run("gh", "pr", "edit", str(number), "--base", onto)
         if asked.returncode:
             said = (asked.stderr or asked.stdout).strip().splitlines()
             why = said[-1] if said else f"gh exited {asked.returncode}"
-            run.say(f"wait {slug}: #{number} could not be based on {default}: {why}")
+            run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
     last = str(merged.get("headRefOid") or "") or stacked.branch
     message = (
         MOVED.replace("{base}", stacked.slug)
         .replace("{merge}", merge[:12])
-        .replace("{default}", default)
+        .replace("{onto}", onto)
         .replace("{branch}", stacked.branch)
         .replace("{was}", last)
     )
     if _tell(run, client, world, slug, pull, message, merge, f"{stacked.slug} merged"):
-        _rewrite(run, slug, replace(stacked, branch=default, at=merge))
+        _rewrite(run, slug, replace(stacked, branch=onto, at=merge))
 
 
 def _tell(
@@ -176,6 +178,21 @@ def _tell(
     run.find(slug, KIND, line, message, key=f"{head[:12]} {under[:12]}")
     run.say(line)
     return True
+
+
+def _onto(run: Pass, brief: str, merged: dict[str, Any]) -> str:
+    """Return the branch a link goes on once its base merged: the one its brief's `Pull request:`
+    line opens it against, or else the one the base merged into, asked of GitHub. Empty when
+    GitHub does not say."""
+    named = _AGAINST.search(brief.split("\n## ", 1)[0])
+    if named:
+        return named["branch"]
+    asked = run.run("gh", "pr", "view", str(merged["number"]), "--json", "baseRefName")
+    try:
+        said = json.loads(asked.stdout) if asked.returncode == 0 else {}
+    except ValueError:
+        said = {}
+    return str(said.get("baseRefName") or "") if isinstance(said, dict) else ""
 
 
 def _brief(run: Pass, slug: str) -> str:
