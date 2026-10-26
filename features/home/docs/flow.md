@@ -87,8 +87,9 @@ github.com shows an HTML file as its source, so open them from the files on your
 A release install puts them in `share/jstack/features/home/docs/` of the `jstack` tool's environment, and `uv tool dir` prints the folder that holds that environment:
 
 ```sh
-xdg-open "$(uv tool dir)/jstack/share/jstack/features/home/docs/flow.html"
-xdg-open "$(uv tool dir)/jstack/share/jstack/features/home/docs/jstack-explained.html"
+open=$(command -v xdg-open || echo open)
+"$open" "$(uv tool dir)/jstack/share/jstack/features/home/docs/flow.html"
+"$open" "$(uv tool dir)/jstack/share/jstack/features/home/docs/jstack-explained.html"
 ```
 
 In a checkout of jstack, open the same two files in `features/home/docs/`.

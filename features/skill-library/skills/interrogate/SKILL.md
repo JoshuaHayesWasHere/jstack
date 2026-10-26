@@ -62,7 +62,7 @@ Six checks of the source's rubric and five dimensions of its code-quality lens a
 R=$(realpath ~/.claude/skills/interrogate/../.. 2> /dev/null)
 S=${R:-no root}/skills/pr-review/the-review.md
 asked=$(awk '
-    /^SCOPE=/ {scope = 1}
+    /<<.SCOPE.$/ {scope = 1}
     /^SCOPE$/ {exit}
     scope && /^4\. / {on = 1}
     /^   When the remedy/ || /^6\. / {on = 0}

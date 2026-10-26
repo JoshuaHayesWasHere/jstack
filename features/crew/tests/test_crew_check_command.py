@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import time
 
 import pytest
@@ -15,15 +16,27 @@ import test_room as room
 from crew_helpers import FENCED, block, git, held_open, sections
 from jbriefs import parse as briefs
 from test_machine_sizes import fake_proc
+from test_portable_shell import bsd_tools
 from testing.layouts import assembled
 from testing.paths import REPO
 
+TAKEN = """import fcntl, sys
 
-def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
+with open(sys.argv[1], "a") as lock:
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit(0)
+sys.exit(1)
+"""
+
+
+def checked(tmp_path, command, limit=60, heading="Do the task", then=None, tools=None):
     """Run the check block of "Do the task" once in a worktree of its own, as an agent runs it,
     waiting `limit` seconds at most. It returns what the block printed, its exit code and how
     long it took. The test calls `then` once the block has printed its first line, while the
-    block still waits."""
+    block still waits. `tools` is the PATH the block finds its tools on, the machine's own by
+    default."""
     repo, home, stub = tmp_path / "repo", tmp_path / "home", tmp_path / "stub"
     if not repo.exists():
         subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -44,7 +57,7 @@ def checked(tmp_path, command, limit=60, heading="Do the task", then=None):
             **os.environ,
             "HOME": str(home),
             "TEST_SLOTS": "3",
-            "PATH": f"{stub}:{room.BIN}:{os.environ['PATH']}",
+            "PATH": f"{stub}:{room.BIN}:{tools or os.environ['PATH']}",
             "T": str(assembled() / "templates"),
             "H": str(tmp_path / "state"),
         },
@@ -90,6 +103,18 @@ def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check
     step = sections()["Do the task"]
     assert "(`notes.md` names it)" in step
     assert not re.search(r"make check(?![-\w])", step)
+
+
+def test_the_check_starts_and_ends_on_the_tools_of_macos(tmp_path):
+    """macOS has no `setsid` and refuses GNU's flags. With only such tools on PATH, the block
+    still starts the check on its own and waits on it to the end."""
+    tools = bsd_tools(tmp_path / "bsd")
+    said, code, _ = checked(tmp_path, "echo all passed", tools=tools)
+    assert (said[0].split(":")[0], said[-2:], code) == (
+        "started",
+        ["all passed", "done: the check exited 0"],
+        0,
+    )
 
 
 def ended(tmp_path):
@@ -240,6 +265,8 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
 
 
 def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp_path):
+    """The command asks whether its short slot is held with `TAKEN`, by Python's fcntl, which a
+    Mac has too: util-linux's `flock` command is Linux only."""
     home, stub = tmp_path / "home", tmp_path / "stub"
     stub.mkdir()
     room.uv(stub)
@@ -250,7 +277,9 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
         fd = os.open(locks / f"test-slot.{n}.lock", os.O_RDWR | os.O_CREAT)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
-    took = f"! flock -n {locks}/test-slot-short.1.lock true && echo short; exit 3"
+    taken = tmp_path / "taken.py"
+    taken.write_text(TAKEN)
+    took = f"{sys.executable} {taken} {locks}/test-slot-short.1.lock && echo short; exit 3"
     script = block("Do the task", "<the targeted tests>").replace(
         "<the targeted tests>", f"sh -c '{took}'"
     )

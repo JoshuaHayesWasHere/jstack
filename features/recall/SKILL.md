@@ -22,8 +22,8 @@ A thread's transcript is one `.jsonl` file under `~/.claude/projects/`, in a dir
 DAYS=${DAYS:-7}
 W=${W:-$(git rev-parse --show-toplevel 2> /dev/null || pwd)}
 D=~/.claude/projects/$(printf %s "$W" | sed 's/[^A-Za-z0-9]/-/g')
-found=$(find "$D" -maxdepth 1 -name '*.jsonl' -mtime "-$DAYS" -printf '%T@ %p\n' 2> /dev/null |
-    sort -rn | cut -d' ' -f2- | grep -v "/${CLAUDE_CODE_SESSION_ID:-this-thread}\.jsonl$")
+found=$(find "$D" -maxdepth 1 -name '*.jsonl' -mtime "-$DAYS" -exec ls -t {} + 2> /dev/null |
+    grep -v "/${CLAUDE_CODE_SESSION_ID:-this-thread}\.jsonl$")
 if [ -n "$found" ]; then
     printf '%s\n' "$found"
 else
@@ -41,8 +41,7 @@ if ! G=$(git rev-parse --path-format=absolute --git-common-dir 2> /dev/null); th
     echo "no home record: this is not a git repository"
 else
     H=~/.local/state/home/$(basename "$(dirname "$G")")
-    found=$(find "$H" -maxdepth 2 -name '*.md' -mtime "-$DAYS" -printf '%T@ %p\n' 2> /dev/null |
-        sort -rn | cut -d' ' -f2-)
+    found=$(find "$H" -maxdepth 2 -name '*.md' -mtime "-$DAYS" -exec ls -t {} + 2> /dev/null)
     if [ -n "$found" ]; then
         printf '%s\n' "$found"
     else

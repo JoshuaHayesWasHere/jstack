@@ -75,7 +75,11 @@ Each item below is a reason a pull request waits.
 The section "Protected and guarded paths" describes one more hold and a stricter gate.
 
 - **A draft waits.**
-  `jmerge` never merges a draft, whatever flags you pass, and prints `wait <number> <url>: draft`.
+  `jmerge` never merges a draft, whatever flags you pass.
+  A crew opens its pull request as a draft, and CI runs no check on one, so a draft is judged as any other pull request but for its checks, and waits on the first reason that holds: its review, its fix, its queue row, a red main, a drop or a hold.
+  Once none holds, a run without `--check` marks it ready (`gh pr ready`) and prints `wait <number> <url>: reviewed and fixed, so marked ready, and CI runs its check at <head>`, so its one check runs on the head that merges.
+  With `--check`, or where GitHub refuses the mark, it prints `wait <number> <url>: draft`, never a wait on its check.
+  A draft whose brief says `Review: none` is marked ready too, so the user's word has a check to go by, and it still holds for that word.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
   jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.
@@ -130,6 +134,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A check that the repo's workflows never run then blocks no merge.
   For example, jstack's own state directory names `check` (the suite) and `borders` (the border lint), so its pull requests wait for both.
   A pull request waits with `<check> has not passed` for the first required check that has not passed, and with `it conflicts with its base` for a conflict.
+  A pull request into an integration branch has no check of its own to wait on: CI runs the pull request check into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
   It looks up the row whose slug is the brief's slug.

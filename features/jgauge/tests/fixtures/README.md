@@ -17,3 +17,7 @@ For the `-tmp-jstack-check` sessions, what was kept: every `user` and `assistant
 The Agent result lines keep the counts of `toolUseResult` and the harness's `<usage>` text, which `jgauge` does not read: a subagent's last call has no finished line here, so its output is counted as a floor.
 
 What was dropped: every other line type (attachments, queue operations, titles, cost state), thinking signatures, long texts, the builder's report (replaced by a short placeholder, so its reply size here is not the real one), the subagents' meta files, and every other field.
+
+`darwin/` holds what macOS prints, for the tests that read a Mac: `sysctl.txt` in the form `sysctl vm.loadavg hw.ncpu hw.memsize` prints, and `vm_stat.txt`, the output of `vm_stat` on an Apple Silicon Mac with its 16384-byte pages.
+They are written by hand in the format macOS 15 prints, not recorded from a machine, since no Mac was at hand.
+`darwin/bin/` holds stand-ins for `uname`, `sysctl` and `vm_stat` that print those files from the directory `DARWIN` names, so a test can change one value.

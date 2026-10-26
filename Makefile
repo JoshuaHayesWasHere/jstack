@@ -25,7 +25,8 @@
 # yelena, 24 processors, 2026-10-20: 456 to 483 s of CPU for each 89 to 94 s run at 6 workers),
 # so every slot at once asks for about 21 of the 24. testing/tests/test_check_command.py holds the
 # share and the count to each other. CI is not in that count: it runs on GitHub's machines.
-CGROUP ?= /sys/fs/cgroup$(shell sed -n 's/^0:://p' /proc/self/cgroup 2>/dev/null)
+# A system with no /proc/self/cgroup, such as macOS, has no cgroup, so no quota.
+CGROUP ?= $(if $(wildcard /proc/self/cgroup),/sys/fs/cgroup$(shell sed -n 's/^0:://p' /proc/self/cgroup))
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))
 PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)

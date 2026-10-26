@@ -125,7 +125,7 @@ def resolved(skill, tmp_path):
     elsewhere = tmp_path / skill / "another-repo"
     elsewhere.mkdir()
     listed = "\n".join(
-        f'if [ -f "{path}" ]; then realpath -s "{path}"; else echo \'missing: {path}\'; fi'
+        f"if [ -f \"{path}\" ]; then printf '%s\\n' \"{path}\"; else echo 'missing: {path}'; fi"
         for path in named
     )
     done = subprocess.run(
@@ -137,7 +137,7 @@ def resolved(skill, tmp_path):
         check=True,
     )
     found, *files = done.stdout.splitlines()
-    return Path(found), files
+    return Path(found), [os.path.normpath(file) for file in files]
 
 
 READS = {

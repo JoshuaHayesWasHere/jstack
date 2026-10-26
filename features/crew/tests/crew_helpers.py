@@ -342,16 +342,16 @@ def spent(stub, left=0):
 WINDOWS = ("core", "graphql")
 
 
-def stub_gh(stub, head, rollup, state="OPEN"):
-    """A stub `gh` that prints this rollup for the pull request, or fails when there is no
-    rollup."""
+def stub_gh(stub, head, rollup, state="OPEN", draft=False):
+    """A stub `gh` that prints this rollup for the pull request, a draft or not, or fails when
+    there is no rollup."""
     stub.mkdir()
     (stub / "gh").write_text(GH)
     (stub / "gh").chmod(0o755)
     for job, steps in STEPS.items():
         (stub / f"job-{job}.json").write_text(json.dumps({"id": int(job), "steps": steps}))
     if rollup is not None:
-        view = {"state": state, "headRefOid": head, "statusCheckRollup": rollup}
+        view = {"state": state, "headRefOid": head, "statusCheckRollup": rollup, "isDraft": draft}
         (stub / "view.json").write_text(json.dumps(view))
 
 

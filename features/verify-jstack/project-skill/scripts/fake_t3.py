@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from jbus.bind import NoLookup
 from jbus.t3 import PROTOCOL, TOOLS
 
 
@@ -143,15 +144,18 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
     return Handler
 
 
+class Server(NoLookup, http.server.ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address
+    (`jbus.bind`): on GitHub's macOS runner that reverse lookup of 127.0.0.1 waits in mDNS."""
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("directory", type=Path)
     parser.add_argument("--token", required=True, help="the sandbox's made-up token")
     args = parser.parse_args()
     args.directory.mkdir(parents=True, exist_ok=True)
-    server = http.server.ThreadingHTTPServer(
-        ("127.0.0.1", 0), handler(Fake(args.directory, args.token))
-    )
+    server = Server(("127.0.0.1", 0), handler(Fake(args.directory, args.token)))
     (args.directory / "port").write_text(f"{server.server_address[1]}\n")
     server.serve_forever()
 

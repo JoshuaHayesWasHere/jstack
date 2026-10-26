@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stands in for macOS's vm_stat: it prints $DARWIN/vm_stat.txt.
+[ "$#" = 0 ] || exit 64
+cat "$DARWIN/vm_stat.txt"

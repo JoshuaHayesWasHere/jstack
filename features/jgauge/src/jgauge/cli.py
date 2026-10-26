@@ -318,7 +318,8 @@ def parser() -> argparse.ArgumentParser:
         help="append one row of load and pressure to the log, or with --report count its rows",
         description="Append one row to the log (JGAUGE_LOAD_LOG, else"
         " ~/.local/state/jgauge/load.tsv): the time, the cores, /proc/loadavg, and some and full"
-        " avg10 and avg60 of /proc/pressure/{cpu,memory,io}. Rows older than 30 days are dropped.",
+        " avg10 and avg60 of /proc/pressure/{cpu,memory,io}. On macOS the load is sysctl's"
+        " vm.loadavg and the pressure fields are empty. Rows older than 30 days are dropped.",
     )
     sampled.add_argument(
         "--report",

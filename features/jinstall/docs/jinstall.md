@@ -57,10 +57,25 @@ A path that starts with `~` is under your home directory.
 | `settings.json` of each Claude home that `~/.config/jstack/providers.json` declares | The keys that turn off the AI co-author trailer | Once the home has the file |
 | `~/.config/jstack/outbound.toml` | jleak's private patterns file, made once from jleak's example, for you to fill in ([jleak](../../jleak/docs/jleak.md#the-private-patterns)) | Where there is none |
 | `~/.config/systemd/user/<unit>` | A link for each unit of `jbus`, `jgauge` and `jroles`. The install enables the timers, and the CI report, relay and backup units only where their config asks for them. | Once the `jbus` config is there |
+| `~/Library/LaunchAgents/jstack.<unit>.plist`, on macOS in place of the line above | A launchd agent for each timer, and for the relay, made from the same units ([On macOS](#on-macos)). The install loads each into launchd with `launchctl bootstrap`, and the CI report, relay and backup agents only where their config asks for them. | Once the `jbus` config is there |
 | `<repo>/.git/hooks/pre-push` and `commit-msg` | jleak's git hooks, in each repo jstack works in, which `~/.local/state/jstack/repos` lists ([Git hooks in your repos](#git-hooks-in-your-repos)) | For each repo you set up with `jinstall --repo` or `/new-home` |
 | `~/.config/jstack/config.toml`, `~/.config/jstack/roles`, `~/.config/jbus/config.toml` | Your three configs, with defaults ([Configuration](configuration.md)) | `--setup` only, where there is none |
 
 The install leaves every other key of a settings file as it was.
+
+## On macOS
+
+On macOS launchd runs the units in place of systemd.
+The install makes one agent from each timer and the service it starts, and one from the relay's service, out of the same files under `features/*/units/` as on Linux.
+Each agent is a plist at `~/Library/LaunchAgents/jstack.<name>.plist`, such as `jstack.jbus.plist` for `jbus.timer`.
+A comment in it names the source the install made it from, and the install rewrites or removes only a plist whose comment names its own source.
+A timer's `OnUnitActiveSec=` becomes `StartInterval`, and its `OnCalendar=` becomes `StartCalendarInterval`.
+The relay's `Restart=on-failure` becomes `KeepAlive`, and an exit 2 is not restarted, as on Linux.
+Each agent runs its command through `/bin/sh`, which stops it at the unit's `TimeoutStartSec=` and runs the unit's `OnFailure=` service when the command fails.
+What an agent prints goes to `~/Library/Logs/jstack/jstack.<name>.log`, which takes the place of the journal.
+`jbus health` and `jbus view` read that log and `launchctl print`.
+The view gets no agent, as on Linux, where the install links its unit and does not enable it: run `jbus view` yourself.
+`--check` and the doctor print `ok optional units ~/Library/LaunchAgents` once each agent is loaded, and otherwise the first agent that is not.
 
 ## The layouts
 

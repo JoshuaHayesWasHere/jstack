@@ -12,9 +12,10 @@ the owner may set it:
   passes the raw value here, so this module checks the value and gives its default.
 
 Every caller arrives at the same count because the module derives a default from whole-machine
-facts only: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`. The module
-never reads the caller's cgroup quota, its affinity or `nproc`, which differ between
-`jbus.service`, a desk shell, an agent's slice and a CI container on the same machine. The
+facts only: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`, or on macOS
+`hw.ncpu` and `hw.memsize` from `sysctl`. The module never reads the caller's cgroup quota, its
+affinity or `nproc`, which differ between `jbus.service`, a desk shell, an agent's slice and a
+CI container on the same machine. The
 Makefile does read the quota for its workers, on purpose: it sizes a run's workers to the run,
 and this module sizes the machine's slots to the machine.
 
@@ -33,6 +34,8 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
+import sys
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -108,17 +111,21 @@ class Machine:
     @classmethod
     def here(cls, proc: Path | None = None) -> Machine:
         """Read the facts of `proc`, else `$PROC`, else `/proc`, as room.sh reads them. A test
-        can then give room.sh and this method the same fake tree."""
-        root = proc or Path(os.environ.get("PROC") or "/proc")
+        can then give room.sh and this method the same fake tree. On macOS, which has no
+        /proc, read `hw.ncpu` and `hw.memsize` from `sysctl`, unless a /proc is given."""
+        if proc is None and from_sysctl():
+            cores, memory = sysctl_count("hw.ncpu"), sysctl_count("hw.memsize")
+            memory = memory // (KIB_PER_GIB * 1024) if memory else None
+        else:
+            root = proc or Path(os.environ.get("PROC") or "/proc")
+            cores = len(_CPU.findall(_read(root / "stat")))
+            total = _TOTAL.search(_read(root / "meminfo"))
+            memory = int(total[1]) // KIB_PER_GIB if total else None
         fell: list[str] = []
-        cores = len(_CPU.findall(_read(root / "stat")))
         if not cores:
             fell.append("cores")
             cores = FALLBACK_CORES
-        total = _TOTAL.search(_read(root / "meminfo"))
-        if total:
-            memory = int(total[1]) // KIB_PER_GIB
-        else:
+        if memory is None:
             fell.append("memory")
             memory = FALLBACK_GIB
         return cls(cores, memory, tuple(fell))
@@ -136,6 +143,36 @@ def _read(path: Path) -> str:
         return path.read_text()
     except OSError:
         return ""
+
+
+def on_darwin() -> bool:
+    """Whether this is macOS, which has no /proc. It is read at each call, so a test can set
+    `sys.platform`."""
+    return sys.platform == "darwin"
+
+
+def from_sysctl() -> bool:
+    """Whether the machine is read from `sysctl` rather than a /proc: on macOS, unless the
+    caller names a /proc in `PROC`, as a test's made-up machine does. room.sh decides the same."""
+    return on_darwin() and not os.environ.get("PROC")
+
+
+def sysctl(name: str) -> str:
+    """What macOS's `sysctl -n <name>` prints, stripped, or "" when it cannot run or fails.
+    room.sh reads the same names."""
+    try:
+        ran = subprocess.run(
+            ["sysctl", "-n", name], capture_output=True, text=True, timeout=5, check=False
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return ran.stdout.strip() if ran.returncode == 0 else ""
+
+
+def sysctl_count(name: str) -> int | None:
+    """`sysctl -n <name>` as a count of 1 or more, or None."""
+    said = sysctl(name)
+    return int(said) if said.isdecimal() and int(said) > 0 else None
 
 
 def desk_workers(cores: int) -> int:
