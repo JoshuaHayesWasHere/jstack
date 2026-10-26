@@ -18,12 +18,12 @@ from __future__ import annotations
 import argparse
 import http.server
 import json
-import socketserver
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from jbus.bind import NoLookup
 from jbus.t3 import PROTOCOL, TOOLS
 
 
@@ -144,16 +144,9 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
     return Handler
 
 
-class Server(http.server.ThreadingHTTPServer):
-    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address.
-
-    `HTTPServer.server_bind` calls `socket.getfqdn`, and on GitHub's macOS runner that reverse
-    lookup of 127.0.0.1 waits in mDNS, so the stand-in never listened.
-    """
-
-    def server_bind(self) -> None:
-        socketserver.TCPServer.server_bind(self)
-        self.server_name, self.server_port = self.server_address[:2]
+class Server(NoLookup, http.server.ThreadingHTTPServer):
+    """A `ThreadingHTTPServer` that binds without asking DNS for a name of its address
+    (`jbus.bind`): on GitHub's macOS runner that reverse lookup of 127.0.0.1 waits in mDNS."""
 
 
 def main() -> None:
