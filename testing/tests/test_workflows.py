@@ -550,6 +550,59 @@ def test_each_part_restores_and_saves_tlcs_kept_runs_right_before_its_suite(job)
     assert set(read) - set(hashed) == set()
 
 
+ZSH_STUBS = {
+    "sudo": '"$@"',
+    "apt-get": 'echo "apt-get $*" >> "$LOG"; case " $* " in *" install "*) installs;; esac',
+    "dpkg": 'echo "dpkg $*" >> "$LOG"; installs',
+    "curl": 'echo "curl $*" >> "$LOG"; for a; do case $a in http*) echo x >"${a##*/}";; esac; done',
+    "sha256sum": "exit 0",
+}
+
+
+@pytest.mark.parametrize("ends", ["installed", "not installed", "not the pinned file"])
+def test_the_zsh_steps_update_no_unnamed_source_and_fail_unless_zsh_runs(tmp_path, ends):
+    """`apt-get update` with no source named reads every list the image names, from its Azure
+    mirror, which took the step 140 to 270 seconds a part job. Each zsh step runs here as
+    written, under sh, with stand-ins for what it calls on a PATH that holds nothing else:
+    it passes only when zsh runs at its end, and installs nothing that is not the pinned file."""
+    runs = [
+        step["run"]
+        for job in ("check-shard", "full-shard")
+        for step in steps(CHECK.read_text(), job)[0]
+        if step.get("name") == "zsh"
+    ]
+    assert len(runs) == 2
+    for at, run in enumerate(runs):
+        bin, temp, log = tmp_path / f"bin{at}", tmp_path / f"temp{at}", tmp_path / f"log{at}"
+        bin.mkdir()
+        temp.mkdir()
+        zsh = tmp_path / f"zsh{at}"
+        zsh.write_text('#!/bin/sh\necho "zsh $*" >> "$LOG"\n')
+        zsh.chmod(0o755)
+        installs = "" if ends == "not installed" else f"{shutil.which('cp')} -p {zsh} {bin}/zsh"
+        for name, body in ZSH_STUBS.items():
+            (bin / name).write_text(f"#!/bin/sh\ninstalls() {{ {installs or ':'}; }}\n{body}\n")
+            (bin / name).chmod(0o755)
+        if ends == "not the pinned file":
+            (bin / "sha256sum").unlink()
+            (bin / "sha256sum").symlink_to(shutil.which("sha256sum"))
+        env = {**block("env"), "PATH": str(bin), "RUNNER_TEMP": str(temp), "LOG": str(log)}
+        ran = subprocess.run(["/bin/sh", "-c", run], env=env, capture_output=True, text=True)
+        called = log.read_text().splitlines() if log.exists() else []
+        assert [
+            line
+            for line in called
+            if line.startswith("apt-get") and " update" in line and "sourcelist=" not in line
+        ] == []
+        if ends == "installed":
+            assert ran.returncode == 0, ran.stderr
+            assert called[-1] == "zsh --version"
+        else:
+            assert ran.returncode != 0
+        if ends == "not the pinned file":
+            assert [line for line in called if not line.startswith("curl")] == []
+
+
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
     """A pull request's check skips nothing: its own run is the proof that the suite passed,
     and a marker records that. The parts ask, and the one job over them leaves it."""
