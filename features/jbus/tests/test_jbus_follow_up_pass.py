@@ -184,8 +184,8 @@ def test_the_fix_rows_jbus_files_name_the_row_they_follow():
     train = sidered.train_brief(TRAIN_RED, TRAIN, "b" * 40, "", [7], [], "alpha")
     assert queue.named_parent(TRAIN_RED, train) == "alpha"
     table = [
-        {"slug": "beta", "pr": "https://x/pull/6"},
-        {"slug": "alpha", "pr": "https://x/pull/7"},
+        {"slug": "beta", "pr": "#6"},
+        {"slug": "alpha", "pr": "#7"},
     ]
     assert sidered.merged_row(table, {"display_title": "feat: alpha (#7)"}) == "alpha"
     assert sidered.merged_row(table, {"head_commit": {"message": "feat: x (#8)\n\nbody"}}) == ""

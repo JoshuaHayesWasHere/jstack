@@ -197,8 +197,7 @@ def merged_row(table: list[dict[str, Any]], one: dict[str, Any]) -> str:
     found = _PULL.search(title.splitlines()[0] if title else "")
     if not found:
         return ""
-    end = f"/pull/{found.group(1)}"
-    return next((row["slug"] for row in table if str(row.get("pr", "")).endswith(end)), "")
+    return next((row["slug"] for row in table if row.get("pr") == f"#{found.group(1)}"), "")
 
 
 def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]], follows: str = "") -> str:
