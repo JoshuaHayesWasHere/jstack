@@ -598,7 +598,7 @@
   }
   function brokeSince(b) { var at = ms(b.since); return b.what + (at == null ? ", since not known" : " since " + day(at)); }
   function passWord(end) { var j = jb(); return j && j.failed ? plural(j.failed, "pass", "passes") + " failed" : end == null ? "" : "last pass " + hm(end); }
-  var HEALTH = { moving: ["moving", ""], waiting: ["waits on a request", "op"], quiet: ["quiet", "op"], hung: ["hung", "bad"], ended: ["ended, work out", "op"], rest: ["at rest", ""] };
+  var HEALTH = { moving: ["moving", ""], waiting: ["waits on a request", "op"], quiet: ["quiet", "op"], hung: ["hung", "bad"], rest: ["at rest", ""] };
   var FLAG = { stall: "stalled", idle: "idle" };
   function wrongKey(w) { return w.kind + "/" + w.subj + "/" + w.cause; }
   function wrongLine(w, where) { return '<a class="wl" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(w.where.length ? linkOf(w.where[0].open) : href(STACK.projects.length ? STACK.projects[0].name : "", "pulse")) + '"><span><code>' + esc(w.subj) + '</code> ' + esc(w.cause) + (where ? " &middot; " + esc(where) : "") + (ms(w.since) == null ? "" : ' <span class="wa">' + esc(ago(w.since)) + '</span>') + '</span></a>'; }
