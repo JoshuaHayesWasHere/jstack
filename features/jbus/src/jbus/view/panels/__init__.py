@@ -8,6 +8,11 @@ data:
 - `SOURCES`, each source it reads, with who writes it (`state.Source`);
 - `FIRST`, True where the first screen needs the dict: then its keys are keys of `/state.json`.
   The page asks for any other panel when its drawer opens, at `/panel/<name>.json`;
+- `stack(base, reads, answer)`, what it adds to `/stack.json` across every project, cut to
+  `SHAPE`, with `answer` what `/stack.json` holds before any panel adds to it;
+- `ALONE`, True for a panel whose `stack` is too big for `/stack.json`: that leaves it out, and
+  `/panel/<name>.json` with no project gives what its `stack` builds, with `answer` the frame
+  alone;
 - `blind(read)`, the lines it cannot say now, and `NOT_KEPT`, the ones it never can
   (`state.Spot`). Each line opens the panel;
 - `WRITES`, the writes it takes, by name: `WRITES[name](app, project, body)` answers
@@ -61,6 +66,10 @@ class Panel:
     @property
     def first(self) -> bool:
         return getattr(self.data, "FIRST", False) is True
+
+    @property
+    def alone(self) -> bool:
+        return getattr(self.data, "ALONE", False) is True
 
     @property
     def shape(self) -> dict[str, Any]:
