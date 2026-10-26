@@ -66,6 +66,8 @@ def test_no_thread_skill_asks_the_user_and_waits_in_its_own_thread():
     ("text", "flagged"),
     [
         ("Pause for the user's word before four things only: a deploy.", True),
+        ('Only the four pauses of that skill\'s "Carry on" wait.', True),
+        ("Stopping to ask. Nobody does, but for the four pauses.", True),
         ("Only the four pauses of Carry on are asked here and waited on.", True),
         ("Ask the user in this thread, and wait for the answer.", True),
         ("Ask the user, then end your turn waiting.", True),
