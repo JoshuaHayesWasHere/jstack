@@ -29,3 +29,4 @@ testing/tests/test_check_command.py
 features/home/tests/test_scope_root.py
 features/jbus/tests/test_jbus_relay.py
 features/home/tests/test_home_gauge.py
+features/verify-jstack/tests/test_verify_jstack.py
