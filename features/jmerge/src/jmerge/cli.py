@@ -451,17 +451,17 @@ class Repo:
         """Why a link jbus stacked waits, or nothing. It waits while its line names its base's
         branch, whatever base GitHub gives it now: GitHub bases it on the default branch by
         itself when the base's branch is deleted on its merge, and its head still holds the
-        base's commits then. Once jbus wrote the commit that merged its base, it waits until its
-        head holds that commit: its crew rebased its own commits onto the default branch."""
+        base's commits then. Once jbus wrote the commit that merged its base and the branch it
+        merged into, the default or a train, it waits until it is based on that branch and its
+        head holds that commit: its crew rebased its own commits onto that branch."""
         if stacked is None:
             return ""
-        if not stacked.at or stacked.branch != default or one.base != default:
-            return ready.STACKED_ON.format(
-                branch=stacked.branch, slug=stacked.slug, default=default
-            )
+        onto = stacked.branch if stacked.at else default
+        if not stacked.at or one.base != onto:
+            return ready.STACKED_ON.format(branch=stacked.branch, slug=stacked.slug, default=onto)
         if not self.has(one) or self.outside(stacked.at, one.head):
             return ready.STACKED_UNMOVED.format(
-                slug=stacked.slug, sha=stacked.at[:12], default=default
+                slug=stacked.slug, sha=stacked.at[:12], default=onto
             )
         return ""
 
