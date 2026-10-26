@@ -64,6 +64,37 @@ def test_a_link_rebased_onto_its_bases_merge_on_a_train_merges_as_any_other(buil
     assert said.startswith("ready 7 ")
 
 
+def test_a_link_rebased_over_its_bases_squash_on_a_train_with_its_patch_unchanged_merges(built_on):
+    """A base squash-merged into a train leaves the link's old head forking from the train before
+    the base, so that head's diff from the fork holds the base's commits too. The patch the
+    `Rebase:` line speaks of is the link's own commits, and those the rebase left as they were."""
+    home, tree, old = built_on.home, built_on.tree, built_on.head
+    merge.git(tree, "switch", "-q", "--detach", built_on.start)
+    merge.git(tree, "restore", "--source", built_on.beta, "--", ".")
+    merge.git(tree, "add", "-A")
+    merge.git(tree, "commit", "-q", "-m", "beta, squashed")
+    squash = merge.git(tree, "rev-parse", "HEAD")
+    merge.git(tree, "push", "-q", "origin", f"{squash}:refs/heads/train/x")
+    merge.git(tree, "cherry-pick", old)
+    new = merge.git(tree, "rev-parse", "HEAD")
+    merge.git(tree, "push", "-q", "--force", "origin", f"{new}:refs/heads/alpha")
+    merge.git(home.main, "fetch", "-q", "origin")
+    (home.stub / "head").write_text(f"{new}\n")
+    text = merge.brief(
+        merge.review("clean", old),
+        f"Rebase: patch unchanged, before {old}, head {new}\n",
+        f"Stacked on: beta train/x at {squash}\n",
+    )
+    (home.tasks / "alpha.md").write_text(text)
+    queue_of(home, rows(gamma="merged"))
+    listing(built_on, 7)
+    listed = json.loads((home.stub / "list.json").read_text())
+    listed[0].update(baseRefName="train/x", headRefOid=new)
+    (home.stub / "list.json").write_text(json.dumps(listed))
+    said = built_on.run("--check")[0]
+    assert said.startswith("ready 7 "), said
+
+
 @pytest.mark.parametrize(
     ("line", "found"),
     [
