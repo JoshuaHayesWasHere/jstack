@@ -127,7 +127,9 @@ def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port
         except subprocess.TimeoutExpired as error:
             raise NoShot(f"no shot: chromium took longer than {TIMEOUT} s") from error
         if done.returncode != 0 or not drawn.is_file():
-            raise NoShot(f"no shot: chromium wrote no PNG (exit {done.returncode})")
+            said = [line for line in done.stderr.splitlines() if line.strip()]
+            why = f": {said[-1].strip()}" if said else ""
+            raise NoShot(f"no shot: chromium wrote no PNG (exit {done.returncode}){why}")
         try:
             shutil.move(drawn, path)
         except OSError as error:

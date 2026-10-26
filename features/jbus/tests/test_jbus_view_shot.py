@@ -3,6 +3,7 @@ path `--out` names, and says why when it cannot."""
 
 import shutil
 import struct
+import subprocess
 
 import pytest
 
@@ -10,6 +11,24 @@ from jbus import cli
 from view.scene import Scene, Served, free_port
 
 CHROMIUM = shutil.which("chromium") or shutil.which("google-chrome")
+
+
+@pytest.fixture(scope="module")
+def drawing(tmp_path_factory):
+    """Skip where Chromium cannot draw at all: a container that gives it no user namespaces, as
+    CI's runners do, aborts it before it loads a page, whatever the page."""
+    if not CHROMIUM:
+        pytest.skip("no chromium on this machine")
+    at = tmp_path_factory.mktemp("probe")
+    done = subprocess.run(
+        [CHROMIUM, "--headless=new", f"--user-data-dir={at}", f"--screenshot={at}/x.png"]
+        + ["--disable-gpu", "about:blank"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if not (at / "x.png").is_file():
+        pytest.skip(f"chromium cannot draw here (exit {done.returncode})")
 
 
 @pytest.fixture
@@ -34,10 +53,9 @@ def size(png):
     return struct.unpack(">II", data[16:24])
 
 
-@pytest.mark.skipif(not CHROMIUM, reason="no chromium on this machine")
 @pytest.mark.parametrize("width", [1440, 390])
 def test_it_writes_the_png_of_the_route_at_the_width_and_prints_its_path(
-    served, tmp_path, capsys, width
+    drawing, served, tmp_path, capsys, width
 ):
     out = tmp_path / "shots" / "board.png"
     out.parent.mkdir()
@@ -48,8 +66,9 @@ def test_it_writes_the_png_of_the_route_at_the_width_and_prints_its_path(
     assert sorted(p.name for p in out.parent.iterdir()) == ["board.png"]
 
 
-@pytest.mark.skipif(not CHROMIUM, reason="no chromium on this machine")
-def test_a_bare_name_goes_into_the_runtime_directory(served, tmp_path, capsys, monkeypatch):
+def test_a_bare_name_goes_into_the_runtime_directory(
+    drawing, served, tmp_path, capsys, monkeypatch
+):
     runtime = tmp_path / "run"
     runtime.mkdir()
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
