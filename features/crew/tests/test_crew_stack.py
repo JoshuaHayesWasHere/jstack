@@ -24,7 +24,7 @@ def base_of(tmp_path, brief, knows_default=True):
     (tmp_path / "tasks").mkdir()
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     ran = subprocess.run(
-        ["sh", "-c", block("Do the task", "Stack:").replace("<slug>", "alpha")],
+        ["sh", "-c", block("Do the task", "only the home writes it").replace("<slug>", "alpha")],
         capture_output=True,
         text=True,
         cwd=work,

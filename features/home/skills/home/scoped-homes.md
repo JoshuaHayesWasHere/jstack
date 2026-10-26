@@ -76,8 +76,7 @@ else
         echo "made: scope $scope, with $H/$scope/plan.md and its section in $H/notes.md"
         printf 'launch: {"title": "home: %s %s", "workspaceStrategy": {"type": "root"}, "message": "/home %s"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')" "$scope" "$scope"
     else
-        rm -f "$H/$scope/plan.md"
-        rmdir "$H/$scope" 2> /dev/null
+        uv run --project "$T/.." jbus forget --dir "$H/$scope/plan.md" "$H/$scope" > /dev/null 2>&1
         echo "not made: $H/$scope/plan.md or the section in $H/notes.md could not be written, and what was made is taken back. Nothing is written."
     fi
 fi
