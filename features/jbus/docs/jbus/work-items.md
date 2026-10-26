@@ -75,7 +75,7 @@ In the view, `POST /steer` records the words you typed there as that word, with 
 
 You approve a redirected item only by its id, with `jbus item approve <id>` from the view or the command.
 Until then, a pass does not approve it, and `jbus item approve` from chat refuses it.
-`jbus queue approve` refuses its row on any basis, `--rule` with `--follows` included.
+`jbus queue approve` refuses its row on any basis, `--follows` included.
 A redirect writes its line, with the new brief, before it changes the row.
 If a redirect died between the two, its line is already written.
 Then the first step of the next pass writes the brief and takes the go back before anything launches.
