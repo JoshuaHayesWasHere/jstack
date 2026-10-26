@@ -403,9 +403,9 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     An answered request moves neither the count of items nor `updatedAt`, and T3 Code keeps no time
     for the answer. So a pass that reads a request count of 0, where the pass before kept one above
     0 and the count of items has not changed, counts the answer as the thread's last write, and
-    `wrote` is the time of this pass. A thread that is not read keeps the count the pass before
-    kept. So a crew that waited on an approval for 17 minutes is not hung 3 minutes after the
-    answer.
+    `wrote` is the time of this pass. A thread that is not read, or that is read with no count,
+    keeps the count the pass before kept. So a crew that waited on an approval for 17 minutes is
+    not hung 3 minutes after the answer.
 
     `out` reads a thread only when the thread is `quiet` or `hung` by the listed data alone. The
     read gives the active run, when it started, the runs queued behind it and the requests that
@@ -459,8 +459,8 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
                 since = _silent(run.now, started)
                 if since is not None and (silent is None or since < silent):
                     wrote, silent = started, since
-                kept, asked = asked, pending if type(pending) is int else 0
-                if kept and type(pending) is int and pending == 0:
+                kept, asked = asked, pending if type(pending) is int else asked
+                if kept and not asked:
                     wrote, silent = record.stamp(run.now), 0
                 facts = replace(facts, silent=silent, queued=queued, pending=asked)
                 word = judge(facts).word
