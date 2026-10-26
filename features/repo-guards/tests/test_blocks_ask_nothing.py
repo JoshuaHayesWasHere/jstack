@@ -11,7 +11,10 @@ in the background calls a jstack command that does it, as `jgauge check` and `jg
 The lint reads every fenced `sh` block of the thread files, `features/**/*.md` but docs, tests,
 `evals/evals/` and READMEs, and splits each into commands with a small shell reader: it follows
 quotes, `$(...)`, backticks, here-documents, `case` patterns and wrappers such as `setsid`,
-`xargs` and `env`, so a word in quotes or a `case` pattern is no command. No block is let off:
+`xargs` and `env`, so a word in quotes or a `case` pattern is no command. It fails too on a quote
+inside a `${...}` inside double quotes, as in `"${boot:-$P's home}"`, which the check reads
+otherwise than bash does and asks on (2.1.310: "the shell may read it differently than it was
+parsed"). No block is let off:
 one that fails is fixed by moving its delete or its background run into a jstack command, as
 `jbus forget`, `jmerge --remake` and `jgauge check` do, and never by a comment or a list.
 """
@@ -61,7 +64,7 @@ class Reader:
     skipped."""
 
     def __init__(self, text):
-        self.text, self.at, self.inner = text, 0, []
+        self.text, self.at, self.inner, self.unreadable = text, 0, [], []
 
     def peek(self, size=1):
         return self.text[self.at : self.at + size]
@@ -159,7 +162,12 @@ class Reader:
                 self.nested("`")
                 kept.append("`...`")
             elif self.peek() == "$":
+                start = self.at
                 kept.append(self.dollar())
+                if kept[-1] == "${...}" and "'" in self.text[start : self.at]:
+                    self.unreadable.append(
+                        "a quote inside ${...} inside double quotes reads two ways to the check"
+                    )
             else:
                 kept.append(self.peek())
                 self.at += 1
@@ -304,7 +312,7 @@ def reasons(script):
             said = why(words)
             if said:
                 found.append(said)
-    return found
+    return found + reader.unreadable
 
 
 def thread_files():
@@ -365,6 +373,11 @@ def test_no_block_a_thread_runs_deletes_or_starts_an_inner_shell():
         ('sh "$C/run" 2> /dev/null; flock -n lock true', []),
         ("echo $((1 + 2)) ${x#rm} # rm here is a comment", []),
         ("uv run jgauge check --thread x << 'E'\nmake check\nE", []),
+        (
+            'm="${boot:-the $P\'s home}"',
+            ["a quote inside ${...} inside double quotes reads two ways to the check"],
+        ),
+        ('first="the $P\'s home"; m="${boot:-$first}"; n=${x:-\'a b\'}', []),
     ],
 )
 def test_the_reader_finds_a_delete_or_an_inner_shell_only_in_command_position(script, said):
