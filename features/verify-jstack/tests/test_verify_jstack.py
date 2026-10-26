@@ -133,6 +133,31 @@ def test_a_launch_whose_stand_in_does_not_start_says_what_its_log_holds(tmp_path
     assert sorted(tmp.glob("verify-jstack.*")) == []
 
 
+def test_a_launch_whose_stand_in_hangs_stops_it_and_never_aborts_it(tmp_path):
+    """An abort on macOS can raise a crash report: the stand-in is stopped, never aborted."""
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    aborted = tmp_path / "aborted"
+    scripts, path = checkout_with(
+        tmp_path,
+        "python",
+        f"trap 'echo aborted >> \"{aborted}\"; exit 134' ABRT\n"
+        "echo 'python: hangs on purpose' >&2\n"
+        "while :; do sleep 0.1; done",
+    )
+
+    ran = launch(tmp, scripts, path)
+
+    assert ran.returncode == 1
+    assert "launch.sh: the stand-in for T3 Code did not start" in ran.stderr
+    assert "python: hangs on purpose" in ran.stderr
+    stopped = [line for line in ran.stderr.splitlines() if line.startswith("stopped the stand-in")]
+    assert len(stopped) == 1
+    assert gone(stopped[0].rstrip(")").split()[-1])
+    assert not aborted.exists()
+    assert sorted(tmp.glob("verify-jstack.*")) == []
+
+
 def test_a_launch_is_ready_where_a_reverse_lookup_of_127_0_0_1_never_answers(tmp_path, monkeypatch):
     """As on GitHub's macOS runner, where the lookup waits in mDNS."""
     hangs = tmp_path / "hangs"
