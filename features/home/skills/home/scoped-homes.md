@@ -24,10 +24,12 @@ In one call with the block at the top and the block that finds this home, with t
 
 ```sh
 kind='<decision or stop>'
-what=$(paste -sd ' ' - << 'THE_SEND_ENDS_HERE'
+the_send() {
+    paste -sd ' ' - << 'THE_SEND_ENDS_HERE'
 <what the root must decide or clear>
 THE_SEND_ENDS_HERE
-)
+}
+what=$(the_send)
 root=$(awk 'NF {print $(1); exit}' "$H/home-id" 2> /dev/null)
 if [ "${M:?run the block that finds this home first}" = "$H" ]; then
     echo "not sent: this is the root home, and only a scoped home sends the root"
