@@ -7,8 +7,8 @@ task's drawer opens, and keeps them `PULL_KEPT` seconds. Each of those calls is 
 with a path under `repos/<owner>/<name>/` and nothing more: no method, no field and no body, so
 a call cannot write. `merged` asks `gh pr list` for the pull requests merged since a day, with
 their numbers and merge times, when the Throughput drawer opens, and keeps them `MERGED_KEPT`
-seconds: `pr list` only lists. The token stays inside `gh`. The server takes only named fields
-from an answer, never a title, a body, a diff or a log.
+seconds: `pr list` only lists. The token stays inside `gh`. Of an answer the server takes only
+named fields, never a title, a body, a diff or a log.
 
 When GitHub does not answer, the server keeps that failure for as long as it would keep an
 answer that did come. So it does not ask GitHub on every request while GitHub is down.
