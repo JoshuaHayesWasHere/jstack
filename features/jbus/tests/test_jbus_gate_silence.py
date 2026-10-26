@@ -1,6 +1,7 @@
-"""Every gate carries a default that is the recommended option, and the thread acts on it at once. A
-question the user has not answered in 2 hours closes with that default, unless its gate holds. A
-gate holds when its default is irreversible or slow to revert, and it names its fail-safe.
+"""Every gate carries a default that is the recommended option, and the thread acts on it at once.
+The first pass that sees a question closes it with that default, unless its gate holds. A gate
+holds when its default is irreversible or slow to revert, and it names its fail-safe, and it
+waits for the user however long.
 
 The tests run the real `jbus gate`, `jbus answer` and pass against the faked T3 Code server of
 `test_jbus_kitchen`, with the clock of `jbus gate` held at `NOW`.
@@ -126,12 +127,9 @@ def test_a_waiting_question_says_whether_it_was_acted_on_or_holds(kitchen):
         + SAFE
         + OPTIONS,
     )
-    kitchen.poll(NOW + timedelta(minutes=5))
-    kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     shown = {
         one["key"]: (one["acted"], one["holds"], one["fail_safe"])
-        for one in kept
-        if one["kind"] == "gate"
+        for one in map(questions.item, questions.load(kitchen.state))
     }
     assert shown == {
         "gate:q1": (True, "", ""),
@@ -139,22 +137,17 @@ def test_a_waiting_question_says_whether_it_was_acted_on_or_holds(kitchen):
     }
 
 
-def test_a_plain_gate_closes_with_its_default_at_two_hours(kitchen):
+def test_a_plain_gate_asked_this_pass_settles_on_its_default_at_once(kitchen):
     gate(kitchen)
     assert record(kitchen)["holds"] == ""
-    kitchen.poll(NOW + timedelta(hours=1, minutes=59))
-    assert record(kitchen)["answer"] is None
-    assert waiting(kitchen) == ["gate:q1"]
-    kitchen.poll(NOW + timedelta(hours=2) - timedelta(seconds=1))
-    assert record(kitchen)["answer"] is None
 
-    said = kitchen.poll(NOW + timedelta(hours=2))
+    said = kitchen.poll(NOW)
     answer = record(kitchen)["answer"]
     assert answer == {
         "words": "default",
         "by": "jbus",
-        "at": "2026-10-12T17:00:00+00:00",
-        "where": "no answer in 2 hours",
+        "at": "2026-10-12T15:00:00+00:00",
+        "where": "settled at once",
         "keeps": True,
         "told": "",
         "closed_by": "silence",
@@ -163,10 +156,10 @@ def test_a_plain_gate_closes_with_its_default_at_two_hours(kitchen):
         "checked": False,
     }
     assert waiting(kitchen) == []
-    line = "note alpha: question 1 closed with its default, no answer in 2 hours"
+    line = "note alpha: question 1 closed with its default, settled at once"
     assert line in said
     assert kitchen.lines("note") == [line]
-    kitchen.poll(NOW + timedelta(hours=3))
+    kitchen.poll(NOW + timedelta(hours=1))
     assert kitchen.t3.messages == {}
     assert kitchen.lines("note") == [line]
     with pytest.raises(Refused, match="jbus has no word of it"):
@@ -174,21 +167,22 @@ def test_a_plain_gate_closes_with_its_default_at_two_hours(kitchen):
     assert gate(kitchen) == (
         0,
         "already answered: question 1: closed with its default by jbus, "
-        "2026-10-12T17:00:00+00:00: no answer in 2 hours\n",
+        "2026-10-12T15:00:00+00:00: settled at once\n",
     )
 
 
-def test_a_gate_that_holds_on_deletes_data_is_open_at_48_hours(kitchen):
-    gate(kitchen, LINES + "Holds: deletes data\n" + SAFE + OPTIONS)
-    kitchen.poll(NOW + timedelta(hours=2))
-    kitchen.poll(NOW + timedelta(hours=48))
+@pytest.mark.parametrize("case", HOLDS)
+def test_a_gate_that_holds_is_open_after_days(kitchen, case):
+    gate(kitchen, LINES + f"Holds: {case}\n" + SAFE + OPTIONS)
+    kitchen.poll(NOW)
+    kitchen.poll(NOW + timedelta(days=5))
     assert record(kitchen)["answer"] is None
     assert waiting(kitchen) == ["gate:q1"]
 
 
 def test_a_later_answer_that_differs_is_taken_and_carried_to_the_thread(kitchen):
     gate(kitchen)
-    kitchen.poll(NOW + timedelta(hours=2))
+    kitchen.poll(NOW)
     code, said = kitchen.main("answer", "1", "--by", "user", "--at", AT, "--differs", "coffee")
     assert (code, said.startswith('answered: question 1: "coffee", by user')) == (0, True), said
     answer = record(kitchen)["answer"]
@@ -207,7 +201,7 @@ def test_a_later_answer_that_differs_is_taken_and_carried_to_the_thread(kitchen)
 
 def test_a_home_that_answered_in_its_gates_file_replaces_a_close_by_silence(kitchen):
     gate(kitchen)
-    kitchen.poll(NOW + timedelta(hours=2))
+    kitchen.poll(NOW)
     status = "answered 2026-10-12: coffee"
     (kitchen.home / "gates.md").write_text(
         LINES.replace("<n>", "3").replace("open", status) + OPTIONS
@@ -250,9 +244,7 @@ def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kit
     gate(kitchen)
     held = LINES.replace("tea or coffee?", "drop the branches?") + "Holds: deletes data\n"
     gate(kitchen, held + SAFE + OPTIONS)
-    kitchen.poll(NOW + timedelta(minutes=5))
-    kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
-    lines = {one["key"]: one["line"] for one in kept if one["kind"] == "gate"}
+    lines = {one["key"]: one["line"] for one in map(questions.item, questions.load(kitchen.state))}
     assert lines == {
         "gate:q1": "question 1: tea or coffee? Its default is acted on already, and stands "
         "unless you stop it.",
@@ -260,6 +252,8 @@ def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kit
         "with its fail-safe: dry-run lists the 3 branches that go, bundle at ~/b.bundle, then "
         "hold.",
     }
+    kitchen.poll(NOW)
+    assert waiting(kitchen) == ["gate:q2"]
 
 
 def test_a_gate_that_holds_answered_otherwise_tells_its_thread_not_to_take_the_default(kitchen):

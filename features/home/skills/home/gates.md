@@ -2,7 +2,14 @@
 
 A gate is a question only the user can answer, asked with the default that was taken so the work did not wait for it. jbus keeps each one as a numbered question: `jbus gate` writes it, and `jbus answer` closes it, once. This home keeps no file of them and no copy: it reads the open ones from jbus, and runs the one command that closes one.
 
-**Every gate acts unless stopped.** The asking thread, this home included, acts on its default at once and carries on. No question parks work while it waits, and the user sees each one as already acted on. Every gate carries a default, and the default is the option the thread recommends, marked `(default, recommended)`. `jbus gate` refuses a gate with no filled `Default:` line, and one whose recommended option is not the default. If the user has not answered in 2 hours, a jbus pass closes the question with its default, by silence. The record says it was not the user's word (`by jbus`, the time, `no answer in 2 hours`). A later answer from the user still replaces that close, and one that differs goes back to the thread as any other.
+**Every gate acts unless stopped.**
+The asking thread, this home included, acts on its default at once and carries on.
+No question parks work while it waits, and the user sees each one as already acted on.
+Every gate carries a default, and the default is the option the thread recommends, marked `(default, recommended)`.
+`jbus gate` refuses a gate with no filled `Default:` line, and one whose recommended option is not the default.
+The first jbus pass that sees the question closes it with its default at once, by silence.
+The record says it was not the user's word (`by jbus`, the time, `settled at once`).
+A later answer from the user still replaces that close, and one that differs goes back to the thread as any other.
 
 The one exception is a default that is **irreversible or slow to revert**: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Such a gate does not act. Its thread does the fail-safe and adds two lines under `Undo:`: `Holds: <the case>`, word for word from the table, and `Fail-safe: <what was prepared, with its path or link>`. The action then waits for the user's answer, and silence never closes it. `jbus gate` refuses a `Holds:` line with no filled `Fail-safe:` line, a case that is not in the table, and a `Fail-safe:` line with no `Holds:` line.
 
@@ -165,7 +172,7 @@ else
             ]
         }' | jq -s --arg slug "$slug" '{
             slug: $slug, round: 1, title: "Open questions",
-            lead: "Each default was taken so the work did not wait, but for one that holds. A question left alone is answered by its default after 2 hours, but for one that holds.",
+            lead: "Each default was taken so the work did not wait, but for one that holds. A question left alone settles on its default at once, but for one that holds.",
             settled: [], questions: .
         }')
     export ROUND

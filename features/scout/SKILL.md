@@ -70,7 +70,15 @@ When in doubt, act and write down what you did.
 
 The user may steer in this thread at any time. What they say here overrides the request, except in one thing: asked to do the task itself, say that a crewmate does it from the brief, and finish the report. Record the steer in the report.
 
-A question only the user can answer does not wait. A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in. The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. Do not act on that one. Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer. Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept. A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or closes it with its default when the user has not answered in 2 hours and it has no `Holds:` line. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. Run this in this checkout, with the block at the top and the filled-in lines in place of the line in angle brackets:
+A question only the user can answer does not wait.
+A gate acts unless stopped: take the default you would recommend, act on it at once, carry on with everything, what depends on the default included, and park the question as a gate: read `$T/gates.md` now, the gate's lines and the rule under them, and fill the lines in.
+The one exception is a default that is irreversible or slow to revert, one of the six cases of the table in `$T/gates.md`: undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine.
+Do not act on that one.
+Do its fail-safe (the dry-run, the bundle, the plan or diff, the exact artifact), add the `Holds:` and `Fail-safe:` lines under `Undo:`, and carry on with what does not depend on it: the action waits for the user's answer.
+Leave its `<n>` as it is: jbus numbers the question and is the one place it is kept.
+A gate goes to jbus and not into the home's thread: the user answers it wherever they are, and jbus closes it, or, when it has no `Holds:` line, closes it with its default in the first pass that sees it.
+Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark.
+Run this in this checkout, with the block at the top and the filled-in lines in place of the line in angle brackets:
 
 ```sh
 the_gate() {

@@ -10,7 +10,7 @@ that is gone. The pass judged each line once (`jbus.work`), so the list of what 
 user is no second source for work: an item of it that names a row (`ROWS`) is no need by
 itself, and only lends its route and what it unblocks to the row's need. Of that list, `needs`
 has the rest: a gate that holds (`Holds:`) or has no default, and a setup. `proceeds` is a gate
-whose default is already taken. It closes with that default after 2 hours of silence
+whose default is already taken. It closes with that default in the first pass that sees it
 (`questions.QUIET`). A gate of a home's `gates.md` instead stands until its home closes it, and
 its default says so. A gate of a retired scope (`retired`) waits on nobody: neither queue has
 an open one, and the list of gates keeps only its answered ones. A link's conflict is a

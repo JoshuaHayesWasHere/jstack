@@ -5,7 +5,12 @@ Default: <what the thread did in place of an answer, in one line>
 Built on it: <what now rests on the default: the files, the pull request, the steps that followed>
 Undo: <how to take the default back if the answer differs, in one line>
 
-A gate acts unless stopped. The thread acts on its default at once and carries on, and the user sees the question as already acted on. The default is the option the thread recommends, marked `(default, recommended)`. A differing answer comes back as a message, and the thread takes the default back. If the user has not answered in 2 hours, a jbus pass closes the question with its default, by silence. That close is not the user's word, and a later answer of theirs still replaces it.
+A gate acts unless stopped.
+The thread acts on its default at once and carries on, and the user sees the question as already acted on.
+The default is the option the thread recommends, marked `(default, recommended)`.
+A differing answer comes back as a message, and the thread takes the default back.
+The first jbus pass that sees the question closes it with its default, by silence.
+That close is not the user's word, and a later answer of theirs still replaces it.
 
 There is one exception. When the default is irreversible or slow to revert, the thread does not act. It does the fail-safe instead, and adds two lines under `Undo`, `Holds: <the case>` and `Fail-safe: <what was prepared, with its path or link>`. Then the action waits for the user's answer, and silence never closes it. A default is irreversible or slow to revert when undoing it needs the user, or takes more than one ordinary pull request or command, or cannot restore what was there, or has already reached someone outside this machine. The case is one of these six, word for word:
 

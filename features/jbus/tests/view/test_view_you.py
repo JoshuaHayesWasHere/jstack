@@ -168,7 +168,7 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
     whose question goes to its home. It also has a gate of a home's file with a default, and an
     approval, of the one row of the queue, which is the user's to approve. The page's count is
     one.
-    Each countdown is the 2 hours of silence after which jbus closes the question."""
+    Each one is due when it was asked, since the first pass that sees it closes it."""
     scene = Scene(tmp_path, monkeypatch)
     asked = [ago(minutes=10 * at) for at in range(11)]
     for at, when_asked in enumerate(asked):
