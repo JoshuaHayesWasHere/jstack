@@ -64,7 +64,7 @@ jbus scout show
   It refuses a request with a line that only a crewmate's brief has (`Task:`, `Size:`, `Pull request:`), and names the line.
   It also refuses a request out of the template's shape.
   It never takes over a request a home wrote itself, and never changes one whose scout is out.
-- **`approve`** takes the same bases as `jbus queue approve`, except `--rule`.
+- **`approve`** takes the same bases as `jbus queue approve`, except `--follows`.
   It also takes the first 12 characters of the request's sha, which `add` prints.
   The go holds for that request alone.
   An edit after the go, other than to the `Home:` and `Thread:` lines, holds the launch until you approve it again.

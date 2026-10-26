@@ -13,6 +13,8 @@ options:
   --message THREAD/MESSAGE
                         the user's own message in T3 Code
   --page SESSION/ENTRY  the user's own send from a Lavish page
-  --rule N              a rule of the home's standing.md, with --follows
-  --follows SLUG        the row the user approved that this one follows up
+  --rule N              taken beside --follows and not read: the follow-up
+                        rule is known by what it says
+  --follows SLUG        the approved row that this one follows up: its go is
+                        the ground
   --sha SHA             the first 12 of that brief's sha256
