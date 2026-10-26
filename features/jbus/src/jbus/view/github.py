@@ -1,12 +1,14 @@
-"""What the server asks GitHub. It asks two things, read-only, through `gh api`, and keeps
+"""What the server asks GitHub. It asks three things, read-only, through `gh`, and keeps
 each answer a while.
 
 `runs` asks for the repo's last `RUNS` workflow runs, for the Checks card, and keeps them
 `RUNS_KEPT` seconds. `pull` asks for one pull request and the check runs of its head when its
-task's drawer opens, and keeps them `PULL_KEPT` seconds. Every call is `gh api <path>` with a
-path under `repos/<owner>/<name>/` and nothing more: no method, no field and no body, so a
-call cannot write. The token stays inside `gh`. The server takes only named fields from an
-answer, never a title, a body, a diff or a log.
+task's drawer opens, and keeps them `PULL_KEPT` seconds. Each of those calls is `gh api <path>`
+with a path under `repos/<owner>/<name>/` and nothing more: no method, no field and no body, so
+a call cannot write. `merged` asks `gh pr list` for the pull requests merged since a day, with
+their numbers and merge times, when the Throughput drawer opens, and keeps them `MERGED_KEPT`
+seconds: `pr list` only lists. The token stays inside `gh`. Of an answer the server takes only
+named fields, never a title, a body, a diff or a log.
 
 When GitHub does not answer, the server keeps that failure for as long as it would keep an
 answer that did come. So it does not ask GitHub on every request while GitHub is down.
@@ -24,12 +26,13 @@ import re
 import subprocess
 import threading
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from jbus.view.state import iso, text, when
 
-RUNS, RUNS_KEPT, PULL_KEPT = 40, 60, 30
+RUNS, RUNS_KEPT, PULL_KEPT, MERGED_KEPT = 40, 60, 30, 300
+MERGED_MOST = 1000
 TIMEOUT = 10
 PATIENCE = 2.0
 DOWN = "GitHub did not answer"
@@ -38,10 +41,10 @@ UNKNOWN = "the repo is not known"
 _SHA = re.compile(r"[0-9a-f]{40}")
 
 
-def _ask(path: str) -> Any:
-    """What `gh api <path>` printed, as JSON, or None where it did not answer."""
+def _ask(*said: str) -> Any:
+    """What `gh <said>` printed, as JSON, or None where it did not answer."""
     try:
-        asked = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=TIMEOUT)
+        asked = subprocess.run(["gh", *said], capture_output=True, text=True, timeout=TIMEOUT)
         return json.loads(asked.stdout) if asked.returncode == 0 else None
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
@@ -102,7 +105,7 @@ class GitHub:
         """`{"runs", "at", "error"}`: the last workflow runs, oldest first."""
 
         def ask() -> dict[str, Any]:
-            said = _ask(f"repos/{repo}/actions/runs?per_page={RUNS}")
+            said = _ask("api", f"repos/{repo}/actions/runs?per_page={RUNS}")
             found = said.get("workflow_runs") if isinstance(said, dict) else None
             if not isinstance(found, list):
                 return {"runs": [], "at": iso(self.clock()), "error": DOWN}
@@ -134,7 +137,7 @@ class GitHub:
 
         def ask() -> dict[str, Any]:
             at = iso(self.clock())
-            said = _ask(f"repos/{repo}/pulls/{number}")
+            said = _ask("api", f"repos/{repo}/pulls/{number}")
             if not isinstance(said, dict):
                 return {"slug": slug, "pull": None, "checks": [], "at": at, "error": DOWN}
             head = said.get("head") if isinstance(said.get("head"), dict) else {}
@@ -151,7 +154,7 @@ class GitHub:
                 "updated": when(said.get("updated_at")),
                 "url": text(said.get("html_url")),
             }
-            ran = _ask(f"repos/{repo}/commits/{sha}/check-runs") if pull["head"] else None
+            ran = _ask("api", f"repos/{repo}/commits/{sha}/check-runs") if pull["head"] else None
             found = ran.get("check_runs") if isinstance(ran, dict) else None
             checks = [
                 {
@@ -169,3 +172,27 @@ class GitHub:
 
         none = {"slug": slug, "pull": None, "checks": []}
         return self._held(("pull", repo, number), PULL_KEPT, ask, none)
+
+    def merged(self, repo: str, since: date) -> dict[str, Any]:
+        """`{"merged", "at", "error"}`: each pull request merged on `since` or after, as its
+        number and its merge time, oldest first. GitHub's search reads `since` as a day in
+        UTC, so a caller asks from a day early and counts the times itself."""
+
+        def ask() -> dict[str, Any]:
+            said = _ask(
+                *("pr", "list", "--repo", repo, "--state", "merged"),
+                *("--search", f"merged:>={since.isoformat()}"),
+                *("--json", "number,mergedAt", "--limit", str(MERGED_MOST)),
+            )
+            if not isinstance(said, list):
+                return {"merged": [], "at": iso(self.clock()), "error": DOWN}
+            merged = [
+                {"number": one["number"], "at": when(one.get("mergedAt"))}
+                for one in said
+                if isinstance(one, dict) and isinstance(one.get("number"), int)
+            ]
+            merged = sorted((one for one in merged if one["at"]), key=lambda one: one["at"])
+            return {"merged": merged, "at": iso(self.clock()), "error": ""}
+
+        key = ("merged", repo, since.toordinal())
+        return self._held(key, MERGED_KEPT, ask, {"merged": [], "at": None})
