@@ -434,6 +434,17 @@ def capped(run: Pass, client: Client, thread: str, slug: str) -> int | None:
     return int(until.timestamp()) if until else None
 
 
+def waits_on_cap(run: Pass, client: Client, thread: str, slug: str, what: str) -> bool:
+    """Say whether a message to a thread waits for the reset of the cap on its instance, and say
+    so in one `wait` line. A message sent into a cap starts a turn that ends at once on the limit,
+    so the caller sends nothing and marks no key, and the first pass after the reset sends it."""
+    until = capped(run, client, thread, slug)
+    if until:
+        at = datetime.fromtimestamp(until, UTC).isoformat()
+        run.say(f"wait {slug}: {thread} is capped until {at}, so {what} waits for the reset")
+    return bool(until)
+
+
 def _window(capped: int | None) -> str:
     return f"cap {capped}" if capped else ""
 

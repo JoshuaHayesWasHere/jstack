@@ -37,7 +37,18 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs import home as homes
-from jbus import Config, Refused, mirror, questions, queue, read_json, record, verbs, write_json
+from jbus import (
+    Config,
+    Refused,
+    expedite,
+    mirror,
+    questions,
+    queue,
+    read_json,
+    record,
+    verbs,
+    write_json,
+)
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 
@@ -228,8 +239,12 @@ def _act(
     run: Pass, client: Client, name: str, thread: str, spell: dict[str, Any], quiet: int, what: str
 ) -> bool:
     """Take the next step of a child's spell: a nudge, with the first strike told to the user,
-    a second nudge, or the question to the user. Return whether it is done."""
+    a second nudge, or the question to the user. Return whether it is done. While the home's
+    instance is capped no step is taken: the home could not act on it, so the step waits for the
+    reset."""
     step, since = spell["step"], spell["since"]
+    if expedite.waits_on_cap(run, client, thread, name, f"its {STALL} step"):
+        return False
     if step in ("calm", "nudged1"):
         n = 1 if step == "calm" else 2
         text = NUDGE.format(scope=name, what=what, minutes=quiet, n=n)

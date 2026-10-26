@@ -30,11 +30,12 @@ jbus does not interrupt it: interrupting a hung turn waits on the user's own rul
 A new head or a new class starts a new clock, and a slug that waits no more drops its clock. A pass
 in which `jmerge` failed, or that could not list the threads, counts nothing and keeps the clocks.
 A crew that waits on a usage limit (`Pass.limited`) or on a gate is left to `failover` and the
-gate. A pass in which the thread jbus would send to is on a capped instance (`expedite.capped`)
-does not count either: a message sent then ends at once on the limit, so the one try waits for the
-reset. Where another step of jbus nudges the crew about the same head just as the clock is due (an
-expedite sent again after a cap), the clock starts again, so the reviewer is not asked twice at
-once. A thread that ended with no Result and no pull request is `threads.resume`'s.
+gate. A pass in which the thread jbus would send to is on a capped instance
+(`expedite.waits_on_cap`) does not count either: a message sent then ends at once on the limit, so
+the one try waits for the reset, and so does each line `_send` has for a home on a capped
+instance. Where another step of jbus nudges the crew about the same head just as the clock is due
+(an expedite sent again after a cap), the clock starts again, so the reviewer is not asked twice
+at once. A thread that ended with no Result and no pull request is `threads.resume`'s.
 
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
 holds on one reason, with no thread at work on the cause, wake the home that owns them once the
@@ -195,6 +196,8 @@ def _send(run: Pass, client: Client, thread: str, message: str, key: str) -> str
     for a call that got no answer, which the next pass tries again."""
     if key in run.box.sent():
         return "sent"
+    if expedite.waits_on_cap(run, client, thread, key.split("|")[1], "its clock's line"):
+        return ""
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
@@ -308,7 +311,8 @@ def tick(
         if wait["passes"] + 1 >= PASSES and grew:
             wait["passes"] = 0
             continue
-        if wait["passes"] + 1 >= PASSES and expedite.capped(run, client, thread, slug):
+        due = wait["passes"] + 1 >= PASSES
+        if due and expedite.waits_on_cap(run, client, thread, slug, f"its clock's {kind} wait"):
             continue
         wait["passes"] += 1
         if wait["passes"] < PASSES:
