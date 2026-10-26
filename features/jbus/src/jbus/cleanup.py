@@ -131,6 +131,8 @@ def brief(
         "Size: S\n"
         f"Where: {', '.join(f'`{one}`' for one in places) or 'the files the findings name'}\n"
         "Design: none, each finding names its own fix\n"
+        f"Decisions: none, jbus files this follow-up of {slug}'s review, and its findings "
+        "are the task\n"
         "Pull request: open one when done\n"
         "Review: review\n"
         "Playbook: bug-fix\n"

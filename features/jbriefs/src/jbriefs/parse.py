@@ -592,6 +592,72 @@ def tasked(text: str) -> str:
     return f"brief's {said}" if said else ""
 
 
+_ASKED_REVIEW = ("review", "after")
+_SAYS_NONE = re.compile(r"none\b", re.I)
+
+
+def reviewed(text: str) -> str:
+    """Why a brief's `Review:` line is not the default with no word for it, as one line. It is
+    an empty string when the line says `twice` or `none`, or when the brief's `Decisions:` line
+    gives the word.
+
+    `twice` is the default (the user, 2026-10-21: "from now on do one round of addressing fixes
+    and then another round of review"), and `none` is for text-only or throwaway work. A brief
+    that asks for `review` or `after` says why on its `Decisions:` line: the user's words, or
+    `none, <why>` where jbus files the brief itself. A line that is missing, the template's own
+    text, or a `none` with no reason after a comma (`none`, `none yet`) gives no word.
+    """
+    said = _head(text, "Review:")
+    mode = said.split()[0].rstrip(".,;:").lower() if said else ""
+    if mode not in _ASKED_REVIEW:
+        return ""
+    held = [lines for name, lines in fields(text) if name == "Decisions"]
+    decided = " ".join(_MARKER.sub("", line).strip() for line in held[0]).strip() if held else ""
+    if not _filled(text, "Decisions") and (_NONE.match(decided) or not _SAYS_NONE.match(decided)):
+        return ""
+    return (
+        f"brief's Review: line says {mode} with no Decisions: line giving the user's words "
+        "for it: write Review: twice, the default, or none for text-only or throwaway work, "
+        "or put the user's words on a Decisions: line"
+    )
+
+
+_EVERY_CORE = re.compile(
+    r"stress-ng\b[^\n`]*?--cpu[ =]+0\b"
+    r"|--cpu[ =]+[\"']?(?:\$\(nproc\)|`nproc`)"
+    r"|\b(?:every|all(?: the)?) (?:cpu )?cores?\b",
+    re.I,
+)
+_UNASKED = re.compile(
+    r"\b(?:never|not|no|nor|without|instead of|rather than|avoid\w*|don't|refuse[sd]?|forbid\w*)\b",
+    re.I,
+)
+_CLAUSE = re.compile(r"[.;!?](?:\s|$)")
+
+
+def unbounded(text: str) -> str:
+    """Why a brief asks for a load that takes every core, as one line. It is an empty string
+    when it asks for none.
+
+    It reads the brief's head, the lines above its first `## `, for `stress-ng --cpu 0`,
+    `--cpu $(nproc)` or every core. A clause that turns the ask down (`never`, `not`,
+    `instead of`) does not ask for it. Such a load starves every other thread on the machine,
+    and the way to load it is a bounded one, a few cores or `taskset`, inside `jgauge
+    test-slot`.
+    """
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        for found in _EVERY_CORE.finditer(line):
+            clause = _CLAUSE.split(line[: found.start()])[-1]
+            if not _UNASKED.search(clause):
+                return (
+                    f"brief asks for {found[0]}, a load that takes every core: name a bounded "
+                    "load (a few cores, or taskset) and run it inside `jgauge test-slot`"
+                )
+    return ""
+
+
 CHECKS = (
     ("Task", tasked),
     ("Design", designed),
@@ -600,19 +666,22 @@ CHECKS = (
     ("Size", sized),
     ("Playbook", playbook),
     ("Where", wheres),
+    ("Review", reviewed),
+    ("Load", unbounded),
 )
-_SAYS_MISSING = ("Design", "Size", "Skills")
+_SAYS_MISSING = ("Design", "Size", "Skills", "Load")
 
 
 def faults(text: str) -> list[str]:
     """Every reason a brief may not be queued, one line for each field at fault.
 
     It checks that each field of `REQUIRED` is filled in, then runs every check of each
-    filled field (`CHECKS`). It leaves `Design`, `Size` and `Skills` to their own checks.
-    Those checks report a missing line, and for `Skills` the check reports instead that a
-    brief with no line names no skill. A brief with no fault is complete. This check runs
-    when a row is first queued and does not run again at a launch, so a brief that already
-    has a go launches without being checked again (`jbus.queue`).
+    filled field (`CHECKS`). It leaves `Design`, `Size`, `Skills` and `Load` to their own
+    checks. Those checks report a missing line, for `Skills` the check reports instead that a
+    brief with no line names no skill, and `Load` reads the whole head and needs no line. A
+    brief with no fault is complete. This check runs when a row is first queued and does not
+    run again at a launch, so a brief that already has a go launches without being checked
+    again (`jbus.queue`).
     """
     checks = dict(CHECKS)
     found = []

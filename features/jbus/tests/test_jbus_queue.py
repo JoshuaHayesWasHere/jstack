@@ -43,7 +43,8 @@ def brief(slug, more=""):
     return (
         f'# {slug}: a task\nHome: mcp:a-home\nTask: "do {slug}"\nDone when:\n- it is done\n'
         f"Proves it: `make check`\nSize: S\nWhere: `src/{slug}/`, a new test\n"
-        "Design: none, a test\nPull request: open one when done\nReview: review\n"
+        'Design: none, a test\nDecisions: "review it once", the user\'s word in a test\n'
+        "Pull request: open one when done\nReview: review\n"
         f"Playbook: feature\n{more}"
     )
 
@@ -343,7 +344,7 @@ def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(k
     older = batch(adds("alpha", "--priority 3"), approves("alpha", sha12(newer)))
     assert kitchen.main("queue", "apply", stdin=older) == (
         1,
-        f"refused: line 16: alpha's brief is {sha12(brief('alpha'))}, not {sha12(newer)},"
+        f"refused: line 17: alpha's brief is {sha12(brief('alpha'))}, not {sha12(newer)},"
         " and nothing in the batch was applied\n",
     )
     assert (kitchen.state / "briefs/alpha.md").read_text() == newer
@@ -352,31 +353,31 @@ def test_an_approve_in_a_batch_names_the_brief_added_earlier_in_the_same_batch(k
 @pytest.mark.parametrize(
     "bad, says",
     [
-        ("hold nope\n", "line 17: the queue has no row nope"),
+        ("hold nope\n", "line 18: the queue has no row nope"),
         (
             approves("alpha", "0" * 12),
-            f"line 17: alpha's brief is {sha12(brief('alpha'))}, not 0000",
+            f"line 18: alpha's brief is {sha12(brief('alpha'))}, not 0000",
         ),
-        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 17: {NO_BASIS}"),
-        ("approve alpha --sha 0\n", f"line 17: {NO_BASIS}"),
-        ("approve alpha --word nope --sha 0\n", "line 17: alpha's brief is"),
-        (f"approve alpha --word {SAID}\n", "line 17: approve needs --sha"),
-        ("add gamma --priority 1\nhold alpha\n", "line 17: add gamma has no --- brief gamma"),
+        (f'approve alpha --by user --at "{AT}" --sha 0\n', f"line 18: {NO_BASIS}"),
+        ("approve alpha --sha 0\n", f"line 18: {NO_BASIS}"),
+        ("approve alpha --word nope --sha 0\n", "line 18: alpha's brief is"),
+        (f"approve alpha --word {SAID}\n", "line 18: approve needs --sha"),
+        ("add gamma --priority 1\nhold alpha\n", "line 18: add gamma has no --- brief gamma"),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n",
-            "line 17: gamma's brief has no --- end",
+            "line 18: gamma's brief has no --- end",
         ),
         (
             "add gamma --priority 1\n--- brief gamma\nA brief.\n--- brief delta\nmore\n--- end\n",
-            "line 17: gamma's brief has no --- end",
+            "line 18: gamma's brief has no --- end",
         ),
-        (adds("gamma", "--priority soon"), "line 17: --priority is an integer, not soon"),
-        (adds("gamma"), "line 17: add needs --priority"),
-        (adds("../up", "--priority 1"), "line 17: ../up is not a slug"),
-        ("hold alpha --status merged\n", "line 17: status is derived from T3 Code and GitHub"),
-        ("hold alpha --at now\n", "line 17: hold takes no --at"),
-        ("drop alpha\n", "line 17: drop is not add, approve, hold or remove"),
-        ('hold "alpha\n', "line 17: No closing quotation"),
+        (adds("gamma", "--priority soon"), "line 18: --priority is an integer, not soon"),
+        (adds("gamma"), "line 18: add needs --priority"),
+        (adds("../up", "--priority 1"), "line 18: ../up is not a slug"),
+        ("hold alpha --status merged\n", "line 18: status is derived from T3 Code and GitHub"),
+        ("hold alpha --at now\n", "line 18: hold takes no --at"),
+        ("drop alpha\n", "line 18: drop is not add, approve, hold or remove"),
+        ('hold "alpha\n', "line 18: No closing quotation"),
     ],
 )
 def test_a_batch_with_one_verb_that_cannot_be_done_writes_nothing(kitchen, bad, says):
