@@ -261,7 +261,7 @@ def lineup(scene, counts, merged=30, gates=6):
 
 class Proxy:
     """A proxy in front of the server that adds the probe to the page, and can stop passing
-    requests on."""
+    requests on. What it adds to the head of the page is `head`, which a test may replace."""
 
     def __init__(
         self,
@@ -288,7 +288,7 @@ class Proxy:
         asked = f"window.__task = {json.dumps(task)}; window.__pick = {json.dumps(pick)};"
         asked += f"window.__gates = {json.dumps(gates)}; window.__tap = {json.dumps(tap)};"
         asked += f"window.__walk = {json.dumps(walk)}; window.__hops = {json.dumps(hops)};"
-        head = f"<script>window.__at = {at}; {asked}{script or PROBE}</script>"
+        self.head = f"<script>window.__at = {at}; {asked}{script or PROBE}</script>"
         proxy = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -317,7 +317,7 @@ class Proxy:
                 body = answer.read()
                 link.close()
                 if probe and self.path.split("#")[0].split("?")[0] == "/":
-                    body = body.replace(b"<head>", b"<head>" + head.encode(), 1)
+                    body = body.replace(b"<head>", b"<head>" + proxy.head.encode(), 1)
                 if self.path == "/stack.json":
                     proxy.stacks += 1
                     body = json.dumps(proxy.alter(proxy.stacks, json.loads(body))).encode()
@@ -412,8 +412,10 @@ def heavy():
         yield
 
 
-def browse(*arguments):
-    """Run the browser headless under the browser lock, and give back what it printed.
+def browse(*arguments, dump=True):
+    """Run the browser headless under the browser lock, and give back what it printed. With
+    `dump` it prints the page as it is at the end of its time; without, the arguments say what
+    it makes, such as `--screenshot`.
 
     Chromium binds a socket in a directory it makes under `TMPDIR`, and the path of a socket
     has at most 107 characters. So the browser gets a short directory of its own, whatever
@@ -424,7 +426,13 @@ def browse(*arguments):
     ends when the browser ends, also when something outside stops the test. Python's own
     timeout, or pytest-timeout's, would stop one process and leave the ones it started.
     """
-    command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"]
+    command = [
+        CHROMIUM,
+        "--headless",
+        "--no-sandbox",
+        "--disable-gpu",
+        *(["--dump-dom"] if dump else []),
+    ]
     bounded = ["timeout", "--kill-after=5", str(LAUNCH), *command, *arguments]
     made = tempfile.TemporaryDirectory(prefix="jbus-view-", dir="/tmp", ignore_cleanup_errors=True)
     with made as short:
