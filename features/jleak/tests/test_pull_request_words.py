@@ -87,7 +87,7 @@ def test_a_pull_request_is_locked_right_after_it_opens(run):
     said, asked = run(opening())
     assert said == [f"opened and locked: {URL}"]
     assert asked == [
-        "pr create --base main --title feat: a --body-file b.md",
+        "pr create --draft --base main --title feat: a --body-file b.md",
         f"pr lock {URL}",
     ]
 
@@ -124,7 +124,7 @@ def test_an_address_with_no_number_is_no_pull_request(run):
 def test_a_pull_request_that_did_not_open_is_not_locked(run):
     said, asked = run(opening(), url="pull request create failed")
     assert said == ["not opened: Creating pull request for alpha into main"]
-    assert asked == ["pr create --base main --title feat: a --body-file b.md"]
+    assert asked == ["pr create --draft --base main --title feat: a --body-file b.md"]
 
 
 def one(author, body, **more):
