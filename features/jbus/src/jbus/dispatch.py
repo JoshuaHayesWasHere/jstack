@@ -50,7 +50,7 @@ from jbriefs import parse
 from jbus import queue, read_json, verbs, write_json
 from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import TITLE, End, World, crew_threads, ended
+from jbus.watch import TITLE, End, World, against, crew_threads, ended
 from jmerge import claims, mainjson
 from jmerge import stacked as stacks
 from jroles import ledger, pool
@@ -457,7 +457,7 @@ class Turns:
                 other for other in row.get("depends", []) if ended(run, world, other) == End("done")
             }
             unmerged = [other for other in row.get("depends", []) if other not in met]
-            on = world.stack_on(unmerged)
+            on = world.stack_on(run, unmerged, brief)
             if unmerged and on is None:
                 run.reasons[slug] = Depends(tuple(unmerged))
                 continue
@@ -493,6 +493,7 @@ class Turns:
             if base.returncode or not base.stdout.strip():
                 run.gate(slug, "the default branch is not known in the main checkout")
                 continue
+            default = base.stdout.strip().removeprefix("origin/")
             plain = queue.body(brief)
             green = mainjson.read(run.state).green
             text = launched_text(plain, green, on)
@@ -559,7 +560,7 @@ class Turns:
                         run,
                         slug,
                         text,
-                        on.branch if on else base.stdout.strip().removeprefix("origin/"),
+                        on.branch if on else against(brief) or default,
                         routed,
                     ),
                 )

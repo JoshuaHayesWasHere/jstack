@@ -87,6 +87,7 @@ AFTER_MERGE = "after the merge"
 UNRESOLVED = "Could not resolve to a"
 WORDS = 100
 _PULL = re.compile(r"^(https?://\S+/pull/(\d+))/?$")
+_AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:()`]+)", re.M)
 
 
 @dataclass
@@ -118,11 +119,15 @@ class World:
     def live(self) -> int:
         return sum(t["status"] in LIVE for found in self.threads.values() for t in found)
 
-    def stack_on(self, unmet: list[str]) -> stacks.Stacked | None:
+    def stack_on(self, run: Pass, unmet: list[str], brief: str) -> stacks.Stacked | None:
         """The open pull request a row whose depends `unmet` are not over launches stacked on: the
         one row it still waits on, once that row's pull request is open. A stack sits on one
-        branch, so a row that waits on two or more rows launches on none."""
+        branch, so a row that waits on two or more rows launches on none, and nor does a row
+        whose `brief` goes on another branch than that row's (`against`): a row for a train
+        that builds on a row for main waits for it to merge."""
         if len(unmet) != 1 or unmet[0] not in self.open:
+            return None
+        if against(queue.brief(run.state, unmet[0]) or "") != against(brief):
             return None
         branch = str(self.open[unmet[0]].get("headRefName") or "")
         return stacks.Stacked(unmet[0], branch) if branch else None
@@ -530,11 +535,19 @@ def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
     return work.Row.BEHIND if unmet else work.Row.FREE
 
 
-def unmet(world: World | None, row: dict[str, Any], final: frozenset[str]) -> list[str]:
+def against(brief: str) -> str:
+    """The branch a brief's `Pull request:` line opens its pull request against, a train's, or
+    empty for the default branch."""
+    named = _AGAINST.search(brief.split("\n## ", 1)[0])
+    return named["branch"] if named else ""
+
+
+def unmet(run: Pass, world: World | None, row: dict[str, Any], final: frozenset[str]) -> list[str]:
     """The depends that hold back a row's launch: none for a row that launches stacked on the one
     it waits on (`World.stack_on`)."""
     left = [one for one in row.get("depends", []) if one not in final]
-    return [] if world is not None and world.stack_on(left) else left
+    brief = queue.brief(run.state, row["slug"]) or ""
+    return [] if world is not None and world.stack_on(run, left, brief) else left
 
 
 def final(run: Pass, world: World | None, rows: list[dict[str, Any]]) -> frozenset[str]:
@@ -575,7 +588,7 @@ def facts(
             said = work.Thread.STARTING
     number = str((world.open.get(slug) or {}).get("number", "")) if world else ""
     made = work.Facts(
-        row=row_of(run, row, unmet(world, row, seen.final)),
+        row=row_of(run, row, unmet(run, world, row, seen.final)),
         thread=said or work.Thread.NONE,
         seen="" if said else str((found or {}).get("status", "")),
         launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,
