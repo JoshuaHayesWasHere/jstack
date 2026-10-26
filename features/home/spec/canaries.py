@@ -1,6 +1,6 @@
 """Check the home tree's rules with TLC: each rule holds in the design in every scene, each canary
-(the design with one guard taken out) breaks the rule that rests on that guard, and today's code
-breaks the rules it breaks today. Run it from the repo root:
+(the design with one guard taken out) breaks the rule that rests on that guard, and each rule holds
+in today's code in every scene. Run it from the repo root:
 
     python3 features/home/spec/canaries.py
 
@@ -57,18 +57,11 @@ CANARIES = {
     "drop-release": ("ReadyMerges", "siblings"),
 }
 
-# The rules today's code breaks, and in which scene. FirstStrike, NudgesBounded and AsksAfterTwo
-# hold today only because nothing today flags, nudges or asks, and no run checks them on today.
-TODAY_BREAKS = {
-    "NoRetireWithOpen": "a",
-    "StallFlagged": "a",
-    "OneMerger": "a",
-    "NoBlindMerge": "siblings",
-}
-
-# The rules today's code keeps. CallsReachJosh holds since pull request 332 moved what waits for a
-# dropped route, and ReadyMerges since pull request 357 let jbus merge a child's pull request.
-TODAY_HOLDS = ["CallsReachJosh", "ReadyMerges"]
+# Today's code keeps every rule in every scene: the four it broke (NoRetireWithOpen, StallFlagged,
+# OneMerger and NoBlindMerge) since the branch hometree-rules gave it the design's guards, and
+# CallsReachJosh and ReadyMerges since pull requests 332 and 357. Each scene runs with both modes,
+# so the merge switch is shown to play no part.
+TODAY_MODES = '{"jbus", "home"}'
 
 
 def config(scene, rules, modes, drop=None):
@@ -153,12 +146,10 @@ def runs():
     for guard, (rule, scene) in CANARIES.items():
         cfg = config(scene, [rule], '{"jbus"}', guard)
         yield f"canary {guard}, scene {scene}: {rule}", "HomeTreeDesign", cfg, rule, "breaks"
-    for rule, scene in TODAY_BREAKS.items():
-        cfg = config(scene, [rule], '{"jbus", "home"}')
-        yield f"today, scene {scene}: {rule}", "HomeTreeToday", cfg, rule, "breaks"
-    for rule in TODAY_HOLDS:
-        cfg = config("a", [rule], '{"jbus", "home"}')
-        yield f"today, scene a: {rule}", "HomeTreeToday", cfg, rule, "holds"
+    for scene in SCENES:
+        for name, rules in [("every invariant", INVARIANTS), *((p, [p]) for p in PROPERTIES)]:
+            cfg = config(scene, rules, TODAY_MODES)
+            yield f"today, scene {scene}: {name}", "HomeTreeToday", cfg, None, "holds"
 
 
 def main():

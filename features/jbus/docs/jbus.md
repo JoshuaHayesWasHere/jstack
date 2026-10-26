@@ -12,7 +12,7 @@ jbus needs T3 Code running on the machine, `gh` signed in to GitHub, and a syste
 
 One pass, under one lock, does this for every project in the config:
 
-1. It runs `jmerge` in the project's main checkout when no home merges, and makes one event for each line `jmerge` prints about a pull request.
+1. It runs `jmerge` in the project's main checkout, and makes one event for each line `jmerge` prints about a pull request.
 2. It reads the briefs and the scout requests in the home's state directory, and makes one event for each new Result, Review, Report and question.
 3. It asks T3 Code for the project's threads, and asks GitHub, through `gh`, for its pull requests and main's checks.
    It makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).
@@ -30,8 +30,8 @@ On a project's first pass, jbus records the Results, Reviews, Reports, questions
 jbus writes nothing to GitHub but a rerun of a cancelled check, and merges nothing itself.
 `jmerge` does the merging.
 
-No home merges when `~/.local/state/home/<repo>/home-thread` is missing or empty.
-With a thread id in that file the home merges, and jbus prints `skipped <project>: the home <id> merges`.
+jbus is the only merger, whatever `~/.local/state/home/<repo>/home-thread` holds, and no home runs `jmerge` to merge.
+A run of `jmerge` holds the repo's merge lock from its read of main's tip to its merge, so a run of yours never merges between them.
 
 ## The pages
 

@@ -78,8 +78,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   `jmerge` never merges a draft, whatever flags you pass, and prints `wait <number> <url>: draft`.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
-  While `home-thread` is empty, jbus runs `jmerge` for every home of the repo, and a scoped home's pull request merges as the root home's does.
-  While it holds an id, each home merges its own: a brief of another home of the repo waits as `another home's`, unless you pass `--all`.
+  jbus is the only merger: it runs `jmerge` for every home of the repo, whatever `home-thread` holds, and a scoped home's pull request merges as the root home's does.
+  A home's own run, with `--home`, merges nothing, and a brief of another home of the repo is `another home's` to it alone.
 - **Its base is the default branch or an integration branch.**
   `jmerge` never merges a pull request based on another branch (`its base is <base>, not <default>`).
   It merges a pull request whose brief has a `Stack:` line only when you pass `--land <stack>`.
@@ -520,8 +520,7 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 | `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks. The crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on is narrower: the required checks alone, as the merge rule on green says. |
 | `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`. |
 | `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
-| `--home <id>` | The home that is asking. Defaults to the id in the state directory's `home-id`. |
-| `--all` | Merges the pull requests of the repo's other homes too. |
+| `--home <id>` | The home that is asking: says what `jmerge` would do of that home's pull requests, as `--check` does, and merges nothing. |
 | `--land <stack>` | Merges the pull requests of a stack you said to land, each once its base is the default branch. |
 
 `jmerge` stops most of the `git` and `gh` commands it runs after 120 seconds, or after `JMERGE_TIMEOUT` seconds when that variable is set, and counts such a command as failed.

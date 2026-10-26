@@ -3,8 +3,7 @@ or on a crew that stopped, is asked again by how long it has waited, not by how 
 repeats its line.
 
 `tick` reads what jbus's own run of `jmerge` says in this pass of each open pull request that jbus
-launched a crew for, and sorts the wait into one of three classes. Where the home merges, acting on
-a pull request is the home's (`merge.shown`), so no clock runs there. The classes:
+launched a crew for, and sorts the wait into one of three classes:
 
 - `review`: the review is not written (`it has no review yet`, `its review has no verdict`, the
   second review or the second pass is not written);

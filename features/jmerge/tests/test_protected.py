@@ -183,7 +183,7 @@ LISTS = ["protected.txt", "guarded.txt", "ci-paths.txt"]
 
 
 @pytest.mark.parametrize("name", LISTS)
-@pytest.mark.parametrize("flags", [(), ("--check",), ("--all",)])
+@pytest.mark.parametrize("flags", [(), ("--check",), ("--land", "demo")])
 def test_jmerge_merges_nothing_while_a_list_has_a_pattern_it_cannot_read(
     merged, name, flags, tmp_path
 ):
@@ -277,7 +277,7 @@ def write(merged, path):
         "dns/records.tf",
     ],
 )
-@pytest.mark.parametrize("flags", [(), ("--all",), ("--land", "demo"), ("--check",)])
+@pytest.mark.parametrize("flags", [(), ("--land", "demo"), ("--check",)])
 def test_jmerge_holds_a_pull_request_that_changes_a_protected_path(merged, path, flags):
     change(merged, write(merged, path))
     merged.home.open_pull_request(merged.head, files=["a.txt", path])

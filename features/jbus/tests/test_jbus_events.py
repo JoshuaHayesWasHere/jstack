@@ -278,6 +278,7 @@ TABLE = {
     "waiting-on-user": "quiet",
     "condition": "quiet",
     "clock": "quiet",
+    "home-stall": "user",
     "merged": "quiet",
     "gate answered": "quiet",
     "result": "quiet",

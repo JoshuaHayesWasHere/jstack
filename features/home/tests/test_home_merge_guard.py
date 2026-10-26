@@ -1,7 +1,8 @@
-"""`home-thread` is the switch that hands merging from jbus to a home, and the user sets it by hand:
-no skill step and no script writes it. A home keeps its own id in `home-id`, which jbus does not
-read, so jbus goes on merging while a home runs. The test takes the start block from the home skill
-and runs it, then runs jbus's pass over what the block left."""
+"""`home-thread` is the sweep switch, and the user sets it by hand: no skill step and no script
+writes it. It decides nothing of the merge: jbus is the only merger, and runs `jmerge` whatever the
+switch holds. A home keeps its own id in `home-id`, which jbus does not read, so jbus goes on
+merging while a home runs. The test takes the start block from the home skill and runs it, then
+runs jbus's pass over what the block left."""
 
 import os
 import re
@@ -103,7 +104,8 @@ def test_the_sweep_reads_the_docs_of_every_feature_but_home():
 
 def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkeypatch):
     """A root home starts with steps 1 and 3 of the home skill, in the state directory jbus
-    reads. Its id is in `home-id`, `home-thread` is not there, and the pass runs `jmerge`."""
+    reads. Its id is in `home-id`, the user put another in `home-thread`, and the pass runs
+    `jmerge` all the same."""
     kitchen = Kitchen(tmp_path, monkeypatch)
     try:
         (kitchen.home / "plan.md").write_text("# demo: plan\n")
@@ -130,7 +132,7 @@ def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkey
         assert "not written" not in step(third.replace("<threadId>", THREAD).replace(WHICH, which))
 
         assert (kitchen.home / "home-id").read_text() == f"{THREAD}\n"
-        assert not (kitchen.home / "home-thread").exists()
+        (kitchen.home / "home-thread").write_text(f"{OTHER}\n")
         kitchen.set("jmerge.txt", "merged 7 alpha abc1234\n")
         said = kitchen.poll()
         assert not any(line.startswith("skipped") for line in said)
@@ -141,19 +143,15 @@ def test_jbus_still_merges_while_a_home_that_started_is_running(tmp_path, monkey
 
 
 @pytest.mark.parametrize("left", [THREAD, OTHER])
-def test_a_start_over_a_switch_that_holds_an_id_says_jbus_does_not_merge(tmp_path, left):
+def test_a_start_over_a_switch_that_holds_an_id_says_nothing_and_leaves_it(tmp_path, left):
     """The state directory as a home left it before the skill had `home-id`, or as the user set it
-    by hand: `home-thread` holds an id and there is no `home-id`. The start says so and leaves the
-    switch as it is."""
+    by hand: `home-thread` holds an id and there is no `home-id`. The switch no longer stops jbus's
+    merge, so the start has nothing to warn of, and it leaves the switch as it is."""
     scene = Scene(tmp_path)
     (scene.home_dir / "plan.md").write_text("# a demo repo: plan\n")
     switch = scene.home_dir / "home-thread"
     switch.write_text(f"{left}\n")
-    said = scene.home_starts()
-    assert said == (
-        f"jbus does not merge here: {switch} holds {left}. "
-        "Nothing empties it but the user, by hand.\n"
-    )
+    assert scene.home_starts() == ""
     assert scene.file.read_text() == f"{THREAD}\n"
     assert switch.read_text() == f"{left}\n"
 
