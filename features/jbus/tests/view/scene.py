@@ -1101,6 +1101,11 @@ def checked(name, state, started=None, completed=None):
     }
 
 
+def stamp(minutes):
+    """The queue's time of `minutes` before the scene's clock."""
+    return et(ago(minutes=minutes))
+
+
 def piped(scene):
     """Two projects and three homes. `demo` has the root and `jview`: a chain of three, from
     tea-pot through tea-cup to tea-saucer, whose brief names no home; ux-look-pr in check with
@@ -1108,7 +1113,6 @@ def piped(scene):
     the train `train/mac`; rye-loaf merged today; bad-row in no state the view knows; and the
     scout `look` of jview, out with no Report. `pantry` has the root alone, with fig-jam running
     and fig-tart at a gate."""
-    stamp = lambda minutes: et(ago(minutes=minutes))  # noqa: E731
     scene.queue(
         [
             row("tea-pot", "running", thread="mcp:tea-pot", since=stamp(30)),
@@ -1163,7 +1167,6 @@ def piped(scene):
 
 CAPTURED = "jstack"
 CAPTURE = (
-    # slug, status, value, home, minutes in its stage, links, more
     ("mac-sync-main-7", "queued", "behind", "macos", 11, {"depends": ["mac-tree-spec-timeout"]}),
     (
         "cleanup-ux-milestones-pr",
@@ -1221,8 +1224,8 @@ CAPTURE_CHECKS = {
 def captured(scene):
     """The scout's capture of the live queue at 08:06 EDT on 2026-10-26, its 27 open rows, with
     each one's state, home and links, and what the pass saw of each check: 12 rows in check, of
-    which 5 passed, 1 failed and 2 are stacked, and 2 rows the view cannot place. The times are
-    minutes before the scene's clock."""
+    which 5 passed, 1 failed and 2 are stacked, and 2 rows the view cannot place. Each row of
+    `CAPTURE` is its slug, status, step, home, minutes in its stage and links."""
     rows = []
     for slug, status, value, _, minutes, links in CAPTURE:
         why = ""

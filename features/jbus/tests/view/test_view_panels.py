@@ -119,6 +119,8 @@ def test_each_panel_answers_at_an_address_of_its_own_with_what_it_gives_the_stat
         for key in set(panel.shape) - live:
             if panel.first:
                 assert said["data"][key] == state[key], key
+            elif key == "at":
+                assert said["data"]["at"] == state["at"]
             else:
                 assert key not in state, key
         names = {source.name for source in panel.sources}

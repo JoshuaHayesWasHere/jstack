@@ -3,27 +3,9 @@ chains its rows make and what holds the line, as `/panel/pipeline.json` answers 
 
 import pytest
 
-from jbus.view import panels
-from jbus.view.panels.pipeline import panel as pipeline
 from view.scene import CAPTURED, Scene, Served, ago, captured, iso, piped, row
 
 KEYS = ["scout", "queued", "crew", "you", "review", "fix", "review2", "check", "merge", "train"]
-
-
-@pytest.fixture(autouse=True)
-def found(monkeypatch):
-    """The panel, found by the server also while its folder has no `panel.js`: that script is
-    the page's, which ux-flow-page writes."""
-    if "pipeline" in panels.names():
-        return
-    real_found, real_names = panels.found, panels.names
-    made = panels.Panel("pipeline", pipeline, panels.HERE / "pipeline" / panels.SCRIPT)
-    monkeypatch.setattr(
-        panels, "found", lambda: tuple(sorted((*real_found(), made), key=lambda p: p.name))
-    )
-    monkeypatch.setattr(
-        panels, "names", lambda *here: tuple(sorted((*real_names(*here), "pipeline")))
-    )
 
 
 def board(scene, path="/panel/pipeline.json"):
@@ -38,6 +20,10 @@ def since(minutes):
     return iso(ago(minutes=minutes))
 
 
+def at(slug, project, minutes):
+    return {"slug": slug, "project": project, "since": since(minutes)}
+
+
 def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     piped(scene)
     said = board(scene)
@@ -46,7 +32,6 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     assert got["at"] == iso(scene.now)
     assert [one["key"] for one in got["stages"]] == [*KEYS, "merged"]
     stages = {one["key"]: one for one in got["stages"]}
-    at = lambda slug, project, minutes: {"slug": slug, "project": project, "since": since(minutes)}  # noqa: E731
     assert stages["scout"] | {"oldest": None} == {
         "key": "scout",
         "name": "Scout",
@@ -152,7 +137,9 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     assert (scout["home"], scout["since"], scout["moving"]) == ("jview", since(45), True)
     assert rows["pantry", "fig-tart"]["home"] == rows["pantry", "fig-jam"]["home"] == "root"
 
-    assert got["unplaced"] == [{"slug": "bad-row", "project": "demo", "cause": "jmerge said: draft"}]
+    assert got["unplaced"] == [
+        {"slug": "bad-row", "project": "demo", "cause": "jmerge said: draft"}
+    ]
     assert got["stuck"] == {"stage": "queued", "still": 2, "count": 2}
     assert got["longest_wait"] == {
         "slug": "oat-lid",
