@@ -1758,7 +1758,7 @@ def stack(
         }
         for one in machine["unwell"]
     ]
-    return {
+    answer = {
         "at": iso(now),
         "machine": machine,
         "steps": line,
@@ -1770,3 +1770,10 @@ def stack(
             machine_wrong + [one for read in reads for one in keep(read.once(wrongs), [WRONG])]
         ),
     }
+    for panel in found:
+        if hasattr(panel.data, "stack"):
+            added = keep(panel.data.stack(base, reads, answer), panel.shape)
+            if taken := set(added) & set(answer):
+                raise ValueError(f"the panel {panel.name} gives {sorted(taken)}, which are taken")
+            answer |= added
+    return answer
