@@ -1076,3 +1076,168 @@ def slots(scene, monkeypatch, held, total=4):
             lines.append(f"{n}: FLOCK  ADVISORY  WRITE {4000 + n} {where} 0 EOF")
     (scene.proc / "locks").write_text("".join(line + "\n" for line in lines))
     return locks
+
+
+def briefed(scene, home=None, **homes):
+    """A brief in the home's `tasks/` for each slug, with a `Home:` line where one is named, and
+    each scope named, made a home by its `home-id`."""
+    where = scene.home if home is None else home
+    (where / "tasks").mkdir(exist_ok=True)
+    for slug, named in homes.items():
+        slug = slug.replace("_", "-")
+        if named:
+            (where / named).mkdir(exist_ok=True)
+            (where / named / "home-id").write_text(f"mcp:{named}\n")
+        line = f"Home: {named}\n" if named else ""
+        (where / "tasks" / f"{slug}.md").write_text(f"# {slug}: a made-up task\n{line}Task: x\n")
+
+
+def checked(name, state, started=None, completed=None):
+    """What a pass saw of a pull request's check, `started` and `completed` minutes ago."""
+    at = {"started": started, "completed": completed}
+    return {
+        "check": {"name": name, "state": state}
+        | {k: iso(ago(minutes=v)) for k, v in at.items() if v}
+    }
+
+
+def stamp(minutes):
+    """The queue's time of `minutes` before the scene's clock."""
+    return et(ago(minutes=minutes))
+
+
+def piped(scene):
+    """Two projects and three homes. `demo` has the root and `jview`: a chain of three, from
+    tea-pot through tea-cup to tea-saucer, whose brief names no home; ux-look-pr in check with
+    cleanup-ux-look-pr stacked on it, a brief with no home; oat-lid at a gate; mac-a merged into
+    the train `train/mac`; rye-loaf merged today; bad-row in no state the view knows; and the
+    scout `look` of jview, out with no Report. `pantry` has the root alone, with fig-jam running
+    and fig-tart at a gate."""
+    scene.queue(
+        [
+            row("tea-pot", "running", thread="mcp:tea-pot", since=stamp(30)),
+            row("tea-cup", depends=["tea-pot"], why="depends on tea-pot", since=stamp(25)),
+            row("tea-saucer", depends=["tea-cup"], why="depends on tea-cup", since=stamp(20)),
+            row("ux-look-pr", "pr", pr="#31", value="check", why="wait: check has not passed"),
+            row(
+                "cleanup-ux-look-pr",
+                "running",
+                thread="mcp:cleanup",
+                merge_after=["ux-look-pr"],
+                since=stamp(12),
+            ),
+            row("oat-lid", "gate", why="a gate the Chef has", since=stamp(90)),
+            row("mac-a", "merged", pr="#21"),
+            row("rye-loaf", "merged", pr="#9"),
+            row("bad-row", "pr", pr="#40", value="unknown", why="wait: draft", since=stamp(5)),
+        ]
+    )
+    scene.moves(
+        ("tea-pot", "launched", "running", 30),
+        ("ux-look-pr", "running", "pr", 15),
+        ("mac-a", "pr", "merged", 50),
+        ("rye-loaf", "pr", "merged", 40),
+    )
+    scene.merge_log(logged(15, "wait", 31, "check has not passed"))
+    briefed(scene, tea_pot="jview", tea_cup="jview", tea_saucer=None, ux_look_pr="jview")
+    briefed(scene, cleanup_ux_look_pr=None, oat_lid=None)
+    (scene.home / "tasks" / "mac-a.md").write_text(
+        "# mac-a: a made-up task\nPull request: open one against train/mac when done\n"
+    )
+    (scene.home / "integration").write_text("train/mac\n")
+    requested(scene, look=REQUEST.format(slug="look") + "Home: jview\n")
+    launch = {"state": "launched", "thread": "mcp:look", "at": iso(ago(minutes=45))}
+    scene.write("scouts.json", [{"slug": "look", "launch": launch}])
+    scene.passed(
+        20,
+        threads=[out("crew: tea-pot"), out("crew: cleanup-ux-look-pr")],
+        rows={"ux-look-pr": checked("check 1 of 4", "pending", started=3)},
+    )
+    pantry = scene.state_dir / "pantry"
+    for made in (pantry, scene.home_dir / "pantry"):
+        made.mkdir()
+    rows = [
+        row("fig-jam", "running", thread="mcp:fig", since=stamp(10)),
+        row("fig-tart", "gate", why="a gate the Chef has", since=stamp(40)),
+    ]
+    (pantry / "queue.json").write_text(json.dumps(rows))
+    lines = [judge_row(one, pantry) for one in rows]
+    (pantry / "work.json").write_text(json.dumps({"at": iso(NOW), "work": lines}))
+
+
+CAPTURED = "jstack"
+CAPTURE = (
+    ("mac-sync-main-7", "queued", "behind", "macos", 11, {"depends": ["mac-tree-spec-timeout"]}),
+    (
+        "cleanup-ux-milestones-pr",
+        "running",
+        "quiet",
+        None,
+        2,
+        {"merge_after": ["ux-milestones-pr"]},
+    ),
+    ("ux-slow", "running", "working", "jview", 27, {}),
+    ("ux-since", "running", "working", "jview", 16, {}),
+    ("cleanup-ux-look-pr", "running", "working", None, 11, {"merge_after": ["ux-look-pr"]}),
+    ("mac-tree-spec-timeout", "running", "working", "macos", 10, {}),
+    ("cleanup-ux-glance-pr", "running", "working", None, 6, {"merge_after": ["ux-glance-pr"]}),
+    ("cleanup-ux-inbox-pr", "running", "working", None, 5, {"merge_after": ["ux-inbox-pr"]}),
+    ("bl-lands", "left", "leftover", "macos", 835, {}),
+    ("mac-sync-main-8", "pr", "review", "macos", 5, {}),
+    ("ux-throughput", "pr", "findings", "jview", 8, {}),
+    ("cleanup-fl-hold-wakes", "pr", "second", "flow", 90, {}),
+    ("ux-status-link", "pr", "second", "jview", 5, {}),
+    ("fl-base-red-fix", "pr", "check", "flow", 51, {}),
+    ("ux-homes-board-pr", "pr", "check", "jview", 15, {}),
+    ("ux-milestones-pr", "pr", "check", "jview", 13, {}),
+    ("ux-asks-count", "pr", "check", "jview", 12, {}),
+    ("ux-telemetry-pr", "pr", "check", "jview", 11, {}),
+    ("ux-glance-pr", "pr", "check", "jview", 8, {}),
+    ("cleanup-ux-homes-board-pr", "pr", "check", None, 8, {"merge_after": ["ux-homes-board-pr"]}),
+    ("cleanup-ux-asks-count", "pr", "check", None, 6, {"merge_after": ["ux-asks-count"]}),
+    ("ux-look-pr", "pr", "check", "jview", 13, {}),
+    ("ux-inbox-pr", "pr", "check", "jview", 7, {}),
+    ("mac-room-cores", "pr", "check", "macos", 6, {}),
+    ("ux-find", "pr", "check", "jview", 5, {}),
+    ("bl-macos-ci-required", "pr", "unknown", "macos", 60, {}),
+    ("cleanup-ux-telemetry-pr", "pr", "unknown", None, 4, {"merge_after": ["ux-telemetry-pr"]}),
+)
+CAPTURE_CHECKS = {
+    "fl-base-red-fix": checked("check", "failed", started=30, completed=14),
+    **{
+        slug: checked("check", "passed", started=20, completed=minutes)
+        for slug, minutes in (
+            ("ux-homes-board-pr", 6),
+            ("ux-milestones-pr", 4),
+            ("ux-asks-count", 4),
+            ("ux-telemetry-pr", 2),
+            ("ux-glance-pr", 2),
+        )
+    },
+    "ux-look-pr": checked("check 1 of 4", "pending", started=3),
+    "ux-inbox-pr": checked("check 1 of 4", "pending", started=13),
+    "mac-room-cores": checked("check 4 of 4", "pending", started=4),
+    "ux-find": checked("check 1 of 4", "pending", started=11),
+}
+
+
+def captured(scene):
+    """The scout's capture of the live queue at 08:06 EDT on 2026-10-26, its 27 open rows, with
+    each one's state, home and links, and what the pass saw of each check: 12 rows in check, of
+    which 5 passed, 1 failed and 2 are stacked, and 2 rows the view cannot place. Each row of
+    `CAPTURE` is its slug, status, step, home, minutes in its stage and links."""
+    rows = []
+    for slug, status, value, _, minutes, links in CAPTURE:
+        why = ""
+        if slug.startswith("cleanup-") and status == "pr" and value == "check":
+            parent = links["merge_after"][0]
+            why = f"wait: stacked on {parent}, merges after {parent}"
+        elif value == "behind":
+            why = f"depends on {links['depends'][0]}"
+        made = row(slug, status, value=value, why=why, since=et(ago(minutes=minutes)), **links)
+        rows.append(made | ({"pr": f"#{100 + len(rows)}"} if status == "pr" else {}))
+    scene.queue(rows)
+    scene.moves()
+    scene.merge_log()
+    briefed(scene, **{slug.replace("-", "_"): home for slug, _, _, home, _, _ in CAPTURE})
+    scene.passed(20, threads=[], rows=CAPTURE_CHECKS)
