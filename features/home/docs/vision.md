@@ -39,7 +39,7 @@ A fix goes to the cause, not around it: real fixes, not band-aids.
 The work runs fast and in parallel.
 Testing is lean: targeted tests while building, then the check command once.
 
-Code holds the pacing: `features/jbus/src/jbus/dispatch.py:13-17` hands out launches up to the machine's `max_running` cap and holds a row until `jgauge room` says there is room, so a home queues small, independent rows and leaves the pace to jbus.
+Code holds the pacing: `features/jbus/src/jbus/dispatch.py:13-17` hands out launches up to the machine's `max_running` cap and holds a row until `jgauge room` says there is room.
 
 ## Quiet unless something is wrong
 
@@ -56,5 +56,3 @@ A home does not propose these again unless he asks:
 - serializing crews by the files they claim
 - a launch lock
 - a merge sweep every 5 minutes
-
-Code holds what each was meant to solve: folders keep crews apart (above), jbus paces the launches (`features/jbus/src/jbus/dispatch.py:13-17`), and jbus runs `jmerge` on each of its passes.
