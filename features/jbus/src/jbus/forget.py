@@ -1,7 +1,7 @@
 """`jbus forget [--dir] <path>...`: delete the files a skill's step names, and nothing else.
 
-Claude Code asks the user before it runs a command that removes files, even in full access, so a
-step a thread runs holds no `rm` (`features/repo-guards/tests/test_blocks_ask_nothing.py`). A
+A thread's harness asks the user before it runs a command that removes files, even in full access,
+so a step a thread runs holds no `rm` (`features/repo-guards/tests/test_blocks_ask_nothing.py`). A
 step that clears a file of the homes' state or of the repo's git directory calls this verb.
 
 It deletes a path only when the path is inside the homes' state, `JBUS_HOME_DIR` or
