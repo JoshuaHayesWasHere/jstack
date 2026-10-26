@@ -18,7 +18,13 @@ from test_home_merge import uv_cache
 
 UV = """\
 #!/bin/sh
-if [ "$1 $2" = "run --project" ]; then shift 3; exec "$@"; fi
+if [ "$1 $2" = "run --project" ]; then
+    shift 3
+    VIRTUAL_ENV={venv}
+    PATH="$VIRTUAL_ENV/bin:$PATH"
+    export VIRTUAL_ENV PATH
+    exec "$@"
+fi
 exec {uv} "$@"
 """
 
@@ -28,11 +34,20 @@ def notes_of(tmp_path):
     return tmp_path / "user" / ".local" / "state" / "home" / "main" / "notes.md"
 
 
+def venv_of(pr):
+    """The venv the stub of `uv run --project` puts first on PATH, with a `python3` of its own."""
+    return pr.stub.parent / "jstack-venv"
+
+
 def stays(pr, about):
     """The step run as `stays` runs it, with the test's own `HOME`. `uv run --project` runs the
-    command it is given straight from PATH, since uv would look for its cache in that `HOME`."""
+    command it is given straight from PATH, since uv would look for its cache in that `HOME`, and
+    sets `VIRTUAL_ENV` and puts that venv's bin first on PATH, as uv does."""
     if not (pr.stub / "uv").exists():
-        (pr.stub / "uv").write_text(UV.format(uv=shutil.which("uv")))
+        (venv_of(pr) / "bin").mkdir(parents=True)
+        (venv_of(pr) / "bin" / "python3").write_text("#!/bin/sh\n")
+        (venv_of(pr) / "bin" / "python3").chmod(0o755)
+        (pr.stub / "uv").write_text(UV.format(uv=shutil.which("uv"), venv=venv_of(pr)))
         (pr.stub / "uv").chmod(0o755)
     user = pr.stub.parent / "user"
     return stays_in_the_home(pr, about, HOME=str(user), UV_CACHE_DIR=uv_cache())
@@ -150,6 +165,22 @@ def test_a_file_the_notes_say_a_command_writes_is_made_by_that_command(tmp_path)
     ]
     assert (pr.work / "shared.txt").read_text() == "made from both\n"
     assert git(pr.work, "diff", "--name-only", "--diff-filter=U") == ""
+
+
+def test_a_generated_file_is_made_outside_the_venv_that_runs_jmerge(tmp_path):
+    """The command that makes a generated file finds the tools the worktree's shell finds, not
+    the ones in the venv of the `uv run --project` that starts `jmerge --remake`."""
+    pr = PullRequest(tmp_path, None, "shared.txt")
+    asked(pr, "CONFLICTING")
+    notes_of(tmp_path).parent.mkdir(parents=True)
+    made = "command -v python3 > shared.txt; echo ${VIRTUAL_ENV-unset} >> shared.txt"
+    notes_of(tmp_path).write_text(f"Generated: shared.txt -> {made}\n")
+    assert stays(pr, "mergeable") == [STOPPED, "shared.txt"]
+    (said,) = stays(pr, "jmerge --remake")
+    assert said.startswith("made again: shared.txt, by ")
+    found, venv = (pr.work / "shared.txt").read_text().splitlines()
+    assert not found.startswith(str(venv_of(pr)))
+    assert venv == "unset"
 
 
 @pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed")
