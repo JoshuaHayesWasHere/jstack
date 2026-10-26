@@ -80,7 +80,6 @@ class Scene:
         self.folder = self.state / f"_{NAME}"
         (self.folder / "notes").mkdir(parents=True)
         (self.state / "_experts").mkdir()
-        (self.state / "_experts" / "README.md").write_text("# Experts\n")
         for name in READ_AT_START:
             (self.folder / name).write_text(f"# {name}\n")
         (self.folder / "notes" / "a-topic.md").write_text("# A topic\n")
@@ -168,7 +167,6 @@ def test_the_block_at_the_top_finds_the_folder_of_the_name_typed(scene):
     assert scene.run("read") == [
         f"expert {NAME}",
         f"title: expert: {NAME}",
-        f"read: {scene.state}/_experts/README.md",
         *(f"read: {scene.folder}/{name}" for name in READ_AT_START),
     ]
 
