@@ -250,9 +250,7 @@ def test_nproc_counts_the_cores_while_it_is_there(tmp_path):
     assert says(counted(tmp_path, "12", getconf="3", sysctl="2")) == "go"
 
 
-@pytest.mark.parametrize(
-    ("getconf", "sysctl", "cores"), [("3", "2", "3"), (None, "2", "2")]
-)
+@pytest.mark.parametrize(("getconf", "sysctl", "cores"), [("3", "2", "3"), (None, "2", "2")])
 def test_a_proc_with_no_nproc_counts_the_cores_with_getconf_and_then_sysctl(
     tmp_path, getconf, sysctl, cores
 ):
