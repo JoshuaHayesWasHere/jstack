@@ -12,7 +12,7 @@ from pathlib import Path
 
 import jroles
 import jsettings
-from jgauge import limits, sample, session, sizes, slot, transcript, waiters
+from jgauge import limits, runner, sample, session, sizes, slot, transcript, waiters
 from jgauge.transcript import TranscriptError
 from jroles import ledger, pool
 
@@ -160,6 +160,31 @@ def cmd_test_slot(args: argparse.Namespace) -> int:
     return slot.run(command, slot.full(slots), args.thread)
 
 
+def _command(args: argparse.Namespace) -> str:
+    command = sys.stdin.read()
+    if not command.strip():
+        args.usage("no command on stdin: put it in the step's here-document")
+    return command
+
+
+def cmd_check(args: argparse.Namespace) -> int:
+    command = _command(args)
+    try:
+        slot.count(None)
+    except slot.BadCount as error:
+        args.usage(str(error))
+    return runner.check(command, args.thread, args.wait)
+
+
+def cmd_proof(args: argparse.Namespace) -> int:
+    command = _command(args)
+    try:
+        slot.short()
+    except sizes.Refused as error:
+        args.usage(str(error))
+    return runner.proof(command, Path(args.dir), args.kept, args.thread, args.wait)
+
+
 def cmd_sizes(args: argparse.Namespace) -> int:
     """Print the three machine sizes as their callers get them. After the sizes, print room's
     lines."""
@@ -178,6 +203,34 @@ def cmd_sizes(args: argparse.Namespace) -> int:
             f" see it: set test_slots in {sizes.path()}"
         )
     return 0
+
+
+def _waited(commands, name: str, about: str, lane: str, run) -> argparse.ArgumentParser:
+    waited = commands.add_parser(
+        name,
+        help=about,
+        description=f"{about[0].upper()}{about[1:]}. The run holds {lane} in a session of its"
+        " own, so it outlives the call. A later call joins a run that is going, and gives the"
+        " answer of one that ended between calls once. The answers are started, joined,"
+        " checked, waiting (exit 76), stale (exit 75), done, running and lost, as"
+        " features/jgauge/docs/jgauge.md lists them.",
+    )
+    waited.add_argument(
+        "--thread",
+        metavar="ID",
+        default="",
+        help="this thread's id: with every slot taken, register as a waiter jbus wakes, and end"
+        f" {slot.WAITING}",
+    )
+    waited.add_argument(
+        "--wait",
+        metavar="SECONDS",
+        type=_seconds,
+        default=runner.WAIT_SECONDS,
+        help="how long this call waits on the run before it says `running` (default: %(default)g)",
+    )
+    waited.set_defaults(run=run, usage=waited.error)
+    return waited
 
 
 def parser() -> argparse.ArgumentParser:
@@ -322,6 +375,27 @@ def parser() -> argparse.ArgumentParser:
     )
     held.add_argument("argv", nargs=argparse.REMAINDER, help="the command, after `--`")
     held.set_defaults(run=cmd_test_slot, usage=held.error)
+
+    _waited(
+        commands,
+        "check",
+        "start or join the check command, read from stdin, on this worktree under a test slot,"
+        " and wait on it: the crew skill's one run of the check command",
+        "a slot of the full lane",
+        cmd_check,
+    )
+    proof = _waited(
+        commands,
+        "proof",
+        "start or join a reviewer's proof, read from stdin, at the head kept at the start, and"
+        " wait on it: the pr-review skill's proof",
+        "a slot of the short lane",
+        cmd_proof,
+    )
+    proof.add_argument(
+        "--dir", required=True, help="the folder of the review's prompt, where the proof's files go"
+    )
+    proof.add_argument("--kept", required=True, help="the head kept at the start of the review")
 
     machine = commands.add_parser(
         "sizes",
