@@ -31,7 +31,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:935-936
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:936-937
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
@@ -53,22 +53,16 @@ CrewFix(p) ==
     /\ UNCHANGED <<st, ranRed, mainRed, redBy, outsideLeft>>
 
 \* rejudge-red-prs: a pull request whose check failed, over a base that has moved since the check
-\* started and is green now, is checked again over today's base. With a fresh-check file a really
-\* broken change fails there and its crew gets one message; otherwise GitHub merges the base into
+\* started and is green now, is checked again over today's base: GitHub merges the base into
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1082, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:294-297, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1038-1039, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1155, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:219, once a head and tip
-    /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1043, a fresh-check file
-        IF fresh /\ breaks[p]
-            \* features/jmerge/src/jmerge/cli.py:1044-1046: it fails over today's base, one message
-            THEN /\ told' = [told EXCEPT ![p] = TRUE] /\ UNCHANGED ci
-            \* features/jmerge/src/jmerge/rejudge.py:63: GitHub merges the base in, check runs again
-            ELSE /\ ci' = [ci EXCEPT ![p] = "none"] /\ UNCHANGED told
-    /\ UNCHANGED <<st, ranRed, breaks, mainRed, redBy, outsideLeft, full>>
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:871, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:833, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:944, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
+    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
+    /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full>>
 
 \* crew-leftover-procs: when a turn ends, what it left running is stopped.
 Sweep ==

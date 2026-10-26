@@ -1,9 +1,7 @@
 # An example CI: jstack's own
 
-A repo's CI can give `jmerge` two things, which [Fresh against main](../jmerge.md#fresh-against-main) uses:
-
-- a green marker of a tree whose whole suite passed
-- a `scripts/select_tests.py` that says which tests a change needs
+A repo's CI can give `jmerge` a green marker of a tree whose whole suite passed, which [Fresh against main](../jmerge.md#fresh-against-main) uses.
+Its own `scripts/select_tests.py`, which says which tests a change needs, keeps a pull request's check short.
 
 Your repo needs neither, and `jmerge` merges without them.
 This page shows how jstack's own CI, `.github/workflows/check.yml`, gives both, as an example to copy from.
@@ -19,9 +17,9 @@ The job summary says `full suite: yes` or `no` and `tree <tree>`, and `jbus ci -
 
 The job `full` runs on each push to main or to an integration branch, and when someone starts the workflow by hand.
 It first runs `scripts/green_tree.py`, which looks for a marker of the tree it checked out.
-The marker is either the ref `refs/jstack/green-tree/full/<tree>` that `jmerge` pushes after a fresh check of the whole suite passes, or a `green-tree-<tree>` artifact of a successful run of the workflow.
+The marker is either the ref `refs/jstack/green-tree/full/<tree>` that `jmerge`'s fresh check pushed, before fl-gh-recheck, after the whole suite passed, or a `green-tree-<tree>` artifact of a successful run of the workflow.
 With a marker, the job skips `make check`.
-The ref `refs/jstack/green-tree/selected/<tree>`, left by a fresh check of selected tests, is no such marker, and the job runs the suite.
+The ref `refs/jstack/green-tree/selected/<tree>`, left by an old fresh check of selected tests, is no such marker, and the job runs the suite.
 Without one, it runs the whole suite and uploads the marker when the suite passes.
 If main did not move before the merge, main's tree is the tree the pull request's run checked out, so the suite runs on that tree only once.
 A test the selection missed fails the `full` job on main after the merge.
