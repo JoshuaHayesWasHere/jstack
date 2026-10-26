@@ -62,7 +62,8 @@ from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
 from jmerge import mainjson, ready
 
-EVENTS = {"clock": "quiet", "held": "quiet"}
+HELD = "hold-stall"
+EVENTS = {"clock": "quiet", "hold-stall": "quiet"}
 CLOCK = "clock"
 STALL = "stall"
 FILE = "clock.json"
@@ -90,7 +91,6 @@ HOME = (
 HOLD_MINUTES = 30
 """The minutes rows may be held by one reason with no thread at work on it before jbus wakes their
 home and lists the hold on what waits on the user."""
-HELD = "held"
 HELD_FILE = "held.json"
 RUNNER = (
     ready.FRESH_QUEUED,
