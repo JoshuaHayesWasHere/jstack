@@ -127,3 +127,16 @@ def stray(css):
 
 def test_the_stylesheet_holds_nothing_outside_a_rule():
     assert stray(STYLE) == []
+
+
+def test_stray_finds_a_declaration_outside_a_rule_at_any_depth():
+    media = "@media (max-width: 640px)"
+    assert stray(f"a {{ x: 1px; }} {media} {{ b {{ x: 1px; }} c {{ y: 2px; }} }}") == []
+    assert stray(f"a {{ x: 1px; }} {media} {{ b {{ x: 1px; }} color: red; c {{ y: 2px; }} }}") == [
+        "color: red; c"
+    ]
+    assert stray(f"a {{ x: 1px; }} {media} {{ b {{ x: 1px; }} color: red; }}") == ["color: red;"]
+    assert stray("a { x: 1px; } color: red;") == ["color: red;"]
+    assert stray("a { x: 1px; } color: red; b { y: 2px; }") == ["color: red; b"]
+    assert stray("a { x: 1px; } }") == ["}"]
+    assert stray('@font-face { font-family: "x"; src: url("y"); } a { x: 1px; }') == []
