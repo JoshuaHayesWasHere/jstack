@@ -138,7 +138,7 @@ function renderNeeds() {
   put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + (soon.length ? ' <span class="nm">&middot; ' + soon.length + (soon.length === 1 ? " goes" : " go") + ' ahead on ' + (soon.length === 1 ? "its" : "their") + ' default</span>' : ""));
   var folded = !UNFOLDED && all.length > FIRST;
   keyed($("nq"), "li", "nr", all.map(function (w) { return { key: needId(w), html: needRow(w, !UNFOLDED) }; }));
-  [].forEach.call($("nq").children, function (li, n) { li.hidden = folded && n >= FIRST; });
+  [].forEach.call($("nq").children, function (li, n) { li.hidden = folded && n >= FIRST && !ACCEPTING[li.getAttribute("data-key")]; });
   $("nq").hidden = !all.length;
   foldLine(all);
   put($("nsaid"), saidRows());
