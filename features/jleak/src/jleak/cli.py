@@ -6,6 +6,7 @@
     jleak [--strict] [--patterns FILE] --command
     jleak --trailers
     jleak --commit-msg FILE
+    jleak --infra
 
 `--all` checks every tracked file of the repo it runs in. jleak checks a FILE as it is. It
 reads `-` as what is piped in, and a finding names that text by the FIELD that `--as` gives.
@@ -13,11 +14,14 @@ reads `-` as what is piped in, and a finding names that text by the FIELD that `
 the hook. `--command` reads what Claude Code gives a `PreToolUse` hook. It reads the private
 patterns only for a command that writes to a pull request, since no other command needs them.
 
-The last two forms read no private pattern: they look for the AI trailers of `jleak.trailers`.
+The next two forms read no private pattern: they look for the AI trailers of `jleak.trailers`.
 `--trailers` reads what Claude Code or Codex gives a `PreToolUse` hook, and refuses a commit or a
 pull request whose text has such a line, with exit code 2. `--commit-msg` reads what git gives a
 `commit-msg` hook, takes each such line out of the message file and prints one line that names
 them. It exits 0 whatever it finds, since the hook cleans a message and never stops a commit.
+
+`--infra` reads what Claude Code gives a `PreToolUse` hook, and refuses, with exit code 2, a call
+that changes infra's files, port 3773 or T3 Code's tailnet setup, as `jleak.infra` says.
 
 It prints one line for each finding, `<file or field>:<line>: <pattern's name>`, then
 `<n> findings`. The two hook forms print to stderr, where git and the agent read a refusal.
@@ -41,7 +45,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import jleak
-from jleak import sources, trailers
+from jleak import infra, sources, trailers
 
 
 def parser() -> argparse.ArgumentParser:
@@ -57,6 +61,9 @@ def parser() -> argparse.ArgumentParser:
     way.add_argument("--command", action="store_true", help="what a PreToolUse hook is given")
     way.add_argument(
         "--trailers", action="store_true", help="what a PreToolUse hook is given, for AI trailers"
+    )
+    way.add_argument(
+        "--infra", action="store_true", help="what a PreToolUse hook is given, for infra's files"
     )
     way.add_argument(
         "--commit-msg", metavar="FILE", type=Path, help="what a commit-msg hook is given"
@@ -141,6 +148,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if args.trailers:
         return refuse_trailers(sys.stdin.read())
+    if args.infra:
+        return infra.refuse(sys.stdin.read())
     if args.commit_msg:
         return clean_message(args.commit_msg)
     if not (args.all or args.push or args.command or args.files):

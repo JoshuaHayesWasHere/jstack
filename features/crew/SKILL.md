@@ -19,6 +19,28 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 ## Start
 
 1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`. If the brief does not exist and the message that started this thread has text below its first line, write that text, as is, to `$H/tasks/<slug>.md` and read it; otherwise say so and stop.
+   Then ask jbus whether the user's go holds for the brief on disk.
+   Run this with the block at the top:
+
+   ```sh
+   B="$H/tasks/<slug>.md"
+   if said=$(uv run --project "$T/../source" jbus queue verify '<slug>' --brief "$B"); then
+       echo "go: $(printf '%s\n' "$said" | jq -r .approved)"
+   else
+       case $said in
+       'refused: no config at '* | 'refused: no project '*) echo "no jbus: $said" ;;
+       *)
+           line=$(printf '%s\n' "$said" | jq -r 'if .approved == "" then "no go: jbus holds no go for \(.slug)" else "the go does not hold for \(.brief.path): \(.approved)" end' 2> /dev/null) || line=$said
+           [ -n "$line" ] || line="jbus printed nothing"
+           printf '\n## Result\nStatus: not done\nDone when: none started, the crew stopped at its start\nProof:\n- the go: %s\nBranch: %s   Pull request: none\nChanged: nothing\nSteers: none\nNoticed: none\nLeft: none\n' "$line" "$(git branch --show-current)" >> "$B"
+           echo "stop: $line"
+           ;;
+       esac
+   fi
+   ```
+
+   On `go` or `no jbus`, go on.
+   On `stop`, the block has written the Result: say its line here and do nothing else, not even "End".
 2. Check where you are: `git status -sb`. A home that launched this thread has already given it a worktree and a branch named for the task: work there. If this is instead the repo's main checkout on its default branch, make a branch first. Never commit on the default branch.
 3. See whether the brief names a playbook. Run this with the block at the top:
 
