@@ -77,6 +77,7 @@ Proceed on reversible work without asking: do it, and write down what you did an
 Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside.
 What the user's global instructions or the repo's own instructions tell a thread to confirm first is still confirmed first.
 When in doubt, act and write down what you did.
+Where no rule or script decides, weigh the work by jstack's vision and the user's judgment in `features/home/docs/vision.md`.
 
 For a home, reversible work is the plan, the briefs, the launches and the merge of what is ready. A question only the user can answer does not hold any of it up: "Gates". Planning with the user is not such a question: what the work is for comes from them.
 
