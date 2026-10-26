@@ -5,9 +5,6 @@
     ".sn .sn-c { font-size: 17px; } .sn a { color: var(--ink-2); } .sn a code { font-weight: 700; }";
   document.head.appendChild(css);
 })();
-/* The one thing kept: the last time the page was in view, as a number in this browser's own
-   storage. `SINCE_WAS` is the visit before this one, read at load and again each time the page
-   comes back into view after it was hidden. */
 var SINCE_KEY = "jbus.since.looked", SINCE_MAX = 3, SINCE_WAS = sinceKept(), SINCE_HIDDEN = document.visibilityState === "hidden";
 var SINCE_SAY = [["merged", "merged", "merged", "Merged"], ["stuck", "newly stuck", "newly stuck", "Stuck"], ["default", "default taken", "defaults taken", "Default taken for"]];
 function sinceKept() { try { var v = Number(localStorage.getItem(SINCE_KEY)); return v > 0 ? v : null; } catch (e) { return null; } }
