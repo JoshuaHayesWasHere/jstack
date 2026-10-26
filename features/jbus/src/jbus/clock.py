@@ -93,7 +93,6 @@ HOLD_MINUTES = 30
 home and lists the hold on what waits on the user."""
 HELD_FILE = "held.json"
 RUNNER = (
-    ready.FRESH_QUEUED,
     ready.GATE_BUSY,
     ready.GATE_LOCKED,
     ready.MAIN_MOVED,
@@ -103,8 +102,11 @@ RUNNER = (
     ready.MIGRATION_MERGING,
     ready.BASE_MERGE_ASKED,
     ready.BASE_MERGE_DUE,
+    ready.BASE_MOVED_ASKED,
+    ready.BASE_MOVED_DUE,
 )
-"""The waits the merge runner is at work on: `jmerge`, its fresh check and gate, and CI."""
+"""The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, and
+CI."""
 HELD_HOME = (
     "jbus: {rows} of this home's have been held {minutes} minutes by one reason, {reason}, and "
     "no thread is at work on it. Nobody picks it up by itself: pick it up as the home skill's "
