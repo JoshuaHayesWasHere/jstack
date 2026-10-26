@@ -29,9 +29,12 @@ jobs:
   # summary and in one warning with the count, carries continue-on-error. The tests' step stops
   # before the job's cap, so a hung run still gets its list.
   # The whole suite took 51 minutes there (run 40108766945); the list is about 640 tests.
+  # Since the check is required, the tests' cap fails it too: it is 22 minutes, twice the
+  # slowest of the last twelve runs (423 to 639 s), as the list grows with each mac- fix.
+  # The job's 25 leaves setup, about a minute, and the summary.
   macos:
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,7 +56,7 @@ jobs:
       # cores. No lint: check.yml's job lints on Linux.
       - name: quick tests
         id: suite
-        timeout-minutes: 12
+        timeout-minutes: 22
         run: >-
           uv run pytest -n 3 --dist worksteal --durations=25 -m "not browser"
           --junitxml="$RUNNER_TEMP/junit.xml" @testing/macos-quick.txt
