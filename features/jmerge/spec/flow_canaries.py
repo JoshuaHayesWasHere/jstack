@@ -64,22 +64,24 @@ def tlc(found, module, cfg):
             shutil.copy(spec, work)
         (work / "run.cfg").write_text(cfg)
         ran = subprocess.run(
-            [
-                found.java,
-                "-XX:+UseParallelGC",
-                f"-Djava.io.tmpdir={work}",
-                "-cp",
-                found.jar,
-                "tlc2.TLC",
-                "-workers",
-                "auto",
-                "-deadlock",
-                "-metadir",
-                str(work / "meta"),
-                "-config",
-                "run.cfg",
-                f"{module}.tla",
-            ],
+            tools.in_test_slot(
+                [
+                    found.java,
+                    "-XX:+UseParallelGC",
+                    f"-Djava.io.tmpdir={work}",
+                    "-cp",
+                    found.jar,
+                    "tlc2.TLC",
+                    "-workers",
+                    tools.workers(),
+                    "-deadlock",
+                    "-metadir",
+                    str(work / "meta"),
+                    "-config",
+                    "run.cfg",
+                    f"{module}.tla",
+                ]
+            ),
             cwd=work,
             capture_output=True,
             text=True,
@@ -116,6 +118,7 @@ def runs():
 def main():
     try:
         tlc_tools = tools.find_tlc()
+        tools.workers()
     except tools.NoTlc as e:
         print(e, file=sys.stderr)
         return 2
@@ -135,4 +138,5 @@ def main():
 
 
 if __name__ == "__main__":
+    tools.rerun_in_test_slot()
     sys.exit(main())
