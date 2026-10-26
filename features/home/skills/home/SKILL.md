@@ -224,7 +224,7 @@ Before a task goes to a crewmate, and when a step elsewhere names a step of this
 
 ## When a thread sends a message
 
-When a thread this home sent out sends it a message, when the user asks for status, and when a step elsewhere names a step of this section: read `$T/../skills/home/when-a-thread-sends-a-message.md` now.
+When a thread this home sent out sends it a message, when the user asks for status or runs `/ketchup`, and when a step elsewhere names a step of this section: read `$T/../skills/home/when-a-thread-sends-a-message.md` now.
 
 ## Clearing its own blockers
 
