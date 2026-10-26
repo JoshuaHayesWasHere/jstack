@@ -9,64 +9,65 @@
   uv run --project "$T/.." jgauge test-slot --short --thread <thread id> -- <the targeted tests>
   ```
 
-  The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one. A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once. The check command is never run in the short lane.
+  The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one.
+  A run still going at the lane's time limit (`jgauge test-slot --help` gives it) is stopped, exit 124, and says so: run fewer files at once.
+  Only jstack's selected check, below, runs the check in the short lane.
 
   `<thread id>` is this thread's own id: the `t3-code` server's `t3_thread_configuration` with no arguments gives it as `threadId` (if your harness defers it, load it first). With `--thread` the call waits for no slot. When every slot of the lane is taken it registers this thread as a waiter, prints one line saying so, and ends 76. Then end your turn at once, with one line: `Waiting on a test slot: jbus will wake this thread when one is free.` Never poll for a slot, never loop on the call, never wait in a background job, and never end the turn with nothing said: `jbus poll` sends this thread one message when a slot of the lane is free, and that message is the wake. On it, run the same command again. If the slots are taken again by then, the call registers this thread again and you stop again: each wait is woken once. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.
-- Once every **Done when** line holds, run the repo's check command (`notes.md` names it), once, under a test slot. It is that command and no other, whatever command a brief's **Done when** names for it. Run this in this worktree, with the block at the top and the check command in place of the words in angle brackets. Every run of the check command this skill asks for, after a failed check, a rebase or a fix, is this block:
+- Once every **Done when** line holds, with the work committed, run the check of the change, once.
+  In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the check is the lint and only the tests that cover the files the branch changed since it left its base, in the short lane.
+  The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` or `Stack:` line, and `origin/main` for a brief with neither.
+  A base branch that is gone, as one is once it merged, is `origin/main` too.
+  It never takes a full slot: CI's check on the pull request runs every test the selection leaves out, and CI's check is the gate.
+  In any other repo the check is the repo's check command (`notes.md` names it), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
+  Run this in this worktree, with the block at the top, and the brief's slug and the check command in place of the words in angle brackets.
+  Every run of the check this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
-  G=$(git rev-parse --path-format=absolute --git-dir)
-  C="$G/crew-check"
-  limit=540
-  index="$G/crew-check.index"
-  rm -f "$index"
-  cp "$(git rev-parse --path-format=absolute --git-path index)" "$index" 2> /dev/null
-  tree=$(GIT_INDEX_FILE="$index" git add -A && GIT_INDEX_FILE="$index" git write-tree)
-  rm -f "$index"
-  running() { [ -f "$C/pid" ] && ! [ -f "$C/exit" ] && kill -0 "$(cat "$C/pid")" 2> /dev/null; }
-  if running; then
-      if [ "$(cat "$C/tree")" = "$tree" ]; then
-          echo "joined: the check an earlier call started on this worktree still runs, so it is waited on and not started again"
+  if [ -f scripts/select_tests.py ]; then
+      on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit} /^Stack:/ {print $(5); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
+      on=origin/${on:-main}
+      git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
+      if ! base=$(git merge-base "$on" HEAD); then
+          echo "no check: the branch shares no commit with $on"
+          false
+      elif ! tests=$(python3 scripts/select_tests.py "$base" HEAD); then
+          echo "no check: scripts/select_tests.py could not select the tests"
+          false
       else
-          echo "joined: a check an earlier call started still runs, on the worktree as it was then: it is waited on and not started again, and once it is done this block is run again for the worktree as it is now"
+          lint=
+          case $tests in
+          all)
+              lint='PYTEST=:'
+              echo "selected: all, the whole suite: lint only here, and CI's check runs every test"
+              ;;
+          '')
+              lint='PYTEST=:'
+              echo 'selected: none, no test covers this change: lint only'
+              ;;
+          *)
+              echo "selected: $(printf '%s\n' "$tests" | wc -l | tr -d ' ') test files, in the short lane:"
+              printf '%s\n' "$tests"
+              ;;
+          esac
+          uv run --project "$T/.." jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" $lint
       fi
-  elif [ -f "$C/exit" ] && ! [ -f "$C/told" ] && [ "$(cat "$C/tree" 2> /dev/null)" = "$tree" ]; then
-      echo "checked: the check of this worktree as it is now ended after the last call, and this is what it said"
   else
-      rm -rf "$C" && mkdir -p "$C" && echo "$tree" > "$C/tree"
-      cat > "$C/run" << 'THE_CHECK_ENDS_HERE'
+      uv run --project "$T/.." jgauge check --thread '<thread id>' << 'THE_CHECK_ENDS_HERE'
   <check command>
   THE_CHECK_ENDS_HERE
-      setsid sh -c 'echo $$ > "${1}/pid"; uv run --project "${2}" jgauge test-slot --thread "${3}" -- sh "${1}/run" > "${1}/out" 2>&1; echo $? > "${1}/exit"' check "$C" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
-      for second in 1 2 3 4 5 6 7 8 9 10; do [ -f "$C/pid" ] && break; sleep 1; done
-      echo "started: the check runs on this worktree as it is now, and this call waits on it"
-  fi
-  waited=0
-  while ! [ -f "$C/exit" ] && running && [ "$waited" -lt "$limit" ]; do
-      sleep 1
-      waited=$((waited + 1))
-  done
-  if [ "$(cat "$C/exit" 2> /dev/null)" = 76 ] && grep -q "is registered as a waiter" "$C/out"; then
-      cat "$C/out"
-      rm -rf "$C"
-      echo "waiting: no test slot is free and nothing ran: end your turn now with the one line, and run this block again when jbus wakes this thread"
-      (exit 76)
-  elif [ -f "$C/exit" ] && [ "$(cat "$C/tree")" != "$tree" ]; then
-      touch "$C/told"
-      echo "stale: the check exited $(cat "$C/exit") on the worktree as it was when it started, which has changed since: run this block again, and it checks the worktree as it is now"
-      (exit 75)
-  elif [ -f "$C/exit" ]; then
-      touch "$C/told"
-      tail -n 20 "$C/out"
-      echo "done: the check exited $(cat "$C/exit")"
-      (exit "$(cat "$C/exit")")
-  elif running; then
-      echo "running: $(tail -n 1 "$C/out" 2> /dev/null). Run this block again now, in this turn, and again until it prints done: never end your turn while it runs"
-  else
-      echo "lost: the check stopped with no exit code: run this block again, and it starts the check afresh"
   fi
   ```
 
+  A `no check:` line ends the block 1: nothing was checked, and it is no proof.
+  In jstack the block prints its `selected:` line first, with the test files it runs, and `make check-fast` runs the lint and those files in a slot of the short lane.
+  `PYTEST=:` is what keeps a selection of none or of all to the lint.
+  Give the call a time limit of 3 minutes (`timeout: 180000` in Claude Code), and never send it to the background.
+  With every slot of the lane taken, it ends 76, and the turn ends as a targeted run's does, with the same one line.
+  It ends with the exit code of `make check-fast`, and on 0 the `selected:` line and that exit code go on `Proof:`.
+  The pull request is ready only once CI's check on it passed, as "The checks" says, and `Proof:` names CI's check at that head beside the selected run.
+  On 124 the selected tests ran past the lane's time limit, which says nothing of the change: open the pull request, and let CI's check be the proof, as `Proof:` then says.
+  In any other repo the block runs `jgauge check`, and the rest of this step is about that run.
   It starts the check command on its own, holding one of the machine-wide test slots, and the call waits on it for up to 9 minutes. Give the call a time limit of 10 minutes, the longest a call in the foreground gets (`timeout: 600000` in Claude Code), and never send it to the background. With every slot taken, nothing runs: the check registers this thread as a waiter, and the block prints `waiting` and ends 76. That wait is the one time the turn ends: end it at once with the one line above, and on jbus's message run this block again, which starts the check afresh. A check runs as long as the check command takes once it holds a slot, longer where the command runs the whole suite, so one call is not always enough: on `running`, run the block again, in this turn, as many times as it takes, until it prints `done`. Never end your turn while your own check runs, and never say you will go on once it finishes: nothing wakes a thread when a command ends, only a message does, and the push, the Result and the pull request would never come. A check that a call or a turn before this one started is joined, not started again (`joined`), and one that ended after the last call gives what it said (`checked`). A check whose answer a call already gave runs afresh on the next call, so a failure that was not the change's (a flake, a full `/tmp`) is run again by running the block again. On `stale`, the check ran on files that have changed since, and its answer is no proof: run the block again. On `done`, the block ends with the command's exit code: put its last line on `Proof:`. Never run the command a second way to get past the wait. Testing, not coding, is what uses up the machine, so the check command is not how you find out whether an edit works: the targeted runs are. Run it again only after changing something to fix what that run found.
 - A repo's heavy suite (a browser end-to-end matrix, anything that runs under the machine-wide `heavy-suite.lock`) is part of that one run of the check command, and the crewmate runs it: once, under the test slot, and under the suite's own `heavy-suite.lock`, which the repo's command for the suite takes itself. While you work, run the checks your change touches (the spec files it edits or covers) and not the whole suite. The reviewer never runs it, whatever the brief's `Review:` line or the repo's `notes.md` says. A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Write each Markdown prose line you add or change as one sentence, and leave old lines as they are: jstack's check (`features/writing/scripts/prose_lint.py`) fails a new line that holds two.
