@@ -28,7 +28,7 @@ env:
   # each job. check.yml, browser.yml and pstack-drift.yml name the same one
   # (testing/tests/test_workflows.py).
   UV_VERSION: "0.13.2"
-  # The zsh both zsh steps install: noble's two .debs, each after its SHA-256, from Ubuntu's own
+  # What both zsh steps install: noble's two .debs, each after its SHA-256, from Ubuntu's own
   # archive. apt fetches from the image's Azure mirror, which at times serves 39 kB/s: its
   # `apt-get update` and install took the step 140 to 270 seconds. Noble's release pocket
   # keeps these files for as long as noble lives, and a file that is not this one fails the
