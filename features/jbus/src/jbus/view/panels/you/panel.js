@@ -223,7 +223,10 @@ document.addEventListener("click", function (e) {
   else if (f) { var id = f.getAttribute("data-form"); FORM[id] = true; renderNeeds(); var box = document.querySelector('#needs [data-type="' + CSS.escape(id) + '"]'); if (box) box.focus(); }
   else if (x) { delete FORM[x.getAttribute("data-shut")]; renderNeeds(); }
   else if (e.target.closest("[data-unsay]")) unsay();
-  else if (e.target.closest("[data-fold]")) { UNFOLDED = !UNFOLDED; renderNeeds(); var back = document.querySelector("#nfold [data-fold]"); if (back) back.focus(); }
+  else if (e.target.closest("[data-fold]")) {
+    UNFOLDED = !UNFOLDED; renderNeeds();
+    var next = UNFOLDED ? document.querySelector("#nq > .nr:nth-child(" + (FIRST + 1) + ") .nw") : document.querySelector("#nfold [data-fold]"); if (next) next.focus();
+  }
 });
 document.addEventListener("input", function (e) {
   var t = e.target.closest && e.target.closest("[data-type]"); if (!t) return;
