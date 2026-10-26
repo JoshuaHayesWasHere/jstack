@@ -62,7 +62,7 @@ class Machine:
     ("view", "link"),
     [
         ({}, "http://127.0.0.1:4388/#/demo"),
-        ({"JBUS_VIEW_ORIGINS": "https://view.example.test"}, "https://view.example.test/#/demo"),
+        ({"JBUS_VIEW_ORIGINS": "https://example.test"}, "https://example.test/#/demo"),
     ],
 )
 def test_the_status_step_ends_with_the_projects_page_in_jbus_view(tmp_path, view, link):

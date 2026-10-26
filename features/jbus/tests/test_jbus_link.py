@@ -24,9 +24,9 @@ def test_it_prints_the_projects_page_on_this_machine(here):
 
 
 def test_it_prints_the_page_behind_the_proxy_the_user_opens(here, monkeypatch):
-    monkeypatch.setenv("JBUS_VIEW_ORIGINS", " , https://view.example.test/,https://other.test")
+    monkeypatch.setenv("JBUS_VIEW_ORIGINS", " , https://example.test/,https://example.com")
     monkeypatch.setenv("JBUS_VIEW_NAMES", "box.tail")
-    assert here.main("link") == (0, "https://view.example.test/#/demo\n")
+    assert here.main("link") == (0, "https://example.test/#/demo\n")
 
 
 @pytest.mark.parametrize(
@@ -43,7 +43,7 @@ def test_it_prints_the_name_or_address_the_view_listens_on(here, monkeypatch, na
 
 
 def test_an_item_and_the_project_page_are_at_the_same_place(here, monkeypatch):
-    monkeypatch.setenv("JBUS_VIEW_ORIGINS", "https://view.example.test")
+    monkeypatch.setenv("JBUS_VIEW_ORIGINS", "https://example.test")
     code, said = here.main("link")
     assert code == 0
     assert cards.view_link("demo", "i-7") == said.strip() + "/item/i-7"
