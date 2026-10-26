@@ -20,7 +20,8 @@ jobs and merged pull requests of each configured project's repo, and prints for 
   that starts before them is time no record covers.
 
 `jbus flow nudges <since> <until>` counts the owner's nudges in the home threads instead, from
-T3 Code's store (`jbus.flow.nudges`).
+T3 Code's store (`jbus.flow.nudges`), and `jbus flow asks <since> <until>` his status asks in
+every thread, per job and per day (`jbus.flow.asks`).
 
 It writes nothing: no state, no lock, no file. It takes no lock, so it runs beside a pass. What it
 prints is passed through `jbus.redact` with the config's secrets, so no webhook URL, key or token
@@ -42,7 +43,7 @@ from typing import Any
 import jbus
 from jbus import digest, verbs
 from jbus.ci import ledger
-from jbus.flow import measure, nudges, records
+from jbus.flow import asks, measure, nudges, records
 
 DEFAULT_DAYS = 7
 
@@ -295,6 +296,8 @@ def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
     """Print the measure of the window. It writes nothing."""
     if args.measure == "nudges":
         return _nudges(args, config)
+    if args.measure == "asks":
+        return _asks(args, config)
     until = _time(args.until, config) or datetime.now(UTC)
     since = _time(args.since, config) or until - timedelta(days=DEFAULT_DAYS)
     if since >= until:
@@ -315,17 +318,26 @@ def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
 
 
 FLOW_ONLY = ("--since", "--until", "--rows", "--journal", "--no-github", "--jobs", "--no-journal")
-"""The flags of `jbus flow` that `jbus flow nudges` has no use for, refused before it."""
+"""The flags of `jbus flow` that `jbus flow nudges` and `jbus flow asks` have no use for,
+refused before them."""
+
+
+def _window(args: argparse.Namespace, config: jbus.Config) -> tuple[datetime, datetime]:
+    """Return the window a count of T3 Code's store gives, refusing a flag of `jbus flow`'s."""
+    given = [flag for flag in FLOW_ONLY if getattr(args, flag.lstrip("-").replace("-", "_"))]
+    if given:
+        raise jbus.Refused(
+            f"refused: {', '.join(given)} is jbus flow's, not jbus flow {args.measure}'"
+        )
+    since, until = _time(args.start, config), _time(args.end, config)
+    if since >= until:
+        raise jbus.Refused(f"refused: {args.start} is not before {args.end}")
+    return since, until
 
 
 def _nudges(args: argparse.Namespace, config: jbus.Config) -> int:
     """Print each nudge of the window and the count. It writes nothing."""
-    given = [flag for flag in FLOW_ONLY if getattr(args, flag.lstrip("-").replace("-", "_"))]
-    if given:
-        raise jbus.Refused(f"refused: {', '.join(given)} is jbus flow's, not jbus flow nudges'")
-    since, until = _time(args.start, config), _time(args.end, config)
-    if since >= until:
-        raise jbus.Refused(f"refused: {args.start} is not before {args.end}")
+    since, until = _window(args, config)
     said = nudges.messages(nudges.read(args.store, args.title), since, until)
     found = nudges.nudges(said)
     if args.json:
@@ -336,6 +348,30 @@ def _nudges(args: argparse.Namespace, config: jbus.Config) -> int:
         out = json.dumps({"messages": len(said), "nudges": len(found), "list": rows}, indent=2)
     else:
         out = nudges.text(said, found)
+    print(jbus.redact(out, config.secrets()))
+    return 0
+
+
+def _asks(args: argparse.Namespace, config: jbus.Config) -> int:
+    """Print each ask of the window, and the count per job and per day. It writes nothing."""
+    since, until = _window(args, config)
+    said = asks.messages(nudges.read(args.store, args.title), since, until)
+    found = asks.asks(said)
+    counted = asks.count(found, lambda at: config.user.local(at).date())
+    if args.json:
+        rows = [
+            {
+                "at": one.message.at.isoformat(),
+                "jobs": list(one.jobs),
+                "home": one.message.home,
+                "thread": one.message.thread,
+                "first": one.first,
+            }
+            for one in found
+        ]
+        out = json.dumps({"messages": len(said), **counted, "list": rows}, indent=2)
+    else:
+        out = asks.text(found, said, counted)
     print(jbus.redact(out, config.secrets()))
     return 0
 
@@ -387,6 +423,27 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         default=argparse.SUPPRESS,
         help="print the count and list as JSON, as jbus flow --json does before nudges",
+    )
+    count = measures.add_parser(
+        "asks",
+        help="the owner's status asks per job and per day, from T3 Code's store",
+        description=asks.DEFINITION,
+    )
+    count.add_argument("start", metavar="since", help="from this time, the user's zone with none")
+    count.add_argument("end", metavar="until", help="to this time, as since")
+    count.add_argument(
+        "--title",
+        default=asks.TITLE,
+        help="threads whose title is like this, as SQL's like (default: '%%', every thread)",
+    )
+    count.add_argument(
+        "--store", type=Path, default=nudges.STORE, help="T3 Code's store, opened read-only"
+    )
+    count.add_argument(
+        "--json",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="print the counts and list as JSON, as jbus flow --json does before asks",
     )
 
 
