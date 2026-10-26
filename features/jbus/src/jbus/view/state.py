@@ -736,40 +736,40 @@ def _tasks(
         )
     _blocks(tasks, ended)
     queued = {task["slug"]: task["blockers"] for task in tasks if task["step"] == "queued"}
-    flow = waves(sorted((row["slug"] for row in rows), key=lambda slug: slug in through), queued)
+    last = waits_on(sorted((row["slug"] for row in rows), key=lambda slug: slug in through), queued)
     for task in tasks:
-        task["wave"], task["waits_on"] = flow.get(task["slug"], (None, ""))
+        task["waits_on"] = last.get(task["slug"], "")
     return tasks, ended
 
 
-def waves(order: list[str], front: dict[str, list[str]]) -> dict[str, tuple[int, str]]:
-    """The wave of each queued row, and the one row it waits on last.
+def waits_on(order: list[str], front: dict[str, list[str]]) -> dict[str, str]:
+    """The one row each queued row waits on last, the head of its longest chain.
 
     `order` is the queue's slugs, followed by the rows that the log has as merged, as in
     `blockers`. `front` has each queued row with the rows in front of it that are not merged
-    or done. A row that `front` does not have is out, and its wave is 0. A row with nothing
-    in front has wave 0, and any other row has one more than the highest wave in front of
-    it. The row it waits on last is the one with that highest wave, and among equals the
-    first in the queue. While the function works out a row's wave, the row may come up again
+    or done. A row that `front` does not have is out, and its depth is 0. A row with nothing
+    in front has depth 0, and any other row has one more than the deepest row in front of
+    it. The row it waits on last is the deepest one in front of it, and among equals the
+    first in the queue. While the function works out a row's depth, the row may come up again
     in front of itself. It then counts as 0, so that the count ends for rows that depend on
     each other.
     """
     place = {slug: at for at, slug in enumerate(order)}
     found: dict[str, int] = {}
 
-    def wave(slug: str) -> int:
+    def depth(slug: str) -> int:
         if slug not in front:
             return 0
         if slug not in found:
             found[slug] = 0
-            found[slug] = max((wave(one) + 1 for one in front[slug]), default=0)
+            found[slug] = max((depth(one) + 1 for one in front[slug]), default=0)
         return found[slug]
 
     def last(slug: str) -> str:
-        ahead = sorted(front[slug], key=lambda one: (-wave(one), place.get(one, len(place))))
+        ahead = sorted(front[slug], key=lambda one: (-depth(one), place.get(one, len(place))))
         return ahead[0] if ahead else ""
 
-    return {slug: (wave(slug), last(slug)) for slug in front}
+    return {slug: last(slug) for slug in front}
 
 
 def _live(word: Any) -> str:

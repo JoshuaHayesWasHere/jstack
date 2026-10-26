@@ -1,9 +1,8 @@
 /* The probe that the page test adds to the page. It counts the words on the first screen, the
    view's words and the shell's words apart. It measures how big each tap target is and what is cut
-   off. It opens every drawer, picks a row in the drawer of the queue as a flow, and answers the
-   gates it is told to, one by one or as a batch. Then it writes what it found into a pre that the
-   browser prints. In a frame, which is how the test gets a screen as narrow as a phone, the pre
-   goes into the page that holds the frame. */
+   off. It opens every drawer, and answers the gates it is told to, one by one or as a batch. Then
+   it writes what it found into a pre that the browser prints. In a frame, which is how the test
+   gets a screen as narrow as a phone, the pre goes into the page that holds the frame. */
 window.__errs = [];
 /* Record each change to the page from the start: when it came, and the part it is in. The part
    is the nearest element with an id, or a row of every project by its key. What the probe itself
@@ -232,27 +231,6 @@ window.addEventListener("load", function () { setTimeout(function () {
     if (target === "bus") out.links = all("li [data-open]", dw).map(function (b) { return b.getAttribute("data-open"); });
     document.getElementById("dw-close").click();
     out.opened[out.opened.length - 1].closed = !drawer.open;
-    drawer.close();
-  }
-  /* The drawer of the queue as a flow: its columns and where each one stands, then a row that the
-     probe picks. */
-  function flow() {
-    var dw = document.getElementById("dw");
-    function slugs(q) { return all(q, dw).map(function (r) { return text(r.querySelector(".lb")); }); }
-    return { title: text(document.getElementById("dw-title")), chain: text(dw.querySelector(".now .big")), box: box(drawer),
-      columns: all(".fc", dw).map(function (c) { return [text(c.querySelector("h3")), all(".fr", c).map(function (r) { return text(r.querySelector(".lb")); })]; }),
-      lefts: all(".fc", dw).map(function (c) { return box(c)[0]; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).length,
-      borders: all(".fr", dw).map(border).filter(function (x, i, a) { return a.indexOf(x) === i; }), labels: all(".fr", dw).map(function (r) { return called(r); }),
-      picked: slugs(".fr.pk"), up: slugs(".fr.up"), down: slugs(".fr.dn"), dim: slugs(".fr.dim").length, said: text(dw.querySelector("p:not(#dw-fresh)")) };
-  }
-  if (window.__pick) {
-    var way = document.createElement("button"); way.setAttribute("data-open", "flow"); document.body.appendChild(way); way.click(); way.remove();
-    out.flow = flow();
-    document.querySelector('#dw .fr[data-pick="' + CSS.escape(window.__pick) + '"]').click();
-    out.picked = flow();
-    function tap(q) { document.querySelector(q).click(); return flow().picked; }
-    var row = '#dw .fr[data-pick="' + CSS.escape(window.__pick) + '"]';
-    out.taps = [tap(row), tap("#dw .now [data-pick]"), tap("#dw .now [data-pick]"), tap(row)];
     drawer.close();
   }
   /* Answer the gates. Each of `ways` opens one gate, picks a card or types words where the test
