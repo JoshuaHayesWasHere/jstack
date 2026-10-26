@@ -30,8 +30,8 @@ from testing.layouts import assembled
 
 def variable(name):
     """A shell variable as a pattern: `$H`, `${H}`, or `${H:-<its default>}`, with `-`, `=` or `:=`
-    in place of `:-` too."""
-    return rf"\$\{{?{name}\b(?::?[-=][^}}]*)?\}}?"
+    in place of `:-` too. A default is read only inside braces: `$H-based` is `$H`."""
+    return rf"\$(?:\{{{name}:?[-=][^}}]*\}}|\{{?{name}\b\}}?)"
 
 
 READ_SET = ("*.md",)
