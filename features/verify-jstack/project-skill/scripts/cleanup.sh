@@ -21,7 +21,7 @@ fi
 E=$(dirname "$S")/verify-jstack-evidence/$(basename "$S")
 if [ -d "$S" ]; then
   pid=$(cat "$S/t3/pid" 2>/dev/null)
-  if [ -n "$pid" ] && tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null | grep -qF "fake_t3.py $S/t3"; then
+  if [ -n "$pid" ] && ps -ww -o command= -p "$pid" 2>/dev/null | grep -qF "fake_t3.py $S/t3"; then
     kill "$pid" && echo "stopped the stand-in for T3 Code (pid $pid)"
   else
     echo "the stand-in for T3 Code was not running"
