@@ -16,11 +16,12 @@ from view.page.browser import (
     TODAY,
     WORDS,
     clean,
+    gated,
     lineup,
     look,
     walked,
 )
-from view.scene import Served, a_noticed, ago, iso, said_by_him, stacked
+from view.scene import Served, a_noticed, ago, asks, iso, said_by_him, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -110,6 +111,30 @@ def test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_defau
     assert folded["changes"] < seen["walked"][1]["changes"]
     if screen[0] == PHONE[0]:
         assert seen["small"] == []
+
+
+def test_folding_the_inbox_keeps_an_accept_that_is_counting_on_screen_with_its_undo(
+    scene, tmp_path
+):
+    """An accept started on a row under the first 3 counts 10 seconds before it writes. Folding
+    the inbox in that time leaves that row shown, so its Undo stays in reach."""
+    gated(scene)
+    asks(scene, "honey?")
+    screen = (DESK[0], DESK[1] + NEEDS)
+    fold = "tap:#nfold [data-fold]"
+    walk = [
+        "look",
+        fold,
+        "tap:#nq > .nr:nth-child(n+4) [data-accept][aria-description]",
+        fold,
+        "look",
+    ]
+    seen = look(scene, tmp_path, screen=screen, walk=walk, at=4000 + 500 * len(walk), budget=20000)
+    assert seen["errors"] == []
+    counting = [one for one in seen["needs"]["now"] if one["acting"]]
+    assert len(counting) == 1 and counting[0]["acting"].endswith("Undo")
+    assert counting[0]["box"][2] > 0, "the row that counts is not folded away"
+    assert seen["needs"]["fold"]["expanded"] == "false"
 
 
 def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, tmp_path):
