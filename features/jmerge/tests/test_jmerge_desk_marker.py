@@ -5,13 +5,14 @@ merged over main, and jmerge pushed the desk's marker of that tree. Main's `full
 marker and skipped `make check` in 17 s, though the tree broke a test that check-fast had not
 selected. Main read green, its red cleared, and jmerge merged four more pull requests onto it.
 
-The replay builds the same shape from small made-up commits: a tree whose `make check-fast`
-passes and whose `make check` fails, then the next pull request. jmerge runs the fresh check and
-marks the tree, and main's `full` job runs as check.yml says: `scripts/green_tree.py` asks a
-`gh` that answers from the origin, and the job runs `make check` unless the script says
-`green`. What jbus then records of main's check is what that run ended with, and jmerge holds
-the next merge while main is red. A fresh check whose command is `make check` leaves a marker
-that does skip main's suite."""
+jmerge runs no local check and pushes no desk marker since fl-gh-recheck, but a desk marker can
+still be on the origin, and check.yml still reads one. The replay builds the same shape from small
+made-up commits: a tree whose `make check-fast` passes and whose `make check` fails, then the next
+pull request. The desk's marker of the tree is pushed by hand, as the old fresh check pushed it,
+and main's `full` job runs as check.yml says: `scripts/green_tree.py` asks a `gh` that answers
+from the origin, and the job runs `make check` unless the script says `green`. What jbus then
+records of main's check is what that run ended with, and jmerge holds the next merge while main
+is red. A desk marker of `make check` does skip main's suite."""
 
 import json
 import subprocess
@@ -20,7 +21,7 @@ import sys
 import test_jmerge_fresh as fresh
 import test_jmerge_order as order
 import test_workflows as workflows
-from jmerge import mainjson
+from jmerge import green, mainjson
 
 LONG = "".join(f"{n}\n" for n in range(1, 9))
 MAKEFILE = (
@@ -60,9 +61,9 @@ else:
 
 def kitchen_of(tmp_path, command):
     """A repo whose `wake.py` may have five lines: check-fast does not test that, and `make
-    check` does. The repo's fresh check is `command`, and jbus knows the repo as `demo`."""
+    check` does. The desk's marker says it ran `command`, and jbus knows the repo as `demo`."""
     kitchen = fresh.Kitchen(tmp_path, {"wake.py": "1\n", "Makefile": MAKEFILE})
-    (kitchen.home.state / "fresh-check").write_text(f"{command}\n")
+    kitchen.command = command
     return kitchen
 
 
@@ -116,15 +117,17 @@ def main_judged(kitchen, tip, passed):
 
 
 def merged_on_the_desk(kitchen):
-    """#332's shape: its head makes `wake.py` too long, and main changed `wake.py` after its
-    check started, so jmerge runs the fresh check on the head merged over today's main and,
-    when it passes, marks that tree and merges. Return main's tip after the merge."""
-    kitchen.crew("long", 332, {"wake.py": "1\n" + LONG})
-    kitchen.on_main({"wake.py": "0\n1\n"})
-    (said,) = kitchen.after_check()
+    """#332's shape: its head makes `wake.py` too long, and it merges with the desk's marker of
+    the tree it merged as, pushed the way the old fresh check pushed it. Return main's tip."""
+    kitchen.crew("long", 332, {"wake.py": "1\n" + LONG}, checks=(fresh.AFTER,))
+    (said,) = kitchen.run()
     assert said.startswith("merged 332 long "), said
     del kitchen.pulls["long"]
-    return kitchen.tip()
+    tip = kitchen.tip()
+    tree = fresh.git(kitchen.origin, "rev-parse", f"{tip}^{{tree}}")
+    ref = green.ref(tree, green.covers(kitchen.command))
+    fresh.git(kitchen.origin, "update-ref", ref, tip)
+    return tip
 
 
 def test_a_tree_only_check_fast_passed_runs_the_whole_suite_on_main_and_main_red_holds_the_next(
@@ -132,7 +135,6 @@ def test_a_tree_only_check_fast_passed_runs_the_whole_suite_on_main_and_main_red
 ):
     kitchen = kitchen_of(tmp_path, "make check-fast")
     tip = merged_on_the_desk(kitchen)
-    assert fresh.markers(kitchen), "jmerge marked no tree"
     suite, passed, line = full_job(kitchen, tip)
     assert (suite, passed) == (True, False), line
     assert "so the suite runs" in line

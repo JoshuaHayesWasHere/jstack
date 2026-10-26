@@ -3,11 +3,10 @@
 A pull request's check runs on its merge with the base as the base was then, and a rerun runs on
 that same merge. So a check that failed while the base was red stays red after the base is
 fixed, and no push of the crew's is owed for it. `jmerge` judges such a pull request again once
-its base has moved since the check started and is not red. Where the repo has a `fresh-check`
-file, the command runs on the head merged over today's base first (`cli.Fresh`), once for a head
-and a base tip. On a pass, or with no such file, `BaseMerge` asks GitHub to merge the base into
-the branch, and GitHub's new check at the new head decides the rest by the normal path. On a fail
-the line is `ready.FRESH_FAILS`, on which jbus tells the crew once.
+its base has moved since the check started and is not red: `BaseMerge` asks GitHub to merge the
+base into the branch, and GitHub's new check at the new head decides the rest by the normal path.
+A green pull request whose base moved under it takes the same path where the repo has a
+`fresh-check` file (`cli.Merged`), so no suite runs on this machine for a merge.
 
 GitHub's endpoint merges the base into the branch and rewrites no history:
 https://docs.github.com/en/rest/pulls/pulls#update-a-pull-request-branch. `expected_head_sha`
@@ -52,20 +51,23 @@ class BaseMerge:
             return {}
         return known if isinstance(known, dict) else {}
 
-    def of(self, one: ready.PullRequest, tip: str) -> str:
-        """Why the pull request waits once its base's merge into it is asked of GitHub."""
+    def of(
+        self,
+        one: ready.PullRequest,
+        tip: str,
+        asked: str = ready.BASE_MERGE_ASKED,
+        due: str = ready.BASE_MERGE_DUE,
+    ) -> str:
+        """Why the pull request waits once its base's merge into it is asked of GitHub: `asked`
+        once it is asked, and `due` in a run that asks nothing."""
         was = self.known().get(str(one.number))
         if isinstance(was, dict) and (was.get("head"), was.get("tip")) == (one.head, tip):
             return str(was.get("said") or "")
         values = {"base": one.base, "tip": tip[:SHA]}
         if not self.run:
-            return ready.BASE_MERGE_DUE.format(**values)
+            return due.format(**values)
         why, answered = self.ask(one)
-        said = (
-            ready.BASE_MERGE_REFUSED.format(**values, why=why)
-            if why
-            else ready.BASE_MERGE_ASKED.format(**values)
-        )
+        said = ready.BASE_MERGE_REFUSED.format(**values, why=why) if why else asked.format(**values)
         if not answered:
             return said
         now = datetime.now().astimezone()

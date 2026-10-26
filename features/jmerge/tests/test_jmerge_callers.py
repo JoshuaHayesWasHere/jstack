@@ -3,9 +3,10 @@ started. A change to main counts when it touches the pull request's files or CI'
 (`features/jmerge/tests/test_jmerge_fresh.py`). Since pstack #613, a change to main also counts
 when it adds a caller of those files, or of something they depend on, in a file that the pull
 request does not change. In a repo with a fresh-check file, such a pull request waits for a fresh
-check. The check runs the repo's command on the head merged over today's main, and the pull request
-merges when the check passes. A repo with no fresh-check file has no such check to run, so the
-pull request merges on its green check and the merge line names what main changed.
+check: GitHub is asked to merge today's main into its branch, and its check at the updated head,
+which runs on the merge result, decides (`test_jmerge_rejudge.py`). A repo with no fresh-check
+file has no such check to run, so the pull request merges on its green check and the merge line
+names what main changed.
 
 The tests run the command against a real origin, as
 `features/jmerge/tests/test_jmerge_fresh.py` does."""
@@ -14,7 +15,8 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import ready
-from test_jmerge_fresh import BEFORE, STALE, STARTED, Kitchen, git, url, write
+from test_jmerge_fresh import GH, STALE, STARTED, Kitchen, url
+from test_jmerge_rejudge import MOVED, UPDATE
 
 CORE = "def f():\n    return 1\n"
 RENAMED = "def g():\n    return 1\n"
@@ -87,14 +89,15 @@ def test_with_no_fresh_check_main_changing_the_pull_requests_own_file_still_wait
     assert kitchen.run() == [f"wait 7 {url(7)}: {STALE.format('src/pkg/core.py')}"]
 
 
-def test_with_a_fresh_check_a_file_that_names_a_changed_path_queues_the_fresh_check(kitchen):
+def test_with_a_fresh_check_a_file_that_names_a_changed_path_asks_github_to_update_it(kitchen):
     (kitchen.home.state / "fresh-check").write_text("true\n")
-    head = kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
+    gh = kitchen.home.stub / "gh"
+    gh.write_text(GH.replace("    *) exit 64 ;;\n", UPDATE + "    *) exit 64 ;;\n"))
+    kitchen.crew("two", 7, {"src/pkg/core.py": CORE + "\n# ours\n"})
+    (kitchen.home.stub / "branch-7").write_text("two")
     main = kitchen.on_main({"docs/notes.md": "see src/pkg/core.py\n"})
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ")
-    assert f"fresh: true passed on {head[:12]} over {main[:12]}" in said
-    assert "fresh: none" not in said
+    assert kitchen.run() == [f"wait 7 {url(7)}: {MOVED.format(tip=main[:12])}"]
+    assert (kitchen.home.stub / "updated").read_text().split() == ["7"]
 
 
 def test_main_changing_only_unrelated_files_leaves_the_check_standing(kitchen):
@@ -102,31 +105,6 @@ def test_main_changing_only_unrelated_files_leaves_the_check_standing(kitchen):
     kitchen.on_main({"docs/notes.md": "still nothing about the code\n"})
     (said,) = kitchen.run()
     assert said.startswith("merged 7 two ")
-
-
-def test_the_fresh_check_runs_on_the_merge_result_and_catches_a_caller_main_added(kitchen):
-    """The patch renames f, and main adds a caller of f. Each passes alone, and the merge
-    breaks. The fresh check runs on the merge, fails, and the pull request waits. Once the
-    patch keeps a name that the caller can call, the check passes over the same main and the
-    pull request merges."""
-    (kitchen.home.state / "fresh-check").write_text("python3 check.py\n")
-    kitchen.on_main({"check.py": IMPORT})
-    tree = kitchen.tmp / "trees" / "two"
-    head = kitchen.crew("two", 7, {"src/pkg/core.py": RENAMED})
-    main = kitchen.on_main({"src/pkg/caller.py": CALLER})
-    fails = f"wait 7 {url(7)}: python3 check.py fails on {head[:12]} over today's main {main[:12]}"
-    assert kitchen.after_check() == [fails]
-    assert "AttributeError" in (kitchen.home.state / "fresh" / "7.log").read_text()
-
-    write(tree, {"src/pkg/core.py": RENAMED + "\nf = g\n"})
-    git(tree, "commit", "-q", "-m", "keep f", at=BEFORE)
-    git(tree, "push", "-q")
-    head = git(tree, "rev-parse", "HEAD")
-    kitchen.pulls["two"]["headRefOid"] = head
-    kitchen.brief("two", head)
-    (said,) = kitchen.after_check()
-    assert said.startswith("merged 7 two ")
-    assert f"fresh: python3 check.py passed on {head[:12]} over {main[:12]}" in said
 
 
 def test_a_python_file_is_named_by_its_dotted_path_and_each_tail_of_it():

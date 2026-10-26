@@ -78,10 +78,10 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:935-936
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:936-937
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:664-672
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:459-467
     \* A merge_after row merges after its row.
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:135-138
     /\ st' = [st EXCEPT ![p] = "merged"]
@@ -117,22 +117,17 @@ CrewFix(p) ==
     /\ UNCHANGED <<st, ranRed, mainRed, redBy, outsideLeft, fixRow, link, on>>
 
 \* jmerge judges a red pull request again: a check that failed over a base that has moved since
-\* it started, and is green now, is checked again over today's base (#350). With a fresh-check
-\* file a really broken change fails there and its crew gets one message; otherwise GitHub merges
-\* the base into the branch and runs check again, and a broken change then fails as its own.
+\* it started, and is green now, is checked again over today's base (#350): GitHub merges the
+\* base into the branch and runs check again, and a broken change then fails as its own. No local
+\* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:1082, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:294-297, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:1038-1039, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:1155, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/cli.py:219, once a head and tip
-    /\ \E fresh \in BOOLEAN :               \* features/jmerge/src/jmerge/cli.py:1043, a fresh-check file
-        IF fresh /\ breaks[p]
-            \* features/jmerge/src/jmerge/cli.py:1044-1046: it fails over today's base, one message
-            THEN /\ told' = [told EXCEPT ![p] = TRUE] /\ UNCHANGED ci
-            \* features/jmerge/src/jmerge/rejudge.py:63: GitHub merges the base in, check runs again
-            ELSE /\ ci' = [ci EXCEPT ![p] = "none"] /\ UNCHANGED told
-    /\ UNCHANGED <<st, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:872, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:834, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:945, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
+    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
+    /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
 \* (features/jbus/src/jbus/strays.py:356), and in this model a crew's turn is one step.
