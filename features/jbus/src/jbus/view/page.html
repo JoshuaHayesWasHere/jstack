@@ -429,7 +429,7 @@
   }
   (function () {
     var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
-    HASH = at.more;
+    HASH = at.more; HOMES = !!at.homes;
     if (old || at.more.open) history.replaceState(history.state, "", location.pathname + href(old || at.project, at.target));
   })();
 
