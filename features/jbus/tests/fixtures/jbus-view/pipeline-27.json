@@ -1,0 +1,550 @@
+{
+ "at": "2026-10-26T12:06:00Z",
+ "stages": [
+  {
+   "key": "scout",
+   "name": "Scout",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "queued",
+   "name": "Queued",
+   "count": 1,
+   "still": 1,
+   "oldest": {
+    "slug": "mac-sync-main-7",
+    "project": "jstack",
+    "since": "2026-10-26T11:55:00Z"
+   }
+  },
+  {
+   "key": "crew",
+   "name": "Crew",
+   "count": 7,
+   "still": 1,
+   "oldest": {
+    "slug": "ux-slow",
+    "project": "jstack",
+    "since": "2026-10-26T11:39:00Z"
+   }
+  },
+  {
+   "key": "you",
+   "name": "Needs you",
+   "count": 1,
+   "still": 1,
+   "oldest": {
+    "slug": "bl-lands",
+    "project": "jstack",
+    "since": "2026-10-25T22:11:00Z"
+   }
+  },
+  {
+   "key": "review",
+   "name": "Review",
+   "count": 1,
+   "still": 1,
+   "oldest": {
+    "slug": "mac-sync-main-8",
+    "project": "jstack",
+    "since": "2026-10-26T12:01:00Z"
+   }
+  },
+  {
+   "key": "fix",
+   "name": "Fix",
+   "count": 1,
+   "still": 1,
+   "oldest": {
+    "slug": "ux-throughput",
+    "project": "jstack",
+    "since": "2026-10-26T11:58:00Z"
+   }
+  },
+  {
+   "key": "review2",
+   "name": "Review 2",
+   "count": 2,
+   "still": 2,
+   "oldest": {
+    "slug": "cleanup-fl-hold-wakes",
+    "project": "jstack",
+    "since": "2026-10-26T10:36:00Z"
+   }
+  },
+  {
+   "key": "check",
+   "name": "Check",
+   "count": 12,
+   "still": 8,
+   "oldest": {
+    "slug": "fl-base-red-fix",
+    "project": "jstack",
+    "since": "2026-10-26T11:15:00Z"
+   }
+  },
+  {
+   "key": "merge",
+   "name": "Merge",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "train",
+   "name": "Train",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "merged",
+   "name": "Merged",
+   "count": 20,
+   "still": 0,
+   "oldest": null
+  }
+ ],
+ "rows": [
+  {
+   "slug": "mac-sync-main-7",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "queued",
+   "since": "2026-10-26T11:55:00Z",
+   "cause": "behind mac-tree-spec-timeout (Crew, working)",
+   "cause_since": "2026-10-26T11:56:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "mac-tree-spec-timeout",
+     "project": "jstack",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [],
+   "head": "mac-tree-spec-timeout",
+   "depth": 2
+  },
+  {
+   "slug": "cleanup-ux-milestones-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T12:04:00Z",
+   "cause": "thread silent 2m",
+   "cause_since": "2026-10-26T12:05:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "ux-milestones-pr",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "ux-milestones-pr",
+   "depth": 2
+  },
+  {
+   "slug": "ux-slow",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T11:39:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T11:40:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "ux-slow",
+   "depth": 1
+  },
+  {
+   "slug": "ux-since",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T11:50:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T11:51:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "ux-since",
+   "depth": 1
+  },
+  {
+   "slug": "cleanup-ux-look-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T11:55:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T11:56:00Z",
+   "moving": true,
+   "waits_on": [
+    {
+     "slug": "ux-look-pr",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "ux-look-pr",
+   "depth": 2
+  },
+  {
+   "slug": "mac-tree-spec-timeout",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "crew",
+   "since": "2026-10-26T11:56:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T11:57:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [
+    "mac-sync-main-7"
+   ],
+   "head": "mac-tree-spec-timeout",
+   "depth": 1
+  },
+  {
+   "slug": "cleanup-ux-glance-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T12:00:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T12:01:00Z",
+   "moving": true,
+   "waits_on": [
+    {
+     "slug": "ux-glance-pr",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "ux-glance-pr",
+   "depth": 2
+  },
+  {
+   "slug": "cleanup-ux-inbox-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "crew",
+   "since": "2026-10-26T12:01:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T12:02:00Z",
+   "moving": true,
+   "waits_on": [
+    {
+     "slug": "ux-inbox-pr",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "ux-inbox-pr",
+   "depth": 2
+  },
+  {
+   "slug": "bl-lands",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "you",
+   "since": "2026-10-25T22:11:00Z",
+   "cause": "ended with no pull request: close it or say why",
+   "cause_since": "2026-10-25T22:12:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "bl-lands",
+   "depth": 1
+  },
+  {
+   "slug": "mac-sync-main-8",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "review",
+   "since": "2026-10-26T12:01:00Z",
+   "cause": "no reviewer has started",
+   "cause_since": "2026-10-26T12:02:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mac-sync-main-8",
+   "depth": 1
+  },
+  {
+   "slug": "ux-throughput",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "fix",
+   "since": "2026-10-26T11:58:00Z",
+   "cause": "findings not handled yet",
+   "cause_since": "2026-10-26T11:59:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "ux-throughput",
+   "depth": 1
+  },
+  {
+   "slug": "cleanup-fl-hold-wakes",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "review2",
+   "since": "2026-10-26T10:36:00Z",
+   "cause": "second review not written",
+   "cause_since": "2026-10-26T10:37:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "cleanup-fl-hold-wakes",
+   "depth": 1
+  },
+  {
+   "slug": "ux-status-link",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "review2",
+   "since": "2026-10-26T12:01:00Z",
+   "cause": "second review not written",
+   "cause_since": "2026-10-26T12:02:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "ux-status-link",
+   "depth": 1
+  },
+  {
+   "slug": "fl-base-red-fix",
+   "project": "jstack",
+   "home": "flow",
+   "stage": "check",
+   "since": "2026-10-26T11:15:00Z",
+   "cause": "check failed 14m ago",
+   "cause_since": "2026-10-26T11:16:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "fl-base-red-fix",
+   "depth": 1
+  },
+  {
+   "slug": "ux-homes-board-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:51:00Z",
+   "cause": "check passed 6m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T11:52:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "cleanup-ux-homes-board-pr"
+   ],
+   "head": "ux-homes-board-pr",
+   "depth": 1
+  },
+  {
+   "slug": "ux-milestones-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:53:00Z",
+   "cause": "check passed 4m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T11:54:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "cleanup-ux-milestones-pr"
+   ],
+   "head": "ux-milestones-pr",
+   "depth": 1
+  },
+  {
+   "slug": "ux-asks-count",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:54:00Z",
+   "cause": "check passed 4m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T11:55:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "cleanup-ux-asks-count"
+   ],
+   "head": "ux-asks-count",
+   "depth": 1
+  },
+  {
+   "slug": "ux-telemetry-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:55:00Z",
+   "cause": "check passed 2m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T11:56:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "ux-telemetry-pr",
+   "depth": 1
+  },
+  {
+   "slug": "ux-glance-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:58:00Z",
+   "cause": "check passed 2m ago, jmerge has not moved it",
+   "cause_since": "2026-10-26T11:59:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [
+    "cleanup-ux-glance-pr"
+   ],
+   "head": "ux-glance-pr",
+   "depth": 1
+  },
+  {
+   "slug": "cleanup-ux-homes-board-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:58:00Z",
+   "cause": "merges after ux-homes-board-pr, still in Check",
+   "cause_since": "2026-10-26T11:59:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "ux-homes-board-pr",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "ux-homes-board-pr",
+   "depth": 2
+  },
+  {
+   "slug": "cleanup-ux-asks-count",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T12:00:00Z",
+   "cause": "merges after ux-asks-count, still in Check",
+   "cause_since": "2026-10-26T12:01:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "ux-asks-count",
+     "project": "jstack",
+     "kind": "merge_after"
+    }
+   ],
+   "waited_by": [],
+   "head": "ux-asks-count",
+   "depth": 2
+  },
+  {
+   "slug": "ux-look-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:53:00Z",
+   "cause": "check 1 of 4 running 3m",
+   "cause_since": "2026-10-26T11:54:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [
+    "cleanup-ux-look-pr"
+   ],
+   "head": "ux-look-pr",
+   "depth": 1
+  },
+  {
+   "slug": "ux-inbox-pr",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T11:59:00Z",
+   "cause": "check 1 of 4 running 13m",
+   "cause_since": "2026-10-26T12:00:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [
+    "cleanup-ux-inbox-pr"
+   ],
+   "head": "ux-inbox-pr",
+   "depth": 1
+  },
+  {
+   "slug": "mac-room-cores",
+   "project": "jstack",
+   "home": "macos",
+   "stage": "check",
+   "since": "2026-10-26T12:00:00Z",
+   "cause": "check 4 of 4 running 4m",
+   "cause_since": "2026-10-26T12:01:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "mac-room-cores",
+   "depth": 1
+  },
+  {
+   "slug": "ux-find",
+   "project": "jstack",
+   "home": "jview",
+   "stage": "check",
+   "since": "2026-10-26T12:01:00Z",
+   "cause": "check 1 of 4 running 11m",
+   "cause_since": "2026-10-26T12:02:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "ux-find",
+   "depth": 1
+  }
+ ],
+ "unplaced": [
+  {
+   "slug": "bl-macos-ci-required",
+   "project": "jstack",
+   "cause": "jmerge said: draft"
+  },
+  {
+   "slug": "cleanup-ux-telemetry-pr",
+   "project": "jstack",
+   "cause": "jmerge has said nothing of it yet"
+  }
+ ],
+ "stuck": {
+  "stage": "check",
+  "still": 8,
+  "count": 12
+ },
+ "longest_wait": {
+  "slug": "bl-lands",
+  "project": "jstack",
+  "stage": "you",
+  "since": "2026-10-25T22:11:00Z",
+  "cause": "ended with no pull request: close it or say why"
+ },
+ "longest": {
+  "depth": 2,
+  "head": "mac-tree-spec-timeout",
+  "head_project": "jstack",
+  "head_stage": "crew",
+  "head_cause": "thread working",
+  "chains": 8
+ }
+}

@@ -202,6 +202,8 @@ window.addEventListener("load", function () { setTimeout(function () {
             why: all(".wl", r).map(text).join(", "), counts: text(root.querySelector(".ct, span")), href: name.closest("a").getAttribute("href") };
         }) };
     })(),
+    /* The board of every project, the first screen. */
+    board: { shown: seen(document.getElementById("pipeline")) },
     links: [],
     opened: []
   };

@@ -124,7 +124,7 @@ def test_with_nothing_wrong_a_card_is_only_for_what_waits_and_the_rest_is_quiet(
 
 def test_on_a_phone_every_target_of_the_map_takes_a_thumb_and_nothing_is_cut(scene, tmp_path):
     SCENES["busy"](scene)
-    seen = look(scene, tmp_path, route="#/", screen=PHONE)
+    seen = look(scene, tmp_path, route="#/homes", screen=PHONE)
     clean(seen, PHONE)
     assert (seen["small"], seen["cut"]) == ([], [])
 
