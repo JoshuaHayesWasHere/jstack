@@ -226,3 +226,25 @@ def test_a_go_given_before_the_brief_changed_still_needs_the_user(counter):
     assert [key for key, one in needs(served).items() if one["slug"] == "oat-milk"] == [
         "row:oat-milk"
     ]
+
+
+def test_a_steered_need_that_keeps_no_time_stays_on_every_count_with_the_time_of_the_line(
+    counter,
+):
+    """A gate of the home's file has no `since` until a pass sees it, so no change after the
+    user's line could ever bring it back: it stays on the list and on each count, and says
+    when it was steered."""
+    counter, served = counter
+    (counter.kitchen.home / "gates.md").write_text(
+        GATE.format(n=40, asked="which jar?", status="open", default="")
+    )
+    (one,) = [one for one in needs(served).values() if one["what"] == "which jar?"]
+    assert one["since"] is None
+    before = counts(served)
+    status, said = act(served, "steer", {"subj": one["subj"], "words": "the blue one"})
+    assert status == 200, said
+    assert counts(served) == before
+    kept = words(counter)[said["word"]]
+    (still,) = [each for each in needs(served).values() if each["what"] == "which jar?"]
+    assert still["steered"] == kept.kept_at
+    assert served.json("/state.json?project=demo")["steered"] == []
