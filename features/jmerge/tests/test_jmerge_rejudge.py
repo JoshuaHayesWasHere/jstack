@@ -319,3 +319,68 @@ def test_a_failed_check_at_the_updated_head_holds_it(moved):
         assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
     assert replay.updated() == ["333"]
     assert not replay.slot.exists()
+
+
+RUNS = """\
+    "run list") cat "$STUB/runs-$4.json" ;;
+    "run view") cat "$STUB/log-$3.txt" ;;
+"""
+OURS = "features/x/tests/test_ours.py::test_its_own"
+THEIRS = "features/y/tests/test_theirs.py::test_main_broke"
+
+
+def checked(replay, branch, runs):
+    """`gh run list` of a branch's check runs, newest first, and each failed run's log: a
+    run is (its id, its start, the pytest ids it failed)."""
+    stub = replay.kitchen.home.stub
+    listed = [
+        {
+            "databaseId": number,
+            "status": "completed",
+            "conclusion": "failure" if failed else "success",
+            "createdAt": at,
+        }
+        for number, at, failed in reversed(runs)
+    ]
+    (stub / f"runs-{branch}.json").write_text(json.dumps(listed))
+    for number, at, failed in runs:
+        lines = [f"check 1 of 4\tset up\t{at} PASSED is not an id"]
+        lines += [
+            f"check 2 of 4\tmake check-fast\t{at} FAILED {one} - assert 2 == 1" for one in failed
+        ]
+        (stub / f"log-{number}.txt").write_text("\n".join(lines) + "\n")
+
+
+@pytest.mark.parametrize(
+    ("second", "mains", "asks"),
+    [
+        ((OURS,), (THEIRS,), False),
+        (("features/x/tests/test_ours.py::test_another",), (THEIRS,), True),
+        ((OURS,), (OURS,), True),
+    ],
+    ids=["same-test-twice", "another-test", "main-failed-it-too"],
+)
+def test_a_pull_request_red_twice_on_the_same_test_of_its_own_is_not_given_main_again(
+    tmp_path, second, mains, asks
+):
+    """2026-10-26, #494: its check failed one test of its own over a main red on another test,
+    GitHub merged main into it, and it failed that same test again, nine times. Once its last
+    two check runs failed a same pytest id that main's check at neither run's base failed,
+    the branch is not updated again: it keeps its red line. A second failure on another test,
+    or on a test main also failed, is still given today's main."""
+    replay = Replay(tmp_path, fresh=False)
+    gh = replay.kitchen.home.stub / "gh"
+    gh.write_text(gh.read_text().replace("    *) exit 64 ;;\n", RUNS + "    *) exit 64 ;;\n"))
+    replay.crew("one", 333, {"one.txt": "ours\n"})
+    checked(replay, "main", [(70, "2026-10-23T11:30:00Z", mains), (71, "2026-10-23T12:30:00Z", ())])
+    checked(replay, "one", [(80, "2026-10-23T12:00:00Z", (OURS,)), (81, STARTED, second)])
+    replay.main_at(WHOLE_TREE, BROKE, "failed")
+    fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")
+    said = replay.run()
+    if asks:
+        assert said == [f"wait 333 {url(333)}: {ASKED.format(tip=fix[:12])}"]
+        assert replay.updated() == ["333"]
+    else:
+        assert said == [f"wait 333 {url(333)}: check has not passed"]
+        assert replay.updated() == []
+        assert replay.run() == said and replay.updated() == []
