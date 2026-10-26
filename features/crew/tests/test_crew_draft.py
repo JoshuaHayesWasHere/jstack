@@ -1,8 +1,9 @@
 """A crew opens its pull request as a draft, and CI runs no check on a draft (check.yml). It marks
 the pull request ready once, when its fix round is pushed, so its check runs once, on the head
 that goes to the merge gate. A brief that owes this thread no fix round, `Review: none` or
-`Review: after`, is marked ready at once. A link stacked on another row's branch stays a draft:
-jbus marks it ready when it moves it onto the default branch.
+`Review: after`, is marked ready at once. A link stacked on another row's branch stays a draft
+until its crew pushes its move onto the default branch, and the same block marks it then. A pull
+request into an integration branch is marked ready as one into main is: jmerge merges no draft.
 
 Each test runs the skill's block as an agent runs it, in a worktree whose remote's default
 branch is `main`, against a `gh` that answers from a file and logs what it was asked."""
@@ -96,12 +97,16 @@ def test_a_brief_whose_review_this_thread_answers_waits_for_its_fixed_line(ready
     assert said[0].startswith("draft: ") and readied == []
 
 
-def test_a_link_stacked_on_another_rows_branch_stays_a_draft_for_jbus_to_mark(ready):
+def test_a_link_stacked_on_another_rows_branch_stays_a_draft_until_it_is_moved(ready, tmp_path):
     said, readied = ready(FIXED, base="other-row")
     assert said == [
-        "draft: its base is other-row, and jbus marks it ready when it moves it onto main"
+        "draft: its base is other-row, another pull request's branch, so it is marked ready "
+        "once it is moved onto main"
     ]
     assert readied == []
+    (tmp_path / "integration").write_text("train/x\n")
+    said, readied = ready(FIXED, base="train/x")
+    assert said[0].startswith("ready: marked ready at ") and readied == ["pr ready"]
 
 
 def test_a_pull_request_marked_ready_already_is_left_as_it_is(ready):

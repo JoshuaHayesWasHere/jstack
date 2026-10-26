@@ -885,10 +885,8 @@ class Repo:
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
         self.carried.pop(one.number, None)
-        if one.draft:
-            return Judgement(brief.stem if brief else "", "wait", ready.DRAFT, "", None)
         if brief is None:
-            return Judgement("", "wait", ready.NO_BRIEF, "", None)
+            return Judgement("", "wait", ready.DRAFT if one.draft else ready.NO_BRIEF, "", None)
         text = _read(brief)
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
@@ -915,7 +913,7 @@ class Repo:
                 lost = found
         if rebase is None and covered is None:
             lost = ready.answered(text, one.head)
-        short = short or ready.short_on_github(one)
+        short = short or (ready.DRAFT if one.draft else ready.short_on_github(one))
         note = ""
         silent = ready.unexplained(lost, text, one.head)
         under = ready.under_fix(rebase, text, one.head)
@@ -1600,13 +1598,15 @@ def _job(repo: str, job: str) -> dict:
 def said_of_checks(pull: str) -> str:
     pr = [pull] if pull else []
     try:
-        asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", "headRefOid,statusCheckRollup")
+        fields = "headRefOid,statusCheckRollup,isDraft"
+        asked = _run(Path.cwd(), "gh", "pr", "view", *pr, "--json", fields)
         view = json.loads(asked.stdout) if not asked.returncode else None
         rollup, head = view["statusCheckRollup"] or [], view["headRefOid"] or ""
-        never = checks.never_started(rollup, _job)
+        draft = bool(view.get("isDraft"))
+        never = frozenset() if draft else checks.never_started(rollup, _job)
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         return "wait: could not ask GitHub"
-    return checks.SAID[checks.checks(rollup, never)].format(head=head)
+    return checks.SAID[checks.checks(rollup, never, draft)].format(head=head)
 
 
 def state_of(cwd: Path) -> Path | None:
@@ -1869,7 +1869,7 @@ def main(argv: list[str] | None = None) -> int:
     if silent:
         say(f"wait: could not ask GitHub{silent}")
         return 1
-    listed = [repo.in_full(one) for one in listed]
+    listed = [ready.unchecked_into(repo.in_full(one), repo.integration) for one in listed]
     repo.open = listed
 
     if args.accept is not None:

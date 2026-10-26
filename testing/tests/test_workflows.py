@@ -1,12 +1,12 @@
-"""The check workflow runs on main, on the integration branches (`unslop` and any `train/...`)
-and on every pull request. The next run never cancels a run on any of them, because each push's
-run is a concurrency group of its own. A pull request gets the job `check`, the fast one, which
-runs the lint and the tests its change reaches. A push to main or to an integration branch, and
-a manual run, get the job `full`, the whole suite. Each runs its tests as four parts side by
-side, the jobs `check-shard` and `full-shard`, and passes only when all four did. The workflow
-checks a push to an integration branch as it checks a push to main. jmerge holds a pull request
-into an integration branch while that branch is red, so jmerge has a check to read on the
-branch's tip.
+"""The check workflow runs on main, on the integration branches (`unslop` and any `train/...`) and
+on a pull request into main that is not a draft. The next run never cancels a run on any of
+them, because each push's run is a concurrency group of its own. A pull request gets the job
+`check`, the fast one, which runs the lint and the tests its change reaches. A push to main or
+to an integration branch, and a manual run, get the job `full`, the whole suite. Each runs its
+tests as four parts side by side, the jobs `check-shard` and `full-shard`, and passes only when
+all four did. The workflow checks a push to an integration branch as it checks a push to main.
+jmerge holds a pull request into an integration branch while that branch is red, so jmerge has a
+check to read on the branch's tip.
 
 The test reads the workflow file as YAML with two small readers, `mapping` and `block`, which handle
 only mappings by their indentation, a scalar, and a list in brackets.

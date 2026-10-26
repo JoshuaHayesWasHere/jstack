@@ -1110,7 +1110,10 @@ def test_a_draft_that_is_otherwise_ready_is_never_merged(merged, flags):
 PLACED_AS_A_DRAFT = {
     "no review yet": (brief(), ready.NO_REVIEW),
     "findings that are not handled": (brief(review("findings")), ready.NO_FIXED),
-    "another home's": (brief(review("clean"), field=f"Home: {OTHER}\n"), ready.OTHER_HOME),
+    "another home's, which jbus judges as its own": (
+        brief(review("clean"), field=f"Home: {OTHER}\n"),
+        ready.DRAFT,
+    ),
     "no brief names it": (None, ready.DRAFT),
 }
 

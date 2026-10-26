@@ -30,7 +30,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:936-937
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:950-951
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
@@ -58,7 +58,7 @@ Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:874, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:836, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:947, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:945, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full>>

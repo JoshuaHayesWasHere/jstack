@@ -26,10 +26,12 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
    Copy `features/pr-review/templates/pr-body.md` and fill each `<...>`: it has the headings, their order and what goes under each.
    Drop a heading with nothing to say, but never Scope.
    Write it as `features/writing/skills/technical-writing/SKILL.md` says (every layer but the mode), then run `features/writing/skills/unslop/SKILL.md` over it: read each in full when you reach this step.
-6. When the brief asks for a pull request, push and open it ready, on the base that the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief: the default branch, or for a link of a stack the branch its `Stack:` line names. On `no base`, open none. Open it with this, which locks its conversation right after:
+6. When the brief asks for a pull request, push and open it as a draft, on the base that the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief: the default branch, or for a link of a stack the branch its `Stack:` line names.
+   On `no base`, open none.
+   Open it with this, which locks its conversation right after:
 
    ```sh
-   said=$(gh pr create --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
+   said=$(gh pr create --draft --base '<that branch>' --title '<the title>' --body-file '<the file the body is in>' 2>&1)
    url=$(printf '%s\n' "$said" | grep -o 'https://[^ ]*/pull/[0-9][0-9]*' | head -n 1)
    if [ -z "$url" ]; then
        echo "not opened: $(printf '%s\n' "$said" | head -n 1)"
@@ -41,13 +43,16 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
    fi
    ```
 
-   Never `--draft`. A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there. Run `gh pr view` before you say anything about its state.
-7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, start the one review when the checks have passed, watch, end the turn. With none, steps 5 and 6 are `skip: the brief asks for no pull request` and the task ends as `skills/crew/SKILL.md` "End" says.
+   CI checks no draft: `skills/crew/SKILL.md` "Ready for its check" readies it.
+   A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there.
+   Run `gh pr view` before you say anything about its state.
+7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, start the one review beside the checks, end the turn.
+   With none, steps 5 and 6 are `skip: the brief asks for no pull request` and the task ends as `skills/crew/SKILL.md` "End" says.
 
 Never done here, and who does it:
 
 - **Merge.** The home merges a pull request that is reviewed, fixed and green. Anything else waits for the user's word.
 - **Review.** One reviewer, in a new thread, reviews once. You launch it as `skills/crew/SKILL.md` "The review" says, fix what you agree with, and say why for the rest: push back when a finding drifts from what the brief asks. A fix that changes a file no finding named gets one more pass, the last, as `skills/crew/SKILL.md` "A second pass" says.
-- **Poll.** `watch_pull_request` wakes this thread on a failed check, passing checks, a comment or a conflict. No loop, no watcher of your own.
+- **Poll.** jbus wakes this thread when its pull request needs it: no loop, no watcher of your own.
 
 **Hand over:** the open pull request and the Result, to the reviewer and the home, as step 7 says. With no pull request, the Result alone, to the home.

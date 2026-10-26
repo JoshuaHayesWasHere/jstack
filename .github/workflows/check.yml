@@ -2,6 +2,14 @@ name: check
 
 on:
   pull_request:
+    # A pull request's check runs once, at main's gate: on a pull request into main that is not a
+    # draft. A crew opens its pull request as a draft and marks it ready once its fix round is
+    # pushed, so `ready_for_review` runs the check on the head that goes to the merge, and a push
+    # of work in progress runs none (the jobs' `if` skips a draft). Work into any other branch, a
+    # parent row's branch or a train, is checked on each push to that train and again when it
+    # lands on main.
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   # An integration branch, the train `unslop` or any `train/...`, is checked on each push as
   # main is, so a break there is seen before it lands, and jmerge's red hold for a pull
   # request into it reads its tip.
@@ -38,7 +46,7 @@ jobs:
   # quarter of what the change selected (`SHARD`, testing/shard.py), and the job `check` below
   # passes only when all four did.
   check-shard:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
     name: check ${{ matrix.shard }} of 4
     # Every job of every workflow runs on GitHub's hosted runner, by the owner's word ("all
     # jstack CI can be done on via github", 2026-10-22): the repo is public, so its minutes
@@ -115,8 +123,9 @@ jobs:
   # The check the ruleset requires, and jmerge's REQUIRED, so its name stays `check`. It runs
   # whatever the parts did, and passes only when all four passed: a part that failed, was
   # cancelled or never ran fails it, where a skipped required check would count as passed.
+  # On a draft it is skipped with its parts: GitHub merges no draft, and jmerge waits on one.
   check:
-    if: always() && github.event_name == 'pull_request'
+    if: always() && github.event_name == 'pull_request' && !github.event.pull_request.draft
     needs: check-shard
     runs-on: ubuntu-24.04
     timeout-minutes: 5
