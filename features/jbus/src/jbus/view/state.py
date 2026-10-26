@@ -297,7 +297,7 @@ def text(given: Any, cap: int = LINE) -> str:
 
 
 def by_rule(row: queue.Row) -> dict[str, str] | None:
-    """The rule and the parent of a row that a home approved by a standing rule. The page
+    """The rule and the parent of a row approved by the follow-up rule. The page
     marks the row with them. The function gives None for a row the user gave their own word
     for, and for a row with no approval."""
     made = queue.record(row)

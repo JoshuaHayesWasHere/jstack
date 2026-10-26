@@ -992,7 +992,8 @@ def red_brief(
     `features/jbriefs/templates/brief.md`. `jobs` is each failed check run's name, URL and
     failed tests. `red` is the commits from `sha` down to the last green one, not including
     it. `changed` is the files those commits changed. `slug` is the briefed merge before the
-    red, or empty where none came in the day before it."""
+    red, or empty where none came in the day before it: the fix is a follow-up of that row, and
+    a pass approves it on the row's go (`queue.follow_ups`)."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
     where = (
@@ -1027,6 +1028,7 @@ def red_brief(
             "Pull request: open one when done",
             "Review: review",
             "Playbook: bug-fix",
+            *([f"Follows: {slug}"] if slug else []),
             "Read:",
             *read,
             "",
@@ -1046,10 +1048,12 @@ def _changed(run: Pass, red: list[dict]) -> list[str]:
 
 def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     """Write the brief for the fix of a red main to the home's `tasks/`, and queue it with no
-    approval. The user approves the row like any other. Its priority is one above the first
-    row of the queue, so once approved it is the next launch there. `_file` writes the brief
-    whenever the queue has no row for it. So if a pass stopped before it added the row, the
-    next pass files the brief again. If the queue refuses the brief, that is a condition."""
+    approval. Where a briefed merge turned main red, the brief follows that row and a pass
+    approves it on the row's go; otherwise the user approves it like any other row. Its priority
+    is one above the first row of the queue, so once approved it is the next launch there.
+    `_file` writes the brief whenever the queue has no row for it. So if a pass stopped before
+    it added the row, the next pass files the brief again. If the queue refuses the brief, that
+    is a condition."""
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
