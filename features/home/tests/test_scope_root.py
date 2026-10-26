@@ -174,7 +174,15 @@ def status(homes, thread=ROOT):
     return homes.step(STATUS, thread).stdout
 
 
-def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(homes):
+@pytest.fixture
+def no_jbus(homes, monkeypatch):
+    """A machine where jbus is not installed: the root reads no queue row."""
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    return homes
+
+
+def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(no_jbus):
+    homes = no_jbus
     (homes.scope_dir / "plan.md").write_text(
         "# the second home: plan\n\n"
         "Goal (2026-10-10, the user): faster reviews\n\n"
@@ -204,16 +212,21 @@ def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(hom
         "sc-open: a task that is out\n"
         "Status: with crewmate (thread mcp:one)\n"
         "sc-next: a task with no status yet\n"
+        f"=== scope {SCOPE}: queue rows\n"
+        "no jbus: jbus is not installed here, so it holds no row\n"
         f"=== scope {CLOSED}: no home thread\n"
         "# the third home: handoff\n\n"
         "The scope is closed.\n"
         f"=== scope {CLOSED}: open plan entries\n"
         "none\n"
+        f"=== scope {CLOSED}: queue rows\n"
+        "no jbus: jbus is not installed here, so it holds no row\n"
     )
     assert homes.changed(before) == []
 
 
-def test_a_scope_just_made_has_no_handoff_yet(homes):
+def test_a_scope_just_made_has_no_handoff_yet(no_jbus):
+    homes = no_jbus
     make(homes)
     said = status(homes)
     assert (
@@ -234,6 +247,87 @@ def test_on_status_a_repo_with_no_scope_prints_nothing(tmp_path):
 
 def test_on_status_a_scoped_home_reads_no_other_scope(homes):
     assert status(homes, SCOPED) == ""
+
+
+SENDS = "THE_SEND_ENDS_HERE"
+WHAT = "the user's \"one tag a week\" for the release scope\nand the root's nightly tag"
+
+
+def send(homes, kind, thread=SCOPED, what=WHAT):
+    """What the block a scoped home sends the root with prints, with `kind` and `what` filled in."""
+    filled = {"<decision or stop>": kind, "<what the root must decide or clear>": what}
+    return homes.step(SENDS, thread, **filled).stdout.splitlines()
+
+
+@pytest.mark.parametrize("kind", ["decision", "stop"])
+def test_a_scoped_home_sends_the_root_a_decision_or_a_stop(homes, kind):
+    before = homes.state()
+    (said,) = send(homes, kind)
+    assert said.startswith("send: ")
+    sent = json.loads(said.removeprefix("send: "))
+    assert errors(Call("home: a scope's send", "`t3_thread_send`", ""), sent) == []
+    assert sent == {
+        "threadId": ROOT,
+        "message": f"{SCOPE} home, a {kind}: {WHAT.replace(chr(10), ' ')}",
+    }
+    assert homes.changed(before) == []
+
+
+@pytest.mark.parametrize("kind", ["status", "pull request", "score", "launch", "merge"])
+def test_a_scoped_home_sends_the_root_no_status_and_is_told_the_root_reads_its_files(homes, kind):
+    before = homes.state()
+    (said,) = send(homes, kind)
+    assert said.startswith(f"not sent: a {kind} is not sent to the root")
+    assert f"{homes.scope_dir}/plan.md" in said and "queue rows" in said
+    assert homes.changed(before) == []
+
+
+@pytest.mark.parametrize(
+    ("asked", "why"),
+    [
+        ({"kind": "<decision or stop>"}, "the kind is not filled in"),
+        ({"kind": ""}, "the kind is not filled in"),
+        ({"what": "<what the root must decide or clear>"}, "what the root must decide"),
+        ({"what": ""}, "what the root must decide"),
+        ({"thread": ROOT}, "this is the root home"),
+    ],
+)
+def test_a_send_that_is_not_filled_in_or_is_the_root_s_own_is_not_sent(homes, asked, why):
+    (said,) = send(homes, **{"kind": "decision", **asked})
+    assert said.startswith(f"not sent: {why}")
+
+
+def test_with_no_root_home_running_a_stop_is_parked_as_a_gate(homes):
+    (homes.home_dir / "home-id").unlink()
+    (said,) = send(homes, "stop")
+    assert said.startswith("not sent: no root home is running")
+    assert "gate" in said
+
+
+def test_on_status_the_root_reads_each_scope_s_queue_rows(homes, monkeypatch):
+    """The rows of `jbus queue show` whose brief is the scope's, by its `Home:` line."""
+    stub = homes.user / "bin"
+    stub.mkdir()
+    table = (
+        "| slug | priority | status | pr | why |\n"
+        "| --- | --- | --- | --- | --- |\n"
+        "| sc-open | 3 | running |  |  |\n"
+        "| sc-pr | 3 | review | https://example.test/pull/7 | a reviewer is out |\n"
+        "| root-row | 0 | running |  |  |\n"
+    )
+    (stub / "jbus").write_text(f"#!/bin/sh\ncat << 'EOF'\n{table}EOF\n")
+    (stub / "jbus").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub}{os.pathsep}{os.environ['PATH']}")
+    homes.sent("tasks", "sc-open", f"Home: {SCOPE}")
+    homes.sent("tasks", "sc-pr", f"Home: {SCOPE}")
+    homes.sent("tasks", "root-row")
+    said = status(homes)
+    assert (
+        f"=== scope {SCOPE}: queue rows\n"
+        "sc-open | running |  | \n"
+        "sc-pr | review | https://example.test/pull/7 | a reviewer is out\n"
+    ) in said
+    assert "root-row" not in said
 
 
 def launch_check(home, slug):
