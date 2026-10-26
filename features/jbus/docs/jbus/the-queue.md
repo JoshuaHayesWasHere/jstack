@@ -171,7 +171,7 @@ jbus queue approve <slug> --sha <sha12> --follows <parent slug>
 ```
 
 `--follows` goes with none of the bases above.
-A `--rule <n>` beside it, from the days when jbus read the rule out of `standing.md`, is taken and not read, so a home that renumbers its standing rules breaks nothing.
+A `--rule <n>` beside it, from the days when jbus read the rule out of `standing.md`, is taken and not read, so `jbus queue approve <slug> --sha <sha12> --rule 6 --follows <parent slug>` still approves, and a home that renumbers its standing rules breaks nothing.
 Any other mix gets the refusal above.
 jbus checks the parent and judges nothing else.
 The home decides whether the brief is really a follow-up, and you audit that call through the mark on the row and the count in the digest.
