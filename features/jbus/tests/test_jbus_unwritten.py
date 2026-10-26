@@ -178,3 +178,30 @@ def test_a_crew_whose_approval_was_just_answered_is_not_hung_on_the_silence_it_l
     else:
         assert [minute for minute, word in words.items() if word == "hung"][0] == 20
         assert "its turn hung with nothing written" in told(kitchen, at)[0]["message"]
+
+
+@pytest.mark.parametrize("gap", ["missing", "None", "a string", "a failed read"])
+def test_a_read_with_no_request_count_keeps_the_count_until_one_reads_0(kitchen, gap):
+    """The same approval, with a pass between the 1 and the 0 whose read gives no int
+    `pendingRequestCount`, or fails. That pass keeps the 1 the pass before kept and does not
+    restart the silence, and the next pass, which reads 0, counts the answer as the last write."""
+    add(kitchen, "alpha")
+    assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - 30 * MIN)
+    (thread,) = kitchen.t3.threads
+    thread |= {"status": "running", "updatedAt": iso(NOW), "itemCount": 40}
+    kitchen.t3.at_work.discard(thread["threadId"])
+    at = home(kitchen)["threadId"]
+    found = {}
+    for minute in range(1, 24):
+        thread["pendingRequestCount"] = 1 if minute <= 17 else 0
+        kitchen.t3.lose_read = minute == 18 and gap == "a failed read"
+        if minute == 18 and gap == "missing":
+            del thread["pendingRequestCount"]
+        elif minute == 18 and gap != "a failed read":
+            thread["pendingRequestCount"] = {"None": None, "a string": "0"}[gap]
+        kitchen.poll(NOW + minute * MIN)
+        (found[minute],) = [one for one in written(kitchen) if one["id"] == thread["threadId"]]
+    assert (found[18]["pending"], found[18]["silent"]) == (1, 18), found[18]
+    assert (found[19]["pending"], found[19]["silent"]) == (0, 0), found[19]
+    assert "hung" not in [one["live"] for one in found.values()]
+    assert told(kitchen, at) == [] and not (kitchen.state / "hung.jsonl").exists()
