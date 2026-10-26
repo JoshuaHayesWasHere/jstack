@@ -156,3 +156,7 @@ def test_the_passes_that_failed_in_a_row_are_the_machines(tmp_path, monkeypatch)
     scene.write("streaks.json", {alert.PASS: streak}, scene.state_dir)
     stack, state = answers(scene)
     assert stack["machine"]["jbus"]["failed"] == state["jbus"]["failed"] == 4
+    since = iso(ago(minutes=4))
+    assert stack["machine"]["jbus"]["failed_since"] == state["jbus"]["failed_since"] == since
+    (first,) = [one for one in stack["glance"]["items"] if one["kind"] == "jbus"]
+    assert first["since"] == since

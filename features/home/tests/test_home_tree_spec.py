@@ -339,8 +339,116 @@ def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
     for name in ("JGAUGE_TEST_SLOT", "TLC_WORKERS"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+    (tmp_path / "tla2tools.jar").write_bytes(b"")
     _, module, cfg, *_ = RUNS[0]
-    out = canaries.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
+    out = canaries.tlc(tools.Tlc(jar=str(tmp_path / "tla2tools.jar"), java=str(java)), module, cfg)
     assert out.startswith("slot full: "), out
     assert " -workers 2 " in out, out
+
+
+HOLDS = "Model checking completed. No error has been found."
+
+
+def fake_java(path, version='openjdk version "21"', answer=HOLDS, code=0):
+    """A java that says `version` to -version, and to anything else logs the call to $LOG and
+    answers `answer` with exit status `code`."""
+    path.write_text(
+        "#!/bin/sh\n"
+        f"if [ \"$1\" = -version ]; then echo '{version}' >&2; exit 0; fi\n"
+        'echo "$*" >> "$LOG"\n'
+        f"printf '%s\\n' '{answer}'\nexit {code}\n"
+    )
+    path.chmod(0o755)
+    return str(path)
+
+
+@pytest.fixture
+def cache(tmp_path, monkeypatch):
+    """A cache of the test's own, a jar, and a log of each java run, outside any test slot."""
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    monkeypatch.setenv("JGAUGE_TEST_SLOT", "test")
+    monkeypatch.setenv("LOG", str(tmp_path / "java.log"))
+    (tmp_path / "tla2tools.jar").write_bytes(b"the jar")
+    return tmp_path
+
+
+def java_runs(tmp_path):
+    log = tmp_path / "java.log"
+    return len(log.read_text().splitlines()) if log.exists() else 0
+
+
+def test_a_run_whose_inputs_are_kept_starts_no_java(cache):
+    """A run TLC finished is kept under its inputs: the same run again returns its output from
+    the cache, though the java there now fails if it is called."""
+    _, module, cfg, *_ = RUNS[0]
+    jar = str(cache / "tla2tools.jar")
+    first = canaries.tlc(tools.Tlc(jar=jar, java=fake_java(cache / "java")), module, cfg)
+    assert (first, java_runs(cache)) == (HOLDS + "\n", 1)
+    fails = fake_java(cache / "failing-java", answer="called", code=1)
+    assert canaries.tlc(tools.Tlc(jar=jar, java=fails), module, cfg) == first
+    assert java_runs(cache) == 1
+    assert len(list((cache / "cache" / "jstack" / "tlc").iterdir())) == 1
+
+
+def test_a_change_to_any_one_input_runs_tlc_again(cache, monkeypatch):
+    """A line of a .tla file, the config, the pinned jar's version, the jar's bytes or the Java
+    that runs it: each changed alone misses the cache, and TLC runs."""
+    _, module, cfg, *_ = RUNS[0]
+    java = fake_java(cache / "java")
+    found = tools.Tlc(jar=str(cache / "tla2tools.jar"), java=java)
+    canaries.tlc(found, module, cfg)
+    assert java_runs(cache) == 1
+
+    canaries.tlc(found, module, cfg + "\\* one more line\n")
+    assert java_runs(cache) == 2
+
+    spec = cache / "spec"
+    spec.mkdir()
+    for one in canaries.specs():
+        (spec / one.name).write_text(one.read_text())
+    (spec / f"{module}.tla").write_text((spec / f"{module}.tla").read_text() + "\\* a line\n")
+    with monkeypatch.context() as patched:
+        patched.setattr(canaries, "HERE", spec)
+        canaries.tlc(found, module, cfg)
+    assert java_runs(cache) == 3
+
+    with monkeypatch.context() as patched:
+        patched.setattr(tools, "TLA2TOOLS_VERSION", "0.0.0")
+        canaries.tlc(found, module, cfg)
+    assert java_runs(cache) == 4
+
+    (cache / "other.jar").write_bytes(b"another jar")
+    canaries.tlc(tools.Tlc(jar=str(cache / "other.jar"), java=java), module, cfg)
+    assert java_runs(cache) == 5
+
+    other = fake_java(cache / "other-java", version='openjdk version "17"')
+    canaries.tlc(tools.Tlc(jar=found.jar, java=other), module, cfg)
+    assert java_runs(cache) == 6
+
+    canaries.tlc(found, module, cfg)
+    assert java_runs(cache) == 6
+
+
+@pytest.mark.parametrize(
+    ("answer", "code", "again"),
+    [
+        (HOLDS, 0, False),
+        ("Error: Invariant NoRetireWithOpen is violated.", 13, False),
+        ("Temporal properties were violated.", 13, False),
+        ("Error: Invariant TypeOK is violated.", 12, True),
+        ("Exception in thread main: java.lang.OutOfMemoryError", 1, True),
+        ("Starting... (2026-10-26 13:00:00)", 143, True),
+    ],
+    ids=["holds", "breaks-an-invariant", "breaks-a-property", "error", "fails", "cut-short"],
+)
+def test_only_a_run_that_reached_its_verdict_is_kept(cache, answer, code, again):
+    """A run is kept when TLC said it holds or breaks, whatever its exit status (a canary that
+    breaks its rule exits 13), and a run that failed or was cut short runs again."""
+    _, module, cfg, *_ = RUNS[0]
+    java = fake_java(cache / "java", answer=answer, code=code)
+    found = tools.Tlc(jar=str(cache / "tla2tools.jar"), java=java)
+    canaries.tlc(found, module, cfg)
+    canaries.tlc(found, module, cfg)
+    assert java_runs(cache) == (2 if again else 1)

@@ -1,5 +1,6 @@
 """A panel is one folder of two files, and the view builds the rest from the folders."""
 
+import ast
 import http.client
 import json
 import re
@@ -79,6 +80,23 @@ def test_a_panel_is_one_folder_of_two_files_and_the_rest_is_built_from_the_folde
     for panel in found:
         assert panel.script.read_text() in page, panel.name
         assert f'(panels("{panel.name}", {json.dumps(panel.first)}));' in page
+
+
+def test_no_panel_imports_another_panel():
+    """One panel reads another through `Read.panel`, never by its module: a folder removed or
+    renamed then breaks only what names it by name, and not every answer at import."""
+    found = {}
+    for one in panels.found():
+        tree = ast.parse(Path(one.data.__file__).read_text())
+        named = [node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
+        named += [
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        ]
+        found[one.name] = sorted(name for name in named if name.startswith(panels.__name__))
+    assert {name: imports for name, imports in found.items() if imports} == {}
 
 
 def test_a_key_that_two_panels_give_is_refused():

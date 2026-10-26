@@ -185,9 +185,18 @@ def test_a_scout_that_reported_is_green_until_its_home_settles_it(scene):
 
 
 def test_a_reviewer_whose_turn_ended_is_where_its_task_is_and_leaves_with_it(scene):
-    """A reviewer that ended its turn is on its task's stage. Once the task merged, or is gone
-    from the queue, the reviewer is off the board: only the crew counts as merged."""
-    scene.queue([row("oat-milk", "pr", pr="#13"), row("rye-loaf", "merged", pr="#9")])
+    """A reviewer that ended its turn is on its task's stage, for as long as its task has been
+    on it: its thread was made an hour ago, the task came to its stage 5 minutes ago. Once the
+    task merged, or is gone from the queue, the reviewer is off the board: only the crew counts
+    as merged."""
+    waits = "check has not passed"
+    scene.queue(
+        [
+            row("oat-milk", "pr", pr="#13", why=f"wait: {waits}"),
+            row("rye-loaf", "merged", pr="#9"),
+        ]
+    )
+    scene.merge_log(logged(5, "wait", 13, waits))
     scene.passed(
         20,
         threads=[
@@ -199,6 +208,8 @@ def test_a_reviewer_whose_turn_ended_is_where_its_task_is_and_leaves_with_it(sce
     said = board(scene)
     got = workers(said)
     assert got["reviewer", "oat-milk"]["stage"] == got["crew", "oat-milk"]["stage"]
+    assert got["reviewer", "oat-milk"]["since"] == iso(ago(minutes=5))
+    assert got["crew", "oat-milk"]["since"] == iso(ago(minutes=5))
     assert ("reviewer", "rye-loaf") not in got
     assert ("reviewer", "long-gone") not in got
     merged = [(one["kind"], one["slug"]) for home in said["homes"] for one in home["merged"]]

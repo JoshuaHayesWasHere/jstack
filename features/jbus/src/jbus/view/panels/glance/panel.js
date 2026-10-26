@@ -42,7 +42,10 @@ function glanceTier(tier, items) {
 }
 function glanceWhen(t) { var v = ms(t); return v == null ? "" : NOW - v < 60e3 ? "just now" : short(NOW - v) + " ago"; }
 function glanceMoving(it) { return esc(it.cause) + ' &middot; ' + (ms(it.since) == null ? "no pass kept" : "last pass " + glanceWhen(it.since)); }
-var GLANCE_KEY = "jbus.glance.looked", GLANCE_LOOKED = (function () { try { return Number(localStorage.getItem(GLANCE_KEY)) || null; } catch (e) { return null; } })();
+var GLANCE_KEY = "jbus.glance.looked", GLANCE_VISIT = null;
+function glanceStamp() { try { return Number(localStorage.getItem(GLANCE_KEY)) || null; } catch (e) { return null; } }
+function glanceShown() { return document.visibilityState !== "hidden"; }
+document.addEventListener("visibilitychange", function () { if (!glanceShown()) GLANCE_VISIT = null; });
 var GLANCE_MOTION = { moving: "Moving.", still: "Not moving.", rest: "At rest." };
 function glanceVerdict(v) {
   var said = '<b>' + GLANCE_MOTION[v.motion] + '</b> ' +
@@ -51,16 +54,20 @@ function glanceVerdict(v) {
   return said;
 }
 function glanceSince(g) {
-  var was = GLANCE_LOOKED;
-  try { localStorage.setItem(GLANCE_KEY, String(NOW)); } catch (e) {}
-  if (was == null || NOW - was < 60e3) return null;
-  function after(t) { var v = ms(t); return v != null && v > was; }
+  var visit = GLANCE_VISIT || { was: glanceStamp(), at: NOW };
+  if (glanceShown()) {
+    GLANCE_VISIT = visit;
+    try { localStorage.setItem(GLANCE_KEY, String(NOW)); } catch (e) {}
+  }
+  var was = visit.was, at = visit.at;
+  if (was == null || at - was < 60e3) return null;
+  function after(t) { var v = ms(t); return v != null && v > was && v <= at; }
   var merged = g.verdict.merges.filter(after).length, wrong = 0, yours = 0, bits = [];
   g.items.forEach(function (it) { if (after(it.since)) { if (it.tier === "wrong") wrong += 1; else if (it.tier === "yours") yours += 1; } });
   if (merged) bits.push(merged + " merged");
   if (wrong) bits.push(wrong + " newly wrong");
   if (yours) bits.push(yours + " new for you");
-  return { ago: short(NOW - was), merged: merged, said: bits.length ? bits.join(", ") : "nothing changed" };
+  return { ago: short(at - was), merged: merged, said: bits.length ? bits.join(", ") : "nothing changed" };
 }
 function glanceCard() {
   var g = STACK && STACK.glance;
