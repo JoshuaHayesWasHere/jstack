@@ -438,7 +438,11 @@ def test_every_job_has_a_cap_that_stops_a_hung_run():
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
-ZSH = "sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh"
+ZSH = (
+    'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\\n" $ZSH_DEBS > zsh.sha256'
+    ' && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4"'
+    ' && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
+)
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 TLC = "~/.cache/jstack/tlc"
@@ -667,6 +671,59 @@ def test_each_part_restores_and_saves_tlcs_kept_runs_right_before_its_suite(job)
     ).stdout.split()
     assert read
     assert set(read) - set(hashed) == set()
+
+
+ZSH_STUBS = {
+    "sudo": '"$@"',
+    "apt-get": 'echo "apt-get $*" >> "$LOG"; case " $* " in *" install "*) installs;; esac',
+    "dpkg": 'echo "dpkg $*" >> "$LOG"; installs',
+    "curl": 'echo "curl $*" >> "$LOG"; for a; do case $a in http*) echo x >"${a##*/}";; esac; done',
+    "sha256sum": "exit 0",
+}
+
+
+@pytest.mark.parametrize("ends", ["installed", "not installed", "not the pinned file"])
+def test_the_zsh_steps_update_no_unnamed_source_and_fail_unless_zsh_runs(tmp_path, ends):
+    """`apt-get update` with no source named reads every list the image names, from its Azure
+    mirror, which took the step 140 to 270 seconds a part job. Each zsh step runs here as
+    written, under sh, with stand-ins for what it calls on a PATH that holds nothing else:
+    it passes only when zsh runs at its end, and installs nothing that is not the pinned file."""
+    runs = [
+        step["run"]
+        for job in ("check-shard", "full-shard")
+        for step in steps(CHECK.read_text(), job)[0]
+        if step.get("name") == "zsh"
+    ]
+    assert len(runs) == 2
+    for at, run in enumerate(runs):
+        bin, temp, log = tmp_path / f"bin{at}", tmp_path / f"temp{at}", tmp_path / f"log{at}"
+        bin.mkdir()
+        temp.mkdir()
+        zsh = tmp_path / f"zsh{at}"
+        zsh.write_text('#!/bin/sh\necho "zsh $*" >> "$LOG"\n')
+        zsh.chmod(0o755)
+        installs = "" if ends == "not installed" else f"{shutil.which('cp')} -p {zsh} {bin}/zsh"
+        for name, body in ZSH_STUBS.items():
+            (bin / name).write_text(f"#!/bin/sh\ninstalls() {{ {installs or ':'}; }}\n{body}\n")
+            (bin / name).chmod(0o755)
+        if ends == "not the pinned file":
+            (bin / "sha256sum").unlink()
+            (bin / "sha256sum").symlink_to(shutil.which("sha256sum"))
+        env = {**block("env"), "PATH": str(bin), "RUNNER_TEMP": str(temp), "LOG": str(log)}
+        ran = subprocess.run(["/bin/sh", "-c", run], env=env, capture_output=True, text=True)
+        called = log.read_text().splitlines() if log.exists() else []
+        assert [
+            line
+            for line in called
+            if line.startswith("apt-get") and " update" in line and "sourcelist=" not in line
+        ] == []
+        if ends == "installed":
+            assert ran.returncode == 0, ran.stderr
+            assert called[-1] == "zsh --version"
+        else:
+            assert ran.returncode != 0
+        if ends == "not the pinned file":
+            assert [line for line in called if not line.startswith("curl")] == []
 
 
 def test_only_full_asks_for_a_marker_and_both_jobs_leave_one():
