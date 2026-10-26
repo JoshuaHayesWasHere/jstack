@@ -29,8 +29,9 @@ from testing.layouts import assembled
 
 
 def variable(name):
-    """A shell variable as a pattern: `$H`, `${H}`, or `${H:-<its default>}`."""
-    return rf"\$\{{?{name}\b(?::-[^}}]*)?\}}?"
+    """A shell variable as a pattern: `$H`, `${H}`, or `${H:-<its default>}`, with `-`, `=` or `:=`
+    in place of `:-` too."""
+    return rf"\$\{{?{name}\b(?::?[-=][^}}]*)?\}}?"
 
 
 READ_SET = ("*.md",)
