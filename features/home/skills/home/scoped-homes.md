@@ -4,8 +4,10 @@ A scoped home is a home like any other, for one goal: it plans and launches its 
 jbus merges a scoped home's pull requests as it merges the root home's, and no home merges its own ("Merging a pull request that is ready").
 The homes of a repo do not plan each other's work, and they are quiet towards each other:
 
-- A home sends another home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch. Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words. A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
-- A scoped home sends the root only what it cannot resolve on its own and that needs the big picture: a decision or a stop, by the block of "Sending the root" below.
+- The root home sends a scoped home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch.
+  Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words.
+  A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
+- A scoped home sends the root only what it cannot resolve on its own and that needs the big picture: a decision or a stop, by the block of "Sending the root" below, and never by a `t3_thread_send` of its own or a line in `$H/standing.md`.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
   A scope that ends says so in its own `handoff.md`.
@@ -17,7 +19,7 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 
 **Sending the root** is a scoped home's, and only for one of two kinds.
 A `decision` is one the scope cannot make on its own, since it needs the big picture: it crosses scopes, or changes what another home may plan or touch.
-A `stop` is a blocker the scope cannot clear by itself, nor by a gate to the user.
+A `stop` is a blocker the scope cannot clear by itself.
 In one call with the block at the top and the block that finds this home, with the kind in place of `<decision or stop>` and what the root must decide or clear, in a line or two, in place of the other words in angle brackets:
 
 ```sh
