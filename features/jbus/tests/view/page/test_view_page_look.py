@@ -12,10 +12,20 @@ pixels whose colour moved by more than `NOISE` on some channel, and fails when t
 than `MOVED` of the shot. A token that changes a colour of text, or a space that moves a
 row, moves far more than that.
 
+Two builds of a browser, or one browser on two machines with other fonts, draw the same page
+further apart than that. So the shots are kept from one browser, the one the nightly browser
+run on CI uses, and `browser.txt` beside them names it, as its `--version` prints it. On any
+other browser the comparison is skipped, but on CI, where it fails: there the browser moved,
+and the run's `jbus-view-shots` artifact holds the shots to keep in place of these.
+
 `JSTACK_SHOTS=keep` writes each shot afresh in place of comparing it: a change that means to
-change the look runs the tests that way and commits the new shots with it."""
+change the look runs the tests that way and commits the new shots with it.
+`JSTACK_SHOTS_OUT=<dir>` also writes each shot as drawn, and `browser.txt`, into that folder."""
 
 import os
+import subprocess
+from functools import cache
+from pathlib import Path
 
 import pytest
 from PIL import Image, ImageChops
@@ -23,6 +33,7 @@ from PIL import Image, ImageChops
 from testing.paths import REPO
 from view.page.browser import (
     BROWSES,
+    CHROMIUM,
     DESK,
     LAUNCH,
     PATIENCE,
@@ -38,6 +49,9 @@ pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAU
 
 
 SHOTS = REPO / "features" / "jbus" / "tests" / "fixtures" / "jbus-view" / "shots"
+
+
+DRAWN_BY = "browser.txt"
 
 
 ROUTES = {
@@ -56,6 +70,13 @@ MOVED = 0.004
 
 
 STILL = "<style>#readat, #mach, #scratch { visibility: hidden !important; }</style>"
+
+
+@cache
+def browser():
+    """The browser that draws the shots here, as its `--version` prints it."""
+    said = subprocess.run([CHROMIUM, "--version"], capture_output=True, text=True, timeout=60)
+    return said.stdout.strip()
 
 
 def shot(scene, tmp_path, route, screen, theme):
@@ -101,10 +122,21 @@ def test_each_route_looks_as_its_kept_shot(scene, tmp_path, monkeypatch, name, s
     every_kind(scene)
     drawn = shot(scene, tmp_path, ROUTES[name], screen, theme)
     kept = SHOTS / f"{name}-{screen[0]}-{theme}.png"
+    out = [Path(os.environ["JSTACK_SHOTS_OUT"])] if os.environ.get("JSTACK_SHOTS_OUT") else []
     if os.environ.get("JSTACK_SHOTS") == "keep":
-        SHOTS.mkdir(parents=True, exist_ok=True)
-        drawn.save(kept, optimize=True)
+        out.append(SHOTS)
+    for folder in out:
+        folder.mkdir(parents=True, exist_ok=True)
+        drawn.save(folder / kept.name, optimize=True)
+        (folder / DRAWN_BY).write_text(browser() + "\n")
+    if os.environ.get("JSTACK_SHOTS") == "keep":
         return
+    drew = (SHOTS / DRAWN_BY).read_text().strip()
+    if drew != browser():
+        moved_on = f"the shots were drawn by {drew}, and this is {browser()}"
+        if os.environ.get("CI"):
+            pytest.fail(f"{moved_on}: keep the shots of this run's jbus-view-shots artifact")
+        pytest.skip(moved_on)
     assert kept.exists(), f"no shot is kept for {kept.name}: run with JSTACK_SHOTS=keep"
     with Image.open(kept) as old:
         share = moved(old.convert("RGB"), drawn)
