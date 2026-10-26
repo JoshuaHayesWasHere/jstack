@@ -415,10 +415,7 @@
     if (!project && !TRIAGE && (HOMES || q.length > !!target)) return "#/" + (HOMES ? "homes" : "") + (q.length ? "?" + q.join("&") : "") + theme;
     return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + theme;
   }
-  function board(project, slug) {
-    var on = [project ? "home=" + encodeURIComponent(project) : "", slug ? "pick=" + encodeURIComponent(slug) : ""].filter(Boolean).join("&");
-    return "#/flow" + (on ? "?" + on : "") + themed();
-  }
+  function board(slug) { return "#/" + (slug ? "&pick=" + encodeURIComponent(slug) : "") + themed(); }
   (function () {
     var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
     HASH = at.more;
@@ -807,7 +804,7 @@
   }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
-    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<a class="btn" href="' + esc(board(PROJECT)) + '">Queue as a flow</a>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>' + '<button type="button" class="btn" data-open="find">Find</button>');
+    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<a class="btn" href="' + esc(board()) + '">Queue as a flow</a>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>' + '<button type="button" class="btn" data-open="find">Find</button>');
     $("calm").hidden = rows.length > 0;
     renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
@@ -1190,7 +1187,7 @@
   }
   function route(given, address) {
     var old = parse(typeof address === "string" ? address : location.hash);
-    if (old.project && /^flow(:|$)/.test(old.target)) { address = board(old.project, old.target.slice(5)); given = null; history.replaceState(null, "", address); }
+    if (old.project && /^flow(:|$)/.test(old.target)) { address = board(old.target.slice(5)); given = null; history.replaceState(null, "", address); }
     var at = parse(typeof address === "string" ? address : location.hash), st = given && given.layers ? given : history.state, was = PROJECT, before = top(), deeper = LAYERS.length, first = LAYERS.length ? LAYERS[0].target : "";
     if (!st || !st.layers) { st = { layers: at.target ? [{ target: at.target }] : [], back: false }; history.replaceState(st, ""); }
     var wanted = EXPECT; EXPECT = null;

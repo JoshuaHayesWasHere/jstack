@@ -299,10 +299,11 @@ def test_an_address_read_and_written_again_names_the_same_view(
 
 
 def test_an_old_link_to_the_flow_drawer_and_both_its_buttons_open_the_board(scene, tmp_path):
-    """The queue as a flow was a drawer of a project, and the board took its place. An old
-    link to it, with a row picked or none, goes to the board with that row picked and the
-    project's home chip on. The button over the rows in progress and the link in the steps
-    drawer open the board the same way."""
+    """The queue as a flow was a drawer of a project, and the board took its place at `#/`. An
+    old link to it, with a row picked or none, goes to `#/` with that row picked, and it lands on
+    the view of every project, not on a project the page cannot find. A project is no home, so no
+    home chip is turned on. The button over the rows in progress and the link in the steps drawer
+    open `#/` the same way."""
     steps = walked(
         scene,
         tmp_path,
@@ -319,13 +320,15 @@ def test_an_old_link_to_the_flow_drawer_and_both_its_buttons_open_the_board(scen
         ],
     )
     assert [one["hash"] for one in steps] == [
-        "#/flow?home=demo&pick=fig-sap",
+        "#/&pick=fig-sap",
         "#/demo",
-        "#/flow?home=demo",
+        "#/",
         "#/demo",
-        "#/flow?home=demo",
+        "#/",
         "#/demo",
         "#/demo/steps",
-        "#/flow?home=demo",
+        "#/",
     ]
+    every = [["All projects"]]
+    assert [[c[:1] for c in one["crumbs"]] for one in steps[0:5:2] + steps[7:]] == [every] * 4
     assert [one["open"] for one in steps] == [False] * 6 + [True, False]
