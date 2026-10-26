@@ -18,7 +18,7 @@ How many review rounds a pull request gets is the brief's `Review:` line.
 
 ## Features in folders
 
-"continue isolating features into folders" (2026-10-13, a note on the cutover design page).
+"continue isolating features into folders" (2026-10-13, a note on a design page).
 Each feature keeps a folder of its own, in the tree and on the machine.
 The move to folders is first for fewer collisions between crews working at once (2026-10-20).
 A home plans new work inside one feature's folder where it can, and briefs a change that spans two only when the work does.
