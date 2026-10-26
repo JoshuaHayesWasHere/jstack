@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,22 +90,30 @@ def red(main: mainjson.Main, slug: str) -> str:
     return ready.MAIN_RED.format(sha=main.red[: mainjson.SHA])
 
 
-def base_red(base: str, runs: list[dict], slug: str) -> str:
+def base_red(base: str, runs: list[dict], slug: str, text: str = "") -> str:
     """The red hold of a pull request into an integration branch. It holds when a check of the
     branch's tip ended without passing on its latest run, as GitHub's check runs list them
     (`failed`). A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`).
 
     This hold does not apply to a fix of a red main, just as `red` does not hold such a fix,
-    nor to the fix row jbus files for a red train (`TRAIN_FIX`): that row's pull request is
-    into the red train, and only its merge turns the train green. jbus's rule for a red train
-    (`jbus.sidered.trains`) reads the runs with the same `failed`, so it files a row for each
-    train that jmerge holds pull requests on. `failed`, `latest` and `TRAIN_FIX` are at the end
-    of this module.
+    nor to the fix of this branch's red at its tip: the row jbus files for it, whose slug is
+    `train_fix(base, sha)`, or a row whose brief `text` says so in its head (`FIXES`). That
+    row's pull request is into the red train, and only its merge turns the train green. A fix
+    of another branch, or of an older red of this one, is held as any other row is. jbus's rule
+    for a red train (`jbus.sidered.trains`) reads the runs with the same `failed`, so it files a
+    row for each train that jmerge holds pull requests on. `failed`, `latest`, `train_fix` and
+    `fixes` are at the end of this module.
     """
     red = failed(runs)
-    if not red or mainjson.fix_of(slug) or slug.startswith(TRAIN_FIX):
+    sha = str(red[0].get("head_sha"))[: mainjson.SHA] if red else ""
+    if (
+        not red
+        or mainjson.fix_of(slug)
+        or slug == train_fix(base, sha)
+        or fixes(text) == (base, sha)
+    ):
         return ""
-    return ready.BASE_RED.format(base=base, sha=str(red[0].get("head_sha"))[: mainjson.SHA])
+    return ready.BASE_RED.format(base=base, sha=sha)
 
 
 def ordered(rows: list[queue.Row] | None) -> set[str]:
@@ -155,6 +164,30 @@ def short(
 TRAIN_FIX = "train-red-"
 """The start of the slug of a fix row jbus files for a red integration branch
 (`jbus.sidered.trains`)."""
+FIXES = "Fixes red:"
+"""The head line of a brief whose row fixes a red integration branch, `Fixes red: <branch> at
+<sha>`, with at least the first 12 characters of the red tip."""
+_STEM = re.compile(r"[^a-z0-9._-]+")
+
+
+def train_fix(branch: str, sha: str) -> str:
+    """The slug of the fix row for the red of `branch` at `sha`, or with no `sha` the start that
+    every fix row of the branch shares."""
+    stem = _STEM.sub("-", branch.lower().removeprefix("train/")).strip("-.") or "train"
+    return f"{TRAIN_FIX}{stem}-{sha[: mainjson.SHA]}"
+
+
+def fixes(text: str) -> tuple[str, str] | None:
+    """The branch and the red tip, to 12 characters, that the brief's `FIXES` line names in its
+    head, or nothing."""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith(FIXES):
+            words = line.removeprefix(FIXES).split()
+            if len(words) == 3 and words[1] == "at" and len(words[2]) >= mainjson.SHA:
+                return words[0], words[2][: mainjson.SHA]
+    return None
 
 
 def latest(runs: list[dict]) -> list[dict]:

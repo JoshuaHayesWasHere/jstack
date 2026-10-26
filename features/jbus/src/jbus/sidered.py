@@ -349,8 +349,7 @@ TRAIN_TOLD = "train-red|{slug}|{thread}"
 def train_name(branch: str, sha: str) -> str:
     """Return the slug of the fix row for the red of `branch` at `sha`, or with no `sha` the start
     that every fix row of the branch shares."""
-    stem = _STEM.sub("-", branch.lower().removeprefix("train/")).strip("-.") or "train"
-    return f"{jmerge_rows.TRAIN_FIX}{stem}-{sha[:12]}"
+    return jmerge_rows.train_fix(branch, sha)
 
 
 def train_brief(
