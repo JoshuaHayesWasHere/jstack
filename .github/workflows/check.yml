@@ -3,11 +3,11 @@ name: check
 on:
   pull_request:
     # A pull request's check runs once, at main's gate: on a pull request into main that is not a
-    # draft. A crew opens its pull request as a draft and marks it ready once its fix round is
-    # pushed, so `ready_for_review` runs the check on the head that goes to the merge, and a push
-    # of work in progress runs none (the jobs' `if` skips a draft). Work into any other branch, a
-    # parent row's branch or a train, is checked on each push to that train and again when it
-    # lands on main.
+    # draft. A crew opens its pull request as a draft and jmerge marks it ready once it is
+    # reviewed and fixed, so `ready_for_review` runs the check on the head that goes to the
+    # merge, and a push of work in progress runs none (the jobs' `if` skips a draft). Work into
+    # any other branch, a parent row's branch or a train, is checked on each push to that train
+    # and again when it lands on main.
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
   # An integration branch, the train `unslop` or any `train/...`, is checked on each push as

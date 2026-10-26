@@ -109,7 +109,7 @@ CrewFix(p) ==
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
     \* message, which jbus sends it.
-    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:80-85
+    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:81-86
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ told' = [told EXCEPT ![p] = FALSE]
@@ -121,10 +121,10 @@ CrewFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:874, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:295-298, red_only
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:875, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:298-301, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:836, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:945, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:948, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>

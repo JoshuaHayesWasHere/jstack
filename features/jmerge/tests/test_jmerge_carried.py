@@ -93,9 +93,10 @@ def test_a_pull_request_built_on_another_waits_on_that_ones_order(built_on):
     assert said[0] == CARRIED
     assert said[2].startswith("ready 10 ")
     listing(built_on, 7, 8)
-    carried, draft = built_on.run()
-    assert carried == CARRIED
-    assert draft.startswith(f"wait 8 {BETA_URL}: {ready.READIED.format(head='')}")
+    after = f"wait 8 {BETA_URL}: merges after gamma (#9), not merged yet"
+    assert built_on.run() == [CARRIED, after]
+    asked = (built_on.home.stub / "calls").read_text().splitlines()
+    assert not [call for call in asked if call.startswith("pr ready")]
     assert built_on.on_main() == (built_on.start, built_on.start)
 
 

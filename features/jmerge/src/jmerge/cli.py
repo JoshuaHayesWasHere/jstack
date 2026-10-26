@@ -865,7 +865,8 @@ class Repo:
 
     def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
-        if one.number in self.order and found.verb == "wait" and ready.being_rebased(found.why):
+        rebasing = found.verb == "wait" and not one.draft and ready.being_rebased(found.why)
+        if one.number in self.order and rebasing:
             self.rebasing.add(one.number)
         else:
             self.rebasing.discard(one.number)
@@ -913,7 +914,9 @@ class Repo:
                 lost = found
         if rebase is None and covered is None:
             lost = ready.answered(text, one.head)
-        short = short or (ready.DRAFT if one.draft else ready.short_on_github(one))
+        short = short or ready.short_on_github(
+            replace(one, waiting=(), failed=()) if one.draft else one
+        )
         note = ""
         silent = ready.unexplained(lost, text, one.head)
         under = ready.under_fix(rebase, text, one.head)
@@ -964,6 +967,8 @@ class Repo:
             hold = ""
         if hold:
             return Judgement(brief.stem, "hold", hold, note, None)
+        if one.draft:
+            return Judgement(brief.stem, "wait", ready.DRAFT, note, None)
         if red:
             self.again_of = one.number
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
@@ -1063,11 +1068,11 @@ class Repo:
         check now, on this head (check.yml runs none on a draft). A brief that says
         `Review: none` is marked too, and still holds for the user's word."""
         ran = _run(self.main, "gh", "pr", "ready", str(one.number), *self.about)
+        if found.why != ready.DRAFT:
+            return found
         if ran.returncode:
-            return found._replace(verb="wait", why=ready.UNREADIED.format(said=_said(ran)))
-        if found.why == ready.DRAFT:
-            return found._replace(why=ready.READIED.format(head=one.head))
-        return found
+            return found._replace(why=ready.UNREADIED.format(said=_said(ran)))
+        return found._replace(why=ready.READIED.format(head=one.head))
 
     def hold(self, one: ready.PullRequest) -> None:
         self.holds_are({**self.holds(), str(one.number): one.head})
