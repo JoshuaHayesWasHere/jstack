@@ -1761,7 +1761,12 @@ def state_of(cwd: Path) -> Path | None:
     here = _run(cwd, "git", "rev-parse", "--path-format=absolute", "--git-common-dir")
     if here.returncode:
         return None
-    return Path.home() / ".local" / "state" / "home" / Path(here.stdout.strip()).parent.name
+    return homes_state(Path(here.stdout.strip()).parent)
+
+
+def homes_state(main_checkout: Path) -> Path:
+    """The repo's state in the homes' state, the directory named for its main checkout."""
+    return Path.home() / ".local" / "state" / "home" / main_checkout.name
 
 
 def parser() -> argparse.ArgumentParser:
@@ -1907,9 +1912,11 @@ def main(argv: list[str] | None = None) -> int:
         found = rangediff.verdict(Path.cwd(), before, head, args.base)
         print(f"{'clean' if found.clean else 'changed'}: {found.why}, by {found.command}")
         return 0
-    if args.remake or args.gate:
+    if args.remake or args.gate is not None:
         found = state_of(Path.cwd())
-        if args.gate:
+        if args.gate is not None:
+            if not args.gate:
+                raise SystemExit("jmerge: --gate takes the head the review keeps, not nothing")
             if found is None:
                 raise SystemExit("jmerge: not in a git repository")
             return merge_gate.review(found, args.gate, args.pr)
@@ -1936,7 +1943,7 @@ def main(argv: list[str] | None = None) -> int:
     if not shutil.which("gh"):
         raise SystemExit("jmerge: gh is not installed")
     main_checkout = Path(here.stdout.strip()).parent
-    state = Path.home() / ".local" / "state" / "home" / main_checkout.name
+    state = homes_state(main_checkout)
     if args.claims:
         return Repo(main_checkout, state, args.home, not args.home, user=user).claimed()
     if args.scope:
