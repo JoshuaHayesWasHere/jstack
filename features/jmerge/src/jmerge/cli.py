@@ -87,8 +87,8 @@ def _read(path: Path) -> str:
         return ""
 
 
-def patch_id(cwd: Path, base: str, commit: str) -> str | None:
-    fork = _run(cwd, "git", "merge-base", f"origin/{base}", commit)
+def patch_id(cwd: Path, base: str, commit: str, since: str = "") -> str | None:
+    fork = _run(cwd, "git", "merge-base", since or f"origin/{base}", commit)
     if fork.returncode:
         return None
     diff = subprocess.run(
@@ -726,11 +726,14 @@ class Repo:
         paths = [path for line in log.stdout.splitlines() for path in line.split("\t")[1:]]
         return tip.stdout.strip(), tuple(dict.fromkeys(paths))
 
-    def range_diff(self, reviewed: str, head: str, default: str) -> rangediff.Verdict:
+    def range_diff(
+        self, reviewed: str, head: str, default: str, stacked: stacks.Stacked | None = None
+    ) -> rangediff.Verdict:
         if not self.fetched:
             self.fetched = True
             _run(self.main, "git", "fetch", "-q", "origin")
-        return rangediff.verdict(self.main, reviewed, head, default)
+        since = self.own_fork(default, reviewed, head, stacked) if stacked else None
+        return rangediff.verdict(self.main, reviewed, head, default, since or "")
 
     def rebase_since_review(self, base: str, covered: str, head: str) -> ready.Rebase | None:
         forks = []
@@ -898,7 +901,7 @@ class Repo:
         covered = ready.to_range_diff(rebase, text, one.head)
         lost: tuple[ready.Drop, ...] = ()
         if not short:
-            patches = [patch_id(self.main, one.base, each) for each in ready.to_compare(rebase)]
+            patches = self.patches(one.base, ready.to_compare(rebase), stacked)
             short = ready.short_on_rebase(rebase, patches)
         if not short and (covered if rebase is None else rebase.did == "changed"):
             if _run(self.main, "git", "fetch", "-q", "origin").returncode:
@@ -927,7 +930,7 @@ class Repo:
         if reviewed == "":
             short = ready.NO_HEAD
         elif reviewed:
-            verdict = self.range_diff(reviewed, one.head, one.base)
+            verdict = self.range_diff(reviewed, one.head, one.base, stacked)
             short = ready.short_on_content(verdict)
             if not short:
                 self.carried[one.number] = reviewed
@@ -1015,6 +1018,40 @@ class Repo:
                 runs = []
             self.reds[one.base] = runs if isinstance(runs, list) else []
         return rows.base_red(one.base, self.reds[one.base], slug)
+
+    def patches(
+        self, base: str, compared: tuple[str, ...], stacked: stacks.Stacked | None
+    ) -> list[str | None]:
+        """The patch of each head a `Rebase:` line compares, the old one over its own commits
+        (`own_fork`)."""
+        if len(compared) != 2:
+            return [patch_id(self.main, base, each) for each in compared]
+        before, head = compared
+        own = self.own_fork(base, before, head, stacked)
+        if own is None:
+            return [None, patch_id(self.main, base, head)]
+        return [patch_id(self.main, base, before, own), patch_id(self.main, base, head)]
+
+    def own_fork(
+        self, base: str, before: str, head: str, stacked: stacks.Stacked | None
+    ) -> str | None:
+        """Where the link's own commits start in its head `before` a rebase onto `head`: its
+        fork from `base`, or None when git cannot say. A link jbus moved once its base merged is
+        the exception: its old head forks from the base's branch before the base's commits,
+        which a squash merge leaves out of that branch's history, so its own commits are as many
+        of its last ones as `head` has above its fork."""
+        if stacked is None or not stacked.at:
+            fork = _run(self.main, "git", "merge-base", f"origin/{base}", before)
+            return None if fork.returncode else fork.stdout.strip()
+        fork = _run(self.main, "git", "merge-base", f"origin/{base}", head)
+        if fork.returncode:
+            return None
+        span = f"{fork.stdout.strip()}..{head}"
+        count = _run(self.main, "git", "rev-list", "--count", "--first-parent", span)
+        if count.returncode:
+            return None
+        own = _run(self.main, "git", "rev-parse", "--verify", f"{before}~{count.stdout.strip()}")
+        return None if own.returncode else own.stdout.strip()
 
     def holds(self) -> dict[str, str]:
         try:
