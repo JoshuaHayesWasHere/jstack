@@ -23,12 +23,22 @@ thread out of the waiters file.
 The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a run it starts
 knows a slot is held: a TLC model check in a suite takes no second slot, and cannot wait on the
 one its own suite holds.
+
+Each slot has a temporary directory of its own beside its lock file, `test-slot.<n>.tmp` (or
+`test-slot-short.<n>.tmp`), and the command runs with `TMPDIR` set to it. So pytest's basetemp,
+`pytest-of-<user>` under the temporary directory, is the slot's, for the suite and for every
+pytest it starts, and nothing goes to the `pytest-of-<user>` in `/tmp` that every worktree's runs
+shared. Pytest's own retention did not keep that one small: a run that was killed never cleaned
+up, and runs at once shared its numbering. Only the slot's holder writes in the directory. It
+removes the directory when it lets the slot go, however the command ended. A holder that dies
+cannot, so the next one to take the slot removes what is left before its command starts.
 """
 
 from __future__ import annotations
 
 import fcntl
 import os
+import shutil
 import signal
 import subprocess
 import sys
@@ -115,22 +125,23 @@ def free(lane: Lane) -> int:
     return found
 
 
-def _first_free(locks: Path, lane: Lane) -> int | None:
+def _first_free(locks: Path, lane: Lane) -> tuple[int, Path] | None:
     for n in range(1, lane.slots + 1):
-        held = os.open(locks / f"{lane.lock}.{n}.lock", os.O_RDWR | os.O_CREAT, 0o644)
+        lock = locks / f"{lane.lock}.{n}.lock"
+        held = os.open(lock, os.O_RDWR | os.O_CREAT, 0o644)
         try:
             fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             os.close(held)
         else:
-            return held
+            return held, lock
     return None
 
 
-def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> int | None:
-    """Wait for a slot and take it. With a `thread` it does not wait: when every slot is taken,
-    it registers the thread as a waiter on the lane, says so in one line, and takes no slot. A
-    thread that takes a slot is no longer a waiter."""
+def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tuple[int, Path] | None:
+    """Wait for a slot and take it, and give the held lock and its file. With a `thread` it does
+    not wait: when every slot is taken, it registers the thread as a waiter on the lane, says so
+    in one line, and takes no slot. A thread that takes a slot is no longer a waiter."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
     if thread:
@@ -152,6 +163,15 @@ def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> int 
             said = True
         time.sleep(LOOK_EVERY_SECONDS)
     return held
+
+
+def _temporary(lock: Path) -> Path:
+    """The temporary directory of the slot whose lock file is `lock`, emptied of what a holder
+    that died left in it."""
+    own = lock.with_name(f"{lock.stem}.tmp")
+    shutil.rmtree(own, ignore_errors=True)
+    own.mkdir(mode=0o700, exist_ok=True)
+    return own
 
 
 def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
@@ -185,9 +205,11 @@ def _stop(child: subprocess.Popen, lane: Lane) -> int:
 def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None = None) -> int:
     """Run `command` under a slot of `lane`. A waiter registers `wake`, what the thread runs
     again once jbus wakes it, which is `command` itself unless the caller names another."""
-    held = take(lane, thread, wake or command)
-    if held is None:
+    took = take(lane, thread, wake or command)
+    if took is None:
         return WAITING
+    held, lock = took
+    own = _temporary(lock)
     child: subprocess.Popen | None = None
     early: list[int] = []
 
@@ -202,7 +224,7 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
     try:
         child = subprocess.Popen(
             command,
-            env={**os.environ, HELD: name(lane)},
+            env={**os.environ, HELD: name(lane), "TMPDIR": str(own)},
             process_group=None if lane.limit is None else 0,
         )
     except OSError as error:
@@ -218,4 +240,5 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
             return _stop(child, lane)
         return code if code >= 0 else 128 - code
     finally:
+        shutil.rmtree(own, ignore_errors=True)
         os.close(held)

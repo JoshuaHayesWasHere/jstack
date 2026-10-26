@@ -11,6 +11,11 @@ only once the tree has an origin and gitleaks is on the machine.
 
 `jbus-snapshot.timer` runs `jbus snapshot` at 08:30 and 17:30. A home runs it with `--why` right
 after each edit to a `standing.md`, so that each such edit is a commit of its own and can be undone.
+Before it stages anything, a snapshot reads each project's `standing.md`, the home's and each
+scoped home's (`refusals`). The file holds at most `CAP` numbered rules, and each rule names
+`Code: <slug>`, a row of the project's queue that turns the rule into code. A file that breaks
+either is refused: the snapshot commits nothing, says which rule and why on stderr, and fails.
+
 A snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
 `jbus snapshot --alarm`. The first failure in a row raises an alert, once, to the desk and every
 project, and the next snapshot that succeeds reports the recovery (`alert.sound`, `alert.recover`).
@@ -20,8 +25,10 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import re
 import shutil
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -30,9 +37,12 @@ from typing import IO
 
 import jbus
 import jsettings
-from jbus import alert, verbs
+from jbus import alert, queue, verbs
 
 AFTER = 1
+CAP = 3
+_RULE = re.compile(r"(\d+)\. ")
+_CODE = re.compile(r"\bCode: ([\w.-]*\w)")
 WAIT = 60.0
 ALARM = (
     "the last snapshot of the homes' state tree did not finish "
@@ -117,20 +127,83 @@ def _commit(tree: Path, message: str) -> None:
     _must(_git(tree, "commit", "-q", "-m", message), "git commit")
 
 
+def _rules(text: str) -> list[tuple[str, str]]:
+    """Return each numbered rule of a `standing.md`, its number and its words. A rule runs from
+    its numbered line to the next numbered line or heading, as `queue.rule` reads it."""
+    rules: list[tuple[str, str]] = []
+    inside = False
+    for line in text.splitlines():
+        numbered = _RULE.match(line)
+        if numbered:
+            rules.append((numbered[1], line))
+            inside = True
+        elif line.startswith("#"):
+            inside = False
+        elif inside:
+            rules[-1] = (rules[-1][0], f"{rules[-1][1]}\n{line}")
+    return rules
+
+
+def refusals(config: jbus.Config) -> list[str]:
+    """Return one line for each `standing.md` of a project's home or scoped home that breaks the
+    cap: the file, then each reason, which names the rule."""
+    lines = []
+    for project in config.projects:
+        home = config.home(project)
+        try:
+            slugs = {row["slug"] for row in queue.load(config.state(project))}
+        except queue.Unparsable:
+            slugs = set()
+        for standing in sorted({home / "standing.md", *home.glob("*/standing.md")}):
+            if not standing.is_file():
+                continue
+            try:
+                rules = _rules(standing.read_text(errors="replace"))
+            except OSError as error:
+                lines.append(f"{standing} cannot be read: {error.strerror or error}")
+                continue
+            why = []
+            if len(rules) > CAP:
+                why.append(f"has {len(rules)} rules, and a standing.md holds at most {CAP}")
+            for number, words in rules:
+                code = _CODE.search(words)
+                if not code:
+                    why.append(
+                        f"rule {number} has no Code: <slug>, the queue row that makes it code"
+                    )
+                elif code[1] not in slugs:
+                    why.append(
+                        f"rule {number} names Code: {code[1]}, "
+                        f"which is in no queue of {project.name}"
+                    )
+            if why:
+                lines.append(f"{standing} {'; '.join(why)}")
+    return lines
+
+
+def _stderr(line: str) -> None:
+    print(line, file=sys.stderr)
+
+
 def snapshot(
     config: jbus.Config,
     now: datetime | None = None,
     say: Callable[[str], None] = print,
     why: str | None = None,
+    warn: Callable[[str], None] = _stderr,
 ) -> int:
-    """Take a snapshot of `config.home_dir`. A snapshot that succeeds ends a streak of failed
-    ones. `snapshot` returns 0 even when jbus could not tell a project that snapshots
-    recovered, because the unit runs the snapshot, not the telling."""
+    """Take a snapshot of `config.home_dir`, unless a `standing.md` is refused (`refusals`). A
+    snapshot that succeeds ends a streak of failed ones, and one that fails says why to `warn`.
+    `snapshot` returns 0 even when jbus could not tell a project that snapshots recovered,
+    because the unit runs the snapshot, not the telling."""
     now = now or datetime.now(UTC)
     try:
+        refused = refusals(config)
+        if refused:
+            raise Failed(f"refused, nothing committed: {'; '.join(refused)}")
         say(take(config.home_dir, now, config.user, why))
     except Failed as error:
-        say(f"snapshot: {error}")
+        warn(f"snapshot: {error}")
         return 1
     alert.recover(config, alert.SNAPSHOT, now, say)
     return 0
@@ -139,11 +212,13 @@ def snapshot(
 def alarm(
     config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
 ) -> int:
-    """Count a snapshot that did not finish. The first failure in a row raises an alert,
-    once."""
+    """Count a snapshot that did not finish. The first failure in a row raises an alert, once,
+    and it names each refused `standing.md` with its rule and why."""
     now = now or datetime.now(UTC)
     say("snapshot failed")
-    return alert.sound(config, alert.SNAPSHOT, ALARM, AFTER, now, say)
+    refused = refusals(config)
+    cause = f"{ALARM}: {'; '.join(refused)}" if refused else ALARM
+    return alert.sound(config, alert.SNAPSHOT, cause, AFTER, now, say)
 
 
 def _arguments(shown: argparse.ArgumentParser) -> None:

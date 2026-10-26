@@ -133,6 +133,27 @@ def test_the_help_gives_the_definition_and_flow_s_window_flags_are_refused(kitch
     assert code == 1 and out.startswith("refused: --rows is jbus flow's, not jbus flow asks'"), out
 
 
+def test_a_day_is_the_day_in_the_owner_s_zone_and_not_the_utc_date(kitchen, tmp_path):
+    """The tests' zone is ET, four hours behind UTC in October: 02:30Z on the 23rd is 22:30 on
+    the 22nd there, so a count by UTC date would put both asks on the 23rd."""
+    late = [
+        (10 * 60 + 30, ROOT, "user", "user", "$ketchup"),
+        (DAY, ROOT, "user", "user", "$ketchup"),
+    ]
+    store = write(tmp_path / "statev2.sqlite", THREADS, late, T)
+    code, out = kitchen.main("flow", "asks", *WINDOW, "--store", str(store), "--json")
+    assert code == 0, out
+    said = json.loads(out)
+    assert [one["at"] for one in said["list"]] == [
+        "2026-10-23T02:30:00+00:00",
+        "2026-10-23T16:00:00+00:00",
+    ]
+    assert {when: that["asks"] for when, that in said["days"].items()} == {
+        "2026-10-22": 1,
+        "2026-10-23": 1,
+    }
+
+
 def test_a_missing_store_and_a_window_that_ends_first_are_refused(kitchen, store, tmp_path):
     code, out = kitchen.main("flow", "asks", *WINDOW, "--store", str(tmp_path / "gone"))
     assert code == 1 and out.startswith("refused:")
@@ -141,7 +162,16 @@ def test_a_missing_store_and_a_window_that_ends_first_are_refused(kitchen, store
 
 
 @pytest.mark.parametrize(
-    "text", ["Status?", "Looks good. Status?", "Ok.\nStatus?", "Thanks. And now?"]
+    "text",
+    [
+        "Status?",
+        "Looks good. Status?",
+        "Ok.\nStatus?",
+        "Thanks. And now?",
+        "Looks good\nStatus?",
+        "Thanks\nAnd now?",
+        "Looks good\n  Status?",
+    ],
 )
 def test_a_short_status_question_asks_where_we_are_after_another_sentence_too(text):
     assert asks.jobs(text) == ("J2",)
