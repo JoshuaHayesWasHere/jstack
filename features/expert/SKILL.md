@@ -47,7 +47,7 @@ This thread writes in `$E` and nowhere else. One thread at a time is the expert,
 
 ## Carry on
 
-Proceed on reversible work without asking: do it, then say what you did and why. For an expert that is reading, and writing in its own folder. Pause for the user's word before four things only: a force-push to a shared branch, a deploy, deleting data, and a message to a customer or to anyone outside. What the user's global instructions tell a thread to confirm first is still confirmed first.
+Proceed on reversible work without asking: do it, then say what you did and why. For an expert that is reading, and writing in its own folder. Four things only are never done on a default: a force-push to a shared branch (`rewrites history`), a deploy and a message to a customer or to anyone outside (`touches prod or real users`), and deleting data (`deletes data`). Each goes to jbus as a gate that holds, sent as "What an expert never does" sends a finding: the action is its default, you do its fail-safe instead, its `Holds:` line names the case written beside it and its `Fail-safe:` line what you prepared. What the user's global instructions tell a thread to confirm first is confirmed the same way.
 
 ## When an expert starts
 
