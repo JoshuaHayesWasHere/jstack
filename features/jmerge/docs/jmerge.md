@@ -114,7 +114,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
 - A brief that says `Review: after` skips the review's gates.
   `jmerge` asks for no `## Review`, verdict, `Fixed:` line or answered finding.
   A review written while the pull request is open does not change its wait reason (`ready.after`).
-  Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that `jbus queue add` approves by rule where the home has a `follow-rule` file and the user's own word approved `<slug>`.
+  Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that jbus approves by the follow-up rule, when it is queued or on the next pass, where `<slug>`'s go holds.
   The pull request merges once its required checks pass, and its `Skills run:`, `Rebase:` and `Dropped on rebase:` lines meet their rules.
   A pull request that changes a guarded path still waits for a review of its head.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
@@ -156,7 +156,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A repo with no jbus config, no project or no `main.json` has no such wait.
   If `jmerge` cannot read the file, it reports that main's state is not known.
   `jmerge` checks main's state only for a pull request into main.
-  A pull request into an integration branch waits when that branch's tip is red instead ("Integration branches").
+  A pull request into an integration branch waits when that branch's tip is red instead, unless it is the fix of that red ("Integration branches").
   jbus checks every commit that was main's tip since jbus's last pass.
   So jbus counts a failed tip as red even while the check of a newer tip is still running.
   A later green tip ends the red state.
@@ -337,7 +337,13 @@ Instead, it holds the pull request when the latest run of a check on that branch
 The line is `<branch> is red at <sha12>: its latest check failed` (`BASE_RED`, on the `check` step).
 `jmerge` asks GitHub for the check runs of the tip once per run (`gh api repos/{owner}/{repo}/commits/<branch>/check-runs`).
 As on main, none of these holds the pull request: a cancelled run, a run still going, a tip with no run, or no answer from GitHub.
-This hold never applies to the fix of a red main.
+This hold never applies to the fix of a red main, nor to the fix of this branch's red at its tip.
+That fix is the row jbus files for the red, `train-red-<train>-<sha12>` (`TRAIN_FIX`, `jbus.sidered.trains`), whose `<train>` is the branch's name without `train/`, in lower case.
+It is also any row whose brief says so in its head, above its first `## ` heading, with one line: `Fixes red: <branch> at <sha>`, where `<sha>` is the red tip, its first 12 characters or more (`FIXES`).
+A main sync that brings the fix of a test the branch fails on is such a row.
+The exemption holds only for the red it names.
+A fix row or a `Fixes red:` line for another branch, or for an older red tip of this one, is held as every other pull request into the branch is.
+Once the tip is green, every pull request into the branch is judged again, its fix's included.
 If a repo's CI runs only on pushes to the default branch, an integration branch's tip has no check run, and this hold never applies.
 
 The landing is the pull request whose head is an integration branch and whose base is the default branch.
