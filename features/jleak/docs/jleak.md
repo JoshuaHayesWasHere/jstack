@@ -161,8 +161,8 @@ A shell command writes a file when it redirects into it, or names it and is not 
 It reads `~`, `$HOME` and `${HOME}` as the shell does, and follows a `cd`.
 `cat`, `grep`, `jq` and `diff` read, `cp` reads its sources, and `sed`, `perl`, `awk`, `yq` and `tomlq` write only with `-i`.
 A program it does not know is taken to write, `sort` among them.
-`find` writes with `-delete` or `-exec` in a folder that holds one of the files.
-It reads the string that `sh -c`, `bash -c` or `eval` runs as a command of its own.
+`find` writes the file its `-fprint` names, an `-exec` is read as a command, and `-delete` or a writing `-exec` writes in a start folder that holds one of the files.
+It reads the string that `sh -c`, `bash -lc` or `eval` runs as a command of its own.
 The refusal says to send the lines to the infra home:
 
 ```text

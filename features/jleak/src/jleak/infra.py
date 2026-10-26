@@ -12,16 +12,16 @@ to change, and the infra home makes the change.
             unit, but for a verb that only reads; a listener on 3773 (`socat`, `nc`); `fuser -k`
             on 3773
 
-A `Write`, `Edit`, `MultiEdit` or `NotebookEdit` call is refused when its file is one of the
-files. A shell command is cut into simple commands as `jleak.sources` cuts it, and one is refused
-when it redirects output into one of the files, or names one as a word and is not a command
-that only reads it. `cat`, `grep` or `jq` read; `cp` reads its sources and writes its
-destination; `sed`, `perl`, `awk`, `yq` and `tomlq` write only with `-i`; `find` writes with
-`-delete` or `-exec` in a folder that holds one of the files; a program this module does not know
-is taken to write, `sort` among them. The string that `sh -c`, `bash -c` or `eval` runs is read as
-a command of its own. A path is read as the shell would expand `~`, `$HOME` and `${HOME}`, against
-the folder the command has moved to with `cd`. A command whose quotes do not close is refused when
-its text names one of the files, or `tailscale` and 3773.
+A `Write`, `Edit`, `MultiEdit` or `NotebookEdit` call is refused when its file is one of the files.
+A shell command is cut into simple commands as `jleak.sources` cuts it, and one is refused when it
+redirects output into one of the files, or names one as a word and is not a command that only reads
+it. `cat`, `grep` or `jq` read; `cp` reads its sources and writes its destination; `sed`, `perl`,
+`awk`, `yq` and `tomlq` write only with `-i`; `find` writes the file of its `-fprint`, and with
+`-delete` or a writing `-exec` in a folder that holds one; a program this module does not know is
+taken to write, `sort` among them. The string that `sh -c`, `bash -c` or `eval` runs is read as a
+command of its own. A path is read as the shell would expand `~`, `$HOME` and `${HOME}`, against the
+folder the command has moved to with `cd`. A command whose quotes do not close is refused when its
+text names one of the files, or `tailscale` and 3773.
 
 The infra home and its crew are let through. The test is the repo of the project the session
 started in: Claude Code's `CLAUDE_PROJECT_DIR`, else the hook's `cwd`. When that folder's
@@ -35,6 +35,7 @@ import os
 import re
 import subprocess
 import sys
+from itertools import takewhile
 from pathlib import Path
 
 from jleak import sources
@@ -52,7 +53,6 @@ READERS = {
 }
 IN_PLACE = {"sed", "perl", "awk", "gawk", "yq", "tomlq"}
 SHELLS = {"sh", "bash", "zsh", "dash"}
-FIND_WRITES = {"-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprintf", "-fls"}
 COPIES = {"cp", "install", "rsync", "ln"}
 REDIRECT = re.compile(r"[0-9&]*>[>|]?")
 THE_PORT = re.compile(r"(?<![0-9])3773(?![0-9])")
@@ -153,12 +153,8 @@ def _files(guarded: Guarded, program: str, argv: list[str], cwd: Path) -> None:
             for word in words:
                 guarded.check(word, cwd)
         return
-    if program == "find" and any(w in FIND_WRITES for w in argv):
-        for word in argv[1:]:
-            if word.startswith(("-", "(", "!")):
-                break
-            if name := guarded.holds(word, cwd):
-                raise Refused(f"{name} is infra's, so the call is refused: {SEND}")
+    if program == "find":
+        _find(guarded, argv, cwd)
         return
     if program == "dd":
         for word in argv[1:]:
@@ -190,6 +186,39 @@ def _files(guarded: Guarded, program: str, argv: list[str], cwd: Path) -> None:
             guarded.check(word.partition("=")[2], cwd)
 
 
+def _find(guarded: Guarded, argv: list[str], cwd: Path) -> None:
+    """Refuse a `find` that writes one of the files: a file its `-fprint`, `-fprintf` or `-fls`
+    writes, an `-exec` command that would be refused on its own, or `-delete`, or an `-exec` of a
+    program that is not a reader, in a start folder (the folder it is in, when it names none) that
+    holds one of the files."""
+    at = 1
+    while at < len(argv) and not argv[at].startswith(("-", "(", "!")):
+        at += 1
+    starts, rest, writes = argv[1:at] or ["."], argv[at:], False
+    for at, word in enumerate(rest):
+        if word in ("-fprint", "-fprintf", "-fls") and at + 1 < len(rest):
+            guarded.check(rest[at + 1], cwd)
+        elif word in ("-exec", "-execdir", "-ok", "-okdir"):
+            inner = list(takewhile(lambda each: each not in (";", "+"), rest[at + 1 :]))
+            program = Path(inner[0]).name if inner else ""
+            if program:
+                _port(program, inner)
+                _files(guarded, program, inner, cwd)
+            writes = writes or program not in READERS
+        writes = writes or word == "-delete"
+    for start in starts if writes else []:
+        if name := guarded.holds(start, cwd):
+            raise Refused(f"{name} is infra's, so the call is refused: {SEND}")
+
+
+def _string_flag(argv: list[str]) -> int | None:
+    """Where a shell's `-c` is, also in a cluster such as `-lc`, when a string follows it."""
+    for at, word in enumerate(argv[1:-1], 1):
+        if re.fullmatch(r"-[A-Za-z]*c[A-Za-z]*", word):
+            return at
+    return None
+
+
 def _command(guarded: Guarded, typed: str, cwd: Path) -> None:
     try:
         simple = sources._simple(typed)
@@ -213,8 +242,8 @@ def _command(guarded: Guarded, typed: str, cwd: Path) -> None:
                 cwd = cwd / os.path.expandvars(os.path.expanduser(argv[1]))
             elif program == "eval":
                 _command(guarded, " ".join(argv[1:]), cwd)
-            elif program in SHELLS and "-c" in argv[1:-1]:
-                _command(guarded, argv[argv.index("-c") + 1], cwd)
+            elif program in SHELLS and (flag := _string_flag(argv)):
+                _command(guarded, argv[flag + 1], cwd)
             elif program:
                 _port(program, argv)
                 _files(guarded, program, argv, cwd)
