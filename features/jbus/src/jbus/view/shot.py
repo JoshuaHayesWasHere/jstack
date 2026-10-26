@@ -76,13 +76,16 @@ def state_dirs() -> tuple[Path, ...]:
 
 
 def target(out: str) -> Path:
-    """The file to write: a bare name in the runtime directory, any other path as given."""
+    """The file to write: a bare name in the runtime directory, any other path as given. A directory
+    is refused, since the PNG would be moved into it under a name `--out` did not give."""
     if "/" not in out:
         runtime = os.environ.get("XDG_RUNTIME_DIR")
         out = str(Path(runtime if runtime and Path(runtime).is_dir() else "/tmp") / out)
     path = Path(out).expanduser().resolve()
     if any(path.is_relative_to(one) for one in state_dirs()):
         raise NoShot(f"no shot: {path} is in a state directory")
+    if path.is_dir():
+        raise NoShot(f"no shot: {path} is a directory")
     if not path.parent.is_dir():
         raise NoShot(f"no shot: {path.parent} is not a directory")
     return path
