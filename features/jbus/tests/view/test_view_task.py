@@ -14,7 +14,7 @@ from jbus.view import panels
 from jbus.view import state as built
 from test_jbus_kitchen import NOW as POLLED
 from test_jbus_kitchen import Kitchen, complete
-from view.scene import JMERGE, NAMES, NOW, PULL, ago, et, iso, item, kinds, row, table, tasks
+from view.scene import GATE, JMERGE, NAMES, NOW, PULL, ago, et, iso, item, kinds, row, table, tasks
 
 
 def test_a_queued_row_is_yours_blocked_or_waiting_for_jbus(served):
@@ -518,3 +518,98 @@ def test_the_waiting_list_words_a_leftover_as_the_drawer_does(scene, served):
     }
     assert lines["plum-jam"].startswith("its pull request #51 is merged and the work is done")
     assert NOTE in lines["plum-jam"]
+
+
+def test_a_chain_of_three_names_each_blocker_and_the_first_blocks_two(scene, served):
+    findings = "wait: its findings are not handled: the Result has no Fixed line"
+    scene.queue(
+        [
+            row("nut-shell", "pr", pr="#41", why=findings),
+            row("nut-meat", depends=["nut-shell"], why="depends on nut-shell"),
+            row("nut-oil", depends=["nut-meat"], why="depends on nut-meat"),
+            row("nut-husk", approved="", why="not approved"),
+            row("nut-bowl", "running", thread="mcp:1"),
+        ]
+    )
+    found = tasks(served.json("/state.json?project=demo"))
+    assert found["nut-shell"]["blocked"] == {"by": "", "what": "findings", "state": ""}
+    assert found["nut-meat"]["blocked"] == {
+        "by": "nut-shell",
+        "what": "nut-shell",
+        "state": "Findings",
+    }
+    assert found["nut-oil"]["blocked"] == {"by": "nut-meat", "what": "nut-meat", "state": "Behind"}
+    assert found["nut-shell"]["behind"] == ["nut-meat", "nut-oil"]
+    assert found["nut-husk"]["blocked"] == {"by": "", "what": "approval", "state": ""}
+    assert found["nut-bowl"]["blocked"] is None
+    assert {slug: one["blocks"] for slug, one in found.items()} == {
+        "nut-shell": 2,
+        "nut-meat": 1,
+        "nut-oil": 0,
+        "nut-husk": 0,
+        "nut-bowl": 0,
+    }
+
+
+def test_each_queued_row_names_the_one_row_it_waits_on_last(scene, served):
+    """A chain of four: `pea-soup` is behind three rows. `pea-vine` is behind a row that is out.
+    `pea-mash` waits on two rows of one wave, and `pea-pod` is the first of them in the queue.
+    `pea-husk` is not approved, and `pea-salt` is behind a row that merged."""
+    scene.queue(
+        [
+            row("pea-pod", "gate", why="a gate the Chef has", priority=0),
+            row("pea-one"),
+            row("pea-two", depends=["pea-one"]),
+            row("pea-three", depends=["pea-two"]),
+            row("pea-four", depends=["pea-three"]),
+            row("pea-soup", depends=["pea-one", "pea-three", "pea-two"]),
+            row("pea-vine", depends=["pea-pod"]),
+            row("pea-mash", depends=["pea-one", "pea-pod"]),
+            row("pea-husk", approved="", why="not approved", depends=["pea-two"]),
+            row("pea-done", "merged", pr="#61"),
+            row("pea-salt", depends=["pea-done"]),
+        ]
+    )
+    found = tasks(served.json("/state.json?project=demo"))
+    assert {slug: one["waits_on"] for slug, one in found.items()} == {
+        "pea-pod": "",
+        "pea-one": "",
+        "pea-two": "pea-one",
+        "pea-three": "pea-two",
+        "pea-four": "pea-three",
+        "pea-soup": "pea-three",
+        "pea-vine": "pea-pod",
+        "pea-mash": "pea-pod",
+        "pea-husk": "pea-two",
+        "pea-salt": "",
+    }
+    assert found["pea-husk"]["state"]["kind"] == "unapproved"
+    assert found["pea-husk"]["blocked"] == {"by": "", "what": "approval", "state": ""}
+
+
+def test_rows_that_depend_on_each_other_still_name_the_row_they_wait_on():
+    assert built.waits_on(["a", "b", "c"], {"a": ["b"], "b": ["a"], "c": ["gone"]}) == {
+        "a": "b",
+        "b": "a",
+        "c": "gone",
+    }
+
+
+def test_the_wait_band_is_the_list_the_pass_left_with_the_gates_read_now(scene, served):
+    waiting = served.json("/state.json?project=demo")["waiting"]
+    assert [(one["kind"], one["line"]) for one in waiting] == [
+        ("gate", "gate 4: tea or coffee?"),
+        ("row", "gate jam-lid: which lid?"),
+        ("approve", "approve tea-kettle: jbus queue approve"),
+        ("hold", "hold 14: needs user"),
+    ]
+    assert waiting[0]["since"] == iso(ago(hours=3))
+    assert (waiting[0]["question"], waiting[0]["default"]) == ("tea or coffee?", "tea")
+    with open(scene.home / "gates.md", "a") as gates:
+        gates.write("\n" + GATE.format(n=6, asked="milk?", status="open", default="no"))
+    waiting = served.json("/state.json?project=demo")["waiting"]
+    assert [one["line"] for one in waiting if one["kind"] == "gate"] == [
+        "gate 4: tea or coffee?",
+        "gate 6: milk?",
+    ]
+    assert waiting[1]["since"] is None
