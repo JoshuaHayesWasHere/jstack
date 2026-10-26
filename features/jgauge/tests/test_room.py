@@ -214,8 +214,49 @@ def test_a_file_with_no_reading_in_it_waits(tmp_path, file):
 
 def test_a_core_count_that_cannot_be_read_waits(tmp_path):
     env = machine(tmp_path, **IDLE)
-    (tmp_path / "stub" / "nproc").write_text("#!/bin/sh\nexit 1\n")
-    assert says(env).startswith("wait: ")
+    for tool in ("nproc", "getconf", "sysctl"):
+        put(tmp_path / "stub" / tool, "#!/bin/sh\nexit 1\n", 0o755)
+    assert says(env) == "wait: the load or the core count could not be read"
+
+
+def lacking(env, where, tool):
+    """The environment with no `tool` anywhere on its PATH, as a Mac has no `nproc`: every
+    other command of the PATH is linked into one directory, after the machine's stubs."""
+    farm = where / "farm"
+    farm.mkdir()
+    stub = Path(env["PATH"].split(os.pathsep)[0])
+    (stub / tool).unlink(missing_ok=True)
+    for directory in env["PATH"].split(os.pathsep)[1:]:
+        for one in Path(directory).glob("*") if Path(directory).is_dir() else ():
+            if one.name != tool and not (farm / one.name).exists() and os.access(one, os.X_OK):
+                (farm / one.name).symlink_to(one)
+    return {**env, "PATH": f"{stub}{os.pathsep}{farm}"}
+
+
+def counted(where, cores, getconf, sysctl):
+    """A machine with a load of 6.00, whose cores are `getconf`'s and `sysctl`'s answers
+    beside `nproc`'s: `None` is a command that fails."""
+    env = machine(where, **{**IDLE, "load": "6.00", "cores": cores})
+    for tool, asked, answer in (
+        ("getconf", "_NPROCESSORS_ONLN", getconf),
+        ("sysctl", "-n hw.ncpu", sysctl),
+    ):
+        said = "exit 1" if answer is None else f'[ "$*" = "{asked}" ] && echo {answer}'
+        put(where / "stub" / tool, f"#!/bin/sh\n{said}\n", 0o755)
+    return env
+
+
+def test_nproc_counts_the_cores_while_it_is_there(tmp_path):
+    assert says(counted(tmp_path, "12", getconf="3", sysctl="2")) == "go"
+
+
+@pytest.mark.parametrize(("getconf", "sysctl", "cores"), [("3", "2", "3"), (None, "2", "2")])
+def test_a_proc_with_no_nproc_counts_the_cores_with_getconf_and_then_sysctl(
+    tmp_path, getconf, sysctl, cores
+):
+    env = lacking(counted(tmp_path, "12", getconf, sysctl), tmp_path, "nproc")
+    assert shutil.which("nproc", path=env["PATH"]) is None
+    assert says(env) == f"wait: load 6.00 is at or over 200% of {cores} cores"
 
 
 @pytest.mark.parametrize(
