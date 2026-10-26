@@ -8,6 +8,9 @@ green, working toward it. Each stage comes from what jbus judged, and no worker 
 unknown: a row that `work.json` does not have takes its stage from its row's status.
 """
 
+import dataclasses
+
+import jsettings
 from jbus import queue
 from jbus.view import state as built
 from view.scene import (
@@ -30,7 +33,9 @@ STAGES = ["briefed", "running", "pr", "review", "fixing", "green", "merged"]
 
 
 def board(scene):
-    return built.Read(sources(scene), scene.name, NOW, runs).asked("board")["data"]
+    """The board as the server builds it, which reads a pass's stamps in the user's zone."""
+    found = dataclasses.replace(sources(scene), user=jsettings.load())
+    return built.Read(found, scene.name, NOW, runs).asked("board")["data"]
 
 
 def workers(said):
