@@ -1372,13 +1372,60 @@ def test_a_workflows_triggers_are_read_with_the_list_a_schedule_has():
     }
 
 
-def test_the_browser_tests_run_nightly_on_a_release_and_by_hand_and_on_nothing_else():
+VIEW_PATHS = ["features/jbus/src/jbus/view/**", "features/jbus/tests/view/**"]
+
+
+def test_the_browser_tests_run_nightly_on_a_release_by_hand_and_on_a_pull_request_into_main():
+    """#464 merged with 19 browser tests red, as no pull request ran them: one into main that
+    touches the view, or its browser tests, now does, on the same events as the check's."""
     assert triggers(BROWSER.read_text()) == {
+        "pull_request": {
+            "branches": ["main"],
+            "types": triggers(CHECK.read_text())["pull_request"]["types"],
+            "paths": VIEW_PATHS,
+        },
         "schedule": [{"cron": "0 7 * * *"}],
         "push": {"tags": ["v*"]},
         "release": {"types": ["published"]},
         "workflow_dispatch": None,
     }
+
+
+def test_a_pull_request_runs_the_browser_tests_only_for_a_change_to_the_view_or_its_tests():
+    source, tests = triggers(BROWSER.read_text())["pull_request"]["paths"]
+    changed = {
+        "features/jbus/src/jbus/view/page.py": True,
+        "features/jbus/src/jbus/view/static/board.js": True,
+        "features/jbus/tests/view/test_view_board.py": True,
+        "features/jbus/tests/view/page/browser.py": True,
+        "features/jbus/src/jbus/watch.py": False,
+        "features/jbus/tests/test_jbus_watch.py": False,
+        "testing/tests/test_workflows.py": False,
+    }
+    assert {path: fnmatch(path, source) or fnmatch(path, tests) for path in changed} == changed
+
+
+def test_a_draft_runs_no_browser_job_and_every_other_trigger_runs_it():
+    """As the check's jobs do, the browser job skips a draft, and runs once it is marked ready."""
+    when = job_value(BROWSER.read_text(), "browser", "if")
+    assert when is not None, "the browser job has no `if`"
+    events = ("pull_request", "schedule", "push", "release", "workflow_dispatch")
+
+    def runs(draft):
+        return [
+            e
+            for e in events
+            if worked(
+                when,
+                {
+                    "github.event_name": e,
+                    "github.event.pull_request.draft": draft if e == "pull_request" else None,
+                },
+            )
+        ]
+
+    assert runs(draft=True) == list(events[1:])
+    assert runs(draft=False) == list(events)
 
 
 def test_the_nightly_is_three_oclock_in_the_morning_eastern_time_every_day():
