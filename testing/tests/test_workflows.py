@@ -411,7 +411,11 @@ def test_every_job_has_a_cap_that_stops_a_hung_run():
 
 
 UNLESS_GREEN = "steps.tree.outputs.marker != 'green'"
-ZSH = "sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends zsh"
+ZSH = (
+    'cd "$RUNNER_TEMP" && set -- $ZSH_DEBS && printf "%s  %s\\n" $ZSH_DEBS > zsh.sha256'
+    ' && curl -fsSL --retry 3 --remote-name-all "$ZSH_POOL/$2" "$ZSH_POOL/$4"'
+    ' && sha256sum -c zsh.sha256 && sudo dpkg -i "$2" "$4" && zsh --version'
+)
 SUITE = 'make check JUNIT="$RUNNER_TEMP/junit.xml" SHARD=${{ matrix.shard }}/4'
 OR_THE_DESKS = f"{UNLESS_GREEN} || steps.tree.outputs.from == 'desk'"
 TLC = "~/.cache/jstack/tlc"
