@@ -142,7 +142,7 @@ RouteMends(r) ==
 
 \* What the root reads to know a child has work out, from jbus's own records and never from the
 \* child: its launched rows, its crew threads, its questions and gates (jbus/children.py:184
-\* `launched = [line for line in lines if line.split(": ", 1)[1].split()[-1] not in QUEUED]`).
+\* `launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]`).
 \* A routine, a scope with a `rhythm` file, owes its next beat whatever it has out
 \* (jbus/children.py:185 `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
 Sees(k) ==
