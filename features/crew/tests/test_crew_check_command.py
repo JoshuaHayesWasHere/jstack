@@ -417,10 +417,14 @@ def test_a_selector_that_fails_is_no_check_and_ends_the_block_1(tmp_path):
     )
 
 
-def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacked_on(tmp_path):
+@pytest.mark.parametrize("line", ["Stacked on: below below", "Stack: a-stack 2 on below"])
+def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacked_on(
+    tmp_path, line
+):
     """A link stacked on another pull request's branch is checked from where it left that
     branch, as its pull request is based on it, and not from `origin/main`, which would select
-    the change of every link under it too."""
+    the change of every link under it too. jbus's `Stacked on:` line and the home's `Stack:`
+    line each name that branch."""
     repo = stubbed(tmp_path, "print('all')")
     git(repo, "update-ref", "refs/remotes/origin/below", "HEAD")
     (repo / "mine.md").write_text("This link's own page.\n")
@@ -428,7 +432,7 @@ def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacke
     git(repo, "commit", "-qm", "this link")
     tasks = tmp_path / "state" / "tasks"
     tasks.mkdir(parents=True)
-    (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
+    (tasks / "a-task.md").write_text(f"# a-task: a link\n{line}\n")
     said, code, ran, base = selected(tmp_path, repo, on="origin/below")
     assert base == git(repo, "rev-parse", "HEAD~1")
     assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
