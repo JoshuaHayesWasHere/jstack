@@ -1,7 +1,8 @@
 """The merge flow's TLA+ spec in `features/jmerge/spec/`: TLC checks that today's code breaks its
-rules, the design holds all four, and each canary, the design with one fix taken out, breaks the
-rule on that fix. The run is `flow_canaries.py`, and it skips where no Java runs TLC. The code
-model's conditions, and the design's `Rejudge`, each name a file and line."""
+rules, the design holds all four, each canary, the design with one fix taken out, breaks the rule
+on that fix, and each control of today's code with another gap breaks the rules it should. The
+run is `flow_canaries.py`, and it skips where no Java runs TLC. The code model's conditions, and
+the design's `Rejudge`, each name a file and line."""
 
 import importlib
 import re
@@ -31,10 +32,20 @@ CITE = re.compile(r"((?:features|scripts|\.github)/[\w./-]+):(\d+(?:-\d+)?(?:,\d
 
 CITED = {
     ".github/workflows/check.yml:4": "pull_request:",
-    "scripts/select_tests.py:169-170": '"Cross-cutting"',
-    "features/crew/the-checks.md:48,79": "stale: the check command passes",
+    "scripts/select_tests.py:666-675,385": "lone = unowned()",
+    "features/crew/the-checks.md:79-84": "`jmerge` judges a red pull request again by itself",
     "features/jbus/src/jbus/dispatch.py:324-356": "no room",
+    "features/jbus/src/jbus/dispatch.py:459-461": "on = world.stack_on(unmerged)",
     "features/jbus/src/jbus/rebase.py:250": "world.open.items()",
+    "features/jbus/src/jbus/stack.py:65": "world.open.items()",
+    "features/jbus/src/jbus/stack.py:72-73": "world.merged.get(stacked.slug)",
+    "features/jbus/src/jbus/strays.py:356": '("crew", slug) in busy',
+    "features/jbus/src/jbus/strays.py:373-374,382": "burning = (taken |",
+    "features/jbus/src/jbus/watch.py:1034-1054": "queue.add(run.state, name, top, [], text)",
+    "features/jbus/src/jbus/watch.py:1330,1373,1377,1380": "no briefed merge came in",
+    "features/jbus/src/jbus/watch.py:1379-1380": "_file(run, slug, sha,",
+    "features/jmerge/src/jmerge/rows.py:135-138": 'row.get("merge_after", [])',
+    "features/jmerge/src/jmerge/cli.py:684-692": "ready.STACKED_UNMOVED.format(",
     "features/jmerge/src/jmerge/ready.py:935-936": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:294-297": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
@@ -92,5 +103,8 @@ def test_today_breaks_its_rules_the_design_holds_them_and_each_canary_breaks_its
     for canary, rules in flow.CANARIES.items():
         for rule in rules:
             assert any(line.startswith(f"ok    canary {canary}: {rule} breaks") for line in lines)
-    for rule in flow.TODAY_BREAKS:
-        assert any(line.startswith(f"ok    today: {rule} breaks") for line in lines)
+    runs = {"today": (flow.TODAY, flow.TODAY_BREAKS), **flow.CONTROLS}
+    for label, (_, breaks) in runs.items():
+        for rule in flow.RULES:
+            said = "breaks" if rule in breaks else "holds"
+            assert any(line.startswith(f"ok    {label}: {rule} {said}") for line in lines)
