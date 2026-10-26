@@ -120,9 +120,15 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_every_pull_request_on_each_push_to_main_or_a_train_and_by_hand():
+def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_or_a_train_and_by_hand():
+    """A pull request into any other branch, a parent row's branch or a train, starts no run: its
+    work is checked once it reaches main's gate, and a train is checked on each push to it. Of a
+    pull request into main, a push, a reopen and the mark that it is ready start one."""
     assert block("on") == {
-        "pull_request": None,
+        "pull_request": {
+            "branches": ["main"],
+            "types": ["opened", "synchronize", "reopened", "ready_for_review"],
+        },
         "push": {"branches": ["main", "unslop", "train/**"]},
         "workflow_dispatch": None,
     }
@@ -132,10 +138,11 @@ def worked(expression, values):
     """Return what a workflow expression gives with these values for its names. This function
     works the expression out itself, without GitHub.
 
-    It reads `&&`, `||`, `==`, `!=` and a string in single quotes.
+    It reads `&&`, `||`, `!`, `==`, `!=` and a string in single quotes.
     """
     for name in sorted(values, key=len, reverse=True):
         expression = expression.replace(name, repr(values[name]))
+    expression = re.sub(r"!(?!=)", " not ", expression)
     return eval(expression.replace("&&", " and ").replace("||", " or "), {"__builtins__": {}})
 
 
@@ -440,9 +447,9 @@ TLC = "~/.cache/jstack/tlc"
 EVENTS = ("pull_request", "push", "workflow_dispatch")
 
 
-def ran_on(job):
-    """Return the events a job of the check runs on. This function works them out from the
-    job's `if`."""
+def ran_on(job, draft=False):
+    """Return the events a job of the check runs on, for a pull request that is a draft or not.
+    This function works them out from the job's `if`."""
     inside, when = False, None
     for line in CHECK.read_text().splitlines():
         indent = len(line) - len(line.lstrip())
@@ -450,7 +457,18 @@ def ran_on(job):
             inside = indent == 2 and line.strip() == f"{job}:"
         elif inside and indent == 4 and line.startswith("    if: "):
             when = line.partition(": ")[2]
-    return [e for e in EVENTS if worked(when, {"always()": True, "github.event_name": e})]
+    return [
+        e
+        for e in EVENTS
+        if worked(
+            when,
+            {
+                "always()": True,
+                "github.event_name": e,
+                "github.event.pull_request.draft": draft if e == "pull_request" else None,
+            },
+        )
+    ]
 
 
 def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full():
@@ -467,6 +485,15 @@ def test_a_pull_request_runs_check_and_a_push_to_main_and_a_manual_run_run_full(
         push,
         push,
     ]
+
+
+def test_a_draft_runs_no_job_until_it_is_marked_ready():
+    """A crew opens its pull request as a draft and marks it ready once its fix round is pushed,
+    so a push of work in progress runs nothing, and `ready_for_review` runs the check once."""
+    pull, push = ["pull_request"], ["push", "workflow_dispatch"]
+    named = ("check-shard", "check", "full-shard", "full")
+    assert [ran_on(job, draft=True) for job in named] == [[], [], push, push]
+    assert [ran_on(job, draft=False) for job in named] == [pull, pull, push, push]
 
 
 def job_section(job, key):

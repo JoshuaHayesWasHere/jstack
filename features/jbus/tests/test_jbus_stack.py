@@ -21,8 +21,10 @@ from test_jbus_chains import queue_add
 from test_jbus_github import keys, sends
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import brief, go
+from testing.paths import REPO
 
 BASE, LINK, MERGE, LAST = "c" * 40, "b" * 40, "a" * 40, "d" * 40
+READY = "Ready for its check"
 
 
 @pytest.fixture
@@ -124,6 +126,20 @@ def test_a_base_that_merged_moves_its_link_onto_main_once(stacked, on):
     assert "one merged as aaaaaaaaaaaa" in said and "now based on main" in said
     assert f"with {LAST} as the branch it sat on" in said and "again with one" in said
     assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
+
+
+def test_the_move_onto_main_hands_the_link_to_the_crews_block_that_marks_it_ready(stacked):
+    """A stacked link stays a draft while it sits on its base's branch, since CI runs no check
+    into any branch but main. The crew marks it ready after it pushed the move, with the crew
+    skill's block that does it, so its one check runs on the moved head, not on the old one."""
+    pulls(stacked, merged=True, on="one")
+    passes(stacked, 0, 3)
+    (said,) = [given["message"] for given in sends(stacked)]
+    assert f'"{READY}"' in said
+    assert [line for line in stacked.log("gh") if line.startswith("pr ready")] == []
+    review = (REPO / "features" / "crew" / "the-review.md").read_text()
+    section = review.split(f"### {READY}\n", 1)[1].split("\n#", 1)[0]
+    assert "gh pr ready" in section
 
 
 @pytest.mark.parametrize("on", ["one", "train/x"])

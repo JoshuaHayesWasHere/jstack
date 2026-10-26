@@ -15,6 +15,7 @@ from datetime import date, datetime
 import pytest
 
 import repo_template
+from jmerge import ready
 from test_home_thread import as_read
 from testing.layouts import assembled
 from testing.paths import skills
@@ -1106,25 +1107,37 @@ def test_a_draft_that_is_otherwise_ready_is_never_merged(merged, flags):
     assert merged.run(*flags) == [merged_line(merged.on_main()[0])]
 
 
-HELD_AS_A_DRAFT = {
-    "no review yet": brief(),
-    "findings that are not handled": brief(review("findings")),
-    "another home's": brief(review("clean"), field=f"Home: {OTHER}\n"),
-    "no brief names it": None,
+PLACED_AS_A_DRAFT = {
+    "no review yet": (brief(), ready.NO_REVIEW),
+    "findings that are not handled": (brief(review("findings")), ready.NO_FIXED),
+    "another home's": (brief(review("clean"), field=f"Home: {OTHER}\n"), ready.OTHER_HOME),
+    "no brief names it": (None, ready.DRAFT),
 }
 
 
-@pytest.mark.parametrize("case", HELD_AS_A_DRAFT)
-def test_a_draft_is_said_to_be_one_before_anything_its_brief_lacks(merged, case):
-    written = HELD_AS_A_DRAFT[case]
+@pytest.mark.parametrize("case", PLACED_AS_A_DRAFT)
+def test_a_draft_waits_on_the_step_it_is_at_and_its_skipped_check_is_not_one(merged, case):
+    """A crew opens its pull request as a draft, so CI runs no check on it while the review and
+    the fix go on: a draft is placed on the step its brief is at, and a check that never ran is
+    not that step."""
+    written, why = PLACED_AS_A_DRAFT[case]
     (merged.home.state / "home-id").write_text(f"{ME}\n")
     if written is None:
         (merged.home.tasks / "alpha.md").unlink()
     else:
         (merged.home.tasks / "alpha.md").write_text(written)
-    merged.home.open_pull_request(merged.head, draft=True)
-    assert merged.run() == [DRAFT]
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,), draft=True)
+    assert merged.run() == [f"wait 7 {URL}: {why}"]
     assert merged.untouched()
+
+
+def test_a_reviewed_and_fixed_draft_waits_on_draft_and_not_on_its_check(merged):
+    """The one step left to a draft whose review and fix are done is its crew's mark that it is
+    ready, which starts its check: until then it waits on `draft`, never on the check."""
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,), draft=True)
+    assert merged.run() == [DRAFT]
+    merged.home.open_pull_request(merged.head, checks=(SKIPPED,))
+    assert merged.run() == [f"wait 7 {URL}: {ready.NOT_PASSED.format(check='check')}"]
 
 
 def test_a_repo_no_home_ever_started_in_can_be_switched_off(home):
