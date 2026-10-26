@@ -35,11 +35,24 @@ does not count either: a message sent then ends at once on the limit, so the one
 reset. Where another step of jbus nudges the crew about the same head just as the clock is due (an
 expedite sent again after a cap), the clock starts again, so the reviewer is not asked twice at
 once. A thread that ended with no Result and no pull request is `threads.resume`'s.
+
+`held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
+holds on one reason, with no thread at work on the cause, wake the home that owns them once the
+hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
+have been held. A thread is at work on the cause when it is a held row's crew or reviewer, when
+the reason names its slug, or when it is a fix row of a red main (`mainjson.fix_of`) and the reason
+is that red. A wait on the merge runner (`RUNNER`), a hold that is the user's (step `hold`, already
+on what waits on the user) and a wait with its own clock above are no such hold. `held.json`
+keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
+on it, or in which no row waits on it, drops it, and the next one starts afresh. From the wake
+on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
 """
 
 from __future__ import annotations
 
+import hashlib
 import re
+from datetime import datetime
 from typing import Any
 
 from jbriefs.home import home_of, thread_of
@@ -47,9 +60,10 @@ from jbus import dispatch, expedite, merge, read_json, threads, verbs, watch, wr
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
-from jmerge import ready
+from jmerge import mainjson, ready
 
-EVENTS = {"clock": "quiet"}
+HELD = "hold-stall"
+EVENTS = {"clock": "quiet", "hold-stall": "quiet"}
 CLOCK = "clock"
 STALL = "stall"
 FILE = "clock.json"
@@ -73,6 +87,31 @@ HOME = (
     "jbus: {slug}'s pull request #{number} still waits, {reason}, {passes} passes after jbus "
     "{did}, with {thread} not at work. It is the home's from here: pick it up as the home skill's "
     '"Picking up a thread that stopped" says. Its crew\'s thread is {crew}.'
+)
+HOLD_MINUTES = 30
+"""The minutes rows may be held by one reason with no thread at work on it before jbus wakes their
+home and lists the hold on what waits on the user."""
+HELD_FILE = "held.json"
+RUNNER = (
+    ready.GATE_BUSY,
+    ready.GATE_LOCKED,
+    ready.MAIN_MOVED,
+    ready.RULES_CHANGED,
+    ready.UNDECIDED,
+    ready.NOT_PASSED,
+    ready.MIGRATION_MERGING,
+    ready.BASE_MERGE_ASKED,
+    ready.BASE_MERGE_DUE,
+    ready.BASE_MOVED_ASKED,
+    ready.BASE_MOVED_DUE,
+)
+"""The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, and
+CI."""
+HELD_HOME = (
+    "jbus: {rows} of this home's have been held {minutes} minutes by one reason, {reason}, and "
+    "no thread is at work on it. Nobody picks it up by itself: pick it up as the home skill's "
+    '"Picking up a thread that stopped" says, or brief its fix. It is on what waits on the user '
+    "until it clears or a thread takes it up."
 )
 _SEAT = re.compile(r"#(\d+)$")
 
@@ -269,7 +308,68 @@ def tick(
         write_json(run.state / FILE, kept)
 
 
+def _on(slug: str, reason: str, rows: list[str]) -> bool:
+    """Say whether a thread of the slug works on what holds the rows: it is one of theirs, the
+    reason names it, or it is the fix of the red main the reason names."""
+    if slug in rows or slug in re.findall(r"[\w.-]+", reason):
+        return True
+    return mainjson.fix_of(slug) and bool(re.fullmatch(ready.MAIN_RED.pattern, reason))
+
+
+def held(
+    run: Pass, client: Client, world: World, pulls: merge.Said, out: list[dict[str, Any]] | None
+) -> None:
+    """Keep each hold nobody works on, and wake its home once it is due. See the module."""
+    waits = watch.waits(pulls)
+    if waits.failed or out is None:
+        return
+    was: dict[str, Any] = read_json(run.state / HELD_FILE, {})
+    groups: dict[str, dict[str, Any]] = {}
+    for slug, pull in sorted(world.open.items(), key=lambda one: one[1]["number"]):
+        word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
+        if word != "wait" or not reason or class_of(reason) or _of(reason, RUNNER):
+            continue
+        scope = home_of(run.home, _brief(run, slug))
+        name = "" if scope == run.home else scope.name
+        key = hashlib.sha256(f"{name}\n{reason}".encode()).hexdigest()[:12]
+        group = groups.setdefault(key, {"reason": reason, "home": name, "rows": [], "numbers": []})
+        group["rows"].append(slug)
+        group["numbers"].append(pull["number"])
+    busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
+    kept: dict[str, Any] = {}
+    for key, group in groups.items():
+        if any(_on(slug, group["reason"], group["rows"]) for slug in busy):
+            continue
+        hold = {"since": run.now.isoformat(), "woke": False} | was.get(key, {}) | group
+        minutes = int((run.now - datetime.fromisoformat(hold["since"])).total_seconds() // 60)
+        hold["minutes"] = minutes
+        kept[key] = hold
+        if hold["woke"] or minutes <= HOLD_MINUTES:
+            continue
+        pairs = zip(hold["rows"], hold["numbers"], strict=True)
+        rows = ", ".join(f"{slug} (#{number})" for slug, number in pairs)
+        text = HELD_HOME.format(rows=rows, minutes=minutes, reason=hold["reason"])
+        at = thread_of(run.home / hold["home"])
+        went = _send(run, client, at, text, f"{HELD}|{key}|{hold['since']}") if at else "no home"
+        if not went:
+            continue
+        hold["woke"] = True
+        to = f"told its home, thread {at}" if went == "sent" else f"{went}, told nobody"
+        said = f"{HELD} {run.project.name}: {rows} held {minutes} minutes by {hold['reason']}; {to}"
+        run.find("", HELD, said, key=f"{key} {hold['since']}")
+        run.say(said)
+    if kept != was:
+        write_json(run.state / HELD_FILE, kept)
+
+
 STEPS = (
+    verbs.Step(
+        "after-expedite",
+        16,
+        "clock.held",
+        lambda half: held(half.run, half.client, half.seen.world, half.said, half.out),
+        ("client", "world"),
+    ),
     verbs.Step(
         "after-expedite",
         15,

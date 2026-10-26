@@ -18,6 +18,10 @@ tree of the worktree as it is now, written with an index of its own. `jgauge pro
 pr-review block's `proof.*` files beside the prompt, and its key is a hash of the proof and of
 `proof.sh`.
 
+A run that finds every slot taken registers its thread with what the thread runs again once jbus
+wakes it, `jgauge check` or `jgauge proof`: the check removes its folder then, and a run file run
+by hand would hold no slot.
+
 The run starts with `python -P`, which keeps the worktree off `sys.path`, so a module of the repo
 under check that has a stdlib name is never imported in place of the stdlib's.
 """
@@ -82,7 +86,8 @@ class Files:
 class Run:
     """One run's files, and the child this call started, when it started one."""
 
-    def __init__(self, files: Files) -> None:
+    def __init__(self, files: Files, wake: str) -> None:
+        self.wake = wake
         self.files = files
         self.child: subprocess.Popen | None = None
 
@@ -117,6 +122,7 @@ class Run:
         files.command.write_text(command)
         launch = [sys.executable, "-P", "-m", "jgauge.runner", str(files.path("exit")), thread]
         launch += ["--short"] if short else []
+        launch += ["--wake", self.wake]
         with files.path("out").open("wb") as out:
             self.child = subprocess.Popen(
                 [*launch, "--", "sh", str(files.command)],
@@ -169,7 +175,7 @@ def check(command: str, thread: str, limit: float) -> int:
     """The crew skill's check: start or join the check command on this worktree, under a slot
     of the full lane, and give its answer."""
     folder = Path(git("rev-parse", "--path-format=absolute", "--git-dir")) / "crew-check"
-    run = Run(Files(folder, "", "tree", "run"))
+    run = Run(Files(folder, "", "tree", "run"), "jgauge check")
     tree = worktree_tree()
     if run.running():
         if run.files.read("tree") == tree:
@@ -243,7 +249,7 @@ def proof(command: str, folder: Path, kept: str, thread: str, limit: float) -> i
             " so the proof did not run"
         )
         return 1
-    run = Run(Files(folder, "proof.", "key", "cmd"))
+    run = Run(Files(folder, "proof.", "key", "cmd"), "jgauge proof")
     script = folder / "proof.sh"
     written = script.read_bytes() if script.is_file() else b""
     key = hashlib.sha256(command.encode() + b"\n" + written).hexdigest()
@@ -300,12 +306,13 @@ def serve(argv: list[str]) -> int:
     """The run itself, in its own session: hold a slot for the command, as `jgauge test-slot
     --thread` does, and write its exit code to the exit file when it ends."""
     exit_file, thread, *rest = argv
-    short = rest[:1] == ["--short"]
+    short = "--short" in rest[: rest.index("--")]
+    wake = rest[rest.index("--wake") + 1].split() if "--wake" in rest[: rest.index("--")] else None
     command = rest[rest.index("--") + 1 :]
     code = 1
     try:
         lane = slot.short() if short else slot.full(slot.count(None))
-        code = slot.run(command, lane, thread)
+        code = slot.run(command, lane, thread, wake)
     except Exception as error:
         print(f"jgauge: {error}", file=sys.stderr, flush=True)
     finally:

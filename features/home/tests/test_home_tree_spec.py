@@ -10,9 +10,11 @@ import re
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import REPO
 
 SPEC = REPO / "features" / "home" / "spec"
@@ -44,6 +46,30 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
     shared = lib.shared_variables(today)
     assert len(shared) == 14
     assert lib.uncited_conditions(today.read_text(), shared) == []
+
+
+QUOTE = re.compile(r"([\w./-]+\.(?:py|md)):(\d+(?:-\d+)?)\s*`([^`]+)`")
+"""A citation of HomeTreeToday.tla with the code it quotes: `jbus/children.py:184 `...``."""
+
+
+def test_each_quote_of_the_code_model_is_on_the_lines_it_cites():
+    """Each `file:line` the code model quotes holds the quoted text on those lines, so a quote
+    the code has moved off or changed fails here, also where no Java runs TLC."""
+    text = (SPEC / "HomeTreeToday.tla").read_text()
+    flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
+    files = subprocess.run(
+        ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout.split()
+    quotes = QUOTE.findall(flat)
+    assert len(quotes) > 40
+    stale = []
+    for path, span, quote in quotes:
+        (found,) = [one for one in files if one.endswith(f"/{path}")]
+        first, _, last = span.partition("-")
+        lines = (REPO / found).read_text().splitlines()[int(first) - 1 : int(last or first)]
+        if " ".join(quote.split()) not in " ".join(" ".join(lines).split()):
+            stale.append(f"{path}:{span} `{quote}`")
+    assert stale == []
 
 
 def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
@@ -119,13 +145,11 @@ class Retiring:
     handoff skill runs it."""
 
     def __init__(self, kitchen, tmp_path):
-        from test_home_thread import skills
         from test_jbus_leftover import home
 
         self.kitchen, self.user = kitchen, tmp_path / "user"
-        (self.user / ".claude" / "skills").mkdir(parents=True)
-        for name, folder in skills().items():
-            (self.user / ".claude" / "skills" / name).symlink_to(folder)
+        (self.user / ".claude").mkdir(parents=True)
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         (self.user / ".local" / "state").mkdir(parents=True)
         (self.user / ".local" / "state" / "home").symlink_to(kitchen.home.parent)
         jbus = kitchen.stub / "jbus"
@@ -288,3 +312,18 @@ def test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging(tmp_pat
         ["merged", "7", "fl-task"],
     ]
     assert [call.split()[2] for call in made.calls()] == ["6", "7"]
+
+
+def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
+    """A run by hand holds a test slot, and starts TLC on 2 workers and not one for each core."""
+    java = tmp_path / "java"
+    java.write_text('#!/bin/sh\necho "slot ${JGAUGE_TEST_SLOT:-none}: $*"\n')
+    java.chmod(0o755)
+    for name in ("JGAUGE_TEST_SLOT", "TLC_WORKERS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path))
+    monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+    _, module, cfg, *_ = RUNS[0]
+    out = canaries.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
+    assert out.startswith("slot full: "), out
+    assert " -workers 2 " in out, out

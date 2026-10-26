@@ -159,7 +159,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
                    printf '\nScope closed: %s, its plan has no open entry and no home was started after this one. /home %s starts it again.\n' "$(date +%F)" "$scope"
                fi
                if [ -n "$ME" ]; then printf '\nWas home: %s\n' "$ME"; fi
-           } > "$M/handoff.md" || ! uv run --project "$T/.." jbus forget "$note" > /dev/null; then
+           } > "$M/handoff.md" || ! uv run --project "$T/../source" jbus forget "$note" > /dev/null; then
            echo "not closed: the old note could not be moved to $M/log, or the new one not written to $M/handoff.md. Launch nothing, and run this again once that is put right."
            exit 1
        fi
@@ -167,7 +167,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
            echo "not the home: start nothing, tell the user"
            exit
        fi
-       uv run --project "$T/.." jbus forget "$M/home-id" > /dev/null
+       uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null
    fi
    if [ -n "$again" ] && [ -n "$closed" ]; then
        echo "closed before, the home of a closed scope: start no home, then rename and settle this thread"
@@ -230,7 +230,11 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
       }
       ```
 
-      Before this launch, run `uv run --project "$T/.." jroles home` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the next home on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. Leave the project and modes out, and the model unless `jroles` printed one.
+      Before this launch, run `uv run --project "$T/../source" jroles home` with the block at the top.
+      When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the next home on the model the role map names.
+      When it prints nothing, the call is the one above.
+      Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
+      Leave the project and modes out, and the model unless `jroles` printed one.
 
       ```json
       {
@@ -301,7 +305,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
    first="You are the next thread of $P's home, in $M."
    message=$(printf '%s\n\n%s\n' "${boot:-$first}" "$told")
    title="home: $P"
-   model=$(uv run --project "$T/.." jroles expert) || model=
+   model=$(uv run --project "$T/../source" jroles expert) || model=
    if ! launch=$(jq -cn --arg title "$title" --arg message "$message" --argjson selection "${model:-null}" '{title: $title, workspaceStrategy: {type: "root"}, message: $message} + if $selection then {modelSelection: $selection} else {} end') ||
        ! rename=$(jq -cn --arg title "$title (handed off $(date +%F))" '{action: "rename", title: $title}'); then
        echo "not closed: jq did not run, and nothing is changed"
@@ -316,7 +320,7 @@ A party's home plans nothing, briefs nothing and launches nothing but its own ne
        if { [ ! -f "$M/handoff.md" ] || { mkdir -p "$log" && mv "$M/handoff.md" "$kept"; }; } &&
            sed '/^Was home:/d' "$M/handoff.next.md" > "$M/handoff.md" &&
            printf '\nWas home: %s\n' "$ME" >> "$M/handoff.md" &&
-           uv run --project "$T/.." jbus forget "$M/handoff.next.md" "$M/home-id" > /dev/null; then
+           uv run --project "$T/../source" jbus forget "$M/handoff.next.md" "$M/home-id" > /dev/null; then
            echo "a party's home: start its next thread, then rename and settle this thread"
        else
            echo "not closed: the old page could not be moved to $log, or the new one not written to $M/handoff.md. Launch nothing, and run this again once that is put right."

@@ -346,6 +346,7 @@ def made(tmp_path, playbooks):
     each playbook to the text that follows its `Run by:`."""
     repo = tmp_path / "repo"
     (repo / "templates").mkdir(parents=True)
+    (repo / "source").symlink_to(repo)
     (repo / "skills" / "expert").mkdir(parents=True)
     (repo / "playbooks").mkdir()
     for name, by in playbooks.items():

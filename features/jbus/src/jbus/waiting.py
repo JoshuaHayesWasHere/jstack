@@ -24,6 +24,9 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `approve`: a row with no approval, or a row whose brief changed after its approval, with its
   `slug`. The line is the command that approves it;
 - `hold`: a pull request that `jmerge` holds, with its `number` and `url`;
+- `held`: rows held by one reason with no thread at work on it, from the pass that woke their home
+  (`clock.held`), with their `rows` and the `home` that owns them. It leaves the list once the hold
+  clears or a thread takes it up;
 - `config`: no sign-in to T3 Code.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
@@ -131,6 +134,7 @@ KINDS = (
     Kind("left", "Left over by tasks that ended", "Close it", 2),
     Kind("approve", "Rows to approve", "Approve launch", 4),
     Kind("hold", "Pull requests jmerge holds for your word", "Review merge", 3),
+    Kind("held", "Holds no thread works on", "Pick it up", 7),
     Kind("config", "Setup jbus lacks", "Set up", 6),
 )
 
@@ -347,6 +351,23 @@ def holds(run: Pass, world: World | None, pulls: list[str], was: list[Item]) -> 
     return sorted(found, key=lambda one: one["number"])
 
 
+def held(state: Path) -> list[Item]:
+    """Return the holds that woke their home and that no thread works on yet (`clock.held`)."""
+    kept = read_json(state / "held.json", {})
+    return [
+        {
+            "kind": "held",
+            "key": f"held:{key}",
+            "line": f"held {', '.join(one['rows'])}: {one['minutes']} minutes by {one['reason']}, "
+            "and no thread is at work on it",
+            "rows": one["rows"],
+            "home": one["home"],
+        }
+        for key, one in sorted(kept.items())
+        if isinstance(one, dict) and one.get("woke")
+    ]
+
+
 def _earlier(*stamps: str) -> str:
     return min(stamps, key=datetime.fromisoformat)
 
@@ -400,6 +421,7 @@ def keep(
         found += had("row") + had("left")
     found += unapproved(run, rows) if rows is not None else had("approve")
     found += holds(run, world, pulls, had("hold"))
+    found += held(run.state)
     secret = run.config.secrets()
     items = {one["key"]: one for one in redact(found, secret)}
     for root in redact(roots, secret):

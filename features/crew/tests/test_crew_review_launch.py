@@ -86,7 +86,7 @@ def test_a_launch_on_a_capped_pool_registers_this_thread_to_be_woken(tmp_path, m
     named = r"`(uv run [^`]*jroles review --thread <thread id>)`"
     (command,) = re.findall(named, sections()["The review"])
     words = shlex.split(command.replace("<thread id>", "mcp:the-crew"))
-    assert words[:4] == ["uv", "run", "--project", "$T/.."] and words[4] == "jroles"
+    assert words[:4] == ["uv", "run", "--project", "$T/../source"] and words[4] == "jroles"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.setenv("LIMITS", str(tmp_path / "state" / "limits"))
     (tmp_path / "config" / "jstack").mkdir(parents=True)

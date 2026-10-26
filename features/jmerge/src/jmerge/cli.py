@@ -9,7 +9,6 @@ import os
 import re
 import shlex
 import shutil
-import signal
 import subprocess
 import sys
 import time
@@ -177,118 +176,33 @@ class Checked(NamedTuple):
     note: str
 
 
-class Fresh:
-    TIMEOUT = 15 * 60
-    ASK_TIMEOUT = 10
-    AUTHOR = {
-        "GIT_AUTHOR_NAME": "jmerge",
-        "GIT_AUTHOR_EMAIL": "jmerge@localhost",
-        "GIT_COMMITTER_NAME": "jmerge",
-        "GIT_COMMITTER_EMAIL": "jmerge@localhost",
-    }
-    CHECK = "import sys; from jmerge.cli import Fresh; raise SystemExit(Fresh.alone(sys.argv[1:]))"
-    SELECTOR = "scripts/select_tests.py"
-    APART = (
-        "import json, sys; sys.path.insert(0, sys.argv[1]); import select_tests as s; "
-        "ours, _ = s.selection(json.loads(sys.argv[2])); "
-        "theirs, _ = s.selection(json.loads(sys.argv[3])); "
-        "both = set(ours) & set(theirs); "
-        "print('apart' if 'all' not in ours + theirs and not both else 'meet')"
-    )
-    UNIT_OWN = {"INVOCATION_ID", "JOURNAL_STREAM", "SYSTEMD_EXEC_PID", "MANAGERPID"}
+class Merged:
+    """A pull request's head merged over today's base, as GitHub's update of its branch merges
+    it. Where the repo's state has a `fresh-check` file, a pull request whose check started before
+    its base moved is proven over today's base on GitHub, and no suite runs on this machine for a
+    merge: a merged tree that a check already passed (`green.marker`) is the pass, and otherwise
+    `rejudge.BaseMerge` asks GitHub to update the branch, and GitHub's check at the updated head
+    decides by the normal path."""
 
-    def __init__(self, main: Path, state: Path, run: bool = True, timeout: float = TIMEOUT):
+    ASK_TIMEOUT = 10
+
+    def __init__(self, main: Path, state: Path, run: bool = True):
         self.main = main
         self.state = state
         self.run = run
-        self.timeout = timeout
         self.command = ready.fresh_command(_read(state / "fresh-check"))
-        self.ran = False
 
-    def known(self) -> dict:
-        try:
-            known = json.loads(_read(self.state / "fresh.json") or "{}")
-        except ValueError:
-            return {}
-        return known if isinstance(known, dict) else {}
-
-    def of(self, number: int, head: str, tip: str, files: tuple[str, ...] | None) -> Checked | None:
-        was = self.known().get(str(number))
-        asked = {"head": head, "main": tip, "command": self.command}
-        recorded = isinstance(was, dict) and {key: was.get(key) for key in asked} == asked
-        if recorded and was.get("result") != ready.TIMED_OUT:
-            return self._said(str(was.get("result")), head, tip, was)
-        if isinstance(was, dict) and self.stands(number, was, head, tip, files):
-            return Checked("", ready.fresh_kept(self.command, head, str(was["main"]), tip))
-        if not self.run:
-            return Checked(ready.FRESH_QUEUED, "") if recorded else None
+    def of(self, head: str, tip: str) -> Checked | None:
+        """Why the head over `tip` waits, or the note of a tree a check passed, or nothing when
+        GitHub is to update the branch."""
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
         if merged.returncode == 1:
             return Checked(ready.FRESH_CONFLICT, "")
         if merged.returncode:
-            return Checked(self._not_run(merged), "")
+            return Checked(ready.UNMERGED.format(why=_said(merged)), "")
         tree = _first_word(merged.stdout)
         found = self.marked(tree)
-        if found:
-            record = {**asked, "result": ready.PASSED, "tree": tree, "marker": found.at}
-            now = datetime.now().astimezone()
-            self._keep(number, {**record, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"})
-            return self._said(ready.PASSED, head, tip, record)
-        if self.ran or self._held():
-            return Checked(ready.FRESH_QUEUED, "")
-        self.ran = True
-        started = self.start(number, head, tip, tree)
-        return Checked(started or ready.FRESH_QUEUED, "")
-
-    def stands(
-        self, number: int, was: dict, head: str, tip: str, files: tuple[str, ...] | None
-    ) -> bool:
-        older = str(was.get("main") or "")
-        mine = (was.get("result"), was.get("head"), was.get("command"))
-        if (
-            not files
-            or not older
-            or was.get("marker")
-            or mine != (ready.PASSED, head, self.command)
-        ):
-            return False
-        changed = _text(self.main, "git", "diff", "--name-only", "--no-renames", older, tip)
-        merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
-        commit = None if merged.returncode else self._commit(_first_word(merged.stdout), head, tip)
-        if changed is None or commit is None or commit.returncode:
-            return False
-        at = self.state / "fresh" / f"{number}.select"
-        _run(self.main, "git", "worktree", "remove", "--force", str(at))
-        shutil.rmtree(at, ignore_errors=True)
-        try:
-            added = _run(
-                self.main,
-                "git",
-                "worktree",
-                "add",
-                "-q",
-                "--detach",
-                str(at),
-                commit.stdout.strip(),
-            )
-            if added.returncode or not (at / self.SELECTOR).is_file():
-                return False
-            scripts = str((at / self.SELECTOR).parent)
-            theirs = json.dumps(changed.splitlines())
-            said = _run(at, sys.executable, "-c", self.APART, scripts, json.dumps(files), theirs)
-            return not said.returncode and said.stdout.strip() == "apart"
-        finally:
-            _run(self.main, "git", "worktree", "remove", "--force", str(at))
-
-    def _commit(self, tree: str, head: str, tip: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(
-            ["git", "commit-tree", tree, "-p", tip, "-p", head]
-            + ["-m", f"jmerge: {head} over {tip}"],
-            cwd=self.main,
-            capture_output=True,
-            text=True,
-            env={**os.environ, **self.AUTHOR},
-        )
+        return Checked("", ready.fresh_skipped(tree, found.at, head, tip)) if found else None
 
     def marked(self, tree: str) -> green.Marker | None:
 
@@ -308,126 +222,6 @@ class Fresh:
             return green.marker(ask, tree)[0]
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, LookupError):
             return None
-
-    def _held(self) -> bool:
-        with (self.state / "fresh.lock").open("w") as lock:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except OSError:
-                return True
-        return False
-
-    def start(self, number: int, head: str, tip: str, tree: str) -> str:
-        arguments = [str(self.main), str(self.state), str(number), head, tip, tree]
-        arguments += [self.command, f"{self.timeout:g}"]
-        check = [sys.executable, "-c", self.CHECK, *arguments]
-        unit = re.sub(r"[^A-Za-z0-9_-]", "-", f"jmerge-fresh-{self.state.name}-{number}")
-        names = sorted(set(os.environ) - self.UNIT_OWN)
-        launch = ["systemd-run", "--user", "--quiet", "--collect", f"--unit={unit}"]
-        launch += [f"--setenv={name}" for name in names] + ["--", *check]
-        if shutil.which("systemd-run"):
-            started = _run(self.main, *launch)
-            if not started.returncode:
-                return ""
-            if "INVOCATION_ID" in os.environ:
-                return self._not_run(started)
-        try:
-            subprocess.Popen(
-                check,
-                cwd=self.main,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-        except OSError as error:
-            return f"a fresh check could not be run ({error})"
-        return ""
-
-    @classmethod
-    def alone(cls, arguments: list[str]) -> int:
-        main, state, number, head, tip, tree, command, timeout = arguments
-        fresh = cls(Path(main), Path(state), timeout=float(timeout))
-        fresh.command = command
-        with (fresh.state / "fresh.lock").open("w") as lock:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except OSError:
-                return 0
-            result, commit = fresh.check(int(number), head, tip, tree, lock.fileno())
-            now = datetime.now().astimezone()
-            record = {"head": head, "main": tip, "command": command, "result": result}
-            record["at"] = f"{now:%Y-%m-%dT%H:%M:%S%z}"
-            fresh._keep(int(number), record)
-            unmarked = fresh.mark(commit) if result == ready.PASSED else ""
-            if unmarked:
-                fresh._keep(int(number), {**record, "unmarked": unmarked})
-        return 0
-
-    def _keep(self, number: int, record: dict) -> None:
-        known = {**self.known(), str(number): record}
-        _write_whole(self.state / "fresh.json", json.dumps(known, indent=2) + "\n")
-
-    def _said(self, result: str, head: str, tip: str, was: dict) -> Checked:
-        if result == ready.PASSED and was.get("marker"):
-            tree, marker = str(was.get("tree")), str(was["marker"])
-            return Checked("", ready.fresh_skipped(tree, marker, head, tip))
-        if result == ready.PASSED:
-            unmarked = str(was.get("unmarked") or "")
-            more = f", its tree is not marked ({unmarked})" if unmarked else ""
-            return Checked("", ready.fresh_note(self.command, head, tip) + more)
-        if result != ready.FAILED:
-            return Checked(result, "")
-        return Checked(ready.short_on_fresh(result, self.command, head, tip), "")
-
-    def mark(self, commit: str) -> str:
-        tree = _run(self.main, "git", "rev-parse", "--verify", "-q", f"{commit}^{{tree}}")
-        if tree.returncode:
-            return _said(tree)
-        ref = green.ref(tree.stdout.strip(), green.covers(self.command))
-        pushed = _run(self.main, "git", "push", "-q", "origin", f"+{commit}:{ref}")
-        if not pushed.returncode:
-            return ""
-        refused = re.search(r"^ ! .*\((.+)\)$", pushed.stderr, re.M)
-        return refused[1] if refused else _said(pushed)
-
-    @staticmethod
-    def _not_run(ran: subprocess.CompletedProcess[str]) -> str:
-        return f"a fresh check could not be run ({_said(ran)})"
-
-    def check(self, number: int, head: str, tip: str, tree: str, lock: int) -> tuple[str, str]:
-        commit = self._commit(tree, head, tip)
-        if commit.returncode:
-            return self._not_run(commit), ""
-        made = commit.stdout.strip()
-        at = self.state / "fresh" / str(number)
-        _run(self.main, "git", "worktree", "remove", "--force", str(at))
-        shutil.rmtree(at, ignore_errors=True)
-        added = _run(self.main, "git", "worktree", "add", "-q", "--detach", str(at), made)
-        if added.returncode:
-            return self._not_run(added), ""
-        env = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
-        try:
-            with at.with_name(f"{number}.log").open("wb") as log:
-                ran = subprocess.Popen(
-                    self.command,
-                    shell=True,
-                    cwd=at,
-                    env=env,
-                    stdin=subprocess.DEVNULL,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    pass_fds=(lock,),
-                    start_new_session=True,
-                )
-                try:
-                    return (ready.FAILED if ran.wait(self.timeout) else ready.PASSED), made
-                except subprocess.TimeoutExpired:
-                    os.killpg(ran.pid, signal.SIGKILL)
-                    ran.wait()
-                    return ready.TIMED_OUT, made
-        finally:
-            _run(self.main, "git", "worktree", "remove", "--force", str(at))
 
 
 class Gated(NamedTuple):
@@ -541,7 +335,7 @@ class Repo:
         ci: tuple[str, ...] = (),
         rules: Callable[[], str] = lambda: "",
         own: bool = False,
-        fresh: Fresh | None = None,
+        merged: Merged | None = None,
         *,
         user: jsettings.Settings,
         gate: Gate | None = None,
@@ -554,7 +348,7 @@ class Repo:
         self.protected = protected
         self.guarded = guarded
         self.ci = ci
-        self.fresh = fresh
+        self.merged = merged
         self.gate = gate
         self.rules = rules
         self.own = own
@@ -575,7 +369,7 @@ class Repo:
         self.heads: dict[int, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
-        self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(fresh and fresh.run))
+        self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(merged and merged.run))
         self.again_of: int | None = None
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
@@ -1008,7 +802,6 @@ class Repo:
     def stale(self, one: ready.PullRequest, left: tuple[str, ...] | None) -> tuple[str, str, str]:
         if one.started is None:
             return "", "", ""
-        files = None if left is None or one.changed > len(one.files) else (*one.files, *left)
         left = left or ()
         moved = self.moved(one.base, one.started)
         if moved is None:
@@ -1022,29 +815,25 @@ class Repo:
         if path:
             short = ready.short_on_main(stale, one.started, one.base, "a rebase", user=self.user)
             return f"guarded (touches {path}), {short}", "", ""
-        asks = self.fresh is not None and self.fresh.command
+        asks = self.merged is not None and self.merged.command
         if not asks and not own:
             return "", tip, ready.related_note(stale)
-        found = self.fresh.of(one.number, one.head, tip, files) if asks else None
-        if found is None:
+        if not asks:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
+        found = self.merged.of(one.head, tip)
+        if found is None:
+            reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
+            return self.base_merge.of(one, tip, *reasons), "", ""
         return found.short, "" if found.short else tip, found.note
 
-    def again(self, one: ready.PullRequest, left: tuple[str, ...] | None, red: str) -> str:
+    def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose check failed waits, judged over today's base. Its check is
-        its own fault, `red`, unless the base moved since the check started. Then the fresh
-        check runs on the head over the base's tip, where the repo has one and the pull request
-        touches no guarded path, and on a pass, or with none, GitHub merges the base into it."""
+        its own fault, `red`, unless the base moved since the check started. Then GitHub merges
+        the base into it, and its check at the updated head decides."""
         moved = None if one.started is None else self.moved(one.base, one.started)
         if moved is None or not moved[1]:
             return red
-        tip = moved[0]
-        guarded = ready.guarded_path(one, self.guarded, left or ())
-        if self.fresh is not None and self.fresh.command and not guarded:
-            found = self.fresh.of(one.number, one.head, tip, None)
-            if found is None or found.short:
-                return found.short if found else ready.FRESH_QUEUED
-        return self.base_merge.of(one, tip)
+        return self.base_merge.of(one, moved[0])
 
     def related(
         self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
@@ -1176,7 +965,7 @@ class Repo:
             return Judgement(brief.stem, "hold", hold, note, None)
         if red:
             self.again_of = one.number
-            return Judgement(brief.stem, "wait", self.again(one, left, red), note, None)
+            return Judgement(brief.stem, "wait", self.again(one, red), note, None)
         short, tip, fresh = self.stale(one, left)
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
@@ -1389,7 +1178,7 @@ class Repo:
     ) -> str:
         """Merge `one` while this run holds the repo's merge lock, from the read of its base's
         tip to the merge. A tip that moved since it was judged gives the lock back while the pull
-        request is judged again, so a fresh check holds up no other run."""
+        request is judged again, so a wait on GitHub holds up no other run."""
         number = str(one.number)
         again = 0
         while lock.take():
@@ -1783,9 +1572,10 @@ def parser() -> argparse.ArgumentParser:
         "One whose check started before main changed one of its paths, a CI path "
         "(features/jmerge/src/jmerge/ci-paths.txt), or a caller of its files or something "
         "they depend on waits for a fresh check: where the repo's state has a "
-        "fresh-check file, its command is run once a run on the head merged over today's "
-        "main, and a pass stands in. One whose rebase dropped a line waits for its crew to say "
-        "why and for the scoped review to uphold it, and is printed as hold when it does not. "
+        "fresh-check file, GitHub is asked to merge main into its branch, and its check at "
+        "the updated head stands in; no suite runs on this machine. One whose rebase dropped "
+        "a line waits for its crew to say why and for the scoped review to uphold it, and is "
+        "printed as hold when it does not. "
         "One that changes a protected path (features/jmerge/src/jmerge/protected.txt) is "
         "never merged and is printed as hold. One that changes a guarded path "
         "(features/jmerge/src/jmerge/guarded.txt) is merged only when its check has a start "
@@ -1965,7 +1755,7 @@ def main(argv: list[str] | None = None) -> int:
         patterns(CI_PATHS),
         rules,
         PACKAGE.resolve().is_relative_to(main_checkout.resolve()),
-        Fresh(main_checkout, state, run=not args.check),
+        Merged(main_checkout, state, run=not args.check),
         user=user,
         gate=gate,
     )

@@ -17,6 +17,7 @@ import test_home_merge as merge
 from jbriefs import parse, skills
 from jmerge import ready
 from test_jbus_queue import add, brief, gates, queued_before
+from testing.layouts import assembled
 from testing.paths import REPO, sources
 from testing.paths import skills as skill_folders
 
@@ -170,7 +171,7 @@ def test_the_crew_skill_block_prints_each_named_file_in_full_and_what_it_owes(tm
     task.write_text(brief("alpha", NAMED))
     text = (REPO / "features" / "crew" / "SKILL.md").read_text()
     (code,) = [one for one in re.findall(r"```sh\n(.*?)```", text, re.S) if "--skills" in one]
-    script = f"H={tmp_path}\nT={REPO / 'templates'}\n" + code.replace(
+    script = f"H={tmp_path}\nT={assembled() / 'templates'}\n" + code.replace(
         '"$H/tasks/<slug>.md"', str(task)
     )
     said = subprocess.run(["sh", "-c", script], capture_output=True, text=True, check=True).stdout

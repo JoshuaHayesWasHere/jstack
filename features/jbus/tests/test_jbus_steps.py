@@ -79,6 +79,7 @@ ORDER = [
     "after-expedite 5 strays.stop (client, world)",
     "after-expedite 10 mainmoved.tell (client, world)",
     "after-expedite 15 clock.tick (client, world)",
+    "after-expedite 16 clock.held (client, world)",
     "after-expedite 17 children.watch (client)",
     "after-expedite 20 remarks.tell (client, world)",
     "after-expedite 25 cancelled.rerun (client, world)",
