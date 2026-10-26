@@ -191,7 +191,7 @@ def test_the_header_says_the_name_where_you_are_and_the_time_of_the_last_read(sc
         assert re.fullmatch(r"Updated \d\d:\d\d · live", seen["header"]["read"]), seen["header"]
         assert seen["header"]["box"][:3] == [0, 0, DESK[0]]
     assert one["header"]["crumbs"] == [["All", "#/", ""], ["demo", "#/demo", "page"]]
-    assert every["header"]["crumbs"] == [["All projects", "#/", "page"]]
+    assert every["header"]["crumbs"] == [["All projects", "#/homes", "page"]]
 
 
 def sidebar(scene):
