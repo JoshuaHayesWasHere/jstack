@@ -432,3 +432,14 @@ def test_a_stacked_link_selects_only_its_own_change_from_the_branch_it_is_stacke
     said, code, ran, base = selected(tmp_path, repo, on="origin/below")
     assert base == git(repo, "rev-parse", "HEAD~1")
     assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)
+
+
+def test_a_link_whose_base_branch_is_gone_selects_from_origin_main(tmp_path):
+    """A link's base branch is deleted once it merges, before jbus rewrites the brief's
+    `Stacked on:` line, and the link is then checked from `origin/main`, which holds it."""
+    repo = stubbed(tmp_path, "print('all')")
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    (tasks / "a-task.md").write_text("# a-task: a link\nStacked on: below below\n")
+    said, code, ran, base = selected(tmp_path, repo)
+    assert (ran, code) == ([f"check-fast BASE={base} PYTEST=: short=held full=free"], 0)

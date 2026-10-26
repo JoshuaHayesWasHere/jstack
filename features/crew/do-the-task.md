@@ -17,6 +17,7 @@
 - Once every **Done when** line holds, with the work committed, run the check of the change, once.
   In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the check is the lint and only the tests that cover the files the branch changed since it left its base, in the short lane.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` or `Stack:` line, and `origin/main` for a brief with neither.
+  A base branch that is gone, as one is once it merged, is `origin/main` too.
   It never takes a full slot: CI's check on the pull request runs every test the selection leaves out, and CI's check is the gate.
   In any other repo the check is the repo's check command (`notes.md` names it), under a full test slot, and it is that command and no other, whatever command a brief's **Done when** names for it.
   Run this in this worktree, with the block at the top, and the brief's slug and the check command in place of the words in angle brackets.
@@ -26,6 +27,7 @@
   if [ -f scripts/select_tests.py ]; then
       on=$(awk '/^## / {exit} /^Stacked on:/ {print $(4); exit} /^Stack:/ {print $(5); exit}' "$H/tasks/<slug>.md" 2> /dev/null)
       on=origin/${on:-main}
+      git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
       if ! base=$(git merge-base "$on" HEAD); then
           echo "no check: the branch shares no commit with $on"
           false
