@@ -17,7 +17,7 @@ What decides is this, run with the block at the top, in this worktree. Run it on
 ```sh
 B="$H/tasks/<slug>.md"
 read -r passes saw written declined << EOF
-$(uv run --project "$T/.." jbriefs --findings "$B" --rounds)
+$(uv run --project "$T/../source" jbriefs --findings "$B" --rounds)
 EOF
 declined=${declined:--}
 read -r decided since launched asked sent stopped ruled here ran << EOF

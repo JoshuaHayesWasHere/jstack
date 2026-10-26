@@ -79,7 +79,7 @@ else
                 echo "the rebase stopped: resolve these, then git rebase --continue"
                 git diff --name-only --diff-filter=U
             else
-                uv run --project "$T/.." jbus forget "$G/crew-before-rebase" > /dev/null
+                uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
                 echo "the rebase did not start: no rebase"
                 echo "$said"
             fi
@@ -99,7 +99,7 @@ The file `crew-before-rebase` in the git directory is the record of a rebase fro
 If it stops, resolve the files it names and run `git rebase --continue` until the rebase is finished. A file that a command writes is never resolved by hand. The repo's `notes.md` names each one on a line `Generated: <file> -> <command>`, as jstack's does with `Generated: uv.lock -> uv lock`, and where it has no such line `uv.lock` is made by `uv lock`. Run this each time the rebase stops, with the block at the top. It names the files to resolve by hand first. Once those are resolved and added it takes the base's version of each generated file (during a rebase, `--ours` is the base being rebased onto) and runs its command, so the file is made from what both sides now ask for:
 
 ```sh
-uv run --project "$T/.." jmerge --remake
+uv run --project "$T/../source" jmerge --remake
 ```
 
 On `not made`, run the command yourself and read what it says: the file is still never edited by hand.
@@ -175,7 +175,7 @@ if [ -f "$G/crew-before-rebase" ]; then read -r before base pushed < "$G/crew-be
 if [ -z "$branch" ] || [ -z "$pushed" ]; then
     echo "no push: the head the pull request had before the rebase is not on record here, so there is no lease to push with"
 elif git push -q --force-with-lease="refs/heads/$branch:$pushed" --force-if-includes origin "HEAD:refs/heads/$branch"; then
-    uv run --project "$T/.." jbus forget "$G/crew-before-rebase" > /dev/null
+    uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
     echo "pushed $(git rev-parse HEAD) over $pushed"
 else
     echo "the push was refused: origin's $branch is no longer at $pushed, or origin did not answer"

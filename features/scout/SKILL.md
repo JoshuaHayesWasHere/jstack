@@ -35,7 +35,7 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
 
    ```sh
    B="$H/scouts/$S.md"
-   uv run --project "$T/.." jbus playbook scout "$B"
+   uv run --project "$T/../source" jbus playbook scout "$B"
    ```
 
    It prints nothing when the request says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the report. On `not a scout's`, the file is for a crewmate or the home: do the same again. When its first line is a path, read that file now. Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order. A step you do not do stays in the list as `skip: <reason>`. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the question is in another repo. A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the request to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the report. On `lacks the line`, the request stands as the home wrote it: say what it printed in the report. The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the report.
@@ -43,7 +43,7 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
 
    ```sh
    B="$H/scouts/$S.md"
-   uv run --project "$T/.." jbriefs --skills "$B"
+   uv run --project "$T/../source" jbriefs --skills "$B"
    ```
 
    It prints nothing when the request has no `Skills:` line or says `none`. Otherwise its first line, `loaded: <names>`, names each skill and principle the line names, by its canonical name, and under it each one's file in full: read them now, and do what each says while you research. Last it prints the artifact each one owes, from `$T/skill-artifacts.md`: the report's `Skills run:` section has one item for each, `- <name>: <the artifact>`, as `$T/scout-report.md` shows. A line `unknown skill: <name>` is a name jstack does not have: say it in the report, and go on with the rest.
@@ -146,7 +146,7 @@ lavish-axi "$H/reports/$S.html"
 3. Tell the home that launched this thread, if there is one to tell. In one call with the block at the top and `B` set to the request, `$H/scouts/<slug>.md`:
 
    ```sh
-   uv run --project "$T/.." jbus home "$B"
+   uv run --project "$T/../source" jbus home "$B"
    ```
 
    It prints the id in the `home-id` of the request's home, read now and never kept: `$H/home-id` for the root home, whose requests have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose requests name the scope, `Home: <scope>`.

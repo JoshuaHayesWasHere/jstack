@@ -39,6 +39,7 @@ import daemons
 import repo_template
 from jbus import health, item, record
 from test_jbus_kitchen import Kitchen
+from testing.paths import REPO
 
 no_daemons_left = daemons.no_daemons_left
 ZONE = 'timezone = "America/New_York"\ntimezone_label = "ET"\n'
@@ -125,6 +126,24 @@ def no_step_files(monkeypatch):
     output. A test that needs the files sets the variables again itself."""
     monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+
+@pytest.fixture(scope="session")
+def harness_root(tmp_path_factory):
+    """A harness's layout as far as a skill's block runs a tool from it: `templates/`, and `source`,
+    a link to this checkout. `uv run --project "$T/../source"` runs this checkout's tools."""
+    root = tmp_path_factory.mktemp("harness") / "claude-code"
+    (root / "templates").mkdir(parents=True)
+    (root / "source").symlink_to(REPO)
+    return root
+
+
+@pytest.fixture(autouse=True)
+def harness_templates(harness_root, monkeypatch):
+    """Set `T` as a skill's block sets it, to the templates of a layout whose `source` is this
+    checkout, so a block that a test runs reaches this checkout's tools. A test that needs the
+    real templates sets `T` again itself."""
+    monkeypatch.setenv("T", str(harness_root / "templates"))
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@
 - While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
 
   ```sh
-  uv run --project "$T/.." jgauge test-slot --short --thread <thread id> -- <the targeted tests>
+  uv run --project "$T/../source" jgauge test-slot --short --thread <thread id> -- <the targeted tests>
   ```
 
   The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one.
@@ -50,10 +50,10 @@
               printf '%s\n' "$tests"
               ;;
           esac
-          uv run --project "$T/.." jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" $lint
+          uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" $lint
       fi
   else
-      uv run --project "$T/.." jgauge check --thread '<thread id>' << 'THE_CHECK_ENDS_HERE'
+      uv run --project "$T/../source" jgauge check --thread '<thread id>' << 'THE_CHECK_ENDS_HERE'
   <check command>
   THE_CHECK_ENDS_HERE
   fi
@@ -78,7 +78,7 @@
   Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
 
   ```sh
-  if ! said=$(uv run --project "$T/.." jmerge --scope <slug>); then
+  if ! said=$(uv run --project "$T/../source" jmerge --scope <slug>); then
       echo "not known: jmerge --scope failed, so no file is known to be inside Where"
   else
       printf '%s\n' "$said" | awk '

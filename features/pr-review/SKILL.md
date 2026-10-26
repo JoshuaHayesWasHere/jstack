@@ -99,7 +99,7 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
    n=$(printf '%s\n' "$asked" | awk 'NR == 1 {print ($(4) ~ /^[0-9]+$/ ? $(4) : 1)}')
    by=$(printf '%s' "$config" | jq -r '.modelSelection | [(.provider // .instanceId), .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
    if [ -z "$by" ]; then
-       by=$(uv run --project "$T/.." jroles review 2> /dev/null | sed -n "${n}p" |
+       by=$(uv run --project "$T/../source" jroles review 2> /dev/null | sed -n "${n}p" |
            jq -r '[.provider, .model, (.options[]? | select(.id | test("effort$"; "i")) | .value)] | join(" ")' 2> /dev/null)
    fi
    echo "By: ${by:-inherit} #$n"
@@ -215,7 +215,7 @@ When step 2 of "After the review" drops what is outside the diff, and whenever a
 ### Wider than the brief
 
 ```sh
-uv run --project "$T/.." jmerge --scope <slug>
+uv run --project "$T/../source" jmerge --scope <slug>
 ```
 
 It asks `jmerge` which changed files the brief's `Where:` does not cover, with the one parser of that line (`jbriefs.parse.where`), and prints nothing when all are inside.
@@ -235,7 +235,7 @@ The reviewer runs the same command on the head it reviews, so that the crewmate 
 Run this in this worktree, with the block at the top and the head kept at the start in place of the words in angle brackets:
 
 ```sh
-uv run --project "$T/.." jmerge --gate '<the head kept at the start>' --pr <url>
+uv run --project "$T/../source" jmerge --gate '<the head kept at the start>' --pr <url>
 ```
 
 Send it as a foreground command with a time limit of 10 minutes (600000 ms), and never as a background command.
@@ -279,7 +279,7 @@ A repo runs with a home or with none, and a reviewer needs neither. It sends the
 Whom to send it to, in one call with the block at the top and `B` set to that brief, `$H/tasks/<slug>.md`:
 
 ```sh
-uv run --project "$T/.." jbus home "$B"
+uv run --project "$T/../source" jbus home "$B"
 ```
 
 It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`.

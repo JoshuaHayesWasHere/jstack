@@ -145,7 +145,7 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
        echo "not written: put the thread's id and what the call returned in place of the placeholders"
    else
        printf '%s %s\n' "$id" "$ME" > "$E/webhook"
-       uv run --project "$T/.." jbus forget "$E/webhook.url" > /dev/null
+       uv run --project "$T/../source" jbus forget "$E/webhook.url" > /dev/null
        if [ -n "$url" ]; then
            (umask 077 && printf '%s\n' "$url" > "$E/webhook.url")
            echo "kept: webhook $id, and its address in $E/webhook.url"

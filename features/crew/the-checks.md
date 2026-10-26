@@ -3,7 +3,7 @@
 Whether a pull request's checks have passed is never read off a message or remembered: it is what this prints, run in this worktree with the block at the top. It is the only check:
 
 ```sh
-uv run --project "$T/.." jmerge --checks
+uv run --project "$T/../source" jmerge --checks
 ```
 
 Its first word is one of four answers:
@@ -26,7 +26,7 @@ B="$H/tasks/<slug>.md"
 here='<failed or passed>'
 if [ "$here" != failed ] && [ "$here" != passed ]; then
     echo "wait: run the check command in this worktree first, and set here to failed or passed"
-elif ! said=$(uv run --project "$T/.." jbus budget --wait 540 --calls 10); then
+elif ! said=$(uv run --project "$T/../source" jbus budget --wait 540 --calls 10); then
     echo "$said"
 elif ! view=$(gh pr view --json headRefOid,baseRefName,statusCheckRollup); then
     echo "wait: could not ask GitHub"
