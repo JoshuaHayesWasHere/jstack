@@ -1,7 +1,8 @@
 """A pull request stacked on another's branch by jbus (its brief's `Stacked on:` line) merges only
-after its base merged and it was rebased onto main. While the line names its base's branch it
-waits, also where GitHub has already based it on main. Once jbus wrote that the base merged as a
-commit of main, it waits until its head holds that commit, and then merges as any other.
+after its base merged and it was rebased onto the branch its base merged into, main or a train.
+While the line names its base's branch it waits, also where GitHub has already based it on main.
+Once jbus wrote that the base merged as a commit of that branch, it waits until it is based on
+that branch and its head holds that commit, and then merges as any other.
 
 The tests run the command against `test_jmerge_carried`'s repo: alpha (#7) is built on beta's
 head, and delta is a commit on main's side that alpha does not hold."""
@@ -44,6 +45,22 @@ def test_a_link_whose_head_does_not_hold_its_bases_merge_waits_for_its_rebase(bu
 
 def test_a_link_rebased_onto_its_bases_merge_merges_as_any_other(built_on):
     said = judged(built_on, f"Stacked on: beta main at {built_on.beta}")
+    assert said.startswith("ready 7 ")
+
+
+def test_a_link_whose_base_merged_into_a_train_waits_for_its_rebase_onto_the_train(built_on):
+    """A base that merged into a train moves its link onto that train, not main: the link waits
+    for its head to hold the merge, named on the train, and its base on main is no merge."""
+    said = judged(built_on, f"Stacked on: beta train/x at {built_on.delta}", base="train/x")
+    unmoved = ready.STACKED_UNMOVED.format(slug="beta", sha=built_on.delta[:12], default="train/x")
+    assert said == f"wait 7 {merge.URL}: {unmoved}"
+    said = judged(built_on, f"Stacked on: beta train/x at {built_on.beta}", base="main")
+    on = ready.STACKED_ON.format(branch="train/x", slug="beta", default="train/x")
+    assert said == f"wait 7 {merge.URL}: {on}"
+
+
+def test_a_link_rebased_onto_its_bases_merge_on_a_train_merges_as_any_other(built_on):
+    said = judged(built_on, f"Stacked on: beta train/x at {built_on.beta}", base="train/x")
     assert said.startswith("ready 7 ")
 
 
