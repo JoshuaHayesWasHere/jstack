@@ -103,3 +103,27 @@ def test_every_token_a_rule_names_is_defined():
     tokens = set(root())
     named = set(re.findall(r"var\((--[\w-]+)", PAGE.read_text()))
     assert named - tokens == set()
+
+
+def stray(css):
+    """What the stylesheet holds outside every rule: a closing brace with no rule to close,
+    or a declaration between two rules. A browser drops such text together with the rule
+    after it, so that rule silently stops applying."""
+    css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    depth, between, found = 0, "", []
+    for char in css:
+        if char == "{":
+            if depth == 0 and ";" in between:
+                found.append(between.strip())
+            depth, between = depth + 1, ""
+        elif char == "}":
+            if depth == 0:
+                found.append(f"{between.strip()} }}")
+            depth, between = max(depth - 1, 0), ""
+        else:
+            between += char
+    return found
+
+
+def test_the_stylesheet_holds_nothing_outside_a_rule():
+    assert stray(STYLE) == []
