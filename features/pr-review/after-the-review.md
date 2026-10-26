@@ -98,11 +98,11 @@
    ```sh
    B="$H/tasks/<slug>.md"
    if awk '/^Review:/ {after = ($(2) == "after" || $(2) == "twice"); exit} END {exit !after}' "$B"; then
-       if text=$(uv run --project "$T/.." jbus cleanup "$B"); then
-           if ! said=$(printf '%s\n' "$text" | uv run --project "$T/.." jbus queue add "cleanup-<slug>" --priority 50 --depends "<slug>" 2>&1); then
+       if text=$(uv run --project "$T/../source" jbus cleanup "$B"); then
+           if ! said=$(printf '%s\n' "$text" | uv run --project "$T/../source" jbus queue add "cleanup-<slug>" --priority 50 --depends "<slug>" 2>&1); then
                case $said in
                "refused: cleanup-<slug> cannot depend on <slug>: <slug> was removed"*)
-                   printf '%s\n' "$text" | uv run --project "$T/.." jbus queue add "cleanup-<slug>" --priority 50 ;;
+                   printf '%s\n' "$text" | uv run --project "$T/../source" jbus queue add "cleanup-<slug>" --priority 50 ;;
                *) echo "$said" && false ;;
                esac
            else

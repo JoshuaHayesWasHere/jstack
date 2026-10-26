@@ -20,6 +20,7 @@ from test_jbus_kitchen import GATE, NOW, PROJECT
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
 from test_pr_review_skill import ASKED, block
+from testing.layouts import assembled
 from testing.paths import REPO
 
 URL = "https://example.test/pull/7"
@@ -443,7 +444,7 @@ def reviewer_says(tmp_path, asked, brief):
     (tmp_path / "tasks").mkdir(exist_ok=True)
     (tmp_path / "tasks" / "alpha.md").write_text(brief)
     script = block("### Start", "case $asked").replace("<slug>", "alpha").replace(ASKED, asked)
-    env = {**os.environ, "H": str(tmp_path), "T": str(REPO / "features" / "crew" / "templates")}
+    env = {**os.environ, "H": str(tmp_path), "T": str(assembled() / "templates")}
     ran = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True, check=True)
     return ran.stdout.splitlines()
 

@@ -12,6 +12,7 @@ import test_tool_calls as tools
 from crew_helpers import BRIEF, ROLLUPS, SKILL, block, git, said, sections, stub_gh
 from jmerge import ready
 from test_home_thread import as_read
+from testing.layouts import assembled
 from testing.paths import REPO
 
 
@@ -42,7 +43,7 @@ class Pushed:
                 "PATH": f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "H": str(self.state),
-                "T": str(REPO / "features" / "crew" / "templates"),
+                "T": str(assembled() / "templates"),
             },
             check=True,
         )

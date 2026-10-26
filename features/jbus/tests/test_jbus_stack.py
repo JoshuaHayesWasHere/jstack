@@ -4,8 +4,9 @@ move:
 
 - When the base's head moves (review fixes, a rebase), the link is told to rebase onto the base's
   branch, once for that head, unless its head already holds the base's.
-- When the base merged, jbus bases the link's pull request on main, tells its crew to move its
-  own commits onto main, and writes where it sits now on the brief's `Stacked on:` line.
+- When the base merged, jbus bases the link's pull request on the branch the base merged into
+  (main, or a train), or on the one its brief opens it against, tells its crew to move its own
+  commits onto that branch, and writes where it sits now on the brief's `Stacked on:` line.
 - A link that still sits on its base gets no message to rebase onto main: its branch holds its
   base's commits, which only "A link that moved" leaves out.
 
@@ -47,14 +48,16 @@ def stacked(tmp_path, monkeypatch):
     kitchen.close()
 
 
-def pulls(kitchen, base=BASE, link=LINK, on="one", merged=False, mergeable="MERGEABLE"):
+def pulls(
+    kitchen, base=BASE, link=LINK, on="one", merged=False, mergeable="MERGEABLE", into="main"
+):
     """Set what GitHub lists: `two` at `link` based on the branch `on`, and `one` at `base`,
-    open, or merged as `MERGE` with its last head `LAST`."""
+    open, or merged into the branch `into` as `MERGE` with its last head `LAST`."""
     two = {**kitchen.opened("two", 11), "headRefOid": link, "baseRefName": on}
     two["mergeable"] = mergeable
     if merged:
         kitchen.set("open.json", [two])
-        done = {**kitchen.merged("one", 10, MERGE), "headRefOid": LAST}
+        done = {**kitchen.merged("one", 10, MERGE), "headRefOid": LAST, "baseRefName": into}
         kitchen.set("merged.json", [done])
     else:
         kitchen.set("open.json", [{**kitchen.opened("one", 10), "headRefOid": base}, two])
@@ -121,6 +124,48 @@ def test_a_base_that_merged_moves_its_link_onto_main_once(stacked, on):
     assert "one merged as aaaaaaaaaaaa" in said and "now based on main" in said
     assert f"with {LAST} as the branch it sat on" in said and "again with one" in said
     assert head_line(stacked) == stacks.Stacked("one", "main", MERGE)
+
+
+@pytest.mark.parametrize("on", ["one", "train/x"])
+def test_a_base_that_merged_into_a_train_moves_its_link_onto_the_train(stacked, on):
+    """A base that merged into a train branch, not the default, leaves its link on that train:
+    a rebase onto main would carry the train's commits to main. A link GitHub already based on
+    the train is not edited."""
+    pulls(stacked, merged=True, on=on, into="train/x")
+    passes(stacked, 0, 3)
+    assert edits(stacked) == (["pr edit 11 --base train/x"] if on == "one" else [])
+    (said,) = [given["message"] for given in sends(stacked)]
+    assert "one merged as aaaaaaaaaaaa" in said and "now based on train/x" in said
+    assert "origin/train/x" in said and "main" not in said
+    assert head_line(stacked) == stacks.Stacked("one", "train/x", MERGE)
+
+
+def test_a_link_whose_brief_names_its_base_is_moved_onto_that_base(stacked):
+    """A brief whose `Pull request:` line names the branch to open it against keeps its link on
+    that branch once its base merged, wherever the base merged."""
+    path = stacked.home / "tasks" / "two.md"
+    text = path.read_text().replace(
+        "Pull request: open one when done", "Pull request: open one against train/y when done"
+    )
+    path.write_text(text)
+    pulls(stacked, merged=True)
+    passes(stacked, 0, 3)
+    assert edits(stacked) == ["pr edit 11 --base train/y"]
+    assert head_line(stacked) == stacks.Stacked("one", "train/y", MERGE)
+
+
+def test_a_link_is_not_moved_while_github_does_not_say_where_its_base_merged(stacked):
+    """With no answer from GitHub on the branch the base merged into, the link is not moved
+    onto the default branch for want of it: it waits for a later pass."""
+    pulls(stacked, merged=True, into="train/x")
+    (stacked.stub / "gh-view-down").write_text("")
+    said = stacked.poll(NOW)
+    assert "wait two: GitHub did not say what one merged into" in said
+    assert edits(stacked) == [] and sends(stacked) == []
+    assert head_line(stacked) == stacks.Stacked("one", "one")
+    (stacked.stub / "gh-view-down").unlink()
+    passes(stacked, 3)
+    assert edits(stacked) == ["pr edit 11 --base train/x"]
 
 
 def test_a_link_whose_thread_is_at_work_is_moved_on_a_later_pass(stacked):

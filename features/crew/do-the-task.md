@@ -6,7 +6,7 @@
 - While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
 
   ```sh
-  uv run --project "$T/.." jgauge test-slot --short --thread <thread id> -- <the targeted tests>
+  uv run --project "$T/../source" jgauge test-slot --short --thread <thread id> -- <the targeted tests>
   ```
 
   The short lane has slots of its own, which no full suite takes, so a targeted run never waits behind one.
@@ -50,10 +50,10 @@
               printf '%s\n' "$tests"
               ;;
           esac
-          uv run --project "$T/.." jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" $lint
+          uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make check-fast BASE="$base" $lint
       fi
   else
-      uv run --project "$T/.." jgauge check --thread '<thread id>' << 'THE_CHECK_ENDS_HERE'
+      uv run --project "$T/../source" jgauge check --thread '<thread id>' << 'THE_CHECK_ENDS_HERE'
   <check command>
   THE_CHECK_ENDS_HERE
   fi
@@ -74,11 +74,11 @@
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
 - When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
 - Before the pull request opens, with the work committed, ask which changed files the brief's **Where** does not cover.
-  Ask again after each push for a review's findings ("The review") and for a failed check ("The checks"), since a fix can add a file outside **Where** after the `Wider:` lines were written.
+  Ask again after each push for a review's findings ("The review"), and before each push for a failed check ("The checks"), so a reviewer launched on that push finds the line, since a fix can add a file outside **Where** after the `Wider:` lines were written.
   Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
 
   ```sh
-  if ! said=$(uv run --project "$T/.." jmerge --scope <slug>); then
+  if ! said=$(uv run --project "$T/../source" jmerge --scope <slug>); then
       echo "not known: jmerge --scope failed, so no file is known to be inside Where"
   else
       printf '%s\n' "$said" | awk '
@@ -98,7 +98,7 @@
   For each `outside:` line, take the file out of the diff when the task does not need it.
   When it does, a test the change breaks, a page tied to a changed `--help`, write one line for each file, `Wider: <path>: <why it had to change>`.
   Before the pull request opens, it goes in the Result "End" writes, and not in a `## Result` of its own before it: the command reads the last Result, and asks for the file no more from then on.
-  After a push, it goes in the last Result, beside the line that says what you pushed.
+  Once the pull request is open, it goes in the last Result, beside the line that says what the push was for.
   The pull request opens either way.
   A file left `outside:` with no `Wider:` line is a finding of the review.
 

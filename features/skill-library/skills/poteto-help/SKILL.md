@@ -52,9 +52,9 @@ if R=$(realpath ~/.claude/skills/poteto-help/../.. 2> /dev/null) && [ -f "$R/ski
     done
     echo "root: $R"
     if [ -n "$path" ]; then
-        uv run --quiet --no-sync --project "$R" jbriefs pick "$path"
+        uv run --quiet --no-sync --project "$R/source" jbriefs pick "$path"
     else
-        printf '%s\n' "$said" | uv run --quiet --no-sync --project "$R" jbriefs pick -
+        printf '%s\n' "$said" | uv run --quiet --no-sync --project "$R/source" jbriefs pick -
     fi
     C=$(realpath "$R/source" 2> /dev/null) || C=$R
     if [ -f "$C/install.sh" ]; then

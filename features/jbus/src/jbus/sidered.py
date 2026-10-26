@@ -37,6 +37,15 @@ A red that shares a run with them is the same red, though its oldest run has sli
 a green run ended, and a new failure began, is a new row. On a
 project's first pass `owe` only records the reds it sees. It asks GitHub at most once in `EVERY`,
 since a pass runs each minute and a side workflow runs a few times a day.
+
+`trains` does the same for an integration branch, a train, which `jmerge` holds every pull
+request into while the latest run of a check at its tip failed (`jmerge.rows.base_red`). It asks
+GitHub of a train only while an open pull request is into it or from it, or a fix row of it is
+open. A failed check at its tip gets one fix row, `train-red-<train>-<commit>`, queued unapproved
+ahead of every row as `watch._file` queues a red main's, under the home that the briefs of the
+train's pull requests name (`jbriefs.home`), and that home's thread is sent it once. A train with
+a fix row open files nothing more, whatever its tip. Once every check at its tip has passed, at
+a later commit than a row's, the row is withdrawn as a red main's is (`watch._withdraw`).
 """
 
 from __future__ import annotations
@@ -45,21 +54,30 @@ import itertools
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
+from jbriefs.home import home_of, thread_of
 from jbus import Refused, queue, read_json, verbs, write_json
 from jbus.flow.measure import NO_JOB
 from jbus.passes import Pass
+from jbus.t3 import Client, T3Error
 from jbus.watch import (
     NIGHTLIES,
     NOT_RED,
     Failed,
+    World,
     _api,
     _default_branch,
+    _failed_tests,
     _log_failed,
+    _withdraw,
+    brief_of,
     tests_said,
     when,
 )
+from jmerge import ready
+from jmerge import rows as jmerge_rows
 
 NAME = "workflows.json"
 PREFIX = "workflow-red-"
@@ -324,4 +342,159 @@ def owe(run: Pass) -> None:
     write_json(run.state / NAME, {"asked": run.now.isoformat(), "filed": filed})
 
 
-STEPS = (verbs.Step("tellers", 45, "sidered.owe", lambda half: owe(half.run), ("budget",)),)
+TRAINS = "integration"
+TRAIN_TOLD = "train-red|{slug}|{thread}"
+
+
+def train_name(branch: str, sha: str) -> str:
+    """Return the slug of the fix row for the red of `branch` at `sha`, or with no `sha` the start
+    that every fix row of the branch shares."""
+    stem = _STEM.sub("-", branch.lower().removeprefix("train/")).strip("-.") or "train"
+    return f"{jmerge_rows.TRAIN_FIX}{stem}-{sha[:12]}"
+
+
+def train_brief(
+    name: str, branch: str, sha: str, scope: str, numbers: list[int], jobs: list[tuple]
+) -> str:
+    """Return the brief for the fix of a red train, in the shape of `watch.red_brief`. `jobs` is
+    each failed check's name, URL and failed tests, and `numbers` the pull requests it holds."""
+    tests = [test for _, _, failed in jobs for test in failed]
+    files = list(dict.fromkeys(test.split("::")[0] for test in tests))
+    where = ", ".join(f"`{file}`" for file in files) or (
+        f"`.` (the whole repo: the failed check's log names no test, read it on {branch})"
+    )
+    held = ", ".join(f"#{number}" for number in numbers) or "no pull request"
+    read = [
+        f"- the job `{job}`, {url or 'with no URL'}: "
+        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
+        for job, url, failed in jobs
+    ]
+    return "\n".join(
+        [
+            f"# {name}: {branch}'s check failed at {sha[:12]}",
+            f'Task: "{branch} check failed at {sha[:12]}, and jmerge holds {held} on it" '
+            f"(jbus, from {branch}'s tip)",
+            "Done when:",
+            f"- each failed test named under Read passes on {branch}, and the failed job passes "
+            "at the commit that merges the fix",
+            "- the Result names the cause: the merge that broke the train, or a flake with its "
+            "evidence",
+            f"Proves it: CI's check on {branch} passes at the commit that merges the fix",
+            "Size: S",
+            f"Where: {where}",
+            "Do not touch: .github/workflows/, the ruleset",
+            "Decisions: none, jbus filed this from a red train and the user has not seen it",
+            "Design: none, a fix to what the failed run names",
+            f"Pull request: open one against {branch} when done",
+            "Review: review",
+            "Playbook: bug-fix",
+            *([f"Home: {scope}"] if scope else []),
+            "Read:",
+            *read,
+            "",
+        ]
+    )
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(errors="replace")
+    except OSError:
+        return ""
+
+
+def _tell(run: Pass, client: Client, home: Path, slug: str, branch: str, held: str) -> None:
+    """Send the home's thread the fix row of its red train, once for the row and the thread. A
+    send that fails is sent again on the next pass."""
+    thread = thread_of(home)
+    key = TRAIN_TOLD.format(slug=slug, thread=thread)
+    if not thread or key in run.box.sent():
+        return
+    sha = slug.rsplit("-", 1)[-1]
+    text = (
+        f"jbus: {branch} is red at {sha}: its latest check failed, and jmerge holds {held} on it. "
+        f"jbus filed the fix row {slug} under this home, unapproved (tasks/{slug}.md): it is "
+        f"approved as any row, and withdrawn by itself once {branch} is green at a later commit."
+    )
+    client.recipients = client.recipients | {thread}
+    asked = {"threadId": thread, "message": text, "mode": "queue", "clientRequestId": key}
+    try:
+        client.call("t3_thread_send", asked)
+    except T3Error as error:
+        run.say(f"wait {slug}: its home could not be told of the red {branch} ({error})")
+        return
+    run.box.mark(key)
+    run.say(f"retro {slug}: told its home, thread {thread}, that {branch} is red")
+
+
+def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]]) -> None:
+    """File one fix row for each train whose tip's latest check failed, tell its home, and
+    withdraw the row once the train's tip is green at a later commit."""
+    for branch in ready.integration_of(_read(run.home / TRAINS)):
+        start = train_name(branch, "")
+        own = [
+            row["slug"]
+            for row in table
+            if row["slug"].startswith(start)
+            and len(row["slug"]) == len(start) + 12
+            and row.get("status") not in queue.FINAL
+        ]
+        pulls = sorted(
+            (pull["number"], slug, pull.get("baseRefName") == branch)
+            for slug, pull in world.open.items()
+            if branch in (pull.get("baseRefName"), pull.get("headRefName"))
+        )
+        if not own and not pulls:
+            continue
+        said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{branch}/check-runs")
+        runs = said.get("check_runs") if isinstance(said, dict) else None
+        if not isinstance(runs, list) or not runs:
+            continue
+        failed = jmerge_rows.failed(runs)
+        if not failed:
+            latest = jmerge_rows.latest(runs)
+            if own and all(one.get("status") == "completed" for one in latest):
+                fixes = [row for row in table if row["slug"] in own]
+                _withdraw(run, fixes, str(latest[-1].get("head_sha") or ""), branch)
+            continue
+        homes = [home_of(run.home, text) for _, slug, _ in pulls if (text := brief_of(run, slug))]
+        home = max(sorted(set(homes)), key=homes.count) if homes else run.home
+        numbers = [number for number, _, into in pulls if into]
+        held = ", ".join(f"#{number}" for number in numbers) or "no pull request"
+        sha = str(failed[0].get("head_sha") or "")
+        name = train_name(branch, sha)
+        if not own and not run.first and sha and name not in run.removed:
+            if queue.fresh(run.state, name) is None:
+                jobs = [
+                    (r.get("name") or "?", r.get("html_url") or "", _failed_tests(run, r.get("id")))
+                    for r in failed
+                ]
+                scope = "" if home == run.home else home.name
+                text = train_brief(name, branch, sha, scope, numbers, jobs)
+                (run.home / "tasks").mkdir(parents=True, exist_ok=True)
+                (run.home / "tasks" / f"{name}.md").write_text(text)
+                try:
+                    rows = queue.load(run.state)
+                    top = min((row.get("priority", 0) for row in rows), default=1) - 1
+                    queue.add(run.state, name, top, [], text)
+                except (Refused, queue.Unparsable) as refused:
+                    run.condition(name, f"its brief was not queued: {refused}")
+                    continue
+                line = f"retro {name}: {branch} check failed at {sha[:12]}, and it holds {held}"
+                run.find(name, "retro", line, key=f"train red {sha}", past=True)
+        if not own and queue.fresh(run.state, name) is not None:
+            own = [name]
+        for slug in own:
+            _tell(run, client, home_of(run.home, brief_of(run, slug)), slug, branch, held)
+
+
+STEPS = (
+    verbs.Step("tellers", 45, "sidered.owe", lambda half: owe(half.run), ("budget",)),
+    verbs.Step(
+        "tellers",
+        47,
+        "sidered.trains",
+        lambda half: trains(half.run, half.client, half.seen.world, half.rows or []),
+        ("sight", "client", "world", "budget"),
+    ),
+)

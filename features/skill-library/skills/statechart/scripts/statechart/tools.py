@@ -16,6 +16,10 @@ TLA2TOOLS_URL = (
 )
 TLA2TOOLS_SHA256 = "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
 
+# TLC's workers for a run that checks a rule, unless TLC_WORKERS names another count. Never
+# `auto`, which starts one for each core: several such runs at once loaded a 24-core machine to 126.
+WORKERS = 2
+
 # The renderer --png runs through npx, at this version and never at npx's latest.
 MERMAID_CLI = "@mermaid-js/mermaid-cli@12.0.0"
 
@@ -99,3 +103,31 @@ def find_tlc(download=True):
             " (Java 11 or later)."
         )
     return Tlc(jar=str(jar), java=java)
+
+
+def workers():
+    """The count of TLC workers a run that checks a rule takes: TLC_WORKERS, else `WORKERS`."""
+    asked = os.environ.get("TLC_WORKERS") or str(WORKERS)
+    if not asked.isdigit() or int(asked) < 1:
+        raise NoTlc(f"TLC_WORKERS is {asked}, and it must be a count of 1 or more.")
+    return asked
+
+
+def in_test_slot(command):
+    """`command` under one of jgauge's machine-wide test slots, so only so many TLC runs go at
+    once. A run in a slot already held, a suite's under `jgauge test-slot`, which sets
+    JGAUGE_TEST_SLOT, takes no second one, and cannot wait on its own. Where there is no jgauge,
+    as where the skill is installed alone, the command runs as it is."""
+    jgauge = None if os.environ.get("JGAUGE_TEST_SLOT") else shutil.which("jgauge")
+    return [jgauge, "test-slot", "--", *command] if jgauge else command
+
+
+def rerun_in_test_slot():
+    """Run this whole command again under one test slot, in place of this process, so a script
+    of many TLC runs waits for a slot once and not once for each run. In a slot held already, or
+    with no jgauge, it does nothing and the command goes on."""
+    command = [sys.executable, *sys.orig_argv[1:]]
+    held = in_test_slot(command)
+    if held is not command:
+        sys.stdout.flush()
+        os.execv(held[0], held)
