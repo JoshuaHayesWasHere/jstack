@@ -158,7 +158,7 @@ fi
 
 Make the `first:` line, without its `first: `, the reply's first line, so the words name what the picture shows.
 An `attach: <path> <bytes>` line is the picture, sent to this thread, where the user reads the reply, with three calls of the `t3-code` server (if your harness defers them, load them first).
-First `t3_attachment_prepare_upload` with `{"upload": {"type": "image", "name": "<the path's file name>", "mimeType": "image/png", "sizeBytes": <bytes>}}`.
+First `t3_attachment_prepare_upload`, with an `upload` of type `image`, the path's file name as its `name`, `image/png` as its `mimeType`, and the bytes as its `sizeBytes`.
 Then POST the file's bytes, as they are, to the `relativeUrl` it returns, on that server's HTTP origin.
 Last `t3_thread_send_attachments` with that `attachmentId`, the same name, type, MIME type and size, and no `threadId`.
 Make the last line the reply's last line.
