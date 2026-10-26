@@ -7,13 +7,17 @@ failing CI run, gates and noticed lines, and three more projects beside `stacked
 has two child homes, and one of them has a row that stalled (`browser.child_homes`). `many` is
 the same with sixteen projects. A third scene, `calm`, has nothing wrong in it.
 
-The homes map of `#/` has budgets of its own, read by its probe (`browser.mapped`): the busy
-map fits a phone whole, a quiet project or child home adds one line at most, sixteen projects
-are 250 words at most, and every wrong fact is on a phone's first screen.
+The first screen, `#/`, is the board, and its budget is in `test_view_page_board.py`: its
+headlines and its strip of the stages are `WORDS` words at most, and its cards are counted apart.
 
-A scene is opened twice at each width, on every project, `#/`, and on `demo`'s page, `#/demo`.
-The probe opens every drawer it can reach from there, and on `#/` it taps each thing on the
-first screen once. Each test reads those two looks, which a test before it may have made.
+The homes map, at `#/homes`, has budgets of its own, read by its probe (`browser.mapped`): the
+busy map fits a phone whole, a quiet project or child home adds one line at most, sixteen
+projects are 250 words at most, and every wrong fact is on a phone's first screen.
+
+A scene is opened twice at each width, on every project's homes map, `#/homes`, and on `demo`'s
+page, `#/demo`. The probe opens every drawer it can reach from there, and on `#/homes` it taps
+each thing on the first screen once. Each test reads those two looks, which a test before it
+may have made.
 
 A budget today's page breaks is in `KNOWN`, with the unit that fixes it. Its test is marked as
 a strict xfail, so the suite stays green and the fix that makes it pass takes the mark off. The
@@ -249,15 +253,15 @@ def views(tmp_path_factory):
 
 
 def looked(root, name, wide):
-    """What the probe found on `#/` and on `#/demo`, what waits on the user in each project as
-    the server gives it, and the slug of every row of the scene."""
+    """What the probe found on `#/homes` and on `#/demo`, what waits on the user in each
+    project as the server gives it, and the slug of every row of the scene."""
     with pytest.MonkeyPatch.context() as patch:
         scene = Scene(root, patch)
         SCENES[name](scene)
         served = Served(scene)
         try:
             how = {"screen": SCREENS[wide], "port": served.port, "at": 1500}
-            every = look(scene, root, route="#/", hops=True, budget=60000, **how)
+            every = look(scene, root, route="#/homes", hops=True, budget=60000, **how)
             one = look(scene, root, budget=8000, **how)
             projects = sorted(p.parent.name for p in scene.state_dir.glob("*/queue.json"))
             waits = {p: len(served.json(f"/state.json?project={p}")["waiting"]) for p in projects}
@@ -266,32 +270,32 @@ def looked(root, name, wide):
     slugs = {
         r["slug"] for q in scene.state_dir.glob("*/queue.json") for r in json.loads(q.read_text())
     }
-    return {"#/": every, "#/demo": one, "waits": waits, "slugs": slugs}
+    return {"#/homes": every, "#/demo": one, "waits": waits, "slugs": slugs}
 
 
 def drawers(seen):
-    return [(route, one) for route in ("#/", "#/demo") for one in seen[route]["opened"]]
+    return [(route, one) for route in ("#/homes", "#/demo") for one in seen[route]["opened"]]
 
 
 @pytest.mark.parametrize(("scene", "wide"), cases("twice"))
 def test_no_slug_shows_twice_on_a_first_screen(views, scene, wide):
     seen = views(scene, wide)
     twice = {}
-    for route in ("#/", "#/demo"):
+    for route in ("#/homes", "#/demo"):
         text = "\n".join(seen[route]["screen"])
         found = {
             s: len(re.findall(rf"(?<![\w-]){re.escape(s)}(?![\w-])", text)) for s in seen["slugs"]
         }
         twice[route] = sorted(s for s, n in found.items() if n > 1)
-    assert twice == {"#/": [], "#/demo": []}
+    assert twice == {"#/homes": [], "#/demo": []}
 
 
 @pytest.mark.parametrize(("scene", "wide"), cases("hung"))
 def test_one_tap_on_every_project_opens_a_drawer_that_names_the_hung_thread(views, scene, wide):
-    """demo's crewmate on jam-jar hung. Some one thing on the first screen of `#/` opens a
+    """demo's crewmate on jam-jar hung. Some one thing on the first screen of `#/homes` opens a
     drawer that names it and says it hung."""
-    hops = views(scene, wide)["#/"]["hops"]
-    assert hops, "the first screen of #/ has nothing to tap"
+    hops = views(scene, wide)["#/homes"]["hops"]
+    assert hops, "the first screen of #/homes has nothing to tap"
     reached = [
         h["to"]
         for h in hops
@@ -313,7 +317,7 @@ def test_every_screen_counts_the_same_waits(views, scene, wide):
     drawer = [one for one in seen["#/demo"]["opened"] if one["target"].split(":")[0] == "you"]
     assert drawer, [one["target"] for one in seen["#/demo"]["opened"]]
     every, band, you = (
-        count(seen["#/"]["needs"]["count"]),
+        count(seen["#/homes"]["needs"]["count"]),
         count(seen["#/demo"]["needs"]["count"]),
         count(drawer[0]["title"]),
     )
@@ -334,7 +338,7 @@ def test_every_drawer_but_help_is_short(views, scene, wide):
 @pytest.mark.parametrize(("scene", "wide"), cases("header", widths=(390,)))
 def test_the_header_of_a_phone_is_no_taller_than_56_px(views, scene, wide):
     seen = views(scene, wide)
-    high = {route: seen[route]["header"]["box"][3] for route in ("#/", "#/demo")}
+    high = {route: seen[route]["header"]["box"][3] for route in ("#/homes", "#/demo")}
     assert {route: px for route, px in high.items() if px > HEADER} == {}
 
 
@@ -359,7 +363,7 @@ def test_no_drawer_runs_its_breadcrumb_into_its_tag(views, scene, wide):
 def paints(seen):
     return [
         (route, paint)
-        for route in ("#/", "#/demo")
+        for route in ("#/homes", "#/demo")
         for paint in seen[route]["paints"]
         + [p for one in seen[route]["opened"] for p in one["paints"]]
     ]

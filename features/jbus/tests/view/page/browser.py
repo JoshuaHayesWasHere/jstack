@@ -62,6 +62,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import types
 import urllib.parse
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -69,7 +70,9 @@ from pathlib import Path
 
 import pytest
 
-from jbus import questions
+from jbus import questions, view
+from jbus.view import panels
+from jbus.view.writes import said
 from test_jbus_kitchen import GATE as PIPED
 from testing.paths import REPO
 from view.scene import (
@@ -621,16 +624,52 @@ MAP = (Path(__file__).parent / "map.js").read_text()
 
 
 def mapped(scene, tmp_path, build, screen=DESK, **how):
-    """What the probe of the homes map, `MAP`, found on `#/` of the scene that `build` makes,
+    """What the probe of the homes map, `MAP`, found on `#/homes` of the scene that `build` makes,
     and `/stack.json` as the server gives it."""
     build(scene)
     served = Served(scene)
     try:
         stack = served.json("/stack.json")
-        seen = look(scene, tmp_path, route="#/", script=MAP, screen=screen, port=served.port, **how)
+        seen = look(
+            scene, tmp_path, route="#/homes", script=MAP, screen=screen, port=served.port, **how
+        )
     finally:
         served.close()
     return seen, stack
+
+
+BOARDS = REPO / "features" / "jbus" / "tests" / "fixtures" / "jbus-view"
+
+
+def board(rows):
+    """The board JSON of the fixture `board-<rows>.json`, the shape `/panel/board.json` holds."""
+    return json.loads((BOARDS / f"board-{rows}.json").read_text())
+
+
+def boarded(patch, rows):
+    """Make the server answer `/panel/board.json` with `board(rows)`, and give it back. Where
+    the folder `panels/board` has no `panel.py` yet, the server is given a board panel that
+    builds nothing, so the page has the board's script. Call it before the server starts."""
+    made = board(rows)
+    if "board" not in panels.names():
+        stub = panels.Panel(
+            "board",
+            types.SimpleNamespace(FIRST=False, SHAPE={}, SOURCES=(), build=lambda read: {}),
+            panels.HERE / "board" / panels.SCRIPT,
+        )
+        found, real_names = (
+            tuple(sorted((*panels.found(), stub), key=lambda p: p.name)),
+            panels.names,
+        )
+        patch.setattr(panels, "found", lambda: found)
+        patch.setattr(panels, "names", lambda *here: tuple(sorted((*real_names(*here), "board"))))
+    real_get = view.App.get
+
+    def get(app, path, query):
+        return said(200, made) if path == "/panel/board.json" else real_get(app, path, query)
+
+    patch.setattr(view.App, "get", get)
+    return made
 
 
 def chips(seen_band):

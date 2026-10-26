@@ -351,6 +351,7 @@
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
   <a class="tab" id="tri" href="#/triage" hidden></a>
+  <a class="tab" id="homes" href="#/homes" hidden>Homes</a>
   <select class="pick" id="pick" aria-label="Project"></select>
   <span class="readat" id="readat"></span>
   <a class="machw" id="mach" hidden></a>
@@ -368,6 +369,7 @@
     <div id="nsaid" role="status"></div>
   </section>
   <p class="nx" id="nx"></p>
+  <div id="board" hidden></div>
   <div class="tri" id="triage" hidden>
     <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
     <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
@@ -405,12 +407,14 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, ITEMS = {}, ITEM_OF = {};
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
-  var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
+  var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, HOMES = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
   function parse(hash) {
     var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {};
     parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
+    var home = segs.length === 1 && /^(flow|homes)?(?:\?(.*))?$/.exec(segs[0]), q = home && home[2] ? home[2].split("=") : [];
+    if (home) { if (q[0]) more[q[0]] = name(q.slice(1).join("=")); return { project: "", target: more.open || "", more: more, homes: home[1] === "homes" }; }
     if (segs[0] === "triage") return { project: "", target: "", more: more, triage: true };
     if (segs[0] === "help") return { project: "", target: "help" + (segs[1] ? ":" + segs.slice(1).map(name).join(":") : ""), more: more };
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
@@ -833,7 +837,9 @@
     renderHeader();
     $("none").hidden = !NOSUCH;
     if (NOSUCH) put($("none"), noSuch());
-    $("stack").hidden = !!PROJECT || !STACK || TRIAGE;
+    var board = !!PANELS.board && !HOMES;
+    $("stack").hidden = !!PROJECT || !STACK || TRIAGE || board;
+    $("board").hidden = !!PROJECT || !STACK || TRIAGE || !board;
     $("triage").hidden = !!PROJECT || !STACK || !TRIAGE;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
@@ -847,7 +853,8 @@
     PANELS.you.draw();
     put($("cards"), PROJECT || TRIAGE || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
-    if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else renderStack();
+    if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else if (!board) renderStack();
+    if (PANELS.board) PANELS.board.draw();
     freshen();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
@@ -1194,7 +1201,7 @@
       var put = href(at.project, wanted.length ? wanted[wanted.length - 1].target : "");
       st = { layers: wanted, back: false }; history.replaceState(st, "", put); at = parse(put);
     }
-    HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; LAYERS = st.layers; BACK = !!st.back;
+    HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; HOMES = !!at.homes; LAYERS = st.layers; BACK = !!st.back;
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
     if (routeName() !== SHOWN) { SHOWN = routeName(); note("route", SHOWN); }
