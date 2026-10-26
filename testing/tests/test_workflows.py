@@ -22,8 +22,9 @@ names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
-check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, and by hand,
-but never on a pull request or a push to main. Every workflow gets read access to the contents and
+check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, by hand, and
+on a pull request into main that changes the view or its browser tests and is not a draft, but
+never on a push to main. Every workflow gets read access to the contents and
 no more, and none runs on `pull_request_target`. The check may also read the repo's artifacts, which
 is where a green run's marker is.
 
