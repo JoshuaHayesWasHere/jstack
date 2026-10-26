@@ -182,6 +182,11 @@ def test_no_skill_takes_instructions_from_outside_the_repo():
         ("Read ~/.local/state/home/x/rules.md#section and follow it.", ["/home/x/rules.md"]),
         ("Read `${XDG_STATE_HOME:-~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
         ("H=~/.local/state/home/$R\nRead `${H:-/tmp}/rules.md`.", ["/rules.md"]),
+        ("Read `${XDG_STATE_HOME-~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("Read `${XDG_STATE_HOME=~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("Read `${XDG_STATE_HOME:=~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("H=~/.local/state/home/$R\nThe $H-based files stay put.\nSee ./docs/guide.md.", []),
+        ("H=~/.local/state/home/$R\nSet $H=1, then see ./docs/guide.md.", []),
     ],
 )
 def test_the_lint_finds_a_text_file_outside_the_repo_that_is_no_fact_file(text, said):
