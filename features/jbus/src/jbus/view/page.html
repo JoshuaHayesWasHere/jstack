@@ -389,6 +389,7 @@
       <h2 class="sec" id="health-h">Health</h2>
       <p class="hl" id="health"></p>
       <p class="qn" id="unplaced"></p>
+      <p class="qn" id="week"></p>
     </section>
   </div>
 </main>
@@ -815,6 +816,7 @@
     put($("merged-l"), merged.map(function (m) { return '<li>' + openBtn("task:" + m.slug, m.slug) + (ITEM_OF[m.slug] ? itemLink(ITEM_OF[m.slug]) : "") + '<span class="src">' + esc(m.pr) + '</span><span class="src">' + hm(ms(m.at)) + '</span></li>'; }).join("") +
       done.map(function (it) { return '<li>' + openBtn("item:" + it.id, it.title || it.slug || it.id) + itemLink(it) + '<span class="src">done</span><span class="src">' + hm(itemAt(it)) + '</span></li>'; }).join("") + (merged.length ? '<li>' + openBtn("merged", "Every merge, with the time to merge") + '</li>' : ""));
     put($("health"), healthLine(sm) + "");
+    put($("week"), openBtn("throughput", "Merges by day, the last 7 days"));
     $("health").className = "hl" + (sm.broken.length ? " op" : "");
     put($("unplaced"), sm.unplaced.length ? plural(sm.unplaced.length, "row", "rows") + ' the view cannot place: ' + sm.unplaced.map(function (u) { return openBtn("task:" + u, u); }).join(" ") : "");
   }

@@ -834,6 +834,21 @@
       ]
     },
     {
+      "name": "infra-files.sh",
+      "path": "features/jleak/hooks/infra-files.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+          "refuses": true
+        }
+      ]
+    },
+    {
       "name": "limits.sh",
       "path": "features/jgauge/hooks/limits.sh",
       "harnesses": [
