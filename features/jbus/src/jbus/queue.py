@@ -8,7 +8,9 @@ keeps each change of a row's status as one line of `transitions.jsonl` beside th
 ever appends to that file.
 
 When a row is first queued, `add` refuses a brief that a launch would refuse
-(`jbriefs.parse.faults`), so nobody asks the user for a go on a brief that cannot launch. A
+(`jbriefs.parse.faults`), so nobody asks the user for a go on a brief that cannot launch. It also
+refuses a brief that would ask the user mid-task, claim a shared doc, or copy an incident's text
+into a test (`conduct`). A
 row with a go is grandfathered: a lint added after the go does not refuse its brief at an `add`
 or at a launch. Only a fault that an edit brings refuses it. `show` names the grandfathered rows
 (`grandfathered`).
@@ -975,19 +977,125 @@ def _merge_after(batch: _Batch, verb: Add) -> None:
                 ahead += [(slug, through or ma) for slug, ma in edges.get(here, [])]
 
 
+_QUOTED = re.compile(r'`[^`\n]*`|"[^"\n]*"|“[^”\n]*”')
+_ASKS = re.compile(
+    r"\bstops?(?: here)? and asks?\b|\bpauses? (?:and|to) ask\b"
+    r"|(?<!home )\bask(?:s|ing)? the user\b|\b(?:check|confirm)s? with the user\b"
+    r"|\bin the (?:crewmate|crew|scout)'s (?:own )?thread\b",
+    re.IGNORECASE,
+)
+_GATED = "jbus gate"
+_SHARED = re.compile(
+    r"(?<![\w/.-])(?:readme\b|(?-i:(?!SKILL\.)[A-Z][A-Z_]*)\.md\b)|`docs/", re.IGNORECASE
+)
+_SWEEP = re.compile(r"\b(?:docs?|readme|documentation)\b", re.IGNORECASE)
+_TESTED = re.compile(r"\b(?:tests?|fixtures?|cases?|examples?|samples?|evals?)\b", re.IGNORECASE)
+_WORD = re.compile(r"[\w'-]+")
+_RUN = 8
+
+
+def _head(text: str) -> list[tuple[str, list[str]]]:
+    """The fields of a brief's head, the lines above its first `## `, less its title."""
+    return [
+        (label, lines)
+        for label, lines in briefs.fields(text)
+        if label not in (briefs.TITLE, briefs.REST)
+    ]
+
+
+def asks(text: str, what: str = "brief") -> list[str]:
+    """Why a brief or a scout's request would have its thread ask the user mid-task, as one fault.
+
+    A line asks when it says `stops here and asks`, `ask the user`, `confirm with the user`, `in
+    the crewmate's thread` or their kin (`_ASKS`), and `the home asks the user` is the home's to
+    do. A quoted span, in backticks or double quotes, is somebody's words or a literal and is not
+    read, and a line that names `jbus gate` routes its question the right way. The title is the
+    task's name and is not read either.
+    """
+    for _, lines in _head(text):
+        for line in lines:
+            said = _ASKS.search(_QUOTED.sub("", line))
+            if said and _GATED not in line:
+                return [
+                    f'{what} asks the user mid-task ("{said[0]}"): a crewmate or scout asks the '
+                    "user nothing in its own thread: put the question to the user as a gate "
+                    "through `jbus gate`"
+                ]
+    return []
+
+
+def _runs(text: str) -> set[tuple[str, ...]]:
+    """Every run of `_RUN` words in a row in `text`, lower-cased."""
+    words = [word.lower() for word in _WORD.findall(text)]
+    return {tuple(words[at : at + _RUN]) for at in range(len(words) - _RUN + 1)}
+
+
+def conduct(text: str) -> list[str]:
+    """The faults of a brief that its fields' own checks (`jbriefs.parse.faults`) do not see.
+
+    - It asks the user mid-task (`asks`): a question is a gate through `jbus gate`.
+    - Its `Done when:` or `Where:` claims a shared doc: the README or a Markdown file named in
+      capitals at the repo's root (`CONTRIBUTING.md`, `AGENTS.md`, not a `SKILL.md`), or a page
+      under a top-level `docs/` in backticks. A path with a folder before it, such as
+      `features/<name>/README.md` or `features/<name>/docs/`, is a feature's own and not shared.
+      Docs go to a docs sweep: a row whose title names docs, a README or documentation, and
+      that row may claim them.
+    - An item of its `Done when:` or `Proves it:` that names a test, a fixture or a case repeats
+      `_RUN` words in a row (a hyphenated name is one word) of a quote on the `Task:` line,
+      which says what happened: a test's text is small and made up, never an incident's text
+      word for word. A quote is a span in double quotes or backticks. The other fields, such as
+      `Decisions:`, may quote the user.
+    """
+    head = _head(text)
+    found = asks(text)
+    title = next((lines[0] for label, lines in briefs.fields(text) if label == briefs.TITLE), "")
+    if not _SWEEP.search(title):
+        for label, lines in head:
+            said = _SHARED.search(" ".join(lines)) if label in ("Done when", "Where") else None
+            if said:
+                found.append(
+                    f"brief's {label}: line claims a shared doc ({said[0]}): docs go to a "
+                    "docs sweep, a row whose title names docs"
+                )
+    told = _runs(
+        " ".join(
+            quote.group(0)
+            for label, lines in head
+            if label == "Task"
+            for quote in _QUOTED.finditer(" ".join(lines))
+        )
+    )
+    for label, line in ((label, line) for label, lines in head for line in lines):
+        tested = label in ("Done when", "Proves it") and _TESTED.search(line)
+        copied = told & _runs(line) if tested else set()
+        if copied:
+            found.append(
+                f"brief's {label}: line copies the Task line's quote word for word "
+                f'("{" ".join(min(copied))}"): a test\'s text is small and made up, never an '
+                "incident's text word for word"
+            )
+    return found
+
+
+def faults(text: str) -> list[str]:
+    """Every fault for which `add` refuses a brief: its fields' (`jbriefs.parse.faults`), then
+    its conduct's (`conduct`)."""
+    return [*briefs.faults(text), *conduct(text)]
+
+
 def _new_faults(row: Row | None, was: str | None, text: str) -> list[str]:
-    """Return the faults for which `add` refuses `text` (`jbriefs.parse.faults`).
+    """Return the faults for which `add` refuses `text` (`faults`).
 
     A lint runs when a row is first queued. A row whose go holds for `text` is already
     approved, so it is grandfathered. If the row's stored brief `was` already had a fault that a
     newer lint found, that fault does not refuse the row. Only a fault the edit brought
     refuses it.
     """
-    faults = briefs.faults(body(text))
+    found = faults(body(text))
     if row and row.get("approved") and was is not None and approved_text(row, text):
-        old = briefs.faults(body(was))
-        return [fault for fault in faults if fault not in old]
-    return faults
+        old = faults(body(was))
+        return [fault for fault in found if fault not in old]
+    return found
 
 
 def grandfathered(state: Path, rows: list[Row]) -> list[tuple[str, list[str]]]:
@@ -999,9 +1107,9 @@ def grandfathered(state: Path, rows: list[Row]) -> list[tuple[str, list[str]]]:
         text = brief(state, row["slug"])
         if over(row) or not row.get("approved") or text is None or not approved_text(row, text):
             continue
-        faults = briefs.faults(body(text))
-        if faults:
-            found.append((row["slug"], faults))
+        said = faults(body(text))
+        if said:
+            found.append((row["slug"], said))
     return found
 
 

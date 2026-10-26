@@ -223,7 +223,7 @@ def job_env(text, job):
 
 def test_the_browser_job_names_google_chrome_once_and_the_check_jobs_name_no_browser():
     text = BROWSER.read_text()
-    assert job_env(text, "browser") == CHROME
+    assert job_env(text, "browser") == CHROME | {"JSTACK_SHOTS_OUT": "/tmp/jbus-view-shots"}
     assert text.count("JSTACK_TEST_BROWSER: ") == 1
     named = [step for step in steps(text, "browser")[0] if "env" in step]
     assert named == []
@@ -246,7 +246,8 @@ def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_
     names = [step.get("name") for step in found]
     look = found[names.index("test browser")]
     assert names.index("make check-browser") == names.index("test browser") + 1
-    assert names[-1] == "make check-browser" and "if" not in look
+    assert names[-2:] == ["make check-browser", "the view's shots"] and "if" not in look
+    assert found[-1]["if"] == "failure()"
     browser = tmp_path / "google-chrome"
 
     def ran():
@@ -1138,7 +1139,7 @@ def test_a_push_runs_the_browser_tests_for_a_version_tag_and_never_for_a_branch(
 
 def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_name_that_target():
     found, _ = steps(BROWSER.read_text(), "browser")
-    assert found[-1] == {"name": "make check-browser", "run": "make check-browser"}
+    assert found[-2] == {"name": "make check-browser", "run": "make check-browser"}
     for job in ("check-shard", "check", "full-shard", "full"):
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 

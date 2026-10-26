@@ -36,6 +36,8 @@ jobs:
       # The stable Google Chrome that GitHub's image installs. A Chromium snapshot's virtual
       # time now and then never starts, and the browser tests then wait out their bound.
       JSTACK_TEST_BROWSER: /usr/bin/google-chrome
+      # Where the view's shot test writes each shot as this runner drew it.
+      JSTACK_SHOTS_OUT: /tmp/jbus-view-shots
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,3 +53,12 @@ jobs:
         run: test -x "$JSTACK_TEST_BROWSER" || { echo "::error::no test browser at $JSTACK_TEST_BROWSER, which the browser run declares"; exit 1; }
       - name: make check-browser
         run: make check-browser
+      # The view's shots as this runner drew them (test_view_page_look.py), to keep in place
+      # of the kept ones when the browser that draws them moved.
+      - name: the view's shots
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jbus-view-shots
+          path: /tmp/jbus-view-shots
+          if-no-files-found: ignore
