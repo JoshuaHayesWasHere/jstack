@@ -188,7 +188,7 @@ def test_no_block_of_do_the_task_asks_whose_the_full_run_is(tmp_path):
     said, code, _ = checked(tmp_path, "echo ran")
     assert (said[-2:], code) == (["ran", "done: the check exited 0"], 0)
     ran = slot_script(
-        block("Do the task", "test-slot --short").replace("<the targeted tests>", "echo ran"),
+        block("Do the task", "<the targeted tests>").replace("<the targeted tests>", "echo ran"),
         tmp_path / "home",
     )
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, "ran\n", "")
@@ -215,7 +215,9 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
             held.append(fd)
     try:
         ran = slot_script(
-            block("Do the task", "test-slot --short").replace("<the targeted tests>", "echo ran"),
+            block("Do the task", "<the targeted tests>").replace(
+                "<the targeted tests>", "echo ran"
+            ),
             home,
         )
         assert (ran.returncode, ran.stderr) == (76, "")
@@ -243,7 +245,7 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
     took = f"! flock -n {locks}/test-slot-short.1.lock true && echo short; exit 3"
-    script = block("Do the task", "test-slot --short").replace(
+    script = block("Do the task", "<the targeted tests>").replace(
         "<the targeted tests>", f"sh -c '{took}'"
     )
     script = script.replace("<thread id>", "mcp:thread-1")
