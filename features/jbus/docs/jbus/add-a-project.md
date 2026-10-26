@@ -8,7 +8,7 @@ Every repo with a home is a project.
 `/new-home <repo>` adds it as its third step, and a home's start adds it when the config has no table for its repo.
 The home finds the repo's T3 Code project by its checkout and runs the same block as `/new-home`, so the two add a repo the same way.
 Neither one writes `home-thread`, even if a home's rules say to.
-No home merges while `home-thread` is empty, so jbus merges for a repo that either one adds, unless the user has written a thread id into `home-thread` by hand.
+jbus merges for a repo that either one adds, whatever `home-thread` holds.
 
 jbus names each home that was never added.
 Each folder under `~/.local/state/home` with a `home-id` and no project of the config is a home not on the bus.

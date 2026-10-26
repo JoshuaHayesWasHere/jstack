@@ -16,7 +16,6 @@ import time
 
 import pytest
 
-import test_home_merge as merge
 from jbus import expedite, wake
 from jmerge import cli, lines, ready
 from test_jmerge_fresh import LINES, Kitchen, git, url
@@ -166,8 +165,7 @@ def test_a_gate_hold_is_not_lifted_by_accept(kitchen):
     kitchen.crew("one", 6, {"a.txt": "ours\n" + LINES})
     gate(kitchen, 1, "echo no")
     (said,) = kitchen.home.sh(
-        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge --home {merge.ME} '
-        "--accept 6 --check"
+        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge --accept 6 --check'
     )
     assert kitchen.home.code == 1
     assert said == (

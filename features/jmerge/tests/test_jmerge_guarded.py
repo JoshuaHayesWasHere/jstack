@@ -69,8 +69,7 @@ def proven(verdict, head=merge.REVIEWED):
 
 def jmerge(proven_merged, rules, *flags):
     said = proven_merged.home.sh(
-        f'PYTHONPATH="{rules / "src"}" "{sys.executable}" -m jmerge --home {merge.ME} '
-        + " ".join(flags)
+        f'PYTHONPATH="{rules / "src"}" "{sys.executable}" -m jmerge ' + " ".join(flags)
     )
     assert (proven_merged.home.code, proven_merged.home.stderr) == (0, "")
     return said

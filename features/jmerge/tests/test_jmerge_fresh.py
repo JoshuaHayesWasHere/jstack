@@ -179,8 +179,7 @@ class Kitchen:
 
     def run(self, *flags):
         said = self.home.sh(
-            f'PYTHONPATH="{self.source}" "{sys.executable}" -m jmerge --home {merge.ME} '
-            + " ".join(flags)
+            f'PYTHONPATH="{self.source}" "{sys.executable}" -m jmerge ' + " ".join(flags)
         )
         assert (self.home.code, self.home.stderr) == (0, "")
         return said
@@ -684,6 +683,7 @@ class Checked:
 
 
 BOTH = "grep -qx theirs b.txt && grep -qx ours b.txt"
+HOLD = 60
 
 
 def test_a_stale_pull_request_whose_head_passes_over_todays_main_is_merged(kitchen):
@@ -1018,13 +1018,30 @@ def test_a_remote_branch_that_moved_after_the_merge_is_kept(kitchen):
 def test_a_slow_fresh_check_is_queued_at_once_and_a_later_run_reads_its_pass(kitchen):
     """The 03:26 outage: the suite ran longer than the 300 s that jbus gives jmerge, so the
     check never recorded its result. The run now returns while the check goes on, and the check
-    records when it ends."""
-    checked = Checked(kitchen, f"sleep 3; {BOTH}")
+    records when it ends. The check holds until the test releases it, or for HOLD s, and then
+    marks that it ended: a run that returns before that mark did not wait on the check, however
+    long a busy machine makes the run take."""
+    release, ended = kitchen.tmp / "release", kitchen.tmp / "ended"
+    checked = Checked(
+        kitchen,
+        f"end=$(($(date +%s) + {HOLD}))\n"
+        f'until [ -e "{release}" ] || [ "$(date +%s)" -ge "$end" ]; do sleep 0.05; done\n'
+        f'touch "{ended}"\n{BOTH}',
+    )
     began = time.monotonic()
     assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
-    assert time.monotonic() - began < 2.5
+    took = time.monotonic() - began
+    assert not ended.exists(), (
+        f"the run waited on the check: it returned after {took:.1f} s, "
+        f"{took - HOLD:.1f} s after the check's {HOLD} s hold ended"
+    )
     assert not (kitchen.home.state / "fresh.json").exists()
+    end = time.monotonic() + 60
+    while not checked.ran():
+        assert time.monotonic() < end, "the fresh check did not start"
+        time.sleep(0.05)
     assert kitchen.run() == [f"wait 7 {url(7)}: a fresh check is queued"]
+    release.touch()
     settled(kitchen)
     assert checked.known()["7"]["result"] == "passed"
     (said,) = kitchen.run()

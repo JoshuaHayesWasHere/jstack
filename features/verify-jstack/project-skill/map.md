@@ -121,6 +121,7 @@ Cross-cutting:
 - `features/home/tests/test_home_merge_guard.py`
 - `features/home/tests/test_home_no_jmerge.py`
 - `features/home/tests/test_home_thread.py`
+- `features/home/tests/test_home_tree_spec.py`
 - `features/jbus/tests/test_jbus.py`
 - `features/jdrift/tests/test_jstack_explained.py`
 - `testing/tests/test_jtrees_schema.py`

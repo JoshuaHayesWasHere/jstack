@@ -3,6 +3,7 @@ and closes in its own directory, and launches its own successor. Each test takes
 the handoff skill and runs it in a temporary repo that has both homes."""
 
 import json
+import os
 import re
 
 import pytest
@@ -60,7 +61,7 @@ class HandingOff(Homes):
     def closes(self, thread):
         """Run step 6, the block that says who starts the next home, and return the lines it
         prints."""
-        ran = self.does('rm -f "$M/home-id"', thread)
+        ran = self.does('jbus forget "$M/home-id"', thread)
         assert ran.returncode == 0
         return ran.stdout.splitlines()
 
@@ -119,7 +120,7 @@ def test_a_handoff_by_a_thread_that_is_no_home_writes_nothing_and_says_so(homes,
         f"no home: thread {thread} is no home of {NAME} now, its id is in no home-id "
         f"under {homes.home_dir}. Nothing is written.\n"
     )
-    ran = homes.does('rm -f "$M/home-id"', thread)
+    ran = homes.does('jbus forget "$M/home-id"', thread)
     unfilled = "<" in thread or ">" in thread
     assert ran.returncode == (1 if unfilled else 0)
     assert ran.stdout.startswith("not known: " if unfilled else NOT_THE_HOME)
@@ -184,8 +185,18 @@ def test_each_home_launches_its_own_successor(homes, thread, typed, title):
     assert errors(RENAME, renamed) == []
 
 
+def jbus_says(homes, monkeypatch, said, code=0):
+    """Put a `jbus` on PATH that prints `said` and ends `code`, for what `jbus out` answers."""
+    stub = homes.user / "bin"
+    stub.mkdir(exist_ok=True)
+    (stub / "jbus").write_text(f"#!/bin/sh\nprintf '%s' '{said}'\nexit {code}\n")
+    (stub / "jbus").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub}{os.pathsep}{os.environ['PATH']}")
+
+
 @pytest.mark.parametrize("plan", ["", SECTION_WITH_NO_SLUG])
-def test_a_scoped_home_whose_plan_has_no_open_entry_launches_no_successor(homes, plan):
+def test_a_scoped_home_whose_plan_has_no_open_entry_launches_no_successor(homes, plan, monkeypatch):
+    jbus_says(homes, monkeypatch, "")
     (homes.scope_dir / "plan.md").write_text(f"# the second home: plan\n\n{plan}")
     before, root = homes.state(), own(homes.home_dir)
     _, said = homes.hands_off(SCOPED, homes.scope_dir)
@@ -198,6 +209,27 @@ def test_a_scoped_home_whose_plan_has_no_open_entry_launches_no_successor(homes,
     assert not (homes.scope_dir / "home-id").exists()
     assert own(homes.home_dir) == root
     assert all(path.startswith(f"{SCOPE}/") for path in homes.changed(before))
+
+
+@pytest.mark.parametrize(
+    ("said", "code", "kept"),
+    [
+        ("out sc-crew: row launched", 0, ["kept open: out sc-crew: row launched"]),
+        ("unknown: the last pass is old", 1, ["kept open: unknown: the last pass is old"]),
+        ("", 127, ["kept open: jbus could not say what second has out"]),
+    ],
+    ids=["something out", "jbus cannot say", "no jbus"],
+)
+def test_a_scoped_home_with_no_open_entry_and_something_out_stays_open(
+    homes, monkeypatch, said, code, kept
+):
+    """The scope's plan has no open entry, and jbus says it still has something out, or cannot
+    say: the scope is not closed, a next home starts, and the block says why."""
+    jbus_says(homes, monkeypatch, said, code)
+    (homes.scope_dir / "plan.md").write_text("# the second home: plan\n")
+    _, said_back = homes.hands_off(SCOPED, homes.scope_dir)
+    assert said_back[:2] == [THE_HOME, *kept]
+    assert "Scope closed:" not in (homes.scope_dir / "handoff.md").read_text()
 
 
 @pytest.mark.parametrize(

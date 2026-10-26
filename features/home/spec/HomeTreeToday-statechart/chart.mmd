@@ -6,51 +6,317 @@ config:
 ---
 stateDiagram-v2
   %% second model (against): the design
-  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef plainFixed fill:#f4f6f7,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group0Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group0Fixed fill:#d1f2eb,stroke:#1e8449,stroke-width:4px,color:#145a32
+  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
   state "Legend" as legend {
     state "Fine" as legendGroup0
-    state "Wrong today" as legendWrong
-    state "Fixed by the design" as legendFixed
+    state "Stalled" as legendGroup1
   }
   class legendGroup0 group0
-  class legendWrong plainWrong
-  class legendFixed plainFixed
-  state "Child a working, crew out,<br/>quiet for its patience" as g0 {
-    state "nothing for you" as s0
-    state "the root nudged a once" as s1
+  class legendGroup1 group1
+  state "At the same time" as regions {
+    state "The children" as region0 {
+      [*] --> r0s30
+      state "Child a retired" as r0s0
+      state "Child a retired, pull<br/>request merged" as r0s1
+      state "Child a stuck" as r0s2
+      state "Child a stuck, crew out" as r0s3
+      state "Child a stuck, crew out,<br/>quiet for its patience" as r0s4
+      state "Child a stuck, pull<br/>request merged" as r0s5
+      state "Child a stuck, pull<br/>request merged, quiet for<br/>its patience" as r0s6
+      state "Child a stuck, pull<br/>request not ready" as r0s7
+      state "Child a stuck, pull<br/>request not ready, quiet<br/>for its patience" as r0s8
+      state "Child a stuck, pull<br/>request open" as r0s9
+      state "Child a stuck, pull<br/>request open, quiet for<br/>its patience" as r0s10
+      state "Child a stuck, pull<br/>request ready" as r0s11
+      state "Child a stuck, pull<br/>request ready again" as r0s12
+      state "Child a stuck, pull<br/>request ready again, quiet<br/>for its patience" as r0s13
+      state "Child a stuck, pull<br/>request ready, quiet for<br/>its patience" as r0s14
+      state "Child a stuck, quiet for<br/>its patience" as r0s15
+      state "Child a working" as r0s16
+      state "Child a working, crew out" as r0s17
+      state "Child a working, crew out,<br/>quiet for its patience" as r0s18
+      state "Child a working, pull<br/>request merged" as r0s19
+      state "Child a working, pull<br/>request merged, quiet for<br/>its patience" as r0s20
+      state "Child a working, pull<br/>request not ready" as r0s21
+      state "Child a working, pull<br/>request not ready, quiet<br/>for its patience" as r0s22
+      state "Child a working, pull<br/>request open" as r0s23
+      state "Child a working, pull<br/>request open, quiet for<br/>its patience" as r0s24
+      state "Child a working, pull<br/>request ready" as r0s25
+      state "Child a working, pull<br/>request ready again" as r0s26
+      state "Child a working, pull<br/>request ready again, quiet<br/>for its patience" as r0s27
+      state "Child a working, pull<br/>request ready, quiet for<br/>its patience" as r0s28
+      state "Child a working, quiet for<br/>its patience" as r0s29
+      state "No child yet" as r0s30
+      r0s2 --> r0s15 : the root's check nudges a<br/>quiet child [unless nothing<br/>for you]
+      %% when not r1s17
+      r0s3 --> r0s4 : the root's check nudges a<br/>quiet child
+      r0s4 --> r0s17 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s5 --> r0s6 : the root's check nudges a<br/>quiet child
+      r0s6 --> r0s5 : the root's check runs [when<br/>the root asks you about a or<br/>the root nudged a once or the<br/>root nudged a twice]
+      %% when r1s18, r1s20, r1s22
+      r0s6 --> r0s19 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s7 --> r0s8 : the root's check nudges a<br/>quiet child
+      r0s8 --> r0s21 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s9 --> r0s10 : the root's check nudges a<br/>quiet child
+      r0s10 --> r0s23 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s11 --> r0s7 : child a's pull request is not<br/>ready any more
+      r0s11 --> r0s5 : child a's pull request merges<br/>[when a call for you, jbus<br/>merging child a's pull request<br/>or a call on its way, jbus<br/>merging child a's pull request<br/>or jbus merging child a's pull<br/>request]
+      %% when r1s1, r1s9, r1s16
+      r0s11 --> r0s14 : the root's check nudges a<br/>quiet child
+      r0s11 --> r0s28 : the root's check nudges a<br/>quiet child
+      r0s12 --> r0s5 : child a's pull request merges<br/>[when a call for you, jbus<br/>merging child a's pull request<br/>or a call on its way, jbus<br/>merging child a's pull request<br/>or jbus merging child a's pull<br/>request]
+      %% when r1s1, r1s9, r1s16
+      r0s12 --> r0s13 : the root's check nudges a<br/>quiet child
+      r0s12 --> r0s27 : the root's check nudges a<br/>quiet child
+      r0s13 --> r0s26 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call for<br/>you, the root asks you about<br/>a, jbus merging child a's pull<br/>request or a call on its way,<br/>the root asks you about a or a<br/>call on its way, the root asks<br/>you about a, jbus merging<br/>child a's pull request or the<br/>root asks you about a or the<br/>root asks you about a, jbus<br/>merging child a's pull<br/>request]
+      %% when r1s2, r1s3, r1s10, r1s11, r1s18, r1s19
+      r0s14 --> r0s25 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call for<br/>you, the root asks you about<br/>a, jbus merging child a's pull<br/>request or a call on its way,<br/>the root asks you about a or a<br/>call on its way, the root asks<br/>you about a, jbus merging<br/>child a's pull request or the<br/>root asks you about a or the<br/>root asks you about a, jbus<br/>merging child a's pull<br/>request]
+      %% when r1s2, r1s3, r1s10, r1s11, r1s18, r1s19
+      r0s15 --> r0s2 : the root's check runs [when<br/>the root asks you about a or<br/>the root nudged a once or the<br/>root nudged a twice]
+      %% when r1s18, r1s20, r1s22
+      r0s15 --> r0s16 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s16 --> r0s17 : child a launches a crew
+      r0s16 --> r0s2 : child a stops, and nothing<br/>wakes it
+      r0s16 --> r0s29 : the root's check nudges a<br/>quiet child [unless nothing<br/>for you]
+      %% when not r1s17
+      r0s16 --> r0s0 : you retire child a [when<br/>nothing for you]
+      %% when r1s17
+      r0s17 --> r0s3 : child a stops, and nothing<br/>wakes it
+      r0s17 --> r0s23 : child a's crew opens its pull<br/>request
+      r0s17 --> r0s18 : the root's check nudges a<br/>quiet child
+      r0s18 --> r0s17 : child a does something the<br/>root can see
+      r0s18 --> r0s17 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s19 --> r0s20 : the root's check nudges a<br/>quiet child
+      r0s19 --> r0s1 : you retire child a [when<br/>nothing for you]
+      %% when r1s17
+      r0s20 --> r0s19 : child a does something the<br/>root can see
+      r0s20 --> r0s19 : the root's check runs [when<br/>the root asks you about a or<br/>the root nudged a once or the<br/>root nudged a twice]
+      %% when r1s18, r1s20, r1s22
+      r0s20 --> r0s19 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s21 --> r0s7 : child a stops, and nothing<br/>wakes it
+      r0s21 --> r0s26 : child a's pull request is<br/>green and reviewed
+      r0s21 --> r0s22 : the root's check nudges a<br/>quiet child
+      r0s22 --> r0s21 : child a does something the<br/>root can see
+      r0s22 --> r0s21 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s23 --> r0s9 : child a stops, and nothing<br/>wakes it
+      r0s23 --> r0s25 : child a's pull request is<br/>green and reviewed
+      r0s23 --> r0s24 : the root's check nudges a<br/>quiet child
+      r0s24 --> r0s23 : child a does something the<br/>root can see
+      r0s24 --> r0s23 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s25 --> r0s11 : child a stops, and nothing<br/>wakes it
+      r0s25 --> r0s21 : child a's pull request is not<br/>ready any more
+      r0s25 --> r0s19 : child a's pull request merges<br/>[when a call for you, jbus<br/>merging child a's pull request<br/>or a call on its way, jbus<br/>merging child a's pull request<br/>or jbus merging child a's pull<br/>request]
+      %% when r1s1, r1s9, r1s16
+      r0s25 --> r0s28 : the root's check nudges a<br/>quiet child
+      r0s26 --> r0s12 : child a stops, and nothing<br/>wakes it
+      r0s26 --> r0s19 : child a's pull request merges<br/>[when a call for you, jbus<br/>merging child a's pull request<br/>or a call on its way, jbus<br/>merging child a's pull request<br/>or jbus merging child a's pull<br/>request]
+      %% when r1s1, r1s9, r1s16
+      r0s26 --> r0s27 : the root's check nudges a<br/>quiet child
+      r0s27 --> r0s26 : child a does something the<br/>root can see
+      r0s27 --> r0s26 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call for<br/>you, the root asks you about<br/>a, jbus merging child a's pull<br/>request or a call on its way,<br/>the root asks you about a or a<br/>call on its way, the root asks<br/>you about a, jbus merging<br/>child a's pull request or the<br/>root asks you about a or the<br/>root asks you about a, jbus<br/>merging child a's pull<br/>request]
+      %% when r1s2, r1s3, r1s10, r1s11, r1s18, r1s19
+      r0s28 --> r0s25 : child a does something the<br/>root can see
+      r0s28 --> r0s25 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call for<br/>you, the root asks you about<br/>a, jbus merging child a's pull<br/>request or a call on its way,<br/>the root asks you about a or a<br/>call on its way, the root asks<br/>you about a, jbus merging<br/>child a's pull request or the<br/>root asks you about a or the<br/>root asks you about a, jbus<br/>merging child a's pull<br/>request]
+      %% when r1s2, r1s3, r1s10, r1s11, r1s18, r1s19
+      r0s29 --> r0s16 : child a does something the<br/>root can see
+      r0s29 --> r0s16 : the root's check runs [when<br/>the root asks you about a or<br/>the root nudged a once or the<br/>root nudged a twice]
+      %% when r1s18, r1s20, r1s22
+      r0s29 --> r0s16 : you get child a going again<br/>[when a call for you, the root<br/>asks you about a or a call on<br/>its way, the root asks you<br/>about a or the root asks you<br/>about a]
+      %% when r1s2, r1s10, r1s18
+      r0s30 --> r0s16 : the root makes child a
+    }
+    --
+    state "What reaches you" as region1 {
+      [*] --> r1s17
+      state "a call for you" as r1s0
+      state "a call for you, jbus<br/>merging child a's pull<br/>request" as r1s1
+      state "a call for you, the root<br/>asks you about a" as r1s2
+      state "a call for you, the root<br/>asks you about a, jbus<br/>merging child a's pull<br/>request" as r1s3
+      state "a call for you, the root<br/>nudged a once" as r1s4
+      state "a call for you, the root<br/>nudged a once, jbus<br/>merging child a's pull<br/>request" as r1s5
+      state "a call for you, the root<br/>nudged a twice" as r1s6
+      state "a call for you, the root<br/>nudged a twice, jbus<br/>merging child a's pull<br/>request" as r1s7
+      state "a call on its way" as r1s8
+      state "a call on its way, jbus<br/>merging child a's pull<br/>request" as r1s9
+      state "a call on its way, the<br/>root asks you about a" as r1s10
+      state "a call on its way, the<br/>root asks you about a,<br/>jbus merging child a's<br/>pull request" as r1s11
+      state "a call on its way, the<br/>root nudged a once" as r1s12
+      state "a call on its way, the<br/>root nudged a once, jbus<br/>merging child a's pull<br/>request" as r1s13
+      state "a call on its way, the<br/>root nudged a twice" as r1s14
+      state "a call on its way, the<br/>root nudged a twice, jbus<br/>merging child a's pull<br/>request" as r1s15
+      state "jbus merging child a's<br/>pull request" as r1s16
+      state "nothing for you" as r1s17
+      state "the root asks you about a" as r1s18
+      state "the root asks you about a,<br/>jbus merging child a's<br/>pull request" as r1s19
+      state "the root nudged a once" as r1s20
+      state "the root nudged a once,<br/>jbus merging child a's<br/>pull request" as r1s21
+      state "the root nudged a twice" as r1s22
+      state "the root nudged a twice,<br/>jbus merging child a's<br/>pull request" as r1s23
+      r1s0 --> r1s1 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready or<br/>Child a stuck, pull request<br/>ready again or Child a<br/>working, pull request ready or<br/>Child a working, pull request<br/>ready again]
+      %% when r0s11, r0s12, r0s25, r0s26
+      r1s0 --> r1s4 : the root's check nudges a<br/>quiet child
+      r1s0 --> r1s17 : you answer a call
+      r1s1 --> r1s0 : child a's pull request is not<br/>ready any more [when Child a<br/>stuck, pull request ready or<br/>Child a working, pull request<br/>ready]
+      %% when r0s11, r0s25
+      r1s1 --> r1s0 : child a's pull request merges
+      r1s1 --> r1s5 : the root's check nudges a<br/>quiet child
+      r1s2 --> r1s0 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s2 --> r1s3 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s2 --> r1s0 : you get child a going again
+      r1s3 --> r1s1 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s3 --> r1s1 : you get child a going again
+      r1s4 --> r1s0 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s4 --> r1s5 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s4 --> r1s6 : the root's check nudges a<br/>quiet child
+      r1s5 --> r1s1 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s6 --> r1s0 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s6 --> r1s7 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s6 --> r1s2 : the root's check asks you
+      r1s7 --> r1s1 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s8 --> r1s0 : a call reaches you
+      r1s8 --> r1s9 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready or<br/>Child a stuck, pull request<br/>ready again or Child a<br/>working, pull request ready or<br/>Child a working, pull request<br/>ready again]
+      %% when r0s11, r0s12, r0s25, r0s26
+      r1s8 --> r1s12 : the root's check nudges a<br/>quiet child
+      r1s9 --> r1s8 : child a's pull request is not<br/>ready any more [when Child a<br/>stuck, pull request ready or<br/>Child a working, pull request<br/>ready]
+      %% when r0s11, r0s25
+      r1s9 --> r1s8 : child a's pull request merges
+      r1s9 --> r1s13 : the root's check nudges a<br/>quiet child
+      r1s10 --> r1s8 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s10 --> r1s11 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s10 --> r1s8 : you get child a going again
+      r1s11 --> r1s9 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s11 --> r1s9 : you get child a going again
+      r1s12 --> r1s8 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s12 --> r1s13 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s12 --> r1s14 : the root's check nudges a<br/>quiet child
+      r1s13 --> r1s9 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s14 --> r1s8 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s14 --> r1s15 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s14 --> r1s10 : the root's check asks you
+      r1s15 --> r1s9 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s16 --> r1s17 : child a's pull request is not<br/>ready any more [when Child a<br/>stuck, pull request ready or<br/>Child a working, pull request<br/>ready]
+      %% when r0s11, r0s25
+      r1s16 --> r1s17 : child a's pull request merges
+      r1s16 --> r1s21 : the root's check nudges a<br/>quiet child
+      r1s17 --> r1s8 : a child asks you something<br/>[when Child a working or Child<br/>a working, crew out or Child a<br/>working, pull request merged<br/>or Child a working, pull<br/>request not ready or Child a<br/>working, pull request open or<br/>Child a working, pull request<br/>ready or Child a working, pull<br/>request ready again]
+      %% when r0s16, r0s17, r0s19, r0s21, r0s23, r0s25, r0s26
+      r1s17 --> r1s16 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready or<br/>Child a stuck, pull request<br/>ready again or Child a<br/>working, pull request ready or<br/>Child a working, pull request<br/>ready again]
+      %% when r0s11, r0s12, r0s25, r0s26
+      r1s17 --> r1s20 : the root's check nudges a<br/>quiet child [unless Child a<br/>retired or Child a retired,<br/>pull request merged or Child a<br/>stuck or Child a working or No<br/>child yet]
+      %% when not r0s0, r0s1, r0s2, r0s16, r0s30
+      r1s18 --> r1s17 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s18 --> r1s19 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s18 --> r1s17 : the root's check runs [when<br/>Child a stuck, pull request<br/>merged, quiet for its patience<br/>or Child a stuck, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, quiet for its<br/>patience]
+      %% when r0s6, r0s15, r0s20, r0s29
+      r1s18 --> r1s17 : you get child a going again
+      r1s19 --> r1s16 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s19 --> r1s16 : you get child a going again
+      r1s20 --> r1s17 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s20 --> r1s21 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s20 --> r1s22 : the root's check nudges a<br/>quiet child [unless Child a<br/>stuck, quiet for its patience<br/>or Child a working, quiet for<br/>its patience]
+      %% when not r0s15, r0s29
+      r1s20 --> r1s17 : the root's check runs [when<br/>Child a stuck, pull request<br/>merged, quiet for its patience<br/>or Child a stuck, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, quiet for its<br/>patience]
+      %% when r0s6, r0s15, r0s20, r0s29
+      r1s21 --> r1s16 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+      r1s22 --> r1s17 : child a does something the<br/>root can see [when Child a<br/>working, crew out, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, pull request<br/>not ready, quiet for its<br/>patience or Child a working,<br/>pull request open, quiet for<br/>its patience or Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience or Child a working,<br/>quiet for its patience]
+      %% when r0s18, r0s20, r0s22, r0s24, r0s27, r0s28, r0s29
+      r1s22 --> r1s23 : jbus reads main to merge child<br/>a's pull request [when Child a<br/>stuck, pull request ready<br/>again, quiet for its patience<br/>or Child a stuck, pull request<br/>ready, quiet for its patience<br/>or Child a working, pull<br/>request ready again, quiet for<br/>its patience or Child a<br/>working, pull request ready,<br/>quiet for its patience]
+      %% when r0s13, r0s14, r0s27, r0s28
+      r1s22 --> r1s18 : the root's check asks you<br/>[unless Child a stuck, quiet<br/>for its patience or Child a<br/>working, quiet for its<br/>patience]
+      %% when not r0s15, r0s29
+      r1s22 --> r1s17 : the root's check runs [when<br/>Child a stuck, pull request<br/>merged, quiet for its patience<br/>or Child a stuck, quiet for<br/>its patience or Child a<br/>working, pull request merged,<br/>quiet for its patience or<br/>Child a working, quiet for its<br/>patience]
+      %% when r0s6, r0s15, r0s20, r0s29
+      r1s23 --> r1s16 : child a does something the<br/>root can see [when Child a<br/>working, pull request ready<br/>again, quiet for its patience<br/>or Child a working, pull<br/>request ready, quiet for its<br/>patience]
+      %% when r0s27, r0s28
+    }
   }
-  state "Child a working, pull<br/>request ready" as g1 {
-    state "jbus merging child a's<br/>pull request" as s2
-    state "nothing for you" as s3
-    state "the root merging child a's<br/>pull request" as s4
-  }
-  state "Child a retired, crew out:<br/>nothing for you" as s5
-  state "Child a working, crew out:<br/>nothing for you" as s6
-  state "Child a working, pull<br/>request open: nothing for<br/>you" as s7
-  state "Child a working: nothing<br/>for you" as s8
-  state "No child yet: nothing for<br/>you" as s9
-  [*] --> s9
-  s9 --> s8 : the root makes child a
-  s8 --> s6 : child a launches a crew
-  s6 --> s7 : child a's crew opens its pull<br/>request
-  s6 --> s5 : you retire child a
-  s6 --> s0 : the root's check runs
-  s7 --> s3 : child a's pull request is<br/>green and reviewed
-  s3 --> s2 : jbus reads main to merge child<br/>a's pull request
-  s3 --> s4 : the root reads main to merge<br/>child a's pull request
-  s6 --> s1 : in the design, the root's<br/>check nudges a quiet child
-  s6 --> s6 : in the design, you retire<br/>child a cannot happen
-  class s5 group0Wrong
-  class s0 group0Wrong
-  class s1 group0Fixed
-  class s6 group0
-  class s7 group0
-  class s2 group0
-  class s3 group0
-  class s4 group0Wrong
-  class s8 group0
-  class s9 group0
+  class r0s0 group0
+  class r0s1 group0
+  class r0s2 group1
+  class r0s3 group1
+  class r0s4 group1
+  class r0s5 group1
+  class r0s6 group1
+  class r0s7 group1
+  class r0s8 group1
+  class r0s9 group1
+  class r0s10 group1
+  class r0s11 group1
+  class r0s12 group1
+  class r0s13 group1
+  class r0s14 group1
+  class r0s15 group1
+  class r0s16 group0
+  class r0s17 group0
+  class r0s18 group0
+  class r0s19 group0
+  class r0s20 group0
+  class r0s21 group0
+  class r0s22 group0
+  class r0s23 group0
+  class r0s24 group0
+  class r0s25 group0
+  class r0s26 group0
+  class r0s27 group0
+  class r0s28 group0
+  class r0s29 group0
+  class r0s30 group0
+  class r1s0 plain
+  class r1s1 plain
+  class r1s2 plain
+  class r1s3 plain
+  class r1s4 plain
+  class r1s5 plain
+  class r1s6 plain
+  class r1s7 plain
+  class r1s8 plain
+  class r1s9 plain
+  class r1s10 plain
+  class r1s11 plain
+  class r1s12 plain
+  class r1s13 plain
+  class r1s14 plain
+  class r1s15 plain
+  class r1s16 plain
+  class r1s17 plain
+  class r1s18 plain
+  class r1s19 plain
+  class r1s20 plain
+  class r1s21 plain
+  class r1s22 plain
+  class r1s23 plain

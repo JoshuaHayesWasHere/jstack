@@ -66,7 +66,7 @@ After either call, keep what is so. In one call with the same two blocks, with t
 A="${M:?run the block that finds this home first}/audit"
 id='<scheduledTaskId>'
 case $id in
-'') rm -f "$A" "$M/audit-seen" && echo "no audit is kept" ;;
+'') uv run --project "$T/.." jbus forget "$A" "$M/audit-seen" > /dev/null && echo "no audit is kept" ;;
 *'<'* | *'>'* | *' '*) echo "not written: put the scheduledTaskId the call returned in place of the placeholder, or nothing after a delete" ;;
 *) printf '%s %s\n' "$id" "$ME" > "$A" && echo "kept: audit $id, in $A" ;;
 esac
@@ -77,7 +77,9 @@ esac
 **One tick** is a message in this thread from T3 Code, not from the user or a thread. It reads `$H`, what the merge step prints and the pushed branches, and nothing else:
 
 1. Run the first block. On `delete`, delete the audit and stop. On `no queue`, stop. On `schedule` or `replace`, do what it says, as above, and go on: the audit this tick came from is not the one this home keeps.
-2. Do steps 1 to 3 of "When a thread sends a message": read what landed, run the merge step, update the plan, launch what can start. On `jbus merges` the merge step runs no `jmerge` and prints what jbus merged since the last tick, and what each open pull request waits for. A message a restart or a limit swallowed is caught here.
+2. Do steps 1 to 3 of "When a thread sends a message": read what landed, run the merge step, update the plan, launch what can start.
+   The merge step runs no `jmerge` and prints what jbus merged since the last tick, and what each open pull request waits for.
+   A message a restart or a limit swallowed is caught here.
 3. Judge each thread out by its side effects, not by its state. In one call with the same two blocks, from the main checkout:
 
    ```sh

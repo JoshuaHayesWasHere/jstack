@@ -1,7 +1,7 @@
 ## Scoped homes
 
-A scoped home is a home like any other, for one goal: it plans, launches and, on `home merges`, merges its own tasks by this skill, from its own directory.
-On `jbus merges` jbus merges a scoped home's pull requests as it merges the root home's ("Merging a pull request that is ready").
+A scoped home is a home like any other, for one goal: it plans and launches its own tasks by this skill, from its own directory.
+jbus merges a scoped home's pull requests as it merges the root home's, and no home merges its own ("Merging a pull request that is ready").
 The homes of a repo do not plan each other's work, and they are quiet towards each other:
 
 - A home sends another home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch. Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words. A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
@@ -78,8 +78,7 @@ else
         echo "made: scope $scope, with $H/$scope/plan.md and its section in $H/notes.md"
         printf 'launch: {"title": "home: %s %s", "workspaceStrategy": {"type": "root"}, "message": "/home %s"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')" "$scope" "$scope"
     else
-        rm -f "$H/$scope/plan.md"
-        rmdir "$H/$scope" 2> /dev/null
+        uv run --project "$T/.." jbus forget --dir "$H/$scope/plan.md" "$H/$scope" > /dev/null 2>&1
         echo "not made: $H/$scope/plan.md or the section in $H/notes.md could not be written, and what was made is taken back. Nothing is written."
     fi
 fi

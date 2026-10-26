@@ -64,6 +64,8 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
 | `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once. With a slot free it runs the command as above and takes the thread out of the waiters. With every slot of the lane taken it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line saying it waits and that jbus will wake it, and ends 76. `jbus poll` sends the oldest waiter on a lane one message when a slot of the lane is free (`slotwait.wake`, features/jbus/docs/jbus.md), and the thread runs the same command again. `JGAUGE_LOCKS_DIR` moves the lock files and the waiters file, for a test. |
 | `jgauge test-slot --waiters` | Prints the registered waiters, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
+| `jgauge check [--thread <id>] [--wait <seconds>] < <the check command>` | Starts the check command it reads from stdin on this worktree, under a slot of the full lane, in a session of its own, or joins the run an earlier call started, and waits on it for up to 540 s; it prints `started`, `joined` or `checked`, then `waiting` (exit 76, with every slot taken, the thread registered as with `test-slot --thread`), `stale` (exit 75, the worktree changed while it ran), `done: the check exited <n>` (exit n), `running` or `lost`, and keeps its files in `<git dir>/crew-check/`: `pid`, `out`, `exit`, `tree` (the worktree's tree, written with an index of its own), `told` and `run`. |
+| `jgauge proof --dir <dir> --kept <head> [--thread <id>] [--wait <seconds>] < <the proof>` | The same for a reviewer's proof, in the short lane, only while the checkout is at `<head>` with no rebase going on (else `unproven:`, exit 1); it runs the proof with `D` set to `<dir>`, prints `exit <n>`, the last 5 lines, `unproven: the head moved under the proof` when the head moved, and `git status --porcelain`, ends 0 on that answer, and keeps `proof.pid`, `proof.out`, `proof.exit`, `proof.key`, `proof.told` and `proof.cmd` in `<dir>`. |
 
 ### jgauge room
 
@@ -161,8 +163,10 @@ The report prints that last part even for a span with no rows.
 
 The `home` skill runs `jgauge room` before a launch, the `pr-review` skill runs it before a review, and `jbus` runs it before each launch.
 A crewmate runs the check command that `notes.md` names.
-It runs that command once, under a test slot, as `jgauge test-slot -- <the check command>`.
-A reviewer's proof and a crewmate's targeted test runs run in the short lane, as `jgauge test-slot --short -- uv run pytest <files>`.
+It runs that command once, under a test slot, as `jgauge check`, with the check command on stdin.
+A reviewer's proof runs in the short lane as `jgauge proof`, with the proof on stdin.
+A crewmate's targeted test runs run in the short lane, as `jgauge test-slot --short -- uv run pytest <files>`.
+A thread's step calls `jgauge check` and `jgauge proof` so that it holds no delete and no inner shell, which Claude Code asks the user about before it runs them (`features/repo-guards/tests/test_blocks_ask_nothing.py`).
 The check command never runs in the short lane.
 
 ## How it counts tokens
