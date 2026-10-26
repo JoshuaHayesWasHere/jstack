@@ -74,7 +74,7 @@ RaiseCall(c) ==
     /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
 Activity(k) ==
-    /\ life[k] = "working"     \* jbus/live.py:63 `if facts.silent < QUIET_MINUTES:`
+    /\ life[k] = "working"     \* jbus/live.py:64 `if facts.silent < QUIET_MINUTES:`
     /\ Calm(k)
     /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The child stops: its turn ended and nothing will wake it. Only the child could tell.
