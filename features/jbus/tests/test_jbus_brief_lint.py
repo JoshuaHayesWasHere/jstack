@@ -14,7 +14,7 @@ ASKS = (
     "a crewmate or scout asks the user nothing in its own thread: put the question to the "
     "user as a gate through `jbus gate`"
 )
-DOCS = "docs go to a docs sweep, a row whose title says docs sweep"
+DOCS = "docs go to a docs sweep, a row whose title names docs"
 COPIED = "a test's text is small and made up, never an incident's text word for word"
 INCIDENT = "the train went red at noon and the fix row never launched for flow"
 
@@ -63,7 +63,8 @@ def test_a_brief_that_quotes_the_words_or_routes_through_a_gate_is_queued(kitche
     text = brief(
         "alpha",
         'Decisions: a brief that says "stops here and asks" is refused; `ask the user` is a '
-        "phrase\nNotes: if the port is unclear, ask the user through `jbus gate`\n",
+        "phrase\nNotes: if the port is unclear, ask the user through `jbus gate`\n"
+        "Do not touch: the ruleset (the home asks the user)\n",
     )
     assert add(kitchen, text)[0] == 0
 
@@ -88,6 +89,8 @@ def test_a_docs_sweep_row_and_a_features_own_docs_are_queued(kitchen):
     sweep = brief("alpha").replace("# alpha: a task", "# alpha: docs sweep for the queue verbs")
     sweep = sweep.replace("- it is done\n", "- the README names the new verb\n")
     assert add(kitchen, sweep)[0] == 0
+    nested = brief("gamma").replace("- it is done\n", "- `features/gamma/README.md` names it\n")
+    assert kitchen.main("queue", "add", "gamma", "--priority", "1", stdin=nested)[0] == 0
     own = brief("beta").replace(
         "Where: `src/beta/`", "Where: `src/beta/`, `features/jbus/docs/jbus.md`"
     )
