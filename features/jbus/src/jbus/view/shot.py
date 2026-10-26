@@ -1,0 +1,145 @@
+"""`jbus view-shot`: write a PNG of one route of the running `jbus view`, so a reply can carry the
+picture.
+
+It asks the view on this machine, at `127.0.0.1` and the view's port (`view.PORT`, the port
+`jbus link` gives), whether it is up (`/healthz`), and refuses when it is not. It then has headless
+Chromium load the route, at a width of 1440 or 390 (`SIZES`), and draw it. Chromium's virtual time
+stands still while a request is out, so its budget (`BUDGET_MS`) runs out only once the page has
+its answers and has drawn them, and before the page's next poll. A `--home` adds `&home=<home>` to
+the route, for a page that shows one home.
+
+It writes the one file `--out` names. A bare name goes into `$XDG_RUNTIME_DIR`, or `/tmp` where
+that is not set, and a path under a state directory is refused (`state_dirs`). Chromium runs on a
+profile of its own, in a temporary directory that is removed after it, so it reads and writes
+nothing of the user's. The command reads no config and no state.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import urllib.request
+from pathlib import Path
+from urllib.parse import quote
+
+from jbus import view
+
+SIZES = {1440: (1440, 900), 390: (390, 844)}
+BUDGET_MS = 4000
+TIMEOUT = 60
+CHROMIUMS = ("chromium", "chromium-browser", "google-chrome-stable", "google-chrome")
+
+
+class NoShot(Exception):
+    """Why no PNG was written, as the line the command prints."""
+
+
+def chromium() -> str:
+    """The Chromium on `PATH`."""
+    for name in CHROMIUMS:
+        found = shutil.which(name)
+        if found:
+            return found
+    raise NoShot("no shot: no chromium")
+
+
+def running(port: int) -> bool:
+    """Whether `jbus view` answers its health route at the port."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz", timeout=3) as answer:
+            return json.load(answer) == {"ok": True}
+    except (OSError, ValueError):
+        return False
+
+
+def state_dirs() -> tuple[Path, ...]:
+    """The directories that hold state: `$XDG_STATE_HOME`, and jbus's own two where the
+    environment moved them."""
+    home = Path.home()
+    found = [Path(os.environ.get("XDG_STATE_HOME") or home / ".local" / "state")]
+    found += [
+        Path(os.environ[one]) for one in ("JBUS_STATE_DIR", "JBUS_HOME_DIR") if os.environ.get(one)
+    ]
+    return tuple(one.resolve() for one in found)
+
+
+def target(out: str) -> Path:
+    """The file to write: a bare name in the runtime directory, any other path as given."""
+    if "/" not in out:
+        runtime = os.environ.get("XDG_RUNTIME_DIR")
+        out = str(Path(runtime if runtime and Path(runtime).is_dir() else "/tmp") / out)
+    path = Path(out).expanduser().resolve()
+    if any(path.is_relative_to(one) for one in state_dirs()):
+        raise NoShot(f"no shot: {path} is in a state directory")
+    if not path.parent.is_dir():
+        raise NoShot(f"no shot: {path.parent} is not a directory")
+    return path
+
+
+def address(port: int, route: str, home: str | None) -> str:
+    """The page's address on this machine, with the home added to the route."""
+    route = route.lstrip("/") or "#/"
+    if home:
+        route += f"&home={quote(home, safe='')}"
+    return f"http://127.0.0.1:{port}/{route}"
+
+
+def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port: int = 0) -> Path:
+    """Write the PNG of the route and return its path."""
+    port = port or view.PORT
+    path = target(out)
+    if not running(port):
+        raise NoShot("no shot: jbus view is not running")
+    browser = chromium()
+    size = SIZES[width]
+    with tempfile.TemporaryDirectory(prefix="jbus-view-shot-") as profile:
+        try:
+            done = subprocess.run(
+                [
+                    browser,
+                    "--headless=new",
+                    f"--user-data-dir={profile}",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-gpu",
+                    "--hide-scrollbars",
+                    f"--window-size={size[0]},{size[1]}",
+                    f"--virtual-time-budget={BUDGET_MS}",
+                    f"--screenshot={path}",
+                    address(port, route, home),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise NoShot(f"no shot: chromium took longer than {TIMEOUT} s") from error
+    if done.returncode != 0 or not path.is_file():
+        raise NoShot(f"no shot: chromium wrote no PNG (exit {done.returncode})")
+    return path
+
+
+def arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("route", help="the page's route, as '#/' or '#/<project>'")
+    parser.add_argument(
+        "--out", required=True, help="the PNG to write, a bare name in $XDG_RUNTIME_DIR or /tmp"
+    )
+    parser.add_argument("--width", type=int, choices=sorted(SIZES, reverse=True), default=1440)
+    parser.add_argument("--home", help="the home the page shows, added to the route")
+    parser.add_argument(
+        "--port", type=int, default=0, help="the port of jbus view, its own by default"
+    )
+
+
+def run(args: argparse.Namespace) -> int:
+    """Print the PNG's path, or why there is none."""
+    try:
+        print(shoot(args.route, args.out, args.width, args.home, args.port))
+    except NoShot as why:
+        print(why)
+        return 1
+    return 0
