@@ -338,13 +338,12 @@ def test_twenty_runs_that_start_no_job_are_one_account_decision_and_no_red_main(
     assert not [line for line in kitchen.lines("retro") if "failed" in line]
     assert kept(kitchen) == mainjson.Main(green=green)
     (decision,) = asked(kitchen)
-    assert decision.answer is None
+    assert (decision.answer.closed_by, decision.answer.words) == (questions.SILENCE, "default")
     assert len(kitchen.lines("gate")) == 1
     passed = landed(kitchen, runs + 1, "success")
     kitchen.poll(NOW + timedelta(minutes=3 * (runs + 1)))
     (decision,) = asked(kitchen)
-    assert decision.answer is not None
-    assert decision.answer.closed_by != questions.SILENCE
+    assert decision.answer.closed_by == questions.CLEARED
     assert kept(kitchen) == mainjson.Main(green=passed)
     red = landed(kitchen, runs + 2, "failure")
     kitchen.poll(NOW + timedelta(minutes=3 * (runs + 2)))

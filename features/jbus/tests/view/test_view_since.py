@@ -25,8 +25,8 @@ def quiet(scene):
 
 
 def defaulted(scene, minutes, slug="alpha"):
-    """A question of `slug` that jbus closed with its default `minutes` ago, since nobody
-    answered it in 2 hours."""
+    """A question of `slug` that jbus closed with its default `minutes` ago, at once, in the
+    pass that saw it."""
     number = asks(scene, slug=slug)
     file = questions.path(scene.state)
     kept = json.loads(file.read_text())
@@ -40,7 +40,7 @@ def defaulted(scene, minutes, slug="alpha"):
     )
     for one in kept["records"]:
         if one["number"] == number:
-            one["asked_at"] = iso(ago(minutes=minutes + 120))
+            one["asked_at"] = iso(ago(minutes=minutes))
             one["answer"] = asdict(said)
     file.write_text(json.dumps(kept))
 

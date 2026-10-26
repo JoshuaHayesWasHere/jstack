@@ -646,9 +646,10 @@ def test_the_refusal_alone_is_enough_to_write_lines_jbus_takes(kitchen):
     ]
 
 
-def before_options(kitchen, *asked):
+def before_options(kitchen, *asked, holds=""):
     """Write a `questions.json` as jbus wrote it before a gate had options: no record has a
-    `context` or an `options`."""
+    `context` or an `options`. With `holds`, each record holds for the user, as a pass leaves
+    only such a record open long enough to be asked for its options."""
     kept = [
         {
             "number": number,
@@ -660,6 +661,7 @@ def before_options(kitchen, *asked):
             "undo": "pour it out",
             "asked_at": "2026-10-12T15:00:00+00:00",
             "answer": None,
+            **({"holds": holds, "fail_safe": "the dry-run"} if holds else {}),
         }
         for number, (slug, question) in enumerate(asked, 1)
     ]
@@ -674,7 +676,7 @@ def test_a_file_written_before_options_still_loads_and_its_question_is_still_ans
     (one,) = questions.read(kitchen.state)
     assert (one.number, one.question, one.context, one.options) == (1, "tea or coffee?", "", ())
     kitchen.poll()
-    assert [each["line"] for each in listed(kitchen)] == ["question 1: tea or coffee?" + ACTED]
+    assert records(kitchen)["records"][0]["answer"]["closed_by"] == questions.SILENCE
     assert answer(kitchen, 1, "tea", default=True)[0] == 0
     (kept,) = records(kitchen)["records"]
     assert (kept["answer"]["words"], kept["context"], kept["options"]) == ("tea", "", [])
@@ -713,7 +715,7 @@ def asked_for_options(kitchen):
     return [
         (given["threadId"], given["clientRequestId"])
         for tool, given in kitchen.t3.calls
-        if tool == "t3_thread_send"
+        if tool == "t3_thread_send" and given["clientRequestId"].startswith("options|")
     ]
 
 
@@ -724,7 +726,12 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
     for slug in ("alpha", "beta", "done"):
         kitchen.t3.thread(slug, "completed", threadId=f"mcp:crew-{slug}", settled=True)
     before_options(
-        kitchen, ("alpha", "tea or coffee?"), ("beta", "milk?"), ("gone", "sugar?"), ("done", "a?")
+        kitchen,
+        ("alpha", "tea or coffee?"),
+        ("beta", "milk?"),
+        ("gone", "sugar?"),
+        ("done", "a?"),
+        holds="deletes data",
     )
     assert answer(kitchen, 4, "yes", default=True)[0] == 0
     assert ask(kitchen, "a spoon?") == (0, "queued: question 5\n")
@@ -757,6 +764,7 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
     assert (one["default"], one["built_on"], one["undo"]) == ("tea", "the cups", "pour it out")
     assert [each["name"] for each in one["options"]] == ["tea", "coffee"]
     assert kitchen.lines("note") == [
+        "note done: told its thread the answer to question 4",
         "note alpha: asked its thread for the options of question 1",
         "note beta: asked its thread for the options of question 2",
         "note gone: question 3 has no options, and its thread is gone",
@@ -768,7 +776,7 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
 def test_a_question_is_asked_once_whatever_keys_a_snapshot_forgets(kitchen, listed):
     if listed:
         kitchen.t3.thread("alpha", "completed", threadId=THREAD, settled=True)
-    before_options(kitchen, ("alpha", "tea or coffee?"))
+    before_options(kitchen, ("alpha", "tea or coffee?"), holds="deletes data")
     kitchen.poll(later(10))
     asked = [(THREAD, "options|alpha|1")] if listed else []
     assert asked_for_options(kitchen) == asked
@@ -781,7 +789,9 @@ def test_a_question_is_asked_once_whatever_keys_a_snapshot_forgets(kitchen, list
 
 def test_a_question_with_no_thread_line_is_asked_nothing_and_a_lost_send_goes_next_pass(kitchen):
     kitchen.t3.thread("alpha", "completed", threadId=THREAD, settled=True)
-    before_options(kitchen, ("alpha", "tea or coffee?"), ("expert-sage-tea", "milk?"))
+    before_options(
+        kitchen, ("alpha", "tea or coffee?"), ("expert-sage-tea", "milk?"), holds="deletes data"
+    )
     kitchen.t3.lose_send = True
     said = kitchen.poll(later(10))
     assert "wait alpha: its thread could not be asked for options" in " ".join(said)
