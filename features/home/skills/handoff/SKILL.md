@@ -230,7 +230,11 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
       }
       ```
 
-      Before this launch, run `uv run --project "$T/../source" jroles home` with the block at the top. When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the next home on the model the role map names. When it prints nothing, the call is the one above. Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line. Leave the project and modes out, and the model unless `jroles` printed one.
+      Before this launch, run `uv run --project "$T/../source" jroles home` with the block at the top.
+      When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the next home on the model the role map names.
+      When it prints nothing, the call is the one above.
+      Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
+      Leave the project and modes out, and the model unless `jroles` printed one.
 
       ```json
       {
