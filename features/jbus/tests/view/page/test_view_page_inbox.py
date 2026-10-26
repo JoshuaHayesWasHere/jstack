@@ -74,3 +74,35 @@ def test_approve_its_undo_and_a_steer_line_each_reach_jbus_from_the_page(tmp_pat
     assert steer == ("/panel/you/steer", {"subj": jar["subj"], "words": "the blue one"})
     assert (row.get("approved"), row.get("held")) == ("", True)
     assert f"{jar['subj']}: the blue one" in kept
+
+
+def test_the_drawer_of_what_waits_hands_over_no_cli_line_for_a_row_to_approve(
+    tmp_path, monkeypatch
+):
+    """Its row says which brief waits and sends the user to its Approve in Needs you, not to a
+    `jbus queue approve` line with placeholders to fill in."""
+    counter = Counter(tmp_path, monkeypatch)
+    code, said = counter.kitchen.main(
+        "queue", "add", "oat-milk", "--priority", "1", stdin=complete("oat-milk")
+    )
+    assert code == 0, said
+    counter.passes(1)
+    sha = queue.brief_sha(queue.brief(counter.state, "oat-milk"))[:12]
+    served = Served(counter)
+    try:
+        seen = look(
+            counter,
+            tmp_path / "look",
+            route="#/demo/you/approve",
+            port=served.port,
+            walk=["look"],
+            at=4000,
+            budget=8000,
+        )
+    finally:
+        served.close()
+        counter.kitchen.close()
+    assert seen["errors"] == []
+    (drawer,) = [one["said"] for one in seen["walked"]]
+    assert "queue approve" not in drawer and "<id>" not in drawer
+    assert f"brief {sha}" in drawer and "Approve it in Needs you" in drawer
