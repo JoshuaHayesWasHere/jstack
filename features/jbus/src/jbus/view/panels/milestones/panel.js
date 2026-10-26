@@ -31,12 +31,12 @@ function msStep(s) {
   var sub = s.mark === "blocked" ? "behind " + esc(s.by) : esc([s.step, s.pr].filter(Boolean).join(" ") || s.mark);
   return '<li style="display:contents">' + msNode(s.mark, known(s.slug) ? '<button type="button" class="linkish" data-open="task:' + esc(s.slug) + '" style="font:inherit;color:inherit;min-height:0;padding:0;border:0;background:none;box-shadow:none;text-align:left">' + esc(s.slug) + '</button>' : esc(s.slug), sub, (MS_MARK[s.mark] || MS_MARK.stuck)[0] + (s.say ? ": " + s.say : "")) + '</li>';
 }
-function msChain(m, end, done) {
+function msChain(m, end, done, unknown) {
   var out = [], i = 0, steps = m.steps;
   while (i < steps.length && steps[i].mark === "merged") i++;
   if (i) out.push('<li style="display:contents">' + msNode("merged", (i > 1 ? i + " merged" : esc(steps[0].slug)), steps.slice(0, i).map(function (s) { return esc(s.pr || ""); }).filter(Boolean).join(" ") || "merged", steps.slice(0, i).map(function (s) { return s.slug; }).join(", ")) + '</li>');
   steps.slice(i).forEach(function (s) { out.push(msStep(s)); });
-  out.push('<li style="display:contents">' + msNode(done ? "merged" : "queued", esc(end), done ? "reached" : "not yet") + '</li>');
+  out.push('<li style="display:contents">' + msNode(done ? "merged" : "queued", esc(end), done ? "reached" : unknown ? "not read" : "not yet", unknown ? "not read: the view reads no record of whether it landed" : "") + '</li>');
   return '<ol class="clean msc" aria-label="Steps toward ' + esc(end) + '" style="display:flex;flex-wrap:wrap;gap:6px 4px;align-items:stretch;margin:0">' + out.map(function (li, n) { return n ? li.replace('<li style="display:contents">', '<li style="display:contents">' + MS_ARROW) : li; }).join("") + '</ol>';
 }
 function msWhy(m, held) {
@@ -72,7 +72,7 @@ function msHome(h, held) {
 function msTrain(t, held) {
   var said = t.over + " of " + t.total + " merged into " + t.branch + ", " + plural(t.to_go, "row", "rows") + " to go before it lands";
   return '<li class="mst" data-train="' + esc(t.branch) + '" style="' + MS_ITEM + '"><div style="display:flex;gap:8px;align-items:baseline;justify-content:space-between;min-width:0"><span style="min-width:0;overflow-wrap:anywhere"><code>' + esc(t.branch) + '</code> lands on the default branch</span>' + msFrac(t.over, t.total) + '</div>' +
-    msBar(t, said) + msChain(t, t.branch + " lands", false) + '<div class="src" style="margin-top:6px">' + esc(t.to_go ? plural(t.to_go, "row", "rows") + " to go before it lands" : "every row is in: it lands when its own pull request merges") + '</div>' + msWhy(t, held[t.key] || []) + '</li>';
+    msBar(t, said) + msChain(t, t.branch + " lands", false, true) + '<div class="src" style="margin-top:6px">' + esc(t.to_go ? plural(t.to_go, "row", "rows") + " to go before it lands" : "every row is in: it lands when its own pull request merges, and the view does not read whether it has") + '</div>' + msWhy(t, held[t.key] || []) + '</li>';
 }
 function msKey() {
   return '<p class="src" style="display:flex;flex-wrap:wrap;gap:6px 12px;margin:12.5px 0 0;align-items:center">' + MS_ORDER.map(function (k) { var m = MS_MARK[k]; return '<span style="display:inline-flex;align-items:center;gap:5px"><i style="display:inline-block;width:14px;height:10px;border:1.5px solid;border-radius:3px;' + m[1] + '"></i>' + esc(m[0]) + '</span>'; }).join("") + '</p>';
