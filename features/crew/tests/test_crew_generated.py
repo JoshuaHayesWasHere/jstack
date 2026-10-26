@@ -37,6 +37,7 @@ def stays(pr, about):
     user = pr.stub.parent / "user"
     return stays_in_the_home(pr, about, HOME=str(user), UV_CACHE_DIR=uv_cache())
 
+
 PROJECT = """\
 [project]
 name = "app"
@@ -114,7 +115,9 @@ def test_a_lock_file_a_rebase_stops_on_is_made_again_from_both_sides(notes, tmp_
     (pr.work / "pyproject.toml").write_text(pr.project("ours", "theirs"))
     git(pr.work, "add", "pyproject.toml")
     command = "uv lock --offline" if notes else "uv lock"
-    assert stays(pr, "jmerge --remake") == [f"made again: uv.lock, by {command} over the base's version"]
+    assert stays(pr, "jmerge --remake") == [
+        f"made again: uv.lock, by {command} over the base's version"
+    ]
     assert stays(pr, "jmerge --remake") == ["nothing is left to resolve: git rebase --continue"]
     git(pr.work, "-c", "core.editor=true", "rebase", "--continue")
     assert not pr.rebasing()
