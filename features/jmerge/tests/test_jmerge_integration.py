@@ -14,6 +14,7 @@ import json
 
 import pytest
 
+from jbus import sidered
 from jmerge import ready, rows
 from test_jmerge_fresh import LINES, STALE, Kitchen, git, url, write
 from test_jmerge_order import main_says, queue_of
@@ -441,4 +442,6 @@ def test_a_sweep_counts_a_pull_request_merged_into_the_train_as_merged(kitchen):
     ],
 )
 def test_the_fix_row_of_a_train_is_named_by_its_branch_and_its_red_tip(branch, slug):
-    assert rows.train_fix(branch, "a" * 40) == slug
+    """jmerge lets through the row by the name jbus files it under (`jbus.sidered.train_name`)."""
+    assert rows.train_fix(branch, "a" * 40) == slug == sidered.train_name(branch, "a" * 40)
+    assert rows.train_fix(branch, "") == sidered.train_name(branch, "")
