@@ -410,7 +410,7 @@ CAPS = {
     ("check.yml", "full-shard"): "30",
     ("check.yml", "full"): "5",
     ("macos-nightly.yml", "macos"): "90",
-    ("macos.yml", "macos"): "15",
+    ("macos.yml", "macos"): "25",
     ("pstack-drift.yml", "drift"): "5",
     ("release.yml", "release"): "30",
 }
@@ -534,7 +534,9 @@ def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_
     `required-checks` names it beside `check` and `borders`, and jmerge waits on it. A job's or a
     step's `continue-on-error` reports the check as passed whatever the suite did, so neither the
     job nor any step that sets up or runs the tests carries it. Only the step that lists the
-    failed tests does, which runs after the tests and changes nothing they decided."""
+    failed tests does, which runs after the tests and changes nothing they decided. Its tests'
+    step cap is then a failure of the check too, so it leaves the slowest run twice its time:
+    the step took 423 to 639 s on the last twelve runs, and the list grows with each mac- fix."""
     from jmerge import ready
 
     rollup = [
@@ -547,7 +549,7 @@ def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_
     found, _ = steps(text, "macos")
     assert [step.get("name") for step in found if "continue-on-error" in step] == ["failed tests"]
     (suite,) = [step for step in found if step.get("id") == "suite"]
-    assert int(suite["timeout-minutes"]) < int(cap(text, "macos"))
+    assert 2 * 639 <= 60 * int(suite["timeout-minutes"]) < 60 * int(cap(text, "macos")) - 120
 
 
 def test_the_macos_job_runs_the_quick_list_on_three_workers_into_the_report_its_summary_reads(
