@@ -15,7 +15,7 @@ import pytest
 import jbus
 from jbus import cli, health, merge, wake
 from jroles import ledger
-from test_jbus_kitchen import NOW, approved
+from test_jbus_kitchen import KEY, NOW, Webhook, approved
 
 PRIME = "claudeAgent_claude_prime"
 GIB = 2**30
@@ -90,6 +90,28 @@ def test_the_page_reaches_the_webhook_once_as_an_event_of_the_machine(kitchen, s
     posted = [one for events in kitchen.webhook.posts for one in events if one["event"] == "alert"]
     assert [one["say"] for one in posted] == [line]
     assert [one for one in kitchen.log("notify") if "health" in one] == [f"jbus | {line}"]
+
+
+def test_the_page_reaches_every_project_s_home_thread_and_the_top_level_webhook_once(
+    kitchen, senses
+):
+    """The first project stands for infra and the second for jstack: a page of the machine waits
+    in each one's home-thread outbox, and the top-level webhook gets it once."""
+    top = Webhook()
+    try:
+        side = kitchen.second("jstack")
+        kitchen.config(project_wake="both", webhook_url=top.url + "/wake", webhook_key=KEY)
+        senses.disks["/home"] = (90 * GIB, 10 * GIB, 0, 0)
+        polls(kitchen, 0, 10)
+        line = "alert: health disk /home: 90% of its space used (90.0 of 100.0 GiB), alerts at 80%"
+        for state in (kitchen.state, side.state):
+            home = jbus.read_json(state / wake.HOME / "outbox.json", [])
+            assert [one["line"] for one in home] == [line]
+        posted = [one for events in top.posts for one in events if one["event"] == "alert"]
+        assert [one["say"] for one in posted] == [line]
+        assert kitchen.webhook.posts == [] and side.webhook.posts == []
+    finally:
+        top.close()
 
 
 def test_inodes_page_by_their_own_count_and_a_filesystem_with_none_has_no_inode_check(
