@@ -164,9 +164,19 @@ class Repeated:
         """The ended runs of the check's workflow on the branch, oldest first, with none
         cancelled."""
         said = self.gh(
-            "run", "list", "--branch", branch, "--workflow", check, "--event", event,
-            "--limit", str(RUNS), "--json", "databaseId,status,conclusion,createdAt",
-        )  # fmt: skip
+            "run",
+            "list",
+            "--branch",
+            branch,
+            "--workflow",
+            check,
+            "--event",
+            event,
+            "--limit",
+            str(RUNS),
+            "--json",
+            "databaseId,status,conclusion,createdAt",
+        )
         try:
             listed = json.loads(said or "")
         except ValueError:
