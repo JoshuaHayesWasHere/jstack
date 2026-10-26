@@ -1,5 +1,6 @@
-"""A train whose tip's latest check failed holds every pull request into it (`jmerge.rows.base_red`).
-jbus gives that red one fix row under the train's home, as it gives a red main a main-red row:
+"""A train whose tip's latest check failed holds every pull request into it
+(`jmerge.rows.base_red`). jbus gives that red one fix row under the train's home, as it gives a
+red main a main-red row:
 
 - the row is filed once for the red, queued unapproved ahead of every row, and the home that the
   held pull requests' briefs name is sent it once;
@@ -32,9 +33,7 @@ def tip(kitchen, sha, conclusion):
 
 
 def train_red(kitchen):
-    return [
-        row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("train-red-")
-    ]
+    return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("train-red-")]
 
 
 def told(kitchen):
@@ -92,6 +91,7 @@ def test_a_red_train_files_one_fix_row_under_its_home_and_a_green_tip_withdraws_
 def test_a_train_with_no_pull_request_on_it_is_not_asked_about(kitchen):
     held_on_the_train(kitchen)
     kitchen.set("open.json", [])
+    (kitchen.stub / "gh.log").unlink()
     tip(kitchen, RED, "failure")
     kitchen.poll(NOW)
     assert train_red(kitchen) == [] and told(kitchen) == []
