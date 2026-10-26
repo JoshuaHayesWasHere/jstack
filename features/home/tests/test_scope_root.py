@@ -174,7 +174,15 @@ def status(homes, thread=ROOT):
     return homes.step(STATUS, thread).stdout
 
 
-def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(homes):
+@pytest.fixture
+def no_jbus(homes, monkeypatch):
+    """A machine where jbus is not installed: the root reads no queue row."""
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    return homes
+
+
+def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(no_jbus):
+    homes = no_jbus
     (homes.scope_dir / "plan.md").write_text(
         "# the second home: plan\n\n"
         "Goal (2026-10-10, the user): faster reviews\n\n"
@@ -204,16 +212,21 @@ def test_on_status_the_root_reads_each_scope_s_handoff_and_open_plan_entries(hom
         "sc-open: a task that is out\n"
         "Status: with crewmate (thread mcp:one)\n"
         "sc-next: a task with no status yet\n"
+        f"=== scope {SCOPE}: queue rows\n"
+        "no jbus: jbus is not installed here, so it holds no row\n"
         f"=== scope {CLOSED}: no home thread\n"
         "# the third home: handoff\n\n"
         "The scope is closed.\n"
         f"=== scope {CLOSED}: open plan entries\n"
         "none\n"
+        f"=== scope {CLOSED}: queue rows\n"
+        "no jbus: jbus is not installed here, so it holds no row\n"
     )
     assert homes.changed(before) == []
 
 
-def test_a_scope_just_made_has_no_handoff_yet(homes):
+def test_a_scope_just_made_has_no_handoff_yet(no_jbus):
+    homes = no_jbus
     make(homes)
     said = status(homes)
     assert (
@@ -237,7 +250,7 @@ def test_on_status_a_scoped_home_reads_no_other_scope(homes):
 
 
 SENDS = "THE_SEND_ENDS_HERE"
-WHAT = 'the user\'s "one tag a week" for the release scope\nand the root\'s nightly tag'
+WHAT = "the user's \"one tag a week\" for the release scope\nand the root's nightly tag"
 
 
 def send(homes, kind, thread=SCOPED, what=WHAT):
