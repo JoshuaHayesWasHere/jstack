@@ -643,13 +643,16 @@ def step(a):
 
 class Run:
     """One statechart run in the background, in its own process group, as pstack's startRun:
-    its stderr is read as it comes, and done() waits for its exit."""
+    its stderr is read as it comes, and done() waits for its exit. It runs as inside a held test
+    slot, so its TLC starts once its `tlc-` folder is made and waits on no slot of its own: the
+    tests that time a run by that folder would otherwise wait out a busy machine's slots."""
 
     def __init__(self, cwd, args=("from-spec", "Pay.tla"), wrap=(), env=None):
+        held = {"JGAUGE_TEST_SLOT": os.environ.get("JGAUGE_TEST_SLOT") or "full"}
         self.child = subprocess.Popen(
             [*wrap, sys.executable, "-m", "statechart.cli", *args],
             cwd=cwd,
-            env=run_env(env),
+            env=run_env({**held, **(env or {})}),
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,

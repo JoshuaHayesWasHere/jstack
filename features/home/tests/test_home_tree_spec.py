@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -312,3 +313,18 @@ def test_no_blind_merge_a_second_run_merges_nothing_while_one_is_merging(tmp_pat
         ["merged", "7", "fl-task"],
     ]
     assert [call.split()[2] for call in made.calls()] == ["6", "7"]
+
+
+def test_each_run_takes_two_workers_and_a_test_slot(tmp_path, monkeypatch):
+    """A run by hand holds a test slot, and starts TLC on 2 workers and not one for each core."""
+    java = tmp_path / "java"
+    java.write_text('#!/bin/sh\necho "slot ${JGAUGE_TEST_SLOT:-none}: $*"\n')
+    java.chmod(0o755)
+    for name in ("JGAUGE_TEST_SLOT", "TLC_WORKERS"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(tmp_path))
+    monkeypatch.setenv("PATH", f"{Path(sys.executable).parent}{os.pathsep}{os.environ['PATH']}")
+    _, module, cfg, *_ = RUNS[0]
+    out = canaries.tlc(tools.Tlc(jar="tla2tools.jar", java=str(java)), module, cfg)
+    assert out.startswith("slot full: "), out
+    assert " -workers 2 " in out, out
