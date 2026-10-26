@@ -28,6 +28,8 @@ The scene `a` is child a alone with both its calls and routes that change and fa
 The scene `siblings` is both children, with no calls of their own and routes that stay.
 One call never waits on another, and what the siblings share is main, the merge lock and the routes, so the siblings' scene checks what they share.
 In the siblings' scene the rules on calls hold with little to check, since only the root's notices are calls there and the routes stay: the scenes `a` and `b` check those rules.
+The run of every invariant checks `SceneStill` on the whole model: no child, call or notice outside the scene ever leaves its start.
+So a run of a property gives TLC the scene alone (`Kids <- Made` in its config), and it finds the same states without a branch and the fairness of each message that never moves.
 
 ## Draw the chart
 

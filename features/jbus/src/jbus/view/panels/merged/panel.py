@@ -14,11 +14,16 @@ SOURCES = (QUEUE_FILE, MOVES_FILE, MERGE_LOG)
 
 
 def build(read: Read) -> dict[str, Any]:
+    return {"merged": since(read, read.day)}
+
+
+def since(read: Read, start: str) -> list[dict[str, Any]]:
+    """Each merge at or after `start`, oldest first."""
     pull = {row["slug"]: row for row in read.rows}
     merged = []
     for move in read.moves or []:
         slug, at = text(move.get("slug"), 80), when(move.get("at"))
-        if move.get("to") == "merged" and at and at >= read.day:
+        if move.get("to") == "merged" and at and at >= start:
             was = pull.get(slug, {})
             approved = when(queue.ran_at(was), read.user)
             merged.append(
@@ -26,8 +31,8 @@ def build(read: Read) -> dict[str, Any]:
             )
     for one in read.ended:
         at = one["since"] if one["state"]["kind"] == "merged" else None
-        if at and at >= read.day and one["slug"] not in {m["slug"] for m in merged}:
+        if at and at >= start and one["slug"] not in {m["slug"] for m in merged}:
             approved = one["approved_at"]
             merged.append({"slug": one["slug"], "pr": one["pr"], "at": at, "approved": approved})
     merged.sort(key=lambda one: one["at"])
-    return {"merged": merged}
+    return merged

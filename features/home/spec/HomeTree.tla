@@ -106,6 +106,18 @@ Watched(k) == life[k] \in {"working", "stuck"} /\ (Kind[k] = "routine" \/ WorkOu
 \* What one check does to each child's count of quiet checks.
 Ticked == [k \in Kids |-> IF Watched(k) THEN Up(quiet[k], 3 * Patience(k) + 1) ELSE 0]
 
+\* The scene of a run is the children it makes, the calls they raise and their notices. Nothing
+\* outside the scene ever leaves its start (SceneStill, which is no rule), so each step of a child
+\* or a call outside it stays disabled. canaries.py checks SceneStill on the whole model and then
+\* checks the properties on the scene alone, where TLC has no branch and no fairness to carry for
+\* a message that never moves.
+SceneNotices == {NoticeOf(k) : k \in Made}
+SceneStill ==
+    /\ \A k \in Kids \ Made :
+        /\ life[k] = "unmade" /\ work[k] = "none" /\ quiet[k] = 0 /\ watch[k] = "calm"
+        /\ \A a \in Mergers : seen[k][a] = NoTip
+    /\ \A m \in Msgs \ (Raised \cup SceneNotices) : msg[m] = "none"
+
 \* Rules. Each is Josh's sentence (decisions.md, 2026-10-23) or the scouts' (home-tree review).
 
 \* No child retires while a call, gate, pull request or crew thread of its is open.

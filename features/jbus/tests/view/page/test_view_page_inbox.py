@@ -74,6 +74,8 @@ def test_approve_its_undo_and_a_steer_line_each_reach_jbus_from_the_page(tmp_pat
     assert steer == ("/panel/you/steer", {"subj": jar["subj"], "words": "the blue one"})
     assert (row.get("approved"), row.get("held")) == ("", True)
     assert f"{jar['subj']}: the blue one" in kept
+    actions = [one["body"]["name"] for one in seen["counted"] if one["body"]["kind"] == "action"]
+    assert actions == ["approve", "hold", "message"]
 
 
 def test_the_drawer_of_what_waits_hands_over_no_cli_line_for_a_row_to_approve(
