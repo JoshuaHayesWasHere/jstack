@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from jbus.health import PREFIX
 from test_verify_jstack import SCRIPTS, inside, launch
 
 GATE = """## Gate <n>: tea or coffee?
@@ -49,7 +50,9 @@ def sandbox(tmp_path_factory):
 @pytest.fixture
 def demo(sandbox):
     """The sandbox with the demo project's jbus state and home state emptied, and one pass run, so
-    each test starts on a project jbus has seen once and has posted nothing for."""
+    each test starts on a project jbus has seen once and has posted nothing for. That pass pages
+    each reading of the host past its limit, a full disk say: the page is the host's and not the
+    project's, so the test starts once it is out, with no five-minute gap after it to wait on."""
     root = sandbox.parent
     for gone in (root / "state", root / "home" / ".local" / "state" / "home" / "demo"):
         subprocess.run(["rm", "-rf", gone], check=True)
@@ -62,6 +65,10 @@ def demo(sandbox):
         kept = json.loads(threads.read_text())
         threads.write_text(json.dumps([one | {"settled": True} for one in kept]))
     assert run(sandbox, "jbus poll").returncode == 0
+    assert posted(sandbox) == []
+    wakes = root / "state" / "demo" / "wake.json"
+    if wakes.exists():
+        wakes.write_text(json.dumps(json.loads(wakes.read_text()) | {"posted": 0}))
     return sandbox
 
 
@@ -74,10 +81,12 @@ def run(sandbox, command, stdin=None):
 
 
 def posted(sandbox):
-    """Every event the webhook was posted, in order."""
+    """Every event the webhook was posted, in order, but the pages of `jbus health`: those read the
+    host's own state, its disk, which no test sets."""
     wake = sandbox.parent / "t3" / "wake.jsonl"
     lines = wake.read_text().splitlines() if wake.exists() else []
-    return [event for line in lines for event in json.loads(line)["events"]["events"]]
+    events = [event for line in lines for event in json.loads(line)["events"]["events"]]
+    return [one for one in events if not one["line"].startswith(f"alert: {PREFIX}")]
 
 
 def waiting_to_post(sandbox):
