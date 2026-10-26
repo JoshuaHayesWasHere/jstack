@@ -94,9 +94,9 @@ Merge(p) ==
 \* Its base merged: jbus moves the stacked pull request onto main and tells its crew, which
 \* rebases its own commits onto main ("A link that moved"), and its check runs again.
 Restack(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:65, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:69, open ones only
     /\ on[p] # "main"
-    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:72-73, its base merged
+    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:75-76, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine>>
