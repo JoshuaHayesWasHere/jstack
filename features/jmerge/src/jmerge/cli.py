@@ -823,8 +823,8 @@ class Repo:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         found = self.merged.of(one.head, tip)
         if found is None:
-            moved = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-            return self.base_merge.of(one, tip, *moved), "", ""
+            reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
+            return self.base_merge.of(one, tip, *reasons), "", ""
         return found.short, "" if found.short else tip, found.note
 
     def again(self, one: ready.PullRequest, red: str) -> str:

@@ -125,7 +125,8 @@ def merged_on_the_desk(kitchen):
     del kitchen.pulls["long"]
     tip = kitchen.tip()
     tree = fresh.git(kitchen.origin, "rev-parse", f"{tip}^{{tree}}")
-    ref = green.ref(tree, green.covers(kitchen.command))
+    kind = green.FULL if kitchen.command == "make check" else green.SELECTED
+    ref = green.ref(tree, kind)
     fresh.git(kitchen.origin, "update-ref", ref, tip)
     return tip
 
