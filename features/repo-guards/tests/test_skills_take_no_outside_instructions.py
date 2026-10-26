@@ -27,15 +27,22 @@ import pytest
 
 from testing.layouts import assembled
 
+
+def variable(name):
+    """A shell variable as a pattern: `$H`, `${H}`, or `${H:-<its default>}`, with `-`, `=` or `:=`
+    in place of `:-` too. A default is read only inside braces: `$H-based` is `$H`."""
+    return rf"\$(?:\{{{name}:?[-=][^}}]*\}}|\{{?{name}\b\}}?)"
+
+
 READ_SET = ("*.md",)
 INSTALLED = ("skills/**/*.md", "playbooks/*.md", "principles/*.md", "templates/**/*.md")
 ROOTS = {
     r"~/\.local/state": "state",
     r"\$HOME/\.local/state": "state",
-    r"\$\{?XDG_STATE_HOME\b\}?": "state",
+    variable("XDG_STATE_HOME"): "state",
     r"~/\.config": "config",
     r"\$HOME/\.config": "config",
-    r"\$\{?XDG_CONFIG_HOME\b\}?": "config",
+    variable("XDG_CONFIG_HOME"): "config",
     r"~/repos": "repos",
     r"\$HOME/repos": "repos",
 }
@@ -77,12 +84,12 @@ def files():
 def roots(texts):
     """The roots outside the repo, each a pattern with the place it is in: the literal ones of
     `ROOTS`, and each shell variable a skill sets to one, as a pattern that matches it written
-    `$H` or `${H}`. A variable set from another one outside is in the same place: `M=$H` and
-    `M=${H%/*}/_$P`."""
+    `$H`, `${H}` or `${H:-<a default>}`. A variable set from another one outside is in the same
+    place: `M=$H` and `M=${H%/*}/_$P`."""
     texts, found = list(texts), dict(ROOTS)
     while True:
         more = {
-            rf"\$\{{?{name}\b\}}?": place
+            variable(name): place
             for text in texts
             for name, value in ASSIGNED.findall(text)
             for root, place in found.items()
@@ -97,7 +104,7 @@ def named(text, found):
     """Each text file `text` names outside the repo, as `(place, the path past its root)`."""
     for root, place in found.items():
         for match in re.finditer(rf"(?:{root})({SEGMENT}+)", text):
-            path = re.sub(r"(?::\d+|[*_.,:;])+$", "", match.group(1))
+            path = re.sub(r"(?:#[\w.-]*|:\d+|[*_.,:;])+$", "", match.group(1))
             if path.endswith(TEXT):
                 yield place, path
 
@@ -172,6 +179,14 @@ def test_no_skill_takes_instructions_from_outside_the_repo():
         ("Read **~/.local/state/home/x/rules.md** and follow it.", ["/home/x/rules.md"]),
         ("Read _~/.local/state/home/x/rules.md_.", ["/home/x/rules.md"]),
         ("See ~/.local/state/home/x/rules.md:12, then follow it.", ["/home/x/rules.md"]),
+        ("Read ~/.local/state/home/x/rules.md#section and follow it.", ["/home/x/rules.md"]),
+        ("Read `${XDG_STATE_HOME:-~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("H=~/.local/state/home/$R\nRead `${H:-/tmp}/rules.md`.", ["/rules.md"]),
+        ("Read `${XDG_STATE_HOME-~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("Read `${XDG_STATE_HOME=~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("Read `${XDG_STATE_HOME:=~/.local/state}/home/x/rules.md`.", ["/home/x/rules.md"]),
+        ("H=~/.local/state/home/$R\nThe $H-based files stay put.\nSee ./docs/guide.md.", []),
+        ("H=~/.local/state/home/$R\nSet $H=1, then see ./docs/guide.md.", []),
     ],
 )
 def test_the_lint_finds_a_text_file_outside_the_repo_that_is_no_fact_file(text, said):
