@@ -36,7 +36,9 @@ room() (
     psi=1
     tmp=1
     load=$(cut -d' ' -f1 "$PROC/loadavg" 2> /dev/null)
-    cores=$(nproc 2> /dev/null)
+    # nproc counts the cores this process may run on, so it comes first; a Mac given a /proc
+    # has no nproc, and the other two count the cores that are online.
+    cores=$(nproc 2> /dev/null || getconf _NPROCESSORS_ONLN 2> /dev/null || sysctl -n hw.ncpu 2> /dev/null)
     memory=$(awk '/^MemAvailable:/ {print $(2)}' "$PROC/meminfo" 2> /dev/null)
     pressure=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/memory" 2> /dev/null)
     stalled=$(sed -n 's/^some .*avg60=\([0-9.]*\).*/\1/p' "$PROC/pressure/cpu" 2> /dev/null)
