@@ -160,7 +160,8 @@ It runs `jleak --infra`, and `jleak.infra` (`features/jleak/src/jleak/infra.py`)
 A shell command writes a file when it redirects into it, or names it and is not a command that only reads it.
 It reads `~`, `$HOME` and `${HOME}` as the shell does, and follows a `cd`.
 `cat`, `grep`, `jq` and `diff` read, `cp` reads its sources, and `sed`, `perl`, `awk`, `yq` and `tomlq` write only with `-i`.
-A program it does not know is taken to write, `sort` and `find` among them.
+A program it does not know is taken to write, `sort` among them.
+`find` writes with `-delete` or `-exec` in a folder that holds one of the files.
 It reads the string that `sh -c`, `bash -c` or `eval` runs as a command of its own.
 The refusal says to send the lines to the infra home:
 
