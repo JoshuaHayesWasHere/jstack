@@ -9,16 +9,16 @@ pstack's two reviewers are one reading here, so that a pull request has one revi
 ```sh
 BRIEF="$H/tasks/<slug>.md"
 [ "$(awk '/^Review:/ {print $(2); exit}' "$BRIEF")" = none ] && exit 78
-W="${TMPDIR:-/tmp}/pr-review-<slug>.$(git rev-parse HEAD 2> /dev/null).sends"
+W="$(git rev-parse --path-format=absolute --git-dir)/pr-review-<slug>.$(git rev-parse HEAD 2> /dev/null).sends"
 echo sent >> "$W"
 said=$(uv run --project "$T/.." jgauge room --light --wait 540) || [ "$?" = 75 ] || said="wait: jgauge room did not run"
 if [ "$said" != go ]; then
   printf '%s\n' "$said"
   [ "$(grep -c . "$W")" -lt 6 ] && exit 75
-  rm -f "$W"
+  uv run --project "$T/.." jbus forget "$W" > /dev/null
   exit 69
 fi
-rm -f "$W"
+uv run --project "$T/.." jbus forget "$W" > /dev/null
 the_scope() {
     cat <<'SCOPE'
 Scope of this review. It overrides anything above that reads wider.
@@ -132,56 +132,9 @@ echo "$D/prompt.md"
 D='<the directory of the prompt file>'
 kept='<the head kept at the start>'
 : "${T:?is not set: send this with the block at the top}"
-limit=540
-G=$(git rev-parse --git-dir)
-at() { [ "$(git rev-parse HEAD)" = "$kept" ] && [ ! -d "$G/rebase-merge" ] && [ ! -d "$G/rebase-apply" ]; }
-at || { echo "unproven: this checkout is not at $kept, or a rebase is going on in it, so the proof did not run"; exit 1; }
-export D
-the_proof() {
-    cat << 'THE_PROOF_ENDS_HERE'
+uv run --project "$T/.." jgauge proof --dir "$D" --kept "$kept" --thread '<thread id>' << 'THE_PROOF_ENDS_HERE'
 <the proof>
 THE_PROOF_ENDS_HERE
-}
-cmd=$(the_proof)
-key=$({ printf '%s\n' "$cmd"; cat "$D/proof.sh" 2> /dev/null; } | cksum)
-running() { [ -f "$D/proof.pid" ] && ! [ -f "$D/proof.exit" ] && kill -0 "$(cat "$D/proof.pid")" 2> /dev/null; }
-if running; then
-    echo "joined: the proof an earlier call started still runs, so it is waited on and not started again"
-elif [ -f "$D/proof.exit" ] && ! [ -f "$D/proof.told" ] && [ "$(cat "$D/proof.key" 2> /dev/null)" = "$key" ]; then
-    echo "checked: the proof ended after the last call, and this is what it said"
-else
-    rm -f "$D/proof.pid" "$D/proof.exit" "$D/proof.told" "$D/proof.out"
-    printf '%s\n' "$cmd" > "$D/proof.cmd"
-    echo "$key" > "$D/proof.key"
-    perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die' sh -c 'uv run --project "${2}" jgauge test-slot --short --thread "${3}" -- sh "${1}/proof.cmd" > "${1}/proof.out" 2>&1; echo $? > "${1}/proof.exit"' proof "$D" "$T/.." '<thread id>' < /dev/null > /dev/null 2>&1 &
-    echo $! > "$D/proof.pid"
-    echo "started: the proof runs at this head, and this call waits on it"
-fi
-waited=0
-while ! [ -f "$D/proof.exit" ] && running && [ "$waited" -lt "$limit" ]; do
-    sleep 1
-    waited=$((waited + 1))
-done
-if [ "$(cat "$D/proof.exit" 2> /dev/null)" = 76 ] && grep -q "is registered as a waiter" "$D/proof.out"; then
-    touch "$D/proof.told"
-    cat "$D/proof.out"
-    echo "waiting: no short test slot is free and nothing ran: end your turn now with the one line, and send this block again when jbus wakes this thread"
-    exit 76
-elif [ -f "$D/proof.exit" ] && [ "$(cat "$D/proof.key")" != "$key" ]; then
-    touch "$D/proof.told"
-    echo "stale: the proof exited $(cat "$D/proof.exit") but it was started for a command that has changed since: send this block again, and it runs the proof as it is now"
-    exit 75
-elif [ -f "$D/proof.exit" ]; then
-    touch "$D/proof.told"
-    echo "exit $(cat "$D/proof.exit")"
-    tail -n 5 "$D/proof.out"
-    at || echo "unproven: the head moved under the proof"
-    git status --porcelain
-elif running; then
-    echo "running: $(tail -n 1 "$D/proof.out" 2> /dev/null). Send this block again now, in this turn, and again until it prints exit: never end your turn while it runs"
-else
-    echo "lost: the proof stopped with no exit code: send this block again, and it starts the proof afresh"
-fi
 ```
 
 - The proof is one targeted run that fails loud when the fact is false: a test file or a single test of the repo that executes it, or a script you write as `$D/proof.sh` that calls the real code, run as `sh "$D/proof.sh"`. It is never the repo's whole suite and never its check command: CI's `check` ran those, and passed before this thread was launched.

@@ -293,7 +293,7 @@ These files are in `~/.local/state/home/<repo>/`, where `<repo>` is the director
 |---|---|---|---|---|
 | `off` | Absent | Nothing | While it is there, a new thread in the repo does not become a home by itself. `/nohome repo` makes it and `/nohome on` removes it. | `features/home/hooks/home-start.sh` |
 | `merge-off` | Absent | Nothing | While it is there, `jmerge` merges nothing in the repo. `/nohome merge` makes it and `/nohome merge on` removes it. | `jmerge` |
-| `home-thread` | Absent | One line, a home's thread id | Who runs `jmerge` for the repo. When the file is empty or absent, `jbus` runs it on each pass and no home runs it. With an id, that home runs it and `jbus` does not. Only you write this file. | `jbus`, the `home` skill |
+| `home-thread` | Absent | One line, a home's thread id | Whether the home runs `jmerge --sweep` at its start: with an id it does, and empty or absent nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. Only you write this file. | `jbus`, the `home` skill |
 | `fresh-check` | Absent | One line, a command such as `make check` | `jmerge` runs the command on a pull request merged over today's main, in place of waiting for a new CI run. With no file, `jmerge` runs no local check. | `jmerge` |
 
 ## Environment variables

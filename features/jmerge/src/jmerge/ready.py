@@ -1147,3 +1147,6 @@ def gate_held(why: str) -> bool:
 def first_line(output: str, code: int) -> str:
     """The gate's first line of output, or its exit code where it printed none."""
     return next((line.strip() for line in output.splitlines() if line.strip()), f"exit {code}")
+
+
+MERGING = Reason("check", "another run of jmerge is merging into its base")

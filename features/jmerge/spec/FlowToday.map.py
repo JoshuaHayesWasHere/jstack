@@ -1,15 +1,17 @@
-# Chart labels for FlowToday and FlowDesign.
+# Chart labels for FlowToday, drawn against FlowDesign.
 reader_actions = ["ApproveMainFix"]
 
 
 def _kind(v, p):
     if v["st"][p] == "merged":
         return "merged"
+    if v["st"][p] == "queued":
+        return "waiting to launch"
     ci = v["ci"][p]
     if ci == "none":
         return "waiting for a check"
     if ci == "pass":
-        return "passed, waiting to merge"
+        return "passed, " + _waits(v, p)
     if v["told"].get(p, False):
         return "red, its crew told"
     if not v["breaks"][p]:
@@ -17,6 +19,15 @@ def _kind(v, p):
     if v["ranRed"][p]:
         return "red, its own break hidden behind main's"
     return "red, its own break"
+
+
+def _waits(v, p):
+    """What a passed pull request waits on: FlowDesign has no row order and no stack."""
+    if "on" in v and v["on"][p] != "main":
+        return "stacked on the other"
+    if "link" in v and p == "b" and v["link"] == "after" and v["st"]["a"] != "merged":
+        return "merges after the other"
+    return "waiting to merge"
 
 
 def _main(v):
@@ -65,12 +76,14 @@ group_colors = {
 
 STEPS = {
     "ApproveMainFix": "you approve main's fix",
+    "Launch": "jbus launches its crew, which opens its pull request",
     "Check": "its check runs",
     "CrewFix": "its crew fixes its change",
     "Merge": "it merges",
     "OutsideBreak": "something outside breaks main",
     "Rejudge": "jmerge checks it again over today's main",
-    "Sweep": "leftover processes are stopped",
+    "Restack": "the one it is stacked on merged, and jbus moves it onto main",
+    "Sweep": "jbus stops what a finished turn left running",
 }
 
 
@@ -83,7 +96,8 @@ def cause(v, facts, invariant):
         kinds = {_kind(v, p) for p in ("a", "b")}
         if v["full"]:
             return (
-                "a crew left processes running, the machine stays full, and nothing new can start"
+                "a crew left an idle process running at its pull request, which jbus stops only "
+                "once its row ended, so the machine stays full and the next row never launches"
             )
         if "red only from main's break" in kinds:
             return (
@@ -98,14 +112,20 @@ def cause(v, facts, invariant):
         return None
     if invariant == "NoMergeTurnsMainRed":
         return (
-            "its check skipped the test that reads the whole "
-            "tree, so a change that breaks that test merges"
+            "its check missed a test that reads the changed path past what the selector sees, "
+            "so a change that breaks that test merges"
         )
     if invariant == "MachineNotLeftFull":
-        return "a crew left processes running, and nothing stops them"
+        return (
+            "a crew left an idle process running at its pull request, "
+            "and jbus stops an idle one only once its row ended"
+        )
     if invariant == "MainFixWaitsOnlyOnYou":
-        return "the machine is full, so even an approved fix for main cannot start"
+        return (
+            "an idle process a crew left fills the machine, "
+            "so even an approved fix for main cannot start"
+        )
     return None
 
 
-legend = {"works": "Works today", "wrong": "Wrong today", "fixed": "Fixed by the three fixes"}
+legend = {"works": "Works today", "wrong": "Breaks a rule today", "fixed": "Only in the design"}

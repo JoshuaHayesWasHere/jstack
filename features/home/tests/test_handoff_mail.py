@@ -136,7 +136,7 @@ def test_the_blocks_run_in_zsh_in_a_repo_with_no_scope_and_no_party(mail):
         return ran.stdout
 
     me = {"<threadId>": THREAD}
-    assert zsh('rm -f "$M/home-id"', **me).startswith("the home: ")
+    assert zsh('jbus forget "$M/home-id"', **me).startswith("the home: ")
     assert not mail.file.exists()
     assert zsh("Do not act on the message", **me).startswith("handed off: ")
 

@@ -218,30 +218,24 @@ def test_a_green_pull_request_whose_brief_asks_for_no_review_is_told_once_for_a_
 REVIEWED = f"\n## Review\nVerdict: findings\nHead: {'b' * 40}\nFindings:\n- warning: a thing\n"
 
 
-def test_a_fixed_green_pull_request_is_told_once_while_a_home_merges(launched):
-    result(launched, f"Reviewer: mcp:reviewer\nFixed: {HEAD}\n" + REVIEWED)
+@pytest.mark.parametrize("mode", ["fixed", "after"])
+def test_no_green_line_is_owed_after_a_fix_or_for_review_after_whatever_the_switch_holds(
+    launched, mode
+):
+    """jbus is the only merger, so no home waits to hear that a pull request is green: a fixed
+    pull request, or one whose brief says `Review: after`, owes no line on green, also with an id
+    in `home-thread`."""
+    brief = launched.home / "tasks" / "alpha.md"
+    if mode == "after":
+        brief.write_text(brief.read_text().replace("Review: review\n", "Review: after\n"))
+        result(launched, "Reviewer: mcp:reviewer\n")
+        launched.set("jmerge.txt", "")
+    else:
+        result(launched, f"Reviewer: mcp:reviewer\nFixed: {HEAD}\n" + REVIEWED)
     (launched.home / "home-thread").write_text("mcp:home\n")
     launched.set("open.json", [pull(launched)])
     passes(launched, 0, 3)
-    assert keys(launched) == ["green|alpha|cccccccccccc"]
-
-
-@pytest.mark.parametrize("home", [True, False])
-def test_a_green_after_pull_request_is_told_once_while_a_home_merges_with_its_reviewer_out(
-    launched, home
-):
-    """A `Review: after` pull request merges on green, and its review never holds it. The crew
-    tells the merging home that the pull request is green, while the crew's reviewer may still be
-    at work."""
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text().replace("Review: review\n", "Review: after\n"))
-    result(launched, "Reviewer: mcp:reviewer\n")
-    if home:
-        (launched.home / "home-thread").write_text("mcp:home\n")
-    launched.set("jmerge.txt", "")
-    launched.set("open.json", [pull(launched)])
-    passes(launched, 0, 3)
-    assert keys(launched) == (["green|alpha|cccccccccccc"] if home else [])
+    assert keys(launched) == []
 
 
 def test_a_pending_pull_request_that_owes_a_line_on_green_is_told_nothing_yet(launched):
@@ -269,21 +263,6 @@ def test_a_reviewed_pull_request_red_and_in_conflict_gets_the_rebase_message(lau
     launched.set("open.json", [pull(launched, [failed()], mergeable="CONFLICTING")])
     passes(launched, 0, 3, 6)
     assert keys(launched) == ["failed|alpha|cccccccccccc", "rebase|alpha|cccccccccccc"]
-
-
-def test_a_fixed_pull_request_whose_scoped_reviewer_is_out_is_told_green_once_it_wrote(
-    launched,
-):
-    fixed = f"Reviewer: mcp:reviewer\nFixed: {HEAD}\n" + REVIEWED
-    result(launched, fixed + "Scoped reviewer: mcp:scoped, of " + HEAD + "\n")
-    (launched.home / "home-thread").write_text("mcp:home\n")
-    launched.set("open.json", [pull(launched)])
-    passes(launched, 0, 3)
-    assert sends(launched) == []
-    brief = launched.home / "tasks" / "alpha.md"
-    brief.write_text(brief.read_text() + f"\n## Review\nVerdict: clean\nHead: {HEAD}\n")
-    passes(launched, 6, 9)
-    assert keys(launched) == ["green|alpha|cccccccccccc"]
 
 
 def test_a_gated_line_of_an_old_head_does_not_hold_back_green_at_a_new_one(launched):

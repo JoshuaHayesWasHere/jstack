@@ -18,6 +18,7 @@ import test_home_merge as merge
 import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded
 from jbriefs import findings
+from jmerge import gate as merge_gate
 from jmerge import ready
 from test_home_thread import NAMED, as_read
 from test_jbus_kitchen import NOW, Kitchen
@@ -153,21 +154,27 @@ def reviewer(tmp_path):
     work = tmp_path / "worktrees" / "a-task"
     subprocess.run(["git", "init", "-q", work], check=True)
 
-    def start(heading="### The review", about="", findings=(), fill=None, **more):
+    def start(heading="### The review", about="", findings=(), fill=None, then=None, **more):
+        """Run one block. The test calls `then` once the block has printed its first line, while
+        the block still runs."""
         script = block(heading, about).replace("<slug>", "a-task").replace("<url>", URL)
         script = script.replace("<the findings, one to a line>", "\n".join(findings))
         for words, value in (fill or {}).items():
             assert words in script
             script = script.replace(words, value)
-        ran = subprocess.run(
+        ran = subprocess.Popen(
             ["sh", "-c", script],
             env={**env, **more},
             cwd=work,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             text=True,
-            timeout=20,
         )
-        return ran.stdout.splitlines(), ran.returncode
+        first = ran.stdout.readline() if then else ""
+        if then:
+            then()
+        rest, _ = ran.communicate(timeout=20)
+        return (first + rest).splitlines(), ran.returncode
 
     def output(heading, about="", findings=(), **more):
         printed, code = start(heading, about, findings, **more)
@@ -910,7 +917,7 @@ def proof(reviewer):
     beside = reviewer.prompt().parent
     kept = crew.git(reviewer.work, "rev-parse", "HEAD")
 
-    def ends(script, limit=None, **env):
+    def ends(script, limit=None, then=None, **env):
         (beside / "proof.sh").write_text(script)
         fill = {
             "<the directory of the prompt file>": str(beside),
@@ -919,8 +926,8 @@ def proof(reviewer):
             "<thread id>": "mcp:thread-1",
         }
         if limit is not None:
-            fill["limit=540"] = f"limit={limit}"
-        return reviewer("### The review", "test-slot", fill=fill, **env)
+            fill["jgauge proof"] = f"jgauge proof --wait {limit}"
+        return reviewer("### The review", "jgauge proof", fill=fill, then=then, **env)
 
     def run(script, **env):
         printed, code = ends(script, **env)
@@ -1005,38 +1012,11 @@ def test_a_proof_is_waited_on_in_the_turn_and_never_started_twice(proof, tmp_pat
     assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
     assert time.monotonic() - began >= 1
 
-    go.touch()
     began = time.monotonic()
-    said, code = proof.ends(script, limit=30)
+    said, code = proof.ends(script, limit=30, then=go.touch)
     assert (said[0].split(":")[0], said[1:3], code) == ("joined", ["exit 0", "the fact holds"], 0)
     assert time.monotonic() - began < 30
     assert runs.read_text() == "ran\n"
-
-
-def test_a_proof_slow_to_start_is_neither_lost_nor_started_twice(proof, tmp_path):
-    """The block records the proof's pid itself. So when the system starts a proof late, the
-    block counts that proof as running from the first call, and no second call may start
-    another."""
-    delayed = proof.stub / "perl"
-    delayed.write_text(f'#!/bin/sh\nsleep 11\nexec {shutil.which("perl")} "$@"\n')
-    delayed.chmod(0o755)
-    runs = tmp_path / "runs"
-    script = f"echo ran >> {runs}\necho the fact holds\n"
-    began = time.monotonic()
-    said, code = proof.ends(script, limit=0)
-    assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("started", "running", 0)
-    assert time.monotonic() - began < 8
-    said, code = proof.ends(script, limit=0)
-    assert (said[0].split(":")[0], said[-1].split(":")[0]) == ("joined", "running")
-    assert not runs.exists()
-
-
-def test_a_proof_starts_and_ends_on_the_tools_of_macos(proof, tmp_path):
-    """macOS has no `setsid` and refuses GNU's flags. With only such tools on PATH, the block
-    still starts the proof on its own and gives its exit code."""
-    tools = bsd_tools(tmp_path / "bsd")
-    said, code = proof.ends("echo the fact holds\n", PATH=f"{proof.stub}:{BIN}:{tools}")
-    assert (said[0].split(":")[0], said[1:3], code) == ("started", ["exit 0", "the fact holds"], 0)
 
 
 def test_a_proof_that_ended_between_calls_is_told_once_and_then_runs_afresh(proof, tmp_path):
@@ -1068,8 +1048,7 @@ def test_a_proof_rewritten_while_it_runs_is_no_proof_of_the_new_one(proof, tmp_p
         time.sleep(0.1)
     said, code = proof.ends("echo the new fact\n", limit=1)
     assert said[0].split(":")[0] == "joined" and said[-1].split(":")[0] == "running"
-    go.touch()
-    said, code = proof.ends("echo the new fact\n", limit=30)
+    said, code = proof.ends("echo the new fact\n", limit=30, then=go.touch)
     assert (said[0].split(":")[0], said[-1].split(":")[0], code) == ("joined", "stale", 75)
     assert "exit 0" not in said
     said, code = proof.ends("echo the new fact\n")
@@ -1419,7 +1398,9 @@ def gated(reviewer, gate=None, fill=None, **more):
         json.dumps({"baseRefName": "main", "headRefOid": head})
     )
     if gate is not None:
-        (reviewer.state / "merge-gate").write_text(f"\n  {gate}  \n")
+        state = reviewer.state / "home" / ".local" / "state" / "home" / work.name
+        state.mkdir(parents=True, exist_ok=True)
+        (state / "merge-gate").write_text(f"\n  {gate}  \n")
     fill = {"<the head kept at the start>": head, **(fill or {})}
     printed, code = reviewer("### The merge gate", fill=fill, **more)
     return printed, code, fork, head
@@ -1457,9 +1438,20 @@ def test_a_merge_gate_that_cannot_start_is_a_finding_too(reviewer, tmp_path):
     assert printed.endswith("(principle: none) (bucket: Act on)")
 
 
-def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(reviewer):
-    printed, code, _, head = gated(reviewer, "sleep 30; :", fill={"limit=540": "limit=1"})
-    assert code == 0
+def test_a_merge_gate_that_runs_over_the_limit_is_stopped_and_says_so(
+    reviewer, monkeypatch, capsys
+):
+    """The block's limit is 9 minutes, so the test runs the step's command with a limit of 1 s."""
+    _, _, _, head = gated(reviewer, "true")
+    state = reviewer.state / "home" / ".local" / "state" / "home" / reviewer.work.name
+    (state / "merge-gate").write_text("sleep 30; :\n")
+    monkeypatch.chdir(reviewer.work)
+    monkeypatch.setenv("PATH", f"{reviewer.stub}:{os.environ['PATH']}")
+    monkeypatch.setenv("STUB", str(reviewer.stub))
+    began = time.monotonic()
+    code = merge_gate.review(state, head, URL, limit=1)
+    printed = capsys.readouterr().out.splitlines()
+    assert code == 0 and time.monotonic() - began < 20
     assert printed == [
         f"error - the merge gate fails at {head[:12]}: it ran over 1 s and was stopped "
         "(principle: none) (bucket: Act on)"

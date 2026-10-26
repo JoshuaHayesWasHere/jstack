@@ -166,23 +166,6 @@ def test_a_gate_sent_once_for_a_row_with_a_pull_request_is_not_listed_and_then_g
     assert listed(kitchen) == [] and kitchen.events("waiting") == []
 
 
-def test_where_the_home_merges_a_hold_is_what_jmerge_says_in_the_pass(kitchen):
-    """The pass asks `jmerge --check`, and the home's logged lines are not read."""
-    four(kitchen)
-    kitchen.set("jmerge.txt", f"{HELD}\n")
-    (kitchen.home / "home-thread").write_text("mcp:the-home\n")
-    last = {"9": "wait 9 https://example.test/pull/9: check has not passed"}
-    last["3"] = "hold 3 https://example.test/pull/3: needs user, long merged"
-    (kitchen.home / "merge.log.last").write_text(json.dumps(last))
-    kitchen.poll()
-    assert kitchen.log("jmerge") == ["--check"]
-    assert [one["line"] for one in listed(kitchen) if one["kind"] == "hold"] == [HELD]
-    kitchen.set("jmerge.txt", "wait 9 https://example.test/pull/9: check has not passed\n")
-    (kitchen.home / "merge.log.last").write_text(json.dumps({"9": HELD}))
-    kitchen.poll(later(3))
-    assert "hold" not in [one["kind"] for one in listed(kitchen)]
-
-
 def test_a_row_at_gate_leaves_the_list_once_it_is_launched(kitchen):
     four(kitchen)
     kitchen.poll()
