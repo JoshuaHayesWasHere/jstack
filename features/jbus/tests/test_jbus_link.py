@@ -25,15 +25,15 @@ def test_it_prints_the_projects_page_on_this_machine(here):
 
 def test_it_prints_the_page_behind_the_proxy_the_user_opens(here, monkeypatch):
     monkeypatch.setenv("JBUS_VIEW_ORIGINS", " , https://example.test/,https://example.com")
-    monkeypatch.setenv("JBUS_VIEW_NAMES", "box.tail")
+    monkeypatch.setenv("JBUS_VIEW_NAMES", "example.invalid")
     assert here.main("link") == (0, "https://example.test/#/demo\n")
 
 
 @pytest.mark.parametrize(
     ("names", "host", "address"),
     [
-        ("box.tail, other", "192.0.2.9", "http://box.tail:4388/#/demo\n"),
-        ("", "192.0.2.9", "http://192.0.2.9:4388/#/demo\n"),
+        ("example.invalid, other", "localhost", "http://example.invalid:4388/#/demo\n"),
+        ("", "localhost", "http://localhost:4388/#/demo\n"),
     ],
 )
 def test_it_prints_the_name_or_address_the_view_listens_on(here, monkeypatch, names, host, address):
