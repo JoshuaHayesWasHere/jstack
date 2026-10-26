@@ -130,6 +130,7 @@ def test_a_word_said_in_a_scoped_homes_thread_stays_in_that_scope(kitchen):
 def test_the_same_word_recorded_by_the_root_is_the_roots(kitchen):
     code, out = says(kitchen, "show", "me", "the", "board", more=("--from", ROOT))
     assert (code, out.startswith("kept: demo, not posted, it was recorded by ")) == (0, True)
+    assert "went to the root home" not in out
     (kept,) = word.load(kitchen.state)
     assert (kept.home, kept.thread) == ("", ROOT)
 
