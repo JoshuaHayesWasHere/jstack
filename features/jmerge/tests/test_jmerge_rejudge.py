@@ -72,10 +72,10 @@ class Replay:
         self.told = []
         self.said = []
 
-    def crew(self, slug, number, files):
+    def crew(self, slug, number, files, check=RED):
         """A crew's pull request, reviewed clean at its head, whose check ran while main was red
-        and failed."""
-        head = self.kitchen.crew(slug, number, files, checks=(RED,))
+        and failed, or ran as `check` says."""
+        head = self.kitchen.crew(slug, number, files, checks=(check,))
         (self.kitchen.home.stub / f"branch-{number}").write_text(slug)
         return head
 
@@ -92,13 +92,13 @@ class Replay:
         (self.state / mainjson.NAME).write_text(json.dumps(record))
         return tip
 
-    def github(self):
+    def github(self, check=GREEN):
         """GitHub after an update of a branch: the new head, whose check ran over today's main
-        and passed."""
+        and ended as `check` says."""
         for slug, pull in self.kitchen.pulls.items():
             head = git(self.kitchen.origin, "rev-parse", f"refs/heads/{slug}")
-            if head != pull["headRefOid"]:
-                pull |= {"headRefOid": head, "statusCheckRollup": merge.rollup([GREEN])}
+            if head != pull["headRefOid"] or pull["statusCheckRollup"] != merge.rollup([check]):
+                pull |= {"headRefOid": head, "statusCheckRollup": merge.rollup([check])}
         listed = [
             pull
             for slug, pull in self.kitchen.pulls.items()
@@ -268,3 +268,50 @@ def test_each_line_of_a_judgement_again_is_on_the_check_step_and_tells_no_crew()
         filled = reason.format(base="main", tip="0123456789ab", why="it said no")
         assert jbus_merge.step(f"wait: {filled}") == "check"
         assert rebase.asks(f"wait 333 {url(333)}: {filled}") is None
+
+
+PASSED_BEFORE = {**merge.PASSED, "startedAt": STARTED}
+PENDING = {**merge.RUNNING, "startedAt": "2099-01-01T00:00:00Z"}
+FAILED_AFTER = {**merge.FAILED, "startedAt": "2099-01-01T00:00:00Z"}
+MOVED = "GitHub was asked to merge main at {tip} into it: main moved after its check started"
+
+
+@pytest.fixture
+def moved(tmp_path):
+    """A repo with a `fresh-check` file whose command takes a stand-in test slot, and a pull
+    request that passed its check before main changed its own file under it."""
+    replay = Replay(tmp_path, fresh=False)
+    slot = replay.kitchen.home.stub / "slot-taken"
+    (replay.kitchen.home.state / "fresh-check").write_text(f"touch {slot}\n")
+    head = replay.crew("one", 333, {"a.txt": "ours\n" + LINES}, check=PASSED_BEFORE)
+    tip = replay.main_at({"a.txt": LINES + "theirs\n"}, FIXED, "green")
+    replay.slot = slot
+    return replay, head, tip
+
+
+def test_main_moving_under_a_green_pull_request_asks_github_and_runs_no_local_suite(moved):
+    """The base moved after the check passed: `jmerge` asks GitHub to merge it into the branch,
+    holds while GitHub's check runs at the updated head, and merges once it passed there. No
+    local suite runs, and `fresh.json` gets no run."""
+    replay, head, tip = moved
+    assert replay.run() == [f"wait 333 {url(333)}: {MOVED.format(tip=tip[:12])}"]
+    assert replay.updated() == ["333"]
+    replay.github(PENDING)
+    assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+    replay.github(GREEN)
+    (line,) = replay.run()
+    assert line.startswith("merged 333 "), line
+    assert replay.updated() == ["333"]
+    assert replay.kitchen.at_main("a.txt") == "ours\n" + LINES + "theirs"
+    assert not replay.slot.exists()
+    assert not (replay.kitchen.home.state / "fresh.json").exists()
+
+
+def test_a_failed_check_at_the_updated_head_holds_it(moved):
+    replay, head, tip = moved
+    replay.run()
+    replay.github(FAILED_AFTER)
+    for _ in range(2):
+        assert replay.run() == [f"wait 333 {url(333)}: check has not passed"]
+    assert replay.updated() == ["333"]
+    assert not replay.slot.exists()
