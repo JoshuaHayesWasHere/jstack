@@ -41,8 +41,9 @@ holds on one reason, with no thread at work on the cause, wake the home that own
 hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
 have been held. A thread is at work on the cause when it is a held row's crew or reviewer, when
 the reason names its slug, or when it is a fix row of a red main (`mainjson.fix_of`) and the reason
-is that red. A wait on the merge runner (`RUNNER`), a hold that is the user's (step `hold`, already
-on what waits on the user) and a wait with its own clock above are no such hold. `held.json`
+is that red. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`), whose own wait
+is what holds it, a hold that is the user's (step `hold`, already on what waits on the user) and a
+wait with its own clock above are no such hold. `held.json`
 keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
 on it, or in which no row waits on it, drops it, and the next one starts afresh. From the wake
 on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
@@ -107,6 +108,14 @@ RUNNER = (
 )
 """The waits the merge runner is at work on: `jmerge`, its gate, GitHub's merge of the base, and
 CI."""
+AHEAD = (
+    ready.MERGES_AFTER,
+    ready.STACKED_ON,
+    ready.CARRIES_AFTER,
+    ready.MIGRATION_REBASING,
+)
+"""The waits on a row ahead. What holds that row is its own wait, which the merge runner, a thread,
+`held` or a clock above is on, so the rows behind it are no hold of their own."""
 HELD_HOME = (
     "jbus: {rows} of this home's have been held {minutes} minutes by one reason, {reason}, and "
     "no thread is at work on it. Nobody picks it up by itself: pick it up as the home skill's "
@@ -327,7 +336,7 @@ def held(
     groups: dict[str, dict[str, Any]] = {}
     for slug, pull in sorted(world.open.items(), key=lambda one: one[1]["number"]):
         word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
-        if word != "wait" or not reason or class_of(reason) or _of(reason, RUNNER):
+        if word != "wait" or not reason or class_of(reason) or _of(reason, RUNNER + AHEAD):
             continue
         scope = home_of(run.home, _brief(run, slug))
         name = "" if scope == run.home else scope.name
