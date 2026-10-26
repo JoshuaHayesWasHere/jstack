@@ -53,9 +53,9 @@ CITED = {
     "features/jmerge/src/jmerge/ready.py:295-298": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
     "features/jmerge/src/jmerge/rejudge.py:64": 'was.get("tip")',
-    "features/jmerge/src/jmerge/cli.py:833": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:871": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:944": "self.red(one, default",
+    "features/jmerge/src/jmerge/cli.py:836": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:874": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:947": "self.red(one, default",
     "features/jmerge/src/jmerge/rejudge.py:69": "self.ask(one)",
 }
 
