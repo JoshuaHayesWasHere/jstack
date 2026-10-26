@@ -51,7 +51,8 @@ _EVERY_CORE = re.compile(
     r"stress-ng\b[^\n`]*?--cpu[ =]+0\b"
     r"|--cpu[ =]+[\"']?(?:\$\(nproc\)|`nproc`)"
     r"|\ball(?: the)? (?:cpu )?cores\b"
-    r"|\bevery (?:cpu )?core(?=\s*(?:[^\w\s-]|$)| (?:busy|loaded|saturated|pinned|maxed|at|of)\b)",
+    r"|\bevery (?:cpu )?core(?=\s*(?:[^\w\s-]|$)"
+    r"| (?:busy|loaded|saturated|pinned|maxed|at|of|with|for|to|under|and)\b)",
     re.I,
 )
 _UNASKED = re.compile(
