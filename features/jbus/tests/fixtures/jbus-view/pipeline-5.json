@@ -1,0 +1,207 @@
+{
+ "at": "2026-10-26T12:06:00Z",
+ "stages": [
+  {
+   "key": "scout",
+   "name": "Scout",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "queued",
+   "name": "Queued",
+   "count": 2,
+   "still": 2,
+   "oldest": {
+    "slug": "tea-cup",
+    "project": "demo",
+    "since": "2026-10-26T11:48:00Z"
+   }
+  },
+  {
+   "key": "crew",
+   "name": "Crew",
+   "count": 1,
+   "still": 0,
+   "oldest": {
+    "slug": "tea-pot",
+    "project": "demo",
+    "since": "2026-10-26T11:46:00Z"
+   }
+  },
+  {
+   "key": "you",
+   "name": "Needs you",
+   "count": 1,
+   "still": 1,
+   "oldest": {
+    "slug": "oat-milk",
+    "project": "demo",
+    "since": "2026-10-26T08:56:00Z"
+   }
+  },
+  {
+   "key": "review",
+   "name": "Review",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "fix",
+   "name": "Fix",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "review2",
+   "name": "Review 2",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "check",
+   "name": "Check",
+   "count": 1,
+   "still": 1,
+   "oldest": {
+    "slug": "oat-bowl",
+    "project": "demo",
+    "since": "2026-10-26T10:06:00Z"
+   }
+  },
+  {
+   "key": "merge",
+   "name": "Merge",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "train",
+   "name": "Train",
+   "count": 0,
+   "still": 0,
+   "oldest": null
+  },
+  {
+   "key": "merged",
+   "name": "Merged",
+   "count": 3,
+   "still": 0,
+   "oldest": null
+  }
+ ],
+ "rows": [
+  {
+   "slug": "tea-pot",
+   "project": "demo",
+   "home": "root",
+   "stage": "crew",
+   "since": "2026-10-26T11:46:00Z",
+   "cause": "thread working",
+   "cause_since": "2026-10-26T11:47:00Z",
+   "moving": true,
+   "waits_on": [],
+   "waited_by": [
+    "tea-cup"
+   ],
+   "head": "tea-pot",
+   "depth": 1
+  },
+  {
+   "slug": "tea-cup",
+   "project": "demo",
+   "home": "ui",
+   "stage": "queued",
+   "since": "2026-10-26T11:48:00Z",
+   "cause": "behind tea-pot (Crew, working)",
+   "cause_since": "2026-10-26T11:49:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "tea-pot",
+     "project": "demo",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [
+    "tea-saucer"
+   ],
+   "head": "tea-pot",
+   "depth": 2
+  },
+  {
+   "slug": "tea-saucer",
+   "project": "demo",
+   "home": "ui",
+   "stage": "queued",
+   "since": "2026-10-26T11:50:00Z",
+   "cause": "behind tea-cup (Queued)",
+   "cause_since": "2026-10-26T11:51:00Z",
+   "moving": false,
+   "waits_on": [
+    {
+     "slug": "tea-cup",
+     "project": "demo",
+     "kind": "depends"
+    }
+   ],
+   "waited_by": [],
+   "head": "tea-pot",
+   "depth": 3
+  },
+  {
+   "slug": "oat-bowl",
+   "project": "demo",
+   "home": "root",
+   "stage": "check",
+   "since": "2026-10-26T10:06:00Z",
+   "cause": "check failed 30m ago",
+   "cause_since": "2026-10-26T10:07:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-bowl",
+   "depth": 1
+  },
+  {
+   "slug": "oat-milk",
+   "project": "demo",
+   "home": "ui",
+   "stage": "you",
+   "since": "2026-10-26T08:56:00Z",
+   "cause": "a gate waits on you",
+   "cause_since": "2026-10-26T08:57:00Z",
+   "moving": false,
+   "waits_on": [],
+   "waited_by": [],
+   "head": "oat-milk",
+   "depth": 1
+  }
+ ],
+ "unplaced": [],
+ "stuck": {
+  "stage": "queued",
+  "still": 2,
+  "count": 2
+ },
+ "longest_wait": {
+  "slug": "oat-milk",
+  "project": "demo",
+  "stage": "you",
+  "since": "2026-10-26T08:56:00Z",
+  "cause": "a gate waits on you"
+ },
+ "longest": {
+  "depth": 3,
+  "head": "tea-pot",
+  "head_project": "demo",
+  "head_stage": "crew",
+  "head_cause": "thread working",
+  "chains": 1
+ }
+}

@@ -11,7 +11,12 @@ Once a launch has its thread, `write_thread` puts `Thread: <id>` in the head of
 pass stopped before it wrote the line, the next pass writes it (`write_missing`).
 
 `max_running` is one cap for the whole machine. `dispatch` gets the slots that all the
-projects together leave free, and hands them out in turns, one launch a turn (`Turns`).
+projects together leave free, and hands them out in turns, one launch a turn (`Turns`). Two
+more caps hold inside each project (`Caps`): `max_per_project` crews out in the project, and
+`max_per_home` crews out for each of its homes, the root and each scope. A crew counts toward
+the home its queued brief names (`jbriefs.home.home_of`). A row whose home is full waits, and
+the rows of the project's other homes still take its turns. A scout or a reviewer is no crew
+and counts toward no cap.
 
 Before a launch, jbus runs `jgauge room` to check that the machine and the plan have room,
 the same check a home makes. A row with no room waits, and so does every row after it in the
@@ -39,6 +44,7 @@ from __future__ import annotations
 
 import itertools
 import os
+from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +53,7 @@ from typing import Any
 import jroles
 import jroles.mirror
 from jbriefs import parse
+from jbriefs.home import home_of
 from jbus import queue, read_json, verbs, write_json
 from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error, T3Refused
@@ -387,6 +394,47 @@ SLOT = "no slot"
 
 
 @dataclass
+class Caps:
+    """`Caps` holds one project's crews out in a pass, counted by home, and the two caps on them.
+
+    A home is the directory `jbriefs.home.home_of` gives: `root` for the root home, or one of
+    its scopes. A launch in the pass adds its crew (`add`).
+    """
+
+    project: str
+    root: Path
+    per_home: int
+    per_project: int
+    out: Counter[Path] = field(default_factory=Counter)
+
+    def add(self, home: Path) -> None:
+        self.out[home] += 1
+
+    def name(self, home: Path) -> str:
+        return "the root home" if home == self.root else f"the {home.name} home"
+
+    def full(self, home: Path | None = None) -> str:
+        """Say which cap holds a row of `home` back, or nothing when both leave it room: its
+        home's first, which still holds when the project has a crew less. With no `home`, say
+        only whether the project is full."""
+        if home is not None and self.out[home] >= self.per_home:
+            return f"max_per_home is {self.per_home} in {self.name(home)}"
+        if self.out.total() >= self.per_project:
+            return f"max_per_project is {self.per_project} in {self.project}"
+        return ""
+
+
+def caps(run: Pass, slugs: tuple[str, ...]) -> Caps:
+    """Count the crews out, `slugs`, by the home each one's queued brief names. The queued brief
+    is the one the row was approved with: the copy a launch writes in `tasks/` has no `Home:`
+    line. A crew whose queued brief is gone counts toward the root home."""
+    made = Caps(run.project.name, run.home, run.config.max_per_home, run.config.max_per_project)
+    for slug in slugs:
+        made.add(home_of(run.home, queue.brief(run.state, slug) or ""))
+    return made
+
+
+@dataclass
 class Turns:
     """A `Turns` holds one project's rows in a pass, lowest priority first, and its turns at the
     free slots.
@@ -399,6 +447,8 @@ class Turns:
     client: Client
     world: World
     left: list[queue.Row]
+    caps: Caps
+    capped: list[queue.Row] = field(default_factory=list)
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
 
@@ -468,12 +518,20 @@ class Turns:
         ended.
 
         `LAUNCHED` means the turn used a slot, also for a launch whose reply was lost.
-        `NOTHING` means no row is left to launch, and `NO_ROOM` means a row waits for room on
-        the machine.
+        `NOTHING` means no row is left to launch, or the project has `max_per_project` crews
+        out, and `NO_ROOM` means a row waits for room on the machine. A row whose home has
+        `max_per_home` crews out is set aside in `capped` for the pass, before it asks git or
+        `jgauge room` anything, and the turn goes on to the next row.
         """
         run, client = self.run, self.client
+        if self.caps.full():
+            return NOTHING
         for row, brief, on in self._ready(full=False):
             slug = row["slug"]
+            home = home_of(run.home, brief)
+            if self.caps.full(home):
+                self.capped.append(row)
+                continue
             refs = run.run(
                 "git",
                 "for-each-ref",
@@ -573,7 +631,9 @@ class Turns:
             except T3Error as error:
                 run.say(f"launch {slug}: no reply ({error}): it is looked up on the next pass")
                 run.gated.add(slug)
+                self.caps.add(home)
                 return LAUNCHED
+            self.caps.add(home)
             if not reply.get("threadId"):
                 run.say(
                     f"launch {slug}: the reply named no thread: it is looked up on the next pass"
@@ -600,25 +660,35 @@ class Turns:
         """Once the pass makes no more launches, read each remaining row to find why it waits.
 
         For the rows ahead of the first row that waits for a slot, the pass still sends the
-        gates those rows are owed, whether or not a slot is free. `cap` means the slots ran out.
-        Then the pass names each row that waits, with the time it began to wait for a slot:
-        its `since`, or now for a new wait.
+        gates those rows are owed, whether or not a slot is free. `cap` means the machine's
+        slots ran out. Then the pass names each row that waits, with the first cap that holds
+        it, the project's, its home's or the machine's, and the time it began to wait for a
+        slot: its `since`, or now for a new wait. A row that waits only for room is not named.
         """
-        waits = [row for row, _, _ in itertools.islice(self._ready(full=False), 1)]
+        waits = list(self.capped)
+        waits += [row for row, _, _ in itertools.islice(self._ready(full=False), 1)]
         waits += [row for row, _, _ in self._ready(full=True)]
+        waits.sort(key=queue.order)
         limit = self.run.config.max_running
         for row in waits:
             self.run.reasons[row["slug"]] = Slot()
-            if cap:
+            brief = queue.brief(self.run.state, row["slug"]) or ""
+            why = self.caps.full(home_of(self.run.home, brief))
+            if not why and cap:
+                why = f"max_running is {limit} across all projects"
+            if why:
                 held = row.get("why") == SLOT and row.get("since")
                 since = held or self.run.user.stamp(self.run.now)
-                who = f"{row['slug']} waits, since {since}"
-                self.run.say(f"max_running is {limit} across all projects: {who}")
+                self.run.say(f"{why}: {row['slug']} waits, since {since}")
 
 
-def turns(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> Turns:
+def turns(
+    run: Pass, client: Client, world: World, rows: list[queue.Row], out: tuple[str, ...]
+) -> Turns:
+    """Return the project's turns, with its rows and `out`, the slugs of its crews out
+    (`watch.Look.out`)."""
     settle_lost(run, client)
-    return Turns(run, client, world, sorted(rows, key=queue.order))
+    return Turns(run, client, world, sorted(rows, key=queue.order), caps(run, out))
 
 
 def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
@@ -628,7 +698,8 @@ def dispatch(projects: list[Turns], slots: int | None) -> list[str]:
     `slots` is how many launches the pass may make: `max_running` minus the crews at work in
     every project. With no `slots`, the pass does not know how many crews are at work, and
     launches nothing.
-    A project whose turn launches nothing has no more turns in the pass. No room ends the
+    A project whose turn launches nothing, its rows all launched, waiting or capped, has no
+    more turns in the pass. No room ends the
     turns of every project, because they all share one machine. Return the name of the
     project of each launch, in order.
     """

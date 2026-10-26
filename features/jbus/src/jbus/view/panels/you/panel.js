@@ -2,25 +2,10 @@ var NEEDS_FOR = 10, FIRST = 3;
 var ACCEPTING = {}, SAID = [], FORM = {}, TYPED = {}, UNFOLDED = "";
 var LOST_APPROVAL = "The view server did not answer, so it is not known whether the approval was written. Read the list again before you approve.";
 var LOST_LINE = "The view server did not answer, so it is not known whether your line was kept. Read the list again before you send it again.";
-var ACT_VERB = { answer: "Answer", approve: "Approve", steer: "Steer" };
 var ACT_SAYS = { answer: "Sending your answer", approve: "Approving it", steer: "Sending your line" };
-document.head.insertAdjacentHTML("beforeend", '<style>' +
-  '.nq .nf { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: 1 1 100%; min-width: 0; }' +
-  '.nq .nf input { flex: 1 1 220px; min-width: 0; min-height: 40px; font: inherit; font-size: 15px; padding: 4px 10px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }' +
-  '.nq .nd { font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }' +
-  '.nq .nd b { color: var(--ink); font-weight: 600; }' +
-  '#nfall { margin: 2px 0 4px; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }' +
-  '#nfall b { color: var(--ink); font-weight: 600; }' +
-  '.needs.bar #nfall { flex: 1 1 100%; order: 3; margin: 0 0 2px; }' +
-  '#nq > .nr[hidden] { display: none; }' +
-  '#nfold { margin: 4px 0 0; }' +
-  '#nsaid .stl { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }' +
-  '@media (max-width: 600px) { #nq .na { flex: 1 1 100%; } #nq .na .btn { flex: 1 1 auto; min-height: 44px; } .nq .nf input { min-height: 44px; flex-basis: 100%; } }' +
-  '</style>');
 function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
 function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
-function inlineAccept(w) { return (w.answerable && w.verb === "Accept default") || (!!w.item && !!PROJECT); }
 function acts(w) { return w.act === "answer" ? w.answerable : w.act === "approve" ? (!!w.item || !!w.sha) : w.act === "steer"; }
 function typed(w) { return !!(w.act === "steer" || (w.act === "answer" && FORM[needId(w)])); }
 function saysSlug(line, slug) { return (" " + line + " ").split(/[^\w.-]+/).indexOf(slug) >= 0; }
@@ -37,6 +22,7 @@ function needMeta(w) {
   if (w.sha) bits.push("brief <code>" + esc(w.sha) + "</code>");
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
+  if (w.steered) bits.push("you steered it at " + esc(hm(ms(w.steered))));
   if (w.risk !== "reversible") bits.push(esc(w.risk));
   if (w.unblocks.length) bits.push("unblocks " + esc(w.unblocks.slice(0, 2).join(", ")) + (w.unblocks.length > 2 ? " and " + (w.unblocks.length - 2) + " more" : ""));
   return bits.join(" &middot; ");

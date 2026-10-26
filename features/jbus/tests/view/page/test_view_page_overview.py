@@ -155,7 +155,7 @@ def test_folding_the_inbox_keeps_an_accept_that_is_counting_on_screen_with_its_u
 def test_the_overview_of_a_day_of_todays_size_is_no_more_than_250_words(scene, tmp_path):
     lineup(scene, TODAY)
     stacked(scene)
-    seen = look(scene, tmp_path, route="#/")
+    seen = look(scene, tmp_path, route="#/homes")
     clean(seen)
     assert [row["project"] for row in seen["stack"]["rows"]] == ["larder", "demo", "pantry"]
     assert seen["words"] <= EVERY, seen["words"]
@@ -170,7 +170,7 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     the triage tab. The page asks `/stack.json` and nothing else, once a poll. After a poll
     that changed nothing, the page draws nothing again."""
     stacked(scene)
-    seen = look(scene, tmp_path, route="#/", at=33000, budget=40000)
+    seen = look(scene, tmp_path, route="#/homes", at=33000, budget=40000)
     assert clean(seen) == set()
     stack = seen["stack"]
     assert (stack["shown"], stack["title"], stack["none"]) == (True, "All projects", "")
@@ -199,14 +199,14 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
 def test_the_header_says_the_name_where_you_are_and_the_time_of_the_last_read(scene, tmp_path):
     stacked(scene)
     one = look(scene, tmp_path)
-    every = look(scene, tmp_path, route="#/")
+    every = look(scene, tmp_path, route="#/homes")
     for seen in (one, every):
         clean(seen)
         assert seen["header"]["brand"] == "jbus view"
         assert re.fullmatch(r"Updated \d\d:\d\d · live", seen["header"]["read"]), seen["header"]
         assert seen["header"]["box"][:3] == [0, 0, DESK[0]]
     assert one["header"]["crumbs"] == [["All", "#/", ""], ["demo", "#/demo", "page"]]
-    assert every["header"]["crumbs"] == [["All projects", "#/", "page"]]
+    assert every["header"]["crumbs"] == [["All projects", "#/homes", "page"]]
 
 
 def sidebar(scene):
@@ -248,7 +248,7 @@ def test_a_row_opens_its_project_and_an_old_link_opens_it_too(scene, tmp_path):
     seen = look(
         scene,
         tmp_path,
-        route="#/",
+        route="#/homes",
         tap='#stack a[href="#/pantry"]',
         at=6000,
         budget=9000,
@@ -283,7 +283,7 @@ def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(
         "is not shown. Every project"
     )
     assert seen["first"] == []
-    seen = look(scene, tmp_path, route="#/")
+    seen = look(scene, tmp_path, route="#/homes")
     assert "attic" not in json.dumps(seen["stack"])
     seen = look(scene, tmp_path, route="#/%E0")
     assert seen["errors"] == [] and seen["stack"]["none"].startswith("No project named %E0 ")
@@ -317,7 +317,7 @@ def test_a_stopped_jbus_is_one_line_over_the_map_of_every_project(scene, tmp_pat
     once, over the map, beside the banner and the header's word."""
     stacked(scene)
     scene.timer(active="inactive", sub="dead", result="exit-code", code=1)
-    seen = look(scene, tmp_path, route="#/")
+    seen = look(scene, tmp_path, route="#/homes")
     clean(seen)
     assert seen["stack"]["machine"] == ["jbus stopped, so this is as its last pass left it"]
     assert seen["header"]["machine"]["text"] == "jbus stopped"
@@ -343,7 +343,7 @@ def test_passes_that_fail_and_a_red_main_are_on_the_first_screen(scene, tmp_path
     scene.write("streaks.json", {alert.PASS: streak}, scene.state_dir)
     red = "badc0de" + "1" * 33
     scene.write("main.json", {"at": iso(ago(minutes=12)), "main": red, "check": "failed"})
-    seen = look(scene, tmp_path, route="#/")
+    seen = look(scene, tmp_path, route="#/homes")
     clean(seen)
     assert seen["needs"]["head"] == "Nothing waits on you · 3 passes failed · 1 on default"
     assert seen["header"]["machine"]["text"] == "3 passes failed"

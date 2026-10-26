@@ -79,6 +79,16 @@
   .btn.fill { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 700; }
   .btn.fill:hover { border-color: var(--ink); }
   #nsaid .will { margin: var(--space-4) 0 0; }
+  .nq .nf { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; flex: 1 1 100%; min-width: 0; }
+  .nq .nf input { flex: 1 1 220px; min-width: 0; min-height: 40px; font: inherit; font-size: var(--text-sm); padding: var(--space-2) var(--space-5); border: 1.5px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); }
+  .nq .nd { font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
+  .nq .nd b { color: var(--ink); font-weight: 600; }
+  #nfall { margin: var(--space-1) 0 var(--space-2); font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
+  #nfall b { color: var(--ink); font-weight: 600; }
+  .needs.bar #nfall { flex: 1 1 100%; order: 3; margin: 0 0 var(--space-1); }
+  #nq > .nr[hidden] { display: none; }
+  #nfold { margin: var(--space-2) 0 0; }
+  #nsaid .stl { margin: var(--space-4) 0 0; font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
 
   .sh { width: 11px; height: 11px; flex: none; display: inline-block; background: var(--ink-2); }
   .w-user .sh { background: var(--due); transform: rotate(45deg) scale(0.9); border-radius: var(--radius-xs); }
@@ -90,7 +100,6 @@
   .w-dep .sh { background: transparent; border: 2px solid var(--ink-2); border-radius: 50%; }
   .w-ok .sh { background: transparent; border: 1.5px solid var(--ink-3); border-radius: 50%; width: 9px; height: 9px; }
   .w-unknown .sh { background: transparent; border: 2px dashed var(--ink-3); border-radius: var(--radius-xs); }
-  .fr.unc { border-style: dashed; }
   .tok { display: inline-flex; align-items: center; gap: var(--space-4); border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-px) var(--space-6) var(--space-px) var(--space-4); background: var(--surface); cursor: pointer; font-family: var(--mono); font-size: var(--text-sm); max-width: 100%; min-width: 0; line-height: 1.45; }
   .tok .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .tok.th .src { font-family: var(--sans); font-size: var(--text-sm); }
@@ -113,18 +122,7 @@
   button.bk { cursor: pointer; border-bottom: 1px dotted var(--ink-2); }
   button.bk:hover { color: var(--ink); }
 
-  .fr:hover { border-color: var(--ink); }
   dialog.drawer.wide { width: min(1400px, 100%); }
-  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-5) var(--space-4); margin-top: var(--space-6); align-items: start; }
-  .fc { min-width: 0; display: grid; gap: var(--space-2); align-content: start; }
-  .dw .fc h3 { margin: 0 0 var(--space-1); display: flex; gap: var(--space-4); align-items: center; }
-  .fr { display: flex; align-items: center; gap: var(--space-4); width: 100%; min-width: 0; text-align: left; border: 1.5px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-px) var(--space-4); cursor: pointer; font-family: var(--mono); font-size: var(--text-sm); line-height: 1.35; }
-  .fr .lb { min-width: 0; flex: 1 1 auto; }
-  .fr.pk { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
-  .fr.pk .bn { background: var(--canvas); color: var(--ink); }
-  .fr.up { border-color: var(--due); background: var(--due-tint); }
-  .fr.dn { border-color: var(--ink); background: var(--sunk); box-shadow: inset 4px 0 0 var(--ink); }
-  .fr.dim { opacity: 0.25; }
 
 
   dialog.drawer { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(850px, 100%); max-width: 100%; border: 0; border-left: 1.5px solid var(--hair); background: var(--canvas); color: var(--ink); padding: 0; overflow: auto; }
@@ -135,6 +133,7 @@
   .dw-h h2 { font-size: var(--text-lg); margin: 0; }
   .dw-h h2.mono { font-family: var(--mono); }
   .btn { border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-8); background: var(--surface); cursor: pointer; font-size: var(--text-sm); font-weight: 600; flex: none; }
+  a.btn { display: inline-flex; align-items: center; text-decoration: none; color: var(--ink); }
   .dw h3 { margin: var(--space-12) 0 var(--space-4); font-size: var(--text-sm); color: var(--ink-2); letter-spacing: 0.05em; text-transform: uppercase; }
   .chip { display: inline-block; padding: var(--space-px) var(--space-5); border-radius: var(--radius-pill); font-size: var(--text-sm); font-weight: 600; max-width: 100%; }
   .chip.user { background: var(--due-tint); color: var(--due); }
@@ -271,6 +270,7 @@
   .ql a span { color: var(--ink-2); }
   .tab { font-size: var(--text-sm); font-weight: 700; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-px) var(--space-6); white-space: nowrap; }
   .tab[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
+  #homes[hidden] { display: none; }
 
   @media (max-width: 640px) {
     main { padding: var(--space-4) var(--space-5) var(--space-16); }
@@ -292,8 +292,6 @@
     .nm .ilk { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
     #nq a.nw { min-height: 44px; display: flex; align-items: center; }
     button.bk { border-bottom: 0; text-decoration: underline dotted; }
-    .flow { grid-template-columns: minmax(0, 1fr); }
-    .fr { min-height: 44px; }
     dialog.drawer { width: 100%; height: 100dvh; max-height: 100dvh; border-left: 0; }
     .dw { padding: var(--space-2) var(--space-6) var(--space-20); font-size: var(--text-base); }
     .btn { padding: 0 var(--space-8); }
@@ -339,6 +337,9 @@
   @media (max-width: 640px) {
     .back, .pgs, .hk, .mw { min-height: 44px; display: inline-flex; align-items: center; }
     .nq .btn { min-height: 44px; display: flex; align-items: center; }
+    #nq .na { flex: 1 1 100%; }
+    #nq .na .btn { flex: 1 1 auto; }
+    .nq .nf input { min-height: 44px; flex-basis: 100%; }
     .needs .go:not([hidden]), .hm .cn, .hf, .ql a { min-height: 44px; display: inline-flex; align-items: center; }
     .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
@@ -351,6 +352,7 @@
   <a class="brand" href="#/">jbus view</a>
   <h1 id="title"></h1>
   <a class="tab" id="tri" href="#/triage" hidden></a>
+  <a class="tab" id="homes" href="#/homes" hidden>Homes</a>
   <select class="pick" id="pick" aria-label="Project"></select>
   <span class="readat" id="readat"></span>
   <a class="machw" id="mach" hidden></a>
@@ -368,6 +370,7 @@
     <div id="nsaid" role="status"></div>
   </section>
   <p class="nx" id="nx"></p>
+  <div id="pipeline" hidden></div>
   <div class="tri" id="triage" hidden>
     <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
     <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
@@ -405,23 +408,30 @@
   var $ = function (id) { return document.getElementById(id); };
   var S = null, NOW = 0, STEP = {}, TASK = {}, ENDED = {}, DONE = {}, ITEMS = {}, ITEM_OF = {};
   var missed = 0, lastAnswer = 0, gone = false, stopped = false;
-  var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
+  var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, HOMES = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
   function parse(hash) {
     var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {};
     parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
+    var home = segs.length === 1 && /^(flow|homes)?(?:\?(.*))?$/.exec(segs[0]), q = home && home[2] ? home[2].split("=") : [];
+    if (home) { if (q[0]) more[q[0]] = name(q.slice(1).join("=")); return { project: "", target: more.open || "", more: more, homes: home[1] === "homes" }; }
     if (segs[0] === "triage") return { project: "", target: "", more: more, triage: true };
     if (segs[0] === "help") return { project: "", target: "help" + (segs[1] ? ":" + segs.slice(1).map(name).join(":") : ""), more: more };
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
   }
+  function themed() { return HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : ""; }
   function href(project, target) {
-    var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "";
-    return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + (HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "");
+    var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "", theme = HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "";
+    var q = project || TRIAGE ? [] : ["home", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
+    if (target) q.push("open=" + encodeURIComponent(target));
+    if (!project && !TRIAGE && (HOMES || q.length > !!target)) return "#/" + (HOMES ? "homes" : "") + (q.length ? "?" + q.join("&") : "") + theme;
+    return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + theme;
   }
+  function board(slug) { return "#/" + (slug ? "&pick=" + encodeURIComponent(slug) : "") + themed(); }
   (function () {
     var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
-    HASH = at.more;
+    HASH = at.more; HOMES = !!at.homes;
     if (old || at.more.open) history.replaceState(history.state, "", location.pathname + href(old || at.project, at.target));
   })();
 
@@ -490,7 +500,6 @@
     "count:held": ["Count", "How many open tasks this holder has. A tap shows only theirs on the line."],
     "count:noticed": ["Count", "How many new Noticed lines wait for their home to mark them. They are not counted in what waits on you."],
     "count:all": ["Count", "How many open tasks this project has. A tap shows every one on the line."],
-    "count:flow": ["Count", "How many rows are in this part of the queue."],
     "count:threads": ["Count", "How many threads of this role are out."],
     "count:question": ["Count", "The question's number: jbus numbers each question of a project, and an answer names it."],
     "count:step": ["Count", "The step's place on the line, top to bottom."],
@@ -808,7 +817,7 @@
   }
   function renderProject() {
     var rows = progress(), merged = S.merged.slice().reverse(), sm = S.summary;
-    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<button type="button" class="btn" data-open="flow">Queue as a flow</button>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>' + '<button type="button" class="btn" data-open="find">Find</button>');
+    put($("prog-h"), 'In progress <span class="cnt">' + rows.length + '</span>' + (S.tasks.length ? '<a class="btn" href="' + esc(board()) + '">Queue as a flow</a>' : "") + '<button type="button" class="btn" data-open="milestones">Milestones</button>' + '<button type="button" class="btn" data-open="board">Homes</button>' + '<button type="button" class="btn" data-open="find">Find</button>');
     $("calm").hidden = rows.length > 0;
     renderProgress(rows, sm.homes || []);
     var today = new Date(NOW).toDateString(), done = S.items.filter(function (it) { var at = itemAt(it); return it.state === "done" && !(it.slug && DONE[it.slug]) && at != null && new Date(at).toDateString() === today; });
@@ -833,7 +842,9 @@
     renderHeader();
     $("none").hidden = !NOSUCH;
     if (NOSUCH) put($("none"), noSuch());
-    $("stack").hidden = !!PROJECT || !STACK || TRIAGE;
+    var board = !!PANELS.pipeline && !HOMES;
+    $("stack").hidden = !!PROJECT || !STACK || TRIAGE || board;
+    $("pipeline").hidden = !!PROJECT || !STACK || TRIAGE || !board;
     $("triage").hidden = !!PROJECT || !STACK || !TRIAGE;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
@@ -847,7 +858,8 @@
     PANELS.you.draw();
     put($("cards"), PROJECT || TRIAGE || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
-    if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else renderStack();
+    if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else if (!board) renderStack();
+    if (PANELS.pipeline) PANELS.pipeline.draw();
     freshen();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }
@@ -1187,6 +1199,8 @@
     }).then(function () { if (mine === turnOf && pending && S) { var o = pending; pending = ""; openDrawer(o); } });
   }
   function route(given, address) {
+    var old = parse(typeof address === "string" ? address : location.hash);
+    if (old.project && /^flow(:|$)/.test(old.target)) { address = board(old.target.slice(5)); given = null; history.replaceState(null, "", address); }
     var at = parse(typeof address === "string" ? address : location.hash), st = given && given.layers ? given : history.state, was = PROJECT, before = top(), deeper = LAYERS.length, first = LAYERS.length ? LAYERS[0].target : "";
     if (!st || !st.layers) { st = { layers: at.target ? [{ target: at.target }] : [], back: false }; history.replaceState(st, ""); }
     var wanted = EXPECT; EXPECT = null;
@@ -1194,7 +1208,7 @@
       var put = href(at.project, wanted.length ? wanted[wanted.length - 1].target : "");
       st = { layers: wanted, back: false }; history.replaceState(st, "", put); at = parse(put);
     }
-    HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; LAYERS = st.layers; BACK = !!st.back;
+    HASH = at.more; PROJECT = at.project; TRIAGE = !!at.triage; HOMES = !!at.homes; LAYERS = st.layers; BACK = !!st.back;
     QUERY = PROJECT ? "?project=" + encodeURIComponent(PROJECT) : "";
     pending = "";
     if (routeName() !== SHOWN) { SHOWN = routeName(); note("route", SHOWN); }
