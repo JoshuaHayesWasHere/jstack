@@ -16,10 +16,11 @@ A `Write`, `Edit`, `MultiEdit` or `NotebookEdit` call is refused when its file i
 files. A shell command is cut into simple commands as `jleak.sources` cuts it, and one is refused
 when it redirects output into one of the files, or names one as a word and is not a command
 that only reads it. `cat`, `grep` or `jq` read; `cp` reads its sources and writes its
-destination; `sed` and `perl` write only with `-i`; a program this module does not know is taken
-to write. A path is read as the shell would expand `~`, `$HOME` and `${HOME}`, against the folder
-the command has moved to with `cd`. A command whose quotes do not close is refused when its text
-names one of the files, or `tailscale` and 3773.
+destination; `sed`, `perl`, `awk`, `yq` and `tomlq` write only with `-i`; a program this module
+does not know is taken to write, `sort` and `find` among them. The string that `sh -c`, `bash -c`
+or `eval` runs is read as a command of its own. A path is read as the shell would expand `~`,
+`$HOME` and `${HOME}`, against the folder the command has moved to with `cd`. A command whose
+quotes do not close is refused when its text names one of the files, or `tailscale` and 3773.
 
 The infra home and its crew are let through. The test is the repo of the project the session
 started in: Claude Code's `CLAUDE_PROJECT_DIR`, else the hook's `cwd`. When that folder's
@@ -45,10 +46,11 @@ EDITS["NotebookEdit"] = "notebook_path"
 READERS = {
     *("cat", "less", "more", "head", "tail", "grep", "egrep", "fgrep", "rg", "jq", "yq", "bat"),
     *("wc", "diff", "cmp", "ls", "stat", "file", "readlink", "realpath", "test", "[", "echo"),
-    *("printf", "sha256sum", "md5sum", "b2sum", "find", "fd", "nl", "sort", "uniq", "od", "xxd"),
-    *("hexdump", "strings", "basename", "dirname", "tomlq", "column", "view"),
+    *("printf", "sha256sum", "md5sum", "b2sum", "fd", "nl", "od", "hexdump", "strings"),
+    *("basename", "dirname", "column", "view"),
 }
-IN_PLACE = {"sed", "perl", "awk", "gawk"}
+IN_PLACE = {"sed", "perl", "awk", "gawk", "yq", "tomlq"}
+SHELLS = {"sh", "bash", "zsh", "dash"}
 COPIES = {"cp", "install", "rsync", "ln"}
 REDIRECT = re.compile(r"[0-9&]*>[>|]?")
 THE_PORT = re.compile(r"(?<![0-9])3773(?![0-9])")
@@ -192,6 +194,10 @@ def _command(guarded: Guarded, typed: str, cwd: Path) -> None:
             program = Path(argv[0]).name if argv else ""
             if program == "cd" and len(argv) > 1:
                 cwd = cwd / os.path.expandvars(os.path.expanduser(argv[1]))
+            elif program == "eval":
+                _command(guarded, " ".join(argv[1:]), cwd)
+            elif program in SHELLS and "-c" in argv[1:-1]:
+                _command(guarded, argv[argv.index("-c") + 1], cwd)
             elif program:
                 _port(program, argv)
                 _files(guarded, program, argv, cwd)

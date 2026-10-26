@@ -86,6 +86,12 @@ CONFIG = "~/.config/jbus/config.toml"
         ("Bash", {"command": "python3 fix.py ~/.config/jbus/config.toml"}, CONFIG),
         ("Bash", {"command": "echo x >~/.config/jstack/roles"}, ROLES),
         ("Bash", {"command": "echo 'unclosed > ~/.config/jbus/config.toml"}, CONFIG),
+        ("Bash", {"command": "yq -i '.a = 1' ~/.config/jbus/config.toml"}, CONFIG),
+        ("Bash", {"command": "sort -o ~/.config/jbus/config.toml /tmp/x"}, CONFIG),
+        ("Bash", {"command": "find ~/.config/jbus/config.toml -delete"}, CONFIG),
+        ("Bash", {"command": "bash -c 'echo x > ~/.config/jbus/config.toml'"}, CONFIG),
+        ("Bash", {"command": 'sh -c "cd ~/.config/jstack && rm roles"'}, ROLES),
+        ("Bash", {"command": "eval 'echo x >> ~/.config/jbus/config.toml'"}, CONFIG),
         (
             "Write",
             {"file_path": "{home}/.config/systemd/user/t3-port-relay@.service"},
@@ -160,6 +166,17 @@ def test_the_infra_home_and_its_crew_are_let_through(home, tool, given):
     subprocess.run([*git, "worktree", "add", "-q", worktree], check=True)
     assert hook(home, tool, given, project="infra") == (0, "")
     assert hook(home, tool, given, project="../worktrees/infra/a-task") == (0, "")
+
+
+def test_the_file_a_link_points_to_is_guarded_whatever_its_name(home):
+    """The hook reads every call, so a target whose name has none of the guarded words is
+    still the guarded file."""
+    target = home / "repos" / "infra" / "hosts" / "yelena" / "jstack-profile"
+    target.write_text("review = claude\n")
+    (home / ".config" / "jstack" / "roles").unlink()
+    (home / ".config" / "jstack" / "roles").symlink_to(target)
+    assert hook(home, "Write", {"file_path": str(target)}) == (2, file_refusal(ROLES))
+    assert hook(home, "Bash", {"command": f"echo x > {target}"}) == (2, file_refusal(ROLES))
 
 
 def test_a_thread_of_another_repo_that_moves_into_infra_s_checkout_is_still_refused(home):

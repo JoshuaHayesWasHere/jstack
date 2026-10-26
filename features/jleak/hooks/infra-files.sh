@@ -1,10 +1,6 @@
 #!/bin/sh
 
 input=$(cat)
-case $input in
-*config.toml* | *roles* | *server-runtime* | *t3-port* | *3773* | *tailscale*) ;;
-*) exit 0 ;;
-esac
 here=$(readlink -f "$0") || exit 2
 source=${here%/features/jleak/hooks/*}
 if [ ! -d "$source/features/jleak/src/jleak" ]; then
