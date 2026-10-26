@@ -42,10 +42,12 @@ BOARD = {
     },
     "longest": None,
 }
+MOVING = {**BOARD, "stuck": {"stage": "check", "still": 0, "count": 12}, "longest_wait": None}
 HEADLINES = (
     "first: Most stuck: Checks, 8 of 12. Waiting longest: mac-tree-spec-timeout, Crew since"
     " 2026-10-26T06:10:00-04:00, waits on a test slot."
 )
+SERVER = "http://127.0.0.1:1"
 
 SHOT = """#!/bin/sh
 case " $* " in
@@ -65,11 +67,13 @@ esac
 
 
 class View(http.server.BaseHTTPRequestHandler):
+    board = BOARD
+
     def do_GET(self):
         if self.path != "/panel/board.json":
             self.send_error(404)
             return
-        body = json.dumps(BOARD).encode()
+        body = json.dumps(self.board).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -80,9 +84,11 @@ class View(http.server.BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def view():
-    """The origin of a stand-in view that answers `/panel/board.json`."""
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), View)
+def view(request):
+    """The origin of a stand-in view that answers `/panel/board.json` with the board a test gives
+    it, or `BOARD`."""
+    handler = type("Board", (View,), {"board": getattr(request, "param", BOARD)})
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_port}"
     server.shutdown()
@@ -126,7 +132,7 @@ class Machine:
         name = "demo" if kept else "other"
         toml = self.config / "config.toml"
         toml.write_text(
-            f'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "{name}"\n'
+            f'server = "{SERVER}"\n\n[[project]]\nname = "{name}"\n'
             f'checkout = "{self.home / "repos" / name}"\nprojectId = "p-{name}"\n'
             '\n[[project]]\nname = "third"\ncheckout = "/somewhere/third"\nprojectId = "p-3"\n'
         )
@@ -171,7 +177,11 @@ def test_a_status_reply_names_the_boards_headlines_and_ends_with_its_picture_and
 ):
     machine = Machine(tmp_path)
     shot = machine.runtime / png
-    assert machine.status(view, thread) == [HEADLINES, f"attach: {shot} 6", f"{view}/{route}"]
+    assert machine.status(view, thread) == [
+        HEADLINES,
+        f"attach: {shot} 6 {SERVER}",
+        f"{view}/{route}",
+    ]
     assert shot.read_bytes().startswith(b"\x89PNG")
     assert machine.asked() == [f"view-shot {route} --out {png}"]
 
@@ -186,3 +196,10 @@ def test_a_repo_jbus_keeps_no_project_for_gets_no_link(tmp_path, view):
     machine = Machine(tmp_path, kept=False)
     assert machine.status(view) == ["no jview link: jbus has no page for demo"]
     assert machine.asked() == []
+
+
+@pytest.mark.parametrize("view", [MOVING], indirect=True)
+def test_a_board_with_nothing_stuck_gets_the_words_the_board_shows(tmp_path, view):
+    machine = Machine(tmp_path)
+    said = machine.status(view)
+    assert said[0] == "first: Every row is moving. No row waits."
