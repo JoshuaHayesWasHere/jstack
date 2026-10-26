@@ -136,6 +136,7 @@ from urllib.parse import parse_qs
 import jbus
 import jsettings
 from jbus import Refused, digest, record, verbs
+from jbus.bind import NoLookup
 from jbus.view import panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
@@ -586,7 +587,9 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-class Door(ThreadingHTTPServer):
+class Door(NoLookup, ThreadingHTTPServer):
+    """A listener that binds without asking DNS for a name of its address (`jbus.bind`)."""
+
     daemon_threads = True
     allow_reuse_address = True
     app: App

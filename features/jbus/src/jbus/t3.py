@@ -40,6 +40,7 @@ from typing import Any
 
 import jroles
 from jbus import Config, Refused, queue, read_json, verbs, write_json
+from jbus.bind import NoLookup
 from jroles import pool
 
 TOOLS = (
@@ -95,6 +96,11 @@ def _get_json(url: str, timeout: float = 8) -> dict[str, Any]:
         raise T3Error(f"{_at(url)} could not be read: {error}") from error
 
 
+class Listener(NoLookup, http.server.HTTPServer):
+    """The `HTTPServer` `login` waits on for the browser's callback, which binds without asking
+    DNS for a name of 127.0.0.1 (`jbus.bind`)."""
+
+
 def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dict[str, Any]:
     """Sign in once. The user approves in the browser, and `login` stores the token and never
     prints it."""
@@ -117,7 +123,7 @@ def login(server: str, token_path: Path, *, wait: float = 600, say=print) -> dic
         def log_message(self, *_: Any) -> None:
             pass
 
-    listener = http.server.HTTPServer(("127.0.0.1", 0), Callback)
+    listener = Listener(("127.0.0.1", 0), Callback)
     try:
         redirect = f"http://127.0.0.1:{listener.server_address[1]}/callback"
         _, said = _post(

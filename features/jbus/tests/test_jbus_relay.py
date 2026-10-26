@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 import daemons
+from jbus.relay import Server
 from testing.paths import REPO
 
 INBOUND = "inbound-key-for-the-relay"
@@ -70,7 +71,7 @@ class Webhook:
             def log_message(self, *args) -> None:
                 pass
 
-        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server = Server(("127.0.0.1", 0), Handler)
         self.server.daemon_threads = True
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
         self.url = f"{self.base}/hook"
@@ -116,6 +117,7 @@ class Relay:
             "RELAY_STATE": str(state),
             "RELAY_TIMEOUT_SECONDS": "1",
             "RELAY_RETRY_SECONDS": "0.3",
+            "PYTHONFAULTHANDLER": "1",
             **env,
         }
         self.process = daemons.start(
@@ -135,10 +137,39 @@ class Relay:
             if not self.reader.is_alive():
                 raise AssertionError(f"the relay ended: {self.said()}")
             if time.monotonic() > end:
-                raise AssertionError(f"the relay did not listen: {self.said()}")
+                raise AssertionError(f"the relay did not listen: {self.where()}")
             time.sleep(0.01)
         self.port = int(listening[1])
         return self
+
+    def where(self) -> str:
+        """Say where a relay that does not listen is: its processes, a `sample` of it on a Mac,
+        and then, from SIGABRT and `PYTHONFAULTHANDLER`, the Python stack of each of its threads,
+        which the relay writes to its output as it ends."""
+        pid, shown = self.process.pid, []
+        ps = subprocess.run(
+            ["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,etime=,command="],
+            capture_output=True,
+            text=True,
+        )
+        shown += [
+            "its processes:",
+            *[ln for ln in ps.stdout.splitlines() if ln.split()[2:3] == [str(pid)]],
+        ]
+        if sys.platform == "darwin":
+            report = self.state.parent / "sample.txt"
+            with contextlib.suppress(OSError, subprocess.SubprocessError):
+                subprocess.run(
+                    ["sample", str(pid), "1", "-mayDie", "-file", str(report)],
+                    capture_output=True,
+                    timeout=30,
+                )
+            shown += ["its sample:", report.read_text() if report.exists() else "none"]
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGABRT)
+        self.reader.join(5)
+        shown += ["what it said, up to the stacks of SIGABRT:", self.said()]
+        return "\n".join(shown)
 
     def said(self) -> str:
         """Return what the relay has said so far, as far as the test has read it."""
@@ -241,6 +272,19 @@ def event(kind: str, loud: str, slug: str = "alpha") -> dict:
 
 def body(*events: dict) -> dict:
     return {"kind": "events", "say": [e["say"] for e in events], "events": list(events)}
+
+
+def test_the_relay_listens_while_a_lookup_of_its_address_never_answers(hooks, tmp_path):
+    """On a Mac a reverse lookup of 127.0.0.1 can wait on mDNS longer than a relay may take to
+    start. Here no lookup ever answers, and the relay still listens and answers a POST."""
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "sitecustomize.py").write_text(
+        "import socket, threading\nsocket.gethostbyaddr = lambda *args: threading.Event().wait()\n"
+    )
+    path = os.pathsep.join(filter(None, [str(site), os.environ.get("PYTHONPATH")]))
+    relay = Relay({**env_for(hooks), "PYTHONPATH": path}, tmp_path / "state").up()
+    assert relay.ack("an-event-nobody-sent") == 404
 
 
 def test_a_blocking_event_reaches_sous_chef_and_gatekeeper_gets_nothing(relay, hooks):
@@ -705,14 +749,18 @@ LEAVES = Path(__file__).with_name("relay_leaves.py")
 def alive(pid: int) -> list[str]:
     """Return what `ps` lists of the relay and of everything in its process group or session.
     These are the processes that are not zombies, since a zombie is gone and waits only for its
-    reaper."""
+    reaper. macOS's `ps` has no session id, so there it is the process group alone."""
+    ids = ["pid", "pgid", "sid"] if sys.platform == "linux" else ["pid", "pgid"]
     listed = subprocess.run(
-        ["ps", "-eo", "pid=,pgid=,sid=,stat=,args="], capture_output=True, text=True, check=True
+        ["ps", "-eo", ",".join(f"{name}=" for name in [*ids, "stat", "args"])],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
     return [
         line.strip()
         for line in listed.splitlines()
-        if str(pid) in line.split()[:3] and not line.split()[3].startswith("Z")
+        if str(pid) in line.split()[: len(ids)] and not line.split()[len(ids)].startswith("Z")
     ]
 
 
@@ -762,6 +810,9 @@ def test_a_test_that_fails_or_times_out_leaves_no_relay(tmp_path, how, more):
             put_away(relay_pid(tmp_path))
 
 
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="only Linux has PR_SET_PDEATHSIG (testing/tests/daemons.py)"
+)
 def test_a_pytest_killed_outright_leaves_no_relay(tmp_path):
     pytest_run = run_leaves(tmp_path, "hang")
     try:

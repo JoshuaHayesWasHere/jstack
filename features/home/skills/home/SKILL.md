@@ -108,10 +108,12 @@ Rows held by one reason that no thread works on for 30 minutes are a stop: jbus 
 Run this in one call with the block at the top and the block that finds this home, with the turn's lines in place of the line in angle brackets:
 
 ```sh
-said=$(cat << 'THE_TURN_ENDS_HERE'
+the_turn() {
+    cat << 'THE_TURN_ENDS_HERE'
 <what this turn did, one line each>
 THE_TURN_ENDS_HERE
-)
+}
+said=$(the_turn)
 told="${M:?run the block that finds this home first}/told"
 printf '%s\n' "$said" | awk -v told="$told" '
     function key(line) {

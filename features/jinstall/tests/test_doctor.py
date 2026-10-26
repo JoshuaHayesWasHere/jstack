@@ -11,12 +11,14 @@ import shutil
 import subprocess
 import sys
 import time
+from dataclasses import replace
 
 import pytest
 
-from jinstall.kinds import Linux, Program, T3Code
+from jinstall.__main__ import doctor
+from jinstall.kinds import Program, T3Code
 from jinstall.needs import T3_FLOOR
-from test_install import REPO, Machine, Ran, User, line_for, machine
+from test_install import REPO, T3_WHERE, Machine, Ran, User, line_for, machine
 
 T3_STABLE = "0.1.2"
 TOKEN = "gho_a_token_the_doctor_never_prints"
@@ -83,7 +85,7 @@ def test_with_only_optional_needs_missing_the_doctor_says_ok_and_exits_0(user):
     code, said = user.doctor()
     assert (code, said[-1]) == (0, "doctor: ok")
     assert said[:8] == [
-        "ok hard linux",
+        f"ok hard platform -> {sys.platform}",
         f"ok hard t3 -> {T3_STABLE}",
         "ok hard claude",
         "ok hard uv",
@@ -179,7 +181,7 @@ def test_a_t3_code_that_does_not_answer_is_old(user):
 def test_t3_code_is_asked_through_the_command_it_writes_into_its_own_home(user):
     path = user.without("t3")
     assert line_for(user.doctor(path=path)[1], "hard t3") == [
-        "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (on Arch: t3code-bin)"
+        f"missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly ({T3_WHERE})"
     ]
     written = user.home / ".t3" / "bin" / "t3"
     user.write(written, f"#!/bin/sh\necho 't3 v{T3_STABLE}'\n")
@@ -227,11 +229,49 @@ def test_a_release_ranks_after_each_of_its_prereleases(tmp_path):
     )
 
 
-def test_a_platform_that_is_not_linux_is_missing(tmp_path):
-    here = machine(REPO, tmp_path, tmp_path)
-    found = Linux("darwin").probe(here)
-    assert (found.state.value, found.detail) == ("missing", "this is darwin")
-    assert Linux("linux").probe(here).state.value == "ok"
+T3_MISSING = "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
+
+
+@pytest.mark.parametrize(
+    ("platform", "lines"),
+    [
+        (
+            "linux",
+            [
+                "ok hard platform -> linux",
+                f"{T3_MISSING} (on Arch: t3code-bin)",
+            ],
+        ),
+        (
+            "darwin",
+            [
+                "ok hard platform -> darwin",
+                f"{T3_MISSING} (on a Mac with Apple Silicon: brew install --cask t3-code)",
+            ],
+        ),
+        (
+            "win32",
+            [
+                "missing hard platform -> this is win32: run jstack inside WSL2",
+                f"{T3_MISSING} (run jstack inside WSL2)",
+            ],
+        ),
+        (
+            "freebsd14",
+            [
+                "missing hard platform -> this is freebsd14: jstack runs on Linux and macOS",
+                f"{T3_MISSING} (on Arch: t3code-bin)",
+            ],
+        ),
+    ],
+)
+def test_the_platform_is_ok_on_linux_and_macos_and_windows_is_sent_to_wsl2(
+    tmp_path, platform, lines
+):
+    here = replace(machine(REPO, tmp_path / "home", tmp_path / "account"), platform=platform)
+    said = doctor(here)
+    assert list(said.lines[:2]) == lines
+    assert said.code == 1
 
 
 def test_a_program_with_no_floor_is_not_run(tmp_path):
