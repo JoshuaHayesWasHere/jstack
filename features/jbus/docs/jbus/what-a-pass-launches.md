@@ -16,9 +16,12 @@ jbus then writes `Thread: <id>` in the head of that file, the one line it writes
 
 A row launched stacked starts its worktree from its base's branch, and its brief has `Stacked on: <slug> <branch>` in its head in place of `Green main:`.
 Its crew opens its pull request on that branch, and `jmerge` waits on it as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>`.
-Each pass after that tells its crew once for each move: when its base's head moves, to rebase onto the base's branch, and when its base merged, to move its own commits onto the default branch.
-Before that second message jbus bases its pull request on the default branch, where GitHub has not done so itself on deleting the base's branch.
-Once the message went, the line says `Stacked on: <slug> <default> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
+Each pass after that tells its crew once for each move of its base's head, to rebase onto the base's branch.
+Once its base merged, jbus bases its pull request on the default branch, where GitHub has not done so itself on deleting the base's branch, and moves the link's own commits onto it itself in the same pass, with no message to its crew.
+It rebases them in a scratch worktree of its own, pushes them with a lease at the head it read, and moves the crew's worktree, where it is clean, to the pushed head.
+A crew whose thread is at work is left until a later pass.
+A rebase that conflicts, a push the lease refuses, a crew's worktree with work in it, or a reviewer still out leaves the branch as it was, and the crew is told to move its own commits instead.
+Once the link moved or that message went, the line says `Stacked on: <slug> <default> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
 A link still on its base's branch gets no message to rebase onto main: its branch holds its base's commits too.
 
 - **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval: <lines>`.

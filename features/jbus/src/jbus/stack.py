@@ -1,4 +1,5 @@
-"""This module keeps a stacked link on its base, and tells its crew when to move it.
+"""This module keeps a stacked link on its base: it moves a link whose base merged itself, and
+tells its crew when to move it otherwise.
 
 A row whose brief builds on another row's code (`--depends`, named on its `Builds on:` line)
 launches once that row has opened its pull request, stacked on that pull request's branch
@@ -16,11 +17,19 @@ Each pass reads every open pull request whose brief has the line and has not mov
 - Once the base merged, jbus bases the link's pull request on the branch the base merged into,
   or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done
   so itself on deleting the base's branch. A base merged into a train leaves its link on that
-  train: a rebase onto the default branch would carry the train's commits there. jbus tells the
-  crew to move its own commits onto that branch, from the base's last head, under the key
-  `restack|<slug>|<head 12>|<merge 12>`. Only once that message went does the line say
-  `Stacked on: <slug> <branch> at <merge>`, so a message held for a thread at work is sent on a
-  later pass. `jmerge` then waits until the link's head holds that commit
+  train: a rebase onto the default branch would carry the train's commits there. Then jbus moves
+  the link's own commits onto that branch itself, in the same pass and with no Claude turn
+  (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of its
+  own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
+  worktree, where it has one on the branch, is moved to the pushed head with `git reset --keep`.
+  jbus moves nothing while the crew's thread is at work, while a reviewer it launched has written
+  no review, or while its worktree has work in it (uncommitted, unpushed or a rebase not
+  finished); a rebase that conflicts or a push the lease refuses leaves the branch as it was.
+  For each of those but a thread at work, which waits for a later pass, jbus tells the crew to
+  move its own commits instead, from the base's last head, under the key
+  `restack|<slug>|<head 12>|<merge 12>`. Only once the link moved or that message went does the
+  line say `Stacked on: <slug> <branch> at <merge>`, so a message held for a capped thread is
+  sent on a later pass. `jmerge` then waits until the link's head holds that commit
   (`ready.STACKED_UNMOVED`), and merges it as any other.
 
 A base closed with no merge leaves its link waiting on `jmerge`'s line: GitHub closes a pull
@@ -29,7 +38,10 @@ request whose base branch is deleted, and what to do with the work is the home's
 from __future__ import annotations
 
 import json
+import shutil
+import tempfile
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from jbus import END_TURN, dispatch, read_json, rebase, verbs
@@ -137,7 +149,21 @@ def _moved(
             why = said[-1] if said else f"gh exited {asked.returncode}"
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
-    last = str(merged.get("headRefOid") or "") or stacked.branch
+    if rebase.held(run, client, world, slug, number, head):
+        return
+    last = str(merged.get("headRefOid") or "")
+    moved = _carry(run, slug, pull, last, merge, onto) if last else ""
+    if moved:
+        run.box.mark(rebase.mark(KIND, slug, head, merge[:12]))
+        line = (
+            f"{KIND} {slug}: moved its own commits onto {onto} once {stacked.slug} merged "
+            f"(#{number}, {head[:12]} to {moved[:12]})"
+        )
+        run.find(slug, KIND, line, key=f"{head[:12]} {merge[:12]}")
+        run.say(line)
+        _rewrite(run, slug, replace(stacked, branch=onto, at=merge))
+        return
+    last = last or stacked.branch
     message = (
         MOVED.replace("{base}", stacked.slug)
         .replace("{merge}", merge[:12])
@@ -176,6 +202,85 @@ def _tell(
     run.find(slug, KIND, line, message, key=f"{head[:12]} {under[:12]}")
     run.say(line)
     return True
+
+
+def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, onto: str) -> str:
+    """Move the link's own commits, those above `last`, onto `origin/<onto>`, and push them over
+    the head the pass read. Return the head the branch is at now, or nothing when it was left as
+    it was, with the reason said."""
+    head, number = str(pull["headRefOid"]), pull["number"]
+    branch = str(pull.get("headRefName") or slug)
+    if _reviewing(_brief(run, slug)):
+        return _left(run, slug, "a reviewer it launched has written no review yet")
+    crew = _worktree(run, branch)
+    busy = _busy(run, crew, head) if crew else ""
+    if busy:
+        return _left(run, slug, f"its worktree {busy}")
+    run.run("git", "fetch", "-q", "origin", f"+refs/heads/{onto}:refs/remotes/origin/{onto}")
+    if run.run("git", "cat-file", "-e", f"{head}^{{commit}}").returncode:
+        run.run("git", "fetch", "-q", "origin", f"refs/pull/{number}/head")
+    for commit, of in ((merge, f"origin/{onto}"), (last, head)):
+        if run.run("git", "merge-base", "--is-ancestor", commit, of).returncode:
+            return _left(run, slug, f"{of[:40]} does not hold {commit[:12]} here")
+    if not run.run("git", "merge-base", "--is-ancestor", merge, head).returncode:
+        return head
+    scratch = Path(tempfile.mkdtemp(prefix=f"jbus-move-{slug}-"))
+    tree = scratch / "tree"
+    try:
+        made = run.run("git", "worktree", "add", "-q", "--detach", str(tree), head)
+        if made.returncode:
+            return _left(run, slug, "jbus's scratch worktree could not be made")
+        moved = run.run("git", "-C", str(tree), "rebase", "-q", "--onto", f"origin/{onto}", last)
+        if moved.returncode:
+            run.run("git", "-C", str(tree), "rebase", "--abort")
+            return _left(run, slug, f"its commits conflict with origin/{onto}")
+        new = run.run("git", "-C", str(tree), "rev-parse", "HEAD").stdout.strip()
+    finally:
+        run.run("git", "worktree", "remove", "--force", str(tree))
+        shutil.rmtree(scratch, ignore_errors=True)
+    run.run("git", "update-ref", f"refs/jstack/pre-rebase/{slug}/{head[:12]}", head)
+    lease = f"--force-with-lease=refs/heads/{branch}:{head}"
+    if run.run("git", "push", "-q", lease, "origin", f"{new}:refs/heads/{branch}").returncode:
+        return _left(run, slug, f"origin's {branch} is no longer at {head[:12]}, or did not answer")
+    if crew and run.run("git", "-C", str(crew), "reset", "-q", "--keep", new).returncode:
+        run.say(f"wait {slug}: its worktree {crew} could not follow the move to {new[:12]}")
+    return new
+
+
+def _left(run: Pass, slug: str, why: str) -> str:
+    run.say(f"{KIND} {slug}: jbus left its branch as it was ({why}), so its crew moves it")
+    return ""
+
+
+def _reviewing(brief: str) -> bool:
+    """Whether a reviewer the crew launched has not written its review yet: a move would change
+    the head under it, and the crew skill's own move waits for it too."""
+    return len(rebase._LAUNCHED.findall(brief)) > len(rebase._REVIEWED.findall(brief))
+
+
+def _worktree(run: Pass, branch: str) -> Path | None:
+    """The worktree that has the branch checked out, the crew's, or None."""
+    listed = run.run("git", "worktree", "list", "--porcelain").stdout
+    for entry in listed.split("\n\n"):
+        fields = dict(line.partition(" ")[::2] for line in entry.splitlines())
+        if fields.get("branch") == f"refs/heads/{branch}" and fields.get("worktree"):
+            return Path(fields["worktree"])
+    return None
+
+
+def _busy(run: Pass, tree: Path, head: str) -> str:
+    """What in the crew's worktree a move would lose or disturb, or nothing: a head other than
+    the pushed one, a change not committed, or a rebase of its own not finished."""
+    at = run.run("git", "-C", str(tree), "rev-parse", "HEAD").stdout.strip()
+    if at != head:
+        return f"is at {at[:12] or 'no commit'}, not at {head[:12]}"
+    if run.run("git", "-C", str(tree), "status", "--porcelain").stdout.strip():
+        return "has changes not committed"
+    gitdir = run.run("git", "-C", str(tree), "rev-parse", "--absolute-git-dir").stdout.strip()
+    for left in ("rebase-merge", "rebase-apply", "crew-before-rebase"):
+        if not gitdir or (Path(gitdir) / left).exists():
+            return "has a rebase of its own not finished"
+    return ""
 
 
 def _onto(run: Pass, brief: str, merged: dict[str, Any]) -> str:
