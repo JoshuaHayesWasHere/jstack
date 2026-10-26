@@ -26,8 +26,10 @@ AGAINST = "Pull request: open one against train/tea when done\n"
 
 def sandbox(scene):
     """A plan whose entry `tea-set` has seven rows: four merged, one at a pull request, one
-    running, and one queued behind the running one. Three of them open against `train/tea`. The
-    entry `tea-pot` has a row whose thread hung, and one that waits on a row of `tea-set`."""
+    running, and one queued behind the running one. Three of them open against `train/tea`, as
+    `jbus` reads a `Pull request:` line, and `tea-7`, whose line names the train only in passing,
+    does not. The entry `tea-pot` has a row whose thread hung, and one that waits on a row of
+    `tea-set`."""
     rows = [row(f"tea-{n}", "merged", pr=f"#{n}", entry="tea-set") for n in range(1, 5)]
     rows += [
         row("tea-5", "pr", pr="#5", checks="pending", why="wait: check has not passed"),
@@ -47,9 +49,14 @@ def sandbox(scene):
     (scene.home / "pantry" / "plan.md").write_text(SCOPED)
     (scene.home / "integration").write_text("train/tea\nmigration\n")
     (scene.home / "tasks").mkdir()
-    for slug in ("tea-1", "tea-5", "tea-6"):
+    for slug in ("tea-1", "tea-5"):
         (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}: a piece\n{AGAINST}")
-    (scene.home / "tasks" / "tea-7.md").write_text("# tea-7: a piece\nPull request: open one\n")
+    (scene.home / "tasks" / "tea-6.md").write_text(
+        "# tea-6: a piece\nPull request: open one against train/tea, when done\n"
+    )
+    (scene.home / "tasks" / "tea-7.md").write_text(
+        "# tea-7: a piece\nPull request: open one when done, not against train/tea\n"
+    )
 
 
 def milestones(served):
