@@ -430,3 +430,15 @@ def test_a_sweep_counts_a_pull_request_merged_into_the_train_as_merged(kitchen):
     viewed(kitchen, 6, head, TRAIN)
     said = kitchen.run("--sweep", "--check")
     assert [line for line in said if line.startswith("removable one ")], said
+
+
+@pytest.mark.parametrize(
+    ("branch", "slug"),
+    [
+        ("train/macos", "train-red-macos-aaaaaaaaaaaa"),
+        ("train/Mac OS+x", "train-red-mac-os-x-aaaaaaaaaaaa"),
+        ("-é.", "train-red-train-aaaaaaaaaaaa"),
+    ],
+)
+def test_the_fix_row_of_a_train_is_named_by_its_branch_and_its_red_tip(branch, slug):
+    assert rows.train_fix(branch, "a" * 40) == slug
