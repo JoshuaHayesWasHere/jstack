@@ -10,8 +10,10 @@ the route, for a page that shows one home.
 
 It writes the one file `--out` names. A bare name goes into `$XDG_RUNTIME_DIR`, or `/tmp` where
 that is not set, and a path under a state directory is refused (`state_dirs`). Chromium runs on a
-profile of its own, in a temporary directory that is removed after it, so it reads and writes
-nothing of the user's. The command reads no config and no state.
+profile of its own, in a temporary directory that is removed after it, and draws the PNG there: the
+file at `--out` is replaced only by a PNG that Chromium wrote. The command reads no config and no
+state. The page it loads counts its route, as for any visit, so the view adds a line to its
+`view-usage.jsonl` for each shot (`usage`).
 """
 
 from __future__ import annotations
@@ -81,8 +83,12 @@ def target(out: str) -> Path:
 
 
 def address(port: int, route: str, home: str | None) -> str:
-    """The page's address on this machine, with the home added to the route."""
-    route = route.lstrip("/") or "#/"
+    """The page's address on this machine, with the home added to the route. A route is the page's
+    fragment, so one that does not start with `#` is refused: the view answers any other path
+    with 404, and Chromium would draw that."""
+    if not route.removeprefix("/").startswith("#"):
+        raise NoShot(f"no shot: {route!r} is no route of the page, which starts with #")
+    route = route.removeprefix("/")
     if home:
         route += f"&home={quote(home, safe='')}"
     return f"http://127.0.0.1:{port}/{route}"
@@ -92,11 +98,13 @@ def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port
     """Write the PNG of the route and return its path."""
     port = port or view.PORT
     path = target(out)
+    page = address(port, route, home)
     if not running(port):
         raise NoShot("no shot: jbus view is not running")
     browser = chromium()
     size = SIZES[width]
     with tempfile.TemporaryDirectory(prefix="jbus-view-shot-") as profile:
+        drawn = Path(profile) / "shot.png"
         try:
             done = subprocess.run(
                 [
@@ -109,8 +117,8 @@ def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port
                     "--hide-scrollbars",
                     f"--window-size={size[0]},{size[1]}",
                     f"--virtual-time-budget={BUDGET_MS}",
-                    f"--screenshot={path}",
-                    address(port, route, home),
+                    f"--screenshot={drawn}",
+                    page,
                 ],
                 capture_output=True,
                 text=True,
@@ -118,8 +126,12 @@ def shoot(route: str, out: str, width: int = 1440, home: str | None = None, port
             )
         except subprocess.TimeoutExpired as error:
             raise NoShot(f"no shot: chromium took longer than {TIMEOUT} s") from error
-    if done.returncode != 0 or not path.is_file():
-        raise NoShot(f"no shot: chromium wrote no PNG (exit {done.returncode})")
+        if done.returncode != 0 or not drawn.is_file():
+            raise NoShot(f"no shot: chromium wrote no PNG (exit {done.returncode})")
+        try:
+            shutil.move(drawn, path)
+        except OSError as error:
+            raise NoShot(f"no shot: {path} could not be written ({error.strerror})") from error
     return path
 
 
