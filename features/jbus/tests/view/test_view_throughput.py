@@ -58,9 +58,7 @@ def test_each_of_the_seven_days_counts_the_merges_of_that_day_in_the_users_zone(
     assert said["error"] == ""
 
 
-def test_github_is_asked_when_the_drawer_opens_and_its_answer_is_kept_five_minutes(
-    scene, zoned
-):
+def test_github_is_asked_when_the_drawer_opens_and_its_answer_is_kept_five_minutes(scene, zoned):
     merges(scene)
     for _ in range(3):
         zoned.json("/state.json?project=demo")

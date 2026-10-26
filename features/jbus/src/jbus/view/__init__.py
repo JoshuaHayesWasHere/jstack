@@ -417,7 +417,13 @@ class App(Writes):
         repo = state.repo(self.sources, name)
         if not task:
             read = state.Read(
-                self.sources, name, self.clock(), self.github.runs, self.code.said(), self.panels
+                self.sources,
+                name,
+                self.clock(),
+                self.github.runs,
+                self.code.said(),
+                self.panels,
+                merged=self.github.merged,
             )
             built = read.asked(panel[1]) if panel else read.answer()
             return NOT_FOUND if built is None else said(200, clean(built, (repo,)))
