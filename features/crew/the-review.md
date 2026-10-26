@@ -55,7 +55,7 @@ To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.
 
-Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/.." jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configuration` gives as `threadId`.
+Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/../source" jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configuration` gives as `threadId`.
 When it exits 75 and prints no JSON, every instance of the review pool is capped, and it has registered this thread as a waiter until the cap's end, in the line it prints.
 Then make no launch and add no `Reviewer:` line, and end your turn at once with one line: `Waiting on the review pool: jbus will wake this thread when its cap ends.`
 Never poll for the reset, never wait in a background job, and never count on a nudge from jbus's other messages: `jbus poll` sends this thread one message once the cap's end has passed, and that message is the wake.
@@ -83,7 +83,7 @@ After that push, run the block of "Do the task" that asks `jmerge --scope` again
 Every finding ends one of two ways, and none is left unanswered. The findings have ids, `F1`, `F2`, ..., which no reviewer writes: two reviewers' findings of one place are one id, and this lists them, merged and triaged, each with its bucket, its reviewers and the answer it has so far. Run it with the block at the top:
 
 ```sh
-uv run --project "$T/.." jbriefs --findings "$H/tasks/<slug>.md"
+uv run --project "$T/../source" jbriefs --findings "$H/tasks/<slug>.md"
 ```
 
 Add one line to the Result for each finding it lists as `[Act on]` or `[Consider]`, by its id, in one of these two shapes:
@@ -102,7 +102,7 @@ A finding's bucket is the lead's reading, and it sets the default; its severity 
 Then run this, with the block at the top. It reads the same list, and says what is left:
 
 ```sh
-uv run --project "$T/.." jbriefs --findings "$H/tasks/<slug>.md" --left
+uv run --project "$T/../source" jbriefs --findings "$H/tasks/<slug>.md" --left
 ```
 
 On `wait`, the reviewer has sent its message and not yet written its section: handle the findings, and run it again before the `Fixed:` line. On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above. On `not yet`, a finding has no answer that counts: the ids after its colon are the ones, each with why its answer is refused where it has one, and a review from before the ids names none. Give each its line. Otherwise it says which `Fixed:` line to write. After a second pass or a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them. The sections of one head are one review, one from each reviewer. Where the last review has findings and none of them is fixed, it says `none needed` whatever an earlier pass fixed. The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head. `jmerge` reads both: it merges on the `Fixed:` line, and waits, on every path, until each `Act on` finding has an answer that counts.

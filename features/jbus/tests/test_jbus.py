@@ -141,16 +141,16 @@ def test_the_timer_runs_a_pass_every_minute_and_a_failed_one_runs_the_alarm():
     assert units["jbus.timer"]["Install"]["WantedBy"] == "timers.target"
 
 
-def test_a_fresh_check_ends_before_jbus_stops_jmerge_and_jmerge_before_systemd_stops_the_pass():
-    """The test names each of the three limits once: the check's own, what a pass allows
-    `jmerge`, and the unit's. Once, at 03:26 ET, a check ran past a later limit and was killed
-    before it recorded its result."""
+def test_a_merge_gate_ends_before_jbus_stops_jmerge_and_jmerge_before_systemd_stops_the_pass():
+    """The test names each of the three limits once: the merge gate's own, the longest thing
+    `jmerge` runs, what a pass allows `jmerge`, and the unit's. Once, at 03:26 ET, a local check
+    ran past a later limit and was killed before it recorded its result."""
     service = configparser.ConfigParser(interpolation=None)
     service.optionxform = str
     service.read(REPO / "features" / "jbus" / "units" / "jbus.service")
     started = service["Service"]["TimeoutStartSec"]
     assert re.fullmatch(r"\d+min", started)
-    assert cli.Fresh.TIMEOUT < wake.JMERGE_TIMEOUT < int(started.removesuffix("min")) * 60
+    assert cli.Gate.TIMEOUT < wake.JMERGE_TIMEOUT < int(started.removesuffix("min")) * 60
 
 
 def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):

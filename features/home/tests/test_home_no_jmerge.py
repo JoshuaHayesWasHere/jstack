@@ -264,7 +264,9 @@ OWN, THEIRS = MERGED.replace("beta", "gamma"), MERGED.replace("beta", "delta")
 
 
 PLAYBOOKS = SKILLS.parent / "playbooks"
-LANDING = re.compile(r"`(uv run --project \"\$T/\.\.\" jmerge --home '<threadId>' --land <name>)`")
+LANDING = re.compile(
+    r"`(uv run --project \"\$T/\.\./source\" jmerge --home '<threadId>' --land <name>)`"
+)
 
 
 @pytest.mark.parametrize(("playbook", "times"), [("autopilot-stack", 1), ("shipping", 1)])

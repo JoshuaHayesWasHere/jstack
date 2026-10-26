@@ -11,6 +11,7 @@ The tests run the command against a real origin and a fake `gh`, as
 import fcntl
 import json
 import os
+import shutil
 import sys
 import time
 
@@ -18,6 +19,7 @@ import pytest
 
 from jbus import expedite, wake
 from jmerge import cli, lines, ready
+from jmerge import gate as merge_gate
 from test_jmerge_fresh import LINES, Kitchen, git, url
 
 GATE = """\
@@ -215,3 +217,19 @@ def test_a_gate_another_run_holds_is_waited_for_and_its_checkout_is_left_alone(k
         assert (found.verb, found.why) == ("wait", ready.GATE_LOCKED)
         assert not (record / "args").exists()
     assert cli.Gate(kitchen.home.main, kitchen.home.state).of(6, head, "main").note == lines.GATE_OK
+
+
+def test_a_gate_finds_the_tools_a_shell_outside_the_venv_of_jmerge_finds(tmp_path, monkeypatch):
+    """`uv run --project` starts `jmerge --gate` with its venv's bin first on PATH. The gate's bare
+    `python3` is the one a shell outside that venv finds, as when `jmerge` runs the gate itself."""
+    outside = os.environ["PATH"]
+    venv = tmp_path / "venv"
+    (venv / "bin").mkdir(parents=True)
+    (venv / "bin" / "python3").write_text("#!/bin/sh\n")
+    (venv / "bin" / "python3").chmod(0o755)
+    monkeypatch.setenv("VIRTUAL_ENV", str(venv))
+    monkeypatch.setenv("PATH", f"{venv / 'bin'}{os.pathsep}{outside}")
+    code, said = merge_gate.run(
+        'command -v python3; echo "${VIRTUAL_ENV-unset}"; true', tmp_path, "b", "h", 10
+    )
+    assert (code, said.splitlines()) == (0, [shutil.which("python3", path=outside), "unset"])

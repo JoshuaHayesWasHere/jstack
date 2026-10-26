@@ -45,6 +45,7 @@ Run `jgauge test-slot -- <command>`.
 It waits for one of the machine-wide test slots, runs the command, and exits with the command's exit code.
 For a short targeted run, use the short lane, `jgauge test-slot --short -- <command>`.
 A short run never waits for a slot that a whole suite holds.
+The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a TLC model check it starts takes no second slot.
 
 To change how many slots there are, see [The limits and how to change them](jgauge/change-a-limit.md).
 

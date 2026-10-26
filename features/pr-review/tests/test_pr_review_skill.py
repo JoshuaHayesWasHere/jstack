@@ -640,7 +640,7 @@ def room_calls(tmp_path, **readings):
     for skill, more in (("home", ""), ("pr-review", '\nprintf "%s\\n" "$said"')):
         text = as_read(assembled() / "skills" / skill / "SKILL.md")
         (call,) = [line for line in text.splitlines() if "jgauge room" in line and "`" not in line]
-        assert call.count('uv run --project "$T/.." jgauge room') == 1
+        assert call.count('uv run --project "$T/../source" jgauge room') == 1
         said.append(says(env, call.replace("--wait 540", "--wait 0") + more))
     return said
 

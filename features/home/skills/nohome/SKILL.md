@@ -39,7 +39,7 @@ New threads in this repo start as ordinary threads until it is switched back on.
 Run this with the block at the top:
 
 ```sh
-uv run --project "$T/.." jbus forget "$H/off" > /dev/null
+uv run --project "$T/../source" jbus forget "$H/off" > /dev/null
 ```
 
 New threads in this repo start as homes again. This thread does not change: type `/home` to make it one.
@@ -59,7 +59,7 @@ From then on `jmerge` merges nothing in this repo, whether a home runs it or `jb
 Run this with the block at the top:
 
 ```sh
-uv run --project "$T/.." jbus forget "$H/merge-off" > /dev/null
+uv run --project "$T/../source" jbus forget "$H/merge-off" > /dev/null
 ```
 
 The next run of `jmerge` merges what is ready again.

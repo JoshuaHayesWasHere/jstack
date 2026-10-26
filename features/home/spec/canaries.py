@@ -64,8 +64,17 @@ CANARIES = {
 TODAY_MODES = '{"jbus", "home"}'
 
 
+# A run of a property checks the scene alone: its children, its calls and their notices. TLC
+# carries a branch of the property and the fairness of each message and child it is given, on
+# every state, so the three of a scene take a third as long as the six of the whole model and
+# find the same states. The run of every invariant checks, on the whole model, that nothing
+# outside the scene moves (SceneStill in HomeTree.tla), so the scene alone misses no step.
+SCENE_ALONE = ["    Kids <- Made", "    Calls <- Raised", "    Notices <- SceneNotices"]
+
+
 def config(scene, rules, modes, drop=None):
     made, raised, routes_move = SCENES[scene]
+    alone = any(rule in PROPERTIES for rule in rules)
     lines = [
         "CONSTANTS",
         "    K = 2",
@@ -75,8 +84,10 @@ def config(scene, rules, modes, drop=None):
         f"    Raised = {raised}",
         f"    RoutesMove = {routes_move}",
         *([f'    Drop = "{drop}"'] if drop is not None else []),
+        *(SCENE_ALONE if alone else []),
         "SPECIFICATION Spec",
         "INVARIANT TypeOK",
+        *(["INVARIANT SceneStill"] if rules == INVARIANTS else []),
         *(f"INVARIANT {rule}" for rule in rules if rule in INVARIANTS),
         *(f"PROPERTY {rule}" for rule in rules if rule in PROPERTIES),
     ]
@@ -94,23 +105,25 @@ def tlc(found, module, cfg):
         # unasked. The tests run several at once, and a low-memory killer stopped them at that
         # size, while the largest scene runs as fast in 1 GB.
         ran = subprocess.run(
-            [
-                found.java,
-                "-Xmx1g",
-                "-XX:+UseParallelGC",
-                f"-Djava.io.tmpdir={work}",
-                "-cp",
-                found.jar,
-                "tlc2.TLC",
-                "-workers",
-                "auto",
-                "-deadlock",
-                "-metadir",
-                str(work / "meta"),
-                "-config",
-                "run.cfg",
-                f"{module}.tla",
-            ],
+            tools.in_test_slot(
+                [
+                    found.java,
+                    "-Xmx1g",
+                    "-XX:+UseParallelGC",
+                    f"-Djava.io.tmpdir={work}",
+                    "-cp",
+                    found.jar,
+                    "tlc2.TLC",
+                    "-workers",
+                    tools.workers(),
+                    "-deadlock",
+                    "-metadir",
+                    str(work / "meta"),
+                    "-config",
+                    "run.cfg",
+                    f"{module}.tla",
+                ]
+            ),
             cwd=work,
             capture_output=True,
             text=True,
@@ -155,6 +168,7 @@ def runs():
 def main():
     try:
         tlc_tools = tools.find_tlc()
+        tools.workers()
     except tools.NoTlc as e:
         print(e, file=sys.stderr)
         return 2
@@ -174,4 +188,5 @@ def main():
 
 
 if __name__ == "__main__":
+    tools.rerun_in_test_slot()
     sys.exit(main())

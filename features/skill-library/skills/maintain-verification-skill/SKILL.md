@@ -144,7 +144,7 @@ else
         echo "Ruled out: a subagent per feature (not durable), driving the app from the home or a scout"
     } > "$B"
     echo "wrote: tasks/$run.md"
-    uv run --project "${T:?the templates of jstack are not found}/.." python -c '
+    uv run --project "${T:?the templates of jstack are not found}/../source" python -c '
 import sys
 from jbriefs.parse import faults
 found = faults(open(sys.argv[1]).read())

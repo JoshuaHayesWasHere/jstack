@@ -15,7 +15,8 @@ from datetime import date, datetime
 import pytest
 
 import repo_template
-from test_home_thread import as_read, installed
+from test_home_thread import as_read
+from testing.layouts import assembled
 from testing.paths import skills
 
 SKILL = skills()["home"] / "SKILL.md"
@@ -207,7 +208,8 @@ class Home:
 
     def __init__(self, tmp_path):
         self.user = tmp_path / "user"
-        installed(self.user)
+        (self.user / ".claude").mkdir(parents=True)
+        (self.user / ".claude" / "skills").symlink_to(assembled() / "skills")
         self.tasks = self.user / ".local" / "state" / "home" / NAME / "tasks"
         self.tasks.mkdir(parents=True)
         self.state = self.tasks.parent
@@ -264,7 +266,7 @@ class Home:
         whatever the switch holds. With `about`, run the skill's block that holds that text, in
         one call with the block at the top, with the flags added to its `jmerge` line."""
         if about is None:
-            script = f'{paths()}\nuv run --project "$T/.." jmerge {" ".join(flags)}'
+            script = f'{paths()}\nuv run --project "$T/../source" jmerge {" ".join(flags)}'
             return self.sh(script, cwd, path)
         text = block(about)
         (line,) = [line for line in text.splitlines() if "jmerge --" in line]

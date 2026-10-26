@@ -15,13 +15,15 @@ import textwrap
 
 import pytest
 
+from testing.layouts import assembled
 from testing.paths import REPO, skills
 
+TEMPLATES = assembled() / "templates"
 ONE_WAY = [
-    ("playbook", 'uv run --project "$T/.." jbus playbook <role> "$B"', "/^Playbook:/"),
+    ("playbook", 'uv run --project "$T/../source" jbus playbook <role> "$B"', "/^Playbook:/"),
     ("gate", "jbus gate <slug>, the gate's lines on stdin", "grep -c '^## '"),
-    ("home", 'uv run --project "$T/.." jbus home "$B"', "s/^Home:[[:space:]]*"),
-    ("checks", 'uv run --project "$T/.." jmerge --checks', "checks() {"),
+    ("home", 'uv run --project "$T/../source" jbus home "$B"', "s/^Home:[[:space:]]*"),
+    ("checks", 'uv run --project "$T/../source" jmerge --checks', "checks() {"),
 ]
 
 
@@ -120,7 +122,7 @@ def run(tmp_path, command, block):
     for placeholder, fill in FILLS.items():
         block = block.replace(placeholder, fill)
     ran = subprocess.run(
-        ["sh", "-c", f"SEP=$(printf '\\037'); own=home; N=one; T={REPO / 'templates'}\n{block}"],
+        ["sh", "-c", f"SEP=$(printf '\\037'); own=home; N=one; T={TEMPLATES}\n{block}"],
         capture_output=True,
         text=True,
         env={"HOME": str(tmp_path), "PATH": f"{bin_dir}{os.pathsep}/usr/bin{os.pathsep}/bin"},

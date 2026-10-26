@@ -20,7 +20,7 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 6. Work each message as "When a thread sends a message" says, and each tick as "One tick" says. You read no diff and judge no change (`principles/principle-prove-it-works.md`). A link that stopped is picked up with `playbooks/session-pickup.md`, and nothing above it launches meanwhile. A link's crewmate never rebases for a conflict by itself: on its line that it has one, send it the line of "A link with a conflict" there, then the links above it, bottom up.
 7. On the user's stop, stop at once. Launch nothing, send every thread out one line to write and push nothing more, delete the audit if one is kept, and tell the user which threads were told.
 8. Deliver the stack when its top link is fixed and green.
-   Run `uv run --project "$T/.." jmerge --home '<threadId>' --land <name>` from the main checkout, which merges nothing: the bottom link prints `ready`, and each one above waits on its base.
+   Run `uv run --project "$T/../source" jmerge --home '<threadId>' --land <name>` from the main checkout, which merges nothing: the bottom link prints `ready`, and each one above waits on its base.
    End the turn with `decision local <name>:`, each link from the bottom up with its pull request and verdict, what is parked or left out and why, and that it lands on "land <name>".
    Then stop: the landing is `playbooks/shipping.md`, and it starts with that word.
 

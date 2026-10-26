@@ -30,13 +30,26 @@ def command(state: Path) -> str:
         return ""
 
 
+def outside_venv() -> dict[str, str]:
+    """This environment as a shell outside the venv `jmerge` runs in has it: `uv run --project`
+    sets `VIRTUAL_ENV` and puts that venv's bin first on PATH, and both are taken out, so a bare
+    `python3` or `ruff` is the one the repo's own shell finds."""
+    env = dict(os.environ)
+    venv = env.pop("VIRTUAL_ENV", "")
+    if venv:
+        bin_dir = os.path.join(venv, "bin")
+        env["PATH"] = os.pathsep.join(
+            one for one in env.get("PATH", "").split(os.pathsep) if one != bin_dir
+        )
+    return env
+
+
 def run(
     gate: str, cwd: Path, base: str, head: str, limit: float, pass_fds: tuple[int, ...] = ()
 ) -> tuple[int | None, str]:
     """Run the gate and return its exit code, None where it ran over `limit`, and its output.
     An `OSError` is raised where it could not start."""
-    env = {key: value for key, value in os.environ.items() if key != "VIRTUAL_ENV"}
-    env |= {"BASE": base, "HEAD": head}
+    env = outside_venv() | {"BASE": base, "HEAD": head}
     with tempfile.TemporaryFile() as log:
         ran = subprocess.Popen(
             ["sh", "-c", f'{gate} "$@"', NAME, base, head],
