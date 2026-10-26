@@ -286,6 +286,21 @@ def test_a_drawer_opened_over_the_homes_map_or_a_filtered_board_closes_back_to_i
     assert (closed["open"], closed["hash"]) == (False, route)
 
 
+@pytest.mark.parametrize("where", ["homes", "board"])
+def test_a_link_with_a_drawer_open_over_the_homes_map_or_a_filtered_board_loads_as_it_says(
+    tmp_path, where
+):
+    """A link to a drawer over `#/homes`, or over a filtered board, loads with the drawer open
+    over that view, and closing it comes back to the view the link named."""
+    route = "#/homes" if where == "homes" else f"#/?home=jview&still=1&pick={a_middle(board('27'))}"
+    link = route + ("&" if "?" in route else "?") + "open=help"
+    seen, _ = shown(tmp_path, "27", DESK, route=link, script="", walk=["wait", "close"], at=4000)
+    assert seen["errors"] == []
+    loaded, closed = seen["walked"]
+    assert (loaded["open"], loaded["hash"]) == (True, link)
+    assert (closed["open"], closed["hash"]) == (False, route)
+
+
 def test_a_chip_that_has_the_focus_filters_the_board_and_keeps_the_focus(tmp_path):
     """A click focuses a chip before it filters, as a pointer does: the board draws again and
     gives the focus back to the same chip."""
