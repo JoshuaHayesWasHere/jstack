@@ -1096,7 +1096,7 @@
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  var gAt = 0, CHORD_MS = 1500, FIRSTS = {}, TIMED = { item: true, action: true }, WRITTEN = { "/answer": "answer", "/steer": "" }, SHOWN = "";
+  var gAt = 0, CHORD_MS = 1500, FIRSTS = {}, TIMED = { item: true, action: true }, WRITTEN = { "/answer": "answer", "/steer": "", "/panel/you/approve": "approve", "/panel/you/hold": "hold", "/panel/you/steer": "message" }, SHOWN = "";
   var HEADLESS = !!navigator.webdriver || /HeadlessChrome/.test(navigator.userAgent);
   function routeName() { return PROJECT ? "project" : TRIAGE ? "triage" : "stack"; }
   function note(kind, what) {
