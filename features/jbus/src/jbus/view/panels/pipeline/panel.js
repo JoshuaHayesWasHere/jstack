@@ -1,55 +1,50 @@
-// The board, the first screen (`#/`, and `#/flow`): every open row of every project in its stage,
-// from `/panel/board.json`. Three headlines, a strip of the stages, then a column of cards for each
-// stage; on a phone each stage is a `<details>`. A pick marks what the row waits on and what waits
-// on it, links them in one SVG over the columns, and dims the rest. The home, "not moving only" and
-// the pick are kept in the address: `#/?home=<home>&still=1&pick=<slug>`.
 (function () {
   var css = document.createElement("style");
   css.textContent =
-    "body:has(#board:not([hidden])) main { max-width: 1440px; }" +
-    "#board { margin-top: 10px; }" +
-    ".bd-heads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }" +
-    ".bd-hd { min-width: 0; border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 6px 12px 8px; }" +
-    ".bd-hd.hot { border-left: 5px solid var(--due); }" +
-    ".bd-hd .tag { display: block; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }" +
-    ".bd-v { display: block; font-size: 19px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }" +
-    ".bd-d { display: block; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    ".bd-l { font: inherit; font-family: var(--mono); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }" +
-    ".bd-hm { display: none; font-size: 15px; color: var(--ink); align-self: center; }" +
-    ".bd-strip { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }" +
-    ".bd-st { min-width: 0; display: grid; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); padding: 4px 6px 5px; }" +
-    ".bd-st.hot { border-color: var(--due); box-shadow: inset 0 0 0 1px var(--due); }" +
-    ".bd-k, .bd-o, .bd-x { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    ".bd-n { font-size: 22px; font-weight: 800; line-height: 1.1; }" +
-    ".bd-bar { display: block; height: 5px; margin: 3px 0 2px; background: var(--sunk); border-radius: 3px; overflow: hidden; }" +
-    ".bd-bar i { display: block; height: 100%; background: var(--due); }" +
-    ".bd-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }" +
-    ".bd-chips button { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; cursor: pointer; }" +
-    ".bd-chips button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }" +
-    ".bd-board { position: relative; display: grid; gap: 6px; margin-top: 10px; align-items: start; }" +
-    ".bd-col { min-width: 0; background: var(--sunk); border: 1.5px solid transparent; border-radius: 8px; padding: 5px; }" +
-    ".bd-col.hot { border-color: var(--due); }" +
-    ".bd-col h3 { margin: 0 0 5px; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; } .bd-col h3 span { font-weight: 400; color: var(--ink-2); }" +
-    ".bd-board ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }" +
-    ".bd-c { width: 100%; min-width: 0; display: grid; gap: 1px; text-align: left; font: inherit; font-size: 13px; line-height: 1.3; color: var(--ink); background: var(--surface); border: 1.5px solid var(--hair); border-left: 4px solid var(--hair); border-radius: 6px; padding: 3px 6px 4px; cursor: pointer; }" +
-    ".bd-c.still { border-left-color: var(--due); }" +
-    ".bd-c.pk { border-color: var(--focus); border-left-color: var(--focus); box-shadow: 0 0 0 1.5px var(--focus); }" +
-    ".bd-c.up, .bd-c.dn { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }" +
-    ".bd-c.dim, .bd-c.dim .bd-m, .bd-c.dim .bd-u { background: var(--canvas); color: var(--ink-3); border-color: var(--hair); font-weight: 400; }" +
-    ".bd-c.dim.still { border-left-color: var(--hair); }" +
-    ".bd-s { font-family: var(--mono); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }" +
-    ".bd-m, .bd-u { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; } .bd-w { overflow-wrap: anywhere; }" +
-    "svg.bd-links { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }" +
-    "svg.bd-links path { fill: none; stroke: var(--focus); stroke-width: 2; }" +
-    ".bd-det { border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 0 10px; }" +
-    ".bd-det.hot { border-color: var(--due); border-left-width: 5px; }" +
-    ".bd-det summary { min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; cursor: pointer; font-weight: 700; }" +
-    ".bd-det summary span { font-weight: 400; color: var(--ink-2); }" +
-    ".bd-det ol { padding-bottom: 8px; } .bd-det .bd-u { margin: 0 0 8px; }" +
-    ".bd-unpl { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
-    "@media (max-width: 1180px) { .bd-strip, .bd-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
-    "@media (max-width: 640px) { .bd-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .bd-strip { display: none; } .bd-board { gap: 6px; }" +
-    " .bd-chips button, .bd-hm { min-height: 44px; } .bd-hm { display: inline-flex; align-items: center; padding: 0 6px; } .bd-c { min-height: 44px; font-size: 15px; } #homes { display: none; } }";
+    "body:has(#pipeline:not([hidden])) main { max-width: 1440px; }" +
+    "#pipeline { margin-top: 10px; }" +
+    ".pl-heads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }" +
+    ".pl-hd { min-width: 0; border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 6px 12px 8px; }" +
+    ".pl-hd.hot { border-left: 5px solid var(--due); }" +
+    ".pl-hd .tag { display: block; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }" +
+    ".pl-v { display: block; font-size: 19px; font-weight: 800; line-height: 1.3; overflow-wrap: anywhere; }" +
+    ".pl-d { display: block; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
+    ".pl-l { font: inherit; font-family: var(--mono); color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }" +
+    ".pl-hm { display: none; font-size: 15px; color: var(--ink); align-self: center; }" +
+    ".pl-strip { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }" +
+    ".pl-st { min-width: 0; display: grid; border: 1.5px solid var(--hair); border-radius: 8px; background: var(--surface); padding: 4px 6px 5px; }" +
+    ".pl-st.hot { border-color: var(--due); box-shadow: inset 0 0 0 1px var(--due); }" +
+    ".pl-k, .pl-o, .pl-x { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }" +
+    ".pl-n { font-size: 22px; font-weight: 800; line-height: 1.1; }" +
+    ".pl-bar { display: block; height: 5px; margin: 3px 0 2px; background: var(--sunk); border-radius: 3px; overflow: hidden; }" +
+    ".pl-bar i { display: block; height: 100%; background: var(--due); }" +
+    ".pl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }" +
+    ".pl-chips button { font: inherit; font-size: 15px; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line); border-radius: 1249px; padding: 1px 12px; cursor: pointer; }" +
+    ".pl-chips button[aria-pressed=true] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }" +
+    ".pl-board { position: relative; display: grid; gap: 6px; margin-top: 10px; align-items: start; }" +
+    ".pl-col { min-width: 0; background: var(--sunk); border: 1.5px solid transparent; border-radius: 8px; padding: 5px; }" +
+    ".pl-col.hot { border-color: var(--due); }" +
+    ".pl-col h3 { margin: 0 0 5px; font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; } .pl-col h3 span { font-weight: 400; color: var(--ink-2); }" +
+    ".pl-board ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }" +
+    ".pl-c { width: 100%; min-width: 0; display: grid; gap: 1px; text-align: left; font: inherit; font-size: 13px; line-height: 1.3; color: var(--ink); background: var(--surface); border: 1.5px solid var(--hair); border-left: 4px solid var(--hair); border-radius: 6px; padding: 3px 6px 4px; cursor: pointer; }" +
+    ".pl-c.still { border-left-color: var(--due); }" +
+    ".pl-c.pk { border-color: var(--focus); border-left-color: var(--focus); box-shadow: 0 0 0 1.5px var(--focus); }" +
+    ".pl-c.up, .pl-c.dn { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }" +
+    ".pl-c.dim, .pl-c.dim .pl-m, .pl-c.dim .pl-u { background: var(--canvas); color: var(--ink-3); border-color: var(--hair); font-weight: 400; }" +
+    ".pl-c.dim.still { border-left-color: var(--hair); }" +
+    ".pl-s { font-family: var(--mono); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }" +
+    ".pl-m, .pl-u { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; } .pl-w { overflow-wrap: anywhere; }" +
+    "svg.pl-links { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }" +
+    "svg.pl-links path { fill: none; stroke: var(--focus); stroke-width: 2; }" +
+    ".pl-det { border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 0 10px; }" +
+    ".pl-det.hot { border-color: var(--due); border-left-width: 5px; }" +
+    ".pl-det summary { min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; cursor: pointer; font-weight: 700; }" +
+    ".pl-det summary span { font-weight: 400; color: var(--ink-2); }" +
+    ".pl-det ol { padding-bottom: 8px; } .pl-det .pl-u { margin: 0 0 8px; }" +
+    ".pl-unpl { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
+    "@media (max-width: 1180px) { .pl-strip, .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
+    "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-strip { display: none; } .pl-board { gap: 6px; }" +
+    " .pl-chips button, .pl-hm { min-height: 44px; } .pl-hm { display: inline-flex; align-items: center; padding: 0 6px; } .pl-c { min-height: 44px; font-size: 15px; } #homes { display: none; } }";
   document.head.appendChild(css);
 })();
 
@@ -66,7 +61,6 @@ function boardPicked(view) {
   return rows.filter(function (r) { return r.project === BOARD_PROJECT; })[0] || rows[0] || null;
 }
 
-// What a pick marks: the row (pk), what it waits on back to the head (up), what waits on it (dn).
 function boardMarks(picked) {
   var at = {}, marks = {};
   if (!picked) return marks;
@@ -86,15 +80,15 @@ function boardMarks(picked) {
   return marks;
 }
 
-function boardPick(slug, project) { return '<button type="button" class="bd-l" data-bpick="' + esc(slug) + '" data-bproj="' + esc(project || "") + '">' + esc(slug) + '</button>'; }
+function boardPick(slug, project) { return '<button type="button" class="pl-l" data-bpick="' + esc(slug) + '" data-bproj="' + esc(project || "") + '">' + esc(slug) + '</button>'; }
 
 function boardHeads() {
   var stuck = BOARD.stuck, wait = BOARD.longest_wait, long = BOARD.longest, oldest = null;
   if (stuck) boardRows().forEach(function (r) { if (r.stage === stuck.stage && !r.moving && (!oldest || (ms(r.since) || 0) < (ms(oldest.since) || 0))) oldest = r; });
   function head(key, tag, value, said, hot) {
-    return '<div class="bd-hd' + (hot ? " hot" : "") + '" data-head="' + key + '"><span class="tag">' + tag + '</span><span class="bd-v">' + value + '</span><span class="bd-d">' + said + '</span></div>';
+    return '<div class="pl-hd' + (hot ? " hot" : "") + '" data-head="' + key + '"><span class="tag">' + tag + '</span><span class="pl-v">' + value + '</span><span class="pl-d">' + said + '</span></div>';
   }
-  return '<div class="bd-heads" data-role="heads">' +
+  return '<div class="pl-heads" data-role="heads">' +
     head("stuck", "Most stuck", stuck && stuck.still ? esc(boardName(stuck.stage)) + ": " + stuck.still + " of " + stuck.count + " not moving" : "Every row is moving",
       oldest ? "Oldest " + boardPick(oldest.slug, oldest.project) + ", " + boardAge(oldest.since) + ": " + esc(oldest.cause) : "", !!(stuck && stuck.still)) +
     head("wait", "Waiting longest", wait ? boardPick(wait.slug, wait.project) + ": " + boardAge(wait.since) + " in " + esc(boardName(wait.stage)) : "No row waits",
@@ -104,8 +98,6 @@ function boardHeads() {
     '</div>';
 }
 
-// Each stage as the filter leaves it: its rows, not moving first and then the oldest, its count and
-// its oldest. With no filter, the count and the oldest are the server's (merged counts today's).
 function boardStages(view) {
   var all = !view.home && !view.still;
   return (BOARD.stages || []).map(function (s) {
@@ -120,11 +112,11 @@ function boardStages(view) {
 function boardCols(stages) { return stages.map(function (s) { return "minmax(0, " + (s.count ? "1fr" : ".5fr") + ")"; }).join(" "); }
 
 function boardStrip(stages, hot) {
-  return '<ol class="bd-strip" data-role="strip" aria-label="Rows in each stage" style="grid-template-columns: ' + boardCols(stages) + '">' + stages.map(function (s) {
+  return '<ol class="pl-strip" data-role="strip" aria-label="Rows in each stage" style="grid-template-columns: ' + boardCols(stages) + '">' + stages.map(function (s) {
     var age = s.key === "merged" ? "today" : s.oldest ? "oldest " + boardAge(s.oldest.since) : "";
-    return '<li class="bd-st' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><span class="bd-k">' + esc(s.name) + '</span> <span class="bd-n">' + s.count + '</span>' +
-      (age ? ' <span class="bd-o">' + age + '</span>' : "") +
-      (s.count && s.key !== "merged" ? '<span class="bd-bar"><i style="width:' + Math.round(100 * s.still / s.count) + '%"></i></span>' + (s.still ? '<span class="bd-x">' + s.still + ' not moving</span>' : "") : "") + '</li>';
+    return '<li class="pl-st' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><span class="pl-k">' + esc(s.name) + '</span> <span class="pl-n">' + s.count + '</span>' +
+      (age ? ' <span class="pl-o">' + age + '</span>' : "") +
+      (s.count && s.key !== "merged" ? '<span class="pl-bar"><i style="width:' + Math.round(100 * s.still / s.count) + '%"></i></span>' + (s.still ? '<span class="pl-x">' + s.still + ' not moving</span>' : "") : "") + '</li>';
   }).join("") + '</ol>';
 }
 
@@ -132,46 +124,45 @@ function boardChips(view) {
   var homes = {}, still = 0;
   boardRows().forEach(function (r) { homes[r.home] = (homes[r.home] || 0) + 1; if (!r.moving && (!view.home || r.home === view.home)) still += 1; });
   var named = Object.keys(homes).sort(function (a, b) { return homes[b] - homes[a] || (a < b ? -1 : 1); });
-  function chip(attr, value, said, on) { return '<button type="button" id="bh-' + esc(attr === "data-bstill" ? "still" : value || "all") + '" ' + attr + '="' + esc(value) + '" aria-pressed="' + on + '">' + said + '</button>'; }
-  return '<div class="bd-chips" data-role="chips" role="group" aria-label="Show the rows of">' +
+  function chip(attr, value, said, on) { return '<button type="button" id="ph-' + esc(attr === "data-bstill" ? "still" : value || "all") + '" ' + attr + '="' + esc(value) + '" aria-pressed="' + on + '">' + said + '</button>'; }
+  return '<div class="pl-chips" data-role="chips" role="group" aria-label="Show the rows of">' +
     chip("data-bhome", "", "All homes " + boardRows().length, !view.home) +
     named.map(function (h) { return chip("data-bhome", h, esc(h) + " " + homes[h], view.home === h); }).join("") +
-    chip("data-bstill", "1", "Not moving only " + still, view.still) + '<a class="bd-hm" href="#/homes">Homes map</a></div>';
+    chip("data-bstill", "1", "Not moving only " + still, view.still) + '<a class="pl-hm" href="#/homes">Homes map</a></div>';
 }
 
 function boardCard(r, marks, on) {
   var how = on ? marks[boardKey(r.project, r.slug)] || "dim" : "";
   var waits = r.waits_on.map(function (w) { return w.slug; });
-  return '<li><button type="button" class="bd-c ' + (r.moving ? "mv" : "still") + (how ? " " + how : "") + '" data-bpick="' + esc(r.slug) + '" data-bproj="' + esc(r.project) + '" aria-pressed="' + (how === "pk") + '" title="' + esc(r.slug) + '">' +
-    '<span class="bd-s">' + esc(r.slug) + '</span><span class="bd-m">' + esc(r.home) + ' · ' + boardAge(r.since) + (r.moving ? "" : ", not moving") + '</span><span class="bd-w">' + esc(r.cause) + '</span>' +
-    (waits.length ? '<span class="bd-u">waits on ' + esc(waits.join(", ")) + '</span>' : "") + '</button></li>';
+  return '<li><button type="button" class="pl-c ' + (r.moving ? "mv" : "still") + (how ? " " + how : "") + '" data-bpick="' + esc(r.slug) + '" data-bproj="' + esc(r.project) + '" aria-pressed="' + (how === "pk") + '" title="' + esc(r.slug) + '">' +
+    '<span class="pl-s">' + esc(r.slug) + '</span><span class="pl-m">' + esc(r.home) + ' · ' + boardAge(r.since) + (r.moving ? "" : ", not moving") + '</span><span class="pl-w">' + esc(r.cause) + '</span>' +
+    (waits.length ? '<span class="pl-u">waits on ' + esc(waits.join(", ")) + '</span>' : "") + '</button></li>';
 }
 
 function boardCards(stages, hot, marks, on) {
   var phone = BOARD_PHONE.matches;
-  return '<div class="bd-board' + (phone ? "" : " cols") + '" data-role="cards"' + (phone ? "" : ' style="grid-template-columns: ' + boardCols(stages) + '"') + '>' + stages.map(function (s) {
+  return '<div class="pl-board' + (phone ? "" : " cols") + '" data-role="cards"' + (phone ? "" : ' style="grid-template-columns: ' + boardCols(stages) + '"') + '>' + stages.map(function (s) {
     var age = s.key === "merged" ? "today" : s.oldest ? "oldest " + boardAge(s.oldest.since) : "";
-    var list = s.rows.length ? '<ol>' + s.rows.map(function (r) { return boardCard(r, marks, on); }).join("") + '</ol>' : s.count ? '<p class="bd-u">' + plural(s.count, "row", "rows") + ', none drawn</p>' : "";
-    if (!phone) return '<section class="bd-col' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><h3>' + esc(s.name) + ' <b>' + s.count + '</b>' + (age ? ' <span>· ' + age + '</span>' : "") + '</h3>' + list + '</section>';
+    var list = s.rows.length ? '<ol>' + s.rows.map(function (r) { return boardCard(r, marks, on); }).join("") + '</ol>' : s.count ? '<p class="pl-u">' + plural(s.count, "row", "rows") + ', none drawn</p>' : "";
+    if (!phone) return '<section class="pl-col' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"><h3>' + esc(s.name) + ' <b>' + s.count + '</b>' + (age ? ' <span>· ' + age + '</span>' : "") + '</h3>' + list + '</section>';
     var marked = on && s.rows.some(function (r) { return marks[boardKey(r.project, r.slug)]; });
     var open = marked || (BOARD_OPEN[s.key] === undefined ? s.key === hot : BOARD_OPEN[s.key]);
-    return '<details class="bd-det' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"' + (open ? " open" : "") + '><summary>' + esc(s.name) + ' <b>' + s.count + '</b>' +
+    return '<details class="pl-det' + (s.key === hot ? " hot" : "") + '" data-stage="' + esc(s.key) + '"' + (open ? " open" : "") + '><summary>' + esc(s.name) + ' <b>' + s.count + '</b>' +
       (s.still && s.key !== "merged" ? ' <span>· ' + s.still + ' not moving</span>' : "") + (age ? ' <span>· ' + age + '</span>' : "") + '</summary>' + list + '</details>';
-  }).join("") + '<svg class="bd-links" aria-hidden="true" focusable="false"></svg></div>';
+  }).join("") + '<svg class="pl-links" aria-hidden="true" focusable="false"></svg></div>';
 }
 
 function boardUnplaced() {
   var u = BOARD.unplaced || [];
   if (!u.length) return "";
-  return '<p class="bd-unpl"><b>Not in a stage:</b> ' + u.map(function (one) { return '<code>' + esc(one.slug) + '</code> (' + esc(one.cause) + ')'; }).join("; ") + '</p>';
+  return '<p class="pl-unpl"><b>Not in a stage:</b> ' + u.map(function (one) { return '<code>' + esc(one.slug) + '</code> (' + esc(one.cause) + ')'; }).join("; ") + '</p>';
 }
 
-// The links of a pick: one path from each marked row to each marked row it waits on.
 function boardLinks() {
-  var el = $("board"), svg = el.querySelector("svg.bd-links");
+  var el = $("pipeline"), svg = el.querySelector("svg.pl-links");
   if (!svg) return;
   var box = svg.parentNode.getBoundingClientRect(), cards = {}, paths = [];
-  [].slice.call(el.querySelectorAll(".bd-c.pk, .bd-c.up, .bd-c.dn")).forEach(function (c) {
+  [].slice.call(el.querySelectorAll(".pl-c.pk, .pl-c.up, .pl-c.dn")).forEach(function (c) {
     if (c.offsetParent) cards[boardKey(c.getAttribute("data-bproj"), c.getAttribute("data-bpick"))] = c.getBoundingClientRect();
   });
   boardRows().forEach(function (r) {
@@ -196,7 +187,7 @@ function boardLinks() {
 }
 
 function boardWhere(el) {
-  if (!el || !el.getAttribute || !$("board").contains(el)) return "";
+  if (!el || !el.getAttribute || !$("pipeline").contains(el)) return "";
   var cls = el.className.split(" ")[0];
   for (var i = 0, a = ["data-bpick", "data-bproj", "data-bhome", "data-bstill"], sel = cls ? "." + cls : el.tagName.toLowerCase(), any = false; i < a.length; i++) {
     if (el.hasAttribute(a[i])) { sel += "[" + a[i] + '="' + CSS.escape(el.getAttribute(a[i])) + '"]'; any = true; }
@@ -206,8 +197,8 @@ function boardWhere(el) {
 
 function boardAsk() {
   BOARD_ASKING = true; BOARD_ASKED = Date.now();
-  ask("/panel/board.json").then(function (said) {
-    var b = said && said.stages ? said : said && said.data && (said.data.stages ? said.data : said.data.board);
+  ask("/panel/pipeline.json").then(function (said) {
+    var b = said && said.stages ? said : said && said.data && (said.data);
     if (!b || !b.stages) throw new Error("the board has no stages");
     BOARD = b; BOARD_FAILED = "";
   }, function (e) { BOARD_FAILED = e && e.message || "no answer"; }).then(function () { BOARD_ASKING = false; boardDraw(); }, function (e) { BOARD_ASKING = false; BOARD_FAILED = e && e.message || "no answer"; boardDraw(); });
@@ -222,7 +213,7 @@ function boardTab() {
 
 function boardDraw() {
   boardTab();
-  var el = $("board");
+  var el = $("pipeline");
   if (el.hidden) return;
   if (!BOARD_ASKING && (!BOARD || Date.now() - BOARD_ASKED >= POLL_MS)) boardAsk();
   if (!BOARD) {
@@ -249,12 +240,12 @@ function boardSet(change) {
 }
 
 document.addEventListener("click", function (e) {
-  var el = $("board");
+  var el = $("pipeline");
   if (el.hidden || !e.target.closest || !el.contains(e.target)) return;
   var b = e.target.closest("[data-bpick]");
   if (b) {
     var slug = b.getAttribute("data-bpick"), project = b.getAttribute("data-bproj");
-    var again = b.classList.contains("bd-c") && boardView().pick === slug && BOARD_PROJECT === project;
+    var again = b.classList.contains("pl-c") && boardView().pick === slug && BOARD_PROJECT === project;
     BOARD_PROJECT = again ? "" : project;
     boardSet({ pick: again ? "" : slug });
     return;
@@ -263,15 +254,15 @@ document.addEventListener("click", function (e) {
   if (h) { var home = h.getAttribute("data-bhome"); boardSet({ home: home && boardView().home === home ? "" : home }); return; }
   if (e.target.closest("[data-bstill]")) { boardSet({ still: !boardView().still }); return; }
   var s = e.target.closest("summary");
-  if (s && s.parentNode.classList.contains("bd-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
+  if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
 });
 document.addEventListener("keydown", function (e) {
-  if (e.key !== "Escape" || $("board").hidden || !boardView().pick || drawer.open || typing(e.target)) return;
+  if (e.key !== "Escape" || $("pipeline").hidden || !boardView().pick || drawer.open || typing(e.target)) return;
   e.preventDefault();
   BOARD_PROJECT = "";
   boardSet({ pick: "" });
 });
 BOARD_PHONE.addEventListener("change", function () { boardDraw(); });
-window.addEventListener("resize", function () { if (!$("board").hidden) setTimeout(boardLinks, 0); });
+window.addEventListener("resize", function () { if (!$("pipeline").hidden) setTimeout(boardLinks, 0); });
 
 panel({ draw: boardDraw });

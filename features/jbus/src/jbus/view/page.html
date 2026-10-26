@@ -370,7 +370,7 @@
     <div id="nsaid" role="status"></div>
   </section>
   <p class="nx" id="nx"></p>
-  <div id="board" hidden></div>
+  <div id="pipeline" hidden></div>
   <div class="tri" id="triage" hidden>
     <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
     <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
@@ -841,9 +841,9 @@
     renderHeader();
     $("none").hidden = !NOSUCH;
     if (NOSUCH) put($("none"), noSuch());
-    var board = !!PANELS.board && !HOMES;
+    var board = !!PANELS.pipeline && !HOMES;
     $("stack").hidden = !!PROJECT || !STACK || TRIAGE || board;
-    $("board").hidden = !!PROJECT || !STACK || TRIAGE || !board;
+    $("pipeline").hidden = !!PROJECT || !STACK || TRIAGE || !board;
     $("triage").hidden = !!PROJECT || !STACK || !TRIAGE;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
@@ -858,7 +858,7 @@
     put($("cards"), PROJECT || TRIAGE || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
     if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else if (!board) renderStack();
-    if (PANELS.board) PANELS.board.draw();
+    if (PANELS.pipeline) PANELS.pipeline.draw();
     freshen();
     if (!drawnOnce) { drawnOnce = true; if (window.performance && performance.mark) performance.mark("jbus-first-render"); }
   }

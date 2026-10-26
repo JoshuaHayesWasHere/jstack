@@ -1,7 +1,7 @@
 """The board, jview's first screen: `#/` (and its alias `#/flow`) draws every open row of every
-project in its stage, from `/panel/board.json`.
+project in its stage, from `/panel/pipeline.json`.
 
-The server's half of the board, `panels/board/panel.py`, is ux-flow-model's. These tests serve
+The server's half of the board, `panels/pipeline/panel.py`, is ux-flow-model's. These tests serve
 the board JSON from a fixture (`browser.boarded`), the shape the two halves pin, with 5, 27 and
 80 rows. The 27 are the live rows of 2026-10-26 08:06 EDT that the mock was built from.
 
@@ -32,7 +32,7 @@ from view.scene import Scene, Served
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 60)]
 
 
-PROBE = (Path(__file__).parent / "board.js").read_text()
+PROBE = (Path(__file__).parent / "pipeline.js").read_text()
 
 
 AXE = (BOARDS / "axe.min.js").read_text() + "\n" + (BOARDS / "axe-run.js").read_text()
@@ -45,7 +45,7 @@ SCREENS = {1440: DESK, 390: PHONE}
 
 
 def shown(root, rows, screen, route="#/", pick="", tap="", script=PROBE, at=2000, **how):
-    """What the probe found on the board the fixture `board-<rows>.json` gives, with `pick`
+    """What the probe found on the board the fixture `pipeline-<rows>.json` gives, with `pick`
     tapped once the page has drawn, and the board JSON."""
     with pytest.MonkeyPatch.context() as patch:
         scene = Scene(root, patch)
@@ -293,7 +293,7 @@ def test_a_chip_that_has_the_focus_filters_the_board_and_keeps_the_focus(tmp_pat
     seen, _ = shown(tmp_path, "27", DESK, script="", walk=[f"focus:{chip}", f"tap:{chip}"], at=4000)
     assert seen["errors"] == []
     assert seen["walked"][-1]["hash"] == "#/?home=jview"
-    assert seen["walked"][-1]["focus"] == "bh-jview"
+    assert seen["walked"][-1]["focus"] == "ph-jview"
 
 
 def test_the_homes_map_moved_to_its_own_tab(tmp_path):

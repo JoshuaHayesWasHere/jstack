@@ -642,31 +642,33 @@ BOARDS = REPO / "features" / "jbus" / "tests" / "fixtures" / "jbus-view"
 
 
 def board(rows):
-    """The board JSON of the fixture `board-<rows>.json`, the shape `/panel/board.json` holds."""
-    return json.loads((BOARDS / f"board-{rows}.json").read_text())
+    """The board JSON of the fixture `pipeline-<rows>.json`, as `/panel/pipeline.json` holds it."""
+    return json.loads((BOARDS / f"pipeline-{rows}.json").read_text())
 
 
 def boarded(patch, rows):
-    """Make the server answer `/panel/board.json` with `board(rows)`, and give it back. Where
-    the folder `panels/board` has no `panel.py` yet, the server is given a board panel that
+    """Make the server answer `/panel/pipeline.json` with `board(rows)`, and give it back. Where
+    the folder `panels/pipeline` has no `panel.py` yet, the server is given a board panel that
     builds nothing, so the page has the board's script. Call it before the server starts."""
     made = board(rows)
-    if "board" not in panels.names():
+    if "pipeline" not in panels.names():
         stub = panels.Panel(
-            "board",
+            "pipeline",
             types.SimpleNamespace(FIRST=False, SHAPE={}, SOURCES=(), build=lambda read: {}),
-            panels.HERE / "board" / panels.SCRIPT,
+            panels.HERE / "pipeline" / panels.SCRIPT,
         )
         found, real_names = (
             tuple(sorted((*panels.found(), stub), key=lambda p: p.name)),
             panels.names,
         )
         patch.setattr(panels, "found", lambda: found)
-        patch.setattr(panels, "names", lambda *here: tuple(sorted((*real_names(*here), "board"))))
+        patch.setattr(
+            panels, "names", lambda *here: tuple(sorted((*real_names(*here), "pipeline")))
+        )
     real_get = view.App.get
 
     def get(app, path, query):
-        return said(200, made) if path == "/panel/board.json" else real_get(app, path, query)
+        return said(200, made) if path == "/panel/pipeline.json" else real_get(app, path, query)
 
     patch.setattr(view.App, "get", get)
     return made

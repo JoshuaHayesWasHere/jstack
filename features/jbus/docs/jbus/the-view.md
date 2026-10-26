@@ -22,7 +22,7 @@ Any other method gets 405.
 
 ### What the bare link shows
 
-The bare link, `http://127.0.0.1:4388/` or `#/` (and its alias `#/flow`), shows every project at once, as the board of every open row in its stage, from `/panel/board.json`.
+The bare link, `http://127.0.0.1:4388/` or `#/` (and its alias `#/flow`), shows every project at once, as the board of every open row in its stage, from `/panel/pipeline.json`.
 A project is a directory of `~/.local/state/jbus` that holds a `queue.json`.
 The view never reads or shows a project retired to `~/.local/state/jbus-retired`.
 From the top, the board has these parts, under the line of what waits on you:
