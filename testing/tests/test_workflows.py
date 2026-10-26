@@ -17,7 +17,7 @@ two workflows. The workflow `macos`: on each pull request it runs the test files
 `testing/macos-quick.txt`, the ones whose code branches on macOS or that guard a break only a
 Mac has, and its check fails when those tests do, so the home can name it in `required-checks`.
 The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
-browser run, and by hand, over the branch its `ref` names, `train/macos` unless a manual run
+browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
 names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
 The browser workflow names Google Chrome as its test browser, and the check names none.
@@ -1324,7 +1324,7 @@ def test_the_browser_job_runs_only_the_marked_tests_and_the_checks_jobs_never_na
         assert "check-browser" not in " ".join(map(str, steps(CHECK.read_text(), job)[0]))
 
 
-TRAIN = "train/macos"
+NIGHTLY_REF = "main"
 
 
 def dispatch_inputs(path):
@@ -1355,22 +1355,22 @@ def test_the_macos_nightly_runs_every_day_an_hour_after_the_browser_run():
     assert browser["cron"].split()[:2] == [minute, str(int(hour) - 1)]
 
 
-def test_the_macos_nightly_checks_out_the_train_unless_a_manual_run_names_another_ref():
+def test_the_macos_nightly_checks_out_main_unless_a_manual_run_names_another_ref():
     """A scheduled run has no inputs, so the checkout's own fallback is the input's default."""
     assert list(dispatch_inputs(NIGHTLY)) == ["ref"]
-    assert dispatch_inputs(NIGHTLY)["ref"]["default"] == TRAIN
+    assert dispatch_inputs(NIGHTLY)["ref"]["default"] == NIGHTLY_REF
     found, _ = steps(NIGHTLY.read_text(), "macos")
     checkout = found[0]
     assert checkout["uses"].partition("@")[0] == "actions/checkout"
     assert checkout["with"]["persist-credentials"] is False
     ref = checkout["with"]["ref"].removeprefix("${{").removesuffix("}}")
     assert [worked(ref, {"inputs.ref": given}) for given in ("", "fix-branch")] == [
-        TRAIN,
+        NIGHTLY_REF,
         "fix-branch",
     ]
 
 
-def test_a_run_of_the_train_is_titled_as_jbus_files_it_and_a_run_on_another_ref_is_not():
+def test_a_run_of_main_is_titled_as_jbus_files_it_and_a_run_on_another_ref_is_not():
     """Every run of the nightly is on main, so the title is what tells jbus which ref it ran."""
     from jbus import watch
 
