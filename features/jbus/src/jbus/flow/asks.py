@@ -82,13 +82,13 @@ JOBS = (
             r"\$ketchup",
             r"where we are",
             r"state of the (the )?queue",
-            r"(^|[.?!] )status\b",
+            r"^status\b",
             r"overview",
             r"work in progress",
             r"in progress across",
             r"what is done",
             r"what has been done",
-            r"(^|[.?!] )and now\b",
+            r"^and now\b",
             r"visual update",
             r"current status",
         ),
@@ -178,13 +178,16 @@ class Ask:
 def jobs(text: str) -> tuple[str, ...]:
     """Return the code of each job `text` asks, in `JOBS`' order: the jobs whose words are in
     one of its sentences that asks (`ASKING`), or in the sentence before it, as "we seem
-    stalled. why?" asks why it stalled. A text that asks for no job gives none."""
-    sentences = SENTENCE.split(text)
-    asking = [
-        " ".join(sentences[max(n - 1, 0) : n + 1])
+    stalled. why?" asks why it stalled. Each sentence is searched on its own, so a word that
+    must start a sentence (`^status`) starts one whatever ended the sentence before it. A text
+    that asks for no job gives none."""
+    sentences = [one.strip() for one in SENTENCE.split(text)]
+    asking = {
+        sentences[before]
         for n, one in enumerate(sentences)
         if ASKING.search(one)
-    ]
+        for before in range(max(n - 1, 0), n + 1)
+    }
     return tuple(job.code for job in JOBS if any(job.words.search(one) for one in asking))
 
 
