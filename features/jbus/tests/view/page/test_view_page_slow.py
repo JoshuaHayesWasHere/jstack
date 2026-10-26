@@ -27,3 +27,16 @@ def test_six_rows_in_check_and_every_slot_held_say_so_on_the_overview(
     assert "Runner 6 in check oldest 1h00" in said
     assert "Test slots: 4 of 4 held" in said
     assert "Load: 2.5 of " in said
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
+def test_a_band_the_reader_folds_or_opens_stays_so_when_the_overview_draws_again(
+    scene, tmp_path, monkeypatch, screen
+):
+    in_check(scene)
+    slots(scene, monkeypatch, held=4)
+    walk = ['tap:[data-role="slow"] > summary', "hash:#/demo", "hash:#/", "look"]
+    seen = look(scene, tmp_path, route="#/", screen=screen, walk=walk, at=6000, budget=12000)
+    clean(seen, screen)
+    said = " ".join(seen["screen"])
+    assert ("Runner" in said) is (screen == PHONE)
