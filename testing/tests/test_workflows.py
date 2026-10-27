@@ -639,7 +639,7 @@ def merged(tmp_path_factory):
         [*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     bin.mkdir()
-    (bin / "uv").write_text('#!/bin/sh\n[ "$1" = run ] && shift\nexec "$@"\n')
+    (bin / "uv").write_text(f'#!/bin/sh\n[ "$1" = run ] && shift 2\nexec {sys.executable} "$@"\n')
     (bin / "uv").chmod(0o755)
     shell = summary_step("reached tests", MAC)
 
