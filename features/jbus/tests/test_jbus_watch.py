@@ -197,6 +197,22 @@ def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitche
     assert kitchen.lines("retro") == [line]
 
 
+def test_the_brief_for_a_red_main_names_the_push_runs_jobs_and_not_a_dispatched_runs(kitchen):
+    main_after_alpha(kitchen, "failure")
+    red, browser = "d" * 40, "https://example.test/o/r/actions/runs/78/job/902"
+    runs = json.loads((kitchen.stub / "check-runs.json").read_text())
+    done = {"status": "completed", "conclusion": "failure"}
+    runs[red].append(
+        {**done, "name": "browser", "id": 902, "html_url": browser, "check_suite": {"id": 12}}
+    )
+    kitchen.set("check-runs.json", runs)
+    dispatched = {**done, "event": "workflow_dispatch", "check_suite_id": 12}
+    kitchen.set("push-runs.json", {red: [dispatched]})
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "main-red-dddddddddddd.md").read_text()
+    assert FULL_JOB in text and browser not in text
+
+
 def test_a_pass_that_stopped_before_the_row_was_added_files_it_on_the_next(kitchen):
     main_after_alpha(kitchen, "failure")
     tasks = kitchen.home / "tasks"

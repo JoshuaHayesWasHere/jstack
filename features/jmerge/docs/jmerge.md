@@ -164,9 +164,9 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   `jmerge` checks main's state only for a pull request into main.
   A pull request into an integration branch waits when that branch's tip is red instead, unless it is the fix of that red ("Integration branches").
   jbus checks every commit that was main's tip since jbus's last pass.
+  So jbus counts a failed tip as red even while the check of a newer tip is still running.
   A tip's check is its push run's: the check runs of the workflow runs a push to main started (`jbus.watch._check`).
   A run dispatched by hand, on a schedule or for a tag at the same commit, of browser.yml or any other workflow, does not make main red: browser.yml's red takes the path of "Its own browser run did not fail".
-  So jbus counts a failed tip as red even while the check of a newer tip is still running.
   A later green tip ends the red state.
   It does so whether or not jbus delivered its message to the crews of the pull requests that were waiting.
 - **Its own browser run did not fail.**
