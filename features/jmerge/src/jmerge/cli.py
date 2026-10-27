@@ -1928,7 +1928,10 @@ def browser_red(repo: Repo, one: ready.PullRequest, default: str, slug: str) -> 
     """The wait on a pull request into main for its own browser run: one still going waits as any
     pending run, and one that failed holds it (`rows.browser_red`). It asks GitHub for main's
     browser runs once a run, and only for a pull request whose browser run failed. When GitHub
-    gives no answer, main is not known to be red, and the red is the pull request's own."""
+    gives no answer, main is not known to be red, and the red is the pull request's own. A
+    draft's browser run is waived as its failed checks are (`Repo.judged`)."""
+    if one.draft:
+        return ""
     state = ready.browser(repo.reds.get(ROLLUP.format(number=one.number), []))
     if state == ready.BROWSER_PENDING:
         return ready.NOT_PASSED.format(check=ready.BROWSER)
@@ -1954,4 +1957,5 @@ def browser_red(repo: Repo, one: ready.PullRequest, default: str, slug: str) -> 
             runs = []
         listed = runs if isinstance(runs, list) else []
         repo.reds[key] = [run for run in listed if isinstance(run, dict)]
-    return rows.browser_red(one.head, slug, repo.reds[key], default)
+    fixing = rows.browser_fixing(repo.main, repo.queue)
+    return rows.browser_red(one.head, slug, repo.reds[key], default, fixing)

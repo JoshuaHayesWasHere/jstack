@@ -173,8 +173,11 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A run that ended and failed holds the pull request as `its browser run failed at <head12>`, and jbus tells its crew to fix it (`features/jbus/src/jbus/expedite.py`, `TABLE`).
   #557 merged with its browser run red on 2026-10-27 and turned main red, since no rule read that run.
   When main's last browser run on main failed too, the red is main's, and the pull request waits as `main is red at <sha12>, its fix merges first`, the sha12 being that run's commit.
+  It is main's only while the row jbus filed for the fix of that run is open, since browser.yml runs on main only nightly and its last run there stays red until the next one.
+  Once that fix merged, or where jbus filed no fix for the run, the red is the pull request's, and its crew is told.
   The fix of that red, the row jbus files as `browser-red-<date>`, is held by its own red as any other pull request is.
   `jmerge` asks GitHub for main's browser runs only for a pull request whose browser run failed, once a run, and where GitHub gives no answer the red is the pull request's.
+  A draft's browser run is waived as its failed checks are, and a reviewed draft is marked ready.
   `jmerge` judges this after main's red, so a pull request short of a review or a rebase line says that first.
 - **Its migration is the next in line.** See "Migrations".
 - **Its passing check still counts over today's main.**
