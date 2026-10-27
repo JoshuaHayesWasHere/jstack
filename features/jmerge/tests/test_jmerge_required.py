@@ -7,6 +7,7 @@ The tests run the command against the fake `gh` and real origin of `test_home_me
 GitHub listing only the checks each test names."""
 
 import json
+import re
 
 import pytest
 
@@ -38,7 +39,10 @@ def test_a_repo_that_names_no_checks_merges_on_check_alone(merged):
 def test_a_repo_that_names_check_and_borders_waits_for_a_borders_that_never_ran(merged):
     (merged.home.state / "required-checks").write_text(JSTACK)
     listing(merged, merge.PASSED)
-    assert merged.run() == [f"wait 7 {merge.URL}: borders has not passed"]
+    (said,) = merged.run()
+    assert re.fullmatch(
+        f"wait 7 {re.escape(merge.URL)}: borders has no run at [0-9a-f]{{12}}", said
+    )
     assert merged.untouched()
 
 

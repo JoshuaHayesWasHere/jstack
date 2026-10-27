@@ -322,16 +322,16 @@ BORDERS_PASSED = merge.run("SUCCESS", "borders")
     ("checks", "short"),
     [
         ((merge.PASSED, BORDERS_PASSED), ""),
-        ((merge.PASSED,), "borders has not passed"),
+        ((merge.PASSED,), "borders has no run at {head}"),
         ((merge.PASSED, merge.run("FAILURE", "borders")), "borders has not passed"),
-        ((BORDERS_PASSED,), "check has not passed"),
+        ((BORDERS_PASSED,), "check has no run at {head}"),
         ((merge.FAILED, merge.run("FAILURE", "borders")), "check has not passed"),
     ],
 )
 def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):
     required = ready.required_of("check\nborders\n")
     one = pull_request("a.txt", checks=checks, rollup=list, required=required)
-    assert ready.short_on_github(one) == short
+    assert ready.short_on_github(one) == short.format(head=one.head[:12])
 
 
 UNCHANGED = ready.Rebase("unchanged", (), merge.REVIEWED, merge.PUSHED)
