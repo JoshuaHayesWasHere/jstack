@@ -12,6 +12,7 @@ from jbus import digest, queue, waiting, wake
 from jbus.view import state as view
 from test_jbus_blocking import relayed
 from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen, Webhook
+from test_jbus_kitchen import review as review_of
 from test_jbus_queue import add, brief, rows, sha12
 from test_jbus_resume import crew, sends
 from test_jbus_row_history import transitions
@@ -419,7 +420,7 @@ def test_findings_of_a_pull_request_opened_later_reach_its_crew_once(kitchen):
     kitchen.quiet()
     add(kitchen, "alpha", approve=False)
     assert remove(kitchen, "alpha")[0] == 0
-    review = "\n## Review\nVerdict: findings\nSent to: not sent, no thread answered\n"
+    review = review_of("findings", "not sent, jbus tells the crew when it owes a line")
     kitchen.brief("alpha", "Thread: mcp:a-crew\n" + RESULT + review)
     kitchen.set("open.json", [kitchen.opened("alpha", 9)])
     for now in (NOW, LATER):

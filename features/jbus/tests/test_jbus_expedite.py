@@ -25,7 +25,12 @@ from testing.paths import REPO
 
 URL = "https://example.test/pull/7"
 DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
-REVIEW = "\n## Review\nVerdict: findings\nHead: {saw}\nFindings:\n- minor a.py:1 a made up one\n"
+REVIEW = (
+    "\n## Review\nVerdict: findings\nHead: {saw}\nFindings:\n- minor a.py:1 a made up one\n"
+    "Sent to: mcp:thread-1\n"
+)
+"""A review its reviewer sent the crew itself, so `jbus.reviewed` sends no notice of it, and
+what the crew is told of it here is `expedite`'s alone."""
 NO_FIXED = "its findings are not handled: the Result has no Fixed line"
 NOT_PUSHED = "its findings are not handled: nothing was pushed after them"
 NO_FINDING = "its findings are not handled: 1 of 2 have no Finding line"
