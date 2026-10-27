@@ -8,15 +8,16 @@ outbox, which needs it to act. The message's key is `state.key_of`, the same whi
 stands, so a home is told once of a fault, and again only of a new one or as a new home.
 
 Told here are a fault with no row, one of the project or the machine, which the root home
-owns, and a crew that hung at work, which its home owns: no other step tells a home of that,
-`jbus.stall.hung` only logs it. A crew that is only quiet is not told of. Any other fault of a
-row is told by the step that already works that row, and the view reads its message as what
-the owner was told (`state._fixing`). A crew owns a red check of its own pull request, which
-`jbus.rebase` tells it of, and a red main whose main-red row it works. A crew whose thread
-ended with something left goes to its home through `jbus.leftover`, whose record counts as the
-telling. A stalled row goes to its home through `jbus.expedite`, on its own count of passes,
-which a second message here would only hurry. A user's entry is told to nobody: the band shows
-it.
+owns, and a crew of the root home's that hung at work: no other step tells a home of that,
+`jbus.stall.hung` only logs it. A child home hears of its own hung crew from
+`jbus.children`, whose nudge counts all it has out. A crew that is only quiet is not told of.
+Any other fault of a row is told by the step that already works that row, and the view reads
+its message as what the owner was told (`state._fixing`). A crew owns a red check of its own
+pull request, which `jbus.rebase` tells it of, and a red main whose main-red row it works. A
+crew whose thread ended with something left goes to its home through `jbus.leftover`, whose
+record counts as the telling. A stalled row goes to its home through `jbus.expedite`, on its
+own count of passes, which a second message here would only hurry. A user's entry is told to
+nobody: the band shows it.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from typing import TYPE_CHECKING
 from jbus import outbox, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
+from jbus.threads import ROLES
 from jbus.view import state
 from jbus.view.github import RUNS, shaped
 from jbus.watch import _api
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
     from jbus.cli import Half
 
 KIND = "wrong"
+CREW = next(role for role in ROLES if role.name == "crew")
 MESSAGE = (
     "jbus: {what} is wrong in {project}, and it is this home's to fix. {user} is not asked: it "
     "waits on this home.\n\n"
@@ -93,8 +96,13 @@ def message(run: Pass, one: dict) -> str:
 
 
 def _hung(one: dict) -> bool:
-    """Whether the entry is a crew whose turn hung, which only this step tells its home of."""
-    return one["kind"] == "thread" and one["cause"].startswith(state.QUIET_OR_HUNG["hung"])
+    """Whether the entry is a crew whose turn hung and whose row no step works, which only this
+    step tells the root home of. The crew of a queued row is told of by `jbus.watch.unwritten`,
+    whose leftover counts as the telling, a home's own thread is no crew, and a crew a child
+    home owns is left to `jbus.children`, whose nudge to that home counts all it has out."""
+    hung = one["cause"].startswith(state.QUIET_OR_HUNG["hung"])
+    crew = one["subj"].startswith(CREW.prefix) and one["owner"] == state.ROOT_HOME
+    return one["kind"] == "thread" and hung and crew
 
 
 def tell(run: Pass, client: Client) -> None:
