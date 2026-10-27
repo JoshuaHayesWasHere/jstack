@@ -293,8 +293,9 @@ def standing(kitchen, tree, *rules, codes=None, where="demo"):
     return path
 
 
-def refused(path, *why):
-    return (1, [f"snapshot: refused, nothing committed: {path} {'; '.join(why)}"])
+def refused(tree, path, *why, done="nothing changed"):
+    left = f"snapshot: refused, left out: demo: {path} {'; '.join(why)}"
+    return (1, [left, no_remote(tree, done)])
 
 
 def test_three_rules_each_made_code_by_a_queued_row_are_snapshotted(kitchen, tree):
@@ -305,30 +306,34 @@ def test_three_rules_each_made_code_by_a_queued_row_are_snapshotted(kitchen, tre
     assert sorted(shown) == ["demo/flow/standing.md", "demo/standing.md"]
 
 
-def test_a_fourth_rule_is_refused_and_nothing_is_committed_or_left_staged(kitchen, tree):
-    before = git(tree, "rev-parse", "HEAD")
+def test_a_fourth_rule_is_refused_and_left_out_of_the_commit_and_the_stage(kitchen, tree):
     path = standing(kitchen, tree, "one", "two", "three", "four")
-    (tree / "demo" / "notes.md").write_text("# notes\nheld back\n")
-    assert take() == refused(path, "has 4 rules, and a standing.md holds at most 3")
-    assert git(tree, "rev-parse", "HEAD") == before
+    (tree / "demo" / "notes.md").write_text("# notes\nkept\n")
+    why = "has 4 rules, and a standing.md holds at most 3"
+    assert take() == refused(tree, path, why, done="committed")
+    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/notes.md"
     assert git(tree, "diff", "--cached", "--name-only") == ""
 
 
 def test_a_rule_with_no_code_row_is_refused(kitchen, tree):
     before = git(tree, "rev-parse", "HEAD")
     path = standing(kitchen, tree, "one", "two", codes=["rule-1", None])
-    assert take() == refused(path, "rule 2 has no Code: <slug>, the queue row that makes it code")
+    assert take() == refused(
+        tree, path, "rule 2 has no Code: <slug>, the queue row that makes it code"
+    )
     assert git(tree, "rev-parse", "HEAD") == before
 
 
 def test_a_code_slug_that_is_in_no_queue_is_refused(kitchen, tree):
     path = standing(kitchen, tree, "one", codes=["ghost-row"])
-    assert take() == refused(path, "rule 1 names Code: ghost-row, which is in no queue of demo")
+    assert take() == refused(
+        tree, path, "rule 1 names Code: ghost-row, which is in no queue of demo"
+    )
 
 
 def test_a_scoped_homes_standing_md_is_held_to_the_same_cap(kitchen, tree):
     path = standing(kitchen, tree, "a", "b", "c", "d", codes=["rule-1"] * 4, where="demo/flow")
-    assert take() == refused(path, "has 4 rules, and a standing.md holds at most 3")
+    assert take() == refused(tree, path, "has 4 rules, and a standing.md holds at most 3")
 
 
 @pytest.mark.skipif(os.geteuid() == 0, reason="root reads a file with no read bit")
@@ -336,28 +341,48 @@ def test_an_unreadable_standing_md_is_refused_and_the_alarm_still_alerts(kitchen
     path = standing(kitchen, tree, "one")
     path.chmod(0)
     try:
-        assert take() == refused(path, "cannot be read: Permission denied")
+        assert take() == refused(tree, path, "cannot be read: Permission denied")
         said = alarm()
     finally:
         path.chmod(0o644)
-    assert said[1] == f"demo: {FAILED}: {path} cannot be read: Permission denied"
+    assert said[1] == f"demo: {FAILED}: demo: {path} cannot be read: Permission denied"
 
 
 def test_the_verb_says_the_refusal_on_stderr_and_exits_1(kitchen, tree, capsys):
     path = standing(kitchen, tree, "one", codes=[None])
     assert snapshot.snapshot(jbus.load(), NOW, print) == 1
     out, err = capsys.readouterr()
-    assert out == ""
     why = "rule 1 has no Code: <slug>, the queue row that makes it code"
-    assert err == f"{refused(path, why)[1][0]}\n"
+    left, done = refused(tree, path, why)[1]
+    assert (out, err) == (f"{done}\n", f"{left}\n")
 
 
 def test_the_alarm_of_a_refused_snapshot_says_which_rule_and_why(kitchen, tree):
     path = standing(kitchen, tree, "one", codes=[None])
     assert take()[0] == 1
     said = alarm()
-    why = f"{path} rule 1 has no Code: <slug>, the queue row that makes it code"
+    why = f"demo: {path} rule 1 has no Code: <slug>, the queue row that makes it code"
     assert said[1] == f"demo: {FAILED}: {why}"
+
+
+def test_a_refused_standing_md_is_left_out_and_the_rest_of_the_tree_is_committed(kitchen, tree):
+    other = kitchen.second()
+    kept = "# other: standing rules (at most 3)\n"
+    path = tree / other.name / "standing.md"
+    path.write_text(kept)
+    git(tree, "add", "-A")
+    git(tree, "commit", "-q", "-m", "other's rules")
+    before = git(tree, "rev-parse", "HEAD")
+    (tree / "demo" / "notes.md").write_text("# notes\nA's change\n")
+    path.write_text(f"{kept}\n1. A rule with no code.\n")
+    code, said = take()
+    why = f"other: {path} rule 1 has no Code: <slug>, the queue row that makes it code"
+    assert (code, said) == (1, [f"snapshot: refused, left out: {why}", no_remote(tree)])
+    assert git(tree, "rev-parse", "HEAD~1") == before
+    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/notes.md"
+    assert git(tree, "show", "HEAD:other/standing.md") == kept.strip()
+    assert git(tree, "status", "--porcelain") == "M other/standing.md"
+    assert f"{FAILED}: {why}" in alarm()[1]
 
 
 def with_origin(tree, tmp_path):
