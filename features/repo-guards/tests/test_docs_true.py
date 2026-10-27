@@ -257,7 +257,8 @@ def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_
         "--from": True,
         "--for": True,
     }
-    assert bus.verbs["plan"].flags == {"--scope": True} and bus.verbs["plan"].choices == ("close",)
+    assert bus.verbs["plan"].flags == {"--scope": True, "--message": True}
+    assert bus.verbs["plan"].choices == ("close", "go", "stop")
     assert bus.verbs["t3"].choices == ("login", "launch-test") and bus.verbs["t3"].verbs == {}
     assert sorted(trees["jgauge"].verbs) == [
         "check",
