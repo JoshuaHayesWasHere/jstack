@@ -124,7 +124,7 @@ from urllib.parse import parse_qs
 
 import jbus
 import jsettings
-from jbus import Refused, digest, record, verbs
+from jbus import Refused, digest, record, stop, verbs
 from jbus.bind import NoLookup
 from jbus.view import panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
@@ -227,6 +227,10 @@ DIGEST = {
             "waiting": [_WAITS],
             "routine": [{"at": None, "event": None, "slug": None, "line": None}],
             "sweep": None,
+            "stops": {
+                "open": [{column: None for column in stop.SHOWN}],
+                "outside": {ANY: None},
+            },
         }
     },
     "status": {
