@@ -45,11 +45,13 @@ from jbus import (
     word,
     work,
 )
+from test_jbus_clock import NO_FIX_REVIEW, N, to
 from test_jbus_expedite import NO_FIXED, URL, Short
 from test_jbus_fresh_head import Due
-from test_jbus_kitchen import NOW, PROJECT
+from test_jbus_kitchen import NOW, PROJECT, sends
 from test_jbus_questions import AT, answer, ask
 from test_jbus_remarks import OWNER, one
+from test_jbus_rereview import out as rereview_out
 from test_jbus_unlock import CHANGED
 from test_jbus_verbs import fresh
 
@@ -539,3 +541,42 @@ def test_a_step_of_the_first_slot_may_need_a_client(tmp_path):
     ran = fresh(tmp_path / "jbus", "from jbus import cli\ncli.main(['steps'])", first=first)
     assert ran.returncode == 0, ran.stderr
     assert ran.stdout.splitlines()[0] == "before-watch 5 first (client)"
+
+
+def test_a_scoped_reviewer_with_no_worktree_is_not_sent_its_line_again_and_its_crew_is_told(
+    kitchen,
+):
+    """D2 of day-audit-1026-3: a scoped reviewer launched with no worktree runs in the main
+    checkout and refuses there. Its clock sends it nothing more, and tells its crew once, for this
+    head, to launch one in the crew's own worktree."""
+    short = Short(kitchen)
+    short.thread["worktreePath"] = "/worktrees/alpha"
+    reviewer = kitchen.t3.thread(
+        "alpha", "completed", title="review: alpha, scoped", worktreePath=None
+    )
+    owed = f"Scoped review: needed since {short.saw}, the fix changed a.py\n"
+    result = owed + f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n"
+    short.out(NO_FIX_REVIEW, result=result)
+    short.passes(N)
+    assert to(kitchen, reviewer) == []
+    (told,) = rooted(kitchen, short.thread, reviewer)
+    assert "`/worktrees/alpha`" in told and "`existing_worktree`" in told
+    assert "/pr-review run alpha scoped " in told and f"..{short.saw} " in told
+    short.passes(3 * N)
+    assert to(kitchen, reviewer) == [] and len(rooted(kitchen, short.thread, reviewer)) == 1
+
+
+def rooted(kitchen, crew, reviewer):
+    """Return each message the crew got that names its scoped reviewer, which only the clock's
+    line on a reviewer with no worktree does."""
+    return [one for one in to(kitchen, crew) if reviewer["threadId"] in one]
+
+
+def test_the_rereview_message_names_the_crew_s_worktree_to_launch_the_scoped_reviewer_in(kitchen):
+    short = Short(kitchen)
+    short.thread["worktreePath"] = "/worktrees/alpha"
+    rereview_out(kitchen)
+    kitchen.poll()
+    (given,) = sends(kitchen)
+    assert "launch ONE scoped reviewer, not a full review, in your worktree, " in given["message"]
+    assert "`/worktrees/alpha`" in given["message"]

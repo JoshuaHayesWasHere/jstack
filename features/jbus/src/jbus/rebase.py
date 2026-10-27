@@ -125,12 +125,12 @@ UNPROVEN = (
 )
 SCOPED = (
     " If the Result already has a `Scoped reviewer:` line that names this head, launch nothing "
-    "more. Otherwise launch ONE scoped reviewer, not a full review: the same way the crew "
-    'skill\'s "The review" launches a reviewer, with the message `/pr-review run {slug} scoped '
-    "{old} {new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
-    "`Scoped reviewer:` line that names another head no `## Review` has. Do not rebase again "
-    "until its `## Review` is written. Handle its findings as a review's: a `Finding:` line for "
-    "each."
+    "more. Otherwise launch ONE scoped reviewer, not a full review, in {{worktree}}: the same way "
+    'the crew skill\'s "The review" launches a reviewer, with `workspaceStrategy` '
+    "`existing_worktree` on that worktree and the message `/pr-review run {slug} scoped {old} "
+    "{new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a `Scoped "
+    "reviewer:` line that names another head no `## Review` has. Do not rebase again until its "
+    "`## Review` is written. Handle its findings as a review's: a `Finding:` line for each."
 )
 
 
@@ -279,6 +279,23 @@ def github(run: Pass, client: Client, world: World) -> None:
         green = f"green|{slug}|{head[:12]}" not in sent and checks(pull) == "passed"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
+
+
+def worktree(client: Client, thread: str) -> str | None:
+    """Return the thread's `worktreePath` as T3 Code reads it: None where T3 Code says it has none,
+    and nothing where the read gave no answer or no such field."""
+    try:
+        read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
+    except T3Error:
+        return ""
+    said = (read or {}).get("thread") or {}
+    return said.get("worktreePath", "")
+
+
+def where(client: Client, thread: str) -> str:
+    """Name the crew's worktree, by its path where T3 Code gives it."""
+    path = worktree(client, thread)
+    return f"your worktree, `{path}`" if path else "your own worktree"
 
 
 def crew(run: Pass, slug: str) -> str:
@@ -502,6 +519,8 @@ def post(
     message = ask.message.format(
         number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
     )
+    if "{worktree}" in message:
+        message = message.replace("{worktree}", where(client, thread))
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:

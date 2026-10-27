@@ -20,12 +20,14 @@ long review that is still working is never asked again.
 
 At `PASSES` such passes jbus acts once by itself. It sends a reviewer its line again, with
 `t3_thread_send`: `/pr-review run <slug> again`, or the scoped line with its two ranges, alone,
-since the reviewer's Start reads the line as its message. It sends a crew one carry-on that names
-the wait. The count starts again. At `PASSES` more, the second miss, jbus sends the brief's home
-one line and owns the wait no longer. With no home, or a home T3 Code refuses the line, it logs
-one quiet `stall` instead. Neither goes to the user. A turn that hangs is counted as stopped, and
-jbus does not interrupt it: interrupting a hung turn waits on the user's own rule for it
-(jv-hung-interrupt), so the home picks it up.
+since the reviewer's Start reads the line as its message. A scoped reviewer that T3 Code says has
+no `worktreePath` runs in the main checkout and refuses there, so it is sent nothing: its crew is
+told instead (`ROOTED`), once for the head, to launch one in the crew's own worktree. It sends a
+crew one carry-on that names the wait. The count starts again. At `PASSES` more, the second miss,
+jbus sends the brief's home one line and owns the wait no longer. With no home, or a home T3 Code
+refuses the line, it logs one quiet `stall` instead. Neither goes to the user. A turn that hangs is
+counted as stopped, and jbus does not interrupt it: interrupting a hung turn waits on the user's
+own rule for it (jv-hung-interrupt), so the home picks it up.
 
 A new head or a new class starts a new clock, and a slug that waits no more drops its clock. A pass
 in which `jmerge` failed, or that could not list the threads, counts nothing and keeps the clocks.
@@ -63,7 +65,17 @@ from datetime import datetime
 from typing import Any
 
 from jbriefs.home import home_of, thread_of
-from jbus import dispatch, expedite, merge, read_json, threads, verbs, watch, write_json
+from jbus import (
+    dispatch,
+    expedite,
+    merge,
+    read_json,
+    rebase,
+    threads,
+    verbs,
+    watch,
+    write_json,
+)
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
@@ -95,6 +107,15 @@ HOME = (
     "{did}, with {thread} not at work. It is the home's from here: pick it up as the home skill's "
     '"Picking up a thread that stopped" says. Its crew\'s thread is {crew}.'
 )
+ROOTED = (
+    "jbus: your scoped reviewer {reviewer} of pull request #{number} has no worktree: it runs in "
+    "the project's main checkout and refuses there, so jbus sends it its line no more. Launch a "
+    "new scoped reviewer in {worktree}, with `workspaceStrategy` `existing_worktree` on that "
+    "worktree and the message `{line}`, and put its id on the `Scoped reviewer:` line in place of "
+    "{reviewer}."
+)
+"""What the crew is told, once per head, of a scoped reviewer that T3 Code says has no
+worktree, in place of sending that reviewer its line again."""
 HOLD_MINUTES = 30
 """The minutes rows may be held by one reason with no thread at work on it before jbus wakes their
 home and lists the hold on what waits on the user."""
@@ -221,6 +242,13 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     """Send the thread a wait is on its line or a carry-on, once. Return whether it went."""
     number, reason, line = wait["number"], wait["reason"], wait["line"]
     key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
+    thread, did = wait["thread"], "relaunched its reviewer" if line else "carried its crew on"
+    crew = dispatch.thread_of(_brief(run, slug))
+    if wait["kind"] == "scoped" and line and crew and rebase.worktree(client, thread) is None:
+        there = rebase.where(client, crew)
+        line = ROOTED.format(reviewer=thread, number=number, worktree=there, line=line)
+        key, thread = f"{CLOCK}|{slug}|rooted {wait['head'][:12]}", crew
+        did = "told its crew to launch its scoped reviewer in its worktree"
     if not line:
         line = threads.resume_message(
             CARRY_ON,
@@ -231,14 +259,14 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
             reason=reason,
             slug=slug,
         )
-    went = _send(run, client, wait["thread"], line, key)
+    went = _send(run, client, thread, line, key)
     if not went:
         return False
-    did = "relaunched its reviewer" if wait["line"] else "carried its crew on"
+    wait["did"] = did
     did += ", and T3 Code refused it" if went == "refused" else ""
     said = f"{CLOCK} {slug}: #{number} waited {wait['passes']} passes on {reason}; {did}"
-    run.find(slug, CLOCK, f"{said}, {wait['thread']}", line, key=key.split("|", 2)[2])
-    run.say(f"{said}, {wait['thread']}")
+    run.find(slug, CLOCK, f"{said}, {thread}", line, key=key.split("|", 2)[2])
+    run.say(f"{said}, {thread}")
     return True
 
 
@@ -246,7 +274,7 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
     """Tell the brief's home, in one line, that a wait jbus acted on still waits. With no home, log
     one quiet stall, and one too where T3 Code refused the home the line. Return whether it is
     done."""
-    did = "relaunched its reviewer" if wait["line"] else "carried its crew on"
+    did = wait.get("did") or ("relaunched its reviewer" if wait["line"] else "carried its crew on")
     crew = dispatch.thread_of(brief) or "not known"
     text = HOME.format(
         slug=slug,
