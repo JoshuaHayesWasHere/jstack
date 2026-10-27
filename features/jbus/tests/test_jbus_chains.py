@@ -301,21 +301,21 @@ def opened_on(kitchen, slug, **more):
     kitchen.set("open.json", [pull])
 
 
-def on_train(text):
+def on_branch(text):
     return text.replace(
-        "Pull request: open one when done", "Pull request: open one against train/x"
+        "Pull request: open one when done", "Pull request: open one against release/x"
     )
 
 
-def test_a_train_row_that_builds_on_a_main_row_launches_on_its_train_once_that_row_merged(kitchen):
-    """The macos home's #456: a row on `train/x` that builds on a row on main is no link of its
+def test_a_row_that_builds_on_a_main_row_launches_on_its_branch_once_that_row_merged(kitchen):
+    """The macos home's #456: a row on `release/x` that builds on a row on main is no link of its
     stack, since a stack sits on one branch and the two go on different ones. While that row's
-    pull request is open the train row waits, and once it merged the row launches on its train
-    with no `Stacked on:` line."""
+    pull request is open the row waits, and once it merged the row launches on its integration
+    branch with no `Stacked on:` line."""
     kitchen.config(max_running=8)
     assert queue_add(kitchen, "one")[0] == 0
     assert go(kitchen, "one")[0] == 0
-    built = on_train(brief("two", "Builds on: one: the table one adds\n"))
+    built = on_branch(brief("two", "Builds on: one: the table one adds\n"))
     assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
     assert go(kitchen, "two")[0] == 0
     kitchen.poll()
@@ -326,20 +326,20 @@ def test_a_train_row_that_builds_on_a_main_row_launches_on_its_train_once_that_r
     kitchen.set("open.json", [])
     kitchen.set("merged.json", [kitchen.merged("one", 10, "a" * 40)])
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "train/x"
+    assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "release/x"
     head = head_of(kitchen, "two")
     assert not [line for line in head if line.startswith("Stacked on:")]
 
 
-def test_a_train_row_that_builds_on_a_row_on_its_train_launches_stacked_on_its_branch(kitchen):
+def test_a_branch_row_that_builds_on_a_row_on_its_branch_launches_stacked_on_its_branch(kitchen):
     kitchen.config(max_running=8)
-    assert queue_add(kitchen, "one", text=on_train(brief("one")))[0] == 0
+    assert queue_add(kitchen, "one", text=on_branch(brief("one")))[0] == 0
     assert go(kitchen, "one")[0] == 0
-    built = on_train(brief("two", "Builds on: one: the table one adds\n"))
+    built = on_branch(brief("two", "Builds on: one: the table one adds\n"))
     assert queue_add(kitchen, "two", "--depends", "one", text=built)[0] == 0
     assert go(kitchen, "two")[0] == 0
     kitchen.poll()
-    opened_on(kitchen, "one", baseRefName="train/x")
+    opened_on(kitchen, "one", baseRefName="release/x")
     kitchen.poll(NOW + timedelta(minutes=3))
     assert launch_of(kitchen, "two")["workspaceStrategy"]["baseRef"] == "one-branch"
     assert "Stacked on: one one-branch" in head_of(kitchen, "two")

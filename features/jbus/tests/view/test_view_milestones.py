@@ -1,8 +1,10 @@
-"""The Milestones panel: each plan entry of each home and each train, counted as `jbus plan`
-counts them, and drawn as a chain of steps toward its outcome."""
+"""The Milestones panel: each plan entry of each home and each integration branch, counted as
+`jbus plan` counts them, and drawn as a chain of steps toward its outcome."""
+
+import pytest
 
 from jbus import plan, queue
-from view.scene import row, table
+from view.scene import logged, row, table
 
 PLAN = """# demo: plan
 
@@ -21,15 +23,15 @@ Stage: planned
 Stage: proposed
 """
 SCOPED = "# demo, pantry: plan\n\n## jam-shelf: a shelf of jam\nStage: planned\n"
-AGAINST = "Pull request: open one against train/tea when done\n"
+AGAINST = "Pull request: open one against release/tea when done\n"
 
 
 def sandbox(scene, behind_pot=False):
     """A plan whose entry `tea-set` has seven rows: four merged, one at a pull request, one
-    running, and one queued behind the running one. Three of them open against `train/tea`, as
-    `jbus` reads a `Pull request:` line, and `tea-7`, whose line names the train only in passing,
+    running, and one queued behind the running one. Three of them open against `release/tea`, as
+    `jbus` reads a `Pull request:` line, and `tea-7`, whose line names the branch only in passing,
     does not. The entry `tea-pot` has a row whose thread hung, and one that waits on a row of
-    `tea-set`. With `behind_pot`, the train has a fourth row, `tea-8`, in no plan entry, that
+    `tea-set`. With `behind_pot`, `release/tea` has a fourth row, `tea-8`, in no plan entry, that
     waits on the hung row of `tea-pot`."""
     rows = [row(f"tea-{n}", "merged", pr=f"#{n}", entry="tea-set") for n in range(1, 5)]
     rows += [
@@ -50,17 +52,17 @@ def sandbox(scene, behind_pot=False):
     (scene.home / "pantry").mkdir()
     (scene.home / "pantry" / "home-id").write_text("mcp:pantry\n")
     (scene.home / "pantry" / "plan.md").write_text(SCOPED)
-    (scene.home / "integration").write_text("train/tea\nmigration\n")
+    (scene.home / "integration").write_text("release/tea\nmigration\n")
     (scene.home / "tasks").mkdir()
     for slug in ("tea-1", "tea-5"):
         (scene.home / "tasks" / f"{slug}.md").write_text(f"# {slug}: a piece\n{AGAINST}")
     (scene.home / "tasks" / "tea-6.md").write_text(
-        "# tea-6: a piece\nPull request: open one against train/tea, when done\n"
+        "# tea-6: a piece\nPull request: open one against release/tea, when done\n"
     )
     if behind_pot:
         (scene.home / "tasks" / "tea-8.md").write_text(f"# tea-8: a piece\n{AGAINST}")
     (scene.home / "tasks" / "tea-7.md").write_text(
-        "# tea-7: a piece\nPull request: open one when done, not against train/tea\n"
+        "# tea-7: a piece\nPull request: open one when done, not against release/tea\n"
     )
 
 
@@ -128,24 +130,74 @@ def test_a_stuck_step_holds_its_chain_and_a_step_behind_another_chain_names_it(s
     assert pot["waits_on"] == [{"milestone": "tea-set", "slug": "tea-6", "mark": "working"}]
 
 
-def test_a_train_counts_the_rows_whose_brief_opens_against_it_and_how_many_are_left(scene, served):
+def branches(served):
+    return {one["branch"]: one for one in milestones(served)["integration"]}
+
+
+def test_an_integration_branch_counts_the_rows_whose_brief_opens_against_it_and_how_many_are_left(
+    scene, served
+):
     sandbox(scene)
-    trains = {one["branch"]: one for one in milestones(served)["trains"]}
-    assert list(trains) == ["train/tea", "migration"]
-    tea = trains["train/tea"]
+    found = branches(served)
+    assert list(found) == ["release/tea", "migration"]
+    tea = found["release/tea"]
     assert [one["slug"] for one in tea["steps"]] == ["tea-1", "tea-5", "tea-6"]
     assert (tea["over"], tea["total"], tea["to_go"]) == (1, 3, 2)
-    assert trains["migration"]["total"] == 0
+    assert found["migration"]["total"] == 0
 
 
-def test_a_train_step_behind_a_row_of_a_plan_entry_names_that_entry(scene, served):
+def landed(scene, *pulls):
+    """The sandbox with `tea-8`, with `pot-2` opening its pull request against `migration`, a
+    merge.log that names the repo, and `pulls` as GitHub's pull requests from `migration`."""
     sandbox(scene, behind_pot=True)
-    tea = {one["branch"]: one for one in milestones(served)["trains"]}["train/tea"]
+    (scene.home / "tasks" / "pot-2.md").write_text(
+        "# pot-2: a piece\nPull request: open one against migration when done\n"
+    )
+    scene.merge_log(logged(5, "wait", 5, "check has not passed"))
+    scene.pulls_from("migration", *pulls)
+
+
+def test_an_integration_branch_whose_pull_request_into_main_merged_is_not_listed(scene, served):
+    """`migration` landed on main by its own pull request: it is not listed, and its row `pot-2`
+    is its plan entry's alone, so `tea-8` of `release/tea` waits on `tea-pot`."""
+    landed(scene, ("closed", "release/tea", False), ("closed", "main", True))
+    found = branches(served)
+    assert list(found) == ["release/tea"]
+    assert found["release/tea"]["waits_on"] == [
+        {"milestone": "tea-pot", "slug": "pot-2", "mark": "stuck"}
+    ]
+
+
+@pytest.mark.parametrize(
+    "pulls",
+    [
+        [],
+        [("open", "main", False)],
+        [("closed", "release/tea", True)],
+        [("closed", "main", True), ("open", "main", False)],
+    ],
+    ids=["no pull request", "open", "merged elsewhere", "landed and opened again"],
+)
+def test_an_integration_branch_that_has_not_landed_on_main_is_listed_with_its_rows(
+    scene, served, pulls
+):
+    landed(scene, *pulls)
+    found = branches(served)
+    assert list(found) == ["release/tea", "migration"]
+    assert [one["slug"] for one in found["migration"]["steps"]] == ["pot-2"]
+    assert found["release/tea"]["waits_on"] == [
+        {"milestone": "migration", "slug": "pot-2", "mark": "stuck"}
+    ]
+
+
+def test_an_integration_branch_step_behind_a_row_of_a_plan_entry_names_that_entry(scene, served):
+    sandbox(scene, behind_pot=True)
+    tea = branches(served)["release/tea"]
     assert tea["waits_on"] == [{"milestone": "tea-pot", "slug": "pot-2", "mark": "stuck"}]
     assert (tea["holder"]["slug"], tea["holder"]["by"]) == ("tea-8", "pot-2")
 
 
-def test_a_home_with_no_plan_and_a_project_with_no_trains_say_so(scene, served):
+def test_a_home_with_no_plan_and_a_project_with_no_integration_branches_say_so(scene, served):
     said = milestones(served)
     assert said["homes"] == [{"name": "", "plan": "missing", "entries": []}]
-    assert said["trains"] == []
+    assert said["integration"] == []

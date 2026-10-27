@@ -849,7 +849,7 @@ def test_once_main_passed_a_red_night_after_it_files_one_row_and_one_before_it_n
     ]
 
 
-def test_a_pass_on_the_train_is_kept_after_github_lists_it_no_more(kitchen):
+def test_a_nightly_pass_is_kept_after_github_lists_it_no_more(kitchen):
     """GitHub lists the last 20 runs, so a night that passed slides out of the list."""
     macos_runs(kitchen, macos_green())
     kitchen.poll()

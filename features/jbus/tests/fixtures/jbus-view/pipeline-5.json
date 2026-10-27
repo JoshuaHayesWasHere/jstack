@@ -81,13 +81,6 @@
    "oldest": null
   },
   {
-   "key": "train",
-   "name": "Train",
-   "count": 0,
-   "still": 0,
-   "oldest": null
-  },
-  {
    "key": "merged",
    "name": "Merged",
    "count": 3,

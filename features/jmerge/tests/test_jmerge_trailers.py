@@ -15,7 +15,7 @@ import pytest
 
 from jmerge import trailers
 from test_jmerge_fresh import LINES, Kitchen, git, url
-from test_jmerge_integration import TRAIN, allows, integration
+from test_jmerge_integration import BRANCH, allows, integration
 
 CLAUDE = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 HUMAN = "Co-authored-by: Ada Lovelace <ada@example.com>"
@@ -135,34 +135,34 @@ def test_the_squash_lands_the_title_and_the_branchs_messages_with_no_ai_trailer(
     assert trailers.found(message(kitchen)) == []
 
 
-def test_the_landing_of_a_train_is_a_merge_commit_whose_body_is_the_title(kitchen):
-    git(kitchen.home.main, "push", "-q", "origin", f"main:{TRAIN}")
-    kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
-    head = commit(kitchen, TRAIN, {"b.txt": "one\n"}, f"feat: one\n\n{CLAUDE}")
-    integration(kitchen, TRAIN)
+def test_the_landing_of_a_branch_is_a_merge_commit_whose_body_is_the_title(kitchen):
+    git(kitchen.home.main, "push", "-q", "origin", f"main:{BRANCH}")
+    kitchen.crew(BRANCH, 9, {"a.txt": "ours\n" + LINES})
+    head = commit(kitchen, BRANCH, {"b.txt": "one\n"}, f"feat: one\n\n{CLAUDE}")
+    integration(kitchen, BRANCH)
     (said,) = kitchen.run()
-    assert said.startswith(f"merged 9 {TRAIN} ")
+    assert said.startswith(f"merged 9 {BRANCH} ")
     assert kitchen.calls() == [
         f"pr merge 9 --merge --match-head-commit {head} --body-file - --repo {kitchen.origin}"
     ]
-    assert message(kitchen) == f"Merge pull request #9\n\nfeat: {TRAIN}"
+    assert message(kitchen) == f"Merge pull request #9\n\nfeat: {BRANCH}"
 
 
-def test_the_squash_landing_of_a_train_lands_the_title_and_its_messages_with_no_ai_trailer(
+def test_the_squash_landing_of_a_branch_lands_the_title_and_its_messages_with_no_ai_trailer(
     kitchen,
 ):
-    git(kitchen.home.main, "push", "-q", "origin", f"main:{TRAIN}")
-    kitchen.crew(TRAIN, 9, {"a.txt": "ours\n" + LINES})
-    head = commit(kitchen, TRAIN, {"b.txt": "one\n"}, f"feat: one (#6)\n\n{HUMAN}\n{CLAUDE}")
-    integration(kitchen, TRAIN)
+    git(kitchen.home.main, "push", "-q", "origin", f"main:{BRANCH}")
+    kitchen.crew(BRANCH, 9, {"a.txt": "ours\n" + LINES})
+    head = commit(kitchen, BRANCH, {"b.txt": "one\n"}, f"feat: one (#6)\n\n{HUMAN}\n{CLAUDE}")
+    integration(kitchen, BRANCH)
     allows(kitchen, merge=False, squash=True, rebase=False)
     (said,) = kitchen.run()
-    assert said.startswith(f"merged 9 {TRAIN} ")
+    assert said.startswith(f"merged 9 {BRANCH} ")
     assert kitchen.calls() == [
-        f"pr merge 9 --squash --match-head-commit {head} --subject feat: {TRAIN} (#9)"
+        f"pr merge 9 --squash --match-head-commit {head} --subject feat: {BRANCH} (#9)"
         f" --body-file - --repo {kitchen.origin}"
     ]
-    assert message(kitchen) == f"feat: {TRAIN} (#9)\n\n* {TRAIN}\n\n* feat: one (#6)\n\n{HUMAN}"
+    assert message(kitchen) == f"feat: {BRANCH} (#9)\n\n* {BRANCH}\n\n* feat: one (#6)\n\n{HUMAN}"
     assert trailers.found(message(kitchen)) == []
 
 

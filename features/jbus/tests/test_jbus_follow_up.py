@@ -125,8 +125,8 @@ def brief_of(kitchen, slug):
             "beta",
             (),
             brief("beta", follows("alpha")),
-            "beta is no follow-up's kind (cleanup-, a fix jbus filed, a train's sync) and does not "
-            "do work for alpha's plan entry alpha: its entry is beta",
+            "beta is no follow-up's kind (cleanup-, a fix jbus filed, an integration branch's "
+            "sync) and does not do work for alpha's plan entry alpha: its entry is beta",
         ),
         (
             "cleanup-gone",
