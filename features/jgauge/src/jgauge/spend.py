@@ -229,9 +229,9 @@ def report(
     out.append(f"every instance capped ({', '.join(sorted(instances)) or 'none'}):")
     spans = capped_spans(caps, instances)
     for begin, end in _days(since, until):
-        inside = [(max(s, begin), min(e, end)) for s, e in spans if max(s, begin) < min(e, end)]
-        minutes = round(sum((e - s).total_seconds() for s, e in inside) / 60)
-        shown = ", ".join(f"{_clock(s)} to {_clock(e)}" for s, e in inside)
+        today = [(max(s, begin), min(e, end)) for s, e in spans if max(s, begin) < min(e, end)]
+        minutes = round(sum((e - s).total_seconds() for s, e in today) / 60)
+        shown = ", ".join(f"{_clock(s)} to {_clock(e)}" for s, e in today)
         line = f"  {begin.astimezone():%Y-%m-%d} {minutes:4} min"
         out.append(f"{line}  {shown}" if shown else line)
     return out
