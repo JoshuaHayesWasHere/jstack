@@ -546,7 +546,7 @@
       "kind": "skill",
       "path": "features/pr-review/SKILL.md",
       "source": "jstack",
-      "description": "Have a finished pull request reviewed in a fresh thread - one review thread per pull request reads its diff itself, judges what it found, and proves the one safety fact by running code (pstack's review, with no reviewer subagents and no fixes), sends the findings to the thread that did the work, and records them in the brief. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished."
+      "description": "Have a finished pull request reviewed in a fresh thread - one review thread per pull request reads its diff itself, judges what it found, and proves the one safety fact by running code (pstack's review, with no reviewer subagents and no fixes), and records the findings in the brief, where jbus reads them and tells the thread that did the work when it owes a line. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished."
     },
     {
       "name": "recall",
