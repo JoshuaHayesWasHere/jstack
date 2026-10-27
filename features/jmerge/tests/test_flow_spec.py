@@ -39,7 +39,7 @@ CITED = {
     "features/crew/the-checks.md:81-86": "`jmerge` judges a red pull request again by itself",
     "features/jbus/src/jbus/dispatch.py:331-363": "no room",
     "features/jbus/src/jbus/dispatch.py:509-511": "on = world.stack_on(run, unmerged, brief)",
-    "features/jbus/src/jbus/rebase.py:271": "world.open.items()",
+    "features/jbus/src/jbus/rebase.py:250": "world.open.items()",
     "features/jbus/src/jbus/stack.py:79": "world.open.items()",
     "features/jbus/src/jbus/stack.py:85-86": "world.merged.get(stacked.slug)",
     "features/jbus/src/jbus/strays.py:484": '("crew", slug) in busy',
