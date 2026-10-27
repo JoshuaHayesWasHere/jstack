@@ -260,7 +260,9 @@ def test_a_slot_jbus_woke_a_waiter_for_is_held_for_that_waiter(machine):
     wake(machine, "mcp:a")
     second = jgauge(machine, "--slots", "1", "--", "echo", "b", thread="mcp:b")
     assert (second.returncode, second.stderr) == (slot.WAITING, "")
-    assert "mcp:b is registered as a waiter" in second.stdout and "b\n" not in second.stdout
+    assert (
+        len(second.stdout.splitlines()) == 1 and "mcp:b is registered as a waiter" in second.stdout
+    )
     first = jgauge(machine, "--slots", "1", "--", "echo", "a", thread="mcp:a")
     assert (first.returncode, first.stdout) == (0, "a\n")
     assert [one.thread for one in waiters.read(machine.locks)] == ["mcp:b"]

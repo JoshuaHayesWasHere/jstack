@@ -17,8 +17,11 @@ through this process, which passes it on.
 A thread that cannot wait in a call does not wait: `jgauge test-slot --thread <id>` tries once,
 and with every slot of its lane taken it registers the thread as a waiter (`jgauge.waiters`) and
 exits with code 76. `jbus poll` sends the oldest waiter of a lane one message when a slot of the
-lane is free. The thread then runs its command again. That run takes the slot and takes the
-thread out of the waiters file.
+lane is free. That wake claims the slot for the thread for `waiters.HOLDS`, and another thread
+with `--thread` takes a slot only while the free slots outnumber the claims of other threads:
+with none to spare it registers as a waiter, as it does with every slot taken. The woken thread
+then runs its command again. That run takes the slot and takes the thread out of the waiters
+file, and with it its claim.
 
 The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a run it starts
 knows a slot is held: a TLC model check in a suite takes no second slot, and cannot wait on the
@@ -140,18 +143,28 @@ def _first_free(locks: Path, lane: Lane) -> tuple[int, Path] | None:
 
 def take(lane: Lane, thread: str = "", command: list[str] | None = None) -> tuple[int, Path] | None:
     """Wait for a slot and take it, and give the held lock and its file. With a `thread` it does
-    not wait: when every slot is taken, it registers the thread as a waiter on the lane, says so
-    in one line, and takes no slot. A thread that takes a slot is no longer a waiter."""
+    not wait, and leaves the free slots that woken waiters of other threads claim to them: when
+    no slot is free for it, it registers the thread as a waiter on the lane, says so in one
+    line, and takes no slot. A thread that takes a slot is no longer a waiter."""
     locks = locks_dir()
     locks.mkdir(parents=True, exist_ok=True)
     if thread:
+        now = datetime.now(UTC)
+        claimed = waiters.claims(locks, name(lane), thread, now)
         held = _first_free(locks, lane)
-        if held is not None:
+        if held is not None and 1 + free(lane) > claimed:
             waiters.drop(locks, thread)
             return held
-        waiters.register(locks, thread, name(lane), lane.slots, command or [], datetime.now(UTC))
+        if held is not None:
+            os.close(held[0])
+        waiters.register(locks, thread, name(lane), lane.slots, command or [], now)
+        why = (
+            f"the free ones of {lane.called} are held for woken waiters"
+            if held is not None
+            else f"every one of {lane.called} is taken"
+        )
         print(
-            f"test-slot: every one of {lane.called} is taken; {thread} is registered as a waiter"
+            f"test-slot: {why}; {thread} is registered as a waiter"
             " and jbus will wake it when one is free. End your turn.",
             flush=True,
         )
