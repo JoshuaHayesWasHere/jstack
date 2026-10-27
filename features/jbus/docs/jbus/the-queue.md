@@ -215,6 +215,7 @@ The row's `approval` field records the approval:
 | `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the rule's text as `standing.md` had it then, and the other two are empty, since you said nothing of the row. |
 | `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. For a row approved by rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
+| `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
 | `brief_sha` | The sha256 of the brief at the go, as `--sha` named it. |
 | `meaning`, `scope` | The brief's meaning fingerprint at the go, and the sha256 of it. The go holds for any brief that means the same (below). |
