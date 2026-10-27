@@ -76,8 +76,6 @@ _NAME = re.compile(r"[^\s,]+")
 HOMES = "homes"
 ROOT = "root"
 WAKE = "records"
-SHOWN = 600
-"""How many characters of a word the wake carries: the rest is in `words.json`, by its id."""
 _JSON = {"for_": "for", "from_": "from"}
 _FIELDS = {value: name for name, value in _JSON.items()}
 
@@ -346,11 +344,6 @@ def _told(state: Path, keys: set[str], at: str) -> None:
         )
 
 
-def _shown(text: str) -> str:
-    text = " ".join(text.split())
-    return text if len(text) <= SHOWN else f"{text[:SHOWN]}... (the rest is in words.json)"
-
-
 def message(project: str, to: str, mine: list[Record], theirs: list[word.Word]) -> str:
     """Return the one wake a home gets for its new records: how many of each, the command that
     lists the noticed ones, and each word in full, as `word.MESSAGE` frames a word."""
@@ -369,7 +362,7 @@ def message(project: str, to: str, mine: list[Record], theirs: list[word.Word]) 
             f"jbus. Take it as said by {one.by} in this thread. It answers no open question, "
             "and nothing is sent back for it. A row it approves is approved with "
             f"--word {one.id}.\n\n"
-            f"{_shown(one.words)}"
+            f"{one.words}"
         )
     return "\n\n".join(said)
 

@@ -252,6 +252,16 @@ def test_one_word_to_every_scope_wakes_three_homes_once_and_a_second_run_wakes_n
     assert len(wakes(three)) == 3
 
 
+def test_the_wake_carries_a_long_word_whole(three):
+    long = " ".join(f"step {n} of the plan." for n in range(200))
+    three.t3.says(SOUS, "m3", long, title="Sous Chef")
+    code, out = three.main("word", "--to", "demo", "--message", f"{SOUS}/m3", "--scope", "flow")
+    assert code == 0, out
+    three.poll()
+    (sent,) = sends(three)
+    assert len(long) > 2000 and sent["message"].endswith(long)
+
+
 def test_a_scope_that_holds_the_word_by_any_path_is_not_sent_it_again(three):
     three.t3.says(SOUS, "m2", "fix fl-statechart first", title="Sous Chef")
     assert three.main("word", "--to", "demo", "--message", f"{SOUS}/m2")[0] == 0
