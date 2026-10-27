@@ -87,7 +87,7 @@ Merge(p) ==
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1411-1412: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1433-1434: main's red tip after a briefed merge is filed.
     /\ fixRow' = (fixRow \/ breaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine>>
 
@@ -104,7 +104,7 @@ Restack(p) ==
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus sends to
 \* a thread already running, so no room is asked for, and its turn may leave a process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:268, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:279, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
@@ -130,7 +130,7 @@ Rejudge(p) ==
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
-\* (features/jbus/src/jbus/strays.py:493), and in this model a crew's turn is one step.
+\* (features/jbus/src/jbus/strays.py:491), and in this model a crew's turn is one step.
 Stoppable(p) ==
     CASE Gap = "busy" -> FALSE
       [] Gap = "ended" -> st[p] = "merged"
@@ -139,7 +139,7 @@ Stoppable(p) ==
 \* jbus.strays stops what a finished turn left (#351, #363, #416, #427): a busy process, and an
 \* idle one only as Gap says.
 Sweep ==
-    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:510-511,519
+    /\ busy \/ \E p \in PRs : idle[p] /\ Stoppable(p)   \* features/jbus/src/jbus/strays.py:508-509,517
     /\ busy' = FALSE
     /\ idle' = [p \in PRs |-> idle[p] /\ ~Stoppable(p)]
     /\ full' = (\E p \in PRs : idle'[p])
@@ -148,7 +148,7 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew fixes main.
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1055-1077, queued with no approval
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1077-1099, queued with no approval
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
     /\ mainRed' = FALSE
     /\ redBy' = "none"
@@ -162,7 +162,7 @@ OutsideBreak ==
     /\ mainRed' = TRUE
     /\ redBy' = "outside"
     /\ outsideLeft' = outsideLeft - 1
-    \* features/jbus/src/jbus/watch.py:1362,1405,1409,1412: since #392 the fix row is filed for a red
+    \* features/jbus/src/jbus/watch.py:1384,1427,1431,1434: since #392 the fix row is filed for a red
     \* tip with no briefed merge in the day before it too, under the row's own name.
     /\ fixRow' = TRUE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine>>
