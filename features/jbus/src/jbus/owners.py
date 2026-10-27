@@ -8,16 +8,16 @@ outbox, which needs it to act. The message's key is `state.key_of`, the same whi
 stands, so a home is told once of a fault, and again only of a new one or as a new home.
 
 Told here are a fault with no row, one of the project or the machine, which the root home
-owns, and a crew of the root home's that hung at work: no other step tells a home of that,
-`jbus.stall.hung` only logs it. A child home hears of its own hung crew from
-`jbus.children`, whose nudge counts all it has out. A crew that is only quiet is not told of.
-Any other fault of a row is told by the step that already works that row, and the view reads
-its message as what the owner was told (`state._fixing`). A crew owns a red check of its own
-pull request, which `jbus.rebase` tells it of, and a red main whose main-red row it works. A
-crew whose thread ended with something left goes to its home through `jbus.leftover`, whose
-record counts as the telling. A stalled row goes to its home through `jbus.expedite`, on its
-own count of passes, which a second message here would only hurry. A user's entry is told to
-nobody: the band shows it.
+owns, and two faults of a row that no other step tells a home of: a crew of the root home's
+that hung at work, which `jbus.stall.hung` only logs, and a stalled row, whose `stall` event
+`jbus.stall.guarded`, `jbus.expedite` and `jbus.clock` only log, which its home owns. A child
+home hears of its own hung crew from `jbus.children`, whose nudge counts all it has out. A
+crew that is only quiet is not told of. Any other fault of a row is told by the step that
+already works that row, and the view reads its message as what the owner was told
+(`state._fixing`). A crew owns a red check of its own pull request, which `jbus.rebase` tells
+it of, and a red main whose main-red row it works. A crew whose thread ended with something
+left goes to its home through `jbus.leftover`, whose record counts as the telling. A user's
+entry is told to nobody: the band shows it.
 """
 
 from __future__ import annotations
@@ -105,11 +105,18 @@ def _hung(one: dict) -> bool:
     return one["kind"] == "thread" and hung and crew
 
 
+def _logged(one: dict) -> bool:
+    """Whether the entry is a fault of a row that the step that found it only logged, which
+    only this step tells: a hung crew (`_hung`), or a stalled row."""
+    return _hung(one) or one["kind"] == state.STALLED
+
+
 def tell(run: Pass, client: Client) -> None:
-    """Tell the owner, once, of each fault of the project or the machine and each hung crew."""
+    """Tell the owner, once, of each fault of the project or the machine, each hung crew and
+    each stalled row."""
     for one in read(run).once(state.wrongs):
         fault = f"{one['kind']} {one['subj']}"
-        if one["owner"] == state.USER or one["fixing"] or (one["row"] and not _hung(one)):
+        if one["owner"] == state.USER or one["fixing"] or (one["row"] and not _logged(one)):
             continue
         key = state.key_of(one)
         try:
