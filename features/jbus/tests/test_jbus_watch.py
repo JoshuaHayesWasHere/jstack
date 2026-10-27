@@ -259,6 +259,51 @@ def test_a_check_on_main_that_failed_beside_a_cancelled_one_is_a_failed_check(ki
     assert not [call for call in kitchen.log("gh") if call.startswith("run ")]
 
 
+def beside_a_dispatched_browser_run(sha, check):
+    """Return the check runs and the workflow runs of a commit on main whose push run's `full`
+    job ended `check`, beside browser.yml runs at the same commit that failed: one dispatched by
+    hand, one on a schedule and one for a tag."""
+    done = {"status": "completed"}
+    check_runs = [{**done, "conclusion": check, "name": "full", "check_suite": {"id": 11}}]
+    workflow_runs = [{**done, "conclusion": check, "event": "push", "check_suite_id": 11}]
+    for suite, event, branch in (
+        (12, "workflow_dispatch", "main"),
+        (13, "schedule", "main"),
+        (14, "push", "v1.2.0"),
+    ):
+        check_runs.append(
+            {**done, "conclusion": "failure", "name": "browser", "check_suite": {"id": suite}}
+        )
+        workflow_runs.append(
+            {
+                **done,
+                "conclusion": "failure",
+                "event": event,
+                "head_branch": branch,
+                "check_suite_id": suite,
+            }
+        )
+    return {sha: check_runs}, {sha: workflow_runs}
+
+
+@pytest.mark.parametrize("check, line", [("success", None), ("failure", "failed")])
+def test_main_is_judged_by_its_push_run_and_not_by_a_browser_run_beside_it(kitchen, check, line):
+    """jstack's main at d1e3bd5: its push run passed, and three browser runs dispatched at the
+    same commit failed. Main was green, and jbus held every pull request as red."""
+    kitchen.brief("alpha", RESULT)
+    kitchen.quiet()
+    sha = "d" * 40
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, sha)])
+    kitchen.set("commits.json", [kitchen.commit(sha)])
+    check_runs, workflow_runs = beside_a_dispatched_browser_run(sha, check)
+    kitchen.set("check-runs.json", check_runs)
+    kitchen.set("push-runs.json", workflow_runs)
+    kitchen.poll()
+    said = f"retro alpha: main check {line} at dddddddddddd, 1 merges since the last green"
+    assert kitchen.lines("retro") == ([said] if line else [])
+    assert json.loads((kitchen.state / "checks.json").read_text()) == {sha: line or "green"}
+
+
 def cancelled_on_main(kitchen, check_runs):
     """Make a merge whose commit on main has these check runs, and a push run that ended
     cancelled."""
