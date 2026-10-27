@@ -107,8 +107,6 @@ def test_a_red_check_of_a_crews_pull_request_is_the_crews_and_not_in_the_band(
     }
 
 
-# The four flow pull requests whose checks were red on 2026-10-27, each a crew's, and the two
-# crews the events of that day say jbus told of its red check (`failed ...: told the crew`).
 REDS = {
     "cleanup-fl-msg-red-rows": ("#549", "mcp:ed9e786d", 15),
     "fl-msg-go-as-gate": ("#550", "mcp:a86d154f", 20),
@@ -122,7 +120,9 @@ def test_the_four_crew_reds_of_2026_10_27_are_each_on_its_row_and_none_is_the_us
 ):
     """#549, #550, #551 and #553 were red on 2026-10-27, each with its crew on it, and the view
     put all four to the user. Replayed: `.wrong` holds none of them, the band is calm, and each
-    is on its row as fixing by its crew, told when the day's events say it was."""
+    is on its row as fixing by its crew. `REDS` gives each its pull request, its crew's thread
+    and how long ago jbus told the crew of its red check, for the two that the day's events say
+    were told (`failed ...: told the crew`)."""
     scene = Scene(tmp_path, monkeypatch)
     (scene.home / "home-id").write_text("mcp:root\n")
     scene.github([(slug, "completed", "failure") for slug in REDS])

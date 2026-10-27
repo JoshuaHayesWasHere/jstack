@@ -322,7 +322,7 @@ def _raise(run: Pass, client: Client, slug: str, record: Record, out: set[str]) 
     line = f"{KIND} {slug}: told the root home, thread {root}, that {late_now}"
     run.find(slug, KIND, line, text, key=f"late {digest} {root}")
     run.say(line)
-    return replace(record, why="", stalled=run.now.astimezone(UTC).isoformat(timespec="seconds"))
+    return replace(record, why="", stalled=jsettings.stamp(run.now))
 
 
 def tell(
