@@ -114,7 +114,7 @@ def test_an_approved_brief_edited_outside_its_meaning_stays_approved_and_launche
     assert gates(kitchen) == []
     (launch,) = kitchen.t3.launches
     assert launch["title"] == "crew: alpha"
-    assert launch["message"] == f"/crew alpha\n\n{queue.body(again)}"
+    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(queue.body(again), again)}"
 
 
 def test_an_approved_brief_with_its_skills_edited_keeps_its_go(kitchen):
@@ -566,12 +566,13 @@ def test_a_go_given_again_while_a_pass_runs_is_judged_with_the_brief_it_binds(ki
     assert kitchen.lines("waiting-on-user") == []
     assert gates(kitchen) == []
     (launch,) = kitchen.t3.launches
-    assert launch["message"] == f"/crew alpha\n\n{queue.body(APPROVED)}"
+    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(queue.body(APPROVED), APPROVED)}"
 
 
 def test_the_lines_a_launch_writes_keep_the_go(kitchen):
     """A brief queued again with the `Thread:` line a launch writes, and another `Home:`, means
-    what was approved: its go holds, and it launches with neither line."""
+    what was approved: its go holds, and it launches with no `Thread:` line and its new
+    `Home:`."""
     approved(kitchen)
     again = APPROVED.replace("Home: mcp:a-home", "Home: flow\nThread: mcp:a-launched-thread")
     code, said = add(kitchen, again)
@@ -581,7 +582,7 @@ def test_the_lines_a_launch_writes_keep_the_go(kitchen):
     kitchen.poll()
     assert gates(kitchen) == [] and kitchen.lines("waiting-on-user") == []
     (launch,) = kitchen.t3.launches
-    assert launch["message"] == f"/crew alpha\n\n{queue.body(APPROVED)}"
+    assert launch["message"] == f"/crew alpha\n\n{dispatch.homed(queue.body(APPROVED), again)}"
 
 
 @pytest.mark.parametrize("held_again", ["approved again", "the brief changed back"])
