@@ -7,7 +7,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 - The root home sends a scoped home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch.
   Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words.
   A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
-- A scoped home sends the root only what it cannot resolve on its own and that needs the big picture: a decision or a stop, by the block of "Sending the root" below, and never by a `t3_thread_send` of its own or a line in `$H/standing.md`.
+- A scoped home reaches the root only when it is stuck and needs steering: a stop on its own open row, which jbus takes only when another home's row or something no home owns holds it ("Stopping on the root" below), and a decision only the user can make is a gate.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
   A scope that ends says so in its own `handoff.md`.
@@ -17,42 +17,35 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 
 A scoped home gives each brief and request a slug that starts with its prefix, the one its section of `$H/notes.md` names.
 
-**Sending the root** is a scoped home's, and only for one of two kinds.
-A `decision` is one the scope cannot make on its own, since it needs the big picture: it crosses scopes, or changes what another home may plan or touch.
-A `stop` is a blocker the scope cannot clear by itself.
-In one call with the block at the top and the block that finds this home, with the kind in place of `<decision or stop>` and what the root must decide or clear, in a line or two, in place of the other words in angle brackets:
+**Stopping on the root** is a scoped home's, and the only way it reaches the root.
+A stop is a fact of the queue that jbus checks: one of this home's own open rows is held by another home's open row, or by something no home owns, and this home cannot clear it.
+jbus refuses any other stop: one on this home's own rows only, one on a row that merged, is done or was removed, and the same stop again while it is open.
+In one call with the block at the top, the block that finds this home and the block that reads jbus, with this home's held row in place of `<own row>`, the other home's row or its pull request's `#<n>` in place of `<row or #pr>`, and what the root must clear, in a line, in place of the last words in angle brackets:
 
 ```sh
-kind='<decision or stop>'
-the_send() {
-    paste -sd ' ' - << 'THE_SEND_ENDS_HERE'
-<what the root must decide or clear>
-THE_SEND_ENDS_HERE
-}
-what=$(the_send)
-root=$(awk 'NF {print $(1); exit}' "$H/home-id" 2> /dev/null)
-if [ "${M:?run the block that finds this home first}" = "$H" ]; then
-    echo "not sent: this is the root home, and only a scoped home sends the root"
-else
-    case $kind in
-    decision | stop)
-        case $what in
-        '' | '<what the root '*) echo "not sent: what the root must decide or clear is not filled in" ;;
-        *)
-            if [ -z "$root" ]; then
-                echo "not sent: no root home is running, $H/home-id holds no thread: park the $kind as a gate (\"Gates\"), which jbus takes to the user"
-            else
-                printf '%s\n' "$root" "${M##*/} home, a $kind: $what" | jq -R . | jq -sc '{threadId: .[0], message: .[1]}' | sed 's/^/send: /'
-            fi ;;
-        esac ;;
-    '' | *'<'* | *'>'*) echo "not sent: the kind is not filled in, decision or stop" ;;
-    *) echo "not sent: a $kind is not sent to the root, only a decision or a stop: the root reads this scope's plan, $M/plan.md, and its queue rows when the user asks for status" ;;
-    esac
-fi
+: "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"
+jbus --project "$P" stop '<own row>' --on '<row or #pr>' --from "$ME" '<what the root must clear>'
 ```
 
-On `send:`, send what the block printed after `send: `, as it is, with `t3_thread_send`.
-On `not sent:` nothing is sent: do what the line says.
+When what holds the row is no home's (the machine, the install, Claude Code), put `--outside '<what holds it>'` in place of `--on '<row or #pr>'`.
+jbus takes that stop too, and counts it per scope in the digest, since no row backs it.
+On `stopped:` jbus has sent the stop to the root home's thread, read as it sends, or keeps it until a root home runs, and sends nothing more for it.
+On `refused:` nothing is sent: the home clears what the line names itself, or it is no stop.
+A stop whose own row merges or is removed closes itself, with no message.
+
+A `decision` the scope cannot make alone, one the user must make, is no stop: park it as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
+Nothing else reaches the root, and never by a `t3_thread_send` of this home's own or a line in `$H/standing.md`.
+
+**Answering a stop** is the root home's.
+jbus's message names the scope and the row; answer it once, in the same call as the block that finds this home and the block that reads jbus:
+
+```sh
+: "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"
+jbus --project "$P" stop answer '<scope>' '<own row>' '<the answer>' --from "$ME"
+```
+
+`--from` comes last.
+jbus closes the stop and carries the answer to the scope's home, once.
 
 **Making a scope** is the root home's, and only on the user's word. In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns, in the user's words, in place of `<what the scope owns>`:
 

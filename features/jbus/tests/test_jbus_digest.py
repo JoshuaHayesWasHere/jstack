@@ -316,6 +316,7 @@ def test_the_digest_is_each_project_s_rows_merges_pulls_and_waiting_list_then_th
         "pulls",
         "routine",
         "rows",
+        "stops",
         "sweep",
         "waiting",
     ]
@@ -403,6 +404,7 @@ def test_the_digest_of_a_project_no_pass_has_run_for_is_empty_and_makes_no_state
         "pulls": [],
         "routine": [],
         "rows": [],
+        "stops": {"open": [], "outside": {}},
         "sweep": "",
         "waiting": [],
     }

@@ -29,6 +29,9 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
     them, and the digest is where the user reads them. Only a `decision`, a `sign-in` and an
     `alert` page (`jbus.blockers`).
   - `sweep` is what the last look at a sweep found.
+  - `stops` holds `open`, each stop a scoped home holds open on the root, and `outside`, the
+    count of each scope's stops on what no home owns taken at or after `since` (`jbus.stop`).
+    Its `open` is None where `stops.json` does not parse.
 - `status` is what `jbus status` prints.
 - `token_expires` is when the sign-in to T3 Code runs out, read from the stored token. A
   builder that has no token file to read takes it from the status file, where the last pass
@@ -61,6 +64,7 @@ from jbus import (
     read_json,
     record,
     redact,
+    stop,
     t3,
     verbs,
     waiting,
@@ -203,6 +207,7 @@ def _project(config: Config, project: Project, start: datetime) -> dict[str, Any
         "waiting": waiting.read(state) or [],
         "routine": _routine(config, project, start),
         "sweep": Box(state, project).marks().get("sweep", ""),
+        "stops": stop.digest(state, start),
     }
 
 
