@@ -3,7 +3,7 @@ home's own open row is held by something the home cannot clear.
 
 Being stuck is a fact of the queue, so jbus checks it and reads no words. A stop names the scope's
 own row and what holds it: `--on` another home's open row, by its slug or its pull request's `#<n>`,
-or `--outside` something no home owns, such as the machine or Claude Code. jbus refuses a stop
+or `--outside` something no home owns, such as the machine or a sign-in. jbus refuses a stop
 unless:
 
 - `--from` is the thread in a scoped home's `home-id`, and not the root's (`_scope`);
