@@ -287,14 +287,19 @@ Nothing writes `fresh.json` or `fresh.lock` in the state directory any more, and
 A pull request's check runs on its merge with the base as the base was then, and a rerun runs on that same merge.
 So a check that failed while the base was red stays red after the base is fixed, though the pull request owes no change (`features/jmerge/src/jmerge/rejudge.py`).
 `jmerge` judges such a pull request again when all that holds it is a required check that ran and failed, it merges cleanly, and its base (`baseRefName`, main or an integration branch) has moved since the check started.
-It judges the pull request as if the check had passed, and a pull request that waits on anything else keeps the line `<check> has not passed`, a red base included.
+That holds for every required check the `required-checks` file names, `macos` as much as `check`.
+It judges the pull request as if the failed checks had passed, and a pull request that waits on anything else says that instead of `<check> has not passed`, a red base included.
+So a crew is asked for what its pull request is short of, such as a scoped review of a push after its review, and its base is merged in once that is done (#529, 2026-10-27: ten hours on `macos has not passed` while it was short of a scoped review that nobody was asked for).
 It asks GitHub to merge the base into the branch, `PUT /repos/{owner}/{repo}/pulls/<n>/update-branch` with `expected_head_sha`, which rewrites no history.
 The line is then `GitHub was asked to merge <base> at <tip12> into it: its check failed before <base> moved`, or `GitHub did not merge <base> at <tip12> into it: <what GitHub said>`.
 It asks once for a head and a base tip, and keeps what GitHub said in `base-merges.json` in the state directory.
 `--check` asks nothing, and says `its check failed before <base> moved: GitHub is to merge <base> at <tip12> into it`.
 GitHub's new check at the new head then decides by the normal path, and a change broken on its own fails there as its own.
-A pull request broken on its own is not given its base again: when its last two check runs failed a same pytest id, and main's check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has not passed`.
-It reads a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`, and main's check at a run's base is main's latest run of the check that started by the time the pull request's run started.
+A pull request broken on its own is not given its base again: when the last two runs of a required check it failed both failed a same pytest id, and main's run of that check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has not passed`.
+It reads the runs of each failed check's own workflow, and a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`.
+Main's run at a run's base is main's latest run of the same check that started by the time the pull request's run started.
+A check that main never runs, as `macos` and `borders` run on pull requests alone, has no such run, so its repeats are not known and the base is merged in as before.
+That is on purpose: a test that main broke on macOS alone would otherwise read as the pull request's own, and hold it for good.
 A pull request whose runs failed no test id, or a test that main's check also failed there, is asked for as before, and so is one whose runs or logs GitHub does not give.
 It keeps that answer for a head and a base tip in `base-merges.json`, so the logs are read again only once either moves (#494, 2026-10-26: nine merges of main, each red on the same test of its own).
 The review stands across the merge, as across a rebase: the range-diff of the reviewed head and the new head shows no content, since it leaves out the merge commit.
