@@ -51,10 +51,10 @@ function needForm(w) {
 function needAct(w) {
   var id = needId(w), now = ACCEPTING[id];
   if (now) return '<span class="acc">' + (now.sent ? saysNow(now) + "&hellip;" : saysNow(now) + ' in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
-  if (w.act === "thread" && w.thread) return '<a class="btn" href="' + esc(w.thread) + '" aria-description="Opens the thread of its home in T3 Code, where you write about it">Write to its home</a>';
+  if (w.act === "thread" && w.thread) return '<a class="btn fill" href="' + esc(w.thread) + '" aria-description="Opens the thread of its home in T3 Code, where you write about it">Write to its home</a>';
   if (!acts(w)) {
-    if (PROJECT) return '<button type="button" class="btn" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
-    return '<a class="btn" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
+    if (PROJECT) return '<button type="button" class="btn fill" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
+    return '<a class="btn fill" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
   }
   if (FORM[id]) return "";
   if (w.act === "approve") return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Approves ' + esc(w.item || w.slug) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">Approve</button>';

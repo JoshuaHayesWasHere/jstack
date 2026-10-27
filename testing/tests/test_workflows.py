@@ -21,10 +21,12 @@ The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an 
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
 names another. It runs on no pull request and no push, and no merge waits on it.
 Each job has a cap that a hung run meets.
-The browser workflow names Google Chrome as its test browser, and the check names none.
+The browser workflow names its test browser, one Chrome for Testing build pinned by its exact
+version and the SHA-256 of its zip, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
 check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, by hand, and
-on a pull request into main that changes the view or its browser tests and is not a draft, but
+on a pull request into main that changes the view, its browser tests, their kept shots or the
+browser workflow and is not a draft, but
 never on a push to main. Every workflow gets read access to the contents and
 no more, and none runs on `pull_request_target`. The check may also read the repo's artifacts, which
 is where a green run's marker is.
@@ -49,6 +51,7 @@ import shutil
 import subprocess
 import sys
 import tomllib
+import zipfile
 from datetime import UTC, datetime
 from fnmatch import fnmatch
 from pathlib import Path
@@ -217,7 +220,7 @@ def test_every_workflow_may_read_the_contents_and_no_more_and_none_runs_for_a_fo
         assert "pull_request_target" not in path.read_text(), path.name
 
 
-CHROME = {"JSTACK_TEST_BROWSER": "/usr/bin/google-chrome"}
+CHROME = {"JSTACK_TEST_BROWSER": "/tmp/chrome-for-testing/chrome-linux64/chrome"}
 
 
 def job_env(text, job):
@@ -238,7 +241,7 @@ def job_env(text, job):
     return found
 
 
-def test_the_browser_job_names_google_chrome_once_and_the_check_jobs_name_no_browser():
+def test_the_browser_job_names_chrome_for_testing_once_and_the_check_jobs_name_no_browser():
     text = BROWSER.read_text()
     assert job_env(text, "browser") == CHROME | {"JSTACK_SHOTS_OUT": "/tmp/jbus-view-shots"}
     assert text.count("JSTACK_TEST_BROWSER: ") == 1
@@ -263,6 +266,7 @@ def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_
     names = [step.get("name") for step in found]
     look = found[names.index("test browser")]
     assert names.index("make check-browser") == names.index("test browser") + 1
+    assert names.index("test browser") == names.index("chrome for testing") + 1
     assert names[-2:] == ["make check-browser", "the view's shots"] and "if" not in look
     assert found[-1]["if"] == "failure()"
     browser = tmp_path / "google-chrome"
@@ -281,6 +285,71 @@ def test_the_browser_is_looked_for_right_before_the_tests_and_its_absence_fails_
     browser.write_text("#!/bin/sh\n")
     browser.chmod(0o755)
     assert (ran().returncode, ran().stdout) == (0, "")
+
+
+def test_the_browser_is_one_exact_chrome_for_testing_build_named_once():
+    """The image's own Chrome moves under a rollout, from one runner to the next, and every shot
+    of the view then fails on the runners whose build is not the shots'. The workflow names one
+    build, by its exact version and the SHA-256 of its zip, once each."""
+    text = BROWSER.read_text()
+    pin = block("env", BROWSER)
+    assert re.fullmatch(r"\d+\.\d+\.\d+\.\d+", pin["CHROME_VERSION"]), pin["CHROME_VERSION"]
+    assert re.fullmatch(r"[0-9a-f]{64}", pin["CHROME_SHA256"]), pin["CHROME_SHA256"]
+    assert text.count("CHROME_VERSION:") == text.count("CHROME_SHA256:") == 1
+
+
+@pytest.mark.parametrize("zip_is", ["the pinned one", "another"])
+def test_the_chrome_step_unpacks_the_pinned_build_only_when_its_zip_is_the_pinned_one(
+    tmp_path, zip_is
+):
+    """The step runs here as written, under bash, with a stand-in `curl` that serves a zip made
+    here and logs the address it was asked for: it fetches the pinned version from Google's
+    bucket, and unpacks and runs the browser only when the zip's SHA-256 is the pinned one."""
+    (step,) = [
+        s for s in steps(BROWSER.read_text(), "browser")[0] if s.get("name") == "chrome for testing"
+    ]
+    served = tmp_path / "served.zip"
+    with zipfile.ZipFile(served, "w") as made:
+        chrome = zipfile.ZipInfo("chrome-linux64/chrome")
+        chrome.external_attr = 0o100755 << 16
+        made.writestr(chrome, '#!/bin/sh\necho "Google Chrome for Testing 1.2.3.4"\n')
+    bin, temp, log = tmp_path / "bin", tmp_path / "temp", tmp_path / "log"
+    bin.mkdir()
+    temp.mkdir()
+    (bin / "curl").write_text(
+        "#!/bin/sh\nwhile [ $# -gt 0 ]; do case $1 in\n"
+        '-o) out=$2; shift;; http*) echo "$1" >> "$LOG";;\n'
+        'esac; shift; done\ncp "$SERVED" "$out"\n'
+    )
+    (bin / "curl").chmod(0o755)
+    for name in ("sha256sum", "unzip", "cp", "sh"):
+        (bin / name).symlink_to(shutil.which(name))
+    pinned = block("env", BROWSER)
+    digest = subprocess.run(["sha256sum", str(served)], capture_output=True, text=True, check=True)
+    sha = digest.stdout.split()[0] if zip_is == "the pinned one" else pinned["CHROME_SHA256"]
+    browser = tmp_path / "cft" / "chrome-linux64" / "chrome"
+    env = {
+        **pinned,
+        "CHROME_SHA256": sha,
+        "PATH": str(bin),
+        "RUNNER_TEMP": str(temp),
+        "LOG": str(log),
+        "SERVED": str(served),
+        "JSTACK_TEST_BROWSER": str(browser),
+    }
+    ran = subprocess.run(
+        [shutil.which("bash"), "-ec", step["run"]], env=env, capture_output=True, text=True
+    )
+    version = pinned["CHROME_VERSION"]
+    assert log.read_text().split() == [
+        f"https://storage.googleapis.com/chrome-for-testing-public/{version}/linux64/chrome-linux64.zip"
+    ]
+    if zip_is == "the pinned one":
+        assert ran.returncode == 0, ran.stderr
+        assert ran.stdout.splitlines()[-1] == "Google Chrome for Testing 1.2.3.4"
+    else:
+        assert ran.returncode != 0
+        assert not browser.exists()
 
 
 def test_a_bare_hosted_label_is_read_as_it_is_written():
@@ -1499,7 +1568,12 @@ def test_a_workflows_triggers_are_read_with_the_list_a_schedule_has():
     }
 
 
-VIEW_PATHS = ["features/jbus/src/jbus/view/**", "features/jbus/tests/view/**"]
+VIEW_PATHS = [
+    "features/jbus/src/jbus/view/**",
+    "features/jbus/tests/view/**",
+    "features/jbus/tests/fixtures/jbus-view/**",
+    ".github/workflows/browser.yml",
+]
 
 
 def test_the_browser_tests_run_nightly_on_a_release_by_hand_and_on_a_pull_request_into_main():
@@ -1518,18 +1592,24 @@ def test_the_browser_tests_run_nightly_on_a_release_by_hand_and_on_a_pull_reques
     }
 
 
-def test_a_pull_request_runs_the_browser_tests_only_for_a_change_to_the_view_or_its_tests():
-    source, tests = triggers(BROWSER.read_text())["pull_request"]["paths"]
+def test_a_pull_request_runs_the_browser_tests_only_for_the_view_its_tests_shots_or_workflow():
+    """The view, its tests, their fixtures (the kept shots) and this workflow, which names the
+    browser that draws them: a pin bumped with no run of its own would land shots unproven."""
+    paths = triggers(BROWSER.read_text())["pull_request"]["paths"]
     changed = {
         "features/jbus/src/jbus/view/page.py": True,
         "features/jbus/src/jbus/view/static/board.js": True,
         "features/jbus/tests/view/test_view_board.py": True,
         "features/jbus/tests/view/page/browser.py": True,
+        "features/jbus/tests/fixtures/jbus-view/shots/all-390-dark.png": True,
+        ".github/workflows/browser.yml": True,
+        ".github/workflows/check.yml": False,
+        "features/jbus/tests/fixtures/jbus-watch/run.json": False,
         "features/jbus/src/jbus/watch.py": False,
         "features/jbus/tests/test_jbus_watch.py": False,
         "testing/tests/test_workflows.py": False,
     }
-    assert {path: fnmatch(path, source) or fnmatch(path, tests) for path in changed} == changed
+    assert {path: any(fnmatch(path, one) for one in paths) for path in changed} == changed
 
 
 def test_a_draft_runs_no_browser_job_and_every_other_trigger_runs_it():
