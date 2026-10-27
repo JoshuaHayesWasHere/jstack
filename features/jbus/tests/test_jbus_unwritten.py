@@ -164,6 +164,22 @@ def test_a_thread_whose_own_run_holds_a_slot_is_not_left_and_is_woken_once_it_en
     assert told(kitchen, at) == []
 
 
+def test_a_run_that_ended_and_whose_wake_did_not_go_still_spares_its_thread(kitchen):
+    """The review of #568: a run ended 2 minutes ago, its wake was lost, and its thread has been
+    quiet for 40. The row waits for the wake that is owed, and the home is told nothing."""
+    thread = lost(kitchen, quiet=40)
+    locks = slot.locks_dir()
+    run = holders.hold(
+        locks, thread["threadId"], "full", os.getpid(), ["make", "check"], NOW - 45 * MIN
+    )
+    holders.end(locks, run.id, 0, NOW - 2 * MIN)
+    at = home(kitchen)["threadId"]
+    kitchen.t3.lose_send = True
+    kitchen.poll(NOW)
+    assert column(kitchen)[0] == "stale" and told(kitchen, at) == []
+    assert [one.id for one in holders.read(locks)] == [run.id]
+
+
 def test_a_holder_whose_pid_died_is_ignored_and_the_row_is_left(kitchen):
     thread = lost(kitchen, quiet=40)
     locks = slot.locks_dir()

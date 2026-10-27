@@ -102,7 +102,8 @@ class World:
     reports as archived. `missing` holds the slugs whose thread is unknown to T3 Code, and
     `unasked` the slugs for which jbus could not ask T3 Code. `waiting` holds the threads that
     wait on a test slot and are not woken yet (`jgauge.waiters`), and `holding` the threads whose
-    own run holds a test slot now (`jgauge.holders`), which jbus reads once a pass.
+    own run holds a test slot now, or ended with its wake not yet sent (`jgauge.holders`), which
+    jbus reads once a pass.
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -287,7 +288,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     locks = slot.locks_dir()
     world = World(
         waiting={one.thread for one in waiters.read(locks) if not one.woken},
-        holding={one.thread for one in holders.holding(locks)},
+        holding={one.thread for one in holders.read(locks) if one.ended or holders.running(one)},
     )
     slug_of = tied(run)
     url_of = {slug: url for url, slug in slug_of.items()}
