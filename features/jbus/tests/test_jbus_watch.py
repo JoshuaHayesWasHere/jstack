@@ -4,6 +4,7 @@ revert, and a condition jbus cannot judge. Like `test_jbus_kitchen.py`, the test
 against the fakes.
 """
 
+import json
 from datetime import timedelta
 
 import pytest
@@ -605,12 +606,53 @@ def test_a_red_browser_run_older_than_three_days_files_nothing(kitchen):
 
 def test_a_manual_run_on_a_branch_files_nothing_and_one_on_the_default_branch_does(kitchen):
     manual = {"event": "workflow_dispatch", "head_branch": "some-fix"}
-    browser_runs(kitchen, browser_run(88, **manual))
+    browser_runs(kitchen, browser_run(87, **manual))
     kitchen.poll()
     assert browser_red(kitchen) == []
-    browser_runs(kitchen, browser_run(88, **manual | {"head_branch": "main"}))
+    browser_runs(
+        kitchen, browser_run(88, **manual | {"head_branch": "main"}), browser_run(87, **manual)
+    )
     kitchen.poll(NOW + timedelta(minutes=3))
     assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+
+
+def test_a_red_pull_request_run_files_nothing_on_any_push_and_is_marked_seen(kitchen):
+    """A pull request's browser run is that pull request's check, not a red on main."""
+    pull = {"event": "pull_request", "head_branch": "some-fix"}
+    browser_runs(kitchen, browser_run(88, **pull))
+    kitchen.poll()
+    browser_runs(kitchen, browser_run(89, **pull), browser_run(88, **pull))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert list((kitchen.home / "tasks").glob("browser-red-*")) == []
+    assert browser_red(kitchen) == []
+    assert kitchen.lines("retro") == []
+    assert json.loads((kitchen.state / "browser-runs.json").read_text()) == {"88": "", "89": ""}
+
+
+def test_a_red_pull_request_run_from_a_branch_named_main_files_nothing(kitchen):
+    browser_runs(kitchen, browser_run(88, event="pull_request"))
+    kitchen.poll()
+    assert browser_red(kitchen) == []
+
+
+def test_a_red_push_run_on_main_files_one_row(kitchen):
+    browser_runs(kitchen, browser_run(88, event="push"))
+    kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+
+
+def test_a_red_run_of_a_published_release_on_its_tag_files_one_row(kitchen):
+    browser_runs(kitchen, browser_run(88, event="release", head_branch="v1.0.0"))
+    kitchen.poll()
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+
+
+def test_a_red_macos_nightly_from_a_pull_request_files_nothing(kitchen):
+    pull = {"event": "pull_request", "head_branch": "mac-room-fix"}
+    macos_runs(kitchen, macos_run(**pull), macos_green())
+    kitchen.poll()
+    assert red_rows(kitchen, "macos-red-") == []
 
 
 def test_a_github_that_does_not_answer_files_nothing_and_the_run_is_filed_when_it_does(kitchen):

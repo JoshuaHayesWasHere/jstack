@@ -87,7 +87,7 @@ Merge(p) ==
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1401-1402: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1410-1411: main's red tip after a briefed merge is filed.
     /\ fixRow' = (fixRow \/ breaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine>>
 
@@ -162,7 +162,7 @@ OutsideBreak ==
     /\ mainRed' = TRUE
     /\ redBy' = "outside"
     /\ outsideLeft' = outsideLeft - 1
-    \* features/jbus/src/jbus/watch.py:1352,1395,1399,1402: since #392 the fix row is filed for a red
+    \* features/jbus/src/jbus/watch.py:1361,1404,1408,1411: since #392 the fix row is filed for a red
     \* tip with no briefed merge in the day before it too, under the row's own name.
     /\ fixRow' = TRUE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine>>
