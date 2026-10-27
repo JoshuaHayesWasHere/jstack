@@ -41,17 +41,14 @@ row of the queue backs.
 from __future__ import annotations
 
 import argparse
-import fcntl
 import json
-from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
-from jbus import Config, Refused, outbox, queue, verbs, write_json
+from jbus import Config, Refused, locked, outbox, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 
@@ -59,6 +56,7 @@ if TYPE_CHECKING:
     from jbus.cli import Half
 
 NAME = "stops.json"
+LOCK = "stops.lock"
 KIND = "stop"
 ANSWER = "stop-answer"
 OUTSIDE = "outside"
@@ -142,14 +140,6 @@ def path(state: Path) -> Path:
 
 def key(scope: str, row: str, on: str) -> str:
     return f"{KIND}|{scope}|{row}|{on}"
-
-
-@contextmanager
-def _locked(state: Path) -> Iterator[None]:
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "stops.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
 
 
 def load(state: Path) -> Kept:
@@ -245,7 +235,7 @@ def take(run: Pass, thread: str, row: str, on: str, outside: str, what: str) -> 
     made = Stop(
         key(scope.name, row, on or OUTSIDE), scope.name, row, on, outside, what, _stamp(run)
     )
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         kept = load(run.state)
         if any(one.key == made.key and one.open for one in kept.stops):
             raise Refused(f"refused: the stop {made.key} is already open, and the root has it")
@@ -263,7 +253,7 @@ def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
     if not root or thread != root:
         raise Refused(f"refused: --from {thread} is not the root home's thread, which answers")
     at = _stamp(run)
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         kept = load(run.state)
         mine = [one.open and (one.scope, one.row) == (scope, row) for one in kept.stops]
         if not any(mine):
@@ -281,7 +271,7 @@ def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
 def _change(run: Pass, one: Stop | Answer, **changed: str) -> bool:
     """Write what became of a stop's or an answer's message, and return whether it wrote anything.
     Leave a message that went after the caller read `one` as it is."""
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         kept = load(run.state)
         field = "stops" if isinstance(one, Stop) else "answers"
         records: tuple[Stop | Answer, ...] = getattr(kept, field)
@@ -372,7 +362,7 @@ def settle(run: Pass) -> None:
         rows = {row["slug"]: row for row in queue.load(run.state)}
     except queue.Unparsable:
         return
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         kept = load(run.state)
         ended = {}
         for one in kept.stops:
