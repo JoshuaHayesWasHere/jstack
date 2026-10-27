@@ -14,8 +14,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import jbus
-from jbus import queue
-from test_jbus_kitchen import RAN, SAID, Kitchen
+from jbus import blockers, queue
+from test_jbus_kitchen import NOW, RAN, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
 BY_RULE = (
@@ -157,6 +157,7 @@ def test_new_work_waits_for_the_users_go_and_its_decision_is_sent(kitchen, slug,
     assert said == [f"{slug} waits for the user's go, not a follow-up: {why}"]
     assert rows(kitchen)[slug]["approved"] == ""
     kitchen.poll()
+    kitchen.poll(NOW + timedelta(seconds=blockers.APPROVE_GRACE_SECONDS))
     assert sorted(decided(kitchen)) == sorted([f"decision {slug}", "decision unsaid"])
 
 

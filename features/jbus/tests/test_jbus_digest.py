@@ -182,7 +182,7 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
     assert go(kitchen, "unsaid")[0] == 0
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(3))
-    kitchen.poll(later(6))
+    kitchen.poll(later(9))
     (event,) = kitchen.events("waiting")
     assert (event["slug"], event["loud"]) == ("", "quiet")
     assert event["line"] == "waiting demo: 5 wait on user, 1 new (approve second), 1 gone"
@@ -199,18 +199,23 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
 
 
 def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event_never(kitchen):
-    """The test runs three passes: one adds an approval, one removes one, and one does both."""
+    """The test runs passes that add an approval, remove one, and do both. A row to approve is
+    raised in the pass after the one that lists it, and the removal of one that was raised posts
+    its withdrawal alone."""
     four(kitchen)
     kitchen.poll()
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(10))
+    kitchen.poll(later(20))
     posts = len(kitchen.webhook.posts)
     assert go(kitchen, "unsaid")[0] == 0
-    kitchen.poll(later(20))
-    assert len(kitchen.webhook.posts) == posts
+    kitchen.poll(later(30))
+    assert len(kitchen.webhook.posts) == posts + 1
+    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision.withdrawn"]
     add(kitchen, "third", priority=4, approve=False)
     assert go(kitchen, "second")[0] == 0
-    kitchen.poll(later(30))
+    kitchen.poll(later(40))
+    kitchen.poll(later(50))
     sent = [
         (one["line"], one["loud"], one["posted"] is not None)
         for one in box(kitchen).log()
@@ -245,6 +250,7 @@ def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(ki
     ]
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(30))
+    kitchen.poll(later(40))
     assert len(kitchen.webhook.posts) == posts + 1 and kitchen.waiting() == []
     assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision"]
     assert kitchen.webhook.said[-1] == [deciding("second")]

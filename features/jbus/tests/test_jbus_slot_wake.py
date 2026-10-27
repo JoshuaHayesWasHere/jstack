@@ -11,10 +11,11 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jgauge import slot, waiters
+from jgauge import holders, slot, waiters
 from test_jbus_kitchen import NOW, sends
 
 LANES = {"short": slot.short(), "full": slot.full(2)}
+MIN = timedelta(minutes=1)
 
 
 class Slots:
@@ -237,3 +238,61 @@ def test_a_waiter_t3_code_will_not_send_to_is_dropped_with_one_line(kitchen, slo
     assert waiters.read(slot.locks_dir()) == [] and told(kitchen) == [thread]
     assert about(kitchen.poll(NOW + timedelta(minutes=1)), thread) == []
     assert told(kitchen) == [thread]
+
+
+def ended_run(kitchen, status="completed", wrote=10, code=1):
+    """Make a thread whose own run under a full slot started 20 minutes before NOW and ended
+    2 minutes before NOW with `code`, and that last wrote `wrote` minutes before NOW."""
+    thread = kitchen.t3.thread("holder", status, idle=timedelta(minutes=wrote))
+    if status == "running":
+        kitchen.t3.at_work.add(thread["threadId"])
+    locks = slot.locks_dir()
+    command = ["uv", "run", "pytest", "-n", "6"]
+    run = holders.hold(locks, thread["threadId"], "full", os.getpid(), command, NOW - 20 * MIN)
+    holders.end(locks, run.id, code, NOW - 2 * MIN)
+    return thread["threadId"], run
+
+
+def test_the_end_of_a_held_run_wakes_its_idle_thread_once(kitchen):
+    thread, run = ended_run(kitchen)
+    said = kitchen.poll()
+    (given,) = sends(kitchen)
+    assert given["threadId"] == thread and given["mode"] == "queue"
+    assert given["clientRequestId"] == f"slot-end|{thread}|{run.since}"
+    assert "`uv run pytest -n 6`" in given["message"] and "exit code 1" in given["message"]
+    assert given["message"].endswith(jbus.END_TURN)
+    assert any(line.startswith(f"slot-end: woke {thread}") for line in said)
+    kitchen.poll(NOW + MIN)
+    kitchen.poll(NOW + 2 * MIN)
+    assert told(kitchen) == [thread] and holders.read(slot.locks_dir()) == []
+
+
+@pytest.mark.parametrize(
+    ("status", "wrote"), [("running", 10), ("completed", 1)], ids=["at work", "read it already"]
+)
+def test_the_end_of_a_held_run_wakes_no_thread_at_work_or_one_that_went_on_after_it(
+    kitchen, status, wrote
+):
+    ended_run(kitchen, status, wrote=wrote)
+    kitchen.poll()
+    kitchen.poll(NOW + MIN)
+    assert sends(kitchen) == []
+
+
+def test_a_run_still_held_wakes_nobody(kitchen):
+    thread = kitchen.t3.thread("holder", "completed", idle=timedelta(minutes=10))
+    command = ["make", "check"]
+    holders.hold(slot.locks_dir(), thread["threadId"], "full", os.getpid(), command, NOW)
+    kitchen.poll()
+    assert sends(kitchen) == [] and len(holders.read(slot.locks_dir())) == 1
+
+
+def test_an_ended_run_whose_wake_was_lost_is_sent_again_with_the_same_key(kitchen):
+    thread, run = ended_run(kitchen)
+    kitchen.t3.lose_send = True
+    kitchen.poll()
+    assert len(holders.read(slot.locks_dir())) == 1
+    kitchen.t3.lose_send = False
+    kitchen.poll(NOW + MIN)
+    keys = {given["clientRequestId"] for given in sends(kitchen)}
+    assert keys == {f"slot-end|{thread}|{run.since}"} and holders.read(slot.locks_dir()) == []
