@@ -25,7 +25,7 @@ Only those three end it.
 Send the user nothing about it: a question only they can answer is a gate ("Gates"), and jbus says the row to the root home once if it is still open 30 minutes after the message.
 
 Nothing is sent when a pull request opens, when a review is written or when its findings are handled.
-A reviewer's findings go to the crewmate.
+A reviewer's findings go into the brief, and jbus tells the crewmate of them only when `jmerge` says the crewmate owes a line.
 A thread with a question only the user can answer takes a default, carries on and pipes the gate to `jbus gate <slug>`, which keeps it as a numbered question: the home reads the open ones from jbus, shows them, and closes one with the user's answer, which jbus carries back when it differs ("Gates").
 With `home-thread` empty no line about a pull request is sent here: jbus reads the brief and the pull request on each pass, and the merge step prints what it found.
 Only a thread at one of the four pauses of "Carry on" asks in its own thread and waits: it shows as `waiting` in T3 Code, which is what reaches the user.
