@@ -11,9 +11,18 @@ from __future__ import annotations
 
 import re
 import shlex
+import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, cast
+
+
+def said(ran: subprocess.CompletedProcess[str]) -> str:
+    """The last line a command printed, on stderr or else stdout, or its exit code: how `jmerge`,
+    its `follow` and jbus's `merge` say a command that failed."""
+    lines = (ran.stderr or ran.stdout).strip().splitlines()
+    return lines[-1].strip() if lines else f"exit {ran.returncode}"
+
 
 Word = Literal["merged", "wait", "hold", "refused"]
 LINE = re.compile(r"^(merged|wait|hold|refused) (\d+)\b(?: (\S+)(?: (.+))?)?")

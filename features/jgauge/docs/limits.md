@@ -110,7 +110,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | Plan cushion, percent | `features/jgauge/src/jgauge/room.sh:7` | `CUSHION=${HEADROOM:-90}` | #102 (the owner's gate 20) at 100; account-limits, the owner's account-failover round 1, at 90 | A launch passes an account by before its plan window is used up | The provider's, not the machine's | Moved: the user's `headroom` in `config.toml`, `CUSHION=90` with none |
 | `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh:8` | `SLOTS=85` | Before this repo's history | `/tmp` never fills, which fails every shell | Six suites at once peak at 36% | Kept: a share |
 | A review skips the load | `features/jgauge/src/jgauge/cli.py:202` | `"--light",` | #102 (yelena, "at load 30 of 24 cores") | A review is not held by load it does not add | A review is about 2% of a core | Kept |
-| Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py:329` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
+| Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py:330` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
 
 ## The plan's pools
 
@@ -131,32 +131,32 @@ This page records the pool numbers and changes none of them.
 | A look for a missing pass | `features/jbus/units/jbus-stale.timer:7` | `OnUnitActiveSec=15min` | #113 (yelena) | An alert when jbus stops | Design choice | Kept |
 | A thread waits for a test slot | `features/jgauge/src/jgauge/sample.py:43` | `STALL_MINUTES = 5` | This change, the task's line for a stall | What the report counts as a stall | Design choice | New |
 | The report's low CPU pressure | `features/jgauge/src/jgauge/sample.py:39` | `PRESSURE_LINE = 10.0` | #107 | A load over the line while CPU pressure is low is load room needn't hold | Design choice, and not room's memory `PRESSURE` | Kept |
-| The hourly resend of what waits on the user | `features/jbus/src/jbus/stall.py:56` | `AGAIN = 60 * 60` | Before this repo's history | The owner is told again, once an hour | Design choice | Kept |
-| The hourly list of what blocks | `features/jbus/src/jbus/leftover.py:65` | `REFRESH_MINUTES = 60` | #22 | The relay's list stays whole | Design choice | Kept |
-| A blocker's one reminder | `features/jbus/src/jbus/leftover.py:64` | `REMIND_MINUTES = 15` | #22 | A blocker is not forgotten | Design choice | Kept |
-| A left row is told | `features/jbus/src/jbus/leftover.py:63` | `CLOSE_MINUTES = 30` | Before this repo's history | The 30-minute leftover nag | Design choice | Kept |
+| The hourly resend of what waits on the user | `features/jbus/src/jbus/stall.py:57` | `AGAIN = 60 * 60` | Before this repo's history | The owner is told again, once an hour | Design choice | Kept |
+| The hourly list of what blocks | `features/jbus/src/jbus/leftover.py:66` | `REFRESH_MINUTES = 60` | #22 | The relay's list stays whole | Design choice | Kept |
+| A blocker's one reminder | `features/jbus/src/jbus/leftover.py:65` | `REMIND_MINUTES = 15` | #22 | A blocker is not forgotten | Design choice | Kept |
+| A left row is told | `features/jbus/src/jbus/leftover.py:64` | `CLOSE_MINUTES = 30` | Before this repo's history | The 30-minute leftover nag | Design choice | Kept |
 | A gate acts on its default | `features/jbus/src/jbus/questions.py:153` | `QUIET = timedelta(0)` | #36, settled at once since word 3d4718ca72ab | Nothing waits on a question | Design choice | Kept |
-| A pass at one head is a stall | `features/jbus/src/jbus/stall.py:66` | `PASSES = 10` | Before this repo's history | A stuck pull request is told | Design choice | Kept |
-| A review's time before a stall | `features/jbus/src/jbus/stall.py:67` | `REVIEWING = 30` | Before this repo's history | A stuck review is told | Design choice | Kept |
-| What is left, before a stall | `features/jbus/src/jbus/stall.py:68` | `LEFT = 300` | Before this repo's history | A left row is told | Design choice | Kept |
+| A pass at one head is a stall | `features/jbus/src/jbus/stall.py:67` | `PASSES = 10` | Before this repo's history | A stuck pull request is told | Design choice | Kept |
+| A review's time before a stall | `features/jbus/src/jbus/stall.py:68` | `REVIEWING = 30` | Before this repo's history | A stuck review is told | Design choice | Kept |
+| What is left, before a stall | `features/jbus/src/jbus/stall.py:69` | `LEFT = 300` | Before this repo's history | A left row is told | Design choice | Kept |
 | A thread is quiet | `features/jbus/src/jbus/live.py:25` | `QUIET_MINUTES = 10` | Before this repo's history | How a thread is shown | Design choice | Kept |
 | A thread is hung | `features/jbus/src/jbus/live.py:26` | `HUNG_MINUTES = 20` | Before this repo's history | A hung turn is found | Design choice | Kept |
-| A thread's timebox | `features/jbus/src/jbus/watch.py:52` | `TIMEBOX_HOURS = 4.0` | Before this repo's history | A runaway thread is found | Design choice | Kept |
-| A thread waits on someone | `features/jbus/src/jbus/watch.py:53` | `WAITING_MINUTES = 30` | Before this repo's history | A waiting thread is told | Design choice | Kept |
-| A thread ended with nothing written | `features/jbus/src/jbus/watch.py:54` | `UNWRITTEN_MINUTES = 15` | #86 | Its home hears of it | Design choice | Kept |
-| A wake's quiet gap | `features/jbus/src/jbus/wake.py:78` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
-| A pass's command | `features/jbus/src/jbus/wake.py:80` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
-| jmerge in a pass | `features/jbus/src/jbus/wake.py:81` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
-| jmerge's judge | `features/jmerge/src/jmerge/cli.py:80` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
-| Judged again | `features/jmerge/src/jmerge/cli.py:79` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
+| A thread's timebox | `features/jbus/src/jbus/watch.py:53` | `TIMEBOX_HOURS = 4.0` | Before this repo's history | A runaway thread is found | Design choice | Kept |
+| A thread waits on someone | `features/jbus/src/jbus/watch.py:54` | `WAITING_MINUTES = 30` | Before this repo's history | A waiting thread is told | Design choice | Kept |
+| A thread ended with nothing written | `features/jbus/src/jbus/watch.py:55` | `UNWRITTEN_MINUTES = 15` | #86 | Its home hears of it | Design choice | Kept |
+| A wake's quiet gap | `features/jbus/src/jbus/wake.py:79` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
+| A pass's command | `features/jbus/src/jbus/wake.py:81` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
+| jmerge in a pass | `features/jbus/src/jbus/wake.py:82` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
+| jmerge's judge | `features/jmerge/src/jmerge/cli.py:60` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
+| Judged again | `features/jmerge/src/jmerge/cli.py:55` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
 | Rows that share files | `features/jbus/src/jbus/dispatch.py:50` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
 | A failover's items | `features/jbus/src/jbus/failover.py:44` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `features/jbus/src/jbus/threads.py:119` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
 | Carry-ons a thread gets | `features/jbus/src/jbus/threads.py:129` | `CARRY_ONS = 2` | Before this repo's history | A thread is not woken forever | Design choice | Kept |
 | Failures before an alert | `features/jbus/src/jbus/alert.py:38` | `AFTER = 3` | Before this repo's history | One failure is not an alert | Design choice | Kept |
 | Passes before an expedite | `features/jbus/src/jbus/expedite.py:81` | `AFTER = 3` | Before this repo's history | A crew is told what to do | Design choice | Kept |
-| A woken waiter's claim on a slot | `features/jgauge/src/jgauge/waiters.py:44` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
-| A wait no thread came back for | `features/jgauge/src/jgauge/waiters.py:45` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
+| A woken waiter's claim on a slot | `features/jgauge/src/jgauge/waiters.py:48` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
+| A wait no thread came back for | `features/jgauge/src/jgauge/waiters.py:49` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
 | GitHub's file list | `features/jmerge/src/jmerge/ready.py:141` | `UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")` | #2, and jmerge-all-files for the full read | No merge with files nobody saw: `gh pr list` lists at most 100, so jmerge reads the rest from GitHub's files endpoint, which lists at most 3000, and holds only past that or when the read fails | GitHub's limit, not the machine's | Moved: from 100 files to 3000 |
 | The heavy-suite lock | `~/.local/state/locks/heavy-suite.lock` | One at a time | Before this repo's history | A heavy suite runs alone on the machine | Design choice | Kept |
 | The browser lock | `~/.local/state/locks/browser.lock` | One at a time | Before this repo's history | One browser test at a time | Design choice | Kept |

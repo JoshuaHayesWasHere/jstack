@@ -65,6 +65,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import jsettings
+from jbriefs.home import homes_dir
 from jgauge import sizes
 
 Loud = Literal["user", "quiet"]
@@ -464,7 +465,6 @@ def load(directory: Path | None = None) -> Config:
         cap = sizes.resolve(sizes.Name.MAX_RUNNING, written=raw.get("max_running"), written_in=path)
     except sizes.Refused as error:
         raise Refused(f"refused: {error}") from error
-    home = Path.home()
     return Config(
         server=server,
         runtime_mode=raw.get("runtimeMode") or None,
@@ -478,7 +478,7 @@ def load(directory: Path | None = None) -> Config:
         projects=tuple(projects),
         config_dir=directory,
         state_dir=state_dir(),
-        home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
+        home_dir=homes_dir(),
         user=user,
         ignored=ignored,
         tabled=_tabled(raw),
@@ -494,6 +494,13 @@ def read_json(path: Path, default: Any) -> Any:
         return json.loads(path.read_text())
     except (OSError, ValueError):
         return default
+
+
+def read_dict(path: Path) -> dict:
+    """The JSON object in the file, or an empty one when the file is missing, unreadable or holds
+    something else."""
+    found = read_json(path, {})
+    return found if isinstance(found, dict) else {}
 
 
 def secrets(*found: Project | Hook | Any, part: int = URL_PART) -> tuple[str, ...]:

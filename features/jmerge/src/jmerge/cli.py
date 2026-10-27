@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 
+import jbus
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
@@ -75,11 +76,6 @@ def _text(cwd: Path, *command: str) -> str | None:
     return None if ran.returncode else ran.stdout.decode(errors="replace")
 
 
-def _said(ran: subprocess.CompletedProcess[str]) -> str:
-    lines = (ran.stderr or ran.stdout).strip().splitlines()
-    return lines[-1].strip() if lines else f"exit {ran.returncode}"
-
-
 def _read(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="replace")
@@ -100,12 +96,6 @@ def patch_id(cwd: Path, base: str, commit: str, since: str = "") -> str | None:
         ["git", "patch-id", "--stable"], cwd=cwd, input=diff.stdout, capture_output=True
     )
     return None if summed.returncode else b"".join(summed.stdout.split()[:1]).decode()
-
-
-def _write_whole(path: Path, text: str) -> None:
-    new = path.with_name(f"{path.name}.{os.getpid()}.new")
-    new.write_text(text, encoding="utf-8")
-    os.replace(new, path)
 
 
 def _first_word(text: str) -> str:
@@ -139,7 +129,7 @@ class Behind(str):
         if pulled.returncode:
             return (
                 f"jmerge's own rules are behind {self.default}'s and were not pulled "
-                f"({_said(pulled)})"
+                f"({lines.said(pulled)})"
             )
         return f"jmerge pulled {self.default}'s rules; judged on the next run"
 
@@ -199,7 +189,7 @@ class Merged:
         if merged.returncode == 1:
             return Checked(ready.FRESH_CONFLICT, "")
         if merged.returncode:
-            return Checked(ready.UNMERGED.format(why=_said(merged)), "")
+            return Checked(ready.UNMERGED.format(why=lines.said(merged)), "")
         tree = _first_word(merged.stdout)
         found = self.marked(tree)
         return Checked("", ready.fresh_skipped(tree, found.at, head, tip)) if found else None
@@ -215,7 +205,7 @@ class Merged:
                 timeout=self.ASK_TIMEOUT,
             )
             if answer.returncode:
-                raise RuntimeError(_said(answer))
+                raise RuntimeError(lines.said(answer))
             return json.loads(answer.stdout)
 
         try:
@@ -289,7 +279,7 @@ class Gate:
         _run(self.main, "git", "worktree", "prune")
         added = _run(self.main, "git", "worktree", "add", "-q", "--detach", str(at), head)
         if added.returncode:
-            return self._unstarted(f"its head could not be checked out ({_said(added)})")
+            return self._unstarted(f"its head could not be checked out ({lines.said(added)})")
         try:
             code, said = merge_gate.run(self.command, at, base, head, self.timeout, (lock,))
         except OSError as error:
@@ -1072,11 +1062,7 @@ class Repo:
         return None if own.returncode else own.stdout.strip()
 
     def holds(self) -> dict[str, str]:
-        try:
-            holds = json.loads(_read(self.state / "holds.json") or "{}")
-        except ValueError:
-            return {}
-        return holds if isinstance(holds, dict) else {}
+        return jbus.read_dict(self.state / "holds.json")
 
     def readied(self, one: ready.PullRequest, found: Judgement) -> Judgement:
         """Mark ready a draft whose review is written and whose fix is pushed, so CI runs its one
@@ -1086,7 +1072,7 @@ class Repo:
         if found.why != ready.DRAFT:
             return found
         if ran.returncode:
-            return found._replace(why=ready.UNREADIED.format(said=_said(ran)))
+            return found._replace(why=ready.UNREADIED.format(said=lines.said(ran)))
         return found._replace(why=ready.READIED.format(head=one.head))
 
     def hold(self, one: ready.PullRequest) -> None:
@@ -1094,7 +1080,7 @@ class Repo:
 
     def holds_are(self, holds: dict[str, str]) -> None:
         if holds != self.holds() and self.state.is_dir():
-            _write_whole(self.state / "holds.json", json.dumps(holds) + "\n")
+            jbus.write_json(self.state / "holds.json", holds)
 
     def accept(
         self,
@@ -1160,10 +1146,12 @@ class Repo:
         if tree:
             ran = _run(self.main, "git", "worktree", "remove", tree)
             if ran.returncode:
-                return f"{tree} could not be removed, and both branches are left ({_said(ran)})"
+                why = lines.said(ran)
+                return f"{tree} could not be removed, and both branches are left ({why})"
         ran = _run(self.main, "git", "branch", "-q", "-D", branch)
         if ran.returncode:
-            return f"the local and remote branch {branch}, the worktree is removed ({_said(ran)})"
+            why = lines.said(ran)
+            return f"the local and remote branch {branch}, the worktree is removed ({why})"
         gone = f"the remote branch {branch}, the worktree and the local branch are removed"
         based = self.based_on(branch)
         if based:
@@ -1175,7 +1163,8 @@ class Repo:
         if not ran.returncode:
             return ""
         stale = "(stale info)" in ran.stderr
-        return f"{gone} ({'it is not at the merged head on the origin' if stale else _said(ran)})"
+        why = "it is not at the merged head on the origin" if stale else lines.said(ran)
+        return f"{gone} ({why})"
 
     def messages(self, one: ready.PullRequest) -> list[str] | None:
         """The message of each commit on the branch and not on its base, oldest first, as
@@ -1205,7 +1194,7 @@ class Repo:
             env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
         )
         if ran.returncode:
-            return "", f"{ready.NO_SETTINGS}: {_said(ran)}"
+            return "", f"{ready.NO_SETTINGS}: {lines.said(ran)}"
         try:
             said = json.loads(ran.stdout)
         except ValueError:
@@ -1294,7 +1283,7 @@ class Repo:
             stdin=trailers.strip(body) + "\n",
         )
         if ran.returncode:
-            return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {_said(ran)}")
+            return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
         if judged.rules:
             self.unruly = ready.RULES_CHANGED
         notes = [rebase] if rebase else []
@@ -1322,7 +1311,7 @@ class Repo:
         pulled = _run(self.main, "git", "pull", "--ff-only")
         self.numbers_on.clear()
         if pulled.returncode:
-            notes.append(f"not pulled: {_said(pulled)}")
+            notes.append(f"not pulled: {lines.said(pulled)}")
         else:
             notes += follow.follow(_run, self.main, before)
         kept = (
@@ -1536,7 +1525,7 @@ class Sweep:
         for what in left:
             ran = _run(self.main, "git", *steps[what])
             if ran.returncode:
-                return gone, what, _said(ran)
+                return gone, what, lines.said(ran)
             gone.append(what)
             if what == sweep.LOCAL:
                 _run(self.main, "git", "config", "--remove-section", f"branch.{branch}")
@@ -1569,7 +1558,7 @@ class Sweep:
             lease = f"--force-with-lease={ref}:{commit}"
             ran = _run(self.main, "git", "push", "-q", lease, "origin", f":{ref}")
             if ran.returncode:
-                kept.append((label, f"its marker could not be removed ({_said(ran)})"))
+                kept.append((label, f"its marker could not be removed ({lines.said(ran)})"))
             else:
                 say(f"removed {what}")
         return kept
@@ -1650,8 +1639,9 @@ def state_of(cwd: Path) -> Path | None:
 
 
 def homes_state(main_checkout: Path) -> Path:
-    """The repo's state in the homes' state, the directory named for its main checkout."""
-    return Path.home() / ".local" / "state" / "home" / main_checkout.name
+    """The repo's state in the homes' state, the directory named for its main checkout. The homes'
+    state is `JBUS_HOME_DIR`, as jbus reads it, or `~/.local/state/home`."""
+    return home_rule.homes_dir() / main_checkout.name
 
 
 def parser() -> argparse.ArgumentParser:
@@ -1872,19 +1862,14 @@ def main(argv: list[str] | None = None) -> int:
         if not args.check and state.is_dir():
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
             if waits:
-                try:
-                    last = json.loads((state / "merge.log.last").read_text(encoding="utf-8"))
-                except (OSError, ValueError):
-                    last = {}
-                if not isinstance(last, dict):
-                    last = {}
+                last = jbus.read_dict(state / "merge.log.last")
                 if last.get(waits) == line:
                     return
                 last[waits] = line
             with (state / "merge.log").open("a", encoding="utf-8") as log:
                 log.write(f"{now:%Y-%m-%d %H:%M} {line}\n{output}")
             if waits:
-                (state / "merge.log.last").write_text(json.dumps(last), encoding="utf-8")
+                jbus.write_json(state / "merge.log.last", last)
 
     if args.sweep:
         return Sweep(repo).run(say, args.check)

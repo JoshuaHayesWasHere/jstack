@@ -30,6 +30,7 @@ def scoping(tmp_path, result=""):
     env = {
         **os.environ,
         "HOME": str(user),
+        "JBUS_HOME_DIR": str(user / ".local" / "state" / "home"),
         "PATH": f"{pr.stub}:{room.BIN}:{os.environ['PATH']}",
         "T": str(assembled() / "templates"),
     }

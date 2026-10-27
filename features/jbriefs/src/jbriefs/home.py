@@ -13,17 +13,25 @@ handed off has no thread until the next home's start writes its own id there. An
 to the one on its handoff's `Was home:` line counts as none (`thread_of`). A `Was home:`
 line with no id on it counts as no line.
 
-`jbus home` asks this module for the skills, `jbus.leftover` and `jbus.word` ask it for
-what jbus sends, and `jmerge` asks it whose a pull request is. No other copy of the rule
+`homes_dir` is where every repo's state is. `jbus home` asks this module for the skills,
+`jbus.leftover` and `jbus.word` ask it for what jbus sends, and `jmerge` asks it whose a pull
+request is. No other copy of the rule
 exists.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
 WAS = re.compile(r"^Was home:[ \t]*(\S+)", re.M)
+
+
+def homes_dir() -> Path:
+    """The homes' state, one directory per repo: `JBUS_HOME_DIR`, or `~/.local/state/home`. jbus,
+    `jmerge` and `jbriefs` all find it here."""
+    return Path(os.environ.get("JBUS_HOME_DIR") or Path.home() / ".local" / "state" / "home")
 
 
 def _read(file: Path) -> str:

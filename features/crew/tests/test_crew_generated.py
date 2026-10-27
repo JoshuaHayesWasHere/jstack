@@ -50,7 +50,13 @@ def stays(pr, about):
         (pr.stub / "uv").write_text(UV.format(uv=shutil.which("uv"), venv=venv_of(pr)))
         (pr.stub / "uv").chmod(0o755)
     user = pr.stub.parent / "user"
-    return stays_in_the_home(pr, about, HOME=str(user), UV_CACHE_DIR=uv_cache())
+    return stays_in_the_home(
+        pr,
+        about,
+        HOME=str(user),
+        JBUS_HOME_DIR=str(user / ".local" / "state" / "home"),
+        UV_CACHE_DIR=uv_cache(),
+    )
 
 
 PROJECT = """\
