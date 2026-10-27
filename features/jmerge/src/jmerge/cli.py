@@ -441,8 +441,8 @@ class Repo:
         branch, whatever base GitHub gives it now: GitHub bases it on the default branch by
         itself when the base's branch is deleted on its merge, and its head still holds the
         base's commits then. Once jbus wrote the commit that merged its base and the branch it
-        merged into, the default or a train, it waits until it is based on that branch and its
-        head holds that commit: its crew rebased its own commits onto that branch."""
+        merged into, the default or an integration one, it waits until it is based on that
+        branch and its head holds that commit: its crew rebased its own commits onto it."""
         if stacked is None:
             return ""
         onto = stacked.branch if stacked.at else default

@@ -1,10 +1,10 @@
-"""The two writes of `jbus view`, `POST /answer` and `POST /steer`, and the type of every
+"""The two writes of `jbus view`, `POST /answer` and `POST /approve`, and the type of every
 answer the server gives (`Answer`). The package's docstring says what each write takes and
 gives.
 
-A steer's `action` may also be `APPROVE`, the user's go for the item named by its id.
-`jbus.steer.approve` decides it, as `jbus item approve` does. An approval has no words, and
-the page approves a proposed item with this write.
+`POST /approve` is the user's go for the item named by its id. `jbus.item.approve` decides it,
+as `jbus item approve` does. An approval has no words, and the page approves a proposed item
+with this write.
 
 `Writes` is the part of `jbus.view.App` that writes. What it reads, `sources`, `clock` and
 `config`, belongs to the app.
@@ -23,20 +23,18 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbus import Refused, item, passes, questions, queue, steer, t3, wake
+from jbus import Refused, item, passes, questions, queue, t3, wake
 from jbus.view import state
 from jbus.view.clean import clean
 from jbus.view.state import Sources
 
 WRITE = "/answer"
-STEER = "/steer"
-WRITES = (WRITE, STEER)
+APPROVE = "/approve"
+WRITES = (WRITE, APPROVE)
 WHERE = "jbus view"
 BATCH = 200
 SEND = 15.0
 HTML, JSON = "text/html; charset=utf-8", "application/json"
-APPROVE = "approve"
-ACTIONS = {str(one) for one in item.Steer} | {APPROVE}
 
 
 @dataclass(frozen=True)
@@ -76,7 +74,7 @@ def reader(sources: Sources) -> jbus.Config:
 
 
 class Writes:
-    """Close questions with the user's answer, and steer or approve an item."""
+    """Close questions with the user's answer, and approve an item."""
 
     sources: Sources
     clock: Callable[[], datetime]
@@ -216,104 +214,46 @@ class Writes:
         answer = {"at": state.iso(now), "closed": closed, "refused": refused}
         return said(200 if closed else 409, clean(answer, (state.repo(self.sources, name),)))
 
-    def _steer(self, name: str, body: bytes) -> Answer:
-        """Steer one item through `steer.steer`, or approve it through `steer.approve`. Either
-        call names the user of the settings as the one who acts, and the view as the place."""
+    def _approve(self, name: str, body: bytes) -> Answer:
+        """Approve one item through `item.approve`, as the user of the settings, in the view."""
         try:
             asked = json.loads(body)
-            id, action, seen = asked["item"], asked["action"], asked["seen_event"]
-            words, confirm = asked.get("words", ""), asked.get("confirm", False)
-            shaped = (
-                isinstance(id, str)
-                and 0 < len(id) <= 64
-                and action in ACTIONS
-                and isinstance(seen, str)
-                and bool(seen)
-                and isinstance(words, str)
-                and (bool(words.strip()) or action in (item.Steer.HOLD, APPROVE))
-                and isinstance(confirm, bool)
-            )
+            id, seen = asked["item"], asked["seen_event"]
+            shaped = isinstance(id, str) and 0 < len(id) <= 64 and isinstance(seen, str) and seen
         except (ValueError, TypeError, KeyError, AttributeError):
             shaped = False
         if not shaped:
-            return said(400, {"error": "a steer is an item, an action, words, seen_event, confirm"})
+            return said(400, {"error": "a go is an item and seen_event"})
         user, state_dir, now = self.sources.user, self.sources.state(name), self.clock()
         if id not in item.items(state_dir):
             return NOT_FOUND
         box = wake.Box(state_dir, reader(self.sources).project(name))
-        heard = queue.Said(words or f"{action} {id}", state.iso(now), WHERE, False)
-        basis = steer.Basis("view", WHERE, heard)
+        heard = queue.Said(f"approve {id}", state.iso(now), WHERE, False)
         try:
-            if action == APPROVE:
-                made = steer.approve(
-                    state_dir,
-                    box,
-                    id,
-                    by=user.user,
-                    where=item.Where.VIEW,
-                    words=words,
-                    seen=seen,
-                    user=user,
-                    project=name,
-                    basis=basis,
-                )
-            else:
-                made = steer.steer(
-                    state_dir,
-                    box,
-                    id,
-                    action,
-                    words,
-                    seen,
-                    user.user,
-                    item.Where.VIEW,
-                    confirm,
-                    user=user,
-                    basis=basis,
-                )
+            made = item.approve(
+                state_dir,
+                box,
+                id,
+                by=user.user,
+                where=item.Where.VIEW,
+                words="",
+                seen=seen,
+                user=user,
+                project=name,
+                basis=item.Basis("view", WHERE, heard),
+            )
         except Refused as error:
-            status = 400 if str(error) == steer.CONFIRM else 409
-            say = str(error).removeprefix("refused: ").replace("--confirm", "confirm")
-            return self._steered(name, status, id, say, now)
+            say = str(error).removeprefix("refused: ")
+            return self._approved(name, 409, id, say, now)
         except Exception:
             traceback.print_exc(file=sys.stderr)
-            say = "The server failed during the steer: the state below is what the record says."
-            return self._steered(name, 500, id, say, now)
-        did = "approved" if action == APPROVE else action
-        say = f"{id} {did} at {user.clock(now)}: {made['line']}"
-        if action == item.Steer.MESSAGE:
-            joint = " " if say.endswith((".", "?", "!")) else ". "
-            say = f"{say}{joint}{self._message(name, made['id'], now)}"
-        return self._steered(name, 200, id, say, now)
+            say = "The server failed during the go: the state below is what the record says."
+            return self._approved(name, 500, id, say, now)
+        say = f"{id} approved at {user.clock(now)}: {made['line']}"
+        return self._approved(name, 200, id, say, now)
 
-    def _message(self, name: str, line: str, now: datetime) -> str:
-        """Send the line of a message steer to the item's home, as the command does. It
-        returns whether the line went, and the reason where it did not, with no secret in it."""
-        hidden: tuple[str, ...] = ()
-        state_dir = self.sources.state(name)
-        try:
-            config = replace(
-                self.config(), state_dir=self.sources.state_dir, home_dir=self.sources.home_dir
-            )
-            hidden = config.secrets()
-            mine = replace(config, user=self.sources.user)
-            run = passes.Pass(mine, config.project(name), now, say=lambda line: None)
-            client = t3.Client(config.server, config.token_path, timeout=SEND)
-            went = steer.deliver(run, client)
-            one = went.get(line) or steer.sends(state_dir).get(line, {})
-            why = one.get("waits", "")
-        except (Refused, OSError) as error:
-            one, why = {}, str(error).removeprefix("refused: ")
-        except Exception as error:
-            traceback.print_exc(file=sys.stderr)
-            one, why = {}, f"the send failed ({type(error).__name__})"
-        if one.get("sent_at"):
-            return f"It went to the home's thread, {one['thread']}."
-        why = jbus.redact(why, hidden) or "it was not sent"
-        return f"The line is recorded and not yet sent, since {why}: the next pass sends it."
-
-    def _steered(self, name: str, status: int, id: str, say: str, now: datetime) -> Answer:
-        """What a steer's answer says: the sentence, and the item as the record has it now."""
+    def _approved(self, name: str, status: int, id: str, say: str, now: datetime) -> Answer:
+        """What a go's answer says: the sentence, and the item as the record has it now."""
         now_is = item.items(self.sources.state(name)).get(id)
         answer = {
             "at": state.iso(now),

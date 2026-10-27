@@ -24,14 +24,11 @@ from jbus.item import (
     LIVE,
     MOVES,
     Item,
-    Move,
     Risk,
-    Steer,
     Verb,
     Where,
     advance,
     judged,
-    move_of,
     read,
 )
 
@@ -40,10 +37,10 @@ CARDS = "cards.json"
 VIEW_PORT = 4388
 RELAY_PORT = 4390
 LOOPBACK = ("127.0.0.1", "localhost", "::1")
-ACTIONS: dict[Move, str] = {Verb.APPROVE: "approve", Steer.MESSAGE: "message", Steer.HOLD: "hold"}
+ACTIONS: dict[Verb, str] = {Verb.APPROVE: "approve"}
 """What a card offers, in order, by the name its button sends as the `verb` of the relay's
 `POST /item`."""
-SAID: dict[Move, str] = {
+SAID: dict[Verb, str] = {
     Verb.PROPOSE: "Proposed",
     Verb.LINK: "Linked to its row",
     Verb.APPROVE: "Approved",
@@ -54,30 +51,23 @@ SAID: dict[Move, str] = {
     Verb.HOLD: "Held",
     Verb.DONE: "Done",
     Verb.DROP: "Dropped",
-    Verb.STEER: "Steered",
-    Steer.MESSAGE: "Messaged",
-    Steer.HOLD: "Held",
-    Steer.REDIRECT: "Redirected",
 }
 SAID_IN = {Where.VIEW: " in jbus view", Where.CHAT: " in chat", Where.CLI: " from the command line"}
 
 
 def actions(item: Item) -> list[str]:
     """Return what the card offers. A review item gets nothing, since the user decides it in
-    the view. Any other item gets each of `ACTIONS` that `MOVES` has from the item's state.
-    The user approves a redirected item only by its id, in the view or the command, so its
-    card offers no approval."""
+    the view. Any other item gets each of `ACTIONS` that `MOVES` has from the item's state."""
     if item.risk is Risk.REVIEW:
         return []
-    offered = [one for one in ACTIONS if (item.state, one) in MOVES]
-    return [ACTIONS[one] for one in offered if not (one is Verb.APPROVE and item.redirect)]
+    return [name for one, name in ACTIONS.items() if (item.state, one) in MOVES]
 
 
 def last(line: dict[str, Any], user: jsettings.Settings) -> str:
     """Return the line as one sentence for the card, such as
     "Approved in jbus view by you, 11:52 EDT"."""
     where = Where(line["where"])
-    said = f"{SAID[move_of(line)]}{SAID_IN.get(where, '')} by {line['by']}"
+    said = f"{SAID[Verb(line['verb'])]}{SAID_IN.get(where, '')} by {line['by']}"
     return f"{said}, {user.clock(datetime.fromisoformat(line['at']))}"
 
 

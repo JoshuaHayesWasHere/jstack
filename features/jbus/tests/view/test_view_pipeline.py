@@ -5,7 +5,7 @@ import pytest
 
 from view.scene import CAPTURED, Scene, Served, ago, captured, et, iso, piped, row
 
-KEYS = ["scout", "queued", "crew", "you", "review", "fix", "review2", "check", "merge", "train"]
+KEYS = ["scout", "queued", "crew", "you", "review", "fix", "review2", "check", "merge"]
 
 
 def board(scene, path="/panel/pipeline.json"):
@@ -50,8 +50,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "review2": (0, 0),
         "check": (1, 0),
         "merge": (0, 0),
-        "train": (1, 1),
-        "merged": (1, 0),
+        "merged": (2, 0),
     }
     assert stages["queued"]["oldest"] == at("tea-cup", "demo", 25)
     assert stages["crew"]["oldest"] == at("tea-pot", "demo", 30)
@@ -69,7 +68,6 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         ("you", "oat-lid"),
         ("you", "fig-tart"),
         ("check", "ux-look-pr"),
-        ("train", "mac-a"),
     ]
     assert rows["demo", "tea-pot"] == {
         "slug": "tea-pot",
@@ -125,14 +123,6 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     assert look["waited_by"] == ["cleanup-ux-look-pr"]
     assert rows["demo", "oat-lid"]["home"] == "root"
     assert rows["demo", "oat-lid"]["cause"] == "asks you: a gate the Chef has"
-    train = rows["demo", "mac-a"]
-    assert (train["stage"], train["since"], train["moving"], train["cause_kind"]) == (
-        "train",
-        since(50),
-        False,
-        "train",
-    )
-    assert "train/mac" in train["cause"]
     scout = rows["demo", "look"]
     assert (scout["home"], scout["since"], scout["moving"]) == ("jview", since(45), True)
     assert rows["pantry", "fig-tart"]["home"] == rows["pantry", "fig-jam"]["home"] == "root"
@@ -156,6 +146,19 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "head_cause": "thread working",
         "chains": 2,
     }
+
+
+def test_a_row_merged_into_an_integration_branch_is_done_and_has_no_card(scene):
+    """mac-a merged into `release/mac`, which has not landed on main: for the queue it is done
+    as rye-loaf, merged into main, is. Neither has a card, the board has no stage for an
+    integration branch, and both count in today's merges."""
+    piped(scene)
+    got = board(scene)["data"]
+    keys = [one["key"] for one in got["stages"]]
+    assert keys == [*KEYS, "merged"]
+    assert not {"mac-a", "rye-loaf"} & {one["slug"] for one in got["rows"]}
+    assert not {"mac-a", "rye-loaf"} & {one["slug"] for one in got["unplaced"]}
+    assert next(one for one in got["stages"] if one["key"] == "merged")["count"] == 2
 
 
 def test_one_project_gives_its_own_rows_and_the_stack_leaves_the_board_out(scene):

@@ -203,16 +203,16 @@ def test_a_blocker_whose_two_launched_fixes_both_failed_pages_at_the_cap(kitchen
 
 
 def test_2026_10_24_check_mac_room_proc_replayed_through_a_pass_sends_no_page(kitchen):
-    """mac-room-proc's check failed on #379. mac-train-sync-2 was queued as its fix and removed
+    """mac-room-proc's check failed on #379. mac-sync-main-2 was queued as its fix and removed
     unrun at 17:25 for mac-sync-shards, which merged as #393. The cap paged Josh "I take it"."""
     add(kitchen, "mac-room-proc")
     kitchen.t3.thread("mac-room-proc", "idle", idle=timedelta(hours=1))
     kitchen.set("open.json", [kitchen.opened("mac-room-proc", 379, state="FAILURE")])
     kitchen.poll(NOW - timedelta(minutes=50))
-    for slug in ("mac-train-sync-2", "mac-sync-shards"):
+    for slug in ("mac-sync-main-2", "mac-sync-shards"):
         assert queued(kitchen, slug, "check:mac-room-proc")[0] == 0
         assert go(kitchen, slug)[0] == 0
-    assert remove(kitchen, "mac-train-sync-2")[0] == 0
+    assert remove(kitchen, "mac-sync-main-2")[0] == 0
     kitchen.t3.thread("mac-sync-shards", "completed", settled=True)
     merged = kitchen.merged("mac-sync-shards", 393, "d" * 40, ago=timedelta(minutes=20))
     kitchen.set("merged.json", [merged])

@@ -17,7 +17,7 @@ The unit's `RestartForceExitStatus=75` starts it again on the new code, and `Suc
 [The view's look](../working-on-jbus/the-views-look.md) has its colours and type, for working on the page.
 
 To show the page, the view reads no config of jbus and no secret.
-It takes `GET` requests and three writes, `POST /answer`, `POST /steer` and `POST /usage`.
+It takes `GET` requests and three writes, `POST /answer`, `POST /approve` and `POST /usage`.
 Any other method gets 405.
 
 ### What the bare link shows
@@ -30,7 +30,7 @@ From the top, the board has these parts, under the line of what waits on you:
 | Part | What it shows |
 |---|---|
 | Headlines | Most stuck: the stage with the most rows not moving, and its oldest such row with its cause. Waiting longest: the row not moving for the longest, its stage and its cause. Longest chain: how deep it is, how many chains there are, and its head with the head's stage and cause. |
-| Stages | A strip with each stage's count, its oldest age and a bar of its rows not moving. The stages are Scout, Queued, Crew, Needs you, Review, Fix, Review 2, Check, Merge, Train and Merged (today's). |
+| Stages | A strip with each stage's count, its oldest age and a bar of its rows not moving. The stages are Scout, Queued, Crew, Needs you, Review, Fix, Review 2, Check, Merge and Merged (today's), and a row merged into an integration branch counts there as one merged into the default branch does. |
 | Home chips | A chip for each home with its count, and "Not moving only". They filter the cards, and the choice is kept in the address: `#/?home=<home>&still=1`. |
 | Cards | A column for each stage, the most stuck one outlined, with a card for each row: its slug, home, age and cause, and an amber edge when it is not moving. Picking a card marks what it waits on and what waits on it, back to the head, links them over the columns and dims the rest; the pick is kept as `pick=<slug>`, and Esc clears it. On a phone each stage is a fold with its count and oldest age, the most stuck one open. |
 
@@ -153,31 +153,30 @@ The view refuses a second answer, and the page shows the first one.
 
 There is no sign-in.
 The page is reachable only on the addresses the view listens on.
-The view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or steer for you.
-Whoever can reach the port can answer and steer, as any shell on this machine can with `jbus answer` and `jbus item steer`.
+The view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or approve for you.
+Whoever can reach the port can answer and approve, as any shell on this machine can with `jbus answer` and `jbus item approve`.
 A client that is not a browser can set the `Origin` header to anything.
-The server reads jbus's config and the sign-in to T3 Code only for a write that has an answer or a message to send, and it sends neither to the page.
+The server reads jbus's config and the sign-in to T3 Code only for a write that has an answer or a word to send, and it sends neither to the page.
 
-### Steer a work item
+### Approve a work item
 
 `/state.json` lists the work items of the project under `items`, each live one and the 20 that ended last: its id, slug, title, state, owner, risk, `last_event` and its last five lines.
-A steer of one goes to `POST /steer?project=<project>`, with the body `{item, action, words, seen_event, confirm}`.
-`action` is `message`, `hold` or `redirect`, `words` is the message or a redirect's new brief, and `seen_event` is the item's last line as the page showed it.
-The view decides nothing about the steer.
-It calls `jbus.steer`, as `jbus item steer` does, by the user of your settings, in the view.
-The steer's line records the words typed in the view as what it is based on, with the basis `view`, the server's clock, and `checked` false, since they were typed.
-A steer whose `seen_event` is not the item's last line gets 409, and its sentence quotes the line that came after.
-So a second POST of the same steer gets 409, and the view does not write it.
-A hold with no `confirm` gets 400, an item the project does not have gets 404, and any other refusal of `jbus.steer` gets 409.
+Your go for one goes to `POST /approve?project=<project>`, with the body `{item, seen_event}`.
+`seen_event` is the item's last line as the page showed it.
+The view decides nothing about the go.
+It calls `jbus.item.approve`, as `jbus item approve` does, by the user of your settings, in the view.
+The go's line records that it was said in the view, with the basis `view`, the server's clock, and `checked` false.
+A go whose `seen_event` is not the item's last line gets 409, and its sentence quotes the line that came after.
+So a second POST of the same go gets 409, and the view does not write it.
+An item the project does not have gets 404, and any other refusal of `jbus.item.approve` gets 409.
 The answer is `{at, item, say, state, last_event}`, read from the record after the write.
-A message goes to the item's home in the same request.
-Where T3 Code does not take it, the view still records the line, `say` tells why it was not sent, and the next pass sends it.
-`/steer` has the checks `/answer` has: a foreign `Host` or `Origin` gets 403, a body that is too long or not of that shape gets 400, and a project the state directory lacks gets 404.
+To redirect work, write in its home's thread in T3 Code: a need you write about links to that thread in Needs you.
+`POST /approve` has the checks `/answer` has: a foreign `Host` or `Origin` gets 403, a body that is too long or not of that shape gets 400, and a project the state directory lacks gets 404.
 
 ### Count what the page opens
 
 The page posts one event to `POST /usage` when the view opens, for each route it shows, for each item it opens and for each action it takes.
-One listener on the page reads an item from the `data-open` attribute of what was tapped, and one hook reads an action from each answer or steer the page sends, so no panel posts an event of its own.
+One listener on the page reads an item from the `data-open` attribute of what was tapped, and one hook reads an action from each answer or go the page sends, so no panel posts an event of its own.
 The first item or action of each name in a page carries the seconds from page load to it.
 A route is `stack`, `triage` or `project`.
 A page loaded by a headless or driven browser, an agent's look or a test, marks each of its events `headless`.

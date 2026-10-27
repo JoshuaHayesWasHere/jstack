@@ -57,10 +57,8 @@ from test_jbus_verbs import fresh
 
 ORDER = [
     "before-watch 6 health.first",
-    "before-watch 7 item.settle",
     "before-watch 8 queue.follow_ups",
     "before-watch 10 word.deliver",
-    "before-watch 15 item.deliver (client)",
     "before-watch 20 questions.closed_in_files",
     "before-watch 30 questions.silent",
     "before-watch 40 slotwait.wake (client)",
@@ -71,7 +69,7 @@ ORDER = [
     "tellers 30 questions.propose (sight, client)",
     "tellers 40 watch.watch (client, world)",
     "tellers 45 sidered.owe (budget)",
-    "tellers 47 sidered.trains (sight, client, world, budget)",
+    "tellers 47 sidered.integration_branches (sight, client, world, budget)",
     "tellers 50 threads.tie (client, world)",
     "tellers 55 failover.failover (client, world)",
     "tellers 60 threads.resume (client, world)",

@@ -125,8 +125,8 @@ def brief_of(kitchen, slug):
             "beta",
             (),
             brief("beta", follows("alpha")),
-            "beta is no follow-up's kind (cleanup-, a fix jbus filed, a train's sync) and does not "
-            "do work for alpha's plan entry alpha: its entry is beta",
+            "beta is no follow-up's kind (cleanup-, a fix jbus filed, an integration branch's "
+            "sync) and does not do work for alpha's plan entry alpha: its entry is beta",
         ),
         (
             "cleanup-gone",
@@ -249,19 +249,16 @@ def test_queue_add_help_gives_the_follow_up_rule_by_what_it_says(kitchen):
     assert "follow-rule" not in said
 
 
-def test_a_follow_up_whose_work_item_was_redirected_is_not_approved_by_rule(kitchen):
-    """A redirect gives the item a new brief and holds its row, and a held row is never approved by
-    rule: queued again as a follow-up, it waits for the user."""
+def test_a_held_follow_up_queued_again_with_a_new_brief_is_not_approved_by_rule(kitchen):
+    """A held row is never approved by rule: queued again as a follow-up with a new brief, it
+    waits for the user."""
     add(kitchen, "alpha")
     assert go(kitchen, "alpha")[0] == 0
     add(kitchen, "cleanup-alpha")
-    name = rows(kitchen)["cleanup-alpha"]["item"]
-    seen = kitchen.main("item", "show", name)[1].partition("last event: ")[2].split()[0]
-    redirected = brief("cleanup-alpha", "Redirected.\n")
-    argv = ("item", "steer", name, "redirect", "--seen", seen, "--by", "user", "--word", SAID)
-    code, said = kitchen.main(*argv, stdin=redirected)
-    assert code == 0, said
+    assert rows(kitchen)["cleanup-alpha"]["approved"]
+    assert kitchen.main("queue", "hold", "cleanup-alpha")[0] == 0
     assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
+    redirected = brief("cleanup-alpha", "Redirected.\n")
     assert add(kitchen, "cleanup-alpha", text=redirected) == []
     assert rows(kitchen)["cleanup-alpha"]["approved"] == ""
     kitchen.quiet()

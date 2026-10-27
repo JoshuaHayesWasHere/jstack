@@ -1,4 +1,4 @@
-"""The check workflow runs on main, on the integration branches (`unslop` and any `train/...`) and
+"""The check workflow runs on main, on the integration branches (any `integration/...`) and
 on a pull request into main that is not a draft. The next run never cancels a run on any of
 them, because each push's run is a concurrency group of its own. A pull request gets the job
 `check`, the fast one, which runs the lint and the tests its change reaches. A push to main or
@@ -15,7 +15,8 @@ Every job runs on GitHub's hosted runner, the pinned image `ubuntu-24.04`, and n
 of the owner's machine or reads a repo variable for it. The one other image is `macos-15`, for
 two workflows. The workflow `macos`: on each pull request it runs the test files listed in
 `testing/macos-quick.txt`, the ones whose code branches on macOS or that guard a break only a
-Mac has, and its check fails when those tests do, so the home can name it in `required-checks`.
+Mac has, of which it runs only the ones the change reaches, and none where it reaches none. Its
+check fails when those tests do, so the home can name it in `required-checks`.
 The workflow `macos-nightly`: the whole suite on macOS, nightly at 04:00 ET, an hour after the
 browser run, and by hand, over the branch its `ref` names, `main` unless a manual run
 names another. It runs on no pull request and no push, and no merge waits on it.
@@ -121,16 +122,17 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_or_a_train_and_by_hand():
-    """A pull request into any other branch, a parent row's branch or a train, starts no run: its
-    work is checked once it reaches main's gate, and a train is checked on each push to it. Of a
+def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_or_a_branch_and_by_hand():
+    """A pull request into any other branch, a parent row's branch or an integration branch,
+    starts no run: its work is checked once it reaches main's gate, and an integration branch is
+    checked on each push to it. Of a
     pull request into main, a push, a reopen and the mark that it is ready start one."""
     assert block("on") == {
         "pull_request": {
             "branches": ["main"],
             "types": ["opened", "synchronize", "reopened", "ready_for_review"],
         },
-        "push": {"branches": ["main", "unslop", "train/**"]},
+        "push": {"branches": ["main", "integration/**"]},
         "workflow_dispatch": None,
     }
 
@@ -587,12 +589,12 @@ def test_the_macos_job_fails_its_check_when_the_suite_fails_so_a_merge_can_wait_
     assert 2 * 639 <= 60 * int(suite["timeout-minutes"]) < 60 * int(cap(text, "macos")) - 120
 
 
-def test_the_macos_job_runs_the_quick_list_on_three_workers_into_the_report_its_summary_reads(
+def test_the_macos_job_runs_the_reached_tests_on_three_workers_into_the_report_its_summary_reads(
     tmp_path,
 ):
     """The step runs pytest itself and not `make check`: this runs its shell against a `uv` that
     writes down what it was given. pytest reads the arguments of `@<file>` from that file, one a
-    line, so the list's paths are the tests the job runs."""
+    line, so the paths the selection step wrote there are the tests the job runs."""
     found, _ = steps(MAC.read_text(), "macos")
     (suite,) = [step for step in found if step.get("id") == "suite"]
     (listed,) = [step for step in found if step.get("name") == "failed tests"]
@@ -612,7 +614,116 @@ def test_the_macos_job_runs_the_quick_list_on_three_workers_into_the_report_its_
     report = listed["env"]["JUNIT"].replace("${{ runner.temp }}", str(tmp_path))
     assert f"--junitxml={report}" in given
     (read,) = [arg for arg in given if arg.startswith("@")]
-    assert (REPO / read[1:]).resolve() == MAC_QUICK
+    assert read == f"@{tmp_path}/{REACHED}"
+
+
+REACHED = "macos-reached.txt"
+QUEUE = "features/jbus/src/jbus/queue.py"
+DARWIN_LISTED = "features/jgauge/tests/test_machine_sizes.py"
+DARWIN_SOURCE = "features/jbus/src/jbus/launchd.py"
+
+
+@pytest.fixture(scope="module")
+def merged(tmp_path_factory):
+    """Run the macos job's selection step, as the runner does, on a pull request's merge commit
+    whose one change over main is a line added to a path. main is this repo's HEAD with the
+    selection's files as they are here. It gives the paths the step wrote for pytest, its
+    summary and its outputs."""
+    root = tmp_path_factory.mktemp("mac")
+    repo, bin = root / "repo", root / "bin"
+    git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(repo)]
+    subprocess.run(["git", "clone", "-q", "--shared", str(REPO), str(repo)], check=True)
+    for path in ("scripts/select_tests.py", "testing/macos-quick.txt"):
+        shutil.copy(REPO / path, repo / path)
+    subprocess.run([*git, "commit", "-qam", "main", "--allow-empty"], check=True)
+    main = subprocess.run(
+        [*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    bin.mkdir()
+    (bin / "uv").write_text(f'#!/bin/sh\n[ "$1" = run ] && shift 2\nexec {sys.executable} "$@"\n')
+    (bin / "uv").chmod(0o755)
+    shell = summary_step("reached tests", MAC)
+
+    def run(path):
+        subprocess.run([*git, "reset", "-q", "--hard", main], check=True)
+        with (repo / path).open("a") as file:
+            file.write("\n")
+        subprocess.run([*git, "commit", "-qam", f"change {path}"], check=True)
+        temp = root / path.replace("/", "-")
+        temp.mkdir(exist_ok=True)
+        out = {name: temp / name for name in ("summary", "output")}
+        for one in out.values():
+            one.write_text("")
+        subprocess.run(
+            ["bash", "-e", "-c", shell],
+            cwd=repo,
+            env={"PATH": f"{bin}:/usr/bin:/bin", "RUNNER_TEMP": str(temp)}
+            | {"GITHUB_STEP_SUMMARY": str(out["summary"]), "GITHUB_OUTPUT": str(out["output"])},
+            capture_output=True,
+            check=True,
+        )
+        reached = (temp / REACHED).read_text().splitlines()
+        return reached, out["summary"].read_text(), out["output"].read_text()
+
+    return run
+
+
+def test_the_macos_job_runs_no_test_for_a_change_to_a_jbus_queue_module_and_ends_at_once(merged):
+    """A change to code that names no Darwin, as most of flow's pull requests make to jbus's
+    queue, reaches no test of the list on a Mac: the job runs no test and passes, and its summary
+    says so in one line."""
+    assert merged(QUEUE) == (
+        [],
+        "macOS: the change reaches no test of testing/macos-quick.txt, so none runs\n",
+        "run=false\n",
+    )
+
+
+def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reaches(merged):
+    """A change to a test of the list that branches on Darwin runs that test, and only tests of
+    the list. A change to a module that names Darwin runs the tests of the list that import it.
+    The summary names each test it runs. A test that reads the whole tree runs on Linux, and a
+    change to Darwin code reaches it on a Mac only through an import."""
+    entries = MAC_QUICK.read_text().split()
+    for path, test in (
+        (DARWIN_LISTED, DARWIN_LISTED),
+        (DARWIN_SOURCE, "features/jbus/tests/test_jbus_launchd.py"),
+    ):
+        reached, summary, output = merged(path)
+        assert test in reached, path
+        assert all(
+            one in entries or any(e.endswith("/") and one.startswith(e) for e in entries)
+            for one in reached
+        )
+        assert summary.splitlines() == [
+            f"macOS: the change reaches {len(reached)} test files of testing/macos-quick.txt:",
+            *(f"- `{one}`" for one in reached),
+        ]
+        assert output == "run=true\n"
+    assert "features/jgauge/tests/test_room.py" not in merged(DARWIN_LISTED)[0]
+
+
+def test_the_macos_job_runs_the_whole_list_where_the_selection_is_all(merged):
+    reached, summary, output = merged("uv.lock")
+    assert reached == MAC_QUICK.read_text().splitlines()
+    assert summary == "macOS: the selection is all, so every test of testing/macos-quick.txt runs\n"
+    assert output == "run=true\n"
+
+
+def test_the_macos_job_skips_its_tools_and_tests_where_the_change_reaches_no_test():
+    """The job always runs, so the required check reports: only the steps after the selection
+    wait on its output."""
+    found, _ = steps(MAC.read_text(), "macos")
+    at = [step.get("id") for step in found].index("reached")
+    assert [step.get("name") for step in found[at + 1 :]] == [
+        "tools",
+        "quick tests",
+        "failed tests",
+    ]
+    for step in found[at + 1 :]:
+        values = {"!cancelled()": True}
+        assert worked(step["if"], values | {"steps.reached.outputs.run": "false"}) is False
+        assert worked(step["if"], values | {"steps.reached.outputs.run": "true"}) is True
 
 
 def test_every_path_in_the_macos_quick_list_is_a_test_file_or_a_tests_directory_of_the_repo():
@@ -1010,9 +1121,10 @@ def test_the_macos_job_lists_each_failed_test_in_its_summary_and_warns_with_the_
     found, _ = steps(MAC.read_text(), "macos")
     (listed,) = [step for step in found if step.get("name") == "failed tests"]
     assert found.index(listed) > [step.get("id") for step in found].index("suite")
+    ran = {"steps.reached.outputs.run": "true"}
     assert (
-        worked(listed["if"], {"!cancelled()": True}),
-        worked(listed["if"], {"!cancelled()": False}),
+        worked(listed["if"], {"!cancelled()": True} | ran),
+        worked(listed["if"], {"!cancelled()": False} | ran),
     ) == (True, False)
     assert listed["env"] == {
         "JUNIT": "${{ runner.temp }}/junit.xml",

@@ -16,10 +16,12 @@ from test_jbus_failover import PRIME
 from test_jbus_github import failed, pull
 from test_jbus_held import REASON, Held
 from test_jbus_kitchen import NOW, SELECTION
-from test_jbus_leftover import home
+from test_jbus_leftover import ended as leaves
+from test_jbus_leftover import home, stalls
 from test_jbus_main_moved import checks, move, tip
 from test_jbus_main_moved import pull as red
 from test_jbus_queue import add, brief, go
+from test_jbus_row_ends import listed
 from test_jbus_stack import LINK
 from test_jbus_stack import pulls as stack
 
@@ -187,3 +189,19 @@ def test_with_the_whole_pool_capped_a_quiet_child_is_neither_nudged_nor_logged(k
     until(kitchen, patience + 31, patience + 35)
     (nudge,) = sends(kitchen, children.STALL)
     assert nudge["threadId"] == found["threadId"]
+
+
+def test_a_leftover_waits_for_its_home_s_reset_and_is_not_the_users_meanwhile(kitchen):
+    """Alpha ended with something left, and its home's thread is capped: the leftover stays the
+    home's, so it is not on the user's list while it waits, and goes to the home once after the
+    reset."""
+    home(kitchen)
+    leaves(kitchen)
+    cap("claudeAgent")
+    for said in until(kitchen, 0, 3):
+        assert sent(kitchen, "leftover") == []
+        assert len(waits(said, "alpha", "its leftover message")) == 1, said
+        assert listed(kitchen) == [] and kitchen.waiting() == []
+    until(kitchen, 41, 44)
+    assert len(sent(kitchen, "leftover")) == 1
+    assert listed(kitchen) == [] and stalls(kitchen) == []

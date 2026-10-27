@@ -66,7 +66,7 @@ Launch(p) ==
 Check(p) ==
     /\ st[p] = "open"                       \* .github/workflows/check.yml:4, a pull request's check
     /\ ci[p] = "none"
-    \* scripts/select_tests.py:666-675,385: the rules' tests, every test no rule owns (#397), and
+    \* scripts/select_tests.py:683-692,396: the rules' tests, every test no rule owns (#397), and
     \* each test whose READ_SET matches the changed path (#426). A test that reads the tree through
     \* a glob or a walk needs a read set, but that guard sees only the reads it knows, so a test
     \* that reads the changed path another way, or past its read set, is selected by chance.

@@ -1,11 +1,10 @@
-"""The inbox on the page: Approve, "Undo the approval" and a Steer line, each tapped as a person
-would, and the write each one sends after its 10-second countdown."""
-
-import json
+"""The inbox on the page: Approve and "Undo the approval", each tapped as a person would, the
+write each one sends after its 10-second countdown, and the link to its home's thread that a need
+the user writes about has in their place."""
 
 import pytest
 
-from jbus import queue, word
+from jbus import queue
 from test_jbus_kitchen import complete
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, PROBE, look
 from view.scene import GATE, Served
@@ -13,12 +12,12 @@ from view.test_view_answer import Counter
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 60)]
 
-START, STEP = 2500, 500
+STEP = 500
 COUNT = 22
 """Looks that outlast the 10-second countdown and the write after it."""
 
 
-def test_approve_its_undo_and_a_steer_line_each_reach_jbus_from_the_page(tmp_path, monkeypatch):
+def test_approve_and_its_undo_reach_jbus_and_a_gate_links_to_its_home(tmp_path, monkeypatch):
     counter = Counter(tmp_path, monkeypatch)
     (counter.kitchen.home / "home-id").write_text("mcp:home-demo\n")
     code, said = counter.kitchen.main(
@@ -34,29 +33,19 @@ def test_approve_its_undo_and_a_steer_line_each_reach_jbus_from_the_page(tmp_pat
     try:
         found = served.json("/state.json?project=demo")["needs"]
         (jar,) = [one for one in found if one["what"] == "which jar?"]
-        line = f'[data-type="demo/{jar["key"]}"]'
         walk = ["look", 'tap:[data-accept="demo/approve:oat-milk"]', *["look"] * COUNT]
         walk += ["tap:[data-unsay]", *["look"] * 4]
-        typed = START + STEP * len(walk) - STEP // 2
-        walk += [f"key:Enter:{line}", *["look"] * COUNT]
-        fill = (
-            f"setTimeout(function () {{ var box = document.querySelector({json.dumps(line)});"
-            ' box.value = "the blue one";'
-            ' box.dispatchEvent(new Event("input", { bubbles: true })); }, '
-            f"{typed});"
-        )
         seen = look(
             counter,
             tmp_path / "look",
             route="#/demo",
             port=served.port,
             walk=walk,
-            script=PROBE + fill,
+            script=PROBE,
             at=4000 + STEP * len(walk),
             budget=60000,
         )
         row = queue.fresh(counter.state, "oat-milk")
-        kept = [one.words for one in word.load(counter.state)]
     finally:
         served.close()
         counter.kitchen.close()
@@ -66,16 +55,16 @@ def test_approve_its_undo_and_a_steer_line_each_reach_jbus_from_the_page(tmp_pat
     approved = walked[1 + COUNT]
     assert "oat-milk approved at" in approved["nsaid"] and "Undo the approval" in approved["nsaid"]
     assert "its go is taken back" in walked[2 + COUNT + 4]["nsaid"]
-    assert walked[-1]["nsaid"].startswith("Your line on")
     writes = [(one["path"].partition("?")[0], one["body"]) for one in seen["writes"]]
-    approve, hold, steer = writes
+    approve, hold = writes
     assert approve == ("/panel/you/approve", {"slug": "oat-milk", "sha": sha})
     assert hold[0] == "/panel/you/hold" and hold[1]["slug"] == "oat-milk"
-    assert steer == ("/panel/you/steer", {"subj": jar["subj"], "words": "the blue one"})
     assert (row.get("approved"), row.get("held")) == ("", True)
-    assert f"{jar['subj']}: the blue one" in kept
     actions = [one["body"]["name"] for one in seen["counted"] if one["body"]["kind"] == "action"]
-    assert actions == ["approve", "hold", "message"]
+    assert actions == ["approve", "hold"]
+    (shown,) = [one for one in seen["needs"]["now"] if one["key"] == f"demo/{jar['key']}"]
+    links = [(one["tag"], one["text"], one["href"]) for one in shown["acts"]]
+    assert links == [("A", "Write to its home", "t3-thread://v1/mcp:home-demo")]
 
 
 def test_the_drawer_of_what_waits_hands_over_no_cli_line_for_a_row_to_approve(

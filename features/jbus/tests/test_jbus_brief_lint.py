@@ -6,7 +6,7 @@ real command against a faked T3 Code server, `gh` and `jmerge`, with small made-
 import pytest
 
 from jbus import queue
-from test_jbus_kitchen import SAID, Kitchen
+from test_jbus_kitchen import Kitchen
 from test_jbus_queue import brief
 from test_jbus_scout import request
 
@@ -16,7 +16,7 @@ ASKS = (
 )
 DOCS = "docs go to a docs sweep, a row whose title names docs"
 COPIED = "a test's text is small and made up, never an incident's text word for word"
-INCIDENT = "the train went red at noon and the fix row never launched for flow"
+INCIDENT = "the release branch went red at noon and the fix row never launched for flow"
 
 
 @pytest.fixture
@@ -111,7 +111,7 @@ def test_a_small_made_up_row_and_a_short_quote_are_queued(kitchen):
     text = brief("alpha").replace('Task: "do alpha"', f'Task: Josh said "{INCIDENT}"')
     text = text.replace(
         "- it is done\n",
-        "- a test feeds jbus a made-up row, train red at 12:00 for beta\n"
+        "- a test feeds jbus a made-up row, release branch red at 12:00 for beta\n"
         "- a test checks the fix row never launched\n",
     )
     assert add(kitchen, text)[0] == 0
@@ -126,19 +126,3 @@ def test_a_scout_request_that_asks_the_user_is_refused_and_a_clean_one_stored(ki
         f'- request asks the user mid-task ("stop and ask"): {ASKS}',
     ]
     assert kitchen.main("scout", "add", "beta", stdin=request("beta"))[0] == 0
-
-
-def test_a_redirect_whose_new_brief_claims_a_shared_doc_is_refused_before_it_is_written(kitchen):
-    assert add(kitchen, brief("alpha"))[0] == 0
-    stored = queue.brief_path(kitchen.state, "alpha").read_text()
-    row = next(one for one in queue.load(kitchen.state) if one["slug"] == "alpha")
-    name = row["item"]
-    seen = kitchen.main("item", "show", name)[1].partition("last event: ")[2].split()[0]
-    redirected = brief("alpha").replace("- it is done\n", "- the README names the new verb\n")
-    argv = ("item", "steer", name, "redirect", "--seen", seen, "--by", "user", "--word", SAID)
-    code, said = kitchen.main(*argv, stdin=redirected)
-    assert code == 1, said
-    assert said.startswith("refused: the new brief of alpha has faults, and nothing is written")
-    assert "- brief's Done when: line claims a shared doc (README)" in said
-    assert queue.brief_path(kitchen.state, "alpha").read_text() == stored
-    assert kitchen.main("item", "show", name)[1].partition("last event: ")[2].split()[0] == seen

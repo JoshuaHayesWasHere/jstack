@@ -1,10 +1,8 @@
-"""One work item, which the user opens at `#/<project>/item/<id>` and steers there. It draws an
+"""One work item, which the user opens at `#/<project>/item/<id>` and approves there. It draws an
 item of the frame's `items`. For each live item it adds where the item came from, `source`, and
-the steers the item takes, `steers`. Those are the moves that `jbus.item`'s `MOVES` has from the
-item's state. A redirect is among them only where the queue has the item's row, since
-`jbus.steer` refuses a redirect otherwise. So the page shows only the steers that the record
-would take, and keeps no copy of the rules. The steer is the server's `POST /steer`, and an
-approval by the item's id is one of its actions."""
+whether the item takes the user's go, `approve`: whether `jbus.item`'s `MOVES` has an approval
+out of the item's state. So the page shows Approve only where the record would take it, and keeps
+no copy of the rules. The go is the server's `POST /approve`."""
 
 from __future__ import annotations
 
@@ -15,19 +13,13 @@ from jbus.view.clean import ANY
 from jbus.view.state import Read
 
 FIRST = True
-SHAPE: dict[str, Any] = {"steering": {ANY: {"source": None, "steers": [None]}}}
-APPROVE = "approve"
-TAKES = ((item.Verb.APPROVE, APPROVE), *((one, str(one)) for one in item.Steer))
+SHAPE: dict[str, Any] = {"takes": {ANY: {"source": None, "approve": None}}}
 
 
 def build(read: Read) -> dict[str, Any]:
-    rows = {row["slug"] for row in read.rows}
-    steering = {}
+    takes = {}
     for one in item.items(read.state).values():
-        if one.state not in item.LIVE:
-            continue
-        steers = [name for move, name in TAKES if (one.state, move) in item.MOVES]
-        if one.slug not in rows:
-            steers = [name for name in steers if name != item.Steer.REDIRECT]
-        steering[one.id] = {"source": one.source, "steers": steers}
-    return {"steering": steering}
+        if one.state in item.LIVE:
+            approve = (one.state, item.Verb.APPROVE) in item.MOVES
+            takes[one.id] = {"source": one.source, "approve": approve}
+    return {"takes": takes}

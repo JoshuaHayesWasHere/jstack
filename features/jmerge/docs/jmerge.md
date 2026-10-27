@@ -361,13 +361,14 @@ The line is `<branch> is red at <sha12>: its latest check failed` (`BASE_RED`, o
 `jmerge` asks GitHub for the check runs of the tip once per run (`gh api repos/{owner}/{repo}/commits/<branch>/check-runs`).
 As on main, none of these holds the pull request: a cancelled run, a run still going, a tip with no run, or no answer from GitHub.
 This hold never applies to the fix of a red main, nor to the fix of this branch's red at its tip.
-That fix is the row jbus files for the red, `train-red-<train>-<sha12>` (`TRAIN_FIX`, `jbus.sidered.trains`), whose `<train>` is the branch's name without `train/`, in lower case.
+That fix is the row jbus files for the red, `integration-red-<branch>-<sha12>` (`INTEGRATION_FIX`, `jbus.sidered.integration_branches`), whose `<branch>` is the branch's name in lower case, with each run of other characters than letters, digits, `.`, `_` and `-` made one `-`.
 It is also any row whose brief says so in its head, above its first `## ` heading, with one line: `Fixes red: <branch> at <sha>`, where `<sha>` is the red tip, its first 12 characters or more (`FIXES`).
 A main sync that brings the fix of a test the branch fails on is such a row.
 The exemption holds only for the red it names.
 A fix row or a `Fixes red:` line for another branch, or for an older red tip of this one, is held as every other pull request into the branch is.
 Once the tip is green, every pull request into the branch is judged again, its fix's included.
 If a repo's CI runs only on pushes to the default branch, an integration branch's tip has no check run, and this hold never applies.
+jstack's own check workflow runs on each push to a branch under `integration/`, so a branch of its `integration` file is named that way.
 
 The landing is the pull request whose head is an integration branch and whose base is the default branch.
 It needs a brief whose Result names it, and `jmerge` judges it like any other pull request.

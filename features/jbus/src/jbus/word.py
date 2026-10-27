@@ -323,7 +323,7 @@ def post(
 ) -> str:
     """Send one queued message to a home's thread, under the retry key `key`, so T3 Code takes
     a second send with the same key as a repeat of the first. Return why it did not go, or nothing
-    when T3 Code took it. `jbus.item` sends a steer's message through `post` too."""
+    when T3 Code took it."""
     if not thread or client is None:
         return NO_T3 if thread else NO_HOME
     try:

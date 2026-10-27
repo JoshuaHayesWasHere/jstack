@@ -75,7 +75,7 @@ gate that is only in a home's `gates.md` is not answerable.
 
 `items` is each live work item of the project (`jbus.item`) and the `ENDED` items that
 ended last, in the order of their numbers. Each has its `id`, `slug`, `title`, `state`,
-`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A steer names
+`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A go names
 the `last_event` as the line it saw.
 
 `jbus.code` says which code of the view serves requests: when the server started, and whether a
@@ -1095,8 +1095,9 @@ class Read:
     A panel's `build` gets it as its argument. What more than one panel reads is a property
     here, and its source is one of the six above. A panel calls `panel` to get what another
     panel works out. `once` keeps what a panel works out for its own functions. `merged` asks
-    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and is
-    None where no server asks.
+    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and
+    `landed` for the integration branches that landed on the default branch, as
+    `github.GitHub.landed` does. Each is None where no server asks.
     """
 
     def __init__(
@@ -1109,9 +1110,10 @@ class Read:
         found: tuple[panels.Panel, ...] | None = None,
         shared: dict[Any, Any] | None = None,
         merged: Callable[[str, date], dict[str, Any]] | None = None,
+        landed: Callable[[str, tuple[str, ...]], dict[str, Any]] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
-        self.merged = merged
+        self.merged, self.landed = merged, landed
         self.code = code or {}
         self.user = sources.user
         self.state, self.home = sources.state(name), sources.home(name)
