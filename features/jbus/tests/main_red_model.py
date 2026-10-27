@@ -47,10 +47,10 @@ Each kind of step matches the code as follows:
 The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
 model, where the real one would ask GitHub. GitHub's list of main's commits is the model's tips,
 each the first parent of the next. `dispatch.launched` says that jbus launched `alpha`, and
-`jbriefs.parse.thread_of` gives its thread. `rebase.held` holds back no message, because the
-crew's turn has ended. `Pass`, `Client` and `World` are fakes with only what `tell` reads.
-`sent.json` and `main.json` are real files in a temporary state directory, and the real code
-writes them.
+`jbriefs.parse.thread_of` gives its thread. `rebase.held` holds back no message, because no rule
+of `jbus.outbox` holds the crew: its turn has ended, it waits on no slot and on no review. `Pass`,
+`Client` and `World` are fakes with only what `tell` reads. `sent.json` and `main.json` are real
+files in a temporary state directory, and the real code writes them.
 
 The model does not cover a message `rebase.held` keeps back (`held` in `main.json`), a pull request
 that conflicts or that GitHub has not judged, more than one open pull request, a red pull request
