@@ -72,8 +72,9 @@ def test_a_gate_answered_between_the_list_and_the_raise_is_not_raised(kitchen, m
 
     def answered_after_the_list(*args, **kwargs):
         listed = kept(*args, **kwargs)
-        said = ("--by", "user", "--at", "2026-10-12 11:00 ET", "--differs", "the other")
-        assert kitchen.main("answer", "1", *said)[0] == 0
+        kitchen.t3.says("mcp:a-home", "other-1", "the other")
+        said = ("--message", "mcp:a-home/other-1", "--differs")
+        assert kitchen.main("--as", "user", "answer", "1", *said)[0] == 0
         return listed
 
     monkeypatch.setattr(waiting, "keep", answered_after_the_list)
