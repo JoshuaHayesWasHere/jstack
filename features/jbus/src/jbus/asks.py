@@ -44,7 +44,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
 
     `said` returns the words an approval names: a word of the project's `words.json`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
-    read from Lavish's state file. `trains` is the integration branches of the home's
+    read from Lavish's state file. `integration` is the branches of the home's
     `integration` file, whose syncs are follow-ups (`queue.KINDS`). A follow-up's go reads no
     file of the home: jbus knows the rule by what it says.
 
@@ -109,10 +109,10 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
         return (word.basis if basis == "word" else questions.basis)(run.state, ref)
 
     try:
-        trains = tuple((config.home(project) / queue.TRAINS).read_text().split())
+        integration = tuple((config.home(project) / queue.INTEGRATION).read_text().split())
     except OSError:
-        trains = ()
-    return queue.Asks(out, launched, told, said, trains)
+        integration = ()
+    return queue.Asks(out, launched, told, said, integration)
 
 
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:

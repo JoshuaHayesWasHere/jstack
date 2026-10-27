@@ -40,15 +40,17 @@ a green run ended, and a new failure began, is a new row. On a
 project's first pass `owe` only records the reds it sees. It asks GitHub at most once in `EVERY`,
 since a pass runs each minute and a side workflow runs a few times a day.
 
-`trains` does the same for an integration branch, a train, which `jmerge` holds every pull request
-into while the latest run of a check at its tip failed (`jmerge.rows.base_red`). It asks GitHub of a
-train only while an open pull request is into it or from it, or a fix row of it is open. A failed
-check at its tip gets one fix row, `train-red-<train>-<commit>`, queued unapproved ahead of every
-row as `watch._file` queues a red main's, following the row of the first pull request the red holds
-(or else the one from the train), so a pass approves it on that row's go, under the home that the
-briefs of the train's pull requests name (`jbriefs.home`), and that home's thread is sent it once. A
-train with a fix row open files nothing more, whatever its tip. Once every check at its tip has
-passed, at a later commit than a row's, the row is withdrawn as a red main's is (`watch._withdraw`).
+`integration_branches` does the same for each branch of the home's `integration` file, which
+`jmerge` holds every pull request into while the latest run of a check at its tip failed
+(`jmerge.rows.base_red`). It asks GitHub of a branch only while an open pull request is into it or
+from it, or a fix row of it is open. A failed check at its tip gets one fix row,
+`integration-red-<branch>-<commit>` (`jmerge.rows.integration_fix`), queued unapproved ahead of
+every row as `watch._file` queues a red main's, following the row of the first pull request the red
+holds (or else the one from the branch), so a pass approves it on that row's go, under the home that
+the briefs of the branch's pull requests name (`jbriefs.home`), and that home's thread is sent it
+once. A branch with a fix row open files nothing more, whatever its tip. Once every check at its tip
+has passed, at a later commit than a row's, the row is withdrawn as a red main's is
+(`watch._withdraw`).
 """
 
 from __future__ import annotations
@@ -359,18 +361,11 @@ def owe(run: Pass) -> None:
     write_json(run.state / NAME, {"asked": run.now.isoformat(), "filed": filed})
 
 
-TRAINS = "integration"
-TRAIN_TOLD = "train-red|{slug}|{thread}"
+INTEGRATION = "integration"
+RED_TOLD = "integration-red|{slug}|{thread}"
 
 
-def train_name(branch: str, sha: str) -> str:
-    """Return the slug of the fix row for the red of `branch` at `sha`, or with no `sha` the start
-    that every fix row of the branch shares."""
-    stem = _STEM.sub("-", branch.lower().removeprefix("train/")).strip("-.") or "train"
-    return f"{jmerge_rows.TRAIN_FIX}{stem}-{sha[:12]}"
-
-
-def train_brief(
+def red_branch_brief(
     name: str,
     branch: str,
     sha: str,
@@ -379,9 +374,9 @@ def train_brief(
     jobs: list[tuple],
     follows: str = "",
 ) -> str:
-    """Return the brief for the fix of a red train, in the shape of `watch.red_brief`. `jobs` is
-    each failed check's name, URL and failed tests, `numbers` the pull requests it holds, and
-    `follows` the row whose work the fix is a follow-up of, or nothing."""
+    """Return the brief for the fix of a red integration branch, in the shape of
+    `watch.red_brief`. `jobs` is each failed check's name, URL and failed tests, `numbers` the pull
+    requests it holds, and `follows` the row whose work the fix is a follow-up of, or nothing."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys(test.split("::")[0] for test in tests))
     where = ", ".join(f"`{file}`" for file in files) or (
@@ -401,13 +396,13 @@ def train_brief(
             "Done when:",
             f"- each failed test named under Read passes on {branch}, and the failed job passes "
             "at the commit that merges the fix",
-            "- the Result names the cause: the merge that broke the train, or a flake with its "
+            f"- the Result names the cause: the merge that broke {branch}, or a flake with its "
             "evidence",
             f"Proves it: CI's check on {branch} passes at the commit that merges the fix",
             "Size: S",
             f"Where: {where}",
             "Do not touch: .github/workflows/, the ruleset",
-            f"Decisions: {queue.FILED}train and the user has not seen it",
+            f"Decisions: {queue.FILED}integration branch and the user has not seen it",
             "Design: none, a fix to what the failed run names",
             f"Pull request: open one against {branch} when done",
             "Review: review",
@@ -429,10 +424,10 @@ def _read(path: Path) -> str:
 
 
 def _tell(run: Pass, client: Client, home: Path, slug: str, branch: str, held: str) -> None:
-    """Send the home's thread the fix row of its red train, once for the row and the thread. A
-    send that fails is sent again on the next pass."""
+    """Send the home's thread the fix row of its red integration branch, once for the row and the
+    thread. A send that fails is sent again on the next pass."""
     thread = thread_of(home)
-    key = TRAIN_TOLD.format(slug=slug, thread=thread)
+    key = RED_TOLD.format(slug=slug, thread=thread)
     if not thread or key in run.box.sent():
         return
     sha = slug.rsplit("-", 1)[-1]
@@ -452,11 +447,13 @@ def _tell(run: Pass, client: Client, home: Path, slug: str, branch: str, held: s
     run.say(f"retro {slug}: told its home, thread {thread}, that {branch} is red")
 
 
-def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]]) -> None:
-    """File one fix row for each train whose tip's latest check failed, tell its home, and
-    withdraw the row once the train's tip is green at a later commit."""
-    for branch in ready.integration_of(_read(run.home / TRAINS)):
-        start = train_name(branch, "")
+def integration_branches(
+    run: Pass, client: Client, world: World, table: list[dict[str, Any]]
+) -> None:
+    """File one fix row for each integration branch whose tip's latest check failed, tell its
+    home, and withdraw the row once the branch's tip is green at a later commit."""
+    for branch in ready.integration_of(_read(run.home / INTEGRATION)):
+        start = jmerge_rows.integration_fix(branch, "")
         own = [
             row["slug"]
             for row in table
@@ -487,7 +484,7 @@ def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]])
         numbers = [number for number, _, into in pulls if into]
         held = ", ".join(f"#{number}" for number in numbers) or "no pull request"
         sha = str(failed[0].get("head_sha") or "")
-        name = train_name(branch, sha)
+        name = jmerge_rows.integration_fix(branch, sha)
         if not own and not run.first and sha and name not in run.removed:
             if queue.fresh(run.state, name) is None:
                 jobs = [
@@ -496,7 +493,7 @@ def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]])
                 ]
                 scope = "" if home == run.home else home.name
                 first = [slug for _, slug, into in pulls if into] or [slug for _, slug, _ in pulls]
-                text = train_brief(name, branch, sha, scope, numbers, jobs, first[0])
+                text = red_branch_brief(name, branch, sha, scope, numbers, jobs, first[0])
                 (run.home / "tasks").mkdir(parents=True, exist_ok=True)
                 (run.home / "tasks" / f"{name}.md").write_text(text)
                 try:
@@ -507,7 +504,7 @@ def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]])
                     run.condition(name, f"its brief was not queued: {refused}")
                     continue
                 line = f"retro {name}: {branch} check failed at {sha[:12]}, and it holds {held}"
-                run.find(name, "retro", line, key=f"train red {sha}", past=True)
+                run.find(name, "retro", line, key=f"integration red {sha}", past=True)
         if not own and queue.fresh(run.state, name) is not None:
             own = [name]
         for slug in own:
@@ -519,8 +516,8 @@ STEPS = (
     verbs.Step(
         "tellers",
         47,
-        "sidered.trains",
-        lambda half: trains(half.run, half.client, half.seen.world, half.rows or []),
+        "sidered.integration_branches",
+        lambda half: integration_branches(half.run, half.client, half.seen.world, half.rows or []),
         ("sight", "client", "world", "budget"),
     ),
 )

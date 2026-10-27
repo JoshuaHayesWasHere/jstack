@@ -1,4 +1,4 @@
-"""The check workflow runs on main, on the integration branches (`unslop` and any `train/...`) and
+"""The check workflow runs on main, on the integration branches (any `integration/...`) and
 on a pull request into main that is not a draft. The next run never cancels a run on any of
 them, because each push's run is a concurrency group of its own. A pull request gets the job
 `check`, the fast one, which runs the lint and the tests its change reaches. A push to main or
@@ -121,16 +121,17 @@ def test_the_reader_reads_mappings_scalars_and_lists():
     }
 
 
-def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_or_a_train_and_by_hand():
-    """A pull request into any other branch, a parent row's branch or a train, starts no run: its
-    work is checked once it reaches main's gate, and a train is checked on each push to it. Of a
+def test_the_check_runs_on_a_pull_request_into_main_on_each_push_to_main_or_a_branch_and_by_hand():
+    """A pull request into any other branch, a parent row's branch or an integration branch,
+    starts no run: its work is checked once it reaches main's gate, and an integration branch is
+    checked on each push to it. Of a
     pull request into main, a push, a reopen and the mark that it is ready start one."""
     assert block("on") == {
         "pull_request": {
             "branches": ["main"],
             "types": ["opened", "synchronize", "reopened", "ready_for_review"],
         },
-        "push": {"branches": ["main", "unslop", "train/**"]},
+        "push": {"branches": ["main", "integration/**"]},
         "workflow_dispatch": None,
     }
 

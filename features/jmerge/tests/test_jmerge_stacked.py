@@ -1,8 +1,8 @@
 """A pull request stacked on another's branch by jbus (its brief's `Stacked on:` line) merges only
-after its base merged and it was rebased onto the branch its base merged into, main or a train.
-While the line names its base's branch it waits, also where GitHub has already based it on main.
-Once jbus wrote that the base merged as a commit of that branch, it waits until it is based on
-that branch and its head holds that commit, and then merges as any other.
+after its base merged and it was rebased onto the branch its base merged into, main or an
+integration branch. While the line names its base's branch it waits, also where GitHub has already
+based it on main. Once jbus wrote that the base merged as a commit of that branch, it waits until it
+is based on that branch and its head holds that commit, and then merges as any other.
 
 The tests run the command against `test_jmerge_carried`'s repo: alpha (#7) is built on beta's
 head, and delta is a commit on main's side that alpha does not hold."""
@@ -48,24 +48,27 @@ def test_a_link_rebased_onto_its_bases_merge_merges_as_any_other(built_on):
     assert said.startswith("ready 7 ")
 
 
-def test_a_link_whose_base_merged_into_a_train_waits_for_its_rebase_onto_the_train(built_on):
-    """A base that merged into a train moves its link onto that train, not main: the link waits
-    for its head to hold the merge, named on the train, and its base on main is no merge."""
-    said = judged(built_on, f"Stacked on: beta train/x at {built_on.delta}", base="train/x")
-    unmoved = ready.STACKED_UNMOVED.format(slug="beta", sha=built_on.delta[:12], default="train/x")
+def test_a_link_whose_base_merged_into_a_branch_waits_for_its_rebase_onto_the_branch(built_on):
+    """A base that merged into an integration branch moves its link onto that branch, not main:
+    the link waits for its head to hold the merge, named on the branch, and its base on main is
+    no merge."""
+    said = judged(built_on, f"Stacked on: beta release/x at {built_on.delta}", base="release/x")
+    unmoved = ready.STACKED_UNMOVED.format(
+        slug="beta", sha=built_on.delta[:12], default="release/x"
+    )
     assert said == f"wait 7 {merge.URL}: {unmoved}"
-    said = judged(built_on, f"Stacked on: beta train/x at {built_on.beta}", base="main")
-    on = ready.STACKED_ON.format(branch="train/x", slug="beta", default="train/x")
+    said = judged(built_on, f"Stacked on: beta release/x at {built_on.beta}", base="main")
+    on = ready.STACKED_ON.format(branch="release/x", slug="beta", default="release/x")
     assert said == f"wait 7 {merge.URL}: {on}"
 
 
-def test_a_link_rebased_onto_its_bases_merge_on_a_train_merges_as_any_other(built_on):
-    said = judged(built_on, f"Stacked on: beta train/x at {built_on.beta}", base="train/x")
+def test_a_link_rebased_onto_its_bases_merge_on_a_branch_merges_as_any_other(built_on):
+    said = judged(built_on, f"Stacked on: beta release/x at {built_on.beta}", base="release/x")
     assert said.startswith("ready 7 ")
 
 
 def squash_rebased(built_on, rebase):
-    """Squash beta into `train/x`, move alpha's own commit onto it and let `rebase` change the
+    """Squash beta into `release/x`, move alpha's own commit onto it and let `rebase` change the
     moved head; what jmerge says of alpha with `Rebase: patch unchanged` on its brief."""
     home, tree, old = built_on.home, built_on.tree, built_on.head
     merge.git(tree, "switch", "-q", "--detach", built_on.start)
@@ -73,7 +76,7 @@ def squash_rebased(built_on, rebase):
     merge.git(tree, "add", "-A")
     merge.git(tree, "commit", "-q", "-m", "beta, squashed")
     squash = merge.git(tree, "rev-parse", "HEAD")
-    merge.git(tree, "push", "-q", "origin", f"{squash}:refs/heads/train/x")
+    merge.git(tree, "push", "-q", "origin", f"{squash}:refs/heads/release/x")
     merge.git(tree, "cherry-pick", old)
     rebase(tree)
     new = merge.git(tree, "rev-parse", "HEAD")
@@ -83,19 +86,19 @@ def squash_rebased(built_on, rebase):
     text = merge.brief(
         merge.review("clean", old),
         f"Rebase: patch unchanged, before {old}, head {new}\n",
-        f"Stacked on: beta train/x at {squash}\n",
+        f"Stacked on: beta release/x at {squash}\n",
     )
     (home.tasks / "alpha.md").write_text(text)
     queue_of(home, rows(gamma="merged"))
     listing(built_on, 7)
     listed = json.loads((home.stub / "list.json").read_text())
-    listed[0].update(baseRefName="train/x", headRefOid=new)
+    listed[0].update(baseRefName="release/x", headRefOid=new)
     (home.stub / "list.json").write_text(json.dumps(listed))
     return built_on.run("--check")[0]
 
 
-def test_a_link_rebased_over_its_bases_squash_on_a_train_with_its_patch_unchanged_merges(built_on):
-    """A base squash-merged into a train leaves the link's old head forking from the train before
+def test_a_link_rebased_over_its_bases_squash_on_a_branch_with_its_patch_unchanged_merges(built_on):
+    """A base squash-merged into a branch leaves the link's old head forking from the branch before
     the base, so that head's diff from the fork holds the base's commits too. The patch the
     `Rebase:` line speaks of is the link's own commits, and those the rebase left as they were."""
     said = squash_rebased(built_on, lambda tree: None)
@@ -114,7 +117,7 @@ def one_more(tree):
 
 
 @pytest.mark.parametrize("rebase", [amended, one_more])
-def test_a_link_rebased_over_its_bases_squash_on_a_train_that_changed_its_patch_waits(
+def test_a_link_rebased_over_its_bases_squash_on_a_branch_that_changed_its_patch_waits(
     built_on, rebase
 ):
     """The old head's own commits are cut by a count, and a rebase that changed them, in content

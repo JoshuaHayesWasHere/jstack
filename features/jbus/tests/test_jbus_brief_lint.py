@@ -16,7 +16,7 @@ ASKS = (
 )
 DOCS = "docs go to a docs sweep, a row whose title names docs"
 COPIED = "a test's text is small and made up, never an incident's text word for word"
-INCIDENT = "the train went red at noon and the fix row never launched for flow"
+INCIDENT = "the release branch went red at noon and the fix row never launched for flow"
 
 
 @pytest.fixture
@@ -111,7 +111,7 @@ def test_a_small_made_up_row_and_a_short_quote_are_queued(kitchen):
     text = brief("alpha").replace('Task: "do alpha"', f'Task: Josh said "{INCIDENT}"')
     text = text.replace(
         "- it is done\n",
-        "- a test feeds jbus a made-up row, train red at 12:00 for beta\n"
+        "- a test feeds jbus a made-up row, release branch red at 12:00 for beta\n"
         "- a test checks the fix row never launched\n",
     )
     assert add(kitchen, text)[0] == 0

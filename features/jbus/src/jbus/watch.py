@@ -126,8 +126,8 @@ class World:
         """The open pull request a row whose depends `unmet` are not over launches stacked on: the
         one row it still waits on, once that row's pull request is open. A stack sits on one
         branch, so a row that waits on two or more rows launches on none, and nor does a row
-        whose `brief` goes on another branch than that row's (`against`): a row for a train
-        that builds on a row for main waits for it to merge."""
+        whose `brief` goes on another branch than that row's (`against`): a row for an
+        integration branch that builds on a row for main waits for it to merge."""
         if len(unmet) != 1 or unmet[0] not in self.open:
             return None
         if against(queue.brief(run.state, unmet[0]) or "") != against(brief):
@@ -541,8 +541,8 @@ def row_of(run: Pass, row: dict[str, Any], unmet: list[str]) -> work.Row:
 
 
 def against(brief: str) -> str:
-    """The branch a brief's `Pull request:` line opens its pull request against, a train's, or
-    empty for the default branch."""
+    """The branch a brief's `Pull request:` line opens its pull request against, an integration
+    branch, or empty for the default branch."""
     named = _AGAINST.search(brief.split("\n## ", 1)[0])
     return named["branch"] if named else ""
 
@@ -1298,14 +1298,14 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
 
 def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = "main") -> None:
     """Withdraw each fix row filed for a red (its slug ends in the red's commit) that the tip of
-    `branch`, main or a train, `green`, has since passed: a fix for a problem already gone is no
-    decision. A row that never launched is taken out (`queue.withdraw`), with why in its record.
-    A row that launched is left to its crew and its pull request, since its fix may still be
-    needed for a test that turned green by chance, and the home hears of it once. The line that
-    says a row is withdrawn is sent once the row is out, and a withdrawn row is never one of
-    `fixes` again. A row filed for `green` itself, whose check passed on a rerun, is left as it
-    is, and the home hears of that once too. A row with a launch record is left for the pass that
-    reads T3 Code's answer. It imports `dispatch` here, since `dispatch` imports this module."""
+    `branch`, main or an integration branch, `green`, has since passed: a fix for a problem already
+    gone is no decision. A row that never launched is taken out (`queue.withdraw`), with why in its
+    record. A row that launched is left to its crew and its pull request, since its fix may still be
+    needed for a test that turned green by chance, and the home hears of it once. The line that says
+    a row is withdrawn is sent once the row is out, and a withdrawn row is never one of `fixes`
+    again. A row filed for `green` itself, whose check passed on a rerun, is left as it is, and the
+    home hears of that once too. A row with a launch record is left for the pass that reads T3
+    Code's answer. It imports `dispatch` here, since `dispatch` imports this module."""
     from jbus import dispatch
 
     for row in fixes:
