@@ -80,7 +80,8 @@ def test_each_need_has_one_action_and_says_what_happens_if_the_user_does_nothing
     assert by["approve"]["sha"] == queue.brief_sha(queue.brief(scene.state, "tea-kettle"))[:12]
     assert {one["sha"] for one in found if one["kind"] != "approve"} == {""}
     home = jbriefs.thread_of(scene.home)
-    assert {one["thread"] for one in found if one["act"] == "thread"} == {home}
+    link = panel_you.THREAD.format(home) if home else ""
+    assert {one["thread"] for one in found if one["act"] == "thread"} == {link}
     assert {one["thread"] for one in found if one["act"] != "thread"} == {""}
 
 
@@ -157,7 +158,8 @@ def test_a_need_the_user_writes_about_links_to_the_thread_of_its_home(counter):
     )
     seen(counter)
     (one,) = [one for one in needs(served).values() if one["what"] == "which jar?"]
-    assert (one["act"], one["thread"], one["default"]) == ("thread", HOME, panel_you.IDLE["gate"])
+    link = f"t3-thread://v1/{HOME}"
+    assert (one["act"], one["thread"], one["default"]) == ("thread", link, panel_you.IDLE["gate"])
     assert act(served, "steer", {"subj": one["subj"], "words": "the blue one"})[0] == 404
     assert words(counter) == {}
 

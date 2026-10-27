@@ -26,9 +26,10 @@ approval, the panel leaves the item to that row. A go by the item's id is no go 
 
 Each need has one action, its `act` (`ACTS`): `answer` closes a question jbus holds, through
 `POST /answer`; `approve` gives a row its go, or approves a proposed item through
-`POST /approve`; `thread` links to the thread of the home that owns it, its `thread`, where the
-user writes about it; `open` only opens it, for setup that no home can do. Each need says what
-happens if the user does nothing, its `default` (`IDLE` where the kind has none of its own).
+`POST /approve`; `thread` links to the thread of the home that owns it in T3 Code, its `thread`
+(`THREAD`), where the user writes about it; `open` only opens it, for setup that no home can do.
+Each need says what happens if the user does nothing, its `default` (`IDLE` where the kind has
+none of its own).
 
 The panel takes two writes of its own (`WRITES`). `approve` keeps the user's word that approves
 a row and records the go on it, as `jbus word` and `jbus queue approve --word` do, for the brief
@@ -162,6 +163,8 @@ IDLE = {
 """What happens if the user does nothing, for a need whose kind has no default of its own. A
 thread's need, such as one that hung, has `QUIET`."""
 QUIET = "jbus says it and interrupts nothing, so the thread stays as it is."
+THREAD = "t3-thread://v1/{}"
+"""The link that opens a thread in T3 Code, by its id."""
 SAID_IN = "jbus view"
 SOURCES = (
     WAITING_FILE,
@@ -563,8 +566,10 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
 
 
 def _thread(read: Read, home: str) -> str:
-    """The thread of the home by its name, the root's for none, or nothing where it has none."""
-    return jbriefs.thread_of(read.home / home if home else read.home)
+    """The link to the thread of the home by its name, the root's for none, or nothing where it
+    has none."""
+    found = jbriefs.thread_of(read.home / home if home else read.home)
+    return THREAD.format(found) if found else ""
 
 
 def _acted(read: Read, one: dict[str, Any]) -> dict[str, Any]:

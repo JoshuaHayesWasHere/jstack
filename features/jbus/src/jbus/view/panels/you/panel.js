@@ -51,7 +51,7 @@ function needForm(w) {
 function needAct(w) {
   var id = needId(w), now = ACCEPTING[id];
   if (now) return '<span class="acc">' + (now.sent ? saysNow(now) + "&hellip;" : saysNow(now) + ' in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
-  if (w.act === "thread" && w.thread) return '<a class="btn" href="t3-thread://v1/' + esc(w.thread) + '" aria-description="Opens the thread of its home in T3 Code, where you write about it">Write to its home</a>';
+  if (w.act === "thread" && w.thread) return '<a class="btn" href="' + esc(w.thread) + '" aria-description="Opens the thread of its home in T3 Code, where you write about it">Write to its home</a>';
   if (!acts(w)) {
     if (PROJECT) return '<button type="button" class="btn" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
     return '<a class="btn" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
