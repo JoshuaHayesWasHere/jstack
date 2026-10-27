@@ -38,7 +38,7 @@ PROBE = (Path(__file__).parent / "pipeline.js").read_text()
 AXE = (BOARDS / "axe.min.js").read_text() + "\n" + (BOARDS / "axe-run.js").read_text()
 
 
-SIZES = {"5": 5, "27": 27, "80": 81}
+SIZES = {"5": 5, "27": 27, "80": 77}
 
 
 SCREENS = {1440: DESK, 390: PHONE}

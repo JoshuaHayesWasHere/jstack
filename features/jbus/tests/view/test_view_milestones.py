@@ -1,9 +1,9 @@
-"""The Milestones panel: each plan entry of each home and each integration branch, counted as `jbus plan`
-counts them, and drawn as a chain of steps toward its outcome."""
+"""The Milestones panel: each plan entry of each home and each integration branch, counted as
+`jbus plan` counts them, and drawn as a chain of steps toward its outcome."""
 
-from jbus import plan, queue
 import pytest
 
+from jbus import plan, queue
 from view.scene import logged, row, table
 
 PLAN = """# demo: plan
