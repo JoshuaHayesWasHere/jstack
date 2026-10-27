@@ -12,6 +12,9 @@ from pathlib import Path
 
 import pytest
 
+import jbus
+from jbriefs.home import home_of
+from jbus import children
 from test_home_thread import as_read
 from test_jbus_kitchen import NOW, REPO, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
@@ -242,6 +245,29 @@ def test_a_launch_whose_brief_never_got_its_line_gets_it_on_the_next_pass(kitche
     brief.write_text(brief.read_text().replace("mcp:thread-1", "mcp:a-later-launch"))
     kitchen.poll(NOW + timedelta(minutes=6))
     assert where_the_findings_go(kitchen, "alpha").startswith("crewmate mcp:a-later-launch: ")
+
+
+@pytest.mark.parametrize("copied", [False, True], ids=["no copy", "a copy with no Home: line"])
+def test_a_launch_keeps_the_home_its_queued_brief_names_in_the_brief_it_writes(kitchen, copied):
+    """A scoped home's row is still its own once launched: every message about it is routed by
+    the copy in `tasks/`, so the copy names the home the queued brief names."""
+    flow = kitchen.home / "flow"
+    flow.mkdir(parents=True)
+    (flow / "home-id").write_text("mcp:flow-home\n")
+    stored = complete("alpha").replace("\n", "\nHome: flow\n", 1)
+    queued(kitchen, "alpha", stored)
+    brief = kitchen.home / "tasks/alpha.md"
+    if copied:
+        brief.parent.mkdir(parents=True, exist_ok=True)
+        brief.write_text(jbus.queue.body(stored))
+    kitchen.poll()
+    copy = brief.read_text()
+    assert [line for line in copy.splitlines() if line.startswith("Home:")] == ["Home: flow"]
+    assert home_of(kitchen.home, copy) == flow
+    assert jbus.queue.brief_sha(copy) == jbus.queue.brief_sha(stored)
+    assert "Home: flow\n" in kitchen.t3.launches[0]["message"]
+    assert "out alpha: row launched" in children.out(kitchen.home, flow, kitchen.state, [])
+    assert kitchen.lines("gate") == []
 
 
 @pytest.mark.parametrize(

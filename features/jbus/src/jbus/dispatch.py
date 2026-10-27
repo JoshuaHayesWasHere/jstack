@@ -53,7 +53,7 @@ from typing import Any
 import jroles
 import jroles.mirror
 from jbriefs import parse
-from jbriefs.home import home_of
+from jbriefs.home import home_of, named
 from jbus import queue, read_json, verbs, write_json
 from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error, T3Refused
@@ -426,8 +426,8 @@ class Caps:
 
 def caps(run: Pass, slugs: tuple[str, ...]) -> Caps:
     """Count the crews out, `slugs`, by the home each one's queued brief names. The queued brief
-    is the one the row was approved with: the copy a launch writes in `tasks/` has no `Home:`
-    line. A crew whose queued brief is gone counts toward the root home."""
+    is the one the row was approved with, and the copy a launch writes in `tasks/` names the same
+    home (`homed`). A crew whose queued brief is gone counts toward the root home."""
     made = Caps(run.project.name, run.home, run.config.max_per_home, run.config.max_per_project)
     for slug in slugs:
         made.add(home_of(run.home, queue.brief(run.state, slug) or ""))
@@ -554,7 +554,7 @@ class Turns:
             default = base.stdout.strip().removeprefix("origin/")
             plain = queue.body(brief)
             green = mainjson.read(run.state).green
-            text = launched_text(plain, green, on)
+            text = homed(launched_text(plain, green, on), brief)
             target = run.home / "tasks" / f"{slug}.md"
             wrote = not target.exists()
             on_disk = "" if wrote else queue.body(target.read_text(errors="replace"))
@@ -603,10 +603,10 @@ class Turns:
             if wrote:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(text)
-            elif (
-                named := launched_text(kept := target.read_text(errors="replace"), green, on)
-            ) != kept:
-                target.write_text(named)
+            elif (kept := target.read_text(errors="replace")) != (
+                put := homed(launched_text(kept, green, on), brief)
+            ):
+                target.write_text(put)
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
@@ -737,3 +737,19 @@ STEPS = (
         ("sight", "budget"),
     ),
 )
+
+
+def homed(text: str, brief: str) -> str:
+    """Return `text` with the `Home:` line of `brief`, the queued brief, last in its head, when
+    `brief` names a home and the head of `text` names none. Every message about a launched row is
+    routed by its copy in `tasks/`, so the copy names the home its row belongs to. `queue.body`
+    leaves the line out, so the brief's sha stays the same."""
+    home = named(brief)
+    if not home or named(text):
+        return text
+    lines = text.splitlines(keepends=True)
+    place = next((n for n, line in enumerate(lines) if line.startswith("## ")), len(lines))
+    if place and not lines[place - 1].endswith("\n"):
+        lines[place - 1] += "\n"
+    lines.insert(place, f"Home: {home}\n")
+    return "".join(lines)
