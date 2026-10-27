@@ -227,6 +227,62 @@ def test_a_drop_message_t3_code_refuses_is_a_gate_once(launched):
     assert launched.lines("drops") == []
 
 
+def ruled(head, files="a.py"):
+    """Return what `jmerge` prints after the url for drops the Result explains at this head, which
+    no scoped review has ruled on yet."""
+    return ready.SCOPED_UNRULED.format(files=files, command=command(head))
+
+
+def test_drops_the_result_explains_get_one_scoped_review_over_two_passes(launched):
+    head = "c" * 40
+    out(launched, reason=ruled(head))
+    for minutes in (0, 3):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    (given,) = sends(launched)
+    assert given["clientRequestId"] == "rereview|alpha|cccccccccccc"
+    assert given["message"].startswith(
+        "jbus: your Result explains the lines the rebase of pull request #7 dropped, and no "
+        f"scoped review has ruled on them yet ({command(head)}). If the Result already has"
+    )
+    assert f"`/pr-review run alpha scoped {OLD} {'2' * 40}..{head}`" in given["message"]
+    assert f"`Scoped reviewer: <threadId>, of {head}`" in given["message"]
+    line = "rereview alpha: asked the crew for a scoped review (#7, cccccccccccc)"
+    assert launched.lines("rereview") == [line] and gates(launched) == []
+
+
+def test_drops_whose_scoped_reviewer_the_result_names_at_this_head_ask_nobody(launched):
+    head = "c" * 40
+    brief = launched.home / "tasks/alpha.md"
+    brief.write_text(brief.read_text() + f"Scoped reviewer: mcp:reviewer, of {head}\n")
+    out(launched, reason=ruled(head))
+    for minutes in (0, 3):
+        launched.poll(NOW + timedelta(minutes=minutes))
+    assert sends(launched) == [] and launched.lines("rereview") == []
+
+
+def test_drops_already_asked_for_at_this_head_ask_nothing_more(launched):
+    out(launched)
+    launched.poll()
+    out(launched, reason=ruled("c" * 40))
+    launched.poll(NOW + timedelta(minutes=3))
+    assert [given["clientRequestId"] for given in sends(launched)] == [
+        "rereview|alpha|cccccccccccc"
+    ]
+
+
+def test_the_unruled_line_jbus_reads_is_the_line_jmerge_prints():
+    said = ready.drops(
+        (ready.Drop("a.py", 2, 1),),
+        "Dropped on rebase: a.py, 2 of main's, 1 of its own, at cccccccccccc: on purpose\n",
+        "c" * 40,
+        user=jsettings.DEFAULTS,
+        command=command("c" * 40),
+    )
+    assert said == ("wait", ruled("c" * 40))
+    number, reason, ask = rebase.content(f"wait 7 {URL}: {said[1]}")
+    assert (number, reason, ask.kind, ask.head) == (7, ruled("c" * 40), "rereview", "c" * 40)
+
+
 @pytest.mark.parametrize(
     ("word", "reason", "head"),
     [

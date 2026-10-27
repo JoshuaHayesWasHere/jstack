@@ -129,7 +129,10 @@ UNRULED_DROPS = Reason(
     "hold",
     "needs {user}, the review of {head} did not rule on the drops in {files}",
 )
-SCOPED_UNRULED = Reason("second", "the scoped review has not ruled on the drops in {files}")
+SCOPED_UNRULED = Reason(
+    "second",
+    "the scoped review has not ruled on the drops in {files}; scoped review of {command}",
+)
 CONTENT_CHANGED = Reason(
     "second",
     "the rebase changed the content after its review; scoped review of {command}",
@@ -906,7 +909,9 @@ def unexplained(lost: tuple[Drop, ...], text: str, head: str) -> tuple[Drop, ...
     return tuple(one for one in lost if said.get(one.file, ())[:2] != (one.mains, one.own))
 
 
-def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tuple[str, str]:
+def drops(
+    lost: tuple[Drop, ...], text: str, head: str, *, user: Settings, command: str = "nothing"
+) -> tuple[str, str]:
     lost = tuple(one for one in lost if one.mains or one.own)
     silent = unexplained(lost, text, head)
     if silent:
@@ -924,7 +929,7 @@ def drops(lost: tuple[Drop, ...], text: str, head: str, *, user: Settings) -> tu
     if unruled and ruled:
         return "hold", UNRULED_DROPS.format(user=user.user, head=head[:12], files=unruled)
     if unruled:
-        return "wait", SCOPED_UNRULED.format(files=unruled)
+        return "wait", SCOPED_UNRULED.format(files=unruled, command=command)
     return "", ""
 
 

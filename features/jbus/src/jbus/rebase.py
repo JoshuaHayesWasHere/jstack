@@ -25,8 +25,11 @@ asks for a second review of the same head.
 
 The third kind of `wait` line is about a rebase that dropped lines nobody explained. `jmerge` waits
 on such a rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head 12>`. The
-crew puts the lines back, or says for each file why the lines are gone. The scoped review then rules
-on those reasons.
+crew puts the lines back, or says for each file why the lines are gone. `jmerge` then waits on the
+scoped review that rules on those reasons, and its line names the range-diff, as the changed-content
+line does. So the third kind ends in a scoped-review ask too: jbus asks the crew for that review
+once per head, under `rereview|<slug>|<head 12>`. A head that already has that mark, or whose
+Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
 `deliver` is the one function that sends these messages. `stall` calls `deliver` too, for a line
 that this module does not read: a guarded pull request with a fix that no review has proved
@@ -111,13 +114,19 @@ MESSAGE = (
 )
 
 
-_CONTENT = re.compile(
+_RANGES = r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
+_CONTENT = re.compile(r"\b" + re.escape(ready.CONTENT_CHANGED.removesuffix("{command}")) + _RANGES)
+_UNRULED = re.compile(
     r"\b"
-    + re.escape(ready.CONTENT_CHANGED.removesuffix("{command}"))
-    + r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
+    + re.escape(ready.SCOPED_UNRULED.removesuffix("{command}")).replace(re.escape("{files}"), ".+")
+    + _RANGES
 )
 REREVIEW = (
     "jbus: your rebase of pull request #{number} changed its content after its review ({command})."
+)
+UNRULED = (
+    "jbus: your Result explains the lines the rebase of pull request #{number} dropped, and no "
+    "scoped review has ruled on them yet ({command})."
 )
 UNPROVEN = (
     "jbus: the fix you pushed to pull request #{number} has no review at its head, and jmerge "
@@ -184,13 +193,15 @@ class Ask:
 
 def content(line: str) -> tuple[int, str, Ask] | None:
     """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
-    that jbus requests. `content` reads a line that waits on a scoped review."""
+    that jbus requests. `content` reads a line that waits on a scoped review: of a rebase that
+    changed the content, or of drops the Result explains that no review has ruled on."""
     found = _WAIT.match(line)
-    named = found and _CONTENT.search(found[2])
-    if not found or not named:
-        return None
-    asked = _scoped(REREVIEW.replace("{command}", named[1]), named[2], named[3])
-    return int(found[1]), found[2], Ask("rereview", *asked, named[4])
+    for pattern, why in ((_CONTENT, REREVIEW), (_UNRULED, UNRULED)):
+        named = found and pattern.search(found[2])
+        if found and named:
+            asked = _scoped(why.replace("{command}", named[1]), named[2], named[3])
+            return int(found[1]), found[2], Ask("rereview", *asked, named[4])
+    return None
 
 
 def unproven(old: str, new: str) -> Ask:
@@ -238,9 +249,21 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
 
 def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
     """Send one message, once per head, to each crew whose pull request `jmerge` calls stale,
-    rebased with its content changed, or short of lines nobody explained."""
+    rebased with its content changed, or short of lines nobody explained or ruled on. A scoped
+    review the Result already names a reviewer of at its head is asked for no more."""
     for number, reason, ask in filter(None, map(asks, lines)):
+        if ask.kind == "rereview" and scoping(run, world, number, ask.head):
+            continue
         deliver(run, client, world, number, reason, ask)
+
+
+def scoping(run: Pass, world: World, number: int, head: str) -> bool:
+    """Say whether the brief of the pull request has a `Scoped reviewer:` line of this head."""
+    slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
+    lines = _brief(run, slug).splitlines() if slug else []
+    return any(
+        line.startswith("Scoped reviewer:") and line.split()[-2:] == ["of", head] for line in lines
+    )
 
 
 def github(run: Pass, client: Client, world: World) -> None:

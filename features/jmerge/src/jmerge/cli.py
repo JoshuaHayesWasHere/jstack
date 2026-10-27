@@ -936,6 +936,7 @@ class Repo:
         ):
             covered = under
         reviewed = None if short or silent else covered
+        verdict: rangediff.Verdict | None = None
         if reviewed == "":
             short = ready.NO_HEAD
         elif reviewed:
@@ -960,7 +961,8 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         left = self.left(one)
         lifted = self.accepted == (one.number, one.head)
-        kind, why = ready.drops(lost, text, one.head, user=self.user)
+        command = verdict.command if verdict else "nothing"
+        kind, why = ready.drops(lost, text, one.head, user=self.user, command=command)
         if not kind:
             kind, why = ready.declines(text, user=self.user)
         self.lifts = []

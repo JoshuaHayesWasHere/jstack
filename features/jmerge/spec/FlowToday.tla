@@ -78,7 +78,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:971-972
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:976-977
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
     /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:458-466
@@ -104,7 +104,7 @@ Restack(p) ==
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus sends to
 \* a thread already running, so no room is asked for, and its turn may leave a process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:250, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:273, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
@@ -122,9 +122,9 @@ CrewFix(p) ==
 \* fresh check runs.
 Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:880, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:306-309, red_only
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:309-312, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:837, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:956, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:957, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:96, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:76, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
