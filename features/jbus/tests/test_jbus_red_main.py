@@ -81,7 +81,9 @@ def test_a_red_tip_keeps_the_green_tip_before_it(kitchen):
 
 
 def test_a_red_main_with_no_merge_in_a_day_is_kept_as_red_and_gets_its_fix_row(kitchen):
-    """The pass that first sees the red keeps it in `main.json`, and the next files its row."""
+    """The pass that first sees the red keeps it in `main.json`, and the next files its row, which
+    the follow-up rule approves as it is queued: jbus filed it from a red check, and it names no
+    parent, since no row's merge turned main red."""
     kitchen.quiet()
     red = tip(kitchen)
     checks(kitchen, red, "failure")
@@ -90,7 +92,9 @@ def test_a_red_main_with_no_merge_in_a_day_is_kept_as_red_and_gets_its_fix_row(k
     assert kept(kitchen) == mainjson.Main(red=red)
     kitchen.poll(NOW + timedelta(minutes=1))
     (fix,) = main_red(kitchen)
-    assert fix["slug"] == f"{mainjson.FIX}{red[:12]}" and fix["approved"] == ""
+    assert fix["slug"] == f"{mainjson.FIX}{red[:12]}"
+    assert fix["approval"]["basis"] == jbus.queue.RULE and "follows" not in fix["approval"]
+    assert f"main check failed at {red[:12]}" in fix["approved"]
 
 
 def red_after_a_quiet_day(kitchen, briefed_ago):
