@@ -155,6 +155,10 @@ BASIS = (
     "<session key>/<entry id>"
 )
 RULE = "rule"
+ENTRY = "entry"
+ANSWER = "answer"
+GO_DEFAULT = "approve"
+SIZED = ("S", "M")
 BY_RULE = "--follows <parent slug>"
 FOLLOW_RULE = "a follow-up of approved work needs no new approval"
 FOLLOW_REF = "follow-up"
@@ -349,17 +353,27 @@ class Approval:
     brief_sha: str = ""
     scope: str = ""
     meaning: list[Any] = field(default_factory=list)
+    message: str = ""
+    closed_by: str = ""
 
     def who(self) -> str:
         return who(self.ran_by)
 
     def line(self) -> str:
+        ran = f"run {self.ran_at} by {self.who()}"
+        if self.basis == ENTRY:
+            where = f", in {self.said_in}" if self.said_in else ""
+            return f"your go for the plan entry {self.ref}, {self.said_at}{where}; {ran}"
+        if self.closed_by:
+            return (
+                f"question {self.ref} closed on its default, {GO_DEFAULT}, by {self.closed_by}, "
+                f"{self.said_at}; {ran}; you did not speak of this row"
+            )
         if self.basis == RULE:
             ruled = "the follow-up rule" if self.ref == FOLLOW_REF else f"rule {self.ref}"
             of = f"follow-up of {self.follows}" if self.follows else self.ground
             parent = f"{ruled}, {of}"
-            return f"{parent}; run {self.ran_at} by {self.who()}; you did not speak of this row"
-        ran = f"run {self.ran_at} by {self.who()}"
+            return f"{parent}; {ran}; you did not speak of this row"
         if self.basis == PAGE:
             return f"your pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
         typed = "" if self.checked else " (time typed)"
@@ -385,14 +399,14 @@ def approval(row: Row) -> str:
     return f"{typed} (typed, not checked)" if typed else ""
 
 
+_SPARE = ("follows", "ground", "message", "closed_by")
+
+
 def held(made: Approval) -> dict[str, Any]:
     """Return the record in the form that a row stores, with `follows` only where the approval
-    has a parent and `ground` only where it has none."""
-    return {
-        name: value
-        for name, value in asdict(made).items()
-        if name not in ("follows", "ground") or value
-    }
+    has a parent, `ground` only where it has none, `message` only where it rests on an entry's
+    go, and `closed_by` only where a gate's close by silence gave it."""
+    return {name: value for name, value in asdict(made).items() if name not in _SPARE or value}
 
 
 def ran_at(row: Row) -> str:
@@ -669,6 +683,7 @@ class Rename:
 
 
 Verb = Add | Approve | Hold | Remove | Withdraw | Rename
+EntryGo = Callable[[str, str], Said | None]
 
 
 @dataclass(frozen=True)
@@ -685,6 +700,9 @@ class Asks:
 
     `integration` is the branches that the home's `integration` file names: a sync of one of
     them is a follow-up's kind (`KINDS`).
+
+    `entry_go` gets a brief and its plan entry, and returns the user's go for that entry where it
+    holds, with the message on `ref`, or None (`jbus.plan.holding`).
     """
 
     out: Callable[[str], str]
@@ -692,6 +710,7 @@ class Asks:
     told: Callable[[dict[str, Any]], None]
     said: Callable[[str, str], Said] | None = None
     integration: tuple[str, ...] = ()
+    entry_go: EntryGo | None = None
 
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
@@ -740,6 +759,7 @@ class _Batch:
     aside: dict[Path, str]
     queued: list[str] = field(default_factory=list)
     parents: list[str] = field(default_factory=list)
+    added: list[str] = field(default_factory=list)
 
     def brief(self, slug: str) -> str | None:
         return self.briefs[slug] if slug in self.briefs else brief(self.state, slug)
@@ -781,6 +801,11 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     row, here = _parent_row(batch, slug, follows)
     if not row.get("approved"):
         raise Refused(f"{cannot} {follows}: {follows} has no approval")
+    made = record(row)
+    if made is not None and made.closed_by:
+        raise Refused(
+            f"{cannot} {follows}: {follows}'s go was a gate's silence, not the user's word"
+        )
     text = batch.brief(follows) if here else None
     if text is not None and not approved_text(row, text):
         raise Refused(f"{cannot} {follows}: {follows}'s brief changed after its approval")
@@ -876,6 +901,8 @@ def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: b
     made = record(row)
     if row.get("approved") and (made is None or made.basis != RULE):
         raise Refused(f"refused: {slug} had the user's go, which its brief no longer holds")
+    if case(text):
+        raise Refused(f"refused: {slug}'s brief holds a case of gates.md, {case(text)}")
     if not named and filed(row, text):
         if made and made.basis == RULE and made.follows:
             raise Refused(f"refused: {slug}'s go followed {made.follows}, and its brief names none")
@@ -946,11 +973,12 @@ def _hold(row: Row) -> None:
     row.pop("rebound", None)
 
 
-def _unfollow(rows: list[Row], parent: str) -> list[str]:
+def _unfollow(rows: list[Row], parent: str, hold: bool = True) -> list[str]:
     """Take the go back from each row that is still queued and was approved as a follow-up of
     `parent`, or of a row so held, down the chain, since its go depended on the parent's go,
     which is gone. Return their slugs. A row that was launched keeps its record, since nothing
-    takes a launch back."""
+    takes a launch back. With no `hold`, the rows wait with no hold, so the rule approves them
+    again once the parent has a go."""
     held, gone = [], [parent]
     while gone:
         one = gone.pop()
@@ -958,6 +986,8 @@ def _unfollow(rows: list[Row], parent: str) -> list[str]:
             made = record(row)
             if made and made.follows == one and row.get("status", "queued") == "queued":
                 _hold(row)
+                if not hold:
+                    row.pop("held", None)
                 held.append(row["slug"])
                 gone.append(row["slug"])
     return sorted(held)
@@ -1253,6 +1283,7 @@ def _do(
             row.update(brief_sha=brief_sha(was), rebound=fingerprint(was))
         if not found or (kept and kept.basis == RULE):
             batch.queued.append(verb.slug)
+        batch.added.append(verb.slug)
         if not found:
             rows.append(row)
         batch.briefs[verb.slug] = verb.text
@@ -1295,27 +1326,10 @@ def _do(
             rests = said[verb.basis, verb.ref]
         if isinstance(rests, Refused):
             raise rests
-        batch.parents.append(verb.slug)
-        means = fingerprint(text)
-        made = Approval(
-            basis=verb.basis,
-            ref=FOLLOW_REF if ruled else verb.ref,
-            words=rests.words,
-            said_at=rests.said_at,
-            said_in=rests.said_in,
-            checked=rests.checked,
-            ran_by=ran_by or runner(),
-            ran_at=user.stamp(clock()),
-            follows=verb.follows,
-            ground=ground,
-            brief_sha=stored,
-            scope=meaning.fingerprint(means),
-            meaning=means,
+        ref = FOLLOW_REF if ruled else verb.ref
+        return _grant(
+            batch, row, text, verb.basis, ref, rests, user, ran_by, verb.follows, ground=ground
         )
-        row.pop("held", None)
-        row.pop("rebound", None)
-        row.update(approved=made.line(), approval=held(made), brief_sha=stored)
-        return f"approved {verb.slug}: brief {stored[:12]}, {made.line()}"
     if isinstance(verb, Withdraw):
         row = batch.row(verb.slug)
         _launching(row, asks)
@@ -1348,6 +1362,166 @@ def _do(
         why += " never launched"
         return _take_out(batch, row, verb.slug, who(ran_by or runner()), verb.at, why)
     return _take_out(batch, row, verb.slug, verb.by, verb.at)
+
+
+def _grant(
+    batch: _Batch,
+    row: Row,
+    text: str,
+    basis: str,
+    ref: str,
+    rests: Said,
+    user: jsettings.Settings,
+    ran_by: dict[str, str] | None,
+    follows: str = "",
+    closed_by: str = "",
+    ground: str = "",
+) -> str:
+    """Record a go on the row for the brief `text`, on the words `rests`, and return the line
+    that says so. Every go jbus records is made here: an `approve`, and a go by a rule."""
+    batch.parents.append(row["slug"])
+    stored, means = brief_sha(text), fingerprint(text)
+    made = Approval(
+        basis=basis,
+        ref=ref,
+        words=rests.words,
+        said_at=rests.said_at,
+        said_in=rests.said_in,
+        checked=rests.checked,
+        ran_by=ran_by or runner(),
+        ran_at=user.stamp(clock()),
+        follows=follows,
+        ground=ground,
+        brief_sha=stored,
+        scope=meaning.fingerprint(means),
+        meaning=means,
+        message=rests.ref if basis == ENTRY else "",
+        closed_by=closed_by,
+    )
+    row.pop("held", None)
+    row.pop("rebound", None)
+    row.update(approved=made.line(), approval=held(made), brief_sha=stored)
+    return f"approved {row['slug']}: brief {stored[:12]}, {made.line()}"
+
+
+def case(text: str) -> str:
+    """Return the case of `gates.md` that the brief's head names on a `Holds:` line, or nothing.
+    Such a row waits for the user's own word: no entry's go, no silence and no follow-up rule
+    approves it."""
+    for label, lines in briefs.fields(text):
+        if label == "Holds":
+            return " ".join(lines).strip() or "a Holds: line with no case"
+    return ""
+
+
+def _waits(row: Row | None, text: str | None) -> bool:
+    """Return whether the row waits for a go that a rule may give: it is queued, not held, and
+    its go does not hold for its brief."""
+    if row is None or text is None or row.get("held") or row.get("status", "queued") != "queued":
+        return False
+    return not (row.get("approved") and approved_text(row, text))
+
+
+def _entered(
+    batch: _Batch,
+    slug: str,
+    user: jsettings.Settings | None,
+    entry_go: EntryGo | None,
+    ran_by: dict[str, str] | None = None,
+) -> str:
+    """Approve by the entry's go a row that waits for a go, and return the line that says so,
+    or nothing. The setting `go` is `entry`, the row's brief names no case of `gates.md`, and the
+    go of the row's plan entry holds (`entry_go`)."""
+    if user is None or entry_go is None or user.go != jsettings.ENTRY:
+        return ""
+    row = next((row for row in batch.rows if row["slug"] == slug), None)
+    text = batch.brief(slug)
+    if not _waits(row, text) or row is None or text is None or case(text):
+        return ""
+    said = entry_go(text, entry(row))
+    if said is None:
+        return ""
+    return _grant(batch, row, text, ENTRY, entry(row), said, user, ran_by)
+
+
+def _void(rows: list[Row], row: Row) -> list[str]:
+    """Take back the go of an unlaunched row with no hold, so that the user's go, or a new go of
+    its entry, approves it again. Each follow-up of it is taken back the same way."""
+    row.update(approved="", brief_sha="")
+    row.pop("approval", None)
+    row.pop("rebound", None)
+    return [row["slug"], *_unfollow(rows, row["slug"], hold=False)]
+
+
+def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[str]:
+    """Keep the entry rule on the table, as jbus's pass does on each pass and `jbus plan` does at
+    a go or a stop. An unlaunched row whose go is its entry's goes back to waiting for the user
+    when that go no longer holds or its brief now names a case of `gates.md`: a launched row keeps
+    its go. Then each waiting row whose entry's go holds is approved (`_entered`). Return a line
+    for each."""
+    said: list[str] = []
+    with _changing(state) as rows:
+        try:
+            gone = removed(state)
+        except Unparsable:
+            return said
+        batch = _Batch(state, rows, gone, {}, [], {})
+        for row in sorted(rows, key=order):
+            made, text = record(row), batch.brief(row["slug"])
+            if not made or made.basis != ENTRY or not _unlaunched(row) or row.get("held"):
+                continue
+            why = case(text) if text is not None else "its brief is gone"
+            if not why and entry_go(text or "", entry(row)) is None:
+                why = f"the go of its plan entry {entry(row)} no longer holds"
+            if why:
+                back = ", ".join(_void(rows, row))
+                said.append(f"{back} waits for the user's go: {why}")
+        for row in sorted(rows, key=order):
+            line = _entered(batch, row["slug"], user, entry_go, PASS)
+            if line:
+                said.append(line)
+    return said
+
+
+def one_pull_request(text: str) -> bool:
+    """Return whether the brief asks for one pull request: it is no link of a stack, and its
+    `Pull request:` line does not say none."""
+    told = {label: " ".join(lines).strip() for label, lines in briefs.fields(text)}
+    asked = told.get("Pull request", "")
+    return "Stack" not in told and bool(asked) and not asked.lower().startswith("none")
+
+
+def silenced(state: Path, slug: str, number: int, at: str, user: jsettings.Settings) -> str:
+    """Approve the row that a gate with the default `approve` asked about, once the gate closed on
+    that default by silence, and return the line that says so, or why the row still waits. The
+    setting `go` is `silence`, and the row is of size S or M, asks for one pull request and names
+    no case of `gates.md`."""
+    with _changing(state) as rows:
+        try:
+            gone = removed(state)
+        except Unparsable:
+            return ""
+        batch = _Batch(state, rows, gone, {}, [], {})
+        row = next((row for row in rows if row["slug"] == slug), None)
+        text = batch.brief(slug)
+        if row is None or text is None or not _waits(row, text):
+            return ""
+        size = " ".join(
+            next((lines for label, lines in briefs.fields(text) if label == "Size"), [])
+        )
+        why = ""
+        if user.go != jsettings.SILENCE:
+            why = f"the setting go is {user.go}, not {jsettings.SILENCE}"
+        elif case(text):
+            why = f"its brief names a case of gates.md ({case(text)})"
+        elif size.strip() not in SIZED:
+            why = f"its size is {size.strip() or 'not given'}, and silence starts only S or M"
+        elif not one_pull_request(text):
+            why = "its brief does not ask for one pull request"
+        if why:
+            return f"{slug} waits for the user's go after question {number}: {why}"
+        rests = Said("default", at, "", True, str(number))
+        return _grant(batch, row, text, ANSWER, str(number), rests, user, PASS, "", "silence")
 
 
 def _unlaunched(row: Row) -> bool:
@@ -1550,6 +1724,11 @@ def _run(
                 if not line:
                     raise
                 raise _none(line, error) from error
+        if user is not None and asks is not None:
+            for slug in dict.fromkeys(batch.added):
+                line = _entered(batch, slug, user, asks.entry_go, ran_by)
+                if line:
+                    said.append(line)
         if user is not None and (asks is not None or ran_by is not None):
             for slug in _followers(batch):
                 line = _by_rule(batch, slug, user, asks.integration if asks else (), ran_by=ran_by)

@@ -45,9 +45,17 @@ A gate is act-unless-stopped: the thread acts on its default at once, and the qu
 user's chance to stop it. A record stays open until `jbus answer` closes it, and it closes
 once: `jbus answer` refuses a second answer and puts the first one in the refusal. A pass
 also closes a record by silence, with its default, in the first pass that sees it (`QUIET` is
-no time at all) when it has no `Holds:` line (`silent`). If the user answers after that, their
+no time at all) when it has no `Holds:` line (`silent`), but for a go gate under the setting
+`go = "silence"`, which waits its quiet window first. If the user answers after that, their
 answer replaces the close by silence as the record's one answer, and jbus carries an answer
 that differs as it carries any other.
+
+A go gate is one whose default is `approve` (`queue.GO_DEFAULT`) and whose slug is a row of the
+queue that waits for its go: a home's own pick for a new row, parked under the setting
+`go = "silence"`. Nothing acts on its default until it closes, so it waits for an answer for the
+setting's `go_quiet_minutes` and shows on the list of what waits on the user meanwhile. Its close
+by silence approves the row where `queue.silenced` lets it: basis `answer`, `closed_by`
+`silence`. An answer of the user's closes it by `jbus answer`, and approves nothing by itself.
 
 A pass raises a question of its own through the path a piped gate takes (`park`): the record, and
 the `gate` event the Chef reads. `mainmoved` raises one when main's check starts no job. When the
@@ -623,19 +631,28 @@ def _open(one: Question) -> bool:
 
 def silent(run: Pass) -> None:
     """Close by silence, with its default, each open question that has no `Holds:` line, in the
-    first pass that sees it (`QUIET` is no time at all). The thread acted on the default when it
-    asked the question, so jbus sends nothing. jbus writes one quiet `note` event for each
-    question it closes."""
+    first pass that sees it (`QUIET` is no time at all), or, for a go gate under the setting
+    `go = "silence"`, once its quiet window (`go_quiet_minutes`) has passed. The thread acted on
+    the default when it asked the question, so jbus sends nothing. jbus writes one quiet `note`
+    event for each question it closes."""
     if not path(run.state).exists():
         return
     at = jsettings.stamp(run.now)
     given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
+    window = timedelta(minutes=run.user.go_quiet_minutes)
     with _locked(run.state):
         try:
             count, records = _kept(run.state)
         except Unparsable:
             return
-        closed = [replace(one, answer=given) if _quiet(one, run.now) else one for one in records]
+        silence = run.user.go == jsettings.SILENCE
+        goes = _go_gates(run.state) if silence and any(map(_go, records)) else set()
+        closed = [
+            replace(one, answer=given)
+            if _quiet(one, run.now, window if one.slug in goes and _go(one) else QUIET)
+            else one
+            for one in records
+        ]
         if closed == records:
             return
         _write(run.state, count, closed)
@@ -644,9 +661,34 @@ def silent(run: Pass) -> None:
             line = f"{NOTE} {one.slug}: question {one.number} closed with its default, {UNANSWERED}"
             run.find(one.slug, NOTE, line, key=f"silence {one.number}")
             run.say(line)
+            if one.slug in goes and _go(one):
+                went = queue.silenced(
+                    run.state, one.slug, one.number, run.user.stamp(run.now), run.user
+                )
+                if went:
+                    run.say(f"queue {run.project.name}: {went}")
 
 
-def _quiet(one: Question, now: datetime) -> bool:
+def _go(one: Question) -> bool:
+    """Return whether the question's default is to approve its row: a go gate."""
+    return one.default.strip().lower() == queue.GO_DEFAULT
+
+
+def _go_gates(state: Path) -> set[str]:
+    """Return the slugs of the rows that wait for a go: a gate on one with the default `approve`
+    is a go gate."""
+    try:
+        rows = queue.load(state)
+    except queue.Unparsable:
+        return set()
+    return {
+        row["slug"]
+        for row in rows
+        if row.get("status", "queued") == "queued" and not row.get("approved")
+    }
+
+
+def _quiet(one: Question, now: datetime, window: timedelta = QUIET) -> bool:
     """Return whether silence closes the question now. A gate that holds waits for the user,
     and a question about a link's conflict goes to its home and not to the user, so silence
     never closes either."""
@@ -656,7 +698,7 @@ def _quiet(one: Question, now: datetime) -> bool:
         asked = datetime.fromisoformat(one.asked_at)
     except ValueError:
         return False
-    return asked.tzinfo is not None and now - asked >= QUIET
+    return asked.tzinfo is not None and now - asked >= window
 
 
 def _state(one: Question) -> str:
@@ -666,6 +708,8 @@ def _state(one: Question) -> str:
     home."""
     if one.holds:
         return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
+    if _go(one):
+        return f" Unless you answer, it starts {one.slug} when its quiet window ends."
     if not one.question.endswith(LINK):
         return " Its default is acted on already, and stands unless you stop it."
     return ""
@@ -686,7 +730,7 @@ def item(one: Question) -> dict[str, Any]:
         "home": "",
         "slug": one.slug,
         "since": one.asked_at,
-        "acted": not one.holds,
+        "acted": not one.holds and not _go(one),
         "holds": one.holds,
         "fail_safe": one.fail_safe,
     }
