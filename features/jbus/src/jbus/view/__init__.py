@@ -417,7 +417,8 @@ class App(Writes):
         reads = [
             state.Read(
                 *(self.sources, one, now, runs, code, self.panels, shared),
-                *(self.github.merged, self.github.landed),
+                merged=self.github.merged,
+                landed=self.github.landed,
             )
             for one in names
         ]
