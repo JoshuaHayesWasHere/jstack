@@ -1177,3 +1177,22 @@ def first_line(output: str, code: int) -> str:
 
 
 MERGING = Reason("check", "another run of jmerge is merging into its base")
+BROWSER = "browser"
+"""The check browser.yml's job reports. It runs on a pull request into main that changes the view,
+and is no required check: a head with no run of it waits for none (`browser`)."""
+BROWSER_FAILED = "failed"
+BROWSER_PENDING = "pending"
+BROWSER_RED = Reason("check", "its browser run failed at {head}")
+
+
+def browser(rollup: list[dict]) -> str:
+    """The state of the head's browser run (`BROWSER`): `BROWSER_FAILED` where its latest run
+    ended and failed, `BROWSER_PENDING` where it has not ended, and nothing where there is none,
+    or it passed, was skipped or was cancelled."""
+    if failed(rollup, (BROWSER,)):
+        return BROWSER_FAILED
+    going = ("PENDING", "EXPECTED")
+    for one in latest(rollup, BROWSER):
+        if one.get("state") in going or one.get("status") not in ("COMPLETED", None):
+            return BROWSER_PENDING
+    return ""
