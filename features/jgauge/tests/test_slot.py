@@ -5,12 +5,13 @@ import signal
 import subprocess
 import sys
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 import daemons
-from jgauge import slot
+from jgauge import holders, slot
 from test_machine_sizes import fake_proc
 from test_room import BIN
 
@@ -475,3 +476,59 @@ def test_twenty_pytest_runs_at_once_under_slots_leave_nothing_in_pytests_default
         assert ran.returncode == 0, out + err
     assert list(stand_in.iterdir()) == []
     assert list(slots.locks.glob("*.tmp")) == []
+
+
+# A run with `--thread` is on record as its thread's holder, so jbus can tell that the thread is
+# at work while its turn has ended, and wake it when the run ends.
+
+THREAD = "mcp:thread-9"
+NOW = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
+
+
+def held(slots):
+    return holders.read(slots.locks)
+
+
+def test_a_run_with_a_thread_is_its_threads_holder_until_it_ends(slots):
+    run = slots("--slots", "1", "--thread", THREAD, name="a")
+    assert slots.waits(lambda: slots.started() == ["a"])
+    (one,) = held(slots)
+    assert (one.thread, one.lane, one.ended, one.code) == (THREAD, "full", "", None)
+    assert one.command == ("sh", "-c", RUNS_UNTIL_RELEASED, "sh", "a")
+    assert one.since and holders.running(one)
+    assert [found.thread for found in holders.holding(slots.locks)] == [THREAD]
+    slots.release("a")
+    assert run.wait(timeout=5) == 0
+    (over,) = held(slots)
+    assert (over.id, over.since, over.code) == (one.id, one.since, 0) and over.ended
+    assert not holders.running(over) and holders.holding(slots.locks) == []
+
+
+def test_the_holder_names_the_pid_of_its_command(slots):
+    slots("--short", "--thread", THREAD, command=["sh", "-c", 'echo $$ > "$D/pid"; sleep 5'])
+    assert slots.waits(lambda: (slots.state / "pid").exists() and held(slots))
+    (one,) = held(slots)
+    assert one.lane == "short" and one.pid == int((slots.state / "pid").read_text())
+
+
+def test_a_run_killed_by_sigterm_drops_its_holder_record(slots):
+    run = slots("--slots", "1", "--thread", THREAD, name="a")
+    assert slots.waits(lambda: slots.started() == ["a"] and held(slots))
+    run.send_signal(signal.SIGTERM)
+    assert run.wait(timeout=5) == 128 + signal.SIGTERM
+    assert holders.holding(slots.locks) == []
+    (over,) = held(slots)
+    assert over.ended and over.code == 128 + signal.SIGTERM
+
+
+def test_a_run_with_no_thread_is_nobodys_holder(slots):
+    assert slots("--slots", "1", command=["true"]).wait(timeout=5) == 0
+    assert held(slots) == []
+
+
+def test_a_holder_whose_pid_is_gone_is_not_counted(tmp_path):
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW)
+    (one,) = holders.read(tmp_path)
+    assert not holders.running(one) and holders.holding(tmp_path) == []

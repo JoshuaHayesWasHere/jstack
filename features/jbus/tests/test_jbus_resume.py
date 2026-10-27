@@ -2,6 +2,7 @@
 ended run, at most two for a thread, and then a gate. Like `test_jbus_queue.py`, the tests run
 the real pass against the fakes."""
 
+import os
 from datetime import timedelta
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import pytest
 
 import jbus
 from jbus import threads
+from jgauge import holders, slot
 from test_jbus_kitchen import NOW, RESULT, TOKEN, sends
 from test_jbus_leftover import home
 from test_jbus_queue import add, gates
@@ -115,6 +117,13 @@ def test_a_failed_thread_with_no_result_is_told_once_to_carry_on(kitchen):
     assert f"resume|alpha|{THREAD}|run-1" in jbus.read_json(kitchen.state / "sent.json", [])
     kitchen.poll(NOW + timedelta(minutes=3))
     assert len(sends(kitchen)) == 1 and resumes(kitchen) == [line]
+
+
+def test_a_thread_whose_own_run_holds_a_test_slot_is_not_told_to_carry_on(kitchen):
+    crew(kitchen, status="interrupted")
+    holders.hold(slot.locks_dir(), THREAD, "full", os.getpid(), ["make", "check"], NOW)
+    kitchen.poll()
+    assert sends(kitchen) == [] and resumes(kitchen) == []
 
 
 def test_a_second_end_is_the_last_carry_on_and_a_third_is_a_gate(kitchen):
