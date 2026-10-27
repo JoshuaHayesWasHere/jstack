@@ -166,22 +166,6 @@ def launched_text(brief: str, green: str, on: stacks.Stacked | None) -> str:
     return stacked(green_main(brief, ""), on)
 
 
-def homed(text: str, brief: str) -> str:
-    """Return `text` with the `Home:` line of `brief`, the queued brief, last in its head, when
-    `brief` names a home and the head of `text` names none. Every message about a launched row is
-    routed by its copy in `tasks/`, so the copy names the home its row belongs to. `queue.body`
-    leaves the line out, so the brief's sha stays the same."""
-    home = named(brief)
-    if not home or named(text):
-        return text
-    lines = text.splitlines(keepends=True)
-    place = next((n for n, line in enumerate(lines) if line.startswith("## ")), len(lines))
-    if place and not lines[place - 1].endswith("\n"):
-        lines[place - 1] += "\n"
-    lines.insert(place, f"Home: {home}\n")
-    return "".join(lines)
-
-
 def stacked(brief: str, on: stacks.Stacked) -> str:
     """Return the brief with `on`'s `Stacked on:` line under its first line, in place of any such
     line its head had."""
@@ -755,3 +739,19 @@ STEPS = (
         ("sight", "budget"),
     ),
 )
+
+
+def homed(text: str, brief: str) -> str:
+    """Return `text` with the `Home:` line of `brief`, the queued brief, last in its head, when
+    `brief` names a home and the head of `text` names none. Every message about a launched row is
+    routed by its copy in `tasks/`, so the copy names the home its row belongs to. `queue.body`
+    leaves the line out, so the brief's sha stays the same."""
+    home = named(brief)
+    if not home or named(text):
+        return text
+    lines = text.splitlines(keepends=True)
+    place = next((n for n, line in enumerate(lines) if line.startswith("## ")), len(lines))
+    if place and not lines[place - 1].endswith("\n"):
+        lines[place - 1] += "\n"
+    lines.insert(place, f"Home: {home}\n")
+    return "".join(lines)
