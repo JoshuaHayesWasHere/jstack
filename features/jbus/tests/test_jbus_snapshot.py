@@ -360,6 +360,26 @@ def test_the_alarm_of_a_refused_snapshot_says_which_rule_and_why(kitchen, tree):
     assert said[1] == f"demo: {FAILED}: {why}"
 
 
+def test_a_refused_standing_md_is_left_out_and_the_rest_of_the_tree_is_committed(kitchen, tree):
+    other = kitchen.second()
+    kept = "# other: standing rules (at most 3)\n"
+    path = tree / other.name / "standing.md"
+    path.write_text(kept)
+    git(tree, "add", "-A")
+    git(tree, "commit", "-q", "-m", "other's rules")
+    before = git(tree, "rev-parse", "HEAD")
+    (tree / "demo" / "notes.md").write_text("# notes\nA's change\n")
+    path.write_text(f"{kept}\n1. A rule with no code.\n")
+    code, said = take()
+    why = f"other: {path} rule 1 has no Code: <slug>, the queue row that makes it code"
+    assert (code, said) == (1, [f"snapshot: refused, left out: {why}", no_remote(tree)])
+    assert git(tree, "rev-parse", "HEAD~1") == before
+    assert git(tree, "show", "--name-only", "--format=", "HEAD") == "demo/notes.md"
+    assert git(tree, "show", "HEAD:other/standing.md") == kept.strip()
+    assert git(tree, "status", "--porcelain") == "M other/standing.md"
+    assert f"{FAILED}: {why}" in alarm()[1]
+
+
 def with_origin(tree, tmp_path):
     bare = tmp_path / "state-tree.git"
     subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True)
