@@ -42,10 +42,12 @@ function glanceTier(tier, items) {
 }
 function glanceWhen(t) { var v = ms(t); return v == null ? "" : NOW - v < 60e3 ? "just now" : short(NOW - v) + " ago"; }
 function glanceMoving(it) { return esc(it.cause) + ' &middot; ' + (ms(it.since) == null ? "no pass kept" : "last pass " + glanceWhen(it.since)); }
-var GLANCE_KEY = "jbus.glance.looked", GLANCE_VISIT = null;
+var GLANCE_KEY = "jbus.since.looked", GLANCE_VISIT = null;
+try { localStorage.removeItem("jbus.glance.looked"); } catch (e) {}
 function glanceStamp() { try { return Number(localStorage.getItem(GLANCE_KEY)) || null; } catch (e) { return null; } }
 function glanceShown() { return document.visibilityState !== "hidden"; }
-document.addEventListener("visibilitychange", function () { if (!glanceShown()) GLANCE_VISIT = null; });
+var GLANCE_WAS = glanceStamp();
+document.addEventListener("visibilitychange", function () { if (!glanceShown()) GLANCE_VISIT = null; else if (!GLANCE_VISIT) GLANCE_WAS = glanceStamp(); });
 var GLANCE_MOTION = { moving: "Moving.", still: "Not moving.", rest: "At rest." };
 function glanceVerdict(v) {
   var said = '<b>' + GLANCE_MOTION[v.motion] + '</b> ' +
@@ -54,7 +56,7 @@ function glanceVerdict(v) {
   return said;
 }
 function glanceSince(g) {
-  var visit = GLANCE_VISIT || { was: glanceStamp(), at: NOW };
+  var visit = GLANCE_VISIT || { was: GLANCE_WAS, at: NOW };
   if (glanceShown()) {
     GLANCE_VISIT = visit;
     try { localStorage.setItem(GLANCE_KEY, String(NOW)); } catch (e) {}
