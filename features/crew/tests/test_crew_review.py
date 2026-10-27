@@ -501,7 +501,8 @@ def test_the_fixed_line_that_marks_the_draft_ready_comes_after_a_green_check_at_
     head on a `Checked:` line, and write `Fixed:` only on exit 0: CI's run is never the first
     check a head gets.
     make prints its rules for a goal that does nothing, since `make -n check-fast` still runs a
-    recipe that calls $(MAKE), and CI's checkout has no origin/main to diff against."""
+    recipe that calls $(MAKE), and CI's checkout has no origin/main to diff against.
+    The goal comes on stdin, not by --eval, which macOS's make 3.81 does not have."""
     review = sections()["The review"]
     (gate,) = [line for line in review.splitlines() if line.startswith("Before it, run the check")]
     assert "`make check-fast BASE=origin/main`" in gate
@@ -511,7 +512,8 @@ def test_the_fixed_line_that_marks_the_draft_ready_comes_after_a_green_check_at_
     assert review.index(gate) < review.index("- `Fixed: <full commit>`")
     make, target, base = re.search(r"`(make check-fast BASE=origin/main)`", gate).group(1).split()
     ran = subprocess.run(
-        [make, "-pn", "--eval", "jstack-nothing: ;", "jstack-nothing", base],
+        [make, "-pn", "-f", "Makefile", "-f", "-", "jstack-nothing", base],
+        input="jstack-nothing: ;\n",
         cwd=REPO,
         capture_output=True,
         text=True,
