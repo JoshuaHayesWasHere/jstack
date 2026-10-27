@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
+import jsettings
 from jbus.ci import ledger
 
 TITLE = "jstack-ci"
@@ -119,7 +120,7 @@ def signs(lines: list[str]) -> list[str]:
 
 
 def _time(text: str | None) -> datetime | None:
-    return datetime.fromisoformat(text.replace("Z", "+00:00")) if text else None
+    return jsettings.when(text) if text else None
 
 
 def pull_for(run: dict[str, Any], job: dict[str, Any], pulls: list[dict[str, Any]]) -> int | None:

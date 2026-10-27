@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 import jroles
+import jsettings
 from jbus import Config, Refused, queue, read_json, verbs, write_json
 from jbus.bind import NoLookup
 from jroles import pool
@@ -349,7 +350,7 @@ class Client:
             offset = further
         one = found[0]
         try:
-            at = datetime.fromisoformat(str(one.get("updatedAt")).replace("Z", "+00:00"))
+            at = jsettings.when(str(one.get("updatedAt")))
         except ValueError as error:
             raise T3Refused(f"t3_thread_read: message {message} has no time") from error
         return Message(

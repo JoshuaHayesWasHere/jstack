@@ -143,6 +143,7 @@ def reviewer(tmp_path):
     env = {
         **os.environ,
         "HOME": str(home),
+        "JBUS_HOME_DIR": str(home / ".local" / "state" / "home"),
         "PATH": f"{stub}:{BIN}:{os.environ['PATH']}",
         "STUB": str(stub),
         "H": str(tmp_path),
@@ -1693,7 +1694,7 @@ def test_a_rebase_that_came_while_the_section_was_written_is_seen_on_the_second_
 
 def who_merges(reviewer):
     """What the crew skill's own check prints before a `fixed and green` line."""
-    asks = crew.block("Telling the home", "home-thread")
+    asks = crew.block("Telling the home", "<fixed or waits>")
     assert "<fixed or waits>" in asks
     ran = subprocess.run(
         ["sh", "-c", asks.replace("<fixed or waits>", "fixed").replace("<slug>", "a-task")],
@@ -1710,9 +1711,10 @@ def who_merges(reviewer):
 def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
     reviewer, switch, scope
 ):
-    """A home that merges hears `fixed and green` from the crewmate. While jbus merges, it merges
-    a scoped home's pull request as it merges the root home's, and the crewmate sends nothing for
-    either. The crew skill's check says when jbus must wake the crewmate."""
+    """jbus is the only merger: it merges a scoped home's pull request as it merges the root
+    home's, and the crewmate sends nothing for either, whatever `home-thread` holds. The crew
+    skill's check says when jbus must wake the crewmate. The reviewer's own check still reads
+    `home-thread` until fl-msg-review-notice removes it, so the two agree where it is empty."""
     (reviewer.state / "home-thread").write_text(switch)
     home = ""
     if scope:
@@ -1725,9 +1727,9 @@ def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
         (reviewer.state / "speed" / named).write_text(owner)
         home = f"Home: {'mcp:two' if scope.endswith('id') else 'speed'}\n"
     reviewer.brief.write_text(BRIEF + home + DONE + SECOND)
-    nothing = who_merges(reviewer).startswith("jbus merges: send nothing")
-    assert nothing == (not switch.strip())
-    assert where(reviewer, "clean").startswith("nobody: ") == nothing
+    assert who_merges(reviewer).startswith("jbus merges: send nothing")
+    if not switch.strip():
+        assert where(reviewer, "clean").startswith("nobody: ")
 
 
 def later_pass(made, result, first, files=("a.txt",), run=None):

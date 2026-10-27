@@ -164,6 +164,7 @@ class Ticks:
             env={
                 **os.environ,
                 "HOME": str(self.home.user),
+                "JBUS_HOME_DIR": str(self.home.user / ".local" / "state" / "home"),
                 "PATH": f"{self.home.stub}:{os.environ['PATH']}",
                 "STUB": str(self.home.stub),
                 "UV_CACHE_DIR": test_home_merge.uv_cache(),

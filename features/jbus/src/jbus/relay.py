@@ -97,6 +97,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbus import chat, leftover, silent, verbs
 from jbus.bind import NoLookup
 
@@ -491,7 +492,7 @@ class Lane:
 
 
 def _now() -> str:
-    return datetime.now(UTC).isoformat(timespec="seconds")
+    return jsettings.stamp(datetime.now(UTC))
 
 
 def notify(line: str, say: Say) -> None:

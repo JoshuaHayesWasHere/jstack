@@ -30,6 +30,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbus import budget
 from jmerge import lines
 
@@ -166,8 +167,8 @@ class Run:
 def when(text: str) -> datetime | None:
     """Return the ISO 8601 time, aware, or None for an empty or odd string."""
     try:
-        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
+        moment = jsettings.when(text)
+    except (ValueError, TypeError):
         return None
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 

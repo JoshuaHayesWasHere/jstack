@@ -6,9 +6,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from jbriefs import findings, page, parse, pick, skills
-
-DEFAULT_STATE = Path.home() / ".local" / "state" / "home"
+from jbriefs import findings, home, page, parse, pick, skills
 
 
 def default_out() -> Path:
@@ -55,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         "state",
         nargs="?",
         type=Path,
-        default=DEFAULT_STATE,
+        default=home.homes_dir(),
         help="the directory that holds one home per repo (default: %(default)s); "
         "`jbriefs pick <path | ->` picks the skills for a piece of work instead",
     )

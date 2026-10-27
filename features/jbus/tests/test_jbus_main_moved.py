@@ -362,7 +362,7 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
 @pytest.mark.xfail(
     strict=True,
     reason="a fix row approved once main is green again still launches: watch._retro says it "
-    "green again and leaves it (features/jbus/src/jbus/watch.py:1090-1093), and dispatch "
+    "green again and leaves it (features/jbus/src/jbus/watch.py:1091-1094), and dispatch "
     "launches it",
 )
 def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(launched):

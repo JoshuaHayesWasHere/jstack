@@ -369,7 +369,7 @@ def deliver(
         thread = thread_of(home)
         key = f"item|{project}|{line['item']}|{line['id']}"
         waits = word.post(client, thread, message, key)
-        at = "" if waits else now.astimezone(UTC).isoformat(timespec="seconds")
+        at = "" if waits else jsettings.stamp(now)
         now_is = {"thread": thread if not waits else "", "sent_at": at, "waits": waits}
         tried[line["id"]] = now_is
         if waits and waits == was.get("waits"):

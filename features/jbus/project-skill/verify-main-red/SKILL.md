@@ -6,7 +6,7 @@ description: Rerun the exhaustive check of main.json's red-main contract, the re
 # verify-main-red
 
 `main.json` in a jbus project's state is the one record of main's red tip.
-`mainmoved.tell` (`features/jbus/src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`features/jmerge/src/jmerge/mainjson.py:71-83`) reads it; `jmerge.rows.red` (`features/jmerge/src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
+`mainmoved.tell` (`features/jbus/src/jbus/mainmoved.py:108-218`) is its only writer, once a pass, and builds each record with `jmerge.mainjson.record`; `mainjson.of` (`features/jmerge/src/jmerge/mainjson.py:72-84`) reads it; `jmerge.rows.red` (`features/jmerge/src/jmerge/rows.py:84-87`) turns it into the wait that holds every pull request but the fix's.
 A test runs the orders someone wrote down.
 This check runs every order of merges, check answers, T3 Code answers and passes within its bounds, through the real `tell` and the real `rows.red`, and checks two properties after every pass:
 
@@ -119,7 +119,7 @@ Check every step against this table; a step no line backs is a modeling error, a
 | `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/cli.py:215-219`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:222-230` |
 | `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/cli.py:146` |
 | `Mn lands: another merge` | a merge that asks no `rows.red`: the `main-red-<sha12>` fix (`mainjson.fix_of`), a merge by hand, `jmerge --accept` |
-| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:797-828`; `pending` is a check not ended |
+| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:798-829`; `pending` is a check not ended |
 | `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `features/jbus/src/jbus/mainmoved.py:185-195` |
 
 The stubs are the other place a model can lie: `mainmoved.main_check`, `dispatch.launched`, `dispatch.thread_of` and `rebase.held` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.

@@ -72,6 +72,7 @@ from typing import Any
 
 import jbus
 import jroles
+import jsettings
 from jbus import dispatch, read_json, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -229,7 +230,7 @@ def _when(stamps: list[Any]) -> datetime | None:
     `resets 11pm` means 11pm of that day, whichever pass reads it."""
     for stamp in stamps:
         try:
-            at = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+            at = jsettings.when(str(stamp))
         except ValueError:
             continue
         return at if at.tzinfo else at.replace(tzinfo=UTC)

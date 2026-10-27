@@ -36,6 +36,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbriefs import home as homes
 from jbus import (
     Config,
@@ -161,8 +162,8 @@ def _rhythm(scope: Path) -> int:
 
 def _at(stamp: str) -> datetime | None:
     try:
-        return datetime.fromisoformat(stamp.replace("Z", "+00:00"))
-    except (AttributeError, ValueError):
+        return jsettings.when(stamp)
+    except (TypeError, ValueError):
         return None
 
 

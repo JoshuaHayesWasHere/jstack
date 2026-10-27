@@ -26,11 +26,12 @@ failed tip only by its `check`, and that tip is red too.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, NotRequired, TypedDict
+
+import jbus
 
 NAME = "main.json"
 FIX = "main-red-"
@@ -87,10 +88,7 @@ def of(record: object) -> Main:
 
 
 def _raw(state: Path) -> object:
-    try:
-        return json.loads((state / NAME).read_text())
-    except (OSError, ValueError):
-        return None
+    return jbus.read_json(state / NAME, None)
 
 
 def read(state: Path) -> Main:

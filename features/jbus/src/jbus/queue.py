@@ -1469,7 +1469,7 @@ def _take_out(batch: _Batch, row: Row, slug: str, by: str, at: str, why: str = "
         "slug": slug,
         "from": was,
         "to": "removed",
-        "at": clock().astimezone(UTC).isoformat(timespec="seconds"),
+        "at": jsettings.stamp(clock()),
         "by": by,
         "said": at,
         "row": dict(row),

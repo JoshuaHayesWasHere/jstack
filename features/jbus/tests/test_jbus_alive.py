@@ -14,6 +14,7 @@ import pytest
 
 import jbus
 import jmerge.cli
+import jmerge.lines
 from jbus import alive, cli, wake
 from test_jbus_kitchen import KEY, NOW, PROJECT
 from test_jbus_wake_failing import alert, fail, refusing
@@ -69,7 +70,7 @@ def test_a_jmerge_command_that_hangs_is_a_failed_command_after_the_timeout(tmp_p
     monkeypatch.setenv("JMERGE_TIMEOUT", "1")
     ran = jmerge.cli._run(tmp_path, "sleep", "5")
     assert (ran.returncode, ran.stderr) == (124, "timed out after 1 s: sleep 5")
-    assert jmerge.cli._said(ran) == "timed out after 1 s: sleep 5"
+    assert jmerge.lines.said(ran) == "timed out after 1 s: sleep 5"
     monkeypatch.delenv("JMERGE_TIMEOUT")
     assert jmerge.cli.TIMEOUT_SECONDS == 120
     done = jmerge.cli._run(tmp_path, "echo", "ran")

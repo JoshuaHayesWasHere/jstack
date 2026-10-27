@@ -39,7 +39,7 @@ import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import jbus
@@ -124,7 +124,7 @@ def found(home: Path, now: datetime) -> list[Record]:
     """Return every record the briefs and requests have now, each once, as a new record seen
     at `now`."""
     made: dict[str, Record] = {}
-    seen = now.astimezone(UTC).isoformat(timespec="seconds")
+    seen = jsettings.stamp(now)
     for kind in ("tasks", "scouts"):
         for path in sorted((home / kind).glob("*.md")):
             try:
@@ -184,7 +184,7 @@ def keep(state: Path, home: Path, now: datetime, *, before: frozenset[str] = fro
         first = records is None
         records = records or []
         known = {one.key for one in records}
-        stamp = now.astimezone(UTC).isoformat(timespec="seconds")
+        stamp = jsettings.stamp(now)
         added = [
             replace(one, mark=DROPPED, why=FROM_BEFORE, by=JBUS, at=stamp)
             if first or f"{one.kind}/{one.slug}.md" in before

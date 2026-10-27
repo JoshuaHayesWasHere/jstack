@@ -29,6 +29,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+import jbus
 from jmerge import ready
 
 NAME = "base-merges.json"
@@ -52,11 +53,7 @@ class BaseMerge:
         self.run = run
 
     def known(self) -> dict:
-        try:
-            known = json.loads(self.path.read_text())
-        except (OSError, ValueError):
-            return {}
-        return known if isinstance(known, dict) else {}
+        return jbus.read_dict(self.path)
 
     def of(
         self,
@@ -101,7 +98,7 @@ class BaseMerge:
         now = datetime.now().astimezone()
         record = {"head": one.head, "tip": tip, **kept, "at": f"{now:%Y-%m-%dT%H:%M:%S%z}"}
         known = {**self.known(), str(one.number): record}
-        self.path.write_text(json.dumps(known, indent=2) + "\n")
+        jbus.write_json(self.path, known)
 
     def ask(self, one: ready.PullRequest) -> tuple[str, bool]:
         """Ask GitHub to merge the base into the branch. Return nothing, or why it did not, and
