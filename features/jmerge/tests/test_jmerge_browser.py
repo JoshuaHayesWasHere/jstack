@@ -8,7 +8,8 @@ went red on the browser tests at c05d32d4; #563 merged red on the same tests aft
 jbus tells the crew (`jbus.expedite.TABLE`). A head with no browser run, a pull request that
 does not touch the view, merges as before, and one whose browser run is still going waits for
 it. A red that main's own browser run already has is main's, not the pull request's: it waits
-as for a red main.
+as for a red main, while the row jbus filed for the fix of that run is open. Once that fix
+merged, main's last browser run, a nightly up to a day old, says nothing of main.
 
 The tests replay #557 through the kitchen's fakes (`test_jmerge_rejudge.Replay`), with a fake
 `gh` that also lists main's browser runs."""
@@ -27,6 +28,7 @@ RUNS = """\
     "api repos/{owner}/{repo}/actions/workflows/browser.yml/runs"*)
         echo "$*" >> "$STUB/asked-runs"
         cat "$STUB/browser-runs.json" ;;
+    "pr ready") ;;
 """
 CHECKED = {**merge.PASSED, "startedAt": STARTED}
 BROWSER_RED = merge.run("FAILURE", "browser")
@@ -61,6 +63,14 @@ def main_ran(replay, *runs):
     (replay.kitchen.home.stub / "browser-runs.json").write_text(
         json.dumps({"total_count": len(listed), "workflow_runs": listed[::-1]})
     )
+
+
+def filed(replay, run, status="with crewmate", slug="browser-red-2026-10-27"):
+    """jbus filed the row `slug` for the fix of main's red browser run `run`, and the row's
+    status is `status`."""
+    state = replay.state
+    (state / watch.BROWSER.seen).write_text(json.dumps({str(run): slug}))
+    (state / "queue.json").write_text(json.dumps([{"slug": slug, "status": status}]))
 
 
 def opened(replay, *checks, slug="sub-no-steer", number=557):
@@ -102,10 +112,42 @@ def test_a_red_main_s_own_browser_run_has_is_main_s_and_waits_as_a_red_main(repl
     main_ran(
         replay, ("schedule", "main", "success", "1" * 40), ("schedule", "main", "failure", red)
     )
+    filed(replay, 2)
     opened(replay, BROWSER_RED)
     assert replay.run() == [f"wait 557 {url(557)}: {ready.MAIN_RED.format(sha=red[:12])}"]
     (asked,) = (replay.kitchen.home.stub / "asked-runs").read_text().splitlines()
     assert "branch=main" in asked and "status=completed" in asked
+
+
+def test_main_s_browser_red_whose_fix_merged_is_the_pull_request_s(replay):
+    """browser.yml runs on main only nightly, so main's last run stays red until the next one
+    after its fix merged. From the fix's merge on, a pull request's own red is its own, and jbus
+    tells its crew."""
+    main_ran(replay, ("schedule", "main", "failure", "2" * 40))
+    filed(replay, 1, status="merged")
+    head = opened(replay, BROWSER_RED)
+    assert replay.run() == [f"wait 557 {url(557)}: {ready.BROWSER_RED.format(head=head[:12])}"]
+
+
+def test_main_s_browser_red_with_no_fix_filed_is_the_pull_request_s(replay):
+    """A red of main's that jbus filed no fix for waits on nobody: the pull request's crew is
+    told."""
+    main_ran(replay, ("schedule", "main", "failure", "2" * 40))
+    head = opened(replay, BROWSER_RED)
+    assert replay.run() == [f"wait 557 {url(557)}: {ready.BROWSER_RED.format(head=head[:12])}"]
+
+
+def test_a_draft_whose_browser_run_failed_is_readied_as_a_draft(replay):
+    """A draft's failed checks are waived until it is ready, and so is its browser run: a draft
+    reviewed clean is marked ready, as one whose check failed is, and asks GitHub nothing of
+    main's runs."""
+    head = opened(replay, BROWSER_RED)
+    replay.kitchen.pulls["sub-no-steer"]["isDraft"] = True
+    replay.kitchen.checked("sub-no-steer", CHECKED, BROWSER_RED)
+    assert replay.run() == [f"wait 557 {url(557)}: {ready.READIED.format(head=head)}"]
+    calls = (replay.kitchen.home.stub / "calls").read_text().splitlines()
+    assert [call for call in calls if call.startswith("pr ready 557")]
+    assert not (replay.kitchen.home.stub / "asked-runs").exists()
 
 
 def test_main_s_browser_red_that_a_later_run_of_main_ended_is_not_main_s(replay):
