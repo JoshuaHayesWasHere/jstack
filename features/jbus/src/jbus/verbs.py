@@ -84,7 +84,7 @@ SLOTS = {
     "before-watch": ("first in the pass, before merge.merge", ("client",)),
     "tellers": ("after watch.look", ("sight", "client", "world", "budget")),
     "after-expedite": (
-        "after expedite.tell, before dispatch.turns",
+        "after watch.gone, expedite.tell first, before dispatch.turns",
         ("sight", "client", "world", "budget"),
     ),
     "derive": ("after the launches, first in the second half", NEEDS),

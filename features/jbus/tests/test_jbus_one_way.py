@@ -2,7 +2,7 @@
 
 jbus asks "is this thread at work?", "was this key sent?", "what does this row's brief say?" and
 "which threads does T3 Code list?" in many modules. Each question has one answer: `watch.at_work`,
-`wake.Box.sent`, `watch.task_brief` and `threads._listed`, and each lock of a state file is taken by
+`wake.Box.sent`, `watch.task_brief` and `t3.listed`, and each lock of a state file is taken by
 `jbus.locked`. The scan reads the package's code, not its prose, so a later rule built on one of
 these moves every caller at once.
 """
@@ -31,9 +31,10 @@ def constants(tree, value):
 
 def test_only_the_box_reads_the_keys_that_were_sent():
     """`wake.Box.sent` renames the kinds of old keys, so a module that read `sent.json` itself
-    would see a key under a name no other module uses."""
+    would see a key under a name no other module uses. The bus panel of `jbus view` shows the file
+    as it is kept, and is the one reader that is no part of a pass."""
     readers = [name for name, tree in modules().items() if constants(tree, "sent.json")]
-    assert readers == ["wake.py"]
+    assert readers == ["view/panels/bus/panel.py", "wake.py"]
 
 
 def _live_outside_at_work(name, tree):
@@ -72,7 +73,7 @@ def test_only_at_work_tests_a_thread_against_live():
 
 @pytest.mark.parametrize(
     ("name", "home"),
-    [("task_brief", "watch.py"), ("locked", "__init__.py"), ("_listed", "threads.py")],
+    [("task_brief", "watch.py"), ("locked", "__init__.py"), ("home_thread", "watch.py")],
 )
 def test_each_shared_job_has_one_definition(name, home):
     defined = [
@@ -98,7 +99,7 @@ def test_no_module_keeps_its_own_copy(copy):
 def test_only_listed_pages_the_threads():
     """A second loop over T3 Code's `nextCursor` would page the list its own way."""
     pagers = [name for name, tree in modules().items() if constants(tree, "nextCursor")]
-    assert pagers == ["threads.py"]
+    assert pagers == ["t3.py"]
 
 
 CREW = watch.TITLE + "alpha"

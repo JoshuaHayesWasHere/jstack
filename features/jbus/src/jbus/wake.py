@@ -57,7 +57,6 @@ from __future__ import annotations
 
 import ast
 import contextlib
-import fcntl
 import hashlib
 import json
 import os
@@ -67,7 +66,6 @@ import subprocess
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable, Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -75,8 +73,9 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbus import LEVELS, Loud, Project, read_json, refusal, write_json
+from jbus import LEVELS, Loud, Project, locked, read_json, refusal, write_json
 
+LOCK = "outbox.lock"
 CAP = 8_000
 WAKE_CAP = 100_000
 SNAPSHOT_CAP = 32_000
@@ -330,13 +329,6 @@ class Box:
         """Return the time that jbus stamps on a line of the log."""
         return datetime.now(UTC)
 
-    @contextmanager
-    def _locked(self) -> Iterator[None]:
-        self.state.mkdir(parents=True, exist_ok=True)
-        with open(self.state / "outbox.lock", "w") as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-            yield
-
     def _outbox(self, route: Route | None = None) -> list[dict[str, Any]]:
         folder = (route or self.routes[0]).folder
         names = jbus.old_names()
@@ -369,7 +361,7 @@ class Box:
         key that was sent before.
         """
         made = event(self.project.name, slug, kind, line, text, cap, loud, machine)
-        with self._locked():
+        with locked(self.state, LOCK):
             if key is not None:
                 sent = self.sent()
                 if key in sent:
@@ -386,7 +378,7 @@ class Box:
 
     def record(self, kind: str, line: str, text: str = "", **more: Any) -> None:
         """Add a line to the log for what jbus never posts: the line goes into no outbox."""
-        with self._locked():
+        with locked(self.state, LOCK):
             record = {"event": kind, "slug": "", "loud": "quiet", "line": line}
             self._log(owed=True, **record, text=cut(text), **more)
 
@@ -441,7 +433,7 @@ class Box:
 
     def forget(self, before: datetime) -> None:
         """Drop the log's lines from before this moment."""
-        with self._locked():
+        with locked(self.state, LOCK):
             path = self.state / LOG
             records = _records(path)
             kept = [one for one in records if datetime.fromisoformat(one["at"]) >= before]
@@ -458,7 +450,7 @@ class Box:
 
     def mark(self, key: str) -> None:
         """Record a key as sent, sending nothing, for what was already so on the first pass."""
-        with self._locked():
+        with locked(self.state, LOCK):
             sent = self.sent()
             if key not in sent:
                 write_json(self.state / "sent.json", [*sent, key])
@@ -467,7 +459,7 @@ class Box:
         """Record that a whole pass has run for this project: from now on jbus sends what is new.
         While the project's own webhook is not one of its routes, `began` removes its `last_error`,
         which an earlier pass left there."""
-        with self._locked():
+        with locked(self.state, LOCK):
             marks = read_json(self.state / "wake.json", {})
             kept = {**marks, "began": True}
             if all(route.folder != self.state for route in self.routes):
@@ -485,7 +477,7 @@ class Box:
 
     def snapshot_sent(self, day: str) -> None:
         """Record that the day's snapshot went out, and that the day's sweep is now owed."""
-        with self._locked():
+        with locked(self.state, LOCK):
             marks = read_json(self.state / "wake.json", {})
             write_json(self.state / "wake.json", {**marks, "snapshot": day, "sweep_owed": day})
 
@@ -495,7 +487,7 @@ class Box:
 
     def swept(self, sweep: str, ran: bool) -> None:
         """Record how the owed sweep went. A sweep that ran is owed no more."""
-        with self._locked():
+        with locked(self.state, LOCK):
             marks = {**read_json(self.state / "wake.json", {}), "sweep": sweep}
             if ran:
                 marks.pop("sweep_owed", None)
@@ -503,7 +495,7 @@ class Box:
 
     def prune(self, slugs: set[str]) -> None:
         """Forget the keys that name one of these slugs, except those of a kind in `FOUND_AGAIN`."""
-        with self._locked():
+        with locked(self.state, LOCK):
             sent = self.sent()
             kept = [key for key in sent if not _prunable(key, slugs)]
             if len(kept) < len(sent):
@@ -520,7 +512,7 @@ class Box:
     def drop(self, folder: str) -> None:
         """Remove a route's outbox and marks, `TOP_LEVEL`'s, `BLOCKING`'s or `HOME`'s, once the
         project has no such route."""
-        with self._locked():
+        with locked(self.state, LOCK):
             shutil.rmtree(self.state / folder, ignore_errors=True)
 
     def post(self, made: dict[str, Any]) -> None:
@@ -529,7 +521,7 @@ class Box:
         route = self.blocking
         if route is None:
             return
-        with self._locked():
+        with locked(self.state, LOCK):
             waiting = read_json(route.folder / "outbox.json", [])
             if made["kind"] == "refresh":
                 waiting = [one for one in waiting if one.get("kind") != "refresh"]
@@ -541,7 +533,7 @@ class Box:
         waits there already stays as it is. Return the routes events moved from, and how many
         events moved, each counted once."""
         moved, ids = [], set()
-        with self._locked():
+        with locked(self.state, LOCK):
             routes = self.routes
             for old in self.left:
                 held = self._outbox(old)
@@ -575,7 +567,7 @@ class Box:
         route took it, so that a copy that waits for another route counts no more. It forgets an
         event that waits nowhere."""
         due = []
-        with self._locked():
+        with locked(self.state, LOCK):
             path = self.state / UNPOSTED
             kept = read_json(path, {})
             counts: dict[str, int | str] = {}
@@ -613,7 +605,7 @@ class Box:
         if route is None:
             return 0
         outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
-        with self._locked():
+        with locked(self.state, LOCK):
             waiting = read_json(outbox, [])
             marks = read_json(wakes, {})
             if not waiting:
@@ -671,7 +663,7 @@ class Box:
         if not route.home and not route.url:
             return 0
         outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
-        with self._locked():
+        with locked(self.state, LOCK):
             waiting = self._outbox(route)
             marks = read_json(wakes, {})
             taken = [one for one in waiting if _loud(one) == "user"]

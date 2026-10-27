@@ -48,7 +48,7 @@ reason with its sentence:
   file changed. Only a gate that passes lifts the hold.
 
 `tell` judges each thread by the status that T3 Code lists for it. It leaves alone a crew whose
-thread is at work (`watch.LIVE`: starting, `running` or `waiting`), since the line may be
+thread is at work (`watch.at_work`: starting, `running` or `waiting`), since the line may be
 what the crew is about to write. It tells a crew that ended its turn (`completed`, `failed`,
 `interrupted`, `cancelled`). The last four reasons wait for a review, so `tell` also does
 not send them while a thread titled `review: <slug>` is at work.
@@ -85,17 +85,19 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from jbriefs import below, findings, skills
 from jbriefs import parse as briefs
-from jbriefs.home import home_of, thread_of
-from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, write_json
+from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
-from jbus.watch import LIVE, World
+from jbus.watch import World, at_work, home_thread, task_brief
 from jmerge import ready
+
+if TYPE_CHECKING:
+    from jbus.cli import Half
 
 EVENTS = {"expedite": "quiet"}
 EXPEDITE = "expedite"
@@ -341,13 +343,6 @@ def short_of(said: merge.Line) -> Short | None:
     return next(rows, None)
 
 
-def _brief(run: Pass, slug: str) -> str:
-    try:
-        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-    except OSError:
-        return ""
-
-
 def _kept(run: Pass, slug: str) -> str:
     """Return the head the crew kept before its last rebase, or nothing where it kept none.
     That head is the newest commit under the slug's `refs/jstack/pre-rebase/` directory."""
@@ -366,7 +361,7 @@ def ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None
     `refs/jstack/pre-rebase/<slug>/`, since the crew's keep step writes the ref and no line.
     For a fix, it is the head the last `Scoped review: needed since` line names, the one the
     last review saw."""
-    brief = _brief(run, slug)
+    brief = task_brief(run, slug)
     if kind == "fix":
         before = (_OWED.findall(brief) or [""])[-1]
     else:
@@ -391,20 +386,20 @@ def _reviewing(run: Pass, client: Client, slug: str) -> bool | None:
         run.say(f"wait {slug}: its reviewers could not be listed ({error})")
         return None
     mine = (t for t in found if re.fullmatch(re.escape(REVIEW + slug) + r"(,.*)?", t["title"]))
-    return any(not t.get("settled") and t["status"] in LIVE for t in mine)
+    return at_work(mine)
 
 
 def _busy(run: Pass, client: Client, world: World, slug: str, row: Short) -> bool | None:
     """Say whether somebody is at work on what the row is short of: the crew, or a reviewer
     for a row that a review clears. Return None where T3 Code did not say."""
-    if any(thread["status"] in LIVE for thread in world.threads.get(slug, [])):
+    if at_work(world.threads.get(slug, [])):
         return True
     return _reviewing(run, client, slug) if row.reviewed else False
 
 
 def _capped(run: Pass, client: Client, slug: str) -> bool:
     """Say whether the crew's instance is capped, so the outbox holds the message to it."""
-    return bool(outbox.capped(run, client, briefs.thread_of(_brief(run, slug))))
+    return bool(outbox.capped(run, client, briefs.thread_of(task_brief(run, slug))))
 
 
 def told(run: Pass, pulls: merge.Said) -> set[int]:
@@ -433,7 +428,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
     by_number = {pull["number"]: slug for slug, pull in world.open.items()}
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = dict(was) if pulls.failed else {}
-    sent = read_json(run.state / "sent.json", [])
+    sent = run.box.sent()
     hand: set[int] = set()
     for text in pulls:
         said = merge.parse(text)
@@ -443,7 +438,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         number, reason = said.number, said.reason
         slug = by_number.get(number, "")
         head = world.open[slug].get("headRefOid", "") if slug else ""
-        if row.unless and row.unless(_brief(run, slug), head):
+        if row.unless and row.unless(task_brief(run, slug), head):
             continue
         if not head or not dispatch.launched(run, slug):
             continue
@@ -476,7 +471,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if since and busy is False:
             entry["idle"] = entry.get("idle", 0) + 1
         if entry.get("idle", 0) >= PASSES or since >= REVIEWING:
-            thread = briefs.thread_of(_brief(run, slug)) or "not known"
+            thread = briefs.thread_of(task_brief(run, slug)) or "not known"
             work = ", with its crew or a reviewer at work" if busy else ""
             line = (
                 f"{STALL} {slug}: #{number} is as short as it was {since} passes after its "
@@ -499,8 +494,8 @@ def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reas
     it, since the finding is in none of review-triage's categories. Where there is no home,
     the pass prints the stall, and the view keeps showing the pull request on the findings
     step. When a message fails to send, the next pass sends it again."""
-    brief = _brief(run, slug)
-    thread = thread_of(home_of(run.home, brief))
+    brief = task_brief(run, slug)
+    thread = home_thread(run, brief)
     if not thread:
         run.say(f"wait {slug}: #{number} waits on its crew, {reason}, and it has no home to tell")
         return
@@ -561,7 +556,7 @@ def _tell(
     if row.rerun:
         sentence += " " + skills.where("template", RERUN).read_text().strip()
     if row.kind in ANSWERED:
-        left = [one.id for one in findings.triage(_brief(run, slug)).blocking()]
+        left = [one.id for one in findings.triage(task_brief(run, slug)).blocking()]
         sentence += f" The findings with no answer that counts: {', '.join(left)}." if left else ""
     message = MESSAGE.replace("{sentence}", sentence)
     ask = rebase.Ask(
@@ -576,3 +571,15 @@ def _tell(
     run.find(slug, EXPEDITE, line, went[2], key=f"{row.kind} {head[:12]}")
     run.say(line)
     return "told"
+
+
+def _step(half: Half) -> None:
+    """Run `tell` where the pass could ask T3 Code and GitHub, and `told` where it could not."""
+    world = half.seen.world
+    if world is not None and half.client is not None:
+        half.crews = tell(half.run, half.client, world, half.said)
+    else:
+        half.crews = told(half.run, half.said)
+
+
+STEPS = (verbs.Step("after-expedite", 1, "expedite.tell", _step),)

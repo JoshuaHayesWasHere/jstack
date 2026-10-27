@@ -22,10 +22,8 @@ force-pushed its branch.
 
 from __future__ import annotations
 
-import fcntl
 import json
-from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -42,16 +40,6 @@ TELEMETRY = (
     "workers",
     "tmp_inode_pct",
 )
-
-
-@contextmanager
-def locked(state: Path) -> Iterator[None]:
-    """Hold the state directory's collection lock, so a second `jbus ci` waits for the first
-    and then finds its jobs kept, instead of writing the same files at the same time."""
-    state.mkdir(parents=True, exist_ok=True)
-    with (state / LOCK).open("a") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
-        yield
 
 
 def read(path: Path) -> list[dict[str, Any]]:

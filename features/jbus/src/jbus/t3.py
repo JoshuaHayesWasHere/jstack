@@ -386,6 +386,22 @@ class Client:
         return {}
 
 
+def listed(client: Client, project_id: str, **asked: Any) -> list[dict[str, Any]]:
+    """Return every thread of the project that `t3_thread_list` gives for `asked`, page by page,
+    up to 20 pages of 100."""
+    found, cursor = [], None
+    for _ in range(20):
+        more = {"cursor": cursor} if cursor else {}
+        said = client.call(
+            "t3_thread_list", {"projectId": project_id, "limit": 100, **asked, **more}
+        )
+        found += said.get("threads", [])
+        cursor = said.get("nextCursor")
+        if not cursor:
+            break
+    return found
+
+
 def heard(config: Config, ref: str) -> queue.Said:
     """Read the user's own message `<thread id>/<message id>` from T3 Code now, and return
     its text on one line, its time in the user's zone, and the title of its thread.

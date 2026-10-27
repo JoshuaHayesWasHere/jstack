@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import findings, parse, skills
-from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
     dispatch,
@@ -34,9 +33,9 @@ from jbus import (
     mirror,
     outbox,
     queue,
-    read_json,
     record,
     stall,
+    t3,
     verbs,
     watch,
     work,
@@ -44,7 +43,7 @@ from jbus import (
 from jbus.live import Facts, judge
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import ENDED, LIVE, STARTING, World, after_merge, unfinished, when
+from jbus.watch import ENDED, STARTING, World, after_merge, unfinished, when
 from jmerge import ready
 
 if TYPE_CHECKING:
@@ -186,7 +185,7 @@ _SESSION = re.compile(r"/session/([0-9a-f]+)")
 
 
 def _done(run: Pass, key: str) -> bool:
-    return key in read_json(run.state / "sent.json", [])
+    return key in run.box.sent()
 
 
 def _briefs(run: Pass, kind: str = "tasks") -> dict[str, str]:
@@ -347,20 +346,6 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
     }
 
 
-def _listed(client: Client, project_id: str, **asked: Any) -> list[dict[str, Any]]:
-    found, cursor = [], None
-    for _ in range(20):
-        more = {"cursor": cursor} if cursor else {}
-        said = client.call(
-            "t3_thread_list", {"projectId": project_id, "limit": 100, **asked, **more}
-        )
-        found += said.get("threads", [])
-        cursor = said.get("nextCursor")
-        if not cursor:
-            break
-    return found
-
-
 def slug_in(title: str, prefix: str) -> str | None:
     if not title.startswith(prefix):
         return None
@@ -424,7 +409,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
     names.
     """
     try:
-        listed = _listed(client, run.project.project_id, settled=False)
+        listed = t3.listed(client, run.project.project_id, settled=False)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads out could not be listed ({error})")
         return None
@@ -508,7 +493,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
         for prefix in PREFIXES:
             if not over[prefix] and not (prefix == SCOUT and unseen):
                 continue
-            for thread in _listed(client, run.project.project_id, titleContains=prefix):
+            for thread in t3.listed(client, run.project.project_id, titleContains=prefix):
                 slug = slug_in(str(thread.get("title", "")), prefix)
                 if slug in over[prefix]:
                     slug_of[thread["threadId"]] = slug
@@ -520,11 +505,11 @@ def settle(run: Pass, client: Client, world: World) -> None:
                     unseen.discard(slug)
         if not slug_of:
             return
-        below = _listed(client, run.project.project_id, settled=False, includeSubagents=True)
+        below = t3.listed(client, run.project.project_id, settled=False, includeSubagents=True)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads to settle could not be listed ({error})")
         return
-    busy = {t["threadId"] for t in waiting if not t.get("settled") and t["status"] in LIVE}
+    busy = {t["threadId"] for t in waiting if watch.at_work([t])}
     below = [t for t in below if t.get("relationshipToParent") == "subagent"]
     grew = True
     while grew:
@@ -536,7 +521,7 @@ def settle(run: Pass, client: Client, world: World) -> None:
             slug_of[thread["threadId"]] = slug_of[parent]
             if parent in shelve:
                 shelve.add(thread["threadId"])
-            if parent in busy or thread["status"] in LIVE:
+            if parent in busy or watch.at_work([thread]):
                 busy.add(thread["threadId"])
             waiting.append(thread)
             grew = True
@@ -570,7 +555,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
     home (`_stopped`). A new thread for the slug starts again from zero.
     """
     briefs = _briefs(run)
-    sent = read_json(run.state / "sent.json", [])
+    sent = run.box.sent()
     for slug, live in sorted(world.threads.items()):
         thread, brief = live[0], briefs.get(slug, "")
         at, status, ended = thread["threadId"], thread["status"], thread.get("latestRunId")
@@ -635,9 +620,9 @@ def _stopped(
     is a gate once for the thread. A line that got no answer is sent again on the next pass."""
     at, ended = run_of
     what = f"thread ended {status} after two carry-ons"
-    home = thread_of(home_of(run.home, brief))
+    home = watch.home_thread(run, brief)
     key = f"stopped|{slug}|{at}"
-    if home and key in read_json(run.state / "sent.json", []):
+    if home and key in run.box.sent():
         return
     if not home:
         run.gate(slug, what, at, key=f"{at} {ended}")

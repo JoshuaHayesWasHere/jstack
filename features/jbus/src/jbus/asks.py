@@ -86,8 +86,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
             asked = f"T3 Code could not be asked whether {slug}'s thread is out"
             raise jbus.Refused(f"refused: {asked} ({why})") from error
         for thread in listed:
-            mine = thread["title"].removeprefix(watch.TITLE).strip() == slug
-            if mine and not thread.get("settled") and thread["status"] in watch.LIVE:
+            if watch.at_work([thread], f"{watch.TITLE}{slug}"):
                 return f"{slug} is out: its thread {thread['threadId']} is {thread['status']}"
         for state, said in (
             ("open", "{slug} is out: its pull request #{number} is open"),

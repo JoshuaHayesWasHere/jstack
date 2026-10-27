@@ -107,7 +107,7 @@ from jbus import (
 )
 from jbus.passes import CONDITION, Pass, Slot
 from jbus.wake import renamed
-from jbus.watch import LIVE, World
+from jbus.watch import World, at_work
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -487,10 +487,7 @@ def _last_events(run: Pass) -> dict[str, datetime]:
 def _at_work(world: World, slug: str) -> bool:
     """Say whether any thread of the slug is at work. The crewmate's thread and its reviewer's
     thread both count."""
-    return any(
-        thread.get("status") in LIVE and not thread.get("settled")
-        for thread in world.threads.get(slug, [])
-    )
+    return at_work(world.threads.get(slug, []))
 
 
 def _why(

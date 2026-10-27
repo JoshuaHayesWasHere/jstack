@@ -60,11 +60,10 @@ from typing import Any
 
 import jsettings
 from jbriefs import below
-from jbriefs.home import home_of, thread_of
 from jbus import mirror, outbox, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import LIVE, World, brief_of, last_result, named
+from jbus.watch import World, at_work, brief_of, home_thread, last_result, named
 
 EVENTS = {"leftover": "quiet"}
 KIND = "leftover"
@@ -173,7 +172,8 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
     found = []
     for row in sorted(rows, key=queue.order):
         slug, why = row["slug"], row.get("why")
-        busy = slug in run.told or (world.thread(slug) or {}).get("status") in LIVE
+        thread = world.thread(slug)
+        busy = slug in run.told or at_work([thread] if thread else [], settled_too=True)
         if row.get("status") == "left" or (row.get("status") == "merged" and why and not busy):
             found.append((slug, why or ""))
     return found
@@ -246,7 +246,7 @@ def _judge(
 ) -> Record:
     """Return a leftover's record after this pass, and send the message once. The record
     says whether the home or the user has the leftover."""
-    thread = thread_of(home_of(run.home, brief))
+    thread = home_thread(run, brief)
     if not thread:
         return replace(record, why=NO_HOME)
     has = bool(record.told) and record.thread == thread

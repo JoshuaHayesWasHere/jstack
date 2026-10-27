@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import jsettings
+from jbus import locked
 from jbus.ci import ledger
 
 TITLE = "jstack-ci"
@@ -230,7 +231,7 @@ def pulls(gh: Gh, repo: str, since: datetime) -> list[dict[str, Any]]:
 def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
     """Add to the ledger the jobs of the last `days` days that it does not have yet. Also keep
     the pull requests."""
-    with ledger.locked(state):
+    with locked(state, ledger.LOCK):
         return _collect(gh, repo, state, now, days)
 
 

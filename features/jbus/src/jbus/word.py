@@ -64,13 +64,11 @@ does not write over such a file, and a pass reports it in a gate and goes on.
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import json
 import re
 import sys
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -78,13 +76,14 @@ from typing import TYPE_CHECKING
 
 import jsettings
 from jbriefs.home import home_of, scopes, thread_of
-from jbus import Config, Refused, outbox, queue, verbs, write_json
+from jbus import Config, Refused, locked, outbox, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused, typed
 
 if TYPE_CHECKING:
     from jbus.cli import Half
 
+LOCK = "words.lock"
 NAME = "words.json"
 KIND = "word"
 MESSAGE = (
@@ -130,14 +129,6 @@ class Word:
 
 def path(state: Path) -> Path:
     return state / NAME
-
-
-@contextmanager
-def _locked(state: Path) -> Iterator[None]:
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "words.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
 
 
 def load(state: Path) -> list[Word]:
@@ -261,7 +252,7 @@ def keep(
     ref = heard.ref if heard else ""
     named = json.dumps([run.project.name, words, by, at, *([ref] if ref else [])])
     name = hashlib.sha256(named.encode()).hexdigest()[:12]
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         kept = load(run.state)
         for one in kept:
             if one.id == name:
@@ -298,7 +289,7 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
     """Write what became of a word, add its line to the log, and return whether it wrote
     anything. When jbus sent the word after the caller read `one`, `_change` leaves the word
     as it is."""
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         kept = load(run.state)
         found = [each for each in kept if each.id == one.id and not each.sent_at]
         if not found:

@@ -55,10 +55,13 @@ in the turn, whenever the run started.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import pwd
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -261,11 +264,10 @@ def current_level(name: str, names: dict[str, str]) -> str:
 def current_kind(name: str, names: dict[str, str]) -> str:
     """Return a kind of event by the name it has now. `names` is `old_names`.
 
-    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function.
-    Nothing writes an old name any more. This function maps no old name of a level to a kind,
-    because a key of `sent.json` may begin with any word, the user's name among them. A module that
-    looks one key up in `sent.json` reads the file as it is, since no such module looks up a kind
-    that changed.
+    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function, and
+    every module reads the keys of what was sent through `wake.Box.sent`. Nothing writes an old
+    name any more. This function maps no old name of a level to a kind, because a key of
+    `sent.json` may begin with any word, the user's name among them.
     """
     now = names.get(name, name)
     return name if now in LEVELS else now
@@ -487,6 +489,16 @@ def load(directory: Path | None = None) -> Config:
         scratch=tuple(scratch),
         home_thread=str(raw.get("home_thread") or ""),
     )
+
+
+@contextmanager
+def locked(state: Path, name: str) -> Iterator[None]:
+    """Hold the lock file `name` under `state` from a state file's read to its write, so that no
+    other pass or verb writes the file between the two."""
+    state.mkdir(parents=True, exist_ok=True)
+    with open(state / name, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
 
 
 def read_json(path: Path, default: Any) -> Any:

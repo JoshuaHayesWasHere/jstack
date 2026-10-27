@@ -113,13 +113,11 @@ to a thread that a brief or a request names (`t3`).
 from __future__ import annotations
 
 import argparse
-import fcntl
 import itertools
 import json
 import re
 import sys
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -128,10 +126,11 @@ from typing import Any
 import jsettings
 from jbriefs import below, skills
 from jbriefs import parse as briefs
-from jbus import END_TURN, Config, Refused, mirror, outbox, queue, verbs, write_json
+from jbus import END_TURN, Config, Refused, locked, mirror, outbox, queue, t3, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused, typed
 
+LOCK = "questions.lock"
 EVENTS = {"note": "quiet"}
 NAME = "questions.json"
 SOURCE = "jbus"
@@ -254,14 +253,6 @@ class Question:
 
 def path(state: Path) -> Path:
     return state / NAME
-
-
-@contextmanager
-def _locked(state: Path) -> Iterator[None]:
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "questions.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
 
 
 def _kept(state: Path) -> tuple[int, list[Question]]:
@@ -466,7 +457,7 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
     options = _proposed(lines)
     holds, fail_safe = _held(lines)
     named = _THREAD.search(below.line(lines, "Asked by:"))
-    with _locked(state):
+    with locked(state, LOCK):
         count, records = _kept(state)
         key = mirror.gate_key(slug, asked)
         said = {
@@ -509,7 +500,7 @@ def clear(run: Pass, number: int, words: str) -> None:
     nothing, and writes one quiet `note` event."""
     at = jsettings.stamp(run.now)
     given = Answer(words, SOURCE, at, "a jbus pass", True, closed_by=CLEARED)
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         count, records = _kept(run.state)
         found = [one for one in records if one.number == number and _open(one)]
         if not found:
@@ -554,7 +545,7 @@ def answer(
         raise Refused(f'refused: --at is "{user.form(at)}"')
     if not words.strip():
         raise Refused("refused: an answer has the user's words")
-    with _locked(state):
+    with locked(state, LOCK):
         count, records = _kept(state)
         found = [one for one in records if one.number == number]
         if not found:
@@ -593,7 +584,7 @@ def basis(state: Path, ref: str) -> queue.Said:
 
 
 def _told(state: Path, number: int, how: str) -> None:
-    with _locked(state):
+    with locked(state, LOCK):
         count, records = _kept(state)
         records = [
             replace(one, answer=replace(one.answer, told=how))
@@ -619,7 +610,7 @@ def closed_in_files(run: Pass) -> None:
     }
     if not answered or not any(_open(one) for one in load(run.state)):
         return
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         count, records = _kept(run.state)
         closed = []
         for one in records:
@@ -648,7 +639,7 @@ def silent(run: Pass) -> None:
     at = jsettings.stamp(run.now)
     given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
     window = timedelta(minutes=run.user.go_quiet_minutes)
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         try:
             count, records = _kept(run.state)
         except Unparsable:
@@ -866,21 +857,12 @@ def tell(run: Pass, client: Client) -> None:
 
 def _threads(client: Client, project_id: str) -> set[str]:
     """Return every thread T3 Code lists for the project, settled or not."""
-    found: set[str] = set()
-    cursor = None
-    for _ in range(20):
-        asked = {"projectId": project_id, "limit": 100, **({"cursor": cursor} if cursor else {})}
-        said = client.call("t3_thread_list", asked)
-        found |= {thread["threadId"] for thread in said.get("threads", [])}
-        cursor = said.get("nextCursor")
-        if not cursor:
-            break
-    return found
+    return {thread["threadId"] for thread in t3.listed(client, project_id)}
 
 
 def _proposed_at(run: Pass, number: int) -> None:
     at = jsettings.stamp(run.now)
-    with _locked(run.state):
+    with locked(run.state, LOCK):
         count, records = _kept(run.state)
         records = [replace(one, proposed=at) if one.number == number else one for one in records]
         _write(run.state, count, records)

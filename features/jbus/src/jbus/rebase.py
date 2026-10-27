@@ -81,10 +81,21 @@ from urllib.parse import urlsplit
 
 from jbriefs import below, findings
 from jbriefs import parse as briefs
-from jbus import END_TURN, cancelled, dispatch, outbox, queue, read_json, verbs
+from jbus import END_TURN, cancelled, dispatch, outbox, queue, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, failed_in, job, job_log
+from jbus.watch import (
+    NEVER,
+    TITLE,
+    World,
+    at_work,
+    checks,
+    crew_threads,
+    failed_in,
+    job,
+    job_log,
+    task_brief,
+)
 from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
@@ -258,18 +269,18 @@ def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
 def scoping(run: Pass, world: World, number: int, head: str) -> bool:
     """Say whether the brief of the pull request has a `Scoped reviewer:` line of this head."""
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
-    return bool(slug and below.reviewers(_brief(run, slug), "Scoped reviewer", head))
+    return bool(slug and below.reviewers(task_brief(run, slug), "Scoped reviewer", head))
 
 
 def github(run: Pass, client: Client, world: World) -> None:
     """For each crew, send one message of each kind, once per head, when GitHub says the crew's pull
     request is red, in conflict with its base, or green with a line owed on it."""
-    sent = read_json(run.state / "sent.json", [])
+    sent = run.box.sent()
     for slug, pull in world.open.items():
         head, number = pull.get("headRefOid", ""), pull["number"]
         if not head or not crew(run, slug):
             continue
-        brief = _brief(run, slug)
+        brief = task_brief(run, slug)
         rebased = f"rebase|{slug}|{head[:12]}" in sent
         red = Red() if rebased else ran_and_failed(run, pull)
         again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
@@ -325,13 +336,6 @@ def crew(run: Pass, slug: str) -> str:
         return launched
     row = queue.fresh(run.state, slug) or {}
     return str(row.get("thread") or "")
-
-
-def _brief(run: Pass, slug: str) -> str:
-    try:
-        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-    except OSError:
-        return ""
 
 
 def owed(run: Pass, brief: str, head: str) -> bool:
@@ -511,7 +515,7 @@ def post(
     key = mark(ask.kind, slug, head, window)
     if not head or not crew(run, slug):
         return None
-    sent = read_json(run.state / "sent.json", [])
+    sent = run.box.sent()
     if key in sent:
         return None
     if ask.head and not head.startswith(ask.head):
@@ -573,22 +577,21 @@ def post(
 def held(run: Pass, client: Client, world: World, slug: str, number: int, head: str) -> bool:
     """Say whether this pass delays a message that names this head.
 
-    A thread at work (`watch.LIVE`, as `expedite` reads it) would read the message only after its
-    turn, and that turn may move the head. The pass listed the thread's status before the pass sent
-    its other messages, such as a relay of findings or an answer, so `held` asks T3 Code again. A
-    thread that this pass already sent such a message to is on `Pass.told`. Such a thread counts as
+    A thread at work (`watch.at_work`) would read the message only after its turn, and that turn
+    may move the head. The pass listed the thread's status before the pass sent its other
+    messages, such as a relay of findings or an answer, so `held` asks T3 Code again. A thread
+    that this pass already sent such a message to is on `Pass.told`. Such a thread counts as
     at work, even if T3 Code does not say so yet. The head is the one that the pass listed, and a
     push since then may have replaced it. So `held` asks GitHub again, and no message names a head
     that GitHub does not confirm.
     """
-    busy = slug in run.told or _live(world.threads.get(slug, []))
+    busy = slug in run.told or at_work(world.threads.get(slug, []))
     try:
         again = [] if busy else crew_threads(client, run.project.project_id, TITLE + slug)
     except T3Error as error:
         run.say(f"wait {slug}: its thread could not be asked for ({error}), so it is told nothing")
         return True
-    mine = (t for t in again if t["title"][len(TITLE) :].strip() == slug and not t.get("settled"))
-    if busy or _live(mine):
+    if busy or at_work(again, TITLE + slug):
         run.say(f"wait {slug}: its thread is at work, so its crew is not told of {head[:12]} yet")
         return True
     asked = run.run("gh", "pr", "view", str(number), "--json", "headRefOid")
@@ -601,10 +604,6 @@ def held(run: Pass, client: Client, world: World, slug: str, number: int, head: 
         run.say(f"wait {slug}: #{number} {left}, so its crew is not told of {head[:12]}")
         return True
     return False
-
-
-def _live(threads) -> bool:
-    return any(thread["status"] in LIVE for thread in threads)
 
 
 STEPS = (

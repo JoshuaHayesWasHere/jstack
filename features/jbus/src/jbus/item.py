@@ -34,12 +34,10 @@ Each line is also a card for Sous Chef's chat, which `jbus.cards` makes and post
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import re
-from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -47,7 +45,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import Refused, passes, questions, queue, read_json, verbs, wake, work, write_json
+from jbus import Refused, locked, passes, questions, queue, read_json, verbs, wake, work, write_json
 
 EVENTS = {
     "item.proposed": "quiet",
@@ -277,14 +275,6 @@ def by_slug(found: dict[str, Item]) -> dict[str, Item]:
     return {one.slug: one for one in found.values() if one.slug}
 
 
-@contextmanager
-def _locked(state: Path) -> Iterator[None]:
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / LOCK, "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
-
-
 def _number(name: str) -> int:
     digits = name.removeprefix("w")
     return int(digits) if name.startswith("w") and digits.isdigit() else 0
@@ -300,7 +290,7 @@ def _next(state: Path, lines: list[dict[str, Any]]) -> int:
 def reserve(state: Path) -> str:
     """Take a new item's id from the counter now, for a proposal that jbus writes after some
     other write. jbus never gives that id again, even where the proposal is never written."""
-    with _locked(state):
+    with locked(state, LOCK):
         number = _next(state, read(state))
         write_json(state / COUNTER, {"next": number + 1})
     return f"w{number}"
@@ -331,7 +321,7 @@ def write(
     last line. It also refuses a link where the item is linked already or another item has the slug.
     For a refused line, `write` writes nothing.
     """
-    with _locked(state):
+    with locked(state, LOCK):
         made = _put(state, verb, item=item, by=by, where=where, line=line, seen=seen, **more)
     told(box, made)
     return made

@@ -32,11 +32,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from jbriefs.home import home_of, thread_of
 from jbus import outbox, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
-from jbus.watch import NEVER, World, brief_of, job, job_log
+from jbus.watch import NEVER, World, brief_of, home_thread, job, job_log
 from jmerge import ready
 from jmerge.checks import check_state, latest_of_each
 
@@ -188,7 +187,7 @@ def _tell(run: Pass, client: Client, slug: str, head: str, line: str) -> str:
     the next pass."""
     if f"cancelled|{slug}|{head[:12]}" in run.box.sent():
         return line
-    thread = thread_of(home_of(run.home, brief_of(run, slug)))
+    thread = home_thread(run, brief_of(run, slug))
     if thread:
         key = f"cancelled|{slug}|{head[:12]}"
         text = f"{slug}: {line}"
