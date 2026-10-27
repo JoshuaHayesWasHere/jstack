@@ -194,7 +194,7 @@ def test_a_decline_the_scoped_review_did_not_uphold_waits_on_the_crew_not_the_re
         ready.NO_VERDICT,
         ready.SECOND_UNWRITTEN,
         ready.DECLINES_UNRULED.format(ids="F1, F2"),
-        ready.SCOPED_UNRULED.format(files="a.py"),
+        ready.SCOPED_UNRULED.format(files="a.py", command="nothing"),
     ],
 )
 def test_each_wait_on_a_reviewer_jmerge_gives_has_a_clock(reason, short, kitchen):

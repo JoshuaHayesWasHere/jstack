@@ -48,11 +48,18 @@ def test_a_drop_with_no_line_at_the_head_waits_on_the_crew():
     )
 
 
-def test_an_explained_drop_waits_on_the_scoped_review():
-    unruled = ("wait", "the scoped review has not ruled on the drops in a.py, b.py")
-    assert ready.drops(LOST, REBASE + ACKS, HEAD, user=jsettings.DEFAULTS) == unruled
-    before = review("a" * 40, "Drops: upheld a.py, b.py\n")
-    assert ready.drops(LOST, REBASE + ACKS + before, HEAD, user=jsettings.DEFAULTS) == unruled
+RANGES = f"git range-diff --no-color {'1' * 40}..{'a' * 40} {'2' * 40}..{HEAD}"
+
+
+def test_an_explained_drop_waits_on_the_scoped_review_of_the_range_diff():
+    unruled = (
+        "wait",
+        f"the scoped review has not ruled on the drops in a.py, b.py; scoped review of {RANGES}",
+    )
+    said = REBASE + ACKS
+    assert ready.drops(LOST, said, HEAD, user=jsettings.DEFAULTS, command=RANGES) == unruled
+    said += review("a" * 40, "Drops: upheld a.py, b.py\n")
+    assert ready.drops(LOST, said, HEAD, user=jsettings.DEFAULTS, command=RANGES) == unruled
 
 
 def test_a_drop_a_review_of_the_head_said_nothing_of_is_the_users():
