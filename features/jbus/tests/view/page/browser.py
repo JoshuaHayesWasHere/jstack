@@ -682,17 +682,20 @@ def gated(scene):
 
 def shown(port, tmp_path, opens):
     """What the page says when its address opens the drawer that `opens` names. The text is
-    what the browser shows once the page stops changing. It gives back nothing where no
-    drawer is open."""
+    what the browser shows once the page stops changing, in a drawer or a wide one. It gives back
+    nothing where no drawer is open."""
     ran = browse(
         f"--user-data-dir={tmp_path / 'profile'}",
         "--virtual-time-budget=3000",
         f"http://127.0.0.1:{port}/#/demo/{opens.replace(':', '/')}",
     )
-    open_ = '<dialog class="drawer" id="drawer" aria-labelledby="dw-title" open="">'
-    if open_ not in ran.stdout:
+    open_ = re.search(
+        r'<dialog class="drawer(?: wide)?" id="drawer" aria-labelledby="dw-title" open="">',
+        ran.stdout,
+    )
+    if not open_:
         return ""
-    said = ran.stdout.partition(open_)[2].partition("</dialog>")[0]
+    said = ran.stdout[open_.end() :].partition("</dialog>")[0]
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", said))).strip()
 
 

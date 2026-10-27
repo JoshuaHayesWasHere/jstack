@@ -35,6 +35,10 @@ var BOARD_STYLE = '<style>' +
   '.bd-none { font-size: 15px; color: var(--ink-2); padding: 4px 0; border-top: 1px solid var(--hair); margin: 0; }' +
   '@media (max-width: 640px) { .bd-w { grid-template-columns: 22px minmax(0, 1fr) auto; } .bd-st { grid-column: 2 / 4; flex-direction: row; justify-content: space-between; align-items: center; } .bd-a { grid-row: 1; grid-column: 3; } .bd-s { min-height: 44px; } }' +
   '</style>';
+function fixingLine(f) {
+  var at = ms(f.told);
+  return "fixing: " + f.owner + ", " + (at == null ? "not told yet" : "told " + hm(at));
+}
 function boardWorker(w, stages) {
   var at = 0, k = BOARD_KIND[w.kind] || ["?", w.kind], v = ms(w.since), tone = w.tone ? " " + w.tone : "";
   stages.forEach(function (s, n) { if (s.key === w.stage) at = n; });
@@ -44,7 +48,7 @@ function boardWorker(w, stages) {
     '<span class="bd-k" title="' + esc(k[1]) + '" aria-label="' + esc(k[1]) + '">' + k[0] + '</span>' +
     '<button type="button" class="bd-s" data-open="' + esc(w.open) + '" title="' + esc(w.slug) + '">' + esc(w.slug) + (w.pr ? ' <span class="src">' + esc(w.pr) + '</span>' : "") + '</button>' +
     '<span class="bd-st"><span class="bd-dots' + tone + '" role="img" aria-label="stage ' + (at + 1) + ' of ' + stages.length + ': ' + esc(name) + '">' + dots + '</span>' +
-    '<span><b class="' + esc(w.tone) + '">' + esc(name) + '</b>' + (w.state && w.state !== name ? ' <span class="bd-sw">&middot; ' + esc(w.state) + '</span>' : "") + '</span></span>' +
+    '<span><b class="' + esc(w.tone) + '">' + esc(name) + '</b>' + (w.state && w.state !== name ? ' <span class="bd-sw">&middot; ' + esc(w.state) + '</span>' : "") + '</span>' + (w.fixing ? '<span class="bd-sw">' + esc(fixingLine(w.fixing)) + '</span>' : "") + '</span>' +
     '<span class="bd-a" title="' + (v == null ? "no time kept" : "on this stage since " + esc(day(v))) + '">' + (v == null ? "&ndash;" : short(NOW - v)) + '</span></li>';
 }
 var BOARD_MARK = { merged: "merged", working: "in progress", queued: "queued", planned: "planned", parked: "parked" };

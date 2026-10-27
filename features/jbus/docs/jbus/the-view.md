@@ -40,7 +40,7 @@ From the top, it has these parts:
 | Part | What it shows |
 |---|---|
 | Waits on you | One line: how many things wait on you across the projects, how long the oldest has waited, and how many go ahead on their default. Its Open goes to the triage tab, `#/triage`, which lists them. |
-| Homes | A card for each project with something wrong or something for you, what is wrong first, then what waits on you most. The card's first line is the root home: the project's name, which opens its page, the home's health, its open tasks, what of it waits on you and what goes ahead on its default. Each child home is a line under it, by name: its path (`demo › ui`), its health, its open tasks, what waits on you, a flag for each row of it jbus logged a stall or an idle of, and how old the home is. Each thing that is wrong in the project is a line under its home that opens its drawer, with how long ago it went wrong. A thing wrong in more than one project, and a stopped jbus, is a line over the cards. A home's health is its own thread's: moving, waiting on a request, quiet or hung with how long, ended with work out, or at rest. A child home with nothing wrong and nothing for you is its one line. |
+| Homes | A card for each project with something wrong or something for you, what is wrong first, then what waits on you most. The card's first line is the root home: the project's name, which opens its page, the home's health, its open tasks, what of it waits on you and what goes ahead on its default. Each child home is a line under it, by name: its path (`demo › ui`), its health, its open tasks, what waits on you, a flag for each row of it with a stall or an idle that is yours, and how old the home is. Each thing wrong in the project that is yours is a line under its home that opens its drawer, with how long ago it went wrong. A thing wrong in more than one project, and a stopped jbus, is a line over the cards. A home's health is its own thread's: moving, waiting on a request, quiet or hung with how long, ended with work out, or at rest. A child home with nothing wrong and nothing for you is its one line. |
 | Quiet | Every other project, one line each: its name, which opens its page, and its open tasks. |
 
 A project's page leads with the queue of what needs you in that project, oldest first:
@@ -78,6 +78,14 @@ A file a project has never had is no entry.
 Each entry has its `kind`, its `subj`, its `cause`, `since` when it went wrong, and `where`: each project and home it is in, with the drawer that has it.
 An entry of the bus or of a source with the same subject and cause in several projects is one entry that names them all, and any other entry stays one per project.
 A project's red reasons (`broken`) are built from the same list, so the two never disagree.
+
+Each thing wrong has an `owner`, by one rule for each kind (`OWNERS` in `features/jbus/src/jbus/view/state.py`): the crew of its row, the home of its row, the root home for a fault of the project or the machine, or `user`.
+It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a token GitHub refuses, or T3 Code not answering.
+A fault whose agent owner has no thread to tell is the user's too.
+Each has `fixing` beside it, what its owner was told and when, read from `outbox.jsonl`, the leftover record or the main-red row.
+`wrong`, the band's wrong tier, the since line and a project's red reasons hold only the user's entries.
+Any other is on its row, on the board card and in the task drawer, as `fixing: <owner>, told <time>`.
+The pass tells the root home, once while the cause stands, of each fault of the project or the machine, and a home of its crew that hung (`jbus.owners`), and any other fault of a row is told by the step that works that row.
 
 ### Every view is a link
 

@@ -8,7 +8,7 @@ One function decides it, `waiting.blocking` in `features/jbus/src/jbus/waiting.p
 | a | A gate with no default, which only a home's `gates.md` can have, or one whose question or context names force-push, deploy, deleting data or an outside message (`PAUSE`) | `questions.json`, and the `gates.md` of each home |
 | b | A row with no approval of its brief (its `brief_sha` is empty, or the brief changed after the go), or a row that waits with no brief stored | `queue.json`, `briefs/<slug>.md` |
 | c | A pull request `jmerge` holds | `waiting-on-user.json` |
-| d | A leftover whose home did not close it in 30 minutes or has none, a config item, an alert that stands, of the project or of the pass, or a gate with a default whose slug has had no event for 30 minutes (`CLOSE_MINUTES`) with no thread at work | `waiting-on-user.json`, `streaks.json`, `events.jsonl` |
+| d | A leftover whose row has no home, or whose home did not close it in 30 minutes with no root home listed to tell, a config item, an alert that stands, of the project or of the pass, or a gate with a default whose slug has had no event for 30 minutes (`CLOSE_MINUTES`) with no thread at work | `waiting-on-user.json`, `streaks.json`, `events.jsonl` |
 
 These do not block: a gate with a default whose thread still writes, a row that jbus put at `gate`, and a leftover that its home has.
 

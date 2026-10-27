@@ -1,6 +1,7 @@
 """The tasks: the open work of the queue, each in its one state, and the rows that ended while
 their status says another thing. Each state is the one that the last pass judged and wrote to
-`work.json`: the panel draws it and works none out."""
+`work.json`: the panel draws it and works none out. A task whose row has a fault an agent owns
+says who fixes it and when jbus told them (`fixing`, from `state.fixing`)."""
 
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ from jbus.view.state import (
     WAITING_FILE,
     WORK_FILE,
     Read,
+    fixing,
 )
 
 FIRST = True
@@ -61,10 +63,15 @@ _TASK = {
     "waits_on": None,
     "home": None,
     "retired": None,
+    "fixing": {"owner": None, "told": None},
 }
 SHAPE = {"tasks": [_TASK], "ended": [_TASK]}
 SOURCES = (PASS_FILE, WORK_FILE, QUEUE_FILE, WAITING_FILE, MOVES_FILE, EVENTS_FILE, MERGE_LOG)
 
 
 def build(read: Read) -> dict[str, Any]:
-    return {"tasks": read.tasks, "ended": read.ended}
+    owned = read.once(fixing)
+    return {
+        key: [task | {"fixing": owned.get(task["slug"])} for task in found]
+        for key, found in (("tasks", read.tasks), ("ended", read.ended))
+    }

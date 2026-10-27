@@ -2,15 +2,17 @@
 we moving.
 
 The band is one list of items, each of one tier, in the order of `TIERS`: `wrong`, what is wrong
-across the projects (`state.wrongs`, as `/stack.json`'s `wrong` merges it), with jbus stopped or
-its passes failing first; `yours`, what only the user can move (the panel `you`'s `needs`), where
-the rows of one project that wait for the user's approval are one item; and `moving`, one item
-that says how much is open, what merged today and how many threads are out. Inside a tier the
-oldest comes first, and an item with no time last. The band reads what `/stack.json` already
-says and counts nothing of its own, so it never disagrees with the triage tab.
+across the projects that is the user's (`state.users`, as `/stack.json`'s `wrong` merges it),
+with jbus stopped or its passes failing first; `yours`, what only the user can move (the panel
+`you`'s `needs`), where the rows of one project that wait for the user's approval are one item;
+and `moving`, one item that says how much is open, what merged today and how many threads are
+out. Inside a tier the oldest comes first, and an item with no time last. The band reads what
+`/stack.json` already says and counts nothing of its own, so it never disagrees with the triage
+tab.
 
-Where nothing is wrong and nothing waits on the user, the band is `calm`: its one item is the
-line that says the work moves.
+What is wrong and owned by an agent is on its row, never in the band (`state.fixing`). Where
+nothing that is wrong is the user's and nothing waits on the user, the band is `calm`: its one
+item is the line that says the work moves.
 
 The page keeps when the user last looked, for every tab: each render while the tab shows keeps
 its time, and a tab nobody sees keeps none. A visit starts when the tab shows, and its "since you
@@ -23,7 +25,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
-from jbus.view.state import Read, iso, wrongs
+from jbus.view.state import Read, iso, users
 
 FIRST = False
 TIERS = ("wrong", "yours", "moving")
@@ -227,7 +229,7 @@ def build(read: Read) -> dict[str, Any]:
     what waits on the user. The machine's part, jbus and the counts, is `/stack.json`'s."""
     needs = read.panel("you")["needs"] if read.name else []
     names = [read.name] if read.name else []
-    wrong, yours = _oldest(_wrong(read.once(wrongs), names)), _yours(needs)
+    wrong, yours = _oldest(_wrong(users(read), names)), _yours(needs)
     merges = [one["at"] for one in read.merged_since(_start(read))] if read.name else []
     project = {"projects": [{"open": len(read.tasks)}]}
     verdict = _verdict(project, merges, read.now, _top(wrong, yours))
