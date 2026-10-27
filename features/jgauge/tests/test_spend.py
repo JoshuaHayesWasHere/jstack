@@ -1,4 +1,9 @@
-"""`jgauge spend` over a small T3 Code store: units, kinds, windows and the all-capped span."""
+"""`jgauge spend` over a small T3 Code store: units, kinds, windows and the all-capped span.
+
+A run spends TOKENS unless it says otherwise: 3,000,000 input tokens (1,800,000 read from cache,
+600,000 written to it) and 30,000 output, so 600,000 x1 + 600,000 x1.25 + 1,800,000 x0.1 +
+30,000 x5 = 1,680,000 units, x5/3 on Opus.
+"""
 
 from __future__ import annotations
 
@@ -31,8 +36,6 @@ create table orchestration_v2_projection_turn_items (
     status text not null, payload_json text not null);
 """
 
-# 3,000,000 input tokens (1,800,000 read from cache, 600,000 written to it) and 30,000 output:
-# 600,000 x1 + 600,000 x1.25 + 1,800,000 x0.1 + 30,000 x5 = 1,680,000 units, x5/3 on Opus.
 TOKENS = (3_000_000, 1_800_000, 600_000, 30_000)
 SONNET = 1.68
 OPUS = 2.8
@@ -195,8 +198,9 @@ def test_each_run_has_its_kind(store, capsys):
 
 
 def test_the_period_and_the_project_choose_the_runs(store, capsys):
+    """A run at 23:59 EDT the day before, and one in another project, are left out."""
     store.run("crew: in", "2026-10-26T14:00:00.000Z")
-    store.run("crew: before", "2026-10-26T03:59:00.000Z")  # 23:59 EDT the day before
+    store.run("crew: before", "2026-10-26T03:59:00.000Z")
     store.run("crew: elsewhere", "2026-10-26T14:00:00.000Z", project="p2")
 
     lines = spend(
@@ -221,12 +225,19 @@ def test_an_unknown_project_is_refused(store, capsys):
 
 def capped(store: Store, title: str, instance: str, at: str, reset: str) -> None:
     """A run that failed on the usage limit at `at`, spending nothing, until `reset`."""
-    store.run(title, at, ordinal=2, instance=instance, tokens=(0, 0, 0, 0), status="failed",
-              cap=(at, reset))  # fmt: skip
+    store.run(
+        title,
+        at,
+        ordinal=2,
+        instance=instance,
+        tokens=(0, 0, 0, 0),
+        status="failed",
+        cap=(at, reset),
+    )
 
 
 def test_minutes_with_every_instance_capped(store, capsys):
-    # A is capped 09:09 to 12:30 EDT, B 08:46 to 16:00 EDT: both from 09:09 to 12:30.
+    """A is capped 09:09 to 12:30 EDT, B 08:46 to 16:00 EDT: both from 09:09 to 12:30."""
     store.run("crew: a", "2026-10-26T11:30:00.000Z")
     capped(store, "crew: a", "claudeAgent", "2026-10-26T13:08:58.000Z", "2026-10-26T16:30:00.000Z")
     capped(store, "crew: b", "prime", "2026-10-26T12:46:00.000Z", "2026-10-26T20:00:00.000Z")

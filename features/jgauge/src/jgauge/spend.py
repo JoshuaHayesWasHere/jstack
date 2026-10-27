@@ -7,6 +7,11 @@ read x0.1, output x5, and an Opus run x5/3. A run counts whole in the period, an
 five-hour window, in which it started.
 
 A cap is a run's usage-limit failure: the instance is capped from the failure to its `resetAt`.
+Every instance is capped while each Claude instance that ran in the week before the period's end
+is capped: then no account is left.
+
+The SQL keywords are upper case, since a line that starts with a lower-case `from` reads to
+jbus's test of what the source imports as an import.
 """
 
 from __future__ import annotations
@@ -33,21 +38,16 @@ FIRST, REVIEWS, FIXES, SENDS, HOMES, SCOUTS, CAPPED = KINDS = (
     "capped failures",
 )
 
-# The kind of a crew's later run, by the key jbus put in the message id it sent the run with
-# (`thread-send:<key>|<slug>|...`). A key not here is judged by the message's text.
 TRIGGERS = {
-    **dict.fromkeys(
-        ("failed", "refailed", "train-red", "rereview", "unreviewed", "unfixed", "remark"), FIXES
-    ),
+    **dict.fromkeys("failed refailed train-red rereview unreviewed unfixed remark".split(), FIXES),
     **dict.fromkeys(
         (
-            "restack", "rebase", "mainmoved", "conflict", "drops", "limit-resume", "failover",
-            "slot-wake", "wake", "hold-stall", "home-stall", "clock", "twice", "word",
-            "unpushed", "unruled",
-        ),
+            "restack rebase mainmoved conflict drops limit-resume failover slot-wake wake"
+            " hold-stall home-stall clock twice word unpushed unruled"
+        ).split(),
         SENDS,
     ),
-}  # fmt: skip
+}
 ROLES = {"home:": HOMES, "scout:": SCOUTS, "review:": REVIEWS}
 
 
@@ -57,7 +57,9 @@ class Refused(Exception):
 
 @dataclass(frozen=True)
 class Tokens:
-    input: int  # every input token, the cached and the written included
+    """A run's tokens: `input` is every input token, the cached and the written included."""
+
+    input: int
     cached: int
     written: int
     output: int
@@ -65,6 +67,9 @@ class Tokens:
 
 @dataclass(frozen=True)
 class Run:
+    """One turn of a thread. It is `capped` when it failed on a usage limit, or failed with only
+    partial usage."""
+
     id: str
     instance: str
     model: str
@@ -74,23 +79,29 @@ class Run:
     tokens: Tokens
     trigger: str
     text: str
-    capped: bool  # it failed on a usage limit, or failed with only partial usage
+    capped: bool
 
 
 @dataclass(frozen=True)
 class Cap:
+    """A usage-limit failure: its `limit` is five_hour, seven_day, or "" where the store does not
+    say."""
+
     instance: str
     at: datetime
     reset: datetime
-    limit: str  # five_hour, seven_day, or "" where the store does not say
+    limit: str
 
 
 @dataclass(frozen=True)
 class Window:
+    """A five-hour window. It is `from_reset` when its end is a five-hour reset the store gives,
+    not one counted from a run."""
+
     instance: str
     start: datetime
     end: datetime
-    from_reset: bool  # its end is a five-hour reset the store gives, not one counted from a run
+    from_reset: bool
 
 
 def units(run: Run) -> float:
@@ -115,6 +126,8 @@ def kind(run: Run) -> str:
 
 
 def trigger(message_id: str) -> str:
+    """The key jbus put in the message id it sent a run with (`thread-send:<key>|<slug>|...`);
+    TRIGGERS gives its kind, and a key not there is judged by the message's text."""
     said = unquote(unquote(message_id))
     return said.split("thread-send:", 1)[1].split("|")[0] if "thread-send:" in said else ""
 
@@ -246,69 +259,67 @@ def _stamp(at: datetime) -> str:
 
 
 RUNS = """
-with r as (
-    select run_id, thread_id, ordinal, status, provider_instance_id, requested_at, payload_json
-    from orchestration_v2_projection_runs
-    where requested_at < :until and (completed_at is null or completed_at >= :since)
-        and json_extract(payload_json, '$.modelSelection.model') like 'claude%'
-), u as (
-    select a.run_id,
+WITH r AS (
+    SELECT run_id, thread_id, ordinal, status, provider_instance_id, requested_at, payload_json
+    FROM orchestration_v2_projection_runs
+    WHERE requested_at < :until AND (completed_at IS NULL OR completed_at >= :since)
+        AND json_extract(payload_json, '$.modelSelection.model') LIKE 'claude%'
+), u AS (
+    SELECT a.run_id,
         sum(json_extract(p.payload_json, '$.turnTokenUsage.inputTokens')) input,
         sum(json_extract(p.payload_json, '$.turnTokenUsage.cachedInputTokens')) cached,
         sum(json_extract(p.payload_json, '$.turnTokenUsage.cacheCreationTokens')) written,
         sum(json_extract(p.payload_json, '$.turnTokenUsage.outputTokens')) output,
         min(json_extract(p.payload_json, '$.turnTokenUsage.usageStatus') = 'partial') partial
-    from orchestration_v2_projection_run_attempts a
-    join orchestration_v2_projection_provider_turns p on p.run_attempt_id = a.attempt_id
-    where a.run_id in (select run_id from r)
-    group by a.run_id
+    FROM orchestration_v2_projection_run_attempts a
+    JOIN orchestration_v2_projection_provider_turns p ON p.run_attempt_id = a.attempt_id
+    WHERE a.run_id IN (SELECT run_id FROM r)
+    GROUP BY a.run_id
 )
-select r.run_id, r.provider_instance_id, json_extract(r.payload_json, '$.modelSelection.model'),
+SELECT r.run_id, r.provider_instance_id, json_extract(r.payload_json, '$.modelSelection.model'),
     t.title, coalesce(pr.title, ''), r.ordinal, r.status,
     coalesce(json_extract(r.payload_json, '$.startedAt'), r.requested_at),
     coalesce(u.input, 0), coalesce(u.cached, 0), coalesce(u.written, 0), coalesce(u.output, 0),
     coalesce(u.partial, 0),
     coalesce(json_extract(r.payload_json, '$.userMessageId'), ''),
     coalesce((
-        select json_extract(i.payload_json, '$.text') from orchestration_v2_projection_turn_items i
-        where i.thread_id = r.thread_id and i.run_id = r.run_id and i.type = 'user_message'
-            and json_extract(i.payload_json, '$.messageId')
+        SELECT json_extract(i.payload_json, '$.text') FROM orchestration_v2_projection_turn_items i
+        WHERE i.thread_id = r.thread_id AND i.run_id = r.run_id AND i.type = 'user_message'
+            AND json_extract(i.payload_json, '$.messageId')
                 = json_extract(r.payload_json, '$.userMessageId')
     ), ''),
-    exists (
-        select 1 from orchestration_v2_projection_turn_items i
-        where i.thread_id = r.thread_id and i.run_id = r.run_id and i.type = 'error'
-            and json_extract(i.payload_json, '$.failure.class') = 'usage_limit'
+    EXISTS (
+        SELECT 1 FROM orchestration_v2_projection_turn_items i
+        WHERE i.thread_id = r.thread_id AND i.run_id = r.run_id AND i.type = 'error'
+            AND json_extract(i.payload_json, '$.failure.class') = 'usage_limit'
     )
-from r
-join orchestration_v2_projection_threads t on t.thread_id = r.thread_id
-left join projection_projects pr on pr.project_id = t.project_id
-left join u on u.run_id = r.run_id
+FROM r
+JOIN orchestration_v2_projection_threads t ON t.thread_id = r.thread_id
+LEFT JOIN projection_projects pr ON pr.project_id = t.project_id
+LEFT JOIN u ON u.run_id = r.run_id
 """
 
 CAPS = """
-select r.provider_instance_id, json_extract(i.payload_json, '$.startedAt'),
+SELECT r.provider_instance_id, json_extract(i.payload_json, '$.startedAt'),
     json_extract(i.payload_json, '$.failure.resetAt'),
     coalesce((
-        select json_extract(n.payload_json, '$.nativeItemRef.nativeId')
-        from orchestration_v2_projection_turn_items n
-        where n.thread_id = i.thread_id and n.run_id = i.run_id and n.type = 'system_notice'
-            and json_extract(n.payload_json, '$.nativeItemRef.nativeId') like 'usage-limit:%'
-        limit 1
+        SELECT json_extract(n.payload_json, '$.nativeItemRef.nativeId')
+        FROM orchestration_v2_projection_turn_items n
+        WHERE n.thread_id = i.thread_id AND n.run_id = i.run_id AND n.type = 'system_notice'
+            AND json_extract(n.payload_json, '$.nativeItemRef.nativeId') LIKE 'usage-limit:%'
+        LIMIT 1
     ), '')
-from orchestration_v2_projection_turn_items i
-join orchestration_v2_projection_runs r on r.run_id = i.run_id
-where i.type = 'error' and i.status = 'failed'
-    and json_extract(i.payload_json, '$.failure.class') = 'usage_limit'
-    and json_extract(i.payload_json, '$.failure.resetAt') is not null
+FROM orchestration_v2_projection_turn_items i
+JOIN orchestration_v2_projection_runs r ON r.run_id = i.run_id
+WHERE i.type = 'error' AND i.status = 'failed'
+    AND json_extract(i.payload_json, '$.failure.class') = 'usage_limit'
+    AND json_extract(i.payload_json, '$.failure.resetAt') IS NOT NULL
 """
 
-# The Claude instances that ran in the week before the period's end: the accounts that must
-# all be capped for no account to be left.
 INSTANCES = """
-select distinct provider_instance_id from orchestration_v2_projection_runs
-where requested_at >= :week and requested_at < :until
-    and json_extract(payload_json, '$.modelSelection.model') like 'claude%'
+SELECT DISTINCT provider_instance_id FROM orchestration_v2_projection_runs
+WHERE requested_at >= :week AND requested_at < :until
+    AND json_extract(payload_json, '$.modelSelection.model') LIKE 'claude%'
 """
 
 
@@ -324,7 +335,7 @@ def read(
     week = {"week": _stamp(until - timedelta(days=7)), "until": _stamp(until)}
     try:
         with sqlite3.connect(f"file:{store}?mode=ro", uri=True) as db:
-            projects = {name for (name,) in db.execute("select title from projection_projects")}
+            projects = {name for (name,) in db.execute("SELECT title FROM projection_projects")}
             found = db.execute(RUNS, edges).fetchall()
             capped = db.execute(CAPS).fetchall()
             instances = {name for (name,) in db.execute(INSTANCES, week)}
@@ -346,11 +357,25 @@ def read(
             capped=bool(limited) or (status == "failed" and bool(partial)),
         )
         for (
-            run_id, instance, model, title, in_project, ordinal, status, start,
-            input_, cached, written, output, partial, message, text, limited,
+            run_id,
+            instance,
+            model,
+            title,
+            in_project,
+            ordinal,
+            status,
+            start,
+            input_,
+            cached,
+            written,
+            output,
+            partial,
+            message,
+            text,
+            limited,
         ) in found
         if project is None or in_project == project
-    ]  # fmt: skip
+    ]
     caps = [
         Cap(instance, _at(at), _at(reset), native.split(":")[-2] if native else "")
         for instance, at, reset, native in capped
