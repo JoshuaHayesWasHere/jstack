@@ -18,6 +18,12 @@ These raise one, and nothing else does:
 | A scope change, work the plan you approved does not hold | the home, with `jbus decide` | what the home writes |
 
 A project's first pass raises none, as it sends nothing else.
+Just before it sends, the pass reads again what each item stands on, as dispatch reads a row again before a launch.
+A row whose go now holds for its brief, a gate whose question has closed, and a pull request whose row has merged are not raised.
+A row to approve is raised only once it has waited unapproved for `APPROVE_GRACE_SECONDS` (60, one pass), so a row a home queues and approves a moment later never reaches you; a gate that holds is raised at once.
+
+A decision whose item leaves the list of what waits is withdrawn, once: jbus sends one `user` event `decision.withdrawn`, under the key `decision.withdrawn|<the decision's key>`, whose line names that key and why it went (`approved`, `closed`, `merged` or `removed`).
+jbus keeps what it raised from the list in `raised.json` in the project's state directory, so it withdraws only a decision it raised.
 
 ## Fixes and their stop
 

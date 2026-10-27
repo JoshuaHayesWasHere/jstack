@@ -224,24 +224,23 @@ BEFORE = {
 }
 
 DERIVED = "queue.derive queue.load leftover.tell"
-JUDGED = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
+ONCE = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
+JUDGED = ONCE.replace("questions.read", "questions.read questions.read")
 TELL = "owners.tell queue.load questions.read"
 OWNED = JUDGED.replace("work.write", f"work.write {TELL}")
 CLOSE = "Box.snapshot_due Box.sweep_owed alert.flush"
 AFTER = {
     "short": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "question": f"{DERIVED} {OWNED} Box.began {CLOSE}",
-    "word": f"{DERIVED} {OWNED} Box.began {CLOSE}",
+    "word": f"{DERIVED} {ONCE.replace('work.write', f'work.write {TELL}')} Box.began {CLOSE}",
     "main moved": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "stale": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "t3 down": f"{JUDGED} {CLOSE}",
-    "signed out": f"{JUDGED.replace('questions.read', 'questions.read questions.read')} {CLOSE}",
+    "signed out": f"{JUDGED} {CLOSE}",
     "blind": f"stall.tell waiting.cadence {CLOSE}",
     "words.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "questions.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
-    "queue.json": (
-        f"{TELL} stall.tell waiting.keep questions.read waiting.cadence Box.began {CLOSE}"
-    ),
+    "queue.json": f"{TELL} {JUDGED.removeprefix('work.write item.follow ')} Box.began {CLOSE}",
 }
 EVENING = (
     f"{DERIVED} merge.unplaced {OWNED} Box.began Box.snapshot_due Box.snapshot_sent "
