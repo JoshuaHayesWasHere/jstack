@@ -58,6 +58,7 @@ from test_jbus_verbs import fresh
 ORDER = [
     "before-watch 6 health.first",
     "before-watch 8 queue.follow_ups",
+    "before-watch 9 plan.entered",
     "before-watch 10 word.deliver",
     "before-watch 12 stop.deliver",
     "before-watch 20 questions.closed_in_files",

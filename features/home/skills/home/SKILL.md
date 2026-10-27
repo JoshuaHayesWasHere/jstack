@@ -192,6 +192,7 @@ When the shape of the work is not settled (more than one task, or a design choic
 - Record a decision the user makes in the entry it belongs to, in their words.
 - Write no status in an entry, and change none by hand. An entry has a `Stage:` line, which says where the planning is: `proposed`, `planned`, `parked` or `scouting`. Once a brief of the entry is queued, its status is counted from its queue rows by `jbus plan`, and the `Stage:` line is not read.
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
+- The user gives the go once per entry, never per row: record it with `jbus plan go <entry> --message <thread>/<message>`, and under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
 
 An entry has the shape of `$T/plan-entry.md`: read it before writing the first one.
 
@@ -241,7 +242,7 @@ At the start, on status, whenever a gate is asked, shown or closed, and when a s
 
 ## The user's word, carried by jbus
 
-When a message says it is the user's word carried by jbus, when this home records the user's word, approves a row on a page's go or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
+When a message says it is the user's word carried by jbus, when this home records the user's word or a plan entry's go, approves a row on a page's go or on a standing rule, and when a step elsewhere names a step of this section: read `$T/../skills/home/users-word-carried-by-jbus.md` now.
 
 ## Merging a pull request that is ready
 

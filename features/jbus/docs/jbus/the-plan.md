@@ -6,6 +6,8 @@ A home's `plan.md` holds one section for each entry, `## <slug>: <one line>`, wi
 jbus plan
 jbus plan --scope <scope>
 jbus plan close <entry>
+jbus plan go <entry> --message <thread>/<message>
+jbus plan stop <entry>
 ```
 
 `jbus plan` prints one line for each entry of the root home's plan, and with `--scope` of that scoped home's: the slug, its one line and its status, as `<slug> | <one line> | <status>`. The one line is cut at 56 characters and the status at 60. A row counts for the entry `add` was given as `--entry`, and for the entry of its own slug with none.
@@ -18,4 +20,25 @@ jbus plan close <entry>
 | `no stage` | The entry has no row and no `Stage:` line. |
 | `(typed) Status: <words>` | The entry has no row, and a `Status:` line from before the status was counted. Somebody typed it, and nothing checked it. With rows, such a line is passed over. |
 
-`jbus plan close <entry>` moves the entry's section, as it is, from `plan.md` to `plan-done.md` beside it. It is `refused: <entry> has rows that are not over: <slug> (<status>)` while one is not. It is the one write `jbus plan` makes, and it changes no line of the section. No other command writes a plan: `jmerge` sets no entry to done.
+`jbus plan close <entry>` moves the entry's section, as it is, from `plan.md` to `plan-done.md` beside it.
+It is `refused: <entry> has rows that are not over: <slug> (<status>)` while one is not.
+It is the one write `jbus plan` makes to a plan, and it changes no line of the section.
+No other command writes a plan: `jmerge` sets no entry to done.
+
+## The go of an entry
+
+`jbus plan go <entry> --message <thread>/<message>` keeps your own T3 Code message as the go of the entry, checked as `jbus queue approve --message` checks one.
+It binds the go to the entry's head, its heading and its `Done when:` lines, by their sha256, and keeps it in `goes.json` in the project's state directory.
+It prints `went <entry>: your go for the plan entry <entry>, <time>, in <where>; run <time> by <who>`, then a line for each row it approved.
+It is `refused: <plan> has no entry <entry>` for an entry the plan does not have, and refused for a message that is not your own.
+While the go holds, the entry's line in `jbus plan` ends `| go <time>`.
+
+Under the setting `go = "entry"`, the default, jbus approves each row queued with `--entry <entry>` while the go holds: when it is queued, on each pass, and again after an edit of its brief.
+The row's go reads `your go for the plan entry <entry>, ...`, and its record names the entry and your message.
+A row whose brief names a case of a gate that holds on a `Holds:` line waits for your own word under every setting.
+
+The go stops holding when the entry's heading or `Done when:` lines change, when the entry closes, or on `jbus plan stop <entry>`.
+A row that has not launched then waits for your go, and one that launched goes on.
+The entry's line then ends `| go stopped <time> by <who>` or `| go void: <why>`.
+`jbus plan stop <entry>` is `refused: <entry> has no go to stop` for an entry with none.
+
