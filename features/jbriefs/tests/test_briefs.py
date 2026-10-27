@@ -4,7 +4,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import cli, page, parse, skills
+from jbriefs import cli, home, page, parse, skills
 from jbus import watch
 from testing.paths import REPO
 
@@ -616,7 +616,14 @@ def test_the_command_writes_one_page_and_prints_its_path(tmp_path, capsys):
 def test_the_default_page_is_outside_the_state_directory(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
     assert cli.default_out() == tmp_path / "cache" / "jbriefs" / "briefs.html"
-    assert cli.DEFAULT_STATE == Path.home() / ".local" / "state" / "home"
+    monkeypatch.delenv("JBUS_HOME_DIR", raising=False)
+    assert home.homes_dir() == Path.home() / ".local" / "state" / "home"
+
+
+def test_the_homes_state_is_jbus_home_dir_as_jbus_reads_it(tmp_path, monkeypatch):
+    monkeypatch.setenv("HOME", str(tmp_path / "elsewhere"))
+    monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path / "homes"))
+    assert home.homes_dir() == tmp_path / "homes"
 
 
 SHAPED = BRIEF.replace("Done when:", "Size: S\nPlaybook: feature\nDone when:", 1)

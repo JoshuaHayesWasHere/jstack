@@ -13,10 +13,10 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import jsettings
 from jbus import Refused, queue
 
 if TYPE_CHECKING:
@@ -88,7 +88,7 @@ def picked(user: jsettings.Settings, ref: str) -> queue.Said:
     if not words:
         raise Refused(f"refused: chat entry {ref} has no words")
     try:
-        at = datetime.fromisoformat(str(one["at"]).replace("Z", "+00:00"))
+        at = jsettings.when(str(one["at"]))
     except (KeyError, ValueError):
         raise Refused(f"refused: chat entry {ref} has no time Lavish kept") from None
     page = str(found.get("file") or "")

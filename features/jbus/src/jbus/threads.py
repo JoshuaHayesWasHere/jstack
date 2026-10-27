@@ -32,6 +32,7 @@ from jbus import (
     dispatch,
     lavish,
     mirror,
+    outbox,
     queue,
     read_json,
     record,
@@ -222,7 +223,6 @@ def relay(run: Pass, client: Client, world: World) -> None:
     `Review: twice` either, since that review also goes to a cleanup row.
     """
     briefs = _briefs(run)
-    client.recipients = frozenset(filter(None, map(dispatch.thread_of, briefs.values())))
     for slug in sorted(set(briefs) & set(world.open)):
         filed = ready.after(briefs[slug]) or ready.second_review(briefs[slug])
         review = "" if filed else mirror.undelivered(briefs[slug])
@@ -235,20 +235,25 @@ def relay(run: Pass, client: Client, world: World) -> None:
             what = "review findings with no thread to send them to"
             run.gate(slug, what, review, key=f"{what} {digest}")
             continue
-        asked = {
-            "threadId": thread,
-            "message": f"{RELAY}\n\n{review}",
-            "mode": "queue",
-            "clientRequestId": key,
-        }
         try:
-            client.call("t3_thread_send", asked)
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=slug,
+                key=key,
+                text=f"{RELAY}\n\n{review}",
+                template="relayed",
+                needs="act",
+            )
         except T3Refused as error:
             what = "T3 Code refused the review's findings"
             run.gate(slug, what, f"{error}\n\n{review}", key=f"{what} {digest}")
             continue
         except T3Error as error:
             run.say(f"wait {slug}: its review's findings could not be sent ({error})")
+            continue
+        if not went:
             continue
         run.find(slug, "relayed", f"relayed {slug}", review, key=digest)
         run.say(f"relayed {slug}: to {thread}")
@@ -596,16 +601,25 @@ def resume(run: Pass, client: Client, world: World) -> None:
             k=had + 1,
             most=CARRY_ONS,
         )
-        client.recipients = client.recipients | {at}
-        asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
         try:
-            client.call("t3_thread_send", asked)
+            went = outbox.send(
+                run,
+                client,
+                thread=at,
+                row=slug,
+                key=key,
+                text=message,
+                template="resume",
+                needs="act",
+            )
         except T3Refused as error:
             what = "T3 Code refused the carry-on"
             run.gate(slug, what, f"{error}\n\n{message}", key=f"{what} {at} {ended}")
             continue
         except T3Error as error:
             run.say(f"wait {slug}: its crew could not be told to carry on ({error})")
+            continue
+        if not went:
             continue
         line = f"resume {slug}: told the crew to carry on ({status}, {had + 1} of {CARRY_ONS})"
         run.find(slug, "resume", line, key=f"{at} {ended}")
@@ -630,16 +644,25 @@ def _stopped(
         run.gate(slug, what, at, key=f"{at} {ended}")
         return
     text = STOPPED.format(slug=slug, thread=at, status=status, most=CARRY_ONS)
-    client.recipients = client.recipients | {home}
-    asked = {"threadId": home, "message": text, "mode": "queue", "clientRequestId": key}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=home,
+            row=slug,
+            key=key,
+            text=text,
+            template="stopped",
+            needs="decide",
+        )
     except T3Refused as error:
         run.box.mark(key)
         run.gate(slug, what, f"{at}\n\nT3 Code refused its home the line: {error}", key=at)
         return
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told the crew stopped ({error})")
+        return
+    if not went:
         return
     run.box.mark(key)
     run.say(f"resume {slug}: told its home, thread {home}, that {at} {what}")
@@ -667,12 +690,21 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
         message = resume_message(
             MERGED, f"crew: {slug}", run.home, number=pull["number"], slug=slug
         )
-        client.recipients = client.recipients | {at}
-        asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
         try:
-            client.call("t3_thread_send", asked)
+            went = outbox.send(
+                run,
+                client,
+                thread=at,
+                row=slug,
+                key=key,
+                text=message,
+                template="merged-left",
+                needs="act",
+            )
         except T3Error as error:
             run.say(f"wait {slug}: its crew could not be told of the merge ({error})")
+            continue
+        if not went:
             continue
         run.box.mark(key)
         run.told.add(slug)

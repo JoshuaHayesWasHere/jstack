@@ -427,3 +427,32 @@ def test_show_gives_the_risk_of_a_merge_jmerge_holds(kitchen):
     held = work.State("hold", "user", "your word", True, facts)
     work.write(kitchen.state, "", work.Answered.BOTH, [work.entry(held, key="alpha", kind="row")])
     assert "risk: review" in kitchen.main("item", "show", "w1")[1].splitlines()
+
+
+def test_a_steered_line_written_before_steers_were_removed_is_read_as_no_move(kitchen):
+    """A log written while jbus had steers may hold a `steered` line. It moves nothing, it is
+    still shown, and the item goes on taking moves after it."""
+    propose = ("item", "propose", "--by", "Sous Chef", "--where", "chat", "--title", "a page")
+    assert kitchen.main(*propose)[0] == 0
+    old = {
+        "id": "w1.2",
+        "item": "w1",
+        "at": "2026-10-01T12:00:00+00:00",
+        "by": "user",
+        "where": "view",
+        "line": "message by user: look at the header",
+        "verb": "steered",
+        "action": "message",
+        "words": "look at the header",
+    }
+    with item.path(kitchen.state).open("a") as log:
+        log.write(json.dumps(old) + "\n")
+    assert kitchen.main("item", "list") == (0, "w1 proposed routine - a page\n")
+    code, shown = kitchen.main("item", "show", "w1")
+    assert code == 0
+    assert shown.splitlines()[-1].endswith(
+        "steered by user in view: message by user: look at the header"
+    )
+    assert kitchen.main("item", "approve", "w1", "--by", "user") == (0, "approved w1\n")
+    found = item.items(kitchen.state)["w1"]
+    assert (found.state, found.last_event) == (State.APPROVED, "w1.3")

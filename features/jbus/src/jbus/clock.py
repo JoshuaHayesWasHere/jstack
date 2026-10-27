@@ -19,7 +19,7 @@ it. A thread at work (`moving`, `quiet` or `waiting`) stops the count and does n
 long review that is still working is never asked again.
 
 At `PASSES` such passes jbus acts once by itself. It sends a reviewer its line again, with
-`t3_thread_send`: `/pr-review run <slug> again`, or the scoped line with its two ranges, alone,
+`jbus.outbox`: `/pr-review run <slug> again`, or the scoped line with its two ranges, alone,
 since the reviewer's Start reads the line as its message. A scoped reviewer that T3 Code says has
 no `worktreePath` runs in the main checkout and refuses there, so it is sent nothing: its crew is
 told instead (`ROOTED`), once for the head, to launch one in the crew's own worktree. It sends a
@@ -32,12 +32,11 @@ own rule for it (jv-hung-interrupt), so the home picks it up.
 A new head or a new class starts a new clock, and a slug that waits no more drops its clock. A pass
 in which `jmerge` failed, or that could not list the threads, counts nothing and keeps the clocks.
 A crew that waits on a usage limit (`Pass.limited`) or on a gate is left to `failover` and the
-gate. A pass in which the thread jbus would send to is on a capped instance
-(`expedite.waits_on_cap`) does not count either: a message sent then ends at once on the limit, so
-the one try waits for the reset, and so does each line `_send` has for a home on a capped
-instance. Where another step of jbus nudges the crew about the same head just as the clock is due
-(an expedite sent again after a cap), the clock starts again, so the reviewer is not asked twice
-at once. A thread that ended with no Result and no pull request is `threads.resume`'s.
+gate. The outbox holds each line `_send` has for a thread on a capped instance (`jbus.outbox`), so
+the one try waits for the reset, and the count stops at `PASSES` while it waits. Where another step
+of jbus nudges the crew about the same head just as the clock is due (an expedite the outbox held
+until the reset), the clock starts again, so the reviewer is not asked twice at once. A thread that
+ended with no Result and no pull request is `threads.resume`'s.
 
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
 holds on one reason, with no thread at work on the cause, wake the home that owns them once the
@@ -69,6 +68,7 @@ from jbus import (
     dispatch,
     expedite,
     merge,
+    outbox,
     read_json,
     rebase,
     threads,
@@ -213,26 +213,43 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
 
 
-def _send(run: Pass, client: Client, thread: str, message: str, key: str, who: str = "") -> str:
+def _send(
+    run: Pass,
+    client: Client,
+    thread: str,
+    message: str,
+    key: str,
+    who: str = "",
+    *,
+    needs: outbox.Needs,
+) -> str:
     """Queue one message to a thread, once for the key. Return `sent`, or `refused` where T3 Code
     refused it, as it does for a thread that is gone, which no later pass would change, or nothing
-    for a call that got no answer, which the next pass tries again. `who` names what the line is
-    about in a `wait` line, the slug of the key where it is not given."""
+    for a call that got no answer or a message the outbox holds, which the next pass tries again.
+    `who` names what the line is about in a `wait` line, the slug of the key where it is not
+    given."""
     who = who or key.split("|")[1]
     if key in run.box.sent():
         return "sent"
-    if expedite.waits_on_cap(run, client, thread, who, "its clock's line"):
-        return ""
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=who,
+            key=key,
+            text=message,
+            template=key.split("|")[0],
+            needs=needs,
+        )
     except T3Refused as error:
         run.say(f"wait {who}: T3 Code refused {thread} its clock's line ({error})")
         run.box.mark(key)
         return "refused"
     except T3Error as error:
         run.say(f"wait {who}: {thread} could not be sent its clock's line ({error})")
+        return ""
+    if not went:
         return ""
     run.box.mark(key)
     return "sent"
@@ -259,7 +276,7 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
             reason=reason,
             slug=slug,
         )
-    went = _send(run, client, thread, line, key)
+    went = _send(run, client, thread, line, key, needs="act")
     if not went:
         return False
     wait["did"] = did
@@ -287,7 +304,8 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
     )
     at = thread_of(home_of(run.home, brief))
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
-    went = _send(run, client, at, text, f"{CLOCK}-home|{slug}|{key}") if at else "no home"
+    sending = f"{CLOCK}-home|{slug}|{key}"
+    went = _send(run, client, at, text, sending, needs="decide") if at else "no home"
     if not went:
         return False
     if went == "sent":
@@ -343,10 +361,7 @@ def tick(
         if wait["passes"] + 1 >= PASSES and grew:
             wait["passes"] = 0
             continue
-        due = wait["passes"] + 1 >= PASSES
-        if due and expedite.waits_on_cap(run, client, thread, slug, f"its clock's {kind} wait"):
-            continue
-        wait["passes"] += 1
+        wait["passes"] = min(wait["passes"] + 1, PASSES)
         if wait["passes"] < PASSES:
             continue
         if not wait["acted"] and _act(run, client, slug, wait):
@@ -415,7 +430,7 @@ def held(
         text = HELD_HOME.format(rows=rows, minutes=minutes, reason=hold["reason"])
         at = thread_of(run.home / hold["home"])
         sending = f"{HELD}|{key}|{hold['since']}"
-        went = _send(run, client, at, text, sending, rows) if at else "no home"
+        went = _send(run, client, at, text, sending, rows, needs="decide") if at else "no home"
         if not went:
             continue
         hold["woke"] = True

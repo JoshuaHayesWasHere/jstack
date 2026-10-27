@@ -74,6 +74,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
+import jsettings
 from jbus import LEVELS, Loud, Project, read_json, refusal, write_json
 
 CAP = 8_000
@@ -221,7 +222,7 @@ def _loud(one: dict[str, Any]) -> Loud:
 
 
 def _at(now: datetime) -> str:
-    return now.astimezone(UTC).isoformat(timespec="seconds")
+    return jsettings.stamp(now)
 
 
 def _id(one: dict[str, Any]) -> str:

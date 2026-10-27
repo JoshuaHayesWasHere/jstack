@@ -504,6 +504,7 @@ def test_a_worktree_is_kept_when_no_process_list_can_be_read(scene, monkeypatch,
     home = scene.home
     for name, value in {
         "HOME": str(home.user),
+        "JBUS_HOME_DIR": str(home.user / ".local" / "state" / "home"),
         "PATH": f"{home.stub}:{os.environ['PATH']}",
         "STUB": str(home.stub),
         "ORIGIN": str(home.origin),

@@ -24,6 +24,8 @@ from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from urllib.parse import unquote
 
+import jsettings
+
 STORE = Path.home() / ".t3" / "userdata" / "statev2.sqlite"
 FIVE_HOURS = timedelta(hours=5)
 OPUS = 5 / 3
@@ -253,7 +255,7 @@ def report(
 
 
 def _at(stamp: str) -> datetime:
-    return datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    return jsettings.when(stamp)
 
 
 def _stamp(at: datetime) -> str:

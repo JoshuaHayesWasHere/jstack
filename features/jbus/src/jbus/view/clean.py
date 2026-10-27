@@ -3,7 +3,8 @@
 `keep` cuts a value to a shape, a fixed list of keys. It leaves out each key the shape does
 not name, whatever value a file has under it. `clean` then goes through every string that is
 left. A URL stays only when it is a pull request or a workflow run of one of the repos
-given, and `clean` turns any other URL into `LINK`. Text with the shape of a token becomes
+given, or a link that opens a thread in T3 Code by its id (`THREAD`), and `clean` turns any other
+URL into `LINK`. Text with the shape of a token becomes
 `jbus.REDACTED`. A token's shape counts only where it starts a word, so `task-...` is no
 `sk-` key. The text after a word such as `key=` becomes `jbus.REDACTED` too. So does the
 text after a word such as `Authorization:`, when that text is one run of 16 or more of the
@@ -26,6 +27,7 @@ from jbus import REDACTED
 HOST = "github.com"
 LINK = "[link]"
 ANY = "*"
+THREAD = r"t3-thread://v1/[A-Za-z0-9:_-]{1,80}"
 _URL = re.compile(r"[a-z][a-z0-9+.-]*://[^\s\"'<>`]+", re.I)
 _END = ".,;:!?)]}"
 _TOKEN = re.compile(
@@ -46,10 +48,11 @@ Shape = Any
 
 
 def allowed(repos: tuple[str, ...]) -> re.Pattern[str]:
-    """The pattern a whole URL must match to stay: a pull request or a run of one of the repos."""
+    """The pattern a whole URL must match to stay: a pull request or a run of one of the repos,
+    or a thread of T3 Code."""
     named = "|".join(re.escape(repo) for repo in repos if repo) or "(?!)"
     kinds = r"pull/\d+|actions/runs/\d+(?:/job/\d+)?"
-    return re.compile(rf"https://{re.escape(HOST)}/(?:{named})/(?:{kinds})")
+    return re.compile(rf"https://{re.escape(HOST)}/(?:{named})/(?:{kinds})|{THREAD}")
 
 
 def _text(text: str, stays: re.Pattern[str]) -> str:

@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from jbriefs.home import home_of, thread_of
-from jbus import read_json, verbs, write_json
+from jbus import outbox, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.watch import NEVER, World, brief_of, job, job_log
@@ -190,13 +190,23 @@ def _tell(run: Pass, client: Client, slug: str, head: str, line: str) -> str:
         return line
     thread = thread_of(home_of(run.home, brief_of(run, slug)))
     if thread:
-        client.recipients = client.recipients | {thread}
         key = f"cancelled|{slug}|{head[:12]}"
-        asked = {"threadId": thread, "message": f"{slug}: {line}", "mode": "queue"}
+        text = f"{slug}: {line}"
         try:
-            client.call("t3_thread_send", {**asked, "clientRequestId": key})
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=slug,
+                key=key,
+                text=text,
+                template="cancelled",
+                needs="decide",
+            )
         except T3Error as error:
             run.say(f"wait {slug}: its home could not be told of its cancelled check ({error})")
+            return line
+        if not went:
             return line
     told = f"told its home, thread {thread}" if thread else "it has no home to tell"
     run.find(slug, "cancelled", f"cancelled {slug}: {line}; {told}", key=head[:12])

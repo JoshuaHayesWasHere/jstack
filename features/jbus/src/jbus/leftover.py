@@ -54,12 +54,13 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbriefs.home import home_of, thread_of
-from jbus import mirror, questions, queue, read_json, verbs, write_json
+from jbus import mirror, outbox, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import LIVE, World, brief_of, last_result, named
@@ -256,20 +257,29 @@ def _judge(
         return replace(record, why="")
     digest = hashlib.sha256(record.left.encode()).hexdigest()[:12]
     text = message(run, world, slug, brief, record.left)
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": text, "mode": "queue"}
     key = f"{KIND}|{slug}|{digest}|{thread}"
     try:
-        client.call("t3_thread_send", {**asked, "clientRequestId": key})
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=slug,
+            key=key,
+            text=text,
+            template=KIND,
+            needs="decide",
+        )
     except T3Refused:
         return replace(record, why=REFUSED.format(thread=thread))
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told of what it left ({error})")
         return replace(record, why=SILENT.format(thread=thread))
+    if not went:
+        return record
     line = f"{KIND} {slug}: told its home, thread {thread}, of what it left"
     run.find(slug, KIND, line, text, key=f"{digest} {thread}")
     run.say(line)
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     return replace(record, thread=thread, told=at, why="")
 
 
@@ -315,7 +325,7 @@ def said(state: Path, slug: str, at: datetime) -> None:
     """Record that jbus reported a row to the user as a stall."""
     records = read(state)
     if slug in records:
-        stamp = at.astimezone(UTC).isoformat(timespec="seconds")
+        stamp = jsettings.stamp(at)
         _write(state, records | {slug: replace(records[slug], stalled=stamp)})
 
 

@@ -292,6 +292,7 @@ class Home:
                 "HOME": str(self.user),
                 "JBUS_CONFIG_DIR": str(self.user / ".config" / "jbus"),
                 "JBUS_STATE_DIR": str(self.user / ".local" / "state" / "jbus"),
+                "JBUS_HOME_DIR": str(self.user / ".local" / "state" / "home"),
                 "PATH": path or f"{self.stub}:{os.environ['PATH']}",
                 "STUB": str(self.stub),
                 "ORIGIN": str(self.origin),

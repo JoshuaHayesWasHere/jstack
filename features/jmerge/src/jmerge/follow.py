@@ -61,11 +61,6 @@ def packages(project: dict) -> object:
         return None
 
 
-def _said(ran: subprocess.CompletedProcess[str]) -> str:
-    said = (ran.stderr or ran.stdout).strip().splitlines()
-    return said[-1].strip() if said else f"exit {ran.returncode}"
-
-
 def follow(run: Run, main: Path, before: str) -> list[str]:
     """The notes for a pull of the main checkout from `before` to its HEAD. First comes the note
     of the tool, `lines.reinstalled` or `lines.not_reinstalled`, then the note of the install,
@@ -88,7 +83,7 @@ def _tool(run: Run, main: Path, before: str) -> str:
     ):
         ran = run(main, *command)
         if ran.returncode:
-            return lines.not_reinstalled(tool, f"{shlex.join(command)}: {_said(ran)}")
+            return lines.not_reinstalled(tool, f"{shlex.join(command)}: {lines.said(ran)}")
     return lines.reinstalled(tool, main)
 
 

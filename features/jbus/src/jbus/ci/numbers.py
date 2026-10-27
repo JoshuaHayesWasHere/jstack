@@ -44,6 +44,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any
 
+import jsettings
+
 LOOKBACK = timedelta(hours=2)
 FALLBACK = timedelta(hours=24)
 KINDS = ("rebase", "conflict", "mainmoved", "failed", "refailed", "expedite", "review")
@@ -82,7 +84,7 @@ class Number:
 
 
 def time(text: str | None) -> datetime | None:
-    return datetime.fromisoformat(text.replace("Z", "+00:00")) if text else None
+    return jsettings.when(text) if text else None
 
 
 def minutes(first: str | None, last: str | None) -> float:

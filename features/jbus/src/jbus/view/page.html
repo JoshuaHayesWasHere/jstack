@@ -88,7 +88,6 @@
   .needs.bar #nfall { flex: 1 1 100%; order: 3; margin: 0 0 var(--space-1); }
   #nq > .nr[hidden] { display: none; }
   #nfold { margin: var(--space-2) 0 0; }
-  #nsaid .stl { margin: var(--space-4) 0 0; font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
 
   .sh { width: 11px; height: 11px; flex: none; display: inline-block; background: var(--ink-2); }
   .w-user .sh { background: var(--due); transform: rotate(45deg) scale(0.9); border-radius: var(--radius-xs); }
@@ -1118,7 +1117,7 @@
     else if (e.key === "g") gAt = Date.now();
     else if (after && (e.key === "a" || e.key === "p")) { e.preventDefault(); location.hash = href(e.key === "a" ? "" : nextProject()); }
   }, true);
-  var gAt = 0, CHORD_MS = 1500, FIRSTS = {}, TIMED = { item: true, action: true }, WRITTEN = { "/answer": "answer", "/steer": "", "/panel/you/approve": "approve", "/panel/you/hold": "hold", "/panel/you/steer": "message" }, SHOWN = "";
+  var gAt = 0, CHORD_MS = 1500, FIRSTS = {}, TIMED = { item: true, action: true }, WRITTEN = { "/answer": "answer", "/approve": "approve", "/panel/you/approve": "approve", "/panel/you/hold": "hold" }, SHOWN = "";
   var HEADLESS = !!navigator.webdriver || /HeadlessChrome/.test(navigator.userAgent);
   function routeName() { return PROJECT ? "project" : TRIAGE ? "triage" : "stack"; }
   function note(kind, what) {
@@ -1161,7 +1160,7 @@
 
   function ask(path, body) {
     var wrote = body ? WRITTEN[path.split("?")[0]] : undefined;
-    if (wrote !== undefined) note("action", wrote || String(body.action));
+    if (wrote) note("action", wrote);
     var stop = new AbortController(), timer = setTimeout(function () { stop.abort(); }, body ? WRITE_TIMEOUT_MS : READ_TIMEOUT_MS);
     var how = { cache: "no-store", signal: stop.signal };
     if (body) { how.method = "POST"; how.headers = { "Content-Type": "application/json" }; how.body = JSON.stringify(body); }

@@ -46,6 +46,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbus import Refused, passes, questions, queue, read_json, verbs, wake, work, write_json
 
 EVENTS = {
@@ -59,13 +60,10 @@ EVENTS = {
     "item.held": "quiet",
     "item.done": "quiet",
     "item.dropped": "quiet",
-    "item.steered": "quiet",
-    "item.sent": "quiet",
 }
 NAME = "items.jsonl"
 LOCK = "items.lock"
 COUNTER = "items-next.json"
-SENDS = "item-sends.json"
 OWNER = "home"
 PASS_BY = "jbus"
 
@@ -95,20 +93,6 @@ class Verb(StrEnum):
     HOLD = "held"
     DONE = "done"
     DROP = "dropped"
-    STEER = "steered"
-
-
-class Steer(StrEnum):
-    """A `Steer` is what a steer does, the `action` of a `steered` line: a message to the
-    item's home, a hold on its approval, or a new brief that sends the item back to
-    `proposed`."""
-
-    MESSAGE = "message"
-    HOLD = "hold"
-    REDIRECT = "redirect"
-
-
-Move = Verb | Steer
 
 
 class Where(StrEnum):
@@ -127,7 +111,7 @@ BACK = "the state it came from"
 
 S = State
 LIVE = (S.PROPOSED, S.APPROVED, S.QUEUED, S.RUNNING, S.WAITING_ON_YOU, S.HELD)
-MOVES: dict[tuple[State | None, Move], State | str] = {
+MOVES: dict[tuple[State | None, Verb], State | str] = {
     (None, Verb.PROPOSE): S.PROPOSED,
     (S.PROPOSED, Verb.LINK): S.PROPOSED,
     (S.APPROVED, Verb.LINK): S.APPROVED,
@@ -150,23 +134,10 @@ MOVES: dict[tuple[State | None, Move], State | str] = {
     (S.RUNNING, Verb.DROP): S.DROPPED,
     (S.WAITING_ON_YOU, Verb.DROP): S.DROPPED,
     (S.HELD, Verb.DROP): S.DROPPED,
-    **{(state, Steer.MESSAGE): state for state in LIVE},
-    (S.APPROVED, Steer.HOLD): S.HELD,
-    (S.QUEUED, Steer.HOLD): S.HELD,
-    (S.RUNNING, Steer.HOLD): S.HELD,
-    (S.WAITING_ON_YOU, Steer.HOLD): S.HELD,
-    (S.PROPOSED, Steer.REDIRECT): S.PROPOSED,
-    (S.APPROVED, Steer.REDIRECT): S.PROPOSED,
-    (S.QUEUED, Steer.REDIRECT): S.PROPOSED,
-    (S.HELD, Steer.REDIRECT): S.PROPOSED,
 }
 """Every move there is, one row each: from a state (None for an item not there yet), by a
-verb or a steer's action, to a state, or to `BACK` for the state the item was in before
-`waiting_on_you`. A message moves no item, and an item that is done or dropped takes none.
-A running item is not redirected: its thread has the brief already, and a message steers it.
-A held item whose row merged anyway is done."""
-
-assert not {str(one) for one in Verb} & {str(one) for one in Steer}, "a steer is named as a verb"
+verb, to a state, or to `BACK` for the state the item was in before `waiting_on_you`. An item
+that is done or dropped takes none. A held item whose row merged anyway is done."""
 
 AIM: dict[str, State | None] = {
     "removed": None,
@@ -210,10 +181,7 @@ config."""
 class Item:
     """An `Item` is one item, folded from its lines. `risk` is `routine` until a caller calls `risk`
     for the item. `back` is the state the item entered `waiting_on_you` from, and None in any other
-    state. `redirect` is the id of a redirect that no approval by the item's id has followed yet.
-    Such an approval is an `approved` line with `by_id`, which only `approve` writes. `redirect` is
-    empty where there is none. While it is set, no rule, no word from chat, no approval of the row
-    and no pass approves the item (`jbus.steer`, `planned`)."""
+    state."""
 
     id: str
     project: str
@@ -225,39 +193,26 @@ class Item:
     risk: Risk
     last_event: str
     back: State | None = None
-    redirect: str = ""
 
 
 def kind(verb: Verb) -> str:
     return f"item.{verb}"
 
 
-def refusal(item: Item | None, move: Move, name: str = "") -> str:
+def refusal(item: Item | None, verb: Verb, name: str = "") -> str:
     """Return the sentence that refuses a move that is not in `MOVES`."""
     if item is None:
         return f"refused: there is no item {name}, and only a proposal makes one"
-    was = f"refused: {item.id} is {item.state}, and an item that is {item.state}"
-    if isinstance(move, Steer):
-        return f"{was} takes no {move}"
-    return f"{was} cannot be {move}"
-
-
-def move_of(line: dict[str, Any]) -> Move:
-    """Return the move a line makes: its steer's action for a `steered` line, else its verb.
-    For a `steered` line with no action, the move is the verb alone, and `MOVES` has no row
-    for it."""
-    verb, action = Verb(line["verb"]), line.get("action")
-    if verb is Verb.STEER and action in set(Steer):
-        return Steer(action)
-    return verb
+    return f"refused: {item.id} is {item.state}, and an item that is {item.state} cannot be {verb}"
 
 
 def advance(item: Item | None, line: dict[str, Any]) -> Item:
-    """Return the item after one line. Raise `Refused` where the line's move is not in `MOVES`."""
-    verb, move = Verb(line["verb"]), move_of(line)
-    to = MOVES.get((item.state if item else None, move))
+    """Return the item after one line. Raise `Refused` where the line's move is not in `MOVES`,
+    and `ValueError` where its verb is none of `Verb`."""
+    verb = Verb(line["verb"])
+    to = MOVES.get((item.state if item else None, verb))
     if to is None:
-        raise Refused(refusal(item, move, line.get("item", "")))
+        raise Refused(refusal(item, verb, line.get("item", "")))
     if item is None:
         return Item(
             id=line["item"],
@@ -276,19 +231,13 @@ def advance(item: Item | None, line: dict[str, Any]) -> Item:
     if state is S.WAITING_ON_YOU:
         back = item.back if item.state is S.WAITING_ON_YOU else item.state
     slug = line.get("slug", item.slug) if verb is Verb.LINK else item.slug
-    redirect = item.redirect
-    if move is Steer.REDIRECT:
-        redirect = line["id"]
-    elif verb is Verb.APPROVE and line.get("by_id"):
-        redirect = ""
-    return replace(
-        item, state=state, back=back, slug=slug, last_event=line["id"], redirect=redirect
-    )
+    return replace(item, state=state, back=back, slug=slug, last_event=line["id"])
 
 
 def fold(lines: Iterable[dict[str, Any]]) -> dict[str, Item]:
     """Return every item, by its id, folded from its lines. Skip a line that is not a move:
-    `write` never writes such a line, so jbus did not write it."""
+    `write` never writes such a line now. A `steered` line, which jbus wrote before it had no
+    steer, is such a line: it stays in the log, and `jbus item show` prints it."""
     items: dict[str, Item] = {}
     for line in lines:
         try:
@@ -388,21 +337,21 @@ def write(
     return made
 
 
-def _current(lines: list[dict[str, Any]], name: str, move: Move, seen: str | None) -> Item:
+def _current(lines: list[dict[str, Any]], name: str, verb: Verb, seen: str | None) -> Item:
     """Return the item to make a move on. Raise `Refused` when the item does not exist, when
     `seen` is given and is not the item's last line, or when the item's state has no such
     move.
     This function checks for a stale `seen` first. It refuses that with the line that came
     after `seen`, printed as `shown` prints a line. So when a move to `done` or `dropped`
-    makes a steer stale, the writer of that steer learns of the move."""
+    makes a go stale, the writer of that go learns of the move."""
     current = fold(lines).get(name)
     if current is None:
-        raise Refused(refusal(None, move, name))
+        raise Refused(refusal(None, verb, name))
     if seen is not None and seen != current.last_event:
         (last,) = [one for one in lines if one.get("id") == current.last_event][-1:]
         raise Refused(f"refused: {name} moved since {seen}: its last line is {said_line(last)}")
-    if (current.state, move) not in MOVES:
-        raise Refused(refusal(current, move))
+    if (current.state, verb) not in MOVES:
+        raise Refused(refusal(current, verb))
     return current
 
 
@@ -432,12 +381,7 @@ def _put(
             raise Refused(f"refused: {name} is proposed already")
     else:
         name = item
-        current = _current(lines, name, move_of({"verb": verb, **more}), seen)
-        if verb is Verb.APPROVE and current.redirect and not more.get("by_id"):
-            raise Refused(
-                f"refused: {name} was redirected at {current.redirect}, and only an approval "
-                "by its id approves it"
-            )
+        current = _current(lines, name, verb, seen)
     slug = more.get("slug", "")
     if slug:
         if current is not None and current.slug:
@@ -449,7 +393,7 @@ def _put(
     made = {
         "id": f"{name}.{count + 1}",
         "item": name,
-        "at": clock().astimezone(UTC).isoformat(timespec="seconds"),
+        "at": jsettings.stamp(clock()),
         "by": by,
         "where": str(where),
         "line": line,
@@ -473,9 +417,100 @@ def told(box: wake.Box, made: dict[str, Any]) -> None:
     """Write a line's quiet event in `events.jsonl`. This function writes it after the line, so
     if writing the event fails, the line stays in the log."""
     verb, name, slug = Verb(made["verb"]), made["item"], made.get("slug", "")
-    did = f"{verb} ({made['action']})" if verb is Verb.STEER else str(verb)
-    said = f"item {box.project.name}: {name} {did}" + (f", {slug}" if slug else "")
+    said = f"item {box.project.name}: {name} {verb}" + (f", {slug}" if slug else "")
     box.record(kind(verb), f"{said}: {made['line']}", item=name, item_line=made["id"])
+
+
+@dataclass(frozen=True)
+class Basis:
+    """A Basis names the user's words that a go is based on, the way an approval of a row
+    names them (`queue.basis`): words said in the view, or a message of Sous Chef's chat."""
+
+    kind: str
+    ref: str
+    said: queue.Said
+
+
+def rests(basis: Basis | None) -> dict[str, Any]:
+    """Return the fields that a line records about the user's word that the go cites, or
+    nothing when the go cites no word."""
+    if basis is None:
+        return {}
+    heard = basis.said
+    return {
+        "basis": basis.kind,
+        "ref": basis.ref,
+        "said": heard.words,
+        "said_at": heard.said_at,
+        "said_in": heard.said_in,
+        "checked": heard.checked,
+    }
+
+
+def chat(message: str, words: str, user: jsettings.Settings, now: datetime) -> Basis:
+    """Return the user's words as Sous Chef's chat quotes them, by the chat message's id or
+    link. Nothing reads them back from the chat, so the basis marks them `checked: false`."""
+    said = queue.Said(" ".join(words.split()), user.stamp(now), "chat", False, message)
+    return Basis("chat", message, said)
+
+
+def names(words: str, item: Item) -> bool:
+    """Say whether the words name the item, by its id or its slug as a whole name."""
+    return any(
+        name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", words, re.I)
+        for name in (item.id, item.slug)
+    )
+
+
+def approve(
+    state: Path,
+    box: wake.Box,
+    id: str,
+    *,
+    by: str,
+    where: Where | str,
+    words: str,
+    seen: str | None,
+    user: jsettings.Settings,
+    project: str,
+    basis: Basis | None = None,
+) -> dict[str, Any]:
+    """Record the user's go for an item, by its id, from the chat, the view or the command.
+    Return the `approved` line. It has the word that the go cites, when the go names one
+    (`rests`). A go from chat is taken only when its words name the item and the item's risk is
+    `routine`: the user approves a review item in the view, and the refusal names the view's
+    link."""
+    where = Where(where)
+    if by != user.user:
+        raise Refused(f"refused: only {user.user} approves an item, not {by}")
+    said = f"approve by {by}" + (f": {words}" if words else "")
+    more: dict[str, Any] = {**({"words": words} if words else {}), **rests(basis)}
+    with _locked(state):
+        if where is Where.CHAT:
+            _from_chat(state, id, words, project)
+        made = _put(state, Verb.APPROVE, item=id, by=by, where=where, line=said, seen=seen, **more)
+    told(box, made)
+    return made
+
+
+def _from_chat(state: Path, id: str, words: str, project: str) -> None:
+    """Refuse a go from chat when its words do not name the item, or when the item is a review
+    item. The caller holds `items.lock`, so no other writer adds a line between the check and
+    the go."""
+    item = items(state).get(id)
+    if item is None:
+        raise Refused(refusal(None, Verb.APPROVE, id))
+    link = f"#/{project}/item/{id}"
+    if not names(words, item):
+        slug = f" or its slug {item.slug}" if item.slug else ""
+        raise Refused(
+            f"refused: an approval from chat names the item, {id}{slug}, and these words "
+            f"name neither: approve it in the view, {link}"
+        )
+    if judged(state, item).risk is Risk.REVIEW:
+        raise Refused(
+            f"refused: {id} is a review item, approved in the view and not from chat: {link}"
+        )
 
 
 def risk(value: str, gates: Iterable[questions.Question]) -> Risk:
@@ -504,15 +539,15 @@ def planned(item: Item | None, go: bool, value: str | None) -> list[Verb]:
     """Return the verbs a pass writes for an item, in order. They follow from its row's go and
     the value `work.py` judged for the row this pass (None where it confirmed no value).
 
-    A pass approves an item that is proposed or held where the row has a go, except an item that was
-    redirected and that nobody has approved by its id since. Then the pass moves the item to the
-    state `AIM` says, by the one move `MOVES` has for it. If the item waits on the user and its row
-    no longer waits, the pass resumes it first. `MOVES` has that move only from the state the item
-    came from. The pass makes no other move: it makes none that the facts do not show.
+    A pass approves an item that is proposed or held where the row has a go. Then the pass moves
+    the item to the state `AIM` says, by the one move `MOVES` has for it. If the item waits on the
+    user and its row no longer waits, the pass resumes it first. `MOVES` has that move only from
+    the state the item came from. The pass makes no other move: it makes none that the facts do
+    not show.
     """
     made: list[Verb] = []
     state, back = (item.state, item.back) if item else (S.PROPOSED, None)
-    if go and state in (S.PROPOSED, S.HELD) and not (item and item.redirect):
+    if go and state in (S.PROPOSED, S.HELD):
         made.append(Verb.APPROVE)
         state = S.APPROVED
     target = AIM.get(value or "")

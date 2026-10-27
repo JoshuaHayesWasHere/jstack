@@ -118,7 +118,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import skills
-from jbus import END_TURN, Config, Refused, dispatch, mirror, queue, verbs, write_json
+from jbus import END_TURN, Config, Refused, dispatch, mirror, outbox, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused, typed
 
@@ -476,7 +476,7 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
                     _write(state, count, [again if each is one else each for each in records])
                 return again, False
         number = max(count, _floor(home))
-        at = now.astimezone(UTC).isoformat(timespec="seconds")
+        at = jsettings.stamp(now)
         made = Question(number=number, slug=slug, question=asked, asked_at=at, **said)
         _write(state, number + 1, [*records, made])
     return made, True
@@ -497,7 +497,7 @@ def clear(run: Pass, number: int, words: str) -> None:
     """Close a question that waits for an answer (`_open`) because what it asked about has
     passed, and say so in `words`. A question the user answered keeps that answer. jbus sends
     nothing, and writes one quiet `note` event."""
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     given = Answer(words, SOURCE, at, "a jbus pass", True, closed_by=CLEARED)
     with _locked(run.state):
         count, records = _kept(run.state)
@@ -627,7 +627,7 @@ def silent(run: Pass) -> None:
     question it closes."""
     if not path(run.state).exists():
         return
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
     with _locked(run.state):
         try:
@@ -702,13 +702,15 @@ class Carried:
     """A Carried says how the send of one answer to its asker went. `told` says the answer went,
     and `thread` is the thread that should get the answer, if it had one. `error` is what T3 Code
     said when it did not take the answer, and `refused` says that T3 Code answered and refused
-    the answer."""
+    the answer. `held` says the outbox holds the answer until the cap on the thread's instance
+    resets."""
 
     message: str = ""
     thread: str = ""
     told: bool = False
     error: str = ""
     refused: bool = False
+    held: bool = False
 
 
 def carry(run: Pass, client: Client, one: Question) -> Carried:
@@ -733,13 +735,22 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
     if not thread:
         return Carried(message)
     key = f"answer|{slug}|{number}"
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=slug,
+            key=key,
+            text=message,
+            template="answer",
+            needs="act",
+        )
     except T3Error as error:
         return Carried(message, thread, error=str(error), refused=isinstance(error, T3Refused))
-    _told(run.state, number, run.now.astimezone(UTC).isoformat(timespec="seconds"))
+    if not went:
+        return Carried(message, thread, held=True)
+    _told(run.state, number, jsettings.stamp(run.now))
     line = f"{NOTE} {slug}: told its thread the answer to question {number}"
     run.find(slug, NOTE, line, message, key=f"answer {number}")
     return Carried(message, thread, told=True)
@@ -770,6 +781,8 @@ def tell(run: Pass, client: Client) -> None:
         elif not went.thread:
             line = f"{NOTE} {slug}: the answer to question {number} has no thread to go to"
             run.find(slug, NOTE, line, went.message, key=f"answer {number} no thread")
+        elif went.held:
+            continue
         elif went.refused:
             what = REFUSED.format(number=number)
             text = f"{went.error}\n\n{went.message}"
@@ -794,7 +807,7 @@ def _threads(client: Client, project_id: str) -> set[str]:
 
 
 def _proposed_at(run: Pass, number: int) -> None:
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     with _locked(run.state):
         count, records = _kept(run.state)
         records = [replace(one, proposed=at) if one.number == number else one for one in records]
@@ -842,12 +855,21 @@ def propose(run: Pass, client: Client) -> None:
             _proposed_at(run, number)
             continue
         message = PROPOSE.format(**asdict(one))
-        client.recipients = client.recipients | {thread}
-        asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
         try:
-            client.call("t3_thread_send", asked)
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=slug,
+                key=key,
+                text=message,
+                template="options",
+                needs="act",
+            )
         except T3Error as error:
             run.say(f"wait {slug}: its thread could not be asked for options ({error})")
+            continue
+        if not went:
             continue
         _proposed_at(run, number)
         line = f"{NOTE} {slug}: asked its thread for the options of question {number}"

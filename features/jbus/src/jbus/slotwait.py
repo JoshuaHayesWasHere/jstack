@@ -12,7 +12,7 @@ thread, so each pass of `jbus poll` resumes it, in `wake`:
 - For each lane that has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already. A woken waiter claims its slot for
   `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
-- A wake is one `t3_thread_send` in mode queue, keyed by the wait, so a retry sends the same
+- A wake is one queued message (`jbus.outbox.send`), keyed by the wait, so a retry sends the same
   message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
   each wait once, and sends again a message that got no answer.
 
@@ -35,7 +35,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
-from jbus import END_TURN, verbs
+from jbus import END_TURN, outbox, verbs
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.watch import ENDED
@@ -133,15 +133,17 @@ def tell_capped(run: Pass, client: Client, one: Wait) -> bool:
     """Send the thread its wake, and say whether the wait is done: T3 Code took the message, or
     said the thread is gone."""
     message = CAPPED.format(role=one.role, until=one.until, thread=one.thread)
-    client.recipients = client.recipients | {one.thread}
-    asked = {
-        "threadId": one.thread,
-        "message": message,
-        "mode": "queue",
-        "clientRequestId": f"pool-wake|{one.thread}|{one.id}",
-    }
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=one.thread,
+            row=one.thread,
+            key=f"pool-wake|{one.thread}|{one.id}",
+            text=message,
+            template="pool-wake",
+            needs="act",
+        )
     except T3Refused as error:
         if GONE.search(str(error)):
             return _gone(run, one, error)
@@ -149,6 +151,8 @@ def tell_capped(run: Pass, client: Client, one: Wait) -> bool:
         return False
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told the {one.role} pool is free ({error})")
+        return False
+    if not went:
         return False
     line = (
         f"pool-wake: woke {one.thread}, the {one.role} pool was capped until {one.until},"
@@ -172,15 +176,17 @@ def waited(one: Waiter | Wait, now: datetime) -> int:
 def tell(run: Pass, client: Client, one: Waiter) -> None:
     command = shlex.join(one.command)
     message = MESSAGE.format(lane=one.lane, command=command)
-    client.recipients = client.recipients | {one.thread}
-    asked = {
-        "threadId": one.thread,
-        "message": message,
-        "mode": "queue",
-        "clientRequestId": f"slot-wake|{one.thread}|{one.id}",
-    }
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=one.thread,
+            row=one.thread,
+            key=f"slot-wake|{one.thread}|{one.id}",
+            text=message,
+            template="slot-wake",
+            needs="act",
+        )
     except T3Refused as error:
         if GONE.search(str(error)):
             _gone(run, one, error)
@@ -190,6 +196,8 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
         return
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
+        return
+    if not went:
         return
     waiters.woken(slot.locks_dir(), one.id, run.now)
     line = (

@@ -14,10 +14,10 @@ Set(f, k, v) == [f EXCEPT ![k] = v]
 
 \* What the child does that the root can see ends its quiet spell: a write of one of its crew or
 \* reviewer threads, or a change in what it has out, its crew, pull request or call
-\* (jbus/children.py:218-219 `elif latest and latest > since: since, step = latest, "calm"`,
-\* jbus/children.py:205 `step = prev.get("step", "calm") if prev.get("sig") == sig else "calm"`).
+\* (jbus/children.py:230-231 `elif latest and latest > since: since, step = latest, "calm"`,
+\* jbus/children.py:217 `step = prev.get("step", "calm") if prev.get("sig") == sig else "calm"`).
 \* A write of its home thread counts only before the root nudged it in this spell
-\* (jbus/children.py:211 `or (one.get("id") == thread and step == "calm")`): a turn the nudge
+\* (jbus/children.py:223 `or (one.get("id") == thread and step == "calm")`): a turn the nudge
 \* started is no progress. A notice Josh has read is done.
 Calmed(k, m) == [m EXCEPT ![NoticeOf(k)] = IF @ = "told" THEN "none" ELSE @]
 Calm(k) ==
@@ -42,16 +42,16 @@ LaunchCrew(k) ==
 OpenPr(k) ==
     /\ work[k] = "crew" /\ work' = Set(work, k, "open")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* Its checks pass (jmerge/cli.py:925 `short = short or ready.short_on_github(`) and its
-\* review is written (jmerge/cli.py:906 `short = short or ready.short_of(text, one.head)`).
+\* Its checks pass (jmerge/cli.py:915 `short = short or ready.short_on_github(`) and its
+\* review is written (jmerge/cli.py:896 `short = short or ready.short_of(text, one.head)`).
 PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* A check turns red or a review goes stale (jmerge/cli.py:925 `ready.short_on_github(`,
-\* jmerge/cli.py:906 `ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
+\* A check turns red or a review goes stale (jmerge/cli.py:915 `ready.short_on_github(`,
+\* jmerge/cli.py:896 `ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
 \* judges it again. A merge it had begun fails at the head it checked, and its run gives the merge
-\* lock back as it returns (jmerge/cli.py:1240 `lock.give()`).
+\* lock back as it returns (jmerge/cli.py:1229 `lock.give()`).
 PrDrops(k) ==
     /\ work[k] = "ready" /\ work' = Set(work, k, "again")
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
@@ -63,13 +63,13 @@ CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh goes into the outbox of each route the setting picks, once: its
-\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:376 `write_json(self.state
+\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:377 `write_json(self.state
 \* / "sent.json", [*sent, key])`). The model's setting picks one route, home or webhook, and
 \* leaves out both. A new call is a change in what the child has out, so its spell ends.
 RaiseCall(c) ==
     /\ c \in Raised
     /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:188 `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, wake)     \* jbus/wake.py:378 `else self.routes:`
+    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, wake)     \* jbus/wake.py:379 `else self.routes:`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
     /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
@@ -84,9 +84,9 @@ GetsStuck(k) ==
 \* The root or Josh retires a child: the scope's handoff closes it. It closes a scope whose plan
 \* has no open entry only when `jbus out --scope` says it has nothing out: no queue row of its
 \* briefs that is not over, no unsettled crew or reviewer thread of theirs, no question and no
-\* open gate (handoff/SKILL.md:149 `elif [ -z "$still" ]; then`, jbus/children.py:85 `if
+\* open gate (handoff/SKILL.md:149 `elif [ -z "$still" ]; then`, jbus/children.py:86 `if
 \* row["slug"] in mine and not queue.over(row)`). A closed scope has no home-id, and the root
-\* watches it no more (jbus/children.py:199 `if not thread or not (launched or beat):`).
+\* watches it no more (jbus/children.py:211 `if not thread or not (launched or beat):`).
 Retire(k) ==
     /\ life[k] \in {"working", "stuck"}
     /\ ~WorkOut(k)     \* handoff/SKILL.md:147 `if ! still=$(jbus out --scope "$scope" 2>&1); then`
@@ -101,8 +101,8 @@ Answer(c) ==
 \* Josh answers the root's question about a stalled child: he gets it going again, and what it
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
-    /\ watch[k] = "asked"     \* jbus/children.py:261 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:691 `why = post(route, body(some))`
+    /\ watch[k] = "asked"     \* jbus/children.py:273 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:692 `why = post(route, body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* A pass posts what waits in the outbox of each route the setting picks, and only those. A post
@@ -110,8 +110,8 @@ Steps(k) ==
 Deliver(m) ==
     \E r \in Routes :
         /\ msg[m] = r
-        /\ r = wake     \* jbus/alert.py:332 `for route in run.box.routes:`
-        /\ up[r]        \* jbus/wake.py:691-693 `why = post(route, body(some)) if why: break`
+        /\ r = wake     \* jbus/alert.py:334 `for route in run.box.routes:`
+        /\ up[r]        \* jbus/wake.py:692-694 `why = post(route, body(some)) if why: break`
         /\ msg' = Set(msg, m, "told")
         /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock,
                        mode>>
@@ -119,10 +119,10 @@ Deliver(m) ==
 \* (pull request 332), so a change of the setting strands no call.
 Rehome(m) ==
     /\ msg[m] \in Routes
-    /\ msg[m] # wake     \* jbus/alert.py:323 `moved(run)`; jbus/wake.py:545 `for old in self.left:`
+    /\ msg[m] # wake     \* jbus/alert.py:325 `moved(run)`; jbus/wake.py:546 `for old in self.left:`
     /\ msg' = Set(msg, m, wake)
     /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* The wake setting changes between home and webhook (jbus/__init__.py:118-119 `def to_home(self) ->
+\* The wake setting changes between home and webhook (jbus/__init__.py:119-120 `def to_home(self) ->
 \* bool: return self.wake in ("home", "both")`).
 ChangeWake ==
     /\ RoutesMove
@@ -141,34 +141,34 @@ RouteMends(r) ==
 \* ---- the root's check, one jbus pass
 
 \* What the root reads to know a child has work out, from jbus's own records and never from the
-\* child: its launched rows, its crew threads, its questions and gates (jbus/children.py:197
+\* child: its launched rows, its crew threads, its questions and gates (jbus/children.py:209
 \* `launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]`).
 \* A routine, a scope with a `rhythm` file, owes its next beat whatever it has out
-\* (jbus/children.py:198 `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
+\* (jbus/children.py:210 `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
 Sees(k) ==
-    /\ life[k] \in {"working", "stuck"}     \* jbus/children.py:199 `if not thread or not (launched or beat):`
-    /\ \/ Kind[k] = "routine"     \* jbus/children.py:220 `patience = beat or PATIENCE`
+    /\ life[k] \in {"working", "stuck"}     \* jbus/children.py:211 `if not thread or not (launched or beat):`
+    /\ \/ Kind[k] = "routine"     \* jbus/children.py:232 `patience = beat or PATIENCE`
        \/ work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
 \* The root acts on a child it sees each time the child has been quiet for its patience again
-\* since its last step (jbus/children.py:228 `if step != "asked" and run.now - start >=
+\* since its last step (jbus/children.py:240 `if step != "asked" and run.now - start >=
 \* timedelta(minutes=patience):`): it nudges it, at most twice in one spell, and then asks Josh.
 \* A nudge is a message to the child's home thread, and it may not work. Each check adds one to
 \* the quiet and takes a step the check it is due, so the last step was at a patience times its
-\* rank (jbus/children.py:225 `start = last or since + timedelta(minutes=patience * rank)`).
+\* rank (jbus/children.py:237 `start = last or since + timedelta(minutes=patience * rank)`).
 Acts(k) ==
-    /\ Sees(k)     \* jbus/children.py:199 `if not thread or not (launched or beat):`
-    /\ watch[k] # "asked"     \* jbus/children.py:228 `if step != "asked"`
-    /\ Ticked[k] >= Patience(k) * (Rank[watch[k]] + 1)     \* jbus/children.py:228 `run.now - start >= timedelta(minutes=patience)`
-\* jbus/children.py:248 `if step in ("calm", "nudged1"):` nudges, and the step after the second
-\* nudge is the question (jbus/children.py:231 `spell["step"] = STEPS_OF[rank + 1]`).
+    /\ Sees(k)     \* jbus/children.py:211 `if not thread or not (launched or beat):`
+    /\ watch[k] # "asked"     \* jbus/children.py:240 `if step != "asked"`
+    /\ Ticked[k] >= Patience(k) * (Rank[watch[k]] + 1)     \* jbus/children.py:240 `run.now - start >= timedelta(minutes=patience)`
+\* jbus/children.py:258 `if step in ("calm", "nudged1"):` nudges, and the step after the second
+\* nudge is the question (jbus/children.py:243 `spell["step"] = STEPS_OF[rank + 1]`).
 After(w) ==
     CASE w = "calm" -> "nudged1"
       [] w = "nudged1" -> "nudged2"
       [] w = "nudged2" -> "asked"
       [] OTHER -> "asked"
-\* On the first strike of a spell Josh hears of it (jbus/children.py:257 `run.find(name, STALL,
+\* On the first strike of a spell Josh hears of it (jbus/children.py:267 `run.find(name, STALL,
 \* f"{line}; jbus nudged it, thread {thread}", key=f"{since} strike")`), and the root's question
-\* after the nudges is the same notice, sent again (jbus/children.py:261).
+\* after the nudges is the same notice, sent again (jbus/children.py:262).
 Notice(k) ==
     LET w == After(watch[k]) IN
     IF ~Acts(k) THEN msg[NoticeOf(k)]
@@ -176,7 +176,7 @@ Notice(k) ==
     ELSE IF watch[k] = "calm" /\ msg[NoticeOf(k)] = "none" THEN wake
     ELSE msg[NoticeOf(k)]
 \* Each check counts the quiet of every child and acts on each one due, all in one pass
-\* (jbus/children.py:187 `def watch(run: Pass, client: Client, threads: list[dict[str, Any]] |
+\* (jbus/children.py:199 `def watch(run: Pass, client: Client, threads: list[dict[str, Any]] |
 \* None) -> None:`). A spell ends when the root no longer sees work out.
 Check ==
     /\ watch' = [k \in Kids |-> IF ~Sees(k) THEN "calm" ELSE IF Acts(k) THEN After(watch[k])
@@ -191,24 +191,24 @@ Check ==
 \* ---- merging: jbus alone, every home's pull request, one merge at a time
 
 \* jbus runs jmerge on each pass whatever home-thread holds, so it judges every home's pull
-\* request, and mode plays no part (jbus/merge.py:148 `ran = run.run("jmerge",
-\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1819-1820
+\* request, and mode plays no part (jbus/merge.py:147 `ran = run.run("jmerge",
+\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1809-1810
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==
-    /\ a = "jbus"     \* jmerge/cli.py:1819-1820 `if args.home: args.check = True`
-\* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1250 `while lock.take():`), a
-\* run that finds it held merges nothing (jmerge/cli.py:1268 `return lines.waits("wait", number,
-\* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1240 `lock.give()`).
+    /\ a = "jbus"     \* jmerge/cli.py:1809-1810 `if args.home: args.check = True`
+\* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1239 `while lock.take():`), a
+\* run that finds it held merges nothing (jmerge/cli.py:1257 `return lines.waits("wait", number,
+\* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1229 `lock.give()`).
 Read(a, k) ==
-    /\ MayMerge(a, k)     \* jmerge/cli.py:900 `if self.others(text) and not self.every:`
-    /\ Ready(k)     \* jmerge/cli.py:1015 `return Judgement(brief.stem, "", "", note, judged)`
-    /\ lock = "free"     \* jmerge/cli.py:1250 `while lock.take():`
-    /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1253 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
+    /\ MayMerge(a, k)     \* jmerge/cli.py:890 `if self.others(text) and not self.every:`
+    /\ Ready(k)     \* jmerge/cli.py:1005 `return Judgement(brief.stem, "", "", note, judged)`
+    /\ lock = "free"     \* jmerge/cli.py:1239 `while lock.take():`
+    /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1242 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
     /\ lock' = k
     /\ UNCHANGED <<life, work, msg, quiet, watch, wake, moved, up, broke, tip, blind, mode>>
 Merge(a, k) ==
-    /\ seen[k][a] # NoTip     \* jmerge/cli.py:1254 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
-    /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1285 `"merge",`
+    /\ seen[k][a] # NoTip     \* jmerge/cli.py:1243 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
+    /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1274 `"merge",`
     /\ blind' = (blind \/ seen[k][a] # tip)
     /\ tip' = Up(tip, 2)
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])

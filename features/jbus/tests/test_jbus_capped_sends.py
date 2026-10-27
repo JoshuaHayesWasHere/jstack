@@ -1,7 +1,8 @@
 """jbus sends nothing into a usage cap (sends-hold-capped). A message sent while its thread's
 instance is capped starts a turn that ends at once on the limit, so it is spent: on 2026-10-26, 105
-runs ended so (day-audit-1026-2). Each send below waits instead, under its usual key, with one
-`wait` line a pass that says so, and the first pass after the reset sends it once. The tests
+runs ended so (day-audit-1026-2). Each send below waits instead in `jbus.outbox`, under its usual
+key, with one `wait` line a pass that names its template, and the first pass after the reset sends
+it once. The tests
 replay small made-up rows through the real pass against the kitchen's fakes, with the cap written
 in the ledger (`jroles.ledger`) as the usage hooks write it."""
 
@@ -15,10 +16,12 @@ from test_jbus_failover import PRIME
 from test_jbus_github import failed, pull
 from test_jbus_held import REASON, Held
 from test_jbus_kitchen import NOW, SELECTION
-from test_jbus_leftover import home
+from test_jbus_leftover import ended as leaves
+from test_jbus_leftover import home, stalls
 from test_jbus_main_moved import checks, move, tip
 from test_jbus_main_moved import pull as red
 from test_jbus_queue import add, brief, go
+from test_jbus_row_ends import listed
 from test_jbus_stack import LINK
 from test_jbus_stack import pulls as stack
 
@@ -81,14 +84,14 @@ def test_a_rebase_message_waits_for_the_reset(kitchen):
     kitchen.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
     kitchen.set("open.json", [pull(kitchen, mergeable="CONFLICTING")])
     cap("claudeAgent")
-    holds_then_sends_once(kitchen, "rebase", "alpha", "told to rebase")
+    holds_then_sends_once(kitchen, "rebase", "alpha", "its rebase message")
 
 
 def test_a_failed_check_message_waits_for_the_reset(kitchen):
     ended(kitchen)
     kitchen.set("open.json", [pull(kitchen, [failed()])])
     cap("claudeAgent")
-    holds_then_sends_once(kitchen, "failed", "alpha", "of the failed check")
+    holds_then_sends_once(kitchen, "failed", "alpha", "its failed message")
 
 
 def test_a_restack_message_waits_for_the_reset(kitchen):
@@ -108,7 +111,7 @@ def test_a_restack_message_waits_for_the_reset(kitchen):
     stacked = kitchen
     stack(stacked, base="e" * 40)
     cap("claudeAgent")
-    holds_then_sends_once(stacked, "restack", "two", "to move its stacked link")
+    holds_then_sends_once(stacked, "restack", "two", "its restack message")
     assert sent(stacked, "restack") == [f"restack|two|{LINK[:12]}|{'e' * 12}"]
 
 
@@ -120,7 +123,7 @@ def test_a_main_moved_message_waits_for_the_reset(kitchen):
     launched.set("open.json", [red(launched, "alpha", 7, "FAILURE")])
     main = move(launched)
     cap("claudeAgent")
-    holds_then_sends_once(launched, "mainmoved", "alpha", "told main moved")
+    holds_then_sends_once(launched, "mainmoved", "alpha", "its mainmoved message")
     assert sent(launched, "mainmoved") == [f"mainmoved|alpha|#7|{main[:12]}"]
 
 
@@ -159,7 +162,7 @@ def test_a_hold_stall_line_waits_for_the_reset(kitchen):
     held.until(31)
     for said in until(kitchen, 32, 35):
         rows = "one (#11), two (#12), three (#13), four (#14)"
-        assert len(waits(said, rows, "its clock's line")) == 1, said
+        assert len(waits(said, rows, "its hold-stall message")) == 1, said
     held.minute = 36
     held.until(39)
     assert held.told() == [] and kitchen.lines("hold-stall") == []
@@ -186,3 +189,19 @@ def test_with_the_whole_pool_capped_a_quiet_child_is_neither_nudged_nor_logged(k
     until(kitchen, patience + 31, patience + 35)
     (nudge,) = sends(kitchen, children.STALL)
     assert nudge["threadId"] == found["threadId"]
+
+
+def test_a_leftover_waits_for_its_home_s_reset_and_is_not_the_users_meanwhile(kitchen):
+    """Alpha ended with something left, and its home's thread is capped: the leftover stays the
+    home's, so it is not on the user's list while it waits, and goes to the home once after the
+    reset."""
+    home(kitchen)
+    leaves(kitchen)
+    cap("claudeAgent")
+    for said in until(kitchen, 0, 3):
+        assert sent(kitchen, "leftover") == []
+        assert len(waits(said, "alpha", "its leftover message")) == 1, said
+        assert listed(kitchen) == [] and kitchen.waiting() == []
+    until(kitchen, 41, 44)
+    assert len(sent(kitchen, "leftover")) == 1
+    assert listed(kitchen) == [] and stalls(kitchen) == []

@@ -30,10 +30,9 @@ from __future__ import annotations
 
 import hashlib
 import re
-import subprocess
 from typing import TYPE_CHECKING
 
-from jbus import alert, verbs
+from jbus import alert, outbox, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
@@ -160,10 +159,10 @@ def merge(run: Pass) -> Said:
     name, streak = run.project.name, alert.jmerge(run.project.name)
     if not ran.returncode or lines:
         if lines.failed:
-            run.say(f"wait {name}: jmerge stopped after {len(lines)} lines ({_why(ran)})")
+            run.say(f"wait {name}: jmerge stopped after {len(lines)} lines ({lines_of.said(ran)})")
         alert.tell(run, streak, alert.ok(run.config.state_dir, streak, user=run.user))
         return lines
-    if _NO_LIST.search(why := _why(ran)):
+    if _NO_LIST.search(why := lines_of.said(ran)):
         run.condition(name, NO_LIST, why, key=f"protected {run.day}")
     else:
         run.say(f"wait {name}: jmerge did not run ({why})")
@@ -180,11 +179,6 @@ def _shown(half: Half) -> None:
     half.users = half.said.crews(half.crews)
 
 
-def _why(ran: subprocess.CompletedProcess[str]) -> str:
-    said = (ran.stderr or ran.stdout).strip().splitlines()
-    return said[-1].strip() if said else str(ran.returncode)
-
-
 def sweep(run: Pass) -> tuple[bool, str]:
     """Ask `jmerge` what a sweep would remove, and send its lines when there are any.
 
@@ -193,7 +187,7 @@ def sweep(run: Pass) -> tuple[bool, str]:
     """
     ran = run.run(*SWEEP)
     if ran.returncode:
-        return False, f"{' '.join(SWEEP)} did not run ({_why(ran)})"
+        return False, f"{' '.join(SWEEP)} did not run ({lines_of.said(ran)})"
     lines = [line.strip() for line in ran.stdout.splitlines() if line.startswith("removable ")]
     found = f"{len(lines)} to remove"
     if lines:
@@ -216,12 +210,21 @@ def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, threa
         run.say(f"wait {slug}: no rule names what jmerge said of it, and it has no home to tell")
         return
     text = TOLD.format(slug=slug, number=number, said=said, user=run.user.user)
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": text, "mode": "queue"}
     try:
-        client.call("t3_thread_send", {**asked, "clientRequestId": f"{UNPLACED}|{slug}|{digest}"})
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=slug,
+            key=f"{UNPLACED}|{slug}|{digest}",
+            text=text,
+            template=UNPLACED,
+            needs="decide",
+        )
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told that no rule names its reason ({error})")
+        return
+    if not went:
         return
     line = f"{UNPLACED} {slug}: told its home, thread {thread}, that no rule names `{said}`"
     run.find(slug, UNPLACED, line, text, key=digest)

@@ -72,7 +72,8 @@ from typing import Any
 
 import jbus
 import jroles
-from jbus import dispatch, read_json, threads, verbs
+import jsettings
+from jbus import dispatch, outbox, read_json, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
@@ -229,7 +230,7 @@ def _when(stamps: list[Any]) -> datetime | None:
     `resets 11pm` means 11pm of that day, whichever pass reads it."""
     for stamp in stamps:
         try:
-            at = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+            at = jsettings.when(str(stamp))
         except ValueError:
             continue
         return at if at.tzinfo else at.replace(tzinfo=UTC)
@@ -418,8 +419,18 @@ def apply(run: Pass, client: Client, move: Move, key: str, *, record: bool = Tru
         where=move.mover.where(run.home),
         slug=move.mover.slug,
     )
-    asked = {"threadId": at, "message": message, "mode": "queue", "clientRequestId": key}
-    client.call("t3_thread_send", asked)
+    sent = outbox.send(
+        run,
+        client,
+        thread=at,
+        row=move.mover.name,
+        key=key,
+        text=message,
+        template="failover",
+        needs="act",
+    )
+    if not sent:
+        return
     run.find(subject, "failover", line, key=key)
     run.box.mark(key)
     run.say(line)

@@ -62,7 +62,7 @@ Preconditions:
 
 ## Gotchas
 
-- `jmerge` reads the briefs from `$HOME/.local/state/home/<the main checkout's directory name>`, not from `JBUS_HOME_DIR`. In a sandbox both are the same directory, because `env.sh` sets HOME.
+- `jmerge` reads the briefs from `$JBUS_HOME_DIR/<the main checkout's directory name>`, as jbus does, or from `$HOME/.local/state/home` where it is not set.
 - The recipe writes the brief through `${VERIFY_JSTACK_SANDBOX:?}`, so a shell that sourced no `env.sh` stops and writes nothing into the live briefs.
 - The review's `Head:` must be the pull request's head commit, whole. `open-pull.sh` prints it.
 - Only the check named `check` decides green. Another check's name in `statusCheckRollup` changes nothing.

@@ -75,7 +75,7 @@ gate that is only in a home's `gates.md` is not answerable.
 
 `items` is each live work item of the project (`jbus.item`) and the `ENDED` items that
 ended last, in the order of their numbers. Each has its `id`, `slug`, `title`, `state`,
-`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A steer names
+`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A go names
 the `last_event` as the line it saw.
 
 `jbus.code` says which code of the view serves requests: when the server started, and whether a
@@ -270,7 +270,7 @@ class Sources:
 
 
 def iso(moment: datetime) -> str:
-    return moment.astimezone(UTC).isoformat(timespec="seconds")
+    return jsettings.stamp(moment)
 
 
 def when(given: Any, user: jsettings.Settings = jsettings.DEFAULTS) -> str | None:
@@ -287,7 +287,7 @@ def when(given: Any, user: jsettings.Settings = jsettings.DEFAULTS) -> str | Non
         stamped = _STAMP.fullmatch(given)
         if stamped:
             return iso(user.local(datetime.fromisoformat(stamped[1])))
-        moment = datetime.fromisoformat(given.replace("Z", "+00:00"))
+        moment = jsettings.when(given)
         return iso(moment if moment.tzinfo else user.local(moment))
     except (ValueError, OverflowError, OSError):
         return None

@@ -15,12 +15,14 @@ A streak is the failures in a row of one thing, under a key:
 - `health <check>` for an incident `jbus.health` found.
 
 `flush` sends a project's wakes to its home thread through T3 Code (`_send`), the route
-`wake = "home"` and `wake = "both"` pick. For a project with `wake = "webhook"`, a webhook streak
-is told on one more path, which does not go through a webhook: `page` sends the alert to the
-project's home thread, at the failures in `PAGES` and at every `EVERY`th after them, and `paged` in
-the streak keeps the last count it was sent for. A project whose wakes go to its home thread gets
-that alert as a wake. `failing` gives the line of each route's streak that alerted, for
-`jbus status`, the heartbeat and `jbus wakes`.
+`wake = "home"` and `wake = "both"` pick. A wake the outbox holds for a capped home thread waits
+in the route's outbox for the reset, and counts as no failure of the route.
+
+For a project with `wake = "webhook"`, a webhook streak is told on one more path, which does not
+go through a webhook: `page` sends the alert to the project's home thread, at the failures in
+`PAGES` and at every `EVERY`th after them, and `paged` in the streak keeps the last count it was
+sent for. A project whose wakes go to its home thread gets that alert as a wake. `failing` gives
+the line of each route's streak that alerted, for `jbus status`, the heartbeat and `jbus wakes`.
 
 `failed` counts one failure, and returns the alert line once the count has reached the threshold.
 `ok` ends the streak, and returns the recovered line when the streak had alerted. An incident is a
@@ -54,7 +56,7 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs.home import thread_of
-from jbus import passes, read_json, verbs, wake, write_json
+from jbus import outbox, passes, read_json, verbs, wake, write_json
 from jbus.t3 import Client, T3Error
 
 WAKE = """\
@@ -338,7 +340,10 @@ def flush(run: passes.Pass, client: Client | None = None) -> int:
                 continue
             post = functools.partial(_send, run, client, thread)
         before = run.box.ids(route)
-        took = run.box.flush(run.now, run.say, route=route, went=went.append, post=post)
+        try:
+            took = run.box.flush(run.now, run.say, route=route, went=went.append, post=post)
+        except _Held:
+            continue
         sent = max(sent, took)
         taken |= before - run.box.ids(route)
         if working is None and not run.box.waiting(route) and not any(went[-1:]):
@@ -398,24 +403,39 @@ def _thread(run: passes.Pass, route: wake.Route) -> str:
     return thread
 
 
+class _Held(Exception):
+    """The outbox held a wake for a capped home thread: its events wait for the reset, and no send
+    failed, so `flush` counts no streak for it."""
+
+
 def _send(
     run: passes.Pass, client: Client | None, thread: str, _: wake.Route, made: dict[str, Any]
 ) -> str:
     """Send one body of events to the thread through T3 Code, keyed by the body, so that a retry
-    sends the same message. Return why it failed, or nothing."""
+    sends the same message. Return why it failed, or nothing. Raise `_Held` where the outbox held
+    it."""
     try:
         client = client or Client(run.config.server, run.config.token_path)
     except jbus.Refused as error:
         return str(error)
-    client.recipients = client.recipients | {thread}
     text = json.dumps(made, indent=1)
     message = WAKE.format(count=len(made["events"]), say="\n".join(made["say"]), body=text)
     retry = f"wake|{run.project.name}|{wake._id(made)}"
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": retry}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=run.project.name,
+            key=retry,
+            text=message,
+            template="wake",
+            needs="decide",
+        )
     except T3Error as error:
         return f"T3 Code did not take the wake: {error}"
+    if not went:
+        raise _Held
     return ""
 
 
@@ -536,13 +556,21 @@ def page(run: passes.Pass, client: Client | None) -> None:
         due = _due(one.count) if one else 0
         if one is None or due <= one.paged:
             continue
-        client.recipients = client.recipients | {thread}
-        asked = {"threadId": thread, "message": PAGE.format(line=line, again=_again(one.count))}
-        retry = f"page|{key}|{one.since}|{due}"
         try:
-            client.call("t3_thread_send", {**asked, "mode": "queue", "clientRequestId": retry})
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=name,
+                key=f"page|{key}|{one.since}|{due}",
+                text=PAGE.format(line=line, again=_again(one.count)),
+                template="page",
+                needs="decide",
+            )
         except T3Error as error:
             run.say(f"page failed {name}: {error}")
+            continue
+        if not went:
             continue
         with _locked(state):
             kept = streak(state, key)

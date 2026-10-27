@@ -63,7 +63,7 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs.home import home_of, thread_of
-from jbus import Refused, queue, read_json, verbs, write_json
+from jbus import Refused, outbox, queue, read_json, verbs, write_json
 from jbus.flow.measure import NO_JOB
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
@@ -436,12 +436,21 @@ def _tell(run: Pass, client: Client, home: Path, slug: str, branch: str, held: s
         f"jbus filed the fix row {slug} under this home, unapproved (tasks/{slug}.md): it is "
         f"approved as any row, and withdrawn by itself once {branch} is green at a later commit."
     )
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": text, "mode": "queue", "clientRequestId": key}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=slug,
+            key=key,
+            text=text,
+            template="train-red",
+            needs="decide",
+        )
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told of the red {branch} ({error})")
+        return
+    if not went:
         return
     run.box.mark(key)
     run.say(f"retro {slug}: told its home, thread {thread}, that {branch} is red")

@@ -177,7 +177,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
         if any(one.get("sha") == sha for one in had):
             return lambda: None
         if len(had) < config.user.retry_cap:
-            at = datetime.now(UTC).isoformat(timespec="seconds")
+            at = jsettings.stamp(datetime.now(UTC))
             kept[key] = [*had, {"slug": slug, "sha": sha, "at": at}]
             write_json(directory / LEDGER, kept)
             return lambda: _release(directory, key, sha)
@@ -237,7 +237,7 @@ def _moment(stamp: str, user: jsettings.Settings) -> datetime | None:
 
 def _iso(text: Any) -> datetime | None:
     try:
-        return datetime.fromisoformat(str(text).replace("Z", "+00:00")) if text else None
+        return jsettings.when(str(text)) if text else None
     except ValueError:
         return None
 

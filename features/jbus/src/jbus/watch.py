@@ -36,6 +36,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
+import jsettings
 from jbus import Refused, budget, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import field as said_on
@@ -734,7 +735,7 @@ def unwritten(
         return "its turn hung with nothing written"
     if thread is None:
         return "its thread is gone and nothing is written"
-    if waiters.thread_id(str(thread.get("threadId", ""))) in waiting:
+    if jsettings.thread_id(str(thread.get("threadId", ""))) in waiting:
         return ""
     quiet = (run.now - when(thread["updatedAt"])).total_seconds() / 60
     if quiet < UNWRITTEN_MINUTES:

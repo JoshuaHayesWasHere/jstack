@@ -27,7 +27,6 @@ from jbus import (
     passes,
     questions,
     queue,
-    steer,
     t3,
     verbs,
     waiting,
@@ -124,8 +123,6 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         releases = []
         try:
             for _, verb in queue.parse(text):
-                if isinstance(verb, queue.Approve):
-                    steer.approvable(state, verb.slug)
                 if isinstance(verb, queue.Add):
                     releases.append(blockers.admit(config, project, verb.slug, verb.text))
             print("\n".join(queue.apply(state, text, config.user, asks)))
@@ -178,7 +175,6 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             item.link(state, box, row, args.item or "", by, config.user.user)
     elif args.verb == "approve":
         rests = queue.basis(vars(args))
-        steer.approvable(state, args.slug)
         _, *ruled = queue.approve(
             state, args.slug, rests, args.sha, config.user, _asks(config, project)
         )

@@ -324,10 +324,12 @@ class Approval:
 
     With the basis `RULE`, `ref` is `FOLLOW_REF`, `words` is the follow-up rule (`FOLLOW_RULE`)
     and the line of the parent's go, which is its ground, and `follows` is the slug of the parent
-    row. A record from before the rule was known by what it says has the number the rule had in the
-    home's `standing.md` as its `ref`, and that rule's text as its `words`. The user said nothing
-    of the row, so `said_at` and `said_in` are empty. No other basis has a `follows`, and the
-    record of such a basis has none.
+    row. A fix jbus filed from a red check names no parent: its `ground` is what its line says in
+    place of the parent, `jbus filed it from the red run "<the run>"`, and its `words` end with
+    the same. A record from before the rule was known by what it says has the number the rule had
+    in the home's `standing.md` as its `ref`, and that rule's text as its `words`. The user said
+    nothing of the row, so `said_at` and `said_in` are empty. No other basis has a `follows` or a
+    `ground`, and the record of such a basis has neither.
 
     `brief_sha` is the stored brief's sha at the go, `meaning` is its fingerprint and `scope`
     is the sha256 of that fingerprint (`jbriefs.meaning`): the go holds for a brief that means
@@ -343,6 +345,7 @@ class Approval:
     ran_by: dict[str, str]
     ran_at: str
     follows: str = ""
+    ground: str = ""
     brief_sha: str = ""
     scope: str = ""
     meaning: list[Any] = field(default_factory=list)
@@ -353,7 +356,7 @@ class Approval:
     def line(self) -> str:
         if self.basis == RULE:
             ruled = "the follow-up rule" if self.ref == FOLLOW_REF else f"rule {self.ref}"
-            of = f"follow-up of {self.follows}" if self.follows else self.words.partition("; ")[2]
+            of = f"follow-up of {self.follows}" if self.follows else self.ground
             parent = f"{ruled}, {of}"
             return f"{parent}; run {self.ran_at} by {self.who()}; you did not speak of this row"
         ran = f"run {self.ran_at} by {self.who()}"
@@ -384,8 +387,12 @@ def approval(row: Row) -> str:
 
 def held(made: Approval) -> dict[str, Any]:
     """Return the record in the form that a row stores, with `follows` only where the approval
-    has a parent."""
-    return {name: value for name, value in asdict(made).items() if name != "follows" or value}
+    has a parent and `ground` only where it has none."""
+    return {
+        name: value
+        for name, value in asdict(made).items()
+        if name not in ("follows", "ground") or value
+    }
 
 
 def ran_at(row: Row) -> str:
@@ -1275,13 +1282,15 @@ def _do(
                 f"refused: {verb.slug} has the user's go, which holds, and a follow-up's go "
                 "would write over it"
             )
+        ground = ""
         if ruled and verb.follows:
-            ground = approval(_parent(batch, verb.slug, verb.follows))
-            rests = Said(f"{FOLLOW_RULE}; {verb.follows}'s go: {ground}", "", "", True)
+            their = approval(_parent(batch, verb.slug, verb.follows))
+            rests = Said(f"{FOLLOW_RULE}; {verb.follows}'s go: {their}", "", "", True)
         elif ruled:
             if not filed(row, text):
                 raise Refused(f"refused: {verb.slug} names no parent, and jbus did not file it")
-            rests = Said(f'{FOLLOW_RULE}; {FROM_RED}"{red_run(text)}"', "", "", True)
+            ground = f'{FROM_RED}"{red_run(text)}"'
+            rests = Said(f"{FOLLOW_RULE}; {ground}", "", "", True)
         else:
             rests = said[verb.basis, verb.ref]
         if isinstance(rests, Refused):
@@ -1298,6 +1307,7 @@ def _do(
             ran_by=ran_by or runner(),
             ran_at=user.stamp(clock()),
             follows=verb.follows,
+            ground=ground,
             brief_sha=stored,
             scope=meaning.fingerprint(means),
             meaning=means,
@@ -1460,7 +1470,7 @@ def _take_out(batch: _Batch, row: Row, slug: str, by: str, at: str, why: str = "
         "slug": slug,
         "from": was,
         "to": "removed",
-        "at": clock().astimezone(UTC).isoformat(timespec="seconds"),
+        "at": jsettings.stamp(clock()),
         "by": by,
         "said": at,
         "row": dict(row),
