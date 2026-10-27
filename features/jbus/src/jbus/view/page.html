@@ -856,7 +856,7 @@
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
-    put($("cards"), PROJECT || TRIAGE || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
+    put($("cards"), PROJECT || TRIAGE || HOMES || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
     if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else if (!board) renderStack();
     if (PANELS.pipeline) PANELS.pipeline.draw();
