@@ -257,7 +257,7 @@ def test_under_silence_a_row_that_follows_a_row_silence_started_waits(kitchen):
     said = queued(kitchen, "beta", text=big)
     kitchen.poll(NOW + timedelta(minutes=32))
     assert basis(kitchen, "beta") == ()
-    assert "alpha's go was a gate's silence, not the user's word" in said
+    assert "alpha's go goes back to a gate's silence, not the user's word" in said
 
 
 def test_under_silence_an_l_row_and_a_case_wait_after_the_window(kitchen):
@@ -288,3 +288,91 @@ def test_under_the_entry_setting_a_go_gate_closes_at_once_and_approves_nothing(k
     kitchen.poll()
     assert waits_on_user(kitchen) == []
     assert basis(kitchen, "alpha") == ()
+
+
+def test_under_silence_the_users_answer_that_keeps_a_go_gates_default_starts_its_row(kitchen):
+    silence(kitchen)
+    queued(kitchen, "alpha", entry=None)
+    queued(kitchen, "beta", entry=None, text=brief("beta").replace("Size: S\n", "Size: L\n"))
+    first, second = gate(kitchen, "alpha"), gate(kitchen, "beta")
+    for number in (first, second):
+        code, said = kitchen.main(
+            "answer", str(number), "--by", "user", "--at", HEARD_AT, "--default", "yes, start it"
+        )
+        assert code == 0, said
+        assert "approved " in said
+    assert basis(kitchen, "alpha") == ("answer", str(first))
+    assert basis(kitchen, "beta") == ("answer", str(second))
+    assert "closed_by" not in rows(kitchen)["alpha"]["approval"]
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert "crew: alpha" in [launch["title"] for launch in kitchen.t3.launches]
+
+
+def test_under_silence_a_cleanup_of_a_row_silence_started_is_approved_by_the_follow_up_rule(
+    kitchen,
+):
+    silence(kitchen)
+    queued(kitchen, "alpha", entry=None)
+    gate(kitchen, "alpha")
+    kitchen.poll(NOW + timedelta(minutes=31))
+    assert basis(kitchen, "alpha")[0] == queue.ANSWER
+    queued(kitchen, "cleanup-alpha", entry=None, text=brief("cleanup-alpha", "Follows: alpha\n"))
+    assert basis(kitchen, "cleanup-alpha") == (queue.RULE, queue.FOLLOW_REF)
+
+
+def gate_lines(kitchen):
+    kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
+    return {one["slug"]: one["line"] for one in kept if one["kind"] == "gate"}
+
+
+def test_the_line_of_a_go_gate_says_silence_starts_only_a_row_it_will_start(kitchen):
+    silence(kitchen)
+    queued(kitchen, "alpha", entry=None)
+    queued(kitchen, "beta", entry=None, text=brief("beta").replace("Size: S\n", "Size: L\n"))
+    gate(kitchen, "alpha")
+    gate(kitchen, "beta")
+    kitchen.poll(NOW + timedelta(minutes=29))
+    lines = gate_lines(kitchen)
+    assert "it starts alpha when its quiet window ends" in lines["alpha"]
+    assert "starts beta" not in lines["beta"]
+    assert "silence starts nothing" in lines["beta"] and "its size is L" in lines["beta"]
+
+
+FLOW_PLAN = PLAN.split("## other:")[0]
+
+
+def test_a_scoped_homes_go_approves_its_own_rows_and_its_stop_takes_them_back(kitchen):
+    scope = kitchen.home / "flow"
+    scope.mkdir()
+    (scope / "home-id").write_text("mcp:flow-home\n")
+    (scope / "plan.md").write_text(FLOW_PLAN)
+    kitchen.t3.says(HOME, MESSAGE, "go on the flow epic")
+    code, said = kitchen.main(
+        "plan", "go", "epic", "--scope", "flow", "--message", f"{HOME}/{MESSAGE}"
+    )
+    assert code == 0, said
+    queued(kitchen, "alpha", text=brief("alpha").replace("Home: mcp:a-home\n", "Home: flow\n"))
+    queued(kitchen, "beta")
+    assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
+    assert basis(kitchen, "beta") == ()
+    code, said = kitchen.main("plan", "stop", "epic")
+    assert code == 1 and "epic has no go to stop" in said
+    code, said = kitchen.main("plan", "stop", "epic", "--scope", "flow")
+    assert code == 0 and "alpha waits for the user's go" in said, said
+    assert basis(kitchen, "alpha") == ()
+
+
+def test_under_silence_a_follow_up_two_hops_from_silences_go_waits_when_silence_would_not_start_it(
+    kitchen,
+):
+    silence(kitchen)
+    queued(kitchen, "alpha", entry=None)
+    gate(kitchen, "alpha")
+    kitchen.poll(NOW + timedelta(minutes=31))
+    queued(kitchen, "cleanup-alpha", entry=None, text=brief("cleanup-alpha", "Follows: alpha\n"))
+    assert basis(kitchen, "cleanup-alpha") == (queue.RULE, queue.FOLLOW_REF)
+    big = brief("cleanup-cleanup-alpha", "Follows: cleanup-alpha\n").replace(
+        "Size: S\n", "Size: L\n"
+    )
+    queued(kitchen, "cleanup-cleanup-alpha", entry=None, text=big)
+    assert basis(kitchen, "cleanup-cleanup-alpha") == ()

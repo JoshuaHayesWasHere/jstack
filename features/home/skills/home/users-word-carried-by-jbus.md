@@ -94,7 +94,9 @@ A brief that is a case of `gates.md` names the case on a `Holds: <case>` line in
 Under the setting `go = "silence"`, a home parks its pick for a new row as a gate with `Default: approve`, piped to `jbus gate <slug>` as "Gates" says, instead of asking.
 The gate shows in `jbus view` and the digest, and waits `go_quiet_minutes`, 30 unless the settings say otherwise.
 When it closes on its default by silence, jbus approves the row if it is size S or M, one pull request, and no case of `gates.md`.
+An answer that keeps the default is the user's go, and jbus approves the row on it whatever its size.
 An answer that differs approves nothing, and the row waits for the user's go.
+A follow-up of a row that silence started is approved by the follow-up rule only where silence would start the follow-up itself.
 Both keys, `go` and `go_quiet_minutes`, are in the user's jstack `config.toml`, which `jsettings` reads.
 
 ### A follow-up approved by the follow-up rule
