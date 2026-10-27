@@ -843,12 +843,13 @@ def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
     assert parse.rebases(brief) == [(False, before, after), (True, after, before)]
 
 
-HEAD_LINES = ("^Thread:", "^Home:", "Reviewer:", "^Rebase:", "^## ")
+HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
 
 
 def head_line_regexes(source: str) -> list[str]:
     """Each regex in the source, given to a function of `re`, that reads a brief's head line or
-    heading, which `jbriefs.parse` alone may read."""
+    heading, which `jbriefs.parse` alone may read. Any case of `reviewer`, colon or none, is one:
+    it finds `Second reviewer:` and an alternation of the three reviewer lines."""
     found = []
     for node in ast.walk(ast.parse(source)):
         call = isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
@@ -856,7 +857,7 @@ def head_line_regexes(source: str) -> list[str]:
             continue
         for one in node.args[:1]:
             text = ast.unparse(one)
-            found += [needle for needle in HEAD_LINES if needle in text]
+            found += [needle for needle in HEAD_LINES if needle.lower() in text.lower()]
     return found
 
 
@@ -877,6 +878,9 @@ def test_no_module_of_jbus_or_jmerge_compiles_a_regex_for_a_brief_head_line():
         'X = re.compile(r"^Thread:[ \\t]*(\\S+)", re.M)',
         'found = re.search(rf"^Reviewer: {who}", brief, re.M)',
         'parts = re.split(r"^## ", text, flags=re.M)',
+        'X = re.compile(r"^Second reviewer: (.*)$", re.M)',
+        'X = re.compile(r"^Scoped reviewer: (\\S+)", re.M)',
+        'X = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): ", re.M)',
     ],
 )
 def test_the_scan_finds_a_regex_for_a_head_line(line):
