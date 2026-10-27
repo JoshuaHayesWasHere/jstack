@@ -353,6 +353,7 @@ def test_a_second_pass_repeats_no_finding(kitchen):
     kitchen.t3.thread("beta", "running", age=timedelta(hours=5))
     kitchen.t3.thread("gamma", "failed")
     kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=3))
     first = kitchen.lines()
     assert sorted(event["event"] for event in kitchen.events()) == [
         "decision",
@@ -366,7 +367,7 @@ def test_a_second_pass_repeats_no_finding(kitchen):
     assert "(approve main-red-111111111111)" in kitchen.lines("waiting")[0]
     (decided,) = kitchen.lines("decision")
     assert decided.startswith("decision main-red-111111111111: approve main-red-111111111111: ")
-    kitchen.poll(NOW + timedelta(minutes=3))
+    kitchen.poll(NOW + timedelta(minutes=6))
     kitchen.poll(NOW + timedelta(hours=1))
     assert kitchen.lines() == first
 

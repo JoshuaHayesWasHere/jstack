@@ -85,7 +85,7 @@ A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `outbox.jsonl`, the leftover record or the main-red row.
 `wrong`, the band's wrong tier, the since line and a project's red reasons hold only the user's entries.
 Any other is on its row, on the board card and in the task drawer, as `fixing: <owner>, told <time>`.
-The pass tells the root home, once while the cause stands, of each fault of the project or the machine, and a home of its crew that hung (`jbus.owners`), and any other fault of a row is told by the step that works that row.
+The pass tells the root home, once while the cause stands, of each fault of the project or the machine, and a home of its crew that hung and of its row's stall that no clock takes to it (`jbus.owners`), and any other fault of a row is told by the step that works that row.
 
 ### Every view is a link
 

@@ -142,6 +142,25 @@ def test_with_no_home_the_second_miss_is_one_quiet_stall_and_not_the_user_s(shor
     assert loud(kitchen) == [] and gates(kitchen) == []
 
 
+def test_a_clock_s_stall_with_no_scoped_home_to_tell_goes_to_the_root_home_once(short, kitchen):
+    """The clock logs a stall where the row's home has handed off and no next home has started,
+    and the pass tells the root home of it, once: the second review of #563 found that stall
+    went to nobody."""
+    root = home(kitchen)
+    gone = home(kitchen, "pantry")["threadId"]
+    (kitchen.home / "pantry/handoff.md").write_text(f"Was home: {gone}\n")
+    title, rest = short.launched.split("\n", 1)
+    short.launched = f"{title}\nHome: pantry\n{rest}"
+    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
+    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
+    short.passes(2 * N)
+    assert [one for one in kitchen.lines("stall") if "no home to tell" in one]
+    (told,) = to(kitchen, root)
+    assert told.startswith("jbus: the stall alpha is wrong in demo")
+    short.passes(N)
+    assert len(to(kitchen, root)) == 1
+
+
 def test_a_reviewer_whose_thread_is_gone_is_not_asked_again_and_the_home_gets_the_line(
     short, kitchen
 ):

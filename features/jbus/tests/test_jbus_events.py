@@ -273,6 +273,7 @@ TABLE = {
     "recovered": "quiet",
     "stall": "quiet",
     "decision": "user",
+    "decision.withdrawn": "user",
     "failover": "quiet",
     "sign-in": "user",
     "waiting-on-user": "quiet",

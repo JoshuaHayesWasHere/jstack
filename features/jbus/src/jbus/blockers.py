@@ -58,6 +58,20 @@ has to decide (`needs`): a question or a gate that holds, has no default or name
 `waiting.PAUSE`, a row to approve, a pull request `jmerge` holds, and a config item. `jbus decide`
 raises one by hand, for a scope change. A project's first pass raises none, as it sends nothing
 else.
+
+The list was built from what the pass read at its start, and a home may approve a row or answer a
+gate while the pass runs. So just before it sends, the pass reads again what each item stands on
+(`_Ground`), as `dispatch` reads a row again before a launch: a row whose go now holds for its
+brief, a gate no longer open and a hold whose row has merged are not raised. A row to approve is
+raised only once it has waited unapproved for `APPROVE_GRACE_SECONDS`, one pass, since a home
+that queues a row approves it in the moments after. A gate that holds is raised at once.
+
+A decision the pass raised from the list is kept in `raised.json` in the project's state
+directory, and is withdrawn once its item leaves the list: one event `decision.withdrawn` at
+`user`, under the key `decision.withdrawn|<the decision's key>`, whose line names that key and
+why it went (`approved`, `closed`, `merged` or `removed`). Every route takes it as it takes the
+decision, so a surface that showed the decision can drop it. Only a decision in `raised.json`
+is withdrawn, so a decision at its retry cap and one raised by `jbus decide` never are.
 """
 
 from __future__ import annotations
@@ -68,7 +82,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -97,8 +111,11 @@ if TYPE_CHECKING:
     from jbus.cli import Half
 
 LOCK = "blockers.lock"
-EVENTS = {"decision": "user"}
+EVENTS = {"decision": "user", "decision.withdrawn": "user"}
 KIND = "decision"
+WITHDRAWN = "decision.withdrawn"
+RAISED = "raised.json"
+APPROVE_GRACE_SECONDS = 60
 LEDGER = "blockers.json"
 FIX_OF, WHEN_GREEN = "Fix of", "When green"
 TAKE_IT = "I take it"
@@ -318,21 +335,123 @@ def _reply(project: Project, one: waiting.Item) -> str:
     return f"{project.name} config: I set it up"
 
 
+def _keyed(one: waiting.Item) -> tuple[str, str]:
+    """Return the key an item's decision is raised under, after `decision|`, and its slug."""
+    key, slug = f"{one['key']}|{one['since']}", one.get("slug") or one["key"]
+    if one["kind"] == "config":
+        key = f"{key}|{hashlib.sha256(one['line'].encode()).hexdigest()[:12]}"
+        slug = "config"
+    return key, slug
+
+
+def _pr_row(run: Pass, number: Any) -> queue.Row | None:
+    """Return the row whose pull request is `#<number>`, as the queue has it now."""
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        return None
+    return next((row for row in rows if row.get("pr") == f"#{number}"), None)
+
+
+class _Ground:
+    """What an item of the list stands on, read again just before its decision is sent, as
+    `dispatch` reads a row again before it launches it. The list was built from what the pass
+    read at its start, and a home may approve a row or answer a gate while the pass runs."""
+
+    def __init__(self, run: Pass) -> None:
+        self.run = run
+        self._gates: set[str] | None = None
+
+    def gates(self) -> set[str] | None:
+        """Return the keys of the gates open now, or None where `questions.json` does not
+        parse, and the list's own reading stands."""
+        if self._gates is None:
+            run = self.run
+            try:
+                asked = questions.read(run.state)
+            except questions.Unparsable:
+                return None
+            why = questions.waits(run.state, run.user)
+            self._gates = {one["key"] for one in waiting.gates(run.home, asked, run.removed, why)}
+        return self._gates
+
+    def stands(self, one: waiting.Item) -> bool:
+        """Say whether the item still waits on the user: a row with no go that holds for its
+        brief, a gate still open, a pull request whose row has not merged."""
+        kind, run = one["kind"], self.run
+        if kind == "approve":
+            row, text = queue.current(run.state, one["slug"])
+            if row is None or one["slug"] in run.removed or row.get("status", "queued") != "queued":
+                return False
+            return not (row.get("approved") and text is not None and queue.approved_text(row, text))
+        if kind == "gate":
+            open_now = self.gates()
+            return open_now is None or one["key"] in open_now
+        if kind == "hold":
+            row = _pr_row(run, one.get("number"))
+            return row is None or row.get("status") not in queue.FINAL
+        return True
+
+    def gone(self, kept: dict[str, str]) -> str:
+        """Say why a raised decision's item left the list: approved, merged, removed or closed."""
+        run, slug = self.run, kept.get("slug", "")
+        if kept.get("kind") == "approve":
+            row = queue.fresh(run.state, slug)
+            if row is None or slug in run.removed:
+                return "removed"
+            return "approved" if row.get("approved") else "closed"
+        if kept.get("kind") == "hold":
+            row = _pr_row(run, kept.get("number"))
+            return "merged" if row and row.get("status") == "merged" else "closed"
+        return "closed"
+
+
+def _early(run: Pass, one: waiting.Item) -> bool:
+    """Say whether a row to approve is still within its grace: a home that queues a row approves
+    it in the minutes after, and only a row still unapproved after that waits on the user."""
+    if one["kind"] != "approve":
+        return False
+    since = datetime.fromisoformat(one["since"])
+    return run.now - since < timedelta(seconds=APPROVE_GRACE_SECONDS)
+
+
+def withdraw(run: Pass, listed: list[waiting.Item]) -> None:
+    """Withdraw each decision raised for an item that has left the list, once: one event
+    `decision.withdrawn` at `user`, which names the decision's key and why it went."""
+    path = run.state / RAISED
+    raised: dict[str, dict[str, str]] = read_json(path, {})
+    still = {_keyed(one)[0] for one in listed}
+    ground = _Ground(run)
+    for key, kept in list(raised.items()):
+        if key in still:
+            continue
+        decision = f"{KIND}|{key}"
+        line = f"{WITHDRAWN} {kept.get('slug', '')}: {decision}: {ground.gone(kept)}"
+        run.box.send(kept.get("slug", ""), WITHDRAWN, line, key=f"{WITHDRAWN}|{decision}")
+        del raised[key]
+    write_json(path, raised)
+
+
 def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
-    """Raise one decision for each item of the list that the user has to decide."""
-    if run.first or not listed:
+    """Raise one decision for each item of the list that the user has to decide and that still
+    stands when it is read again, and withdraw each decision whose item has left the list."""
+    if run.first or listed is None:
         return
+    withdraw(run, listed)
     context = {questions.item(one)["key"]: one.context for one in questions.load(run.state)}
+    ground = _Ground(run)
+    raised: dict[str, dict[str, str]] = read_json(run.state / RAISED, {})
     for one in listed:
         why = needs(one, context.get(one["key"], ""))
-        if why:
-            asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
-            said = f"{(asked or one['line']).rstrip('.?')}, {why}"
-            key, slug = f"{one['key']}|{one['since']}", one.get("slug") or one["key"]
-            if one["kind"] == "config":
-                key = f"{key}|{hashlib.sha256(one['line'].encode()).hexdigest()[:12]}"
-                slug = "config"
-            decide(run.box, slug, key, said, _reply(run.project, one))
+        if not why or _early(run, one) or not ground.stands(one):
+            continue
+        asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
+        said = f"{(asked or one['line']).rstrip('.?')}, {why}"
+        key, slug = _keyed(one)
+        decide(run.box, slug, key, said, _reply(run.project, one))
+        number = str(one.get("number", ""))
+        raised[key] = {"slug": slug, "kind": one["kind"], "number": number}
+    write_json(run.state / RAISED, raised)
 
 
 def _raise(half: Half) -> None:

@@ -282,6 +282,11 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     return True
 
 
+def home_key(slug: str, wait: dict[str, Any]) -> str:
+    """The outbox's key of the one line that tells the brief's home that a wait still waits."""
+    return f"{CLOCK}-home|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
+
+
 def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str) -> bool:
     """Tell the brief's home, in one line, that a wait jbus acted on still waits. With no home, log
     one quiet stall, and one too where T3 Code refused the home the line. Return whether it is
@@ -299,7 +304,7 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
     )
     at = watch.home_thread(run, brief)
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
-    sending = f"{CLOCK}-home|{slug}|{key}"
+    sending = home_key(slug, wait)
     went = _send(run, client, at, text, sending, needs="decide") if at else "no home"
     if not went:
         return False
