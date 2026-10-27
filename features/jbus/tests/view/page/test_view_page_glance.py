@@ -103,7 +103,7 @@ def test_nothing_wrong_and_nothing_waiting_is_one_calm_line(scene, tmp_path):
     assert (band["tiers"], band["head"], band["since"], band["moving"]) == ([], None, None, None)
 
 
-@pytest.mark.parametrize("route", ["#/demo", "#/triage", "#/nosuch"])
+@pytest.mark.parametrize("route", ["#/homes", "#/demo", "#/triage", "#/nosuch"])
 def test_the_band_is_only_on_the_overview(scene, tmp_path, route):
     seen = glanced(scene, tmp_path, route=route)
     assert seen["cards"] == ""
@@ -112,6 +112,16 @@ def test_the_band_is_only_on_the_overview(scene, tmp_path, route):
 def test_since_you_looked_says_what_changed_since_the_last_look(scene, tmp_path):
     seen = glanced(scene, tmp_path, alter=wrongs(2), looked=ms(NOW - timedelta(hours=2)))
     assert seen["band"]["since"] == "Since you looked 2h00 ago: 6 merged, 2 newly wrong."
+    assert seen["stamp"] == str(ms(NOW))
+
+
+def test_the_band_keeps_the_since_lines_one_clock_and_drops_its_old_one(scene, tmp_path):
+    """The band and the since line share one time of the last look: the band keeps no clock of
+    its own, and a time the band kept in its old key before is dropped, not read."""
+    looked, old = ms(NOW - timedelta(hours=2)), ms(NOW - timedelta(minutes=5))
+    seen = glanced(scene, tmp_path, alter=wrongs(2), looked=looked, old=old)
+    assert seen["band"]["since"] == "Since you looked 2h00 ago: 6 merged, 2 newly wrong."
+    assert seen["kept"] == ["jbus.since.looked"]
     assert seen["stamp"] == str(ms(NOW))
 
 
