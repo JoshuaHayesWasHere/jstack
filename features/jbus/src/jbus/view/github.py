@@ -60,6 +60,29 @@ def _state(one: dict[str, Any]) -> str:
     return text(one.get("conclusion") or one.get("status"), 30)
 
 
+def shaped(said: Any, now: datetime) -> dict[str, Any]:
+    """`{"runs", "at", "error"}` of GitHub's answer to the list of a repo's workflow runs, or of
+    None where GitHub did not answer: the last `RUNS` runs, oldest first."""
+    found = said.get("workflow_runs") if isinstance(said, dict) else None
+    if not isinstance(found, list):
+        return {"runs": [], "at": iso(now), "error": DOWN}
+    runs = [
+        {
+            "branch": text(one.get("head_branch"), 120),
+            "name": text(one.get("name"), 60),
+            "state": _state(one),
+            "created": when(one.get("created_at")),
+            "started": when(one.get("run_started_at")),
+            "updated": when(one.get("updated_at")),
+            "url": text(one.get("html_url")),
+        }
+        for one in found
+        if isinstance(one, dict) and when(one.get("created_at"))
+    ]
+    runs.sort(key=lambda run: run["created"])
+    return {"runs": runs[-RUNS:], "at": iso(now), "error": ""}
+
+
 class GitHub:
     """The four questions, and the answer to each for the time this class keeps it."""
 
@@ -109,25 +132,7 @@ class GitHub:
         """`{"runs", "at", "error"}`: the last workflow runs, oldest first."""
 
         def ask() -> dict[str, Any]:
-            said = _ask("api", f"repos/{repo}/actions/runs?per_page={RUNS}")
-            found = said.get("workflow_runs") if isinstance(said, dict) else None
-            if not isinstance(found, list):
-                return {"runs": [], "at": iso(self.clock()), "error": DOWN}
-            runs = [
-                {
-                    "branch": text(one.get("head_branch"), 120),
-                    "name": text(one.get("name"), 60),
-                    "state": _state(one),
-                    "created": when(one.get("created_at")),
-                    "started": when(one.get("run_started_at")),
-                    "updated": when(one.get("updated_at")),
-                    "url": text(one.get("html_url")),
-                }
-                for one in found
-                if isinstance(one, dict) and when(one.get("created_at"))
-            ]
-            runs.sort(key=lambda run: run["created"])
-            return {"runs": runs[-RUNS:], "at": iso(self.clock()), "error": ""}
+            return shaped(_ask("api", f"repos/{repo}/actions/runs?per_page={RUNS}"), self.clock())
 
         return self._held(("runs", repo, 0), RUNS_KEPT, ask, {"runs": [], "at": None})
 

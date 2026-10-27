@@ -19,7 +19,8 @@ its task has been there, and it is off the board once that task merged or is gon
 crew stands for the work. A scout is
 running until its request has a Report that is done, and green from then until its home
 settles its thread. `tone` says what asks: `bad` for what is broken, `ask` for what waits on
-the user, as `state.RANK` groups it.
+the user, as `state.RANK` groups it. A crew whose row has a fault that an agent owns says who
+fixes it and when jbus told them (`fixing`, from `state.fixing`): the band leaves it out.
 
 `since` is when the worker came to its stage. For a pull request it is the first line of the
 run of `jmerge`'s lines, last first, whose steps are all on that stage, so review and its
@@ -56,6 +57,7 @@ from jbus.view.state import (
     Read,
     Source,
     _mtime,
+    fixing,
     text,
 )
 
@@ -138,6 +140,7 @@ WORKER = {
     "tone": None,
     "since": None,
     "open": None,
+    "fixing": {"owner": None, "told": None},
 }
 STEP_SHAPE = {"slug": None, "line": None, "mark": None, "prs": [None]}
 SHAPE = {
@@ -180,6 +183,7 @@ def _since(task: dict[str, Any], stage: str) -> str | None:
 
 
 def _crew(read: Read, task: dict[str, Any]) -> dict[str, Any]:
+    """A crew's worker, with the fault an agent fixes on its row, where one stands."""
     facts = read.judged.get(task["slug"], {}).get("facts")
     pull = facts.get("pull", "") if isinstance(facts, dict) else ""
     stage = stage_of(task, pull)
@@ -192,6 +196,7 @@ def _crew(read: Read, task: dict[str, Any]) -> dict[str, Any]:
         "tone": TONE.get(task["rank"], ""),
         "since": _since(task, stage),
         "open": f"task:{task['slug']}",
+        "fixing": read.once(fixing).get(task["slug"]),
     }
 
 
@@ -222,6 +227,7 @@ def _thread(thread: dict[str, Any], crews: dict[str, dict[str, Any]]) -> dict[st
         "tone": tone,
         "since": since,
         "open": f"thread:{role}:{slug}" if slug else "threads",
+        "fixing": None,
     }
 
 
@@ -269,6 +275,7 @@ def build(read: Read) -> dict[str, Any]:
                 "tone": "",
                 "since": one["at"],
                 "open": f"task:{one['slug']}",
+                "fixing": None,
             }
         )
         homes[one["slug"]] = read.homes.of_task(one["slug"]).name

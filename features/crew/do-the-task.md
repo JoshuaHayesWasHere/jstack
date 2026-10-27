@@ -126,7 +126,26 @@
   fi
   ```
 
-  On `base <branch>`, open the pull request with `--base <branch>`.
+  On `base <branch>`, open the pull request with `--base <branch>`, and with the label this prints.
+  A diff that touches two features is labelled `cross-cutting` by its crew when it opens, since the repo's borders check fails it without the label.
+  Run this in this worktree, with `<branch>` the base it printed, as the only check of the label:
+
+  ```sh
+  base='<branch>'
+  top=$(git rev-parse --show-toplevel)
+  if [ ! -f "$top/scripts/lint-borders.py" ]; then
+      echo "no label: this repo has no scripts/lint-borders.py"
+  elif ! git fetch -q origin "$base" || ! said=$(python3 "$top/scripts/lint-borders.py" --base "origin/$base"); then
+      echo "no label: the borders check could not read the diff from origin/$base"
+  elif printf '%s\n' "$said" | grep -q "label it cross-cutting"; then
+      echo "label cross-cutting: the diff touches two features"
+  else
+      echo "no label: the diff touches one feature at most"
+  fi
+  ```
+
+  On `label cross-cutting`, open it with `--label cross-cutting` too.
+  A pull request already open whose diff a later push makes touch two features gets it with `gh pr edit --add-label cross-cutting`, and the borders check reruns when it is labelled.
   A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").

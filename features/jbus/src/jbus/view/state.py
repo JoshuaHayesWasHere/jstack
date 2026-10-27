@@ -14,9 +14,10 @@ systemd says of the timer and the service, and the machine's state: its load, me
 pressure, the file slots of `/tmp` and the plan's limits. It reads no config of jbus. The
 projects are the directories of the state directory that have a `queue.json`, and a
 project's home is the directory of its name. It also reads `leftover.json` where a pass
-wrote one (`jbus.leftover`). It never opens the outbox or the stored token, and it writes
-nothing. The one setting it takes is the user's time zone (`jsettings`), and it reads a
-time with no zone as a time in that zone.
+wrote one (`jbus.leftover`), and the log of what the outbox sent, `outbox.jsonl`
+(`jbus.outbox`). It never opens the queue of events that waits for the webhook,
+`outbox.json`, or the stored token, and it writes nothing. The one setting it takes is the
+user's time zone (`jsettings`), and it reads a time with no zone as a time in that zone.
 
 The line is `STEPS`, twelve steps from Queued to Merged. Each open row of the queue is a
 task on one step. The holder of the task is the user, a crewmate, a reviewer, the check
@@ -88,6 +89,7 @@ ISO 8601 form.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Callable
@@ -100,6 +102,7 @@ from urllib.parse import quote
 
 import jsettings
 from jbriefs import below
+from jbriefs import home as jbriefs
 from jbriefs import parse as briefs
 from jbus import (
     current_level,
@@ -110,6 +113,7 @@ from jbus import (
     mirror,
     noticed,
     old_names,
+    outbox,
     questions,
     queue,
     read_json,
@@ -123,6 +127,7 @@ from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
+from jmerge import mainjson
 
 APPROVAL = 400
 HISTORY, TASK_EVENTS, LINE, NOTE = 40, 8, 300, 4000
@@ -1474,6 +1479,9 @@ WRONG = {
     "cause": None,
     "since": None,
     "where": [{"project": None, "home": None, "open": None}],
+    "row": None,
+    "owner": None,
+    "fixing": {"told": None, "what": None},
 }
 SHARED = ("bus", "source", "unasked")
 STALLED = "stall"
@@ -1489,15 +1497,161 @@ _CAPPED = re.compile(r"\bcapped until (\d{4}-\S+)$")
 
 
 def _wrong(
-    read: Read, kind: str, subj: str, cause: str, since: Any, route: str, home: Any = ""
+    read: Read,
+    kind: str,
+    subj: str,
+    cause: str,
+    since: Any,
+    route: str,
+    home: Any = "",
+    row: str = "",
 ) -> dict[str, Any]:
-    """One thing that is wrong in the project, and the drawer of the page that has it."""
+    """One thing that is wrong in the project, the drawer of the page that has it, and the row
+    it is about, or an empty `row` for a fault of the project or the machine."""
     place = {
         "project": read.name,
         "home": home or "",
         "open": f"#/{quote(read.name, safe='')}/{route}",
     }
-    return {"kind": kind, "subj": subj, "cause": cause, "since": since, "where": [place]}
+    found = {"kind": kind, "subj": subj, "cause": cause, "since": since, "where": [place]}
+    return found | {"row": row}
+
+
+USER, ROOT_HOME, CREW = "user", "root home", "crew"
+GATED = re.compile(
+    r"\b(?:deletes data|rewrites history|spends money|touches prod or real users"
+    r"|changes access or secrets|publishes)\b"
+)
+"""The six cases of the home's `gates.md`: a fix that is one of them waits on the user."""
+REFUSED = re.compile(r"\b(?:401|403)\b|Unauthorized|Bad credentials|Forbidden")
+"""A token GitHub refuses: only the user can give a new one."""
+CHECK_TOLD = ("failed", "refailed")
+"""The outbox's templates that tell a crew its pull request's check failed (`jbus.rebase`)."""
+
+
+def _main(read: Read, one: dict[str, Any]) -> tuple[str, str]:
+    """A red main is the crew's of its main-red row while one is open, else the root home's."""
+    fix = next((task["slug"] for task in read.tasks if mainjson.fix_of(task["slug"])), "")
+    return (CREW, fix) if fix else (ROOT_HOME, "")
+
+
+def _ci(read: Read, one: dict[str, Any]) -> tuple[str, str]:
+    """A red branch is the crew's of the row whose branch it is, and CI that could not be read
+    or a branch no row has is the root home's."""
+    return (CREW, one["row"]) if one["row"] else (ROOT_HOME, "")
+
+
+def _bus(read: Read, one: dict[str, Any]) -> tuple[str, str]:
+    """Wakes that fail on a token GitHub refuses, or on the home thread (T3 Code not answering),
+    are the user's. Any other failure of the bus is the root home's."""
+    if REFUSED.search(one["cause"]) or one["cause"].startswith("wakes to the home thread"):
+        return USER, ""
+    return ROOT_HOME, ""
+
+
+def _unasked(read: Read, one: dict[str, Any]) -> tuple[str, str]:
+    """T3 Code not answering is the user's, since no agent is reached without it."""
+    return (USER, "") if one["subj"] == "T3 Code" else (ROOT_HOME, "")
+
+
+def _of_row(read: Read, one: dict[str, Any]) -> tuple[str, str]:
+    """A fault of a row is its home's, unless its fix is a case of `gates.md` or waits on a cap
+    of the user's plan."""
+    if GATED.search(one["cause"]) or _CAPPED.search(one["cause"]):
+        return USER, ""
+    return "home", one["row"]
+
+
+OWNERS: dict[str, Callable[[Read, dict[str, Any]], tuple[str, str]]] = {
+    "main": _main,
+    "ci": _ci,
+    "bus": _bus,
+    "source": lambda read, one: (ROOT_HOME, ""),
+    "unasked": _unasked,
+    "thread": _of_row,
+    "stall": _of_row,
+    "idle": _of_row,
+}
+"""Who fixes each kind of `wrongs`: `crew` with the row whose crew it is, `home` with the row
+whose home it is, the root home, or the user."""
+
+
+def _home_of(read: Read, row: str) -> tuple[str, str]:
+    """The name and the thread of the home of a row, or of the root home for no row."""
+    scope = read.homes.of_task(row).name if row else ""
+    thread = jbriefs.thread_of(read.home / scope if scope else read.home)
+    return (f"home {scope}" if scope else ROOT_HOME), thread
+
+
+def owner(read: Read, one: dict[str, Any]) -> tuple[str, str, str]:
+    """Who fixes an entry of `wrongs`, the thread jbus tells, and the row it is about: an agent
+    that can be told, or else the next one up. A crew with no thread hands it to its row's home,
+    and a home with no thread to the root home. With no root home to tell, it is the user's."""
+    who, row = OWNERS[one["kind"]](read, one)
+    if who == CREW:
+        task = next((task for task in read.tasks if task["slug"] == row), {})
+        if task.get("thread"):
+            return f"crew of {row}", task["thread"], row
+        who = "home"
+    if who == "home":
+        name, thread = _home_of(read, row)
+        if thread:
+            return name, thread, row
+        who = ROOT_HOME
+    if who == ROOT_HOME:
+        name, thread = _home_of(read, "")
+        if thread:
+            return name, thread, row
+    return USER, "", row
+
+
+def key_of(one: dict[str, Any]) -> str:
+    """The outbox's key for the one message that tells an entry's owner of it: the same fault
+    has the same key while its cause stands, and a new owner thread a new one."""
+    stands = f"{one['kind']}|{one['subj']}|{one['since'] or one['cause']}"
+    digest = hashlib.sha256(stands.encode()).hexdigest()[:12]
+    return f"wrong|{one['kind']}|{digest}|{one['to']}"
+
+
+def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
+    """What the owner was told and when: the outbox's message under the entry's key, the
+    failed-check message to a crew since its run, any other message to the owner about the
+    entry's row since the fault began (a stalled row's home line from `jbus.expedite`), the
+    main-red row that fixes a red main, or the leftover its row's home was told of
+    (`jbus.leftover`). None where the owner was not told yet."""
+    if one["owner"] == USER:
+        return None
+    if one["kind"] == "main" and mainjson.fix_of(one["row"]):
+        moves = [
+            when(move.get("at")) for move in read.moves or [] if move.get("slug") == one["row"]
+        ]
+        task = next((task for task in read.tasks if task["slug"] == one["row"]), {})
+        at = min((at for at in moves if at), default=None) or task.get("updated")
+        return {"told": at, "what": "the main-red row"} if at else None
+    held = leftover.read(read.state).get(one["row"]) if read.name and one["row"] else None
+    if held and held.told and held.thread == one["to"]:
+        return {"told": when(held.told), "what": leftover.KIND}
+    sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
+    key = key_of(one)
+    for line in reversed(sent):
+        at = when(line.get("at"))
+        if not at or line.get("thread") != one["to"]:
+            continue
+        if line.get("key") == key:
+            return {"told": at, "what": text(line.get("template"), 40)}
+        about = one["row"] and line.get("row") == one["row"] and at >= (one["since"] or "")
+        if about and (one["kind"] != "ci" or line.get("template") in CHECK_TOLD):
+            return {"told": at, "what": text(line.get("template"), 40)}
+    return None
+
+
+def _owned(read: Read, found: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Each entry with its `owner`, the thread `to` tell, and `fixing`."""
+    for one in found:
+        name, thread, row = owner(read, one)
+        one |= {"owner": name, "to": thread, "row": row}
+        one["fixing"] = _fixing(read, one)
+    return found
 
 
 def _unwell(read: Read) -> list[dict[str, Any]]:
@@ -1564,7 +1718,11 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
     `idle`, a pull request whose crew jbus told what it is short of and found nobody at work
     after (`jbus.expedite`), while no stall of it stands and the hold is not the user's. A
     `since` is None where nothing kept says. Each reads its source as it is now, so an entry
-    goes once its source works again."""
+    goes once its source works again.
+
+    Each entry also has its `owner`, who fixes it (`owner`, by the rule of its kind in
+    `OWNERS`), the thread jbus tells it `to`, the `row` it is about, and `fixing`, what that
+    owner was told and when (`_fixing`). The user owns only what no agent can fix (`users`)."""
     checks, bus = read.panel("checks")["checks"], read.panel("bus")["bus"]
     main = read.panel("pulse")["main"]
     found = []
@@ -1576,8 +1734,9 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
     else:
         for at in checks["now"]["failed"]:
             run = checks["runs"][at]
-            cause = f"{run['name']} failed"
-            found.append(_wrong(read, "ci", run["branch"], cause, run["created"], "checks"))
+            cause, row = f"{run['name']} failed", run["branch"]
+            mine = row if any(task["slug"] == row for task in read.tasks) else ""
+            found.append(_wrong(read, "ci", row, cause, run["created"], "checks", row=mine))
     status = read.panel("pulse")["jbus"]["status"]
     route = "the home thread" if status["wake"] in ("home", "both") else "its webhook"
     if bus["failed_wakes"] or bus["last_error"]:
@@ -1600,15 +1759,16 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
             cause = QUIET_OR_HUNG[one["live"]]
             if one["queued"]:
                 cause += f", and {one['queued']} run{'' if one['queued'] == 1 else 's'} wait"
-            home = one.get("home")
-            found.append(_wrong(read, "thread", one["title"], cause, one["updated"], route, home))
+            home, mine = one.get("home"), one["slug"] or ""
+            found.append(
+                _wrong(read, "thread", one["title"], cause, one["updated"], route, home, mine)
+            )
     tasks = {task["slug"]: task for task in read.tasks}
     stalls = _stalls(read, tasks)
     for slug, one in stalls.items():
         route = f"task/{quote(slug, safe='')}"
-        found.append(
-            _wrong(read, "stall", slug, one["cause"], one["at"], route, tasks[slug]["home"])
-        )
+        home = tasks[slug]["home"]
+        found.append(_wrong(read, "stall", slug, one["cause"], one["at"], route, home, slug))
     told = {one["slug"]: one["at"] for one in read.events if one["kind"] == expedite.EXPEDITE}
     for slug, entry in (read.table(expedite.FILE) or {}).items():
         if not isinstance(entry, dict) or slug not in tasks or slug in stalls:
@@ -1618,7 +1778,25 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
         short = text(entry.get("reason"))
         cause = f"#{entry.get('number')} is short, {short}, and its crew has not acted"
         route = f"task/{quote(slug, safe='')}"
-        found.append(_wrong(read, "idle", slug, cause, told.get(slug), route, tasks[slug]["home"]))
+        home = tasks[slug]["home"]
+        found.append(_wrong(read, "idle", slug, cause, told.get(slug), route, home, slug))
+    return _owned(read, found)
+
+
+def users(read: Read) -> list[dict[str, Any]]:
+    """The entries of `wrongs` that are the user's, which no agent can fix: what the band, the
+    since line and `/stack.json`'s `wrong` show."""
+    return [one for one in read.once(wrongs) if one["owner"] == USER]
+
+
+def fixing(read: Read) -> dict[str, dict[str, Any]]:
+    """By row, the first entry of `wrongs` an agent owns, as its row draws it: who fixes it
+    and when they were told, or None where they were not told yet."""
+    found: dict[str, dict[str, Any]] = {}
+    for one in read.once(wrongs):
+        if one["owner"] != USER and one["row"] and one["row"] not in found:
+            told = (one["fixing"] or {}).get("told")
+            found[one["row"]] = {"owner": one["owner"], "told": told}
     return found
 
 
@@ -1706,7 +1884,7 @@ def summary(read: Read) -> dict[str, Any]:
     return {
         "name": read.name,
         "repo": read.where,
-        "broken": broken(read.once(wrongs), bus),
+        "broken": broken(users(read), bus),
         "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
         "waits": len(read.panel("you")["needs"]),
         "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
@@ -1739,8 +1917,9 @@ def stack(
     (`threads.ROLES`). It has a summary of each project of `names`, or of each project the
     state directory has. It has the user's two queues across the projects: `needs`, oldest
     first, and `proceeds`, the soonest to go ahead first. It has `wrong`, what is wrong across
-    the projects (`wrongs`), with the machine's sources that are not ok, and one cause that
-    several projects share as one entry (`merged`).
+    the projects that is the user's (`users`), with the machine's sources that are not ok, and
+    one cause that several projects share as one entry (`merged`). What an agent owns is on its
+    row (`fixing`), never here.
 
     The machine is what one jbus and one room provide for every project: the pass and the
     timer, the room and the plan's use, and the runner units. A `Read` of its own reads each
@@ -1793,6 +1972,9 @@ def stack(
             "cause": SOURCE_IS.get(one["state"], one["state"]),
             "since": None,
             "where": [],
+            "row": "",
+            "owner": USER,
+            "fixing": None,
         }
         for one in machine["unwell"]
     ]
@@ -1805,7 +1987,7 @@ def stack(
         "needs": needs,
         "proceeds": proceeds,
         "wrong": merged(
-            machine_wrong + [one for read in reads for one in keep(read.once(wrongs), [WRONG])]
+            machine_wrong + [one for read in reads for one in keep(users(read), [WRONG])]
         ),
     }
     for panel in found:
