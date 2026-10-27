@@ -392,8 +392,9 @@ def told_before(run: Pass, head: str, told: str, sent: list[str]) -> str:
 
 
 def ran_and_failed(run: Pass, pull: dict) -> Red:
-    """Return the failed checks at the pull request's head, among the checks that ran, as `{reason}`
-    or nothing. Also return the highest attempt of the workflow runs in which they failed. When
+    """Return the failed checks at the pull request's head, among the checks that ran, as a `Red`:
+    its `reason` names them, or is empty, beside their names, their jobs and the highest attempt of
+    the workflow runs in which they failed. When
     GitHub says a check's job ran no step, the check never started: CI started no job, and the
     crew's `unrun` parks that case. When GitHub will not give a check's job, the check counts as
     run, at its first attempt. A workflow run in which a cancelled or timed-out job stopped a

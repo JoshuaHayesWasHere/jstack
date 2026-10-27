@@ -100,15 +100,17 @@ def kept(kitchen, name):
     return json.loads(path.read_text()) if path.exists() else {}
 
 
-def red_on(kitchen, head, *tests, onto=""):
+def red_on(kitchen, head, *tests, onto="", by="web-flow", parents=(MAIN,)):
     """Put the pull request at `head`, its check red on `tests`, in the job that its first eight
     hex digits number. With `onto`, the head is GitHub's merge of main into the branch at `onto`,
-    as update-branch makes it; without, the crew pushed it."""
+    as update-branch makes it; without, the crew pushed it. `by` and `parents` make another
+    commit on `onto`: one the crew committed, or one with no second parent."""
     job = str(int(head[:8], 16))
     log = "".join(f"2026-10-26T13:36:00Z FAILED {test} - assert False\n" for test in tests)
     kitchen.set("logs.json", {**kept(kitchen, "logs.json"), job: log})
     if onto:
-        merge = {"parents": [{"sha": onto}, {"sha": MAIN}], "committer": {"login": "web-flow"}}
+        made = [{"sha": sha} for sha in (onto, *parents)]
+        merge = {"parents": made, "committer": {"login": by}}
         kitchen.set("commit-made.json", {**kept(kitchen, "commit-made.json"), head: merge})
     kitchen.set("open.json", [pull(kitchen, [failed(job)], head=head)])
 
@@ -134,6 +136,19 @@ def test_merges_of_main_red_on_the_failure_told_are_not_told_again_but_a_new_one
         "failed|alpha|dddddddddddd",
         "failed|alpha|eeeeeeeeeeee",
     ]
+
+
+@pytest.mark.parametrize(
+    "made",
+    [{"by": "JoshuaHayesWasHere"}, {"parents": ()}],
+    ids=["the crew's own merge of main", "a commit of GitHub's with one parent"],
+)
+def test_a_head_on_the_one_told_that_is_not_githubs_merge_of_main_is_told(launched, made):
+    red_on(launched, "a" * 40, "tests/test_x.py::test_one")
+    passes(launched, 0)
+    red_on(launched, "b" * 40, "tests/test_x.py::test_one", onto="a" * 40, **made)
+    passes(launched, 3)
+    assert keys(launched) == ["failed|alpha|aaaaaaaaaaaa", "failed|alpha|bbbbbbbbbbbb"]
 
 
 def test_the_record_of_a_tell_keeps_the_failure_it_told_beside_the_head(launched):
