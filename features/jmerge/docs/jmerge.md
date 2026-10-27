@@ -134,6 +134,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A check that the repo's workflows never run then blocks no merge.
   For example, jstack's own state directory names `check` (the suite) and `borders` (the border lint), so its pull requests wait for both.
   A pull request waits with `<check> has not passed` for the first required check that has not passed, and with `it conflicts with its base` for a conflict.
+  Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
   A pull request into an integration branch has no check of its own to wait on: CI runs the pull request check into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
@@ -297,6 +298,14 @@ It reads a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-fai
 A pull request whose runs failed no test id, or a test that main's check also failed there, is asked for as before, and so is one whose runs or logs GitHub does not give.
 It keeps that answer for a head and a base tip in `base-merges.json`, so the logs are read again only once either moves (#494, 2026-10-26: nine merges of main, each red on the same test of its own).
 The review stands across the merge, as across a rebase: the range-diff of the reviewed head and the new head shows no content, since it leaves out the merge commit.
+
+## A required check with no run at the head
+
+A check that a repo requires before its workflow reaches the base gets no run at a head whose checks ran before then, and no rerun starts it.
+`jmerge` tells it apart from a check still running: its line is `<check> has no run at <head12>`, not `<check> has not passed`.
+When that is all that holds the pull request, it merges cleanly, and its base has moved since its check started, `jmerge` asks GitHub to merge the base into the branch, as for a green pull request whose base moved.
+The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, asked once for a head and a base tip, and GitHub runs the base's workflows at the new head.
+With the base unmoved, the line stays `<check> has no run at <head12>`: that is no wait on the merge runner, so jbus wakes the home once it is held longer than `clock.HOLD_MINUTES` (`features/jbus/src/jbus/clock.py`).
 
 ## Merge gate
 
