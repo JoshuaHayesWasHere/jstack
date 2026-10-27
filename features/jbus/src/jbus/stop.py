@@ -296,7 +296,7 @@ def _change(run: Pass, one: Stop | Answer, **changed: str) -> bool:
     return True
 
 
-def find(state: Path, one: Stop | Answer) -> Stop | Answer:
+def _reread(state: Path, one: Stop | Answer) -> Stop | Answer:
     """Return the record of a stop or an answer as the file has it now."""
     kept = load(state)
     return next(each for each in (*kept.stops, *kept.answers) if each.sent == one.sent)
@@ -435,7 +435,7 @@ def _stop(args: argparse.Namespace, config: Config) -> int:
             settle(run)
             given = answer(run, args.thread, scope, row, " ".join(words))
             deliver(run, _client(config))
-            now = find(run.state, given)
+            now = _reread(run.state, given)
             to = now.thread if now.sent_at else f"nobody yet, {now.waits}"
             print(f"answered: {', '.join(given.stops)}, closed, the answer sent to {to}")
             return 0
@@ -444,7 +444,7 @@ def _stop(args: argparse.Namespace, config: Config) -> int:
         )
         settle(run)
         deliver(run, _client(config))
-        now = find(run.state, one)
+        now = _reread(run.state, one)
         to = f"the root home at {now.thread}" if now.sent_at else f"nobody yet, {now.waits}"
         print(f"stopped: {one.key}, sent to {to}")
         return 0
