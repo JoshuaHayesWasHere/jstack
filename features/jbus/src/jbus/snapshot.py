@@ -14,7 +14,8 @@ after each edit to a `standing.md`, so that each such edit is a commit of its ow
 Before it stages anything, a snapshot reads each project's `standing.md`, the home's and each
 scoped home's (`refusals`). The file holds at most `CAP` numbered rules, and each rule names
 `Code: <slug>`, a row of the project's queue that turns the rule into code. A file that breaks
-either is refused: the snapshot commits nothing, says which rule and why on stderr, and fails.
+either is refused: the snapshot leaves it out of the stage, commits and pushes the rest of the tree,
+says on stderr which file, project, rule and why, and fails, so the alarm names the refused project.
 
 A snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
 `jbus snapshot --alarm`. The first failure in a row raises an alert, once, to the desk and every
@@ -30,7 +31,7 @@ import shutil
 import subprocess
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
@@ -65,9 +66,15 @@ def _must(ran: subprocess.CompletedProcess[str], what: str) -> None:
         raise Failed(f"{what} failed: {said or f'exit {ran.returncode}'}")
 
 
-def take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None = None) -> str:
-    """Snapshot the tree, and return one line that says what `take` did. Raise `Failed` when
-    `take` cannot finish the snapshot.
+def take(
+    tree: Path,
+    now: datetime,
+    user: jsettings.Settings,
+    why: str | None = None,
+    held: Iterable[Path] = (),
+) -> str:
+    """Snapshot the tree, but for the files `held` names, and return one line that says what
+    `take` did. Raise `Failed` when `take` cannot finish the snapshot.
 
     A run holds `jbus-snapshot.lock` in the tree's git dir from `git add` to the push. So the
     runs of the homes and the timer wait for each other and never share an index. A run that
@@ -78,7 +85,7 @@ def take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None = 
         raise Failed(f"{tree} is not a git repo")
     with (Path(found.stdout.strip()) / "jbus-snapshot.lock").open("a") as lock:
         _hold(lock)
-        return _take(tree, now, user, why)
+        return _take(tree, now, user, why, [str(path.relative_to(tree)) for path in held])
 
 
 def _hold(lock: IO[str]) -> None:
@@ -95,8 +102,15 @@ def _hold(lock: IO[str]) -> None:
             time.sleep(0.1)
 
 
-def _take(tree: Path, now: datetime, user: jsettings.Settings, why: str | None) -> str:
-    _must(_git(tree, "add", "-A"), "git add")
+def _take(
+    tree: Path, now: datetime, user: jsettings.Settings, why: str | None, held: list[str]
+) -> str:
+    _must(
+        _git(tree, "add", "-A", "--", ".", *(f":(exclude,literal){path}" for path in held)),
+        "git add",
+    )
+    if held:
+        _must(_git(tree, "reset", "-q", "--", *(f":(literal){path}" for path in held)), "git reset")
     staged = _git(tree, "diff", "--cached", "--quiet").returncode != 0
     if staged:
         _commit(tree, f"snapshot {user.stamp(now)}" + (f": {why}" if why else ""))
@@ -144,10 +158,10 @@ def _rules(text: str) -> list[tuple[str, str]]:
     return rules
 
 
-def refusals(config: jbus.Config) -> list[str]:
-    """Return one line for each `standing.md` of a project's home or scoped home that breaks the
-    cap: the file, then each reason, which names the rule."""
-    lines = []
+def refusals(config: jbus.Config) -> dict[Path, str]:
+    """Return each `standing.md` of a project's home or scoped home that breaks the cap, with one
+    line that names its project and the file, then each reason, which names the rule."""
+    lines: dict[Path, str] = {}
     for project in config.projects:
         home = config.home(project)
         try:
@@ -160,7 +174,9 @@ def refusals(config: jbus.Config) -> list[str]:
             try:
                 rules = _rules(standing.read_text(errors="replace"))
             except OSError as error:
-                lines.append(f"{standing} cannot be read: {error.strerror or error}")
+                lines[standing] = (
+                    f"{project.name}: {standing} cannot be read: {error.strerror or error}"
+                )
                 continue
             why = []
             if len(rules) > CAP:
@@ -177,7 +193,7 @@ def refusals(config: jbus.Config) -> list[str]:
                         f"which is in no queue of {project.name}"
                     )
             if why:
-                lines.append(f"{standing} {'; '.join(why)}")
+                lines[standing] = f"{project.name}: {standing} {'; '.join(why)}"
     return lines
 
 
@@ -192,18 +208,21 @@ def snapshot(
     why: str | None = None,
     warn: Callable[[str], None] = _stderr,
 ) -> int:
-    """Take a snapshot of `config.home_dir`, unless a `standing.md` is refused (`refusals`). A
-    snapshot that succeeds ends a streak of failed ones, and one that fails says why to `warn`.
-    `snapshot` returns 0 even when jbus could not tell a project that snapshots recovered,
-    because the unit runs the snapshot, not the telling."""
+    """Take a snapshot of `config.home_dir`, with each refused `standing.md` (`refusals`) left
+    out of it and named to `warn`. A snapshot that refused none and succeeds ends a streak of
+    failed ones, and one that fails says why to `warn`. `snapshot` returns 0 even when jbus could
+    not tell a project that snapshots recovered, because the unit runs the snapshot, not the
+    telling."""
     now = now or datetime.now(UTC)
+    refused = refusals(config)
+    for line in refused.values():
+        warn(f"snapshot: refused, left out: {line}")
     try:
-        refused = refusals(config)
-        if refused:
-            raise Failed(f"refused, nothing committed: {'; '.join(refused)}")
-        say(take(config.home_dir, now, config.user, why))
+        say(take(config.home_dir, now, config.user, why, refused))
     except Failed as error:
         warn(f"snapshot: {error}")
+        return 1
+    if refused:
         return 1
     alert.recover(config, alert.SNAPSHOT, now, say)
     return 0
@@ -217,7 +236,7 @@ def alarm(
     now = now or datetime.now(UTC)
     say("snapshot failed")
     refused = refusals(config)
-    cause = f"{ALARM}: {'; '.join(refused)}" if refused else ALARM
+    cause = f"{ALARM}: {'; '.join(refused.values())}" if refused else ALARM
     return alert.sound(config, alert.SNAPSHOT, cause, AFTER, now, say)
 
 

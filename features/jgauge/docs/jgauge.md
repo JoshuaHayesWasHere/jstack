@@ -8,6 +8,7 @@ The slots stop many threads at once from overloading the machine or using up the
 ## What it reads and sends
 
 - `jgauge session` and `jgauge context` read only the transcripts Claude Code writes under `~/.claude/projects/`.
+- `jgauge spend` reads T3 Code's store, `~/.t3/userdata/statev2.sqlite`, opened read-only.
 - `jgauge room` reads `/proc`, `df`, your role map and the ledger files of your plan's limits.
   On macOS it reads `sysctl` and `vm_stat` in place of `/proc`, and no `df`.
 - `jgauge limits` reads your Claude OAuth access token and calls Anthropic's usage API with it.
@@ -29,6 +30,18 @@ The slots stop many threads at once from overloading the machine or using up the
    It prints a row for the session, a row for each subagent that the session started, and the total.
 
 To get the same report as JSON, add `--format json`.
+
+## See what Claude spent, and when every account was capped
+
+Run `jgauge spend --day <YYYY-MM-DD>`, or `jgauge spend --since <time> --until <time>` for any span, in local time.
+Add `--project <name>` to count only one T3 project's threads.
+It prints the spend of every Claude run that started in the period, in units: uncached input x1, cache write x1.25, cache read x0.1, output x5, and an Opus run x5/3.
+The spend is split by kind of run, by instance and by five-hour window.
+The kinds are first crew run, reviews, fix rounds, jbus sends, homes, scouts and capped failures.
+A crew's later run is a fix round or a jbus send by the key jbus put in the message it sent, and by that message's text where the key says nothing.
+A five-hour window ends at a reset that a usage-limit failure names, and otherwise starts at the first run outside any window.
+Last, for each day it prints the minutes in which every Claude instance that ran in the week was capped.
+An instance is capped from each usage-limit failure to the reset that failure names.
 
 ## Check for room before you start a thread
 
@@ -55,6 +68,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 |---|---|
 | `jgauge session [--format json] <project>/<session>.jsonl` | Prints what one thread cost: a row for the session, a row for each subagent it started (found under `<session>/subagents/`), and the total. It prints a table, and with `--format json` the same report as JSON. |
 | `jgauge context <project>/<session>.jsonl` | Prints one number: how full the thread's context is now. It is the input side of the transcript's last call, and 0 for a transcript with no call. `features/home/hooks/home-gauge.sh` tells a home the same count, which it works out with `jq`. |
+| `jgauge spend [--day <date> \| --since <time> --until <time>] [--project <name>] [--store <path>]` | Prints Claude's spend in units by kind, by instance and by five-hour window, and the minutes each day with every Claude instance capped ("See what Claude spent, and when every account was capped"). The day is today by default. |
 | `jgauge room` | Prints `go`, or `wait: ` and the first reading with no room ("jgauge room"). |
 | `jgauge limits` | Reads each Claude account's five-hour and weekly use into the ledger, ahead of any cap ("jgauge limits"). |
 | `jgauge limits --check` | Reads no account: prints `stale <instance>: <why>` for each Claude instance whose ledger file is missing or was written 15 min ago or more, and exits 1 when there is one. |

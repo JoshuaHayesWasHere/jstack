@@ -266,6 +266,7 @@ def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_
         "sample",
         "session",
         "sizes",
+        "spend",
         "test-slot",
     ]
     assert trees["jmerge"].flags["--check"] is False and trees["jmerge"].flags["--accept"] is True

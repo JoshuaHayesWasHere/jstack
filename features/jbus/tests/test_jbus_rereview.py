@@ -53,7 +53,8 @@ def test_a_rebase_that_changed_the_content_asks_its_crew_for_one_scoped_review(l
             "jbus: your rebase of pull request #7 changed its content after its review "
             f"({command(head)}). If the Result already has a `Scoped reviewer:` line that names "
             "this head, launch nothing more. Otherwise launch ONE scoped reviewer, not a full "
-            'review: the same way the crew skill\'s "The review" launches a reviewer, with the '
+            'review, in your own worktree: the same way the crew skill\'s "The review" launches '
+            "a reviewer, with `workspaceStrategy` `existing_worktree` on that worktree and the "
             f"message `/pr-review run alpha scoped {OLD} {'2' * 40}..{head}`. Add `Scoped "
             f"reviewer: <threadId>, of {head}` to the Result, in place of a `Scoped reviewer:` "
             "line that names another head no `## Review` has. Do not rebase again until its "

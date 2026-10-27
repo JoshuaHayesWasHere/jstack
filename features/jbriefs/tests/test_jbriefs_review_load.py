@@ -59,6 +59,11 @@ def test_review_or_after_with_the_word_passes(mode, decisions):
         ("Done when:\n- the test passes with every core busy\n", "every core"),
         ("Proves it: the timing holds with all the cores loaded\n", "all the cores"),
         ("Load: load every core, then time the test\n", "every core"),
+        ("Load: load every core with stress-ng\n", "every core"),
+        ("Load: stress every core for 60s\n", "every core"),
+        ("Load: drive every core to 100%\n", "every core"),
+        ("Load: saturate every core and time the test\n", "every core"),
+        ("Proves it: the timing holds with every core under stress\n", "every core"),
     ],
 )
 def test_a_load_that_takes_every_core_is_refused(line, asked):
@@ -83,3 +88,36 @@ def test_a_load_that_takes_every_core_is_refused(line, asked):
 )
 def test_a_bounded_load_or_one_turned_down_passes(line):
     assert parse.faults(brief(more=line)) == []
+
+
+QUOTED = (
+    "Task: a brief quoted the lint's own words, `every core busy` and `all the cores`, "
+    "and the lint took them for a load\n"
+)
+
+
+def quoting(task):
+    """Return a brief whose Task line is `task`."""
+    return brief().replace('Task: "do alpha"\n', task)
+
+
+def test_the_load_words_quoted_in_a_code_span_pass():
+    assert parse.faults(quoting(QUOTED)) == []
+
+
+def test_the_same_load_words_out_of_a_code_span_are_refused():
+    (fault,) = parse.faults(quoting(QUOTED.replace("`", "")))
+    assert fault.startswith("brief asks for every core, a load that takes every core")
+
+
+@pytest.mark.parametrize(
+    ("line", "asked"),
+    [
+        ("Task: run `stress-ng --cpu 0` beside the test\n", "stress-ng --cpu 0"),
+        ("Task: run `stress-ng --cpu $(nproc)` beside the test\n", "--cpu $(nproc)"),
+        ("Task: run `stress-ng --cpu=`nproc`` beside the test\n", "--cpu=`nproc`"),
+    ],
+)
+def test_a_load_command_in_a_code_span_is_still_refused(line, asked):
+    (fault,) = parse.faults(quoting(line))
+    assert fault.startswith(f"brief asks for {asked}, a load that takes every core")
