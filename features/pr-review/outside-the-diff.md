@@ -42,7 +42,7 @@ gh pr diff <url> | awk '
 FINDINGS
 ```
 
-- It prints the findings to keep, then the count dropped. Send and record the kept ones only. The dropped ones are named nowhere: not to the crewmate, not in the section, not to the home. The count goes in the section's `Dropped:` line.
+- It prints the findings to keep, then the count dropped. Record the kept ones only. The dropped ones are named nowhere: not in the section, not in this thread's summary. The count goes in the section's `Dropped:` line.
 - A line counts as changed when the pull request added it, or removed a line that sat just before or just after it. Any line of a file the pull request removed counts, and so does a file-level finding on any file in the diff, a renamed or binary one included.
-- If it exits with something other than 0, `gh` gave no diff (no network, or a diff too large for GitHub to send). Nothing was kept and nothing dropped: do not send a review as clean. Run it once more, and if it fails again, say so in the section in place of the findings and send that.
+- If it exits with something other than 0, `gh` gave no diff (no network, or a diff too large for GitHub to send). Nothing was kept and nothing dropped: do not write a review as clean. Run it once more, and if it fails again, say so in the section in place of the findings.
 - Do not look at what was dropped to see whether it was true. Whether it was true is not the question.

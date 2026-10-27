@@ -10,6 +10,8 @@ from datetime import timedelta
 import pytest
 
 import jbus
+from jbus import reviewed
+from jmerge import ready
 from test_jbus_kitchen import FOUND, NOW, review, sends
 
 HEAD = "c" * 40
@@ -157,3 +159,13 @@ def test_nothing_is_told_where_jmerge_says_the_crew_owes_no_line(kitchen, brief,
         kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
     kitchen.poll()
     assert noticed(kitchen) == []
+
+
+@pytest.mark.parametrize("mode", ["", "Review: twice\n"])
+def test_a_clean_review_is_judged_the_same_with_or_without_a_fixed_none_needed_line(mode):
+    """The crew no longer writes `Fixed: none needed` after a clean review: jmerge's judge gives
+    the same answer on the brief with the line and without it, and neither owes the crew a line."""
+    brief = f"# alpha: a task\n{mode}Thread: mcp:crew\n" + section("clean", "- none")
+    fixed = brief + "\n## Result\nFixed: none needed, the review is clean\n"
+    assert ready.short_of(brief, HEAD) == ready.short_of(fixed, HEAD) == ""
+    assert reviewed.due(brief, HEAD) is None and reviewed.due(fixed, HEAD) is None
