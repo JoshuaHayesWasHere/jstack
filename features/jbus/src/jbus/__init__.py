@@ -540,13 +540,19 @@ def redact(value: Any, secret: tuple[str, ...], mark: str = REDACTED) -> Any:
 
 
 def write_json(path: Path, value: Any, *, mode: int = 0o644) -> None:
+    """Write the file whole: a temp file of this process's own, then a rename, so a reader or
+    a second writer never sees half of it, and a write that fails leaves no temp behind."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     handle = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
     try:
-        os.write(handle, (json.dumps(value, indent=2, sort_keys=True) + "\n").encode())
-        os.fsync(handle)
-    finally:
-        os.close(handle)
-    os.chmod(temporary, mode)
-    os.replace(temporary, path)
+        try:
+            os.write(handle, (json.dumps(value, indent=2, sort_keys=True) + "\n").encode())
+            os.fsync(handle)
+        finally:
+            os.close(handle)
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise

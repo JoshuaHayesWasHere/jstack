@@ -4,6 +4,7 @@ a run killed while it writes leaves the file as it was, never half of it."""
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -45,3 +46,27 @@ def test_a_base_merge_record_killed_mid_write_leaves_the_whole_file(tmp_path, mo
     kept.keep(pull(8, "c" * 40), "d" * 40, said="asked")
     assert set(kept.known()) == {"7", "8"}
     assert sorted(path.name for path in Path(tmp_path).iterdir()) == [rejudge.NAME]
+
+
+WRITER = """
+import sys
+from pathlib import Path
+import jbus
+path, mark = Path(sys.argv[1]), sys.argv[2]
+for n in range(150):
+    jbus.write_json(path, {"by": mark, "n": n})
+"""
+
+
+def test_two_runs_writing_holds_at_once_both_finish_and_leave_one_whole_file(tmp_path):
+    """A hand run of jmerge overlaps jbus's run, and both write holds.json: neither write fails."""
+    holds = tmp_path / "holds.json"
+    runs = [
+        subprocess.Popen(
+            [sys.executable, "-c", WRITER, str(holds), str(mark)], stderr=subprocess.PIPE
+        )
+        for mark in range(4)
+    ]
+    assert [(run.wait(), run.stderr.read()) for run in runs] == [(0, b"")] * 4
+    assert json.loads(holds.read_text())["n"] == 149
+    assert [path.name for path in tmp_path.iterdir()] == ["holds.json"]

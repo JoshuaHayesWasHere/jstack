@@ -190,7 +190,7 @@ def test_a_first_pass_stopped_before_any_status_is_still_printed(kitchen):
 
 def test_a_record_that_cannot_be_written_is_said_and_the_pass_does_all_it_did(kitchen):
     kitchen.state_dir.mkdir()
-    (kitchen.state_dir / "pass.json.tmp").mkdir()
+    (kitchen.state_dir / f"pass.json.{os.getpid()}.tmp").mkdir()
     said = kitchen.poll()
     assert [line.split(":")[0] for line in said if line.startswith("pass record")] == [
         "pass record failed",
@@ -272,7 +272,9 @@ def test_a_record_that_is_not_one_or_names_a_project_the_config_dropped_is_not_c
 
 def test_a_pass_whose_end_cannot_be_written_is_said_and_keeps_its_start_with_no_end(kitchen):
     """The test blocks the write once the pass is under way, after the pass wrote its start."""
-    kitchen.t3.on_list = lambda: (kitchen.state_dir / "pass.json.tmp").mkdir(exist_ok=True)
+    kitchen.t3.on_list = lambda: (kitchen.state_dir / f"pass.json.{os.getpid()}.tmp").mkdir(
+        exist_ok=True
+    )
     said = kitchen.poll()
     assert [line.split(":")[0] for line in said if line.startswith("pass record")] == [
         "pass record failed"
