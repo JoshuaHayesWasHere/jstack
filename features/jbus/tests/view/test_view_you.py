@@ -1,10 +1,16 @@
 """The You panel: what needs the user, across projects, oldest first."""
 
 import json
+import shutil
+import subprocess
 from dataclasses import asdict
+from pathlib import Path
+
+import pytest
 
 from jbus import questions, threads, waiting, work
 from jbus.view.panels.you import panel as panel_you
+from jbus.view.panels.you.panel import ANSWERS, APPROVES, OPENS, THREADS
 from test_jbus_kitchen import GATE as PIPED
 from view.scene import (
     GATE,
@@ -362,3 +368,56 @@ def test_a_hold_no_thread_works_on_is_a_need_of_the_user_s(scene, served):
     (need,) = [one for one in needs if one["kind"] == "held"]
     assert "one, two" in need["what"] and "main is red" in need["what"]
     assert need["verb"] == "Pick it up"
+
+
+DRAWN = r"""
+const vm = require("vm"), fs = require("fs");
+const page = {
+  document: { addEventListener() {} }, panel() {}, PROJECT: "", NOW: 0, ms: () => null,
+  esc: String, name: String, parse: (open) => ({ project: "demo", target: open }),
+  href: (project, target) => "/" + project + "/" + target,
+};
+vm.createContext(page);
+vm.runInContext(fs.readFileSync(process.argv[1], "utf8"), page);
+const needs = JSON.parse(fs.readFileSync(0, "utf8")), drawn = {};
+for (const at of ["", "demo"]) {
+  page.PROJECT = at;
+  for (const [kind, w] of Object.entries(needs)) {
+    page.FORM = {};
+    drawn[kind + "@" + (at || "stack")] = vm.runInContext("needRow", page)(w, false);
+  }
+}
+process.stdout.write(JSON.stringify(drawn));
+"""
+
+
+def test_each_act_the_inbox_serves_draws_one_filled_control(tmp_path):
+    """Whatever a need asks of the user, its row draws one primary action and no second: an
+    answer with a default and one without, an approval, the link to its home's thread, and a
+    need with no act of its own, which opens where it is. An act kind added to the server shows
+    here first."""
+    if not shutil.which("node"):
+        pytest.skip("no node on PATH to run the panel's script in")
+    need = {"project": "demo", "key": "k", "what": "w", "open": "gate/3", "item": "", "sha": ""}
+    need |= {"default": "it waits", "risk": "reversible", "unblocks": [], "since": ""}
+    needs = {
+        "answer with a default": need
+        | {"act": ANSWERS, "answerable": True, "verb": "Accept default"},
+        "answer with none": need | {"act": ANSWERS, "answerable": True, "verb": "Answer"},
+        "approve": need | {"act": APPROVES, "item": "tea-kettle", "verb": "Approve"},
+        "thread": need | {"act": THREADS, "thread": "t3code://thread/1", "verb": "Write"},
+        "no act": need | {"act": OPENS, "verb": "Set it up"},
+    }
+    assert {ANSWERS, APPROVES, THREADS, OPENS} == {one["act"] for one in needs.values()}
+    script = Path(panel_you.__file__).with_suffix(".js")
+    done = subprocess.run(
+        ["node", "-e", DRAWN, str(script)],
+        input=json.dumps(needs),
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    drawn = json.loads(done.stdout)
+    assert {kind: html.count('class="btn fill"') for kind, html in drawn.items()} == {
+        kind: 1 for kind in drawn
+    }
