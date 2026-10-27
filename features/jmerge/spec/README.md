@@ -55,7 +55,7 @@ The design starts with both pull requests open, so each story says the design st
 - A crew at work: a crew's turn is one step, so `Gap = "turn"` stops every idle process.
 - A process that holds a test slot, which jbus.strays leaves running since #427: the model takes it to end with its check.
 - A row that ends other than by merging: done, left, or its worktree gone.
-- The account caps, GitHub's API budget, cancelled checks, side workflows and train nightlies.
+- The account caps, GitHub's API budget, cancelled checks, side workflows and the nightlies of integration branches.
 
 `FlowDesign.tla`'s `Sweep` clears every leftover, idle or busy, as soon as a turn ends, which the code did not until #427: from #416 it stopped a busy one, and an idle one only once its row ended.
 The design also has both pull requests open from the start, so it has no launch, no row order and no fix row.

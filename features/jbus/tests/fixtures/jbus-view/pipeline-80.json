@@ -101,17 +101,6 @@
    }
   },
   {
-   "key": "train",
-   "name": "Train",
-   "count": 4,
-   "still": 4,
-   "oldest": {
-    "slug": "tea-sieve",
-    "project": "jstack",
-    "since": "2026-10-26T06:00:00Z"
-   }
-  },
-  {
    "key": "merged",
    "name": "Merged",
    "count": 6,
@@ -1165,62 +1154,6 @@
    "waits_on": [],
    "waited_by": [],
    "head": "sage-colander",
-   "depth": 1
-  },
-  {
-   "slug": "tea-sieve",
-   "project": "jstack",
-   "home": "flow",
-   "stage": "train",
-   "since": "2026-10-26T06:00:00Z",
-   "cause": "waits for the train to land",
-   "cause_since": "2026-10-26T06:01:00Z",
-   "moving": false,
-   "waits_on": [],
-   "waited_by": [],
-   "head": "tea-sieve",
-   "depth": 1
-  },
-  {
-   "slug": "jam-sieve",
-   "project": "jstack",
-   "home": "root",
-   "stage": "train",
-   "since": "2026-10-26T07:18:00Z",
-   "cause": "waits for the train to land",
-   "cause_since": "2026-10-26T07:19:00Z",
-   "moving": false,
-   "waits_on": [],
-   "waited_by": [],
-   "head": "jam-sieve",
-   "depth": 1
-  },
-  {
-   "slug": "oat-sieve",
-   "project": "jstack",
-   "home": "macos",
-   "stage": "train",
-   "since": "2026-10-26T08:46:00Z",
-   "cause": "waits for the train to land",
-   "cause_since": "2026-10-26T08:47:00Z",
-   "moving": false,
-   "waits_on": [],
-   "waited_by": [],
-   "head": "oat-sieve",
-   "depth": 1
-  },
-  {
-   "slug": "rye-sieve",
-   "project": "pantry",
-   "home": "shelf",
-   "stage": "train",
-   "since": "2026-10-26T06:07:00Z",
-   "cause": "waits for the train to land",
-   "cause_since": "2026-10-26T06:08:00Z",
-   "moving": false,
-   "waits_on": [],
-   "waited_by": [],
-   "head": "rye-sieve",
    "depth": 1
   },
   {

@@ -4,11 +4,10 @@ with the chains its rows make and what holds the line.
 `STAGES` are the stages in the order of the process. A task is placed by the step the last pass
 gave it (`STAGE_OF_STEP`). On the step `running`, who holds the task decides (`RUNNING_BY_WHO`):
 a hung, waiting or lost thread is the user's, so it is in `you`, and any other is the crew's. A
-task on no step the view knows is `unplaced`. A row merged into a train, a branch the home's
-`integration` file names (the `milestones` panel's trains), is in `train` until the train lands,
-which no file the view reads records. A scout of `scouts.json` is in `scout` from its launch until
-its request has a Report (`state.request`). `merged` is a count of what merged today, less what
-merged into a train, and has no rows.
+task on no step the view knows is `unplaced`. A scout of `scouts.json` is in `scout` from its
+launch until its request has a Report (`state.request`). `merged` is a count of what merged
+today, into the default branch or an integration branch alike, and has no rows: a row merged is
+done as far as the queue goes, whatever branch it merged into.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its
 `cause_kind` is the value the last pass judged (`work.VALUES`). Its `home` is its brief's. A row
@@ -38,7 +37,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import jbus
-from jbus import queue, scouts
+from jbus import scouts
 from jbus.view import cause as causes
 from jbus.view.homes import ROOT
 from jbus.view.state import (
@@ -68,7 +67,6 @@ STAGES = (
     ("review2", "Review 2"),
     ("check", "Check"),
     ("merge", "Merge"),
-    ("train", "Train"),
     ("merged", "Merged"),
 )
 STAGE_OF_STEP = {
@@ -172,12 +170,6 @@ def _older(card: Card) -> tuple[bool, str]:
     return card.since is None, card.since or ""
 
 
-def _trained(read: Read) -> dict[str, str]:
-    """The train of each row of a train, as the `milestones` panel gives its trains."""
-    trains = read.panel("milestones")["milestones"]["trains"]
-    return {step["slug"]: train["branch"] for train in trains for step in train["steps"]}
-
-
 def _stage(task: dict[str, Any]) -> str | None:
     if task["step"] == "running":
         return RUNNING_BY_WHO.get(task["who"], STAGE_OF_STEP["running"])
@@ -205,15 +197,8 @@ def _homes(read: Read) -> dict[str, str]:
     return found
 
 
-def _since_merged(read: Read, row: queue.Row) -> str | None:
-    came = [one.get("at") for one in read.moves or [] if one.get("slug") == row["slug"]]
-    came = [when(one) for one in came if one]
-    return came[-1] if came else when(row.get("since"), read.user)
-
-
 def cards(read: Read) -> list[Card]:
-    """Every open row of the project as a card: each task, each row merged into a train that
-    has not landed, and each scout out."""
+    """Every open row of the project as a card: each task and each scout out."""
     homes = read.once(_homes)
     rows = {row["slug"]: row for row in read.rows}
     tasks = {task["slug"] for task in read.tasks}
@@ -233,15 +218,6 @@ def cards(read: Read) -> list[Card]:
                 (task.get("state") or {}).get("kind") or UNKNOWN.key,
                 links,
             )
-        )
-    for slug, branch in read.once(_trained).items():
-        row = rows[slug]
-        if slug in tasks or row.get("status") != "merged":
-            continue
-        since = _since_merged(read, row)
-        said = causes.Cause(f"merged into {branch}, lands with the train", since, False)
-        made.append(
-            Card(slug, read.name, homes.get(slug, ROOT_NAME), "train", since, said, "train")
         )
     for one in read.once(_scouted) or []:
         launch = one.get("launch") or {}
@@ -312,13 +288,7 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
         for slug, _ in card.waits_on:
             waited.setdefault((card.project, slug), []).append(card.slug)
     placed.sort(key=lambda card: (_ORDER[card.stage], _older(card), card.project, card.slug))
-    trained = {(card.project, card.slug) for card in placed if card.stage == "train"}
-    merged = sum(
-        1
-        for read in reads
-        for one in read.panel("merged")["merged"]
-        if (read.name, one["slug"]) not in trained
-    )
+    merged = sum(len(read.panel("merged")["merged"]) for read in reads)
     stages = []
     for key, name in STAGES:
         mine = [card for card in placed if card.stage == key]

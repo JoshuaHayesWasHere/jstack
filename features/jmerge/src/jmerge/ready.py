@@ -364,9 +364,9 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
 
 def unchecked_into(one: PullRequest, integration: tuple[str, ...]) -> PullRequest:
     """`one` with no wait on the pull request's own check where its base is an integration
-    branch. check.yml runs that check on a pull request into main alone: work into a train is
-    checked on each push to the train, whose red hold stands for it, and at main's gate when
-    the train lands."""
+    branch. check.yml runs that check on a pull request into main alone: work into an
+    integration branch is checked on each push to the branch, whose red hold stands for it, and
+    at main's gate when the branch lands."""
     if one.base not in integration:
         return one
     return replace(

@@ -15,12 +15,12 @@ Each pass reads every open pull request whose brief has the line and has not mov
   the base's head is told nothing: GitHub's compare says so, and the answer is kept under the key
   `stacked|<slug>|<head 12>|<base head 12>` so it is asked once.
 - Once the base merged, jbus bases the link's pull request on the branch the base merged into,
-  or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done
-  so itself on deleting the base's branch. A base merged into a train leaves its link on that
-  train: a rebase onto the default branch would carry the train's commits there. Then jbus moves
-  the link's own commits onto that branch itself, in the same pass and with no turn of its crew
-  (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of its
-  own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
+  or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done so
+  itself on deleting the base's branch. A base merged into an integration branch leaves its link on
+  that branch: a rebase onto the default branch would carry the branch's commits there. Then jbus
+  moves the link's own commits onto that branch itself, in the same pass and with no turn of its
+  crew (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of
+  its own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
   worktree, where it has one on the branch, is moved to the pushed head with `git reset --keep`.
   jbus moves nothing while the crew's thread is at work, while a reviewer it launched has written
   no review, or while its worktree has work in it (uncommitted, unpushed or a rebase not
