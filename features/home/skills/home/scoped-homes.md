@@ -7,7 +7,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 - The root home sends a scoped home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch.
   Send it with `t3_thread_send` to the id in that home's `home-id`, in the user's words.
   A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
-- A scoped home reaches the root only when it is stuck and needs steering: a stop on its own open row, which jbus takes only when another home's row or something no home owns holds it ("Stopping on the root" below). A decision only the user can make is a gate.
+- A scoped home reaches the root only when it is stuck and needs steering: a stop on its own open row, which jbus takes only when another home's row or something no home owns holds it ("Stopping on the root" below), and a decision only the user can make is a gate.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
   A scope that ends says so in its own `handoff.md`.
