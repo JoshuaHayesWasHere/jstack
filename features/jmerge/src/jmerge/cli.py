@@ -370,7 +370,6 @@ class Repo:
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, bool(merged and merged.run))
-        self.again_of: int | None = None
         self.listed, self.was = home_rule.ids(state)
         self.mine = home or self.listed
 
@@ -830,15 +829,16 @@ class Repo:
         return found.short, "" if found.short else tip, found.note
 
     def again(self, one: ready.PullRequest, red: str) -> str:
-        """Why a pull request whose check failed waits, judged over today's base. Its check is
-        its own fault, `red`, unless the base moved since the check started. Then GitHub merges
-        the base into it, and its check at the updated head decides, unless its last two check
-        runs failed a same test of its own (`rejudge.Repeated`): a merge would fail it again."""
+        """Why a pull request whose required checks failed waits, judged over today's base. Its
+        check is its own fault, `red`, unless the base moved since the check started. Then GitHub
+        merges the base into it, and its check at the updated head decides, unless the last two
+        runs of a check that failed, whichever required check it is, failed a same test of its
+        own (`rejudge.Repeated`): a merge would fail it again."""
         moved = None if one.started is None else self.moved(one.base, one.started)
         if (
             moved is None
             or not moved[1]
-            or self.base_merge.repeats(one, moved[0], self.required[0])
+            or any(self.base_merge.repeats(one, moved[0], check) for check in one.failed)
         ):
             return red
         return self.base_merge.of(one, moved[0])
@@ -882,14 +882,14 @@ class Repo:
         failed, or one with no run at its head, it is judged again as if that check had passed,
         and a judgement that gets as far as freshness judges it over today's base: `again` for a
         check that failed, and for a check with no run GitHub's merge of a base that moved since
-        its check started, which brings the head the workflows the base has."""
+        its check started, which brings the head the workflows the base has. One that falls short
+        of anything else says that, and not the check: #529 waited ten hours on "macos has not
+        passed" while it was short of a scoped review that nobody was asked for."""
         found = self.judged(one, default)
         held = ready.red_only(one) or ready.unrun_only(one)
         if not held or found.why != ready.short_on_github(one):
             return found
-        self.again_of = None
-        green = self.judged(replace(one, waiting=(), failed=(), unrun=()), default, found.why)
-        return green if self.again_of == one.number else found
+        return self.judged(replace(one, waiting=(), unrun=()), default, found.why)
 
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
@@ -980,14 +980,12 @@ class Repo:
         if one.draft:
             return Judgement(brief.stem, "wait", ready.DRAFT, note, None)
         if red and re.fullmatch(ready.NO_RUN.pattern, red):
-            self.again_of = one.number
             moved = None if one.started is None else self.moved(one.base, one.started)
             if moved is not None and moved[1]:
                 reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
                 red = self.base_merge.of(one, moved[0], *reasons)
             return Judgement(brief.stem, "wait", red, note, None)
         if red:
-            self.again_of = one.number
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)
         short, tip, fresh = self.stale(one, left)
         if short:
