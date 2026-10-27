@@ -531,7 +531,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, js
     add(kitchen, "alpha")
     said = kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = queue.body(brief("alpha"))
+    written = queue.body(brief("alpha")) + "Home: mcp:a-home\n"
     assert given == {
         "projectId": PROJECT,
         "title": "crew: alpha",
@@ -1252,13 +1252,14 @@ def test_a_row_approved_by_the_sha_of_the_whole_text_is_approved_while_the_text_
 
 def test_a_launch_sends_no_line_the_approved_sha_leaves_out(kitchen):
     """jbus does not hash what follows `Home:` or `Thread:`, so jbus neither sends nor writes
-    that text."""
+    that text: a launch sends and writes only the home the `Home:` line names."""
     add(kitchen, "alpha")
     unsaid = readdressed("alpha", home="mcp:a-home and more", thread="mcp:a-thread and also this")
     add(kitchen, "alpha", approve=False, text=unsaid)
     kitchen.poll()
     (given,) = kitchen.t3.launches
-    written = queue.body(brief("alpha"))
+    written = queue.body(brief("alpha")) + "Home: mcp:a-home\n"
+    assert "and more" not in written
     assert given["message"] == f"/crew alpha\n\n{written}"
     assert (kitchen.home / "tasks/alpha.md").read_text() == written + "Thread: mcp:thread-1\n"
 
