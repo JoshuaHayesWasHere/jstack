@@ -18,6 +18,8 @@ from test_jbus_github import FAILED, failed, launched, pull, sends
 from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_leftover import home
 from test_jbus_live import hanging
+from test_jbus_queue import add
+from test_stall import guarded, later
 
 __all__ = ["launched"]
 
@@ -123,4 +125,21 @@ def test_a_hung_home_is_left_to_the_nudge_of_its_parent(tmp_path, monkeypatch):
     for minutes in (0, 3, 6):
         kitchen.poll(NOW + minutes * MIN)
     assert [given for given in sends(kitchen) if given["threadId"] == root] == []
+    kitchen.close()
+
+
+def test_a_guarded_stall_is_told_to_its_home_once(tmp_path, monkeypatch):
+    """`stall.guarded` only logs a guarded wait that lasts 10 passes at one head, and wakes
+    nobody, so the pass tells the row's home. The second review of #563 found it went to
+    nobody, drawn as fixing by the home."""
+    kitchen = Kitchen(tmp_path, monkeypatch)
+    root = home(kitchen)["threadId"]
+    add(kitchen, "alpha")
+    guarded(kitchen)
+    for minute in range(12):
+        kitchen.poll(later(minute))
+    (sent,) = [given for given in sends(kitchen) if given["threadId"] == root]
+    assert sent["message"].startswith("jbus: the stall alpha is wrong in demo")
+    (one,) = [one for one in wrongs(kitchen, later(11)) if one["kind"] == "stall"]
+    assert (one["owner"], one["fixing"]["what"]) == ("root home", owners.KIND)
     kitchen.close()
