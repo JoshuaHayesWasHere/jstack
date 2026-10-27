@@ -408,7 +408,11 @@ class App(Writes):
         runs = self.github.runs
         base = state.Read(self.sources, "", now, runs, code, self.panels, shared)
         reads = [
-            state.Read(self.sources, one, now, runs, code, self.panels, shared, self.github.merged)
+            state.Read(
+                *(self.sources, one, now, runs, code, self.panels, shared),
+                merged=self.github.merged,
+                landed=self.github.landed,
+            )
             for one in names
         ]
         built = {
@@ -456,6 +460,7 @@ class App(Writes):
                 self.code.said(),
                 self.panels,
                 merged=self.github.merged,
+                landed=self.github.landed,
             )
             built = read.asked(panel[1]) if panel else read.answer()
             return NOT_FOUND if built is None else said(200, clean(built, (repo,)))

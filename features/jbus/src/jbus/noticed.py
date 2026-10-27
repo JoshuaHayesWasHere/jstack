@@ -131,7 +131,7 @@ def found(home: Path, now: datetime) -> list[Record]:
                 text = path.read_text(errors="replace")
             except OSError:
                 continue
-            for heading, body in mirror.sections(text, gates_inside=True):
+            for heading, body in mirror.sections(text):
                 if not heading.startswith(SECTIONS):
                     continue
                 for label, said in lines(body):

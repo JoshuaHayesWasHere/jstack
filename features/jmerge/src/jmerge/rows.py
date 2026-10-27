@@ -95,13 +95,13 @@ def base_red(base: str, runs: list[dict], slug: str, text: str = "") -> str:
     (`failed`). A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`).
 
     It does not hold a fix of a red main, as `red` does not, nor the fix of this branch's red at
-    its tip: the row jbus files for it (`train_fix`, `jbus.sidered.trains`), or a row whose brief
-    `text` names that red (`fixes`). A fix of another red is held. `failed`, `latest`,
-    `train_fix` and `fixes` are at the end of this module.
+    its tip: the row jbus files for it (`integration_fix`, `jbus.sidered.integration_branches`),
+    or a row whose brief `text` names that red (`fixes`). A fix of another red is held. `failed`,
+    `latest`, `integration_fix` and `fixes` are at the end of this module.
     """
     red = failed(runs)
     sha = str(red[0].get("head_sha"))[: mainjson.SHA] if red else ""
-    fix = mainjson.fix_of(slug) or slug == train_fix(base, sha) or fixes(text) == (base, sha)
+    fix = mainjson.fix_of(slug) or slug == integration_fix(base, sha) or fixes(text) == (base, sha)
     if not red or fix:
         return ""
     return ready.BASE_RED.format(base=base, sha=sha)
@@ -152,21 +152,21 @@ def short(
     return ""
 
 
-TRAIN_FIX = "train-red-"
+INTEGRATION_FIX = "integration-red-"
 """The start of the slug of a fix row jbus files for a red integration branch
-(`jbus.sidered.trains`)."""
+(`jbus.sidered.integration_branches`)."""
 FIXES = "Fixes red:"
 """The head line of a brief whose row fixes a red integration branch, `Fixes red: <branch> at
 <sha>`, with at least the first 12 characters of the red tip."""
 _KEPT = frozenset("abcdefghijklmnopqrstuvwxyz0123456789._-")
 
 
-def train_fix(branch: str, sha: str) -> str:
+def integration_fix(branch: str, sha: str) -> str:
     """The slug of the fix row for the red of `branch` at `sha`, or with no `sha` the start that
     every fix row of the branch shares."""
-    kept = "".join(one if one in _KEPT else " " for one in branch.lower().removeprefix("train/"))
-    stem = "-".join(kept.split()).strip("-.") or "train"
-    return f"{TRAIN_FIX}{stem}-{sha[: mainjson.SHA]}"
+    kept = "".join(one if one in _KEPT else " " for one in branch.lower())
+    stem = "-".join(kept.split()).strip("-.") or "branch"
+    return f"{INTEGRATION_FIX}{stem}-{sha[: mainjson.SHA]}"
 
 
 def fixes(text: str) -> tuple[str, str] | None:

@@ -260,3 +260,12 @@ def test_a_numbered_round_says_how_many_sections_count_for_no_reviewer(tmp_path)
         f"\n## Review\nBy: claudeAgent claude-sonnet-5-5 high #1\nVerdict: clean\nHead: {head}\n"
     )
     assert run(tmp_path, brief, "--left").startswith("wait: 1 of 2 reviewers have written")
+
+
+def test_a_review_heading_with_trailing_spaces_is_a_review_as_jbus_reads_it():
+    brief = RESULT + section([tagged("error src/a.py:10 it runs twice")], CODEX).replace(
+        "## Review\n", "## Review  \n"
+    )
+    triage = findings.triage(brief)
+    assert [(one.verdict, one.head) for one in triage.sections] == [("findings", SAW)]
+    assert [one.id for one in triage.findings] == ["F1"]

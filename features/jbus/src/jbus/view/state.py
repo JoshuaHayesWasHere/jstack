@@ -99,9 +99,10 @@ from typing import Any
 from urllib.parse import quote
 
 import jsettings
+from jbriefs import below
+from jbriefs import parse as briefs
 from jbus import (
     current_level,
-    dispatch,
     expedite,
     item,
     leftover,
@@ -456,7 +457,7 @@ def _whole(state: Path, home: Path, slug: str) -> tuple[str, str]:
             result = mirror.last_result(path.read_text(errors="replace"))
         except OSError:
             continue
-        return mirror.field(result, "Status"), mirror.field(result, "Left")
+        return below.line(result, "Status:"), below.line(result, "Left:")
     return "", ""
 
 
@@ -817,13 +818,10 @@ def request(home: Path, slug: str) -> dict[str, str]:
         return {"state": "missing", "status": "", "asks": ""}
     lines = whole.splitlines()
     asks = text(lines[0].removeprefix("# ") if lines else "", 160)
-    reports = [
-        body for heading, body in mirror.sections(whole, gates_inside=True) if heading == REPORT
-    ]
+    reports = [body for heading, body in mirror.sections(whole) if heading == REPORT]
     if not reports:
         return {"state": "researching", "status": "", "asks": asks}
-    own = re.split(r"^## ", reports[-1], maxsplit=1, flags=re.M)[0]
-    status = text(mirror.field(own, "Status"), 160)
+    status = text(briefs.head(reports[-1], "Status:") or "", 160)
     word = status.split(" ", 1)[0]
     blocked = word.rstrip(",.:;") == "blocked"
     state = "reported" if word == "done" else "blocked" if blocked else "not done"
@@ -990,7 +988,7 @@ def asker(home: Path, slug: str, threads: Any) -> tuple[str, str]:
             brief = (home / kind / f"{slug}.md").read_text(errors="replace")
         except OSError:
             continue
-        if dispatch.thread_of(brief):
+        if briefs.thread_of(brief):
             return thread, role
     return thread, ""
 
@@ -1097,8 +1095,9 @@ class Read:
     A panel's `build` gets it as its argument. What more than one panel reads is a property
     here, and its source is one of the six above. A panel calls `panel` to get what another
     panel works out. `once` keeps what a panel works out for its own functions. `merged` asks
-    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and is
-    None where no server asks.
+    GitHub for the pull requests merged since a day, as `github.GitHub.merged` does, and
+    `landed` for the integration branches that landed on the default branch, as
+    `github.GitHub.landed` does. Each is None where no server asks.
     """
 
     def __init__(
@@ -1111,9 +1110,10 @@ class Read:
         found: tuple[panels.Panel, ...] | None = None,
         shared: dict[Any, Any] | None = None,
         merged: Callable[[str, date], dict[str, Any]] | None = None,
+        landed: Callable[[str, tuple[str, ...]], dict[str, Any]] | None = None,
     ) -> None:
         self.sources, self.name, self.now, self.runs = sources, name, now, runs
-        self.merged = merged
+        self.merged, self.landed = merged, landed
         self.code = code or {}
         self.user = sources.user
         self.state, self.home = sources.state(name), sources.home(name)

@@ -41,15 +41,16 @@ user's word one go at a time, and the follow-up's line says that the user said n
 `hold` of the parent, or a `remove` of a parent that did not merge, also takes back the go of every
 queued follow-up down the chain from it.
 
-jbus gives that go itself, to a row that the follow-up rule names a follow-up (`follow_up`, the
-rule as jbus applies it is `FOLLOW_UP`), at the end of a batch (`_followers`, `_by_rule`): a row the
-batch queued new, or queued again where its go was by rule, and a waiting row whose parent the
-batch approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting row of a
-follow-up's kind (`KINDS`): a `cleanup-P`, a fix row jbus filed (`filed`), and a sync of a
-train. A filer queues its row as jbus's pass (`PASS`, kept as the row's `queued_by`) with no
-approval, and the batch or the pass approves it. So no home approves a follow-up, and nothing of it
-reaches the user. A fix jbus filed from a red check that no row's merge turned red names no
-parent: its ground is the red run its brief names (`red_run`), and its record has no `follows`.
+jbus gives that go itself, to a row that the follow-up rule names a follow-up (`follow_up`, the rule
+as jbus applies it is `FOLLOW_UP`), at the end of a batch (`_followers`, `_by_rule`): a row the
+batch queued new, or queued again where its go was by rule, and a waiting row whose parent the batch
+approved. Each pass gives it too (`follow_ups`), before any launch, to a waiting row of a
+follow-up's kind (`KINDS`): a `cleanup-P`, a fix row jbus filed (`filed`), and a sync of an
+integration branch. A filer queues its row as jbus's pass (`PASS`, kept as the row's `queued_by`)
+with no approval, and the batch or the pass approves it. So no home approves a follow-up, and
+nothing of it reaches the user. A fix jbus filed from a red check that no row's merge turned red
+names no parent: its ground is the red run its brief names (`red_run`), and its record has no
+`follows`.
 A row whose go an edit voided is approved again only where its edit kept the parent its go named,
 and a row the user's word approved waits for the user again.
 
@@ -164,15 +165,15 @@ FROM_RED = "jbus filed it from the red run "
 SYNC = "sync-main"
 FOLLOW_UP = (
     "a row is a follow-up of the row P, and jbus approves it by the follow-up rule "
-    f"({FOLLOW_RULE}) when it is queued and on each pass, when it names P (its brief's head has "
-    "a line `Follows: P`, or its slug is `cleanup-P`), when it is of a follow-up's kind (its slug "
+    f"({FOLLOW_RULE}) when it is queued and on each pass, when it names P (its brief's head has a "
+    "line `Follows: P`, or its slug is `cleanup-P`), when it is of a follow-up's kind (its slug "
     "is `cleanup-P`; or it is a fix jbus filed, a row jbus's pass queued whose brief's Decisions: "
-    f"line begins `{FILED}`; or it is a sync of a train, its slug says `sync-main` and its pull "
-    "request goes against a branch the home's integration file names; or, when it is queued, its "
-    "--entry is P's plan entry), and when P's go holds (P is a row of the queue, or went as "
-    "merged, and its go is the user's word or this rule's); a fix jbus filed that names no parent "
-    "is approved by the same rule on the red run its brief's Task: line quotes; any other row "
-    "waits for the user's go"
+    f"line begins `{FILED}`; or it is a sync of an integration branch, its slug says `sync-main` "
+    "and its pull request goes against a branch the home's integration file names; or, when it is "
+    "queued, its --entry is P's plan entry), and when P's go holds (P is a row of the queue, or "
+    "went as merged, and its go is the user's word or this rule's); a fix jbus filed that names "
+    "no parent is approved by the same rule on the red run its brief's Task: line quotes; any "
+    "other row waits for the user's go"
 )
 SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
@@ -682,15 +683,15 @@ class Asks:
     reference name or the text of the standing rule, or refuses. It may ask T3 Code, so jbus also
     calls it before it locks the table.
 
-    `trains` is the integration branches that the home's `integration` file names: a sync of one
-    of them is a follow-up's kind (`KINDS`).
+    `integration` is the branches that the home's `integration` file names: a sync of one of
+    them is a follow-up's kind (`KINDS`).
     """
 
     out: Callable[[str], str]
     launched: Callable[[str], str]
     told: Callable[[dict[str, Any]], None]
     said: Callable[[str, str], Said] | None = None
-    trains: tuple[str, ...] = ()
+    integration: tuple[str, ...] = ()
 
 
 _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
@@ -843,17 +844,17 @@ def red_run(text: str) -> str:
     return found.group(1) if found else task.strip()
 
 
-def kind(row: Row, text: str, trains: tuple[str, ...]) -> str:
+def kind(row: Row, text: str, branches: tuple[str, ...]) -> str:
     """Return the follow-up's kind that the row is (`KINDS`), or nothing: a `cleanup-P` is
     `cleanup`, a fix row jbus filed is `fix` (`filed`), and a row whose slug says `sync-main` and
-    whose pull request goes against a train that `trains` names is `sync`. The row and its brief
+    whose pull request goes against a branch that `branches` names is `sync`. The row and its brief
     say."""
     slug = row["slug"]
     if slug.startswith(CLEANUP):
         return "cleanup"
     if filed(row, text):
         return "fix"
-    if SYNC in slug and _against(text) in trains:
+    if SYNC in slug and _against(text) in branches:
         return "sync"
     return ""
 
@@ -861,7 +862,7 @@ def kind(row: Row, text: str, trains: tuple[str, ...]) -> str:
 KINDS = ("cleanup", "fix", "sync")
 
 
-def follow_up(batch: _Batch, slug: str, trains: tuple[str, ...] = (), units: bool = True) -> str:
+def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: bool = True) -> str:
     """Return the parent that the row `slug` follows up by the follow-up rule, nothing for a fix
     jbus filed from a red check that names no parent (`filed`), or refuse with why the row is not
     a follow-up. The rule is `FOLLOW_UP`, and it reads the row, its brief and the
@@ -887,11 +888,11 @@ def follow_up(batch: _Batch, slug: str, trains: tuple[str, ...] = (), units: boo
             f"refused: {slug}'s go followed {made.follows}, and its brief now follows {named}"
         )
     unit = units and entry(row) == entry(parent)
-    if not kind(row, text, trains) and not unit:
+    if not kind(row, text, branches) and not unit:
         raise Refused(
-            f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed, a train's sync) "
-            f"and does not do work for {named}'s plan entry {entry(parent)}: its entry is "
-            f"{entry(row)}"
+            f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed, an integration "
+            f"branch's sync) and does not do work for {named}'s plan entry {entry(parent)}: its "
+            f"entry is {entry(row)}"
         )
     _parent(batch, slug, named)
     return named
@@ -901,7 +902,7 @@ def _by_rule(
     batch: _Batch,
     slug: str,
     user: jsettings.Settings | None,
-    trains: tuple[str, ...],
+    branches: tuple[str, ...],
     units: bool = True,
     ran_by: dict[str, str] | None = None,
 ) -> str:
@@ -915,7 +916,7 @@ def _by_rule(
     if row.get("approved") and approved_text(row, text):
         return ""
     try:
-        parent = follow_up(batch, slug, trains, units)
+        parent = follow_up(batch, slug, branches, units)
         verb = Approve(slug, RULE, FOLLOW_REF, brief_sha(text)[:12], parent)
         return _do(verb, batch, user, None, {}, {}, ran_by)
     except Refused as error:
@@ -1551,7 +1552,7 @@ def _run(
                 raise _none(line, error) from error
         if user is not None and (asks is not None or ran_by is not None):
             for slug in _followers(batch):
-                line = _by_rule(batch, slug, user, asks.trains if asks else (), ran_by=ran_by)
+                line = _by_rule(batch, slug, user, asks.integration if asks else (), ran_by=ran_by)
                 if line:
                     said.append(line)
         for kept, text in batch.aside.items():
@@ -1616,7 +1617,7 @@ def approve(
     return _run(state, [(0, Approve(slug, kind, ref, given, follows))], user, asks)
 
 
-def follow_ups(state: Path, trains: tuple[str, ...], user: jsettings.Settings) -> list[str]:
+def follow_ups(state: Path, branches: tuple[str, ...], user: jsettings.Settings) -> list[str]:
     """Approve by the follow-up rule each waiting row of a follow-up's kind (`KINDS`) whose
     parent's go holds, as jbus's pass (`PASS`), and return the line of each go. A row approved here
     may be the parent of another, so the rows are asked again until a round approves none. A row
@@ -1633,8 +1634,8 @@ def follow_ups(state: Path, trains: tuple[str, ...], user: jsettings.Settings) -
             lines = [
                 line
                 for row in sorted(rows, key=order)
-                if kind(row, batch.brief(row["slug"]) or "", trains)
-                for line in [_by_rule(batch, row["slug"], user, trains, False, PASS)]
+                if kind(row, batch.brief(row["slug"]) or "", branches)
+                for line in [_by_rule(batch, row["slug"], user, branches, False, PASS)]
                 if line.startswith("approved ")
             ]
             said += lines
@@ -1647,17 +1648,17 @@ def _follow_ups(half: Any) -> None:
     follow-up a filer queued last pass launches on this one."""
     run = half.run
     try:
-        trains = tuple((run.home / TRAINS).read_text().split())
+        branches = tuple((run.home / INTEGRATION).read_text().split())
     except OSError:
-        trains = ()
+        branches = ()
     try:
-        for line in follow_ups(run.state, trains, run.user):
+        for line in follow_ups(run.state, branches, run.user):
             run.say(f"queue {run.project.name}: {line}")
     except Refused:
         return
 
 
-TRAINS = "integration"
+INTEGRATION = "integration"
 STEPS = (verbs.Step("before-watch", 8, "queue.follow_ups", _follow_ups),)
 
 

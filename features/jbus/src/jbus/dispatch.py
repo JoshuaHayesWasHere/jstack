@@ -81,15 +81,6 @@ def launched(run: Pass, slug: str) -> str:
     return next((r["thread"] for _, r in reversed(records(run, slug)) if r.get("thread")), "")
 
 
-def thread_of(brief: str) -> str:
-    """Return the thread id on a brief's `Thread:` line. Like the skills, it reads the first
-    such line."""
-    for line in brief.splitlines():
-        if line.startswith("Thread:"):
-            return (line.split()[1:2] or [""])[0]
-    return ""
-
-
 def write_thread(
     run: Pass, slug: str, thread: str, *, replace: bool = True, kind: str = "tasks"
 ) -> None:

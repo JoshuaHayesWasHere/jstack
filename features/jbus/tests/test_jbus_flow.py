@@ -250,7 +250,7 @@ def test_no_record_is_its_own_reason_and_not_counted_as_unexplained():
         ("wait: check has not passed", "passed", "checks running"),
         ("brief changed after approval", "", "owner: approval voided"),
         ("wait: its queue row is held: approve it again", "", "owner: approval"),
-        ("wait: its base is train/macos, not main", "", "base is not main"),
+        ("wait: its base is release/macos, not main", "", "base is not main"),
         ("wait: the merge failed: GitHub said 405", "", "merge call failed"),
         ("wait: GitHub has not decided whether it merges", "", "GitHub merge"),
     ],

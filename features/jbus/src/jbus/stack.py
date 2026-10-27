@@ -15,12 +15,12 @@ Each pass reads every open pull request whose brief has the line and has not mov
   the base's head is told nothing: GitHub's compare says so, and the answer is kept under the key
   `stacked|<slug>|<head 12>|<base head 12>` so it is asked once.
 - Once the base merged, jbus bases the link's pull request on the branch the base merged into,
-  or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done
-  so itself on deleting the base's branch. A base merged into a train leaves its link on that
-  train: a rebase onto the default branch would carry the train's commits there. Then jbus moves
-  the link's own commits onto that branch itself, in the same pass and with no turn of its crew
-  (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of its
-  own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
+  or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done so
+  itself on deleting the base's branch. A base merged into an integration branch leaves its link on
+  that branch: a rebase onto the default branch would carry the branch's commits there. Then jbus
+  moves the link's own commits onto that branch itself, in the same pass and with no turn of its
+  crew (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of
+  its own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
   worktree, where it has one on the branch, is moved to the pushed head with `git reset --keep`.
   jbus moves nothing while the crew's thread is at work, while a reviewer it launched has written
   no review, or while its worktree has work in it (uncommitted, unpushed or a rebase not
@@ -210,7 +210,7 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     it was, with the reason said."""
     head, number = str(pull["headRefOid"]), pull["number"]
     branch = str(pull.get("headRefName") or slug)
-    if _reviewing(_brief(run, slug)):
+    if rebase.reviewing(_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
     busy = _busy(run, crew, head) if crew else ""
@@ -251,12 +251,6 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
 def _left(run: Pass, slug: str, why: str) -> str:
     run.say(f"{KIND} {slug}: jbus left its branch as it was ({why}), so its crew moves it")
     return ""
-
-
-def _reviewing(brief: str) -> bool:
-    """Whether a reviewer the crew launched has not written its review yet: a move would change
-    the head under it, and the crew skill's own move waits for it too."""
-    return len(rebase._LAUNCHED.findall(brief)) > len(rebase._REVIEWED.findall(brief))
 
 
 def _worktree(run: Pass, branch: str) -> Path | None:

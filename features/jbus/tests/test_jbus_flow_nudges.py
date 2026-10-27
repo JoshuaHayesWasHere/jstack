@@ -36,7 +36,7 @@ MESSAGES = [
     (5, ROOT, "user", "agent", CARRIED.replace("Keep going on the flow work.", "Go")),
     (6, ROOT, "assistant", "agent", "Nothing needs you."),
     (8, ROOT, "user", "user", "Go"),
-    (10, ROOT, "assistant", "agent", "Which base for the train, main or migration?"),
+    (10, ROOT, "assistant", "agent", "Which base for the release branch, main or migration?"),
     (11, ROOT, "user", "user", "migration"),
     (12, ROOT, "user", "user", "status?"),
     (13, ROOT, "user", "user", "don't stall on the docs, ship the tests"),

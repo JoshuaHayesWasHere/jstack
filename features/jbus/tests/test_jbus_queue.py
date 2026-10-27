@@ -676,12 +676,12 @@ def test_a_row_waits_silently_until_what_it_depends_on_opens_its_pull_request(ki
 
 
 def test_a_dependency_merged_into_an_integration_branch_counts_as_merged(kitchen):
-    """A train merges into its integration branch, not main. GitHub lists that merge with every
+    """A unit merges into its integration branch, not main. GitHub lists that merge with every
     other merge, and jbus launches the row that depends on it as it does after any merge."""
     add(kitchen, "beta", depends="alpha")
     kitchen.brief("alpha", RESULT)
-    into_train = {**kitchen.merged("alpha", 7, "a" * 40), "baseRefName": "migration"}
-    kitchen.set("merged.json", [into_train])
+    into_branch = {**kitchen.merged("alpha", 7, "a" * 40), "baseRefName": "migration"}
+    kitchen.set("merged.json", [into_branch])
     kitchen.poll()
     assert [given["title"] for given in kitchen.t3.launches] == ["crew: beta"]
     listed = [line for line in kitchen.log("gh") if "--state merged" in line]
