@@ -22,11 +22,14 @@ Each pass reads every open pull request whose brief has the line and has not mov
   crew (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of
   its own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
   worktree, where it has one on the branch, is moved to the pushed head with `git reset --keep`.
-  jbus moves nothing while the crew's thread is at work, while a reviewer it launched has written
-  no review, or while its worktree has work in it (uncommitted, unpushed or a rebase not
+  jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
+  on a test slot, or waits on a review it launched that jmerge says is not written at the head.
+  Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
+  reviewer the crew launched has written no review (`rebase.reviewing`), since a move would change
+  the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts or a push the lease refuses leaves the branch as it was.
-  For each of those but a thread at work, which waits for a later pass, jbus tells the crew to
-  move its own commits instead, from the base's last head, under the key
+  For each of those, jbus tells the crew to move its own commits instead, from the base's last
+  head, under the key
   `restack|<slug>|<head 12>|<merge 12>`. Only once the link moved or that message went does the
   line say `Stacked on: <slug> <branch> at <merge>`, so a message held for a capped thread is
   sent on a later pass. `jmerge` then waits until the link's head holds that commit
@@ -44,6 +47,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from jbriefs import parse as briefs
 from jbus import END_TURN, dispatch, rebase, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
@@ -140,7 +144,8 @@ def _moved(
 ) -> None:
     head, number = str(pull["headRefOid"]), pull["number"]
     merge = str((merged.get("mergeCommit") or {}).get("oid") or "")
-    if not merge or rebase.mark(KIND, slug, head, merge[:12]) in sent:
+    key = rebase.mark(KIND, slug, head, merge[:12])
+    if not merge or key in sent:
         return
     if pull.get("baseRefName") not in (None, "", onto):
         asked = run.run("gh", "pr", "edit", str(number), "--base", onto)
@@ -149,12 +154,13 @@ def _moved(
             why = said[-1] if said else f"gh exited {asked.returncode}"
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
-    if rebase.held(run, client, world, slug, number, head):
+    thread = briefs.thread_of(task_brief(run, slug))
+    if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")
     moved = _carry(run, slug, pull, last, merge, onto) if last else ""
     if moved:
-        run.box.mark(rebase.mark(KIND, slug, head, merge[:12]))
+        run.box.mark(key)
         line = (
             f"{KIND} {slug}: moved its own commits onto {onto} once {stacked.slug} merged "
             f"(#{number}, {head[:12]} to {moved[:12]})"

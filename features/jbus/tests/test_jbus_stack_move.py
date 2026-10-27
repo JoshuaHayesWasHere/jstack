@@ -189,14 +189,22 @@ def test_a_crew_at_work_is_moved_by_jbus_once_its_turn_ended(stack):
     assert sends(kitchen) == []
 
 
-def test_a_link_whose_reviewer_is_still_out_gets_the_moved_send(stack):
+def test_a_link_whose_reviewer_is_still_out_is_left_and_moved_once_its_review_is_written(stack):
+    """A crew puts a move off while its review is out, so the outbox's `review` rule holds the
+    link: jbus neither moves it nor tells its crew. The pass after the review is written moves
+    it, with no send."""
     kitchen = stack.kitchen
     path = kitchen.home / "tasks" / "two.md"
     path.write_text(path.read_text() + "\n## Result\nReviewer: mcp:a-reviewer #1\n")
-    kitchen.poll(NOW)
-    assert stack.origin("two") == stack.head
-    (said,) = [given["message"] for given in sends(kitchen)]
-    assert "one merged as" in said and '"A link that moved"' in said
+    said = kitchen.poll(NOW)
+    assert stack.origin("two") == stack.head and sends(kitchen) == []
+    assert any("held by the review rule" in line for line in said)
+    path.write_text(
+        path.read_text()
+        + f"\n## Review\nBy: mcp:a-reviewer #1\nVerdict: clean\nHead: {stack.head}\n"
+    )
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert stack.origin("two") != stack.head and sends(kitchen) == []
 
 
 def test_a_crew_worktree_that_cannot_follow_the_move_is_said(stack):

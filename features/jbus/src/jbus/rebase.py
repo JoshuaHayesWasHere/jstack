@@ -86,11 +86,8 @@ from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import (
     NEVER,
-    TITLE,
     World,
-    at_work,
     checks,
-    crew_threads,
     failed_in,
     job,
     job_log,
@@ -539,7 +536,7 @@ def post(
     if ask.default and not default:
         run.say(f"wait {slug}: the default branch is not known, so its crew is not told")
         return None
-    if held(run, client, world, slug, number, head):
+    if held(run, client, thread, slug, number, head, key, ask.kind):
         return None
     message = ask.message.format(
         number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
@@ -565,7 +562,6 @@ def post(
         return None
     if not went:
         return None
-    run.told.add(slug)
     if ask.default:
         asked = run.run("git", "ls-remote", "origin", f"refs/heads/{default}")
         main = (asked.stdout.split() or [""])[0]
@@ -574,25 +570,18 @@ def post(
     return slug, head, message
 
 
-def held(run: Pass, client: Client, world: World, slug: str, number: int, head: str) -> bool:
+def held(
+    run: Pass, client: Client, thread: str, slug: str, number: int, head: str, key: str, kind: str
+) -> bool:
     """Say whether this pass delays a message that names this head.
 
-    A thread at work (`watch.at_work`) would read the message only after its turn, and that turn
-    may move the head. The pass listed the thread's status before the pass sent its other
-    messages, such as a relay of findings or an answer, so `held` asks T3 Code again. A thread
-    that this pass already sent such a message to is on `Pass.told`. Such a thread counts as
-    at work, even if T3 Code does not say so yet. The head is the one that the pass listed, and a
-    push since then may have replaced it. So `held` asks GitHub again, and no message names a head
-    that GitHub does not confirm.
+    The outbox may hold it (`outbox.hold`): a thread at work would read it only after its turn,
+    and that turn may move the head, and a thread that waits on a test slot or on its review puts
+    it off. `held` asks the outbox first, so it asks GitHub nothing for a message the outbox would
+    hold. The head is the one that the pass listed, and a push since then may have replaced it.
+    So `held` asks GitHub again, and no message names a head that GitHub does not confirm.
     """
-    busy = slug in run.told or at_work(world.threads.get(slug, []))
-    try:
-        again = [] if busy else crew_threads(client, run.project.project_id, TITLE + slug)
-    except T3Error as error:
-        run.say(f"wait {slug}: its thread could not be asked for ({error}), so it is told nothing")
-        return True
-    if busy or at_work(again, TITLE + slug):
-        run.say(f"wait {slug}: its thread is at work, so its crew is not told of {head[:12]} yet")
+    if outbox.hold(run, client, thread=thread, row=slug, key=key, template=kind, needs="act"):
         return True
     asked = run.run("gh", "pr", "view", str(number), "--json", "headRefOid")
     try:

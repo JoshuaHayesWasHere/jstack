@@ -94,17 +94,18 @@ Merge(p) ==
 \* Its base merged: jbus moves the stacked pull request onto main and rebases its own commits
 \* onto main itself, or tells its crew to ("A link that moved"), and its check runs again.
 Restack(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:79, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:83, open ones only
     /\ on[p] # "main"
-    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:85-86, its base merged
+    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:89-90, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine>>
 
-\* The crew fixes its own broken change: only when it sees the failure as its own. jbus sends to
-\* a thread already running, so no room is asked for, and its turn may leave a process running.
+\* The crew fixes its own broken change: only when it sees the failure as its own. jbus tells the
+\* crew's own thread once its turn ends, so no room is asked for, and its turn may leave a
+\* process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:279, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:276, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one

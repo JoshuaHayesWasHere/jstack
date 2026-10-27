@@ -236,28 +236,38 @@ def running(kitchen, text=""):
     return thread["threadId"]
 
 
-def test_findings_the_reviewer_could_not_deliver_go_to_a_thread_at_work(kitchen):
-    thread = running(kitchen, findings())
-    kitchen.poll()
+def ended(kitchen, thread, kind):
+    """Run a pass with the thread at work, which sends it nothing, then end its turn and return
+    the one message of the kind the next pass sends it."""
+    kitchen.poll(later(10))
+    assert sends(kitchen) == []
+    (crew,) = [one for one in kitchen.t3.threads if one["threadId"] == thread]
+    crew["status"] = "completed"
+    kitchen.poll(later(13))
     (given,) = sends(kitchen)
-    assert given["threadId"] == thread and given["clientRequestId"].startswith("relayed|alpha|")
+    assert given["threadId"] == thread and given["clientRequestId"].startswith(f"{kind}|alpha|")
+    return given
 
 
-def test_what_the_owner_wrote_goes_to_a_thread_at_work(kitchen):
+def test_findings_the_reviewer_could_not_deliver_wait_for_a_thread_at_work(kitchen):
+    """No message that needs `act` goes into a running turn (`jbus.outbox`): the outbox holds it
+    by its `busy` rule, and the first pass after the turn ended sends it."""
+    thread = running(kitchen, findings())
+    ended(kitchen, thread, "relayed")
+
+
+def test_what_the_owner_wrote_waits_for_a_thread_at_work(kitchen):
     thread = running(kitchen)
     kitchen.set("repo.json", {"owner": {"login": "ada"}})
     kitchen.set("remarks.json", {"issues/7/comments": [one(1, "ada", "use a table here")]})
-    kitchen.poll()
-    (given,) = sends(kitchen)
-    assert given["threadId"] == thread and given["clientRequestId"].startswith("remark|alpha|")
+    ended(kitchen, thread, "remark")
 
 
-def test_an_answer_that_differs_goes_to_a_thread_at_work(kitchen):
+def test_an_answer_that_differs_waits_for_a_thread_at_work(kitchen):
     thread = running(kitchen)
     kitchen.quiet()
     ask(kitchen)
     kitchen.poll()
     answer(kitchen, 1, "coffee")
-    kitchen.poll(later(10))
-    (given,) = sends(kitchen)
-    assert (given["threadId"], given["clientRequestId"]) == (thread, "answer|alpha|1")
+    given = ended(kitchen, thread, "answer")
+    assert given["clientRequestId"] == "answer|alpha|1"

@@ -213,7 +213,7 @@ def test_a_failed_check_is_kept_back_while_the_thread_is_at_work_and_told_after(
     launched.set("open.json", [pull(launched, [failed()])])
     said = launched.poll()
     assert sends(launched) == []
-    assert "wait alpha: its thread is at work, so its crew is not told of cccccccccccc yet" in said
+    assert "wait alpha: mcp:thread-1 is held by the busy rule, so its failed message waits" in said
     launched.t3.threads[0]["status"] = "completed"
     passes(launched, 3, 6)
     assert keys(launched) == ["failed|alpha|cccccccccccc"]

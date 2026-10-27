@@ -656,8 +656,8 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
     """Tell the crew of each row whose pull request merged with work left for after the merge, once.
 
     `merged` sends to the thread that the brief names on its `Thread:` line, or else the thread that
-    jbus launched for the slug, or else the thread that T3 Code lists. `merged` adds each row it
-    tells in this pass to `Pass.told`.
+    jbus launched for the slug, or else the thread that T3 Code lists. The outbox puts each thread
+    it tells on `Pass.told`, as it does for every message that needs `act` (`jbus.outbox`).
     """
     briefs = _briefs(run)
     for slug in sorted(row["slug"] for row in rows):
@@ -691,7 +691,6 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
         if not went:
             continue
         run.box.mark(key)
-        run.told.add(slug)
         run.say(f"told {slug}: #{pull['number']} is merged, and its Result leaves work")
 
 
