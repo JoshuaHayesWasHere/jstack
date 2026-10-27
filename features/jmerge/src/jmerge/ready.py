@@ -52,6 +52,9 @@ def reasons() -> dict[str, Reason]:
 
 OTHER_HOME = Reason("", "another home's")
 REQUIRED = ("check",)
+BROWSER = "browser"
+"""The check browser.yml's job reports. It runs on a pull request that changes the view, and is no
+required check: a head with no run of it waits for none (`browser`)."""
 MERGE_OFF = Reason("hold", "auto-merge is off for this repo")
 NO_BRIEF = Reason("result", "no brief has a Result that names it")
 DRAFT = Reason("findings", "draft")
@@ -243,6 +246,7 @@ class PullRequest:
     added: tuple[str, ...] = ()
     failed: tuple[str, ...] = ()
     unrun: tuple[str, ...] = ()
+    browser: str = ""
 
 
 def _at(text: str | None) -> datetime | None:
@@ -307,6 +311,21 @@ def failed(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[st
     )
 
 
+def browser(rollup: list[dict]) -> str:
+    """The state of the head's browser run (`BROWSER`): `failed` where its latest run ended and
+    failed, `pending` where it has not ended, and nothing where there is none, or it passed,
+    was skipped or was cancelled."""
+    runs = latest(rollup, BROWSER)
+    if failed(rollup, (BROWSER,)):
+        return "failed"
+    going = ("PENDING", "EXPECTED")
+    if any(
+        one.get("state") in going or one.get("status") not in ("COMPLETED", None) for one in runs
+    ):
+        return "pending"
+    return ""
+
+
 def red_only(one: PullRequest) -> bool:
     """Whether the one thing GitHub holds against the pull request is a required check that
     ran and failed: every required check that has not passed failed, and it merges cleanly."""
@@ -360,6 +379,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
         failed=failed(listed.get("statusCheckRollup") or [], required),
         unrun=unrun(listed.get("statusCheckRollup") or [], required),
+        browser=browser(listed.get("statusCheckRollup") or []),
     )
 
 
@@ -976,6 +996,8 @@ def short_on_github(one: PullRequest) -> str:
         return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
     if one.waiting:
         return NOT_PASSED.format(check=one.waiting[0])
+    if one.browser == "pending":
+        return NOT_PASSED.format(check=BROWSER)
     if one.mergeable == "MERGEABLE":
         return ""
     if one.mergeable == "CONFLICTING":

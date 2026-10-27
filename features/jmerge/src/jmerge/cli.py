@@ -52,6 +52,7 @@ GUARDED = PACKAGE / "guarded.txt"
 CI_PATHS = PACKAGE / "ci-paths.txt"
 INTEGRATION = "integration"
 REQUIRED_CHECKS = "required-checks"
+BROWSER_RUNS = "browser.yml/runs"
 JUDGED_AGAIN_AT_MOST = 2
 LANDED = {
     "--merge": "landed with a merge commit",
@@ -355,6 +356,7 @@ class Repo:
         self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
         self.trunk = ""
         self.reds: dict[str, list[dict]] = {}
+        self.main_browser: list[dict] | None = None
         self.open: list[ready.PullRequest] = []
         self.heads: dict[int, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
@@ -913,7 +915,7 @@ class Repo:
         if rebase is None and covered is None:
             lost = ready.answered(text, one.head)
         short = short or ready.short_on_github(
-            replace(one, waiting=(), failed=()) if one.draft else one
+            replace(one, waiting=(), failed=(), browser="") if one.draft else one
         )
         note = ""
         silent = ready.unexplained(lost, text, one.head)
@@ -945,6 +947,7 @@ class Repo:
                 else ""
             )
             or self.red(one, default, brief.stem, text)
+            or self.browser_red(one, default, brief.stem)
             or self.short_on_migrations(one, one.base)
         )
         if short:
@@ -1026,6 +1029,34 @@ class Repo:
                 runs = []
             self.reds[one.base] = runs if isinstance(runs, list) else []
         return rows.base_red(one.base, self.reds[one.base], slug, text)
+
+    def browser_red(self, one: ready.PullRequest, default: str, slug: str) -> str:
+        """The hold on a pull request whose own browser run failed (`rows.browser_red`). It asks
+        GitHub for main's browser runs once per run, and only for such a pull request. When
+        GitHub gives no answer, main is not known to be red, and the red is the pull request's."""
+        if one.browser != "failed":
+            return ""
+        if self.main_browser is None:
+            asked = subprocess.run(
+                [
+                    "gh",
+                    "api",
+                    f"repos/{{owner}}/{{repo}}/actions/workflows/{BROWSER_RUNS}"
+                    f"?branch={default}&status=completed&per_page=20",
+                ],
+                cwd=self.main,
+                capture_output=True,
+                text=True,
+                env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+            )
+            try:
+                runs = [] if asked.returncode else json.loads(asked.stdout)["workflow_runs"]
+            except (ValueError, KeyError, TypeError):
+                runs = []
+            self.main_browser = (
+                [run for run in runs if isinstance(run, dict)] if isinstance(runs, list) else []
+            )
+        return rows.browser_red(one.head, slug, self.main_browser, default)
 
     def patches(
         self, base: str, compared: tuple[str, ...], stacked: stacks.Stacked | None

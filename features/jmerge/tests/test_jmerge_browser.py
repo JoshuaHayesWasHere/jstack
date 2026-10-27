@@ -32,7 +32,7 @@ CHECKED = {**merge.PASSED, "startedAt": STARTED}
 BROWSER_RED = merge.run("FAILURE", "browser")
 BROWSER_GREEN = merge.run("SUCCESS", "browser")
 BROWSER_RUNNING = merge.run("", "browser", status="IN_PROGRESS")
-BROWSER_DRAFT = merge.run("SKIPPED", "browser")
+BROWSER_DRAFT = {**merge.run("SKIPPED", "browser"), "startedAt": "2026-10-23T12:59:00Z"}
 
 
 @pytest.fixture
@@ -99,7 +99,9 @@ def test_a_browser_run_still_going_is_waited_for_as_any_pending_run(replay):
 
 def test_a_red_main_s_own_browser_run_has_is_main_s_and_waits_as_a_red_main(replay):
     red = "2" * 40
-    main_ran(replay, ("schedule", "main", "success", "1" * 40), ("schedule", "main", "failure", red))
+    main_ran(
+        replay, ("schedule", "main", "success", "1" * 40), ("schedule", "main", "failure", red)
+    )
     opened(replay, BROWSER_RED)
     assert replay.run() == [f"wait 557 {url(557)}: {ready.MAIN_RED.format(sha=red[:12])}"]
     (asked,) = (replay.kitchen.home.stub / "asked-runs").read_text().splitlines()
