@@ -81,8 +81,9 @@ def test_a_fix_no_review_proved_asks_its_crew_for_one_scoped_review_once(fixed, 
             f"waits on it (guarded (touches {PATH}), no proven safety fact at {short} "
             "(blast-radius, review step 5)). If the Result already has a `Scoped reviewer:` line "
             "that names this head, launch nothing more. Otherwise launch ONE scoped reviewer, "
-            'not a full review: the same way the crew skill\'s "The review" launches a reviewer, '
-            f"with the message `/pr-review run alpha scoped {fixed.start}..{fixed.saw} "
+            'not a full review, in your own worktree: the same way the crew skill\'s "The review" '
+            "launches a reviewer, with `workspaceStrategy` `existing_worktree` on that worktree "
+            f"and the message `/pr-review run alpha scoped {fixed.start}..{fixed.saw} "
             f"{fixed.start}..{fixed.head}`. Add `Scoped reviewer: <threadId>, of {fixed.head}` to "
             "the Result, in place of a `Scoped reviewer:` line that names another head no "
             "`## Review` has. Do not rebase again until its `## Review` is written. Handle its "

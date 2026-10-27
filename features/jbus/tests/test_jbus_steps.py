@@ -559,11 +559,17 @@ def test_a_scoped_reviewer_with_no_worktree_is_not_sent_its_line_again_and_its_c
     short.out(NO_FIX_REVIEW, result=result)
     short.passes(N)
     assert to(kitchen, reviewer) == []
-    (told,) = to(kitchen, short.thread)
-    assert "/worktrees/alpha" in told and reviewer["threadId"] in told
+    (told,) = rooted(kitchen, short.thread, reviewer)
+    assert "`/worktrees/alpha`" in told and "`existing_worktree`" in told
     assert "/pr-review run alpha scoped " in told and f"..{short.saw} " in told
     short.passes(3 * N)
-    assert to(kitchen, reviewer) == [] and len(to(kitchen, short.thread)) == 1
+    assert to(kitchen, reviewer) == [] and len(rooted(kitchen, short.thread, reviewer)) == 1
+
+
+def rooted(kitchen, crew, reviewer):
+    """Return each message the crew got that names its scoped reviewer, which only the clock's
+    line on a reviewer with no worktree does."""
+    return [one for one in to(kitchen, crew) if reviewer["threadId"] in one]
 
 
 def test_the_rereview_message_names_the_crew_s_worktree_to_launch_the_scoped_reviewer_in(kitchen):
