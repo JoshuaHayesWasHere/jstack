@@ -78,7 +78,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:953-954
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:971-972
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
     /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:458-466
@@ -122,9 +122,9 @@ CrewFix(p) ==
 \* fresh check runs.
 Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:880, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:298-301, red_only
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:306-309, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:837, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:953, base not red
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:956, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:96, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:76, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>

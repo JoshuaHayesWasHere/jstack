@@ -135,6 +135,7 @@ CONTENT_CHANGED = Reason(
     "the rebase changed the content after its review; scoped review of {command}",
 )
 NOT_PASSED = Reason("check", "{check} has not passed")
+NO_RUN = Reason("check", "{check} has no run at {head}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
 TOUCHES = Reason("hold", "needs {user}, touches {path}")
@@ -237,6 +238,7 @@ class PullRequest:
     started: datetime | None = None
     added: tuple[str, ...] = ()
     failed: tuple[str, ...] = ()
+    unrun: tuple[str, ...] = ()
 
 
 def _at(text: str | None) -> datetime | None:
@@ -280,6 +282,12 @@ def waiting(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[s
     return tuple(name for name in required if not passed(rollup, name))
 
 
+def unrun(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
+    """The required checks GitHub lists no run of at the head, in `required`'s order: no runner
+    is at work on them, as for a workflow the head's merge with its base does not have."""
+    return tuple(name for name in required if not latest(rollup, name))
+
+
 def failed(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
     """The required checks whose latest run ended and failed, in `required`'s order. A run
     still going, or one cancelled, is not failed."""
@@ -299,6 +307,13 @@ def red_only(one: PullRequest) -> bool:
     """Whether the one thing GitHub holds against the pull request is a required check that
     ran and failed: every required check that has not passed failed, and it merges cleanly."""
     return bool(one.waiting) and one.waiting == one.failed and one.mergeable == "MERGEABLE"
+
+
+def unrun_only(one: PullRequest) -> bool:
+    """Whether the one thing GitHub holds against the pull request is a required check with no
+    run at its head: every required check that has not passed has no run, and it merges
+    cleanly."""
+    return bool(one.waiting) and one.waiting == one.unrun and one.mergeable == "MERGEABLE"
 
 
 _RUN = re.compile(r"/actions/runs/(\d+)/")
@@ -340,6 +355,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         started=started(listed.get("statusCheckRollup") or [], required),
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
         failed=failed(listed.get("statusCheckRollup") or [], required),
+        unrun=unrun(listed.get("statusCheckRollup") or [], required),
     )
 
 
@@ -950,6 +966,8 @@ def short_on_content(verdict: Verdict | None) -> str:
 
 
 def short_on_github(one: PullRequest) -> str:
+    if one.waiting and one.waiting[0] in one.unrun:
+        return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
     if one.waiting:
         return NOT_PASSED.format(check=one.waiting[0])
     if one.mergeable == "MERGEABLE":
