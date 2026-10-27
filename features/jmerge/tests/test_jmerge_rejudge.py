@@ -362,16 +362,22 @@ def checked(replay, branch, runs, check="check"):
     ],
     ids=["same-test-twice", "another-test", "main-failed-it-too"],
 )
-@pytest.mark.parametrize("check", ["check", "macos"])
+@pytest.mark.parametrize(
+    ("check", "on_main"),
+    [("check", True), ("macos", True), ("macos", False)],
+    ids=["check", "a-side-check-main-runs", "a-side-check-main-never-runs"],
+)
 def test_a_pull_request_red_twice_on_the_same_test_of_its_own_is_not_given_main_again(
-    tmp_path, second, mains, asks, check
+    tmp_path, second, mains, asks, check, on_main
 ):
     """2026-10-26, #494: its check failed one test of its own over a main red on another test,
     GitHub merged main into it, and it failed that same test again, nine times. Once its last
     two check runs failed a same pytest id that main's check at neither run's base failed,
     the branch is not updated again: it keeps its red line. A second failure on another test,
     or on a test main also failed, is still given today's main. Each required check is read by
-    its own runs: #529's was macos, while its check passed."""
+    its own runs: #529's was macos, while its check passed. A check main never runs, as jstack's
+    macos runs on pull requests alone, has no run of main to tell its own tests from main's, so it
+    is given today's main: a test main broke on macOS alone would otherwise hold it for good."""
     replay = Replay(tmp_path, fresh=False)
     gh = replay.kitchen.home.stub / "gh"
     gh.write_text(gh.read_text().replace("    *) exit 64 ;;\n", RUNS + "    *) exit 64 ;;\n"))
@@ -384,8 +390,12 @@ def test_a_pull_request_red_twice_on_the_same_test_of_its_own_is_not_given_main_
         pull["statusCheckRollup"] = merge.rollup([PASSED_BEFORE, MACOS_RED])
         replay.kitchen.brief("one", pull["headRefOid"])
         checked(replay, "one", [(90, "2026-10-23T12:00:00Z", ()), (91, STARTED, ())])
-    mains = [(70, "2026-10-23T11:30:00Z", mains), (71, "2026-10-23T12:30:00Z", ())]
-    checked(replay, "main", mains, check)
+    if on_main:
+        mains = [(70, "2026-10-23T11:30:00Z", mains), (71, "2026-10-23T12:30:00Z", ())]
+        checked(replay, "main", mains, check)
+    else:
+        checked(replay, "main", [], check)
+        asks = True
     checked(replay, "one", [(80, "2026-10-23T12:00:00Z", (OURS,)), (81, STARTED, second)], check)
     replay.main_at(WHOLE_TREE, BROKE, "failed")
     fix = replay.main_at({path: None for path in WHOLE_TREE}, FIXED, "green")

@@ -298,6 +298,8 @@ GitHub's new check at the new head then decides by the normal path, and a change
 A pull request broken on its own is not given its base again: when the last two runs of a required check it failed both failed a same pytest id, and main's run of that check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has not passed`.
 It reads the runs of each failed check's own workflow, and a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`.
 Main's run at a run's base is main's latest run of the same check that started by the time the pull request's run started.
+A check that main never runs, as `macos` and `borders` run on pull requests alone, has no such run, so its repeats are not known and the base is merged in as before.
+That is on purpose: a test that main broke on macOS alone would otherwise read as the pull request's own, and hold it for good.
 A pull request whose runs failed no test id, or a test that main's check also failed there, is asked for as before, and so is one whose runs or logs GitHub does not give.
 It keeps that answer for a head and a base tip in `base-merges.json`, so the logs are read again only once either moves (#494, 2026-10-26: nine merges of main, each red on the same test of its own).
 The review stands across the merge, as across a rebase: the range-diff of the reviewed head and the new head shows no content, since it leaves out the merge commit.
