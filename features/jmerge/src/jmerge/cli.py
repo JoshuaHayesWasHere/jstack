@@ -1011,7 +1011,7 @@ class Repo:
         answer for a branch, the branch is not known to be red, as with a main that jbus never
         judged."""
         if one.base == default:
-            return rows.red(self.main_state, slug)
+            return rows.red(self.main_state, slug) or browser_red(self, one, default, slug)
         if one.base not in self.reds:
             asked = subprocess.run(
                 ["gh", "api", f"repos/{{owner}}/{{repo}}/commits/{one.base}/check-runs"],
@@ -1876,7 +1876,7 @@ def main(argv: list[str] | None = None) -> int:
 
     asked = _run(main_checkout, "gh", "pr", "list", "--state", "open", "--json", LIST, *repo.about)
     try:
-        listed = [ready.pull_request(one, repo.required) for one in json.loads(asked.stdout)]
+        listed = [with_browser(repo, one) for one in json.loads(asked.stdout)]
     except (ValueError, KeyError, TypeError, AttributeError):
         listed = None
     default, silent = repo.default() if listed else ("", "")
@@ -1910,3 +1910,48 @@ def main(argv: list[str] | None = None) -> int:
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))
     return 0
+
+
+MAIN_BROWSER = "{default} browser.yml"
+"""The key of `Repo.reds` that keeps main's browser runs, which no branch name can be."""
+ROLLUP = "#{number} rollup"
+"""The key of `Repo.reds` that keeps a pull request's checks as GitHub lists them."""
+
+
+def with_browser(repo: Repo, listed: dict) -> ready.PullRequest:
+    """The pull request GitHub `listed`, with its checks kept for `browser_red`."""
+    repo.reds[ROLLUP.format(number=listed["number"])] = listed.get("statusCheckRollup") or []
+    return ready.pull_request(listed, repo.required)
+
+
+def browser_red(repo: Repo, one: ready.PullRequest, default: str, slug: str) -> str:
+    """The wait on a pull request into main for its own browser run: one still going waits as any
+    pending run, and one that failed holds it (`rows.browser_red`). It asks GitHub for main's
+    browser runs once a run, and only for a pull request whose browser run failed. When GitHub
+    gives no answer, main is not known to be red, and the red is the pull request's own."""
+    state = ready.browser(repo.reds.get(ROLLUP.format(number=one.number), []))
+    if state == ready.BROWSER_PENDING:
+        return ready.NOT_PASSED.format(check=ready.BROWSER)
+    if state != ready.BROWSER_FAILED:
+        return ""
+    key = MAIN_BROWSER.format(default=default)
+    if key not in repo.reds:
+        asked = subprocess.run(
+            [
+                "gh",
+                "api",
+                "repos/{owner}/{repo}/actions/workflows/browser.yml/runs"
+                f"?branch={default}&status=completed&per_page=20",
+            ],
+            cwd=repo.main,
+            capture_output=True,
+            text=True,
+            env={**os.environ, **({"GH_REPO": repo.about[1]} if repo.about else {})},
+        )
+        try:
+            runs = [] if asked.returncode else json.loads(asked.stdout)["workflow_runs"]
+        except (ValueError, KeyError, TypeError):
+            runs = []
+        listed = runs if isinstance(runs, list) else []
+        repo.reds[key] = [run for run in listed if isinstance(run, dict)]
+    return rows.browser_red(one.head, slug, repo.reds[key], default)

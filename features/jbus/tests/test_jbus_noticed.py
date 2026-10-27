@@ -271,3 +271,86 @@ def test_a_restored_file_no_row_names_is_dropped_and_a_queued_brief_is_new(kitch
         f"{noticed.key('live', 'the view shows a finished row as stuck.')} live, Result, new: "
         "the view shows a finished row as stuck."
     ]
+
+
+ROOT_ID, FLOW_ID, MAC_ID = (
+    "mcp:" + "-".join(digit * size for size in (8, 4, 4, 4, 12)) for digit in "afb"
+)
+
+
+@pytest.fixture
+def homes(kitchen):
+    """The kitchen with a root home and two scoped homes, flow and macos, each with its thread."""
+    (kitchen.home / "home-id").write_text(f"{ROOT_ID}\n")
+    for scope, thread in (("flow", FLOW_ID), ("macos", MAC_ID)):
+        (kitchen.home / scope).mkdir()
+        (kitchen.home / scope / "plan.md").write_text(f"# {scope}: plan\n")
+        (kitchen.home / scope / "home-id").write_text(f"{thread}\n")
+    return kitchen
+
+
+def woken(kitchen):
+    return [
+        (one["threadId"], one["message"])
+        for tool, one in kitchen.t3.calls
+        if tool == "t3_thread_send" and one["clientRequestId"].startswith("records|")
+    ]
+
+
+def adds(kitchen, *argv):
+    return kitchen.main("--project", "demo", "noticed", "add", *argv)
+
+
+def test_a_home_keeps_one_record_for_another_and_the_same_text_twice_is_one(homes):
+    code, said = adds(homes, "--for", "flow", "--from", MAC_ID, "jmerge reads a stale base")
+    assert (code, said.startswith("kept: home-flow:")) == (0, True), said
+    code, again = adds(homes, "--for", "flow", "--from", MAC_ID, "jmerge reads a stale base")
+    assert (code, again) == (0, "already " + said)
+    (one,) = [one for one in kept(homes) if "for" in one]
+    assert (one["for"], one["from"], one["kind"], one["mark"]) == ("flow", "macos", "homes", "new")
+    assert one["key"] == noticed.key("home-flow", "jmerge reads a stale base")
+    assert say(homes, "--for", "flow") == said.removeprefix("kept: ")
+    assert say(homes) == "none is new\n"
+
+
+@pytest.mark.parametrize(
+    ("argv", "refused"),
+    [
+        (("--for", "nowhere", "--from", MAC_ID), "refused: --for nowhere is no home of this"),
+        (("--for", "macos", "--from", MAC_ID), f"refused: --from {MAC_ID} is the macos home's own"),
+        (("--for", "root", "--from", ROOT_ID), f"refused: --from {ROOT_ID} is the root home's own"),
+        (("--for", "flow", "--from", "mcp:a-crew"), "refused: --from mcp:a-crew is the thread of"),
+    ],
+)
+def test_a_record_for_no_home_or_for_the_home_that_keeps_it_is_refused(homes, argv, refused):
+    code, said = adds(homes, *argv, "a finding")
+    assert (code, said.startswith(refused)) == (1, True), said
+    assert not (homes.state / noticed.NAME).exists()
+
+
+def test_two_records_for_flow_from_macos_wake_flow_once_and_the_root_not_at_all(homes):
+    homes.poll(NOW - timedelta(minutes=10))
+    assert adds(homes, "--for", "flow", "--from", MAC_ID, "the train is red")[0] == 0
+    assert adds(homes, "--for", "flow", "--from", MAC_ID, "a lock is held")[0] == 0
+    said = homes.poll()
+    ((thread, text),) = woken(homes)
+    assert thread == FLOW_ID
+    assert text.startswith("jbus: 2 noticed and 0 words are new for this home.")
+    assert "`jbus --project demo noticed --for flow`" in text
+    assert "records demo: woke the flow home for 2 noticed and 0 words" in said
+    homes.poll(NOW + timedelta(minutes=5))
+    assert len(woken(homes)) == 1
+    assert all(one["told"] for one in kept(homes) if "for" in one)
+    key = json.loads(say(homes, "--for", "flow", "--json"))[0]["key"]
+    drop = say(homes, "drop", key, "--why", "fixed already", *WORD)
+    assert drop.startswith(f"{key} home-flow, from macos, dropped: fixed already")
+
+
+def test_a_record_waits_while_its_home_has_a_turn_running_and_wakes_it_after(homes):
+    flow = homes.t3.thread("flow", threadId=FLOW_ID, title="home: flow", project="elsewhere")
+    assert adds(homes, "--for", "flow", "--from", MAC_ID, "the train is red")[0] == 0
+    homes.poll()
+    assert woken(homes) == []
+    flow["status"] = "idle"
+    homes.poll(NOW + timedelta(minutes=5))
+    assert [thread for thread, _ in woken(homes)] == [FLOW_ID]

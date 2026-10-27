@@ -2,6 +2,7 @@
 
 The user gives an approval or an instruction for this home wherever they are, most often to Sous Chef.
 `jbus word` carries it here as a message that begins `jbus: this is <name>'s own word, said <time> and carried to this home by jbus.`, with their words under it.
+A word the root carried with `--scope` comes instead in this home's one wake for its records, `jbus: <n> noticed and <m> words are new for this home.`, each word under it as `- word <id>: <name>'s own word, said <time> and carried to this home by jbus.` with its words.
 The block below prints what jbus carried to this thread.
 Run it in the same call as three other blocks: the block at the top, the block that finds this home, and the block that reads jbus ("Gates").
 
@@ -47,6 +48,9 @@ It prints `kept: <project>, not posted, ..., word <id>`.
 jbus carries each word to the one home that owns its subject: the home whose page it was given on (`--page <file>`), else the home of the briefs, requests and rows its words name by slug, else the home it was said in (`--message`) or recorded by (`--from`), else the root home.
 So a word with no slug that this home records stays here, and only with `--from "$ME"`: without it jbus cannot tell this home's word from the root's, sends it to the root home, and says so on stderr.
 So a word about a scoped home's work, recorded here, prints `sent: <project>, to the <scope> home at <thread>, word <id>`: that is the one line that forwards it, and this home briefs, queues and approves nothing of it.
+The root carries the user's word to scoped homes it names with `--scope <scope>`, given again for each or once as `--scope every`, in place of `--from`, and only with `--message`: it writes no words of its own into a scope.
+That prints `kept: <project>, for the <scope> home, word <id>, in its next wake` for each scope, or `held: ...` for a scope that holds the word already, which gets nothing again.
+A finding for another home is no word: it goes by `jbus noticed add --for` ("Scoped homes").
 To type the word in instead, pass `--by <name> --at "<YYYY-MM-DD HH:MM ZONE>" <words>` in place of `--message`, with the same `--from`.
 jbus posts a word that any other thread records to this home once, in the form the block above prints.
 
