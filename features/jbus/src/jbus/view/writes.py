@@ -133,7 +133,7 @@ class Writes:
             named = [] if not picked or (picked[0].default and words) else [picked[0].name]
             given = ". ".join([*named, *([words] if words else [])])
         try:
-            closed = questions.answer(
+            closed, _ = questions.answer(
                 state_dir,
                 number,
                 given,

@@ -50,6 +50,7 @@ from typing import Any
 from urllib.parse import quote
 
 import jbus
+import jsettings
 from jbriefs import below
 from jbriefs import home as jbriefs
 from jbus import asks, dispatch, item, mirror, passes, questions, queue, t3, waiting, word
@@ -253,7 +254,12 @@ def _question(one: questions.Question | None, home: Path, threads: Any) -> dict[
 
 
 def _waiting(
-    state: Path, home: Path, left: list[Any] | None, words: dict[str, str], threads: Any = None
+    state: Path,
+    home: Path,
+    left: list[Any] | None,
+    words: dict[str, str],
+    threads: Any = None,
+    user: jsettings.Settings | None = None,
 ) -> list[dict[str, Any]]:
     """The list of what waits on the user, as the last pass left it, with the gates as they are
     now in jbus's questions and in `gates.md`. A gate keeps the `since` that the pass gave it, a
@@ -264,11 +270,12 @@ def _waiting(
     since = {one["key"]: one.get("since") for one in kept}
     asked = questions.load(state)
     held = {str(one.number): one for one in asked}
+    why = questions.waits(state, user) if user is not None else lambda one: ""
     try:
         over = retired(home)
         live = [
             one
-            for one in waiting.gates(home, asked, queue.removed_slugs(state))
+            for one in waiting.gates(home, asked, queue.removed_slugs(state), why)
             if one["home"] not in over
         ]
     except OSError:
@@ -597,7 +604,7 @@ def build(read: Read) -> dict[str, Any]:
         for one in read.tasks
         if one["state"]["kind"] in ("leftover", "closed")
     }
-    waits = _waiting(read.state, read.home, read.left, words, read.mine.get("threads"))
+    waits = _waiting(read.state, read.home, read.left, words, read.mine.get("threads"), read.user)
     needs, proceeds = _needs(read, waits)
     return {
         "waiting": waits,

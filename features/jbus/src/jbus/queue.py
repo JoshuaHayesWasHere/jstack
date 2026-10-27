@@ -794,6 +794,8 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     word, a typed string of an older row, or the follow-up rule's, and it holds for the parent's
     stored brief. A parent approved by the rule is itself a follow-up, so a chain goes back to the
     user's word one go at a time, and since a parent must have its go first, no chain is a loop.
+    A parent whose go was a gate's silence leads only a follow-up that silence would start itself
+    (`unsilenced`).
     """
     cannot = f"refused: {slug} cannot follow"
     if follows == slug:
@@ -801,10 +803,12 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     row, here = _parent_row(batch, slug, follows)
     if not row.get("approved"):
         raise Refused(f"{cannot} {follows}: {follows} has no approval")
-    made = record(row)
-    if made is not None and made.closed_by:
+    made, mine = record(row), batch.brief(slug)
+    why = unsilenced(mine) if made is not None and made.closed_by and mine is not None else ""
+    if why:
         raise Refused(
-            f"{cannot} {follows}: {follows}'s go was a gate's silence, not the user's word"
+            f"{cannot} {follows}: {follows}'s go was a gate's silence, not the user's word, "
+            f"and silence starts no row where {why}"
         )
     text = batch.brief(follows) if here else None
     if text is not None and not approved_text(row, text):
@@ -1491,11 +1495,29 @@ def one_pull_request(text: str) -> bool:
     return "Stack" not in told and bool(asked) and not asked.lower().startswith("none")
 
 
-def silenced(state: Path, slug: str, number: int, at: str, user: jsettings.Settings) -> str:
+def unsilenced(text: str) -> str:
+    """Return why a gate's silence starts no row of the brief `text`, or nothing where it does:
+    silence starts a row of size S or M that asks for one pull request and names no case of
+    `gates.md`."""
+    size = " ".join(next((lines for label, lines in briefs.fields(text) if label == "Size"), []))
+    if case(text):
+        return f"its brief names a case of gates.md ({case(text)})"
+    if size.strip() not in SIZED:
+        return f"its size is {size.strip() or 'not given'}, and silence starts only S or M"
+    if not one_pull_request(text):
+        return "its brief does not ask for one pull request"
+    return ""
+
+
+def gone_ahead(
+    state: Path, slug: str, number: int, at: str, user: jsettings.Settings, heard: Said | None
+) -> str:
     """Approve the row that a gate with the default `approve` asked about, once the gate closed on
-    that default by silence, and return the line that says so, or why the row still waits. The
-    setting `go` is `silence`, and the row is of size S or M, asks for one pull request and names
-    no case of `gates.md`."""
+    that default, and return the line that says so, or why the row still waits.
+
+    `heard` is the user's answer that kept the default: it is the user's word, and approves the
+    row under any setting. With no `heard`, silence closed the gate: the setting `go` is
+    `silence`, and silence starts the row (`unsilenced`)."""
     with _changing(state) as rows:
         try:
             gone = removed(state)
@@ -1506,18 +1528,11 @@ def silenced(state: Path, slug: str, number: int, at: str, user: jsettings.Setti
         text = batch.brief(slug)
         if row is None or text is None or not _waits(row, text):
             return ""
-        size = " ".join(
-            next((lines for label, lines in briefs.fields(text) if label == "Size"), [])
-        )
-        why = ""
+        if heard is not None:
+            return _grant(batch, row, text, ANSWER, str(number), heard, user, None)
+        why = unsilenced(text)
         if user.go != jsettings.SILENCE:
             why = f"the setting go is {user.go}, not {jsettings.SILENCE}"
-        elif case(text):
-            why = f"its brief names a case of gates.md ({case(text)})"
-        elif size.strip() not in SIZED:
-            why = f"its size is {size.strip() or 'not given'}, and silence starts only S or M"
-        elif not one_pull_request(text):
-            why = "its brief does not ask for one pull request"
         if why:
             return f"{slug} waits for the user's go after question {number}: {why}"
         rests = Said("default", at, "", True, str(number))
