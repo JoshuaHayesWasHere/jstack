@@ -20,7 +20,7 @@ One pass, under one lock, does this for every project in the config:
    A required check of a row's pull request that ran and was cancelled or timed out at its head is no crewmate's: at its run's first attempt jbus runs it again once (`gh run rerun <run> --failed`) and logs `cancelled <slug>: ran #<n>'s check again, run <run> at <head>`.
    A check cancelled again at a later attempt, or one GitHub will not run again, is told to the brief's home in one line, once for the head, and that line is the row's why.
    A run on a head the pull request has left, one a newer push displaced, is neither run again nor told.
-   It stops a process that a crew or reviewer left running once its turn ended, busy or idle, and a busy one a scout left, one whose parent is 1, that runs in the task's worktree or a temporary folder its session made, and that holds no test slot, and adds a `Left running:` line under the task's last Result or Report.
+   It stops a process that a crew or reviewer left running once its turn ended, busy or idle, and a busy one a scout left, one whose parent is 1, that runs in the task's worktree or a temporary folder its session made (under /tmp, /var/tmp or a test slot's own folder), and that holds no test slot, and adds a `Left running:` line under the task's last Result or Report.
 5. It launches the approved rows of the queue, after it has asked every project for its open threads and pull requests ([What a pass launches](jbus/what-a-pass-launches.md)).
 6. It rewrites the queue's derived columns, says what waits on you, and sends the events meant for you to the project's home thread, or to a webhook as `wake` picks ([Where wakes go](jbus/events-and-the-webhook.md#where-wakes-go)).
 

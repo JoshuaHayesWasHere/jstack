@@ -6,11 +6,13 @@ reaper, and nothing in T3 Code or jbus stops it. Each pass, `stop` looks for suc
 for each task whose threads are not at work:
 
 - A crew's and its reviewers' processes are those whose working directory or an argument is under
-  the task's worktree, or under a temporary folder (`TEMP`) while the process was started by a
-  session of that worktree. The worktree is the one git lists for the task's branch in the main
-  checkout, or `WORKTREES/<project>/<slug>`, where T3 Code makes it. A worktree that was removed
-  still counts: its processes have a working directory that ends ` (deleted)`. A task counts
-  while a thread of it is listed, and while it is a row of the queue.
+  the task's worktree, or under a temporary folder (`temp`) while the process was started by a
+  session of that worktree. A temporary folder is one under /tmp or /var/tmp (`TEMP`), or under
+  `jgauge.slot.locks_dir()`, where `jgauge test-slot` makes each slot's own TMPDIR, read when
+  `stop` runs. The worktree is the one git lists for the task's branch in the main checkout, or
+  `WORKTREES/<project>/<slug>`, where T3 Code makes it. A worktree or a slot's folder that was
+  removed still counts: its processes have a working directory that ends ` (deleted)`. A task
+  counts while a thread of it is listed, and while it is a row of the queue.
 - A scout works in the main checkout, beside its home, so a folder alone does not tell its
   processes from the home's. A scout's processes are those under the main checkout or a
   temporary folder that its own session started: a session whose first message from the user
@@ -60,6 +62,7 @@ from typing import TYPE_CHECKING
 from jbus import queue, read_json, threads, verbs, write_json
 from jbus.passes import Pass
 from jbus.watch import LIVE
+from jgauge import slot
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -358,6 +361,12 @@ def under(path: str, folder: Path) -> bool:
     return path == str(folder) or path.startswith(f"{folder}/")
 
 
+def temp() -> tuple[Path, ...]:
+    """The temporary folders: /tmp, /var/tmp and the folder of jgauge's test slots, whose own
+    TMPDIR each slot's command gets."""
+    return (*TEMP, slot.locks_dir())
+
+
 def transcript(proc: Proc, folder: Path) -> Path | None:
     """The transcript of the session that started the process, where that session worked in
     `folder`."""
@@ -395,7 +404,7 @@ def _asked(path: Path) -> str:
 def scout_of(proc: Proc, checkout: Path) -> str:
     """The slug of the scout whose session started the process under the main checkout or a
     temporary folder, or nothing."""
-    places = (checkout, *TEMP)
+    places = (checkout, *temp())
     if not any(under(one, place) for one in proc.paths for place in places):
         return ""
     kept = transcript(proc, checkout)
@@ -410,11 +419,11 @@ def scout_of(proc: Proc, checkout: Path) -> str:
 
 def owns(task: Task, proc: Proc) -> bool:
     """Whether the process is one the task's crew or reviewers left."""
-    temp = any(under(one, place) for one in proc.paths for place in TEMP)
+    made = any(under(one, place) for one in proc.paths for place in temp())
     for folder in task.folders:
         if any(under(one, folder) for one in proc.paths):
             return True
-        if temp and transcript(proc, folder):
+        if made and transcript(proc, folder):
             return True
     return False
 
