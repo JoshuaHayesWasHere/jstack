@@ -245,7 +245,8 @@ def test_a_follow_up_whose_brief_changed_meaning_is_approved_by_rule_again(kitch
 def test_queue_add_help_gives_the_follow_up_rule_by_what_it_says(kitchen):
     code, said = kitchen.main("queue", "add", "--help")
     assert code == 0
-    assert queue.FOLLOW_UP in " ".join(said.split())
+    # argparse wraps the text at a space or after a hyphen, so the two are compared unspaced.
+    assert "".join(queue.FOLLOW_UP.split()) in "".join(said.split())
     assert "follow-rule" not in said
 
 

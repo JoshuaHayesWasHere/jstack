@@ -95,9 +95,9 @@ def test_eight_push_runs_of_a_side_workflow_with_no_job_file_one_owned_row(kitch
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=20))
     first = "a" * 12
-    assert [(row["slug"], row["approved"]) for row in rows(kitchen)] == [
-        (f"workflow-red-release-{first}", "")
-    ]
+    assert [row["slug"] for row in rows(kitchen)] == [f"workflow-red-release-{first}"]
+    run = "release.yml: GitHub started no job in 8 runs on main since 2026-10-12"
+    assert f'the red run "{run}"' in rows(kitchen)[0]["approved"]
     brief = (kitchen.home / "tasks" / f"workflow-red-release-{first}.md").read_text()
     assert "Where: `.github/workflows/release.yml`" in brief
     assert "GitHub started no job" in brief and "a candidate for removal" in brief

@@ -41,7 +41,7 @@ def text(slug, parent="", against="", wider=False):
     made = brief(slug, f"Follows: {parent}\n" if parent else "")
     if slug in FIXED:
         filing = f"Decisions: {queue.FILED}main and the user has not seen it\n"
-        made = made.replace("Decisions: \"review it once\", the user's word in a test\n", filing)
+        made = made.replace('Decisions: "review it once", the user\'s word in a test\n', filing)
     if against:
         made = made.replace("open one when done", f"open one against {against} when done")
     return made.replace("- it is done\n", "- it is done\n- and more\n") if wider else made
@@ -232,7 +232,14 @@ def test_the_same_red_check_fix_queued_from_a_home_waits_for_the_users_go(kitche
 
 
 def test_a_row_jbus_queued_whose_brief_does_not_say_it_was_filed_from_a_red_check_waits(kitchen):
-    queue.add(kitchen.state, "main-red-" + "d" * 12, 0, [], brief("main-red-" + "d" * 12), ran_by=queue.PASS)
+    queue.add(
+        kitchen.state,
+        "main-red-" + "d" * 12,
+        0,
+        [],
+        brief("main-red-" + "d" * 12),
+        ran_by=queue.PASS,
+    )
     kitchen.quiet()
     assert went(kitchen, "main-red-" + "d" * 12) == ()
 

@@ -122,9 +122,10 @@ def red_after_a_quiet_day(kitchen, briefed_ago):
     return red
 
 
-def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_for_the_user(kitchen):
+def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_approved_by_rule(kitchen):
     """fl-statechart's bug 1: a red nobody's merge caused still holds every merge in `jmerge`,
-    so it gets the same unapproved row a red after a briefed merge gets, once."""
+    so it gets one fix row, once, which the follow-up rule approves: jbus filed it from a red
+    check, and its go names the red run."""
     assert queue_add(kitchen, "beta")[0] == 0
     assert queue_go(kitchen, "beta")[0] == 0
     red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=25))
@@ -132,7 +133,8 @@ def test_a_red_tip_a_day_after_the_last_briefed_merge_files_one_fix_row_for_the_
     for minutes in (0, 3, 60, 6 * 60):
         kitchen.poll(NOW + timedelta(minutes=minutes))
         assert kept(kitchen).red == red
-        assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [(name, "")]
+        assert [row["slug"] for row in main_red(kitchen)] == [name]
+        assert f'the red run "main check failed at {red[:12]}' in main_red(kitchen)[0]["approved"]
     assert jmerge_rows.red(kept(kitchen), "beta") == ready.MAIN_RED.format(sha=red[:12])
     text = (kitchen.home / "tasks" / f"{name}.md").read_text()
     assert f"# {name}: main's check failed at {red[:12]}" in text
@@ -488,12 +490,15 @@ def test_a_red_rerun_green_on_its_own_commit_leaves_its_row(kitchen):
     assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
 
 
-def test_a_fix_row_for_a_red_with_no_briefed_merge_is_withdrawn_on_a_later_green(kitchen):
+def test_a_fix_row_for_a_red_with_no_briefed_merge_launches_on_its_go_by_rule(kitchen):
+    """The follow-up rule approves the fix as jbus files it, so it launches before a later green,
+    and that green leaves it to its crew and its pull request."""
     red = red_after_a_quiet_day(kitchen, briefed_ago=timedelta(hours=25))
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=1))
     name = f"{mainjson.FIX}{red[:12]}"
     assert [row["slug"] for row in main_red(kitchen)] == [name]
+    assert launched(kitchen) == [f"crew: {name}"]
     green = "e" * 40
     commits = json.loads((kitchen.stub / "commits.json").read_text())
     kitchen.set("commits.json", [kitchen.commit(green, "chore: a fix", ago=timedelta(0)), *commits])
@@ -501,7 +506,8 @@ def test_a_fix_row_for_a_red_with_no_briefed_merge_is_withdrawn_on_a_later_green
     done = {"status": "completed", "conclusion": "success", "name": "check"}
     kitchen.set("check-runs.json", {**runs, green: [done]})
     kitchen.poll(NOW + timedelta(minutes=4))
-    assert main_red(kitchen) == []
+    assert [row["slug"] for row in main_red(kitchen)] == [name]
+    assert withdrawn(kitchen.state, name) is None
     assert waits_on_the_user(kitchen.state) == []
 
 
