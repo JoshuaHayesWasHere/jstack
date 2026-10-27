@@ -1085,7 +1085,9 @@ def _default_branch(run: Pass) -> str:
 
 @dataclass(frozen=True)
 class Nightly:
-    """A workflow that no pull request's check runs, whose red run jbus files a fix brief for.
+    """A workflow that no required check runs, whose red run on the default branch, or of a
+    release, jbus files a fix brief for. Its run for a pull request, or by hand on another branch,
+    files nothing (`_nightly_red`).
 
     `file` is the workflow's file, `prefix` the slug's start before the day, `seen` the file in
     the project's state that keeps the runs jbus has seen, and `run` how the run is named. The
@@ -1141,6 +1143,9 @@ MACOS = Nightly(
 )
 NIGHTLIES = (BROWSER, MACOS)
 """The nightly workflows, each with its own rule for a red run (`_nightly_red`)."""
+NIGHTLY_RELEASE = ("push", "release")
+"""The events of a nightly's run off the default branch that are still filed: a release's tag,
+since no nightly runs on a push to a branch (`_nightly_red`)."""
 
 
 def nightly_red_brief(
@@ -1209,8 +1214,10 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
     A red run is one that failed or timed out, and ended within `NIGHTLY_WINDOW`. Where GitHub
     would not give the run's jobs, or a failed job's log, the next pass asks about the run
     again. Once the run ended `NIGHTLY_GRACE` ago, jbus files the brief without the test
-    names. jbus files nothing for a manual run on a branch other than the default: that run is
-    the branch's concern. A run of macos-nightly.yml is on the default branch whatever it checks
+    names. jbus files nothing for a pull request's run, nor for a manual run on a branch other
+    than the default, and marks it seen: that run is the pull request's or the branch's concern,
+    and a red one is no red on main. A release's run, a pushed tag or a published release, is
+    filed. A run of macos-nightly.yml is on the default branch whatever it checks
     out, so a nightly with a `title` files only for the runs that carry it.
 
     A nightly with a `branch` files a row only for a red run after a run that passed: jbus keeps
@@ -1232,7 +1239,9 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
         number = str(one.get("id"))
         ended = when(one.get("updated_at") or one["created_at"])
         stale = run.now - ended > NIGHTLY_WINDOW
-        if one.get("event") == "workflow_dispatch" and one.get("head_branch") != default:
+        event, off = one.get("event"), one.get("head_branch") != default
+        if event == "pull_request" or (off and event not in NIGHTLY_RELEASE):
+            seen.setdefault(number, "")
             continue
         if nightly.title and one.get("display_title") != nightly.title:
             continue
