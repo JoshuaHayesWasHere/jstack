@@ -137,7 +137,7 @@ def test_main_s_browser_runs_that_github_does_not_give_leave_the_red_the_pull_re
 
 def test_a_pull_request_short_of_its_review_says_that_first(replay):
     """As for a failed check (#529), a pull request short of something else says that."""
-    head = opened(replay, BROWSER_RED)
-    replay.kitchen.brief("sub-no-steer", "a" * 40)
-    said = replay.run()
-    assert said and ready.BROWSER_RED.format(head=head[:12]) not in said[0]
+    opened(replay, BROWSER_RED)
+    brief = replay.kitchen.home.tasks / "sub-no-steer.md"
+    brief.write_text(brief.read_text().split("## Review")[0])
+    assert replay.run() == [f"wait 557 {url(557)}: {ready.NO_REVIEW}"]
