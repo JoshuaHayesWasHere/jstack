@@ -139,6 +139,9 @@ class State:
 class Box:
     state: Path
 
+    def sent(self) -> list[str]:
+        return read_json(self.state / "sent.json", [])
+
     def mark(self, key: str) -> None:
         sent = read_json(self.state / "sent.json", [])
         if key not in sent:

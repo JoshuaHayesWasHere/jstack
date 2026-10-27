@@ -20,7 +20,6 @@ IMPORTS = (
     "alert",
     "archived",
     "dispatch",
-    "expedite",
     "merge",
     "passes",
     "questions",
