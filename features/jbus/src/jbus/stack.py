@@ -18,7 +18,7 @@ Each pass reads every open pull request whose brief has the line and has not mov
   or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done
   so itself on deleting the base's branch. A base merged into a train leaves its link on that
   train: a rebase onto the default branch would carry the train's commits there. Then jbus moves
-  the link's own commits onto that branch itself, in the same pass and with no Claude turn
+  the link's own commits onto that branch itself, in the same pass and with no turn of its crew
   (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch worktree of its
   own, never the crew's, and a push with `--force-with-lease` at the head it read. The crew's
   worktree, where it has one on the branch, is moved to the pushed head with `git reset --keep`.
