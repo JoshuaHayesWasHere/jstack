@@ -464,8 +464,8 @@ class Box:
 
     def began(self) -> None:
         """Record that a whole pass has run for this project: from now on jbus sends what is new.
-        While the project's own webhook is not one of its routes, its `last_error` is a mark left
-        from before, and `began` removes it."""
+        While the project's own webhook is not one of its routes, `began` removes its `last_error`,
+        which an earlier pass left there."""
         with self._locked():
             marks = read_json(self.state / "wake.json", {})
             kept = {**marks, "began": True}

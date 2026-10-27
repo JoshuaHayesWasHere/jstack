@@ -102,7 +102,7 @@ Answer(c) ==
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
     /\ watch[k] = "asked"     \* jbus/children.py:261 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:683 `why = post(route, body(some))`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:691 `why = post(route, body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* A pass posts what waits in the outbox of each route the setting picks, and only those. A post
@@ -111,7 +111,7 @@ Deliver(m) ==
     \E r \in Routes :
         /\ msg[m] = r
         /\ r = wake     \* jbus/alert.py:332 `for route in run.box.routes:`
-        /\ up[r]        \* jbus/wake.py:683-685 `why = post(route, body(some)) if why: break`
+        /\ up[r]        \* jbus/wake.py:691-693 `why = post(route, body(some)) if why: break`
         /\ msg' = Set(msg, m, "told")
         /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock,
                        mode>>
@@ -119,7 +119,7 @@ Deliver(m) ==
 \* (pull request 332), so a change of the setting strands no call.
 Rehome(m) ==
     /\ msg[m] \in Routes
-    /\ msg[m] # wake     \* jbus/alert.py:323 `moved(run)`; jbus/wake.py:540 `for old in self.left:`
+    /\ msg[m] # wake     \* jbus/alert.py:323 `moved(run)`; jbus/wake.py:545 `for old in self.left:`
     /\ msg' = Set(msg, m, wake)
     /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The wake setting changes between home and webhook (jbus/__init__.py:118-119 `def to_home(self) ->
