@@ -124,7 +124,9 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
      `jmerge` waits for each number those lines name, and once one is numbered, an unnumbered `Reviewer:` line is a launch they replaced and is waited on no more.
    - A launch has no retry key. If the call fails or its reply is lost, look for the thread with `t3_thread_list` (`titleContains: "review: <slug>"`) before launching again.
    - If the session has no such tool, tell the user instead: "Open a new thread in this project, in the worktree of `<branch>`, and type `/pr-review run <slug>`."
-5. Give the user the links, one line for each reviewer: `[review: <slug>](t3-thread://v1/<threadId>)`, with its title. Then stop. Do not wait for a reviewer, poll it, or read its thread: its findings go to the crewmate and into the brief.
+5. Give the user the links, one line for each reviewer: `[review: <slug>](t3-thread://v1/<threadId>)`, with its title.
+   Then stop.
+   Do not wait for a reviewer, poll it, or read its thread: its findings go into the brief, and jbus tells the crewmate of them when `jmerge` says the crewmate owes a line.
 
 ### A brief the user names
 

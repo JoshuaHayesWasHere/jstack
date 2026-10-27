@@ -116,7 +116,10 @@ echo "$D/prompt.md"
   A scoped pass puts the earlier findings and the crew's answers, as `jbriefs --findings` prints them, right above the `SCOPE` text ("A scoped pass", step 3).
   That text is how the scope rule and the seven questions reach the reading of step 3, and it is the one copy of them: the interrogate skill reads questions 4 and 5 out of this block for its own reviewers, which is why the `SCOPE` lines start at the start of a line.
 - Last it fills the interrogate skill's `references/reviewer-prompt.md` with the intent, the diff, its `references/rubric.md`, its `references/code-quality-review.md` and questions 4 and 5, and prints the path of the prompt it wrote, a file in a directory of its own under `/tmp`. The diff is in it as GitHub sent it, not retyped by this thread. Keep the path: step 3 reads it, and the proof of step 5 is written beside it.
-- Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which. Nothing was reviewed: send the block once more, and if it fails again, write a section with `Verdict: not run` and the reason, tell the crewmate, and stop without settling.
+- Exit code 1 means `gh` gave no diff or the template could not be filled, and the line above it says which.
+  Nothing was reviewed: send the block once more.
+  If it fails again, write a section with `Verdict: not run` and the reason, and stop without settling.
+  It tells nobody, since jbus reads the section.
 
 **3. The reading.** Read the file the block printed, from its first line to its last, in parts if it is long, and do what it says, in this thread: it is the adversarial review of this pull request's diff, and it asks for a list of findings. Read whatever the diff calls or is called by, and change nothing. Start no `Agent` call and no thread for it. Write the list down, or "no findings", before step 4: that list is what the lead judges.
 

@@ -12,7 +12,7 @@ These are all of them, and the last column says on which state of that file each
 | the task ended with no pull request | a crewmate | it wrote a Result that names none | both |
 | `<slug>: <pull request url> at <head> is green and has no review` | a crewmate | every check has passed and no reviewer will come: the brief says `Review: none`, or the session could launch none. It is never ready, so end the turn with `decision local <slug>: ` and that it waits for their word ("How a turn ends") | an id in `home-thread`; with none it is a gate |
 | the report is written | a scout | at its End, once, and once more only if a page's feedback changed the report | both |
-| a review's findings | a reviewer | only when the brief has no `Thread:` line to send them to | both |
+| a review's findings | jbus | only when the brief has no `Thread:` line, so `jbus.reviewed` sends the home the notice a crewmate would get, and only when `jmerge` says a line is owed | both |
 | `<slug>: <pull request url> has a conflict, and it is a link of a stack` | a crewmate | GitHub reports a conflict on a link, which its crewmate never rebases by itself: send it the line of "A stack the user lands" | an id in `home-thread`; with none it is a gate |
 | `<slug>: gate`, then the gate's lines | a crewmate or a scout | it took a default on a question only the user can answer, carried on, and `jbus gate` could not take the gate: no `jbus`, or no project for the repo | both |
 | `jbus: this is <name>'s own word, said <time> and carried to this home by jbus.`, then the words | jbus | the user said it elsewhere and `jbus word` carried it: act on it as said here ("The user's word, carried by jbus") | both |
@@ -25,7 +25,7 @@ Only those three end it.
 Send the user nothing about it: a question only they can answer is a gate ("Gates"), and jbus says the row to the root home once if it is still open 30 minutes after the message.
 
 Nothing is sent when a pull request opens, when a review is written or when its findings are handled.
-A reviewer's findings go to the crewmate.
+A reviewer's findings go into the brief, and jbus tells the crewmate of them only when `jmerge` says the crewmate owes a line.
 A thread with a question only the user can answer takes a default, carries on and pipes the gate to `jbus gate <slug>`, which keeps it as a numbered question: the home reads the open ones from jbus, shows them, and closes one with the user's answer, which jbus carries back when it differs ("Gates").
 With `home-thread` empty no line about a pull request is sent here: jbus reads the brief and the pull request on each pass, and the merge step prints what it found.
 Only a thread at one of the four pauses of "Carry on" asks in its own thread and waits: it shows as `waiting` in T3 Code, which is what reaches the user.
