@@ -41,7 +41,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
