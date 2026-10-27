@@ -36,6 +36,7 @@ NO_TWICE = "its second review is not written at bbbbbbbbbbbb"
 RENUMBER = ready.MIGRATION_TAKEN.format(
     name="0005_insulin", number="0005", default="main", free="0006"
 )
+BROWSER_RED = ready.BROWSER_RED.format(head="c" * 12)
 ENDED = ("completed", "failed", "interrupted", "cancelled")
 
 
@@ -164,6 +165,13 @@ SAYS = {
         "follow, one each and in their order: the files, and every other line that names an old "
         "number. Run the check command, and push with the block's push."
     ),
+    "browser": (
+        "Your pull request's own browser run (browser.yml) failed at its head, and main's last "
+        "browser run did not: the red is yours. Read its failed tests with `gh run view <run> "
+        "--log-failed`, the run `gh pr checks` names for `browser`, fix them, run `make "
+        "check-browser` in your worktree, and push. `jmerge` merges once the browser run of "
+        "the new head passes."
+    ),
 }
 
 
@@ -215,6 +223,7 @@ def said_to(short, kind, reason, sentence):
         ("second", NO_SECOND),
         ("twice", NO_TWICE),
         ("renumber", RENUMBER),
+        ("browser", BROWSER_RED),
     ],
 )
 def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reason, short, kitchen):

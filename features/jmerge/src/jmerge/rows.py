@@ -198,3 +198,56 @@ def failed(runs: list[dict]) -> list[dict]:
         for one in latest(runs)
         if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
     ]
+
+
+BROWSER_FIX = "browser-red-"
+"""The start of the slug of the fix row jbus files for main's red browser run
+(`jbus.watch.BROWSER`)."""
+
+
+def browser_red(head: str, slug: str, runs: list[dict], default: str, fixing: set[str]) -> str:
+    """The hold on a pull request whose own browser run failed at `head`. The red is main's where
+    main's last browser run failed too and its fix is open (`main_browser_red`, of `runs`, main's
+    browser.yml runs as GitHub lists them, and `fixing`, from `browser_fixing`), and it waits as
+    for a red main, unless it is the fix of that red, the row jbus files for it (`BROWSER_FIX`).
+    Otherwise the red is the pull request's own, which jbus tells its crew
+    (`jbus.expedite.TABLE`)."""
+    red = "" if slug.startswith(BROWSER_FIX) else main_browser_red(runs, default, fixing)
+    if red:
+        return ready.MAIN_RED.format(sha=red[: mainjson.SHA])
+    return ready.BROWSER_RED.format(head=head[: mainjson.SHA])
+
+
+def main_browser_red(runs: list[dict], default: str, fixing: set[str]) -> str:
+    """The commit of main's last browser run where it failed and its fix is open, or nothing.
+    `runs` are the workflow's completed runs: a pull request's run, or a run on another branch
+    than `default`, says nothing of main, and a cancelled or skipped one judged no code
+    (`jbus.watch.NOT_RED`). browser.yml runs on main only nightly, so its last run there stays
+    red until the next one: once the fix of that run merged, or where jbus filed none (its id is
+    not in `fixing`), that red is nobody's to wait on, and a pull request's own red is its own."""
+    ran = [
+        one
+        for one in runs
+        if one.get("event") != "pull_request"
+        and one.get("head_branch") == default
+        and one.get("status") == "completed"
+        and one.get("conclusion") not in ("cancelled", "skipped")
+    ]
+    last = max(ran, key=lambda one: str(one.get("created_at") or ""), default=None)
+    if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:
+        return ""
+    return str(last.get("head_sha") or "")
+
+
+BROWSER_SEEN = "browser-runs.json"
+"""The file in jbus's state of the project that maps each browser.yml run jbus has seen to the
+slug of the fix row it filed for it, or to nothing (`jbus.watch.BROWSER.seen`)."""
+
+
+def browser_fixing(checkout: Path, rows: list[queue.Row] | None) -> set[str]:
+    """The ids of main's red browser runs whose fix is open: the row jbus filed for the run
+    (`BROWSER_SEEN`) is in `rows`, the queue, and is not over."""
+    state = _state(checkout)
+    seen = jbus.read_dict(state / BROWSER_SEEN) if isinstance(state, Path) else {}
+    fixing = {row["slug"] for row in rows or [] if row.get("status") not in queue.FINAL}
+    return {str(run) for run, slug in seen.items() if slug and slug in fixing}

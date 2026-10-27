@@ -423,10 +423,11 @@ def fake_gh(stub, args, cwd):
         said = kept.read_text() if kept.exists() else json.dumps({"workflow_runs": []})
     elif args[0] == "api" and "/actions/runs?head_sha=" in args[1]:
         kept, sha = stub / "push-runs.json", args[1].split("head_sha=")[1].split("&")[0]
-        pushed = json.loads(kept.read_text()) if kept.exists() else {}
-        said = json.dumps(
-            {"workflow_runs": pushed.get(sha, []) if "&event=push" in args[1] else []}
-        )
+        listed = json.loads(kept.read_text()) if kept.exists() else {}
+        listed = [{"event": "push", "head_branch": "main", **r} for r in listed.get(sha, [])]
+        if "&event=push" in args[1]:
+            listed = [r for r in listed if r["event"] == "push"]
+        said = json.dumps({"workflow_runs": listed})
     elif args[:2] == ["run", "rerun"]:
         if (stub / "gh-no-rerun").exists():
             return 1, "", "run cannot be rerun\n"

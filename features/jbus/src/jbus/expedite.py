@@ -43,6 +43,8 @@ reason with its sentence:
 - `renumber`, `its migration <name> takes number <n>, which <default> has: renumber it to
   <free>`: rebase with the crew skill's "A conflict" block, run with `stale`. Then renumber
   the migration and the ones after it, consecutively.
+- `browser`, `its browser run failed at <head12>`: the pull request's own browser run failed, and
+  main's last one did not. Fix the failed tests and push.
 - `gate`, a `hold` that says `its merge gate failed`, `could not start` or `ran over`: run the
   repo's merge gate at the head, fix what it names or make what it asks for, and push where a
   file changed. Only a gate that passes lifts the hold.
@@ -320,6 +322,16 @@ TABLE = (
         "names to the number it gives, and each migration of yours after it to the numbers that "
         "follow, one each and in their order: the files, and every other line that names an old "
         "number. Run the check command, and push with the block's push.",
+    ),
+    Short(
+        "browser",
+        "wait",
+        re.compile(ready.BROWSER_RED.pattern),
+        "Your pull request's own browser run (browser.yml) failed at its head, and main's last "
+        "browser run did not: the red is yours. Read its failed tests with `gh run view <run> "
+        "--log-failed`, the run `gh pr checks` names for `browser`, fix them, run `make "
+        "check-browser` in your worktree, and push. `jmerge` merges once the browser run of "
+        "the new head passes.",
     ),
     Short(
         "gate",

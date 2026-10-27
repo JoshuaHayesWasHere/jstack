@@ -1,5 +1,6 @@
 usage: jbus word [-h] (--to PROJECT | --all) [--by BY] [--at AT]
                  [--message THREAD/MESSAGE] [--from THREAD] [--page FILE]
+                 [--scope SCOPE]
                  [words ...]
 
 positional arguments:
@@ -19,3 +20,5 @@ options:
                         project's home is not posted to it
   --page FILE           the page the word was given on: the word goes to the
                         home whose page it is
+  --scope SCOPE         a scoped home the user's message goes to, given again
+                        for each, or every

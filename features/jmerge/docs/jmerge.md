@@ -165,8 +165,22 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A pull request into an integration branch waits when that branch's tip is red instead, unless it is the fix of that red ("Integration branches").
   jbus checks every commit that was main's tip since jbus's last pass.
   So jbus counts a failed tip as red even while the check of a newer tip is still running.
+  A tip's check is its push run's: the check runs of the workflow runs a push to main started (`jbus.watch._check`).
+  A run dispatched by hand, on a schedule or for a tag at the same commit, of browser.yml or any other workflow, does not make main red: browser.yml's red takes the path of "Its own browser run did not fail".
   A later green tip ends the red state.
   It does so whether or not jbus delivered its message to the crews of the pull requests that were waiting.
+- **Its own browser run did not fail.**
+  browser.yml runs on a pull request that changes the view, and is no required check, so a head with no run of it waits for none.
+  A run still going at the head waits as any pending run does: `browser has not passed`.
+  A run that ended and failed holds the pull request as `its browser run failed at <head12>`, and jbus tells its crew to fix it (`features/jbus/src/jbus/expedite.py`, `TABLE`).
+  #557 merged with its browser run red on 2026-10-27 and turned main red, since no rule read that run.
+  When main's last browser run on main failed too, the red is main's, and the pull request waits as `main is red at <sha12>, its fix merges first`, the sha12 being that run's commit.
+  It is main's only while the row jbus filed for the fix of that run is open, since browser.yml runs on main only nightly and its last run there stays red until the next one.
+  Once that fix merged, or where jbus filed no fix for the run, the red is the pull request's, and its crew is told.
+  The fix of that red, the row jbus files as `browser-red-<date>`, is held by its own red as any other pull request is.
+  `jmerge` asks GitHub for main's browser runs only for a pull request whose browser run failed, once a run, and where GitHub gives no answer the red is the pull request's.
+  A draft's browser run is waived as its failed checks are, and a reviewed draft is marked ready.
+  `jmerge` judges this after main's red, so a pull request short of a review or a rebase line says that first.
 - **Its migration is the next in line.** See "Migrations".
 - **Its passing check still counts over today's main.**
   See "Fresh against main".

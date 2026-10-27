@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 from jgauge import holders, slot, waiters
-from test_jbus_kitchen import NOW, sends
+from test_jbus_kitchen import NOW, iso, sends
 
 LANES = {"short": slot.short(), "full": slot.full(2)}
 MIN = timedelta(minutes=1)
@@ -240,10 +240,24 @@ def test_a_waiter_t3_code_will_not_send_to_is_dropped_with_one_line(kitchen, slo
     assert told(kitchen) == [thread]
 
 
-def ended_run(kitchen, status="completed", wrote=10, code=1):
+def turn(began, ended=None, status="completed"):
+    """One of a thread's turns as T3 Code's read lists it, from `began` minutes before NOW to
+    `ended` minutes before NOW, or still going with no `ended`."""
+    return {
+        "runId": f"run:{began}",
+        "status": status,
+        "requestedAt": iso(NOW - began * MIN),
+        "startedAt": iso(NOW - began * MIN),
+        "completedAt": None if ended is None else iso(NOW - ended * MIN),
+    }
+
+
+def ended_run(kitchen, status="completed", wrote=10, code=1, turns=()):
     """Make a thread whose own run under a full slot started 20 minutes before NOW and ended
-    2 minutes before NOW with `code`, and that last wrote `wrote` minutes before NOW."""
-    thread = kitchen.t3.thread("holder", status, idle=timedelta(minutes=wrote))
+    2 minutes before NOW with `code`, and that last wrote `wrote` minutes before NOW. Its turn
+    that started the run ended 15 minutes before NOW unless `turns` says otherwise."""
+    runs = list(turns) or [turn(21, 15)]
+    thread = kitchen.t3.thread("holder", status, idle=timedelta(minutes=wrote), runs=runs)
     if status == "running":
         kitchen.t3.at_work.add(thread["threadId"])
     locks = slot.locks_dir()
@@ -268,15 +282,38 @@ def test_the_end_of_a_held_run_wakes_its_idle_thread_once(kitchen):
 
 
 @pytest.mark.parametrize(
-    ("status", "wrote"), [("running", 10), ("completed", 1)], ids=["at work", "read it already"]
+    ("status", "turns"),
+    [
+        ("running", [turn(21, 15), turn(5, status="running")]),
+        ("completed", [turn(21, 1)]),
+        ("running", [turn(21, status="running")]),
+    ],
+    ids=["at work", "its turn read the end", "its turn reads the end"],
 )
-def test_the_end_of_a_held_run_wakes_no_thread_at_work_or_one_that_went_on_after_it(
-    kitchen, status, wrote
+def test_the_end_of_a_held_run_wakes_no_thread_at_work_or_one_whose_turn_got_the_end(
+    kitchen, status, turns
 ):
-    ended_run(kitchen, status, wrote=wrote)
+    ended_run(kitchen, status, wrote=1, turns=turns)
     kitchen.poll()
     kitchen.poll(NOW + MIN)
     assert sends(kitchen) == []
+
+
+def test_a_message_queued_after_the_run_ended_does_not_stand_for_reading_its_end(kitchen):
+    """The run's own turn ended while it held the slot. A message queued after the run ended
+    moved the thread's `updatedAt` and started a turn about something else: the thread is
+    spared while that turn runs, and woken with the run's end once it is idle."""
+    thread, run = ended_run(kitchen, "running", wrote=1, turns=[turn(21, 15), turn(1)])
+    kitchen.t3.at_work.add(thread)
+    kitchen.poll()
+    assert sends(kitchen) == [] and len(holders.read(slot.locks_dir())) == 1
+    (made,) = kitchen.t3.threads
+    made["status"], made["runs"][-1] = "completed", turn(1, 0)
+    kitchen.t3.at_work.discard(thread)
+    kitchen.poll(NOW + MIN)
+    (given,) = sends(kitchen)
+    assert given["clientRequestId"] == f"slot-end|{thread}|{run.since}"
+    assert holders.read(slot.locks_dir()) == []
 
 
 def test_a_run_still_held_wakes_nobody(kitchen):

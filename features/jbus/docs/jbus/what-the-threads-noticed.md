@@ -9,7 +9,13 @@ A record has the slug, the section it is from, its text whole, when a pass first
 | `jbus noticed` | Prints each new record, newest first, one a line: `<key> <slug>, <section>, new: <text>`. `none is new` when there is none. |
 | `jbus noticed --all` | Prints every record, the marked ones with what took them or why they were dropped. |
 | `jbus noticed --json` | Prints the same records as a JSON list, with `--all` or without. |
+| `jbus noticed --for <home>` | Prints only the new records another home kept for that home. |
+| `jbus noticed add --for <home> --from <thread id> <text>` | Keeps one record for the home `--for` names, a scope or `root`, from the home whose thread `--from` is: a finding one home has for another. It prints `kept: <line>`, or `already kept: <line>` for the same text again. A `--for` that is no home of the project, a `--from` that is no home's thread, and a home keeping a record for itself are refused. |
 | `jbus noticed take <key> --row <slug> --by <name> --at "<YYYY-MM-DD HH:MM zone>"` | Marks a new record taken by the queue row or the plan entry `--row` names, of any home's `plan.md` or `plan-done.md`. A slug that is neither is refused. |
 | `jbus noticed drop <key> --why <words> --by <name> --at "<YYYY-MM-DD HH:MM zone>"` | Marks a new record dropped, with why. |
+
+A record kept with `add` has its slug `home` or `home-<scope>`, the section `from <thread id>`, and `for` and `from` set.
+At the end of each pass, jbus wakes each home at most once for the records and the `--scope` words that are new for it, through the outbox: one message that lists them, sent only while the home has no turn running, and never to the root for a record that is not its own.
+A home's start lists its records under "to read".
 
 `--at` is taken as `jbus queue remove` takes it. `--by` is one name, the home's or yours. A record is marked once: a second mark is refused, and so is a key no record has. The view's Noticed panel lists every new record and the 20 newest marked ones, and the wait band counts the new ones.
