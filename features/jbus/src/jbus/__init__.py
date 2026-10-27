@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -274,25 +275,28 @@ class RealDir(RuntimeError):
     neither `JBUS_CONFIG_DIR` nor `JBUS_STATE_DIR`, or set one to the real directory."""
 
 
-def _own(name: str, default: Path) -> Path:
-    """Return the directory `name` names, else `default`, and refuse the machine's own while a
-    test runs (pytest sets `PYTEST_CURRENT_TEST`, and a process a test starts inherits it)."""
-    path = Path(os.environ.get(name) or default)
+def _own(name: str, under: str) -> Path:
+    """Return the directory `name` names, else `under` the home, and refuse the machine's own
+    while a test runs (pytest sets `PYTEST_CURRENT_TEST`, and a process a test starts inherits
+    it). The machine's own is under the account's home in the password database, which a test
+    that points `HOME` at a home of its own does not change."""
+    path = Path(os.environ.get(name) or Path.home() / under)
     test = os.environ.get("PYTEST_CURRENT_TEST", "").rsplit(" ", 1)[0]
-    if test and path.expanduser().resolve() == default.resolve():
+    real = Path(pwd.getpwuid(os.getuid()).pw_dir) / under
+    if test and path.expanduser().resolve() == real.resolve():
         raise RealDir(
-            f"refused: the test {test} reached the real {default}: point {name} at the test's own"
+            f"refused: the test {test} reached the real {real}: point {name} at the test's own"
             " directory, as the autouse fixture in testing/jstack_fixtures.py does"
         )
     return path
 
 
 def config_dir() -> Path:
-    return _own("JBUS_CONFIG_DIR", Path.home() / ".config" / "jbus")
+    return _own("JBUS_CONFIG_DIR", ".config/jbus")
 
 
 def state_dir() -> Path:
-    return _own("JBUS_STATE_DIR", Path.home() / ".local" / "state" / "jbus")
+    return _own("JBUS_STATE_DIR", ".local/state/jbus")
 
 
 def private(path: Path) -> None:
