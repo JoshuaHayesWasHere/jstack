@@ -89,7 +89,7 @@ class Quiet(Scene):
         return self.says(skill, a_gate_in(sends, text).replace("<slug>", SLUG), self.worktree)
 
     def who_merges(self, line):
-        asks = block("crew", "home-thread")
+        asks = block("crew", "<fixed or waits>")
         assert "<fixed or waits>" in asks and "<slug>" in asks
         asks = asks.replace("<fixed or waits>", line).replace("<slug>", SLUG)
         return self.says("crew", asks, self.worktree)
@@ -123,22 +123,19 @@ def quiet(tmp_path):
     return Quiet(tmp_path)
 
 
-SWITCHES = [(None, "jbus"), ("", "jbus"), (" \n", "jbus"), (f"{THREAD}\n", "home")]
-SAID = {
-    ("home", "fixed"): "send the line",
-    ("home", "waits"): "send the line",
-    ("jbus", "fixed"): "send nothing",
-    ("jbus", "waits"): "send no line, and park it as a gate",
-}
+SWITCHES = [None, "", " \n", f"{THREAD}\n"]
+SAID = {"fixed": "send nothing", "waits": "send no line, and park it as a gate"}
 
 
-@pytest.mark.parametrize(("switch", "merges"), SWITCHES)
+@pytest.mark.parametrize("switch", SWITCHES)
 @pytest.mark.parametrize("line", ["fixed", "waits"])
-def test_a_crewmate_asks_who_merges_by_the_switch(quiet, switch, merges, line):
+def test_jbus_merges_whatever_home_thread_holds(quiet, switch, line):
+    """jbus is the only merger (`jbus.merge`), so an id in `home-thread` sends no line to the
+    home."""
     if switch is not None:
         quiet.switch.write_text(switch)
     crew = quiet.who_merges(line)
-    assert crew.startswith(f"{merges} merges: {SAID[merges, line]}")
+    assert crew.startswith(f"jbus merges: {SAID[line]}")
 
 
 def test_a_crewmate_that_does_not_say_which_line_is_not_told_whether_to_send_it(quiet):
@@ -150,14 +147,11 @@ SCOPED = ["id", "handed off", "handed off, by its id", "scope"]
 
 @pytest.mark.parametrize("names", SCOPED)
 def test_a_fixed_pull_request_of_a_scoped_home_is_told_as_one_of_the_root_home_is(quiet, names):
-    """jbus merges a scoped home's pull request as it merges the root home's (#357), and with an
-    id in home-thread each home merges its own, so neither parks a gate for the user."""
+    """jbus merges a scoped home's pull request as it merges the root home's (#357)."""
     root = quiet.who_merges("fixed")
     quiet.scoped(names)
     assert quiet.who_merges("fixed") == root
     assert root.startswith("jbus merges: send nothing")
-    quiet.switch.write_text(f"{THREAD}\n")
-    assert quiet.who_merges("fixed").startswith("home merges: send the line")
 
 
 @pytest.mark.parametrize("skill", SENDERS)
