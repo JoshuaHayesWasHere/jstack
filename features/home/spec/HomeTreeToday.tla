@@ -35,7 +35,7 @@ MakeChild(k) ==
 \* row, and the pass launches what is queued. A launched row is a change in what the child has
 \* out, so its spell ends.
 LaunchCrew(k) ==
-    /\ life[k] = "working"     \* jbus/dispatch.py:618 `"t3_thread_launch",`
+    /\ life[k] = "working"     \* jbus/dispatch.py:616 `"t3_thread_launch",`
     /\ work[k] = "none" /\ work' = Set(work, k, "crew") /\ Calm(k)
     /\ UNCHANGED <<life, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The crew opens the pull request ("Do the task" in the crew skill).

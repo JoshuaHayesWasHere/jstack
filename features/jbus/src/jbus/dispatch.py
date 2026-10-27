@@ -603,12 +603,10 @@ class Turns:
             if wrote:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(text)
-            elif (
-                rewritten := homed(
-                    launched_text(kept := target.read_text(errors="replace"), green, on), brief
-                )
-            ) != kept:
-                target.write_text(rewritten)
+            elif (kept := target.read_text(errors="replace")) != (
+                put := homed(launched_text(kept, green, on), brief)
+            ):
+                target.write_text(put)
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
