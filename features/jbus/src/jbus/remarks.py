@@ -32,7 +32,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from jbus import dispatch, outbox, read_json, verbs, write_json
+from jbriefs import parse as briefs
+from jbus import outbox, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _api
@@ -152,7 +153,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
             brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
         except OSError:
             continue
-        thread = dispatch.thread_of(brief)
+        thread = briefs.thread_of(brief)
         if thread:
             crews.append((slug, pull["number"], thread))
     if not crews:

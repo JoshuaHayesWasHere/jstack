@@ -59,6 +59,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
+from jbriefs import parse as briefs
 from jbriefs.home import home_of, thread_of
 from jbus import mirror, outbox, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
@@ -181,7 +182,7 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
 def note(brief: str) -> str:
     """Return the whole `Left:` line of a brief's last Result, or nothing when that
     Result leaves nothing."""
-    text = mirror.field(mirror.last_result(brief), "Left")
+    text = briefs.line(mirror.last_result(brief), "Left:")
     return "" if text == "none" else text
 
 

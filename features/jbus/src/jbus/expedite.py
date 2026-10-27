@@ -88,6 +88,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from jbriefs import findings, skills
+from jbriefs import parse as briefs
 from jbriefs.home import home_of, thread_of
 from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, write_json
 from jbus.passes import Pass
@@ -106,10 +107,6 @@ REFUSED = "T3 Code refused the message about what a pull request is short of"
 FILE = "expedite.json"
 REVIEW = "review: "
 NO_RANGE = "its Result has no Rebase line for its head, so the hold is the user's"
-_REBASE = re.compile(
-    r"^Rebase: patch (?:unchanged|changed in .+), before ([0-9a-f]{40}), head ([0-9a-f]{40})$",
-    re.M,
-)
 _OWED = re.compile(r"^Scoped review: needed since ([0-9a-f]{40}),", re.M)
 NO_FIX_RANGE = (
     'Run the block of the crew skill\'s "A second pass" in your worktree and do what it prints: '
@@ -157,10 +154,11 @@ def no_reviewer_by_rule(brief: str, head: str) -> bool:
     no reviewer at this head. That is so when the crew launched no reviewer, and either none
     can run (`Reviewer: none`) or none runs yet (no check ran, a check is stuck, or the base
     is stale). A pull request whose crew launched a reviewer still waits for that review."""
-    if re.search(r"^Reviewer: (?!none\b)", brief, re.M):
+    said = briefs.reviewers(brief, "Reviewer")
+    if any(map(briefs.launched, said)):
         return False
-    rule = rf"^(?:Reviewer: none\b|(?:Unrun|Stuck|Stale base): at {re.escape(head)},)"
-    return bool(re.search(rule, brief, re.M))
+    gated = rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},"
+    return bool(said) or bool(re.search(gated, brief, re.M))
 
 
 TABLE = (
@@ -372,7 +370,7 @@ def ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None
     if kind == "fix":
         before = (_OWED.findall(brief) or [""])[-1]
     else:
-        before = next((was for was, to in reversed(_REBASE.findall(brief)) if to == head), "")
+        before = next((was for _, was, to in reversed(briefs.rebases(brief)) if to == head), "")
         before = before or _kept(run, slug)
     default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     if not before or default.returncode:
@@ -406,7 +404,7 @@ def _busy(run: Pass, client: Client, world: World, slug: str, row: Short) -> boo
 
 def _capped(run: Pass, client: Client, slug: str) -> bool:
     """Say whether the crew's instance is capped, so the outbox holds the message to it."""
-    return bool(outbox.capped(run, client, dispatch.thread_of(_brief(run, slug))))
+    return bool(outbox.capped(run, client, briefs.thread_of(_brief(run, slug))))
 
 
 def told(run: Pass, pulls: merge.Said) -> set[int]:
@@ -478,7 +476,7 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
         if since and busy is False:
             entry["idle"] = entry.get("idle", 0) + 1
         if entry.get("idle", 0) >= PASSES or since >= REVIEWING:
-            thread = dispatch.thread_of(_brief(run, slug)) or "not known"
+            thread = briefs.thread_of(_brief(run, slug)) or "not known"
             work = ", with its crew or a reviewer at work" if busy else ""
             line = (
                 f"{STALL} {slug}: #{number} is as short as it was {since} passes after its "
@@ -515,7 +513,7 @@ def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reas
         since=since,
         reason=reason,
         user=run.user.user,
-        thread=dispatch.thread_of(brief) or "not known",
+        thread=briefs.thread_of(brief) or "not known",
     )
     try:
         went = outbox.send(

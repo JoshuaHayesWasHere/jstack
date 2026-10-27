@@ -1,3 +1,4 @@
+import ast
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import NamedTuple
@@ -841,3 +842,42 @@ def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
     )
     assert parse.rebases(brief) == [(False, before, after), (True, after, before)]
 
+
+HEAD_LINES = ("^Thread:", "^Home:", "Reviewer:", "^Rebase:", "^## ")
+
+
+def head_line_regexes(source: str) -> list[str]:
+    """Each regex in the source, given to a function of `re`, that reads a brief's head line or
+    heading, which `jbriefs.parse` alone may read."""
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        call = isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        if not call or not isinstance(node.func.value, ast.Name) or node.func.value.id != "re":
+            continue
+        for one in node.args[:1]:
+            text = ast.unparse(one)
+            found += [needle for needle in HEAD_LINES if needle in text]
+    return found
+
+
+def test_no_module_of_jbus_or_jmerge_compiles_a_regex_for_a_brief_head_line():
+    sources = [REPO / "features" / name / "src" for name in ("jbus", "jmerge")]
+    found = {
+        str(path.relative_to(REPO)): said
+        for source in sources
+        for path in sorted(source.rglob("*.py"))
+        if (said := head_line_regexes(path.read_text()))
+    }
+    assert found == {}
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'X = re.compile(r"^Thread:[ \\t]*(\\S+)", re.M)',
+        'found = re.search(rf"^Reviewer: {who}", brief, re.M)',
+        'parts = re.split(r"^## ", text, flags=re.M)',
+    ],
+)
+def test_the_scan_finds_a_regex_for_a_head_line(line):
+    assert head_line_regexes(f"import re\n{line}\n")

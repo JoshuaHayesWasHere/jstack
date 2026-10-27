@@ -56,6 +56,7 @@ from urllib.parse import quote
 
 import jbus
 from jbriefs import home as jbriefs
+from jbriefs import parse as briefs
 from jbus import asks, dispatch, item, mirror, passes, questions, queue, steer, t3, waiting, word
 from jbus.view.homes import Owner
 from jbus.view.state import (
@@ -210,7 +211,7 @@ def _gates(state: Path, home: Path) -> list[dict[str, Any]]:
     over = retired(home)
     found = []
     for file, number, asked, body, key in mirror.home_gates(home):
-        status = mirror.field(body, "Status")
+        status = briefs.line(body, "Status:")
         if (
             key in held
             or mirror.asker(body) in gone
@@ -223,8 +224,8 @@ def _gates(state: Path, home: Path) -> list[dict[str, Any]]:
                 "question": text(asked),
                 "open": status.startswith("open"),
                 "status": text(status),
-                "default": text(mirror.field(body, "Default"), 600),
-                "built_on": text(mirror.field(body, "Built on it")),
+                "default": text(briefs.line(body, "Default:"), 600),
+                "built_on": text(briefs.line(body, "Built on it:")),
                 "home": "" if file.parent == home else text(file.parent.name, 60),
             }
         )

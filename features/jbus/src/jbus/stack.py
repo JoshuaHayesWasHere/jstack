@@ -210,7 +210,7 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     it was, with the reason said."""
     head, number = str(pull["headRefOid"]), pull["number"]
     branch = str(pull.get("headRefName") or slug)
-    if _reviewing(_brief(run, slug)):
+    if rebase.reviewing(_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
     busy = _busy(run, crew, head) if crew else ""
@@ -251,12 +251,6 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
 def _left(run: Pass, slug: str, why: str) -> str:
     run.say(f"{KIND} {slug}: jbus left its branch as it was ({why}), so its crew moves it")
     return ""
-
-
-def _reviewing(brief: str) -> bool:
-    """Whether a reviewer the crew launched has not written its review yet: a move would change
-    the head under it, and the crew skill's own move waits for it too."""
-    return len(rebase._LAUNCHED.findall(brief)) > len(rebase._REVIEWED.findall(brief))
 
 
 def _worktree(run: Pass, branch: str) -> Path | None:

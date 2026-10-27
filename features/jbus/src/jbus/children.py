@@ -38,6 +38,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import home as homes
+from jbriefs import parse as briefs
 from jbus import (
     Config,
     Refused,
@@ -99,7 +100,7 @@ def out(root: Path, scope: Path, state: Path, threads: list[dict[str, Any]]) -> 
     found += [
         f"out gate {number}: {asked}"
         for number, asked, _, body in mirror.gates(_read(scope / "gates.md"))
-        if mirror.field(body, "Status").startswith("open")
+        if briefs.line(body, "Status:").startswith("open")
     ]
     return found
 

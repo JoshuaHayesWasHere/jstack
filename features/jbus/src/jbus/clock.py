@@ -63,6 +63,8 @@ import string
 from datetime import datetime
 from typing import Any
 
+from jbriefs import findings
+from jbriefs import parse as briefs
 from jbriefs.home import home_of, thread_of
 from jbus import (
     dispatch,
@@ -162,9 +164,9 @@ def class_of(reason: str) -> str:
     return next((name for name, reasons in CLASSES if _of(reason, reasons)), "")
 
 
-def _id(line: str) -> str:
+def _id(said: str) -> str:
     """Return the thread a reviewer line names after its label, or nothing for `none`."""
-    found = "".join(line.partition(":")[2].split()[:1]).rstrip(",")
+    found = "".join(said.split()[:1]).rstrip(",")
     return "" if found == "none" else found
 
 
@@ -175,16 +177,16 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
     For a second review it is the last `Second reviewer:` line. Otherwise it is the last
     `Reviewer:` line whose seat, `#<n>`, has written no `## Review` with that seat on its `By:`
     line."""
-    lines = brief.splitlines()
     if kind == "scoped":
-        named = [line for line in lines if line.startswith("Scoped reviewer:")]
-        named = [line for line in named if line.split()[-2:] == ["of", head]] or named
+        named = briefs.reviewers(brief, "Scoped reviewer", head)
+        named = named or briefs.reviewers(brief, "Scoped reviewer")
     elif "second" in reason:
-        named = [line for line in lines if line.startswith("Second reviewer:")]
+        named = briefs.reviewers(brief, "Second reviewer")
     else:
-        wrote = set(re.findall(r"^By: .* #(\d+)$", brief, re.M))
-        named = [line for line in lines if line.startswith("Reviewer:")]
-        named = [line for line in named if (s := _SEAT.search(line)) is None or s[1] not in wrote]
+        bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections)
+        wrote = {seat[1] for seat in bys if seat}
+        named = briefs.reviewers(brief, "Reviewer")
+        named = [said for said in named if (s := _SEAT.search(said)) is None or s[1] not in wrote]
     return next((found for found in map(_id, reversed(named)) if found), "")
 
 
@@ -199,17 +201,17 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
     """Return the thread a wait is on and the line jbus sends it: the reviewer's line, or nothing
     where the crew is the one to carry on."""
     if kind == "result":
-        return dispatch.thread_of(brief), ""
+        return briefs.thread_of(brief), ""
     named = reviewer(brief, kind, reason, head)
     if not named and kind == "review" and expedite.no_reviewer_by_rule(brief, head):
         return "", ""
     if not named:
-        return dispatch.thread_of(brief), ""
+        return briefs.thread_of(brief), ""
     if kind == "review":
         return named, expedite.AGAIN.format(slug=slug)
     found = expedite.ranges(run, slug, head, "fix" if _of(reason, FIXES) else "rebase")
     if not found:
-        return dispatch.thread_of(brief), ""
+        return briefs.thread_of(brief), ""
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
 
 
@@ -260,7 +262,7 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     number, reason, line = wait["number"], wait["reason"], wait["line"]
     key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     thread, did = wait["thread"], "relaunched its reviewer" if line else "carried its crew on"
-    crew = dispatch.thread_of(_brief(run, slug))
+    crew = briefs.thread_of(_brief(run, slug))
     if wait["kind"] == "scoped" and line and crew and rebase.worktree(client, thread) is None:
         there = rebase.where(client, crew)
         line = ROOTED.format(reviewer=thread, number=number, worktree=there, line=line)
@@ -292,7 +294,7 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
     one quiet stall, and one too where T3 Code refused the home the line. Return whether it is
     done."""
     did = wait.get("did") or ("relaunched its reviewer" if wait["line"] else "carried its crew on")
-    crew = dispatch.thread_of(brief) or "not known"
+    crew = briefs.thread_of(brief) or "not known"
     text = HOME.format(
         slug=slug,
         number=wait["number"],
@@ -353,7 +355,7 @@ def tick(
         wait = {**wait, "kind": kind, "head": head, "thread": thread, "line": line}
         wait |= {"number": pull["number"], "reason": reason}
         kept[slug] = wait
-        busy = {live.get(thread), live.get(dispatch.thread_of(brief))} & set(AT_WORK)
+        busy = {live.get(thread), live.get(briefs.thread_of(brief))} & set(AT_WORK)
         if wait["home"] or busy or slug in reviewing:
             continue
         nudges = _nudges(run, slug, head)

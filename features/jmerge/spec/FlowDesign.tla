@@ -44,7 +44,7 @@ CrewFix(p) ==
     /\ breaks[p]
     \* rejudge-red-prs: the crew acts on its own failure, or on jmerge's one message.
     /\ (~ranRed[p] \/ told[p])
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:331-363, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ full' \in BOOLEAN                    \* a turn may leave processes running
@@ -72,7 +72,7 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew fixes main.
 ApproveMainFix ==
     /\ mainRed
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:331-363, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
     /\ mainRed' = FALSE
     /\ redBy' = "none"
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, outsideLeft, full>>
