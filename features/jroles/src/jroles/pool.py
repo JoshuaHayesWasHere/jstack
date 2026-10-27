@@ -20,11 +20,9 @@ wrote it.
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 
 import jsettings
 from jroles import Refused, Selection, ledger, read_map
@@ -80,10 +78,6 @@ def choose(
     return Choice(None, f"{listed} are {every} capped until {first.isoformat()}", first)
 
 
-def config_dir() -> Path:
-    return Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "jstack"
-
-
 def declared(text: str) -> dict[str, str]:
     """Each instance that the inventory declares, with its driver. The function refuses an
     inventory that is not in T3's `providerInstances` shape."""
@@ -127,7 +121,7 @@ def selections(role: str) -> tuple[Selection, ...]:
     """The role's lines of the map, in order, with each pool checked against the inventory,
     or none when the role inherits. Only `review` has more than one line. The function refuses
     a map or an inventory that it cannot use."""
-    where = config_dir()
+    where = jsettings.config_home()
     try:
         text = (where / "roles").read_text()
     except FileNotFoundError:

@@ -13,9 +13,10 @@ built-in `claudeAgent`.
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
+
+import jsettings
 
 BUILT_IN = "claudeAgent"
 
@@ -57,8 +58,7 @@ def instances(value: object, home: Path) -> dict[str, Instance] | str:
 
 
 def path() -> Path:
-    config = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
-    return Path(config) / "jstack" / "providers.json"
+    return jsettings.config_home() / "providers.json"
 
 
 def declared(path: Path, home: Path) -> dict[str, Instance] | str:

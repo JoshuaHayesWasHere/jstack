@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+import jsettings
+
 SYSTEM_LAUNCHCTL = "/bin/launchctl"
 
 
@@ -134,8 +136,8 @@ class Machine:
         return Path(found) if found else None
 
     def config_home(self) -> Path:
-        """${XDG_CONFIG_HOME:-~/.config}."""
-        return Path(self.env.get("XDG_CONFIG_HOME") or self.home / ".config")
+        """${XDG_CONFIG_HOME:-~/.config}, which holds jstack's config (`jsettings.config_home`)."""
+        return jsettings.config_home(self.env, self.home).parent
 
     def state_home(self) -> Path:
         """${XDG_STATE_HOME:-~/.local/state}."""

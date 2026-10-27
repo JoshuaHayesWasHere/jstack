@@ -54,7 +54,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-from jroles import Refused, pool
+from jroles import Refused, inventory, pool
 
 KEEP = frozenset(
     {
@@ -164,7 +164,7 @@ def declared(user: Path) -> tuple[Mirror, ...]:
     """The mirrors that this machine's providers.json declares, or none when there is no
     file."""
     try:
-        text = (pool.config_dir() / "providers.json").read_text()
+        text = inventory.path().read_text()
     except FileNotFoundError:
         return ()
     except (OSError, UnicodeDecodeError) as error:
