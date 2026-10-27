@@ -24,3 +24,6 @@ There is one exception. When the default is irreversible or slow to revert, the 
 | publishes | a public release, a tag, a package, a public repo or post | the exact artifact and where it goes, then hold for the user |
 
 Everything else acts at once on its default: a merge (reverted by `gh pr revert`), a branch, a brief, a config edit with its backup, a launch. `jbus gate` refuses a gate with no filled `Default:` line, a default that is not the recommended option, a `Holds:` line with no filled `Fail-safe:` line, a case not in the table, and a `Fail-safe:` line with no `Holds:` line.
+
+A home that marks a gate `Status: answered` in its own `gates.md` closes a gate with no `Holds:` line, and never one that holds.
+Only the user's own answer, through `jbus answer` or the page of `jbus view`, closes a gate that holds.
