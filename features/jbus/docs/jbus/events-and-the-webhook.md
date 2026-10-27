@@ -45,6 +45,8 @@ The top-level webhook is the monitor of every project: jbus posts it every `user
 
 The two posts keep apart. Each webhook of a project has its own outbox, its own five-minute gap, its own last error and its own failure streak: the project's own in `~/.local/state/jbus/<project>/`, the top-level one's in `top-level/` inside it. One webhook that is down neither holds back nor repeats what the other is posted. The top-level webhook gets the same `user` events as the project's own, each with its `project`, and nothing quiet. With no top-level pair there is one webhook per project, as before.
 With `wake = "home"` neither webhook is posted.
+A webhook with no `webhook_url` is off, not failing: jbus never posts to it, counts no streak for it and keeps no `last_error` for it.
+While the project's `wake` leaves its own webhook out, each pass removes a `last_error` left from before in `~/.local/state/jbus/<project>/wake.json`.
 
 Everything a pass finds is an event.
 Each POST to a webhook is `{"kind": "events", "say": [...], "events": [...]}`, and an event is `{"project", "slug", "event", "line", "text", "loud"}`.

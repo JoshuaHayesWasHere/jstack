@@ -463,11 +463,16 @@ class Box:
                 write_json(self.state / "sent.json", [*sent, key])
 
     def began(self) -> None:
-        """Record that a whole pass has run for this project: from now on jbus sends what is new."""
+        """Record that a whole pass has run for this project: from now on jbus sends what is new.
+        While the project's own webhook is not one of its routes, its `last_error` is a mark left
+        from before, and `began` removes it."""
         with self._locked():
             marks = read_json(self.state / "wake.json", {})
-            if not marks.get("began"):
-                write_json(self.state / "wake.json", {**marks, "began": True})
+            kept = {**marks, "began": True}
+            if all(route.folder != self.state for route in self.routes):
+                kept.pop("last_error", None)
+            if kept != marks:
+                write_json(self.state / "wake.json", kept)
 
     def snapshot_due(self, local: datetime) -> str | None:
         """Return the day whose snapshot has not gone yet, at or after 5:15 PM. `local` is
@@ -658,9 +663,12 @@ class Box:
         Once `flush` unlocks the outbox, it calls `went` with how a flush that posted ended:
         nothing for the lists that were sent, and the reason for the one that failed. It
         passes both when both happened. `post` sends one list, a webhook's POST by default.
+        A webhook with no URL is off: `flush` posts nothing to it and writes no mark.
         The log's line names the route by its kind, whatever its place among the routes.
         """
         route, post = route or self.routes[0], post or _post
+        if not route.home and not route.url:
+            return 0
         outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
         with self._locked():
             waiting = self._outbox(route)
