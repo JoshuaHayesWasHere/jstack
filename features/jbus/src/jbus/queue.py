@@ -49,9 +49,9 @@ follow-up's kind (`KINDS`): a `cleanup-P`, a fix row jbus filed (`filed`), and a
 train. A filer queues its row as jbus's pass (`PASS`, kept as the row's `queued_by`) with no
 approval, and the batch or the pass approves it. So no home approves a follow-up, and nothing of it
 reaches the user. A fix jbus filed from a red check that no row's merge turned red names no
-parent: its ground is the red run its brief names (`red_run`), and its record has no `follows`. A row whose go an edit voided is approved again
-only where its edit kept the parent its go named, and a row the user's word approved waits for the
-user again.
+parent: its ground is the red run its brief names (`red_run`), and its record has no `follows`.
+A row whose go an edit voided is approved again only where its edit kept the parent its go named,
+and a row the user's word approved waits for the user again.
 
 `brief_sha` gives the sha of a brief. It leaves out the `Home:` and `Thread:` lines of the brief's
 head, which say whom the brief is sent to and not what it asks for: a launch writes `Thread:` in,
