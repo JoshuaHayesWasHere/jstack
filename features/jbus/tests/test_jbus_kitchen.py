@@ -362,7 +362,7 @@ def fake_gh(stub, args, cwd):
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
     not found, and a log with an escape sequence in it is refused unless asked for with
     `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
-    changed, from `commit-files.json`.
+    changed, from `commit-files.json`, and its parents and committer, from `commit-made.json`.
     The runs of the browser workflow are in `browser-runs.json`. The repo's workflows are in
     `workflows.json`, and the runs of each other workflow in `workflow-runs.json` by its id. A
     run's jobs come from `run-jobs.json` by the run's id, and the call fails where that entry is
@@ -435,9 +435,10 @@ def fake_gh(stub, args, cwd):
         said = (json.loads(kept.read_text()) if kept.exists() else {}).get(name, [])
         said = json.dumps([said[:1], said[1:]] if "--slurp" in args else said)
     elif args[0] == "api" and args[1].split("/")[-2] == "commits" and "?" not in args[1]:
-        kept = stub / "commit-files.json"
+        kept, made = stub / "commit-files.json", stub / "commit-made.json"
         files = (json.loads(kept.read_text()) if kept.exists() else {}).get(args[1][-40:], [])
-        said = json.dumps({"files": [{"filename": name} for name in files]})
+        how = (json.loads(made.read_text()) if made.exists() else {}).get(args[1][-40:], {})
+        said = json.dumps({"files": [{"filename": name} for name in files], **how})
     elif args[0] == "api" and args[1].endswith("/logs"):
         kept = stub / "logs.json"
         logs = json.loads(kept.read_text()) if kept.exists() else {}
