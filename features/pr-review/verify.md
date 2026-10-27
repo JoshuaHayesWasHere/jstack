@@ -1,6 +1,7 @@
 # A pull request is reviewed
 
-The pr-review skill reviews a finished pull request in a fresh thread: it reads the diff, judges what it found, proves the one safety fact by running code, and writes the findings in the brief, where jbus reads them and tells the crewmate when it owes a line. `blast-radius` and `interrogate` are the questions it asks.
+The pr-review skill reviews a finished pull request in a fresh thread: it reads the diff, judges what it found, proves the one safety fact by running code, and writes the findings in the brief, where jbus reads them and tells the crewmate when it owes a line.
+`blast-radius` and `interrogate` are the questions it asks.
 
 Paths:
 - `features/pr-review/`

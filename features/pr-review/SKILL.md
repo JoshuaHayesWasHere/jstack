@@ -263,7 +263,11 @@ for other in "$H"/tasks/*.md; do
 done
 ```
 
-It prints one line for each open pull request that changes a file this one changes, and one for each brief with no result yet whose `Where:` covers a file this one changes. Those lines go into the section's `In flight:` line, as they are. They say that two pieces of work touch the same file, so that whoever merges second knows: they are not a fault in this pull request and carry no severity. Do not open the other pull requests or briefs to look further. A failed `gh` ends the block with exit code 1, and then the section's `In flight:` line says "not checked", not "none".
+It prints one line for each open pull request that changes a file this one changes, and one for each brief with no result yet whose `Where:` covers a file this one changes.
+Those lines go into the section's `In flight:` line, as they are.
+They say that two pieces of work touch the same file, so that whoever merges second knows: they are not a fault in this pull request and carry no severity.
+Do not open the other pull requests or briefs to look further.
+A failed `gh` ends the block with exit code 1, and then the section's `In flight:` line says "not checked", not "none".
 
 ### A scoped pass
 

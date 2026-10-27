@@ -24,7 +24,14 @@
    fi
    ```
 
-   It prints the section's `Head:` and `Patch-id:` lines whole. `yes` means the pull request's head and this checkout's are both still the head kept at the start, with nothing uncommitted. On `no`, say that first in the section. The crewmate's thread may push or rebase in this worktree while the review is out, and a `no` is how that shows. The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and its second-pass check compares from that head. The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells. It always prints a `Head:` line, since the head reviewed is known whatever GitHub answers: the crew skill and `jmerge` read it. On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
+   It prints the section's `Head:` and `Patch-id:` lines whole.
+   `yes` means the pull request's head and this checkout's are both still the head kept at the start, with nothing uncommitted.
+   On `no`, say that first in the section.
+   The crewmate's thread may push or rebase in this worktree while the review is out, and a `no` is how that shows.
+   The review is still of the head the `Head:` line names, and its verdict stands for that head: whatever moved after it is the crewmate's to account for, and its second-pass check compares from that head.
+   The patch-id names the patch that was reviewed, whatever commit carries it: the same command over a rebased head gives the same id when the rebase left the patch as it was, which is how the crew skill's "A conflict" tells.
+   It always prints a `Head:` line, since the head reviewed is known whatever GitHub answers: the crew skill and `jmerge` read it.
+   On exit code 1 the lines say what could not be asked or worked out: write them in the section as printed.
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
 3. Add what the reviewer finds itself: "Wider than the brief", "The merge gate" and "In flight".
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
@@ -91,4 +98,6 @@
 
 6. Send nothing more, to a home or to anyone: jbus tells the crewmate of the section, and `jmerge`, run by jbus, reads it from the brief.
 7. Say the same in this thread in at most five lines. A reviewer does not review the fixes: the scoped pass of a fix is another reviewer's, launched by the crewmate when its fix changed a file outside `tests/`.
-8. Last, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`. It takes effect when the turn ends, so it is the last call, made only once the block of step 5 printed `written`. A reviewer that stopped early, for any reason, does not settle: its thread stays where the user can see why.
+8. Last, settle this thread: the `t3-code` server's `t3_thread_organize` (if your harness defers it, load it first) with `{"action": "settle"}` and no `threadId`.
+   It takes effect when the turn ends, so it is the last call, made only once the block of step 5 printed `written`.
+   A reviewer that stopped early, for any reason, does not settle: its thread stays where the user can see why.

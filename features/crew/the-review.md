@@ -81,7 +81,10 @@ The findings come as one message in this thread, from jbus and not from the revi
 The message comes once every reviewer of the head has written its section and `jmerge` says the pull request waits on your answers, so the findings of all of them are handled together, and pushed once.
 It begins `jbus: <slug>'s pull request #<n> at <head12> has its review`, names the sections by their `By:` lines, and lists the findings by id.
 A clean review brings no message and asks no line of you: `jmerge` merges it once it is green.
-Fix what you agree with and say here why for the rest, each by its severity as below. Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again. Handling the findings sends the home nothing. A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
+Fix what you agree with and say here why for the rest, each by its severity as below.
+Then run the check command, push, add one line to the Result saying what woke you and what you did, and end your turn again.
+Handling the findings sends the home nothing.
+A finding that needs the user's word is settled on a default and parked as a gate ("Do the task"): it is fixed or not fixed by that default, and does not hold up the `Fixed:` line.
 After that push, run the block of "Do the task" that asks `jmerge --scope` again, and give each `outside:` file it prints a `Wider:` line in the last Result, or take the file back out and push again.
 
 Every finding ends one of two ways, and none is left unanswered. The findings have ids, `F1`, `F2`, ..., which no reviewer writes: two reviewers' findings of one place are one id, and this lists them, merged and triaged, each with its bucket, its reviewers and the answer it has so far. Run it with the block at the top:
@@ -109,13 +112,23 @@ Then run this, with the block at the top. It reads the same list, and says what 
 uv run --project "$T/../source" jbriefs --findings "$H/tasks/<slug>.md" --left
 ```
 
-On `wait`, no review is written yet: end your turn, since jbus's message is the wake. On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above. On `not yet`, a finding has no answer that counts: the ids after its colon are the ones, each with why its answer is refused where it has one, and a review from before the ids names none. Give each its line. Otherwise it says which `Fixed:` line to write. After a second pass or a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them. The sections of one head are one review, one from each reviewer. Where the last review has findings and none of them is fixed, it says `none needed` whatever an earlier pass fixed. The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head. `jmerge` reads both: it merges on the `Fixed:` line, and waits, on every path, until each `Act on` finding has an answer that counts.
+On `wait`, no review is written yet: end your turn, since jbus's message is the wake.
+On `wait: <k> of <n> reviewers`, a reviewer has not written yet: push nothing and end your turn, as above.
+On `not yet`, a finding has no answer that counts: the ids after its colon are the ones, each with why its answer is refused where it has one, and a review from before the ids names none.
+Give each its line.
+Otherwise it says which `Fixed:` line to write.
+After a second pass or a scoped review the findings of every review are listed, and the earlier answers stay: add the new ones under them.
+The sections of one head are one review, one from each reviewer.
+Where the last review has findings and none of them is fixed, it says `none needed` whatever an earlier pass fixed.
+The answers say what became of each finding, and the `Fixed:` line says once, for the whole review, that all of them are handled and at which head.
+`jmerge` reads both: it merges on the `Fixed:` line, and waits, on every path, until each `Act on` finding has an answer that counts.
 
 When the findings are handled, which is when the block says `write Fixed:`, and not before, first run the block of "A second pass" and add the `Second pass:` line it prints. Then add one line to the Result in one of these two shapes. It is what tells "fixed" from "findings sent, not fixed yet", and `jmerge` merges on it (run by jbus, or by a home while `home-thread` holds an id):
 Before it, run the check command at that head (in jstack `make check-fast BASE=origin/main`), add `Checked: <the command> exit <its exit> at <the full head>` to the Result, and write `Fixed:` only after exit 0 there, since `jmerge` marks the draft ready on the `Fixed:` line and CI's run must not be the first check that head gets; on another exit, write no `Fixed:` and park a gate ("Do the task") that names what failed and whether it fails on the default branch too.
 
 - `Fixed: <full commit>`: the head you pushed, from `git rev-parse HEAD` after the push;
-- `Fixed: none needed, <reason>`: when you decline every finding. Nothing was pushed.
+- `Fixed: none needed, <reason>`: when you decline every finding.
+  Nothing was pushed.
 
 The Result has one `Fixed:` line. If you push again for a failed check after writing it with a commit, set it to the new head. A rebase leaves it as it is: `jmerge` compares the rebased head with the commit that line names ("A conflict").
 
