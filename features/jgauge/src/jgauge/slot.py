@@ -23,6 +23,10 @@ with none to spare it registers as a waiter, as it does with every slot taken. T
 then runs its command again. That run takes the slot and takes the thread out of the waiters
 file, and with it its claim.
 
+A run with `--thread` is on record as its thread's while its command runs, and its end is on
+record once the command ends, however it ends (`jgauge.holders`). So jbus counts a thread whose
+turn ended during its own run as at work, and wakes it once the run ends.
+
 The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a run it starts
 knows a slot is held: a TLC model check in a suite takes no second slot, and cannot wait on the
 one its own suite holds.
@@ -50,7 +54,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jgauge import sizes, waiters
+from jgauge import holders, sizes, waiters
 
 SHORT_LIMIT_SECONDS = 120.0
 LOOK_EVERY_SECONDS = 0.2
@@ -226,6 +230,8 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
     held, lock = took
     own = _temporary(lock)
     child: subprocess.Popen | None = None
+    mine: holders.Holder | None = None
+    code: int | None = None
     early: list[int] = []
 
     def pass_on(number: int, _frame: object) -> None:
@@ -249,11 +255,19 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
         signal.signal(signal.SIGINT, signal.SIG_IGN if lane.limit is None else pass_on)
         for number in early:
             _signal(child, number, lane)
+        if thread:
+            mine = holders.hold(
+                lock.parent, thread, name(lane), child.pid, command, datetime.now(UTC)
+            )
         try:
             code = child.wait(timeout=lane.limit)
         except subprocess.TimeoutExpired:
-            return _stop(child, lane)
-        return code if code >= 0 else 128 - code
+            code = _stop(child, lane)
+        else:
+            code = code if code >= 0 else 128 - code
+        return code
     finally:
+        if mine is not None:
+            holders.end(lock.parent, mine.id, 1 if code is None else code, datetime.now(UTC))
         shutil.rmtree(own, ignore_errors=True)
         os.close(held)

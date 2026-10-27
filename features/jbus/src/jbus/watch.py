@@ -46,7 +46,7 @@ from jbus.mirror import last_result, sections
 from jbus.passes import Changed, Depends, Pass, Slot
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
-from jgauge import slot, waiters
+from jgauge import holders, slot, waiters
 from jmerge import checks as reading
 from jmerge import mainjson
 from jmerge import stacked as stacks
@@ -101,7 +101,8 @@ class World:
     thread that the list does not have. `archived` holds, by slug, the threads that T3 Code
     reports as archived. `missing` holds the slugs whose thread is unknown to T3 Code, and
     `unasked` the slugs for which jbus could not ask T3 Code. `waiting` holds the threads that
-    wait on a test slot and are not woken yet (`jgauge.waiters`), which jbus reads once a pass.
+    wait on a test slot and are not woken yet (`jgauge.waiters`), and `holding` the threads whose
+    own run holds a test slot now (`jgauge.holders`), which jbus reads once a pass.
     """
 
     threads: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
@@ -112,6 +113,7 @@ class World:
     open: dict[str, dict[str, Any]] = field(default_factory=dict)
     merged: dict[str, dict[str, Any]] = field(default_factory=dict)
     waiting: set[str] = field(default_factory=set)
+    holding: set[str] = field(default_factory=set)
 
     def thread(self, slug: str) -> dict[str, Any] | None:
         live = self.threads.get(slug, [])
@@ -282,7 +284,11 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     held = budget.held(left)
     if client is None:
         return replace(_silent(run, "no token: run `jbus t3 login`"), held=held)
-    world = World(waiting={one.thread for one in waiters.read(slot.locks_dir()) if not one.woken})
+    locks = slot.locks_dir()
+    world = World(
+        waiting={one.thread for one in waiters.read(locks) if not one.woken},
+        holding={one.thread for one in holders.holding(locks)},
+    )
     slug_of = tied(run)
     url_of = {slug: url for url, slug in slug_of.items()}
     try:
@@ -737,7 +743,7 @@ def judged(
 
 
 def unwritten(
-    run: Pass, thread: dict[str, Any] | None, state: work.State, waiting: set[str]
+    run: Pass, thread: dict[str, Any] | None, state: work.State, slotted: set[str]
 ) -> str:
     """Return why a `stale` row has nobody on it, or nothing while its crew is still on it.
 
@@ -747,18 +753,19 @@ def unwritten(
     to the slug's home to close (`leftover`). The row stays `left` until the home ends it, the
     thread goes on, or the row leaves the queue.
 
-    If a thread ended its turn to wait on a test slot, so that it is one of `waiting`, its row
-    is never `left`, however long the thread is quiet: jbus wakes the thread when a slot is
-    free (`slotwait`). After that, the rule above counts again from the thread's last write.
+    If a thread ended its turn to wait on a test slot, or its own run holds one, so that it is
+    one of `slotted`, its row is never `left`, however long the thread is quiet: jbus wakes the
+    thread when a slot is free, or when its run ends (`slotwait`). After that, the rule above
+    counts again from the thread's last write.
     """
     if state.value not in ("lost", "hung") or state.facts.written != work.Written.NONE:
+        return ""
+    if thread is not None and jsettings.thread_id(str(thread.get("threadId", ""))) in slotted:
         return ""
     if state.value == "hung":
         return "its turn hung with nothing written"
     if thread is None:
         return "its thread is gone and nothing is written"
-    if jsettings.thread_id(str(thread.get("threadId", ""))) in waiting:
-        return ""
     quiet = (run.now - when(thread["updatedAt"])).total_seconds() / 60
     if quiet < UNWRITTEN_MINUTES:
         return ""
@@ -778,7 +785,7 @@ def status(
     pull = world.open.get(slug) or world.merged.get(slug)
     word = work.status(state)
     reason = ""
-    if word == "stale" and (why := unwritten(run, found, state, world.waiting)):
+    if word == "stale" and (why := unwritten(run, found, state, world.waiting | world.holding)):
         word, reason = "left", why
     elif word in ("merged", "left", "done"):
         result = last_result(brief_of(run, slug))
