@@ -454,6 +454,34 @@ def test_a_question_a_home_closed_in_its_gates_file_is_closed_and_nothing_is_sen
     )
 
 
+def held(asked="drop the old branch?", n="<n>", status="open"):
+    """Return a gate that holds for the user, with its case and its fail-safe under `Undo:`."""
+    return gate(asked, n=n, status=status).replace(
+        "Undo: pick the other\n",
+        "Undo: pick the other\nHolds: deletes data\nFail-safe: the dry-run in /tmp/gone.txt\n",
+    )
+
+
+def test_a_home_closes_no_gate_that_holds_in_its_gates_file_and_the_pass_says_so_once(kitchen):
+    ask(kitchen)
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    answered = gate(n=3, status="answered: coffee") + "\n" + held(n=4, status="answered: yes")
+    (kitchen.home / "gates.md").write_text(answered)
+    said = kitchen.poll(later(10))
+    plain, holds = records(kitchen)["records"]
+    assert plain["answer"]["closed_by"] == "gates.md"
+    assert holds["answer"] is None
+    line = (
+        "note alpha: question 2 holds (deletes data) for user's own answer, and "
+        f"{kitchen.home / 'gates.md'} marked it answered: it stays open"
+    )
+    assert [one for one in said if "question 2" in one] == [line]
+    assert [one["key"] for one in listed(kitchen)] == ["gate:q2"]
+    assert [one for one in kitchen.poll(later(20)) if "question 2" in one] == []
+    assert answer(kitchen, 2, "yes", default=True)[0] == 0
+    assert records(kitchen)["records"][1]["answer"]["closed_by"] == "jbus answer"
+
+
 @pytest.mark.parametrize("text", ["not json", "{}", '{"next": 2, "records": [{"number": 1}]}'])
 def test_a_file_that_is_not_the_one_jbus_wrote_is_refused_and_left_as_it_is(kitchen, text):
     ask(kitchen)
