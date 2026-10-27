@@ -61,6 +61,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import below
+from jbriefs.home import thread_of
 from jbus import mirror, outbox, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
