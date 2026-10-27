@@ -10,7 +10,7 @@ import pytest
 
 from jbus import questions, threads, waiting, work
 from jbus.view.panels.you import panel as panel_you
-from jbus.view.panels.you.panel import ANSWERS, APPROVES, OPENS, THREADS
+from jbus.view.panels.you.panel import ACTS, ANSWERS, APPROVES, OPENS, THREADS
 from test_jbus_kitchen import GATE as PIPED
 from view.scene import (
     GATE,
@@ -391,7 +391,7 @@ process.stdout.write(JSON.stringify(drawn));
 """
 
 
-def test_each_act_the_inbox_serves_draws_one_filled_control(tmp_path):
+def test_each_act_the_inbox_serves_draws_one_filled_control():
     """Whatever a need asks of the user, its row draws one primary action and no second: an
     answer with a default and one without, an approval, the link to its home's thread, and a
     need with no act of its own, which opens where it is. An act kind added to the server shows
@@ -408,7 +408,7 @@ def test_each_act_the_inbox_serves_draws_one_filled_control(tmp_path):
         "thread": need | {"act": THREADS, "thread": "t3code://thread/1", "verb": "Write"},
         "no act": need | {"act": OPENS, "verb": "Set it up"},
     }
-    assert {ANSWERS, APPROVES, THREADS, OPENS} == {one["act"] for one in needs.values()}
+    assert set(ACTS.values()) | {ANSWERS, THREADS} == {one["act"] for one in needs.values()}
     script = Path(panel_you.__file__).with_suffix(".js")
     done = subprocess.run(
         ["node", "-e", DRAWN, str(script)],
