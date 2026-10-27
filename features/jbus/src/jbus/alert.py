@@ -43,11 +43,9 @@ streak. The status file shows a copy, under `streaks`.
 from __future__ import annotations
 
 import argparse
-import fcntl
 import functools
 import json
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -56,9 +54,10 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs.home import thread_of
-from jbus import outbox, passes, read_json, verbs, wake, write_json
+from jbus import locked, outbox, passes, read_json, verbs, wake, write_json
 from jbus.t3 import Client, T3Error
 
+LOCK = "streaks.lock"
 WAKE = """\
 jbus: {count} events for the user, each a decision or a stop that is theirs. End the turn by "How a
 turn ends" in the home skill, with one line for each, keyed `jbus`, as that section says.
@@ -120,16 +119,6 @@ def _path(state: Path) -> Path:
     return state / "streaks.json"
 
 
-@contextmanager
-def _locked(state: Path) -> Iterator[None]:
-    """Hold the lock from a streak's read to its write, so that no count and no `alerted` is
-    lost."""
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "streaks.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
-
-
 def streaks(state: Path) -> dict[str, dict]:
     """Return every open streak, by key, as the status file shows them."""
     return read_json(_path(state), {})
@@ -165,7 +154,7 @@ def failed(
     """Count one failure. From the count `after` on, return the alert line on each call until
     `told` records it."""
     now = now or datetime.now(UTC)
-    with _locked(state):
+    with locked(state, LOCK):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
         one.count += 1
         _keep(state, key, one)
@@ -184,7 +173,7 @@ def ok(state: Path, key: str, *, user: jsettings.Settings) -> str | None:
 
     A streak that had not alerted ends here, with no line.
     """
-    with _locked(state):
+    with locked(state, LOCK):
         one = streak(state, key)
         if one is not None and not one.alerted:
             _keep(state, key, None)
@@ -199,7 +188,7 @@ def opened(state: Path, key: str, line: str, *, now: datetime) -> str | None:
     incident once. `line` gives the number and the limit it is against. This function writes the
     streak when the incident starts and not on each look, so its count stays 1: an incident is not a
     failure in a row."""
-    with _locked(state):
+    with locked(state, LOCK):
         one = streak(state, key)
         if one is None:
             one = Streak(key, 1, now.isoformat(), False)
@@ -216,7 +205,7 @@ def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str
     incident ended. The answer then also says when the incident began, and this function marks
     the streak as paged. So `told` ends the streak, and if this page does not go out either,
     the next look sends a plain recovered line."""
-    with _locked(state):
+    with locked(state, LOCK):
         one = streak(state, key)
         owed = one is not None and not one.alerted
         if one is not None and owed:
@@ -231,7 +220,7 @@ def closed(state: Path, key: str, line: str, *, user: jsettings.Settings) -> str
 def told(state: Path, key: str) -> None:
     """Mark the streak alerted, or end it, once the line that `failed` or `ok` returned is in
     the queue."""
-    with _locked(state):
+    with locked(state, LOCK):
         one = streak(state, key)
         if one is None:
             return
@@ -264,7 +253,7 @@ def recovered(
 
 def retire(state: Path, key: str) -> None:
     """End a streak that nothing counts any more, with no line, since what counted it is gone."""
-    with _locked(state):
+    with locked(state, LOCK):
         if streak(state, key):
             _keep(state, key, None)
 
@@ -572,7 +561,7 @@ def page(run: passes.Pass, client: Client | None) -> None:
             continue
         if not went:
             continue
-        with _locked(state):
+        with locked(state, LOCK):
             kept = streak(state, key)
             if kept is not None and kept.since == one.since:
                 kept.paged = due

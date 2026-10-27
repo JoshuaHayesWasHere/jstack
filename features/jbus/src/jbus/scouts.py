@@ -52,7 +52,7 @@ import jbus
 import jroles
 import jsettings
 from jbriefs import parse, skills
-from jbus import asks, dispatch, queue, threads, verbs, write_json
+from jbus import asks, dispatch, queue, t3, verbs, write_json
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.view import state as view_state
 from jroles import pool
@@ -307,7 +307,7 @@ def adopt(run: Any, client: Client, slug: str, launch: dict[str, Any]) -> None:
     With none or several, record a condition and leave the row: it is never launched again."""
     title = f"{TITLE}{slug}"
     try:
-        listed = threads._listed(client, run.project.project_id, titleContains=title)
+        listed = t3.listed(client, run.project.project_id, titleContains=title)
     except T3Error as error:
         run.say(f"wait scout {slug}: its lost launch reply could not be looked up ({error})")
         return

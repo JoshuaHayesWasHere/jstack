@@ -53,7 +53,6 @@ from jbus import (
     alert,
     archived,
     dispatch,
-    expedite,
     merge,
     passes,
     questions,
@@ -168,9 +167,6 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
             for row in rows or []
             if watch.gone(run, world, row["slug"], dispatch.launched(run, row["slug"]))
         )
-        half.crews = expedite.tell(run, client, world, half.said)
-    else:
-        half.crews = expedite.told(run, half.said)
     steps(half, "after-expedite")
     if world is not None and client is not None and rows is not None:
         half.turns = dispatch.turns(run, client, world, rows, half.seen.out or ())

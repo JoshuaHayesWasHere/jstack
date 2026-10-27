@@ -32,13 +32,15 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
 import jsettings
 from jbriefs import below
-from jbus import Refused, budget, merge, queue, read_json, verbs, work, write_json
+from jbriefs.home import home_of, thread_of
+from jbus import Refused, budget, merge, queue, read_json, t3, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import last_result, sections
 from jbus.passes import Changed, Depends, Pass, Slot
@@ -119,9 +121,7 @@ class World:
 
     def live(self) -> tuple[str, ...]:
         """The slug of each crew thread at work, once for each such thread."""
-        return tuple(
-            slug for slug, found in self.threads.items() for t in found if t["status"] in LIVE
-        )
+        return tuple(slug for slug, found in self.threads.items() for t in found if at_work([t]))
 
     def stack_on(self, run: Pass, unmet: list[str], brief: str) -> stacks.Stacked | None:
         """The open pull request a row whose depends `unmet` are not over launches stacked on: the
@@ -170,15 +170,23 @@ def when(stamp: str) -> datetime:
     return datetime.fromisoformat(stamp)
 
 
+def at_work(
+    threads: Iterable[dict[str, Any]], title: str | None = None, *, settled_too: bool = False
+) -> bool:
+    """Say whether any of the threads is at work: its status is one of `LIVE` and it is not
+    settled. With a `title`, `TITLE` and a slug, only the slug's own thread counts. A caller that
+    sent a settled thread a message counts it too (`settled_too`), since T3 Code leaves a thread
+    settled while it takes up a message."""
+    return any(
+        thread.get("status") in LIVE
+        and (settled_too or not thread.get("settled"))
+        and (title is None or TITLE + thread["title"].removeprefix(TITLE).strip() == title)
+        for thread in threads
+    )
+
+
 def crew_threads(client: Client, project_id: str, contains: str = TITLE) -> list[dict[str, Any]]:
-    found, cursor = [], None
-    for _ in range(20):
-        asked = {"projectId": project_id, "titleContains": contains, "limit": 100}
-        said = client.call("t3_thread_list", {**asked, **({"cursor": cursor} if cursor else {})})
-        found += said.get("threads", [])
-        cursor = said.get("nextCursor")
-        if not cursor:
-            break
+    found = t3.listed(client, project_id, titleContains=contains)
     return [t for t in found if str(t.get("title", "")).startswith(TITLE)]
 
 
@@ -348,6 +356,20 @@ def job(run: Pass, repo: str, number: str) -> dict:
     return given if isinstance(given, dict) else {}
 
 
+def home_thread(run: Pass, brief: str) -> str:
+    """Return the thread of the home that owns the brief (`jbriefs.home`), or nothing while that
+    home has no thread."""
+    return thread_of(home_of(run.home, brief))
+
+
+def task_brief(run: Pass, slug: str) -> str:
+    """Return the slug's brief under the home's `tasks/`, or nothing where there is none."""
+    try:
+        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
+    except OSError:
+        return ""
+
+
 def brief_of(run: Pass, slug: str) -> str:
     for path in (run.home / "tasks" / f"{slug}.md", run.state / "briefs" / f"{slug}.md"):
         try:
@@ -428,7 +450,7 @@ def ended(run: Pass, world: World, slug: str) -> End | None:
     thread = world.thread(slug)
     if slug in world.open or slug in world.merged:
         return None
-    if thread is None or (not thread.get("settled") and thread["status"] in LIVE):
+    if thread is None or at_work([thread]):
         return None
     result = last_result(brief_of(run, slug))
     if not result:

@@ -44,10 +44,10 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from jbus import END_TURN, dispatch, read_json, rebase, verbs
+from jbus import END_TURN, dispatch, rebase, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
-from jbus.watch import World, against
+from jbus.watch import World, against, task_brief
 from jmerge import stacked as stacks
 
 EVENTS = {"restack": "quiet"}
@@ -75,10 +75,10 @@ MOVED = (
 def move(run: Pass, client: Client, world: World) -> None:
     """Tell the crew of each stacked link whose base moved, once for each move, and base a link
     whose base merged on the branch it merged into, or the one its brief names."""
-    sent = set(read_json(run.state / "sent.json", []))
+    sent = set(run.box.sent())
     for slug, pull in world.open.items():
         head = str(pull.get("headRefOid") or "")
-        brief = _brief(run, slug)
+        brief = task_brief(run, slug)
         stacked = stacks.of(brief)
         if not head or stacked is None or stacked.at or not rebase.crew(run, slug):
             continue
@@ -210,7 +210,7 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     it was, with the reason said."""
     head, number = str(pull["headRefOid"]), pull["number"]
     branch = str(pull.get("headRefName") or slug)
-    if rebase.reviewing(_brief(run, slug)):
+    if rebase.reviewing(task_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
     busy = _busy(run, crew, head) if crew else ""
@@ -291,13 +291,6 @@ def _onto(run: Pass, brief: str, merged: dict[str, Any]) -> str:
     except ValueError:
         said = {}
     return str(said.get("baseRefName") or "") if isinstance(said, dict) else ""
-
-
-def _brief(run: Pass, slug: str) -> str:
-    try:
-        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-    except OSError:
-        return ""
 
 
 def _rewrite(run: Pass, slug: str, stacked: stacks.Stacked) -> None:

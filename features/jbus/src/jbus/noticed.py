@@ -32,21 +32,20 @@ makes no queue row for one. When the file does not parse, every verb that would 
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import json
 import re
 from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
 import jbus
 import jsettings
-from jbus import mirror, plan, queue, verbs, write_json
+from jbus import locked, mirror, plan, queue, verbs, write_json
 from jbus.passes import Pass
 
+LOCK = "noticed.lock"
 NAME = "noticed.json"
 NEW, TAKEN, DROPPED = "new", "taken", "dropped"
 MARKS = (NEW, TAKEN, DROPPED)
@@ -146,14 +145,6 @@ def path(state: Path) -> Path:
     return state / NAME
 
 
-@contextmanager
-def _locked(state: Path) -> Iterator[None]:
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "noticed.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
-
-
 def read(state: Path) -> list[Record] | None:
     """Return every record as the file keeps it, or None where there is no file yet. Raise
     `Unparsable` when the file is not in the form this module writes."""
@@ -179,7 +170,7 @@ def keep(state: Path, home: Path, now: datetime, *, before: frozenset[str] = fro
     every line that exists, marked dropped with the why `FROM_BEFORE`. It does the same for every
     line of the files `before` names, which look like `tasks/<slug>.md` or `scouts/<slug>.md`: the
     ones `mirror.scan` found restored."""
-    with _locked(state):
+    with locked(state, LOCK):
         records = read(state)
         first = records is None
         records = records or []
@@ -245,7 +236,7 @@ def mark(
         raise jbus.Refused("refused: --why says why it is dropped, in words")
     if row and not _named(state, home, row):
         raise jbus.Refused(f"refused: {row} is no queue row and no plan entry")
-    with _locked(state):
+    with locked(state, LOCK):
         records = read(state) or []
         at_key = [n for n, one in enumerate(records) if one.key == given]
         if not at_key:

@@ -61,7 +61,7 @@ from typing import TYPE_CHECKING
 
 from jbus import queue, read_json, threads, verbs, write_json
 from jbus.passes import Pass
-from jbus.watch import LIVE
+from jbus.watch import at_work
 from jgauge import slot
 
 if TYPE_CHECKING:
@@ -468,9 +468,7 @@ def working(out: list[threads.Out]) -> set[tuple[str, str]]:
     """The tasks with a thread at work, as a role, `crew` or `scout`, and a slug."""
     roles = {"crew": "crew", "reviewer": "crew", "scout": "scout"}
     return {
-        (roles[one["role"]], one["slug"])
-        for one in out
-        if one["role"] in roles and one["status"] in LIVE
+        (roles[one["role"]], one["slug"]) for one in out if one["role"] in roles and at_work([one])
     }
 
 

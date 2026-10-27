@@ -80,7 +80,7 @@ from jbus import (
 )
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import World
+from jbus.watch import World, task_brief
 from jmerge import mainjson, ready
 
 HELD = "hold-stall"
@@ -190,13 +190,6 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
     return next((found for found in map(_id, reversed(named)) if found), "")
 
 
-def _brief(run: Pass, slug: str) -> str:
-    try:
-        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-    except OSError:
-        return ""
-
-
 def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) -> tuple[str, str]:
     """Return the thread a wait is on and the line jbus sends it: the reviewer's line, or nothing
     where the crew is the one to carry on."""
@@ -262,7 +255,7 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     number, reason, line = wait["number"], wait["reason"], wait["line"]
     key = f"{CLOCK}|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     thread, did = wait["thread"], "relaunched its reviewer" if line else "carried its crew on"
-    crew = briefs.thread_of(_brief(run, slug))
+    crew = briefs.thread_of(task_brief(run, slug))
     if wait["kind"] == "scoped" and line and crew and rebase.worktree(client, thread) is None:
         there = rebase.where(client, crew)
         line = ROOTED.format(reviewer=thread, number=number, worktree=there, line=line)
@@ -304,7 +297,7 @@ def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str
         thread=wait["thread"],
         crew=crew,
     )
-    at = thread_of(home_of(run.home, brief))
+    at = watch.home_thread(run, brief)
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
     sending = f"{CLOCK}-home|{slug}|{key}"
     went = _send(run, client, at, text, sending, needs="decide") if at else "no home"
@@ -345,7 +338,7 @@ def tick(
             continue
         if not dispatch.launched(run, slug) or slug in run.limited or slug in run.gated:
             continue
-        brief = _brief(run, slug)
+        brief = task_brief(run, slug)
         thread, line = _ask(run, slug, kind, reason, head, brief)
         if not thread:
             continue
@@ -410,7 +403,7 @@ def held(
             continue
         if _ahead(reason, world):
             continue
-        scope = home_of(run.home, _brief(run, slug))
+        scope = home_of(run.home, task_brief(run, slug))
         name = "" if scope == run.home else scope.name
         key = hashlib.sha256(f"{name}\n{reason}".encode()).hexdigest()[:12]
         group = groups.setdefault(key, {"reason": reason, "home": name, "rows": [], "numbers": []})

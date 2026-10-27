@@ -218,7 +218,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
     account(run, unrun, green)
     fixed = (green or owed_at) if red and not broken else ""
     owed, held = False, []
-    sent = read_json(run.state / "sent.json", [])
+    sent = run.box.sent()
     for slug, pull in world.open.items() if last and fixed else ():
         if asked_before and slug not in kept:
             continue

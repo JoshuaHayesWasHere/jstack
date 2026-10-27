@@ -54,7 +54,7 @@ from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
 from jbus.wake import cut, notify
-from jbus.watch import World
+from jbus.watch import World, task_brief
 from jmerge import stacked as stacks
 from jmerge.lines import READY
 
@@ -113,7 +113,7 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
 
     def on_base(slug: str) -> str:
         """The row a stacked link still sits on, or nothing: its merge waits on that row's."""
-        found = stacks.of(_brief(run, slug)) if table.get(slug, {}).get("depends") else None
+        found = stacks.of(task_brief(run, slug)) if table.get(slug, {}).get("depends") else None
         return found.slug if found and not found.at else ""
 
     def roots(slug: str, seen: set[str]) -> dict[str, str]:
@@ -273,9 +273,9 @@ def prove(run: Pass, client: Client, world: World, number: int, slug: str, short
     """
     head = world.open[slug].get("headRefOid", "")
     named = _UNPROVEN.search(short)
-    if not named or f"proof|{slug}|{head[:12]}" in read_json(run.state / "sent.json", []):
+    if not named or f"proof|{slug}|{head[:12]}" in run.box.sent():
         return
-    brief = _brief(run, slug)
+    brief = task_brief(run, slug)
     changed = [(before, to) for moved, before, to in below.rebases(brief) if moved]
     rebased = [before for before, to in changed[-1:] if to == head]
     at = (rebased or [head])[0]
@@ -292,13 +292,6 @@ def prove(run: Pass, client: Client, world: World, number: int, slug: str, short
         return
     ask = rebase.unproven(f"{old.stdout.strip()}..{saw}", f"{new.stdout.strip()}..{head}")
     rebase.deliver(run, client, world, number, short, ask)
-
-
-def _brief(run: Pass, slug: str) -> str:
-    try:
-        return (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
-    except OSError:
-        return ""
 
 
 def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
@@ -323,7 +316,7 @@ def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
         if not head:
             continue
         prove(run, client, world, number, slug, short)
-        brief = _brief(run, slug)
+        brief = task_brief(run, slug)
         reviewing = launched_for(brief, head)
         seen = was.get(slug, {})
         same = (seen.get("head"), seen.get("short")) == (head, short)

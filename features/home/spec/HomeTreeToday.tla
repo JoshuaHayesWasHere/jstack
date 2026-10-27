@@ -63,13 +63,13 @@ CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
     /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh goes into the outbox of each route the setting picks, once: its
-\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:377 `write_json(self.state
+\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:369 `write_json(self.state
 \* / "sent.json", [*sent, key])`). The model's setting picks one route, home or webhook, and
 \* leaves out both. A new call is a change in what the child has out, so its spell ends.
 RaiseCall(c) ==
     /\ c \in Raised
     /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:183 `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, wake)     \* jbus/wake.py:379 `else self.routes:`
+    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, wake)     \* jbus/wake.py:371 `else self.routes:`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
     /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
@@ -102,7 +102,7 @@ Answer(c) ==
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
     /\ watch[k] = "asked"     \* jbus/children.py:274 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:692 `why = post(route, body(some))`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:684 `why = post(route, body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
 \* A pass posts what waits in the outbox of each route the setting picks, and only those. A post
@@ -110,8 +110,8 @@ Steps(k) ==
 Deliver(m) ==
     \E r \in Routes :
         /\ msg[m] = r
-        /\ r = wake     \* jbus/alert.py:334 `for route in run.box.routes:`
-        /\ up[r]        \* jbus/wake.py:692-694 `why = post(route, body(some)) if why: break`
+        /\ r = wake     \* jbus/alert.py:323 `for route in run.box.routes:`
+        /\ up[r]        \* jbus/wake.py:684-686 `why = post(route, body(some)) if why: break`
         /\ msg' = Set(msg, m, "told")
         /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock,
                        mode>>
@@ -119,10 +119,10 @@ Deliver(m) ==
 \* (pull request 332), so a change of the setting strands no call.
 Rehome(m) ==
     /\ msg[m] \in Routes
-    /\ msg[m] # wake     \* jbus/alert.py:325 `moved(run)`; jbus/wake.py:546 `for old in self.left:`
+    /\ msg[m] # wake     \* jbus/alert.py:314 `moved(run)`; jbus/wake.py:538 `for old in self.left:`
     /\ msg' = Set(msg, m, wake)
     /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* The wake setting changes between home and webhook (jbus/__init__.py:119-120 `def to_home(self) ->
+\* The wake setting changes between home and webhook (jbus/__init__.py:122-123 `def to_home(self) ->
 \* bool: return self.wake in ("home", "both")`).
 ChangeWake ==
     /\ RoutesMove

@@ -63,12 +63,10 @@ else.
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import json
 import re
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -83,6 +81,7 @@ from jbus import (
     cancelled,
     dispatch,
     leftover,
+    locked,
     questions,
     queue,
     read_json,
@@ -97,6 +96,7 @@ from jbus.wake import Box
 if TYPE_CHECKING:
     from jbus.cli import Half
 
+LOCK = "blockers.lock"
 EVENTS = {"decision": "user"}
 KIND = "decision"
 LEDGER = "blockers.json"
@@ -127,14 +127,6 @@ def decide(box: Box, slug: str, key: str, said: str, reply: str) -> bool:
 
 def _count(number: int, noun: str) -> str:
     return f"{number} {noun}{'' if number == 1 else 'es'}"
-
-
-@contextmanager
-def _locked(directory: Path) -> Iterator[None]:
-    directory.mkdir(parents=True, exist_ok=True)
-    with open(directory / "blockers.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        yield
 
 
 def ledger(directory: Path) -> dict[str, list[dict[str, str]]]:
@@ -171,7 +163,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
         )
     directory = homes.home_of(config.home(project), text)
     sha = queue.brief_sha(text)
-    with _locked(directory):
+    with locked(directory, LOCK):
         kept = ledger(directory)
         had = kept.get(key) if isinstance(kept.get(key), list) else []
         if any(one.get("sha") == sha for one in had):
@@ -199,7 +191,7 @@ def admit(config: Config, project: Project, slug: str, text: str) -> Callable[[]
 def _release(directory: Path, key: str, sha: str = "", slug: str = "") -> None:
     """Take back the count of a fix the queue refused, by its sha, or of a fix row removed
     unrun, by its slug."""
-    with _locked(directory):
+    with locked(directory, LOCK):
         kept = ledger(directory)
         if key not in kept:
             return

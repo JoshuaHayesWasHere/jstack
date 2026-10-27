@@ -74,7 +74,8 @@ import jbus
 import jroles
 import jsettings
 from jbriefs import parse as briefs
-from jbus import dispatch, outbox, read_json, threads, verbs
+from jbriefs.home import ids, scopes
+from jbus import dispatch, outbox, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
@@ -100,7 +101,6 @@ WHERE = {
     "home": ("", HOME),
 }
 MAP_ROLE = {"crew": "crew", "reviewer": "review", "scout": "scout", "home": "home"}
-_WORD = re.compile(r"\S+")
 _NUMBER = re.compile(r",\s*\d+$")
 
 
@@ -134,15 +134,7 @@ class Mover:
 def _homes(run: Pass) -> set[str]:
     """Return the thread in each `home-id` under the project's home directory, the root's and every
     scope's."""
-    found = set()
-    for file in (run.home / "home-id", *run.home.glob("*/home-id")):
-        try:
-            word = _WORD.search(file.read_text(errors="replace"))
-        except OSError:
-            continue
-        if word:
-            found.add(word[0])
-    return found
+    return {ids(run.home)[0], *(now for _, now, _ in scopes(run.home))} - {""}
 
 
 def _named(run: Pass) -> dict[str, str]:
@@ -285,7 +277,7 @@ def failover(run: Pass, client: Client, world: World) -> None:
     if not found:
         return
     over = _over(run, world)
-    sent = read_json(run.state / "sent.json", [])
+    sent = run.box.sent()
     checked: dict[str, bool] = {}
     for thread in listed:
         at, ended = thread["threadId"], thread["latestRunId"]
@@ -498,7 +490,7 @@ def _replay(args: argparse.Namespace, config: jbus.Config) -> int:
     noted = sorted(str(one.get("itemId") or "") for one in items)
     digest = hashlib.sha256("\n".join(noted).encode()).hexdigest()[:12]
     key = f"failover|{args.thread}|replay:{digest}"
-    if key in read_json(run.state / "sent.json", []):
+    if key in run.box.sent():
         print(f"already replayed: {key} was sent, and nothing is sent again")
         return 0
     move = plan(run, client, {**thread, "threadId": args.thread}, mover, (cap, ""), fill=True)

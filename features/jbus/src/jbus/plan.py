@@ -31,7 +31,6 @@ the entry that has not launched waits for the user's go again, and a launched on
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import os
 import re
@@ -42,7 +41,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import home as homes
-from jbus import Config, Refused, queue, read_json, t3, verbs, write_json
+from jbus import Config, Refused, locked, queue, read_json, t3, verbs, write_json
 
 LINE, STATUS = 56, 60
 _ENTRY = re.compile(r"## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<line>.+)")
@@ -159,6 +158,7 @@ def status(entry: Entry, rows: list[queue.Row]) -> str:
 
 
 GOES = "goes.json"
+LOCK = "goes.lock"
 
 
 @dataclass(frozen=True)
@@ -218,9 +218,7 @@ def goes(state: Path) -> list[Go]:
 def _kept(state: Path, made: Go) -> None:
     """Keep `made` in place of the go its entry had, under the lock that each change of the
     file holds, so two homes that change it at once both keep theirs."""
-    state.mkdir(parents=True, exist_ok=True)
-    with open(state / "goes.lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with locked(state, LOCK):
         others = [one for one in goes(state) if (one.scope, one.entry) != (made.scope, made.entry)]
         write_json(state / GOES, [asdict(one) for one in [*others, made]])
 
