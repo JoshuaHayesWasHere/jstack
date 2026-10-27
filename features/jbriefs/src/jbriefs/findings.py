@@ -395,7 +395,7 @@ def _sections(text: str) -> list[Section]:
     for at, line in enumerate(text.splitlines()):
         if line.startswith("## "):
             listing = dismissing = False
-            if line == "## Review":
+            if line.rstrip() == "## Review":
                 found.append(
                     {"by": "", "verdict": "", "ran": False, "head": "", "lines": [], "at": at}
                 )

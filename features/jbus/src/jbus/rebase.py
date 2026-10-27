@@ -79,6 +79,8 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from jbriefs import below, findings
+from jbriefs import parse as briefs
 from jbus import END_TURN, cancelled, dispatch, outbox, queue, read_json, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -169,10 +171,6 @@ GREEN = (
     'review" says of a green pull request: the message of the `Reviewer: none` line, or the '
     "`fixed and green` line. " + END_TURN
 )
-_OWED = re.compile(r"^Reviewer: none\b", re.M)
-_LAUNCHED = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): (?!none\b)\S", re.M)
-_REVIEWED = re.compile(r"^## Review\n(?:(?!## ).*\n)*?Head: ", re.M)
-_MODE = re.compile(r"^Review:[ \t]*(\S*)", re.M)
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
 
 
@@ -260,10 +258,7 @@ def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
 def scoping(run: Pass, world: World, number: int, head: str) -> bool:
     """Say whether the brief of the pull request has a `Scoped reviewer:` line of this head."""
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
-    lines = _brief(run, slug).splitlines() if slug else []
-    return any(
-        line.startswith("Scoped reviewer:") and line.split()[-2:] == ["of", head] for line in lines
-    )
+    return bool(slug and below.reviewers(_brief(run, slug), "Scoped reviewer", head))
 
 
 def github(run: Pass, client: Client, world: World) -> None:
@@ -294,7 +289,7 @@ def github(run: Pass, client: Client, world: World) -> None:
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
-            if _REVIEWED.search(brief):
+            if _reviewed(brief):
                 ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
             else:
                 ask = _asked("conflict", CONFLICTED, head)
@@ -350,16 +345,27 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     that already tells of the pull request. jbus alone merges, so no home waits to hear of a fix
     on green, and a brief that says `Review: after` owes no line.
     """
-    mode = _MODE.search(brief)
-    if mode and mode[1] == "after":
+    if "".join(below.line(brief, "Review:").split()[:1]) != "none":
         return False
-    launched = len(_LAUNCHED.findall(brief))
-    if launched > len(_REVIEWED.findall(brief)):
-        return False
+    said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
-    reviewer = launched or _OWED.search(brief) or _REVIEWED.search(brief) or gated
-    unsaid = not reviewer and mode and mode[1] == "none"
-    return bool(unsaid)
+    return not (_launched(brief) or said_none or _reviewed(brief) or gated)
+
+
+def reviewing(brief: str) -> bool:
+    """Say whether a reviewer the crew launched has not written its `## Review` yet."""
+    return _launched(brief) > _reviewed(brief)
+
+
+def _launched(brief: str) -> int:
+    """Return how many reviewer lines of the brief name a reviewer the crew launched."""
+    said = (one for kind in below.REVIEWERS for one in below.reviewers(brief, kind))
+    return sum(map(below.launched, said))
+
+
+def _reviewed(brief: str) -> int:
+    """Return how many `## Review` sections of the brief name the head they saw."""
+    return sum(1 for one in findings.triage(brief).sections if one.head)
 
 
 def _asked(kind: str, message: str, head: str) -> Ask:
@@ -518,7 +524,7 @@ def post(
         brief = (run.home / "tasks" / f"{slug}.md").read_text(errors="replace")
     except OSError:
         brief = ""
-    thread = dispatch.thread_of(brief)
+    thread = briefs.thread_of(brief)
     if not thread:
         run.gate(slug, ask.no_thread, f"#{number}: {reason}", key=f"{ask.no_thread} {head[:12]}")
         return None

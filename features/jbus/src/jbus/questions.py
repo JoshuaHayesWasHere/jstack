@@ -125,8 +125,9 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbriefs import skills
-from jbus import END_TURN, Config, Refused, dispatch, mirror, outbox, queue, verbs, write_json
+from jbriefs import below, skills
+from jbriefs import parse as briefs
+from jbus import END_TURN, Config, Refused, mirror, outbox, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused, typed
 
@@ -313,7 +314,7 @@ def thread_of(home: Path, slug: str) -> str:
     """Return the thread on the `Thread:` line of the slug's brief, or of its request."""
     for kind in ("tasks", "scouts"):
         try:
-            found = dispatch.thread_of((home / kind / f"{slug}.md").read_text(errors="replace"))
+            found = briefs.thread_of((home / kind / f"{slug}.md").read_text(errors="replace"))
         except OSError:
             continue
         if found:
@@ -421,7 +422,7 @@ def _labels() -> list[str]:
 
 
 def _filled(said: str) -> bool:
-    """Return whether a label's text, as `mirror.field` reads it, is more than its
+    """Return whether a label's text, as `jbriefs.below.line` reads it, is more than its
     placeholder."""
     return bool(said.strip()) and not said.strip().startswith("<")
 
@@ -460,18 +461,18 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
     (`_held`).
     """
     _shaped(lines)
-    asked, default = mirror.question(lines), mirror.field(lines, "Default")
+    asked, default = mirror.question(lines), below.line(lines, "Default:")
     options = _proposed(lines)
     holds, fail_safe = _held(lines)
-    named = _THREAD.search(mirror.field(lines, "Asked by"))
+    named = _THREAD.search(below.line(lines, "Asked by:"))
     with _locked(state):
         count, records = _kept(state)
         key = mirror.gate_key(slug, asked)
         said = {
             "thread": thread_of(home, slug) or (named[1] if named else ""),
             "default": default,
-            "built_on": mirror.field(lines, "Built on it"),
-            "undo": mirror.field(lines, "Undo"),
+            "built_on": below.line(lines, "Built on it:"),
+            "undo": below.line(lines, "Undo:"),
             "context": mirror.context(lines),
             "options": options,
             "holds": holds,
@@ -604,9 +605,9 @@ def closed_in_files(run: Pass) -> None:
     words replace a close by silence.
     """
     answered = {
-        key: (mirror.field(body, "Status"), file)
+        key: (below.line(body, "Status:"), file)
         for file, _, _, body, key in mirror.home_gates(run.home)
-        if mirror.field(body, "Status").startswith("answered")
+        if below.line(body, "Status:").startswith("answered")
     }
     if not answered or not any(_open(one) for one in load(run.state)):
         return

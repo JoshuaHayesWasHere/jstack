@@ -544,13 +544,14 @@ def _note(run: Pass, notes: dict[str, str]) -> None:
             text = file.read_text(errors="surrogateescape")
         except OSError:
             continue
-        found = list(re.finditer(r"^## (Result|Report)", text, re.M))
+        lines = text.split("\n")
+        found = [at for at, one in enumerate(lines) if one.startswith(("## Result", "## Report"))]
         if not found:
             kept[name] = line
             continue
-        after = re.search(r"^## ", text[found[-1].end() :], re.M)
-        end = found[-1].end() + after.start() if after else len(text)
-        head, rest = text[:end].rstrip("\n"), text[end:]
+        after = (at for at in range(found[-1] + 1, len(lines)) if lines[at].startswith("## "))
+        end = next(after, len(lines))
+        head, rest = "\n".join(lines[:end]).rstrip("\n"), "\n".join(lines[end:])
         file.write_text(
             f"{head}\n{line}\n" + (f"\n{rest}" if rest else ""), errors="surrogateescape"
         )

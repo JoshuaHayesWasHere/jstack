@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from jbriefs import below, parse
 from jbus import mirror
 from jmerge import green
 
@@ -41,19 +42,6 @@ class Found:
     based: str = ""
 
 
-def _thread(text: str) -> str:
-    for line in text.splitlines():
-        if line.startswith("Thread:"):
-            return "".join(line.split()[1:2])
-    return ""
-
-
-def _last(text: str, heading: str) -> list[str] | None:
-    lines = text.splitlines()
-    starts = [at for at, line in enumerate(lines) if line.startswith(heading)]
-    return lines[starts[-1] + 1 :] if starts else None
-
-
 def _said(lines: list[str], label: str) -> list[str] | None:
     found = [line.split()[1:] for line in lines if line.split()[:1] == [label]]
     return found[-1] if found else None
@@ -75,7 +63,7 @@ def _status(lines: list[str], of: str, only: bool) -> str:
 
 def of_brief(slug: str, text: str) -> Record:
     source = f"tasks/{slug}.md"
-    result = _last(text, "## Result")
+    result = below.last(text, "## Result")
     pull = ""
     paused = False
     if result is None:
@@ -90,19 +78,19 @@ def of_brief(slug: str, text: str) -> Record:
             short = "its Result has no Branch line"
         if branch and branch[-1].startswith("http"):
             pull = branch[-1]
-    return Record(source, slug, _thread(text), short, paused, pull)
+    return Record(source, slug, parse.thread_of(text), short, paused, pull)
 
 
 def of_request(slug: str, text: str) -> Record:
     source = f"scouts/{slug}.md"
-    report = _last(text, "## Report")
+    report = below.last(text, "## Report")
     if report is None:
         short = f"not done, {source} has no Report"
     else:
         short = _status(report, "Report", only=False)
         if not short and mirror.page("\n".join(report)):
             short = "its Report has a page, which may wait on the user"
-    return Record(source, f"scout-{slug}", _thread(text), short, False, "")
+    return Record(source, f"scout-{slug}", parse.thread_of(text), short, False, "")
 
 
 def kept(record: Record, found: Found) -> str:
