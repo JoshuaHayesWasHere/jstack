@@ -25,6 +25,7 @@ from jbus import (
     item,
     lavish,
     passes,
+    plan,
     questions,
     queue,
     t3,
@@ -45,7 +46,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
     read from Lavish's state file. `integration` is the branches of the home's
     `integration` file, whose syncs are follow-ups (`queue.KINDS`). A follow-up's go reads no
-    file of the home: jbus knows the rule by what it says.
+    file of the home: jbus knows the rule by what it says. `entry_go` reads the go of a row's plan
+    entry (`plan.holding`).
 
     `out` asks T3 Code and GitHub now for a thread that is at work, an open pull request, or a
     merged one. A thread that ended or settled is not out. Where `out` cannot ask either of
@@ -111,7 +113,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
         integration = tuple((config.home(project) / queue.INTEGRATION).read_text().split())
     except OSError:
         integration = ()
-    return queue.Asks(out, launched, told, said, integration)
+    goes = plan.entry_go(run.state, config.home(project))
+    return queue.Asks(out, launched, told, said, integration, goes)
 
 
 def _queue(args: argparse.Namespace, config: jbus.Config) -> int:

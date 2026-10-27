@@ -49,6 +49,13 @@ no time at all) when it has no `Holds:` line (`silent`). If the user answers aft
 answer replaces the close by silence as the record's one answer, and jbus carries an answer
 that differs as it carries any other.
 
+A go gate is one whose default is `approve` (`queue.GO_DEFAULT`) and whose slug is a row of the
+queue that waits for its go: a home's own pick for a new row, parked under the setting
+`go = "silence"`. Nothing acts on its default until it closes, so it waits for an answer for the
+setting's `go_quiet_minutes` and shows on the list of what waits on the user meanwhile. Its close
+by silence approves the row where `queue.silenced` lets it: basis `answer`, `closed_by`
+`silence`. An answer of the user's closes it by `jbus answer`, and approves nothing by itself.
+
 A pass raises a question of its own through the path a piped gate takes (`park`): the record, and
 the `gate` event the Chef reads. `mainmoved` raises one when main's check starts no job. When the
 cause passes, the pass closes such a question that still waits (`clear`), with `closed_by`
@@ -152,14 +159,7 @@ _GROUP = re.compile(r"\([^()]*\)$")
 COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
 QUIET = timedelta(0)
 UNANSWERED = "settled at once"
-HOLDS = (
-    "deletes data",
-    "rewrites history",
-    "spends money",
-    "touches prod or real users",
-    "changes access or secrets",
-    "publishes",
-)
+HOLDS = queue.HOLDS
 REFUSED = "T3 Code refused the answer to question {number}, so its thread was not told"
 FORM = (
     'each option you weighed is one line, the default you took among them: "Option: <short '
@@ -629,12 +629,19 @@ def silent(run: Pass) -> None:
         return
     at = jsettings.stamp(run.now)
     given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
+    goes = _go_gates(run.state)
+    window = timedelta(minutes=run.user.go_quiet_minutes)
     with _locked(run.state):
         try:
             count, records = _kept(run.state)
         except Unparsable:
             return
-        closed = [replace(one, answer=given) if _quiet(one, run.now) else one for one in records]
+        closed = [
+            replace(one, answer=given)
+            if _quiet(one, run.now, window if one.slug in goes and _go(one) else QUIET)
+            else one
+            for one in records
+        ]
         if closed == records:
             return
         _write(run.state, count, closed)
@@ -643,9 +650,32 @@ def silent(run: Pass) -> None:
             line = f"{NOTE} {one.slug}: question {one.number} closed with its default, {UNANSWERED}"
             run.find(one.slug, NOTE, line, key=f"silence {one.number}")
             run.say(line)
+            if one.slug in goes and _go(one):
+                went = queue.silenced(run.state, one.slug, one.number, run.user.stamp(run.now), run.user)
+                if went:
+                    run.say(f"queue {run.project.name}: {went}")
 
 
-def _quiet(one: Question, now: datetime) -> bool:
+def _go(one: Question) -> bool:
+    """Return whether the question's default is to approve its row: a go gate."""
+    return one.default.strip().lower() == queue.GO_DEFAULT
+
+
+def _go_gates(state: Path) -> set[str]:
+    """Return the slugs of the rows that wait for a go: a gate on one with the default `approve`
+    is a go gate."""
+    try:
+        rows = queue.load(state)
+    except queue.Unparsable:
+        return set()
+    return {
+        row["slug"]
+        for row in rows
+        if row.get("status", "queued") == "queued" and not row.get("approved")
+    }
+
+
+def _quiet(one: Question, now: datetime, window: timedelta = QUIET) -> bool:
     """Return whether silence closes the question now. A gate that holds waits for the user,
     and a question about a link's conflict goes to its home and not to the user, so silence
     never closes either."""
@@ -655,7 +685,7 @@ def _quiet(one: Question, now: datetime) -> bool:
         asked = datetime.fromisoformat(one.asked_at)
     except ValueError:
         return False
-    return asked.tzinfo is not None and now - asked >= QUIET
+    return asked.tzinfo is not None and now - asked >= window
 
 
 def _state(one: Question) -> str:
@@ -665,6 +695,8 @@ def _state(one: Question) -> str:
     home."""
     if one.holds:
         return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
+    if _go(one):
+        return f" Unless you answer, it starts {one.slug} when its quiet window ends."
     if not one.question.endswith(LINK):
         return " Its default is acted on already, and stands unless you stop it."
     return ""
@@ -685,7 +717,7 @@ def item(one: Question) -> dict[str, Any]:
         "home": "",
         "slug": one.slug,
         "since": one.asked_at,
-        "acted": not one.holds,
+        "acted": not one.holds and not _go(one),
         "holds": one.holds,
         "fail_safe": one.fail_safe,
     }
