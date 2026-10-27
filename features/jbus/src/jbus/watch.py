@@ -66,9 +66,6 @@ NO_JOB = "nojob"
 NIGHTLY_RED = ("failure", "timed_out")
 NIGHTLY_WINDOW = timedelta(days=3)
 NIGHTLY_GRACE = timedelta(hours=1)
-NIGHTLY_RELEASE = ("push", "release")
-"""The events of a nightly's run off the default branch that are still filed: a release's tag,
-since no nightly runs on a push to a branch (`_nightly_red`)."""
 GREEN = "passed"
 """What a nightly's `seen` keeps for a run of it that passed on its `branch`."""
 _FAILED_TEST = re.compile(r"\b(?:FAILED|ERROR) (\S+::\S+)")
@@ -1146,6 +1143,9 @@ MACOS = Nightly(
 )
 NIGHTLIES = (BROWSER, MACOS)
 """The nightly workflows, each with its own rule for a red run (`_nightly_red`)."""
+NIGHTLY_RELEASE = ("push", "release")
+"""The events of a nightly's run off the default branch that are still filed: a release's tag,
+since no nightly runs on a push to a branch (`_nightly_red`)."""
 
 
 def nightly_red_brief(
