@@ -45,7 +45,8 @@ A gate is act-unless-stopped: the thread acts on its default at once, and the qu
 user's chance to stop it. A record stays open until `jbus answer` closes it, and it closes
 once: `jbus answer` refuses a second answer and puts the first one in the refusal. A pass
 also closes a record by silence, with its default, in the first pass that sees it (`QUIET` is
-no time at all) when it has no `Holds:` line (`silent`). If the user answers after that, their
+no time at all) when it has no `Holds:` line (`silent`), but for a go gate under the setting
+`go = "silence"`, which waits its quiet window first. If the user answers after that, their
 answer replaces the close by silence as the record's one answer, and jbus carries an answer
 that differs as it carries any other.
 
@@ -159,7 +160,14 @@ _GROUP = re.compile(r"\([^()]*\)$")
 COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
 QUIET = timedelta(0)
 UNANSWERED = "settled at once"
-HOLDS = queue.HOLDS
+HOLDS = (
+    "deletes data",
+    "rewrites history",
+    "spends money",
+    "touches prod or real users",
+    "changes access or secrets",
+    "publishes",
+)
 REFUSED = "T3 Code refused the answer to question {number}, so its thread was not told"
 FORM = (
     'each option you weighed is one line, the default you took among them: "Option: <short '
@@ -622,9 +630,10 @@ def _open(one: Question) -> bool:
 
 def silent(run: Pass) -> None:
     """Close by silence, with its default, each open question that has no `Holds:` line, in the
-    first pass that sees it (`QUIET` is no time at all). The thread acted on the default when it
-    asked the question, so jbus sends nothing. jbus writes one quiet `note` event for each
-    question it closes."""
+    first pass that sees it (`QUIET` is no time at all), or, for a go gate under the setting
+    `go = "silence"`, once its quiet window (`go_quiet_minutes`) has passed. The thread acted on
+    the default when it asked the question, so jbus sends nothing. jbus writes one quiet `note`
+    event for each question it closes."""
     if not path(run.state).exists():
         return
     at = jsettings.stamp(run.now)
@@ -635,7 +644,8 @@ def silent(run: Pass) -> None:
             count, records = _kept(run.state)
         except Unparsable:
             return
-        goes = _go_gates(run.state) if any(map(_go, records)) else set()
+        silence = run.user.go == jsettings.SILENCE
+        goes = _go_gates(run.state) if silence and any(map(_go, records)) else set()
         closed = [
             replace(one, answer=given)
             if _quiet(one, run.now, window if one.slug in goes and _go(one) else QUIET)

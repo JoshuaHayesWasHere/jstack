@@ -156,18 +156,9 @@ BASIS = (
 )
 RULE = "rule"
 ENTRY = "entry"
-ENTRY_RULE = "a row filed under a plan entry that has the user's go needs no go of its own"
 ANSWER = "answer"
 GO_DEFAULT = "approve"
 SIZED = ("S", "M")
-HOLDS = (
-    "deletes data",
-    "rewrites history",
-    "spends money",
-    "touches prod or real users",
-    "changes access or secrets",
-    "publishes",
-)
 BY_RULE = "--follows <parent slug>"
 FOLLOW_RULE = "a follow-up of approved work needs no new approval"
 FOLLOW_REF = "follow-up"
@@ -810,6 +801,11 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     row, here = _parent_row(batch, slug, follows)
     if not row.get("approved"):
         raise Refused(f"{cannot} {follows}: {follows} has no approval")
+    made = record(row)
+    if made is not None and made.closed_by:
+        raise Refused(
+            f"{cannot} {follows}: {follows}'s go was a gate's silence, not the user's word"
+        )
     text = batch.brief(follows) if here else None
     if text is not None and not approved_text(row, text):
         raise Refused(f"{cannot} {follows}: {follows}'s brief changed after its approval")
@@ -905,6 +901,8 @@ def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: b
     made = record(row)
     if row.get("approved") and (made is None or made.basis != RULE):
         raise Refused(f"refused: {slug} had the user's go, which its brief no longer holds")
+    if case(text):
+        raise Refused(f"refused: {slug}'s brief holds a case of gates.md, {case(text)}")
     if not named and filed(row, text):
         if made and made.basis == RULE and made.follows:
             raise Refused(f"refused: {slug}'s go followed {made.follows}, and its brief names none")
@@ -1408,7 +1406,8 @@ def _grant(
 
 def case(text: str) -> str:
     """Return the case of `gates.md` that the brief's head names on a `Holds:` line, or nothing.
-    Such a row waits for the user's own word: no entry's go and no silence approves it."""
+    Such a row waits for the user's own word: no entry's go, no silence and no follow-up rule
+    approves it."""
     for label, lines in briefs.fields(text):
         if label == "Holds":
             return " ".join(lines).strip() or "a Holds: line with no case"

@@ -31,6 +31,7 @@ the entry that has not launched waits for the user's go again, and a launched on
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import os
 import re
@@ -215,8 +216,13 @@ def goes(state: Path) -> list[Go]:
 
 
 def _kept(state: Path, made: Go) -> None:
-    others = [one for one in goes(state) if (one.scope, one.entry) != (made.scope, made.entry)]
-    write_json(state / GOES, [asdict(one) for one in [*others, made]])
+    """Keep `made` in place of the go its entry had, under the lock that each change of the
+    file holds, so two homes that change it at once both keep theirs."""
+    state.mkdir(parents=True, exist_ok=True)
+    with open(state / "goes.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        others = [one for one in goes(state) if (one.scope, one.entry) != (made.scope, made.entry)]
+        write_json(state / GOES, [asdict(one) for one in [*others, made]])
 
 
 def _scope(home: Path, directory: Path) -> str:

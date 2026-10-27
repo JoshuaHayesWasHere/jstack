@@ -204,6 +204,15 @@ def test_a_case_added_to_a_brief_with_a_go_takes_the_go_back(kitchen):
     assert basis(kitchen, "alpha") == ()
 
 
+def test_a_case_row_that_follows_a_row_with_the_entry_go_waits_for_the_users_word(kitchen):
+    assert plan_go(kitchen)[0] == 0
+    queued(kitchen, "alpha")
+    said = queued(kitchen, "beta", text=brief("beta", "Follows: alpha\nHolds: spends money\n"))
+    kitchen.poll()
+    assert basis(kitchen, "beta") == ()
+    assert "beta waits for the user's go, not a follow-up" in said and "spends money" in said
+
+
 def silence(kitchen, minutes=30):
     kitchen.settings.write_text(
         kitchen.settings.read_text() + f'go = "silence"\ngo_quiet_minutes = {minutes}\n'
@@ -238,6 +247,19 @@ def test_under_silence_a_gated_s_row_is_approved_after_the_window_and_not_before
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
 
 
+def test_under_silence_a_row_that_follows_a_row_silence_started_waits(kitchen):
+    silence(kitchen)
+    queued(kitchen, "alpha")
+    gate(kitchen, "alpha")
+    kitchen.poll(NOW + timedelta(minutes=31))
+    assert basis(kitchen, "alpha")[0] == queue.ANSWER
+    big = brief("beta", "Follows: alpha\n").replace("Size: S\n", "Size: L\n")
+    said = queued(kitchen, "beta", text=big)
+    kitchen.poll(NOW + timedelta(minutes=32))
+    assert basis(kitchen, "beta") == ()
+    assert "alpha's go was a gate's silence, not the user's word" in said
+
+
 def test_under_silence_an_l_row_and_a_case_wait_after_the_window(kitchen):
     silence(kitchen)
     queued(kitchen, "alpha", text=brief("alpha").replace("Size: S\n", "Size: L\n"))
@@ -260,8 +282,9 @@ def test_under_silence_an_answer_that_differs_approves_nothing(kitchen):
     assert basis(kitchen, "alpha") == ()
 
 
-def test_under_the_entry_setting_a_go_gate_approves_nothing(kitchen):
+def test_under_the_entry_setting_a_go_gate_closes_at_once_and_approves_nothing(kitchen):
     queued(kitchen, "alpha")
     gate(kitchen, "alpha")
-    kitchen.poll(NOW + timedelta(minutes=31))
+    kitchen.poll()
+    assert waits_on_user(kitchen) == []
     assert basis(kitchen, "alpha") == ()
