@@ -140,7 +140,8 @@ def _moved(
 ) -> None:
     head, number = str(pull["headRefOid"]), pull["number"]
     merge = str((merged.get("mergeCommit") or {}).get("oid") or "")
-    if not merge or rebase.mark(KIND, slug, head, merge[:12]) in sent:
+    key = rebase.mark(KIND, slug, head, merge[:12])
+    if not merge or key in sent:
         return
     if pull.get("baseRefName") not in (None, "", onto):
         asked = run.run("gh", "pr", "edit", str(number), "--base", onto)
@@ -150,13 +151,12 @@ def _moved(
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
     thread = dispatch.thread_of(task_brief(run, slug))
-    key = rebase.mark(KIND, slug, head, merge[:12])
     if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")
     moved = _carry(run, slug, pull, last, merge, onto) if last else ""
     if moved:
-        run.box.mark(rebase.mark(KIND, slug, head, merge[:12]))
+        run.box.mark(key)
         line = (
             f"{KIND} {slug}: moved its own commits onto {onto} once {stacked.slug} merged "
             f"(#{number}, {head[:12]} to {moved[:12]})"

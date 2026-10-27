@@ -173,7 +173,7 @@ def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str
     for row in sorted(rows, key=queue.order):
         slug, why = row["slug"], row.get("why")
         thread = world.thread(slug)
-        told = bool(thread) and thread.get("threadId") in run.told
+        told = bool(thread) and jsettings.thread_id(thread.get("threadId", "")) in run.told
         busy = told or at_work([thread] if thread else [], settled_too=True)
         if row.get("status") == "left" or (row.get("status") == "merged" and why and not busy):
             found.append((slug, why or ""))

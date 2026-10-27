@@ -14,19 +14,21 @@ until a message goes.
 `send` also holds a message that needs `act` while its receiver cannot act on it now, by the rules
 of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
 
-- `busy`: the thread has a turn running (`watch.at_work`), or this pass already sent it a message
-  that needs `act` (`Pass.told`), so a thread gets at most one such message a pass;
 - `slot`: the thread waits on a test slot and is not woken yet (`jgauge.waiters`);
 - `review`: the row's pull request waits on a review that a reviewer the crew launched has not
   written at its head, as jmerge's judge says (`ready.short_of`). A crew puts off what it is told
-  while its review is out (the crew skill's "A conflict").
+  while its review is out (the crew skill's "A conflict");
+- `busy`: the thread has a turn running (`watch.at_work`), or this pass already sent it a message
+  that needs `act` (`Pass.told`), so a thread gets at most one such message a pass.
+
+The two that read local files come first, and `busy`, which asks T3 Code, last.
 
 A row spares what the receiver must still get while it waits. `slot` and `review` spare the wakes:
 a slot's wake and a pool's (`jbus.slotwait`) and the stall clock's line (`jbus.clock`), so a waiting
 crew is still woken, and still told when it has waited too long. `review` also spares a message that
-asks for the review itself (`ASKS`), which would otherwise wait on what it asks for. `busy` spares
-the user's own word and steer to a home (`jbus.word`, `jbus.steer`), which are the user's and not
-jbus's, so jbus never delays them behind a home's turn.
+asks for the review itself (`ASKS`), which would otherwise wait on what it asks for. Every rule
+spares the user's own word and steer to a home (`jbus.word`, `jbus.steer`), which are the user's and
+not jbus's, so jbus never delays them behind a home's turn.
 
 A held message is not queued: its key stays unsent, and the sender, which asks again on each pass,
 sends the message the state then calls for, under that state's key, the first pass no rule holds.
@@ -68,7 +70,7 @@ ASKS = frozenset(
 not written, and `jbus.rebase`'s asks for a scoped review. `review` never holds them, since the
 review it waits on is what they ask for."""
 USERS = frozenset({"word", "item"})
-"""The templates of the user's word and steer to a home (`jbus.word`, `jbus.steer`). `busy` never
+"""The templates of the user's word and steer to a home (`jbus.word`, `jbus.steer`). No rule
 holds them."""
 
 
@@ -104,7 +106,7 @@ def busy(run: Pass, client: Client, thread: str, row: str = "") -> bool:
     not busy: the send that follows says what T3 Code said of it."""
     from jbus.watch import at_work
 
-    if thread in run.told:
+    if jsettings.thread_id(thread) in run.told:
         return True
     try:
         read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
@@ -138,9 +140,9 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
 
 
 RULES = (
+    Rule("slot", waiting, WAKES | USERS),
+    Rule("review", reviewing, WAKES | ASKS | USERS),
     Rule("busy", busy, USERS),
-    Rule("slot", waiting, WAKES),
-    Rule("review", reviewing, WAKES | ASKS),
 )
 """Every rule that holds a message that needs `act`, in the order `send` asks them."""
 
@@ -200,7 +202,7 @@ def send(
     asked = {"threadId": thread, "message": text, "mode": "queue", "clientRequestId": key}
     client.call("t3_thread_send", asked)
     if needs == "act":
-        run.told.add(thread)
+        run.told.add(jsettings.thread_id(thread))
     _log(run, thread, row, key, template, needs, "sent", "")
     return True
 

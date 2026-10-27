@@ -68,8 +68,9 @@ class Pass:
     If a pull request for such a slug opens later, every step still treats it as a pull
     request.
 
-    `told` is the threads this pass sent a message that needs `act` (`jbus.outbox`): each waits
-    on its thread, not on the user, and the outbox sends it no second such message this pass.
+    `told` is the threads this pass sent a message that needs `act` (`jbus.outbox`), each id in
+    T3 Code's `mcp:` form: each waits on its thread, not on the user, and the outbox sends it no
+    second such message this pass.
     `limited` is the slugs whose last run ended on a usage limit (`jbus.failover`). The pass sends
     their threads no carry-on, since the failover sends one. `world` is what the pass saw of T3
     Code and GitHub, once it has looked (`watch.look`), or None before then or where it could not

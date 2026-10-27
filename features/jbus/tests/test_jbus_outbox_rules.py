@@ -103,6 +103,7 @@ def test_a_waiter_gets_its_wake_and_the_clock_s_line_and_a_decide_and_nothing_el
         ("slot-wake", "act", True),
         ("clock", "act", True),
         ("leftover", "decide", True),
+        ("word", "act", True),
     ]:
         run, client = run_of(launched)
         assert send(run, client, crew, template, needs) is went, template
@@ -113,10 +114,11 @@ def test_a_waiter_gets_its_wake_and_the_clock_s_line_and_a_decide_and_nothing_el
 
 
 def test_a_thread_gets_one_act_message_a_pass_and_a_decide_beside_it(launched):
+    """A sender that names the thread without T3 Code's `mcp:` prefix names the same thread."""
     crew = launched.t3.threads[0]["threadId"]
     run, client = run_of(launched)
     assert send(run, client, crew, "rebase")
-    assert not send(run, client, crew, "failed")
+    assert not send(run, client, crew.removeprefix("mcp:"), "failed")
     assert send(run, client, crew, "leftover", "decide")
     assert held(launched) == [("failed", "busy")]
     run, client = run_of(launched)
