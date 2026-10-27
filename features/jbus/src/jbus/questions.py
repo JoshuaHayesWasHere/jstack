@@ -629,13 +629,13 @@ def silent(run: Pass) -> None:
         return
     at = jsettings.stamp(run.now)
     given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
-    goes = _go_gates(run.state)
     window = timedelta(minutes=run.user.go_quiet_minutes)
     with _locked(run.state):
         try:
             count, records = _kept(run.state)
         except Unparsable:
             return
+        goes = _go_gates(run.state) if any(map(_go, records)) else set()
         closed = [
             replace(one, answer=given)
             if _quiet(one, run.now, window if one.slug in goes and _go(one) else QUIET)

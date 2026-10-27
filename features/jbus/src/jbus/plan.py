@@ -391,8 +391,11 @@ def stop(
 
 
 def _entered(half: Any) -> None:
-    """Keep the entry rule on the table as a step of the pass, before any launch."""
+    """Keep the entry rule on the table as a step of the pass, before any launch. A project
+    where no entry was ever given a go has nothing to keep."""
     run = half.run
+    if not (run.state / GOES).exists():
+        return
     try:
         for line in queue.entered(run.state, run.user, entry_go(run.state, run.home)):
             run.say(f"queue {run.project.name}: {line}")
