@@ -28,7 +28,7 @@ Rerun it when the diff touches any of these:
 - `features/jmerge/src/jmerge/mainjson.py` (`Record`, `record`, `owed`, `of`, `read`, `FIX`);
 - `features/jmerge/src/jmerge/rows.py` (`main`, `red`);
 - `features/jbus/src/jbus/cli.py` where a pass runs `merge.merge` (line 146) before the `after-expedite` slot, or the pass lock (215-219), and `features/jbus/src/jbus/merge.py`;
-- `features/jbus/src/jbus/watch.py` `_check` (797-828), the answers a tip's check can have;
+- `features/jbus/src/jbus/watch.py` `_check` (919-963) and `_judged`, the answers a tip's check can have;
 - `write_json` in `features/jbus/src/jbus/__init__.py` (434-444): the model takes a read to see a whole record, which `os.replace` gives;
 - the "Main is not red" rule in `features/jmerge/docs/jmerge.md`;
 - a move of any of these modules: the model imports them and stubs by module attribute, so a move changes its imports and its stubs, and the check is rerun on the moved code (unit 6 moved `jbus.mainstate` to `jmerge.mainjson` with the same counts).
@@ -119,7 +119,7 @@ Check every step against this table; a step no line backs is a modeling error, a
 | `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/cli.py:215-219`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:222-230` |
 | `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:84-87`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/cli.py:146` |
 | `Mn lands: another merge` | a merge that asks no `rows.red`: the `main-red-<sha12>` fix (`mainjson.fix_of`), a merge by hand, `jmerge --accept` |
-| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:798-829`; `pending` is a check not ended |
+| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:919-963`; `pending` is a check not ended |
 | `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `features/jbus/src/jbus/mainmoved.py:185-195` |
 
 The stubs are the other place a model can lie: `mainmoved.main_check`, `dispatch.launched`, `dispatch.thread_of` and `rebase.held` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
