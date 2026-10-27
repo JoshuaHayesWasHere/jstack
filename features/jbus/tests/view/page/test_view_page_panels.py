@@ -12,6 +12,7 @@ from jbus.view.panels.usage import panel as usage
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, WORDS, Proxy, clean, gated, look, shown
 from view.scene import DRAWN, NOW, Process, Served, a_noticed, ago, et, iso, out, rounded, table
 from view.scene import folder as panel
+from view.test_view_owner import crewed, told
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -234,3 +235,19 @@ def test_a_homes_drawer_names_its_scope_and_an_idle_home_is_a_row_in_progress(sc
     rows = {one["slug"]: one for one in seen["prog"]}
     assert rows["demo second"]["state"] == "Idle"
     assert rows["demo"]["state"] == "Working"
+
+
+def test_a_fault_its_crew_owns_is_drawn_on_its_row_as_fixing_by_the_crew(scene, tmp_path):
+    """oat-milk's check is red and its crew was told 20 minutes ago: the task drawer and the
+    board draw the row as fixing by its crew, with when it was told."""
+    crewed(scene)
+    scene.lines("outbox.jsonl", [told("oat-milk", "mcp:crew-oat-milk", "failed", 20)])
+    served = Served(scene)
+    try:
+        task = shown(served.port, tmp_path, "task:oat-milk")
+        board = shown(served.port, tmp_path, "board")
+    finally:
+        served.close()
+    at = ago(minutes=20).astimezone()
+    assert "Fixing: crew of oat-milk, told " in task, task
+    assert f"fixing: crew of oat-milk, told {at:%H:%M}" in board, board

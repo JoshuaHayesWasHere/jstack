@@ -363,14 +363,6 @@ def tell(
         _write(run.state, kept)
 
 
-def said(state: Path, slug: str, at: datetime) -> None:
-    """Record that jbus reported a row to the user as a stall."""
-    records = read(state)
-    if slug in records:
-        stamp = jsettings.stamp(at)
-        _write(state, records | {slug: replace(records[slug], stalled=stamp)})
-
-
 STEPS = (
     verbs.Step(
         "after-derive",

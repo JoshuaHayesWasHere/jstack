@@ -7,13 +7,16 @@ each pass, and sends the home that owns an entry it was not told of one message 
 outbox, which needs it to act. The message's key is `state.key_of`, the same while the cause
 stands, so a home is told once of a fault, and again only of a new one or as a new home.
 
-Only a fault with no row is told here: one of the project or the machine, which the root home
-owns. A fault of a row is told by the step that already works that row, and the view reads its
-message as what the owner was told (`state._fixing`). A crew owns a red check of its own pull
-request, which `jbus.rebase` tells it of, and a red main whose main-red row it works. A hung or
-ended crew is carried on by `jbus.threads` and then goes to its home through `jbus.leftover`.
-A stalled row goes to its home through `jbus.expedite`, on its own count of passes, which a
-second message here would only hurry. A user's entry is told to nobody: the band shows it.
+Told here are a fault with no row, one of the project or the machine, which the root home
+owns, and a crew that hung at work, which its home owns: no other step tells a home of that,
+`jbus.stall.hung` only logs it. A crew that is only quiet is not told of. Any other fault of a
+row is told by the step that already works that row, and the view reads its message as what
+the owner was told (`state._fixing`). A crew owns a red check of its own pull request, which
+`jbus.rebase` tells it of, and a red main whose main-red row it works. A crew whose thread
+ended with something left goes to its home through `jbus.leftover`, whose record counts as the
+telling. A stalled row goes to its home through `jbus.expedite`, on its own count of passes,
+which a second message here would only hurry. A user's entry is told to nobody: the band shows
+it.
 """
 
 from __future__ import annotations
@@ -37,7 +40,7 @@ KIND = "wrong"
 MESSAGE = (
     "jbus: {what} is wrong in {project}, and it is this home's to fix. {user} is not asked: it "
     "waits on this home.\n\n"
-    "{kind} {subj}: {cause}{since}.\n\n"
+    "{kind} {subj}: {cause}{since}.{row}\n\n"
     "Fix it, or hand it to the thread whose work it is. A question only {user} can answer is a "
     "gate: take the default and pipe it to `jbus gate <slug>`. Send {user} nothing about it. jbus "
     "tells this home once while the cause stands, and draws it in the view as fixing by this home."
@@ -69,6 +72,11 @@ def read(run: Pass) -> state.Read:
 
 def message(run: Pass, one: dict) -> str:
     """The one message a home gets about a fault it owns."""
+    row = (
+        f" It is the row {one['row']}, whose brief is `tasks/{one['row']}.md`."
+        if one["row"]
+        else ""
+    )
     since = (
         f", since {run.user.stamp(datetime.fromisoformat(one['since']))}" if one["since"] else ""
     )
@@ -80,14 +88,20 @@ def message(run: Pass, one: dict) -> str:
         subj=one["subj"],
         cause=one["cause"],
         since=since,
+        row=row,
     )
 
 
+def _hung(one: dict) -> bool:
+    """Whether the entry is a crew whose turn hung, which only this step tells its home of."""
+    return one["kind"] == "thread" and one["cause"].startswith(state.QUIET_OR_HUNG["hung"])
+
+
 def tell(run: Pass, client: Client) -> None:
-    """Tell the root home, once, of each fault of the project or the machine it was not told of."""
+    """Tell the owner, once, of each fault of the project or the machine and each hung crew."""
     for one in read(run).once(state.wrongs):
         fault = f"{one['kind']} {one['subj']}"
-        if one["owner"] == state.USER or one["row"] or one["fixing"]:
+        if one["owner"] == state.USER or one["fixing"] or (one["row"] and not _hung(one)):
             continue
         key = state.key_of(one)
         try:

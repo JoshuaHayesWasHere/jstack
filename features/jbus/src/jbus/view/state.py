@@ -1518,11 +1518,6 @@ def _wrong(
 
 
 USER, ROOT_HOME, CREW = "user", "root home", "crew"
-GATED = re.compile(
-    r"\b(?:deletes data|rewrites history|spends money|touches prod or real users"
-    r"|changes access or secrets|publishes)\b"
-)
-"""The six cases of the home's `gates.md`: a fix that is one of them waits on the user."""
 REFUSED = re.compile(r"\b(?:401|403)\b|Unauthorized|Bad credentials|Forbidden")
 """A token GitHub refuses: only the user can give a new one."""
 CHECK_TOLD = ("failed", "refailed")
@@ -1555,10 +1550,12 @@ def _unasked(read: Read, one: dict[str, Any]) -> tuple[str, str]:
 
 
 def _of_row(read: Read, one: dict[str, Any]) -> tuple[str, str]:
-    """A fault of a row is its home's, unless its fix is a case of `gates.md` or waits on a cap
-    of the user's plan."""
-    if GATED.search(one["cause"]) or _CAPPED.search(one["cause"]):
-        return USER, ""
+    """A fault of a row is its home's, unless the row waits on a gate, which holds only for a
+    case of `gates.md` and is the user's to answer, or the fault waits on a cap of the user's
+    plan."""
+    task = next((task for task in read.tasks if task["slug"] == one["row"]), {})
+    if task.get("status") == "gate" or _CAPPED.search(one["cause"]):
+        return USER, one["row"]
     return "home", one["row"]
 
 

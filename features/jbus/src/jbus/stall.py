@@ -65,7 +65,6 @@ _UNPROVEN = re.compile(r"\bno proven safety fact at ([0-9a-f]{12})\b")
 STALL = "stall"
 PASSES = 10
 REVIEWING = 30
-LEFT = 300
 HUNG = "hung.jsonl"
 WROTE, INTERRUPTED, ENDED = "wrote again", "interrupted", "ended"
 BECAME = {"interrupted": INTERRUPTED, "cancelled": INTERRUPTED} | dict.fromkeys(

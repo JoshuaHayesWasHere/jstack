@@ -1,9 +1,10 @@
 """A fault an agent can fix is told to that agent once, by the pass, and never put to the user.
 
 `jbus.owners.tell` reads the project as the view reads it and tells the root home of each fault
-of the project or the machine that it was not told of. A fault of a row is told by the step
-that already works that row: a red check of a crew's pull request by `jbus.rebase`, once a
-head, and the view reads that message as what the crew was told.
+of the project or the machine that it was not told of, and the home of a crew that hung. Any
+other fault of a row is told by the step that already works that row: a red check of a crew's
+pull request by `jbus.rebase`, once a head, and the view reads that message as what the crew
+was told.
 
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
@@ -14,8 +15,9 @@ import jbus
 from jbus import outbox, owners, passes
 from jbus.view import state
 from test_jbus_github import FAILED, failed, launched, pull, sends
-from test_jbus_kitchen import NOW, iso
+from test_jbus_kitchen import NOW, Kitchen, iso
 from test_jbus_leftover import home
+from test_jbus_live import hanging
 
 __all__ = ["launched"]
 
@@ -93,3 +95,20 @@ def test_with_no_root_home_a_red_run_no_row_owns_is_the_users_and_told_to_nobody
     assert told(launched) == []
     (ci,) = [one for one in wrongs(launched, NOW) if one["kind"] == "ci"]
     assert (ci["owner"], ci["fixing"]) == ("user", None)
+
+
+def test_a_hung_crew_is_told_to_its_home_once(tmp_path, monkeypatch):
+    """No other step tells a home of a crew that hangs at work: `stall.hung` only logs it, and
+    `jbus.leftover` waits for the thread to end. The review of #563 found the hang went to
+    nobody."""
+    kitchen = Kitchen(tmp_path, monkeypatch)
+    kitchen.quiet()
+    root = home(kitchen)["threadId"]
+    hanging(kitchen)
+    for minutes in (0, 3, 6):
+        kitchen.poll(NOW + minutes * MIN)
+    (sent,) = [given for given in sends(kitchen) if given["threadId"] == root]
+    assert sent["message"].startswith("jbus: the thread crew: alpha is wrong in demo")
+    (one,) = [one for one in wrongs(kitchen, NOW + 6 * MIN) if one["kind"] == "thread"]
+    assert (one["owner"], one["fixing"]["what"]) == ("root home", owners.KIND)
+    kitchen.close()

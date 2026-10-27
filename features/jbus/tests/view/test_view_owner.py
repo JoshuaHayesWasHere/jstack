@@ -237,8 +237,8 @@ def _stall(scene):
 
 
 def _stall_gated(scene):
-    gated = "stall oat-spoon: its fix deletes data, a branch of the user's, and waits on a gate"
-    scene.events(("stall", "quiet", "oat-spoon", gated, 6))
+    """jam-lid waits on a gate, which holds only for a case of `gates.md`."""
+    scene.events(("stall", "quiet", "jam-lid", "stall jam-lid: nobody has acted on it", 6))
 
 
 def _stall_capped(scene):
