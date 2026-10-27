@@ -1786,13 +1786,13 @@ def readiness():
 class Launcher:
     """A home's state directory with one brief, and a stub `gh` for its pull request."""
 
-    def __init__(self, tmp_path, rollup=crew.ROLLUPS["all passed"][0], state="OPEN"):
+    def __init__(self, tmp_path, rollup=crew.ROLLUPS["all passed"][0], state="OPEN", draft=False):
         self.state = tmp_path
         (tmp_path / "tasks").mkdir()
         self.brief = tmp_path / "tasks" / "a-task.md"
         self.brief.write_text(BRIEF + DONE)
         self.stub = tmp_path / "stub"
-        crew.stub_gh(self.stub, HEAD, rollup, state)
+        crew.stub_gh(self.stub, HEAD, rollup, state, draft)
 
     def says(self, slug="a-task", again=False):
         """What the readiness block prints, for one brief or for every brief."""
@@ -1830,6 +1830,11 @@ def test_a_brief_is_ready_while_its_checks_run_and_once_they_passed(case, tmp_pa
         assert said == f"a-task: ready, {URL} at {HEAD}"
     else:
         assert said.startswith(f"a-task: not ready, its checks, {answer}: ")
+
+
+def test_a_draft_is_ready_at_the_head_its_checks_line_names(tmp_path):
+    launcher = Launcher(tmp_path, [], draft=True)
+    assert launcher.says() == [f"a-task: ready, {URL} at {HEAD}"]
 
 
 def test_with_github_s_budget_at_its_floor_no_brief_is_asked_about_and_the_block_is_held(tmp_path):
