@@ -176,13 +176,15 @@ def _temporary(lock: Path) -> Path:
 
 def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
     """Send the signal to the command, and in the short lane to every process it started, which
-    is its process group."""
+    is its process group. A group with no process left to signal is no fault: Linux says ESRCH,
+    and macOS says EPERM while a zombie of the group waits to be reaped, as an orphan does until
+    launchd gets to it."""
     if lane.limit is None:
         child.send_signal(number)
         return
     try:
         os.killpg(child.pid, number)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         pass
 
 
