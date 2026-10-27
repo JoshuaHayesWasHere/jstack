@@ -228,7 +228,7 @@ def test_an_experts_folder_is_no_partys_home_of_this_skill(party):
     assert party.changed(before) == []
 
 
-def test_mail_for_a_party_that_handed_off_is_sent_on_to_its_next_thread(party):
+def test_mail_for_a_party_that_handed_off_names_its_next_thread_to_the_sender(party):
     party.hands_off()
     ran = party.does("no home's:", DESK)
     assert ran.stdout.startswith("handed off: ")
@@ -236,7 +236,7 @@ def test_mail_for_a_party_that_handed_off_is_sent_on_to_its_next_thread(party):
     (party.own / "home-id").write_text(f"{NEXT}\n")
     ran = party.does("no home's:", DESK)
     assert ran.stdout.startswith("handed off: ")
-    assert f"send it on to {NEXT}, once" in ran.stdout
+    assert f"tell the sender, once, that {NEXT} is the home now" in ran.stdout
     assert party.does("no home's:", OTHER).stdout.startswith("no home's: ")
 
 

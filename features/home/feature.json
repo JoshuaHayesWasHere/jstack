@@ -25,6 +25,15 @@
       "harnesses": [
         "claude-code"
       ]
+    },
+    {
+      "event": "PreToolUse",
+      "matcher": "mcp__t3[-_]code__t3_thread_send",
+      "script": "hooks/agent-sends.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "refuses": true
     }
   ],
   "docs": [

@@ -113,14 +113,13 @@ def test_a_close_run_twice_and_cut_before_the_launch_ends_where_one_run_ends(sce
     assert scene.file.read_text() == f"{OTHER}\n"
 
 
-def test_the_handoff_launches_then_renames_then_settles_and_only_passes_mail_on_after():
+def test_the_handoff_launches_then_renames_then_settles_and_only_then_tells_a_sender():
     assert [call.tool for call in HANDOFF] == [
         "update_scheduled_task",
         "t3_thread_launch",
         "t3_thread_list",
         "t3_thread_update",
         "t3_thread_organize",
-        "t3_thread_send",
         "t3_thread_send",
     ]
     _, launch, lookup, rename, settle, *_ = (call.given for call in HANDOFF)
@@ -129,6 +128,7 @@ def test_the_handoff_launches_then_renames_then_settles_and_only_passes_mail_on_
     assert lookup == {"titleContains": launch["title"]}
     assert rename == {"action": "rename", "title": "home: demo (handed off 2026-10-10)"}
     assert settle == {"action": "settle"}
+    assert [errors(call, call.given) for call in HANDOFF] == [[]] * len(HANDOFF)
 
 
 def test_the_launch_takes_a_seed_written_from_the_template():

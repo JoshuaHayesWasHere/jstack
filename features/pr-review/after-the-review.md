@@ -35,6 +35,7 @@
 2. Drop what is outside the diff: "Outside the diff". From here on, the findings are the ones that block kept.
 3. Add what the reviewer finds itself: "Wider than the brief", "The merge gate" and "In flight".
 4. Send nothing, on any verdict, to the crewmate, to the home or to anyone.
+   `features/home/hooks/agent-sends.sh` refuses a reviewer's `t3_thread_send` to its crewmate or to any home of the repo.
    The section is this pass's one output: jbus reads it on its next pass, asks `jmerge`'s judge what the pull request is short of, and tells the crewmate only when it owes a line for it, findings to answer or a `Fixed:` line.
    A clean pass, a second review filed as a cleanup row and a pass whose other reviewers have not written yet owe the crewmate no line, so nobody is woken for them.
    With no `Thread:` line in the brief, jbus tells the home in its place, and with no home it parks the findings as a gate.
