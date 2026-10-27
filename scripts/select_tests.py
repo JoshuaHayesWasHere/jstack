@@ -73,6 +73,16 @@ selection `all`. It is `share` when the selection's size made it `all`, and `-` 
 collector reads that line. With `$GITHUB_OUTPUT` set, it gives the step the output `selection`,
 `all` or `some`: the check workflow leaves the tree's marker on a pass of `all`.
 
+`select_tests.py --within <list> <base> <head>` prints, of the test files a list names (a file,
+or a folder of tests that ends in `/`), the ones the change reaches on a Mac: the macOS job reads
+`testing/macos-quick.txt` so. It selects by the same rules but for two. An import reaches a test
+only from a changed module of the tests, or of one whose text names Darwin (`DARWIN`): nearly
+every test imports the CLI of a feature, so through any other module a change would reach nearly
+the whole list, though its code runs the same on a Mac. And the tests that read the whole tree,
+cross-cutting and the catch-all, do not count, since Linux runs them. It prints `all` when a
+changed path is one every test depends on, or the list itself, but never for the selection's
+size. It writes nothing to the summary or the outputs.
+
 The diff is two-dot. So for a pull request, `<base>` is where it branched from main (`git
 merge-base`) or the parent of its merge commit. A base that main has moved past adds main's own
 changes to the diff, which selects more tests and never fewer.
@@ -99,6 +109,7 @@ SHARED = "testing/"
 SHARED_TESTS = "testing/tests"
 EVERYTHING = ("pyproject.toml", "uv.lock", "conftest.py")
 BACKTICKED = re.compile(r"`([^`]+)`")
+DARWIN = re.compile(r"[Dd]arwin|sys\.platform|platform\.system")
 LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
@@ -603,10 +614,15 @@ def opens_browser(test):
     return bool(BROWSER.search((ROOT / test).read_text()))
 
 
-def ruled(changed):
+def everywhere(path):
+    return True
+
+
+def ruled(changed, follows=everywhere, cross=True):
     """`(tests, why)`: the sorted test files the rules select for the changed paths, or
     `["all"]`, and for each cause the number of files it selected, or the path that forced
-    `all`."""
+    `all`. An import reaches a test only from a changed path that `follows` holds for, and the
+    cross-cutting tests count only with `cross`."""
     ready()
     for path in changed:
         if path in shared():
@@ -615,7 +631,8 @@ def ruled(changed):
     found = {"imports": set(), "names": set(), "features": set()}
     for path in changed:
         if path in by_path:
-            found["imports"] |= test_files(importers([by_path[path]])) | asking(by_path[path])
+            if follows(path):
+                found["imports"] |= test_files(importers([by_path[path]])) | asking(by_path[path])
             if of_tests(path):
                 found["names"] |= readers(path)
         elif FIXTURES.match(path):
@@ -623,7 +640,7 @@ def ruled(changed):
                 return ["all"], {"forced-by": path}
             found["names"] |= named
         else:
-            if SOURCE.match(path):
+            if SOURCE.match(path) and follows(path):
                 found["imports"] |= test_files(importers(users(path)))
             for one in {path} | includers(path):
                 found["names"] |= readers(one)
@@ -634,7 +651,7 @@ def ruled(changed):
             found["features"] |= set(listed_tests)
         if where[name] in changed:
             found["features"] |= feature_tests(name)
-    found["cross-cutting"] = set(cross_cutting())
+    found["cross-cutting"] = set(cross_cutting()) if cross else set()
     present = {
         key: {one for one in tests if (ROOT / one).is_file() and not opens_browser(one)}
         for key, tests in found.items()
@@ -675,6 +692,30 @@ def selection(changed):
     return sorted(set(tests) | lone), why
 
 
+def on_a_mac(path):
+    """Whether a change to this path can run differently on a Mac: a path of the tests, or a
+    file whose text names Darwin."""
+    file = ROOT / path
+    return (
+        of_tests(path) or file.is_file() and bool(DARWIN.search(file.read_text(errors="replace")))
+    )
+
+
+def within(entries, changed, listed):
+    """The test files of a list's `entries` the changed paths reach on a Mac, sorted, or
+    `["all"]`. `listed` is the list's own path."""
+    if listed in changed:
+        return ["all"]
+    tests, _ = ruled(changed, on_a_mac, cross=False)
+    if tests == ["all"]:
+        return tests
+    return [
+        one
+        for one in tests
+        if any(one == e or e.endswith("/") and one.startswith(e) for e in entries)
+    ]
+
+
 CAUSES = ("imports", "names", "features", "cross-cutting")
 WHOLE = 0.8
 
@@ -703,8 +744,11 @@ def summary(tests, why, changed):
 
 
 def main(argv):
+    listed = None
+    if argv[:1] == ["--within"] and len(argv) == 4:
+        listed, argv = argv[1], argv[2:]
     if len(argv) != 2:
-        sys.exit("usage: select_tests.py <base> <head>")
+        sys.exit("usage: select_tests.py [--within <list>] <base> <head>")
     diff = subprocess.run(
         ["git", "diff", "--name-only", "--no-renames", *argv],
         cwd=ROOT,
@@ -714,6 +758,15 @@ def main(argv):
     if diff.returncode:
         sys.exit(f"select_tests.py: git diff failed: {diff.stderr.strip()}")
     changed = diff.stdout.splitlines()
+    if listed is not None:
+        entries = (ROOT / listed).read_text().split()
+        try:
+            tests = within(entries, changed, listed)
+        except Unread as error:
+            print(f"select_tests.py: nothing can be read ({error}), so all", file=sys.stderr)
+            tests = ["all"]
+        print("\n".join(tests))
+        return
     try:
         tests, why = selection(changed)
     except Unread as error:
