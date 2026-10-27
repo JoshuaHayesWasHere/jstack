@@ -198,3 +198,38 @@ def failed(runs: list[dict]) -> list[dict]:
         for one in latest(runs)
         if one.get("status") == "completed" and one.get("conclusion") not in NOT_RED
     ]
+
+
+BROWSER_FIX = "browser-red-"
+"""The start of the slug of the fix row jbus files for main's red browser run
+(`jbus.watch.BROWSER`)."""
+
+
+def browser_red(head: str, slug: str, runs: list[dict], default: str) -> str:
+    """The hold on a pull request whose own browser run failed at `head`. The red is main's where
+    main's last browser run failed too (`main_browser_red`, of `runs`, main's browser.yml runs as
+    GitHub lists them), and it waits as for a red main, unless it is the fix of that red, the row
+    jbus files for it (`BROWSER_FIX`). Otherwise the red is the pull request's own, which jbus
+    tells its crew (`jbus.expedite.TABLE`)."""
+    red = "" if slug.startswith(BROWSER_FIX) else main_browser_red(runs, default)
+    if red:
+        return ready.MAIN_RED.format(sha=red[: mainjson.SHA])
+    return ready.BROWSER_RED.format(head=head[: mainjson.SHA])
+
+
+def main_browser_red(runs: list[dict], default: str) -> str:
+    """The commit of main's last browser run where it failed, or nothing. `runs` are the
+    workflow's completed runs: a pull request's run, or a run on another branch than `default`,
+    says nothing of main, and a cancelled or skipped one judged no code (`jbus.watch.NOT_RED`)."""
+    ran = [
+        one
+        for one in runs
+        if one.get("event") != "pull_request"
+        and one.get("head_branch") == default
+        and one.get("status") == "completed"
+        and one.get("conclusion") not in ("cancelled", "skipped")
+    ]
+    last = max(ran, key=lambda one: str(one.get("created_at") or ""), default=None)
+    if last is None or last.get("conclusion") in NOT_RED:
+        return ""
+    return str(last.get("head_sha") or "")
