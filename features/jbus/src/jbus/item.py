@@ -475,7 +475,7 @@ def approve(
         raise Refused(f"refused: only {user.user} approves an item, not {by}")
     said = f"approve by {by}" + (f": {words}" if words else "")
     more: dict[str, Any] = {**({"words": words} if words else {}), **rests(basis)}
-    with _locked(state):
+    with locked(state, LOCK):
         if where is Where.CHAT:
             _from_chat(state, id, words, project)
         made = _put(state, Verb.APPROVE, item=id, by=by, where=where, line=said, seen=seen, **more)
