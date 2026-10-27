@@ -832,9 +832,14 @@ class Repo:
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose check failed waits, judged over today's base. Its check is
         its own fault, `red`, unless the base moved since the check started. Then GitHub merges
-        the base into it, and its check at the updated head decides."""
+        the base into it, and its check at the updated head decides, unless its last two check
+        runs failed a same test of its own (`rejudge.Repeated`): a merge would fail it again."""
         moved = None if one.started is None else self.moved(one.base, one.started)
-        if moved is None or not moved[1]:
+        if (
+            moved is None
+            or not moved[1]
+            or self.base_merge.repeats(one, moved[0], self.required[0])
+        ):
             return red
         return self.base_merge.of(one, moved[0])
 
@@ -874,13 +879,16 @@ class Repo:
 
     def judge(self, one: ready.PullRequest, default: str) -> Judgement:
         """The judgement of the pull request. Where all that holds it is a required check that
-        failed, it is judged again as if that check had passed, and a judgement that gets as far
-        as freshness judges it over today's base (`again`)."""
+        failed, or one with no run at its head, it is judged again as if that check had passed,
+        and a judgement that gets as far as freshness judges it over today's base: `again` for a
+        check that failed, and for a check with no run GitHub's merge of a base that moved since
+        its check started, which brings the head the workflows the base has."""
         found = self.judged(one, default)
-        if not ready.red_only(one) or found.why != ready.short_on_github(one):
+        held = ready.red_only(one) or ready.unrun_only(one)
+        if not held or found.why != ready.short_on_github(one):
             return found
         self.again_of = None
-        green = self.judged(replace(one, waiting=(), failed=()), default, found.why)
+        green = self.judged(replace(one, waiting=(), failed=(), unrun=()), default, found.why)
         return green if self.again_of == one.number else found
 
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
@@ -928,6 +936,7 @@ class Repo:
         ):
             covered = under
         reviewed = None if short or silent else covered
+        verdict: rangediff.Verdict | None = None
         if reviewed == "":
             short = ready.NO_HEAD
         elif reviewed:
@@ -952,7 +961,8 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         left = self.left(one)
         lifted = self.accepted == (one.number, one.head)
-        kind, why = ready.drops(lost, text, one.head, user=self.user)
+        command = verdict.command if verdict else "nothing"
+        kind, why = ready.drops(lost, text, one.head, user=self.user, command=command)
         if not kind:
             kind, why = ready.declines(text, user=self.user)
         self.lifts = []
@@ -969,6 +979,13 @@ class Repo:
             return Judgement(brief.stem, "hold", hold, note, None)
         if one.draft:
             return Judgement(brief.stem, "wait", ready.DRAFT, note, None)
+        if red and re.fullmatch(ready.NO_RUN.pattern, red):
+            self.again_of = one.number
+            moved = None if one.started is None else self.moved(one.base, one.started)
+            if moved is not None and moved[1]:
+                reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
+                red = self.base_merge.of(one, moved[0], *reasons)
+            return Judgement(brief.stem, "wait", red, note, None)
         if red:
             self.again_of = one.number
             return Judgement(brief.stem, "wait", self.again(one, red), note, None)

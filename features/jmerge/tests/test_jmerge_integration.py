@@ -145,7 +145,8 @@ def test_a_pull_request_into_an_integration_branch_waits_on_no_check_of_its_own(
     assert kitchen.run("--check") == [f"ready 6 {head} one one"]
     kitchen.pulls["one"]["baseRefName"] = "main"
     kitchen.brief("one", head)
-    assert kitchen.run("--check") == [f"wait 6 {url(6)}: {ready.NOT_PASSED.format(check='check')}"]
+    no_run = ready.NO_RUN.format(check="check", head=head[:12])
+    assert kitchen.run("--check") == [f"wait 6 {url(6)}: {no_run}"]
 
 
 def test_it_squashes_into_that_branch_and_the_merged_line_names_it(kitchen):

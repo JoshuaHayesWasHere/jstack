@@ -7,12 +7,12 @@ import shlex
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import jroles
 import jsettings
-from jgauge import limits, runner, sample, session, sizes, slot, transcript, waiters
+from jgauge import limits, runner, sample, session, sizes, slot, spend, transcript, waiters
 from jgauge.transcript import TranscriptError
 from jroles import ledger, pool
 
@@ -129,6 +129,43 @@ def cmd_sample(args: argparse.Namespace) -> int:
         return 0
     pressure = sample.PRESSURE_LINE if args.pressure is None else args.pressure
     print("\n".join(sample.report(log, args.since, pressure, args.until)))
+    return 0
+
+
+def _local(asked: str) -> datetime:
+    try:
+        at = datetime.fromisoformat(asked)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"{asked!r} is not an ISO date and time") from error
+    return at.astimezone()
+
+
+def _day(asked: str) -> date:
+    try:
+        return date.fromisoformat(asked)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(f"{asked!r} is not a date, YYYY-MM-DD") from error
+
+
+def cmd_spend(args: argparse.Namespace) -> int:
+    now = datetime.now(UTC)
+    if args.day is not None and (args.since is not None or args.until is not None):
+        args.usage("--day is one day: give it, or --since and --until, not both")
+    if args.since is not None or args.until is not None:
+        if args.since is None or args.until is None:
+            args.usage("--since and --until go together")
+        since, until = args.since, args.until
+    else:
+        day = args.day or now.astimezone().date()
+        since = datetime.combine(day, datetime.min.time()).astimezone()
+        until = datetime.combine(day + timedelta(days=1), datetime.min.time()).astimezone()
+    if until <= since:
+        args.usage("--until must come after --since")
+    try:
+        runs, caps, instances = spend.read(Path(args.store), since, until, args.project)
+    except spend.Refused as why:
+        raise SystemExit(f"jgauge: {why}") from None
+    print("\n".join(spend.report(runs, caps, instances, since, until)))
     return 0
 
 
@@ -346,6 +383,33 @@ def parser() -> argparse.ArgumentParser:
         help=f"with --report, the CPU pressure line (default: {sample.PRESSURE_LINE:g})",
     )
     sampled.set_defaults(run=cmd_sample, usage=sampled.error)
+
+    spent = commands.add_parser(
+        "spend",
+        help="print Claude spend by kind, instance and five-hour window, and the minutes each"
+        " day with every Claude instance capped",
+        description="Read T3 Code's store read-only and print the Claude spend of a period in"
+        " units (uncached input x1, cache write x1.25, cache read x0.1, output x5, Opus x5/3),"
+        " by kind of run, by instance and by five-hour window, then each day's minutes with"
+        " every Claude instance capped, from the runs' usage-limit failures and their resets."
+        " Times are local.",
+    )
+    spent.add_argument(
+        "--day", metavar="DATE", type=_day, help="the local day, YYYY-MM-DD (default: today)"
+    )
+    spent.add_argument(
+        "--since", metavar="TIME", type=_local, help="the period's start, an ISO time, local"
+    )
+    spent.add_argument(
+        "--until", metavar="TIME", type=_local, help="the period's end, an ISO time, local"
+    )
+    spent.add_argument(
+        "--project", metavar="NAME", help="count only the runs of this T3 project's threads"
+    )
+    spent.add_argument(
+        "--store", default=str(spend.STORE), help="T3 Code's store (default: %(default)s)"
+    )
+    spent.set_defaults(run=cmd_spend, usage=spent.error)
 
     held = commands.add_parser(
         "test-slot",

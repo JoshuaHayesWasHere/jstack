@@ -48,7 +48,8 @@ that is also in conflict and already has `rebase|<slug>|<head 12>`. It marks a h
 with that key, and the rebase message marks this module's key for the commit main is at.
 `tell` also marks with `failed|<slug>|<head 12>` each head it tells, and each head whose
 message T3 Code refused and jbus then sent to a gate instead. This message says what to do about the
-failed check, so `rebase.github` does not say it again.
+failed check, so `rebase.github` does not say it again. It writes no `failure|` key beside it, since
+it told no failure: a merge of main onto that head is told by `rebase.github` as a new head.
 
 A tip whose check started no job (`watch.NO_JOB`, a spent Actions limit or a failed payment) is
 neither red nor green: no code was judged, so it changes neither `broken` nor `green`, and
@@ -60,7 +61,7 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 
 from __future__ import annotations
 
-from jbus import Refused, dispatch, questions, read_json, rebase, verbs, write_json
+from jbus import Refused, dispatch, expedite, questions, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import NO_JOB, World, _api, _check, checks
@@ -247,6 +248,9 @@ def tell(run: Pass, client: Client, world: World) -> None:
             continue
         if rebase.held(run, client, world, slug, number, head):
             held.append(slug)
+            continue
+        if expedite.waits_on_cap(run, client, thread, slug, "its crew being told main moved"):
+            owed = True
             continue
         message = MESSAGE.format(
             main=fixed[:12],

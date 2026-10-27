@@ -134,6 +134,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A check that the repo's workflows never run then blocks no merge.
   For example, jstack's own state directory names `check` (the suite) and `borders` (the border lint), so its pull requests wait for both.
   A pull request waits with `<check> has not passed` for the first required check that has not passed, and with `it conflicts with its base` for a conflict.
+  Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
   A pull request into an integration branch has no check of its own to wait on: CI runs the pull request check into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
@@ -292,7 +293,19 @@ The line is then `GitHub was asked to merge <base> at <tip12> into it: its check
 It asks once for a head and a base tip, and keeps what GitHub said in `base-merges.json` in the state directory.
 `--check` asks nothing, and says `its check failed before <base> moved: GitHub is to merge <base> at <tip12> into it`.
 GitHub's new check at the new head then decides by the normal path, and a change broken on its own fails there as its own.
+A pull request broken on its own is not given its base again: when its last two check runs failed a same pytest id, and main's check at neither run's base failed it, `jmerge` asks GitHub nothing and keeps the line `<check> has not passed`.
+It reads a run's ids from the `FAILED <id>` lines of `gh run view <id> --log-failed`, and main's check at a run's base is main's latest run of the check that started by the time the pull request's run started.
+A pull request whose runs failed no test id, or a test that main's check also failed there, is asked for as before, and so is one whose runs or logs GitHub does not give.
+It keeps that answer for a head and a base tip in `base-merges.json`, so the logs are read again only once either moves (#494, 2026-10-26: nine merges of main, each red on the same test of its own).
 The review stands across the merge, as across a rebase: the range-diff of the reviewed head and the new head shows no content, since it leaves out the merge commit.
+
+## A required check with no run at the head
+
+A check that a repo requires before its workflow reaches the base gets no run at a head whose checks ran before then, and no rerun starts it.
+`jmerge` tells it apart from a check still running: its line is `<check> has no run at <head12>`, not `<check> has not passed`.
+When that is all that holds the pull request, it merges cleanly, and its base has moved since its check started, `jmerge` asks GitHub to merge the base into the branch, as for a green pull request whose base moved.
+The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, asked once for a head and a base tip, and GitHub runs the base's workflows at the new head.
+With the base unmoved, the line stays `<check> has no run at <head12>`: that is no wait on the merge runner, so jbus wakes the home once it is held longer than `clock.HOLD_MINUTES` (`features/jbus/src/jbus/clock.py`).
 
 ## Merge gate
 
@@ -391,7 +404,8 @@ If no line is lost, `git range-diff` between the head the review saw and the reb
 When the rebase drops a line, `jmerge` waits for the crewmate and prints `the rebase dropped <k> of main's lines in <file> ... with no Dropped on rebase line at <head12>`.
 The crewmate puts the lines back, or adds `Dropped on rebase: <file>, <k> of main's, <j> of its own, at <head12>: <why>` to its Result.
 The scoped review then rules on each such file with a `Drops: upheld <files>` or `Drops: not upheld <file>: <why>` line.
-Until a review covers that head, the pull request waits with `the scoped review has not ruled on the drops in <files>`.
+Until a review covers that head, the pull request waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`.
+The range-diff is the one the review was carried over by, or `nothing` where `jmerge` ran none, and jbus asks the crew for that scoped review.
 Two outcomes need your decision.
 When the review does not uphold a drop, the line is `hold <number> <url>: needs <user>, the review did not uphold the drop in <file>: <why>`.
 When a review of that head does not rule on a file's drops, the line is `hold <number> <url>: needs <user>, the review of <head12> did not rule on the drops in <files>`.

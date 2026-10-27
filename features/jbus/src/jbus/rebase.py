@@ -25,8 +25,11 @@ asks for a second review of the same head.
 
 The third kind of `wait` line is about a rebase that dropped lines nobody explained. `jmerge` waits
 on such a rebase, and jbus tells the crew once per head, under the key `drops|<slug>|<head 12>`. The
-crew puts the lines back, or says for each file why the lines are gone. The scoped review then rules
-on those reasons.
+crew puts the lines back, or says for each file why the lines are gone. `jmerge` then waits on the
+scoped review that rules on those reasons, and its line names the range-diff, as the changed-content
+line does. So the third kind ends in a scoped-review ask too: jbus asks the crew for that review
+once per head, under `rereview|<slug>|<head 12>`. A head that already has that mark, or whose
+Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
 `deliver` is the one function that sends these messages. `stall` calls `deliver` too, for a line
 that this module does not read: a guarded pull request with a fix that no review has proved
@@ -50,10 +53,10 @@ the rebase message, `post` writes the `mainmoved` key for the commit that main p
 T3 Code has no watch that wakes a crew. Instead, `github` calls `deliver` to send the crew a message
 for each thing on GitHub that needs the crew to act. There are three such things.
 
-The first is a check that ran and failed at a head, under the key `failed|<slug>|<head 12>`. When
-the crew reruns the head once, the check runs again in a later attempt of its workflow run. If it
-fails there, `github` sends one more message, under `refailed|<slug>|<head 12>`. A check that failed
-with no step run means CI started no job. No push repairs that, so `github` sends nothing for it.
+The first is a check that ran and failed at a head, under `failed|<slug>|<head 12>`, with the
+failure told beside it: GitHub's merge of main onto a head told of the same failure is not told
+again, a crew push or another failure is (`told_before`). A rerun red again is told once more, under
+`refailed|<slug>|<head 12>`. A check that ran no step is not told: no push repairs it.
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
@@ -79,7 +82,7 @@ from urllib.parse import urlsplit
 from jbus import END_TURN, cancelled, dispatch, queue, read_json, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
+from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, failed_in, job, job_log
 from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
@@ -111,13 +114,19 @@ MESSAGE = (
 )
 
 
-_CONTENT = re.compile(
+_RANGES = r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
+_CONTENT = re.compile(r"\b" + re.escape(ready.CONTENT_CHANGED.removesuffix("{command}")) + _RANGES)
+_UNRULED = re.compile(
     r"\b"
-    + re.escape(ready.CONTENT_CHANGED.removesuffix("{command}"))
-    + r"(git range-diff --no-color (\S+\.\.[0-9a-f]{40}) (\S+\.\.([0-9a-f]{40})))$"
+    + re.escape(ready.SCOPED_UNRULED.removesuffix("{command}")).replace(re.escape("{files}"), ".+")
+    + _RANGES
 )
 REREVIEW = (
     "jbus: your rebase of pull request #{number} changed its content after its review ({command})."
+)
+UNRULED = (
+    "jbus: your Result explains the lines the rebase of pull request #{number} dropped, and no "
+    "scoped review has ruled on them yet ({command})."
 )
 UNPROVEN = (
     "jbus: the fix you pushed to pull request #{number} has no review at its head, and jmerge "
@@ -125,12 +134,12 @@ UNPROVEN = (
 )
 SCOPED = (
     " If the Result already has a `Scoped reviewer:` line that names this head, launch nothing "
-    "more. Otherwise launch ONE scoped reviewer, not a full review: the same way the crew "
-    'skill\'s "The review" launches a reviewer, with the message `/pr-review run {slug} scoped '
-    "{old} {new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
-    "`Scoped reviewer:` line that names another head no `## Review` has. Do not rebase again "
-    "until its `## Review` is written. Handle its findings as a review's: a `Finding:` line for "
-    "each."
+    "more. Otherwise launch ONE scoped reviewer, not a full review, in {{worktree}}: the same way "
+    'the crew skill\'s "The review" launches a reviewer, with `workspaceStrategy` '
+    "`existing_worktree` on that worktree and the message `/pr-review run {slug} scoped {old} "
+    "{new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a `Scoped "
+    "reviewer:` line that names another head no `## Review` has. Do not rebase again until its "
+    "`## Review` is written. Handle its findings as a review's: a `Finding:` line for each."
 )
 
 
@@ -184,13 +193,15 @@ class Ask:
 
 def content(line: str) -> tuple[int, str, Ask] | None:
     """Return the number of the pull request, the reason that `jmerge` gives, and the scoped review
-    that jbus requests. `content` reads a line that waits on a scoped review."""
+    that jbus requests. `content` reads a line that waits on a scoped review: of a rebase that
+    changed the content, or of drops the Result explains that no review has ruled on."""
     found = _WAIT.match(line)
-    named = found and _CONTENT.search(found[2])
-    if not found or not named:
-        return None
-    asked = _scoped(REREVIEW.replace("{command}", named[1]), named[2], named[3])
-    return int(found[1]), found[2], Ask("rereview", *asked, named[4])
+    for pattern, why in ((_CONTENT, REREVIEW), (_UNRULED, UNRULED)):
+        named = found and pattern.search(found[2])
+        if found and named:
+            asked = _scoped(why.replace("{command}", named[1]), named[2], named[3])
+            return int(found[1]), found[2], Ask("rereview", *asked, named[4])
+    return None
 
 
 def unproven(old: str, new: str) -> Ask:
@@ -238,9 +249,21 @@ def asks(line: str) -> tuple[int, str, Ask] | None:
 
 def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
     """Send one message, once per head, to each crew whose pull request `jmerge` calls stale,
-    rebased with its content changed, or short of lines nobody explained."""
+    rebased with its content changed, or short of lines nobody explained or ruled on. A scoped
+    review the Result already names a reviewer of at its head is asked for no more."""
     for number, reason, ask in filter(None, map(asks, lines)):
+        if ask.kind == "rereview" and scoping(run, world, number, ask.head):
+            continue
         deliver(run, client, world, number, reason, ask)
+
+
+def scoping(run: Pass, world: World, number: int, head: str) -> bool:
+    """Say whether the brief of the pull request has a `Scoped reviewer:` line of this head."""
+    slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
+    lines = _brief(run, slug).splitlines() if slug else []
+    return any(
+        line.startswith("Scoped reviewer:") and line.split()[-2:] == ["of", head] for line in lines
+    )
 
 
 def github(run: Pass, client: Client, world: World) -> None:
@@ -253,11 +276,21 @@ def github(run: Pass, client: Client, world: World) -> None:
             continue
         brief = _brief(run, slug)
         rebased = f"rebase|{slug}|{head[:12]}" in sent
-        failed, attempt = ("", 0) if rebased else ran_and_failed(run, pull)
-        again = _asked("refailed", FAILED, head) if attempt > 1 else None
+        red = Red() if rebased else ran_and_failed(run, pull)
+        again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
         ask = again or _asked("failed", FAILED, head)
-        if failed and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
-            deliver(run, client, world, number, failed, ask)
+        if red.reason and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
+            told = f"failure|{slug}|{head[:12]}|{failure(run, red)}"
+            merged = "" if again else told_before(run, head, told, sent)
+            if merged:
+                run.box.mark(f"failed|{slug}|{head[:12]}")
+                run.box.mark(told)
+                run.say(
+                    f"failed {slug}: #{number} at {head[:12]} is a merge of main onto "
+                    f"{merged[:12]}, red on the failure its crew was told of, so not told again"
+                )
+            elif deliver(run, client, world, number, red.reason, ask):
+                run.box.mark(told)
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
@@ -269,6 +302,23 @@ def github(run: Pass, client: Client, world: World) -> None:
         green = f"green|{slug}|{head[:12]}" not in sent and checks(pull) == "passed"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
+
+
+def worktree(client: Client, thread: str) -> str | None:
+    """Return the thread's `worktreePath` as T3 Code reads it: None where T3 Code says it has none,
+    and nothing where the read gave no answer or no such field."""
+    try:
+        read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
+    except T3Error:
+        return ""
+    said = (read or {}).get("thread") or {}
+    return said.get("worktreePath", "")
+
+
+def where(client: Client, thread: str) -> str:
+    """Name the crew's worktree, by its path where T3 Code gives it."""
+    path = worktree(client, thread)
+    return f"your worktree, `{path}`" if path else "your own worktree"
 
 
 def crew(run: Pass, slug: str) -> str:
@@ -329,17 +379,73 @@ def _asked(kind: str, message: str, head: str) -> Ask:
     )
 
 
-def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
-    """Return the failed checks at the pull request's head, among the checks that ran, as `{reason}`
-    or nothing. Also return the highest attempt of the workflow runs in which they failed. When
+MERGER = "web-flow"
+
+
+@dataclass(frozen=True)
+class Red:
+    """The failed checks at a pull request's head, among those that ran: `reason` names them, or
+    is empty, `attempt` is the highest attempt of the workflow runs they failed in, and `jobs` is
+    each one's repo and job, where its link gives them."""
+
+    reason: str = ""
+    attempt: int = 0
+    names: tuple[str, ...] = ()
+    jobs: tuple[tuple[str, str], ...] = ()
+
+
+def failure(run: Pass, red: Red) -> str:
+    """Return the identity of a failure, as the first twelve characters of a digest: the failed
+    checks' names, and the pytest ids that their jobs' logs name as failed (`watch.failed_in`).
+    A job whose log GitHub does not give adds no id, so its failure is its check's name."""
+    import hashlib
+
+    tests = set()
+    for repo, number in red.jobs:
+        log = job_log(run, repo, number)
+        tests.update(failed_in(log).tests if log is not None else ())
+    said = "\n".join([*sorted(set(red.names)), "", *sorted(tests)])
+    return hashlib.sha256(said.encode()).hexdigest()[:12]
+
+
+def told_before(run: Pass, head: str, told: str, sent: list[str]) -> str:
+    """Return the head that this one merged main onto, where its crew was told of this same
+    failure (`told`) at that head, or nothing. Such a head is GitHub's merge of the base into the
+    branch, as update-branch makes it: a commit by `web-flow` with two parents, the branch's head
+    first. A head the crew pushed is never such a head, so it is told whatever it fails on.
+
+    Beside each `failed|<slug>|<head 12>` key, `github` writes what it told,
+    `failure|<slug>|<head 12>|<failure>`, the failure being `failure`'s digest of the failed checks'
+    names and the pytest ids their jobs' logs name. For a head this returns one for, `github` sends
+    nothing and marks both keys as if told. So a crew hears once of a failure, however often main
+    is merged in (#494, 2026-10-26: jmerge's update-branch made nine heads, each red on the same
+    test, and each was a `failed` message to a capped crew)."""
+    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/commits/{head}")
+    try:
+        commit = json.loads(asked.stdout) if asked.returncode == 0 else {}
+    except ValueError:
+        commit = {}
+    if not isinstance(commit, dict) or (commit.get("committer") or {}).get("login") != MERGER:
+        return ""
+    parents = [str((one or {}).get("sha") or "") for one in commit.get("parents") or []]
+    if len(parents) != 2 or not parents[0]:
+        return ""
+    same = told.replace(f"|{head[:12]}|", f"|{parents[0][:12]}|")
+    return parents[0] if same in sent else ""
+
+
+def ran_and_failed(run: Pass, pull: dict) -> Red:
+    """Return the failed checks at the pull request's head, among the checks that ran, as a `Red`:
+    its `reason` names them, or is empty, beside their names, their jobs and the highest attempt of
+    the workflow runs in which they failed. When
     GitHub says a check's job ran no step, the check never started: CI started no job, and the
     crew's `unrun` parks that case. When GitHub will not give a check's job, the check counts as
     run, at its first attempt. A workflow run in which a cancelled or timed-out job stopped a
     required check is `cancelled`'s, which runs it again or tells the home, so none of its checks
     is named here."""
     if checks(pull) != "failed":
-        return "", 0
-    names, attempt, required = [], 1, cancelled.required(run)
+        return Red()
+    names, jobs, attempt, required = [], [], 1, cancelled.required(run)
     never = frozenset(pull.get(NEVER) or ())
     latest = latest_of_each(pull.get("statusCheckRollup") or [])
     theirs = cancelled.runs(latest, never, required)
@@ -353,20 +459,22 @@ def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
         given = job(run, *found.groups()) if found else {}
         attempt = max(attempt, int(given.get("run_attempt") or 1))
         names.append(check.get("name") or check.get("context") or "a check")
+        jobs.extend([found.groups()] if found else [])
     if not names:
-        return "", 0
-    return f"{', '.join(dict.fromkeys(names))} failed", attempt
+        return Red()
+    return Red(f"{', '.join(dict.fromkeys(names))} failed", attempt, tuple(names), tuple(jobs))
 
 
-def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> None:
+def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> bool:
     """Send the crew of a pull request one message, once per head, and write an event of the ask's
-    kind that says so."""
+    kind that says so. Say whether the message went."""
     sent = post(run, client, world, number, reason, ask)
     if sent:
         slug, head, message = sent
         line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
         run.find(slug, ask.kind, line, message, key=head[:12])
         run.say(line)
+    return bool(sent)
 
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
@@ -388,7 +496,10 @@ def post(
     is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`.
     `deliver` puts the key there through the event that it queues, and any other caller writes the
     key itself. `mainmoved` also writes the key, for a head that it told.
-    `post` sends nothing while `held` delays the message. When a rebase message goes, `post` writes
+    `post` sends nothing while `held` delays the message, or while the crew's instance is capped
+    (`expedite.waits_on_cap`): the message waits under its key, and the first pass after the reset
+    sends it. A caller that keys its message by the cap's window (`expedite._tell`) has weighed the
+    cap itself. When a rebase message goes, `post` writes
     the `mainmoved` key for the commit that the default branch points to, so jbus does not also
     tell of that move.
     """
@@ -423,9 +534,16 @@ def post(
         return None
     if held(run, client, world, slug, number, head):
         return None
+    from jbus import expedite
+
+    doing = f"its crew being {ask.doing}"
+    if not window.startswith("cap ") and expedite.waits_on_cap(run, client, thread, slug, doing):
+        return None
     message = ask.message.format(
         number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
     )
+    if "{worktree}" in message:
+        message = message.replace("{worktree}", where(client, thread))
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:

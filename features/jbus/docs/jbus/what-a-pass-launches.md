@@ -16,9 +16,12 @@ jbus then writes `Thread: <id>` in the head of that file, the one line it writes
 
 A row launched stacked starts its worktree from its base's branch, and its brief has `Stacked on: <slug> <branch>` in its head in place of `Green main:`.
 Its crew opens its pull request on that branch, and `jmerge` waits on it as `it is stacked on <branch>, and merges after <slug> merged and jbus moved it onto <default>`.
-Each pass after that tells its crew once for each move: when its base's head moves, to rebase onto the base's branch, and when its base merged, to move its own commits onto the default branch.
-Before that second message jbus bases its pull request on the default branch, where GitHub has not done so itself on deleting the base's branch.
-Once the message went, the line says `Stacked on: <slug> <default> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
+Each pass after that tells its crew once for each move of its base's head, to rebase onto the base's branch.
+Once its base merged, jbus bases its pull request on the default branch, where GitHub has not done so itself on deleting the base's branch, and moves the link's own commits onto it itself in the same pass, with no message to its crew.
+It rebases them in a scratch worktree of its own, pushes them with a lease at the head it read, and moves the crew's worktree, where it is clean, to the pushed head.
+A crew whose thread is at work is left until a later pass.
+A rebase that conflicts, a push the lease refuses, a crew's worktree with work in it, or a reviewer still out leaves the branch as it was, and the crew is told to move its own commits instead.
+Once the link moved or that message went, the line says `Stacked on: <slug> <default> at <the commit that merged it>`, and `jmerge` waits until the link's head holds that commit.
 A link still on its base's branch gets no message to rebase onto main: its branch holds its base's commits too.
 
 - **A brief whose scope changed after the go** gets `condition <slug>: brief changed after approval: <lines>`.
@@ -64,6 +67,20 @@ max_per_home is 6 in the flow home: <slug> waits, since <time>
 max_per_project is 24 in jstack: <slug> waits, since <time>
 max_running is 24 across all projects: <slug> waits, since <time>
 ```
+
+## What a rebase asks of its crew
+
+`rebase.tell` reads three kinds of `wait` line `jmerge` prints about a rebase, and sends the crew one message for each head, keyed `<kind>|<slug>|<head 12>`.
+
+| `jmerge` waits on | jbus sends | Key |
+|---|---|---|
+| main moving under the pull request, or a conflict with its base | an ask to rebase, with a backup ref and a lease | `rebase` |
+| a rebase that changed the content after its review (`scoped review of <range-diff>`) | an ask for one scoped review of that range-diff | `rereview` |
+| lines the rebase dropped with no `Dropped on rebase:` line at the head | an ask to put the lines back or explain each file | `drops` |
+
+The third kind ends in a scoped-review ask too.
+Once the Result explains each drop, `jmerge` waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`, and jbus asks the crew for that scoped review under the `rereview` key.
+A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
 ## A scout
 

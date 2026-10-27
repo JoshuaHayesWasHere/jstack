@@ -430,4 +430,4 @@ def test_a_full_file_list_carries_each_file_s_change_type():
 
 def test_a_protected_pull_request_that_is_short_of_ready_says_that_first(merged):
     merged.home.open_pull_request(merged.head, checks=(), files=["skills/home/SKILL.md"])
-    assert merged.run() == [f"wait 7 {merge.URL}: check has not passed"]
+    assert merged.run() == [f"wait 7 {merge.URL}: check has no run at {merged.head[:12]}"]

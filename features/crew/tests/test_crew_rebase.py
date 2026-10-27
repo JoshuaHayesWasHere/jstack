@@ -230,7 +230,7 @@ def test_a_rebase_is_looked_through_for_lines_it_dropped_as_jmerge_looks(case, t
     )
     assert ready.drops(lost, said, head, user=jsettings.DEFAULTS) == (
         "wait",
-        "the scoped review has not ruled on the drops in shared.txt",
+        "the scoped review has not ruled on the drops in shared.txt; scoped review of nothing",
     )
 
 

@@ -78,7 +78,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:953-954
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:976-977
     /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
     /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:458-466
@@ -87,16 +87,16 @@ Merge(p) ==
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1401-1402: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1410-1411: main's red tip after a briefed merge is filed.
     /\ fixRow' = (fixRow \/ breaks[p])
     /\ UNCHANGED <<ci, ranRed, breaks, told, outsideLeft, link, on, Machine>>
 
-\* Its base merged: jbus moves the stacked pull request onto main and tells its crew, which
-\* rebases its own commits onto main ("A link that moved"), and its check runs again.
+\* Its base merged: jbus moves the stacked pull request onto main and rebases its own commits
+\* onto main itself, or tells its crew to ("A link that moved"), and its check runs again.
 Restack(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:67, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/stack.py:79, open ones only
     /\ on[p] # "main"
-    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:73-74, its base merged
+    /\ st[on[p]] = "merged"                 \* features/jbus/src/jbus/stack.py:85-86, its base merged
     /\ on' = [on EXCEPT ![p] = "main"]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ UNCHANGED <<st, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, Machine>>
@@ -104,7 +104,7 @@ Restack(p) ==
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus sends to
 \* a thread already running, so no room is asked for, and its turn may leave a process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:250, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:273, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
@@ -121,12 +121,12 @@ CrewFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:875, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:298-301, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:836, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:948, base not red
-    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:64, once a head and tip
-    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:69, GitHub merges the base in
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:880, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:309-312, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:837, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:957, base not red
+    /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:96, once a head and tip
+    /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:76, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
 
 \* What jbus.strays may stop of an idle process p's crew left. A crew at work is never touched
@@ -162,7 +162,7 @@ OutsideBreak ==
     /\ mainRed' = TRUE
     /\ redBy' = "outside"
     /\ outsideLeft' = outsideLeft - 1
-    \* features/jbus/src/jbus/watch.py:1352,1395,1399,1402: since #392 the fix row is filed for a red
+    \* features/jbus/src/jbus/watch.py:1361,1404,1408,1411: since #392 the fix row is filed for a red
     \* tip with no briefed merge in the day before it too, under the row's own name.
     /\ fixRow' = TRUE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, link, on, Machine>>

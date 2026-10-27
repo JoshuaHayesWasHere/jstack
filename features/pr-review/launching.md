@@ -48,7 +48,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
        else
            said=$(uv run --project "$T/../source" jmerge --checks "$pr")
            case $said in
-           passed*) head=${said##* } ;;
+           passed* | "wait: a draft, so CI runs its check once it is marked ready, at "*) head=${said##* } ;;
            "wait: a check has not finished" | "wait: no check is reported yet")
                head=$(gh pr view "$pr" --json headRefOid | jq -r '.headRefOid // empty') ;;
            *) head= ;;
@@ -74,6 +74,7 @@ It prints that reviewer's thread id, or nothing. A line that says `Reviewer: non
    - the pull request's checks are not red.
      `jmerge --checks` prints its four answers: `passed`, `failed`, `wait`, `unrun` (the crew skill, "The checks").
      `passed` and `wait` are ready: a review runs beside the checks, and green is what `jmerge` merges on, not what a review waits for.
+     The `wait` of a draft is ready at the head its line names: CI runs no check on a draft until it is marked ready, and the review need not wait for that.
      The `wait` of a GitHub that could not be asked is not ready: no rollup was read.
      `failed` is never ready: a red pull request is fixed first, and its reviewer is launched on the push.
      `unrun` means no check ran, every one failed with no step run or was skipped, because the repo's CI starts no job: nothing stands in for a check that did not run, so the brief is not ready, whatever its Result says of a check command that passed in the crewmate's worktree.

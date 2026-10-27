@@ -387,6 +387,7 @@ def test_findings_all_declined_are_ready_at_the_reviewed_head(home):
 
 STOOD_IN = f"CI: did not run at {PUSHED}, `make check` passed in this worktree at that head\n"
 NOT_PASSED = "check has not passed"
+NO_RUN = f"check has no run at {PUSHED[:12]}"
 
 
 @pytest.mark.parametrize(
@@ -627,7 +628,7 @@ SHORT = {
     "check is missing beside other checks that passed": (
         FIXED,
         {"head": PUSHED, "checks": (OTHER_PASSED, run("SUCCESS", "checks"))},
-        NOT_PASSED,
+        NO_RUN,
     ),
     "check was skipped": (
         FIXED,
@@ -680,7 +681,7 @@ SHORT = {
     "no checks reported": (
         FIXED,
         {"head": PUSHED, "checks": ()},
-        NOT_PASSED,
+        NO_RUN,
     ),
     "CONFLICTING": (
         FIXED,
