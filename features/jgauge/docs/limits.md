@@ -143,16 +143,16 @@ This page records the pool numbers and changes none of them.
 | A thread's timebox | `features/jbus/src/jbus/watch.py:53` | `TIMEBOX_HOURS = 4.0` | Before this repo's history | A runaway thread is found | Design choice | Kept |
 | A thread waits on someone | `features/jbus/src/jbus/watch.py:54` | `WAITING_MINUTES = 30` | Before this repo's history | A waiting thread is told | Design choice | Kept |
 | A thread ended with nothing written | `features/jbus/src/jbus/watch.py:55` | `UNWRITTEN_MINUTES = 15` | #86 | Its home hears of it | Design choice | Kept |
-| A wake's quiet gap | `features/jbus/src/jbus/wake.py:79` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
-| A pass's command | `features/jbus/src/jbus/wake.py:81` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
-| jmerge in a pass | `features/jbus/src/jbus/wake.py:82` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
+| A wake's quiet gap | `features/jbus/src/jbus/wake.py:76` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
+| A pass's command | `features/jbus/src/jbus/wake.py:78` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
+| jmerge in a pass | `features/jbus/src/jbus/wake.py:79` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
 | jmerge's judge | `features/jmerge/src/jmerge/cli.py:60` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
 | Judged again | `features/jmerge/src/jmerge/cli.py:55` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
 | Rows that share files | `features/jbus/src/jbus/dispatch.py:50` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
 | A failover's items | `features/jbus/src/jbus/failover.py:44` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `features/jbus/src/jbus/threads.py:119` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
 | Carry-ons a thread gets | `features/jbus/src/jbus/threads.py:129` | `CARRY_ONS = 2` | Before this repo's history | A thread is not woken forever | Design choice | Kept |
-| Failures before an alert | `features/jbus/src/jbus/alert.py:38` | `AFTER = 3` | Before this repo's history | One failure is not an alert | Design choice | Kept |
+| Failures before an alert | `features/jbus/src/jbus/alert.py:67` | `AFTER = 3` | Before this repo's history | One failure is not an alert | Design choice | Kept |
 | Passes before an expedite | `features/jbus/src/jbus/expedite.py:81` | `AFTER = 3` | Before this repo's history | A crew is told what to do | Design choice | Kept |
 | A woken waiter's claim on a slot | `features/jgauge/src/jgauge/waiters.py:48` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
 | A wait no thread came back for | `features/jgauge/src/jgauge/waiters.py:49` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
