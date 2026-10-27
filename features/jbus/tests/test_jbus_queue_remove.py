@@ -209,7 +209,7 @@ def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):
         ("open", "refused: alpha is out: its pull request #9 is open"),
         ("merged", "refused: alpha merged as #9, and a merged row stays"),
         ("none", "refused: the queue has no row nope"),
-        ("other", "refused: only user removes a row, not Chef"),
+        ("other", "refused: alpha launched, and only user removes a row that launched, not Chef"),
         ("when", 'refused: --at is "<YYYY-MM-DD HH:MM ET>"'),
         ("silent", "refused: T3 Code could not be asked whether alpha's thread is out"),
         (
@@ -234,6 +234,9 @@ def test_a_row_that_is_out_merged_or_waited_on_is_refused_and_nothing_changes(ki
     elif scene == "none":
         slug = "nope"
     elif scene == "other":
+        table = rows(kitchen)
+        table["alpha"].update(status="running", thread="mcp:thread-1")
+        jbus.write_json(kitchen.state / "queue.json", list(table.values()))
         word = ("--by", "Chef", "--at", AT)
     elif scene == "when":
         word = ("--by", "user", "--at", "yesterday")
