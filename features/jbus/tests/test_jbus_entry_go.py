@@ -257,7 +257,7 @@ def test_under_silence_a_row_that_follows_a_row_silence_started_waits(kitchen):
     said = queued(kitchen, "beta", text=big)
     kitchen.poll(NOW + timedelta(minutes=32))
     assert basis(kitchen, "beta") == ()
-    assert "alpha's go was a gate's silence, not the user's word" in said
+    assert "alpha's go goes back to a gate's silence, not the user's word" in said
 
 
 def test_under_silence_an_l_row_and_a_case_wait_after_the_window(kitchen):
@@ -360,3 +360,19 @@ def test_a_scoped_homes_go_approves_its_own_rows_and_its_stop_takes_them_back(ki
     code, said = kitchen.main("plan", "stop", "epic", "--scope", "flow")
     assert code == 0 and "alpha waits for the user's go" in said, said
     assert basis(kitchen, "alpha") == ()
+
+
+def test_under_silence_a_follow_up_two_hops_from_silences_go_waits_when_silence_would_not_start_it(
+    kitchen,
+):
+    silence(kitchen)
+    queued(kitchen, "alpha", entry=None)
+    gate(kitchen, "alpha")
+    kitchen.poll(NOW + timedelta(minutes=31))
+    queued(kitchen, "cleanup-alpha", entry=None, text=brief("cleanup-alpha", "Follows: alpha\n"))
+    assert basis(kitchen, "cleanup-alpha") == (queue.RULE, queue.FOLLOW_REF)
+    big = brief("cleanup-cleanup-alpha", "Follows: cleanup-alpha\n").replace(
+        "Size: S\n", "Size: L\n"
+    )
+    queued(kitchen, "cleanup-cleanup-alpha", entry=None, text=big)
+    assert basis(kitchen, "cleanup-cleanup-alpha") == ()

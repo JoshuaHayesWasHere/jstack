@@ -794,8 +794,8 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     word, a typed string of an older row, or the follow-up rule's, and it holds for the parent's
     stored brief. A parent approved by the rule is itself a follow-up, so a chain goes back to the
     user's word one go at a time, and since a parent must have its go first, no chain is a loop.
-    A parent whose go was a gate's silence leads only a follow-up that silence would start itself
-    (`unsilenced`).
+    A parent whose go goes back to a gate's silence, through follow-ups the rule approved, leads
+    only a follow-up that silence would start itself (`unsilenced`).
     """
     cannot = f"refused: {slug} cannot follow"
     if follows == slug:
@@ -803,17 +803,37 @@ def _parent(batch: _Batch, slug: str, follows: str) -> Row:
     row, here = _parent_row(batch, slug, follows)
     if not row.get("approved"):
         raise Refused(f"{cannot} {follows}: {follows} has no approval")
-    made, mine = record(row), batch.brief(slug)
-    why = unsilenced(mine) if made is not None and made.closed_by and mine is not None else ""
+    mine = batch.brief(slug)
+    why = unsilenced(mine) if mine is not None and _silence_led(batch, row) else ""
     if why:
         raise Refused(
-            f"{cannot} {follows}: {follows}'s go was a gate's silence, not the user's word, "
-            f"and silence starts no row where {why}"
+            f"{cannot} {follows}: {follows}'s go goes back to a gate's silence, not the user's "
+            f"word, and silence starts no row where {why}"
         )
     text = batch.brief(follows) if here else None
     if text is not None and not approved_text(row, text):
         raise Refused(f"{cannot} {follows}: {follows}'s brief changed after its approval")
     return row
+
+
+def _silence_led(batch: _Batch, row: Row) -> bool:
+    """Return whether the row's go goes back to a gate's silence: its own go is, or it is the
+    follow-up rule's and its parent's go goes back to one."""
+    seen: set[str] = set()
+    while row["slug"] not in seen:
+        seen.add(row["slug"])
+        made = record(row)
+        if made is None:
+            return False
+        if made.closed_by:
+            return True
+        if made.basis != RULE or not made.follows:
+            return False
+        try:
+            row, _ = _parent_row(batch, row["slug"], made.follows)
+        except Refused:
+            return False
+    return False
 
 
 def _parent_row(batch: _Batch, slug: str, follows: str) -> tuple[Row, bool]:
