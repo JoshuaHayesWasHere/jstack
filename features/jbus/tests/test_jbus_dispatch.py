@@ -239,6 +239,7 @@ def test_a_launch_whose_brief_never_got_its_line_gets_it_on_the_next_pass(kitche
     assert where_the_findings_go(kitchen, "alpha").startswith("crewmate mcp:thread-1: ")
     brief.write_text(whole.replace("Thread: mcp:thread-1\n", "") + review())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
+    kitchen.t3.threads[0]["status"] = "completed"
     kitchen.poll(NOW + timedelta(minutes=4))
     assert [given["threadId"] for given in sends(kitchen)] == ["mcp:thread-1"]
     assert kitchen.lines("gate") == []

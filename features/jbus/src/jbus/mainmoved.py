@@ -37,7 +37,7 @@ again. The next pass takes the red as ended at that tip, whatever tip main is at
 pass does the same when the rebase message went to a red head and GitHub has not yet said
 whether that head still conflicts.
 
-`rebase.held` holds back a message when its thread is at work or its head moved. A held
+`rebase.held` holds back a message the outbox holds (`jbus.outbox`) or whose head moved. A held
 message delays no other message: a turn may last long, and a pull request that turns red meanwhile
 was not red when main moved. `tell` puts the held message's slug on `held` in `main.json`,
 beside the commit, the red tip and the green tip that ended the red (`broken` and
@@ -247,7 +247,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
         if not thread:
             run.gate(slug, NO_THREAD, f"#{number}: {why}", key=f"{NO_THREAD} {fixed[:12]}")
             continue
-        if rebase.held(run, client, world, slug, number, head):
+        if rebase.held(run, client, thread, slug, number, head, key, "mainmoved"):
             held.append(slug)
             continue
         message = MESSAGE.format(
@@ -283,7 +283,6 @@ def tell(run: Pass, client: Client, world: World) -> None:
             owed = True
             continue
         run.box.mark(key)
-        run.told.add(slug)
         run.box.mark(f"rebase|{slug}|{head[:12]}")
         run.box.mark(f"failed|{slug}|{head[:12]}")
         line = f"mainmoved {slug}: told the crew (#{number}, main {fixed[:12]})"

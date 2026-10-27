@@ -18,10 +18,12 @@ URL = "https://example.test/pull/7#c"
 
 @pytest.fixture
 def opened(kitchen):
-    """Launch alpha and open its pull request 7, in a repo that ada owns."""
+    """Launch alpha and open its pull request 7, in a repo that ada owns. Its thread's turn has
+    ended, since the outbox holds a message to a thread at work (`jbus.outbox`)."""
     add(kitchen, "alpha")
     said = kitchen.poll(NOW - timedelta(minutes=30))
     assert "launched alpha: mcp:thread-1" in said
+    kitchen.t3.threads[0]["status"] = "completed"
     kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "mergeable": "MERGEABLE"}])
     kitchen.set("repo.json", {"owner": {"login": OWNER}})
     return kitchen

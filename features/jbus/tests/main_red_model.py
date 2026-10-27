@@ -163,6 +163,7 @@ class FakePass:
     now: datetime = NOW
     told: set[str] = field(default_factory=set)
     said: list[str] = field(default_factory=list)
+    world: None = None
 
     def __post_init__(self) -> None:
         self.home = self.state / "home"

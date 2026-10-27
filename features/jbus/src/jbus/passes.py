@@ -13,10 +13,14 @@ import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 import jbus
 from jbus import Config, Project, queue, read_json, verbs
 from jbus.wake import COMMAND_TIMEOUT, Box
+
+if TYPE_CHECKING:
+    from jbus.watch import World
 
 CONDITION = "condition"
 
@@ -64,9 +68,12 @@ class Pass:
     If a pull request for such a slug opens later, every step still treats it as a pull
     request.
 
-    `told` is the slugs whose thread this pass told to carry on: those slugs wait on their
-    thread, not on the user. `limited` is the slugs whose last run ended on a usage limit
-    (`jbus.failover`). The pass sends their threads no carry-on, since the failover sends one.
+    `told` is the threads this pass sent a message that needs `act` (`jbus.outbox`): each waits
+    on its thread, not on the user, and the outbox sends it no second such message this pass.
+    `limited` is the slugs whose last run ended on a usage limit (`jbus.failover`). The pass sends
+    their threads no carry-on, since the failover sends one. `world` is what the pass saw of T3
+    Code and GitHub, once it has looked (`watch.look`), or None before then or where it could not
+    look.
     """
 
     config: Config
@@ -79,6 +86,7 @@ class Pass:
     held: set[str] = field(default_factory=set)
     told: set[str] = field(default_factory=set)
     limited: set[str] = field(default_factory=set)
+    world: World | None = None
 
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)

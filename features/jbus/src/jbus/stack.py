@@ -149,7 +149,9 @@ def _moved(
             why = said[-1] if said else f"gh exited {asked.returncode}"
             run.say(f"wait {slug}: #{number} could not be based on {onto}: {why}")
             return
-    if rebase.held(run, client, world, slug, number, head):
+    thread = dispatch.thread_of(task_brief(run, slug))
+    key = rebase.mark(KIND, slug, head, merge[:12])
+    if rebase.held(run, client, thread, slug, number, head, key, KIND):
         return
     last = str(merged.get("headRefOid") or "")
     moved = _carry(run, slug, pull, last, merge, onto) if last else ""
