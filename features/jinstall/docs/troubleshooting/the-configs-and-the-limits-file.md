@@ -2,7 +2,7 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing optional config <path> -> defaults are used: user, timezone, timezone_label, headroom, retry_cap` | You have no jstack config. Nothing is wrong. | Nothing, or write the file as [Configuration](../configuration.md#jstack) shows. |
+| `missing optional config <path> -> defaults are used: user, timezone, timezone_label, headroom, retry_cap, go, go_quiet_minutes` | You have no jstack config. Nothing is wrong. | Nothing, or write the file as [Configuration](../configuration.md#jstack) shows. |
 | `old optional config <path> -> <why>` | The file is there and the commands refuse it. `<why>` names the key, or says the file does not parse. `jmerge` and `jbus` stop on the same line. | Correct what `<why>` names. |
 | `missing optional patterns <path>` | You have no private patterns file. `jleak` checks only its built-in patterns. Both of its hooks refuse every push and every pull request command. | Run `jinstall`. It makes the file. Then fill in the names, as [jleak](../../../jleak/docs/jleak.md#the-private-patterns) shows. |
 | `missing optional roles <path> -> every role inherits the model of the thread that launches it` | You have no role map. Nothing is wrong. | Nothing, or run `jinstall --setup`, which writes one where every role is `inherit`. |

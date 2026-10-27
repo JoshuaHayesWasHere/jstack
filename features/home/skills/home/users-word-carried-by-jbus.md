@@ -72,6 +72,31 @@ jbus refuses a state file that is not there, a session or an entry the file does
 The row then reads `your pick on a Lavish page, <time>, <page file name>; run <time> by the <repo> home`.
 If the block prints `no entry`, the page gave no go that jbus can read, so ask the user for their word another way.
 
+### A plan entry's go
+
+The user gives the go for work once per plan entry, never per row.
+When the user's word is a go for an entry, record it with the reference of their own message:
+
+```sh
+jbus --project <project> plan go <entry> --message <thread>/<message>
+```
+
+A scoped home adds `--scope <scope>`.
+jbus refuses a message that is not the user's own and an entry the plan does not have, each in one line.
+It binds the go to the entry's head, its heading and its `Done when:` lines, and `jbus plan` shows the go on the entry's line.
+Under the setting `go = "entry"`, the default, jbus approves each row queued with `--entry <entry>` while that go holds, as the row is queued, on each pass, and again after an edit of its brief.
+Its line reads `your go for the plan entry <entry>, <time>, in <where>; run <time> by <who>`.
+So ask the user nothing for a row of an entry with a go: queue it with `--entry`.
+The go stops holding when the entry's heading or `Done when:` lines change, when the entry closes, or when the user's word stops it, which this home runs as `jbus plan stop <entry>`.
+A row not yet launched then waits for the user's go, and a launched one goes on.
+A brief that is a case of `gates.md` names the case on a `Holds: <case>` line in its head, and its row waits for the user's word under every setting.
+
+Under the setting `go = "silence"`, a home parks its pick for a new row as a gate with `Default: approve`, piped to `jbus gate <slug>` as "Gates" says, instead of asking.
+The gate shows in `jbus view` and the digest, and waits `go_quiet_minutes`, 30 unless the settings say otherwise.
+When it closes on its default by silence, jbus approves the row if it is size S or M, one pull request, and no case of `gates.md`.
+An answer that differs approves nothing, and the row waits for the user's go.
+Both keys, `go` and `go_quiet_minutes`, are in the user's jstack `config.toml`, which `jsettings` reads.
+
 ### A follow-up approved by the follow-up rule
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
@@ -95,7 +120,7 @@ To file an integration branch's sync, write `Follows: <the approved row it serve
 It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
 `jbus queue add --help` gives the same rule.
 To queue a second unit, write `Follows: <parent>` in its brief's head and queue it with `--entry <the parent's plan entry>`.
-A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go however small it is.
+A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go, or for its plan entry's ("A plan entry's go" above).
 The one exception is a fix jbus's own pass filed from a red check, which names no parent and is approved by the rule on its red run, as above.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.
 A follow-up of a follow-up is approved on its parent's go, so a chain goes back to the user's word one go at a time.

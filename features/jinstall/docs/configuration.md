@@ -35,6 +35,8 @@ timezone = "Europe/Berlin"
 timezone_label = "CET"
 headroom = 90
 retry_cap = 2
+go = "entry"
+go_quiet_minutes = 30
 ```
 
 | Key | Default | What it sets | Read by |
@@ -44,8 +46,10 @@ retry_cap = 2
 | `timezone_label` | The zone's abbreviation at the time printed, such as `CEST` | The word that follows a time in a printed line and in `--at`. The docs write it as `<zone>`. | `jmerge`, `jbus` |
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next instance of its pool. At the same share, `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. The value is a number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |
 | `retry_cap` | `2` | How many fixes a home queues for one blocker before it stops and the blocker comes to you as a decision ([Decisions](../../jbus/docs/jbus/decisions.md)). A whole number of 1 or more. | `jbus` |
+| `go` | `entry` | How a row gets your go without a word for each row. With `entry`, you give a plan entry its go once (`jbus plan go`), and jbus approves each row filed under that entry while the go holds. With `silence`, a home parks its pick for a new row as a gate whose default is `approve`, and jbus starts a row of size S or M with one pull request when that gate closes by silence. A brief that names a case of a gate that holds waits for your word under both. | `jbus` |
+| `go_quiet_minutes` | `30` | How long such a gate waits for your answer before it closes on its default. A whole number of 1 or more. | `jbus` |
 
-Each value but `headroom` and `retry_cap` is one word with no space and no comma.
+Each value but `headroom`, `retry_cap` and `go_quiet_minutes` is one word with no space and no comma.
 The loader refuses a file with any other key, or with a `timezone` that is not an IANA name.
 `jmerge` and `jbus` then stop with the one line that says why.
 They do not fall back to the defaults.

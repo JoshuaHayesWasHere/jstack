@@ -372,3 +372,31 @@ def test_the_retry_cap_is_2_with_none_and_the_number_given_with_one(jstack_confi
     assert jsettings.load().retry_cap == 2
     jstack_config.write_text("retry_cap = 5\n")
     assert jsettings.load().retry_cap == 5
+
+
+def test_the_go_is_given_per_entry_after_30_quiet_minutes_with_none(jstack_config):
+    user = jsettings.load()
+    assert (user.go, user.go_quiet_minutes) == ("entry", 30)
+    jstack_config.write_text('go = "silence"\ngo_quiet_minutes = 5\n')
+    user = jsettings.load()
+    assert (user.go, user.go_quiet_minutes) == ("silence", 5)
+
+
+@pytest.mark.parametrize(
+    ("line", "why"),
+    [
+        ('go = "maybe"', 'has a go that is not "entry" or "silence"'),
+        ("go = true", 'has a go that is not "entry" or "silence"'),
+        ("go_quiet_minutes = 0", "has a go_quiet_minutes that is not a whole number of 1 or more"),
+        ("go_quiet_minutes = 2.5", "has a go_quiet_minutes that is not a whole number of 1"),
+        ('go_quiet_minutes = "30"', "has a go_quiet_minutes that is not a whole number of 1"),
+        ("go_quiet_minutes = true", "has a go_quiet_minutes that is not a whole number of 1"),
+    ],
+)
+def test_a_go_or_a_window_that_is_not_one_of_its_values_is_refused_in_one_line(
+    jstack_config, line, why
+):
+    jstack_config.write_text(f"{line}\n")
+    with pytest.raises(jsettings.Invalid) as refused:
+        jsettings.load()
+    assert why in str(refused.value) and "\n" not in str(refused.value)
