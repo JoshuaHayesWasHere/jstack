@@ -12,7 +12,8 @@ import pytest
 
 import jbus
 from jbriefs.home import home_of
-from jbus import children, dispatch
+from jbriefs.parse import thread_of
+from jbus import children
 from test_jbus_kitchen import NOW, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 
@@ -170,7 +171,7 @@ def test_a_plan_limit_that_is_not_known_launches_and_is_a_note_once_a_day(kitche
 def where_the_findings_go(kitchen, slug):
     """Return the thread `jbus.reviewed` tells of the brief's review: the one its `Thread:`
     line names."""
-    return dispatch.thread_of((kitchen.home / f"tasks/{slug}.md").read_text())
+    return thread_of((kitchen.home / f"tasks/{slug}.md").read_text())
 
 
 @pytest.mark.parametrize(

@@ -30,8 +30,8 @@ import re
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
-from jbriefs import findings
-from jbus import END_TURN, dispatch, mirror, outbox, rebase, verbs
+from jbriefs import findings, parse
+from jbus import END_TURN, mirror, outbox, rebase, verbs
 from jbus.expedite import ANSWERED, TABLE, Short
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -128,7 +128,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
         key = notice.key(slug) if notice else ""
         if not notice or key in sent:
             continue
-        thread = dispatch.thread_of(brief) or home_thread(run, brief)
+        thread = parse.thread_of(brief) or home_thread(run, brief)
         text = _text(slug, pull["number"], notice)
         if not thread:
             run.gate(slug, NO_THREAD, text, key=f"{NO_THREAD} {notice.head[:12]}")
