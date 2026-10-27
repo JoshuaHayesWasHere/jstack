@@ -1,6 +1,9 @@
 /* The probe of the homes map: what the map of `#/` draws, as test_view_page_map.py reads it, and
-   each element that says a wrong fact and shows on the first screen. With `__tap`, it taps that first. */
+   each element that says a wrong fact and shows on the first screen, and the role of each panel's
+   card the page draws. With `__tap`, it taps that first. With `__looked`, a time in ms, the user last
+   looked then, so the since card has something to say. */
 window.__errs = [];
+if (window.__looked != null) localStorage.setItem("jbus.since.looked", String(window.__looked));
 window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
 window.addEventListener("unhandledrejection", function (e) { window.__errs.push("rejection: " + String(e.reason && e.reason.stack || e.reason)); });
 window.addEventListener("load", function () {
@@ -30,6 +33,11 @@ window.addEventListener("load", function () {
     cards: all("#map-c > [data-key]").map(card),
     quiet: all("#map-q li").map(function (l) { return { project: l.getAttribute("data-key"), text: text(l), href: l.querySelector("a").getAttribute("href") }; }),
     machine: all("#map-m .wl").map(text),
+    map: (function (m) { return !m.hidden && m.getBoundingClientRect().height > 0; })(document.getElementById("stack")),
+    panels: all("#cards > *").filter(function (el) {
+      var b = el.getBoundingClientRect();
+      return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && b.width > 0 && b.height > 0;
+    }).map(function (el) { return el.getAttribute("data-role"); }),
     wrong: all("[data-wrong]").filter(seen).map(function (el) { return el.getAttribute("data-wrong"); }),
     groups: all("#prog .pgg .pgh").map(text),
     words: ["header", "main"].map(function (q) { return (text(document.querySelector(q)).match(/\S+/g) || []).length; }).reduce(function (a, b) { return a + b; }, 0),

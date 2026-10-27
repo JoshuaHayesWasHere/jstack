@@ -9,13 +9,14 @@ and a stalled row in `ui`.
 """
 
 import json
+from datetime import timedelta
 
 import pytest
 
 from view.page import browser
-from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, clean, look
+from view.page.browser import BROWSES, DESK, LAUNCH, MAP, PATIENCE, PHONE, clean, look
 from view.page.test_view_page_budgets import SCENES
-from view.scene import out
+from view.scene import NOW, Served, out
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -127,6 +128,28 @@ def test_on_a_phone_every_target_of_the_map_takes_a_thumb_and_nothing_is_cut(sce
     seen = look(scene, tmp_path, route="#/homes", screen=PHONE)
     clean(seen, PHONE)
     assert (seen["small"], seen["cut"]) == ([], [])
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
+def test_no_panel_card_is_drawn_over_the_homes_map(scene, tmp_path, screen):
+    """The panels' cards, the glance band, what changed since the user looked and what slows
+    us, are the overview's: `#/` draws each of them, and `#/homes` draws none, only the map."""
+    SCENES["busy"](scene)
+    looked = f"window.__looked = {int((NOW - timedelta(hours=2)).timestamp() * 1000)};"
+    served = Served(scene)
+    try:
+        seen = {
+            route: look(
+                scene, tmp_path, route=route, script=looked + MAP, screen=screen, port=served.port
+            )
+            for route in ("#/", "#/homes")
+        }
+    finally:
+        served.close()
+    assert [one["errors"] for one in seen.values()] == [[], []]
+    assert sorted(seen["#/"]["panels"]) == ["glance", "since", "slow"]
+    assert seen["#/homes"]["map"] and seen["#/homes"]["cards"]
+    assert seen["#/homes"]["panels"] == []
 
 
 def troubled_homes(scene):
