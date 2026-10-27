@@ -60,8 +60,8 @@ if TYPE_CHECKING:
 FILE = "outbox.jsonl"
 NEEDS = ("act", "decide")
 Needs = Literal["act", "decide"]
-WAKES = frozenset({"slot-wake", "pool-wake", "clock"})
-"""The templates of a wake: `jbus.slotwait`'s two and the stall clock's line to the thread a wait
+WAKES = frozenset({"slot-wake", "pool-wake", "slot-end", "clock"})
+"""The templates of a wake: `jbus.slotwait`'s three and the stall clock's line to the thread a wait
 is on. `slot` and `review` never hold them."""
 ASKS = frozenset(
     {"unreviewed", "twice", "second", "fix", "declines", "unruled", "rereview", "proof"}
