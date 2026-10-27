@@ -85,7 +85,7 @@ What makes a row a follow-up is one rule, read from the row and its brief and ne
 
 Each pass approves a waiting row of the first three kinds by itself, before any launch, so neither the home nor the user is asked.
 A fix jbus filed from a red check that no row's merge turned red (a red main, train, workflow, browser or macOS run) names no parent, since a red check has no one parent row.
-jbus approves it by the follow-up rule all the same, as its filer queues it and on each pass, with the red run its brief's `Task:` line quotes as the ground of its go.
+The follow-up rule approves it all the same, as its filer queues it and on each pass, with the red run its brief's `Task:` line quotes as the ground of its go.
 Its line reads `the follow-up rule, jbus filed it from the red run "<the run>"; run <time> by jbus's pass; you did not speak of this row`.
 What makes it jbus's is who queued it, which the queue keeps for each row, so a filer jbus adds later is covered with no list of slugs to extend.
 The same brief, or any row with a red check's slug, queued by a home or a person is not jbus's: it waits for the user's go like other new work.

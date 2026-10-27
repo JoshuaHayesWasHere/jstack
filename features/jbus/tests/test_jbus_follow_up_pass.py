@@ -186,7 +186,7 @@ def red_briefs():
         "id": 40514143484,
         "event": "schedule",
         "head_sha": "c" * 40,
-        "html_url": "https://github.com/o/r/actions/runs/40514143484",
+        "html_url": "https://example.test/o/r/actions/runs/40514143484",
         "created_at": "2026-10-27T03:00:00Z",
     }
     workflow = sidered.Red(".github/workflows/x.yml", sidered.FAILED, (run,))
