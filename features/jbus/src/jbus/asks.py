@@ -191,6 +191,12 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     elif args.verb == "remove":
         asks = _asks(config, project)
         print(queue.remove(state, args.slug, args.by, args.at, config.user, asks))
+    elif args.verb == "withdraw":
+        at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
+        print(queue.withdraw(state, args.slug, args.why, at, by, _asks(config, project)))
+    elif args.verb == "rename":
+        at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
+        print(queue.rename(state, args.slug, args.new, at, by, _asks(config, project)))
     try:
         table = queue.shown(queue.load(state), args.verb == "show" and args.all)
         listed = waiting.read(state) or [] if args.verb == "show" else []
@@ -317,6 +323,21 @@ def _table(table: argparse.ArgumentParser) -> None:
     remove.add_argument("slug")
     remove.add_argument("--by", required=True)
     remove.add_argument("--at", required=True, help="as approve takes it")
+    withdraw = table_verbs.add_parser(
+        "withdraw",
+        help="take out a row that never launched, as the home that runs it: for a row of "
+        "your own that is not needed",
+        allow_abbrev=False,
+    )
+    withdraw.add_argument("slug")
+    withdraw.add_argument("--why", required=True, help="why the row is not needed, kept with it")
+    rename = table_verbs.add_parser(
+        "rename",
+        help="move a row that never launched to a new slug, with its columns and its go",
+        allow_abbrev=False,
+    )
+    rename.add_argument("slug")
+    rename.add_argument("new", help="the new slug; the old one is retired")
     table_verbs.add_parser("apply", help="a batch of the four verbs on stdin, all or none")
     verify = table_verbs.add_parser(
         "verify",

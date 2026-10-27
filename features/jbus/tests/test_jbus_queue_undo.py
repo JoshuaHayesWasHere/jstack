@@ -146,6 +146,18 @@ def test_rename_refuses_a_launched_row_a_named_one_and_a_slug_in_use(kitchen, sc
     assert stored(kitchen, "alpha") is not None and gone(kitchen) == {}
 
 
+@pytest.mark.parametrize(
+    "verb", [["withdraw", "alpha", "--why", "no"], ["rename", "alpha", "delta"]]
+)
+def test_withdraw_and_rename_refuse_a_row_whose_launch_t3_code_has_not_answered(kitchen, verb):
+    add(kitchen, "alpha")
+    record = kitchen.state_dir / "launches" / "demo" / "alpha" / "0123456789ab.json"
+    record.parent.mkdir(parents=True)
+    record.write_text('{"state": "intent"}')
+    assert queue_(kitchen, *verb) == (1, "refused: alpha launched, and its crew has it\n")
+    assert list(rows(kitchen)) == ["alpha"] and gone(kitchen) == {}
+
+
 @pytest.mark.parametrize("status", ["queued", "held", "gate"])
 def test_withdraw_takes_out_an_unlaunched_row_by_the_home_that_ran_it(kitchen, status):
     add(kitchen, "alpha")

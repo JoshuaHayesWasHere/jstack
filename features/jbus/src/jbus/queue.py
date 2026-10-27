@@ -111,7 +111,7 @@ import re
 import shlex
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -141,6 +141,7 @@ STATUSES = (
 )
 FINAL = ("merged", "done")
 UNLAUNCHED = ("queued", "gate")
+LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
 _SENT_TO = ("Home:", "Thread:", "Green main:", "Stacked on:")
@@ -633,15 +634,27 @@ class Remove:
 
 @dataclass(frozen=True)
 class Withdraw:
-    """`Withdraw` is jbus's own removal of a row that never launched, for `why`: the work it
-    asks for is no longer there to do (`withdraw`). `at` is when, in the user's zone."""
+    """`Withdraw` is the removal of a row that never launched, for `why`: the work it asks for is
+    no longer there to do (`withdraw`). `at` is when, in the user's zone, and `by` is who took it
+    out: jbus's pass, or the home that ran `jbus queue withdraw`."""
 
     slug: str
     why: str
     at: str
+    by: str = WITHDRAWN_BY
 
 
-Verb = Add | Approve | Hold | Remove | Withdraw
+@dataclass(frozen=True)
+class Rename:
+    """`Rename` moves a row that never launched from `slug` to `new`, with its go (`rename`)."""
+
+    slug: str
+    new: str
+    at: str
+    by: str
+
+
+Verb = Add | Approve | Hold | Remove | Withdraw | Rename
 
 
 @dataclass(frozen=True)
@@ -1175,6 +1188,7 @@ def _do(
             raise Refused(f"refused: --entry is a plan entry's slug, not {verb.entry}")
         if not verb.text.strip():
             raise Refused("refused: no brief on stdin")
+        _twin(batch, verb)
         found = [row for row in rows if row["slug"] == verb.slug]
         faults = _new_faults(found[0] if found else None, batch.brief(verb.slug), verb.text)
         if faults:
@@ -1260,17 +1274,22 @@ def _do(
         return f"approved {verb.slug}: brief {stored[:12]}, {made.line()}"
     if isinstance(verb, Withdraw):
         row = batch.row(verb.slug)
-        if row.get("thread") or row.get("status", "queued") not in UNLAUNCHED:
-            raise Refused(f"refused: {verb.slug} launched, and its crew has it")
+        _launching(row, asks)
         _waited_on(rows, verb.slug)
-        return _take_out(batch, row, verb.slug, WITHDRAWN_BY, verb.at, verb.why)
+        return _take_out(batch, row, verb.slug, verb.by, verb.at, verb.why)
+    if isinstance(verb, Rename):
+        return _rename(batch, verb, asks)
     if user is None:
         raise Refused("refused: remove was given no settings to check --by and --at with")
-    if verb.by != user.user:
-        raise Refused(f"refused: only {user.user} removes a row, not {verb.by}")
+    row = batch.row(verb.slug)
+    theirs = verb.by != user.user
+    if theirs and not _unlaunched(row):
+        raise Refused(
+            f"refused: {verb.slug} launched, and only {user.user} removes a row that launched, "
+            f"not {verb.by}"
+        )
     if not user.takes(verb.at):
         raise Refused(f'refused: --at is "{user.form(verb.at)}"')
-    row = batch.row(verb.slug)
     _waited_on(rows, verb.slug)
     if asks is None:
         raise Refused("refused: remove was given nothing to ask what is out with")
@@ -1280,7 +1299,104 @@ def _do(
     is_out = is_out or asks.launched(verb.slug)
     if is_out:
         raise Refused(f"refused: {is_out}")
+    if theirs:
+        why = f"withdrawn, not removed: only {user.user} removes a row, and {verb.slug}"
+        why += " never launched"
+        return _take_out(batch, row, verb.slug, who(ran_by or runner()), verb.at, why)
     return _take_out(batch, row, verb.slug, verb.by, verb.at)
+
+
+def _unlaunched(row: Row) -> bool:
+    """Return whether the row never launched: it has no thread, and it is queued, held or at a
+    gate."""
+    return not row.get("thread") and row.get("status", "queued") in UNLAUNCHED
+
+
+def _launching(row: Row, asks: Asks | None) -> None:
+    """Refuse a row that launched, or whose launch the launch records say is under way."""
+    out = asks.launched(row["slug"]) if asks is not None else ""
+    if out or not _unlaunched(row):
+        raise Refused(f"refused: {row['slug']} launched, and its crew has it")
+
+
+def _unheaded(text: str, slug: str) -> str:
+    """Return the brief's `body` with its `# <slug>:` head line taken out: what the brief asks
+    for under any slug."""
+    first, _, rest = body(text).partition("\n")
+    return (rest if first.startswith(f"# {slug}:") else f"{first}\n{rest}").strip()
+
+
+def _twin(batch: _Batch, verb: Add) -> None:
+    """Refuse a brief that another row still at work has under another slug: two rows for one
+    brief would launch the work twice."""
+    mine = _unheaded(verb.text, verb.slug)
+    for row in batch.rows:
+        other = row["slug"]
+        if other == verb.slug or row.get("status", "queued") not in LIVE:
+            continue
+        text = batch.brief(other)
+        if text is not None and _unheaded(text, other) == mine:
+            status = "held" if row.get("held") else row.get("status", "queued")
+            raise Refused(
+                f"refused: {verb.slug}'s brief is {other}'s ({status}): rename by "
+                f"`jbus queue rename {other} {verb.slug}`, or withdraw one"
+            )
+
+
+def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
+    """Move an unlaunched row to the slug `new`, with its columns and its go. The brief's head
+    line is rewritten, and the rest of it is the brief the go was given for, so a go that held
+    is bound to the renamed brief. The old slug goes into `removed.json`, so the pass drops its
+    item and no add brings it back; the row gets its item anew from the pass."""
+    rows, old, new = batch.rows, verb.slug, verb.new
+    row = batch.row(old)
+    _launching(row, asks)
+    if not _SLUG.fullmatch(new):
+        raise Refused(f"refused: {new} is not a slug")
+    if new in batch.gone:
+        raise Refused(f"refused: {_was(new, batch.gone)}, and a removed slug is not added again")
+    if any(other["slug"] == new for other in rows):
+        raise Refused(f"refused: the queue has a row {new}")
+    naming = sorted(
+        other["slug"]
+        for other in rows
+        if other is not row
+        and (
+            old in (*other.get("depends", []), *other.get("merge_after", []))
+            or other.get("entry") == old
+            or getattr(record(other), "follows", "") == old
+        )
+    )
+    if naming:
+        raise Refused(f"refused: {', '.join(naming)} names {old}, so {old} keeps its slug")
+    text = batch.brief(old)
+    if text is None:
+        raise Refused(f"refused: {old} has no brief, add it again")
+    first, cut, rest = text.partition("\n")
+    head = f"# {old}:"
+    renamed = f"# {new}:{first.removeprefix(head)}{cut}{rest}" if first.startswith(head) else text
+    holds = bool(row.get("approved")) and approved_text(row, text)
+    if holds:
+        kept = record(row)
+        if kept and kept.scope:
+            means = fingerprint(renamed)
+            bound = replace(
+                kept,
+                brief_sha=brief_sha(renamed),
+                scope=meaning.fingerprint(means),
+                meaning=means,
+            )
+            row["approval"] = held(bound)
+        elif row.get("rebound"):
+            row["rebound"] = fingerprint(renamed)
+        row["brief_sha"] = brief_sha(renamed)
+    row["slug"] = new
+    row.pop("item", None)
+    batch.gone[old] = {"at": verb.at, "by": verb.by, "why": f"renamed to {new}"}
+    batch.briefs[old] = None
+    batch.briefs[new] = renamed
+    go = GO_HOLDS if holds else ""
+    return f"renamed {old} to {new}: brief {brief_sha(renamed)[:12]}{go}"
 
 
 def _waited_on(rows: list[Row], slug: str) -> None:
@@ -1375,7 +1491,7 @@ def _run(
             gone = removed(state)
         except Unparsable as error:
             raise Refused(f"refused: {error}, and nothing writes it") from error
-        batch = _Batch(state, rows, gone, {}, moves, {})
+        batch = _Batch(state, rows, dict(gone), {}, moves, {})
         for line, verb in verbs:
             try:
                 said.append(_do(verb, batch, user, asks, out, said_by))
@@ -1394,6 +1510,7 @@ def _run(
         if batch.moves:
             with open(transitions_path(state), "a") as log:
                 log.writelines(json.dumps(move) + "\n" for move in batch.moves)
+        if batch.gone != gone:
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():
             if text is None:
@@ -1495,12 +1612,21 @@ def remove(state: Path, slug: str, by: str, at: str, user: jsettings.Settings, a
     return _run(state, [(0, Remove(slug, by, at))], user, asks)[0]
 
 
-def withdraw(state: Path, slug: str, why: str, at: str) -> str:
-    """Take out, as jbus and on no one's word, a row that never launched (no thread, and at
-    `queued` or `gate`) whose work is no longer there to do, and return the line that says so.
-    `why` goes into its line of `transitions.jsonl` and into `removed.json`. A row that
-    launched, or that another row waits on, is refused."""
-    return _run(state, [(0, Withdraw(slug, why, at))])[0]
+def withdraw(
+    state: Path, slug: str, why: str, at: str, by: str = WITHDRAWN_BY, asks: Asks | None = None
+) -> str:
+    """Take out a row that never launched (no thread, and at `queued` or `gate`, held or not)
+    whose work is no longer there to do, and return the line that says so. `by` is who takes it
+    out: jbus, on no one's word, or the home that ran `jbus queue withdraw`. `why` goes into its
+    line of `transitions.jsonl` and into `removed.json`. A row that launched, or that another row
+    waits on, is refused."""
+    return _run(state, [(0, Withdraw(slug, why, at, by))], asks=asks)[0]
+
+
+def rename(state: Path, slug: str, new: str, at: str, by: str, asks: Asks | None = None) -> str:
+    """Move a row that never launched, and that no other row names, to the slug `new`, keeping
+    its priority, depends, merge_after, entry and go, and return the line that says so."""
+    return _run(state, [(0, Rename(slug, new, at, by))], asks=asks)[0]
 
 
 def _options(verb: str, words: list[str]) -> dict[str, str]:
