@@ -299,6 +299,7 @@ TABLE = {
     "mainmoved": "quiet",
     "resume": "quiet",
     "slot-wake": "quiet",
+    "slot-end": "quiet",
     "pool-wake": "quiet",
     "retro": "quiet",
     "cancelled": "quiet",

@@ -66,6 +66,7 @@ ORDER = [
     "before-watch 30 questions.silent",
     "before-watch 40 slotwait.wake (client)",
     "before-watch 41 slotwait.wake_capped (client)",
+    "before-watch 42 slotwait.wake_ended (client)",
     "tellers 10 mirror.scan (sight)",
     "tellers 15 noticed.scan (sight)",
     "tellers 20 questions.tell (sight, client)",

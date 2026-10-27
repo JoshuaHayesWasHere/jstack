@@ -6,12 +6,14 @@ home, and the row waits on the user only where there is no home to tell.
 Like `test_jbus_leftover.py`, the tests run the real pass against a faked T3 Code server, `gh`
 and `jmerge`, over briefs that are made up."""
 
+import os
+import subprocess
 from datetime import timedelta
 
 import pytest
 
 from jbus import leftover, watch
-from jgauge import slot, waiters
+from jgauge import holders, slot, waiters
 from test_jbus_kitchen import NOW, iso
 from test_jbus_leftover import home
 from test_jbus_live import written
@@ -129,6 +131,63 @@ def test_a_thread_that_waits_on_a_test_slot_is_not_left_however_long_it_is_quiet
         kitchen.poll(NOW + minutes * MIN)
         assert column(kitchen)[0] == "stale"
     assert told(kitchen, at) == []
+
+
+def gone_pid():
+    """A pid whose process has ended and been reaped."""
+    ended = subprocess.Popen(["true"])
+    ended.wait()
+    return ended.pid
+
+
+def test_a_thread_whose_own_run_holds_a_slot_is_not_left_and_is_woken_once_it_ends(kitchen):
+    """fl-msg-outbox, fl-sub-brief-parsers and fl-msg-review-notice, 2026-10-27: each crew ended
+    its turn while its own suite ran under `jgauge test-slot`, and jbus sent its home the row as
+    ended with nothing written. A thread whose run holds a slot is at work, and the run's end
+    wakes it."""
+    thread = lost(kitchen, quiet=40)
+    command = ["make", "check"]
+    run = holders.hold(
+        slot.locks_dir(), thread["threadId"], "full", os.getpid(), command, NOW - 45 * MIN
+    )
+    at = home(kitchen)["threadId"]
+    for minutes in (0, watch.UNWRITTEN_MINUTES + 2, 60, 180):
+        kitchen.poll(NOW + minutes * MIN)
+        assert column(kitchen)[0] == "stale"
+    assert told(kitchen, at) == [] and told(kitchen, thread["threadId"]) == []
+    holders.end(slot.locks_dir(), run.id, 1, NOW + 181 * MIN)
+    for minutes in (182, 183):
+        kitchen.poll(NOW + minutes * MIN)
+    (wake,) = told(kitchen, thread["threadId"])
+    assert wake["clientRequestId"] == f"slot-end|{thread['threadId']}|{run.since}"
+    assert "`make check`" in wake["message"] and "exit code 1" in wake["message"]
+    assert told(kitchen, at) == []
+
+
+def test_a_run_that_ended_and_whose_wake_did_not_go_still_spares_its_thread(kitchen):
+    """The review of #568: a run ended 2 minutes ago, its wake was lost, and its thread has been
+    quiet for 40. The row waits for the wake that is owed, and the home is told nothing."""
+    thread = lost(kitchen, quiet=40)
+    locks = slot.locks_dir()
+    run = holders.hold(
+        locks, thread["threadId"], "full", os.getpid(), ["make", "check"], NOW - 45 * MIN
+    )
+    holders.end(locks, run.id, 0, NOW - 2 * MIN)
+    at = home(kitchen)["threadId"]
+    kitchen.t3.lose_send = True
+    kitchen.poll(NOW)
+    assert column(kitchen)[0] == "stale" and told(kitchen, at) == []
+    assert [one.id for one in holders.read(locks)] == [run.id]
+
+
+def test_a_holder_whose_pid_died_is_ignored_and_the_row_is_left(kitchen):
+    thread = lost(kitchen, quiet=40)
+    locks = slot.locks_dir()
+    holders.hold(locks, thread["threadId"], "full", gone_pid(), ["make", "check"], NOW - 45 * MIN)
+    at = home(kitchen)["threadId"]
+    kitchen.poll(NOW)
+    assert column(kitchen)[0] == "left" and len(told(kitchen, at)) == 1
+    assert told(kitchen, thread["threadId"]) == [] and holders.read(locks) == []
 
 
 def test_a_waiter_still_silent_after_its_wake_is_left(kitchen, slots):

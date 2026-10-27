@@ -16,6 +16,15 @@ thread, so each pass of `jbus poll` resumes it, in `wake`:
   message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
   each wait once, and sends again a message that got no answer.
 
+A thread can also end its turn while its own run holds a slot. `jgauge test-slot --thread`
+records the run in `test-slot-holders.json` (`jgauge.holders`), and its end and exit code once the
+command ends. While the run holds its slot the thread is at work (`watch.World.holding`). Once the
+run has ended, `wake_ended` sends the thread one message in mode queue that names the command and
+its exit code, keyed by the thread and the run's start, so one run wakes once. It sends none to a
+thread that wrote after the run ended, which read the end itself, and none yet to a thread at
+work. A run that ended with no wake owed, or whose holder died with no end recorded, leaves the
+file.
+
 `test-slot-waiters.json` belongs to the machine, not to a project. A pass of any project wakes any
 waiter, and once one pass records a wake in the file, the other passes read that record there. A
 thread that takes a slot leaves the file (`jgauge.slot.take`).
@@ -38,18 +47,23 @@ from typing import Any
 from jbus import END_TURN, outbox, verbs
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused
-from jbus.watch import ENDED
-from jgauge import slot, waiters
+from jbus.watch import ENDED, at_work, when
+from jgauge import holders, slot, waiters
+from jgauge.holders import Holder
 from jgauge.waiters import Waiter
 from jroles import waits
 from jroles.waits import Wait
 
-EVENTS = {"slot-wake": "quiet", "pool-wake": "quiet"}
+EVENTS = {"slot-wake": "quiet", "slot-end": "quiet", "pool-wake": "quiet"}
 OVER = (*ENDED, "rolled_back")
 MESSAGE = (
     "jbus: a {lane} test slot is free. Run again what you waited to run: `{command}`. If every"
     " slot is taken again by then, register again and end your turn: jbus wakes you once for"
     " each wait. " + END_TURN
+)
+ENDED_RUN = (
+    "jbus: your run of `{command}` under a {lane} test slot has ended, with exit code {code}."
+    " Read what it printed and go on with the task from there. " + END_TURN
 )
 CAPPED = (
     "jbus: the {role} pool was capped until {until}, and that time has passed. Run `jroles {role}"
@@ -208,6 +222,67 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
     run.say(line)
 
 
+def wake_ended(run: Pass, client: Client) -> None:
+    """Wake each thread whose own run under a slot has ended, once, and drop the runs that are
+    over: woken, owed no wake, or held by a holder that died with no end recorded."""
+    locks = slot.locks_dir()
+    if not holders.FILE.there(locks):
+        return
+    over = set()
+    for one in holders.read(locks):
+        if one.ended and tell_ended(run, client, one):
+            over.add(one.id)
+        elif not one.ended and not holders.running(one):
+            over.add(one.id)
+    if over:
+        holders.forget(locks, over)
+
+
+def tell_ended(run: Pass, client: Client, one: Holder) -> bool:
+    """Send the thread the end of its run, where it is owed, and say whether the run is over: the
+    message went, or the thread is gone, ended or went on after the run, so that it is owed none."""
+    try:
+        read = client.call("t3_thread_read", {"threadId": one.thread, "limit": 1})
+    except T3Refused as error:
+        if GONE.search(str(error)):
+            run.say(f"wait {one.thread}: its run under a slot is dropped, its thread is gone")
+            return True
+        run.say(f"wait {one.thread}: the end of its run under a slot could not be told ({error})")
+        return False
+    except T3Error as error:
+        run.say(f"wait {one.thread}: the end of its run under a slot could not be told ({error})")
+        return False
+    thread: dict[str, Any] = read.get("thread") or {}
+    if thread.get("settled") or thread.get("archived") or thread.get("status") in OVER:
+        return True
+    wrote = str(thread.get("updatedAt") or "")
+    if wrote and when(wrote) > when(one.ended):
+        return True
+    if at_work([thread]):
+        return False
+    command = shlex.join(one.command)
+    try:
+        went = outbox.send(
+            run,
+            client,
+            thread=one.thread,
+            row=one.thread,
+            key=f"slot-end|{one.thread}|{one.since}",
+            text=ENDED_RUN.format(command=command, lane=one.lane, code=one.code),
+            template="slot-end",
+            needs="act",
+        )
+    except T3Error as error:
+        run.say(f"wait {one.thread}: the end of its run under a slot could not be told ({error})")
+        return False
+    if not went:
+        return False
+    line = f"slot-end: woke {one.thread}, its run of `{command}` ended with exit code {one.code}"
+    run.find("", "slot-end", line, key=one.id)
+    run.say(line)
+    return True
+
+
 STEPS = (
     verbs.Step(
         "before-watch", 40, "slotwait.wake", lambda half: wake(half.run, half.client), ("client",)
@@ -217,6 +292,13 @@ STEPS = (
         41,
         "slotwait.wake_capped",
         lambda half: wake_capped(half.run, half.client),
+        ("client",),
+    ),
+    verbs.Step(
+        "before-watch",
+        42,
+        "slotwait.wake_ended",
+        lambda half: wake_ended(half.run, half.client),
         ("client",),
     ),
 )
