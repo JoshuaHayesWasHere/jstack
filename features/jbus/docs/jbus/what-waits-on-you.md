@@ -22,9 +22,11 @@ The view shows the row as ended with a leftover that its home has, and shows whe
 The row becomes yours in one of two ways:
 
 - The home asks you a question about it, which is a gate.
-- The home has not closed it 30 minutes after the message (`CLOSE_MINUTES` in `features/jbus/src/jbus/leftover.py`).
-  Then jbus sends one `stall` event for the row, which names the home's thread.
+- The home has not closed it 30 minutes after the message (`CLOSE_MINUTES` in `features/jbus/src/jbus/leftover.py`), and no root home is listed to tell.
   From then on, jbus lists the row among what waits on you, with that reason.
+
+A home that has not closed it in 30 minutes, where a root home is listed, does not make it yours.
+jbus tells the root home once instead, and the row stays off what waits on you.
 
 A row is yours at once, and its line says why, in any of these cases:
 
