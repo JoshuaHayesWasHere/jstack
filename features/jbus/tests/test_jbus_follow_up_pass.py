@@ -216,9 +216,30 @@ def test_a_fix_jbus_filed_from_a_red_check_is_approved_by_rule_with_no_parent(ki
     assert kept["ran_by"] == queue.PASS
     run = made.split('Task: "')[1].split('"')[0]
     assert run in kept["words"]
-    assert run in rows(kitchen)[slug]["approved"]
+    assert rows(kitchen)[slug]["approved"] == red_run_line(run, kept["ran_at"])
     kitchen.poll()
     assert slug not in asked_the_user(kitchen)
+
+
+def red_run_line(run, at):
+    """Return the line the home skill and the-queue.md promise for a fix filed from `run`."""
+    return (
+        f'the follow-up rule, jbus filed it from the red run "{run}"; run {at} by jbus\'s pass; '
+        "you did not speak of this row"
+    )
+
+
+def test_the_go_of_a_red_check_fix_reads_the_same_whatever_the_rule_says(kitchen, monkeypatch):
+    """The line names the red run as its ground, so a rule whose words hold a "; " of their own
+    changes nothing the user reads."""
+    monkeypatch.setattr(queue, "FOLLOW_RULE", "a follow-up needs no new approval; approved work")
+    made = red_briefs()[RED]
+    queue.add(kitchen.state, RED, 0, [], made, ran_by=queue.PASS)
+    kitchen.quiet()
+    kept = rows(kitchen)[RED]
+    run = made.split('Task: "')[1].split('"')[0]
+    assert kept["approved"] == red_run_line(run, kept["approval"]["ran_at"])
+    assert queue.approval(kept) == kept["approved"]
 
 
 @pytest.mark.parametrize("slug", red_briefs())
