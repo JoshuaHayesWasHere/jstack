@@ -510,6 +510,7 @@ def test_a_fix_whose_review_is_owed_waits_for_it_and_then_for_each_of_its_findin
 
 FIXED = brief(review("findings"), f"{ENDED}Fixed: {PUSHED}\n")
 NO_ORIGIN = "main could not be fetched to see what its rebase kept"
+CHECKED_ALONE = brief(review("clean", PUSHED))
 
 SHORT = {
     "findings with no fixed line": (
@@ -616,7 +617,7 @@ SHORT = {
         "its findings are not handled: nothing was pushed after them",
     ),
     "check failed": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (FAILED, OTHER_PASSED)},
         NOT_PASSED,
     ),
@@ -626,7 +627,7 @@ SHORT = {
         NOT_PASSED,
     ),
     "check is missing beside other checks that passed": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (OTHER_PASSED, run("SUCCESS", "checks"))},
         NO_RUN,
     ),
@@ -651,7 +652,7 @@ SHORT = {
         NOT_PASSED,
     ),
     "check passed, and a run that started later failed": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": (timed("FAILURE", "01:30:00", "01:41:00"), PASSED_LATER)},
         NOT_PASSED,
     ),
@@ -661,7 +662,7 @@ SHORT = {
         NOT_PASSED,
     ),
     "a commit status named check that failed": (
-        FIXED,
+        CHECKED_ALONE,
         {
             "head": PUSHED,
             "checks": ({"__typename": "StatusContext", "context": "check", "state": "FAILURE"},),
@@ -679,7 +680,7 @@ SHORT = {
         NOT_PASSED,
     ),
     "no checks reported": (
-        FIXED,
+        CHECKED_ALONE,
         {"head": PUSHED, "checks": ()},
         NO_RUN,
     ),
