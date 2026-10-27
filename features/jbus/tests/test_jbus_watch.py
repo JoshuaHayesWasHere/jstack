@@ -642,6 +642,12 @@ def test_a_red_push_run_on_main_files_one_row(kitchen):
     assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
 
 
+def test_a_red_run_of_a_published_release_on_its_tag_files_one_row(kitchen):
+    browser_runs(kitchen, browser_run(88, event="release", head_branch="v1.0.0"))
+    kitchen.poll()
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+
+
 def test_a_red_macos_nightly_from_a_pull_request_files_nothing(kitchen):
     pull = {"event": "pull_request", "head_branch": "mac-room-fix"}
     macos_runs(kitchen, macos_run(**pull), macos_green())
