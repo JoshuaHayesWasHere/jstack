@@ -15,7 +15,7 @@ import pytest
 
 from jbus import queue, stop
 from test_jbus_capped_sends import cap
-from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_kitchen import NOW, Kitchen, sends
 from test_jbus_word import thread
 
 ROOT, FLOW, VIEW, NEXT = thread("a"), thread("f"), thread("d"), thread("e")
@@ -73,16 +73,13 @@ def answers(kitchen, *text, scope=SCOPE, row="fl-mine", by=ROOT):
 
 
 def sent(kitchen):
-    """Return `(thread, key)` of each message that went to T3 Code."""
-    return [
-        (given["threadId"], given["clientRequestId"].split("|")[0])
-        for tool, given in kitchen.t3.calls
-        if tool == "t3_thread_send"
-    ]
+    """Return `(thread, key)` of each message that went to T3 Code, but for the wakes of the home
+    thread."""
+    return [(given["threadId"], given["clientRequestId"].split("|")[0]) for given in sends(kitchen)]
 
 
 def texts(kitchen):
-    return [given["message"] for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    return [given["message"] for given in sends(kitchen)]
 
 
 def test_a_stop_on_another_homes_open_row_goes_to_the_root_once(kitchen):
@@ -99,8 +96,9 @@ def test_a_stop_on_another_homes_open_row_goes_to_the_root_once(kitchen):
     kitchen.poll()
     kitchen.poll()
     assert sent(kitchen) == [(ROOT, "stop")]
-    (logged,) = [json.loads(line) for line in (kitchen.state / "outbox.jsonl").open()]
-    assert (logged["needs"], logged["went"], logged["template"]) == ("decide", "sent", "stop")
+    logged = [json.loads(line) for line in (kitchen.state / "outbox.jsonl").open()]
+    (stop,) = [one for one in logged if one["template"] == "stop"]
+    assert (stop["needs"], stop["went"]) == ("decide", "sent")
 
 
 def test_a_stop_on_another_scopes_row_or_on_a_pull_request_number_is_taken(kitchen):
