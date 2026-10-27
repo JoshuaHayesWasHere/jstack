@@ -25,7 +25,8 @@ The browser workflow names its test browser, one Chrome for Testing build pinned
 version and the SHA-256 of its zip, and the check names none.
 The tests that open a browser carry the marker `browser`. `make check` leaves them out, and `make
 check-browser` runs them: nightly at 03:00 ET, on a `v*` tag or a published release, by hand, and
-on a pull request into main that changes the view or its browser tests and is not a draft, but
+on a pull request into main that changes the view, its browser tests, their kept shots or the
+browser workflow and is not a draft, but
 never on a push to main. Every workflow gets read access to the contents and
 no more, and none runs on `pull_request_target`. The check may also read the repo's artifacts, which
 is where a green run's marker is.
@@ -1591,7 +1592,7 @@ def test_the_browser_tests_run_nightly_on_a_release_by_hand_and_on_a_pull_reques
     }
 
 
-def test_a_pull_request_runs_the_browser_tests_only_for_a_change_to_the_view_or_its_tests():
+def test_a_pull_request_runs_the_browser_tests_only_for_the_view_its_tests_shots_or_workflow():
     """The view, its tests, their fixtures (the kept shots) and this workflow, which names the
     browser that draws them: a pin bumped with no run of its own would land shots unproven."""
     paths = triggers(BROWSER.read_text())["pull_request"]["paths"]
