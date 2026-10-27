@@ -86,6 +86,18 @@ def test_a_review_out_holds_no_ask_for_that_review_no_clock_line_and_no_decide(l
     assert held(launched) == [("rebase", "review")]
 
 
+def test_a_review_out_holds_only_the_crew_and_not_a_home_told_of_its_row(launched):
+    """The crew is the one that puts work off while its review is out. A home told of the row (a
+    stall of the very review that is not written, `jbus.owners`) waits on no review."""
+    brief = launched.home / "tasks" / "alpha.md"
+    brief.write_text(brief.read_text() + OUT)
+    launched.set("open.json", [pull(launched)])
+    home = launched.t3.thread("home", "completed")["threadId"]
+    run, client = run_of(launched, look=True)
+    assert send(run, client, home, "wrong")
+    assert held(launched) == []
+
+
 def waiting(kitchen):
     """Return the thread of alpha's crew, whose turn ended to wait on the short lane."""
     (crew,) = kitchen.t3.threads
