@@ -96,6 +96,18 @@ def test_no_module_keeps_its_own_copy(copy):
     assert copies == []
 
 
+def test_only_locked_and_the_locks_of_their_own_take_a_flock():
+    """A state file's lock is `jbus.locked`, so a new one does not open and flock its own. The pass
+    lock of `cli` and the snapshot's lock are taken with no wait, and `scouts` and `queue` keep the
+    locks they had: moving them is a change of its own."""
+    takers = [
+        name
+        for name, tree in modules().items()
+        if any(isinstance(node, ast.Attribute) and node.attr == "flock" for node in ast.walk(tree))
+    ]
+    assert takers == ["__init__.py", "cli.py", "queue.py", "scouts.py", "snapshot.py"]
+
+
 def test_only_listed_pages_the_threads():
     """A second loop over T3 Code's `nextCursor` would page the list its own way."""
     pagers = [name for name, tree in modules().items() if constants(tree, "nextCursor")]
