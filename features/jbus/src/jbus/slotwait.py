@@ -21,9 +21,9 @@ records the run in `test-slot-holders.json` (`jgauge.holders`), and its end and 
 command ends. While the run holds its slot the thread is at work (`watch.World.holding`). Once the
 run has ended, `wake_ended` sends the thread one message in mode queue that names the command and
 its exit code, keyed by the thread and the run's start, so one run wakes once. It sends none to a
-thread that wrote after the run ended, which read the end itself, and none yet to a thread at
-work. A run that ended with no wake owed, or whose holder died with no end recorded, leaves the
-file.
+thread whose turn that started the run was still going when the run ended, which got the end
+itself (`_got_end`), and none yet to a thread at work. A run that ended with no wake owed, or
+whose holder died with no end recorded, leaves the file.
 
 `test-slot-waiters.json` belongs to the machine, not to a project. A pass of any project wakes any
 waiter, and once one pass records a wake in the file, the other passes read that record there. A
@@ -56,6 +56,7 @@ from jroles.waits import Wait
 
 EVENTS = {"slot-wake": "quiet", "slot-end": "quiet", "pool-wake": "quiet"}
 OVER = (*ENDED, "rolled_back")
+RUNS = 20
 MESSAGE = (
     "jbus: a {lane} test slot is free. Run again what you waited to run: `{command}`. If every"
     " slot is taken again by then, register again and end your turn: jbus wakes you once for"
@@ -240,9 +241,11 @@ def wake_ended(run: Pass, client: Client) -> None:
 
 def tell_ended(run: Pass, client: Client, one: Holder) -> bool:
     """Send the thread the end of its run, where it is owed, and say whether the run is over: the
-    message went, or the thread is gone, ended or went on after the run, so that it is owed none."""
+    message went, or the thread is gone or ended, or its own turn got the end, so that it is owed
+    none."""
     try:
-        read = client.call("t3_thread_read", {"threadId": one.thread, "limit": 1})
+        asked = {"threadId": one.thread, "limit": 1, "runLimit": RUNS}
+        read = client.call("t3_thread_read", asked)
     except T3Refused as error:
         if GONE.search(str(error)):
             run.say(f"wait {one.thread}: its run under a slot is dropped, its thread is gone")
@@ -255,8 +258,7 @@ def tell_ended(run: Pass, client: Client, one: Holder) -> bool:
     thread: dict[str, Any] = read.get("thread") or {}
     if thread.get("settled") or thread.get("archived") or thread.get("status") in OVER:
         return True
-    wrote = str(thread.get("updatedAt") or "")
-    if wrote and when(wrote) > when(one.ended):
+    if any(_got_end(one, turn) for turn in read.get("recentRuns") or [] if isinstance(turn, dict)):
         return True
     if at_work([thread]):
         return False
@@ -281,6 +283,22 @@ def tell_ended(run: Pass, client: Client, one: Holder) -> bool:
     run.find("", "slot-end", line, key=one.id)
     run.say(line)
     return True
+
+
+def _got_end(one: Holder, turn: dict[str, Any]) -> bool:
+    """Say whether `turn`, one of the thread's turns, got the end of the run: it started before
+    the run did and had not ended when the run ended, so the command that held the slot answered
+    into it. A later write to the thread proves nothing, since T3 Code moves `updatedAt` when
+    anyone queues the thread a message."""
+    began, done = turn.get("startedAt"), turn.get("completedAt")
+    try:
+        return (
+            bool(began)
+            and when(str(began)) <= when(one.since)
+            and (not done or when(str(done)) >= when(one.ended))
+        )
+    except (TypeError, ValueError):
+        return False
 
 
 STEPS = (
