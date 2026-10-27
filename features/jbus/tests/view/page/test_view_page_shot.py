@@ -15,15 +15,17 @@ pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + 3 * (LAUNCH + 
 
 @pytest.fixture
 def shooting(scene, served, tmp_path, monkeypatch):
-    """The view of the scene, and the test browser on `PATH` as `chromium`, where the command
-    looks for it. The state directories are the scene's, so no `--out` of a test is in one."""
+    """The view of the scene, and the test browser first on `PATH` as `chromium`, where the
+    command looks for it. The rest of `PATH` stays, the scene's stubs before the system's: Google
+    Chrome's `google-chrome` is a bash wrapper that needs `readlink`, `dirname` and `cat`. The
+    state directories are the scene's, so no `--out` of a test is in one."""
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
     monkeypatch.setenv("JBUS_HOME_DIR", str(scene.home_dir))
     monkeypatch.setenv("XDG_STATE_HOME", str(scene.root / "xdg-state"))
     named = tmp_path / "browser"
     named.mkdir()
     (named / "chromium").symlink_to(CHROMIUM)
-    monkeypatch.setenv("PATH", f"{named}:{scene.bin}")
+    monkeypatch.setenv("PATH", f"{named}{os.pathsep}{os.environ['PATH']}")
     return str(served.port)
 
 
