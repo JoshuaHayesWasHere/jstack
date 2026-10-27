@@ -1,13 +1,24 @@
 name: browser
 
 # The tests marked `browser` open a real browser and take minutes, so no change's check runs
-# them (check.yml leaves them out). They run here on three triggers and no other: a nightly
-# at 03:00 ET (07:00 UTC), a release (a pushed `v*` tag, or a published GitHub release), and
-# by hand. Never on a pull request, and never on a push to main.
+# them (check.yml leaves them out). They run here on four triggers and no other: a nightly
+# at 03:00 ET (07:00 UTC), a release (a pushed `v*` tag, or a published GitHub release), by
+# hand, and a pull request into main that changes the view or its browser tests. Never on a
+# push to main.
+#
+# The pull request trigger has check.yml's `types`, and the job's `if` skips a draft as
+# check.yml's jobs do, so a pull request runs it once it is marked ready. #464 merged with 19
+# of these tests red, as no pull request ran them. The run is no required check: a merge does
+# not wait on it.
 #
 # A red run is not told from here: jbus reads this workflow's runs and files and queues the
-# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py).
+# brief for the fix, `browser-red-<date>` (features/jbus/src/jbus/watch.py). It skips a manual
+# run off main, and no other, so a pull request's red run is filed too.
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths: ['features/jbus/src/jbus/view/**', 'features/jbus/tests/view/**']
   schedule:
     - cron: '0 7 * * *'
   push:
@@ -30,6 +41,7 @@ jobs:
     # GitHub's hosted runner, as in check.yml. The 94 browser tests run one at a time, and
     # the job took 4 and 6 minutes on two runs of 2026-10-22: 15 leaves room for a slow
     # runner, and a hung run still stops.
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
