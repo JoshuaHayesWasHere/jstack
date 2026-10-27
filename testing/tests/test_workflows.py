@@ -626,9 +626,9 @@ DARWIN_SOURCE = "features/jbus/src/jbus/launchd.py"
 @pytest.fixture(scope="module")
 def merged(tmp_path_factory):
     """Run the macos job's selection step, as the runner does, on a pull request's merge commit
-    whose one change over main is a line added to a path. main is this repo's HEAD with the
-    selection's files as they are here. It gives the paths the step wrote for pytest, its
-    summary and its outputs."""
+    whose one change over main is text added to a path, a blank line by default. main is this
+    repo's HEAD with the selection's files as they are here. It gives the paths the step wrote for
+    pytest, its summary and its outputs."""
     root = tmp_path_factory.mktemp("mac")
     repo, bin = root / "repo", root / "bin"
     git = ["git", "-c", "user.name=a", "-c", "user.email=a@example.com", "-C", str(repo)]
@@ -644,10 +644,10 @@ def merged(tmp_path_factory):
     (bin / "uv").chmod(0o755)
     shell = summary_step("reached tests", MAC)
 
-    def run(path):
+    def run(path, text="\n"):
         subprocess.run([*git, "reset", "-q", "--hard", main], check=True)
         with (repo / path).open("a") as file:
-            file.write("\n")
+            file.write(text)
         subprocess.run([*git, "commit", "-qam", f"change {path}"], check=True)
         temp = root / path.replace("/", "-")
         temp.mkdir(exist_ok=True)
@@ -703,9 +703,23 @@ def test_the_macos_job_runs_the_tests_of_the_list_a_change_to_darwin_code_reache
     assert "features/jgauge/tests/test_room.py" not in merged(DARWIN_LISTED)[0]
 
 
-def test_the_macos_job_runs_the_whole_list_where_the_selection_is_all(merged):
-    reached, summary, output = merged("uv.lock")
-    assert reached == MAC_QUICK.read_text().splitlines()
+ADDED = "features/jbus/tests/test_item.py"
+
+
+@pytest.mark.parametrize(
+    ("path", "text", "listed"),
+    [
+        ("uv.lock", "\n", []),
+        ("testing/macos-quick.txt", f"{ADDED}\n", [ADDED]),
+        (QUEUE, "def (\n", []),
+    ],
+    ids=["a lock file", "the list itself", "a module that does not parse"],
+)
+def test_the_macos_job_runs_the_whole_list_where_the_selection_is_all(merged, path, text, listed):
+    """A change to the list runs the whole list as the change leaves it, the new entry included.
+    A change the selection cannot read, here a module with a syntax error, also runs it whole."""
+    reached, summary, output = merged(path, text)
+    assert reached == MAC_QUICK.read_text().splitlines() + listed
     assert summary == "macOS: the selection is all, so every test of testing/macos-quick.txt runs\n"
     assert output == "run=true\n"
 
