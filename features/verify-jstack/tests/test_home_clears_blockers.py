@@ -99,7 +99,7 @@ def waiting_to_post(sandbox):
 def brief(slug, *head):
     lines = [
         f"# {slug}: a demo task",
-        "Task: a demo task",
+        f"Task: {slug}, a demo task",
         "Done when:",
         "- the demo works",
         "Proves it: the demo's test",

@@ -27,6 +27,12 @@ READ_SET = ("features/jbus/tests/fixtures/jbus-help/",)
 PAGES = sorted(path.stem for path in HELP.glob("*.txt"))
 
 
+def unwrapped(text):
+    """Return a help page with the `...` of a subcommand's usage beside its choices: Python 3.12's
+    argparse puts it on a line of its own where the choices fill the line, and 3.13 does not."""
+    return re.sub(r"\n +\.\.\.\n", " ...\n", text)
+
+
 def helped(page, monkeypatch):
     """Return what `--help` prints for a page, with only the verbs of `verbs.FIRST`.
     `jbus-queue-add` is the page of `jbus queue add --help`."""
@@ -37,7 +43,7 @@ def helped(page, monkeypatch):
     with contextlib.redirect_stdout(out), pytest.raises(SystemExit) as stopped:
         cli.main([*page.split("-")[1:], "--help"])
     assert stopped.value.code == 0
-    return out.getvalue()
+    return unwrapped(out.getvalue())
 
 
 @pytest.mark.parametrize("page", PAGES)
@@ -163,7 +169,8 @@ def test_an_option_typed_short_is_taken_where_it_was_before_the_verbs_moved(page
         with pytest.raises(SystemExit) as stopped:
             cli.main([*page.split("-")[1:], "--he"])
     if page.removeprefix("jbus-") in SHORT:
-        assert (stopped.value.code, out.getvalue()) == (0, (HELP / f"{page}.txt").read_text())
+        said = unwrapped(out.getvalue())
+        assert (stopped.value.code, said) == (0, (HELP / f"{page}.txt").read_text())
     else:
         assert stopped.value.code == 2
 
