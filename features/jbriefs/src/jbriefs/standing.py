@@ -59,6 +59,8 @@ _UNASKED = re.compile(
     re.I,
 )
 _CLAUSE = re.compile(r"[.;!?](?:\s|$)")
+_SPAN = re.compile(r"`[^`]+`")
+_WORDS = re.compile(r"(?:all|every)\b", re.I)
 
 
 def load(fields: Fields) -> str:
@@ -68,14 +70,20 @@ def load(fields: Fields) -> str:
     `every core` where `core` is the noun, at a stop or before a load word (`busy`, `loaded`), so
     `every core module` and `all core tests` ask for no load. A `Ruled out:` field
     names what was set aside, and a clause that turns the ask down (`never`, `not`, `instead
-    of`) does not ask for it either. Such a load starves every other thread on the machine, and
-    the way to load it is a bounded one, a few cores or `taskset`, inside `jgauge test-slot`.
+    of`) does not ask for it either. The words in a code span quote the phrase and do not ask
+    for it, while a command there (`stress-ng --cpu 0`) is still the ask. Such a load starves
+    every other thread on the machine, and the way to load it is a bounded one, a few cores or
+    `taskset`, inside `jgauge test-slot`.
     """
     for label, lines in fields:
         if label == "Ruled out":
             continue
         for line in lines:
+            spans = [span.span() for span in _SPAN.finditer(line)]
             for found in _EVERY_CORE.finditer(line):
+                quoted = any(a < found.start() and found.end() < b for a, b in spans)
+                if quoted and _WORDS.match(found[0]):
+                    continue
                 clause = _CLAUSE.split(line[: found.start()])[-1]
                 if not _UNASKED.search(clause):
                     return (
