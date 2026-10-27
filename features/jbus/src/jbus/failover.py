@@ -73,6 +73,7 @@ from typing import Any
 import jbus
 import jroles
 import jsettings
+from jbriefs import parse as briefs
 from jbus import dispatch, outbox, read_json, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -149,7 +150,7 @@ def _named(run: Pass) -> dict[str, str]:
     found = {}
     for path in sorted((run.home / "tasks").glob("*.md")):
         try:
-            thread = dispatch.thread_of(path.read_text(errors="replace"))
+            thread = briefs.thread_of(path.read_text(errors="replace"))
         except OSError:
             continue
         if thread:

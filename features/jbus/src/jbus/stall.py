@@ -46,8 +46,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import jsettings
+from jbriefs import below, findings
+from jbriefs import parse as briefs
 from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
-from jbus.dispatch import launched, thread_of
+from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
@@ -65,10 +67,6 @@ AGAIN = 60 * 60
 
 _GUARDED = re.compile(r"guarded \(touches \S+\), .+")
 _UNPROVEN = re.compile(r"\bno proven safety fact at ([0-9a-f]{12})\b")
-_RAN = re.compile(r"^Verdict: (?:clean|findings)$", re.M)
-_REBASED = re.compile(
-    r"^Rebase: patch changed in .+, before ([0-9a-f]{40}), head ([0-9a-f]{40})$", re.M
-)
 STALL = "stall"
 PASSES = 10
 REVIEWING = 30
@@ -246,9 +244,8 @@ def tell(
 def reviewed(brief: str) -> str:
     """Return the head that the last review saw when it ran, as the crew skill's "A second pass"
     reads it."""
-    ran = [body for heading, body in mirror.sections(brief) if heading == "## Review"]
-    heads = [mirror.field(body, "Head").split() for body in ran if _RAN.search(body)]
-    return (heads[-1][:1] or [""])[0] if heads else ""
+    heads = [one.head for one in findings.triage(brief).sections if one.ran]
+    return heads[-1] if heads else ""
 
 
 def launched_for(brief: str, head: str) -> bool:
@@ -257,13 +254,7 @@ def launched_for(brief: str, head: str) -> bool:
     line that names another head is no launch for this head. Neither is a line that names no head,
     as lines written for a rebase did before jbus's ask named the head. Neither is the line that a
     session writes when it had no launch tool, `Scoped reviewer: none, ...`."""
-    return any(not words[2].startswith("none") for words in _reviewers(brief, head))
-
-
-def _reviewers(brief: str, head: str) -> list[list[str]]:
-    """Return the words of each `Scoped reviewer:` line that names this head."""
-    lines = (line.split() for line in brief.splitlines() if line.startswith("Scoped reviewer:"))
-    return [words for words in lines if words[-2:] == ["of", head]]
+    return any(map(below.launched, below.reviewers(brief, "Scoped reviewer", head)))
 
 
 def prove(run: Pass, client: Client, world: World, number: int, slug: str, short: str) -> None:
@@ -285,13 +276,14 @@ def prove(run: Pass, client: Client, world: World, number: int, slug: str, short
     if not named or f"proof|{slug}|{head[:12]}" in read_json(run.state / "sent.json", []):
         return
     brief = _brief(run, slug)
-    rebased = [before for before, to in _REBASED.findall(brief)[-1:] if to == head]
+    changed = [(before, to) for moved, before, to in below.rebases(brief) if moved]
+    rebased = [before for before, to in changed[-1:] if to == head]
     at = (rebased or [head])[0]
     saw = reviewed(brief)
-    done = mirror.field(mirror.last_result(brief), "Status") == "done"
+    done = below.line(mirror.last_result(brief), "Status:") == "done"
     if not at.startswith(named[1]) or not done or not saw or saw == at:
         return
-    if _reviewers(brief, head):
+    if below.reviewers(brief, "Scoped reviewer", head):
         return
     default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     old, new = (run.run("git", "merge-base", default.stdout.strip(), to) for to in (saw, head))
@@ -342,7 +334,7 @@ def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
             more = ", with a scoped reviewer launched" if reviewing else ""
             line = (
                 f"{STALL} {slug}: #{number} {url} has waited {passes} passes at {head[:12]}"
-                f"{more}, {short}; its crew's thread is {thread_of(brief) or 'not known'}"
+                f"{more}, {short}; its crew's thread is {briefs.thread_of(brief) or 'not known'}"
             )
             run.find(slug, STALL, line, key=f"{head[:12]} {reviewing} {short}")
     if kept != was:

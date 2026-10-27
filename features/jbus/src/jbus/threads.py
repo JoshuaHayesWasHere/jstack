@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from jbriefs import skills
+from jbriefs import findings, parse, skills
 from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
@@ -230,7 +230,7 @@ def relay(run: Pass, client: Client, world: World) -> None:
         key = f"relayed|{slug}|{digest}"
         if not review or _done(run, key):
             continue
-        thread = dispatch.thread_of(briefs[slug])
+        thread = parse.thread_of(briefs[slug])
         if not thread:
             what = "review findings with no thread to send them to"
             run.gate(slug, what, review, key=f"{what} {digest}")
@@ -290,7 +290,7 @@ def _scouts(run: Pass) -> dict[str, str]:
     for a scout that is over."""
     pages = {}
     for slug, text in _briefs(run, "scouts").items():
-        whole = mirror.sections(text, gates_inside=True)
+        whole = mirror.sections(text)
         reports = [body for heading, body in whole if heading == REPORT]
         if reports:
             pages[slug] = mirror.page(reports[-1])
@@ -335,9 +335,8 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
     ended = shut(world, briefs)
     reviewed = set()
     for slug in (tasks | ended) & set(briefs):
-        whole = mirror.sections(briefs[slug], gates_inside=True)
-        verdicts = [mirror.field(body, "Verdict") for heading, body in whole if heading == REVIEW]
-        if verdicts and verdicts[-1] in ("clean", "findings"):
+        ran = [one.ran for one in findings.triage(briefs[slug]).sections]
+        if ran and ran[-1]:
             reviewed.add(slug)
     held = _scouts(run) if scouts is None else scouts
     return {
@@ -583,7 +582,7 @@ def resume(run: Pass, client: Client, world: World) -> None:
             continue
         if not dispatch.launched(run, slug) or mirror.last_result(brief):
             continue
-        if dispatch.thread_of(brief) != at:
+        if parse.thread_of(brief) != at:
             continue
         key = f"resume|{slug}|{at}|{ended}"
         if key in sent:
@@ -684,7 +683,7 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
             continue
         key = f"merged-left|{slug}|#{pull['number']}"
         listed = (world.thread(slug) or {}).get("threadId", "")
-        at = dispatch.thread_of(brief) or dispatch.launched(run, slug) or listed
+        at = parse.thread_of(brief) or dispatch.launched(run, slug) or listed
         if not at or _done(run, key):
             continue
         message = resume_message(

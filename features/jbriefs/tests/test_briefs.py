@@ -1,10 +1,11 @@
+import ast
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import NamedTuple
 
 import pytest
 
-from jbriefs import cli, home, page, parse, skills
+from jbriefs import below, cli, home, page, parse, skills
 from jbus import watch
 from testing.paths import REPO
 
@@ -808,3 +809,79 @@ def test_a_brief_whose_where_names_no_path_is_refused_with_the_line():
     assert said.startswith("brief's Where: line names no path under the repo")
     assert said.endswith(f": {fault}")
     assert not [each for each in parse.faults(BRIEF) if "Where" in each]
+
+
+def test_a_thread_line_below_the_first_heading_still_names_the_thread():
+    brief = "# alpha: a task\nWhere: src/\n\n## Notes\nThread: mcp:low\n\n## Result\nStatus: done\n"
+    assert parse.thread_of(brief) == "mcp:low"
+    assert parse.brief("alpha", brief).thread == "mcp:low"
+    assert parse.head(brief, "Thread:") is None
+
+
+def test_reviewer_lines_are_read_by_kind_and_a_scoped_one_by_its_head():
+    head, other = "a" * 40, "b" * 40
+    brief = (
+        "# alpha: a task\n\n## Result\nStatus: done\nReviewer: mcp:one #1\n"
+        "Second reviewer: none, no launch tool\n"
+        f"Scoped reviewer: mcp:two of {other}\nScoped reviewer: none, no launch tool of {head}\n"
+    )
+    assert below.reviewers(brief, "Reviewer") == ["mcp:one #1"]
+    assert below.reviewers(brief, "Scoped reviewer", head) == [f"none, no launch tool of {head}"]
+    assert [below.launched(one) for one in below.reviewers(brief, "Scoped reviewer")] == [
+        True,
+        False,
+    ]
+    assert not below.launched(below.reviewers(brief, "Second reviewer")[0])
+
+
+def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
+    before, after = "a" * 40, "b" * 40
+    brief = (
+        f"## Result\nRebase: patch unchanged, before {before}, head {after}\n"
+        f"Rebase: patch changed in src/a.py, before {after}, head {before}\n"
+    )
+    assert below.rebases(brief) == [(False, before, after), (True, after, before)]
+
+
+HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
+
+
+def head_line_regexes(source: str) -> list[str]:
+    """Each regex in the source, given to a function of `re`, that reads a brief's head line or
+    heading, which `jbriefs` alone may read. Any case of `reviewer`, colon or none, is one:
+    it finds `Second reviewer:` and an alternation of the three reviewer lines."""
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        call = isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        if not call or not isinstance(node.func.value, ast.Name) or node.func.value.id != "re":
+            continue
+        for one in node.args[:1]:
+            text = ast.unparse(one)
+            found += [needle for needle in HEAD_LINES if needle.lower() in text.lower()]
+    return found
+
+
+def test_no_module_of_jbus_or_jmerge_compiles_a_regex_for_a_brief_head_line():
+    sources = [REPO / "features" / name / "src" for name in ("jbus", "jmerge")]
+    found = {
+        str(path.relative_to(REPO)): said
+        for source in sources
+        for path in sorted(source.rglob("*.py"))
+        if (said := head_line_regexes(path.read_text()))
+    }
+    assert found == {}
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        'X = re.compile(r"^Thread:[ \\t]*(\\S+)", re.M)',
+        'found = re.search(rf"^Reviewer: {who}", brief, re.M)',
+        'parts = re.split(r"^## ", text, flags=re.M)',
+        'X = re.compile(r"^Second reviewer: (.*)$", re.M)',
+        'X = re.compile(r"^Scoped reviewer: (\\S+)", re.M)',
+        'X = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): ", re.M)',
+    ],
+)
+def test_the_scan_finds_a_regex_for_a_head_line(line):
+    assert head_line_regexes(f"import re\n{line}\n")

@@ -91,6 +91,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jsettings
+from jbriefs import below
 from jbus import (
     alert,
     leftover,
@@ -252,7 +253,7 @@ def gates(
     keys = {one.key for one in held}
     found = []
     for file, number, asked, body, key in mirror.home_gates(home):
-        if not mirror.field(body, "Status").startswith("open") or key in keys:
+        if not below.line(body, "Status:").startswith("open") or key in keys:
             continue
         where = "" if file.parent == home else file.parent.name
         digest = hashlib.sha256(asked.encode()).hexdigest()[:8]
@@ -263,7 +264,7 @@ def gates(
                 "line": f"gate {number}: {asked}",
                 "number": number,
                 "question": asked,
-                "default": mirror.field(body, "Default"),
+                "default": below.line(body, "Default:"),
                 "home": where,
                 "slug": mirror.asker(body),
             }
