@@ -247,8 +247,7 @@ def brief(red: Red, day: str, jobs: list[tuple[str, str, Failed]], follows: str 
             "Size: S",
             f"Where: {where}",
             "Do not touch: the ruleset",
-            "Decisions: none, jbus filed this from a red workflow on main and the user has not "
-            "seen it",
+            f"Decisions: {queue.FILED}workflow on main and the user has not seen it",
             "Design: none, a fix to what the red runs name",
             "Pull request: open one when done",
             "Review: review",
@@ -345,7 +344,7 @@ def owe(run: Pass) -> None:
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)
             (run.home / "tasks" / f"{red.name}.md").write_text(text)
             try:
-                queue.add(run.state, red.name, 0, [], text)
+                queue.add(run.state, red.name, 0, [], text, user=run.user, ran_by=queue.PASS)
             except (Refused, queue.Unparsable) as refused:
                 run.condition(red.name, f"its brief was not queued: {refused}")
                 continue
@@ -408,7 +407,7 @@ def train_brief(
             "Size: S",
             f"Where: {where}",
             "Do not touch: .github/workflows/, the ruleset",
-            "Decisions: none, jbus filed this from a red train and the user has not seen it",
+            f"Decisions: {queue.FILED}train and the user has not seen it",
             "Design: none, a fix to what the failed run names",
             f"Pull request: open one against {branch} when done",
             "Review: review",
@@ -503,7 +502,7 @@ def trains(run: Pass, client: Client, world: World, table: list[dict[str, Any]])
                 try:
                     rows = queue.load(run.state)
                     top = min((row.get("priority", 0) for row in rows), default=1) - 1
-                    queue.add(run.state, name, top, [], text)
+                    queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)
                 except (Refused, queue.Unparsable) as refused:
                     run.condition(name, f"its brief was not queued: {refused}")
                     continue

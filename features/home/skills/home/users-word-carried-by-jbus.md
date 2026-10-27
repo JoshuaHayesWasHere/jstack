@@ -75,15 +75,20 @@ If the block prints `no entry`, the page gave no go that jbus can read, so ask t
 ### A follow-up approved by the follow-up rule
 
 A row of the queue launches on the user's own word, and `jbus queue approve` names that word with `--word`, `--answer`, `--message` or `--page`.
-In one case a row launches on a go given for another row: a follow-up of approved work needs no new approval.
+In two cases a row launches on no word of the user's for it: a follow-up of approved work needs no new approval, and a fix jbus filed from a red check is approved by the same rule.
 The rule is known by what it says, in code: jbus reads no number for it from `standing.md` or a `follow-rule` file.
 What makes a row a follow-up is one rule, read from the row and its brief and never judged by the home:
 
 - the row names its parent P, by a line `Follows: P` in its brief's head, or by its slug `cleanup-P`, the row a review files with `jbus cleanup`;
-- the row is of a follow-up's kind: `cleanup-P`; a fix row jbus files (`main-red-`, `train-red-`, `workflow-red-`), which carries the `Follows:` line itself; a sync of a train, whose slug says `sync-main` and whose pull request goes against a branch of the home's `integration` file; or, when it is queued, a row that does work for P's plan entry (`--entry`), as a second unit of that entry does;
+- the row is of a follow-up's kind: `cleanup-P`; a fix row jbus filed, which is a row jbus's own pass queued whose brief's `Decisions:` line begins `none, jbus filed this from a red`, whatever its slug, and which carries the `Follows:` line itself where a row's merge turned the check red; a sync of a train, whose slug says `sync-main` and whose pull request goes against a branch of the home's `integration` file; or, when it is queued, a row that does work for P's plan entry (`--entry`), as a second unit of that entry does;
 - P's go still holds: P is a row of this queue, or one that was removed as merged, and the user's word or this rule approved it.
 
 Each pass approves a waiting row of the first three kinds by itself, before any launch, so neither the home nor the user is asked.
+A fix jbus filed from a red check that no row's merge turned red (a red main, train, workflow, browser or macOS run) names no parent, since a red check has no one parent row.
+The follow-up rule approves it all the same, as its filer queues it and on each pass, with the red run its brief's `Task:` line quotes as the ground of its go.
+Its line reads `the follow-up rule, jbus filed it from the red run "<the run>"; run <time> by jbus's pass; you did not speak of this row`.
+What makes it jbus's is who queued it, which the queue keeps for each row, so a filer jbus adds later is covered with no list of slugs to extend.
+The same brief, or any row with a red check's slug, queued by a home or a person is not jbus's: it waits for the user's go like other new work.
 `jbus queue add` checks the rule when it queues the row, and approves a row that meets it in the same write.
 It also checks the waiting rows that name P when P gets its go.
 To file a train sync, write `Follows: <the approved row it serves>` in its brief's head.
@@ -91,6 +96,7 @@ It prints one line for each row it approved, and one for each row that names a p
 `jbus queue add --help` gives the same rule.
 To queue a second unit, write `Follows: <parent>` in its brief's head and queue it with `--entry <the parent's plan entry>`.
 A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go however small it is.
+The one exception is a fix jbus's own pass filed from a red check, which names no parent and is approved by the rule on its red run, as above.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.
 A follow-up of a follow-up is approved on its parent's go, so a chain goes back to the user's word one go at a time.
 Where jbus did not approve a follow-up whose parent has a go, the home may still name the parent itself:

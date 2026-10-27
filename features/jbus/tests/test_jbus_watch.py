@@ -508,7 +508,7 @@ def browser_red(kitchen):
     return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith("browser-red-")]
 
 
-def test_a_red_browser_run_files_one_unapproved_brief_naming_its_failed_tests(kitchen):
+def test_a_red_browser_run_files_one_brief_approved_by_rule_naming_its_failed_tests(kitchen):
     browser_runs(kitchen, browser_run())
     kitchen.poll()
     brief = kitchen.home / "tasks" / "browser-red-2026-10-12.md"
@@ -523,9 +523,9 @@ def test_a_red_browser_run_files_one_unapproved_brief_naming_its_failed_tests(ki
         "https://example.test/o/r/actions/runs/88",
     ):
         assert said in text
-    assert [(row["slug"], row["approved"]) for row in browser_red(kitchen)] == [
-        ("browser-red-2026-10-12", "")
-    ]
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
+    run = 'the red run "the browser run 88 failed on 2026-10-12, 2 tests named"'
+    assert run in browser_red(kitchen)[0]["approved"]
     assert jbus.queue.brief_sha(text) == jbus.queue.brief_sha(
         (kitchen.state / "briefs" / "browser-red-2026-10-12.md").read_text()
     )
@@ -731,7 +731,7 @@ def red_rows(kitchen, prefix):
     return [row for row in jbus.queue.load(kitchen.state) if row["slug"].startswith(prefix)]
 
 
-def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_naming_its_tests(
+def test_a_red_macos_nightly_files_one_brief_approved_by_rule_for_the_macos_home(
     kitchen,
 ):
     macos_runs(kitchen, macos_run(), macos_green())
@@ -750,9 +750,9 @@ def test_a_red_macos_nightly_files_one_unapproved_brief_for_the_macos_home_namin
     ):
         assert said in text
     assert "macos-nightly.yml" in text.split("\nProves it: ")[1].splitlines()[0]
-    assert [(row["slug"], row["approved"]) for row in red_rows(kitchen, "macos-red-")] == [
-        ("macos-red-2026-10-12", "")
-    ]
+    assert [row["slug"] for row in red_rows(kitchen, "macos-red-")] == ["macos-red-2026-10-12"]
+    run = 'the red run "the macOS nightly run 77 failed on 2026-10-12, 2 tests named"'
+    assert run in red_rows(kitchen, "macos-red-")[0]["approved"]
     line = (
         "retro macos-red-2026-10-12: the macOS nightly run 77 failed on 2026-10-12, 2 tests named"
     )

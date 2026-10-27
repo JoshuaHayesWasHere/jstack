@@ -1028,7 +1028,7 @@ def red_brief(
             "Size: S",
             f"Where: {where}",
             "Do not touch: .github/workflows/, the ruleset",
-            "Decisions: none, jbus filed this from a red main and the user has not seen it",
+            f"Decisions: {queue.FILED}main and the user has not seen it",
             "Design: none, a fix to what the failed run names",
             "Pull request: open one when done",
             "Review: review",
@@ -1073,7 +1073,7 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
         top = min((row.get("priority", 0) for row in queue.load(run.state)), default=1) - 1
-        queue.add(run.state, name, top, [], text)
+        queue.add(run.state, name, top, [], text, user=run.user, ran_by=queue.PASS)
     except (Refused, queue.Unparsable) as refused:
         run.condition(name, f"its brief was not queued: {refused}")
 
@@ -1183,7 +1183,7 @@ def nightly_red_brief(
             "Size: S",
             f"Where: {where}",
             "Do not touch: .github/workflows/, the ruleset",
-            "Decisions: none, jbus filed this from a red nightly run and the user has not seen it",
+            f"Decisions: {queue.FILED}nightly run and the user has not seen it",
             "Design: none, a fix to what the failed run names",
             f"Pull request: {nightly.pull}",
             "Review: review",
@@ -1285,7 +1285,7 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)
             (run.home / "tasks" / f"{name}.md").write_text(text)
             try:
-                queue.add(run.state, name, 0, [], text)
+                queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)
             except Refused as refused:
                 run.condition(name, f"its brief was not queued: {refused}")
                 continue

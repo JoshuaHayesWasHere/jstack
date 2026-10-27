@@ -104,7 +104,10 @@ def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(
     add(kitchen, "beta", priority=2, depends="alpha,gamma", approve=False)
     add(kitchen, "alpha", priority=1, approve=False)
     sha = queue.brief_sha(brief("alpha"))
-    assert rows(kitchen)["beta"] == {
+    assert queue.who(rows(kitchen)["beta"]["queued_by"]) == "the demo home"
+    assert {
+        name: value for name, value in rows(kitchen)["beta"].items() if name != "queued_by"
+    } == {
         "slug": "beta",
         "priority": 2,
         "depends": ["alpha", "gamma"],

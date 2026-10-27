@@ -44,7 +44,7 @@ CITED = {
     "features/jbus/src/jbus/stack.py:85-86": "world.merged.get(stacked.slug)",
     "features/jbus/src/jbus/strays.py:493": '("crew", slug) in busy',
     "features/jbus/src/jbus/strays.py:510-511,519": "burning = (taken |",
-    "features/jbus/src/jbus/watch.py:1054-1076": "queue.add(run.state, name, top, [], text)",
+    "features/jbus/src/jbus/watch.py:1054-1076": "ran_by=queue.PASS",
     "features/jbus/src/jbus/watch.py:1361,1404,1408,1411": "no briefed merge came in",
     "features/jbus/src/jbus/watch.py:1410-1411": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:135-138": 'row.get("merge_after", [])',

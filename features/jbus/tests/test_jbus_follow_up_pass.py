@@ -2,14 +2,15 @@
 reaches the user.
 
 A follow-up is a row that names its parent P and is one of three kinds (`queue.KINDS`): a
-`cleanup-P`, a fix row that jbus filed from P (`main-red-`, `train-red-`, `workflow-red-`, with a
-`Follows: P` line), or a sync of a train that the home's `integration` file names (its slug says
-`sync-main`, its pull request goes against the train, and it has a `Follows: P` line). Its ground is
-P's go, which holds, and the record names P and P's go. The follow-up rule is known by what it says,
-never by its number in a home's `standing.md`, so these tests keep a `follow-rule` file whose number
-no standing rule has, and no `standing.md` at all. Every row here is queued as a filer queues it,
-with `queue.add` and no approval, and the real pass runs against the kitchen's fakes.
-"""
+`cleanup-P`, a fix row that jbus's pass filed from a red check (its brief says so, whatever its
+slug), or a sync of a train that the home's `integration` file names (its slug says `sync-main`,
+its pull request goes against the train, and it has a `Follows: P` line). Its ground is P's go,
+which holds, and the record names P and P's go. A fix jbus filed from a red check that no row's
+merge turned red names no parent, and its ground is the red run. The follow-up rule is known by
+what it says, never by its number in a home's `standing.md`, so these tests keep a `follow-rule`
+file whose number no standing rule has, and no `standing.md` at all. Every row here is queued as a
+filer queues it, with `queue.add` as jbus's pass and no approval, and the real pass runs against
+the kitchen's fakes."""
 
 import pytest
 
@@ -21,6 +22,7 @@ from test_jbus_queue import brief, rows, sha12
 TRAIN = "train/demo"
 RED, TRAIN_RED, SIDE_RED = "main-red-" + "a" * 12, "train-red-demo-" + "b" * 12, "workflow-red-x-c"
 SYNC = "demo-sync-main-1"
+FIXED = (RED, TRAIN_RED, SIDE_RED)
 
 
 @pytest.fixture
@@ -37,14 +39,17 @@ def text(slug, parent="", against="", wider=False):
     """Return a brief that follows `parent`, whose pull request goes against `against`, and that
     asks for one thing more where it is `wider`."""
     made = brief(slug, f"Follows: {parent}\n" if parent else "")
+    if slug in FIXED:
+        filing = f"Decisions: {queue.FILED}main and the user has not seen it\n"
+        made = made.replace('Decisions: "review it once", the user\'s word in a test\n', filing)
     if against:
         made = made.replace("open one when done", f"open one against {against} when done")
     return made.replace("- it is done\n", "- it is done\n- and more\n") if wider else made
 
 
 def filed(kitchen, slug, parent="", against="", wider=False):
-    """Queue a row as a filer does: no approval, and no home in the loop."""
-    queue.add(kitchen.state, slug, 0, [], text(slug, parent, against, wider))
+    """Queue a row as a filer does: as jbus's pass, with no approval, and no home in the loop."""
+    queue.add(kitchen.state, slug, 0, [], text(slug, parent, against, wider), ran_by=queue.PASS)
 
 
 def approve(kitchen, slug):
@@ -86,7 +91,6 @@ def test_each_kind_of_follow_up_is_approved_on_a_pass_and_nothing_reaches_the_us
         "delta": ("", ""),
         "beta": ("alpha", ""),
         "other-sync-main-2": ("alpha", "elsewhere"),
-        "main-red-" + "d" * 12: ("", ""),
     }
     for slug, (parent, against) in left.items():
         filed(kitchen, slug, parent, against)
@@ -143,7 +147,7 @@ def test_an_edit_voids_the_go_and_the_pass_approves_the_new_brief_only_for_the_s
     kitchen.quiet()
     filed(kitchen, RED, "alpha", wider=True)
     moved = text(TRAIN_RED, "gamma", wider=True)
-    queue.add(kitchen.state, TRAIN_RED, 0, [], moved)
+    queue.add(kitchen.state, TRAIN_RED, 0, [], moved, ran_by=queue.PASS)
     stored = queue.brief(kitchen.state, RED)
     assert not queue.approved_text(rows(kitchen)[RED], stored)
     kitchen.poll()
@@ -173,6 +177,71 @@ def test_queue_add_approves_a_follow_up_whatever_number_the_follow_rule_file_hol
     assert code == 0, said
     assert said.startswith("approved cleanup-alpha: brief ")
     assert went(kitchen, "cleanup-alpha") == ("alpha", queue.RULE)
+
+
+def red_briefs():
+    """Return the brief each filer writes for a red check that no row's merge turned red, by the
+    slug it files it under: none names a parent."""
+    run = {
+        "id": 40514143484,
+        "event": "schedule",
+        "head_sha": "c" * 40,
+        "html_url": "https://example.test/o/r/actions/runs/40514143484",
+        "created_at": "2026-10-27T03:00:00Z",
+    }
+    workflow = sidered.Red(".github/workflows/x.yml", sidered.FAILED, (run,))
+    day = "2026-10-27"
+    made = [
+        watch.red_brief("", "a" * 40, [], [], []),
+        sidered.train_brief(TRAIN_RED, TRAIN, "b" * 40, "", [7], []),
+        sidered.brief(workflow, day, []),
+        watch.nightly_red_brief(watch.BROWSER, f"browser-red-{day}", day, run, []),
+        watch.nightly_red_brief(watch.MACOS, f"macos-red-{day}", day, run, []),
+    ]
+    return {text.split(":")[0].removeprefix("# "): text for text in made}
+
+
+@pytest.mark.parametrize("slug", red_briefs())
+def test_a_fix_jbus_filed_from_a_red_check_is_approved_by_rule_with_no_parent(kitchen, slug):
+    """A red check has no one parent row, so the fix names none: who queued it, jbus's pass, and
+    the brief's own word that jbus filed it from a red check make it the rule's, whatever its
+    slug. The go names the red run."""
+    made = red_briefs()[slug]
+    assert queue.named_parent(slug, made) == ""
+    queue.add(kitchen.state, slug, 0, [], made, ran_by=queue.PASS)
+    kitchen.quiet()
+    assert went(kitchen, slug) == ("", queue.RULE)
+    kept = rows(kitchen)[slug]["approval"]
+    assert kept["ref"] == queue.FOLLOW_REF
+    assert kept["ran_by"] == queue.PASS
+    run = made.split('Task: "')[1].split('"')[0]
+    assert run in kept["words"]
+    assert run in rows(kitchen)[slug]["approved"]
+    kitchen.poll()
+    assert slug not in asked_the_user(kitchen)
+
+
+@pytest.mark.parametrize("slug", red_briefs())
+def test_the_same_red_check_fix_queued_from_a_home_waits_for_the_users_go(kitchen, slug):
+    code, said = kitchen.main("queue", "add", slug, "--priority", "0", stdin=red_briefs()[slug])
+    assert code == 0, said
+    kitchen.quiet()
+    kitchen.poll()
+    assert went(kitchen, slug) == ()
+    assert slug in asked_the_user(kitchen)
+
+
+def test_a_row_jbus_queued_whose_brief_does_not_say_it_was_filed_from_a_red_check_waits(kitchen):
+    queue.add(
+        kitchen.state,
+        "main-red-" + "d" * 12,
+        0,
+        [],
+        brief("main-red-" + "d" * 12),
+        ran_by=queue.PASS,
+    )
+    kitchen.quiet()
+    assert went(kitchen, "main-red-" + "d" * 12) == ()
 
 
 def test_the_fix_rows_jbus_files_name_the_row_they_follow():
