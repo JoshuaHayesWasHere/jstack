@@ -241,9 +241,8 @@ def test_decisions_queued_for_a_refusing_webhook_reach_the_home_thread_once_wake
     assert lines.count("decision alpha: which one?") == 1
     assert lines.count("decision beta: ?") == 1
     assert own(kitchen) == [] and waiting(kitchen) == []
-    assert (
-        "moved demo: 2 events for the user from the webhook outbox to the home thread," in said[0]
-    )
+    (moved,) = [one for one in said if one.startswith("moved demo")]
+    assert "moved demo: 2 events for the user from the webhook outbox to the home thread," in moved
     again = kitchen.poll(later(10))
     assert sent_events(kitchen) == lines
     assert not any(one.startswith("moved demo") for one in again)

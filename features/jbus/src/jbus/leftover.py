@@ -29,15 +29,16 @@ crewmate and `jmerge` also use.
 - `why` is why the row is the user's at once, or empty. The reasons are that its home has no
   thread, that T3 Code lists that thread as settled or does not list it, or that the message
   did not go.
-- `stalled` is when jbus reported the row to the user as a stall, or empty. A new `Left:`
-  text keeps it, so jbus reports a row once.
+- `stalled` is when jbus told the root home that the row's home had not closed it, or empty.
+  A new `Left:` text keeps it, so jbus raises a row once.
 - `busy` is true when a thread was at work on the row in the last pass, so the row waits on
   that thread.
 
-`his` says whose a leftover is: the home's while `his` returns nothing, and the user's with
+`his` says whose a leftover is: a home's while `his` returns nothing, and the user's with
 the reason `his` gives. A leftover is the user's when it has a `why`, while jbus has told no
-home, or once `CLOSE_MINUTES` have passed since jbus told the home. jbus reports that last
-case once, as a `stall` event (`stall.unclosed`). The list of what waits on the user
+home. Once `CLOSE_MINUTES` have passed since jbus told the home, jbus tells the root home of it
+once (`_raise`), and it is the root home's: it reaches the user only where no root home is
+listed to tell (`NO_ROOT`). The list of what waits on the user
 (`waiting.left`) and the view read the same record. The pass that writes the list judges
 every row on it, so each record the list reads has `told` or `why`.
 
@@ -60,6 +61,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import below
+from jbriefs.home import thread_of
 from jbus import mirror, outbox, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
@@ -77,6 +79,17 @@ REFUSED = "T3 Code refused the message to its home's thread {thread}"
 SILENT = "T3 Code did not take the message to its home's thread {thread}"
 UNSEEN = "its home is not told yet: T3 Code did not list the threads that are out"
 LATE = "its home, thread {thread}, has not closed it {minutes} min after jbus told it"
+NO_ROOT = LATE + ", and no root home is listed to tell"
+LATE_KIND = "leftover-late"
+RAISED = (
+    "jbus: {slug} ended with something left, and {late}. It is the root home's now: {user} is "
+    "not asked.\n\n"
+    "Left: {left}\n\n"
+    "Close it as jbus's message to its home says, from the last Result of `tasks/{slug}.md`: a "
+    "follow-up brief for what is left, or a `## Result, follow-up` section that ends `Left: "
+    "none`. Or tell its home to. A question only {user} can answer is a gate: take the default "
+    "and pipe it to `jbus gate {slug}`. Send {user} nothing about it."
+)
 MESSAGE = (
     "jbus: {slug} ended with something left, and it is this home's to close. {user} is not "
     "asked: it waits on this home.\n\n"
@@ -92,8 +105,8 @@ MESSAGE = (
     "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "
     "those three end it.\n\n"
     "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
-    "default and pipe it to `jbus gate {slug}`. jbus says this row to {user} once if it is "
-    "still open {minutes} min from now."
+    "default and pipe it to `jbus gate {slug}`. jbus says this row to the root home once if it "
+    "is still open {minutes} min from now."
 )
 UNWRITTEN = (
     "jbus: {slug} ended with nothing written, and it is this home's to close. {user} is not "
@@ -111,8 +124,8 @@ UNWRITTEN = (
     "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "
     "those three end it.\n\n"
     "Send {user} nothing about it. A question only {user} can answer is a gate: take the "
-    "default and pipe it to `jbus gate {slug}`. jbus says this row to {user} once if it is "
-    "still open {minutes} min from now."
+    "default and pipe it to `jbus gate {slug}`. jbus says this row to the root home once if it "
+    "is still open {minutes} min from now."
 )
 
 
@@ -152,13 +165,9 @@ def late(record: Record, now: datetime) -> bool:
 
 
 def his(record: Record, now: datetime) -> str:
-    """Return why a leftover is the user's, or nothing while the leftover is still its
-    home's."""
-    if record.why:
-        return record.why
-    if late(record, now):
-        return LATE.format(thread=record.thread, minutes=CLOSE_MINUTES)
-    return ""
+    """Return why a leftover is the user's, or nothing while a home has it: its own, or the
+    root home once its own has not closed it in time."""
+    return record.why
 
 
 def ended(run: Pass, world: World, rows: list[queue.Row]) -> list[tuple[str, str]]:
@@ -255,6 +264,8 @@ def _judge(
         return record if has else replace(record, why=UNSEEN)
     if thread not in out:
         return replace(record, why=UNLISTED.format(thread=thread))
+    if has and late(record, run.now) and not record.stalled:
+        return _raise(run, client, slug, record, out)
     if has:
         return replace(record, why="")
     digest = hashlib.sha256(record.left.encode()).hexdigest()[:12]
@@ -283,6 +294,37 @@ def _judge(
     run.say(line)
     at = jsettings.stamp(run.now)
     return replace(record, thread=thread, told=at, why="")
+
+
+def _raise(run: Pass, client: Client, slug: str, record: Record, out: set[str]) -> Record:
+    """Tell the root home, once, of a leftover its own home did not close in time. With no root
+    home that T3 Code lists, the leftover is the user's."""
+    late_now = LATE.format(thread=record.thread, minutes=CLOSE_MINUTES)
+    root = thread_of(run.home)
+    if not root or root not in out:
+        return replace(record, why=NO_ROOT.format(thread=record.thread, minutes=CLOSE_MINUTES))
+    digest = hashlib.sha256(record.left.encode()).hexdigest()[:12]
+    text = RAISED.format(slug=slug, late=late_now, user=run.user.user, left=record.left)
+    try:
+        went = outbox.send(
+            run,
+            client,
+            thread=root,
+            row=slug,
+            key=f"{LATE_KIND}|{slug}|{digest}|{root}",
+            text=text,
+            template=LATE_KIND,
+            needs="act",
+        )
+    except T3Error as error:
+        run.say(f"wait {slug}: the root home could not be told of what it left ({error})")
+        return replace(record, why="")
+    if not went:
+        return replace(record, why="")
+    line = f"{KIND} {slug}: told the root home, thread {root}, that {late_now}"
+    run.find(slug, KIND, line, text, key=f"late {digest} {root}")
+    run.say(line)
+    return replace(record, why="", stalled=jsettings.stamp(run.now))
 
 
 def tell(
@@ -321,14 +363,6 @@ def tell(
         kept[slug] = replace(record, busy=slug not in open_now)
     if kept != was:
         _write(run.state, kept)
-
-
-def said(state: Path, slug: str, at: datetime) -> None:
-    """Record that jbus reported a row to the user as a stall."""
-    records = read(state)
-    if slug in records:
-        stamp = jsettings.stamp(at)
-        _write(state, records | {slug: replace(records[slug], stalled=stamp)})
 
 
 STEPS = (

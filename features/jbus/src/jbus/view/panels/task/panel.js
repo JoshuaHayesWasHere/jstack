@@ -2,6 +2,10 @@ function silence(word, updated, started, queued) {
   var u = ms(updated), s = ms(started);
   return "Its thread is " + word + ": it has written nothing " + (u == null ? "for a time that was not kept" : "since " + day(u) + ", " + dur(NOW - u) + " ago") + (s == null ? "" : ", its turn started " + day(s)) + (queued ? ", and " + plural(queued, "run waits", "runs wait") + " behind it" : "") + ".";
 }
+function fixingLine(f) {
+  var at = ms(f.told);
+  return "Fixing: " + f.owner + ", " + (at == null ? "not told yet" : "told " + day(at)) + ".";
+}
 function segments(t) {
   var segs = [];
   t.history.forEach(function (l, i) {
@@ -25,6 +29,7 @@ function dTask(slug) {
     (bl && bl.by ? '<p style="margin:10px 0 0"><i class="mk blk"></i> Blocked by ' + taskBtn(bl.by) + ' <span class="chip plain">' + esc(bl.state) + '</span></p>' : "") +
     (t.blocks ? '<p style="margin:10px 0 0"><span class="bn">' + t.blocks + '</span> ' + behind(t.blocks).replace(/^\d+ /, "") + ': ' + t.behind.map(taskBtn).join(", ") + '</p>' : "") +
     (t.seen.live === "quiet" || t.seen.live === "hung" ? '<p style="margin:10px 0 0"><i class="mk lv-' + t.seen.live + '"></i> ' + esc(silence(t.seen.live, t.seen.wrote, t.seen.run_started, t.seen.queued)) + '</p>' : "") +
+    (t.fixing ? '<p style="margin:10px 0 0">' + esc(fixingLine(t.fixing)) + '</p>' : "") +
     (st.row ? '<p style="margin:10px 0 0">' + gap("the row disagrees") + ' ' + esc(st.row) + '.</p>' : "") +
     (t.unconfirmed ? '<p style="margin:10px 0 0">' + gap("not confirmed") + ' ' + esc(t.unconfirmed.line.replace(/^not confirmed /, "")) + '.</p>' : "") +
     (ITEM_OF[slug] ? '<p style="margin:10px 0 0">Work item ' + openBtn("item:" + ITEM_OF[slug].id, ITEM_OF[slug].id) + ' <span class="chip plain">' + esc(ITEM_WORD[ITEM_OF[slug].state]) + '</span></p>' : "") +

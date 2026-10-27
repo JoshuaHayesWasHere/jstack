@@ -138,7 +138,6 @@ This page records the pool numbers and changes none of them.
 | A gate acts on its default | `features/jbus/src/jbus/questions.py:153` | `QUIET = timedelta(0)` | #36, settled at once since word 3d4718ca72ab | Nothing waits on a question | Design choice | Kept |
 | A pass at one head is a stall | `features/jbus/src/jbus/stall.py:67` | `PASSES = 10` | Before this repo's history | A stuck pull request is told | Design choice | Kept |
 | A review's time before a stall | `features/jbus/src/jbus/stall.py:68` | `REVIEWING = 30` | Before this repo's history | A stuck review is told | Design choice | Kept |
-| What is left, before a stall | `features/jbus/src/jbus/stall.py:69` | `LEFT = 300` | Before this repo's history | A left row is told | Design choice | Kept |
 | A thread is quiet | `features/jbus/src/jbus/live.py:25` | `QUIET_MINUTES = 10` | Before this repo's history | How a thread is shown | Design choice | Kept |
 | A thread is hung | `features/jbus/src/jbus/live.py:26` | `HUNG_MINUTES = 20` | Before this repo's history | A hung turn is found | Design choice | Kept |
 | A thread's timebox | `features/jbus/src/jbus/watch.py:53` | `TIMEBOX_HOURS = 4.0` | Before this repo's history | A runaway thread is found | Design choice | Kept |

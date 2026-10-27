@@ -1,7 +1,7 @@
 """A row whose thread ended, or hung, with nothing written does not stay `stale` with nobody to
 handle it. jbus tells its home what to do, once, as it does for a leftover, and the row drops out
-of `stale` when the home handles it. The row waits on the user only where it has no home or the
-home did not close it.
+of `stale` when the home handles it. A home that did not close it in time is raised to the root
+home, and the row waits on the user only where there is no home to tell.
 
 Like `test_jbus_leftover.py`, the tests run the real pass against a faked T3 Code server, `gh`
 and `jmerge`, over briefs that are made up."""
@@ -61,9 +61,9 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     assert listed(kitchen) == []
     assert [row["status"] for row in rows(kitchen).values()] == ["left"]
     kitchen.poll(NOW + (leftover.CLOSE_MINUTES + 1) * MIN)
-    (line,) = listed(kitchen)
-    assert line.startswith("left alpha: its thread completed with nothing written; its home")
-    assert len(told(kitchen, at)) == 1
+    assert listed(kitchen) == []
+    first, late = told(kitchen, at)
+    assert first == sent and late["clientRequestId"].startswith(f"{leftover.LATE_KIND}|alpha|")
 
 
 def test_a_thread_that_hung_with_nothing_written_is_told_to_its_home_to_interrupt(kitchen):

@@ -26,11 +26,6 @@ review. Then `guarded` asks the crew for the one scoped review that proves the f
 When the line still says the same of the same head after `PASSES` passes, `guarded` logs one
 `stall` event, which is quiet and in the digest. `guarded.json` counts the passes.
 
-`unclosed` handles a leftover that its home did not close. Such a leftover is a row that ended with
-something left, after jbus told the row's home about the leftover (`leftover`)
-`leftover.CLOSE_MINUTES` ago or more. `unclosed` sends one `stall` event for the row, and the event
-names the home's thread. From then on the row is on the list of what waits on the user.
-
 `hung` handles a turn that hangs: a thread that is out and has written nothing for too long
 (`live`). `hung` sends one `stall` event for that thread and that run, and writes one line of
 `hung.jsonl`. A later pass adds a line that says what became of the turn: it wrote again by itself,
@@ -48,12 +43,12 @@ from typing import TYPE_CHECKING, Any
 import jsettings
 from jbriefs import below, findings
 from jbriefs import parse as briefs
-from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
+from jbus import mirror, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.t3 import Client
-from jbus.wake import cut, notify
+from jbus.wake import notify
 from jbus.watch import World, task_brief
 from jmerge import stacked as stacks
 from jmerge.lines import READY
@@ -70,7 +65,6 @@ _UNPROVEN = re.compile(r"\bno proven safety fact at ([0-9a-f]{12})\b")
 STALL = "stall"
 PASSES = 10
 REVIEWING = 30
-LEFT = 300
 HUNG = "hung.jsonl"
 WROTE, INTERRUPTED, ENDED = "wrote again", "interrupted", "ended"
 BECAME = {"interrupted": INTERRUPTED, "cancelled": INTERRUPTED} | dict.fromkeys(
@@ -334,23 +328,6 @@ def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
         write_json(run.state / "guarded.json", kept)
 
 
-def unclosed(run: Pass, world: World, rows: list[queue.Row]) -> None:
-    """Report, once per row, each leftover that the home did not close in time after jbus told the
-    home about it. The event names the home's thread and what the Result leaves. A row that is the
-    user's for another reason (`Record.why`) is on the list with that reason, and is no stall."""
-    held = leftover.read(run.state)
-    for slug, _ in leftover.ended(run, world, rows):
-        record = held.get(slug)
-        if record is None or record.stalled or record.why:
-            continue
-        if not leftover.late(record, run.now):
-            continue
-        why = leftover.LATE.format(thread=record.thread, minutes=leftover.CLOSE_MINUTES)
-        line = f"{STALL} {slug}: it ended with something left, and {why}; left: "
-        run.find(slug, STALL, line + cut(record.left, LEFT), key="leftover")
-        leftover.said(run.state, slug, run.now)
-
-
 def _calls(run: Pass) -> dict[tuple[str, str], dict[str, Any]]:
     """Return each `hung` call in `hung.jsonl` whose end no later line records, by its thread and
     its run."""
@@ -471,13 +448,6 @@ STEPS = (
         "stall.guarded",
         lambda half: guarded(half.run, half.client, half.seen.world, half.said),
         ("client", "world"),
-    ),
-    verbs.Step(
-        "after-derive",
-        20,
-        "stall.unclosed",
-        lambda half: unclosed(half.run, half.seen.world, half.table),
-        ("client", "world", "rows"),
     ),
     verbs.Step("close", 10, "stall.tell", _tell),
 )

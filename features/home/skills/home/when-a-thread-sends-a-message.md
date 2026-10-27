@@ -22,7 +22,7 @@ Read the last Result of `$H/tasks/<slug>.md` and those answers, then end it one 
 Where something is still to do, write a brief for what is left and queue it as a follow-up.
 Then, or at once where nothing more is wanted or the rest is already somebody's, append `## Result, follow-up (<date>, <the reason>)` to `$H/tasks/<slug>.md`, the brief of the task that ended, with three lines: `Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`.
 Only those three end it.
-Send the user nothing about it: a question only they can answer is a gate ("Gates"), and jbus says the row to them once if it is still open 30 minutes after the message.
+Send the user nothing about it: a question only they can answer is a gate ("Gates"), and jbus says the row to the root home once if it is still open 30 minutes after the message.
 
 Nothing is sent when a pull request opens, when a review is written or when its findings are handled.
 A reviewer's findings go to the crewmate.

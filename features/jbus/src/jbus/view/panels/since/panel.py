@@ -8,9 +8,9 @@ user had it in view, and counts each entry after that time. That number is the o
 keeps, in the browser's own storage, and it holds no content.
 
 The kinds are `merged`, a row that moved to merged (as the panel `merged` reads it, over
-`KEEP` and not only today); `stuck`, a stall or an idle crew that stands now, from the
-project's list of what is wrong (`state.wrongs`), since its first stall after the row last
-moved (`_began`); and `default`, a question
+`KEEP` and not only today); `stuck`, a stall or an idle crew that stands now and that no agent
+can fix, from the project's list of what is wrong that is the user's (`state.users`), since its
+first stall after the row last moved (`_began`); and `default`, a question
 that jbus closed with its default at once, in the first pass that saw it. A stuck row that moved
 again is no longer stuck, so it is not on the list: the line says what stands, not what was."""
 
@@ -31,8 +31,8 @@ from jbus.view.state import (
     iso,
     kept,
     text,
+    users,
     when,
-    wrongs,
 )
 
 FIRST = False
@@ -106,7 +106,7 @@ def _stuck(read: Read) -> list[dict[str, Any]]:
         {"kind": "stuck", "subj": one["subj"], "project": read.name}
         | {"at": min(one["since"], began.get(one["subj"], one["since"]))}
         | {"open": one["where"][0]["open"]}
-        for one in read.once(wrongs)
+        for one in users(read)
         if one["kind"] in STUCK and one["since"]
     ]
 

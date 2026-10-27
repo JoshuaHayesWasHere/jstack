@@ -32,6 +32,7 @@ from jbus import (
     mainmoved,
     merge,
     mirror,
+    owners,
     questions,
     queue,
     rebase,
@@ -94,9 +95,9 @@ ORDER = [
     "derive 10 states.judged (sight)",
     "derive 20 states.derive (client, world, rows)",
     "after-derive 10 leftover.tell (client, world, rows)",
-    "after-derive 20 stall.unclosed (client, world, rows)",
     "after-derive 30 states.unplaced (client, world, rows)",
     "after-derive 40 states.keep_work (rows)",
+    "after-derive 45 owners.tell (sight, client, world, budget)",
     "after-derive 50 item.follow (rows)",
     "after-derive 60 dispatch.overlaps (sight, budget)",
     "close 10 stall.tell",
@@ -221,24 +222,28 @@ BEFORE = {
     ),
 }
 
-DERIVED = "queue.derive queue.load leftover.tell stall.unclosed"
+DERIVED = "queue.derive queue.load leftover.tell"
 JUDGED = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
+TELL = "owners.tell queue.load questions.read"
+OWNED = JUDGED.replace("work.write", f"work.write {TELL}")
 CLOSE = "Box.snapshot_due Box.sweep_owed alert.flush"
 AFTER = {
-    "short": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
-    "question": f"{DERIVED} {JUDGED} Box.began {CLOSE}",
-    "word": f"{DERIVED} {JUDGED} Box.began {CLOSE}",
-    "main moved": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
-    "stale": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
+    "short": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
+    "question": f"{DERIVED} {OWNED} Box.began {CLOSE}",
+    "word": f"{DERIVED} {OWNED} Box.began {CLOSE}",
+    "main moved": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
+    "stale": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "t3 down": f"{JUDGED} {CLOSE}",
     "signed out": f"{JUDGED.replace('questions.read', 'questions.read questions.read')} {CLOSE}",
     "blind": f"stall.tell waiting.cadence {CLOSE}",
-    "words.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
-    "questions.json": f"{DERIVED} merge.unplaced {JUDGED} Box.began {CLOSE}",
-    "queue.json": f"stall.tell waiting.keep questions.read waiting.cadence Box.began {CLOSE}",
+    "words.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
+    "questions.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
+    "queue.json": (
+        f"{TELL} stall.tell waiting.keep questions.read waiting.cadence Box.began {CLOSE}"
+    ),
 }
 EVENING = (
-    f"{DERIVED} merge.unplaced {JUDGED} Box.began Box.snapshot_due Box.snapshot_sent "
+    f"{DERIVED} merge.unplaced {OWNED} Box.began Box.snapshot_due Box.snapshot_sent "
     "Box.prune Box.forget Box.sweep_owed merge.sweep Box.swept alert.flush"
 )
 
@@ -270,9 +275,9 @@ CALLED = (
 SECOND = (
     (queue, "derive"),
     (leftover, "tell"),
-    (stall, "unclosed"),
     (merge, "unplaced"),
     (work, "write"),
+    (owners, "tell"),
     (item, "follow"),
     (stall, "tell"),
     (waiting, "keep"),
