@@ -808,3 +808,36 @@ def test_a_brief_whose_where_names_no_path_is_refused_with_the_line():
     assert said.startswith("brief's Where: line names no path under the repo")
     assert said.endswith(f": {fault}")
     assert not [each for each in parse.faults(BRIEF) if "Where" in each]
+
+
+def test_a_thread_line_below_the_first_heading_still_names_the_thread():
+    brief = "# alpha: a task\nWhere: src/\n\n## Notes\nThread: mcp:low\n\n## Result\nStatus: done\n"
+    assert parse.thread_of(brief) == "mcp:low"
+    assert parse.brief("alpha", brief).thread == "mcp:low"
+    assert parse.head(brief, "Thread:") is None
+
+
+def test_reviewer_lines_are_read_by_kind_and_a_scoped_one_by_its_head():
+    head, other = "a" * 40, "b" * 40
+    brief = (
+        "# alpha: a task\n\n## Result\nStatus: done\nReviewer: mcp:one #1\n"
+        "Second reviewer: none, no launch tool\n"
+        f"Scoped reviewer: mcp:two of {other}\nScoped reviewer: none, no launch tool of {head}\n"
+    )
+    assert parse.reviewers(brief, "Reviewer") == ["mcp:one #1"]
+    assert parse.reviewers(brief, "Scoped reviewer", head) == [f"none, no launch tool of {head}"]
+    assert [parse.launched(one) for one in parse.reviewers(brief, "Scoped reviewer")] == [
+        True,
+        False,
+    ]
+    assert not parse.launched(parse.reviewers(brief, "Second reviewer")[0])
+
+
+def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
+    before, after = "a" * 40, "b" * 40
+    brief = (
+        f"## Result\nRebase: patch unchanged, before {before}, head {after}\n"
+        f"Rebase: patch changed in src/a.py, before {after}, head {before}\n"
+    )
+    assert parse.rebases(brief) == [(False, before, after), (True, after, before)]
+

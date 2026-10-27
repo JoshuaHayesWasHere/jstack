@@ -23,11 +23,16 @@ _ENTRY = re.compile(r"^## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<title>.+)$")
 _BRIEF_TITLE = re.compile(r"^# [^:\n]+: (?P<title>.+)$", re.MULTILINE)
 _RESULT = re.compile(r"^## (?P<heading>Result\b.*)$", re.MULTILINE)
 _STATUS = re.compile(r"^Status:[ \t]*(?P<status>.*)$", re.MULTILINE)
-_THREAD = re.compile(r"^Thread:[ \t]*(?P<thread>\S+)", re.MULTILINE)
 _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MULTILINE)
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 _REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
 _STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
+_REBASE = re.compile(
+    r"^Rebase: patch (?P<how>unchanged|changed in .+), before (?P<before>[0-9a-f]{40}), "
+    r"head (?P<head>[0-9a-f]{40})$",
+    re.MULTILINE,
+)
+_GATE = re.compile(r"^## Gate (\S+?):\s*(.*)$")
 
 _NAMED = (
     (
@@ -210,19 +215,73 @@ def proof(said: str) -> Proof:
     return Proof(said, fault="names nothing outside the agent")
 
 
-def _head(text: str, label: str) -> str | None:
+def head(text: str, label: str) -> str | None:
     """What the first `<label>` line of a brief's head says, or None for a head with none."""
-    for line in text.splitlines():
-        if line.startswith("## "):
+    for one in text.splitlines():
+        if one.startswith("## "):
             break
-        if line.startswith(label):
-            return line.removeprefix(label).strip()
+        if one.startswith(label):
+            return one.removeprefix(label).strip()
     return None
+
+
+def line(text: str, label: str) -> str:
+    """What the first `<label>` line anywhere in the text says, or an empty string for text
+    with none. A section's body is read this way, a gate inside it included."""
+    for one in text.splitlines():
+        if one.startswith(label):
+            return one.removeprefix(label).strip()
+    return ""
+
+
+def last(text: str, heading: str) -> list[str] | None:
+    """The lines below the last line that starts `heading`, to the end of the text, so a
+    Result runs on through any Review written after it. None for text with no such line."""
+    lines = text.splitlines()
+    starts = [at for at, one in enumerate(lines) if one.startswith(heading)]
+    return lines[starts[-1] + 1 :] if starts else None
+
+
+def thread_of(text: str) -> str:
+    """The thread id on a brief's first `Thread:` line, wherever it sits, as the skills read it.
+    It is an empty string for a brief with none."""
+    return "".join(line(text, "Thread:").split()[:1])
+
+
+REVIEWERS = ("Reviewer", "Second reviewer", "Scoped reviewer")
+
+
+def reviewers(brief: str, kind: str, head: str | None = None) -> list[str]:
+    """What each `<kind>:` line of the brief says, in order, for a kind of `REVIEWERS`. With
+    `head`, only the lines that end `of <head>`, as a scoped reviewer's line names the head it
+    reviews."""
+    label = f"{kind}:"
+    found = [one.removeprefix(label).strip() for one in brief.splitlines() if one.startswith(label)]
+    return found if head is None else [s for s in found if s.split()[-2:] == ["of", head]]
+
+
+def launched(said: str) -> bool:
+    """Whether a reviewer line says a reviewer was launched: it names something, and not
+    `none`, as `Reviewer: none, <why>` says none runs."""
+    return bool(said) and not re.match(r"none\b", said)
+
+
+def rebases(brief: str) -> list[tuple[bool, str, str]]:
+    """Each `Rebase:` line of the brief, in order: whether the rebase changed the patch, the
+    head before it and the head after it."""
+    return [(m["how"] != "unchanged", m["before"], m["head"]) for m in _REBASE.finditer(brief)]
+
+
+def gate(heading: str) -> tuple[str, str] | None:
+    """The number and the question of a `## Gate <n>: <question>` heading, or None for any
+    other line."""
+    found = _GATE.match(heading)
+    return (found[1], found[2].strip()) if found else None
 
 
 def proves_it(text: str) -> Proof | None:
     """The first `Proves it:` line of a brief's head, judged, or None for a brief with none."""
-    said = _head(text, "Proves it:")
+    said = head(text, "Proves it:")
     return None if said is None else proof(said)
 
 
@@ -238,7 +297,7 @@ def sized(text: str) -> str:
     refuses a brief with no line. Before the line existed, every brief counted as S, and a
     brief with no line would still count as S.
     """
-    said = _head(text, "Size:")
+    said = head(text, "Size:")
     if said is None:
         fault = "brief has no Size: line"
     elif not said:
@@ -268,7 +327,7 @@ def playbook_named(text: str) -> str:
     first word of the first such line of its head. It is nothing when the head has no such
     line, or when the line is empty. `jbus playbook` opens the file it names, and this
     function is the one reader of the line."""
-    said = _head(text, "Playbook:")
+    said = head(text, "Playbook:")
     return said.split()[0] if said else ""
 
 
@@ -279,7 +338,7 @@ def playbook(text: str) -> str:
     The name is the line's first word, as `jbus playbook` reads it. It must be a crewmate's
     file of `playbooks/` without its `.md`, or `none`. A brief with no line counts as `none`.
     """
-    said = _head(text, "Playbook:")
+    said = head(text, "Playbook:")
     name = playbook_named(text)
     if said is None or name == "none":
         return ""
@@ -309,7 +368,7 @@ def designed(text: str) -> str:
     gives no call. Neither does a word that names no file (`TBD`, `n/a`), or the template's
     own line left unchanged.
     """
-    said = _head(text, "Design:")
+    said = head(text, "Design:")
     if said is None:
         return NO_DESIGN
     named = not said.startswith("<") and _DESIGN.search(said)
@@ -686,7 +745,9 @@ class Repo:
         return [brief for brief in self.briefs if brief.slug not in open_slugs]
 
 
-def _sections(text: str) -> list[tuple[str, list[str]]]:
+def sections(text: str) -> list[tuple[str, list[str]]]:
+    """Each `## ` heading line, as written, with the lines under it, in order. Lines above the
+    first heading are in none."""
     found: list[tuple[str, list[str]]] = []
     for line in text.splitlines():
         if line.startswith("## "):
@@ -720,7 +781,7 @@ def _done_when(lines: list[str]) -> tuple[str, ...]:
 
 def plan_entries(text: str) -> list[Entry]:
     entries = []
-    for heading, lines in _sections(text):
+    for heading, lines in sections(text):
         found = _ENTRY.match(heading)
         if not found:
             continue
@@ -745,24 +806,23 @@ def brief(slug: str, text: str) -> Brief:
         for mark, end in zip(marks, starts[1:], strict=True)
     )
     title = _BRIEF_TITLE.search(body)
-    thread = _THREAD.search(body)
     return Brief(
         slug=slug,
         title=title["title"].strip() if title else "",
         body=body.strip(),
         results=results,
-        thread=thread["thread"] if thread else None,
+        thread=thread_of(body) or None,
     )
 
 
 def handoff(text: str) -> Handoff:
     first = text.lstrip().splitlines()[:1]
     title = first[0].removeprefix("# ").strip() if first and first[0].startswith("# ") else ""
-    sections = {
+    found = {
         heading.removeprefix("## ").strip(): "\n".join(lines).strip()
-        for heading, lines in _sections(text)
+        for heading, lines in sections(text)
     }
-    return Handoff(title, sections)
+    return Handoff(title, found)
 
 
 def _read(path: Path) -> str | None:
