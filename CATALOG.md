@@ -55,6 +55,7 @@ The feature's own docs say what its script does and show the entry the install w
 | `SessionStart`, matcher `startup` | [features/home/hooks/home-start.sh](features/home/hooks/home-start.sh) | claude-code, codex | `home` |
 | `PreToolUse` | [features/home/hooks/home-gauge.sh](features/home/hooks/home-gauge.sh) | claude-code | `home` |
 | `PostToolUse` | [features/home/hooks/home-gauge.sh](features/home/hooks/home-gauge.sh) | claude-code | `home` |
+| `PreToolUse`, matcher `mcp__t3[-_]code__t3_thread_send`, refuses | [features/home/hooks/agent-sends.sh](features/home/hooks/agent-sends.sh) | claude-code | `home` |
 | the status line | [features/jgauge/hooks/limits.sh](features/jgauge/hooks/limits.sh) | claude-code | `jgauge` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/outbound-command.sh](features/jleak/hooks/outbound-command.sh) | claude-code | `jleak` |
 | `PreToolUse`, matcher `Bash`, refuses | [features/jleak/hooks/ai-trailer.sh](features/jleak/hooks/ai-trailer.sh) | claude-code, codex | `jleak` |

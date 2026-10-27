@@ -775,6 +775,21 @@
   ],
   "hooks": [
     {
+      "name": "agent-sends.sh",
+      "path": "features/home/hooks/agent-sends.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "mcp__t3[-_]code__t3_thread_send",
+          "refuses": true
+        }
+      ]
+    },
+    {
       "name": "ai-trailer.sh",
       "path": "features/jleak/hooks/ai-trailer.sh",
       "harnesses": [

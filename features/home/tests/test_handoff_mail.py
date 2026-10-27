@@ -1,5 +1,6 @@
 """A handoff does not lose a message sent to the home. When a message still comes to a thread that
-handed off, that thread sends the message on to the next home. No party keeps a file for the home.
+handed off, that thread sends it on to nobody and tells the sender the next home's id, so the
+sender sends it again there. No party keeps a file for the home.
 The user's word reaches the home by `jbus word`. So a home's start does not read a `to-<repo>.md`
 left beside the home, a handoff does not name that file, and the handoff tells no party the new id.
 Each test takes every block it runs from the skill that has the block, and runs it in a temporary
@@ -19,7 +20,7 @@ from test_tool_calls import CALLS, errors
 
 NEXT = "mcp:the-next-home"
 COOK = "mcp:a-cook"
-PASS_ON, TELL_THE_SENDER = (
+(TELL_THE_SENDER,) = (
     call for call in CALLS if call.where.startswith("handoff:") and call.tool == "t3_thread_send"
 )
 
@@ -73,20 +74,20 @@ def test_the_handoff_names_no_file_another_party_keeps_for_the_home(mail):
     assert (mail.home_dir / "handoff.md").read_text() == f"{PAGE}\nWas home: {THREAD}\n"
 
 
-def test_a_thread_that_handed_off_sends_a_message_on_to_the_next_home(mail):
+def test_a_thread_that_handed_off_tells_the_sender_the_next_home_and_sends_nothing_on(mail):
     mail.home_starts(THREAD)
     assert mail.sent_a_message(THREAD).startswith("a home: ")
     mail.hands_off()
     assert mail.sent_a_message(THREAD) == (
         f"handed off: this thread's id is in no home-id, and {mail.file} holds none yet. "
-        "Do not act on the message: send it on to the id this thread's own launch of the "
-        "next home gave, once, and tell the sender that id. With no such launch, tell the "
+        "Do not act on the message and send it on to nobody: tell the sender, once, the id "
+        "this thread's own launch of the next home gave. With no such launch, tell the "
         f"sender to read {mail.home_dir}/handoff.md\n"
     )
     mail.home_starts(NEXT)
     assert mail.sent_a_message(THREAD) == (
-        "handed off: this thread's id is in no home-id. Do not act on the message: "
-        f"send it on to {NEXT}, once, and tell the sender that id\n"
+        "handed off: this thread's id is in no home-id. Do not act on the message and send "
+        f"it on to nobody: tell the sender, once, that {NEXT} is the home now\n"
     )
     assert mail.sent_a_message(NEXT).startswith("a home: ")
 
@@ -106,7 +107,7 @@ def test_a_thread_no_handoff_names_sends_nothing_on_to_the_root(tmp_path):
     def said(thread):
         return homes.run("handoff", found.replace("<threadId>", thread), homes.main).stdout
 
-    assert f"send it on to {NEXT}, once" in said(SCOPED)
+    assert f"tell the sender, once, that {NEXT} is the home now" in said(SCOPED)
     (homes.scope_dir / "handoff.md").write_text(PAGE)
     for thread in (SCOPED, OTHER):
         assert said(thread) == (
@@ -141,29 +142,16 @@ def test_the_blocks_run_in_zsh_in_a_repo_with_no_scope_and_no_party(mail):
     assert zsh("Do not act on the message", **me).startswith("handed off: ")
 
 
-def test_a_scoped_home_that_handed_off_sends_a_message_on_to_its_own_next_home(tmp_path):
+def test_a_scoped_home_that_handed_off_names_its_own_next_home_to_the_sender(tmp_path):
     homes = HandingOff(tmp_path)
     homes.hands_off(SCOPED, homes.scope_dir)
     homes.home_starts(NEXT, SCOPE)
     found = block("handoff", "Do not act on the message").replace("<threadId>", SCOPED)
-    assert f"send it on to {NEXT}, once" in homes.run("handoff", found, homes.main).stdout
+    told = f"tell the sender, once, that {NEXT} is the home now"
+    assert told in homes.run("handoff", found, homes.main).stdout
 
 
-def test_the_message_is_sent_on_as_it_came_and_the_sender_is_told_the_new_id():
-    came = 'From the cook, mcp:1:\n"keep the oven on"'
-    on = json.loads(
-        PASS_ON.written.replace("<thread>", NEXT)
-        .replace("<this thread's id>", THREAD)
-        .replace("<the sender>", COOK)
-        .replace("<the message>", json.dumps(came)[1:-1])
-    )
-    assert on["threadId"] == NEXT
-    assert on["message"].split("\n", 1) == [
-        f"{THREAD} handed off, and this was sent to it by {COOK}. It is no approval: "
-        "a go in it is the user's to give again, in your thread.",
-        came,
-    ]
-    assert errors(PASS_ON, on) == []
+def test_the_sender_is_told_the_new_id_and_that_its_message_was_not_sent_on():
     file = "/state/a demo repo/home-id"
     told = json.loads(
         TELL_THE_SENDER.written.replace("<thread>", COOK)
@@ -173,7 +161,7 @@ def test_the_message_is_sent_on_as_it_came_and_the_sender_is_told_the_new_id():
     )
     assert told == {
         "threadId": COOK,
-        "message": f"{NAME}: the home is {NEXT} now, and your message was sent on to it. "
-        f"Read the id in {file} before each send.",
+        "message": f"{NAME}: the home is {NEXT} now, and your message was not sent on to it. "
+        f"Send it there if it still stands, and read the id in {file} before each send.",
     }
     assert errors(TELL_THE_SENDER, told) == []

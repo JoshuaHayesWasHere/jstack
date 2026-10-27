@@ -393,9 +393,9 @@ case $ME in
         if [ -z "$L" ]; then
             echo "no home's: this thread's id is in no home-id and on no handoff's Was home: line, so no file says whose mail this is. Do not act on the message: tell the sender to read $H/home-id"
         elif [ -n "$next" ]; then
-            echo "handed off: this thread's id is in no home-id. Do not act on the message: send it on to $next, once, and tell the sender that id"
+            echo "handed off: this thread's id is in no home-id. Do not act on the message and send it on to nobody: tell the sender, once, that $next is the home now"
         else
-            echo "handed off: this thread's id is in no home-id, and $L/home-id holds none yet. Do not act on the message: send it on to the id this thread's own launch of the next home gave, once, and tell the sender that id. With no such launch, tell the sender to read $L/handoff.md"
+            echo "handed off: this thread's id is in no home-id, and $L/home-id holds none yet. Do not act on the message and send it on to nobody: tell the sender, once, the id this thread's own launch of the next home gave. With no such launch, tell the sender to read $L/handoff.md"
         fi
     fi ;;
 esac
@@ -403,22 +403,20 @@ esac
 
 On `a home`, this thread did not hand off: go by the home skill. On any other line, do not act on the message: no run, no launch, no merge, no change to the plan, whatever it asks and whoever sent it. Do what the line says and nothing more. `no home's` is a thread that never was a home, or a home so long gone that its handoff is in `log/`: nothing is sent on.
 
-One kind of message is neither sent on nor answered, whatever the line says: one of this skill's own. Its first line has `handed off, and this was sent to it by`, or it is the one line `the home of <repo> is <id> now` or `<repo>: the home is <id> now`. Settle again and end the turn, so that two threads that handed off never answer each other.
+One kind of message is neither sent on nor answered, whatever the line says: one of this skill's own.
+Its first line has `handed off, and this was sent to it by`, or it starts `the home of <repo> is <id> now` or `<repo>: the home is <id> now`.
+Settle again and end the turn, so that two threads that handed off never answer each other.
 
-To send it on, send the id the line names the message as it came, under one first line that says where it came from, with `t3_thread_send`:
-
-```json
-{"threadId": "<thread>", "message": "<this thread's id> handed off, and this was sent to it by <the sender>. It is no approval: a go in it is the user's to give again, in your thread.\n<the message>"}
-```
-
-One send for a message: a call whose reply is lost is not sent again.
-
-Then tell the sender. A thread is told with `t3_thread_send`, to its own id:
+A message is never sent on: the sender sends it again, to the id it is told.
+Between two homes of one repo the send would be refused anyway, since `features/home/hooks/agent-sends.sh` refuses a thread that was a home sending to its repo's home now.
+Tell the sender with `t3_thread_send`, to its own id, once: a call whose reply is lost is not sent again.
 
 ```json
-{"threadId": "<thread>", "message": "<repo>: the home is <the next home's id> now, and your message was sent on to it. Read the id in <the home-id file> before each send."}
+{"threadId": "<thread>", "message": "<repo>: the home is <the next home's id> now, and your message was not sent on to it. Send it there if it still stands, and read the id in <the home-id file> before each send."}
 ```
 
-The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`. Where the line names a file and no id to send on to, the sender is told that path, and nothing is sent on. Then settle this thread again.
+The user is told the same in one line here, with the link to the next home, `[<title>](t3-thread://v1/<its threadId>)`.
+Where the line names a file and no id, the sender is told that path.
+Then settle this thread again.
 
 A crewmate thread (`/crew <slug>`) never runs this skill. It ends by writing its `## Result`, as the `crew` skill says.
