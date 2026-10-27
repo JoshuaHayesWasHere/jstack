@@ -42,8 +42,8 @@ since a pass runs each minute and a side workflow runs a few times a day.
 
 `integration_branches` does the same for each branch of the home's `integration` file, which
 `jmerge` holds every pull request into while the latest run of a check at its tip failed
-(`jmerge.rows.base_red`). It asks GitHub of a branch only while an open pull request is into it or
-from it, or a fix row of it is open. A failed check at its tip gets one fix row,
+(`jmerge.rows.base_red`). It asks GitHub of a branch only while an open pull request is into
+it or from it, or a fix row of it is open. A failed check at its tip gets one fix row,
 `integration-red-<branch>-<commit>` (`jmerge.rows.integration_fix`), queued unapproved ahead of
 every row as `watch._file` queues a red main's, following the row of the first pull request the red
 holds (or else the one from the branch), so a pass approves it on that row's go, under the home that
