@@ -19,7 +19,7 @@ import json
 import pytest
 
 import test_home_merge as merge
-from jbus import watch
+from jbus import queue, watch
 from jmerge import ready, rows
 from test_jmerge_fresh import url
 from test_jmerge_rejudge import STARTED, Replay
@@ -67,10 +67,14 @@ def main_ran(replay, *runs):
 
 def filed(replay, *runs, status="with crewmate", slug="browser-red-2026-10-27"):
     """jbus filed the row `slug` for the fix of main's red browser runs `runs`, and the row's
-    status is `status`."""
+    status is `status`. The row has the go the follow-up rule gives a fix jbus filed, as one
+    that launched has."""
     state = replay.state
     (state / watch.BROWSER.seen).write_text(json.dumps({str(run): slug for run in runs}))
-    (state / "queue.json").write_text(json.dumps([{"slug": slug, "status": status}]))
+    go = f'{queue.FOLLOW_RULE}; {queue.FROM_RED}"browser"'
+    (state / "queue.json").write_text(
+        json.dumps([{"slug": slug, "status": status, "approved": go}])
+    )
 
 
 def opened(replay, *checks, slug="sub-no-steer", number=557):
