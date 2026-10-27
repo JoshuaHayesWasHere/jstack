@@ -9,6 +9,7 @@ once per head:
 
 Like `test_jbus_main_moved.py`, the tests run the real pass against the fakes."""
 
+import json
 from datetime import timedelta
 
 import pytest
@@ -89,6 +90,93 @@ def test_a_check_that_failed_at_a_head_is_told_once_and_a_new_head_once_more(lau
     launched.set("open.json", [pull(launched, [failed()], head="d" * 40)])
     passes(launched, 6, 9)
     assert keys(launched) == ["failed|alpha|cccccccccccc", "failed|alpha|dddddddddddd"]
+
+
+MAIN = "9" * 40
+
+
+def kept(kitchen, name):
+    path = kitchen.stub / name
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
+def red_on(kitchen, head, *tests, onto=""):
+    """Put the pull request at `head`, its check red on `tests`, in job `<head's first char>1`.
+    With `onto`, the head is GitHub's merge of main into the branch at `onto`, as update-branch
+    makes it; without, the crew pushed it."""
+    job = head[0] + "1"
+    log = "".join(f"2026-10-26T13:36:00Z FAILED {test} - assert False\n" for test in tests)
+    kitchen.set("logs.json", {**kept(kitchen, "logs.json"), job: log})
+    if onto:
+        merge = {"parents": [{"sha": onto}, {"sha": MAIN}], "committer": {"login": "web-flow"}}
+        kitchen.set("commit-made.json", {**kept(kitchen, "commit-made.json"), head: merge})
+    kitchen.set("open.json", [pull(kitchen, [failed(job)], head=head)])
+
+
+def test_merges_of_main_red_on_the_failure_told_are_not_told_again_but_a_new_one_is(launched):
+    """jmerge's update-branch makes a new head for each merge of main, and each one was a new
+    `failed` tell, though the crew was told of that failure already (#494, 2026-10-26: nine)."""
+    one, two, three, four, five = ("a" * 40, "b" * 40, "c" * 40, "d" * 40, "e" * 40)
+    first, second = "tests/test_x.py::test_one", "tests/test_x.py::test_two"
+    for minute, (head, test, onto) in enumerate(
+        [
+            (one, first, "f" * 40),
+            (two, first, one),
+            (three, first, two),
+            (four, second, three),
+            (five, first, ""),
+        ]
+    ):
+        red_on(launched, head, test, onto=onto)
+        passes(launched, 3 * minute)
+    assert keys(launched) == [
+        "failed|alpha|aaaaaaaaaaaa",
+        "failed|alpha|dddddddddddd",
+        "failed|alpha|eeeeeeeeeeee",
+    ]
+
+
+def test_the_record_of_a_tell_keeps_the_failure_it_told_beside_the_head(launched):
+    red_on(launched, "a" * 40, "tests/test_x.py::test_one")
+    passes(launched, 0)
+    red_on(launched, "b" * 40, "tests/test_x.py::test_one", onto="a" * 40)
+    passes(launched, 3)
+    sent = jbus.read_json(launched.state / "sent.json", [])
+    told = [key for key in sent if key.startswith(("failed|", "failure|"))]
+    assert [key.rpartition("|")[0] for key in told] == [
+        "failed|alpha",
+        "failure|alpha|aaaaaaaaaaaa",
+        "failed|alpha",
+        "failure|alpha|bbbbbbbbbbbb",
+    ]
+    assert told[1].rpartition("|")[2] == told[3].rpartition("|")[2]
+
+
+def test_494s_nine_merges_of_main_on_2026_10_26_are_told_once(launched):
+    """The replay of #494: the crew's push 9f7bf939, then GitHub's nine merges of main into it,
+    each red on the same test, as `gh api repos/JoshuaHayesWasHere/jstack/pulls/494/commits` and
+    scout rejudge-loop give them."""
+    red = (
+        "features/repo-guards/tests/test_run_not_read.py::"
+        "test_no_test_added_or_changed_on_this_branch_reads_words_and_runs_nothing"
+    )
+    heads = [
+        "9f7bf9398161",
+        "74dc4bb0f172",
+        "2cbf4171b04e",
+        "4d8d1f1b798c",
+        "87834253b290",
+        "5093dbdae626",
+        "7c3bd4b63693",
+        "f3e2de3d6c10",
+        "f37b6509fa63",
+        "5a93c17549b6",
+    ]
+    whole = [head + head[:12] + head[:12] + head[:4] for head in heads]
+    for minute, head in enumerate(whole):
+        red_on(launched, head, red, onto=whole[minute - 1] if minute else "")
+        passes(launched, 3 * minute)
+    assert keys(launched) == ["failed|alpha|9f7bf9398161"]
 
 
 def test_a_check_that_failed_with_no_step_run_is_not_told(launched):
