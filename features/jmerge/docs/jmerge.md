@@ -167,6 +167,15 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   So jbus counts a failed tip as red even while the check of a newer tip is still running.
   A later green tip ends the red state.
   It does so whether or not jbus delivered its message to the crews of the pull requests that were waiting.
+- **Its own browser run did not fail.**
+  browser.yml runs on a pull request that changes the view, and is no required check, so a head with no run of it waits for none.
+  A run still going at the head waits as any pending run does: `browser has not passed`.
+  A run that ended and failed holds the pull request as `its browser run failed at <head12>`, and jbus tells its crew to fix it (`features/jbus/src/jbus/expedite.py`, `TABLE`).
+  #557 merged with its browser run red on 2026-10-27 and turned main red, since no rule read that run.
+  When main's last browser run on main failed too, the red is main's, and the pull request waits as `main is red at <sha12>, its fix merges first`, the sha12 being that run's commit.
+  The fix of that red, the row jbus files as `browser-red-<date>`, is held by its own red as any other pull request is.
+  `jmerge` asks GitHub for main's browser runs only for a pull request whose browser run failed, once a run, and where GitHub gives no answer the red is the pull request's.
+  `jmerge` judges this after main's red, so a pull request short of a review or a rebase line says that first.
 - **Its migration is the next in line.** See "Migrations".
 - **Its passing check still counts over today's main.**
   See "Fresh against main".
