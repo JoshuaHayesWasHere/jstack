@@ -36,7 +36,6 @@ import os
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -373,14 +372,14 @@ def go(config: Config, state: Path, home: Path, where: Path, entry: str, message
         config.user.stamp(queue.clock()),
     )
     _kept(state, made)
-    said = queue.Approval(queue.ENTRY, entry, heard.words, heard.said_at, heard.said_in, True, {}, "")
+    said = queue.Approval(
+        queue.ENTRY, entry, heard.words, heard.said_at, heard.said_in, True, {}, ""
+    )
     line = said.line().partition(";")[0]
     return [f"went {entry}: {line}", *queue.entered(state, config.user, entry_go(state, home))]
 
 
-def stop(
-    user: jsettings.Settings, state: Path, home: Path, scope: str, entry: str
-) -> list[str]:
+def stop(user: jsettings.Settings, state: Path, home: Path, scope: str, entry: str) -> list[str]:
     """Stop the go of the entry, and take back the go of each row of it that has not launched."""
     made = next((one for one in goes(state) if (one.scope, one.entry) == (scope, entry)), None)
     if made is None:

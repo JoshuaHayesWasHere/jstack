@@ -1507,7 +1507,9 @@ def silenced(state: Path, slug: str, number: int, at: str, user: jsettings.Setti
         text = batch.brief(slug)
         if row is None or text is None or not _waits(row, text):
             return ""
-        size = " ".join(next((lines for label, lines in briefs.fields(text) if label == "Size"), []))
+        size = " ".join(
+            next((lines for label, lines in briefs.fields(text) if label == "Size"), [])
+        )
         why = ""
         if user.go != jsettings.SILENCE:
             why = f"the setting go is {user.go}, not {jsettings.SILENCE}"

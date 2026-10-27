@@ -651,7 +651,9 @@ def silent(run: Pass) -> None:
             run.find(one.slug, NOTE, line, key=f"silence {one.number}")
             run.say(line)
             if one.slug in goes and _go(one):
-                went = queue.silenced(run.state, one.slug, one.number, run.user.stamp(run.now), run.user)
+                went = queue.silenced(
+                    run.state, one.slug, one.number, run.user.stamp(run.now), run.user
+                )
                 if went:
                     run.say(f"queue {run.project.name}: {went}")
 

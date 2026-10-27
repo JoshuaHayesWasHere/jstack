@@ -155,7 +155,9 @@ def changed_head(kitchen):
 
 def closed(kitchen):
     path = kitchen.home / "plan.md"
-    path.write_text(path.read_text().split("## epic:")[0] + "## other:" + PLAN.split("## other:")[1])
+    path.write_text(
+        path.read_text().split("## epic:")[0] + "## other:" + PLAN.split("## other:")[1]
+    )
 
 
 @pytest.mark.parametrize("end", [stop, changed_head, closed])
