@@ -125,7 +125,7 @@ UNPROVEN = (
 )
 SCOPED = (
     " If the Result already has a `Scoped reviewer:` line that names this head, launch nothing "
-    "more. Otherwise launch ONE scoped reviewer, not a full review, in {worktree}: the same way "
+    "more. Otherwise launch ONE scoped reviewer, not a full review, in {{worktree}}: the same way "
     'the crew skill\'s "The review" launches a reviewer, with `workspaceStrategy` '
     "`existing_worktree` on that worktree and the message `/pr-review run {slug} scoped {old} "
     "{new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a `Scoped "
@@ -448,16 +448,11 @@ def post(
     doing = f"its crew being {ask.doing}"
     if not window.startswith("cap ") and expedite.waits_on_cap(run, client, thread, slug, doing):
         return None
-    there = where(client, thread) if "{worktree}" in ask.message else ""
     message = ask.message.format(
-        number=number,
-        reason=reason,
-        slug=slug,
-        short=head[:12],
-        head=head,
-        default=default,
-        worktree=there,
+        number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
     )
+    if "{worktree}" in message:
+        message = message.replace("{worktree}", where(client, thread))
     client.recipients = client.recipients | {thread}
     asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
