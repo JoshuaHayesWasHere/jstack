@@ -293,16 +293,10 @@ class Writes:
                 self.config(), state_dir=self.sources.state_dir, home_dir=self.sources.home_dir
             )
             hidden = config.secrets()
-            project = config.project(name)
+            mine = replace(config, user=self.sources.user)
+            run = passes.Pass(mine, config.project(name), now, say=lambda line: None)
             client = t3.Client(config.server, config.token_path, timeout=SEND)
-            went = steer.deliver(
-                state_dir,
-                wake.Box(state_dir, project),
-                config.home(project),
-                client,
-                self.sources.user.user,
-                now,
-            )
+            went = steer.deliver(run, client)
             one = went.get(line) or steer.sends(state_dir).get(line, {})
             why = one.get("waits", "")
         except (Refused, OSError) as error:

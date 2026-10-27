@@ -28,7 +28,7 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs.home import thread_of
-from jbus import Refused, questions, queue, read_json, t3, verbs, wake, word, write_json
+from jbus import Refused, passes, questions, queue, read_json, t3, verbs, wake, word, write_json
 from jbus.item import (
     OWNER,
     SENDS,
@@ -336,20 +336,14 @@ def sends(state: Path) -> dict[str, dict[str, str]]:
     return kept if isinstance(kept, dict) else {}
 
 
-def deliver(
-    state: Path,
-    box: wake.Box,
-    home: Path,
-    client: t3.Client | None,
-    user: str,
-    now: datetime,
-) -> dict[str, dict[str, str]]:
+def deliver(run: passes.Pass, client: t3.Client | None) -> dict[str, dict[str, str]]:
     """For each message steer that has not gone yet, send the message to the thread of the item's
     home through `word.post`. Each message goes as one queued message under the retry key
     `item|<project>|<id>|<line id>`, so when the command and a pass both send the same message, T3
     Code accepts it once. Return what became of each message that it tried, by line id. When a
     message waits, `deliver` writes the reason once in a quiet event, and writes it again when the
     reason changes."""
+    state, box, home, user, now = run.state, run.box, run.home, run.user.user, run.now
     project, found, tried = box.project.name, None, {}
     for line in read(state):
         if line.get("verb") != Verb.STEER or line.get("action") != Steer.MESSAGE:
@@ -368,7 +362,7 @@ def deliver(
         )
         thread = thread_of(home)
         key = f"item|{project}|{line['item']}|{line['id']}"
-        waits = word.post(client, thread, message, key)
+        waits = word.post(run, client, thread, message, key, row=line["item"], template="item")
         at = "" if waits else jsettings.stamp(now)
         now_is = {"thread": thread if not waits else "", "sent_at": at, "waits": waits}
         tried[line["id"]] = now_is
@@ -533,8 +527,7 @@ def _steer(
         client: t3.Client | None = t3.Client(config.server, config.token_path)
     except Refused:
         client = None
-    now = datetime.now(UTC)
-    went = deliver(state, box, config.home(project), client, config.user.user, now)
+    went = deliver(passes.Pass(config, project, datetime.now(UTC)), client)
     one = went.get(made["id"]) or sends(state).get(made["id"], {})
     if one.get("sent_at"):
         print(f"{said}; sent to {one['thread']}")
@@ -547,7 +540,7 @@ def _deliver(half: Any) -> None:
     """Run `deliver` as a step of the pass. It sends each steer's message that T3 Code has
     not taken yet."""
     run = half.run
-    went = deliver(run.state, run.box, run.home, half.client, run.user.user, run.now)
+    went = deliver(run, half.client)
     for name, one in went.items():
         if one["sent_at"]:
             run.say(f"item {run.project.name}: message {name} sent to {one['thread']}")

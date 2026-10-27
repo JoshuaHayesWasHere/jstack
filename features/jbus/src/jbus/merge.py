@@ -32,7 +32,7 @@ import hashlib
 import re
 from typing import TYPE_CHECKING
 
-from jbus import alert, verbs
+from jbus import alert, outbox, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
@@ -210,12 +210,21 @@ def unplaced(run: Pass, client: Client, slug: str, number: str, said: str, threa
         run.say(f"wait {slug}: no rule names what jmerge said of it, and it has no home to tell")
         return
     text = TOLD.format(slug=slug, number=number, said=said, user=run.user.user)
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": text, "mode": "queue"}
     try:
-        client.call("t3_thread_send", {**asked, "clientRequestId": f"{UNPLACED}|{slug}|{digest}"})
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=slug,
+            key=f"{UNPLACED}|{slug}|{digest}",
+            text=text,
+            template=UNPLACED,
+            needs="decide",
+        )
     except T3Error as error:
         run.say(f"wait {slug}: its home could not be told that no rule names its reason ({error})")
+        return
+    if not went:
         return
     line = f"{UNPLACED} {slug}: told its home, thread {thread}, that no rule names `{said}`"
     run.find(slug, UNPLACED, line, text, key=digest)

@@ -61,7 +61,7 @@ runs start no job, and closes it (`questions.clear`) when a tip whose check ran 
 
 from __future__ import annotations
 
-from jbus import Refused, dispatch, expedite, questions, read_json, rebase, verbs, write_json
+from jbus import Refused, dispatch, outbox, questions, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import NO_JOB, World, _api, _check, checks
@@ -249,9 +249,6 @@ def tell(run: Pass, client: Client, world: World) -> None:
         if rebase.held(run, client, world, slug, number, head):
             held.append(slug)
             continue
-        if expedite.waits_on_cap(run, client, thread, slug, "its crew being told main moved"):
-            owed = True
-            continue
         message = MESSAGE.format(
             main=fixed[:12],
             number=number,
@@ -261,10 +258,17 @@ def tell(run: Pass, client: Client, world: World) -> None:
             head=head,
             default=default,
         )
-        client.recipients = client.recipients | {thread}
-        asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
         try:
-            client.call("t3_thread_send", asked)
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=slug,
+                key=key,
+                text=message,
+                template="mainmoved",
+                needs="act",
+            )
         except T3Refused as error:
             run.gate(slug, REFUSED, f"{error}\n\n{message}", key=f"{REFUSED} {fixed[:12]}")
             run.box.mark(key)
@@ -273,6 +277,9 @@ def tell(run: Pass, client: Client, world: World) -> None:
         except T3Error as error:
             owed = True
             run.say(f"wait {slug}: its crew could not be told that main moved ({error})")
+            continue
+        if not went:
+            owed = True
             continue
         run.box.mark(key)
         run.told.add(slug)

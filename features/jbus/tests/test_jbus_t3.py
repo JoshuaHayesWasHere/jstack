@@ -89,7 +89,7 @@ def test_no_module_but_the_outbox_sends_a_message_to_a_thread():
     assert [one for one in senders if one not in ("t3.py", "outbox.py")] == []
 
 
-SEND ={"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestId": "a-key"}
+SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestId": "a-key"}
 
 
 @pytest.mark.parametrize(

@@ -54,7 +54,7 @@ from typing import Any
 import jbus
 import jsettings
 from jbriefs.home import thread_of
-from jbus import passes, read_json, verbs, wake, write_json
+from jbus import outbox, passes, read_json, verbs, wake, write_json
 from jbus.t3 import Client, T3Error
 
 WAKE = """\
@@ -407,16 +407,23 @@ def _send(
         client = client or Client(run.config.server, run.config.token_path)
     except jbus.Refused as error:
         return str(error)
-    client.recipients = client.recipients | {thread}
     text = json.dumps(made, indent=1)
     message = WAKE.format(count=len(made["events"]), say="\n".join(made["say"]), body=text)
     retry = f"wake|{run.project.name}|{wake._id(made)}"
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": retry}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=run.project.name,
+            key=retry,
+            text=message,
+            template="wake",
+            needs="decide",
+        )
     except T3Error as error:
         return f"T3 Code did not take the wake: {error}"
-    return ""
+    return "" if went else f"{thread} is capped, so the wake waits for the reset"
 
 
 def _count(run: passes.Pass, key: str, went: list[str]) -> None:
@@ -536,13 +543,21 @@ def page(run: passes.Pass, client: Client | None) -> None:
         due = _due(one.count) if one else 0
         if one is None or due <= one.paged:
             continue
-        client.recipients = client.recipients | {thread}
-        asked = {"threadId": thread, "message": PAGE.format(line=line, again=_again(one.count))}
-        retry = f"page|{key}|{one.since}|{due}"
         try:
-            client.call("t3_thread_send", {**asked, "mode": "queue", "clientRequestId": retry})
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=name,
+                key=f"page|{key}|{one.since}|{due}",
+                text=PAGE.format(line=line, again=_again(one.count)),
+                template="page",
+                needs="decide",
+            )
         except T3Error as error:
             run.say(f"page failed {name}: {error}")
+            continue
+        if not went:
             continue
         with _locked(state):
             kept = streak(state, key)

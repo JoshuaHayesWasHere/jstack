@@ -11,9 +11,9 @@ only (`_held`):
 - `t3_thread_organize`, to settle or archive a thread that the call names.
 - `t3_thread_configure`, to move a thread that a brief or a home names to another instance of
   its role's pool, with its model and options as they were (`jbus.failover`).
-- `t3_thread_send`, as a queued message with a retry key, to a thread that a brief's `Thread:` line
-  names or to the thread in a home's `home-id`. jbus sends such a message for the user's word
-  (`jbus.word`), and for a task of that home that ended with something left (`jbus.leftover`).
+- `t3_thread_send`, as a queued message with a retry key, to a thread that the sender adds to
+  `recipients`. Every such message goes through `jbus.outbox.send`, which adds its thread, holds
+  a message to a capped thread, and logs each send and hold.
 
 `Client.message` reads one message by its id, with `t3_thread_read`. T3 Code gives who wrote
 the message, its text and its time, and that is why jbus counts the user's word as checked.

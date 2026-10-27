@@ -114,7 +114,8 @@ def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
     A call that sends is `<...>.find(slug, kind, ...)`, `<...>.send(slug, kind, ...)`,
     `<...>box.record(kind, ...)` or `event(project, slug, kind, ...)`. A kind is a string, a name
     the module sets to a string, or a name that `PASSED_AS` knows. This refuses any other kind,
-    since nothing here could say what it is.
+    since nothing here could say what it is. `outbox.send` sends a message to a thread, not an
+    event, so it has no kind.
     """
     tree = ast.parse(source.read_text())
     constants = {
@@ -144,6 +145,8 @@ def sent_kinds(source: pathlib.Path) -> dict[str, set[str]]:
         name = getattr(node.func, "attr", getattr(node.func, "id", ""))
         at = {"find": 1, "send": 1, "event": 2, "record": 0}.get(name)
         if name == "record" and not ast.unparse(getattr(node.func, "value", node)).endswith("box"):
+            continue
+        if ast.unparse(node.func) == "outbox.send":
             continue
         named = [word.value for word in node.keywords if word.arg == "kind"]
         if at is None or (len(node.args) <= at and not named):

@@ -296,7 +296,10 @@ class T3(Server):
                     thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
         elif tool == "t3_thread_configuration":
-            (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            found = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            if not found:
+                return gone(given["threadId"], "is no longer available")
+            (thread,) = found
             made = {
                 "threadId": given["threadId"],
                 "modelSelection": thread.get("selection") or SELECTION,
