@@ -84,9 +84,15 @@ def stray():
 def temp(request, kitchen, monkeypatch):
     """A folder a crew's session made in a temporary root that the test names, not the TMPDIR
     it runs with: one under /tmp, or one under a slot's own folder of a `JGAUGE_LOCKS_DIR` the
-    test sets, as `jgauge test-slot` gives a command in TMPDIR. That one is in /dev/shm, outside
-    /tmp and /var/tmp, so the slot counts by itself, with or without a slot round the test."""
-    root = Path(tempfile.mkdtemp(dir="/tmp" if request.param == "tmp" else "/dev/shm"))
+    test sets, as `jgauge test-slot` gives a command in TMPDIR. That one is outside /tmp and
+    /var/tmp, so the slot counts by itself, with or without a slot round the test: in /dev/shm,
+    or where there is none, as on macOS, in the system's own temporary folder (/var/folders)."""
+    where = "/tmp"
+    if request.param == "slot":
+        where = "/dev/shm" if os.path.isdir("/dev/shm") else tempfile.gettempdir()
+        if any(strays.under(where, one) for one in strays.TEMP):
+            pytest.skip(f"no folder outside /tmp and /var/tmp for the slot's root: {where}")
+    root = Path(tempfile.mkdtemp(dir=where))
     made = root / "c"
     if request.param == "slot":
         monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(root / "locks"))
