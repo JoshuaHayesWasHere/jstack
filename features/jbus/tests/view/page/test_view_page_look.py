@@ -15,8 +15,12 @@ row, moves far more than that.
 Two builds of a browser, or one browser on two machines with other fonts, draw the same page
 further apart than that. So the shots are kept from one browser, the one the nightly browser
 run on CI uses, and `browser.txt` beside them names it, as its `--version` prints it. On any
-other browser the comparison is skipped, but on CI, where it fails: there the browser moved,
-and the run's `jbus-view-shots` artifact holds the shots to keep in place of these.
+other browser the comparison is skipped (`drawn_by`), but in a CI run that is not a pull
+request's, the nightly or a run on main, where it fails: there the browser moved, and the
+run's `jbus-view-shots` artifact holds the shots to keep in place of these. A pull request's
+run skips it, so a move of the runner's browser stops no pull request: the red run on main
+has the fix's row, since jbus files a `browser-red-` brief for it that names the artifact
+(`jbus.watch.BROWSER`).
 
 `JSTACK_SHOTS=keep` writes each shot afresh in place of comparing it: a change that means to
 change the look runs the tests that way and commits the new shots with it.
@@ -30,6 +34,7 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageChops
 
+from jbus.watch import BROWSER
 from testing.paths import REPO
 from view.page.browser import (
     BROWSES,
@@ -77,6 +82,18 @@ def browser():
     """The browser that draws the shots here, as its `--version` prints it."""
     said = subprocess.run([CHROMIUM, "--version"], capture_output=True, text=True, timeout=60)
     return said.stdout.strip()
+
+
+def drawn_by(drew, this):
+    """Skip the comparison when the shots were drawn by a browser that is not this one, and
+    fail it instead in a CI run that is not a pull request's, with the line jbus reads for the
+    fix (`BROWSER.moved`)."""
+    if drew == this:
+        return
+    moved_on = f"the shots were drawn by {drew}, and this is {this}"
+    if os.environ.get("CI") and os.environ.get("GITHUB_EVENT_NAME") != "pull_request":
+        pytest.fail(f"{moved_on}: {BROWSER.moved}")
+    pytest.skip(moved_on)
 
 
 def shot(scene, tmp_path, route, screen, theme):
@@ -131,12 +148,7 @@ def test_each_route_looks_as_its_kept_shot(scene, tmp_path, monkeypatch, name, s
         (folder / DRAWN_BY).write_text(browser() + "\n")
     if os.environ.get("JSTACK_SHOTS") == "keep":
         return
-    drew = (SHOTS / DRAWN_BY).read_text().strip()
-    if drew != browser():
-        moved_on = f"the shots were drawn by {drew}, and this is {browser()}"
-        if os.environ.get("CI"):
-            pytest.fail(f"{moved_on}: keep the shots of this run's jbus-view-shots artifact")
-        pytest.skip(moved_on)
+    drawn_by((SHOTS / DRAWN_BY).read_text().strip(), browser())
     assert kept.exists(), f"no shot is kept for {kept.name}: run with JSTACK_SHOTS=keep"
     with Image.open(kept) as old:
         share = moved(old.convert("RGB"), drawn)
