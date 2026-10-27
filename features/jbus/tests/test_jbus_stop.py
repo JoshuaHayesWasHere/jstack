@@ -119,7 +119,7 @@ def test_a_stop_on_the_scopes_own_row_only_is_refused(kitchen):
     assert said.startswith("refused: fl-sibling is the flow home's own row, which it clears itself")
     assert stops(kitchen, "fl-mine", "--on", "#11")[0] == 1
     assert sent(kitchen) == []
-    assert stop.load(kitchen.state) == []
+    assert stop.load(kitchen.state) == stop.Kept()
 
 
 def test_a_stop_on_a_merged_own_row_is_refused(kitchen):
@@ -202,6 +202,20 @@ def test_an_answer_reaches_the_scope_once_and_closes_the_stop(kitchen):
     assert sent(kitchen)[-1] == (ROOT, "stop")
 
 
+def test_one_answer_to_a_row_held_twice_closes_both_stops_and_reaches_the_scope_once(kitchen):
+    assert stops(kitchen, "fl-mine", "--on", "fix-root")[0] == 0
+    assert stops(kitchen, "fl-mine", "--on", "vw-board")[0] == 0
+    code, said = answers(kitchen, "both", "clear", "today")
+    assert (code, said) == (
+        0,
+        "answered: stop|flow|fl-mine|fix-root, stop|flow|fl-mine|vw-board, closed, the answer "
+        f"sent to {FLOW}\n",
+    )
+    kitchen.poll()
+    assert sent(kitchen) == [(ROOT, "stop"), (ROOT, "stop"), (FLOW, "stop-answer")]
+    assert [one.closed for one in stop.load(kitchen.state).stops] == ["answered", "answered"]
+
+
 def test_only_the_root_answers_a_stop(kitchen):
     assert stops(kitchen, "fl-mine", "--on", "fix-root")[0] == 0
     code, said = answers(kitchen, "I", "answer", "myself", by=FLOW)
@@ -220,7 +234,7 @@ def test_a_stop_whose_own_row_ends_closes_itself_with_no_message(kitchen, ended)
     else:
         status(kitchen, "fl-mine", ended)
     kitchen.poll()
-    (one,) = stop.load(kitchen.state)
+    (one,) = stop.load(kitchen.state).stops
     assert one.closed == ended
     assert sent(kitchen) == [(ROOT, "stop")]
     assert answers(kitchen, "too", "late")[0] == 1

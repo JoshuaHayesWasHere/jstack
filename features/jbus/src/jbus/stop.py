@@ -15,18 +15,19 @@ unless:
   slug of the row that holds it, or `outside`. So a row has one open stop on each row that holds it,
   and one on what is outside.
 
-`stops.json` in the project's jbus state is a list of `Stop`. A taken stop goes at once, as one
-message that needs `decide`, to the root's thread: `jbriefs.home.thread_of`, read when the message
-goes and never kept, so a stop never reaches a thread that handed off. A stop that cannot go (no
-root home is running, or its thread is capped, or T3 Code gave no answer) waits in the file, and
-each pass tries it again (`deliver`). The message's retry key is the stop's key and the time it was
-taken, so a stop taken again after its close is a new message and not a repeat of the old one.
+`stops.json` in the project's jbus state holds two lists, `stops` of `Stop` and `answers` of
+`Answer` (`Kept`): each record is one message and what became of it. A taken stop goes at once, as
+one message that needs `decide`, to the root's thread: `jbriefs.home.thread_of`, read when the
+message goes and never kept, so a stop never reaches a thread that handed off. A stop that cannot
+go (no root home is running, or its thread is capped, or T3 Code gave no answer) waits in the file,
+and each pass tries it again (`deliver`). The message's retry key is the stop's key and the time it
+was taken, so a stop taken again after its close is a new message and not a repeat of the old one.
 
 The root answers with `jbus stop answer <scope> <own row> "<text>" --from <root id>`. The answer
-closes the stop and goes as one message that needs `act` to the scope's thread, read when it goes,
-and it waits as a stop does. A stop whose own row merges, is done or is removed closes itself on the
-next pass, with no message (`settle`). A pass settles before it delivers, so a stop of a row that
-just merged is not sent.
+closes every open stop of that row, and goes as one message that needs `act` to the scope's thread,
+read when it goes, however many stops it closed. It waits as a stop does. A stop whose own row
+merges, is done or is removed closes itself on the next pass, with no message (`settle`). A pass
+settles before it delivers, so a stop of a row that just merged is not sent.
 
 The verb and a pass can both hold the same unsent stop, so under `stops.lock` jbus rereads the file
 and writes that a stop or an answer went only where it had not (`_change`). T3 Code takes a second
@@ -83,6 +84,8 @@ class Unparsable(Refused):
 
 @dataclass(frozen=True)
 class Stop:
+    """One stop, and its message to the root: the thread it went to, when, or why it waits."""
+
     key: str
     scope: str
     row: str
@@ -95,14 +98,40 @@ class Stop:
     waits: str = ""
     closed: str = ""
     closed_at: str = ""
-    answer: str = ""
-    answer_thread: str = ""
-    answer_sent_at: str = ""
-    answer_waits: str = ""
 
     @property
     def open(self) -> bool:
         return not self.closed
+
+    @property
+    def sent(self) -> str:
+        """The message's retry key: the stop's key and when it was taken."""
+        return f"{self.key}|{self.at}"
+
+
+@dataclass(frozen=True)
+class Answer:
+    """The root's answer to the open stops of one row, `stops` by their keys, and its one message
+    to the scope."""
+
+    scope: str
+    row: str
+    text: str
+    at: str
+    stops: tuple[str, ...]
+    thread: str = ""
+    sent_at: str = ""
+    waits: str = ""
+
+    @property
+    def sent(self) -> str:
+        return f"{ANSWER}|{self.scope}|{self.row}|{self.at}"
+
+
+@dataclass(frozen=True)
+class Kept:
+    stops: tuple[Stop, ...] = ()
+    answers: tuple[Answer, ...] = ()
 
 
 def path(state: Path) -> Path:
@@ -121,19 +150,24 @@ def _locked(state: Path) -> Iterator[None]:
         yield
 
 
-def load(state: Path) -> list[Stop]:
-    """Return every stop of the project, oldest first. `load` takes no lock and writes nothing."""
+def load(state: Path) -> Kept:
+    """Return every stop and answer of the project, oldest first. `load` takes no lock and writes
+    nothing."""
     file = path(state)
     if not file.exists():
-        return []
+        return Kept()
     try:
-        return [Stop(**one) for one in json.loads(file.read_text())]
-    except (OSError, ValueError, TypeError) as error:
+        given = json.loads(file.read_text())
+        return Kept(
+            tuple(Stop(**one) for one in given["stops"]),
+            tuple(Answer(**{**one, "stops": tuple(one["stops"])}) for one in given["answers"]),
+        )
+    except (OSError, ValueError, TypeError, KeyError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
 
 
-def _write(state: Path, stops: list[Stop]) -> None:
-    write_json(path(state), [asdict(one) for one in stops], mode=0o600)
+def _write(state: Path, kept: Kept) -> None:
+    write_json(path(state), asdict(kept), mode=0o600)
 
 
 def _stamp(run: Pass) -> str:
@@ -211,14 +245,14 @@ def take(run: Pass, thread: str, row: str, on: str, outside: str, what: str) -> 
     )
     with _locked(run.state):
         kept = load(run.state)
-        if any(one.key == made.key and one.open for one in kept):
+        if any(one.key == made.key and one.open for one in kept.stops):
             raise Refused(f"refused: the stop {made.key} is already open, and the root has it")
-        _write(run.state, [*kept, made])
+        _write(run.state, replace(kept, stops=(*kept.stops, made)))
     return made
 
 
-def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Stop:
-    """Close the open stops of a scope's row with the root's answer, and return the first. Refuse
+def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
+    """Close the open stops of a scope's row with the root's answer, and return the answer. Refuse
     an answer from any thread but the root's, and one to a row with no open stop."""
     text = " ".join(text.split())
     if not text:
@@ -226,33 +260,44 @@ def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Stop:
     root = homes.thread_of(run.home)
     if not root or thread != root:
         raise Refused(f"refused: --from {thread} is not the root home's thread, which answers")
+    at = _stamp(run)
     with _locked(run.state):
         kept = load(run.state)
-        found = [one for one in kept if one.open and (one.scope, one.row) == (scope, row)]
-        if not found:
+        mine = [one.open and (one.scope, one.row) == (scope, row) for one in kept.stops]
+        if not any(mine):
             raise Refused(f"refused: the {scope} home has no open stop on {row}")
-        closed = {
-            one.key: replace(one, closed="answered", closed_at=_stamp(run), answer=text)
-            for one in found
-        }
-        _write(run.state, [closed.get(one.key, one) if one.open else one for one in kept])
-    return closed[found[0].key]
+        stops = tuple(
+            replace(one, closed="answered", closed_at=at) if ours else one
+            for one, ours in zip(kept.stops, mine, strict=True)
+        )
+        closed = tuple(one.key for one, ours in zip(kept.stops, mine, strict=True) if ours)
+        made = Answer(scope, row, text, at, closed)
+        _write(run.state, Kept(stops, (*kept.answers, made)))
+    return made
 
 
-def _change(run: Pass, one: Stop, **changed: str) -> bool:
-    """Write what became of a stop's message, and return whether it wrote anything. Leave a
-    message that went after the caller read `one` as it is."""
-    field = (
-        "answer_sent_at" if "answer_sent_at" in changed or "answer_waits" in changed else "sent_at"
-    )
+def _change(run: Pass, one: Stop | Answer, **changed: str) -> bool:
+    """Write what became of a stop's or an answer's message, and return whether it wrote anything.
+    Leave a message that went after the caller read `one` as it is."""
     with _locked(run.state):
         kept = load(run.state)
-        same = [each for each in kept if (each.key, each.at) == (one.key, one.at)]
-        if not same or getattr(same[0], field):
+        field = "stops" if isinstance(one, Stop) else "answers"
+        records: tuple[Stop | Answer, ...] = getattr(kept, field)
+        same = [each for each in records if each.sent == one.sent]
+        if not same or same[0].sent_at:
             return False
         now = replace(same[0], **changed)
-        _write(run.state, [now if each is same[0] else each for each in kept])
+        _write(
+            run.state,
+            replace(kept, **{field: tuple(now if each is same[0] else each for each in records)}),
+        )
     return True
+
+
+def find(state: Path, one: Stop | Answer) -> Stop | Answer:
+    """Return the record of a stop or an answer as the file has it now."""
+    kept = load(state)
+    return next(each for each in (*kept.stops, *kept.answers) if each.sent == one.sent)
 
 
 def _send(
@@ -292,8 +337,9 @@ def _held(run: Pass, one: Stop) -> str:
 def _ask(run: Pass, client: Client | None, one: Stop) -> None:
     thread = homes.thread_of(run.home)
     text = ASKS.format(scope=one.scope, row=one.row, held=_held(run, one), what=one.what)
-    sent = f"{one.key}|{one.at}"
-    waits = _send(run, client, thread, NO_ROOT, row=one.row, sent=sent, text=text, needs="decide")
+    waits = _send(
+        run, client, thread, NO_ROOT, row=one.row, sent=one.sent, text=text, needs="decide"
+    )
     if not waits:
         if _change(run, one, thread=thread, sent_at=_stamp(run), waits=""):
             run.say(f"{KIND} {one.row}: sent to the root home at {thread}")
@@ -301,16 +347,15 @@ def _ask(run: Pass, client: Client | None, one: Stop) -> None:
         run.say(f"wait {one.row}: the {one.scope} home's stop waits, {waits}")
 
 
-def _tell(run: Pass, client: Client | None, one: Stop) -> None:
+def _tell(run: Pass, client: Client | None, one: Answer) -> None:
     thread = homes.thread_of(run.home / one.scope)
-    text = ANSWERS.format(scope=one.scope, row=one.row, answer=one.answer)
-    sent = f"{ANSWER}|{one.scope}|{one.row}|{one.on or OUTSIDE}|{one.at}"
+    text = ANSWERS.format(scope=one.scope, row=one.row, answer=one.text)
     gone = NO_SCOPE.format(scope=one.scope)
-    waits = _send(run, client, thread, gone, row=one.row, sent=sent, text=text, needs="act")
+    waits = _send(run, client, thread, gone, row=one.row, sent=one.sent, text=text, needs="act")
     if not waits:
-        if _change(run, one, answer_thread=thread, answer_sent_at=_stamp(run), answer_waits=""):
+        if _change(run, one, thread=thread, sent_at=_stamp(run), waits=""):
             run.say(f"{ANSWER} {one.row}: sent to the {one.scope} home at {thread}")
-    elif waits != one.answer_waits and _change(run, one, answer_waits=waits):
+    elif waits != one.waits and _change(run, one, waits=waits):
         run.say(f"wait {one.row}: the root's answer to the {one.scope} home's stop waits, {waits}")
 
 
@@ -318,7 +363,7 @@ def settle(run: Pass) -> None:
     """Close each open stop whose own row merged, is done or was removed, with no message. A
     `queue.json` that does not parse closes nothing: a pass reports that file itself. With no
     stop open, `settle` reads no queue."""
-    if not any(one.open for one in load(run.state)):
+    if not any(one.open for one in load(run.state).stops):
         return
     try:
         gone = queue.removed(run.state)
@@ -328,30 +373,33 @@ def settle(run: Pass) -> None:
     with _locked(run.state):
         kept = load(run.state)
         ended = {}
-        for one in kept:
+        for one in kept.stops:
             status = "removed" if one.row in gone else rows.get(one.row, {}).get("status", "")
             if one.open and status in ENDED:
                 ended[id(one)] = replace(one, closed=ENDED[status], closed_at=_stamp(run))
         if ended:
-            _write(run.state, [ended.get(id(one), one) for one in kept])
+            stops = tuple(ended.get(id(one), one) for one in kept.stops)
+            _write(run.state, replace(kept, stops=stops))
     for one in ended.values():
         run.say(f"{KIND} {one.row}: closed, the row is {one.closed}")
 
 
 def deliver(run: Pass, client: Client | None) -> None:
     """Send each stop that waits to the root, and each answer that waits to its scope, once."""
-    for one in load(run.state):
+    kept = load(run.state)
+    for one in kept.stops:
         if one.open and not one.sent_at:
             _ask(run, client, one)
-        elif one.answer and not one.answer_sent_at:
-            _tell(run, client, one)
+    for given in kept.answers:
+        if not given.sent_at:
+            _tell(run, client, given)
 
 
 def digest(state: Path, start: datetime) -> dict[str, Any]:
     """Return what the digest shows of the stops: each open one, and how many `--outside` stops
     each scope took at or after `start`. A `stops.json` that does not parse gives None."""
     try:
-        kept = load(state)
+        kept = load(state).stops
     except Unparsable:
         return {"open": None, "outside": {}}
     outside: dict[str, int] = {}
@@ -384,18 +432,18 @@ def _stop(args: argparse.Namespace, config: Config) -> int:
                 )
             scope, row, *words = args.words
             settle(run)
-            one = answer(run, args.thread, scope, row, " ".join(words))
+            given = answer(run, args.thread, scope, row, " ".join(words))
             deliver(run, _client(config))
-            (now,) = [each for each in load(run.state) if (each.key, each.at) == (one.key, one.at)]
-            to = now.answer_thread if now.answer_sent_at else f"nobody yet, {now.answer_waits}"
-            print(f"answered: {one.key}, closed, the answer sent to {to}")
+            now = find(run.state, given)
+            to = now.thread if now.sent_at else f"nobody yet, {now.waits}"
+            print(f"answered: {', '.join(given.stops)}, closed, the answer sent to {to}")
             return 0
         one = take(
             run, args.thread, args.row, args.on or "", args.outside or "", " ".join(args.words)
         )
         settle(run)
         deliver(run, _client(config))
-        (now,) = [each for each in load(run.state) if (each.key, each.at) == (one.key, one.at)]
+        now = find(run.state, one)
         to = f"the root home at {now.thread}" if now.sent_at else f"nobody yet, {now.waits}"
         print(f"stopped: {one.key}, sent to {to}")
         return 0
