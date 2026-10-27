@@ -1,7 +1,8 @@
 """jbus sends nothing into a usage cap (sends-hold-capped). A message sent while its thread's
 instance is capped starts a turn that ends at once on the limit, so it is spent: on 2026-10-26, 105
-runs ended so (day-audit-1026-2). Each send below waits instead, under its usual key, with one
-`wait` line a pass that says so, and the first pass after the reset sends it once. The tests
+runs ended so (day-audit-1026-2). Each send below waits instead in `jbus.outbox`, under its usual
+key, with one `wait` line a pass that names its template, and the first pass after the reset sends
+it once. The tests
 replay small made-up rows through the real pass against the kitchen's fakes, with the cap written
 in the ledger (`jroles.ledger`) as the usage hooks write it."""
 
@@ -81,14 +82,14 @@ def test_a_rebase_message_waits_for_the_reset(kitchen):
     kitchen.set("jmerge.txt", "wait 7 https://example.test/pull/7: it conflicts with its base\n")
     kitchen.set("open.json", [pull(kitchen, mergeable="CONFLICTING")])
     cap("claudeAgent")
-    holds_then_sends_once(kitchen, "rebase", "alpha", "told to rebase")
+    holds_then_sends_once(kitchen, "rebase", "alpha", "its rebase message")
 
 
 def test_a_failed_check_message_waits_for_the_reset(kitchen):
     ended(kitchen)
     kitchen.set("open.json", [pull(kitchen, [failed()])])
     cap("claudeAgent")
-    holds_then_sends_once(kitchen, "failed", "alpha", "of the failed check")
+    holds_then_sends_once(kitchen, "failed", "alpha", "its failed message")
 
 
 def test_a_restack_message_waits_for_the_reset(kitchen):
@@ -108,7 +109,7 @@ def test_a_restack_message_waits_for_the_reset(kitchen):
     stacked = kitchen
     stack(stacked, base="e" * 40)
     cap("claudeAgent")
-    holds_then_sends_once(stacked, "restack", "two", "to move its stacked link")
+    holds_then_sends_once(stacked, "restack", "two", "its restack message")
     assert sent(stacked, "restack") == [f"restack|two|{LINK[:12]}|{'e' * 12}"]
 
 
@@ -120,7 +121,7 @@ def test_a_main_moved_message_waits_for_the_reset(kitchen):
     launched.set("open.json", [red(launched, "alpha", 7, "FAILURE")])
     main = move(launched)
     cap("claudeAgent")
-    holds_then_sends_once(launched, "mainmoved", "alpha", "told main moved")
+    holds_then_sends_once(launched, "mainmoved", "alpha", "its mainmoved message")
     assert sent(launched, "mainmoved") == [f"mainmoved|alpha|#7|{main[:12]}"]
 
 
@@ -159,7 +160,7 @@ def test_a_hold_stall_line_waits_for_the_reset(kitchen):
     held.until(31)
     for said in until(kitchen, 32, 35):
         rows = "one (#11), two (#12), three (#13), four (#14)"
-        assert len(waits(said, rows, "its clock's line")) == 1, said
+        assert len(waits(said, rows, "its hold-stall message")) == 1, said
     held.minute = 36
     held.until(39)
     assert held.told() == [] and kitchen.lines("hold-stall") == []

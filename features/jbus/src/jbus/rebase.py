@@ -79,7 +79,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbus import END_TURN, cancelled, dispatch, queue, read_json, verbs
+from jbus import END_TURN, cancelled, dispatch, outbox, queue, read_json, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, failed_in, job, job_log
@@ -479,8 +479,7 @@ def deliver(run: Pass, client: Client, world: World, number: int, reason: str, a
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
     """Return the key of a message about a head: `<kind>|<slug>|<head 12>`, and `|<window>` after
-    it when the message is sent while the crew's instance is capped. A message spent in a cap has a
-    key of its own, so the same message sent after the reset is not taken for it."""
+    it where the caller names one, as a restack names the base it moves onto (`jbus.stack`)."""
     return f"{kind}|{slug}|{head[:12]}" + (f"|{window}" if window else "")
 
 
@@ -491,15 +490,13 @@ def post(
     or nothing when no message went.
 
     `post` sends only for a pull request that is open under a slug that has a crew (`crew`): jbus
-    launched it, or its home launched it for a queue row that names its thread. The key
-    `mark` gives, `<kind>|<slug>|<head 12>` with `|<window>` after it for a message sent into a cap,
-    is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`.
+    launched it, or its home launched it for a queue row that names its thread. The key `mark`
+    gives is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`.
     `deliver` puts the key there through the event that it queues, and any other caller writes the
     key itself. `mainmoved` also writes the key, for a head that it told.
-    `post` sends nothing while `held` delays the message, or while the crew's instance is capped
-    (`expedite.waits_on_cap`): the message waits under its key, and the first pass after the reset
-    sends it. A caller that keys its message by the cap's window (`expedite._tell`) has weighed the
-    cap itself. When a rebase message goes, `post` writes
+    `post` sends nothing while `held` delays the message, or while the outbox holds it for a capped
+    instance (`jbus.outbox`): the message waits under its key, and the first pass after the reset
+    sends it. When a rebase message goes, `post` writes
     the `mainmoved` key for the commit that the default branch points to, so jbus does not also
     tell of that move.
     """
@@ -534,25 +531,29 @@ def post(
         return None
     if held(run, client, world, slug, number, head):
         return None
-    from jbus import expedite
-
-    doing = f"its crew being {ask.doing}"
-    if not window.startswith("cap ") and expedite.waits_on_cap(run, client, thread, slug, doing):
-        return None
     message = ask.message.format(
         number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
     )
     if "{worktree}" in message:
         message = message.replace("{worktree}", where(client, thread))
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=slug,
+            key=key,
+            text=message,
+            template=ask.kind,
+            needs="act",
+        )
     except T3Refused as error:
         run.gate(slug, ask.refused, f"{error}\n\n{message}", key=f"{ask.refused} {head[:12]}")
         return None
     except T3Error as error:
         run.say(f"wait {slug}: its crew could not be {ask.doing} ({error})")
+        return None
+    if not went:
         return None
     run.told.add(slug)
     if ask.default:

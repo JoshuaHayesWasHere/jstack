@@ -41,8 +41,8 @@ from jbriefs import home as homes
 from jbus import (
     Config,
     Refused,
-    expedite,
     mirror,
+    outbox,
     questions,
     queue,
     read_json,
@@ -172,15 +172,26 @@ def _send(run: Pass, client: Client, thread: str, message: str, key: str) -> boo
     done: sent, or refused for good."""
     if key in run.box.sent():
         return True
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
+    name = key.split("|")[1]
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=name,
+            key=key,
+            text=message,
+            template=STALL,
+            needs="act",
+        )
     except T3Refused as error:
-        run.say(f"wait {key.split('|')[1]}: T3 Code refused {thread} its nudge ({error})")
+        run.say(f"wait {name}: T3 Code refused {thread} its nudge ({error})")
     except T3Error as error:
-        run.say(f"wait {key.split('|')[1]}: {thread} could not be nudged ({error})")
+        run.say(f"wait {name}: {thread} could not be nudged ({error})")
         return False
+    else:
+        if not went:
+            return False
     run.box.mark(key)
     return True
 
@@ -242,10 +253,8 @@ def _act(
     """Take the next step of a child's spell: a nudge, with the first strike told to the user,
     a second nudge, or the question to the user. Return whether it is done. While the home's
     instance is capped no step is taken: the home could not act on it, so the step waits for the
-    reset."""
+    reset. The outbox holds a nudge, and the question waits here."""
     step, since = spell["step"], spell["since"]
-    if expedite.waits_on_cap(run, client, thread, name, f"its {STALL} step"):
-        return False
     if step in ("calm", "nudged1"):
         n = 1 if step == "calm" else 2
         text = NUDGE.format(scope=name, what=what, minutes=quiet, n=n)
@@ -257,6 +266,8 @@ def _act(
         line = f"{STALL} {name}: the home {name} has had {what} out and been quiet {quiet} min"
         run.find(name, STALL, f"{line}; jbus nudged it, thread {thread}", key=f"{since} strike")
         return True
+    if outbox.capped(run, client, thread):
+        return False
     line = f"{STALL} {name}: the home {name} is still quiet after two nudges, {quiet} min"
     run.find(
         name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"

@@ -32,7 +32,7 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from jbus import dispatch, read_json, verbs, write_json
+from jbus import dispatch, outbox, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _api
@@ -176,16 +176,25 @@ def tell(run: Pass, client: Client, world: World) -> None:
                 others += 1
                 continue
             text = message(remark, owner, number)
-            client.recipients = client.recipients | {thread}
-            asked = {"threadId": thread, "message": text, "mode": "queue", "clientRequestId": key}
             try:
-                client.call("t3_thread_send", asked)
+                went = outbox.send(
+                    run,
+                    client,
+                    thread=thread,
+                    row=slug,
+                    key=key,
+                    text=text,
+                    template="remark",
+                    needs="act",
+                )
             except T3Refused as error:
                 run.gate(slug, REFUSED, f"{error}\n\n{text}", key=f"{REFUSED} {remark.key}")
                 run.box.mark(key)
                 continue
             except T3Error as error:
                 run.say(f"wait {slug}: its crew could not be given the owner's comment ({error})")
+                continue
+            if not went:
                 continue
             run.box.mark(key)
             run.say(f"remark {slug}: gave the crew the owner's {remark.kind} on #{number}")

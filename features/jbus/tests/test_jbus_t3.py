@@ -15,6 +15,7 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -74,6 +75,18 @@ def test_a_tool_that_is_not_one_of_the_eight_is_never_called(kitchen):
     with pytest.raises(jbus.Refused, match="jbus does not call t3_thread_update"):
         client.call("t3_thread_update", {"threadId": "x", "title": "y"})
     assert kitchen.t3.calls == []
+
+
+def test_no_module_but_the_outbox_sends_a_message_to_a_thread():
+    """Every message jbus sends to a thread goes through `jbus.outbox.send`, so its one rule on
+    when a message waits and its one log cover every sender. `t3.py` names the tool to allow it."""
+    package = Path(t3.__file__).parent
+    senders = sorted(
+        str(path.relative_to(package))
+        for path in package.rglob("*.py")
+        if '"t3_thread_send"' in path.read_text()
+    )
+    assert [one for one in senders if one not in ("t3.py", "outbox.py")] == []
 
 
 SEND = {"threadId": "mcp:crew", "message": "a", "mode": "queue", "clientRequestId": "a-key"}

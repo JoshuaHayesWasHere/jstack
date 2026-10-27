@@ -4,18 +4,21 @@ the default), its webhook (`webhook`), or both (`both`).
 A wake to the home thread is one `t3_thread_send` in queue mode, with the chat lines and the events
 a webhook POST carries (`wake.body`) and a retry key made from that body, so a retry sends the same
 message. It keeps the webhook's five-minute gap. A send T3 Code refuses keeps the events in the
-outbox for the next pass, and its streak alerts in the journal and on the desk.
+outbox for the next pass, and its streak alerts in the journal and on the desk. A wake to a home
+thread whose instance is capped waits in the outbox for the reset, and counts as no failed send.
 
 Every test runs the real pass or the real command against the faked T3 Code server and webhook of
 `test_jbus_kitchen`. Nothing reaches the network.
 """
 
 import json
+from datetime import timedelta
 
 import pytest
 
 import jbus
 from jbus import wake
+from jroles import ledger
 from test_jbus_kitchen import NOW
 from test_jbus_signal import decide, later
 
@@ -401,3 +404,21 @@ def test_a_webhook_error_from_before_leaves_wake_json_on_the_next_pass_while_wak
     kitchen.poll(NOW)
     kept = jbus.read_json(marks, {})
     assert "last_error" not in kept and kept["began"] is True and kept["posted"] == 1.0
+
+
+def test_a_wake_to_a_capped_home_thread_waits_with_no_alert_and_goes_once_after_the_reset(kitchen):
+    homed(kitchen, url="", project_wake=None)
+    kitchen.t3.thread("home", "running")["threadId"] = HOME
+    resets = NOW + timedelta(minutes=20)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    said = []
+    for number in range(4):
+        said += kitchen.poll(later(5 * number))
+    assert wakes(kitchen) == []
+    assert [one["event"] for one in waiting(kitchen)] == ["decision"]
+    assert [one for one in said if "alert:" in one or "wake failed" in one] == []
+    kitchen.poll(later(25))
+    kitchen.poll(later(35))
+    (sent,) = wakes(kitchen)
+    assert "demo: decision alpha: which one?" in sent["message"]
+    assert waiting(kitchen) == []

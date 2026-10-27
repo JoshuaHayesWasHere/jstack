@@ -8,6 +8,7 @@ import pytest
 
 import jsettings
 from jbus import questions, queue, view
+from jroles import ledger
 from test_jbus_kitchen import GATE as PIPED
 from test_jbus_kitchen import NOW as POLLED
 from test_jbus_kitchen import Kitchen
@@ -409,6 +410,22 @@ def test_an_answer_t3_code_does_not_take_is_recorded_and_the_next_pass_sends_it(
     counter.passes(1)
     assert len(counter.sends()) == before + 1
     assert kept(counter.state)[number].answer.told
+
+
+def test_an_answer_to_a_capped_thread_says_it_waits_for_the_reset_and_goes_once_after_it(counter):
+    counter, served = counter
+    number = counter.asks()
+    counter.t3.thread("alpha", "completed", threadId=counter.THREAD)
+    resets = POLLED + timedelta(minutes=15)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+    _, said = served.write({"numbers": [number], "option": "the other"})
+    assert said["closed"][0]["say"] == (
+        f"Question {number} closed at 11:00 ET with its answer recorded and not yet sent, since "
+        f"its thread {counter.THREAD} is capped: the first pass after the reset sends it."
+    )
+    assert counter.sends() == []
+    counter.passes(3)
+    assert [given["clientRequestId"] for given in counter.sends()] == [f"answer|alpha|{number}"]
 
 
 def test_an_answer_with_no_sign_in_is_recorded_and_says_why(counter):

@@ -4,8 +4,9 @@ webhook listen on a local port. The three commands are functions here, and scrip
 another process. Nothing reaches the network.
 
 The tests here test the fakes: each fake says the same whether this module calls it or a process
-starts it as a command. The last test is of the repo that each kitchen copies from its worker's
-template: a kitchen pushes to its own origin, and the template stays as the build left it.
+starts it as a command. One test sends through the fakes into a capped thread, and sees
+`jbus.outbox` hold the message. The last test is of the repo that each kitchen copies from its
+worker's template: a kitchen pushes to its own origin, and the template stays as the build left it.
 """
 
 import base64
@@ -32,6 +33,7 @@ import jbus
 import repo_template
 from jbriefs import meaning
 from jbus import cli, live, queue, t3, wake, word
+from jroles import ledger
 from repo_template import IDENTITY
 from test_room import BIN, FRESH, IDLE, machine
 from testing.paths import REPO
@@ -294,7 +296,10 @@ class T3(Server):
                     thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
         elif tool == "t3_thread_configuration":
-            (thread,) = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            found = [t for t in self.threads if t["threadId"] == given["threadId"]]
+            if not found:
+                return gone(given["threadId"], "is no longer available")
+            (thread,) = found
             made = {
                 "threadId": given["threadId"],
                 "modelSelection": thread.get("selection") or SELECTION,
@@ -949,6 +954,44 @@ RESULT = "\n## Result\nStatus: done\nBranch: alpha   Pull request: none\nLeft: n
 OPTIONS = (
     "Option: the first (default, recommended): nothing changes\nOption: the other: one thing more\n"
 )
+
+
+def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(kitchen):
+    """The answer to a question had no cap check of its own. A message into a thread whose
+    instance is capped starts a turn that ends at once on the limit, so the outbox holds it under
+    its key, writes the hold to `outbox.jsonl`, and the first pass after the reset sends it once."""
+    crew = kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=30))
+    kitchen.brief("alpha", f"Thread: {crew['threadId']}\n")
+    kitchen.quiet()
+    asked = GATE.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
+    assert kitchen.main("gate", "alpha", stdin=asked)[0] == 0
+    said = ("--by", "user", "--at", "2026-10-12 11:30 ET", "--differs", "coffee")
+    assert kitchen.main("answer", "1", *said)[0] == 0
+    resets = NOW + timedelta(minutes=40)
+    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
+
+    def answers():
+        return [one for one in sends(kitchen) if one["clientRequestId"] == "answer|alpha|1"]
+
+    for minute in (10, 20):
+        lines = kitchen.poll(NOW + timedelta(minutes=minute))
+        assert answers() == []
+        assert [one for one in lines if one.startswith("wait alpha: ") and "capped" in one]
+    kitchen.poll(NOW + timedelta(minutes=41))
+    kitchen.poll(NOW + timedelta(minutes=44))
+    assert [one["threadId"] for one in answers()] == [crew["threadId"]]
+    logged = (kitchen.state / "outbox.jsonl").read_text().splitlines()
+    went = [json.loads(line) for line in logged]
+    assert [
+        (one["at"][:16], one["thread"], one["row"], one["template"], one["needs"], one["went"])
+        for one in went
+        if one["key"] == "answer|alpha|1"
+    ] == [
+        ("2026-10-12T15:10", crew["threadId"], "alpha", "answer", "act", "held"),
+        ("2026-10-12T15:20", crew["threadId"], "alpha", "answer", "act", "held"),
+        ("2026-10-12T15:41", crew["threadId"], "alpha", "answer", "act", "sent"),
+    ]
+    assert [one["rule"] for one in went if one["went"] == "held"][0].startswith("cap: ")
 
 
 def asking(question="which one?", default="the first"):

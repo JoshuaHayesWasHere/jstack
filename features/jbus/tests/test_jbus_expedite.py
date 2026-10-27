@@ -325,90 +325,62 @@ def crew(kitchen):
     return [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
 
 
-def test_an_expedite_sent_while_the_crew_s_instance_is_capped_is_sent_again_after_the_reset(
+def test_an_expedite_due_while_the_crew_s_instance_is_capped_is_sent_once_after_the_reset(
     short, kitchen
 ):
-    """The reviewer wrote nothing, and jbus asks the crew for `/pr-review run alpha again` while
-    the crew's instance is capped, 22 minutes before the cap resets. The turn the message starts
-    ends at once on the limit, so the crew stays as it was. The first pass after the reset sends
-    the message again, once, and a later pass sends nothing more."""
+    """The reviewer wrote nothing, and jbus would ask the crew for `/pr-review run alpha again`
+    while the crew's instance is capped, 22 minutes before the cap resets. A turn the message
+    started would end at once on the limit, so the outbox holds it. The first pass after the reset
+    sends it, once, and a later pass sends nothing more."""
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
     resets = later(2) + timedelta(minutes=22)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(3)
-    (first,) = sends(kitchen)
-    assert "`/pr-review run alpha again`" in first["message"]
-    short.passes(21)
-    assert later(short.minute - 1) < resets and crew(kitchen) == [first]
+    short.passes(24)
+    assert later(short.minute - 1) < resets and crew(kitchen) == []
     said = short.passes(1)
     assert later(short.minute - 1) == resets
-    again = [one for one in sends(kitchen) if one != first]
-    assert [(one["threadId"], one["message"]) for one in again] == [
-        ("mcp:thread-1", first["message"])
-    ]
+    (sent,) = crew(kitchen)
+    assert "`/pr-review run alpha again`" in sent["message"]
     line = f"expedite alpha: told the crew what #7 is short of (unreviewed, {short.head[:12]}), "
     assert line + "sent `/pr-review run alpha again`" in said
     short.passes(12)
-    assert len(crew(kitchen)) == 2
+    assert len(crew(kitchen)) == 1
 
 
-def test_a_hold_sent_into_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_sent_again(
+def test_a_hold_due_in_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_sent_after_it(
     short, kitchen
 ):
-    """The crew is asked for a scoped pass over its rebase while its instance is capped for 40
-    minutes. The passes of the cap are not the crew's idleness, so the hold is not the user's by
-    the reset, and the first pass after it sends the message again."""
+    """The crew would be asked for a scoped pass over its rebase while its instance is capped for
+    40 minutes. The passes of the cap are not the crew's idleness, so the hold is not the user's
+    by the reset, and the first pass after it sends the message."""
     short.out(short.unruled(), "hold", short.rebased())
     resets = later(2) + timedelta(minutes=40)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(3)
-    (first,) = sends(kitchen)
-    short.passes(39)
-    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    short.passes(42)
+    assert later(short.minute - 1) < resets and sends(kitchen) == []
     assert listed(kitchen) == []
     short.passes(1)
-    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    assert len(sends(kitchen)) == 1
+    assert listed(kitchen) == []
 
 
-def test_a_send_into_a_cap_whose_pass_kept_no_count_is_still_sent_again_after_the_reset(
+def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_send_stalls(
     short, kitchen
 ):
-    """A pass sent into a cap and stopped before it wrote `expedite.json`. The next pass finds the
-    message's mark, and the first pass after the reset still sends it again."""
-    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
-    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
-    resets = later(2) + timedelta(minutes=22)
-    ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(2)
-    counted = jbus.read_json(kitchen.state / "expedite.json", {})
-    short.passes(1)
-    (first,) = sends(kitchen)
-    jbus.write_json(kitchen.state / "expedite.json", counted)
-    short.passes(21)
-    assert later(short.minute - 1) < resets and crew(kitchen) == [first]
-    short.passes(1)
-    assert [one["message"] for one in crew(kitchen)] == [first["message"]] * 2
-
-
-def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_resend_stalls(
-    short, kitchen
-):
-    """The crew is asked for `/pr-review run alpha again` while its instance is capped for an hour,
-    longer than `REVIEWING` passes. A crew the cap locks out is not one that did not act, so no
-    stall is logged during the cap. After the reset the message is sent again, and a crew that
+    """The crew would be asked for `/pr-review run alpha again` while its instance is capped for
+    an hour, longer than `REVIEWING` passes. A crew the cap locks out is not one that did not act,
+    so no stall is logged during the cap. After the reset the message is sent, and a crew that
     stays short `PASSES` idle passes after that gets its stall."""
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
     short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']}\n", review=False)
     resets = later(2) + timedelta(minutes=60)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(3)
-    (first,) = sends(kitchen)
-    short.passes(59)
-    assert later(short.minute - 1) < resets and sends(kitchen) == [first]
+    short.passes(62)
+    assert later(short.minute - 1) < resets and crew(kitchen) == []
     assert kitchen.lines("stall") == []
     short.passes(1)
-    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    assert len(crew(kitchen)) == 1
     short.passes(9)
     assert kitchen.lines("stall") == []
     short.passes(1)
@@ -419,23 +391,21 @@ def test_a_cap_longer_than_a_review_logs_no_stall_and_a_crew_short_after_the_res
 def test_a_hold_whose_crew_is_at_work_at_the_reset_stays_in_hand_and_is_sent_once_it_is_idle(
     short, kitchen
 ):
-    """The crew is asked for a scoped pass over its rebase while its instance is capped for 40
-    minutes, and it is at work on the pass at the reset. The passes of the cap are not passes the
-    message waited to be sent, so the hold is not the user's, and the first pass with the crew
-    idle sends the message again."""
+    """The crew would be asked for a scoped pass over its rebase while its instance is capped for
+    40 minutes, and it is at work at the reset. The passes of the cap are not passes the message
+    waited to be sent, so the hold is not the user's, and the first pass with the crew idle sends
+    the message."""
     short.out(short.unruled(), "hold", short.rebased())
     resets = later(2) + timedelta(minutes=40)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
-    short.passes(3)
-    (first,) = sends(kitchen)
-    short.passes(39)
+    short.passes(42)
     short.thread["status"] = "running"
     short.passes(1)
-    assert later(short.minute - 1) == resets and sends(kitchen) == [first]
+    assert later(short.minute - 1) == resets and sends(kitchen) == []
     assert listed(kitchen) == []
     short.thread["status"] = "completed"
     short.passes(1)
-    assert [one["message"] for one in sends(kitchen)] == [first["message"]] * 2
+    assert len(sends(kitchen)) == 1
     assert listed(kitchen) == []
 
 

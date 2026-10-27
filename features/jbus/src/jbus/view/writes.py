@@ -109,6 +109,9 @@ class Writes:
         if not went.thread:
             why = f"{closed.slug} has no Thread: line in a brief or request"
             return False, why, "a pass sends it once one names its thread"
+        if went.held:
+            why = f"its thread {went.thread} is capped"
+            return False, why, "the first pass after the reset sends it"
         how = "T3 Code refused it" if went.refused else "T3 Code did not answer"
         return False, jbus.redact(f"{how} ({went.error})", hidden), pass_
 
@@ -293,16 +296,10 @@ class Writes:
                 self.config(), state_dir=self.sources.state_dir, home_dir=self.sources.home_dir
             )
             hidden = config.secrets()
-            project = config.project(name)
+            mine = replace(config, user=self.sources.user)
+            run = passes.Pass(mine, config.project(name), now, say=lambda line: None)
             client = t3.Client(config.server, config.token_path, timeout=SEND)
-            went = steer.deliver(
-                state_dir,
-                wake.Box(state_dir, project),
-                config.home(project),
-                client,
-                self.sources.user.user,
-                now,
-            )
+            went = steer.deliver(run, client)
             one = went.get(line) or steer.sends(state_dir).get(line, {})
             why = one.get("waits", "")
         except (Refused, OSError) as error:

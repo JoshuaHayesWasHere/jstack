@@ -78,7 +78,7 @@ from typing import TYPE_CHECKING
 
 import jsettings
 from jbriefs.home import home_of, scopes, thread_of
-from jbus import Config, Refused, queue, verbs, write_json
+from jbus import Config, Refused, outbox, queue, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import GONE, Client, T3Error, T3Refused, typed
 
@@ -96,6 +96,7 @@ NO_HOME = "its home has no home-id, so it goes on the pass after that home's nex
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
 REFUSED = "T3 Code refused it"
+CAPPED = "its home's thread is capped, so it goes on the first pass after the reset"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
 UNSEEN = (
@@ -310,21 +311,37 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
     return True
 
 
-def post(client: Client | None, thread: str, message: str, key: str) -> str:
+def post(
+    run: Pass,
+    client: Client | None,
+    thread: str,
+    message: str,
+    key: str,
+    *,
+    row: str,
+    template: str,
+) -> str:
     """Send one queued message to a home's thread, under the retry key `key`, so T3 Code takes
     a second send with the same key as a repeat of the first. Return why it did not go, or nothing
     when T3 Code took it. `jbus.item` sends a steer's message through `post` too."""
     if not thread or client is None:
         return NO_T3 if thread else NO_HOME
-    client.recipients = client.recipients | {thread}
-    asked = {"threadId": thread, "message": message, "mode": "queue", "clientRequestId": key}
     try:
-        client.call("t3_thread_send", asked)
+        went = outbox.send(
+            run,
+            client,
+            thread=thread,
+            row=row,
+            key=key,
+            text=message,
+            template=template,
+            needs="act",
+        )
     except T3Refused:
         return REFUSED
     except T3Error:
         return NO_ANSWER
-    return ""
+    return "" if went else CAPPED
 
 
 def deliver(run: Pass, client: Client | None) -> None:
@@ -338,7 +355,8 @@ def deliver(run: Pass, client: Client | None) -> None:
             continue
         thread, name = thread_of(_homes_dir(run, one)), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
-        waits = post(client, thread, MESSAGE.format(**asdict(one)), key)
+        text = MESSAGE.format(**asdict(one))
+        waits = post(run, client, thread, text, key, row=name, template=KIND)
         if not waits:
             at = jsettings.stamp(run.now)
             if _change(run, one, thread=thread, sent_at=at, waits=""):
