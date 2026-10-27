@@ -71,7 +71,8 @@ and checks none of this itself.
 
 While homes still keep a `gates.md`, a pass also closes a record when it finds the same gate
 in such a file with `Status: answered` (`closed_in_files`), because that home took the
-answer and carried it to the thread itself.
+answer and carried it to the thread itself. It never closes a gate that holds that way: only
+the user's own answer closes one.
 
 Every verb that would write the file refuses a file that does not parse, or one that holds
 something that is not a record (`Unparsable`). If a verb wrote such a file back, it would lose
@@ -594,7 +595,8 @@ def closed_in_files(run: Pass) -> None:
     Until the skills read jbus, a home that takes an answer in its own thread writes the
     answer in its `gates.md` and sends the answer to the thread itself. So this function
     closes the record with the words of that `Status:` line, and jbus sends nothing. Those
-    words replace a close by silence.
+    words replace a close by silence. A gate that holds waits for the user's own answer, so
+    the file never closes it: the pass says so once, with a quiet `note`, and leaves it open.
     """
     answered = {
         key: (below.line(body, "Status:"), file)
@@ -605,15 +607,24 @@ def closed_in_files(run: Pass) -> None:
         return
     with _locked(run.state):
         count, records = _kept(run.state)
-        closed = []
+        closed, held = [], []
         for one in records:
-            if _open(one) and one.key in answered:
+            if _open(one) and one.key in answered and one.holds:
+                held.append((one, answered[one.key][1]))
+            elif _open(one) and one.key in answered:
                 status, file = answered[one.key]
                 given = Answer(status, "", "", str(file), False, closed_by=HOME)
                 one = replace(one, answer=given)
             closed.append(one)
         if closed != records:
             _write(run.state, count, closed)
+    for one, file in held:
+        line = (
+            f"{NOTE} {one.slug}: question {one.number} holds ({one.holds}) for "
+            f"{run.user.user}'s own answer, and {file} marked it answered: it stays open"
+        )
+        if run.find(one.slug, NOTE, line, key=f"held {one.number}"):
+            run.say(line)
 
 
 def _open(one: Question) -> bool:
