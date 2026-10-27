@@ -68,6 +68,20 @@ max_per_project is 24 in jstack: <slug> waits, since <time>
 max_running is 24 across all projects: <slug> waits, since <time>
 ```
 
+## What a rebase asks of its crew
+
+`rebase.tell` reads three kinds of `wait` line `jmerge` prints about a rebase, and sends the crew one message for each head, keyed `<kind>|<slug>|<head 12>`.
+
+| `jmerge` waits on | jbus sends | Key |
+|---|---|---|
+| main moving under the pull request, or a conflict with its base | an ask to rebase, with a backup ref and a lease | `rebase` |
+| a rebase that changed the content after its review (`scoped review of <range-diff>`) | an ask for one scoped review of that range-diff | `rereview` |
+| lines the rebase dropped with no `Dropped on rebase:` line at the head | an ask to put the lines back or explain each file | `drops` |
+
+The third kind ends in a scoped-review ask too.
+Once the Result explains each drop, `jmerge` waits with `the scoped review has not ruled on the drops in <files>; scoped review of <range-diff>`, and jbus asks the crew for that scoped review under the `rereview` key.
+A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` line of it, is asked nothing more.
+
 ## A scout
 
 jbus launches a scout's request as a scout thread, never as a crewmate.
