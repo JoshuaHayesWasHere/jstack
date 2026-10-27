@@ -323,6 +323,56 @@ def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path
     assert gone, f"process {left}, started by the short job, still runs after the stop"
 
 
+LEAVES_A_ZOMBIE = """\
+import os, time
+state = os.environ["D"]
+r, w = os.pipe()
+if os.fork() == 0:
+    if os.fork() == 0:
+        os._exit(0)
+    os.close(w)
+    os.read(r, 1)
+    os.setpgid(0, 0)
+    for out in (0, 1, 2):
+        os.dup2(os.open(os.devnull, os.O_RDWR), out)
+    with open(os.path.join(state, "pid"), "w") as out:
+        out.write(str(os.getpid()))
+    time.sleep(30)
+    os._exit(0)
+os.close(w)
+while not os.path.exists(os.path.join(state, "pid")):
+    time.sleep(0.02)
+time.sleep(30)
+"""
+
+
+def test_a_short_job_whose_group_is_left_with_a_zombie_still_stops_and_says_so(tmp_path):
+    """The command leaves its process group holding only a zombie, whose parent left the group
+    and does not reap it. macOS answers a signal to such a group with EPERM, as it did for the
+    orphaned `sleep` the shell above left when launchd was slow to reap it."""
+    limited = (
+        "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
+        " sys.exit(cli.main(sys.argv[1:]))"
+    )
+    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    try:
+        ran = subprocess.run(
+            [sys.executable, "-c", limited, "test-slot", "--short", "--"]
+            + [sys.executable, "-c", LEAVES_A_ZOMBIE],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    finally:
+        if (tmp_path / "pid").exists():
+            os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
+    assert (ran.returncode, ran.stderr) == (
+        slot.TIMED_OUT,
+        f"test-slot: stopped {sys.executable} at 0.5 s, the short lane's limit\n",
+    )
+
+
 def test_a_short_holder_told_to_stop_stops_what_its_command_started(slots):
     started = f"sh -c 'echo $$ > \"$D/pid\"; {RUNS_UNTIL_RELEASED}' sh a & wait"
     holder = slots("--short", command=["sh", "-c", started])
