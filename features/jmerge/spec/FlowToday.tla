@@ -53,10 +53,10 @@ Leaves(p) ==
 \* A jbus pass launches the row's crew, which opens its pull request, and its turn ends.
 Launch(p) ==
     /\ st[p] = "queued"
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:331-363, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
     \* A row that builds on an open one launches stacked on its branch (#411), and one that builds
     \* on a row with no pull request yet waits; merge_after is read only by jmerge.
-    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:509-511
+    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:500-502
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
     /\ Leaves(p)
@@ -104,7 +104,7 @@ Restack(p) ==
 \* The crew fixes its own broken change: only when it sees the failure as its own. jbus sends to
 \* a thread already running, so no room is asked for, and its turn may leave a process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:273, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:268, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
@@ -149,7 +149,7 @@ Sweep ==
 ApproveMainFix ==
     /\ mainRed
     /\ fixRow                               \* features/jbus/src/jbus/watch.py:1055-1077, queued with no approval
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:331-363, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
     /\ mainRed' = FALSE
     /\ redBy' = "none"
     /\ fixRow' = FALSE
