@@ -54,8 +54,9 @@ A go gate is one whose default is `approve` (`queue.GO_DEFAULT`) and whose slug 
 queue that waits for its go: a home's own pick for a new row, parked under the setting
 `go = "silence"`. Nothing acts on its default until it closes, so it waits for an answer for the
 setting's `go_quiet_minutes` and shows on the list of what waits on the user meanwhile. Its close
-by silence approves the row where `queue.silenced` lets it: basis `answer`, `closed_by`
-`silence`. An answer of the user's closes it by `jbus answer`, and approves nothing by itself.
+by silence approves the row where `queue.gone_ahead` lets it: basis `answer`, `closed_by`
+`silence`. An answer of the user's closes it by `jbus answer`: one that keeps the default is the
+user's go for the row and approves it under any setting, and one that differs approves nothing.
 
 A pass raises a question of its own through the path a piped gate takes (`park`): the record, and
 the `gate` event the Chef reads. `mainmoved` raises one when main's check starts no job. When the
@@ -117,7 +118,7 @@ import itertools
 import json
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -534,10 +535,14 @@ def answer(
     keeps: bool,
     user: jsettings.Settings,
     heard: queue.Said | None = None,
-) -> Question:
-    """Close a question with the user's answer. `answer` refuses a second answer and puts
-    the first in the refusal. The one exception is a question that a pass closed by silence:
-    that close is not the user's answer, so the user's answer replaces it.
+) -> tuple[Question, str]:
+    """Close a question with the user's answer, and return it with the line of what the answer
+    started. `answer` refuses a second answer and puts the first in the refusal. The one exception
+    is a question that a pass closed by silence: that close is not the user's answer, so the
+    user's answer replaces it.
+
+    An answer that keeps the default of a go gate is the user's go for its row: the row is
+    approved on it (`queue.gone_ahead`), and the line says so.
 
     `keeps` says the answer is the default. Only the person who heard the answer knows
     whether it keeps the default, because words such as "yes" do not say it. For an answer given as
@@ -563,7 +568,10 @@ def answer(
             given = replace(given, ref=heard.ref, said_in=heard.said_in, checked=heard.checked)
         closed = replace(one, answer=given)
         _write(state, count, [closed if each.number == number else each for each in records])
-    return closed
+    if not (keeps and _go(closed)):
+        return closed, ""
+    said = queue.Said(given.words, given.at, given.said_in, given.checked, given.ref)
+    return closed, queue.gone_ahead(state, closed.slug, number, at, user, said)
 
 
 def basis(state: Path, ref: str) -> queue.Said:
@@ -662,8 +670,8 @@ def silent(run: Pass) -> None:
             run.find(one.slug, NOTE, line, key=f"silence {one.number}")
             run.say(line)
             if one.slug in goes and _go(one):
-                went = queue.silenced(
-                    run.state, one.slug, one.number, run.user.stamp(run.now), run.user
+                went = queue.gone_ahead(
+                    run.state, one.slug, one.number, run.user.stamp(run.now), run.user, None
                 )
                 if went:
                     run.say(f"queue {run.project.name}: {went}")
@@ -701,13 +709,31 @@ def _quiet(one: Question, now: datetime, window: timedelta = QUIET) -> bool:
     return asked.tzinfo is not None and now - asked >= window
 
 
-def _state(one: Question) -> str:
+def waits(state: Path, user: jsettings.Settings) -> Callable[[Question], str]:
+    """Return what says, of a go gate, why its close by silence starts nothing: the setting `go`
+    is not `silence`, or silence starts no row of its brief (`queue.unsilenced`). It says nothing
+    of any other question, or of a go gate whose silence starts its row."""
+
+    def why(one: Question) -> str:
+        if not _go(one):
+            return ""
+        if user.go != jsettings.SILENCE:
+            return f"the setting go is {user.go}, not {jsettings.SILENCE}"
+        text = queue.brief(state, one.slug)
+        return queue.unsilenced(text) if text is not None else ""
+
+    return why
+
+
+def _state(one: Question, why: str) -> str:
     """Return the words that the line of a waiting question adds: that its default holds
     until the user answers, with the fail-safe, or that the thread already acted on the
-    default. The line of a link's conflict says neither, because that question asks the
-    home."""
+    default. A go gate's line says that silence starts its row, or `why` it starts nothing. The
+    line of a link's conflict says neither, because that question asks the home."""
     if one.holds:
         return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
+    if _go(one) and why:
+        return f" It waits for your answer, since silence starts nothing where {why}."
     if _go(one):
         return f" Unless you answer, it starts {one.slug} when its quiet window ends."
     if not one.question.endswith(LINK):
@@ -715,15 +741,16 @@ def _state(one: Question) -> str:
     return ""
 
 
-def item(one: Question) -> dict[str, Any]:
+def item(one: Question, why: str = "") -> dict[str, Any]:
     """Return an open question as a gate item for the list of what waits on the user. The
     item has `acted` where the thread acted on the default at once, and the case and the
-    fail-safe of a gate that holds."""
+    fail-safe of a gate that holds. `why` is what `waits` says of it. No go gate is `acted`: its
+    default waits for its close."""
     return {
         "kind": "gate",
         "key": f"gate:q{one.number}",
         "source": SOURCE,
-        "line": f"question {one.number}: {one.question}{_state(one)}",
+        "line": f"question {one.number}: {one.question}{_state(one, why)}",
         "number": str(one.number),
         "question": one.question,
         "default": one.default,
@@ -950,7 +977,7 @@ def _answer(args: argparse.Namespace, config: Config) -> int:
     answered."""
     project = verbs.here(config, args.project)
     heard = typed(args, config, "answer")
-    closed = answer(
+    closed, went = answer(
         config.state(project),
         args.number,
         heard.words if heard else " ".join(args.words),
@@ -962,7 +989,9 @@ def _answer(args: argparse.Namespace, config: Config) -> int:
         heard=heard,
     )
     given = closed.answer
-    if given.keeps and not closed.holds:
+    if went:
+        carried = f"nothing is sent, and {went}"
+    elif given.keeps and not closed.holds:
         carried = "nothing is sent"
     elif thread_of(config.home(project), closed.slug):
         carried = f"the next pass tells {closed.slug}'s thread"

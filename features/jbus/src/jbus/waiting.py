@@ -84,7 +84,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import re
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -244,11 +244,15 @@ def approve(name: str, slug: str, sha: str, user: jsettings.Settings) -> str:
 
 
 def gates(
-    home: Path, held: list[questions.Question] | None = None, gone: Collection[str] = ()
+    home: Path,
+    held: list[questions.Question] | None = None,
+    gone: Collection[str] = (),
+    why: Callable[[questions.Question], str] = lambda one: "",
 ) -> list[Item]:
     """Return the open gates in the home's `gates.md` and in each scoped home's, then the open
     questions of `held`. A gate that is also one of `held` counts once, as the question, while it is
-    open, and not at all once it is closed. Leave out a gate that a slug in `gone` asked."""
+    open, and not at all once it is closed. Leave out a gate that a slug in `gone` asked. `why` is
+    `questions.waits` of the project, for the line of a go gate."""
     held = held or []
     keys = {one.key for one in held}
     found = []
@@ -269,7 +273,7 @@ def gates(
                 "slug": mirror.asker(body),
             }
         )
-    found += [questions.item(one) for one in held if one.answer is None]
+    found += [questions.item(one, why(one)) for one in held if one.answer is None]
     return [one for one in found if one["slug"] not in gone]
 
 
@@ -405,7 +409,8 @@ def keep(
         return [{name: value for name, value in one.items() if name != "unblocks"} for one in kept]
 
     try:
-        found = gates(run.home, questions.read(run.state), run.removed)
+        asked = questions.read(run.state)
+        found = gates(run.home, asked, run.removed, questions.waits(run.state, run.user))
     except questions.Unparsable:
         found = had("gate")
     if rows is not None and world is not None and derived:

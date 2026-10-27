@@ -388,10 +388,11 @@ def _gates(run: Pass, home: Directory, after: int) -> list[str]:
     """Clear each question of the home that the user need not decide and that has been open
     `after` minutes, and say each question the user has to decide."""
     said, cleared = [], []
+    silence = questions.waits(run.state, run.user)
     for one in questions.load(run.state):
         if one.answer is not None or not home.has(one.slug):
             continue
-        item = questions.item(one)
+        item = questions.item(one, silence(one))
         why = needs(item, one.context)
         minutes = int((run.now - datetime.fromisoformat(one.asked_at)).total_seconds() // 60)
         if why:
