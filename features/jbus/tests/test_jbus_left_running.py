@@ -10,8 +10,10 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -76,6 +78,22 @@ def stray():
             os.kill(pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+
+
+@pytest.fixture(params=["tmp", "slot"])
+def temp(request, kitchen, monkeypatch):
+    """A folder a crew's session made in a temporary root that the test names, not the TMPDIR
+    it runs with: one under /tmp, or one under a slot's own folder of a `JGAUGE_LOCKS_DIR` the
+    test sets, as `jgauge test-slot` gives a command in TMPDIR. That one is in /dev/shm, outside
+    /tmp and /var/tmp, so the slot counts by itself, with or without a slot round the test."""
+    root = Path(tempfile.mkdtemp(dir="/tmp" if request.param == "tmp" else "/dev/shm"))
+    made = root / "c"
+    if request.param == "slot":
+        monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(root / "locks"))
+        made = root / "locks" / "test-slot-short.0.tmp" / "c"
+    made.mkdir(parents=True)
+    yield made
+    shutil.rmtree(root, ignore_errors=True)
 
 
 def ended_crew(kitchen, tmp_path, status="completed", under="trees"):
@@ -165,11 +183,13 @@ def test_a_worktree_removed_under_a_busy_process_still_counts(
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
 )
-def test_a_temporary_folder_the_crews_session_made_counts(kitchen, tmp_path, stray):
+@pytest.mark.parametrize("removed", [False, True])
+def test_a_temporary_folder_the_crews_session_made_counts(kitchen, tmp_path, stray, temp, removed):
     tree, _ = ended_crew(kitchen, tmp_path)
-    made = tmp_path / "lwr" / "c"
-    made.mkdir(parents=True)
-    stray.append(orphan(made, "yes", env=session_of(tmp_path, tree)))
+    stray.append(orphan(temp, "yes", env=session_of(tmp_path, tree)))
+    if removed:
+        shutil.rmtree(temp)
+        assert os.readlink(f"/proc/{stray[0]}/cwd").endswith(" (deleted)")
     kitchen.poll()
     assert not alive(stray[0])
 
@@ -224,17 +244,15 @@ def test_a_process_of_a_crew_still_in_its_turn_is_left_and_stopped_once_the_turn
 @pytest.mark.skipif(
     sys.platform == "darwin", reason="macOS's ps shows no process's environment, so no session"
 )
-def test_a_scout_stops_only_what_its_own_session_started(kitchen, tmp_path, stray):
+def test_a_scout_stops_only_what_its_own_session_started(kitchen, tmp_path, stray, temp):
     kitchen.t3.thread("alpha", "completed", idle=timedelta(minutes=2), title="scout: alpha")
     (kitchen.home / "scouts" / "alpha.md").write_text("# alpha\n\n## Report\nFound it.\n")
-    made = tmp_path / "f4"
-    made.mkdir()
     asked = "<command-message>scout</command-message>\n<command-name>/scout</command-name>\n"
     scouts = session_of(
         tmp_path, kitchen.checkout, "the-scout", f"{asked}<command-args>alpha</command-args>"
     )
     homes = session_of(tmp_path, kitchen.checkout, "the-home", "/home")
-    stray += [orphan(made, "yes", env=scouts), orphan(kitchen.checkout, "yes", env=homes)]
+    stray += [orphan(temp, "yes", env=scouts), orphan(kitchen.checkout, "yes", env=homes)]
     stray.append(orphan(kitchen.checkout, "yes"))
     kitchen.poll()
     assert [alive(pid) for pid in stray] == [False, True, True]
@@ -344,19 +362,17 @@ def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_once_its_row_end
 @NO_ENVIRONMENT
 @pytest.mark.parametrize("how", ["merged", "done", "removed"])
 def test_an_idle_process_a_crew_left_is_stopped_once_its_row_ended(
-    kitchen, tmp_path, stray, monkeypatch, how
+    kitchen, tmp_path, stray, monkeypatch, temp, how
 ):
     monkeypatch.setattr(strays, "WORKTREES", tmp_path / "worktrees")
     tree, _ = ended_crew(kitchen, tmp_path, under="worktrees/demo")
-    made = tmp_path / "lwr" / "c"
-    made.mkdir(parents=True)
     stray.append(orphan(tree, "sleep", "300"))
-    stray.append(orphan(made, "sleep", "301", env=session_of(tmp_path, tree)))
+    stray.append(orphan(temp, "sleep", "301", env=session_of(tmp_path, tree)))
     said = end(kitchen, tree, how) + kitchen.poll()
     assert [alive(pid) for pid in stray] == [False, False]
     lines = [one for one in said if one.startswith("left running")]
     assert lines == [
-        f"left running crew alpha: stopped 2: sleep 300 in {tree}, sleep 301 in {made}"
+        f"left running crew alpha: stopped 2: sleep 300 in {tree}, sleep 301 in {temp}"
     ]
     if how != "removed":
         last = (kitchen.home / "tasks" / "alpha.md").read_text().splitlines()[-1]
@@ -403,14 +419,12 @@ def test_an_idle_process_of_t3_code_or_jbus_in_a_crews_worktree_is_never_touched
 
 
 def test_the_homes_idle_processes_are_left_when_a_crews_turn_ended(
-    kitchen, tmp_path, stray, monkeypatch
+    kitchen, tmp_path, stray, monkeypatch, temp
 ):
     at_its_pull_request(kitchen, tmp_path, monkeypatch)
-    made = tmp_path / "lwr" / "h"
-    made.mkdir(parents=True)
     homes = session_of(tmp_path, kitchen.checkout, "the-home", "/home")
     stray.append(orphan(kitchen.checkout, "sleep", "300", env=homes))
-    stray.append(orphan(made, "sleep", "301", env=homes))
+    stray.append(orphan(temp, "sleep", "301", env=homes))
     stray.append(orphan(kitchen.checkout, "sleep", "302"))
     kitchen.poll()
     assert all(alive(pid) for pid in stray)
@@ -443,19 +457,17 @@ def test_an_idle_process_a_crew_left_in_its_worktree_is_stopped_at_its_pull_requ
 
 @NO_ENVIRONMENT
 def test_an_idle_process_a_crew_left_is_stopped_once_its_turn_ended_at_its_pull_request(
-    kitchen, tmp_path, stray, monkeypatch
+    kitchen, tmp_path, stray, monkeypatch, temp
 ):
     tree, _, brief = at_its_pull_request(kitchen, tmp_path, monkeypatch)
-    made = tmp_path / "lwr" / "c"
-    made.mkdir(parents=True)
     stray.append(orphan(tree, "sleep", "300"))
-    stray.append(orphan(made, "sleep", "301", env=session_of(tmp_path, tree)))
+    stray.append(orphan(temp, "sleep", "301", env=session_of(tmp_path, tree)))
     said = kitchen.poll() + kitchen.poll()
     assert {row["slug"]: row["status"] for row in queue.load(kitchen.state)} == {"alpha": "pr"}
     assert [alive(pid) for pid in stray] == [False, False]
     lines = [one for one in said if one.startswith("left running")]
     assert lines == [
-        f"left running crew alpha: stopped 2: sleep 300 in {tree}, sleep 301 in {made}"
+        f"left running crew alpha: stopped 2: sleep 300 in {tree}, sleep 301 in {temp}"
     ]
     assert brief.read_text().splitlines()[-1].startswith("Left running: 2 stopped by jbus ")
 
