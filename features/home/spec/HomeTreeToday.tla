@@ -63,13 +63,13 @@ CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A gate or an item for Josh goes into the home thread's outbox, once: its key is in sent.json
-\* from then on, so it is never queued again (jbus/wake.py:324 `write_json(self.state /
+\* from then on, so it is never queued again (jbus/wake.py:316 `write_json(self.state /
 \* "sent.json", [*sent, key])`). A new call is a change in what the child has out, so its spell
 \* ends.
 RaiseCall(c) ==
     /\ c \in Raised
     /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:176 `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wake.py:327 `waiting = [*self._outbox(), made]`
+    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wake.py:319 `waiting = [*self._outbox(), made]`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
     /\ UNCHANGED <<life, work, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
@@ -102,15 +102,15 @@ Answer(c) ==
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
     /\ watch[k] = "asked"     \* jbus/children.py:274 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:592 `why = post(body(some))`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:584 `why = post(body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
 \* A pass posts what waits in the home thread's outbox, its one route to Josh. Only a post that
-\* goes through takes a call out of the outbox (jbus/wake.py:597 `write_json(outbox,
+\* goes through takes a call out of the outbox (jbus/wake.py:589 `write_json(outbox,
 \* waiting[sent:], mode=0o600)`), so one that fails leaves it there for the next pass.
 Deliver(m) ==
-    /\ msg[m] = "home"     \* jbus/alert.py:312 `sent = run.box.flush(`
-    /\ up     \* jbus/wake.py:592-594 `why = post(body(some)) if why: break`
+    /\ msg[m] = "home"     \* jbus/alert.py:301 `sent = run.box.flush(`
+    /\ up     \* jbus/wake.py:584-586 `why = post(body(some)) if why: break`
     /\ msg' = Set(msg, m, "told")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The home thread fails: T3 Code is down, or the thread is gone.
