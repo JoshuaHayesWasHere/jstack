@@ -15,9 +15,10 @@ until a message goes.
 of `RULES`, the one table of them. A new rule is a row of that table, and no sender checks it:
 
 - `slot`: the thread waits on a test slot and is not woken yet (`jgauge.waiters`);
-- `review`: the row's pull request waits on a review that a reviewer the crew launched has not
-  written at its head, as jmerge's judge says (`ready.short_of`). A crew puts off what it is told
-  while its review is out (the crew skill's "A conflict");
+- `review`: the thread is the row's crew, and the row's pull request waits on a review that a
+  reviewer the crew launched has not written at its head, as jmerge's judge says
+  (`ready.short_of`). A crew puts off what it is told while its review is out (the crew skill's
+  "A conflict"), and a home told of the row is not the crew;
 - `busy`: the thread has a turn running (`watch.at_work`), or this pass already sent it a message
   that needs `act` (`Pass.told`), so a thread gets at most one such message a pass.
 
@@ -49,6 +50,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 
 import jsettings
+from jbriefs import parse as briefs
 from jbus.t3 import Client, T3Error
 from jgauge import slot, waiters
 from jmerge import ready
@@ -123,10 +125,11 @@ def waiting(run: Pass, client: Client, thread: str, row: str) -> bool:
 
 
 def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
-    """Say whether the row's pull request waits on a review at its head that a reviewer the crew
-    launched has not written: jmerge's judge (`ready.short_of`) says the review or a scoped review
-    is not written, and the brief names a reviewer with no `## Review` yet (`rebase.reviewing`).
-    A row with no open pull request in what this pass saw waits on no review."""
+    """Say whether the thread is the row's crew and its pull request waits on a review at its head
+    that a reviewer the crew launched has not written: jmerge's judge (`ready.short_of`) says the
+    review or a scoped review is not written, and the brief names a reviewer with no `## Review` yet
+    (`rebase.reviewing`). A row with no open pull request in what this pass saw waits on no review,
+    and a home told of the row (`jbus.owners`, of a stall of that very review) waits on none."""
     from jbus import clock, rebase
     from jbus.watch import task_brief
 
@@ -135,6 +138,8 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     if not head:
         return False
     brief = task_brief(run, row)
+    if jsettings.thread_id(thread) != jsettings.thread_id(briefs.thread_of(brief)):
+        return False
     unwritten = clock.class_of(ready.short_of(brief, head)) in ("review", "scoped")
     return unwritten and rebase.reviewing(brief)
 

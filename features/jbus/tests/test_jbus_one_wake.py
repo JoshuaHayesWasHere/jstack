@@ -36,7 +36,7 @@ GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
-USER = ["alert", "decision", "home-stall", "sign-in"]
+USER = ["alert", "decision", "decision.withdrawn", "home-stall", "sign-in"]
 DECIDED = "decision alpha: which one?"
 WHY_APPROVE = "a row with no approval of its brief"
 HOLDING_9 = (
@@ -81,7 +81,7 @@ def listed(kitchen):
     return json.loads((kitchen.state / "waiting-on-user.json").read_text())
 
 
-def test_the_kinds_that_start_a_post_are_these_four_and_no_level_is_between():
+def test_the_kinds_that_start_a_post_are_these_five_and_no_level_is_between():
     assert sorted(kind for kind, loud in wake.LOUDNESS.items() if loud == "user") == USER
     assert set(wake.LOUDNESS.values()) == {"user", "quiet"} == set(jbus.LEVELS)
 
@@ -134,13 +134,14 @@ def test_a_hold_and_an_approval_are_told_once_when_the_list_gains_them(kitchen):
     kitchen.set("open.json", [kitchen.opened("held", 9)])
     kitchen.set("jmerge.txt", HELD + "\n")
     kitchen.poll(later(10))
-    gained = [f"demo: {approving('unsaid')}", f"demo: {HOLDING_9}"]
-    assert kitchen.webhook.said == [gained]
+    kitchen.poll(later(20))
+    gained = [[f"demo: {HOLDING_9}"], [f"demo: {approving('unsaid')}"]]
+    assert kitchen.webhook.said == gained
     assert (HELD, "quiet", False) in logged(kitchen)
     kitchen.set("jmerge.txt", HELD.replace("crew", "home") + "\n")
     kitchen.poll(later(80))
     kitchen.poll(later(150))
-    assert kitchen.webhook.said == [gained]
+    assert kitchen.webhook.said == gained
     assert (HELD.replace("crew", "home"), "quiet", False) in logged(kitchen)
 
 
@@ -187,16 +188,19 @@ def test_a_merge_a_result_a_review_and_a_report_start_no_post_and_are_in_the_log
     ]
 
 
-def test_a_list_that_only_lost_an_item_starts_no_post(kitchen):
+def test_a_list_that_only_lost_an_item_posts_only_the_withdrawal_of_its_decision(kitchen):
     kitchen.poll()
     add(kitchen, "unsaid", approve=False)
     kitchen.poll(later(10))
+    kitchen.poll(later(20))
     assert len(kitchen.webhook.posts) == 1
     assert go(kitchen, "unsaid")[0] == 0
-    kitchen.poll(later(20))
     kitchen.poll(later(30))
-    assert len(kitchen.webhook.posts) == 1 and kitchen.waiting() == []
-    assert logged(kitchen)[-1] == ("waiting demo: 0 wait on user, 0 new, 1 gone", "quiet", False)
+    kitchen.poll(later(40))
+    assert len(kitchen.webhook.posts) == 2 and kitchen.waiting() == []
+    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision.withdrawn"]
+    gone = ("waiting demo: 0 wait on user, 0 new, 1 gone", "quiet", False)
+    assert gone in logged(kitchen)
 
 
 def test_what_jbus_finds_that_no_rule_covers_is_a_condition_and_starts_no_post(kitchen):

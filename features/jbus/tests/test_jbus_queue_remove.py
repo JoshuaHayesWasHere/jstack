@@ -151,10 +151,8 @@ def test_the_waiting_list_drops_a_removed_row_at_once_and_sends_no_event_for_it(
     kitchen.webhook.posts.clear()
     kitchen.poll(LATER)
     assert kitchen.webhook.posts == [] and kitchen.t3.messages == {}
-    listed, decided, removed = kitchen.lines()
+    listed, removed = kitchen.lines()
     assert listed == "waiting demo: 1 wait on user, 1 new (approve alpha), 0 gone"
-    assert decided.startswith("decision alpha: approve alpha: jbus --project demo queue approve")
-    assert decided.endswith('a row with no approval of its brief. Reply: "demo approve alpha: go"')
     assert removed == f"queue demo: removed alpha, {AT} by user"
 
 
@@ -170,6 +168,8 @@ def test_a_removal_that_lands_during_a_pass_raises_no_approve_decision(kitchen, 
 
     monkeypatch.setattr(waiting, "keep", removed_first)
     kitchen.poll()
+    monkeypatch.setattr(waiting, "keep", kept)
+    kitchen.poll(LATER)
     assert [line.split(":")[0] for line in kitchen.lines("decision")] == ["decision beta"]
     listed = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert [one["key"] for one in listed] == ["approve:beta"]
@@ -185,6 +185,7 @@ def test_a_row_whose_brief_is_missing_or_empty_raises_no_approve_decision(kitche
         stored = kitchen.state / "briefs" / "alpha.md"
         stored.write_text("") if emptied else stored.unlink()
         kitchen.poll(LATER)
+        kitchen.poll(LATER + timedelta(minutes=1))
         assert [line.split(":")[0] for line in kitchen.lines("decision")] == ["decision beta"]
         listed = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
         assert [one["key"] for one in listed] == ["approve:beta"]
