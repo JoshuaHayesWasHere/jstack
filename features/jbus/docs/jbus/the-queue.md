@@ -294,7 +294,7 @@ The bot gives a go or an answer with `POST /act` on `jbus view`, with a JSON bod
 `seen` may be left out, and so may `keeps`, which is false then.
 The route takes the bot's key, `Authorization: Bearer <key>`, and refuses any request without the right one with 401, from loopback or any other peer, whatever its `X-Forwarded-For` says.
 jbus keeps only the key's sha256, in `~/.local/state/jbus/bot-key.json`, and compares it in constant time.
-`jbus bot key` makes a new key, prints it once for you to hand to the bot, and replaces the stored hash: it is yours to run.
+`jbus bot key` makes a new key, prints it once for you to hand to the bot, and replaces the stored hash: it is yours to run, and it is refused in an agent's session (`CLAUDE_CODE_SESSION_ID` set).
 The route checks the request's `Host` as the view's other routes do, and takes no `Origin`.
 A refused act answers 409 with its line as `error` and the act as `act`, and a done, gated or noop act answers 200 with the act.
 An answer from the bot closes a gate that does not hold; on a gate that holds it is refused, and the gate stays open.

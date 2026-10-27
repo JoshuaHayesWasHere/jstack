@@ -16,7 +16,7 @@ from jbus import acts, item, questions, queue, waiting, wake
 from jbus import view as jview
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, Kitchen
-from test_jbus_queue import add, brief, rows, sha12
+from test_jbus_queue import add, adds, approves, batch, brief, rows, sha12
 from view.scene import free_port
 
 HOME, MESSAGE = "mcp:a-home", "a-message-of-his"
@@ -38,7 +38,9 @@ class Route:
     """The view's server, and the bot's key that `jbus bot key` made."""
 
     def __init__(self, kitchen):
-        code, said = kitchen.main("bot", "key")
+        with kitchen.monkeypatch.context() as shell:
+            shell.delenv(queue.SESSION)
+            code, said = kitchen.main("bot", "key")
         assert code == 0, said
         self.key = said.splitlines()[0]
         sources = view_state.Sources(
@@ -378,3 +380,24 @@ def test_the_bots_answer_that_keeps_a_go_gates_default_is_a_go_and_a_door_still_
     )
     assert rows(kitchen)["door"]["approved"] == ""
     assert questions.question(kitchen.state, numbers["door"]).answer is None
+
+
+def test_an_agents_session_cannot_make_the_bots_key(kitchen, route):
+    kept = (kitchen.state_dir / acts.KEY).read_text()
+    assert kitchen.main("bot", "key") == (1, f"{acts.BOT_KEY_SESSION}\n")
+    assert (kitchen.state_dir / acts.KEY).read_text() == kept
+    assert acts.is_bot(kitchen.state_dir, f"Bearer {route.key}")
+
+
+def test_a_batch_that_adds_a_brief_that_holds_and_approves_it_is_refused(kitchen):
+    add(kitchen, "alpha", approve=False)
+    held = brief("gamma", HOLDS)
+    text = batch(adds("gamma", "--priority 1", held), approves("gamma", sha12(held)))
+    code, said = kitchen.main("queue", "apply", stdin=text)
+    assert (code, said) == (
+        1,
+        "refused: approve gamma in a batch: its brief holds for rewrites history, so its go goes "
+        "by jbus queue approve alone, and nothing in the batch was applied\n",
+    )
+    assert "gamma" not in rows(kitchen)
+    assert logged(kitchen) == []

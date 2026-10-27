@@ -52,6 +52,10 @@ from jbus.t3 import typed
 
 LOG = "acts.jsonl"
 LOCK = "acts.lock"
+BOT_KEY_SESSION = (
+    "refused: jbus bot key runs in an agent's session: the bot's key is the user's to make, "
+    "in a shell of their own, and the stored key is as it was"
+)
 KEY = "bot-key.json"
 GO_OPTIONS = {"t3-message": "message", "lavish-page": "page", "typed": "word", "answer": "answer"}
 """The option of `jbus queue approve` that each source `--evidence` may spell is."""
@@ -301,6 +305,8 @@ def new_key(state_dir: Path, now: datetime) -> str:
 
 
 def _bot(args: argparse.Namespace, config: Config) -> int:
+    if os.environ.get(queue.SESSION):
+        raise Refused(BOT_KEY_SESSION)
     key = new_key(config.state_dir, datetime.now(UTC))
     print(key)
     print(
@@ -371,15 +377,20 @@ def go(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
 
 
 def batch(run: Pass, asks: queue.Asks, args: argparse.Namespace, text: str) -> list[str]:
-    """`jbus queue apply` with its approve lines as acts: a go on a brief that holds is refused
-    in a batch, since its door is checked by `jbus queue approve` alone, and each go the batch
-    made is logged once the batch is done."""
+    """`jbus queue apply` with its approve lines as acts: a go on a brief that holds, the one
+    stored or one the batch adds, is refused in a batch, since its door is checked by
+    `jbus queue approve` alone, and each go the batch made is logged once the batch is done."""
     kind = getattr(args, "as_", None) or "home"
     if kind != "home":
         raise Refused(f"refused: --as {kind}: a batch acts as the home, and nothing was applied")
-    gos = [verb for _, verb in queue.parse(text) if isinstance(verb, queue.Approve)]
+    lines = [verb for _, verb in queue.parse(text)]
+    gos = [verb for verb in lines if isinstance(verb, queue.Approve)]
     for verb in gos:
-        held = party.doors(queue.brief(run.state, verb.slug) or "")
+        briefs = [queue.brief(run.state, verb.slug) or ""]
+        briefs += [
+            one.text for one in lines if isinstance(one, queue.Add) and one.slug == verb.slug
+        ]
+        held = tuple(dict.fromkeys(door for one in briefs for door in party.doors(one)))
         if held:
             raise Refused(
                 f"refused: approve {verb.slug} in a batch: its brief holds for "

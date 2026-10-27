@@ -478,7 +478,10 @@ def test_a_home_closes_no_gate_that_holds_in_its_gates_file_and_the_pass_says_so
     assert [one for one in said if "question 2" in one] == [line]
     assert [one["key"] for one in listed(kitchen)] == ["gate:q2"]
     assert [one for one in kitchen.poll(later(20)) if "question 2" in one] == []
-    assert answer(kitchen, 2, "yes", default=True)[0] == 0
+    assert answer(kitchen, 2, "yes", default=True)[0] == 1
+    kitchen.t3.says("mcp:a-home", "yes-2", "yes")
+    argv = ("--as", "user", "answer", "2", "--message", "mcp:a-home/yes-2", "--default")
+    assert kitchen.main(*argv)[0] == 0
     assert records(kitchen)["records"][1]["answer"]["closed_by"] == "jbus answer"
 
 
