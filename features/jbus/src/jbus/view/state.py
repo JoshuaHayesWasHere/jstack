@@ -15,7 +15,7 @@ pressure, the file slots of `/tmp` and the plan's limits. It reads no config of 
 projects are the directories of the state directory that have a `queue.json`, and a
 project's home is the directory of its name. It also reads `leftover.json` where a pass
 wrote one (`jbus.leftover`), and the log of what the outbox sent, `outbox.jsonl`
-(`jbus.outbox`). It never opens the queue of events that waits for the webhook,
+(`jbus.outbox`). It never opens the queue of events that waits for the home thread,
 `outbox.json`, or the stored token, and it writes nothing. The one setting it takes is the
 user's time zone (`jsettings`), and it reads a time with no zone as a time in that zone.
 
@@ -1518,8 +1518,6 @@ def _wrong(
 
 
 USER, ROOT_HOME, CREW = "user", "root home", "crew"
-REFUSED = re.compile(r"\b(?:401|403)\b|Unauthorized|Bad credentials|Forbidden")
-"""A token GitHub refuses: only the user can give a new one."""
 CHECK_TOLD = ("failed", "refailed")
 """The outbox's templates that tell a crew its pull request's check failed (`jbus.rebase`)."""
 
@@ -1537,11 +1535,9 @@ def _ci(read: Read, one: dict[str, Any]) -> tuple[str, str]:
 
 
 def _bus(read: Read, one: dict[str, Any]) -> tuple[str, str]:
-    """Wakes that fail on a token GitHub refuses, or on the home thread (T3 Code not answering),
-    are the user's. Any other failure of the bus is the root home's."""
-    if REFUSED.search(one["cause"]) or one["cause"].startswith("wakes to the home thread"):
-        return USER, ""
-    return ROOT_HOME, ""
+    """Wakes go to the home thread through T3 Code alone, so wakes that fail reach no agent, and
+    are the user's."""
+    return USER, ""
 
 
 def _unasked(read: Read, one: dict[str, Any]) -> tuple[str, str]:

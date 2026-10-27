@@ -80,7 +80,7 @@ An entry of the bus or of a source with the same subject and cause in several pr
 A project's red reasons (`broken`) are built from the same list, so the two never disagree.
 
 Each thing wrong has an `owner`, by one rule for each kind (`OWNERS` in `features/jbus/src/jbus/view/state.py`): the crew of its row, the home of its row, the root home for a fault of the project or the machine, or `user`.
-It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a token GitHub refuses, or T3 Code not answering.
+It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a wake the home thread does not take, or T3 Code not answering.
 A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `outbox.jsonl`, the leftover record or the main-red row.
 `wrong`, the band's wrong tier, the since line and a project's red reasons hold only the user's entries.

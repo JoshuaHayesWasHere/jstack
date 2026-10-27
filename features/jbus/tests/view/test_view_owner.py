@@ -17,8 +17,7 @@ from view.walk import sources
 
 RED = "badc0de" + "1" * 33
 FIX = "main-red-badc0de11111"
-UNAUTHORIZED = "HTTP Error 401: Unauthorized"
-DOWN = "HTTP Error 502: Bad Gateway"
+UNTAKEN = "T3 Code did not take the wake: t3_thread_send: the thread takes no messages"
 
 
 def stack(scene):
@@ -162,16 +161,19 @@ def test_a_red_main_with_its_fix_row_queued_is_the_fix_rows_and_not_the_users(
     assert [one for one in stack(scene)["wrong"] if one["kind"] == "main"] == []
 
 
-def test_a_bus_whose_webhook_github_refuses_with_401_is_the_users_and_in_the_band(
+def test_a_bus_whose_wakes_the_home_thread_does_not_take_is_the_users_and_in_the_band(
     tmp_path, monkeypatch
 ):
     scene = Scene(tmp_path, monkeypatch)
-    status(scene, failed_wakes=3, last_error=UNAUTHORIZED)
+    status(scene, failed_wakes=3, last_error=UNTAKEN)
     given = stack(scene)
     (bus,) = [one for one in given["wrong"] if one["kind"] == "bus"]
     assert (bus["owner"], bus["fixing"]) == ("user", None)
     (item,) = [one for one in given["glance"]["items"] if one["tier"] == "wrong"]
-    assert (item["kind"], item["cause"]) == ("bus", f"wakes to its webhook fail: {UNAUTHORIZED}")
+    assert (item["kind"], item["cause"]) == (
+        "bus",
+        f"wakes to the home thread fail: {UNTAKEN}",
+    )
     assert not given["glance"]["calm"]
 
 
@@ -182,7 +184,6 @@ def test_the_band_is_calm_while_every_fault_has_an_agent_owner(tmp_path, monkeyp
     (scene.home / "gates.md").unlink()
     scene.passed(20, threads=[out("crew: jam-jar", "hung", minutes=25)])
     scene.write("main.json", {"at": iso(ago(minutes=12)), "main": RED, "check": "failed"})
-    status(scene, failed_wakes=3, last_error=DOWN)
     (scene.home / "home-id").write_text("mcp:root\n")
     assert {one["owner"] for one in wrongs(scene)} == {"root home"}
     given = stack(scene)
@@ -202,16 +203,8 @@ def _ci_unread(scene):
     (scene.root / "runs.json").write_text("{not json")
 
 
-def _bus_down(scene):
-    status(scene, failed_wakes=3, last_error=DOWN)
-
-
-def _bus_refused(scene):
-    status(scene, failed_wakes=3, last_error=UNAUTHORIZED)
-
-
-def _bus_home_thread(scene):
-    status(scene, failed_wakes=3, last_error=DOWN, wake="home")
+def _bus(scene):
+    status(scene, failed_wakes=3, last_error=UNTAKEN)
 
 
 def _source(scene):
@@ -257,9 +250,7 @@ def _idle(scene):
         (_main, "main", "root home"),
         (_ci_of_no_row, "ci", "root home"),
         (_ci_unread, "ci", "root home"),
-        (_bus_down, "bus", "root home"),
-        (_bus_refused, "bus", "user"),
-        (_bus_home_thread, "bus", "user"),
+        (_bus, "bus", "user"),
         (_source, "source", "root home"),
         (_unasked_github, "unasked", "root home"),
         (_unasked_t3, "unasked", "user"),
@@ -274,8 +265,8 @@ def test_each_row_of_the_owner_table_names_who_fixes_its_kind(
     tmp_path, monkeypatch, made, kind, owner
 ):
     """Each row of `state.OWNERS`: a fault of the project or the machine is the root home's, a
-    fault of a row is its home's, and the user's only where no agent can fix it: a token GitHub
-    refuses, T3 Code not answering, a fix that is a case of `gates.md`, or a cap."""
+    fault of a row is its home's, and the user's only where no agent can fix it: a wake the home
+    thread does not take, T3 Code not answering, a fix that is a case of `gates.md`, or a cap."""
     scene = Scene(tmp_path, monkeypatch)
     (scene.home / "home-id").write_text("mcp:root\n")
     made(scene)
