@@ -123,6 +123,30 @@ def homes_state(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path_factory.getbasetemp()))
 
 
+JBUS_DIRS = ("JBUS_CONFIG_DIR", "JBUS_STATE_DIR")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def jbus_dirs_of_the_run(tmp_path_factory):
+    """Point `JBUS_CONFIG_DIR` and `JBUS_STATE_DIR` at the run's own directories, under every
+    test's own (`jbus_dirs`). A test that calls `monkeypatch.undo()` takes back what it, the
+    kitchen and `jbus_dirs` set, and lands here, not on the machine's jbus. On 2026-10-26 such
+    an undo, then a pass, ran a pass on the real state with the kitchen's clock."""
+    with pytest.MonkeyPatch.context() as run:
+        for name in JBUS_DIRS:
+            run.setenv(name, str(tmp_path_factory.mktemp(f"run-{name.lower()}")))
+        yield
+
+
+@pytest.fixture(autouse=True)
+def jbus_dirs(tmp_path_factory, monkeypatch):
+    """Point `JBUS_CONFIG_DIR` and `JBUS_STATE_DIR` at directories of the test's own, so a test
+    that sets neither never reaches the machine's jbus (`jbus.config_dir`, `jbus.state_dir`).
+    A test, or the kitchen, that needs its own sets the variables again itself."""
+    for name in JBUS_DIRS:
+        monkeypatch.setenv(name, str(tmp_path_factory.mktemp(name.lower())))
+
+
 @pytest.fixture(autouse=True)
 def no_step_files(monkeypatch):
     """Keep the step's own output and summary files, which GitHub Actions sets for the job that

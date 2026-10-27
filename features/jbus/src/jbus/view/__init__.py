@@ -722,7 +722,7 @@ def _sources() -> Sources:
     except jsettings.Invalid as error:
         raise Refused(f"refused: {error}") from error
     return Sources(
-        state_dir=Path(os.environ.get("JBUS_STATE_DIR") or home / ".local" / "state" / "jbus"),
+        state_dir=jbus.state_dir(),
         home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
         user=user,
     )

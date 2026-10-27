@@ -122,7 +122,7 @@ Rehome(m) ==
     /\ msg[m] # wake     \* jbus/alert.py:323 `moved(run)`; jbus/wake.py:540 `for old in self.left:`
     /\ msg' = Set(msg, m, wake)
     /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* The wake setting changes between home and webhook (jbus/__init__.py:117-118 `def to_home(self) ->
+\* The wake setting changes between home and webhook (jbus/__init__.py:118-119 `def to_home(self) ->
 \* bool: return self.wake in ("home", "both")`).
 ChangeWake ==
     /\ RoutesMove

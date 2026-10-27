@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import json
 import os
+import pwd
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -269,8 +270,36 @@ def current_kind(name: str, names: dict[str, str]) -> str:
     return name if now in LEVELS else now
 
 
+class RealDir(RuntimeError):
+    """`RealDir` means a test reached the machine's own jbus config or state: one that set
+    neither `JBUS_CONFIG_DIR` nor `JBUS_STATE_DIR`, or set one to the real directory."""
+
+
+def _own(name: str, under: str) -> Path:
+    """Return the directory `name` names, else `under` the home, and refuse the machine's own
+    while a test runs (pytest sets `PYTEST_CURRENT_TEST`, and a process a test starts inherits
+    it). The machine's own is under the account's home in the password database, which a test
+    that points `HOME` at a home of its own does not change. Outside a test it is never asked
+    for, so a uid with no entry there still gets its directory."""
+    path = Path(os.environ.get(name) or Path.home() / under)
+    test = os.environ.get("PYTEST_CURRENT_TEST", "").rsplit(" ", 1)[0]
+    if not test:
+        return path
+    real = Path(pwd.getpwuid(os.getuid()).pw_dir) / under
+    if path.expanduser().resolve() == real.resolve():
+        raise RealDir(
+            f"refused: the test {test} reached the real {real}: point {name} at the test's own"
+            " directory, as the autouse fixture in testing/jstack_fixtures.py does"
+        )
+    return path
+
+
 def config_dir() -> Path:
-    return Path(os.environ.get("JBUS_CONFIG_DIR") or Path.home() / ".config" / "jbus")
+    return _own("JBUS_CONFIG_DIR", ".config/jbus")
+
+
+def state_dir() -> Path:
+    return _own("JBUS_STATE_DIR", ".local/state/jbus")
 
 
 def private(path: Path) -> None:
@@ -448,7 +477,7 @@ def load(directory: Path | None = None) -> Config:
         room_passes=int(raw.get("room_passes", 10)),
         projects=tuple(projects),
         config_dir=directory,
-        state_dir=Path(os.environ.get("JBUS_STATE_DIR") or home / ".local" / "state" / "jbus"),
+        state_dir=state_dir(),
         home_dir=Path(os.environ.get("JBUS_HOME_DIR") or home / ".local" / "state" / "home"),
         user=user,
         ignored=ignored,
