@@ -1,12 +1,13 @@
-"""The needs-you list as an inbox: each need has one action, approve, answer or steer, and the
-default it goes ahead on, and an action taken on the page reaches jbus as the user's word by the
-path `jbus answer`, `jbus queue approve --word` and `jbus word` take. Once it is recorded, the
-need leaves the list."""
+"""The needs-you list as an inbox: each need has one action, approve, answer or a link to its
+home's thread, and the default it goes ahead on, and an action taken on the page reaches jbus as
+the user's word by the path `jbus answer` and `jbus queue approve --word` take. Once it is
+recorded, the need leaves the list."""
 
 from datetime import timedelta
 
 import pytest
 
+from jbriefs import home as jbriefs
 from jbus import queue, word
 from jbus.view.panels.you import panel as panel_you
 from test_jbus_kitchen import complete
@@ -67,9 +68,9 @@ def test_each_need_has_one_action_and_says_what_happens_if_the_user_does_nothing
         "config": "open",
         "gate": "answer",
         "approve": "approve",
-        "row": "steer",
-        "left": "steer",
-        "hold": "steer",
+        "row": "thread",
+        "left": "thread",
+        "hold": "thread",
     }
     assert all(one["default"] for one in found)
     by = {one["kind"]: one for one in found}
@@ -78,7 +79,9 @@ def test_each_need_has_one_action_and_says_what_happens_if_the_user_does_nothing
     assert by["hold"]["default"] == panel_you.IDLE["hold"]
     assert by["approve"]["sha"] == queue.brief_sha(queue.brief(scene.state, "tea-kettle"))[:12]
     assert {one["sha"] for one in found if one["kind"] != "approve"} == {""}
-    assert {one["steered"] for one in found} == {None}
+    home = jbriefs.thread_of(scene.home)
+    assert {one["thread"] for one in found if one["act"] == "thread"} == {home}
+    assert {one["thread"] for one in found if one["act"] != "thread"} == {""}
 
 
 def test_approve_keeps_the_users_word_gives_the_row_its_go_on_it_and_the_need_leaves(counter):
@@ -145,37 +148,17 @@ def test_undo_while_a_launch_is_out_is_refused_and_keeps_no_word(counter):
     assert set(words(counter)) == kept
 
 
-def test_steer_gives_the_users_line_to_the_home_and_the_need_moves_to_steered(counter):
-    """A gate of the home's own file is no question jbus holds, so the user steers it: the line
-    is a word for the home, and the need, which a pass gave its time, leaves the list for the
-    list of what was steered."""
+def test_a_need_the_user_writes_about_links_to_the_thread_of_its_home(counter):
+    """A gate of the home's own file is no question jbus holds, so the user writes about it in
+    the thread of its home: the need names that thread, and the panel takes no line of its own."""
     counter, served = counter
     (counter.kitchen.home / "gates.md").write_text(
         GATE.format(n=40, asked="which jar?", status="open", default="")
     )
     seen(counter)
     (one,) = [one for one in needs(served).values() if one["what"] == "which jar?"]
-    assert one["since"]
-    assert (one["act"], one["default"]) == ("steer", panel_you.IDLE["gate"])
-    status, said = act(served, "steer", {"subj": one["subj"], "words": "  the blue  one "})
-    assert status == 200, said
-    kept = words(counter)[said["word"]]
-    assert (kept.words, kept.by) == (f"{one['subj']}: the blue one", "user")
-    assert kept.thread == HOME and kept.sent_at
-    assert any(kept.id in sent["message"] for sent in counter.sends())
-    state = served.json("/state.json?project=demo")
-    assert "which jar?" not in [each["what"] for each in state["needs"]]
-    (moved,) = [each for each in state["steered"] if each["what"] == "which jar?"]
-    assert moved["steered"] == kept.kept_at
-
-
-@pytest.mark.parametrize(
-    "body", ["not json", {}, {"subj": "fig-jam"}, {"subj": "fig-jam", "words": "   "}]
-)
-def test_a_steer_that_is_not_the_shape_is_400_and_keeps_nothing(counter, body):
-    counter, served = counter
-    status, _ = served.write(body, path="/panel/you/steer?project=demo")
-    assert status == 400
+    assert (one["act"], one["thread"], one["default"]) == ("thread", HOME, panel_you.IDLE["gate"])
+    assert act(served, "steer", {"subj": one["subj"], "words": "the blue one"})[0] == 404
     assert words(counter) == {}
 
 
@@ -201,7 +184,7 @@ def counts(served):
     return len(state["needs"]), row["waits"], len(stack["needs"])
 
 
-def test_one_count_on_every_screen_and_a_steered_need_leaves_each_of_them(counter):
+def test_one_count_on_every_screen_and_the_soonest_default_leads(counter):
     """The page says "nothing falls due before" the first `due` of `proceeds`, so the soonest
     default leads that list, in the project and across projects."""
     counter, served = counter
@@ -216,10 +199,6 @@ def test_one_count_on_every_screen_and_a_steered_need_leaves_each_of_them(counte
     for read in (served.json("/state.json?project=demo"), served.json("/stack.json")):
         due = [one["due"] for one in read["proceeds"]]
         assert len(due) == 2 and None not in due and due[0] == min(due), due
-    (one,) = [one for one in needs(served).values() if one["what"] == "which jar?"]
-    status, said = act(served, "steer", {"subj": one["subj"], "words": "the blue one"})
-    assert status == 200, said
-    assert counts(served) == tuple(n - 1 for n in before)
 
 
 def test_a_go_given_before_the_brief_changed_still_needs_the_user(counter):
@@ -237,25 +216,3 @@ def test_a_go_given_before_the_brief_changed_still_needs_the_user(counter):
     assert [key for key, one in needs(served).items() if one["slug"] == "oat-milk"] == [
         "row:oat-milk"
     ]
-
-
-def test_a_steered_need_that_keeps_no_time_stays_on_every_count_with_the_time_of_the_line(
-    counter,
-):
-    """A gate of the home's file has no `since` until a pass sees it, so no change after the
-    user's line could ever bring it back: it stays on the list and on each count, and says
-    when it was steered."""
-    counter, served = counter
-    (counter.kitchen.home / "gates.md").write_text(
-        GATE.format(n=40, asked="which jar?", status="open", default="")
-    )
-    (one,) = [one for one in needs(served).values() if one["what"] == "which jar?"]
-    assert one["since"] is None
-    before = counts(served)
-    status, said = act(served, "steer", {"subj": one["subj"], "words": "the blue one"})
-    assert status == 200, said
-    assert counts(served) == before
-    kept = words(counter)[said["word"]]
-    (still,) = [each for each in needs(served).values() if each["what"] == "which jar?"]
-    assert still["steered"] == kept.kept_at
-    assert served.json("/state.json?project=demo")["steered"] == []

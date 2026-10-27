@@ -5,8 +5,8 @@ what the go's rules refuse, with a sentence, writing nothing."""
 import pytest
 
 from jbus import chat, item
-from view.test_view_answer import Counter
 from view.scene import Served
+from view.test_view_answer import Counter
 
 
 @pytest.fixture
@@ -79,8 +79,7 @@ def test_chat_refuses_a_go_whose_words_name_no_item_or_that_is_not_the_users(
 
 
 def approve(served, name, seen):
-    body = {"item": name, "action": "approve", "words": "", "seen_event": seen, "confirm": False}
-    return served.write(body, path="/steer?project=demo")
+    return served.write({"item": name, "seen_event": seen}, path="/approve?project=demo")
 
 
 def test_the_view_records_the_users_go_and_refuses_one_the_item_moved_past(counter):
@@ -98,6 +97,9 @@ def test_the_view_records_the_users_go_and_refuses_one_the_item_moved_past(count
         assert status == 409
         assert f"{name} moved since {seen}" in said["say"]
         assert approve(served, "w99", seen)[0] == 404
-        assert served.write({"item": name}, path="/steer?project=demo")[0] == 400
+        assert served.write({"item": name}, path="/approve?project=demo")[0] == 400
+        assert (
+            served.write({"item": name, "seen_event": seen}, path="/steer?project=demo")[0] == 405
+        )
     finally:
         served.close()

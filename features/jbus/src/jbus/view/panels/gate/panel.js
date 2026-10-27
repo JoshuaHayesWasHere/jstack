@@ -17,7 +17,7 @@ function dGate(n) {
   h += w.options.length ? '<h3>' + w.options.length + ' options the thread proposed</h3><div class="opts">' + w.options.map(function (o, i) {
     return '<button type="button" class="opt" data-opt="' + i + '" aria-pressed="' + (OPEN_GATE.opt === i) + '"><b>' + esc(o.name) + '</b>' + (o["default"] ? ' <i class="om tk">taken as default</i>' : "") + (o.recommended ? ' <i class="om rc">the thread recommends</i>' : "") + '<small>' + esc(o.follows) + '</small></button>';
   }).join("") + '</div>' : '<h3>Options</h3><p class="src">None are on record for this gate. Accept the default, or answer in your own words.</p>';
-  h += '<textarea id="gwords" aria-label="Your own words" placeholder="Or steer in your own words">' + esc(OPEN_GATE.words) + '</textarea><div id="gfoot">' + gateFoot(w) + '</div>';
+  h += '<textarea id="gwords" aria-label="Your own words" placeholder="Or answer in your own words">' + esc(OPEN_GATE.words) + '</textarea><div id="gfoot">' + gateFoot(w) + '</div>';
   if (t && t.pr) h += ghBox(w.slug);
   return h;
 }

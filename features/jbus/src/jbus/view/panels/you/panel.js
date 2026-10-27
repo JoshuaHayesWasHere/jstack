@@ -1,13 +1,12 @@
 var NEEDS_FOR = 10, FIRST = 3;
 var ACCEPTING = {}, SAID = [], FORM = {}, TYPED = {}, UNFOLDED = "";
 var LOST_APPROVAL = "The view server did not answer, so it is not known whether the approval was written. Read the list again before you approve.";
-var LOST_LINE = "The view server did not answer, so it is not known whether your line was kept. Read the list again before you send it again.";
-var ACT_SAYS = { answer: "Sending your answer", approve: "Approving it", steer: "Sending your line" };
+var ACT_SAYS = { answer: "Sending your answer", approve: "Approving it" };
 function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
 function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
-function acts(w) { return w.act === "answer" ? w.answerable : w.act === "approve" ? (!!w.item || !!w.sha) : w.act === "steer"; }
-function typed(w) { return !!(w.act === "steer" || (w.act === "answer" && FORM[needId(w)])); }
+function acts(w) { return w.act === "answer" ? w.answerable : w.act === "approve" ? (!!w.item || !!w.sha) : false; }
+function typed(w) { return !!(w.act === "answer" && FORM[needId(w)]); }
 function saysSlug(line, slug) { return (" " + line + " ").split(/[^\w.-]+/).indexOf(slug) >= 0; }
 function oneList(src) {
   return src.needs.concat(src.proceeds).slice().sort(function (a, b) {
@@ -22,7 +21,6 @@ function needMeta(w) {
   if (w.sha) bits.push("brief <code>" + esc(w.sha) + "</code>");
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
-  if (w.steered) bits.push("you steered it at " + esc(hm(ms(w.steered))));
   if (w.risk !== "reversible") bits.push(esc(w.risk));
   if (w.unblocks.length) bits.push("unblocks " + esc(w.unblocks.slice(0, 2).join(", ")) + (w.unblocks.length > 2 ? " and " + (w.unblocks.length - 2) + " more" : ""));
   return bits.join(" &middot; ");
@@ -45,19 +43,20 @@ function fallLine(src) {
 }
 function needForm(w) {
   var id = needId(w), keep = w.act === "answer" && w.verb === "Accept default";
-  var hint = w.act === "steer" ? "Your line for its home" : keep ? "Your answer, or leave it empty to keep the default" : "Your answer";
+  var hint = keep ? "Your answer, or leave it empty to keep the default" : "Your answer";
   return '<div class="nf"><input type="text" maxlength="600" data-type="' + esc(id) + '" value="' + esc(TYPED[id] || "") + '" placeholder="' + esc(hint) + '" aria-label="' + esc(hint + ": " + w.what) + '">' +
-    '<button type="button" class="btn fill" data-accept="' + esc(id) + '">' + (w.act === "steer" ? "Send" : keep && !(TYPED[id] || "").trim() ? "Keep default" : "Send") + '</button>' +
+    '<button type="button" class="btn fill" data-accept="' + esc(id) + '">' + (keep && !(TYPED[id] || "").trim() ? "Keep default" : "Send") + '</button>' +
     (w.act === "answer" ? '<button type="button" class="btn" data-shut="' + esc(id) + '">Cancel</button>' : "") + '</div>';
 }
 function needAct(w) {
   var id = needId(w), now = ACCEPTING[id];
   if (now) return '<span class="acc">' + (now.sent ? saysNow(now) + "&hellip;" : saysNow(now) + ' in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
+  if (w.act === "thread" && w.thread) return '<a class="btn" href="t3-thread://v1/' + esc(w.thread) + '" aria-description="Opens the thread of its home in T3 Code, where you write about it">Write to its home</a>';
   if (!acts(w)) {
     if (PROJECT) return '<button type="button" class="btn" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
     return '<a class="btn" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
   }
-  if (w.act === "steer" || FORM[id]) return "";
+  if (FORM[id]) return "";
   if (w.act === "approve") return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Approves ' + esc(w.item || w.slug) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">Approve</button>';
   var form = '<button type="button" class="btn" data-form="' + esc(id) + '" aria-description="Opens a box for your own answer to question ' + esc(needNumber(w)) + '">Answer&hellip;</button>';
   if (w.verb !== "Accept default") return form.replace('class="btn"', 'class="btn fill"');
@@ -77,10 +76,9 @@ function lastPass() {
   return said ? " &middot; " + said : "";
 }
 function saidRows() {
-  var src = PROJECT ? S : null, steered = src && src.steered ? src.steered : [];
   return SAID.map(function (s) {
     return '<p class="' + (s.bad ? "will bad" : "will none") + '"><b>' + esc(s.say) + '</b>' + (s.undo ? ' <button type="button" class="btn" data-unsay="1">Undo the approval</button>' : "") + '</p>';
-  }).join("") + (steered.length ? '<p class="stl">Steered, with its home: ' + steered.map(function (w) { return '<a href="' + esc(needLink(w)) + '">' + esc(w.subj || w.what) + '</a> at ' + esc(hm(ms(w.steered))); }).join(", ") + '. Each comes back here if it changes after your line.</p>' : "");
+  }).join("");
 }
 function ticks() {
   [].forEach.call(document.querySelectorAll("#needs .cd"), function (el) {
@@ -140,7 +138,6 @@ function startAccept(id) {
   var w = findNeed(id);
   if (!w || ACCEPTING[id] || !acts(w)) return;
   var words = (TYPED[id] || "").trim();
-  if (w.act === "steer" && !words) { SAID = [{ say: "Write the line for its home first.", bad: true }]; renderNeeds(); return; }
   if (w.act === "answer" && !words && w.verb !== "Accept default") { SAID = [{ say: "This question has no default to keep: write your answer first.", bad: true }]; renderNeeds(); return; }
   SAID = [];
   var now = ACCEPTING[id] = { left: NEEDS_FOR, sent: false, w: w, words: words };
@@ -167,7 +164,7 @@ function sendAccept(id) {
   function over(say, bad, undo) { delete ACCEPTING[id]; delete FORM[id]; if (!bad) delete TYPED[id]; SAID = [{ say: say, bad: bad, undo: undo }]; renderNeeds(); }
   function told(r, lost) { return r && r.say ? r.say : r && r.error ? "The server refused it: " + r.error + "." : lost; }
   if (w.act === "approve" && w.item) {
-    ask("/steer" + here, { item: w.item, action: "approve", words: "", seen_event: w.seen, confirm: false }).then(function (r) {
+    ask("/approve" + here, { item: w.item, seen_event: w.seen }).then(function (r) {
       over(told(r, LOST_APPROVAL), !r || r.http !== 200);
       poll(true);
     }, function () { over(LOST_APPROVAL, true); });
@@ -179,13 +176,6 @@ function sendAccept(id) {
       over(told(r, LOST_APPROVAL), !ok, ok ? { project: w.project, slug: w.slug, word: r.word } : null);
       poll(true);
     }, function () { over(LOST_APPROVAL, true); });
-    return;
-  }
-  if (w.act === "steer") {
-    ask("/panel/you/steer" + here, { subj: w.subj, words: now.words }).then(function (r) {
-      over(told(r, LOST_LINE), !r || r.http !== 200);
-      poll(true);
-    }, function () { over(LOST_LINE, true); });
     return;
   }
   ask("/answer" + here, now.words ? { numbers: [Number(needNumber(w))], words: now.words } : { numbers: [Number(needNumber(w))] }).then(function (r) {
@@ -251,7 +241,7 @@ function approveLine(w) {
 }
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.needs.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes, and also hold the gates that go ahead on their default. A gate that jbus holds is answered here. A work item is approved and steered in its own drawer.</p>';
+  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes, and also hold the gates that go ahead on their default. A gate that jbus holds is answered here. A work item is approved in its own drawer.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;

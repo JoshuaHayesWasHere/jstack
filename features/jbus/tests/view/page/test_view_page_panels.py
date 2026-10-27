@@ -53,15 +53,14 @@ def test_the_page_is_one_document_that_loads_nothing_and_asks_only_its_own_serve
     assert FONT in page
     asks = [
         "/answer",
+        "/approve",
         "/panel/",
         "/panel/pipeline.json",
         "/panel/steps.json?project=",
         "/panel/you/approve",
         "/panel/you/hold?project=",
-        "/panel/you/steer",
         "/stack.json",
         "/state.json",
-        "/steer",
         "/task/",
         "/usage",
     ]
