@@ -219,11 +219,12 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     run.run("git", "fetch", "-q", "origin", f"+refs/heads/{onto}:refs/remotes/origin/{onto}")
     if run.run("git", "cat-file", "-e", f"{head}^{{commit}}").returncode:
         run.run("git", "fetch", "-q", "origin", f"refs/pull/{number}/head")
-    for commit, of in ((merge, f"origin/{onto}"), (last, head)):
-        if run.run("git", "merge-base", "--is-ancestor", commit, of).returncode:
-            return _left(run, slug, f"{of[:40]} does not hold {commit[:12]} here")
+    if run.run("git", "merge-base", "--is-ancestor", merge, f"origin/{onto}").returncode:
+        return _left(run, slug, f"origin/{onto} does not hold {merge[:12]} here")
     if not run.run("git", "merge-base", "--is-ancestor", merge, head).returncode:
         return head
+    if run.run("git", "merge-base", "--is-ancestor", last, head).returncode:
+        return _left(run, slug, f"its head does not hold {last[:12]} here")
     scratch = Path(tempfile.mkdtemp(prefix=f"jbus-move-{slug}-"))
     tree = scratch / "tree"
     try:

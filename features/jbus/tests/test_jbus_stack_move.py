@@ -154,3 +154,62 @@ def test_a_push_the_lease_refuses_gets_the_moved_send(stack):
     kitchen.poll(NOW)
     assert stack.origin("two") == pushed
     assert len(sends(kitchen)) == 1
+
+
+def test_a_link_jbus_moved_whose_line_was_not_written_is_not_moved_or_told_again(stack):
+    """The push went and the pass ended before the brief's line was written: the next pass
+    finds the head already on main, writes the line, and tells the crew nothing."""
+    kitchen = stack.kitchen
+    import jbus.stack
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(jbus.stack, "_rewrite", lambda *given: None)
+        kitchen.poll(NOW)
+    moved = stack.origin("two")
+    assert moved != stack.head and head_line(kitchen) == stacks.Stacked("one", "one")
+    two = {**kitchen.opened("two", 11), "headRefOid": moved, "baseRefName": "main"}
+    kitchen.set("open.json", [two])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert stack.origin("two") == moved
+    assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
+    assert sends(kitchen) == []
+
+
+def test_a_crew_at_work_is_moved_by_jbus_once_its_turn_ended(stack):
+    kitchen = stack.kitchen
+    for thread in kitchen.t3.threads:
+        thread["status"] = "running"
+    kitchen.poll(NOW)
+    assert stack.origin("two") == stack.head and sends(kitchen) == []
+    assert head_line(kitchen) == stacks.Stacked("one", "one")
+    for thread in kitchen.t3.threads:
+        thread["status"] = "completed"
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert git(kitchen.origin, "rev-parse", "two^") == stack.merge
+    assert sends(kitchen) == []
+
+
+def test_a_link_whose_reviewer_is_still_out_gets_the_moved_send(stack):
+    kitchen = stack.kitchen
+    path = kitchen.home / "tasks" / "two.md"
+    path.write_text(path.read_text() + "\n## Result\nReviewer: mcp:a-reviewer #1\n")
+    kitchen.poll(NOW)
+    assert stack.origin("two") == stack.head
+    (said,) = [given["message"] for given in sends(kitchen)]
+    assert "one merged as" in said and '"A link that moved"' in said
+
+
+def test_a_crew_worktree_that_cannot_follow_the_move_is_said(stack):
+    """The push went, so the link moved: the line is written, and the pass says the crew's
+    worktree stayed behind."""
+    kitchen = stack.kitchen
+    tree = kitchen.root / "two-tree"
+    git(kitchen.checkout, "worktree", "add", "-q", str(tree), stack.head, "-b", "two")
+    gitdir = git(tree, "rev-parse", "--absolute-git-dir")
+    (kitchen.root / gitdir / "index.lock").write_text("")
+    said = kitchen.poll(NOW)
+    moved = stack.origin("two")
+    assert moved != stack.head and git(tree, "rev-parse", "HEAD") == stack.head
+    assert any(f"could not follow the move to {moved[:12]}" in line for line in said)
+    assert head_line(kitchen) == stacks.Stacked("one", "main", stack.merge)
+    assert sends(kitchen) == []
