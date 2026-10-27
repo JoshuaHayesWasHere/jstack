@@ -347,9 +347,11 @@ It refuses a row that launched, as `refused: <slug> launched, and its crew has i
 jbus's pass withdraws a fix row whose red has gone the same way, with `jbus` as its `by`.
 
 `jbus queue rename <old> <new>` moves the row to a new slug and keeps its priority, depends, merge_after, entry and go.
+A row that was its own plan entry keeps `<old>` as its entry, so it stays in that plan entry.
 It rewrites the brief's `# <old>:` head line to `# <new>:`, and the rest of the brief is the one the go was given for, so a go that held for the old brief holds for the renamed one.
 It prints `renamed <old> to <new>: brief <sha12>, its go holds`, or the same line without `, its go holds` for a row whose go did not hold.
 The old slug goes into `removed.json` with `why: renamed to <new>`, so no `add` brings it back, and the pass gives the renamed row a work item of its own.
+jbus writes the renamed brief and the table before it retires the old slug, so a rename cut short leaves the row under its new slug with its go.
 It refuses a row that launched, a row whose slug another row names in its depends, merge_after, entry or go, a new slug that is taken or was removed, and a new slug that is not a slug.
 
 If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse.

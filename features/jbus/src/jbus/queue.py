@@ -1346,8 +1346,9 @@ def _twin(batch: _Batch, verb: Add) -> None:
 def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     """Move an unlaunched row to the slug `new`, with its columns and its go. The brief's head
     line is rewritten, and the rest of it is the brief the go was given for, so a go that held
-    is bound to the renamed brief. The old slug goes into `removed.json`, so the pass drops its
-    item and no add brings it back; the row gets its item anew from the pass."""
+    is bound to the renamed brief. A row that was its own plan entry keeps the old slug as its
+    entry. The old slug goes into `removed.json`, so the pass drops its item and no add brings it
+    back; the row gets its item anew from the pass."""
     rows, old, new = batch.rows, verb.slug, verb.new
     row = batch.row(old)
     _launching(row, asks)
@@ -1391,6 +1392,7 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
             row["rebound"] = fingerprint(renamed)
         row["brief_sha"] = brief_sha(renamed)
     row["slug"] = new
+    row.setdefault("entry", old)
     row.pop("item", None)
     batch.gone[old] = {"at": verb.at, "by": verb.by, "why": f"renamed to {new}"}
     batch.briefs[old] = None
@@ -1467,6 +1469,10 @@ def _run(
     writing it twice is the same as once. After that the batch takes the stored brief away,
     then writes the event and the table. A batch that dies there leaves a removal with a
     brief still stored or with no event, and neither brings the row back.
+
+    A rename writes the new brief and the table before `removed.json` retires the old slug, since
+    `load` drops a row whose slug is there: a batch that dies before that leaves the row under its
+    new slug, with its go, and the old slug not retired.
     """
     said = []
     out: dict[str, str | Refused] = {}
@@ -1510,6 +1516,12 @@ def _run(
         if batch.moves:
             with open(transitions_path(state), "a") as log:
                 log.writelines(json.dumps(move) + "\n" for move in batch.moves)
+        if any(isinstance(verb, Rename) for _, verb in verbs):
+            for slug, text in batch.briefs.items():
+                if text is not None:
+                    brief_path(state, slug).write_text(text)
+            rows.sort(key=order)
+            write_json(path(state), rows)
         if batch.gone != gone:
             write_json(removed_path(state), batch.gone)
         for slug, text in batch.briefs.items():

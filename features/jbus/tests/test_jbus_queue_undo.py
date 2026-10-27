@@ -115,6 +115,31 @@ def test_rename_moves_an_unlaunched_row_with_its_columns_and_its_go(kitchen):
     assert code == 1 and "a removed slug is not added again" in said
 
 
+def test_a_renamed_row_that_was_its_own_plan_entry_stays_in_that_entry(kitchen):
+    add(kitchen, "alpha")
+    assert queue_(kitchen, "rename", "alpha", "delta")[0] == 0
+    assert queue.entry(rows(kitchen)["delta"]) == "alpha"
+
+
+def test_a_rename_that_dies_before_it_retires_the_old_slug_keeps_the_row_and_its_go(
+    kitchen, monkeypatch
+):
+    add(kitchen, "alpha")
+    written = queue.write_json
+
+    def dies(where, value):
+        if where == queue.removed_path(kitchen.state):
+            raise OSError("the machine went down")
+        written(where, value)
+
+    monkeypatch.setattr(queue, "write_json", dies)
+    with pytest.raises(OSError):
+        queue.rename(kitchen.state, "alpha", "delta", RAN, "the demo home")
+    assert list(rows(kitchen)) == ["delta"] and gone(kitchen) == {}
+    code, said = queue_(kitchen, "verify", "delta")
+    assert (code, json.loads(said)["holds"]) == (0, True)
+
+
 @pytest.mark.parametrize(
     "scene, says",
     [
