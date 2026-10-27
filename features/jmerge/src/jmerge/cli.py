@@ -832,9 +832,14 @@ class Repo:
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose check failed waits, judged over today's base. Its check is
         its own fault, `red`, unless the base moved since the check started. Then GitHub merges
-        the base into it, and its check at the updated head decides."""
+        the base into it, and its check at the updated head decides, unless its last two check
+        runs failed a same test of its own (`rejudge.Repeated`): a merge would fail it again."""
         moved = None if one.started is None else self.moved(one.base, one.started)
-        if moved is None or not moved[1]:
+        if (
+            moved is None
+            or not moved[1]
+            or self.base_merge.repeats(one, moved[0], self.required[0])
+        ):
             return red
         return self.base_merge.of(one, moved[0])
 

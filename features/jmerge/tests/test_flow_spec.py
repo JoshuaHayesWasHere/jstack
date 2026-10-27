@@ -52,11 +52,11 @@ CITED = {
     "features/jmerge/src/jmerge/ready.py:953-954": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:298-301": "def red_only",
     "features/jmerge/src/jmerge/rows.py:87": "if not main.red",
-    "features/jmerge/src/jmerge/rejudge.py:64": 'was.get("tip")',
-    "features/jmerge/src/jmerge/cli.py:836": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:875": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:948": "self.red(one, default",
-    "features/jmerge/src/jmerge/rejudge.py:69": "self.ask(one)",
+    "features/jmerge/src/jmerge/rejudge.py:96": 'was.get("tip")',
+    "features/jmerge/src/jmerge/cli.py:837": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:880": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:953": "self.red(one, default",
+    "features/jmerge/src/jmerge/rejudge.py:76": "self.ask(one)",
 }
 
 
