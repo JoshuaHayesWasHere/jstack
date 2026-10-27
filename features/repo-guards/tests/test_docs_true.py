@@ -243,8 +243,10 @@ def test_the_walk_of_each_help_finds_the_verbs_under_verbs_and_which_flags_take_
         "approve",
         "hold",
         "remove",
+        "rename",
         "show",
         "verify",
+        "withdraw",
     ]
     assert bus.verbs["queue"].verbs["add"].flags == {
         "--priority": True,

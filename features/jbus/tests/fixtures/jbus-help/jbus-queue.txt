@@ -1,12 +1,17 @@
-usage: jbus queue [-h] {show,add,approve,hold,remove,apply,verify} ...
+usage: jbus queue [-h]
+                  {show,add,approve,hold,remove,withdraw,rename,apply,verify} ...
 
 positional arguments:
-  {show,add,approve,hold,remove,apply,verify}
+  {show,add,approve,hold,remove,withdraw,rename,apply,verify}
     show                the rows still open, as Markdown
     add                 a row, with its brief on stdin
     approve             record the go for the brief the user was shown
     hold                take a row's approval back: no launch, and no merge
     remove              take a row out of the queue for good
+    withdraw            take out a row that never launched, as the home that
+                        runs it: for a row of your own that is not needed
+    rename              move a row that never launched to a new slug, with its
+                        columns and its go
     apply               a batch of the four verbs on stdin, all or none
     verify              the row's approval record and whether it holds for a
                         brief, as JSON

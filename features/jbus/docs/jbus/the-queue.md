@@ -50,12 +50,12 @@ It prints only the rows still open.
 It leaves out a row that is `merged` or `done` with no reason to wait.
 A last line counts the rows it left out, as `<n> finished rows not shown: jbus queue show --all`, or `1 finished row not shown: jbus queue show --all` for one.
 `jbus queue show --all` prints every row.
-`add`, `approve`, `hold` and `remove` print the open rows after they run, with the same last line.
+`add`, `approve`, `hold`, `remove`, `withdraw` and `rename` print the open rows after they run, with the same last line.
 Each column has one writer.
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | `jbus queue add`, `approve`, `hold` and `remove`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item` and `merge_after`. `hold` sets `held`, and `approve` clears it. |
+| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | `jbus queue add`, `approve`, `hold`, `remove`, `withdraw` and `rename`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item` and `merge_after`. `hold` sets `held`, and `approve` clears it. |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line.
@@ -82,6 +82,18 @@ jbus queue approve <slug> --sha <sha12> --word <id>
 jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
+
+Two more verbs let a home undo a row of its own that never launched, and run only typed alone:
+
+```sh
+jbus queue rename <old> <new>
+jbus queue withdraw <slug> --why "<why>"
+```
+
+`add` refuses a brief that another row already has under another slug, while that row is queued, held, at a gate, launched or at a pull request.
+Two briefs are the same when they are the same with each one's `# <slug>:` head line taken out, and with the lines a launch writes (`Home:`, `Thread:`, `Green main:`, `Stacked on:`) left out as for a sha.
+It prints ``refused: <slug>'s brief is <other>'s (<status>): rename by `jbus queue rename <other> <slug>`, or withdraw one``, and queues nothing.
+A row that merged, failed or ended does not count, so a brief can be queued again once its first row is over.
 
 `add` checks the brief when a row is first queued, so you are never asked for a go on a brief that could not launch.
 The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, as `features/jbriefs/templates/brief.md` has them.
@@ -319,6 +331,28 @@ jbus moves its stored copy of the brief to `removed/<slug>.<sha12>.md` in the sa
 | The slug is no row. | `refused: the queue has no row <slug>` |
 
 A thread that ended or was settled does not stop a removal.
+
+`remove` by anyone but you withdraws a row that never launched instead of refusing it, and says so.
+Its line ends `withdrawn, not removed: only <user> removes a row, and <slug> never launched`, and `by` is the home that ran it, not the `--by` it typed.
+For a row that launched it is refused as `refused: <slug> launched, and only <user> removes a row that launched, not <by>`.
+
+## A home undoes its own row
+
+A home that queued a row by mistake takes it out or renames it itself, while the row has not launched: it has no thread, and it is queued, held or at a gate.
+Neither verb needs your word, since nothing of the row has run.
+
+`jbus queue withdraw <slug> --why "<why>"` takes the row out as a removal does: its line of `transitions.jsonl`, its slug in `removed.json` and its brief kept aside.
+Both records keep the `why`, and their `by` is the home that ran the command, as `the flow home`.
+It refuses a row that launched, as `refused: <slug> launched, and its crew has it`, and a row that another row waits on, as `remove` does.
+jbus's pass withdraws a fix row whose red has gone the same way, with `jbus` as its `by`.
+
+`jbus queue rename <old> <new>` moves the row to a new slug and keeps its priority, depends, merge_after, entry and go.
+A row that was its own plan entry keeps `<old>` as its entry, so it stays in that plan entry.
+It rewrites the brief's `# <old>:` head line to `# <new>:`, and the rest of the brief is the one the go was given for, so a go that held for the old brief holds for the renamed one.
+It prints `renamed <old> to <new>: brief <sha12>, its go holds`, or the same line without `, its go holds` for a row whose go did not hold.
+The old slug goes into `removed.json` with `why: renamed to <new>`, so no `add` brings it back, and the pass gives the renamed row a work item of its own.
+jbus writes the renamed brief and the table before it retires the old slug, so a rename cut short leaves the row under its new slug with its go.
+It refuses a row that launched, a row whose slug another row names in its depends, merge_after, entry or go, a new slug that is taken or was removed, and a new slug that is not a slug.
 
 If `removed.json` does not parse, jbus treats it as it treats a `queue.json` that does not parse.
 jbus refuses every `queue` verb until you mend the file, and a pass records `condition <project>: removed.json does not parse`.
