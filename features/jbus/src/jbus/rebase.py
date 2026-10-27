@@ -79,7 +79,7 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbriefs import findings
+from jbriefs import below, findings
 from jbriefs import parse as briefs
 from jbus import END_TURN, cancelled, dispatch, outbox, queue, read_json, verbs
 from jbus.passes import Pass
@@ -258,7 +258,7 @@ def tell(run: Pass, client: Client, world: World, lines: list[str]) -> None:
 def scoping(run: Pass, world: World, number: int, head: str) -> bool:
     """Say whether the brief of the pull request has a `Scoped reviewer:` line of this head."""
     slug = next((slug for slug, pull in world.open.items() if pull["number"] == number), "")
-    return bool(slug and briefs.reviewers(_brief(run, slug), "Scoped reviewer", head))
+    return bool(slug and below.reviewers(_brief(run, slug), "Scoped reviewer", head))
 
 
 def github(run: Pass, client: Client, world: World) -> None:
@@ -345,9 +345,9 @@ def owed(run: Pass, brief: str, head: str) -> bool:
     that already tells of the pull request. jbus alone merges, so no home waits to hear of a fix
     on green, and a brief that says `Review: after` owes no line.
     """
-    if "".join(briefs.line(brief, "Review:").split()[:1]) != "none":
+    if "".join(below.line(brief, "Review:").split()[:1]) != "none":
         return False
-    said_none = not all(map(briefs.launched, briefs.reviewers(brief, "Reviewer")))
+    said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
     return not (_launched(brief) or said_none or _reviewed(brief) or gated)
 
@@ -359,8 +359,8 @@ def reviewing(brief: str) -> bool:
 
 def _launched(brief: str) -> int:
     """Return how many reviewer lines of the brief name a reviewer the crew launched."""
-    said = (one for kind in briefs.REVIEWERS for one in briefs.reviewers(brief, kind))
-    return sum(map(briefs.launched, said))
+    said = (one for kind in below.REVIEWERS for one in below.reviewers(brief, kind))
+    return sum(map(below.launched, said))
 
 
 def _reviewed(brief: str) -> int:

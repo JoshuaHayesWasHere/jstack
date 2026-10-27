@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from jbriefs import parse
+from jbriefs import below, parse
 from jbus import mirror
 from jmerge import green
 
@@ -63,7 +63,7 @@ def _status(lines: list[str], of: str, only: bool) -> str:
 
 def of_brief(slug: str, text: str) -> Record:
     source = f"tasks/{slug}.md"
-    result = parse.last(text, "## Result")
+    result = below.last(text, "## Result")
     pull = ""
     paused = False
     if result is None:
@@ -83,7 +83,7 @@ def of_brief(slug: str, text: str) -> Record:
 
 def of_request(slug: str, text: str) -> Record:
     source = f"scouts/{slug}.md"
-    report = parse.last(text, "## Report")
+    report = below.last(text, "## Report")
     if report is None:
         short = f"not done, {source} has no Report"
     else:

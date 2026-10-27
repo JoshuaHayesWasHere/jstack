@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import cli, home, page, parse, skills
+from jbriefs import below, cli, home, page, parse, skills
 from jbus import watch
 from testing.paths import REPO
 
@@ -825,13 +825,13 @@ def test_reviewer_lines_are_read_by_kind_and_a_scoped_one_by_its_head():
         "Second reviewer: none, no launch tool\n"
         f"Scoped reviewer: mcp:two of {other}\nScoped reviewer: none, no launch tool of {head}\n"
     )
-    assert parse.reviewers(brief, "Reviewer") == ["mcp:one #1"]
-    assert parse.reviewers(brief, "Scoped reviewer", head) == [f"none, no launch tool of {head}"]
-    assert [parse.launched(one) for one in parse.reviewers(brief, "Scoped reviewer")] == [
+    assert below.reviewers(brief, "Reviewer") == ["mcp:one #1"]
+    assert below.reviewers(brief, "Scoped reviewer", head) == [f"none, no launch tool of {head}"]
+    assert [below.launched(one) for one in below.reviewers(brief, "Scoped reviewer")] == [
         True,
         False,
     ]
-    assert not parse.launched(parse.reviewers(brief, "Second reviewer")[0])
+    assert not below.launched(below.reviewers(brief, "Second reviewer")[0])
 
 
 def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
@@ -840,7 +840,7 @@ def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
         f"## Result\nRebase: patch unchanged, before {before}, head {after}\n"
         f"Rebase: patch changed in src/a.py, before {after}, head {before}\n"
     )
-    assert parse.rebases(brief) == [(False, before, after), (True, after, before)]
+    assert below.rebases(brief) == [(False, before, after), (True, after, before)]
 
 
 HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
@@ -848,7 +848,7 @@ HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
 
 def head_line_regexes(source: str) -> list[str]:
     """Each regex in the source, given to a function of `re`, that reads a brief's head line or
-    heading, which `jbriefs.parse` alone may read. Any case of `reviewer`, colon or none, is one:
+    heading, which `jbriefs` alone may read. Any case of `reviewer`, colon or none, is one:
     it finds `Second reviewer:` and an alternation of the three reviewer lines."""
     found = []
     for node in ast.walk(ast.parse(source)):

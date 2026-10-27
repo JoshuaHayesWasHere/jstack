@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import skills, standing
+from jbriefs import below, skills, standing
 
 NO_RESULT = "no result yet"
 DONE = "done"
@@ -27,13 +27,6 @@ _PULL_REQUEST = re.compile(r"^(?:.*\s)?Pull request:[ \t]*(?P<named>.*)$", re.MU
 _URL = re.compile(r"https?://[^\s)>\]`]+")
 _REPORTED = re.compile(r"^Playbook:[ \t]*(?P<said>.*)$", re.MULTILINE)
 _STEP = re.compile(r"(?P<number>\d+) (?:done|skip: (?P<skip>\S.*))")
-_REBASE = re.compile(
-    r"^Rebase: patch (?P<how>unchanged|changed in .+), before (?P<before>[0-9a-f]{40}), "
-    r"head (?P<head>[0-9a-f]{40})$",
-    re.MULTILINE,
-)
-_GATE = re.compile(r"^## Gate (\S+?):\s*(.*)$")
-
 _NAMED = (
     (
         "a test",
@@ -225,58 +218,10 @@ def head(text: str, label: str) -> str | None:
     return None
 
 
-def line(text: str, label: str) -> str:
-    """What the first `<label>` line anywhere in the text says, or an empty string for text
-    with none. A section's body is read this way, a gate inside it included."""
-    for one in text.splitlines():
-        if one.startswith(label):
-            return one.removeprefix(label).strip()
-    return ""
-
-
-def last(text: str, heading: str) -> list[str] | None:
-    """The lines below the last line that starts `heading`, to the end of the text, so a
-    Result runs on through any Review written after it. None for text with no such line."""
-    lines = text.splitlines()
-    starts = [at for at, one in enumerate(lines) if one.startswith(heading)]
-    return lines[starts[-1] + 1 :] if starts else None
-
-
 def thread_of(text: str) -> str:
     """The thread id on a brief's first `Thread:` line, wherever it sits, as the skills read it.
     It is an empty string for a brief with none."""
-    return "".join(line(text, "Thread:").split()[:1])
-
-
-REVIEWERS = ("Reviewer", "Second reviewer", "Scoped reviewer")
-
-
-def reviewers(brief: str, kind: str, head: str | None = None) -> list[str]:
-    """What each `<kind>:` line of the brief says, in order, for a kind of `REVIEWERS`. With
-    `head`, only the lines that end `of <head>`, as a scoped reviewer's line names the head it
-    reviews."""
-    label = f"{kind}:"
-    found = [one.removeprefix(label).strip() for one in brief.splitlines() if one.startswith(label)]
-    return found if head is None else [s for s in found if s.split()[-2:] == ["of", head]]
-
-
-def launched(said: str) -> bool:
-    """Whether a reviewer line says a reviewer was launched: it names something, and not
-    `none`, as `Reviewer: none, <why>` says none runs."""
-    return bool(said) and not re.match(r"none\b", said)
-
-
-def rebases(brief: str) -> list[tuple[bool, str, str]]:
-    """Each `Rebase:` line of the brief, in order: whether the rebase changed the patch, the
-    head before it and the head after it."""
-    return [(m["how"] != "unchanged", m["before"], m["head"]) for m in _REBASE.finditer(brief)]
-
-
-def gate(heading: str) -> tuple[str, str] | None:
-    """The number and the question of a `## Gate <n>: <question>` heading, or None for any
-    other line."""
-    found = _GATE.match(heading)
-    return (found[1], found[2].strip()) if found else None
+    return "".join(below.line(text, "Thread:").split()[:1])
 
 
 def proves_it(text: str) -> Proof | None:

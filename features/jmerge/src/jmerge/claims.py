@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from jbriefs import home, parse
+from jbriefs import below, home, parse
 from jmerge import stacked as stacks
 from jmerge import sweep
 
@@ -69,7 +69,7 @@ def _where(text: str) -> str:
 
 def _wider(text: str) -> dict[str, str]:
     found: dict[str, str] = {}
-    for line in parse.last(text, "## Result") or []:
+    for line in below.last(text, "## Result") or []:
         path, _, why = line.removeprefix("Wider:").partition(":")
         path = path.strip().strip("`")
         if line.startswith("Wider:") and path and not path.startswith("<") and why.strip():
@@ -78,7 +78,7 @@ def _wider(text: str) -> dict[str, str]:
 
 
 def branch_of(slug: str, text: str) -> tuple[str, str]:
-    for line in parse.last(text, "## Result") or []:
+    for line in below.last(text, "## Result") or []:
         if line.startswith("Branch:"):
             words = line.removeprefix("Branch:").split()
             pull = next((word for word in words if word.startswith("http")), "")

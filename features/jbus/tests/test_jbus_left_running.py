@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from jbriefs import parse as briefs
+from jbriefs import below
 from jbus import mirror, queue, strays
 from test_jbus_kitchen import NOW, RESULT, Kitchen
 from test_jbus_queue import add
@@ -156,7 +156,7 @@ def test_the_crew_left_is_said_in_one_journal_line_and_under_its_result(kitchen,
     last = brief.read_text().splitlines()[-1]
     assert last.startswith("Left running: 2 stopped by jbus ")
     assert last.endswith(f": yes in {tree}, cat /dev/zero in {tree}")
-    assert briefs.line(mirror.last_result(brief.read_text()), "Left:") == "none"
+    assert below.line(mirror.last_result(brief.read_text()), "Left:") == "none"
     kitchen.poll()
     assert brief.read_text().count("Left running:") == 1
 

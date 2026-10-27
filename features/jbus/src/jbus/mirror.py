@@ -21,6 +21,7 @@ import re
 from collections.abc import Iterator
 from pathlib import Path
 
+from jbriefs import below
 from jbriefs import parse as briefs
 from jbus import noticed, queue, read_json, verbs, write_json
 from jbus.passes import Pass
@@ -50,7 +51,7 @@ def sections(text: str) -> list[tuple[str, str]]:
     that section. A thread with no home puts its gate in its own Result or Report."""
     found: list[tuple[str, list[str]]] = []
     for heading, lines in briefs.sections(text):
-        if found and briefs.gate(heading):
+        if found and below.gate(heading):
             found[-1][1].extend([heading, *lines])
         else:
             found.append((heading.strip(), lines))
@@ -60,7 +61,7 @@ def sections(text: str) -> list[tuple[str, str]]:
 def gates_in(text: str) -> list[tuple[str, str]]:
     found, lines = [], text.splitlines()
     for at, line in enumerate(lines):
-        match = briefs.gate(line.strip())
+        match = below.gate(line.strip())
         if match:
             own = itertools.takewhile(lambda one: one.startswith(_GATE_LINES), lines[at + 1 :])
             found.append((match[1], "\n".join([line.strip(), *own])))
@@ -94,7 +95,7 @@ def undelivered(text: str) -> str:
     why, in its own words. So only a line that starts with a thread id counts as delivered.
     """
     reviews = [f"{h}\n{b}" for h, b in sections(text) if h == "## Review"]
-    if not reviews or briefs.line(reviews[-1], "Verdict:") != "findings":
+    if not reviews or below.line(reviews[-1], "Verdict:") != "findings":
         return ""
     sent = [line for line in reviews[-1].splitlines() if line.startswith("Sent to:")]
     if not sent:
@@ -107,7 +108,7 @@ def undelivered(text: str) -> str:
 def question(lines: str) -> str:
     """Return a gate's question, from the lines a thread sent: its `## Gate <n>:` line."""
     for line in lines.splitlines():
-        match = briefs.gate(line.strip())
+        match = below.gate(line.strip())
         if match:
             return match[1]
     for line in lines.splitlines():
@@ -141,7 +142,7 @@ def options(lines: str) -> tuple[list[tuple[str, str, frozenset[str]]], list[str
 
 def context(lines: str) -> str:
     """Return what a gate's `Context:` line says, or nothing for a line that nobody filled in."""
-    said = briefs.line(lines, "Context:")
+    said = below.line(lines, "Context:")
     return "" if said.startswith("<") else said
 
 
@@ -152,11 +153,11 @@ def gate_key(slug: str, asked: str) -> str:
 
 def _found(kind: str, slug: str, heading: str, body: str) -> tuple[str, str, str] | None:
     if kind == "tasks" and heading.startswith("## Result"):
-        return "result", f"result {slug}: {briefs.line(body, 'Status:') or heading[3:]}", ""
+        return "result", f"result {slug}: {below.line(body, 'Status:') or heading[3:]}", ""
     if kind == "tasks" and heading == "## Review":
-        return "review", f"review {slug}: {briefs.line(body, 'Verdict:') or 'written'}", ""
+        return "review", f"review {slug}: {below.line(body, 'Verdict:') or 'written'}", ""
     if kind == "scouts" and heading == "## Report":
-        return "report", f"report {slug}: {briefs.line(body, 'Status:') or 'written'}", ""
+        return "report", f"report {slug}: {below.line(body, 'Status:') or 'written'}", ""
     return None
 
 
@@ -164,7 +165,7 @@ def gates(text: str) -> list[tuple[str, str, str, str]]:
     """Return each gate of a `gates.md`, in order: its number, what it asks, its heading, and
     the lines under it."""
     found = (
-        (briefs.gate(heading), heading.strip(), "\n".join(lines).strip())
+        (below.gate(heading), heading.strip(), "\n".join(lines).strip())
         for heading, lines in briefs.sections(text)
     )
     return [(*match, heading, body) for match, heading, body in found if match]
@@ -186,7 +187,7 @@ def home_gates(home: Path) -> Iterator[tuple[Path, str, str, str, str]]:
 
 def asker(body: str) -> str:
     """Return the slug on a gate's `Asked by:` line, or `home`."""
-    return briefs.line(body, "Asked by:").split(",")[0].strip() or "home"
+    return below.line(body, "Asked by:").split(",")[0].strip() or "home"
 
 
 def _gates(
@@ -203,7 +204,7 @@ def _gates(
     found = []
     for number, asked, heading, body in gates(text):
         slug = asker(body)
-        status = briefs.line(body, "Status:")
+        status = below.line(body, "Status:")
         whole = f"{heading}\n{body}"
         key, tag = gate_key(slug, asked), f"{slug} in {where}" if where else slug
         if status.startswith("open"):

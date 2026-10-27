@@ -99,6 +99,7 @@ from typing import Any
 from urllib.parse import quote
 
 import jsettings
+from jbriefs import below
 from jbriefs import parse as briefs
 from jbus import (
     current_level,
@@ -456,7 +457,7 @@ def _whole(state: Path, home: Path, slug: str) -> tuple[str, str]:
             result = mirror.last_result(path.read_text(errors="replace"))
         except OSError:
             continue
-        return briefs.line(result, "Status:"), briefs.line(result, "Left:")
+        return below.line(result, "Status:"), below.line(result, "Left:")
     return "", ""
 
 

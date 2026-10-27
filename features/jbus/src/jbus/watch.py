@@ -37,7 +37,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import jsettings
-from jbriefs import parse as briefs
+from jbriefs import below
 from jbus import Refused, budget, merge, queue, read_json, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import last_result, sections
@@ -227,7 +227,7 @@ def _named(run: Pass, url: str) -> list[dict[str, Any]]:
 def named(result: str) -> tuple[str, str]:
     """Return the address and number of the pull request at the end of a Result's `Branch:`
     line."""
-    words = briefs.line(result, "Branch:").split()
+    words = below.line(result, "Branch:").split()
     found = _PULL.match(words[-1]) if words else None
     return (found[1], found[2]) if found else ("", "")
 
@@ -376,7 +376,7 @@ def _stale(run: Pass, slug: str, thread: dict[str, Any]) -> str:
 def left(result: str) -> str:
     """Return, in a few words, what a Result leaves undone. Return nothing when the Result says
     `Status: done` and `Left: none`."""
-    status, rest = briefs.line(result, "Status:"), briefs.line(result, "Left:")
+    status, rest = below.line(result, "Status:"), below.line(result, "Left:")
     if rest and rest != "none":
         return f"left: {cut(rest, WORDS)}"
     if status != "done":
@@ -392,7 +392,7 @@ def unfinished(result: str) -> str:
     function is the one rule for a task that ended with no pull request: `ended` and
     `threads.finished` both call it.
     """
-    short, words = left(result), briefs.line(result, "Branch:").split()
+    short, words = left(result), below.line(result, "Branch:").split()
     if short:
         return short
     if not words:
@@ -406,7 +406,7 @@ def unfinished(result: str) -> str:
 def after_merge(result: str) -> bool:
     """Return whether a Result leaves work for after its merge. The pass tells the thread
     about that work."""
-    return briefs.line(result, "Left:").lower().startswith(AFTER_MERGE)
+    return below.line(result, "Left:").lower().startswith(AFTER_MERGE)
 
 
 @dataclass(frozen=True)
@@ -463,7 +463,7 @@ def written(result: str) -> work.Written:
     short = left(result)
     if short.startswith(("left: ", "status: ")):
         return work.Written.LEFTOVER
-    if short or not briefs.line(result, "Branch:").split():
+    if short or not below.line(result, "Branch:").split():
         return work.Written.MALFORMED
     return work.Written.CLEAN
 
@@ -476,7 +476,7 @@ def pull(world: World, slug: str, result: str, said: str) -> work.Pull:
         return work.Pull(merge.step(said) or work.Pull.OTHER)
     if slug in world.merged:
         return work.Pull.MERGED
-    words = briefs.line(result, "Branch:").split()
+    words = below.line(result, "Branch:").split()
     return work.Pull.CLOSED if words and words[-1].startswith("http") else work.Pull.NONE
 
 
@@ -646,14 +646,14 @@ def owed(run: Pass, role: str, slug: str) -> work.Written:
         reports = [body for head, body in sections(text) if head == "## Report"]
         if not reports:
             return work.Written.NONE
-        status = briefs.line(reports[-1], "Status:")
+        status = below.line(reports[-1], "Status:")
         if not status:
             return work.Written.MALFORMED
         return work.Written.CLEAN if status == "done" else work.Written.LEFTOVER
     if role == "reviewer":
         text = _read(run.home / "tasks" / f"{slug}.md")
         verdicts = [
-            briefs.line(body, "Verdict:") for head, body in sections(text) if head == "## Review"
+            below.line(body, "Verdict:") for head, body in sections(text) if head == "## Review"
         ]
         return work.Written.CLEAN if any(verdicts) else work.Written.NONE
     if role == "crew":

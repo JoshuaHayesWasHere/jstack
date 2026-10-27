@@ -46,7 +46,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbriefs import findings
+from jbriefs import below, findings
 from jbriefs import parse as briefs
 from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched
@@ -254,7 +254,7 @@ def launched_for(brief: str, head: str) -> bool:
     line that names another head is no launch for this head. Neither is a line that names no head,
     as lines written for a rebase did before jbus's ask named the head. Neither is the line that a
     session writes when it had no launch tool, `Scoped reviewer: none, ...`."""
-    return any(map(briefs.launched, briefs.reviewers(brief, "Scoped reviewer", head)))
+    return any(map(below.launched, below.reviewers(brief, "Scoped reviewer", head)))
 
 
 def prove(run: Pass, client: Client, world: World, number: int, slug: str, short: str) -> None:
@@ -276,14 +276,14 @@ def prove(run: Pass, client: Client, world: World, number: int, slug: str, short
     if not named or f"proof|{slug}|{head[:12]}" in read_json(run.state / "sent.json", []):
         return
     brief = _brief(run, slug)
-    changed = [(before, to) for moved, before, to in briefs.rebases(brief) if moved]
+    changed = [(before, to) for moved, before, to in below.rebases(brief) if moved]
     rebased = [before for before, to in changed[-1:] if to == head]
     at = (rebased or [head])[0]
     saw = reviewed(brief)
-    done = briefs.line(mirror.last_result(brief), "Status:") == "done"
+    done = below.line(mirror.last_result(brief), "Status:") == "done"
     if not at.startswith(named[1]) or not done or not saw or saw == at:
         return
-    if briefs.reviewers(brief, "Scoped reviewer", head):
+    if below.reviewers(brief, "Scoped reviewer", head):
         return
     default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     old, new = (run.run("git", "merge-base", default.stdout.strip(), to) for to in (saw, head))

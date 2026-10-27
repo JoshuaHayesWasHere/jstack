@@ -63,7 +63,7 @@ import string
 from datetime import datetime
 from typing import Any
 
-from jbriefs import findings
+from jbriefs import below, findings
 from jbriefs import parse as briefs
 from jbriefs.home import home_of, thread_of
 from jbus import (
@@ -178,14 +178,14 @@ def reviewer(brief: str, kind: str, reason: str, head: str) -> str:
     `Reviewer:` line whose seat, `#<n>`, has written no `## Review` with that seat on its `By:`
     line."""
     if kind == "scoped":
-        named = briefs.reviewers(brief, "Scoped reviewer", head)
-        named = named or briefs.reviewers(brief, "Scoped reviewer")
+        named = below.reviewers(brief, "Scoped reviewer", head)
+        named = named or below.reviewers(brief, "Scoped reviewer")
     elif "second" in reason:
-        named = briefs.reviewers(brief, "Second reviewer")
+        named = below.reviewers(brief, "Second reviewer")
     else:
         bys = (_SEAT.search(one.by) for one in findings.triage(brief).sections)
         wrote = {seat[1] for seat in bys if seat}
-        named = briefs.reviewers(brief, "Reviewer")
+        named = below.reviewers(brief, "Reviewer")
         named = [said for said in named if (s := _SEAT.search(said)) is None or s[1] not in wrote]
     return next((found for found in map(_id, reversed(named)) if found), "")
 

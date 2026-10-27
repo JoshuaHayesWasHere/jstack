@@ -87,7 +87,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from jbriefs import findings, skills
+from jbriefs import below, findings, skills
 from jbriefs import parse as briefs
 from jbriefs.home import home_of, thread_of
 from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, write_json
@@ -154,8 +154,8 @@ def no_reviewer_by_rule(brief: str, head: str) -> bool:
     no reviewer at this head. That is so when the crew launched no reviewer, and either none
     can run (`Reviewer: none`) or none runs yet (no check ran, a check is stuck, or the base
     is stale). A pull request whose crew launched a reviewer still waits for that review."""
-    said = briefs.reviewers(brief, "Reviewer")
-    if any(map(briefs.launched, said)):
+    said = below.reviewers(brief, "Reviewer")
+    if any(map(below.launched, said)):
         return False
     gated = rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},"
     return bool(said) or bool(re.search(gated, brief, re.M))
@@ -370,7 +370,7 @@ def ranges(run: Pass, slug: str, head: str, kind: str) -> tuple[str, str] | None
     if kind == "fix":
         before = (_OWED.findall(brief) or [""])[-1]
     else:
-        before = next((was for _, was, to in reversed(briefs.rebases(brief)) if to == head), "")
+        before = next((was for _, was, to in reversed(below.rebases(brief)) if to == head), "")
         before = before or _kept(run, slug)
     default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
     if not before or default.returncode:
