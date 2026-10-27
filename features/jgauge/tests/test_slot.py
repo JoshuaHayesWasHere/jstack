@@ -478,9 +478,6 @@ def test_twenty_pytest_runs_at_once_under_slots_leave_nothing_in_pytests_default
     assert list(slots.locks.glob("*.tmp")) == []
 
 
-# A run with `--thread` is on record as its thread's holder, so jbus can tell that the thread is
-# at work while its turn has ended, and wake it when the run ends.
-
 THREAD = "mcp:thread-9"
 NOW = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
 
@@ -490,6 +487,8 @@ def held(slots):
 
 
 def test_a_run_with_a_thread_is_its_threads_holder_until_it_ends(slots):
+    """A run with `--thread` is on record as its thread's holder, so jbus can tell that the thread
+    is at work while its turn has ended, and wake it when the run ends."""
     run = slots("--slots", "1", "--thread", THREAD, name="a")
     assert slots.waits(lambda: slots.started() == ["a"])
     (one,) = held(slots)
