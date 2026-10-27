@@ -8,7 +8,7 @@ import types
 import pytest
 
 import jsettings
-from jbus import questions
+from jbus import party, questions
 from test_jbus_kitchen import GATE as PIPED
 from view.page.browser import (
     BROWSES,
@@ -250,8 +250,11 @@ def test_a_write_that_is_refused_or_meets_no_server_is_said_in_the_drawer(scene,
     def meanwhile(nth):
         if nth > 1:
             return "dark"
-        said = {"by": "user", "at": et(NOW), "where": "a shell", "keeps": False, "user": user}
-        questions.answer(scene.state, tea, "coffee", **said)
+        said = party.Evidence("typed", "", "coffee", et(NOW))
+        where = "a shell"
+        questions.answer(
+            scene.state, tea, party=party.USER, evidence=said, where=where, keeps=False, user=user
+        )
 
     ways = [{"number": tea}, {"number": milk, "option": 1}]
     gates = {"ways": ways, "batch": True}

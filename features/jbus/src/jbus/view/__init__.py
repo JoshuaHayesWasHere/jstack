@@ -131,6 +131,7 @@ from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
 from jbus.view.state import Sources
 from jbus.view.writes import (
+    ACT,
     APPROVE,
     HTML,
     NOT_FOUND,
@@ -164,7 +165,7 @@ FIXED = (
     "/healthz",
 )
 BODY = 65536
-POSTS = (*WRITES, usage.USAGE)
+POSTS = (*WRITES, ACT, usage.USAGE)
 
 
 def posted(path: str) -> bool:
@@ -552,6 +553,9 @@ class Handler(BaseHTTPRequestHandler):
         if not self._known():
             self._send(said(403, {"error": "this is not the server's name"}))
             return
+        if path == ACT:
+            self._act(query)
+            return
         if self.headers.get("Origin", "").lower() not in self._own():
             self._send(said(403, {"error": "only the server's own page writes"}))
             return
@@ -564,6 +568,28 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             answer = self.server.app.post(path, parse_qs(query), self.rfile.read(length))
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+            answer = said(500, {"error": "the server could not answer"})
+        self._send(answer)
+
+    def _act(self, query: str) -> None:
+        """The bot's route: no page sends it, so it has no `Origin` to check, and the bot's key
+        is its one test."""
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            length = -1
+        if not 0 <= length <= BODY:
+            self._send(said(400, {"error": "a write has a body, and a short one"}))
+            return
+        name = self.server.app._project(parse_qs(query))
+        body = self.rfile.read(length)
+        if name is None:
+            self._send(NOT_FOUND)
+            return
+        try:
+            answer = self.server.app.act(name, body, self.headers.get("Authorization", ""))
         except Exception:
             traceback.print_exc(file=sys.stderr)
             answer = said(500, {"error": "the server could not answer"})

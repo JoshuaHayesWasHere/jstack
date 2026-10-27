@@ -141,6 +141,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   It looks up the row whose slug is the brief's slug.
   When `jbus queue hold` has withdrawn a row's approval, the pull request waits as `its queue row is held: approve it again to let it merge`.
   A hold stops a merge as it stops a launch, and `--accept` does not lift it.
+  A row with no go waits as `its queue row has no go: the user's go, or the bot's, lets it merge (jbus queue approve)`, and a go given with `jbus queue approve`, or the bot's over `POST /act`, lets it merge.
   When a row names other rows in `merge_after`, its pull request waits as `merges after <slug> (#<n>), not merged yet` for the first of them that is not `merged` or `done`.
   `jmerge` judges it again on the run after the one in which that other pull request merges.
   A pull request built on another open pull request's branch carries that one's commits, and a merge of it lands them too.

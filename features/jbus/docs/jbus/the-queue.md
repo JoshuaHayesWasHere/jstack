@@ -153,7 +153,8 @@ A row keeps its item, and `add` refuses an `--item` that names another.
 `hold` takes a row's approval back, which stops both its launch and its merge.
 A held row that was never launched does not launch.
 If its pull request is open, `jmerge` leaves it unmerged, with `wait <number> <url>: its queue row is held: approve it again to let it merge`, until `jbus queue approve` gives the row its go again.
-A row that was never approved is not held, and `jmerge` judges its pull request as any other.
+A row with no go is held by `jmerge` too: it leaves the row's pull request unmerged, with `wait <number> <url>: its queue row has no go: the user's go, or the bot's, lets it merge (jbus queue approve)`, until a go is given.
+A pull request that no row names is judged as any other.
 
 An approval names its brief.
 `--sha` is required, and it is the first 12 characters of the sha256 of the brief you were shown.
@@ -242,6 +243,61 @@ The crew rebases onto that sha when main is red.
 The sha is the last tip of main whose check passed, `green` in `main.json`.
 When jbus knows no such tip, it writes no `Green main:` line.
 jbus also writes the launch's own `Thread:` line.
+
+### Who acts, and the acts log
+
+A go and an answer are acts, and each one, whatever came of it, appends one line to `~/.local/state/jbus/<project>/acts.jsonl`.
+`jbus queue approve` and `jbus answer` act on the command line, and the bot acts over its own route, `POST /act` on `jbus view`.
+All three call the one function `act` (`features/jbus/src/jbus/acts.py`), and its shapes are in `features/jbus/src/jbus/party.py`.
+
+An act's line is JSON with `v: 1`, an `id`, the time `at`, and these:
+
+| Key | What it holds |
+| --- | --- |
+| `party` | Who acted: `kind` is `user`, `bot`, `home` or `jbus`, and `route` is `cli`, `view` or `bot`. The bot has no name: one bot speaks for you. |
+| `action` | `verb`, `go` or `answer`, its `subject` (the slug, or the question's number), the `pre` sha it was given, the event it had `seen`, and the `doors` the brief or the gate holds for. |
+| `evidence` | The words it rests on: `source`, `ref`, `words`, `said_at`, `said_in`, and `checked`, true only where jbus read your words and their time itself. |
+| `outcome` | `done`, `gated`, `refused` or `noop`. |
+| `line` | What the act printed, and `gate` the number of the gate a `gated` go parked. |
+
+Each basis is one `source`: `--word` is `typed`, `--answer` is `answer`, `--message` is `t3-message`, `--page` is `lavish-page`, and the follow-up rule is `rule`.
+The bot's words are `bot-chat`, and an answer on the view's page is `view`.
+The approval record in `queue.json` keeps its fields as before, so a bot's go reads `the bot's go for you, <time>, from bot-chat <address>/<device>; run <time> by the bot`.
+
+On the command line the party is `--as home`, the default, or `--as user`, given before the verb.
+`--as user` acts only on words jbus reads itself, `--message` or `--page`, or `--evidence t3-message:<thread>/<message>` in their place.
+`--as bot` is refused, with `refused: --as bot: the bot acts only over its own route, POST /act on jbus view, with its key, and on the command line a party is user or home`, so no crew or home acts as the bot.
+
+#### Doors
+
+A door is an action that is irreversible or slow to revert, one of the six cases of the table in [Questions](questions.md#act-unless-stopped-and-the-gates-that-hold), and `party.DOORS` is that table.
+A brief holds for a door when a line of its head, above its first `## `, is `Holds: <case>`, with several cases split by commas.
+A line that names a case the table does not have holds for every door.
+An act on a door goes through only for you, on words jbus read itself.
+A go on such a brief from the bot or a home approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
+Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, approves the row and closes that gate.
+`jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
+
+A second go that the row's go already holds for is a `noop`, and writes nothing to the row.
+A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is refused as stale when the project's event log has an event for the row after that one, or has no event of that id.
+`jbus events` prints the `id` of each event jbus sent, the one a go names.
+
+#### The bot's route
+
+The bot gives a go or an answer with `POST /act` on `jbus view`, with a JSON body:
+
+```
+{"action": "go", "slug": "alpha", "sha12": "52e43397dc8c", "evidence": "bot-chat:<address>/<device>", "seen": "<event id>"}
+{"action": "answer", "number": 3, "words": "tea", "keeps": true, "evidence": "bot-chat:<address>/<device>"}
+```
+
+`seen` may be left out, and so may `keeps`, which is false then.
+The route takes the bot's key, `Authorization: Bearer <key>`, and refuses any request without the right one with 401, from loopback or any other peer, whatever its `X-Forwarded-For` says.
+jbus keeps only the key's sha256, in `~/.local/state/jbus/bot-key.json`, and compares it in constant time.
+`jbus bot key` makes a new key, prints it once for you to hand to the bot, and replaces the stored hash: it is yours to run.
+The route checks the request's `Host` as the view's other routes do, and takes no `Origin`.
+A refused act answers 409 with its line as `error` and the act as `act`, and a done, gated or noop act answers 200 with the act.
+An answer from the bot closes a gate that does not hold; on a gate that holds it is refused, and the gate stays open.
 
 ### What an approval is bound to
 

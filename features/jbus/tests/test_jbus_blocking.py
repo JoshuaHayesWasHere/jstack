@@ -157,12 +157,13 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     kitchen.poll(later(1))
     said = [line for post in kitchen.webhook.said for line in post]
     assert said == [
-        "demo: decision beta: question 2: may I deploy the site tonight, it names deploy. "
+        "demo: decision beta: question 2: may I deploy the site tonight, it names touches prod "
+        "or real users. "
         'Reply: "demo question 2: default"'
     ]
     (opened,) = second.bodies
     assert keys(opened) == ["gate:q2"]
-    assert opened["items"][0]["why"] == "always-pause: deploy"
+    assert opened["items"][0]["why"] == "always-pause: touches prod or real users"
     assert not any("result alpha" in line for body in second.bodies for line in body["say"])
 
 
@@ -263,7 +264,7 @@ def test_a_pause_word_in_the_context_alone_blocks(kitchen, second):
     assert kitchen.main("gate", "alpha", stdin=asked)[0] == 0
     kitchen.poll(later(1))
     (opened,) = second.bodies
-    assert opened["items"][0]["why"] == "always-pause: force-push"
+    assert opened["items"][0]["why"] == "always-pause: rewrites history"
 
 
 def test_a_defaulted_gate_is_no_stall_while_two_threads_of_its_slug_are_at_work(kitchen, second):

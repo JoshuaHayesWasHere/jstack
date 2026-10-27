@@ -1,6 +1,6 @@
 usage: jbus queue approve [-h] [--word ID] [--answer NUMBER]
                           [--message THREAD/MESSAGE] [--page SESSION/ENTRY]
-                          [--rule N] [--follows SLUG] --sha SHA
+                          [--rule N] [--follows SLUG] --sha SHA [--seen EVENT]
                           slug
 
 positional arguments:
@@ -18,3 +18,5 @@ options:
   --follows SLUG        the approved row that this one follows up: its go is
                         the ground
   --sha SHA             the first 12 of that brief's sha256
+  --seen EVENT          the id of the last event you read (jbus events):
+                        refused as stale when the row changed after it

@@ -761,7 +761,9 @@ def test_a_pass_asks_the_thread_of_each_open_question_with_no_options_once(kitch
         ("done", "a?"),
         holds="deletes data",
     )
-    assert answer(kitchen, 4, "yes", default=True)[0] == 0
+    kitchen.t3.says("mcp:a-home", "yes-4", "yes")
+    argv = ("--as", "user", "answer", "4", "--message", "mcp:a-home/yes-4", "--default")
+    assert kitchen.main(*argv)[0] == 0
     assert ask(kitchen, "a spoon?") == (0, "queued: question 5\n")
     for minutes in (10, 20, 30):
         kitchen.poll(later(minutes))

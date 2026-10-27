@@ -249,6 +249,7 @@ def test_the_line_names_a_home_or_a_shell_by_where_and_whether_a_session_ran_it(
     typed = f"your word, {SAID_AT} (time typed); run {RAN} by"
     assert rows(kitchen)["alpha"]["approved"] == f"{typed} the elsewhere home"
     kitchen.monkeypatch.delenv("CLAUDE_CODE_SESSION_ID")
+    assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
     assert kitchen.main(*argv, "--sha", sha12(brief("alpha")))[0] == 0
     row = rows(kitchen)["alpha"]
     assert row["approval"]["ran_by"] == {"session": "", "directory": str(desk)}
