@@ -241,3 +241,48 @@ def test_an_older_woken_record_and_a_later_unwoken_one_keep_the_live_wait_in_its
     waiters.woken(tmp_path, "later", NOW)
     (woken,) = waiters.read(tmp_path)
     assert (woken.id, woken.woken) == ("later", waiters.stamp(NOW))
+
+
+def wake(machine, thread, ago=timedelta(0)):
+    """What jbus does when it wakes a waiter: it records the wake, which claims a slot for the
+    thread for `waiters.HOLDS`."""
+    (wait,) = [one for one in waiters.read(machine.locks) if one.thread == thread]
+    waiters.woken(machine.locks, wait.id, datetime.now(UTC) - ago)
+
+
+def test_a_slot_jbus_woke_a_waiter_for_is_held_for_that_waiter(machine):
+    held = hold_full(machine)
+    try:
+        jgauge(machine, "--slots", "1", "--", "echo", "a", thread="mcp:a")
+    finally:
+        for fd in held:
+            os.close(fd)
+    wake(machine, "mcp:a")
+    second = jgauge(machine, "--slots", "1", "--", "echo", "b", thread="mcp:b")
+    assert (second.returncode, second.stderr) == (slot.WAITING, "")
+    assert "mcp:b is registered as a waiter" in second.stdout and "b\n" not in second.stdout
+    first = jgauge(machine, "--slots", "1", "--", "echo", "a", thread="mcp:a")
+    assert (first.returncode, first.stdout) == (0, "a\n")
+    assert [one.thread for one in waiters.read(machine.locks)] == ["mcp:b"]
+
+
+def test_a_claim_holds_only_as_many_slots_as_it_claims(machine):
+    waiters.register(machine.locks, "mcp:a", "full", 2, ["echo", "a"], NOW)
+    wake(machine, "mcp:a")
+    second = jgauge(machine, "--slots", "2", "--", "echo", "b", thread="mcp:b")
+    assert (second.returncode, second.stdout) == (0, "b\n")
+    assert [one.thread for one in waiters.read(machine.locks)] == ["mcp:a"]
+
+
+def test_a_claim_past_its_hold_holds_nothing(machine):
+    waiters.register(machine.locks, "mcp:a", "full", 1, ["echo", "a"], NOW)
+    wake(machine, "mcp:a", ago=waiters.HOLDS + timedelta(minutes=1))
+    second = jgauge(machine, "--slots", "1", "--", "echo", "b", thread="mcp:b")
+    assert (second.returncode, second.stdout) == (0, "b\n")
+
+
+def test_a_claim_on_the_other_lane_holds_nothing_here(machine):
+    waiters.register(machine.locks, "mcp:a", "short", slot.short().slots, ["echo", "a"], NOW)
+    wake(machine, "mcp:a")
+    second = jgauge(machine, "--slots", "1", "--", "echo", "b", thread="mcp:b")
+    assert (second.returncode, second.stdout) == (0, "b\n")
