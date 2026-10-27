@@ -76,6 +76,8 @@ NO_SCOPE = "the {scope} home is not running, its home-id holds no thread"
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
 CAPPED = "its thread is capped"
+SHOWN = ("scope", "row", "on", "outside", "what", "at", "sent_at", "waits")
+"""The columns of an open stop that the digest shows."""
 
 
 class Unparsable(Refused):
@@ -406,9 +408,8 @@ def digest(state: Path, start: datetime) -> dict[str, Any]:
     for one in kept:
         if one.outside and datetime.fromisoformat(one.at) >= start:
             outside[one.scope] = outside.get(one.scope, 0) + 1
-    shown = ("scope", "row", "on", "outside", "what", "at", "sent_at", "waits")
     return {
-        "open": [{column: getattr(one, column) for column in shown} for one in kept if one.open],
+        "open": [{column: getattr(one, column) for column in SHOWN} for one in kept if one.open],
         "outside": outside,
     }
 
