@@ -416,6 +416,9 @@ def fake_gh(stub, args, cwd):
         runs = json.loads((stub / "check-runs.json").read_text())
         ref = args[1].split("/commits/")[-1].removesuffix("/check-runs")
         said = json.dumps({"check_runs": runs.get(ref, [])})
+    elif args[0] == "api" and "/actions/runs?per_page=" in args[1]:
+        kept = stub / "runs.json"
+        said = kept.read_text() if kept.exists() else json.dumps({"workflow_runs": []})
     elif args[0] == "api" and "/actions/runs?head_sha=" in args[1]:
         kept, sha = stub / "push-runs.json", args[1].split("head_sha=")[1].split("&")[0]
         pushed = json.loads(kept.read_text()) if kept.exists() else {}

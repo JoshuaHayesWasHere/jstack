@@ -291,9 +291,11 @@ def test_no_slug_shows_twice_on_a_first_screen(views, scene, wide):
 
 
 @pytest.mark.parametrize(("scene", "wide"), cases("hung"))
-def test_one_tap_on_every_project_opens_a_drawer_that_names_the_hung_thread(views, scene, wide):
-    """demo's crewmate on jam-jar hung. Some one thing on the first screen of `#/homes` opens a
-    drawer that names it and says it hung."""
+def test_a_hung_thread_its_home_owns_is_no_hop_on_the_first_screen_of_every_project(
+    views, scene, wide
+):
+    """demo's crewmate on jam-jar hung, and its home `ui` owns that: it is drawn on its row as
+    fixing by `ui`, and nothing on the first screen of `#/homes` puts it to the user."""
     hops = views(scene, wide)["#/homes"]["hops"]
     assert hops, "the first screen of #/homes has nothing to tap"
     reached = [
@@ -301,7 +303,7 @@ def test_one_tap_on_every_project_opens_a_drawer_that_names_the_hung_thread(view
         for h in hops
         if h["open"] and "jam-jar" in h["said"] and "hung" in h["said"].lower()
     ]
-    assert reached, [(h["to"], h["title"]) for h in hops]
+    assert reached == []
 
 
 def count(said):
@@ -452,9 +454,10 @@ def test_sixteen_projects_are_250_words_at_most(maps, wide):
 
 @pytest.mark.parametrize("name", ["busy", "many"])
 def test_every_wrong_fact_shows_on_the_first_screen_of_a_phone(maps, name):
-    """Each entry of what is wrong across the projects is a line or a flag inside the first
-    844 px of a phone's screen."""
+    """Each entry of what is wrong across the projects that is the user's is a line or a flag
+    inside the first 844 px of a phone's screen. demo's stall and hung crewmate are its `ui`
+    home's, so the failed run of CI is the one left."""
     seen = maps(name, 390)
     wrong = {f"{one['kind']}/{one['subj']}/{one['cause']}" for one in seen["stack"]["wrong"]}
-    assert len(wrong) == 3
+    assert wrong == {"ci/tea-saucer/check failed"}
     assert sorted(wrong - set(seen["wrong"])) == []
