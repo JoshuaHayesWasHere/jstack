@@ -920,6 +920,10 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     """Return whether the check runs of a commit on main passed. `_check` asks GitHub once
     for a final answer, and keeps it in `known`.
 
+    Main's check is its push run's: only the check runs `_judged` gives count. A run of
+    browser.yml or any other workflow dispatched by hand, on a schedule or for a tag at the same
+    commit says nothing of main's check, and its red has its own path (`BROWSER`, `NIGHTLIES`).
+
     A cancelled run is no failed check: a later run displaced it or someone stopped it, and a push
     run cancelled before it had a job leaves the commit with no check run at all. With `again`,
     `_check` reruns a cancelled run that is at its first attempt, and the commit is `pending` until
@@ -934,8 +938,7 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     """
     if sha in known:
         return known[sha]
-    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
-    runs = (said or {}).get("check_runs") or []
+    runs, pushed = _judged(run, sha)
     ended = [r.get("conclusion") for r in runs if r.get("status") == "completed"]
     if len(ended) < len(runs):
         return "pending"
@@ -948,8 +951,6 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     if bad or (runs and "cancelled" not in ended):
         known[sha] = "failed" if bad else "green"
         return known[sha]
-    said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&event=push")
-    pushed = (said or {}).get("workflow_runs") or []
     stopped = [r for r in pushed if r.get("conclusion") == "cancelled"]
     if not stopped or any(r.get("status") != "completed" for r in pushed):
         return "pending"
@@ -960,6 +961,21 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     ):
         known[sha] = "refused"
     return known.get(sha, "pending")
+
+
+def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
+    """Return the check runs that judge a commit on main, and its push runs on the default
+    branch. A check run counts unless it belongs to another workflow run at the commit: one not
+    run by a push to the default branch. Where GitHub does not list the commit's workflow runs,
+    every check run counts."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs?head_sha={sha}&per_page=100")
+    listed = (said if isinstance(said, dict) else {}).get("workflow_runs") or []
+    branch = _default_branch(run)
+    pushed = [r for r in listed if r.get("event") == "push" and r.get("head_branch") == branch]
+    other = {r.get("check_suite_id") for r in listed if r not in pushed} - {None}
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
+    runs = (said if isinstance(said, dict) else {}).get("check_runs") or []
+    return [r for r in runs if (r.get("check_suite") or {}).get("id") not in other], pushed
 
 
 @dataclass(frozen=True)
@@ -1093,10 +1109,9 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
-    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{sha}/check-runs")
     jobs = [
         (r.get("name") or "?", r.get("html_url") or "", _failed_tests(run, r.get("id")))
-        for r in (said if isinstance(said, dict) else {}).get("check_runs") or []
+        for r in _judged(run, sha)[0]
         if r.get("status") == "completed" and r.get("conclusion") not in NOT_RED
     ]
     text = red_brief(slug, sha, jobs, red, _changed(run, red))

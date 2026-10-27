@@ -15,6 +15,7 @@ import jbus
 from jmerge import mainjson
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, gates, go
+from test_jbus_watch import beside_a_dispatched_browser_run
 
 HEAD = "c" * 40
 RED = "red: checks failed"
@@ -130,6 +131,29 @@ def test_main_moves_and_a_red_pull_request_is_told_once_and_a_conflicting_one_is
         "check": "green",
         "green": main,
     }
+
+
+def test_a_kept_red_at_a_tip_whose_push_run_passed_beside_a_failed_browser_run_clears(launched):
+    """jstack's main.json at d1e3bd5: `checks.json` kept `failed` from three browser runs
+    dispatched at main's tip, and main's push run there had passed. The next pass reads main
+    green, and jmerge holds nothing."""
+    main = tip(launched)
+    kept = json.loads((launched.state / "main.json").read_text())
+    assert (kept["check"], jbus.read_json(launched.state / "checks.json", {})) == (
+        "failed",
+        {main: "failed"},
+    )
+    check_runs, workflow_runs = beside_a_dispatched_browser_run(main, "success")
+    launched.set("check-runs.json", check_runs)
+    launched.set("push-runs.json", workflow_runs)
+    launched.poll()
+    record = json.loads((launched.state / "main.json").read_text())
+    assert {k: v for k, v in record.items() if k != "at"} == {
+        "main": main,
+        "check": "green",
+        "green": main,
+    }
+    assert mainjson.read(launched.state).red == ""
 
 
 def test_the_same_main_commit_tells_nobody_again_and_a_new_one_tells_once_more(launched):
