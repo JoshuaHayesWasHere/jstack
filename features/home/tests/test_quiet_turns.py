@@ -43,7 +43,7 @@ DAY = [
     ("josh", "N-ack", ["handled: the row of add-index is approved on the user's word"]),
     ("result", "D", ["decision local fix-two: keep the v1 route? default: it stays"]),
     ("jbus", "E-wake", ["handled: the user's word carried by jbus was already acted on"]),
-    ("jbus", "D", ["stop jbus: demo: alert: webhook demo failed 3 times in a row since 10:00 ET"]),
+    ("jbus", "D", ["stop jbus: demo: alert: jmerge demo failed 3 times in a row since 10:00 ET"]),
     ("josh", "D", ["stop local next-step: no tool in this session starts a thread"]),
     ("result", "E-status", ["waits: #42 add-cache waits on its review"]),
     ("sched", "N-sched", []),
@@ -92,7 +92,7 @@ def test_a_decision_is_told_once_and_a_later_turn_that_has_it_again_is_silent(tu
 
 
 def test_an_event_jbus_carried_is_told_once_by_its_whole_line(turns):
-    alert = "stop jbus: demo: alert: webhook demo failed 3 times in a row since 10:00 ET"
+    alert = "stop jbus: demo: alert: jmerge demo failed 3 times in a row since 10:00 ET"
     assert turns.end([alert]) == (0, [f"say: {alert}"])
     assert turns.end([alert]) == (0, [SILENT])
     again = alert.replace("10:00", "16:40")

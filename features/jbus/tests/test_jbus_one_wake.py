@@ -1,9 +1,9 @@
-"""Only an escalation starts a POST: a decision that is the user's (a hold, an approval, a setup
-jbus lacks, a gate that holds), an alert, or a sign-in. Each line of the POST names the project.
+"""Only an escalation starts a wake: a decision that is the user's (a hold, an approval, a setup
+jbus lacks, a gate that holds), an alert, or a sign-in. Each line of the wake names the project.
 Everything else a pass finds is quiet, a question with a default and a stall among them: it is in
-the log, and jbus never posts it.
+the log, and jbus never sends it.
 
-Every test runs the real pass or the real command against the faked T3 Code server and webhook of
+Every test runs the real pass or the real command against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
 """
 
@@ -11,7 +11,6 @@ import hashlib
 import json
 import os
 import re
-import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -25,8 +24,8 @@ from test_jbus_kitchen import (
     PASS,
     PROJECT,
     QUARTER_PAST_FIVE,
+    REFUSED,
     RESULT,
-    Webhook,
     settles,
 )
 from test_jbus_queue import add, go
@@ -38,6 +37,7 @@ HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKIL
 SETTLED = "a settled thread already has this slug"
 USER = ["alert", "decision", "decision.withdrawn", "home-stall", "sign-in"]
 DECIDED = "decision alpha: which one?"
+WHY = f"T3 Code did not take the wake: t3_thread_send: {REFUSED}"
 WHY_APPROVE = "a row with no approval of its brief"
 HOLDING_9 = (
     f'decision #9: {HELD}, a pull request jmerge holds for your word. Reply: "demo #9: merge it"'
@@ -92,8 +92,8 @@ def test_an_escalation_is_posted_alone_and_its_line_names_the_project(kitchen, k
     box(kitchen).send("alpha", "result", "result alpha: done")
     box(kitchen).send("alpha", kind, line)
     assert "woke demo: 1 events" in kitchen.poll()
-    assert kitchen.webhook.said == [[f"demo: {line}"]]
-    assert [[one["line"] for one in post] for post in kitchen.webhook.posts] == [[line]]
+    assert kitchen.wakes.said == [[f"demo: {line}"]]
+    assert [[one["line"] for one in post] for post in kitchen.wakes.posts] == [[line]]
     assert kitchen.waiting() == []
     assert logged(kitchen) == [("result alpha: done", "quiet", False), (line, "user", True)]
 
@@ -104,7 +104,7 @@ def test_any_other_kind_starts_no_post_and_is_in_the_log_and_not_in_the_outbox(k
     assert box(kitchen).send("alpha", kind, line)
     assert kitchen.waiting() == []
     assert not [said for said in kitchen.poll() if said.startswith("woke")]
-    assert kitchen.webhook.posts == []
+    assert kitchen.wakes.posts == []
     assert logged(kitchen) == [(line, "quiet", False)]
     code, printed = kitchen.main("events")
     assert code == 0 and [json.loads(one)["line"] for one in printed.splitlines()] == [line]
@@ -113,7 +113,7 @@ def test_any_other_kind_starts_no_post_and_is_in_the_log_and_not_in_the_outbox(k
 def test_a_question_piped_to_jbus_gate_with_a_default_is_logged_and_not_posted(kitchen):
     assert kitchen.main("gate", "alpha", stdin=GATE) == (0, "queued: question 1\n")
     kitchen.poll()
-    assert kitchen.webhook.posts == [] and kitchen.waiting() == []
+    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
     assert (ASKED, "quiet", False) in logged(kitchen)
 
 
@@ -124,7 +124,7 @@ def test_a_question_that_holds_is_one_decision_under_the_project_s_name(kitchen)
     assert kitchen.main("gate", "alpha", stdin=holds) == (0, "queued: question 1\n")
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert kitchen.webhook.said == [[HOLDING]]
+    assert kitchen.wakes.said == [[HOLDING]]
 
 
 def test_a_hold_and_an_approval_are_told_once_when_the_list_gains_them(kitchen):
@@ -136,12 +136,12 @@ def test_a_hold_and_an_approval_are_told_once_when_the_list_gains_them(kitchen):
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     gained = [[f"demo: {HOLDING_9}"], [f"demo: {approving('unsaid')}"]]
-    assert kitchen.webhook.said == gained
+    assert kitchen.wakes.said == gained
     assert (HELD, "quiet", False) in logged(kitchen)
     kitchen.set("jmerge.txt", HELD.replace("crew", "home") + "\n")
     kitchen.poll(later(80))
     kitchen.poll(later(150))
-    assert kitchen.webhook.said == gained
+    assert kitchen.wakes.said == gained
     assert (HELD.replace("crew", "home"), "quiet", False) in logged(kitchen)
 
 
@@ -154,13 +154,13 @@ def test_an_approval_a_waiting_row_ends_at_is_told_once_and_not_again_each_hour(
     roots = [line for line, _, _ in logged(kitchen) if line.startswith("waiting-on-user demo:")]
     assert len(roots) == 3
     assert [line for line, loud, _ in logged(kitchen) if loud == "user"] == [approving("base")]
-    assert len(kitchen.webhook.posts) == 1
+    assert len(kitchen.wakes.posts) == 1
 
 
 def test_the_third_pass_that_did_not_finish_is_an_alert_under_the_project_s_name(kitchen):
     for minute in range(3):
         assert alive.alarm(jbus.load(), later(minute), lambda _: None) == 0
-    ((said,),) = kitchen.webhook.said
+    ((said,),) = kitchen.wakes.said
     assert said.startswith("demo: alert: pass failed 3 times in a row since ")
 
 
@@ -173,7 +173,7 @@ def test_a_merge_a_result_a_review_and_a_report_start_no_post_and_are_in_the_log
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
     kitchen.poll()
     kitchen.poll(later(10))
-    assert kitchen.webhook.posts == [] and kitchen.waiting() == []
+    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
     assert [(one["event"], one["loud"], one["posted"]) for one in box(kitchen).log()] == [
         ("result", "quiet", None),
         ("review", "quiet", None),
@@ -193,12 +193,12 @@ def test_a_list_that_only_lost_an_item_posts_only_the_withdrawal_of_its_decision
     add(kitchen, "unsaid", approve=False)
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert len(kitchen.webhook.posts) == 1
+    assert len(kitchen.wakes.posts) == 1
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(kitchen.webhook.posts) == 2 and kitchen.waiting() == []
-    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision.withdrawn"]
+    assert len(kitchen.wakes.posts) == 2 and kitchen.waiting() == []
+    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision.withdrawn"]
     gone = ("waiting demo: 0 wait on user, 0 new, 1 gone", "quiet", False)
     assert gone in logged(kitchen)
 
@@ -210,7 +210,7 @@ def test_what_jbus_finds_that_no_rule_covers_is_a_condition_and_starts_no_post(k
     kitchen.set("open.json", [kitchen.opened("stray", 12)])
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert kitchen.webhook.posts == [] and kitchen.waiting() == []
+    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
     found = [one for one in box(kitchen).log() if one["event"] != "queue"]
     assert [(one["event"], one["line"], one["loud"]) for one in found] == [
         ("condition", "condition stray: pull request #12 has no brief", "quiet"),
@@ -233,16 +233,7 @@ def unread(kitchen, *, loud='["user", "chef"]'):
     kitchen.write(path, path.read_text().replace(named, f"{named}loud = {loud}\n"))
 
 
-@pytest.fixture
-def hook():
-    made = Webhook()
-    yield made
-    made.close()
-
-
-def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are_ignored(
-    kitchen, hook
-):
+def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are_ignored(kitchen):
     plain = (kitchen.config_dir / "config.toml").read_text()
     unread(kitchen)
     assert jbus.load().ignored == tuple(IGNORED.split(", "))
@@ -253,14 +244,13 @@ def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are
     assert [line for line in said if line.startswith("ignored")] == [
         f"ignored: {path} still has {IGNORED}: jbus reads none of them, remove them"
     ]
-    assert kitchen.webhook.said == [[f"demo: {DECIDED}"]] and hook.posts == []
+    assert kitchen.wakes.said == [[f"demo: {DECIDED}"]]
     assert sorted(kitchen.status()["projects"]["demo"]) == [
         "failed_wakes",
         "last_error",
         "outbox",
         "sign_in",
         "sweep",
-        "wake",
     ]
     kitchen.write(path, plain)
     assert not [line for line in kitchen.poll(later(10)) if line.startswith("ignored")]
@@ -275,11 +265,11 @@ def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are
     ],
     ids=["loud-a-word", "loud-unknown", "loud-empty"],
 )
-def test_a_value_of_an_ignored_key_that_was_once_refused_loads(kitchen, hook, written):
+def test_a_value_of_an_ignored_key_that_was_once_refused_loads(kitchen, written):
     unread(kitchen, **written)
     decide(kitchen)
     assert len([line for line in kitchen.poll() if line.startswith("ignored")]) == 1
-    assert kitchen.webhook.said == [[f"demo: {DECIDED}"]] and hook.posts == []
+    assert kitchen.wakes.said == [[f"demo: {DECIDED}"]]
 
 
 @pytest.mark.usefixtures("named_user")
@@ -300,8 +290,8 @@ def test_an_outbox_from_before_posts_only_what_is_for_the_user_and_keeps_nothing
     kitchen.state.mkdir(parents=True)
     jbus.write_json(kitchen.state / "outbox.json", was)
     assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["line"] for one in post] for post in kitchen.webhook.posts] == [[ASKED]]
-    assert kitchen.webhook.said == [[ASKED]] and kitchen.waiting() == []
+    assert [[one["line"] for one in post] for post in kitchen.wakes.posts] == [[ASKED]]
+    assert kitchen.wakes.said == [[ASKED]] and kitchen.waiting() == []
 
 
 def test_an_outbox_from_before_with_nothing_for_the_user_is_emptied_with_no_post(kitchen):
@@ -309,7 +299,7 @@ def test_an_outbox_from_before_with_nothing_for_the_user_is_emptied_with_no_post
     was = [{**wake.event("demo", "a", "merged", "merged a #7 aaaa"), "loud": "chef"}]
     jbus.write_json(kitchen.state / "outbox.json", was)
     kitchen.poll()
-    assert kitchen.webhook.posts == [] and kitchen.waiting() == []
+    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
 
 
 def test_the_log_reads_what_was_for_the_chef_as_quiet(kitchen):
@@ -460,7 +450,7 @@ def test_a_hold_found_while_t3_code_cannot_be_asked_is_told_by_jmerge_s_line_alo
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert [(one["kind"], one["line"]) for one in listed(kitchen)] == [("hold", HELD)]
-    assert kitchen.webhook.said == [[f"demo: {HOLDING_9}"]]
+    assert kitchen.wakes.said == [[f"demo: {HOLDING_9}"]]
     kitchen.set("jmerge.txt", "")
     (kitchen.stub / "jmerge-dies").write_text("jmerge: could not ask GitHub")
     kitchen.poll(later(30))
@@ -483,7 +473,15 @@ def test_a_sign_in_to_t3_code_that_stopped_working_is_told_once_by_the_list_gain
         "decision config: run jbus t3 login, jbus lacks a setup only you can give. "
         'Reply: "demo config: I set it up"'
     )
-    assert kitchen.webhook.said == [[f"demo: {signed_out}"]]
+    assert kitchen.wakes.said == []
+    (decision, failing) = [one["line"] for one in kitchen.waiting()]
+    assert decision == signed_out
+    assert failing.startswith("alert: home thread demo failed 3 times in a row since ")
+    assert failing.endswith("run `jbus t3 login`")
+    kitchen.signed_in(timedelta(0))
+    kitchen.poll(later(160))
+    ((said, *_),) = kitchen.wakes.said
+    assert said == f"demo: {signed_out}"
 
 
 def test_a_quiet_event_whose_log_line_cannot_be_written_is_owed_and_logged_first(kitchen):
@@ -513,27 +511,16 @@ def test_a_stale_line_of_a_home_that_merges_is_no_hold_while_t3_code_cannot_be_a
     kitchen.t3.down.add(PROJECT)
     for minutes in (10, 20):
         kitchen.poll(later(minutes))
-    assert listed(kitchen) == [] and kitchen.webhook.posts == []
+    assert listed(kitchen) == [] and kitchen.wakes.posts == []
     assert kitchen.lines("waiting") == []
-
-
-def test_the_url_and_key_of_a_table_nobody_reads_are_still_taken_out(kitchen, hook):
-    path = kitchen.config_dir / "config.toml"
-    table = f'[retired]\nwebhook_url = "{hook.url}/retired"\nwebhook_key = "another-key"\n'
-    kitchen.write(path, path.read_text() + table)
-    config = jbus.load()
-    assert config.tabled == ((f"{hook.url}/retired", "another-key"),)
-    said = f"post to {hook.url}/retired with another-key"
-    assert jbus.redact(said, config.secrets()) == "post to [redacted] with [redacted]"
 
 
 def test_three_events_are_one_post_and_a_pass_within_five_minutes_sends_none(kitchen):
     for slug in ("one", "two", "three"):
         box(kitchen).send(slug, "decision", f"decision {slug}: which {slug}?", "the text")
     said = kitchen.poll()
-    (post,) = kitchen.webhook.posts
+    (post,) = kitchen.wakes.posts
     assert "woke demo: 3 events" in said
-    assert kitchen.webhook.keys == [KEY]
     keys = {"project", "slug", "event", "line", "text", "loud", "say"}
     assert [set(event) for event in post] == [keys] * 3
     assert post[0] == {
@@ -547,36 +534,9 @@ def test_three_events_are_one_post_and_a_pass_within_five_minutes_sends_none(kit
     }
     decide(kitchen, "four")
     kitchen.poll(NOW + timedelta(minutes=4, seconds=59))
-    assert len(kitchen.webhook.posts) == 1
+    assert len(kitchen.wakes.posts) == 1
     kitchen.poll(NOW + timedelta(minutes=5))
-    assert [event["slug"] for event in kitchen.webhook.posts[1]] == ["four"]
-
-
-def test_a_webhook_that_does_not_answer_in_time_keeps_the_outbox_for_the_next_allowed_pass(kitchen):
-    """The test shrinks the timeout and has the webhook sleep past it, the way a webhook that
-    sleeps 10 s runs past the real timeout of 8 s."""
-    assert wake.TIMEOUT == 8
-    kitchen.monkeypatch.setattr(wake, "TIMEOUT", 0.2)
-    kitchen.webhook.sleep = 0.6
-    decide(kitchen)
-    said = kitchen.poll()
-    assert said[-1] == "wake failed demo: no answer in 0.2 s"
-    assert kitchen.webhook.url not in "".join(said) and KEY not in "".join(said)
-    assert kitchen.lines() == [DECIDED]
-    kitchen.webhook.sleep = 0
-    time.sleep(0.6)
-    kitchen.webhook.posts.clear()
-    assert "woke demo: 1 events" not in kitchen.poll(NOW + timedelta(minutes=2))
-    assert "woke demo: 1 events" in kitchen.poll(NOW + timedelta(minutes=5))
-    assert [event["line"] for event in kitchen.webhook.posts[-1]] == [DECIDED]
-    assert kitchen.waiting() == []
-
-
-def test_a_webhook_that_is_down_says_so_with_no_url(kitchen):
-    kitchen.webhook.close()
-    decide(kitchen)
-    assert kitchen.poll()[-1] == "wake failed demo: the webhook could not be reached"
-    assert len(kitchen.events()) == len(kitchen.waiting()) == 1
+    assert [event["slug"] for event in kitchen.wakes.posts[1]] == ["four"]
 
 
 def test_a_text_is_cut_at_eight_thousand_characters(kitchen):
@@ -616,7 +576,7 @@ def test_a_snapshot_is_cut_at_thirty_two_thousand_characters(kitchen):
 
 
 def fail(kitchen, passes, start=0):
-    """Run passes five minutes apart, each with one POST that the webhook does not take."""
+    """Run passes five minutes apart, each with one wake that the home thread does not take."""
     said = []
     for number in range(start, start + passes):
         said += kitchen.poll(NOW + timedelta(minutes=5 * number))
@@ -625,20 +585,19 @@ def fail(kitchen, passes, start=0):
 
 def test_failed_posts_in_a_row_are_counted_and_a_sent_one_starts_the_count_again(kitchen):
     decide(kitchen)
-    kitchen.webhook.status = 500
+    kitchen.wakes.refused = REFUSED
     said = fail(kitchen, 2)
-    assert said.count("wake failed demo: the webhook answered 500") == 2
-    assert kitchen.marks()["last_error"] == "the webhook answered 500"
+    assert said.count(f"wake failed demo home thread: {WHY}") == 2
+    assert kitchen.marks()["last_error"] == WHY
     kitchen.poll(NOW + timedelta(minutes=7))
     assert kitchen.status()["projects"]["demo"] == {
         "failed_wakes": 2,
-        "last_error": "the webhook answered 500",
+        "last_error": WHY,
         "outbox": 1,
         "sign_in": "",
         "sweep": "",
-        "wake": "webhook",
     }
-    kitchen.webhook.status = 200
+    kitchen.wakes.refused = ""
     assert "woke demo: 1 events" in kitchen.poll(NOW + timedelta(minutes=10))
     assert kitchen.marks()["last_error"] == ""
     assert kitchen.status()["projects"]["demo"]["failed_wakes"] == 0
@@ -647,32 +606,28 @@ def test_failed_posts_in_a_row_are_counted_and_a_sent_one_starts_the_count_again
 
 def test_three_failed_posts_in_a_row_are_one_notification_and_the_next_run_one_more(kitchen):
     decide(kitchen)
-    kitchen.webhook.status = 500
+    kitchen.wakes.refused = REFUSED
     said = fail(kitchen, 2)
     assert kitchen.log("notify") == []
     said += fail(kitchen, 3, start=2)
-    alert = (
-        "jbus | alert: webhook demo failed 3 times in a row since 11:00 ET: "
-        "the webhook answered 500"
-    )
+    alert = f"jbus | alert: home thread demo failed 3 times in a row since 11:00 ET: {WHY}"
     assert kitchen.log("notify") == [alert]
     assert kitchen.status()["projects"]["demo"]["failed_wakes"] == 5
-    kitchen.webhook.status = 200
+    kitchen.wakes.refused = ""
     said += kitchen.poll(NOW + timedelta(minutes=25))
     decide(kitchen, "beta")
-    kitchen.webhook.status = 500
+    kitchen.wakes.refused = REFUSED
     said += fail(kitchen, 3, start=6)
     assert len(kitchen.log("notify")) == 2
     everything = "\n".join(
         [
             *said,
             *kitchen.log("notify"),
-            (kitchen.state / "wake.json").read_text(),
+            (kitchen.state / wake.HOME / "wake.json").read_text(),
             (kitchen.state_dir / "status.json").read_text(),
         ]
     )
-    assert kitchen.webhook.url not in everything and KEY not in everything
-    assert "127.0.0.1" not in everything
+    assert KEY not in everything and "127.0.0.1" not in everything
 
 
 def test_the_count_that_tells_is_three_whatever_the_config_says(kitchen):
@@ -681,15 +636,9 @@ def test_the_count_that_tells_is_three_whatever_the_config_says(kitchen):
     kitchen.config(wake_alert=1)
     assert (jbus.load().wake_alert, alert.AFTER) == (1, 3)
     decide(kitchen)
-    kitchen.webhook.status = 500
+    kitchen.wakes.refused = REFUSED
     fail(kitchen, 2)
     assert kitchen.log("notify") == []
-
-
-def test_a_blank_webhook_url_beside_wake_webhook_is_refused(kitchen):
-    kitchen.config(url="")
-    with pytest.raises(jbus.Refused, match='wake = "webhook"'):
-        jbus.load()
 
 
 def test_once_a_day_the_keys_of_a_slug_merged_a_week_ago_are_forgotten(kitchen):

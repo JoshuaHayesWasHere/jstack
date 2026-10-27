@@ -13,7 +13,7 @@ import pytest
 import jbus
 import jsettings
 from jbriefs import findings
-from jbus import merge
+from jbus import merge, wake
 from jmerge import ready
 from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT
@@ -52,7 +52,7 @@ def later(minutes):
 class Short:
     """Alpha is a row that a pass launched. Its thread ended its turn with pull request #7 open
     at the second of two commits. A pass has read its Result, and the test has cleared what the
-    first passes sent from the outbox and the webhook."""
+    first passes sent from the outbox and the home thread."""
 
     def __init__(self, kitchen):
         self.kitchen = kitchen
@@ -69,11 +69,11 @@ class Short:
 
     def heard(self, result=""):
         """Run a pass that reads the Result as it is, while the pull request is short of nothing
-        yet. Then clear what the pass sent from the outbox and the webhook."""
+        yet. Then clear what the pass sent from the outbox and the home thread."""
         self.out("", result=result)
         self.kitchen.poll(NOW - timedelta(minutes=20 - self.minute))
-        jbus.write_json(self.kitchen.state / "outbox.json", [])
-        self.kitchen.webhook.posts.clear()
+        jbus.write_json(self.kitchen.state / wake.HOME / "outbox.json", [])
+        self.kitchen.wakes.posts.clear()
 
     def commit(self, message=""):
         if message:
@@ -246,7 +246,7 @@ def test_the_third_pass_of_one_reason_at_one_head_tells_the_crew_once(kind, reas
     assert "say" not in event and event["text"] == sends(kitchen)[0]["message"]
     short.passes(6)
     assert len(sends(kitchen)) == 1
-    assert kitchen.webhook.posts == [] and kitchen.lines("stall") == [] and gates(kitchen) == []
+    assert kitchen.wakes.posts == [] and kitchen.lines("stall") == [] and gates(kitchen) == []
     assert f"{kind}|alpha|{short.head[:12]}" in jbus.read_json(kitchen.state / "sent.json", [])
 
 
@@ -316,7 +316,7 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     short.passes(9)
     crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
     assert len(crew) == 1
-    posted = [event for post in kitchen.webhook.posts for event in post]
+    posted = [event for post in kitchen.wakes.posts for event in post]
     assert [event["line"] for event in posted if event["loud"] == "user"] == []
     assert kitchen.lines("stall") == [] and gates(kitchen) == []
     short.passes(1)
@@ -327,7 +327,7 @@ def test_a_review_that_never_came_is_told_to_the_crew_once_and_logged_as_one_sta
     assert kitchen.lines("stall") == [stalled]
     (event,) = kitchen.events("stall")
     assert (event["loud"], event["posted"]) == ("quiet", None)
-    assert not [one for post in kitchen.webhook.posts for one in post if one["event"] == "stall"]
+    assert not [one for post in kitchen.wakes.posts for one in post if one["event"] == "stall"]
     short.passes(12)
     crew = [one for one in sends(kitchen) if one["threadId"] == "mcp:thread-1"]
     assert stalled in kitchen.lines("stall") and len(crew) == 1
@@ -526,7 +526,7 @@ def test_drops_a_review_did_not_rule_on_ask_the_crew_for_the_scoped_pass_not_the
     assert sends(kitchen) == [said_to(short, "unruled", reason, sentence)]
     short.passes(6)
     assert len(sends(kitchen)) == 1
-    assert kitchen.webhook.posts == [] and gates(kitchen) == []
+    assert kitchen.wakes.posts == [] and gates(kitchen) == []
     assert kitchen.lines("waiting") == [] and kitchen.lines("waiting-on-user") == []
     assert jbus.read_json(kitchen.state / "waiting-on-user.json", []) == []
 
@@ -543,7 +543,7 @@ def test_ten_passes_after_the_message_with_nothing_changed_is_one_stall_in_the_l
     assert kitchen.lines("stall") == [stalled]
     (event,) = kitchen.events("stall")
     assert (event["slug"], event["loud"], event["posted"]) == ("alpha", "quiet", None)
-    assert not [one for post in kitchen.webhook.posts for one in post if one["event"] == "stall"]
+    assert not [one for post in kitchen.wakes.posts for one in post if one["event"] == "stall"]
     short.passes(12)
     assert kitchen.lines("stall") == [stalled] and len(sends(kitchen)) == 1
 
@@ -554,19 +554,19 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
     short.out(short.unruled(), "hold", short.rebased())
     short.passes(12)
     assert kitchen.lines("stall") == []
-    kitchen.webhook.posts.clear()
+    kitchen.wakes.posts.clear()
     short.passes(1)
     (stalled,) = kitchen.lines("stall")
     assert stalled.endswith(f"{short.unruled()}; its crew's thread is mcp:thread-1")
-    assert kitchen.webhook.posts == []
+    assert kitchen.wakes.posts == []
     assert listed(kitchen) == []
-    kitchen.webhook.posts.clear()
+    kitchen.wakes.posts.clear()
     short.passes(1)
     assert listed(kitchen) == ["#7"]
     assert kitchen.lines("waiting")[-1] == "waiting demo: 1 wait on user, 1 new (hold 7), 0 gone"
     assert kitchen.lines("gate") == [] and gates(kitchen) == []
     short.passes(12)
-    posted = [[event["event"] for event in post] for post in kitchen.webhook.posts]
+    posted = [[event["event"] for event in post] for post in kitchen.wakes.posts]
     assert posted == [["decision"]] and kitchen.waiting() == []
     (decided,) = kitchen.events("decision")
     assert decided["line"].endswith(
@@ -811,7 +811,7 @@ def test_a_hold_in_hand_before_its_crew_is_told_stays_in_hand_through_a_silent_p
     kitchen.t3.down.clear()
     short.passes(1)
     assert listed(kitchen) == [] and kitchen.lines("waiting") == []
-    assert kitchen.webhook.posts == []
+    assert kitchen.wakes.posts == []
 
 
 def test_a_silent_pass_after_the_crew_was_told_puts_no_hold_on_the_user_s_list(short, kitchen):

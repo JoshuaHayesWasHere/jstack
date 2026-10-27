@@ -1,8 +1,8 @@
 """jbus keeps every event it sends. `events.jsonl` holds each event with its text, the time jbus
 sent it and the time jbus posted it. `jbus events` prints the file and writes nothing.
 
-The tests run the real pass and the real command against the faked T3 Code server and webhook of
-`test_jbus_kitchen`, or the real `wake.Box` against the webhook of `test_jbus_wake`. The log uses
+The tests run the real pass and the real command against the faked T3 Code server of
+`test_jbus_kitchen`, or the real `wake.Box` with a send that the test fakes (`Took`). The log uses
 the test's clock, which the test sets with `clock.at`. Nothing reaches the network.
 
 jbus builds the table of kinds from what each module of jbus declares in its `EVENTS`. The tests of
@@ -19,18 +19,26 @@ import pytest
 
 import jbus
 from jbus import Project, wake
-from test_jbus_kitchen import GATE, KEY, NOW
-from test_jbus_wake import KEY as HOOK_KEY
-from test_jbus_wake import Webhook
+from test_jbus_kitchen import GATE, KEY, NOW, REFUSED
 
 ASKED = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
 
 
+class Took:
+    """`Took` stands for the send of a wake to the home thread: it keeps each body, and fails the
+    sends whose number is in `fail`."""
+
+    def __init__(self):
+        self.posts, self.fail = [], set()
+
+    def __call__(self, body):
+        self.posts.append(body)
+        return "refused" if len(self.posts) in self.fail else ""
+
+
 @pytest.fixture
-def webhook():
-    fake = Webhook()
-    yield fake
-    fake.close()
+def took():
+    return Took()
 
 
 class Clock:
@@ -49,10 +57,8 @@ def clock(monkeypatch):
     return made
 
 
-def box(tmp_path, webhook):
-    project = Project(
-        "demo", tmp_path / "checkout", "demo", "project-1", webhook.url, HOOK_KEY, wake="webhook"
-    )
+def box(tmp_path):
+    project = Project("demo", tmp_path / "checkout", "demo", "project-1")
     return wake.Box(tmp_path / "state", project)
 
 
@@ -115,7 +121,7 @@ def test_a_decision_queued_while_a_pass_runs_is_posted_after_it_was_sent(kitchen
     queued, posting = NOW + timedelta(seconds=30), NOW + timedelta(seconds=40)
     clock.at(queued)
     config = jbus.load()
-    made = wake.Box(kitchen.state, config.project("demo"), config.webhook)
+    made = wake.Box(kitchen.state, config.project("demo"))
     assert made.send("alpha", "decision", "decision alpha: which way?")
     clock.at(posting)
     kitchen.poll(NOW)
@@ -130,13 +136,12 @@ def test_an_event_a_pass_sends_is_logged_with_its_slug_loudness_and_line(kitchen
     assert gate["line"] == "condition beta: pull request #10 has no brief"
 
 
-def test_the_log_is_private_and_holds_no_webhook_url_and_no_key(kitchen):
-    kitchen.webhook.status = 500
+def test_the_log_is_private_and_holds_no_key(kitchen):
+    kitchen.wakes.refused = REFUSED
     assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
     kitchen.poll()
     path = kitchen.state / "events.jsonl"
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
-    assert kitchen.webhook.url not in path.read_text()
     assert KEY not in path.read_text()
 
 
@@ -184,33 +189,33 @@ def test_a_since_that_is_no_time_is_refused(kitchen):
 
 
 def test_a_quiet_event_is_never_posted_and_one_for_the_user_is_at_the_next_post(
-    tmp_path, webhook, clock
+    tmp_path, took, clock
 ):
-    made = box(tmp_path, webhook)
+    made = box(tmp_path)
     made.send("", "note", "note: a quiet one")
-    assert made.flush(NOW, lambda _: None) == 0
+    assert made.flush(NOW, lambda _: None, post=took) == 0
     assert [(one["line"], one["posted"]) for one in made.log()] == [("note: a quiet one", None)]
     later = clock.at(NOW + timedelta(minutes=10))
     made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(later, lambda _: None) == 1
+    assert made.flush(later, lambda _: None, post=took) == 1
     assert [(one["at"], one["line"], one["posted"]) for one in made.log()] == [
         (at(NOW), "note: a quiet one", None),
         (at(later), "decision alpha: which?", at(later)),
     ]
 
 
-def test_a_post_the_webhook_refuses_leaves_the_event_not_posted(tmp_path, webhook):
-    webhook.fail = {1}
-    made = box(tmp_path, webhook)
+def test_a_wake_the_home_thread_refuses_leaves_the_event_not_posted(tmp_path, took):
+    took.fail = {1}
+    made = box(tmp_path)
     made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(NOW, lambda _: None) == 0
+    assert made.flush(NOW, lambda _: None, post=took) == 0
     assert [one["posted"] for one in made.log()] == [None]
 
 
-def test_the_same_event_sent_again_after_its_post_is_not_posted(tmp_path, webhook, clock):
-    made = box(tmp_path, webhook)
+def test_the_same_event_sent_again_after_its_post_is_not_posted(tmp_path, took, clock):
+    made = box(tmp_path)
     made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(NOW, lambda _: None) == 1
+    assert made.flush(NOW, lambda _: None, post=took) == 1
     later = clock.at(NOW + timedelta(minutes=1))
     made.send("alpha", "decision", "decision alpha: which?")
     assert [(one["at"], one["posted"]) for one in made.log()] == [
@@ -219,27 +224,27 @@ def test_the_same_event_sent_again_after_its_post_is_not_posted(tmp_path, webhoo
     ]
 
 
-def test_an_event_a_key_keeps_out_is_not_logged(tmp_path, webhook):
-    made = box(tmp_path, webhook)
+def test_an_event_a_key_keeps_out_is_not_logged(tmp_path):
+    made = box(tmp_path)
     assert made.send("alpha", "result", "result alpha: done", key="once")
     assert not made.send("alpha", "result", "result alpha: done", key="once")
     assert len(made.log()) == 1
 
 
-def test_a_log_that_cannot_be_written_stops_no_event_and_no_post(tmp_path, webhook):
-    """The test puts a directory where the log goes, so every append fails, and the webhook still
-    gets both lists."""
-    made = box(tmp_path, webhook)
+def test_a_log_that_cannot_be_written_stops_no_event_and_no_post(tmp_path, took):
+    """The test puts a directory where the log goes, so every append fails, and the home thread
+    still gets both lists."""
+    made = box(tmp_path)
     (made.state / "events.jsonl").mkdir(parents=True)
     assert made.send("alpha", "decision", "decision alpha: which?", "a" * 70_000, cap=70_000)
     assert made.send("beta", "decision", "decision beta: which?", "b" * 70_000, cap=70_000)
     said, went = [], []
-    assert made.flush(NOW, said.append, went=went.append) == 2
-    assert [[one["slug"] for one in post["events"]] for post in webhook.posts] == [
+    assert made.flush(NOW, said.append, went=went.append, post=took) == 2
+    assert [[one["slug"] for one in post["events"]] for post in took.posts] == [
         ["alpha"],
         ["beta"],
     ]
-    assert (said, went, made.waiting(), made.marks()["last_error"]) == ([], [""], 0, "")
+    assert (said, went, made.waiting(), made.marks(made.home)["last_error"]) == ([], [""], 0, "")
     assert made.log() == []
 
 

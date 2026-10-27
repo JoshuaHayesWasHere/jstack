@@ -2,7 +2,7 @@
 what a model used to read, without running a model.
 
 Like `test_jbus_kitchen.py`, the tests run the real command and the real pass against a faked T3
-Code server, `gh`, `jmerge` and webhook. Nothing reaches the network.
+Code server, `gh` and `jmerge`. Nothing reaches the network.
 """
 
 import json
@@ -186,8 +186,8 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
     (event,) = kitchen.events("waiting")
     assert (event["slug"], event["loud"]) == ("", "quiet")
     assert event["line"] == "waiting demo: 5 wait on user, 1 new (approve second), 1 gone"
-    assert deciding("second") in kitchen.webhook.said[-1]
-    assert not [line for post in kitchen.webhook.said for line in post if "waiting demo" in line]
+    assert deciding("second") in kitchen.wakes.said[-1]
+    assert not [line for post in kitchen.wakes.said for line in post if "waiting demo" in line]
     assert event["text"].splitlines() == [
         "  gate 4: which way?",
         "  gate 1: left or right?",
@@ -200,18 +200,18 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
 
 def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event_never(kitchen):
     """The test runs passes that add an approval, remove one, and do both. A row to approve is
-    raised in the pass after the one that lists it, and the removal of one that was raised posts
-    its withdrawal alone."""
+    raised in the pass after the one that lists it, and the removal of one that was raised wakes
+    the home thread with its withdrawal alone."""
     four(kitchen)
     kitchen.poll()
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    posts = len(kitchen.webhook.posts)
+    posts = len(kitchen.wakes.posts)
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(30))
-    assert len(kitchen.webhook.posts) == posts + 1
-    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision.withdrawn"]
+    assert len(kitchen.wakes.posts) == posts + 1
+    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision.withdrawn"]
     add(kitchen, "third", priority=4, approve=False)
     assert go(kitchen, "second")[0] == 0
     kitchen.poll(later(40))
@@ -242,7 +242,7 @@ def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(ki
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    posts = len(kitchen.webhook.posts)
+    posts = len(kitchen.wakes.posts)
     gone = "waiting demo: 4 wait on user, 0 new, 1 gone"
     assert kitchen.waiting() == []
     assert [(one["loud"], one["posted"]) for one in box(kitchen).log() if one["line"] == gone] == [
@@ -251,9 +251,9 @@ def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(ki
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(kitchen.webhook.posts) == posts + 1 and kitchen.waiting() == []
-    assert [one["event"] for one in kitchen.webhook.posts[-1]] == ["decision"]
-    assert kitchen.webhook.said[-1] == [deciding("second")]
+    assert len(kitchen.wakes.posts) == posts + 1 and kitchen.waiting() == []
+    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision"]
+    assert kitchen.wakes.said[-1] == [deciding("second")]
 
 
 def test_the_line_names_each_new_item_by_its_kind_and_its_slug_or_number(kitchen):
@@ -442,12 +442,12 @@ def test_a_digest_that_cannot_be_given_is_refused(kitchen, argv, says):
     assert kitchen.main(*argv) == (1, says + "\n")
 
 
-def test_no_webhook_url_no_key_and_no_token_is_in_the_list_the_digest_or_a_line(kitchen):
-    """The test puts a fake webhook URL, key and token in every source that the list and the
-    digest read."""
-    hook = f"{kitchen.webhook.url}/hooks/s3cr3t-path-of-the-relay?sig=a-signature-for-it"
-    host = kitchen.webhook.url.partition("//")[2]
-    kitchen.config(url=hook, max_running=6)
+def test_no_url_no_key_and_no_token_is_in_the_list_the_digest_or_a_line(kitchen):
+    """The test puts a fake URL and key of the second target and a token in every source that the
+    list and the digest read. Nothing listens on the URL's port."""
+    hook = "http://127.0.0.1:9/hooks/s3cr3t-path-of-the-relay?sig=a-signature-for-it"
+    host = "127.0.0.1:9/"
+    kitchen.config(blocking_url=hook, blocking_key=KEY, max_running=6)
     refresh = "a-refresh-token-for-the-test"
     kitchen.signed_in(
         timedelta(0),

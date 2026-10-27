@@ -43,7 +43,7 @@ def test_a_row_queued_and_approved_a_moment_later_raises_no_decision(kitchen):
     kitchen.poll(later(20))
     assert decisions(kitchen, "alpha") == []
     assert withdrawals(kitchen) == []
-    assert not [said for post in kitchen.webhook.said for said in post if "alpha" in said]
+    assert not [said for post in kitchen.wakes.said for said in post if "alpha" in said]
 
 
 def test_a_row_approved_between_the_list_and_the_raise_is_not_raised(kitchen, monkeypatch):
@@ -117,7 +117,7 @@ def test_a_raised_row_approved_in_the_next_pass_is_withdrawn_once(kitchen):
     kitchen.poll(later(40))
     assert withdrawals(kitchen) == [(f"{WITHDRAWN} alpha: {key}: approved", "user")]
     assert f"{WITHDRAWN}|{key}" in box(kitchen).sent()
-    assert [f"demo: {WITHDRAWN} alpha: {key}: approved"] in kitchen.webhook.said
+    assert [f"demo: {WITHDRAWN} alpha: {key}: approved"] in kitchen.wakes.said
     built = digest.build(jbus.load(), now=later(41))["projects"]["demo"]
     assert "approve:alpha" not in [one["key"] for one in built["waiting"]]
 

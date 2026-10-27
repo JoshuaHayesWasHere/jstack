@@ -15,7 +15,8 @@ import pytest
 import jbus
 from jbus import cli, health, merge, wake
 from jroles import ledger
-from test_jbus_kitchen import KEY, NOW, Webhook, approved
+from test_jbus_blocking import Second
+from test_jbus_kitchen import KEY, NOW, approved
 
 PRIME = "claudeAgent_claude_prime"
 GIB = 2**30
@@ -80,38 +81,30 @@ def test_a_full_disk_is_paged_once_while_it_holds_and_logged_once_when_it_clears
         "recovered: health disk /home: 60% of its space used (60.0 of 100.0 GiB), alerts at 80%"
     ]
     assert [one["loud"] for one in kitchen.events("recovered")] == ["quiet"]
-    assert [one["event"] for post in kitchen.webhook.posts for one in post] == ["alert"]
+    assert [one["event"] for post in kitchen.wakes.posts for one in post] == ["alert"]
 
 
-def test_the_page_reaches_the_webhook_once_as_an_event_of_the_machine(kitchen, senses):
+def test_the_page_reaches_the_home_thread_once_as_an_event_of_the_machine(kitchen, senses):
     senses.disks["/home"] = (90 * GIB, 10 * GIB, 0, 0)
     polls(kitchen, 0, 10, 20)
     line = "alert: health disk /home: 90% of its space used (90.0 of 100.0 GiB), alerts at 80%"
-    posted = [one for events in kitchen.webhook.posts for one in events if one["event"] == "alert"]
+    posted = [one for events in kitchen.wakes.posts for one in events if one["event"] == "alert"]
     assert [one["say"] for one in posted] == [line]
     assert [one for one in kitchen.log("notify") if "health" in one] == [f"jbus | {line}"]
 
 
-def test_the_page_reaches_every_project_s_home_thread_and_the_top_level_webhook_once(
-    kitchen, senses
-):
+def test_the_page_waits_in_every_project_s_home_thread_outbox_once(kitchen, senses):
     """The first project stands for infra and the second for jstack: a page of the machine waits
-    in each one's home-thread outbox, and the top-level webhook gets it once."""
-    top = Webhook()
-    try:
-        side = kitchen.second("jstack")
-        kitchen.config(project_wake="both", webhook_url=top.url + "/wake", webhook_key=KEY)
-        senses.disks["/home"] = (90 * GIB, 10 * GIB, 0, 0)
-        polls(kitchen, 0, 10)
-        line = "alert: health disk /home: 90% of its space used (90.0 of 100.0 GiB), alerts at 80%"
-        for state in (kitchen.state, side.state):
-            home = jbus.read_json(state / wake.HOME / "outbox.json", [])
-            assert [one["line"] for one in home] == [line]
-        posted = [one for events in top.posts for one in events if one["event"] == "alert"]
-        assert [one["say"] for one in posted] == [line]
-        assert kitchen.webhook.posts == [] and side.webhook.posts == []
-    finally:
-        top.close()
+    in each one's home-thread outbox."""
+    side = kitchen.second("jstack")
+    senses.disks["/home"] = (90 * GIB, 10 * GIB, 0, 0)
+    (kitchen.home / "home-id").unlink(missing_ok=True)
+    kitchen.config(home_thread=None)
+    polls(kitchen, 0, 10)
+    line = "alert: health disk /home: 90% of its space used (90.0 of 100.0 GiB), alerts at 80%"
+    for state in (kitchen.state, side.state):
+        home = jbus.read_json(state / wake.HOME / "outbox.json", [])
+        assert [one["line"] for one in home] == [line]
 
 
 def test_inodes_page_by_their_own_count_and_a_filesystem_with_none_has_no_inode_check(
@@ -184,11 +177,13 @@ def test_an_incident_whose_mount_is_gone_ends_with_no_page(kitchen, senses):
 
 @pytest.fixture
 def relay(kitchen, senses, monkeypatch, tmp_path):
-    """The config points jbus's posts at the relay. The project's webhook is at the `RELAY_PORT`
-    that the relay's env file sets for the unit. jbus's environment does not set it. The relay is
-    up. Its heartbeat file records a beat at NOW and a body received at NOW, and it alerts after
-    90 minutes of silence."""
-    port = kitchen.webhook.url.rsplit(":", 1)[1].split("/")[0]
+    """The config points jbus's second target at the relay, at the `RELAY_PORT` that the relay's
+    env file sets for the unit. jbus's environment does not set it. The relay is up. Its heartbeat
+    file records a beat at NOW and a body received at NOW, and it alerts after 90 minutes of
+    silence."""
+    second = Second()
+    kitchen.config(blocking_url=second.url + "/relay", blocking_key=KEY)
+    port = second.url.rsplit(":", 1)[1].split("/")[0]
     for name in ("RELAY_PORT", "RELAY_STATE"):
         monkeypatch.delenv(name, raising=False)
     health.relay_env().parent.mkdir(parents=True, exist_ok=True)
@@ -197,7 +192,8 @@ def relay(kitchen, senses, monkeypatch, tmp_path):
     )
     (tmp_path / "relay").mkdir()
     senses.units[("jbus-relay.service", "ActiveState")] = "active"
-    return Beat(tmp_path / "relay" / "heartbeat.json")
+    yield Beat(tmp_path / "relay" / "heartbeat.json")
+    second.close()
 
 
 class Beat:

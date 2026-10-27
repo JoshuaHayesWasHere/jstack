@@ -54,7 +54,7 @@ def needing(scene):
     held = questions.ask(scene.state, scene.home, "jam-jar", lines + HOLDING, ago(hours=3))[0]
     scene.waiting(
         [
-            item("config", "config:webhook", "webhook is not set", hours=7),
+            item("config", "config:server", "server is not set", hours=7),
             item(
                 "approve",
                 "approve:tea-kettle",

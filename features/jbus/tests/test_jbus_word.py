@@ -1,7 +1,7 @@
 """`jbus word` sends the user's word to a home. jbus keeps the word, sends it once to the thread in
-the home's `home-id`, and posts it to no webhook.
+the home's `home-id`, and puts it in no wake.
 
-Every test runs the real command and the real pass against the faked T3 Code server and webhook of
+Every test runs the real command and the real pass against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
 """
 
@@ -44,7 +44,7 @@ def logged(kitchen, project="demo"):
 def decide(kitchen):
     """Queue one decision, the kind of event that starts a POST for the user."""
     config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo"), config.webhook).send(
+    wake.Box(kitchen.state, config.project("demo")).send(
         "alpha", "decision", "decision alpha: which one?"
     )
 
@@ -75,7 +75,7 @@ def test_jbus_events_prints_the_word_with_its_words_by_at_and_where_it_went(kitc
     assert one["word"] == {"words": WORDS, "by": "user", "at": AT, "to": "home-1"}
 
 
-def test_no_webhook_is_posted_the_word_and_the_post_another_event_starts_has_none_of_it(kitchen):
+def test_no_wake_carries_the_word_and_the_wake_another_event_starts_has_none_of_it(kitchen):
     """The test sends the word from a checkout that is no project's."""
     (kitchen.home / "home-id").write_text("home-1\n")
     desk = kitchen.root / "elsewhere"
@@ -85,8 +85,8 @@ def test_no_webhook_is_posted_the_word_and_the_post_another_event_starts_has_non
     assert kitchen.waiting() == []
     decide(kitchen)
     assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["event"] for one in post] for post in kitchen.webhook.posts] == [["decision"]]
-    carried = json.dumps([kitchen.webhook.posts, kitchen.webhook.said, kitchen.waiting()])
+    assert [[one["event"] for one in post] for post in kitchen.wakes.posts] == [["decision"]]
+    carried = json.dumps([kitchen.wakes.posts, kitchen.wakes.said, kitchen.waiting()])
     assert "merge" not in carried and "word" not in carried
 
 
@@ -158,7 +158,7 @@ def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
         ),
     )
     kitchen.poll(NOW + timedelta(minutes=5))
-    assert sends(kitchen) == [] and kitchen.webhook.posts == []
+    assert sends(kitchen) == [] and kitchen.wakes.posts == []
 
 
 def test_a_word_recorded_anywhere_else_is_posted_to_the_home_once(kitchen):
@@ -273,7 +273,7 @@ def test_a_word_for_a_home_with_no_home_id_waits_and_goes_on_the_pass_after_its_
     kitchen.poll(NOW + timedelta(minutes=10))
     assert [(one["threadId"], one["message"]) for one in sends(kitchen)] == [("home-1", MESSAGE)]
     assert [one["word"]["to"] for one in logged(kitchen)] == ["", "home-1"]
-    assert kitchen.waiting() == [] and kitchen.webhook.posts == []
+    assert kitchen.waiting() == [] and kitchen.wakes.posts == []
 
 
 def test_the_home_id_is_read_when_the_word_is_sent_not_when_it_was_kept(kitchen):
@@ -293,7 +293,7 @@ def test_the_home_id_is_read_when_the_word_is_sent_not_when_it_was_kept(kitchen)
     )
 
 
-def test_a_word_t3_code_refuses_waits_and_no_webhook_is_posted_anything_of_it(kitchen):
+def test_a_word_t3_code_refuses_waits_and_no_wake_carries_anything_of_it(kitchen):
     (kitchen.home / "home-id").write_text("home-1\n")
     kitchen.t3.refuse_send = True
     assert kitchen.main("word", "--to", "demo", *SAID) == (
@@ -301,13 +301,14 @@ def test_a_word_t3_code_refuses_waits_and_no_webhook_is_posted_anything_of_it(ki
         f"waits: demo, T3 Code refused it, word {ID}\n",
     )
     decide(kitchen)
-    assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["event"] for one in post] for post in kitchen.webhook.posts] == [["decision"]]
+    assert "woke demo: 1 events" not in kitchen.poll()
     assert [one["line"] for one in logged(kitchen) if one["event"] == "word"] == [
         "word demo: waits, T3 Code refused it"
     ]
     kitchen.t3.refuse_send = False
-    assert "word demo: sent to home-1" in kitchen.poll(NOW + timedelta(minutes=5))
+    said = kitchen.poll(NOW + timedelta(minutes=5))
+    assert "word demo: sent to home-1" in said and "woke demo: 1 events" in said
+    assert [[one["event"] for one in post] for post in kitchen.wakes.posts] == [["decision"]]
     assert len(kitchen.t3.messages) == 1
 
 
@@ -337,7 +338,7 @@ def test_a_words_file_that_does_not_parse_is_a_gate_and_the_rest_of_the_pass_run
     assert kitchen.lines("condition") == ["condition demo: words.json does not parse"]
     assert not [line for line in said if line.startswith(("pass failed", "wait: crews out"))]
     assert (
-        kitchen.marks()["began"] is True
+        jbus.read_json(kitchen.state / "wake.json", {})["began"] is True
         and kitchen.status()["projects"]["demo"]["last_error"] == ""
     )
     assert (kitchen.state / "words.json").read_text() == text

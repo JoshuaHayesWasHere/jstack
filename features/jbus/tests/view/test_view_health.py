@@ -7,7 +7,6 @@ from jbus import alert
 from jbus.view.state import iso
 from view.scene import NOW, Scene, Served, ago, stacked
 
-DROPPED = "the config has no webhook_url"
 DOWN = "T3 Code did not answer"
 
 
@@ -24,21 +23,12 @@ def row(stack, name="demo"):
 
 
 def at_home(scene, error, streak=0):
-    """The project's `wake` is `home`, as a pass leaves it: the status file and the home
-    thread's `wake.json` hold the error of the home thread's last wake, and `streaks.json`
-    the streak of its failed wakes. The project's own `wake.json` still holds the error its
-    webhook gave last, before the route was dropped."""
+    """The project as a pass leaves it: the status file and the home thread's `wake.json` hold
+    the error of the home thread's last wake, and `streaks.json` the streak of its failed
+    wakes."""
     status = json.loads((scene.state_dir / "status.json").read_text())
-    status["projects"][scene.name] |= {
-        "wake": "home",
-        "failed_wakes": streak,
-        "last_error": error,
-        "outbox": 0,
-    }
-    status["stranded"] = {}
+    status["projects"][scene.name] |= {"failed_wakes": streak, "last_error": error, "outbox": 0}
     scene.write("status.json", status, scene.state_dir)
-    old = {"began": True, "last_error": DROPPED, "posted": NOW.timestamp() - 6 * 3600}
-    scene.write("wake.json", old)
     (scene.state / "home-thread").mkdir(exist_ok=True)
     said = {"last_error": error, "posted": NOW.timestamp() - 60}
     scene.write("wake.json", said, scene.state / "home-thread")
@@ -47,7 +37,7 @@ def at_home(scene, error, streak=0):
     scene.write("streaks.json", {key: since} if streak else {}, scene.state_dir)
 
 
-def test_a_dropped_routes_old_error_is_no_fault_of_the_route_in_effect(tmp_path, monkeypatch):
+def test_a_home_thread_with_no_error_is_no_fault(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     at_home(scene, "")
     stack, state = answers(scene)

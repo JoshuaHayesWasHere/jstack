@@ -205,7 +205,7 @@ def rows(
 
 
 def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[str, Any]:
-    """Return what the status file says of one webhook of a project: its streak, its last
+    """Return what the status file says of one route of a project: its streak, its last
     error and what waits in its outbox."""
     failing = alert.streak(config.state_dir, key)
     return {
@@ -215,58 +215,33 @@ def _hook(config: Config, box: wake.Box, route: wake.Route, key: str) -> dict[st
     }
 
 
-def stranded(config: Config) -> dict[str, dict[str, int]]:
-    """Return, for each project that has one, each outbox of a route its `wake` leaves out that
-    still holds events, with how many. The next pass moves them (`wake.Box.rehome`), and
-    `jbus status` counts them again as they stand."""
-    found = {}
-    for one in config.projects:
-        box = wake.Box(config.state(one), one, config.webhook, config.blocking)
-        held = {route.name: box.waiting(route) for route in box.left}
-        if any(held.values()):
-            found[one.name] = {name: count for name, count in held.items() if count}
-    return found
-
-
 def alerts(config: Config, now: datetime) -> list[str]:
-    """Return the alert line of each webhook of each project whose streak alerted, with the error
-    the webhook gave last (`alert.failing`)."""
-    return [
-        line
-        for one in config.projects
-        for _, line in alert.failing(passes.Pass(config, one, now, lambda _: None))
-    ]
+    """Return the alert line of each project whose home thread's streak alerted, with the error
+    the home thread gave last (`alert.failing`)."""
+    runs = (passes.Pass(config, one, now, lambda _: None) for one in config.projects)
+    return [line for line in map(alert.failing, runs) if line]
 
 
 def status(config: Config, now: datetime) -> dict[str, Any]:
     """Return what the status file holds. Most of it comes back from the files the pass left.
     The rest is the homes not on the bus, which no pass writes (`project.missing`), and each
     scratch home, with the thread in its `home-id` and none of a repo's fields. A project's
-    streak and last error are its first route's. Its `outbox` counts what waits in that route
-    and in each route its `wake` leaves out, so no event is left uncounted. Each other route in
-    effect has its own count beside it."""
+    streak, last error and `outbox` are its home thread's, and the second target, where the config
+    sets one, has its own beside them."""
     expires = t3.expiry(config.token_path)
     projects = {}
     for one in config.projects:
-        box = wake.Box(config.state(one), one, config.webhook, config.blocking)
-        marks = box.marks()
-        first, *rest = box.routes
+        box = wake.Box(config.state(one), one, config.blocking)
         projects[one.name] = {
-            **_hook(config, box, first, alert.key_of(one.name, first)),
-            "outbox": sum(box.waiting(route) for route in (first, *box.left)),
-            "wake": one.wake,
+            **_hook(config, box, box.home, alert.home(one.name)),
             "sign_in": signin.expiring(config, now),
-            "sweep": marks.get("sweep", ""),
+            "sweep": box.marks().get("sweep", ""),
         }
-        for route in rest:
-            part = "top_level" if route.top else "webhook"
-            projects[one.name][part] = _hook(config, box, route, alert.key_of(one.name, route))
         if box.blocking is not None:
             key = alert.blocking(one.name)
             projects[one.name]["blocking"] = _hook(config, box, box.blocking, key)
     return {
         "alerts": alerts(config, now),
-        "stranded": stranded(config),
         "last_pass": config.user.stamp(now),
         "token_expires": config.user.stamp(expires) if expires else None,
         "sign_in_reminder": signin.plan(config, now),
@@ -327,8 +302,8 @@ def heartbeat(run: passes.Pass, last: dict[str, Any]) -> None:
     """Say what the status file said, once per project, on the first pass of each hour.
 
     The line is quiet: it goes to the log, and jbus never posts it. The hour is UTC's, so the
-    heartbeat does not skip the hour that a clock change repeats. Each webhook of the project whose
-    streak alerted gets a heartbeat line of its own, its alert line (`alert.failing`).
+    heartbeat does not skip the hour that a clock change repeats. A home thread whose streak
+    alerted gets a heartbeat line of its own, its alert line (`alert.failing`).
     """
     mine = last.get("projects", {}).get(run.project.name, {})
     line = (
@@ -337,5 +312,5 @@ def heartbeat(run: passes.Pass, last: dict[str, Any]) -> None:
     )
     hour = f"{run.now.astimezone(UTC):%Y-%m-%d %H}"
     run.find("", "heartbeat", line, key=hour)
-    for key, failing in alert.failing(run):
-        run.find("", "heartbeat", failing, key=f"{hour} {key}")
+    if failing := alert.failing(run):
+        run.find("", "heartbeat", failing, key=f"{hour} {alert.home(run.project.name)}")

@@ -30,8 +30,9 @@ content, and the same alert sent again later is a new event. Because the window 
 sends that later alert. When the relay stops after it took a POST that is not yet in `sent`, it
 sends that body once more after it starts again. So the relay sends each body at least once.
 
-Both routes send to the one target, Sous Chef (`GROK_WEBHOOK_URL`, `GROK_WEBHOOK_KEY`). The route
-`everything` sends every body as it came, and the route `blocking` sends what blocks (`blocking`).
+The one route of `ROUTES`, `blocking`, sends what blocks (`blocking`) to the one target, Sous Chef
+(`RELAY_WEBHOOK_URL`, `RELAY_WEBHOOK_KEY`, or their older names `GROK_WEBHOOK_URL` and
+`GROK_WEBHOOK_KEY`). jbus posts the relay only the bodies of its second target.
 The relay refuses to start when a target's URL or key is missing, empty or REPLACE_ME, or when the
 inbound key is missing. The relay names each such key in the journal, but never the key's value, and
 exits 2, which `jbus-relay.service` does not restart. The relay keeps its state in `RELAY_STATE`,
@@ -122,20 +123,13 @@ def everything(body: Body) -> Body | None:
 
 
 def blocking(body: Body) -> Body | None:
-    """Return the part of a body that blocks, or None when nothing in it blocks.
+    """Return the body when it blocks, or None when nothing in it blocks.
 
-    A reminder or a refresh blocks as a whole. An `events` body of the second target blocks
-    as a whole when it has `items`. In any other body, only the events that are loud for the
-    user block: a decision, a sign-in or an alert."""
-    if str(body.get("kind") or body.get("event") or "") in PASS:
+    A reminder or a refresh blocks as a whole, and so does an `events` body of the second target
+    that has `items`."""
+    if str(body.get("kind") or body.get("event") or "") in PASS or body.get("items"):
         return body
-    events = [event for event in body.get("events") or [] if isinstance(event, dict)]
-    if any(event.get("event") in PASS for event in events) or body.get("items"):
-        return body
-    kept = [e for e in events if e.get("loud") == "user"]
-    if not kept:
-        return None
-    return {**body, "say": [e["say"] for e in kept if e.get("say")], "events": kept}
+    return None
 
 
 @dataclass(frozen=True)
@@ -169,10 +163,7 @@ OLDER = {"RELAY_WEBHOOK_URL": "GROK_WEBHOOK_URL", "RELAY_WEBHOOK_KEY": "GROK_WEB
 not set, so an env file written before the neutral names still starts it."""
 VARIABLE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 PAGER = ("PAGER_HA_URL", "PAGER_HA_TOKEN", "PAGER_HA_SERVICE")
-ROUTES = (
-    Route("everything", "webhook", everything),
-    Route("blocking", "webhook", blocking),
-)
+ROUTES = (Route("blocking", "webhook", blocking),)
 PAGES = Route("page", "pager", everything, home_assistant)
 
 

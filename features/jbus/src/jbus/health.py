@@ -13,9 +13,9 @@ with.
   journal of `jbus.service` over the last `TIMEOUT_MINUTES`. A single one is an incident. A pass
   that systemd stopped cannot say so itself, so the journal is the one place that shows both.
 - `relay`, `relay heartbeat`, `relay silent` and `relay errors` exist only where the config posts to
-  the relay: a webhook on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env file, which
-  `jbus.service` does not load. Each is over its limit in one of these cases: the relay's unit is
-  not active; its heartbeat is older than `BEAT_MINUTES`; the relay heard no body for the
+  the relay: a second target on 127.0.0.1 or localhost, at `RELAY_PORT` of the relay's env file,
+  which `jbus.service` does not load. Each is over its limit in one of these cases: the relay's unit
+  is not active; its heartbeat is older than `BEAT_MINUTES`; the relay heard no body for the
   heartbeat's `silent_minutes`, `RELAY_SILENT_MINUTES` in the relay's env; a route's POSTs have
   failed for `ERRORS_MINUTES`; a target refused a body permanently in the last `REFUSED_MINUTES`.
   Such a body stays in the relay's `dead/` and the relay never sends it (`jbus.relay`). jbus does
@@ -34,8 +34,7 @@ when a reading under the limit ends it (`alert.closed`). When jbus could not tak
 (`over` None), it leaves that reading's incident as it is. When jbus no longer takes an
 incident's reading, because a mount or an instance is gone or the config no longer posts to
 a relay, jbus ends the incident with no line. jbus sends a page to the desk, to the home thread of
-every project whose `wake` picks it, and once to the top-level webhook as an event of the machine
-(`wake.Box.send`), from the first project's box alone.
+every project, as an event of the machine (`wake.Box.send`).
 
 `jbus poll` pages. Its look is the first step of the config's first project (rank 6 of
 `before-watch`, ahead of every other step), so the look runs in every pass before another
@@ -54,7 +53,7 @@ import tempfile
 import time
 import urllib.parse
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -247,17 +246,17 @@ def relay_state() -> Path:
 
 
 def posts_to_relay(config: jbus.Config) -> bool:
-    """Return whether the config posts to the relay: a webhook on this machine at its port,
-    `RELAY_PORT` (4390), that a project's `wake` posts to, or the second target."""
+    """Return whether the config posts to the relay: a second target on this machine at its port,
+    `RELAY_PORT` (4390)."""
     try:
         port = int(relay_setting("RELAY_PORT", "4390"))
     except ValueError:
         port = 4390
-    posting = [project for project in config.projects if project.to_webhook]
-    urls = [project.webhook_url for project in posting]
-    urls += [config.webhook[0] if posting else "", config.blocking[0]]
-    found = (urllib.parse.urlsplit(url) for url in urls if url)
-    return any(one.hostname in LOCAL and one.port == port for one in found)
+    url = config.blocking[0]
+    if not url:
+        return False
+    found = urllib.parse.urlsplit(url)
+    return found.hostname in LOCAL and found.port == port
 
 
 def instances(say: Callable[[str], None]) -> tuple[str, ...]:
@@ -496,20 +495,16 @@ def first(half: Any) -> None:
     try:
         watch(run.config, run.now, run.say)
     except Exception as error:
-        run.say(f"health failed: {alert.why(error, *run.config.hooks())}")
+        run.say(f"health failed: {alert.why(error, run.config)}")
 
 
 def page(config: jbus.Config, now: datetime, say: Callable[[str], None], line: str) -> None:
-    """Say the line, raise it on the desk, and queue it into every project's box: each home thread
-    gets it, and the top-level webhook once, from the first project's box."""
+    """Say the line, raise it on the desk, and queue it into every project's box, so each home
+    thread gets it."""
     say(line)
     wake.notify(line)
-    for rank, project in enumerate(config.projects):
-        if rank and not project.to_home:
-            continue
-        if rank:
-            project = replace(project, wake="home")
-        alert.queue(wake.Box(config.state(project), project, config.webhook), line, machine=True)
+    for project in config.projects:
+        alert.queue(wake.Box(config.state(project), project), line, machine=True)
 
 
 def show(found: list[Reading]) -> list[str]:

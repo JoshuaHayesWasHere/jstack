@@ -1,9 +1,9 @@
-"""Read why a webhook refused a POST, from the `error` text of its answer's JSON body.
+"""Read why the second target refused a POST, from the `error` text of its answer's JSON body.
 
-A webhook that refuses may say why: Cursor's automation answers 400 with
+A target that refuses may say why: Cursor's automation answers 400 with
 `{"success": false, "error": "Automation ... is disabled"}`. `said` gives that text for the end of
-the line `wake._post` returns, so the journal and `last_error` say why and not only the code. The
-text may quote the URL or the key, so `said` cuts both out of it.
+the line `wake._post_blocking` returns, so the journal and `last_error` say why and not only the
+code. The text may quote the URL or the key, so `said` cuts both out of it.
 """
 
 from __future__ import annotations
@@ -28,5 +28,5 @@ def said(error: urllib.error.HTTPError, url: str, key: str) -> str:
         return ""
     text = " ".join(text.split())
     for secret in (url, key):
-        text = text.replace(secret, "[webhook]") if secret else text
+        text = text.replace(secret, "[redacted]") if secret else text
     return f": {text if len(text) <= SHOWN else text[: SHOWN - len('[cut]')] + '[cut]'}"

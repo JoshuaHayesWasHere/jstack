@@ -1707,15 +1707,14 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
     """What is wrong in the project, each with its kind, its subject, its cause, since when,
     and where: the project, the home and the drawer of the page that has it.
 
-    The kinds are `main`, red at its tip; `ci`, a branch whose newest run failed, or CI that
-    could not be read; `bus`, the wakes of the route in effect failing, or wakes stranded in a
-    route the project no longer takes; `source`, a source that is there and cannot be read, or
-    is stale; `unasked`, a source the last pass could not ask; `thread`, a thread that is
-    `hung` or `quiet`; `stall`, a row jbus logged a stall of that still stands (`_stalls`); and
-    `idle`, a pull request whose crew jbus told what it is short of and found nobody at work
-    after (`jbus.expedite`), while no stall of it stands and the hold is not the user's. A
-    `since` is None where nothing kept says. Each reads its source as it is now, so an entry
-    goes once its source works again.
+    The kinds are `main`, red at its tip; `ci`, a branch whose newest run failed, or CI that could
+    not be read; `bus`, the wakes of the home thread failing; `source`, a source that is there and
+    cannot be read, or is stale; `unasked`, a source the last pass could not ask; `thread`, a thread
+    that is `hung` or `quiet`; `stall`, a row jbus logged a stall of that still stands (`_stalls`);
+    and `idle`, a pull request whose crew jbus told what it is short of and found nobody at work
+    after (`jbus.expedite`), while no stall of it stands and the hold is not the user's. A `since`
+    is None where nothing kept says. Each reads its source as it is now, so an entry goes once its
+    source works again.
 
     Each entry also has its `owner`, who fixes it (`owner`, by the rule of its kind in
     `OWNERS`), the thread jbus tells it `to`, the `row` it is about, and `fixing`, what that
@@ -1734,15 +1733,10 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
             cause, row = f"{run['name']} failed", run["branch"]
             mine = row if any(task["slug"] == row for task in read.tasks) else ""
             found.append(_wrong(read, "ci", row, cause, run["created"], "checks", row=mine))
-    status = read.panel("pulse")["jbus"]["status"]
-    route = "the home thread" if status["wake"] in ("home", "both") else "its webhook"
     if bus["failed_wakes"] or bus["last_error"]:
         error = f": {bus['last_error']}" if bus["last_error"] else ""
-        cause = f"wakes to {route} fail{error}"
+        cause = f"wakes to the home thread fail{error}"
         found.append(_wrong(read, "bus", "bus", cause, bus.get("since"), "bus"))
-    elif bus.get("stranded"):
-        cause = "wakes wait in a route it no longer takes"
-        found.append(_wrong(read, "bus", "bus", cause, None, "bus"))
     for one in _unwell(read):
         cause = SOURCE_IS.get(one["state"], one["state"])
         found.append(_wrong(read, "source", one["name"], cause, one["at"], "pulse"))
@@ -1834,11 +1828,8 @@ def broken(wrong: list[dict[str, Any]], bus: dict[str, Any]) -> list[dict[str, s
             what = f"main red {mine[0]['cause'].rpartition(' ')[2]}"
         elif kind == "ci":
             what = "CI not read" if mine[0]["subj"] == "CI" else f"CI {len(mine)} failed"
-        elif bus["failed_wakes"] or bus["last_error"]:
-            what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
         else:
-            held = bus["stranded"]
-            what = f"{held} wake{'' if held == 1 else 's'} stranded in an outbox"
+            what = f"bus outbox {bus['outbox']}" if bus["outbox"] else "bus failed to send"
         found.append({"what": what, "open": drawer, "since": since})
     unread = [one for one in wrong if one["kind"] == "source"]
     if unread:

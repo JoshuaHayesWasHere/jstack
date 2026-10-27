@@ -192,14 +192,6 @@ def wrong(key, made, seen):
         doubted = [one for one in answer["tasks"] if (one["unconfirmed"] or {}).get("source")]
         if len(doubted) != len(answer["tasks"]):
             faults.append(f"{len(answer['tasks']) - len(doubted)} tasks are not marked")
-    elif kind == "route" and name == "stranded outbox":
-        held = project["health"]["bus"]["outbox"]
-        if held != walk.STRANDED:
-            faults.append(f"the bus says outbox {held}, and {walk.STRANDED} events wait")
-        if not any(want.broken in one for one in broken):
-            faults.append(f"no broken reason says {want.broken!r}: {broken}")
-    elif kind == "route":
-        faults += [f"broken says {one!r}" for one in broken if one.startswith("bus")]
     elif kind == "owner":
         slug, (home, retired) = made.owners[name], want.home
         task = tasks.get(slug)

@@ -1,5 +1,5 @@
-"""jbus tells the user through events, a log that records every one, and POSTs for the few
-that ask something of the user.
+"""jbus tells the user through events, a log that records every one, and wakes of the home thread
+for the few that ask something of the user.
 
 An event is one JSON object, `{"project", "slug", "event", "line", "text", "loud"}`. `line` is the
 finding in one line, and `text` is what made it. `loud` says who should see the event, and jbus
@@ -7,47 +7,41 @@ looks `loud` up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at imp
 `EVENTS` that each of its modules declares at its top, so a new kind needs one line in the module
 that sends it and none in this one. There are two levels. `user` is an escalation: a decision
 the user has to make (`jbus.blockers`), a sign-in, an alert that stands. Such an event waits in the
-outbox for the next POST. It also has `say`, the line to post in the chat as it is. That line begins
+outbox for the next wake. It also has `say`, the line to post in the chat as it is. That line begins
 with the project, since the user acts in that project's home. `quiet` is everything else, a fact
-for the record: jbus writes it to the log and never posts it, and the digest lists the routine
+for the record: jbus writes it to the log and never sends it, and the digest lists the routine
 ones. The caller that queues an event may give it the lower level.
 
 `Box` keeps a project's outbox and the keys of everything it has sent, so jbus sends a finding only
 once. `Box` takes a short lock for each change, because `jbus gate` and `jbus done` add an event
-while a pass runs. `notify` shows on the desktop what jbus could not post to the webhook.
+while a pass runs. `notify` shows on the desktop what jbus could not send.
 
-An event for the user goes to each of the project's `routes`, as its `wake` setting picks
-(`jbus.Project`): the project's home thread through T3 Code (`jbus.alert.flush`), its own webhook,
-and the top-level webhook where the config sets one whose pair differs from the project's. Each
-route has its own outbox, five-minute gap and `last_error`, in its own folder: `home-thread/`, the
-project's state folder for its own webhook, and `top-level/`. So a route that is down neither holds
-back nor repeats what jbus sends to another. What waits for a route that `wake` leaves out moves,
-on the next pass, to the outbox of each route in effect (`Box.rehome`), so a change of `wake`
-strands no event. An event for the user that still waits after `AFTER` passes in which a route in
-effect took posts is told once on the desk (`Box.unposted`).
+An event for the user goes to one route, the project's home thread through T3 Code
+(`jbus.alert.flush`), with its outbox, five-minute gap and `last_error` in `home-thread/`. jbus had
+a webhook route once, with outboxes in the project's state folder and in `top-level/`. What still
+waits in one of those moves to the home thread's outbox on the next pass, and the old outbox goes
+(`Box.fold`).
 
-Every body has a top-level `kind`, and jbus-relay routes each body by it: `events` for what an
-outbox of events posts, and `reminder` and `refresh` for the timers of what blocks
-(`waiting.cadence`). The second target, the config's `blocking` pair, is a route of its own beside
-those (`Box.blocking`). Its outbox, in `blocking/`, holds whole bodies, not events, and no event
-goes there. Each pass queues to the second target one `events` body that lists the items that began
-to block in that pass, with `items` beside `say` and `events`. The pass also queues a reminder or a
-refresh as each falls due. The flush keeps the five-minute gap for the `events` body. The flush
-sends a reminder or a refresh with no gap, together with every body queued before it, so the bodies
-go in order. A retry after a failed POST waits on the gap, whatever the retried body holds. A
-refresh that waits replaces the one before it, which is out of date.
+Every body has a top-level `kind`: `events` for what an outbox of events sends, and `reminder` and
+`refresh` for the timers of what blocks (`waiting.cadence`). The second target, the config's
+`blocking` pair, is a route of its own (`Box.blocking`), which jbus-relay sends on. Its outbox, in
+`blocking/`, holds whole bodies, not events, and no event goes there. Each pass queues to the
+second target one `events` body that lists the items that began to block in that pass, with
+`items` beside `say` and `events`. The pass also queues a reminder or a refresh as each falls due.
+The flush keeps the five-minute gap for the `events` body. The flush sends a reminder or a refresh
+with no gap, together with every body queued before it, so the bodies go in order. A retry after
+a failed POST waits on the gap, whatever the retried body holds. A refresh that waits replaces the
+one before it, which is out of date.
 
 The log is `events.jsonl`. jbus adds a line for each event when it queues the event, `{"at", "id",
-"event", "slug", "loud", "line", "text"}`, and one for each POST a route took: the project's own
-webhook's is `{"at", "posted": [ids]}`, the home thread's `{"at", "posted_home": [ids]}` and the
-top-level webhook's `{"at", "posted_top_level": [ids]}`. The daily prune rewrites the file without
-its oldest lines. Both times come from the clock, so a POST's time is never before the time of what
-it carries. `posted_webhook` is the own webhook's line from a day when the home thread logged
-`posted`, and `log` still reads it. The id is a hash of the event as the outbox holds it, so jbus
-adds nothing to the outbox or to the POST for the log's sake. `Box.log` reads the events and the
-POSTs of the home thread and the own webhook back as one list, and `jbus events` and the view read
-quiet events from that list. `Box.record` adds a line for what jbus keeps and never posts, such as
-the user's word to a home (`jbus.word`): that line is in the log and in no outbox. jbus never reads
+"event", "slug", "loud", "line", "text"}`, and one for each wake the home thread took,
+`{"at", "posted_home": [ids]}`. The daily prune rewrites the file without its oldest lines. Both
+times come from the clock, so a wake's time is never before the time of what it carries. The id is
+a hash of the event as the outbox holds it, so jbus adds nothing to the outbox or to the wake for
+the log's sake. `Box.log` reads the events and the wakes of the home thread back as one list,
+and `jbus events` and the view read quiet events from that list. `Box.record` adds a line for
+what jbus keeps and never sends, such as the user's word to a home (`jbus.word`): that line is in
+the log and in no outbox. jbus never reads
 the log to decide what to send or what counts as sent. jbus leaves out a line it cannot write,
 except one that is in no outbox: that line waits in `unlogged.json` until jbus can write its next
 line.
@@ -88,12 +82,10 @@ PRUNE_AFTER = timedelta(days=7)
 LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
 UNPOSTED = "unposted.json"
-AFTER = 3
-TAKEN = "taken"
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
 TOP_LEVEL = "top-level"
-TOOK = ("posted", "posted_home", "posted_webhook")
+TOOK = "posted_home"
 HOME = "home-thread"
 BLOCKING = "blocking"
 EVENTS_KIND = "events"
@@ -177,7 +169,7 @@ def event(
 ) -> dict:
     """Return one event, at its kind's level or at `loud`, a lower one. A kind that `LOUDNESS` does
     not name raises a `KeyError`, and a level above the kind's raises a `ValueError`. The event's
-    chat line names the project, since one webhook gets every project's events. A line that begins
+    chat line names the project, since one person reads every project's events. A line that begins
     `<kind> <project>:` already names it, and goes unchanged. So does the line of an event of the
     `machine`, which belongs to no project."""
     level = LOUDNESS[kind]
@@ -230,7 +222,7 @@ def _id(one: dict[str, Any]) -> str:
 
 
 def notify(line: str) -> None:
-    """Raise a desktop notification on this machine, which needs no webhook.
+    """Raise a desktop notification on this machine, which needs no T3 Code.
 
     It does nothing without `notify-send`, and one that fails does not fail the pass.
     """
@@ -242,87 +234,42 @@ def notify(line: str) -> None:
 
 @dataclass(frozen=True)
 class Route:
-    """A `Route` is one place that gets a project's events for the user, with the folder that holds
-    its `outbox.json` and its `wake.json`: a webhook, the top-level webhook (`top`), or the home
-    thread (`home`)."""
+    """A `Route` is one place that gets a project's bodies, with the folder that holds its
+    `outbox.json` and its `wake.json`: the home thread, or the second target (`blocking`), the one
+    with a URL and a key."""
 
-    url: str
-    key: str
     folder: Path
-    top: bool = False
+    url: str = ""
+    key: str = ""
     blocking: bool = False
-    home: bool = False
-
-    @property
-    def name(self) -> str:
-        """Return what the journal and the status file call the route."""
-        return "home thread" if self.home else "top-level webhook" if self.top else "webhook"
 
 
 class Box:
-    """A `Box` holds a project's outboxes, the keys of what it has sent, and when it last posted.
+    """A `Box` holds a project's outboxes, the keys of what it has sent, and when it last sent.
 
-    `wake.json` holds the marks: `began`, `posted`, the day of the last `snapshot`, the
-    day whose sweep has not run yet (`sweep_owed`), the last `sweep`, and why the last POST
-    failed (`last_error`), which is empty once a POST goes through. `wake.json` does not
-    count how many POSTs failed in a row: that is a streak, and `jbus.alert` keeps streaks.
-    Another route's `wake.json` holds only its own `posted` and `last_error`. `top` is the config's
-    top-level pair, which a project with no pair of its own takes as its own (`jbus.load`).
+    The project's `wake.json` holds the marks: `began`, the day of the last `snapshot`, the
+    day whose sweep has not run yet (`sweep_owed`), and the last `sweep`. A route's `wake.json`
+    holds its own `posted` and why its last send failed (`last_error`), which is empty once a send
+    goes through. `wake.json` does not count how many sends failed in a row: that is a streak, and
+    `jbus.alert` keeps streaks.
     """
 
-    def __init__(
-        self,
-        state: Path,
-        project: Project,
-        top: jbus.Hook = ("", ""),
-        second: jbus.Hook = ("", ""),
-    ) -> None:
+    def __init__(self, state: Path, project: Project, second: jbus.Hook = ("", "")) -> None:
         self.state = state
         self.project = project
-        self.top = top
         self.second = second
 
     @property
-    def every(self) -> list[Route]:
-        """Return each route a `wake` could pick: the home thread, then the project's own
-        webhook, then the top-level one if it is a route of its own."""
-        home = Route("", "", self.state / HOME, home=True)
-        own = Route(self.project.webhook_url, self.project.webhook_key, self.state)
-        other = Route(*self.top, self.state / TOP_LEVEL, top=True)
-        return [
-            home,
-            own,
-            *([other] if self.top[0] and tuple(self.top) != (own.url, own.key) else []),
-        ]
-
-    @property
-    def routes(self) -> list[Route]:
-        """Return the routes the project's `wake` picks, in the order of `every`."""
-        picked = {True: self.project.to_home, False: self.project.to_webhook}
-        return [route for route in self.every if picked[route.home]]
-
-    @property
-    def left(self) -> list[Route]:
-        """Return the routes of `every` that the project's `wake` leaves out."""
-        routes = self.routes
-        return [route for route in self.every if route not in routes]
+    def home(self) -> Route:
+        """Return the route of the project's events for the user, its home thread."""
+        return Route(self.state / HOME)
 
     @property
     def blocking(self) -> Route | None:
         """Return the second target, where the config sets it: a route that gets no event."""
         if not self.second[0]:
             return None
-        return Route(*self.second, self.state / BLOCKING, blocking=True)
-
-    @property
-    def machine_routes(self) -> list[Route]:
-        """Return the routes in which an event of the machine waits: the home thread where `wake`
-        picks it, and one webhook where `wake` picks the webhook, the top-level one or else the
-        project's own."""
-        routes = self.routes
-        hooks = [route for route in routes if not route.home]
-        hook = next((route for route in hooks if route.top), hooks[0]) if hooks else None
-        return [route for route in routes if route.home or route is hook]
+        return Route(self.state / BLOCKING, *self.second, blocking=True)
 
     @staticmethod
     def clock() -> datetime:
@@ -330,7 +277,7 @@ class Box:
         return datetime.now(UTC)
 
     def _outbox(self, route: Route | None = None) -> list[dict[str, Any]]:
-        folder = (route or self.routes[0]).folder
+        folder = (route or self.home).folder
         names = jbus.old_names()
         return [current(one, names) for one in read_json(folder / "outbox.json", [])]
 
@@ -353,9 +300,9 @@ class Box:
     ) -> bool:
         """Queue one event. With a key, `send` only ever queues the first event of that key.
 
-        An event for the user waits for a POST in the outbox of each route. An event of the
-        `machine` goes out once, not once for each project, so it waits only in the outboxes of
-        `machine_routes`. jbus only logs a quiet event, so the log is its one record.
+        An event for the user waits for a wake in the home thread's outbox. The chat line of an
+        event of the `machine` names no project. jbus only logs a quiet event, so the log is its
+        one record.
         If jbus cannot write the event's line, the line is owed: jbus writes it into the log
         before any later line, as soon as it can write again. `send` returns False only for a
         key that was sent before.
@@ -368,10 +315,9 @@ class Box:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
             if made["loud"] == "user":
-                for route in self.machine_routes if machine else self.routes:
-                    route.folder.mkdir(parents=True, exist_ok=True)
-                    waiting = [*self._outbox(route), made]
-                    write_json(route.folder / "outbox.json", waiting, mode=0o600)
+                self.home.folder.mkdir(parents=True, exist_ok=True)
+                waiting = [*self._outbox(), made]
+                write_json(self.home.folder / "outbox.json", waiting, mode=0o600)
             took = {"event": kind, "slug": slug, "loud": made["loud"], "line": line}
             self._log(id=_id(made), **took, text=made["text"], owed=made["loud"] != "user")
         return True
@@ -385,7 +331,7 @@ class Box:
     def _log(self, owed: bool = False, **record: Any) -> None:
         """Add one line to the log, which only the log's owner reads. The caller holds the lock.
 
-        jbus leaves out a line that it cannot write, and the outbox and the POST go on without it. A
+        jbus leaves out a line that it cannot write, and the outbox and the wake go on without it. A
         line that is `owed`, which is in no outbox, waits in `unlogged.json`, and jbus writes it
         before the next line that it can write.
         """
@@ -407,28 +353,24 @@ class Box:
 
     def log(self) -> list[dict[str, Any]]:
         """Return every event the log holds, oldest first, each with `posted`: the time the
-        project's home thread or own webhook first took it, or None.
+        project's home thread first took it, or None.
 
-        A POST names its events by id, and each route's outbox goes in order, so the POST took
-        the oldest event of that id that route had not yet taken. `log` takes no lock and writes
+        A wake names its events by id, and the outbox goes in order, so the wake took the oldest
+        event of that id the home thread had not yet taken. `log` takes no lock and writes
         nothing.
         """
         events: list[dict[str, Any]] = []
-        waiting: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        waiting: dict[str, list[dict[str, Any]]] = {}
         names = jbus.old_names()
         for record in _records(self.state / LOG):
-            took = next((key for key in TOOK if key in record), None)
-            if took:
-                for name in record[took]:
-                    if waiting.get((took, name)):
-                        one = waiting[(took, name)].pop(0)
-                        one["posted"] = one["posted"] or record["at"]
+            if TOOK in record:
+                for name in record[TOOK]:
+                    if waiting.get(name):
+                        waiting[name].pop(0)["posted"] = record["at"]
             elif "event" in record:
                 one = {**current(record, names), "posted": None}
                 events.append(one)
-                name = one.pop("id", "")
-                for key in TOOK:
-                    waiting.setdefault((key, name), []).append(one)
+                waiting.setdefault(one.pop("id", ""), []).append(one)
         return events
 
     def forget(self, before: datetime) -> None:
@@ -457,13 +399,13 @@ class Box:
 
     def began(self) -> None:
         """Record that a whole pass has run for this project: from now on jbus sends what is new.
-        While the project's own webhook is not one of its routes, `began` removes its `last_error`,
-        which an earlier pass left there."""
+        `began` removes the marks of the old webhook, `posted` and `last_error`, which an earlier
+        pass left there."""
         with locked(self.state, LOCK):
             marks = read_json(self.state / "wake.json", {})
             kept = {**marks, "began": True}
-            if all(route.folder != self.state for route in self.routes):
-                kept.pop("last_error", None)
+            for old in ("posted", "last_error", "failed", "alerted"):
+                kept.pop(old, None)
             if kept != marks:
                 write_json(self.state / "wake.json", kept)
 
@@ -503,15 +445,14 @@ class Box:
 
     def marks(self, route: Route | None = None) -> dict[str, Any]:
         """Return the marks of a route, or by default the project's, which sit in the project's
-        state folder whatever routes `wake` picks. `failed` is 1 while the last POST of the route,
-        the first one by default, failed, for a caller that asks only that."""
+        state folder. `failed` is 1 while the last send of the route, the home thread by default,
+        failed, for a caller that asks only that."""
         marks = read_json((route.folder if route else self.state) / "wake.json", {})
-        last = marks if route else read_json(self.routes[0].folder / "wake.json", {})
+        last = marks if route else read_json(self.home.folder / "wake.json", {})
         return {**marks, "failed": int(bool(last.get("last_error")))}
 
     def drop(self, folder: str) -> None:
-        """Remove a route's outbox and marks, `TOP_LEVEL`'s, `BLOCKING`'s or `HOME`'s, once the
-        project has no such route."""
+        """Remove a route's outbox and marks, `BLOCKING`'s, once the config has no second target."""
         with locked(self.state, LOCK):
             shutil.rmtree(self.state / folder, ignore_errors=True)
 
@@ -527,67 +468,33 @@ class Box:
                 waiting = [one for one in waiting if one.get("kind") != "refresh"]
             write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)
 
-    def rehome(self) -> tuple[list[Route], int]:
-        """Move each event for the user that waits for a route `left` names to the outbox of each
-        route in effect, and empty the old outbox. An event goes once to each outbox: one whose id
-        waits there already stays as it is. Return the routes events moved from, and how many
-        events moved, each counted once."""
-        moved, ids = [], set()
+    def fold(self) -> int:
+        """Move each event for the user that waits in an outbox of the old webhook, the project's
+        own in its state folder or the top-level one in `TOP_LEVEL`, to the home thread's outbox,
+        and remove those outboxes. An event goes once: one whose id waits there already stays as
+        it is. Return how many events moved."""
+        old = [self.state / "outbox.json", self.state / TOP_LEVEL / "outbox.json"]
         with locked(self.state, LOCK):
-            routes = self.routes
-            for old in self.left:
-                held = self._outbox(old)
-                if not held:
-                    continue
-                found = [one for one in held if _loud(one) == "user"]
-                for route in routes:
-                    waiting = self._outbox(route)
-                    there = {_id(one) for one in waiting}
-                    for one in found:
-                        if _id(one) not in there:
-                            there.add(_id(one))
-                            waiting.append(one)
-                    route.folder.mkdir(parents=True, exist_ok=True)
-                    write_json(route.folder / "outbox.json", waiting, mode=0o600)
-                write_json(old.folder / "outbox.json", [], mode=0o600)
-                moved.append(old)
-                ids |= {_id(one) for one in found}
-        return moved, len(ids)
-
-    def ids(self, route: Route) -> set[str]:
-        """Return the ids of the events for the user that wait for a route."""
-        return {_id(one) for one in self._outbox(route) if _loud(one) == "user"}
-
-    def unposted(self, taken: set[str], working: bool) -> list[dict[str, Any]]:
-        """Count one pass for each event for the user that waits in any outbox of the project and
-        that no route has taken, when a route in effect took posts in that pass (`working`).
-        Return each event whose count reached `AFTER` in this pass, so that it is told once.
-
-        `unposted.json` keeps the count of each event that waits, by its id, or `TAKEN` once a
-        route took it, so that a copy that waits for another route counts no more. It forgets an
-        event that waits nowhere."""
-        due = []
-        with locked(self.state, LOCK):
-            path = self.state / UNPOSTED
-            kept = read_json(path, {})
-            counts: dict[str, int | str] = {}
-            for route in self.every:
-                for one in self._outbox(route):
-                    name = _id(one)
-                    if _loud(one) != "user" or name in counts:
-                        continue
-                    count = kept.get(name, 0)
-                    if count == TAKEN or name in taken:
-                        counts[name] = TAKEN
-                        continue
-                    if working and count < AFTER:
-                        count += 1
-                        if count == AFTER:
-                            due.append(one)
-                    counts[name] = count
-            if counts != kept:
-                write_json(path, counts, mode=0o600)
-        return due
+            if not any(path.exists() for path in old):
+                return 0
+            names = jbus.old_names()
+            waiting = self._outbox()
+            there = {_id(one) for one in waiting}
+            moved = 0
+            for path in old:
+                for one in (current(one, names) for one in read_json(path, [])):
+                    if _loud(one) == "user" and _id(one) not in there:
+                        there.add(_id(one))
+                        waiting.append(one)
+                        moved += 1
+            if moved:
+                self.home.folder.mkdir(parents=True, exist_ok=True)
+                write_json(self.home.folder / "outbox.json", waiting, mode=0o600)
+            for path in old:
+                path.unlink(missing_ok=True)
+            shutil.rmtree(self.state / TOP_LEVEL, ignore_errors=True)
+            (self.state / UNPOSTED).unlink(missing_ok=True)
+        return moved
 
     def waiting(self, route: Route | None = None) -> int:
         blocking = route is not None and route.blocking
@@ -618,7 +525,7 @@ class Box:
             write_json(wakes, marks)
             sent, why = 0, ""
             for one in waiting:
-                why = _post(route, one)
+                why = _post_blocking(route, one)
                 if why:
                     break
                 sent += 1
@@ -626,7 +533,7 @@ class Box:
                 write_json(outbox, waiting[sent:], mode=0o600)
             write_json(wakes, {**marks, "last_error": why})
             if why:
-                say(f"wake failed {self.project.name} {BLOCKING} webhook: {why}")
+                say(f"wake failed {self.project.name} {BLOCKING}: {why}")
         if sent:
             went("")
         if why:
@@ -638,30 +545,26 @@ class Box:
         now: datetime,
         say=print,
         *,
-        route: Route | None = None,
+        post: Callable[[dict[str, Any]], str],
         went: Callable[[str], None] = lambda _: None,
-        post: Callable[[Route, dict[str, Any]], str] | None = None,
     ) -> int:
-        """Post what waits for one route, the project's own by default, in order, at most once
-        in five minutes. Return how many went.
+        """Send what waits for the home thread, in order, at most once in five minutes. Return how
+        many went.
 
-        Only events for the user wait in a route's outbox. An outbox written before jbus only
-        logged quiet events may hold an event of another level: `flush` drops such an event
-        without posting it.
+        Only events for the user wait in the outbox. An outbox written before jbus only logged
+        quiet events may hold an event of another level: `flush` drops such an event without
+        sending it.
 
         What waits goes in lists of at most `WAKE_CAP` bytes of JSON, one after another, and
-        each list leaves the outbox as soon as it is sent. Each list gets one try. The first
-        that fails ends the flush, and that list and the ones after it wait for the next flush.
+        each list leaves the outbox as soon as it is sent. `post` sends one list's body and
+        returns why it failed, or nothing. Each list gets one try. The first that fails ends the
+        flush, and that list and the ones after it wait for the next flush.
 
-        Once `flush` unlocks the outbox, it calls `went` with how a flush that posted ended:
+        Once `flush` unlocks the outbox, it calls `went` with how a flush that sent ended:
         nothing for the lists that were sent, and the reason for the one that failed. It
-        passes both when both happened. `post` sends one list, a webhook's POST by default.
-        A webhook with no URL is off: `flush` posts nothing to it and writes no mark.
-        The log's line names the route by its kind, whatever its place among the routes.
+        passes both when both happened.
         """
-        route, post = route or self.routes[0], post or _post
-        if not route.home and not route.url:
-            return 0
+        route = self.home
         outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
         with locked(self.state, LOCK):
             waiting = self._outbox(route)
@@ -674,23 +577,19 @@ class Box:
                 return 0
             if now.timestamp() - marks.get("posted", 0) < GAP:
                 return 0
-            marks.pop("failed", None)
-            marks.pop("alerted", None)
             marks = {**marks, "posted": now.timestamp()}
             write_json(wakes, marks)
             sent, why = 0, ""
-            logged = "posted_home" if route.home else "posted_top_level" if route.top else "posted"
             for some in _lists(waiting):
-                why = post(route, body(some))
+                why = post(body(some))
                 if why:
                     break
                 sent += len(some)
-                self._log(**{logged: [_id(one) for one in some]})
+                self._log(**{TOOK: [_id(one) for one in some]})
                 write_json(outbox, waiting[sent:], mode=0o600)
             write_json(wakes, {**marks, "last_error": why})
             if why:
-                which = f" {TOP_LEVEL} webhook" if route.top else " home thread" * route.home
-                say(f"wake failed {self.project.name}{which}: {why}")
+                say(f"wake failed {self.project.name} home thread: {why}")
         if sent:
             went("")
         if why:
@@ -721,7 +620,7 @@ def _prunable(key: str, slugs: set[str]) -> bool:
 
 
 def body(events: list[dict[str, Any]]) -> dict[str, Any]:
-    """Return what one POST carries: its `kind`, the chat lines exactly as jbus will post
+    """Return what one wake carries: its `kind`, the chat lines exactly as jbus will send
     them, and the events.
 
     An event queued before events had `say` goes to the chat as its `line`.
@@ -731,7 +630,7 @@ def body(events: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _lists(events: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
-    """Return the events in order, in lists whose POST is at most `WAKE_CAP` bytes. An event
+    """Return the events in order, in lists whose body is at most `WAKE_CAP` bytes. An event
     larger than that goes in a list alone."""
     some: list[dict[str, Any]] = []
     for one in events:
@@ -743,12 +642,10 @@ def _lists(events: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
         yield some
 
 
-def _post(route: Route, made: dict[str, Any]) -> str:
-    """Send one body to the route's webhook. Return why it failed, with no URL and no key in
-    it, or nothing."""
+def _post_blocking(route: Route, made: dict[str, Any]) -> str:
+    """POST one body to the second target. Return why it failed, with no URL and no key in it,
+    or nothing."""
     url, key = route.url, route.key
-    if not url:
-        return "the config has no webhook_url"
     request = urllib.request.Request(
         url,
         data=json.dumps(made).encode(),
@@ -764,12 +661,12 @@ def _post(route: Route, made: dict[str, Any]) -> str:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as reply:
             reply.read()
     except urllib.error.HTTPError as error:
-        return f"the webhook answered {error.code}{refusal.said(error, url, key)}"
+        return f"the second target answered {error.code}{refusal.said(error, url, key)}"
     except TimeoutError:
         return f"no answer in {TIMEOUT} s"
     except urllib.error.URLError as error:
         timed = isinstance(error.reason, TimeoutError)
-        return f"no answer in {TIMEOUT} s" if timed else "the webhook could not be reached"
+        return f"no answer in {TIMEOUT} s" if timed else "the second target could not be reached"
     except (OSError, ValueError):
-        return "the webhook could not be reached"
+        return "the second target could not be reached"
     return ""

@@ -110,7 +110,7 @@ def test_with_the_home_off_jmerge_runs_and_each_line_is_an_event_once(kitchen):
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(minutes=6))
     assert kitchen.lines("jmerge")[2:] == ["hold 9 beta: needs user"]
-    assert kitchen.lines("gate") == [] and kitchen.webhook.posts == []
+    assert kitchen.lines("gate") == [] and kitchen.wakes.posts == []
 
 
 def test_a_merged_line_with_its_revert_and_a_hold_line_are_each_an_event_once(kitchen):

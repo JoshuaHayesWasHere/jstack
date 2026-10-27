@@ -46,7 +46,7 @@ def plant(scene):
     shaped = " ".join(SHAPED)
     links = " ".join(LINKS)
     leak = f"{shaped} {links} key={OPAQUE} Authorization: Bearer {OPAQUE}"
-    hidden = {"webhook_url": LINKS[0], "webhook_key": OPAQUE, "note": OPAQUE}
+    hidden = {"blocking_url": LINKS[0], "blocking_key": OPAQUE, "note": OPAQUE}
     rows = [one | hidden | {"why": f"{one['why']} {leak}"} for one in table()]
     scene.queue(rows)
     status = json.loads((scene.state_dir / "status.json").read_text())
@@ -99,7 +99,7 @@ def plant(scene):
     scene.write("runs.json", runs, scene.root)
     scene.write("outbox.json", [{"line": UNREAD[0]}])
     (scene.root / "config").mkdir(exist_ok=True)
-    (scene.root / "config" / "config.toml").write_text(f'webhook_key = "{UNREAD[1]}"\n')
+    (scene.root / "config" / "config.toml").write_text(f'blocking_key = "{UNREAD[1]}"\n')
     (scene.root / "config" / "t3.json").write_text(
         json.dumps({"token": {"access_token": UNREAD[2]}})
     )

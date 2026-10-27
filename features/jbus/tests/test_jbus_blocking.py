@@ -12,17 +12,19 @@ body to it:
 The second target is a route of its own, with its own outbox, gap, streak and status. Every other
 body says `kind: "events"`.
 
-Every test runs the real pass against the faked T3 Code server and webhooks of `test_jbus_kitchen`.
-Nothing reaches the network.
+Every test runs the real pass against the faked T3 Code server of `test_jbus_kitchen`, and a fake
+of the second target (`Second`) that listens on a local port. Nothing reaches the network.
 """
 
+import json
+import time
 from datetime import timedelta
 
 import pytest
 
 import jbus
 from jbus import alert, leftover, passes, waiting, wake
-from test_jbus_kitchen import KEY, NOW, RESULT, Webhook
+from test_jbus_kitchen import KEY, NOW, RESULT, Server
 from test_jbus_questions import gate
 
 SECOND_KEY = "blocking-key-0123456789"
@@ -30,9 +32,30 @@ NINE = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKIL
 TEN = "hold 10 https://example.test/pull/10: needs user, touches skills/home/SKILL.md"
 
 
+class Second(Server):
+    """`Second` fakes the second target: it keeps each body it takes, its key and its chat lines,
+    and answers with `refused` and `status` while `status` is not 200."""
+
+    def __init__(self):
+        self.posts, self.keys, self.sleep, self.status = [], [], 0, 200
+        self.said, self.bodies, self.refused = [], [], {}
+        super().__init__()
+
+    def answer(self, handler, body):
+        time.sleep(self.sleep)
+        if self.status != 200:
+            return self.reply(handler, self.refused, self.status)
+        self.keys.append(handler.headers.get(wake.HEADER))
+        taken = json.loads(body)
+        self.bodies.append(taken)
+        self.posts.append(taken.get("events"))
+        self.said.append(taken["say"])
+        self.reply(handler, {})
+
+
 @pytest.fixture
 def second():
-    fake = Webhook()
+    fake = Second()
     yield fake
     fake.close()
 
@@ -139,8 +162,8 @@ def test_every_body_has_its_kind(kitchen, second):
     for minutes in (1, 16, 60):
         kitchen.poll(later(minutes))
     assert kinds(second) == ["events", "reminder", "refresh"]
-    assert {body["kind"] for body in kitchen.webhook.bodies} == {"events"}
-    assert all(sorted(body) == ["events", "kind", "say"] for body in kitchen.webhook.bodies)
+    assert {body["kind"] for body in kitchen.wakes.bodies} == {"events"}
+    assert all(sorted(body) == ["events", "kind", "say"] for body in kitchen.wakes.bodies)
 
 
 def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
@@ -149,13 +172,11 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     kitchen.brief("beta", "Thread: mcp:crew-beta\n")
     assert kitchen.main("gate", "alpha", stdin=gate("tea or coffee?", "alpha"))[0] == 0
     config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo"), config.webhook).send(
-        "alpha", "result", "result alpha: done"
-    )
+    wake.Box(kitchen.state, config.project("demo")).send("alpha", "result", "result alpha: done")
     asked = gate("may I deploy the site tonight?", "beta")
     assert kitchen.main("gate", "beta", stdin=asked)[0] == 0
     kitchen.poll(later(1))
-    said = [line for post in kitchen.webhook.said for line in post]
+    said = [line for post in kitchen.wakes.said for line in post]
     assert said == [
         "demo: decision beta: question 2: may I deploy the site tonight, it names deploy. "
         'Reply: "demo question 2: default"'
@@ -187,20 +208,20 @@ def test_a_failing_second_target_leaves_the_others_alone(kitchen, second):
     for minutes in (1, 7, 13):
         kitchen.poll(later(minutes))
     why = 'a pull request jmerge holds for your word. Reply: "demo #9: merge it"'
-    assert kitchen.webhook.said[0] == [f"demo: decision #9: {NINE}, {why}"]
+    assert kitchen.wakes.said[0] == [f"demo: decision #9: {NINE}, {why}"]
     assert jbus.read_json(kitchen.state / "outbox.json", []) == []
     shown = kitchen.status()["projects"]["demo"]
     assert (shown["outbox"], shown["last_error"]) == (0, "")
     assert shown["blocking"] == {
         "outbox": 1,
         "failed_wakes": 3,
-        "last_error": "the webhook answered 500",
+        "last_error": "the second target answered 500",
     }
     assert set(kitchen.status()["streaks"]) == {alert.blocking("demo")}
-    alerted = [line for post in kitchen.webhook.said for line in post if "alert" in line]
+    alerted = [line for post in kitchen.wakes.said for line in post if "alert" in line]
     assert alerted == [
-        "demo: alert: blocking webhook demo failed 3 times in a row since "
-        "11:01 ET: the webhook answered 500"
+        "demo: alert: blocking demo failed 3 times in a row since "
+        "11:01 ET: the second target answered 500"
     ]
     second.status = 200
     kitchen.poll(later(16))
@@ -236,7 +257,7 @@ def test_with_no_second_pair_nothing_is_posted_beyond_the_events(kitchen):
     hold(kitchen, 9)
     for minutes in (1, 16, 61):
         kitchen.poll(later(minutes))
-    assert {body["kind"] for body in kitchen.webhook.bodies} == {"events"}
+    assert {body["kind"] for body in kitchen.wakes.bodies} == {"events"}
     assert not (kitchen.state / "blocking").exists()
     assert not (kitchen.state / waiting.BLOCKS).exists()
     assert "blocking" not in kitchen.status()["projects"]["demo"]
@@ -313,7 +334,7 @@ def test_an_alarm_that_stands_blocks_and_the_second_target_s_own_does_not(kitche
     relayed(kitchen, second)
     state = jbus.load().state_dir
     user = jbus.load().user
-    for key in (alert.PASS, alert.blocking("demo"), alert.webhook("other")):
+    for key in (alert.PASS, alert.blocking("demo")):
         for _ in range(3):
             alert.failed(state, key, "down", now=NOW, user=user)
         alert.told(state, key)

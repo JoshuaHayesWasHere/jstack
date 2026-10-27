@@ -227,12 +227,12 @@ def test_an_outbox_of_the_old_names_goes_out_in_the_next_post_under_the_new(kitc
     jbus.write_json(kitchen.state / "outbox.json", old)
     kitchen.poll()
     said = "waiting-on-user demo: approve alpha: do it · unblocks alpha · since 11:00 ET"
-    (post,) = kitchen.webhook.posts
+    (post,) = kitchen.wakes.posts
     assert post[:2] == [
         {**old[0], "event": "waiting-on-user", "loud": "user", "line": said, "say": said},
         {**old[1], "loud": "user"},
     ]
-    assert kitchen.webhook.said[0][:2] == [said, "gate beta: which one?"]
+    assert kitchen.wakes.said[0][:2] == [said, "gate beta: which one?"]
     assert kitchen.waiting() == []
 
 

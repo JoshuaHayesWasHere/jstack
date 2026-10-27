@@ -1072,7 +1072,10 @@ class JbusConfig:
     Setup seeds it with mode 600, no project and no key. The seed sets `server` to the server
     that the T3 sign-in beside it names, or else to T3 Code's own address. It sets
     `dispatch = false`, so jbus launches nothing until the user turns dispatch on.
-    `jbus t3 login` reads the server from this file, so this need comes first."""
+    `jbus t3 login` reads the server from this file, so this need comes first.
+    ok: the loader takes the file. Where it still has keys nothing reads any more, such as the
+      old webhook's `wake`, `webhook_url` and `webhook_key` (`jbus.OLD`), the detail names them in
+      one line: they are old and do nothing, so the user can remove them."""
 
     path: Path
     mode: int = 0o600
@@ -1093,9 +1096,11 @@ class JbusConfig:
         if not self.path.is_file():
             return Found.missing("jbus does not run without it")
         try:
-            jbus.load(self.path.parent)
+            loaded = jbus.load(self.path.parent)
         except Exception as error:
             return Found.old(_said(error))
+        if loaded.ignored:
+            return Found.ok(f"old keys that do nothing, remove them: {', '.join(loaded.ignored)}")
         return Found.ok()
 
 

@@ -53,7 +53,7 @@ NOT_FOUND = said(404, {"error": "not found"})
 
 def reader(sources: Sources) -> jbus.Config:
     """A `Config` for code that only reads the state. It has the projects the state
-    directory names, and no server, no webhook and no config directory."""
+    directory names, and no server and no config directory."""
     nowhere = Path(os.devnull)
     return jbus.Config(
         server="",

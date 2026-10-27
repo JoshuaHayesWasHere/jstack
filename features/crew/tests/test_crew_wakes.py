@@ -1,15 +1,17 @@
 """Before a crewmate ends its turn on the pull request, it asks `jbus wakes` whether a wake can
-come. While the project's webhook is failing, the block says to stay and check by hand.
+come. While the project's home thread is failing, the block says to stay and check by hand.
 
 The test runs the skill's block as an agent does, with the real `jbus` and a `uv` stand-in that
-drops `run --project`, against the kitchen of `test_jbus_kitchen`, whose webhook answers 400."""
+drops `run --project`, against the kitchen of `test_jbus_kitchen`, whose T3 Code refuses the sends
+to the home thread when told to."""
 
 import os
 import subprocess
 
 import test_room as room
 from crew_helpers import block
-from test_jbus_wake_failing import alert, fail, refusing
+from test_jbus_signal import later
+from test_jbus_wake_home import homed
 
 
 def wakes(kitchen):
@@ -27,11 +29,14 @@ def wakes(kitchen):
     return ran.stdout.splitlines()
 
 
-def test_a_crewmate_ends_its_turn_while_the_webhook_takes_posts(kitchen):
-    assert wakes(kitchen) == ["end your turn: wakes go: the webhook of demo is not failing"]
+def test_a_crewmate_ends_its_turn_while_the_home_thread_takes_wakes(kitchen):
+    assert wakes(kitchen) == ["end your turn: wakes go: the home thread of demo is not failing"]
 
 
-def test_a_crewmate_stays_in_its_turn_while_the_webhook_is_failing(kitchen):
-    refusing(kitchen)
-    fail(kitchen, 3)
-    assert wakes(kitchen) == [f"stay: wakes fail: {alert(3)}"]
+def test_a_crewmate_stays_in_its_turn_while_the_home_thread_is_failing(kitchen):
+    homed(kitchen)
+    kitchen.t3.refuse_send = True
+    for number in range(3):
+        kitchen.poll(later(5 * number))
+    (said,) = wakes(kitchen)
+    assert said.startswith("stay: wakes fail: alert: home thread demo failed 3 times in a row")

@@ -57,10 +57,7 @@ SHAPE = {
             "failed_wakes": None,
             "last_error": None,
             "outbox": None,
-            "wake": None,
             "since": None,
-            "stranded": None,
-            "top_level": {"failed_wakes": None, "last_error": None, "outbox": None},
             "blocking": {"failed_wakes": None, "last_error": None, "outbox": None},
             "sign_in": None,
             "sweep": None,
@@ -153,10 +150,6 @@ def pulse(read: Read) -> dict[str, Any]:
     streaks = status.get("streaks") if isinstance(status.get("streaks"), dict) else {}
     open_now = _table(sources.state_dir / STREAKS) or {}
     failed, failed_since = _streak(open_now, alert.PASS)
-    wake = text(mine.get("wake"), 20)
-    route = alert.home(name) if wake in ("home", "both") else alert.webhook(name)
-    stranded = status.get("stranded") if isinstance(status.get("stranded"), dict) else {}
-    held = stranded.get(name) if isinstance(stranded.get(name), dict) else {}
     homes = status.get("homes_off_bus") if isinstance(status.get("homes_off_bus"), list) else []
     scratch = status.get("scratch") if isinstance(status.get("scratch"), dict) else {}
     said = f"{manager} did not answer" if units is None else _said(timer, service)
@@ -190,10 +183,7 @@ def pulse(read: Read) -> dict[str, Any]:
             "failed_wakes": count(mine.get("failed_wakes")),
             "last_error": text(mine.get("last_error")),
             "outbox": count(mine.get("outbox")),
-            "wake": wake,
-            "since": _streak(open_now, route)[1] if mine.get("failed_wakes") else None,
-            "stranded": sum(count(one) for one in held.values()),
-            "top_level": _hook(mine.get("top_level")),
+            "since": _streak(open_now, alert.home(name))[1] if mine.get("failed_wakes") else None,
             "blocking": _hook(mine.get("blocking")),
             "sign_in": text(mine.get("sign_in")),
             "sweep": text(mine.get("sweep")),
@@ -213,8 +203,7 @@ def pulse(read: Read) -> dict[str, Any]:
 
 
 def _hook(one: Any) -> dict[str, Any] | None:
-    """What the status file says of a webhook beside the project's own, or None where the
-    project posts to no such webhook."""
+    """What the status file says of the second target, or None where the config sets none."""
     if not isinstance(one, dict):
         return None
     return {

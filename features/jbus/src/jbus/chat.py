@@ -1,5 +1,6 @@
 """Take Sous Chef's decisions on a card, which come back on the relay's `POST /item`, with the
-relay's key: `{project, item, verb, words, by, message, seen_event}` on a card (`jbus.cards.card`).
+relay's key: `{project, item, verb, words, by, message, seen_event}`, for an action a card offers
+(`jbus.cards.actions`).
 `decide` handles each one as `jbus item approve` would, and marks it as made in `chat`. Sous Chef
 makes a decision as itself, or the user makes it. A user's decision comes with the chat message the
 user said it in and the words quoted from that message. jbus keeps those with `checked: false`,

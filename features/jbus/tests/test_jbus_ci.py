@@ -351,12 +351,12 @@ def test_a_week_with_a_target_missed_alerts_once_and_a_week_without_alerts_nobod
     path = tmp_path / "ci-week.md"
     met = [one for one in nine.values() if one.met is not False]
     assert report.escalate(config, project, met, path, KITCHEN_NOW, said.append) == 0
-    assert kitchen.webhook.said == [] and said == ["ci: every target met or without data, no alert"]
+    assert kitchen.wakes.said == [] and said == ["ci: every target met or without data, no alert"]
     late = list(nine.values())
     report.escalate(config, project, late, path, KITCHEN_NOW, said.append)
     report.escalate(config, project, late, path, KITCHEN_NOW, said.append)
-    assert len(kitchen.webhook.said) == 1
-    (line,) = kitchen.webhook.said[0]
+    assert len(kitchen.wakes.said) == 1
+    (line,) = kitchen.wakes.said[0]
     assert "missed" in line and "queue p50 under exec p50 26.6 vs 9.67 min" in line
     assert "flaky tests" not in line and str(path) in line
 
@@ -432,7 +432,7 @@ def test_the_service_writes_no_report_and_alerts_nobody_where_no_project_asks_fo
     code, said, project = service(kitchen, monkeypatch)
 
     assert (code, said.strip()) == (0, "ci: no project asks for the week's report (ci_report)")
-    assert asked == [] and kitchen.webhook.said == []
+    assert asked == [] and kitchen.wakes.said == []
     assert not (jbus_home(project) / "reports").exists()
 
 

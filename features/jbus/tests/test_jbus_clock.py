@@ -31,7 +31,7 @@ def to(kitchen, thread):
 
 def loud(kitchen):
     """Return each event that a pass posted for the user."""
-    return [one["line"] for post in kitchen.webhook.posts for one in post if one["loud"] == "user"]
+    return [one["line"] for post in kitchen.wakes.posts for one in post if one["loud"] == "user"]
 
 
 def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():

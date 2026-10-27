@@ -11,7 +11,7 @@ text after a word such as `Authorization:`, when that text is one run of 16 or m
 characters a key is written in. A word of prose is never such a run.
 
 Neither function knows a secret. A read loads no config, so the server cannot take a
-webhook's key out by name as `jbus.redact` does. Two things keep a key out of an answer:
+key out by name as `jbus.redact` does. Two things keep a key out of an answer:
 the server reads no file that holds one, and an answer has only the keys of its shape. The
 one write that loads the config takes the config's secrets out by name from what that write
 returns, before this module sees it.

@@ -1,4 +1,4 @@
-"""Verification scaffolding: a local stand-in for T3 Code's MCP endpoint and the Chef's webhook.
+"""Verification scaffolding: a local stand-in for T3 Code's MCP endpoint.
 
 `launch.sh` starts it and `cleanup.sh` stops it. It listens on a free port of 127.0.0.1 and
 keeps everything it is told under the directory it is given:
@@ -6,11 +6,11 @@ keeps everything it is told under the directory it is given:
     port          the port it listens on, written once it is ready
     threads.json  the threads it has, which a drive may edit between passes
     calls.jsonl   one line for each tool call jbus made, with its arguments
-    wake.jsonl    one line for each POST to /wake, with the events it carried
+    wake.jsonl    one line for each wake jbus sent a home thread, with the body it carried
 
 It answers the tools `jbus.t3.TOOLS` names, and only to the sandbox's token. Any other tool
-is a JSON-RPC error. A POST to /wake is kept with whether it carried that token as the
-project's key, never with the key.
+is a JSON-RPC error. A wake is a `t3_thread_send` whose request id starts `wake|`, and its body
+is the JSON block of its message.
 """
 
 from __future__ import annotations
@@ -71,6 +71,9 @@ class Fake:
         if name == "t3_thread_read":
             return {"thread": by_id[given["threadId"]], "recentRuns": [], "items": []}
         if name == "t3_thread_send":
+            if given["clientRequestId"].startswith("wake|"):
+                body = given["message"].split("```json\n", 1)[1].split("\n```", 1)[0]
+                self.log("wake.jsonl", {"thread": given["threadId"], "events": json.loads(body)})
             return {"threadId": given["threadId"], "status": "queued"}
         if name == "link_pull_request":
             return {"url": given["url"], "alreadyLinked": False}
@@ -120,11 +123,6 @@ def handler(fake: Fake) -> type[http.server.BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             body = self.rfile.read(int(self.headers.get("content-length", 0)))
             with fake.lock:
-                if self.path == "/wake":
-                    key = self.headers.get("x-automation-key") == fake.token
-                    key = key and self.headers.get("authorization") == f"Bearer {fake.token}"
-                    fake.log("wake.jsonl", {"key": key, "events": json.loads(body)})
-                    return self.reply({})
                 if self.path != "/mcp":
                     return self.reply({}, 404)
                 if self.headers.get("authorization") != f"Bearer {fake.token}":

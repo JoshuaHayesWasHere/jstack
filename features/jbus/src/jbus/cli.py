@@ -19,16 +19,16 @@ A gate a thread pipes to `jbus gate` is a question with a number (`questions`): 
 the user until `jbus answer` closes it, and a pass carries an answer that is not the default
 to the thread that asked.
 Everything it finds is an event with a loudness (`wake.LOUDNESS`), and the project's
-webhook is posted only what the user must act on: a new question, a hold or an approval
-that is theirs, an alert, a stall. Everything else is quiet: it is in the log, which
+home thread is woken only for what the user must act on: a new question, a hold or an
+approval that is theirs, an alert, a stall. Everything else is quiet: it is in the log, which
 `jbus events` prints and the view shows. A failure that repeats is told once, and once
 when it ends (`alert`).
 `jbus word` is the user's word down to a home: it keeps what the user said for one project or for
 all, and sends it to the thread in each home's `home-id` as a queued message, at once and
-then on each pass until it went (`word`). It is no event, so no webhook is posted it.
+then on each pass until it went (`word`). It is no event, so it wakes nothing.
 Once a day it asks `jmerge` what a sweep would remove, and again on each pass until
 `jmerge` has run. Each pass ends by rewriting the status file, which `jbus status` prints:
-what a webhook that is down cannot say.
+what a home thread that is down cannot say.
 `jbus view` is no pass: it is a server that shows what the passes left, and it reads no
 config (`jbus.view`).
 `jbus project add` is no pass either: it adds one project's table to the config, and the
@@ -234,7 +234,7 @@ def poll(
             try:
                 step()
             except Exception as error:
-                say(f"pass record failed: {alert.why(error, *config.hooks())}")
+                say(f"pass record failed: {alert.why(error, config)}")
 
         recorded(kept.start)
 
@@ -242,7 +242,7 @@ def poll(
             try:
                 return step()
             except Exception as error:
-                raised[name] = alert.why(error, *config.hooks())
+                raised[name] = alert.why(error, config)
                 say(f"pass failed {name}: {raised[name]}")
                 return None
 

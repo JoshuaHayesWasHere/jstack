@@ -25,7 +25,7 @@ sys.path.insert(
 tools = importlib.import_module("statechart.tools")
 
 # A scene is the children the root makes in one run, the calls they raise, and whether the
-# routes move. Two siblings that both raise calls are too many states for one run.
+# home thread may fail. Two siblings that both raise calls are too many states for one run.
 SCENES = {
     "a": ('{"a"}', '{"a1", "a2"}', "TRUE"),
     "b": ('{"b"}', '{"b1", "b2"}', "TRUE"),
@@ -45,7 +45,7 @@ RULES = INVARIANTS + PROPERTIES
 # Each guard of the design, the rule that rests on it, and the scene that shows it.
 CANARIES = {
     "retire-guard": ("NoRetireWithOpen", "a"),
-    "rehome": ("CallsReachJosh", "a"),
+    "keep-on-fail": ("CallsReachJosh", "a"),
     "flag": ("StallFlagged", "a"),
     "beat": ("StallFlagged", "b"),
     "strike": ("FirstStrike", "a"),
@@ -58,8 +58,9 @@ CANARIES = {
 }
 
 # Today's code keeps every rule in every scene: the four it broke (NoRetireWithOpen, StallFlagged,
-# OneMerger and NoBlindMerge) since the branch hometree-rules gave it the design's guards, and
-# CallsReachJosh and ReadyMerges since pull requests 332 and 357. Each scene runs with both modes,
+# OneMerger and NoBlindMerge) since the branch hometree-rules gave it the design's guards,
+# ReadyMerges since pull request 357, and CallsReachJosh since jbus has one route to Josh, the
+# home thread, whose failed post leaves the call in its outbox. Each scene runs with both modes,
 # so the merge switch is shown to play no part.
 TODAY_MODES = '{"jbus", "home"}'
 
@@ -73,7 +74,7 @@ SCENE_ALONE = ["    Kids <- Made", "    Calls <- Raised", "    Notices <- SceneN
 
 
 def config(scene, rules, modes, drop=None):
-    made, raised, routes_move = SCENES[scene]
+    made, raised, may_fail = SCENES[scene]
     alone = any(rule in PROPERTIES for rule in rules)
     lines = [
         "CONSTANTS",
@@ -82,7 +83,7 @@ def config(scene, rules, modes, drop=None):
         f"    Modes = {modes}",
         f"    Made = {made}",
         f"    Raised = {raised}",
-        f"    RoutesMove = {routes_move}",
+        f"    MayFail = {may_fail}",
         *([f'    Drop = "{drop}"'] if drop is not None else []),
         *(SCENE_ALONE if alone else []),
         "SPECIFICATION Spec",

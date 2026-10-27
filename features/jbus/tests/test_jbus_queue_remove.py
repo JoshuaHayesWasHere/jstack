@@ -10,8 +10,8 @@ import pytest
 import jbus
 from jbus import digest, queue, waiting, wake
 from jbus.view import state as view
-from test_jbus_blocking import relayed
-from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen, Webhook
+from test_jbus_blocking import Second, relayed
+from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen
 from test_jbus_kitchen import review as review_of
 from test_jbus_queue import add, brief, rows, sha12
 from test_jbus_resume import crew, sends
@@ -73,7 +73,7 @@ def test_remove_takes_the_row_out_logs_it_and_moves_the_stored_brief_aside(kitch
     assert [(one["slug"], one["event"], one["loud"], one["line"]) for one in kitchen.events()] == [
         ("alpha", "queue", "quiet", f"queue demo: removed alpha, {AT} by user")
     ]
-    assert kitchen.webhook.posts == [] and kitchen.t3.messages == {}
+    assert kitchen.wakes.posts == [] and kitchen.t3.messages == {}
 
 
 def ended(kitchen, removed):
@@ -112,7 +112,7 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
     assert remove(kitchen, "alpha")[0] == 0
     told = about(kitchen, "alpha")
     assert told[-1] == f"queue demo: removed alpha, {AT} by user"
-    kitchen.webhook.posts.clear()
+    kitchen.wakes.posts.clear()
     own = kitchen.brief(
         "alpha", RESULT + GATE.format(n="<n>", asked="red?", status="open", slug="-")
     )
@@ -149,9 +149,9 @@ def test_the_waiting_list_drops_a_removed_row_at_once_and_sends_no_event_for_it(
     assert "approve alpha" in kitchen.main("queue", "show")[1]
     assert remove(kitchen, "alpha")[0] == 0
     assert "alpha" not in kitchen.main("queue", "show")[1]
-    kitchen.webhook.posts.clear()
+    kitchen.wakes.posts.clear()
     kitchen.poll(LATER)
-    assert kitchen.webhook.posts == [] and kitchen.t3.messages == {}
+    assert kitchen.wakes.posts == [] and kitchen.t3.messages == {}
     listed, removed = kitchen.lines()
     assert listed == "waiting demo: 1 wait on user, 1 new (approve alpha), 0 gone"
     assert removed == f"queue demo: removed alpha, {AT} by user"
@@ -178,7 +178,7 @@ def test_a_removal_that_lands_during_a_pass_raises_no_approve_decision(kitchen, 
 
 @pytest.mark.parametrize("emptied", [True, False], ids=["empty", "missing"])
 def test_a_row_whose_brief_is_missing_or_empty_raises_no_approve_decision(kitchen, emptied):
-    second = Webhook()
+    second = Second()
     try:
         relayed(kitchen, second)
         add(kitchen, "alpha", approve=False)

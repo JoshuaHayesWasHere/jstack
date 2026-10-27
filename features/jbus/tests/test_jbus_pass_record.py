@@ -184,7 +184,7 @@ def test_a_first_pass_stopped_before_any_status_is_still_printed(kitchen):
     record.Record(jbus.load(), NOW).start()
     code, said = kitchen.main("status")
     started = {"started": STARTED, "ended": None, "seconds": None, "projects": {}, "silent": {}}
-    printed = {"pass": started, "streaks": {}, "stranded": {}, "homes_off_bus": []}
+    printed = {"pass": started, "streaks": {}, "homes_off_bus": []}
     assert (code, json.loads(said)) == (0, printed)
 
 

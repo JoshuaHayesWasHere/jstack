@@ -4,7 +4,7 @@
 # It installs this checkout's commands (uv sync), then makes a new directory under
 # ${TMPDIR:-/tmp} that holds everything a drive touches: a HOME, jbus's config and state, a
 # demo repo with its origin, a `gh`, a `notify-send`, a `systemctl` and a `launchctl` that are stand-ins, a
-# directory for uv's tools, a machine that is idle, and a local stand-in for T3 Code and the webhook. It prints `ready:` only after
+# directory for uv's tools, a machine that is idle, and a local stand-in for T3 Code. It prints `ready:` only after
 # jbus and jmerge have each run in it. Nothing outside it is written
 # but the evidence directory, ${TMPDIR:-/tmp}/verify-jstack-evidence/<run>, which cleanup.sh
 # keeps. Two sandboxes never share a path or a port, so runs may sit side by side.
@@ -63,7 +63,7 @@ git -C "$S/demo" push -q origin main
 git -C "$S/demo" fetch -q origin
 git -C "$S/demo" remote set-head origin main >/dev/null
 
-# The stand-in for T3 Code and the webhook. Its token is made up here and opens nothing else.
+# The stand-in for T3 Code. Its token is made up here and opens nothing else.
 token="sandbox-$run"
 nohup "$repo/.venv/bin/python" "$here/fake_t3.py" "$S/t3" --token "$token" >"$S/t3/log" 2>&1 &
 echo $! >"$S/t3/pid"
@@ -85,14 +85,12 @@ server = "$url"
 dispatch = true
 max_running = 1
 runtimeMode = "full-access"
-wake = "both"
+home_thread = "mcp:sandbox-home"
 [[project]]
 name = "demo"
 checkout = "$S/demo"
 state = "demo"
 projectId = "00000000-0000-0000-0000-000000000000"
-webhook_url = "$url/wake"
-webhook_key = "$token"
 EOF
 printf '{"server": "%s", "token": {"access_token": "%s"}, "obtained_at": %s}\n' \
   "$url" "$token" "$(date +%s)" >"$S/config/t3.json"

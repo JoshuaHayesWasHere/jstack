@@ -9,8 +9,8 @@
       "breaks": {}
     }
   },
-  "modelStates": 2668,
-  "modelTransitions": 11944,
+  "modelStates": 1334,
+  "modelTransitions": 5972,
   "chartStates": 55,
   "chartTransitions": 120,
   "chartStatus": {

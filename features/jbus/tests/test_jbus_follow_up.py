@@ -92,7 +92,7 @@ def test_three_follow_ups_queued_overnight_launch_and_only_the_new_rows_decision
     assert decided(kitchen) == ["decision delta"]
     waits = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert [one["key"] for one in waits] == ["approve:delta"]
-    posted = [one for post in kitchen.webhook.posts for one in post or []]
+    posted = [one for post in kitchen.wakes.posts for one in post or []]
     assert {one["slug"] for one in posted if one["event"] == "decision"} == {"delta"}
 
 

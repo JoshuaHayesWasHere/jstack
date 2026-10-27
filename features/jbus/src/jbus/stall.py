@@ -153,8 +153,7 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
 
 
 def config(run: Pass, client: Client | None, rows: list[queue.Row] | None) -> Roots:
-    """Return the project's own root: no sign-in to T3 Code. A webhook is optional, since wakes go
-    to the home thread by default, so one that is not set is no root."""
+    """Return the project's own root: no sign-in to T3 Code."""
     if client is not None:
         return {}
     unblocks = [row["slug"] for row in rows or [] if row.get("status") == "queued"]
