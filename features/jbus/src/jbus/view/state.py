@@ -75,7 +75,7 @@ gate that is only in a home's `gates.md` is not answerable.
 
 `items` is each live work item of the project (`jbus.item`) and the `ENDED` items that
 ended last, in the order of their numbers. Each has its `id`, `slug`, `title`, `state`,
-`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A steer names
+`owner`, `risk`, `last_event` and its last `ITEM_LINES` lines, oldest first. A go names
 the `last_event` as the line it saw.
 
 `jbus.code` says which code of the view serves requests: when the server started, and whether a

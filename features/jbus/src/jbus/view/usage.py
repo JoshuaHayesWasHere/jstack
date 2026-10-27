@@ -21,7 +21,7 @@ false. It refuses anything else with 400, and writes nothing. So a line has the 
 fields, each a value the server chose or a number, and no row text, slug, thread id or address can
 reach it.
 
-`/usage` is a write, as the answer and the steer are: only the server's own page may post it
+`/usage` is a write, as the answer and the go are: only the server's own page may post it
 (`jbus.view`). It needs no `?project=`.
 
 The lines go to `FILE`, in jbus's state directory. A line is kept `KEPT`, 90 days: when the
@@ -47,7 +47,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import Refused, item
+from jbus import Refused
 from jbus.view import state
 
 USAGE = "/usage"
@@ -55,7 +55,7 @@ FILE = "view-usage.jsonl"
 KINDS = ("open", "route", "item", "action")
 TIMED = ("item", "action")
 ROUTES = ("stack", "triage", "project")
-ACTIONS = ("answer", "approve", *(str(one) for one in item.Steer))
+ACTIONS = ("answer", "approve", "hold")
 FIELDS = {"kind", "name", "project", "route", "seconds", "headless"}
 HELP = "help"
 LONGEST = 7 * 24 * 3600

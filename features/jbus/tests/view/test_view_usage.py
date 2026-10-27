@@ -94,16 +94,11 @@ def test_a_line_carries_none_of_what_the_page_shows_and_anything_else_is_refused
 
 
 def test_every_action_the_server_takes_is_a_name_a_line_may_have(served, scene):
-    """An action is a write the page sends: an answer, or a steer by its action."""
-    for name in ("answer", "approve", "message", "hold", "redirect"):
+    """An action is a write the page sends: an answer, a go, or the undo of a go."""
+    for name in ("answer", "approve", "hold"):
         assert served.write(event("action", name), path="/usage")[0] == 200, name
-    assert [one["name"] for one in lines(scene)] == [
-        "answer",
-        "approve",
-        "message",
-        "hold",
-        "redirect",
-    ]
+    assert served.write(event("action", "message"), path="/usage")[0] == 400
+    assert [one["name"] for one in lines(scene)] == ["answer", "approve", "hold"]
 
 
 def test_a_line_holds_its_fields_and_no_content_and_no_address(served, scene):

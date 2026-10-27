@@ -109,20 +109,20 @@ The body is one JSON object:
 | Field | What it is |
 |---|---|
 | `project`, `item` | The card's `project` and `item`. An item's id is unique only within its project, so the body names both. |
-| `verb` | One of the card's `actions`: `approve`, `message` or `hold`. The relay takes the button press that sent a hold as its confirmation. |
-| `words` | What was said: the message for `message`, why for `hold`, the user's words for `approve`. |
-| `by` | Who decided. It is the user (`user` in `~/.config/jstack/config.toml`), or the literal `Sous Chef` for a steer of the chat bot's own, whatever the chat bot's name is. |
+| `verb` | One of the card's `actions`: `approve`. |
+| `words` | What was said: the user's words for `approve`. |
+| `by` | Who decided. It is the user (`user` in `~/.config/jstack/config.toml`), or the literal `Sous Chef` for a decision of the chat bot's own, whatever the chat bot's name is. |
 | `message` | The id or the link of the chat message where the user made the decision. A decision by the user with no `message` or no `words` gets 403. |
 | `seen_event` | The `id` of the card the decision was made on. |
 
-The relay records the decision as `jbus item approve` or `jbus item steer` does, with `where: chat`, in the project's state, and writes one line of the item's log.
-When the chat bot steers by itself, `by` is `Sous Chef`, and the relay refuses an approval with that `by`.
+The relay records the decision as `jbus item approve` does, with `where: chat`, in the project's state, and writes one line of the item's log.
+When the chat bot decides by itself, `by` is `Sous Chef`, and the relay refuses an approval with that `by`.
 Only the user approves.
 A decision by the user is based on the chat message.
 The relay keeps the message as the line's `ref`, with the quoted words as `said` and `checked: false`, since nothing reads the words back from the chat.
 The relay takes an approval from chat only where its words name the item, by its id or its slug, and the item is routine.
 The relay refuses a verb the item's card does not offer now, with 409 and the view's link.
-A review item (a merge, a secret, the config) takes no approval, message or hold from chat, and a done or dropped one takes none.
+A review item (a merge, a secret, the config) takes no approval from chat, and a done or dropped one takes none.
 The relay refuses a decision on a card whose line is no longer the item's last, and quotes the line that came after.
 So a card acted on twice moves the item once.
 The relay answers with one of these:
@@ -133,8 +133,6 @@ The relay answers with one of these:
 - 404 for a project the config does not have.
 - 409 for a decision jbus refuses, with jbus's sentence in `{"refused"}`.
 - 503 when the config cannot be read.
-
-The next pass sends a message steer to the item's home.
 
 ## Cards in your chat bot's chat
 
@@ -150,7 +148,7 @@ A POST that fails stops that route's cards until the next pass, which posts them
 This is the contract for the chat bot's side, whose code is outside this repo:
 
 ```json
-{"kind": "item", "id": "demo.w3.5", "item": "w3", "project": "demo", "title": "One card per work item in the chat", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by you, 11:52 EDT", "actions": ["message", "hold"], "view": "https://<view host>/#/demo/item/w3"}
+{"kind": "item", "id": "demo.w3.5", "item": "w3", "project": "demo", "title": "One card per work item in the chat", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by you, 11:52 EDT", "actions": [], "view": "https://<view host>/#/demo/item/w3"}
 ```
 
 | Field | What the chat bot does with it |

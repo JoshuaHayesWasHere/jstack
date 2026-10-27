@@ -1,5 +1,5 @@
 """`jbus view`: one small server that shows the bus as the line. It takes two writes: the
-user's answer to a question, and the user's steer of a work item.
+user's answer to a question, and the user's go for a work item.
 
 It is one process on the standard library's `http.server`, on one port, `PORT`. It always
 listens on `127.0.0.1`. When `JBUS_VIEW_HOST` is set, it listens on that address too: an
@@ -25,7 +25,7 @@ The routes that read are `routes()`, all `GET`:
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
 
-The two writes are `WRITES`, `POST /answer` and `POST /steer`. Each acts on the one project
+The two writes are `WRITES`, `POST /answer` and `POST /approve`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
 have, gets 404. A panel may take writes of its own, `POST /panel/<panel>/<write>`, held to the
 same checks (`panels`). One more write, `POST /usage`, names no project: it keeps an event of the
@@ -49,24 +49,13 @@ the user's answer. The server returns `closed` and
 answered before, and gives that question's `first` answer. The status is 200 where a
 question closed and 409 where none did.
 
-The body of `STEER`, `POST /steer`, is JSON with five fields:
-
-- `item`, the item's id;
-- `action`, one of `jbus.item.Steer`;
-- `words`, the user's words, which are a redirect's new brief;
-- `seen_event`, the item's last line as the page showed it;
-- `confirm`, which a hold needs.
-
-The server decides none of it, and calls `jbus.steer.steer`. It passes the user of the settings
-as the one who steers, and the view as the place of the steer. The basis of the steer is these
-words, said in the view, at the server's clock. The rules of `jbus.steer.steer` are the only
-ones. The server refuses a steer whose `seen_event` is not the item's last line, and returns the
-line that came after it. So a second POST of the same steer gets 409, and the server writes
-nothing. Any other refusal is 409 too, with two exceptions: a hold with no `confirm` is 400, and
-an item the project does not have is 404. A message and a redirect have words. The server sends
-a message to the home in the same request (`jbus.steer.deliver`), as the command sends it. Where
-the message does not reach the home, the server records the line all the same. The server's
-reply says why, and the next pass sends the message. The server returns `at`, the `item`, one
+The body of `APPROVE`, `POST /approve`, is JSON with two fields: `item`, the item's id, and
+`seen_event`, the item's last line as the page showed it. The server decides none of it, and
+calls `jbus.item.approve`, whose rules are the only ones. It passes the user of the settings as
+the one who approves, and the view as the place, said at the server's clock. The server refuses
+a go whose `seen_event` is not the item's last line, and returns the line that came after it.
+So a second POST of the same go gets 409, and the server writes nothing. Any other refusal is
+409 too, and an item the project does not have is 404. The server returns `at`, the `item`, one
 sentence, `say`, and the item's `state` and `last_event`. Those two are what the record has
 after the write, or after the refusal.
 
@@ -82,16 +71,16 @@ is the server's own address, and so is a count. For one of the server's names, t
 own address is exactly that origin. So
 only the server's own page can write. No answer has a CORS header. The server sends each
 answer with `no-store`, so no browser or proxy may store it. There is no sign-in. Anyone
-who reaches the port may answer and steer, as any shell of this machine may with
-`jbus answer` and `jbus item steer`.
+who reaches the port may answer and approve, as any shell of this machine may with
+`jbus answer` and `jbus item approve`.
 
 To read, the server reads no config of jbus and no secret. `reader` is the `Config` the
 server builds the digest with. Its config directory is `os.devnull`, which has no file
 under it. Its projects are the ones the state directory names. The one file of settings
 the server reads is jstack's own (`jsettings`). From it the server takes two things. The
 first is the user's time zone, which the server gives to a time that has no zone. The
-second is the user's name, which the server gives each answer and steer. Only a write that
-has an answer or a message to send loads jbus's config and the stored sign-in to T3 Code,
+second is the user's name, which the server gives each answer and go. Only a write that
+has an answer or a word to send loads jbus's config and the stored sign-in to T3 Code,
 as a pass does. Neither is in any answer: the server takes the config's secrets out of what
 T3 Code said (`jbus.redact`). A slug in an address must be a slug of the queue.
 `jbus.view.clean` says what an answer may contain.
@@ -142,9 +131,9 @@ from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
 from jbus.view.state import Sources
 from jbus.view.writes import (
+    APPROVE,
     HTML,
     NOT_FOUND,
-    STEER,
     WRITES,
     Answer,
     Writes,
@@ -483,7 +472,7 @@ class App(Writes):
         return said(200, {"counted": True})
 
     def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
-        """One of the writes: an answer, a steer, or a count of what the page opened."""
+        """One of the writes: an answer, a go, or a count of what the page opened."""
         if path == usage.USAGE:
             return self._count(body)
         name = self._project(query)
@@ -493,8 +482,8 @@ class App(Writes):
             return take(self, name, body) if take else NOT_FOUND
         if path not in WRITES or not name:
             return NOT_FOUND
-        if path == STEER:
-            return self._steer(name, body)
+        if path == APPROVE:
+            return self._approve(name, body)
         return self._answer(name, body)
 
 

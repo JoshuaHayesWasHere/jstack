@@ -63,17 +63,17 @@ def test_a_write_the_page_sends_is_kept_as_an_action_with_its_seconds(scene, tmp
     assert action["headless"] is True
 
 
-def test_a_steer_the_page_sends_is_kept_as_an_action_named_by_its_action(scene, tmp_path):
+def test_a_go_the_page_sends_is_kept_as_an_action_named_approve(scene, tmp_path):
     """The page opens the drawer of a proposed work item and the walk taps its Approve. The
-    page sends the steer as one write to `/steer`, and keeps one action, named `approve` after
-    the steer's action, which the server takes."""
+    page sends the go as one write to `/approve`, and keeps one action, named `approve`, which
+    the server takes."""
     made = {"id": "w1.1", "item": "w1", "at": iso(ago(minutes=9)), "by": "Josh", "where": "chat"}
     made |= {"line": "proposed", "verb": "proposed", "project": "demo", "slug": "jam-jar"}
     (scene.state / "items.jsonl").write_text(json.dumps(made) + "\n")
     route = "#/demo/item/w1"
     seen = look(scene, tmp_path, route=route, walk=["tap:#iapprove", "look"], at=4000, budget=12000)
-    assert [(one["path"].partition("?")[0], one["body"]["action"]) for one in seen["writes"]] == [
-        ("/steer", "approve")
+    assert [(one["path"].partition("?")[0], one["body"]) for one in seen["writes"]] == [
+        ("/approve", {"item": "w1", "seen_event": "w1.1"})
     ]
     actions = [body for body in bodies(seen) if body["kind"] == "action"]
     assert [(one["name"], one["route"], one["project"]) for one in actions] == [

@@ -17,32 +17,27 @@ an open one, and the list of gates keeps only its answered ones. A link's confli
 question for its home, not for the user, so it is on neither queue.
 
 A proposed work item is a need too, of the kind `ITEM`, which the user approves by its id on the
-page (`_items`). The need carries the two things a steer names: its `item`, and the line it was
+page (`_items`). The need carries the two things a go names: its `item`, and the line it was
 last `seen` at. Every other need has those two empty. Each need names the task it is about, its
 `slug`, or none, so the page draws that task once. Every need names its subject, `subj`: the row
 or question it is about (`waiting.subject`), or the title of a thread of no row, so that no need
 reads only as its question. Where a proposed item's row waits for its
-approval, the panel leaves the item to that row. A go by the item's id is no go of the row. But
-for a row whose item was redirected, the item's id is the only thing that approves it
-(`jbus.steer.approvable`). So the item's need then takes the row's place.
+approval, the panel leaves the item to that row. A go by the item's id is no go of the row.
 
 Each need has one action, its `act` (`ACTS`): `answer` closes a question jbus holds, through
-`POST /answer`; `approve` gives a row its go, or approves a proposed item through `POST /steer`;
-`steer` gives the user's line about it to the home that owns it, as `jbus word` does; `open`
-only opens it, for setup that no home can do. Each need says what happens if the user does
-nothing, its `default` (`IDLE` where the kind has none of its own).
+`POST /answer`; `approve` gives a row its go, or approves a proposed item through
+`POST /approve`; `thread` links to the thread of the home that owns it in T3 Code, its `thread`
+(`THREAD`), where the user writes about it; `open` only opens it, for setup that no home can do.
+Each need says what happens if the user does nothing, its `default` (`IDLE` where the kind has
+none of its own).
 
 The panel takes two writes of its own (`WRITES`). `approve` keeps the user's word that approves
 a row and records the go on it, as `jbus word` and `jbus queue approve --word` do, for the brief
 whose sha the page showed (`sha`). `hold` takes that go back, as `jbus queue hold` does, while the
-row has not launched: it is the undo of `approve`. `steer` keeps the user's line, which starts
-with the need's subject, as a word. A need goes from the list as soon as its action is recorded:
-a question that closed, a row with a go that holds for its brief as it is now (whose proposed
-item then stays left to the row, as it was while the row waited), an item approved, and a need
-whose subject a word kept after the need began names (`steered`). A steered need is on the list
-`steered`, with its home, and comes back to `needs` if its state changes after the word. A need
-that keeps no time (`since`) has no change to come back on, so a steer leaves it on `needs`, with
-the time of the line."""
+row has not launched: it is the undo of `approve`. A need goes from the list as soon as its action
+is recorded: a question that closed, a row with a go that holds for its brief as it is now (whose
+proposed item then stays left to the row, as it was while the row waited), and an item approved.
+A need whose act is `thread` goes once what holds it changes."""
 
 from __future__ import annotations
 
@@ -56,7 +51,7 @@ from urllib.parse import quote
 
 import jbus
 from jbriefs import home as jbriefs
-from jbus import asks, dispatch, item, mirror, passes, questions, queue, steer, t3, waiting, word
+from jbus import asks, dispatch, item, mirror, passes, questions, queue, t3, waiting, word
 from jbus.view.homes import Owner
 from jbus.view.state import (
     _SLUG,
@@ -124,7 +119,7 @@ _NEED = {
         "home",
         "act",
         "sha",
-        "steered",
+        "thread",
     )
 } | {"answerable": None, "unblocks": [None]}
 SHAPE = {
@@ -132,7 +127,6 @@ SHAPE = {
     "gates": [_GATE],
     "needs": [_NEED],
     "proceeds": [_NEED],
-    "steered": [_NEED],
 }
 ANSWER = "Answer"
 REVERSIBLE, MERGES = "reversible", "merge to main"
@@ -153,10 +147,10 @@ A need of such a row has its kind's verb. A value with no kind, such as `hung`, 
 and its need opens the task."""
 ROWS = frozenset(KIND_OF.values())
 LOOK = "Look at it"
-ANSWERS, APPROVES, STEERS, OPENS = "answer", "approve", "steer", "open"
+ANSWERS, APPROVES, THREADS, OPENS = "answer", "approve", "thread", "open"
 ACTS = {"approve": APPROVES, ITEM: APPROVES, "config": OPENS}
 """The action of a need by its kind. A gate's is `answer` where jbus holds its question, and
-`steer` where it lives in a home's file. Any other kind's is `steer`."""
+`thread` where it lives in a home's file. Any other kind's is `thread`."""
 IDLE = {
     "approve": "It stays queued, and nothing launches it.",
     ITEM: "It stays proposed, and no work starts on it.",
@@ -169,6 +163,8 @@ IDLE = {
 """What happens if the user does nothing, for a need whose kind has no default of its own. A
 thread's need, such as one that hung, has `QUIET`."""
 QUIET = "jbus says it and interrupts nothing, so the thread stays as it is."
+THREAD = "t3-thread://v1/{}"
+"""The link that opens a thread in T3 Code, by its id."""
 SAID_IN = "jbus view"
 SOURCES = (
     WAITING_FILE,
@@ -410,22 +406,21 @@ def _approves(need: dict[str, Any]) -> str:
 
 def _items(read: Read, found: dict[str, item.Item], rows: set[str]) -> list[dict[str, Any]]:
     """A need for each proposed item that the user can approve only by its id. Such an item is
-    one whose row does not wait for a go, such as one with no row, or one that was redirected."""
+    one whose row does not wait for a go, such as one with no row."""
     lines = item.read(read.state)
     made = []
     for one in found.values():
-        if one.state is not item.State.PROPOSED or (one.slug in rows and not one.redirect):
+        if one.state is not item.State.PROPOSED or one.slug in rows:
             continue
         first = next(line for line in lines if line.get("item") == one.id)
         review = item.judged(read.state, one).risk is item.Risk.REVIEW
-        redirected = f", redirected at {one.redirect}" if one.redirect else ""
         made.append(
             {
                 "project": read.name,
                 "kind": ITEM,
                 "key": f"{ITEM}:{one.id}",
                 "what": _cut(text(one.title) or one.slug or one.id, 100),
-                "why": _cut(f"{one.id}, proposed in {one.source}{redirected}", WHY),
+                "why": _cut(f"{one.id}, proposed in {one.source}", WHY),
                 "since": when(first.get("at")),
                 "verb": APPROVE,
                 "answerable": False,
@@ -548,7 +543,6 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
     asked = {str(one.number): one for one in questions.load(read.state)}
     queues: dict[str, list[dict[str, Any]]] = {NEEDS: [], PROCEEDS: []}
     found = item.items(read.state)
-    redirected = {one.slug for one in found.values() if one.slug and one.redirect}
     for one in waits:
         if one["kind"] in ROWS:
             continue
@@ -557,7 +551,7 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
         if tier:
             queues[tier].append(_need(read, one, held, tier))
     listed = {one["key"]: one for one in waits if one["kind"] in ROWS}
-    rows = [one for one in _rows(read, listed) if _approves(one) not in redirected]
+    rows = _rows(read, listed)
     approving = {_approves(one) for one in rows} - {""}
     gone = {
         row["slug"]
@@ -568,35 +562,21 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
     rows = [one for one in rows if _approves(one) not in gone]
     needs = oldest([*queues[NEEDS], *rows, *_threads(read), *_items(read, found, approving)])
     proceeds = sorted(queues[PROCEEDS], key=lambda one: one["due"] or "~")
-    try:
-        words = word.load(read.state)
-    except word.Unparsable:
-        words = []
-    return [_acted(read, one, words) for one in needs], [
-        _acted(read, one, words) for one in proceeds
-    ]
+    return [_acted(read, one) for one in needs], [_acted(read, one) for one in proceeds]
 
 
-def _steered(one: dict[str, Any], words: list[word.Word]) -> str | None:
-    """When the user last steered a need: the latest word that starts with the need's subject
-    and was kept after the need began. A need that keeps no time is steered by any such word."""
-    began = one["since"] or ""
-    mark = f"{one['subj']}: "
-    kept = [when(each.kept_at) or "" for each in words if each.words.startswith(mark)]
-    return max((at for at in kept if at > began), default=None) if one["subj"] else None
+def _thread(read: Read, home: str) -> str:
+    """The link to the thread of the home by its name, the root's for none, or nothing where it
+    has none."""
+    found = jbriefs.thread_of(read.home / home if home else read.home)
+    return THREAD.format(found) if found else ""
 
 
-def _quiet(one: dict[str, Any]) -> bool:
-    """Whether a steered need leaves the lists until it changes. A need that keeps no time has
-    no change to come back on, so it stays, with when it was steered."""
-    return bool(one["steered"] and one["since"])
-
-
-def _acted(read: Read, one: dict[str, Any], words: list[word.Word]) -> dict[str, Any]:
+def _acted(read: Read, one: dict[str, Any]) -> dict[str, Any]:
     """A need with its one action, the default it goes ahead on, the sha of the brief that a
-    row to approve has now, and when the user steered it."""
+    row to approve has now, and the thread of its home where the action is to write there."""
     kind = one["kind"]
-    act = ACTS.get(kind) or (ANSWERS if kind == "gate" and one["answerable"] else STEERS)
+    act = ACTS.get(kind) or (ANSWERS if kind == "gate" and one["answerable"] else THREADS)
     sha = ""
     if kind == "approve" and _SLUG.fullmatch(one["slug"]):
         sha = queue.brief_sha(queue.brief(read.state, one["slug"]) or "")[:12]
@@ -604,13 +584,13 @@ def _acted(read: Read, one: dict[str, Any], words: list[word.Word]) -> dict[str,
         "act": act,
         "sha": sha,
         "default": one["default"] or IDLE.get(kind, QUIET),
-        "steered": _steered(one, words) if act == STEERS else None,
+        "thread": _thread(read, one["home"]) if act == THREADS else "",
     }
 
 
 def build(read: Read) -> dict[str, Any]:
     if not read.name:
-        return {"waiting": [], "gates": [], "needs": [], "proceeds": [], "steered": []}
+        return {"waiting": [], "gates": [], "needs": [], "proceeds": []}
     words = {
         one["slug"]: one["state"]["say"]
         for one in read.tasks
@@ -621,9 +601,8 @@ def build(read: Read) -> dict[str, Any]:
     return {
         "waiting": waits,
         "gates": _gates(read.state, read.home),
-        "needs": [one for one in needs if not _quiet(one)],
-        "proceeds": [one for one in proceeds if not _quiet(one)],
-        "steered": [one for one in [*needs, *proceeds] if _quiet(one)],
+        "needs": needs,
+        "proceeds": proceeds,
     }
 
 
@@ -694,7 +673,6 @@ def _approve(app: Any, name: str, body: bytes) -> Answer:
         say = f"{slug}'s brief is {now_is} now, not the {sha} you saw: read it, then approve it."
         return _refused(409, say)
     try:
-        steer.approvable(state, slug)
         run, kept = _keep(app, name, f"Approve {slug}, brief {sha}, in {SAID_IN}")
         rests = ("word", kept.id, "")
         _, *ruled = queue.approve(
@@ -731,19 +709,4 @@ def _hold(app: Any, name: str, body: bytes) -> Answer:
     return said(200, {"say": f"{held}: its go is taken back. {_went(run, kept)}", "slug": slug})
 
 
-def _steer(app: Any, name: str, body: bytes) -> Answer:
-    """Keep the user's line about a need as a word, which starts with the need's subject, and
-    send it to the home that owns that subject, as `jbus word` does."""
-    asked = _asked(body, "subj", "words")
-    if asked is None or not " ".join(asked["words"].split()):
-        return _refused(400, "A steer is the subject of a need and your line about it.")
-    try:
-        run, kept = _keep(app, name, f"{asked['subj']}: {' '.join(asked['words'].split())}")
-    except jbus.Refused as error:
-        return _refused(409, f"The line was not kept: {str(error).removeprefix('refused: ')}.")
-    home = f"the {kept.home} home" if kept.home else "the root home"
-    say = f"Your line on {asked['subj']} is word {kept.id}, for {home}. {_went(run, kept)}"
-    return said(200, {"say": say, "word": kept.id})
-
-
-WRITES = {"approve": _approve, "hold": _hold, "steer": _steer}
+WRITES = {"approve": _approve, "hold": _hold}
