@@ -128,10 +128,9 @@ SCOPED = (
     "more. Otherwise launch ONE scoped reviewer, not a full review, in {worktree}: the same way "
     'the crew skill\'s "The review" launches a reviewer, with `workspaceStrategy` '
     "`existing_worktree` on that worktree and the message `/pr-review run {slug} scoped {old} "
-    "{new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a "
-    "`Scoped reviewer:` line that names another head no `## Review` has. Do not rebase again "
-    "until its `## Review` is written. Handle its findings as a review's: a `Finding:` line for "
-    "each."
+    "{new}`. Add `Scoped reviewer: <threadId>, of {head}` to the Result, in place of a `Scoped "
+    "reviewer:` line that names another head no `## Review` has. Do not rebase again until its "
+    "`## Review` is written. Handle its findings as a review's: a `Finding:` line for each."
 )
 
 
@@ -208,23 +207,6 @@ def _scoped(why: str, old: str, new: str) -> tuple[str, str, str]:
     return "asked the crew for a scoped review", "asked for a scoped review", message
 
 
-def worktree(client: Client, thread: str) -> str | None:
-    """Return the thread's `worktreePath` as T3 Code reads it: None where T3 Code says it has none,
-    and nothing where the read gave no answer or no such field."""
-    try:
-        read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
-    except T3Error:
-        return ""
-    said = (read or {}).get("thread") or {}
-    return said.get("worktreePath", "")
-
-
-def where(client: Client, thread: str) -> str:
-    """Name the crew's worktree, by its path where T3 Code gives it."""
-    path = worktree(client, thread)
-    return f"your worktree, `{path}`" if path else "your own worktree"
-
-
 def drops(line: str) -> tuple[int, str, str] | None:
     """Return the number of the pull request, the text that `jmerge` prints after it, and the first
     twelve characters of the head. `drops` reads a line that waits on a drop nobody explained."""
@@ -287,6 +269,23 @@ def github(run: Pass, client: Client, world: World) -> None:
         green = f"green|{slug}|{head[:12]}" not in sent and checks(pull) == "passed"
         if green and owed(run, brief, head):
             deliver(run, client, world, number, "green", _asked("green", GREEN, head))
+
+
+def worktree(client: Client, thread: str) -> str | None:
+    """Return the thread's `worktreePath` as T3 Code reads it: None where T3 Code says it has none,
+    and nothing where the read gave no answer or no such field."""
+    try:
+        read = client.call("t3_thread_read", {"threadId": thread, "limit": 1})
+    except T3Error:
+        return ""
+    said = (read or {}).get("thread") or {}
+    return said.get("worktreePath", "")
+
+
+def where(client: Client, thread: str) -> str:
+    """Name the crew's worktree, by its path where T3 Code gives it."""
+    path = worktree(client, thread)
+    return f"your worktree, `{path}`" if path else "your own worktree"
 
 
 def crew(run: Pass, slug: str) -> str:
