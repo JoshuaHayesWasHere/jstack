@@ -53,6 +53,8 @@ Everything else acts at once on its default: a merge (reverted by `gh pr revert`
 
 A question with no `Holds:` line settles on its default at once, in the first pass that sees it, and your answer can still replace that default later.
 A gate that holds waits on you until `jbus answer` closes it, however long that takes.
+A home's `gates.md` that marks a gate `Status: answered` closes a gate with no `Holds:` line with the words of that line.
+It never closes a gate that holds: that gate stays open for your own answer, and the pass says so once, in a quiet `note`.
 Your answer closes it once.
 After `--default`, jbus sends the thread nothing, because the thread already did what you chose.
 A gate that holds is the exception: its thread waits for you, so the next pass sends `--default` to it as a go-ahead, with the fail-safe.
