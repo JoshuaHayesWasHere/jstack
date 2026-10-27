@@ -59,6 +59,11 @@ def test_review_or_after_with_the_word_passes(mode, decisions):
         ("Done when:\n- the test passes with every core busy\n", "every core"),
         ("Proves it: the timing holds with all the cores loaded\n", "all the cores"),
         ("Load: load every core, then time the test\n", "every core"),
+        ("Load: load every core with stress-ng\n", "every core"),
+        ("Load: stress every core for 60s\n", "every core"),
+        ("Load: drive every core to 100%\n", "every core"),
+        ("Load: saturate every core and time the test\n", "every core"),
+        ("Proves it: the timing holds with every core under stress\n", "every core"),
     ],
 )
 def test_a_load_that_takes_every_core_is_refused(line, asked):
