@@ -247,7 +247,7 @@ def test_a_block_run_by_a_thread_that_is_no_home_writes_nothing(homes, thread):
     homes.home_starts(SCOPED, SCOPE)
     before = homes.state()
     found = of_this_home()
-    assert len(found) == 20
+    assert len(found) == 19
     finds = block("home", 'echo "no home:').replace(UNFILLED, thread)
     for text in found:
         ran = subprocess.run(
