@@ -369,6 +369,24 @@ def test_a_start_prints_the_new_noticed_lines_of_this_home_by_their_keys(bus):
     ]
 
 
+def test_a_start_lists_under_to_read_the_records_another_home_kept_for_it(bus):
+    from test_gates import AT, ROOT, SCOPED
+
+    for seen in (bus.dir, bus.dir / "speed"):
+        (seen / "read-seen").write_text("")
+    bus.kitchen.poll()
+    found = ("--project", "demo", "noticed", "add", "--for", "root", "--from", SCOPED)
+    code, kept = bus.kitchen.main(*found, "the train is red on main")
+    assert code == 0, kept
+    line = kept.removeprefix("kept: ").strip()
+    assert parts(bus.home(START))["to read"] == [line]
+    assert parts(bus.home(START, thread=SCOPED))["to read"] == []
+    key = line.split()[0]
+    dropped = ("noticed", "drop", key, "--why", "it is fixed", "--by", "home", "--at", AT)
+    assert bus.kitchen.main(*dropped)[0] == 0
+    assert parts(bus.home(START, thread=ROOT))["to read"] == []
+
+
 def test_however_much_is_there_a_start_prints_under_6000_characters(bus):
     entries = "".join(
         f"## entry-{n}: {'an entry with a long line, ' * 4}\nStage: planned\n\n" for n in range(30)

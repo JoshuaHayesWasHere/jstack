@@ -9,10 +9,12 @@ refuses a home's row whose brief names another home, unless `--for` hands it ove
 The tests run the real command against the kitchen's faked T3 Code server.
 """
 
+from datetime import timedelta
+
 import pytest
 
 from jbus import word
-from test_jbus_kitchen import Kitchen, complete, sends
+from test_jbus_kitchen import NOW, Kitchen, complete, sends
 from test_jbus_word import AT, thread
 
 ROOT, FLOW, NEXT, CREW, VIEW = thread("a"), thread("f"), thread("e"), thread("c"), thread("d")
@@ -204,3 +206,87 @@ def test_a_home_queues_its_own_rows_and_hands_another_homes_over_with_for(kitche
 def test_a_from_that_is_no_homes_thread_is_refused(kitchen):
     code, out = queues(kitchen, "fl-crew", SCOPE, "--from", CREW)
     assert (code, out.startswith(f"refused: --from {CREW} is no home of demo now")) == (1, True)
+
+
+MAC = thread("b")
+SOUS = "mcp:sous"
+ASKED = "Hold every merge of the train until I say"
+
+
+def scoped(kitchen, *argv):
+    """Run `jbus word --scope` for the user's message in Sous Chef's thread."""
+    return kitchen.main("word", "--to", "demo", "--message", f"{SOUS}/m1", *argv)
+
+
+def wakes(kitchen):
+    return [
+        one["threadId"] for one in sends(kitchen) if one["clientRequestId"].startswith("records|")
+    ]
+
+
+@pytest.fixture
+def three(kitchen):
+    (kitchen.home / "macos").mkdir()
+    (kitchen.home / "macos" / "home-id").write_text(f"{MAC}\n")
+    kitchen.t3.says(SOUS, "m1", ASKED, title="Sous Chef")
+    return kitchen
+
+
+def test_one_word_to_every_scope_wakes_three_homes_once_and_a_second_run_wakes_none(three):
+    code, out = scoped(three, "--scope", "every")
+    lines = out.splitlines()
+    assert code == 0 and [one.split(", word ")[0] for one in lines] == [
+        f"kept: demo, for the {scope} home" for scope in ("flow", "macos", "view")
+    ]
+    assert sends(three) == []
+    three.poll()
+    assert sorted(wakes(three)) == sorted([FLOW, MAC, VIEW])
+    assert ROOT not in wakes(three)
+    assert all(
+        "user's own word, said" in one["message"] and one["message"].endswith(ASKED)
+        for one in sends(three)
+    )
+    code, again = scoped(three, "--scope", "every")
+    assert code == 0 and all(one.startswith("held: demo, the ") for one in again.splitlines())
+    three.poll(NOW + timedelta(minutes=5))
+    assert len(wakes(three)) == 3
+
+
+def test_the_wake_carries_a_long_word_whole(three):
+    long = " ".join(f"step {n} of the plan." for n in range(200))
+    three.t3.says(SOUS, "m3", long, title="Sous Chef")
+    code, out = three.main("word", "--to", "demo", "--message", f"{SOUS}/m3", "--scope", "flow")
+    assert code == 0, out
+    three.poll()
+    (sent,) = sends(three)
+    assert len(long) > 2000 and sent["message"].endswith(long)
+
+
+def test_a_scope_that_holds_the_word_by_any_path_is_not_sent_it_again(three):
+    three.t3.says(SOUS, "m2", "fix fl-statechart first", title="Sous Chef")
+    assert three.main("word", "--to", "demo", "--message", f"{SOUS}/m2")[0] == 0
+    assert to(three) == [FLOW]
+    code, out = three.main(
+        "word", "--to", "demo", "--message", f"{SOUS}/m2", "--scope", "flow", "--scope", "macos"
+    )
+    flow, macos = out.splitlines()
+    assert code == 0 and flow.startswith("held: demo, the flow home holds word ")
+    assert macos.startswith("kept: demo, for the macos home, word ")
+    three.poll()
+    assert wakes(three) == [MAC]
+
+
+@pytest.mark.parametrize(
+    ("argv", "refused"),
+    [
+        (("--scope", "nowhere"), "refused: --scope nowhere is no scoped home of demo"),
+        (("--scope", "flow", *SAID, "typed", "words"), "refused: --scope carries the user's own"),
+    ],
+)
+def test_a_word_to_no_scope_or_with_no_message_of_the_users_is_refused(three, argv, refused):
+    if "--by" in argv:
+        code, out = three.main("word", "--to", "demo", *argv)
+    else:
+        code, out = scoped(three, *argv)
+    assert (code, out.startswith(refused)) == (1, True), out
+    assert word.load(three.state) == []
