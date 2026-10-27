@@ -175,13 +175,28 @@ def test_an_integration_branch_whose_pull_request_into_main_merged_is_not_listed
         [("open", "main", False)],
         [("closed", "release/tea", True)],
         [("closed", "main", True), ("open", "main", False)],
+        '{"message": "Not Found"}',
+        "gh: could not connect",
     ],
-    ids=["no pull request", "open", "merged elsewhere", "landed and opened again"],
+    ids=[
+        "no pull request",
+        "open",
+        "merged elsewhere",
+        "landed and opened again",
+        "an answer that is not a list",
+        "no answer",
+    ],
 )
 def test_an_integration_branch_that_has_not_landed_on_main_is_listed_with_its_rows(
     scene, served, pulls
 ):
-    landed(scene, *pulls)
+    """A text in place of the pull requests is what the stand-in `gh` prints for `migration`:
+    a branch GitHub gave no list for is not known to have landed, so it is listed."""
+    if isinstance(pulls, str):
+        landed(scene)
+        (scene.root / "pulls-migration.json").write_text(pulls)
+    else:
+        landed(scene, *pulls)
     found = branches(served)
     assert list(found) == ["release/tea", "migration"]
     assert [one["slug"] for one in found["migration"]["steps"]] == ["pot-2"]
