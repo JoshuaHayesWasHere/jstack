@@ -374,3 +374,30 @@ def test_a_log_line_of_the_own_webhook_from_before_posted_home_still_counts(kitc
         log.write(json.dumps(line) + "\n")
     (decision,) = kitchen.events("decision")
     assert decision["posted"] == NOW.isoformat()
+
+
+def test_with_no_webhook_each_event_for_the_user_reaches_the_home_thread_and_none_is_posted(
+    kitchen, monkeypatch
+):
+    homed(kitchen, url="", project_wake=None)
+    box = wake.Box(kitchen.state, jbus.load().project("demo"))
+    for kind in ("sign-in", "home-stall", "alert"):
+        box.send(kind, kind, f"demo: {kind} now")
+    posted = []
+    monkeypatch.setattr(wake, "_post", lambda *given: posted.append(given) or "")
+    kitchen.poll(NOW)
+    (sent,) = wakes(kitchen)
+    body = json.loads(sent["message"].split("```json\n", 1)[1].split("\n```", 1)[0])
+    kinds = {"decision", "sign-in", "home-stall", "alert"}
+    assert {one["event"] for one in body["events"]} == kinds
+    assert posted == [] and kitchen.webhook.posts == []
+
+
+def test_a_webhook_error_from_before_leaves_wake_json_on_the_next_pass_while_wake_is_home(kitchen):
+    homed(kitchen, url="", project_wake=None)
+    marks = kitchen.state / "wake.json"
+    old = {"began": True, "last_error": "the config has no webhook_url", "posted": 1.0}
+    jbus.write_json(marks, old)
+    kitchen.poll(NOW)
+    kept = jbus.read_json(marks, {})
+    assert "last_error" not in kept and kept["began"] is True and kept["posted"] == 1.0

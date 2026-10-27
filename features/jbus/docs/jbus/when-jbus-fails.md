@@ -19,6 +19,7 @@ Every alert also waits in each project's outbox, goes to the webhook, and from t
 Each alert and recovered line is also printed in the journal, as `<project>: <line>`, so `journalctl --user -u jbus` has it.
 
 A webhook that refuses keeps the `error` text of its JSON body, with no URL and no key, as `the webhook answered 400: <error>`, in the journal and in `last_error`.
+A webhook with no URL is off, not failing: jbus posts nothing to it, so it has no streak, no alert and no `last_error` ([Events and the webhook](events-and-the-webhook.md)).
 A webhook streak of `webhook <project>` or `top-level webhook <project>` is also told on a path that needs no webhook: jbus sends its alert line, with the last error, to the project's home thread through T3 Code.
 It sends it at the 3rd failure, the 30th, and every 120th after that, so a webhook that stays down is told again and not once.
 A send that T3 Code refused goes again on the next pass, and a project whose home has no thread gets none: the journal still has the line.
