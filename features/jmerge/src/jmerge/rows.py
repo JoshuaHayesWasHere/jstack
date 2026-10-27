@@ -10,6 +10,9 @@ from jmerge import mainjson, ready
 
 NO_PULL = "no pull request yet"
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
+BROWSER_FIX = "browser-red-"
+"""The start of the slug of the fix row jbus files for main's red browser run
+(`jbus.watch.BROWSER`)."""
 
 
 @dataclass(frozen=True)

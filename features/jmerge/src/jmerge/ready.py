@@ -139,6 +139,7 @@ CONTENT_CHANGED = Reason(
 )
 NOT_PASSED = Reason("check", "{check} has not passed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
+BROWSER_RED = Reason("check", "its browser run failed at {head}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
 TOUCHES = Reason("hold", "needs {user}, touches {path}")
