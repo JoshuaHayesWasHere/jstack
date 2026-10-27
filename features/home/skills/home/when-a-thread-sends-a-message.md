@@ -12,7 +12,7 @@ These are all of them, and the last column says on which state of that file each
 | the task ended with no pull request | a crewmate | it wrote a Result that names none | both |
 | `<slug>: <pull request url> at <head> is green and has no review` | a crewmate | every check has passed and no reviewer will come: the brief says `Review: none`, or the session could launch none. It is never ready, so end the turn with `decision local <slug>: ` and that it waits for their word ("How a turn ends") | an id in `home-thread`; with none it is a gate |
 | the report is written | a scout | at its End, once, and once more only if a page's feedback changed the report | both |
-| a review's findings | a reviewer | only when the brief has no `Thread:` line to send them to | both |
+| a review's findings | jbus | only when the brief has no `Thread:` line, so `jbus.reviewed` sends the home the notice a crewmate would get, and only when `jmerge` says a line is owed | both |
 | `<slug>: <pull request url> has a conflict, and it is a link of a stack` | a crewmate | GitHub reports a conflict on a link, which its crewmate never rebases by itself: send it the line of "A stack the user lands" | an id in `home-thread`; with none it is a gate |
 | `<slug>: gate`, then the gate's lines | a crewmate or a scout | it took a default on a question only the user can answer, carried on, and `jbus gate` could not take the gate: no `jbus`, or no project for the repo | both |
 | `jbus: this is <name>'s own word, said <time> and carried to this home by jbus.`, then the words | jbus | the user said it elsewhere and `jbus word` carried it: act on it as said here ("The user's word, carried by jbus") | both |
