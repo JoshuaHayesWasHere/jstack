@@ -46,6 +46,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbus import Refused, passes, questions, queue, read_json, verbs, wake, work, write_json
 
 EVENTS = {
@@ -449,7 +450,7 @@ def _put(
     made = {
         "id": f"{name}.{count + 1}",
         "item": name,
-        "at": clock().astimezone(UTC).isoformat(timespec="seconds"),
+        "at": jsettings.stamp(clock()),
         "by": by,
         "where": str(where),
         "line": line,

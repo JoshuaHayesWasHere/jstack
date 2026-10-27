@@ -270,7 +270,7 @@ class Sources:
 
 
 def iso(moment: datetime) -> str:
-    return moment.astimezone(UTC).isoformat(timespec="seconds")
+    return jsettings.stamp(moment)
 
 
 def when(given: Any, user: jsettings.Settings = jsettings.DEFAULTS) -> str | None:
@@ -287,7 +287,7 @@ def when(given: Any, user: jsettings.Settings = jsettings.DEFAULTS) -> str | Non
         stamped = _STAMP.fullmatch(given)
         if stamped:
             return iso(user.local(datetime.fromisoformat(stamped[1])))
-        moment = datetime.fromisoformat(given.replace("Z", "+00:00"))
+        moment = jsettings.when(given)
         return iso(moment if moment.tzinfo else user.local(moment))
     except (ValueError, OverflowError, OSError):
         return None

@@ -42,9 +42,10 @@ from __future__ import annotations
 import json
 import os
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import jsettings
 from jbus import leftover, mirror, queue, read_json, rebase, verbs, waiting, write_json
 from jbus.dispatch import launched, thread_of
 from jbus.merge import parse
@@ -436,7 +437,7 @@ def hung(run: Pass, out: list[dict[str, Any]] | None) -> None:
     """
     if out is None:
         return
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    at = jsettings.stamp(run.now, z=True)
     by_id = {one["id"]: one for one in out}
     for (thread, at_run), call in _calls(run).items():
         became = _became(by_id.get(thread), at_run, call)

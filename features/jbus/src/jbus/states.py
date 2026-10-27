@@ -6,9 +6,9 @@
 
 from __future__ import annotations
 
-from datetime import UTC
 from typing import TYPE_CHECKING
 
+import jsettings
 from jbriefs.home import home_of, thread_of
 from jbus import (
     cancelled,
@@ -68,7 +68,7 @@ def derive(half: Half) -> None:
         said = cancelled.why(run, slug) if found["status"] == "pr" else ""
         return {**found, "why": said or watch.why(run, row, found, waits, unread)}
 
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     half.table, half.changed = queue.derive(run.state, facts, run.user.stamp(run.now), at)
     if half.changed:
         line = f"queue {run.project.name}: the table changed"
@@ -114,7 +114,7 @@ def keep_work(half: Half) -> None:
         )
         listed.append(line)
     listed += watch.judged(run, half.out, {row["slug"] for row in rows}, half.answered())
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     work.write(run.state, at, half.answered(), listed)
 
 

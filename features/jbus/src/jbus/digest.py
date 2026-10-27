@@ -216,8 +216,8 @@ def build(
     expires = t3.expiry(config.token_path)
     told = status(config)
     said = {
-        "at": now.astimezone(UTC).isoformat(timespec="seconds"),
-        "since": since.astimezone(UTC).isoformat(timespec="seconds"),
+        "at": jsettings.stamp(now),
+        "since": jsettings.stamp(since),
         "projects": {project.name: _project(config, project, since) for project in config.projects},
         "status": told,
         "token_expires": config.user.stamp(expires) if expires else told.get("token_expires"),

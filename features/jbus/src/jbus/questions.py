@@ -476,7 +476,7 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
                     _write(state, count, [again if each is one else each for each in records])
                 return again, False
         number = max(count, _floor(home))
-        at = now.astimezone(UTC).isoformat(timespec="seconds")
+        at = jsettings.stamp(now)
         made = Question(number=number, slug=slug, question=asked, asked_at=at, **said)
         _write(state, number + 1, [*records, made])
     return made, True
@@ -497,7 +497,7 @@ def clear(run: Pass, number: int, words: str) -> None:
     """Close a question that waits for an answer (`_open`) because what it asked about has
     passed, and say so in `words`. A question the user answered keeps that answer. jbus sends
     nothing, and writes one quiet `note` event."""
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     given = Answer(words, SOURCE, at, "a jbus pass", True, closed_by=CLEARED)
     with _locked(run.state):
         count, records = _kept(run.state)
@@ -627,7 +627,7 @@ def silent(run: Pass) -> None:
     question it closes."""
     if not path(run.state).exists():
         return
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     given = Answer("default", SOURCE, at, UNANSWERED, True, closed_by=SILENCE)
     with _locked(run.state):
         try:
@@ -739,7 +739,7 @@ def carry(run: Pass, client: Client, one: Question) -> Carried:
         client.call("t3_thread_send", asked)
     except T3Error as error:
         return Carried(message, thread, error=str(error), refused=isinstance(error, T3Refused))
-    _told(run.state, number, run.now.astimezone(UTC).isoformat(timespec="seconds"))
+    _told(run.state, number, jsettings.stamp(run.now))
     line = f"{NOTE} {slug}: told its thread the answer to question {number}"
     run.find(slug, NOTE, line, message, key=f"answer {number}")
     return Carried(message, thread, told=True)
@@ -794,7 +794,7 @@ def _threads(client: Client, project_id: str) -> set[str]:
 
 
 def _proposed_at(run: Pass, number: int) -> None:
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     with _locked(run.state):
         count, records = _kept(run.state)
         records = [replace(one, proposed=at) if one.number == number else one for one in records]

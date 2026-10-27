@@ -265,7 +265,7 @@ def keep(
         for one in kept:
             if one.id == name:
                 return one
-        kept_at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+        kept_at = jsettings.stamp(run.now)
         whose = owner(run.home, words, page, ref.partition("/")[0], recorder)
         made = Word(name, words, by, at, kept_at, home=whose)
         if heard:
@@ -340,7 +340,7 @@ def deliver(run: Pass, client: Client | None) -> None:
         key = f"{KIND}|{name}|{one.id}|{thread}"
         waits = post(client, thread, MESSAGE.format(**asdict(one)), key)
         if not waits:
-            at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+            at = jsettings.stamp(run.now)
             if _change(run, one, thread=thread, sent_at=at, waits=""):
                 run.say(f"{KIND} {name}: sent to {thread}")
             continue

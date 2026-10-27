@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import jsettings
 from jbriefs.home import thread_of
 from jbus import Config, alert, passes, project, read_json, signin, t3, wake, write_json
 from jbus.queue import Row
@@ -53,7 +54,7 @@ def clock() -> float:
 
 
 def stamp(moment: datetime) -> str:
-    return moment.astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    return jsettings.stamp(moment, z=True)
 
 
 def read(config: Config) -> dict[str, Any]:

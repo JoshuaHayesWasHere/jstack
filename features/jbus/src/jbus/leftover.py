@@ -54,10 +54,11 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import jsettings
 from jbriefs.home import home_of, thread_of
 from jbus import mirror, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
@@ -269,7 +270,7 @@ def _judge(
     line = f"{KIND} {slug}: told its home, thread {thread}, of what it left"
     run.find(slug, KIND, line, text, key=f"{digest} {thread}")
     run.say(line)
-    at = run.now.astimezone(UTC).isoformat(timespec="seconds")
+    at = jsettings.stamp(run.now)
     return replace(record, thread=thread, told=at, why="")
 
 
@@ -315,7 +316,7 @@ def said(state: Path, slug: str, at: datetime) -> None:
     """Record that jbus reported a row to the user as a stall."""
     records = read(state)
     if slug in records:
-        stamp = at.astimezone(UTC).isoformat(timespec="seconds")
+        stamp = jsettings.stamp(at)
         _write(state, records | {slug: replace(records[slug], stalled=stamp)})
 
 
