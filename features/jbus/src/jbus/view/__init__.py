@@ -481,11 +481,16 @@ class App(Writes):
         usage.append(self.sources.state_dir / usage.FILE, one, self.clock())
         return said(200, {"counted": True})
 
-    def post(self, path: str, query: dict[str, list[str]], body: bytes) -> Answer:
-        """One of the writes: an answer, a go, or a count of what the page opened."""
+    def post(
+        self, path: str, query: dict[str, list[str]], body: bytes, authorization: str = ""
+    ) -> Answer:
+        """One of the writes: an answer, a go, or a count of what the page opened, or the bot's
+        act, which no page sends, so it has no `Origin` to check and its key is its one test."""
         if path == usage.USAGE:
             return self._count(body)
         name = self._project(query)
+        if path == ACT:
+            return self.act(name, body, authorization) if name else NOT_FOUND
         named = panels.WRITE.fullmatch(path)
         if named and name:
             take = next((p.writes for p in self.panels if p.name == named[1]), {}).get(named[2])
@@ -553,10 +558,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self._known():
             self._send(said(403, {"error": "this is not the server's name"}))
             return
-        if path == ACT:
-            self._act(query)
-            return
-        if self.headers.get("Origin", "").lower() not in self._own():
+        if path != ACT and self.headers.get("Origin", "").lower() not in self._own():
             self._send(said(403, {"error": "only the server's own page writes"}))
             return
         try:
@@ -567,29 +569,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(said(400, {"error": "a write has a body, and a short one"}))
             return
         try:
-            answer = self.server.app.post(path, parse_qs(query), self.rfile.read(length))
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
-            answer = said(500, {"error": "the server could not answer"})
-        self._send(answer)
-
-    def _act(self, query: str) -> None:
-        """The bot's route: no page sends it, so it has no `Origin` to check, and the bot's key
-        is its one test."""
-        try:
-            length = int(self.headers.get("Content-Length", ""))
-        except ValueError:
-            length = -1
-        if not 0 <= length <= BODY:
-            self._send(said(400, {"error": "a write has a body, and a short one"}))
-            return
-        name = self.server.app._project(parse_qs(query))
-        body = self.rfile.read(length)
-        if name is None:
-            self._send(NOT_FOUND)
-            return
-        try:
-            answer = self.server.app.act(name, body, self.headers.get("Authorization", ""))
+            body = self.rfile.read(length)
+            key = self.headers.get("Authorization", "")
+            answer = self.server.app.post(path, parse_qs(query), body, key)
         except Exception:
             traceback.print_exc(file=sys.stderr)
             answer = said(500, {"error": "the server could not answer"})
