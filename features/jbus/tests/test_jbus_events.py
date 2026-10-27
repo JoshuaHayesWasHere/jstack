@@ -309,7 +309,7 @@ TABLE = {
     "heartbeat": "quiet",
     "queue": "quiet",
     "sweep": "quiet",
-    "relayed": "quiet",
+    "reviewed": "quiet",
     "overlap": "quiet",
     "note": "quiet",
     "leftover": "quiet",

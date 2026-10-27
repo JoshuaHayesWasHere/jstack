@@ -87,22 +87,15 @@ def page(report: str) -> str:
     return "" if not named or re.match(r"none(,|$)", named[-1]) else named[-1]
 
 
-def undelivered(text: str) -> str:
-    """Return a brief's last Review, whole, when it has findings and its `Sent to:` names no
-    thread.
-
-    On that line the reviewer writes the thread id it sent the findings to, or `not sent` and
-    why, in its own words. So only a line that starts with a thread id counts as delivered.
-    """
-    reviews = [f"{h}\n{b}" for h, b in sections(text) if h == "## Review"]
-    if not reviews or below.line(reviews[-1], "Verdict:") != "findings":
-        return ""
-    sent = [line for line in reviews[-1].splitlines() if line.startswith("Sent to:")]
-    if not sent:
-        return ""
-    to = sent[-1][len("Sent to:") :].split()
-    delivered = to and _THREAD.fullmatch(to[0].rstrip(",.;"))
-    return "" if delivered else reviews[-1]
+def delivered(text: str) -> bool:
+    """Say whether the reviewer of a brief's last Review sent it to a thread itself: its `Sent to:`
+    line starts with a thread id. A reviewer that runs the skill text from before jbus told the crew
+    of its review writes the id it sent the findings to there. One that runs today's sends nothing,
+    and writes `not sent` and why, in its own words."""
+    reviews = [b for h, b in sections(text) if h == "## Review"]
+    sent = [line for line in (reviews or [""])[-1].splitlines() if line.startswith("Sent to:")]
+    to = sent[-1][len("Sent to:") :].split() if sent else []
+    return bool(to and _THREAD.fullmatch(to[0].rstrip(",.;")))
 
 
 def question(lines: str) -> str:

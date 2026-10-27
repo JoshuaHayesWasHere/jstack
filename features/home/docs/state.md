@@ -34,7 +34,7 @@ A crewmate tells it that its pull request is fixed and green, that it is green w
 A scout tells it that its report is written.
 Either sends a gate.
 A crewmate sends nothing when its pull request opens or when the findings are handled.
-A reviewer sends its findings to the crewmate's thread, and to the home only when the brief has no `Thread:` line.
+A reviewer sends nothing: jbus tells the crewmate of its review when the crewmate owes a line, and the home only when the brief has no `Thread:` line.
 "Telling the home" in `features/crew/SKILL.md` has every case.
 The message goes to the id in a `home-id`, read when it is sent: the root home's, or the one in `<scope>/` when the `Home:` line of the brief or request names that scope.
 No brief names a thread, so a home that starts rewrites none.

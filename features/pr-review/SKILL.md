@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Have a finished pull request reviewed in a fresh thread - one review thread per pull request reads its diff itself, judges what it found, and proves the one safety fact by running code (pstack's review, with no reviewer subagents and no fixes), sends the findings to the thread that did the work, and records them in the brief. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished.
+description: Have a finished pull request reviewed in a fresh thread - one review thread per pull request reads its diff itself, judges what it found, and proves the one safety fact by running code (pstack's review, with no reviewer subagents and no fixes), and records the findings in the brief, where jbus reads them and tells the thread that did the work when it owes a line. Use when the user invokes /pr-review or $pr-review in a home or in a crewmate's thread, or asks to review the pull requests that have finished.
 tip: has a finished pull request reviewed in a fresh thread | review the pull request | review the pull requests | review the pr | review this pr | review my pr
 user-invocable: true
 disable-model-invocation: true
@@ -156,29 +156,23 @@ When "Start" is done, and whenever a step names "The review" or one of its steps
 
 ### No room
 
-A reviewer that gives up says so, to the crewmate and in the brief, so that the pull request never waits for a review nobody is going to run. It gives up only on exit 69 of the block of step 1, which is its sixth send that did not go on.
+A reviewer that gives up says so in the brief, so that the pull request never waits for a review nobody is going to run.
+It gives up only on exit 69 of the block of step 1, which is its sixth send that did not go on.
+It sends nobody anything.
 
-1. See where the line goes: the block of step 4 of "After the review", with `not run` for the verdict. Send that thread one line with `t3_thread_send`, and on `home` the thread "Telling the home" finds: `<slug>: the review of <url> at <the head kept at the start> was not run. The run block was sent six times and never went on, and its last answer was "<the last line it printed>". This pass reviewed nothing, and the pull request waits for the user's word: park a gate.`
-2. Write the section.
-   Run this with the block at the top, with the head kept at the start, the last line the block of step 1 printed, the `By:` line Start printed, and the thread id the line went to in place of the words in angle brackets.
-   Where the line went to nobody, `sent` is the two words `not sent`.
+1. Write the section.
+   Run this with the block at the top, with the head kept at the start, the last line the block of step 1 printed and the `By:` line Start printed in place of the words in angle brackets.
    For a scoped pass, `scope` is the `Scope:` line step 1 of "A scoped pass" printed, and for any other pass it is left empty:
 
    ```sh
    B="$H/tasks/<slug>.md"
    kept='<the head kept at the start>'
    why='<the last line the block of step 1 printed>'
-   sent='<the thread id the line went to, or the two words "not sent">'
    by='<the By: line Start printed>'
    scope=''
    case $by in "<"*) by= ;; esac
    case $scope in "<"*) scope= ;; esac
    [ -f "$B" ] || { echo "no section: there is no brief at $B"; exit 1; }
-   case $sent in
-   "" | "not sent"* | "<"*)
-       echo "no section: the line went to nobody, so the brief stays as it is and jbus tells the crewmate that no review came"
-       exit 0 ;;
-   esac
    if awk -v kept="$kept" -v by="$by" '/^## / {last = $(0); verdict = head = mine = ""} /^Verdict:/ {verdict = $(0)} /^Head:/ {head = $(2)} /^By: / {mine = $(0)} END {exit !(last == "## Review" && verdict == "Verdict: not run" && head == kept && mine == by)}' "$B"; then
        echo "no section: the brief already ends in a review of $kept that was not run"
        exit 0
@@ -191,7 +185,7 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
        if [ -n "$scope" ]; then printf '%s\n' "$scope"; fi
        printf 'Why: the run block was sent six times and never went on, and its last answer was "%s"\n' "$why"
        printf 'Head: %s   Unchanged by the review: not checked, no review ran\n' "$kept"
-       printf 'Sent to: %s\n' "$sent"
+       printf 'Sent to: not sent, no review ran\n'
    } >> "$B" && echo "written: ## Review with Verdict: not run, in $B"
    ```
 
@@ -199,14 +193,13 @@ A reviewer that gives up says so, to the crewmate and in the brief, so that the 
    Its `By:` line says whose it is, so that this reviewer's section at the same head, once it runs again, takes its place, and another reviewer's does not.
    Its `Scope:` line, on a scoped pass, keeps it a scoped pass: a scoped section takes the place of no section but a scoped one, so the first review of the same head keeps its findings.
    Its `Head:` line is what lets the crewmate's thread rebase again (the crew skill, "A conflict").
-   It is written only when the crewmate was told.
-   A section nobody was told of would hide the pull request from jbus, which tells a crewmate of a pull request with no review (`unreviewed`) or with no second pass (`second`) and of nothing else here.
+   jbus's stall clock (`jbus.clock`) reads a review with no verdict as a wait on the review: it carries the crewmate on, and then tells the home.
    Sent a second time for the same head, the block writes no second section.
-3. Say the same in this thread in two lines, and stop without settling: a thread that settled would look like a review that was done.
+2. Say the same in this thread in two lines, and stop without settling: a thread that settled would look like a review that was done.
 
 ### After the review
 
-When the review has its verdict, and whenever a step names "After the review" or one of its steps, as "No room", "Outside the diff", "Telling the home" and "A scoped pass" do: read `$T/../skills/pr-review/after-the-review.md` now.
+When the review has its verdict, and whenever a step names "After the review" or one of its steps, as "No room", "Outside the diff" and "A scoped pass" do: read `$T/../skills/pr-review/after-the-review.md` now.
 
 ### Outside the diff
 
@@ -270,25 +263,11 @@ for other in "$H"/tasks/*.md; do
 done
 ```
 
-It prints one line for each open pull request that changes a file this one changes, and one for each brief with no result yet whose `Where:` covers a file this one changes. Those lines go to the crewmate and into the section's `In flight:` line, as they are. They say that two pieces of work touch the same file, so that whoever merges second knows: they are not a fault in this pull request and carry no severity. Do not open the other pull requests or briefs to look further. A failed `gh` ends the block with exit code 1, and then the section's `In flight:` line says "not checked", not "none".
-
-### Telling the home
-
-A repo runs with a home or with none, and a reviewer needs neither. It sends the home of the brief it reviews a message in one case, and in no other: the block in step 4 of "After the review" said `home`, because the brief has no `Thread:` line to send the findings to, and the block below found a home. A question for the user is asked in this thread, and a reviewer that stops early says why here: a thread that has asked shows as `waiting` in T3 Code, and that is what reaches the user.
-
-Whom to send it to, in one call with the block at the top and `B` set to that brief, `$H/tasks/<slug>.md`:
-
-```sh
-uv run --project "$T/../source" jbus home "$B"
-```
-
-It prints the id in the `home-id` of the brief's home, read now and never kept: `$H/home-id` for the root home, whose briefs have no `Home:` line, and `$H/<scope>/home-id` for a scoped home, whose briefs name the scope, `Home: <scope>`.
-A brief names no thread, so no home's start or handoff changes it.
-One written before this rule has a thread id on the line: an id that is in a scoped home's `home-id`, or on the `Was home:` line of its handoff, is that home, and any other id is the root home.
-`jbus home` is the one rule (`jbriefs.home`), and `jmerge`, jbus and the home skill's `whose` ask the same, so a brief has one home to all of them.
-Between a handoff and the next home's start the file is gone, or still holds the id that handed off, and the block prints nothing.
-
-If it prints a thread id, send that thread the message with `t3_thread_send`. If it prints nothing, there is no home: send nothing, and write `Sent to: not sent, no home` in the section, as step 4 says. jbus passes the findings on.
+It prints one line for each open pull request that changes a file this one changes, and one for each brief with no result yet whose `Where:` covers a file this one changes.
+Those lines go into the section's `In flight:` line, as they are.
+They say that two pieces of work touch the same file, so that whoever merges second knows: they are not a fault in this pull request and carry no severity.
+Do not open the other pull requests or briefs to look further.
+A failed `gh` ends the block with exit code 1, and then the section's `In flight:` line says "not checked", not "none".
 
 ### A scoped pass
 

@@ -68,7 +68,7 @@ CrewEnds(k) ==
 \* leaves out both. A new call is a change in what the child has out, so its spell ends.
 RaiseCall(c) ==
     /\ c \in Raised
-    /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:183 `for file in gate_files(home):`
+    /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:176 `for file in gate_files(home):`
     /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, wake)     \* jbus/wake.py:371 `else self.routes:`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
     /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>

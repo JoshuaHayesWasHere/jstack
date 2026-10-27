@@ -1,9 +1,9 @@
-"""This module ties each crew to its thread, work that a home used to do by hand: the link, the
-relay, the settle.
+"""This module ties each crew to its thread, work that a home used to do by hand: the link and the
+settle.
 
 `link` links an open pull request to the thread that jbus launched for the pull request's branch, so
-T3 Code shows the pull request in that thread. `relay` sends a review's findings to the crewmate
-when the reviewer could not send them. `settle` settles the threads of a slug that is finished, and
+T3 Code shows the pull request in that thread. A review's findings reach the crew from
+`jbus.reviewed`. `settle` settles the threads of a slug that is finished, and
 the subagent threads under them. `settle` also archives the review threads of a pull request that
 merged or closed. `resume` tells a crewmate to carry on when its thread ended with no Result.
 `resume` does this twice at most, and after that it tells the brief's home in one line. `merged`
@@ -18,7 +18,6 @@ tries it again.
 
 from __future__ import annotations
 
-import hashlib
 import re
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
@@ -45,13 +44,11 @@ from jbus.live import Facts, judge
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import ENDED, STARTING, World, after_merge, unfinished, when
-from jmerge import ready
 
 if TYPE_CHECKING:
     from jbus.cli import Half
 
-EVENTS = {"resume": "quiet", "relayed": "quiet"}
-RELAY = "jbus: the reviewer could not deliver these findings."
+EVENTS = {"resume": "quiet"}
 SCOUT = "scout: "
 PREFIXES = ("crew: ", "review: ", SCOUT)
 OTHER = "other"
@@ -103,7 +100,7 @@ ROLES = (
         "reviewer",
         "reviewer",
         "reviewers",
-        "A fresh thread that reads a task's pull request and sends its findings to the crewmate.",
+        "A fresh thread that reads a task's pull request and writes its findings in the brief.",
     ),
     Role(
         "home",
@@ -211,52 +208,6 @@ def link(run: Pass, client: Client, world: World) -> None:
             continue
         run.box.mark(key)
         run.say(f"linked {slug}: #{pull['number']} to {thread}")
-
-
-def relay(run: Pass, client: Client, world: World) -> None:
-    """Send the crewmate the findings that its reviewer could not send, once per Review.
-
-    `relay` sends findings only for a pull request that is open, since a merged or closed pull
-    request needs no more work from its crew. It sends none for a brief that says `Review: after`.
-    Such a brief merges when its check passes, and its review's findings go to a cleanup row
-    (`jbus.cleanup`), not to its crew. It sends none for the second review of a brief that says
-    `Review: twice` either, since that review also goes to a cleanup row.
-    """
-    briefs = _briefs(run)
-    for slug in sorted(set(briefs) & set(world.open)):
-        filed = ready.after(briefs[slug]) or ready.second_review(briefs[slug])
-        review = "" if filed else mirror.undelivered(briefs[slug])
-        digest = hashlib.sha256(review.encode()).hexdigest()[:16]
-        key = f"relayed|{slug}|{digest}"
-        if not review or _done(run, key):
-            continue
-        thread = parse.thread_of(briefs[slug])
-        if not thread:
-            what = "review findings with no thread to send them to"
-            run.gate(slug, what, review, key=f"{what} {digest}")
-            continue
-        try:
-            went = outbox.send(
-                run,
-                client,
-                thread=thread,
-                row=slug,
-                key=key,
-                text=f"{RELAY}\n\n{review}",
-                template="relayed",
-                needs="act",
-            )
-        except T3Refused as error:
-            what = "T3 Code refused the review's findings"
-            run.gate(slug, what, f"{error}\n\n{review}", key=f"{what} {digest}")
-            continue
-        except T3Error as error:
-            run.say(f"wait {slug}: its review's findings could not be sent ({error})")
-            continue
-        if not went:
-            continue
-        run.find(slug, "relayed", f"relayed {slug}", review, key=digest)
-        run.say(f"relayed {slug}: to {thread}")
 
 
 UNSEEN = "its page has no session in Lavish's state at {}, so its thread stays"
@@ -700,7 +651,6 @@ def merged(run: Pass, client: Client, world: World, rows: list[queue.Row]) -> No
 def tie(run: Pass, client: Client, world: World) -> None:
     dispatch.write_missing(run)
     link(run, client, world)
-    relay(run, client, world)
     settle(run, client, world)
 
 

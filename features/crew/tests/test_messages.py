@@ -6,7 +6,6 @@ import pytest
 from test_home_thread import THREAD, Scene, blocks
 
 SLUG = "a-task"
-CREWMATE = "mcp:the-crewmate-that-did-the-work"
 URL = "https://example.test/pull/7"
 BRIEF = f"""\
 # {SLUG}: a title
@@ -53,12 +52,6 @@ class Threads(Scene):
     def crewmate_with_no_reviewer(self):
         return self.says("crew", "has no review")
 
-    def reviewer_sends(self):
-        block = the_block("pr-review", "the findings go there")
-        assert "<slug>" in block
-        filled = block.replace("<slug>", SLUG).replace("<clean, findings or not run>", "findings")
-        return self.run("pr-review", filled, self.worktree).stdout.strip()
-
     def scout_is_told(self):
         return self.says("scout", '> "$H/scouts/$S.told"', "$S")
 
@@ -91,17 +84,6 @@ def test_the_last_result_decides_after_a_follow_up(threads):
 
 def test_a_brief_with_no_result_yet_decides_nothing(threads):
     assert threads.crewmate_ends().startswith("write the Result first")
-
-
-def test_a_reviewer_sends_its_findings_to_the_crewmate_and_the_home_nothing(threads):
-    threads.brief.write_text(BRIEF + f"Thread: {CREWMATE}\n" + result(URL))
-    assert threads.reviewer_sends().startswith(f"crewmate {CREWMATE}: ")
-    assert "the home is sent nothing" in threads.reviewer_sends()
-
-
-def test_a_brief_with_no_thread_line_sends_the_findings_to_the_home(threads):
-    threads.brief.write_text(BRIEF + result(URL))
-    assert threads.reviewer_sends().startswith("home: ")
 
 
 def test_a_scout_whose_report_is_as_the_home_was_told_sends_no_second_message(threads):

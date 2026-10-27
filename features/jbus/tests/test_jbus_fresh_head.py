@@ -249,11 +249,12 @@ def ended(kitchen, thread, kind):
     return given
 
 
-def test_findings_the_reviewer_could_not_deliver_wait_for_a_thread_at_work(kitchen):
-    """No message that needs `act` goes into a running turn (`jbus.outbox`): the outbox holds it
-    by its `busy` rule, and the first pass after the turn ended sends it."""
+def test_the_notice_of_a_review_waits_for_a_thread_at_work(kitchen):
+    """No message that needs `act` goes into a running turn (`jbus.outbox`): the outbox holds the
+    notice of a review (`jbus.reviewed`) by its `busy` rule, and the first pass after the turn
+    ended sends it."""
     thread = running(kitchen, findings())
-    ended(kitchen, thread, "relayed")
+    ended(kitchen, thread, "review")
 
 
 def test_what_the_owner_wrote_waits_for_a_thread_at_work(kitchen):

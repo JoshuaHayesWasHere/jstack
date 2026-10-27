@@ -93,8 +93,7 @@ It is one pass per rebased or fixed head, and never a full review. It is not the
    The section then has, right under `Scope:` and its `Drops:` lines, one line `Declines: upheld F2, F4` that names every finding upheld, and one line `Declines: not upheld F3: <the disproof>` for each that is not.
    A decline not upheld is not written again as a finding: the ruling is its record, and it stands until the crew answers the finding `fixed`.
    `jmerge` waits on a ruling that is missing, and on a decline not upheld: that one is the crew's to fix, then its home's, and it is the user's only for a finding on one of review-triage's categories, `(risk: <area>)`, which `jmerge` holds for the user.
-6. Report as "After the review" says for a first pass: the head checked again, what is outside the pull request's diff dropped, the findings sent where that pass sends them, and `$T/review.md` appended, filled in.
-   The message begins "Scoped pass, of what the rebase changed.", or after a fix "Scoped pass, of the fix pushed after the review.", in place of "One review pass."
+6. Report as "After the review" says for a first pass: the head checked again, what is outside the pull request's diff dropped, and `$T/review.md` appended, filled in, with nothing sent.
    The section has one line more, right under `Verdict:`, the `Scope:` line the block of step 1 printed, and under it the `Drops:` lines of step 4 and the `Declines:` lines of step 5.
    Then settle this thread as a first pass does.
 

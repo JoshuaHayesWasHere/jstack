@@ -335,7 +335,11 @@ def test_a_draft_is_told_neither_green_nor_red_since_ci_runs_no_check_on_it(laun
     assert keys(launched) == ["green|alpha|cccccccccccc"]
 
 
-REVIEWED = f"\n## Review\nVerdict: findings\nHead: {'b' * 40}\nFindings:\n- warning: a thing\n"
+REVIEWED = (
+    f"\n## Review\nVerdict: findings\nHead: {'b' * 40}\nFindings:\n- warning: a thing\n"
+    "Sent to: mcp:thread-1\n"
+)
+"""A review its reviewer sent the crew itself, so `jbus.reviewed` sends no notice of it."""
 
 
 @pytest.mark.parametrize("mode", ["fixed", "after"])

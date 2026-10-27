@@ -21,7 +21,11 @@ DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: no
 
 
 def review(head, verdict="findings"):
-    return f"\n## Review\nVerdict: {verdict}\nHead: {head}   Unchanged by the review: yes\n"
+    """A review its reviewer sent the crew itself, so `jbus.reviewed` sends no notice of it."""
+    return (
+        f"\n## Review\nVerdict: {verdict}\nHead: {head}   Unchanged by the review: yes\n"
+        "Sent to: mcp:thread-1\n"
+    )
 
 
 def waits(text, head):

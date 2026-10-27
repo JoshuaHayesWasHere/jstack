@@ -4,8 +4,6 @@ Like `test_jbus_kitchen.py`, the tests run the real pass against the fakes.
 """
 
 import os
-import subprocess
-import textwrap
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -14,9 +12,9 @@ import pytest
 
 import jbus
 from jbriefs.home import home_of
+from jbriefs.parse import thread_of
 from jbus import children
-from test_home_thread import as_read
-from test_jbus_kitchen import NOW, REPO, RESULT, approved, complete, go, queued, review, sends
+from test_jbus_kitchen import NOW, RESULT, approved, complete, go, queued, review, sends
 from test_room import FRESH
 
 FULL = "load 30.00 is at or over 200% of 12 cores"
@@ -171,19 +169,9 @@ def test_a_plan_limit_that_is_not_known_launches_and_is_a_note_once_a_day(kitche
 
 
 def where_the_findings_go(kitchen, slug):
-    """Return what step 4 of the pr-review skill's "After the run" prints for the brief on disk."""
-    skill = as_read(REPO / "features/pr-review/SKILL.md")
-    (found,) = [text for text in skill.split("```") if "crewmate $thread" in text]
-    script = textwrap.dedent(found.removeprefix("sh\n")).replace("<slug>", slug)
-    script = script.replace("<clean, findings or not run>", "findings")
-    ran = subprocess.run(
-        ["sh", "-c", script],
-        capture_output=True,
-        text=True,
-        env={**os.environ, "H": str(kitchen.home)},
-        check=True,
-    )
-    return ran.stdout.strip()
+    """Return the thread `jbus.reviewed` tells of the brief's review: the one its `Thread:`
+    line names."""
+    return thread_of((kitchen.home / f"tasks/{slug}.md").read_text())
 
 
 @pytest.mark.parametrize(
@@ -218,7 +206,7 @@ def test_a_launched_or_adopted_thread_is_the_one_thread_line_in_the_head_of_the_
     ]
     place = lines.index("Thread: mcp:thread-1")
     assert place == (lines.index("## Result") - 1 if result else len(lines) - 1)
-    assert where_the_findings_go(kitchen, "alpha").startswith("crewmate mcp:thread-1: ")
+    assert where_the_findings_go(kitchen, "alpha") == "mcp:thread-1"
     kitchen.poll(NOW + timedelta(minutes=6))
     assert brief.read_text() == written and len(kitchen.t3.launches) == 1
 
@@ -236,7 +224,7 @@ def test_a_launch_whose_brief_never_got_its_line_gets_it_on_the_next_pass(kitche
     assert brief.read_text() == whole.replace("Thread: mcp:thread-1\n", "") + (
         RESULT.replace("\n## Result", "\nThread: mcp:thread-1\n## Result")
     )
-    assert where_the_findings_go(kitchen, "alpha").startswith("crewmate mcp:thread-1: ")
+    assert where_the_findings_go(kitchen, "alpha") == "mcp:thread-1"
     brief.write_text(whole.replace("Thread: mcp:thread-1\n", "") + review())
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.t3.threads[0]["status"] = "completed"
@@ -245,7 +233,7 @@ def test_a_launch_whose_brief_never_got_its_line_gets_it_on_the_next_pass(kitche
     assert kitchen.lines("gate") == []
     brief.write_text(brief.read_text().replace("mcp:thread-1", "mcp:a-later-launch"))
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert where_the_findings_go(kitchen, "alpha").startswith("crewmate mcp:a-later-launch: ")
+    assert where_the_findings_go(kitchen, "alpha") == "mcp:a-later-launch"
 
 
 @pytest.mark.parametrize("copied", [False, True], ids=["no copy", "a copy with no Home: line"])

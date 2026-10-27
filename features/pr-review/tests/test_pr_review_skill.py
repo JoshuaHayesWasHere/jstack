@@ -7,7 +7,6 @@ import subprocess
 import textwrap
 import threading
 import time
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -15,14 +14,11 @@ import pytest
 import crew_helpers as crew
 import jsettings
 import test_home_merge as merge
-import test_jbus_unlock as unlock
 import test_jmerge_guarded as guarded
 from jbriefs import findings
 from jmerge import gate as merge_gate
 from jmerge import ready
 from test_home_thread import NAMED, as_read
-from test_jbus_kitchen import NOW, Kitchen
-from test_jbus_queue import add
 from test_portable_shell import bsd_tools
 from test_room import BIN, IDLE, machine, says, uv
 from testing.layouts import assembled
@@ -737,16 +733,15 @@ GAVE_UP = (
     "Why: the run block was sent six times and never went on, and its last answer was "
     '"{why}"\n'
     f"Head: {KEPT}   Unchanged by the review: not checked, no review ran\n"
-    "Sent to: mcp:1\n"
+    "Sent to: not sent, no review ran\n"
 )
 
 
-def gives_up(reviewer, why, sent):
+def gives_up(reviewer, why):
     """Run the block of the "No room" section, filled in as a reviewer fills it."""
     filled = {
         "<the head kept at the start>": KEPT,
         "<the last line the block of step 1 printed>": why,
-        '<the thread id the line went to, or the two words "not sent">': sent,
     }
     return reviewer("### No room", fill=filled)
 
@@ -761,7 +756,6 @@ def test_a_section_that_was_not_run_is_replaced_by_the_same_reviewers_clean_run_
     filled = {
         "<the head kept at the start>": KEPT,
         "<the last line the block of step 1 printed>": "wait: jgauge room did not run",
-        '<the thread id the line went to, or the two words "not sent">': "mcp:1",
         "<the By: line Start printed>": "By: claudeAgent claude-opus-5-5",
     }
     assert reviewer("### No room", fill=filled)[1] == 0
@@ -775,32 +769,30 @@ def test_a_section_that_was_not_run_is_replaced_by_the_same_reviewers_clean_run_
     assert ready.short_of(pair, KEPT) == ready.NO_VERDICT
 
 
-def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_names_whom_it_told(
+def test_a_reviewer_that_gives_up_leaves_a_section_that_is_no_review_and_sends_nothing(
     reviewer,
 ):
     """The path of "No room": the reviewer sends the block, and the wait ends with no room. The
-    reviewer tells the thread on the brief's `Thread:` line, and writes a section that says it did
-    not run the review."""
+    reviewer sends nobody anything, and writes a section that says it did not run the review: jbus's
+    stall clock reads it as a review with no verdict."""
     reviewer.machine(pressure="25.00")
     (why,), code = reviewer(fill=SOON)
     assert code == 75
-    thread = where(reviewer, "not run").split(": ")[0].removeprefix("crewmate ")
-    assert thread == "mcp:1"
     assert ready.short_of(reviewer.brief.read_text(), KEPT) == "it has no review yet"
     written = [f"written: ## Review with Verdict: not run, in {reviewer.brief}"]
-    assert gives_up(reviewer, why, thread) == (written, 0)
+    assert gives_up(reviewer, why) == (written, 0)
     brief = reviewer.brief.read_text()
     assert brief == BRIEF + GAVE_UP.format(why="wait: memory pressure 25.00 is at or over 10")
     assert ready.short_of(brief, KEPT) == "its review has no verdict"
     again = [f"no section: the brief already ends in a review of {KEPT} that was not run"]
-    assert gives_up(reviewer, why, thread) == (again, 0)
+    assert gives_up(reviewer, why) == (again, 0)
     assert reviewer.brief.read_text() == brief
 
 
 def test_a_give_up_at_a_later_head_is_a_section_of_its_own(reviewer):
     was = GAVE_UP.format(why="wait: jgauge room did not run").replace(KEPT, "b" * 40)
     reviewer.brief.write_text(BRIEF + was)
-    _, code = gives_up(reviewer, "wait: jgauge room did not run", "mcp:1")
+    _, code = gives_up(reviewer, "wait: jgauge room did not run")
     assert code == 0
     assert reviewer.brief.read_text() == BRIEF + was + GAVE_UP.format(
         why="wait: jgauge room did not run"
@@ -826,28 +818,25 @@ def test_a_check_that_never_ran_is_the_reason_the_section_gives(reviewer):
     (reviewer.stub / "jgauge").write_text("#!/bin/sh\nexit 127\n")
     (reviewer.stub / "jgauge").chmod(0o755)
     (why,), _ = reviewer()
-    gives_up(reviewer, why, "mcp:1")
+    gives_up(reviewer, why)
     assert reviewer.brief.read_text() == BRIEF + GAVE_UP.format(why="wait: jgauge room did not run")
 
 
-@pytest.mark.parametrize("sent", ["not sent", "not sent, no home", None])
-def test_a_give_up_nobody_was_told_of_writes_no_section_so_jbus_still_sees_no_review(
-    reviewer, sent
-):
-    said = "no section: the line went to nobody, so the brief stays as it is and jbus tells the"
-    if sent is None:
-        printed, code = reviewer("### No room")
-    else:
-        printed, code = gives_up(reviewer, "wait: jgauge room did not run", sent)
-    assert code == 0 and [line[: len(said)] for line in printed] == [said]
-    assert reviewer.brief.read_text() == BRIEF
-    assert ready.short_of(BRIEF, KEPT) == "it has no review yet"
+def test_a_give_up_with_nobody_told_still_writes_its_section(reviewer):
+    """No reviewer sends anything, so the section is written whatever, and jmerge reads it as a
+    review with no verdict, which jbus's stall clock carries on."""
+    printed, code = gives_up(reviewer, "wait: jgauge room did not run")
+    assert (printed, code) == (
+        [f"written: ## Review with Verdict: not run, in {reviewer.brief}"],
+        0,
+    )
+    assert ready.short_of(reviewer.brief.read_text(), KEPT) == ready.NO_VERDICT
 
 
 def test_a_second_pass_that_gives_up_is_written_under_the_review_the_brief_has(reviewer):
     first = "\n## Review\nVerdict: clean\nHead: " + "b" * 40 + "\nSent to: mcp:1\n"
     reviewer.brief.write_text(BRIEF + first)
-    _, code = gives_up(reviewer, "wait: jgauge room did not run", "mcp:1")
+    _, code = gives_up(reviewer, "wait: jgauge room did not run")
     assert code == 0
     assert reviewer.brief.read_text() == BRIEF + first + GAVE_UP.format(
         why="wait: jgauge room did not run"
@@ -1528,208 +1517,9 @@ def test_a_brief_that_names_its_reviewer_is_found(reviewer, result, reviewer_thr
     assert reviewer.output("## Launching") == ([reviewer_thread] if reviewer_thread else [])
 
 
-def test_the_home_is_told_only_when_it_left_its_thread_id(reviewer):
-    assert reviewer.output("### Telling the home", B=str(reviewer.brief)) == []
-    (reviewer.state / "home-id").write_text("mcp:home\n")
-    assert reviewer.output("### Telling the home", B=str(reviewer.brief)) == ["mcp:home"]
-
-
-@pytest.mark.parametrize(
-    ("thread", "home", "goes", "told"),
-    [
-        ("Thread: mcp:1\n", None, "crewmate mcp:1", ""),
-        ("Thread: mcp:1\n", "", "crewmate mcp:1", ""),
-        ("Thread: mcp:1\n", "mcp:home\n", "crewmate mcp:1", "mcp:home"),
-        ("", "mcp:home\n", "home", "mcp:home"),
-        ("", "", "home", ""),
-        ("", None, "home", ""),
-        pytest.param(
-            "Decisions: a `Thread: mcp:9` line is quoted\n",
-            "",
-            "home",
-            "",
-            id="words inside another line are not the brief's own field",
-        ),
-    ],
-)
-def test_the_findings_go_to_the_thread_line_with_a_home_or_with_none(
-    reviewer, thread, home, goes, told
-):
-    """The test runs step 4 of "After the review", then the block that finds a home. With no
-    `Thread:` line and an empty or missing `home-id`, the block finds nobody, and the section
-    says `not sent`."""
-    reviewer.brief.write_text(BRIEF.replace("Thread: mcp:1\n", thread))
-    if home is not None:
-        (reviewer.state / "home-id").write_text(home)
-    assert where(reviewer, "findings").split(": ")[0] == goes
-    told_now = reviewer.output("### Telling the home", B=str(reviewer.brief))
-    assert told_now == ([told] if told else [])
-
-
 DONE = f"\n## Result\nStatus: done\nBranch: a-task   Pull request: {URL}\n"
 HEAD = "b" * 40
-VERDICT = "<clean, findings or not run>"
 NOT_SENT = "Sent to: not sent, clean"
-FOUND = "- warning src/a.py:2 it is wrong\n"
-FIXED = f"Finding: fixed, it is wrong\nFixed: {'c' * 40}\n"
-
-
-def reviewed(verdict, findings="- none\n"):
-    return (
-        f"\n## Review\nVerdict: {verdict}\nHead: {'b' * 40}\nFindings:\n{findings}Sent to: mcp:1\n"
-    )
-
-
-def where(reviewer, verdict=VERDICT, mergeable="MERGEABLE", checks=(), **more):
-    """What step 4 of "After the review" prints for a pass with this verdict. It reads the brief on
-    disk and what GitHub says of the pull request."""
-    (reviewer.stub / "view.json").write_text(
-        json.dumps({"mergeable": mergeable, "headRefOid": HEAD, "statusCheckRollup": list(checks)})
-    )
-    (said,), code = reviewer(
-        "### After the review", "crewmate $thread", fill={VERDICT: verdict}, **more
-    )
-    assert code == 0
-    return said
-
-
-SECOND = reviewed("findings", FOUND) + FIXED + "Second pass: needed since b, it went wider\n"
-SCOPED = reviewed("clean") + "Fixed: none needed, a clean review\nScoped reviewer: mcp:9, of c\n"
-CREW = "crewmate mcp:1"
-PASSES = {
-    "a clean second pass": (SECOND, "clean", "nobody"),
-    "a clean scoped pass": (SCOPED, "clean", "nobody"),
-    "a clean first pass": ("", "clean", CREW),
-    "a clean pass after one that was not run": (reviewed("not run") + FIXED, "clean", CREW),
-    "a second pass with findings": (SECOND, "findings", CREW),
-    "a second pass that was not run": (SECOND, "not run", CREW),
-    "a clean later pass before the Fixed line": (reviewed("findings", FOUND), "clean", CREW),
-    "a verdict nobody filled in": (SECOND, VERDICT, "not filled in"),
-}
-
-
-@pytest.mark.parametrize("case", PASSES)
-def test_a_clean_pass_after_the_first_is_sent_to_nobody_and_any_other_goes_as_before(
-    reviewer, case
-):
-    result, verdict, goes = PASSES[case]
-    reviewer.brief.write_text(BRIEF + DONE + result)
-    said = where(reviewer, verdict)
-    assert said.split(": ")[0] == goes
-    assert said.endswith(NOT_SENT) == (goes == "nobody")
-
-
-@pytest.mark.parametrize("mergeable", ["CONFLICTING", "UNKNOWN", None])
-def test_a_clean_later_pass_is_sent_while_github_does_not_say_mergeable(reviewer, mergeable):
-    """While a review is running, the crewmate waits with its rebase until the reviewer
-    writes the section, and goes on when the reviewer's message comes."""
-    reviewer.brief.write_text(BRIEF + DONE + SECOND)
-    assert where(reviewer, "clean").startswith("nobody: ")
-    if mergeable is None:
-        (reviewer.stub / "down").write_text("view\n")
-    assert where(reviewer, "clean", mergeable or "MERGEABLE").startswith("crewmate mcp:1: ")
-
-
-def asked_to_rebase(tmp_path, monkeypatch, slug, head):
-    """Run a pass of the real jbus. The pass tells the crewmate to rebase, because the
-    crewmate's pull request is stale at this head. Return the directory where jbus keeps its
-    state."""
-    kitchen = Kitchen(tmp_path / "kitchen", monkeypatch)
-    add(kitchen, slug)
-    kitchen.poll(NOW - timedelta(minutes=30))
-    kitchen.t3.threads[0]["status"] = "completed"
-    kitchen.set("open.json", [{**kitchen.opened(slug, 7), "headRefOid": head}])
-    kitchen.set("jmerge.txt", f"wait 7 {URL}: {unlock.CHANGED}: it needs a rebase\n")
-    kitchen.poll()
-    kitchen.close()
-    assert len(unlock.sends(kitchen)) == 1
-    return str(kitchen.state_dir)
-
-
-@pytest.mark.parametrize(
-    ("slug", "head", "goes"),
-    [("a-task", HEAD, CREW), ("a-task", "d" * 40, "nobody"), ("b-task", HEAD, "nobody")],
-    ids=["this head", "a head it left", "another task"],
-)
-def test_a_clean_later_pass_is_sent_when_jbus_asked_for_a_rebase_at_this_head(
-    reviewer, tmp_path, monkeypatch, slug, head, goes
-):
-    """jbus asks for a rebase once for each head, even while GitHub says MERGEABLE. The crewmate
-    puts the rebase off until the review that is running has sent its message."""
-    state = asked_to_rebase(tmp_path, monkeypatch, slug, head)
-    reviewer.brief.write_text(BRIEF + DONE + SECOND)
-    assert where(reviewer, "clean", JBUS_STATE_DIR=state).split(": ")[0] == goes
-
-
-CHECKS = [
-    ([merge.PASSED], "nobody"),
-    ([merge.RUNNING], "nobody"),
-    ([merge.PASSED, merge.FAILED], CREW),
-    ([{"state": "FAILURE"}], CREW),
-    ([{"state": "PENDING"}], "nobody"),
-]
-
-
-@pytest.mark.parametrize(("checks", "goes"), CHECKS)
-def test_a_clean_later_pass_is_sent_while_a_check_is_red(reviewer, checks, goes):
-    """When main moves and a crewmate's pull request is red, jbus tells that crewmate to rebase. The
-    crewmate puts the rebase off while a review is running. A check that is still running is no
-    reason to rebase, since the watch wakes the crewmate."""
-    reviewer.brief.write_text(BRIEF + DONE + SECOND)
-    assert where(reviewer, "clean", checks=checks).split(": ")[0] == goes
-
-
-def test_a_rebase_that_came_while_the_section_was_written_is_seen_on_the_second_run(
-    reviewer, tmp_path, monkeypatch
-):
-    """Step 5 runs the block again over the brief with this pass's own section in it."""
-    reviewer.brief.write_text(BRIEF + DONE + SECOND)
-    assert where(reviewer, "clean").startswith("nobody: ")
-    section = reviewed("clean").replace("Sent to: mcp:1", NOT_SENT)
-    reviewer.brief.write_text(reviewer.brief.read_text() + section)
-    assert where(reviewer, "clean").startswith("nobody: ")
-    state = asked_to_rebase(tmp_path, monkeypatch, "a-task", HEAD)
-    assert where(reviewer, "clean", JBUS_STATE_DIR=state).startswith(f"{CREW}: ")
-
-
-def who_merges(reviewer):
-    """What the crew skill's own check prints before a `fixed and green` line."""
-    asks = crew.block("Telling the home", "<fixed or waits>")
-    assert "<fixed or waits>" in asks
-    ran = subprocess.run(
-        ["sh", "-c", asks.replace("<fixed or waits>", "fixed").replace("<slug>", "a-task")],
-        env={**os.environ, "H": str(reviewer.state)},
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return ran.stdout.strip()
-
-
-@pytest.mark.parametrize("switch", ["", " \n", "mcp:home\n"])
-@pytest.mark.parametrize("scope", [None, "id", "handed off", "handed off, by its id", "name"])
-def test_a_clean_later_pass_is_quiet_only_where_the_crewmate_would_send_nothing(
-    reviewer, switch, scope
-):
-    """jbus is the only merger: it merges a scoped home's pull request as it merges the root
-    home's, and the crewmate sends nothing for either, whatever `home-thread` holds. The crew
-    skill's check says when jbus must wake the crewmate. The reviewer's own check still reads
-    `home-thread` until fl-msg-review-notice removes it, so the two agree where it is empty."""
-    (reviewer.state / "home-thread").write_text(switch)
-    home = ""
-    if scope:
-        (reviewer.state / "speed").mkdir()
-        (reviewer.state / "speed" / "plan.md").write_text("# a plan\n")
-        named = "handoff.md" if scope.startswith("handed off") else "home-id"
-        owner = (
-            "# handoff\n\nWas home: mcp:two\n" if scope.startswith("handed off") else "mcp:two\n"
-        )
-        (reviewer.state / "speed" / named).write_text(owner)
-        home = f"Home: {'mcp:two' if scope.endswith('id') else 'speed'}\n"
-    reviewer.brief.write_text(BRIEF + home + DONE + SECOND)
-    assert who_merges(reviewer).startswith("jbus merges: send nothing")
-    if not switch.strip():
-        assert where(reviewer, "clean").startswith("nobody: ")
 
 
 def later_pass(made, result, first, files=("a.txt",), run=None):
