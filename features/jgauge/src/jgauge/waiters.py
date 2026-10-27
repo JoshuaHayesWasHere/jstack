@@ -23,7 +23,8 @@ reader never sees half a list. A waiter is one wait:
 
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
 lane and not yet woken, changes nothing but the command it will run. A thread that takes a slot
-leaves the file (`drop`).
+leaves the file (`drop`). A woken wait claims a slot of its lane for `HOLDS` (`holding`), and
+another thread takes only a free slot that no such claim holds (`claims`).
 
 A thread has one form of id, T3 Code's `mcp:<uuid>`, and `thread_id` adds the prefix to an id
 given without it. A file written before this rule may hold two records for one thread. They
@@ -181,6 +182,16 @@ def holding(waiter: Waiter, now: datetime) -> bool:
     """Whether a woken wait still has the slot that jbus woke it for: jbus woke it `HOLDS` ago
     or less, and its thread has not taken the slot yet."""
     return bool(waiter.woken) and now - _when(waiter.woken) <= HOLDS
+
+
+def claims(locks: Path, lane: str, but: str, now: datetime) -> int:
+    """How many slots of `lane` the woken waits of threads other than `but` still hold
+    (`holding`). A thread that takes a slot leaves these slots to them. When there is no
+    waiters file, the function counts none and creates no file."""
+    if not (locks / NAME).exists():
+        return 0
+    but = thread_id(but)
+    return sum(one.lane == lane and one.thread != but and holding(one, now) for one in read(locks))
 
 
 def lapsed(waiter: Waiter, now: datetime) -> bool:
