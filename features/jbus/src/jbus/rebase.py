@@ -388,7 +388,10 @@ def post(
     is the retry key at T3 Code. `post` sends no message whose key is already in `sent.json`.
     `deliver` puts the key there through the event that it queues, and any other caller writes the
     key itself. `mainmoved` also writes the key, for a head that it told.
-    `post` sends nothing while `held` delays the message. When a rebase message goes, `post` writes
+    `post` sends nothing while `held` delays the message, or while the crew's instance is capped
+    (`expedite.waits_on_cap`): the message waits under its key, and the first pass after the reset
+    sends it. A caller that keys its message by the cap's window (`expedite._tell`) has weighed the
+    cap itself. When a rebase message goes, `post` writes
     the `mainmoved` key for the commit that the default branch points to, so jbus does not also
     tell of that move.
     """
@@ -422,6 +425,11 @@ def post(
         run.say(f"wait {slug}: the default branch is not known, so its crew is not told")
         return None
     if held(run, client, world, slug, number, head):
+        return None
+    from jbus import expedite
+
+    doing = f"its crew being {ask.doing}"
+    if not window.startswith("cap ") and expedite.waits_on_cap(run, client, thread, slug, doing):
         return None
     message = ask.message.format(
         number=number, reason=reason, slug=slug, short=head[:12], head=head, default=default
