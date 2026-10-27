@@ -101,10 +101,10 @@ def kept(kitchen, name):
 
 
 def red_on(kitchen, head, *tests, onto=""):
-    """Put the pull request at `head`, its check red on `tests`, in job `<head's first char>1`.
-    With `onto`, the head is GitHub's merge of main into the branch at `onto`, as update-branch
-    makes it; without, the crew pushed it."""
-    job = head[0] + "1"
+    """Put the pull request at `head`, its check red on `tests`, in the job that its first eight
+    hex digits number. With `onto`, the head is GitHub's merge of main into the branch at `onto`,
+    as update-branch makes it; without, the crew pushed it."""
+    job = str(int(head[:8], 16))
     log = "".join(f"2026-10-26T13:36:00Z FAILED {test} - assert False\n" for test in tests)
     kitchen.set("logs.json", {**kept(kitchen, "logs.json"), job: log})
     if onto:

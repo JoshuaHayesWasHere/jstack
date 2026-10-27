@@ -50,10 +50,17 @@ the rebase message, `post` writes the `mainmoved` key for the commit that main p
 T3 Code has no watch that wakes a crew. Instead, `github` calls `deliver` to send the crew a message
 for each thing on GitHub that needs the crew to act. There are three such things.
 
-The first is a check that ran and failed at a head, under the key `failed|<slug>|<head 12>`. When
-the crew reruns the head once, the check runs again in a later attempt of its workflow run. If it
-fails there, `github` sends one more message, under `refailed|<slug>|<head 12>`. A check that failed
-with no step run means CI started no job. No push repairs that, so `github` sends nothing for it.
+The first is a check that ran and failed at a head, under the key `failed|<slug>|<head 12>`. Beside
+that key, `github` writes what it told: `failure|<slug>|<head 12>|<failure>`, where the failure is a
+digest of the failed checks' names and the pytest ids their jobs' logs name (`failure`). A head that
+is GitHub's merge of main onto a head whose crew was told of that same failure gets no message, and
+`github` marks both keys for it as if told (#494, 2026-10-26: jmerge's update-branch made nine
+heads, each red on the same test, and each was a `failed` message to a capped crew). So a crew hears
+once of a failure, however often main is merged in. A different failure is told, and so is a head
+the crew pushed, whatever it fails on. When the crew reruns the head once, the check runs again in a
+later attempt of its workflow run. If it fails there, `github` sends one more message, under
+`refailed|<slug>|<head 12>`, whatever failure it told before. A check that failed with no step run
+means CI started no job. No push repairs that, so `github` sends nothing for it.
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
@@ -71,6 +78,7 @@ is still out (`owed`). `github` sends nothing for a green pull request when the 
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -79,7 +87,7 @@ from urllib.parse import urlsplit
 from jbus import END_TURN, cancelled, dispatch, queue, read_json, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, job
+from jbus.watch import LIVE, NEVER, TITLE, World, checks, crew_threads, failed_in, job, job_log
 from jmerge import ready
 from jmerge import stacked as stacks
 from jmerge.checks import check_state, latest_of_each
@@ -165,6 +173,19 @@ _LAUNCHED = re.compile(r"^(?:Reviewer|Second reviewer|Scoped reviewer): (?!none\
 _REVIEWED = re.compile(r"^## Review\n(?:(?!## ).*\n)*?Head: ", re.M)
 _MODE = re.compile(r"^Review:[ \t]*(\S*)", re.M)
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/\d+/job/(\d+)$")
+MERGER = "web-flow"
+
+
+@dataclass(frozen=True)
+class Red:
+    """The failed checks at a pull request's head, among those that ran: `reason` names them, or
+    is empty, `attempt` is the highest attempt of the workflow runs they failed in, and `jobs` is
+    each one's repo and job, where its link gives them."""
+
+    reason: str = ""
+    attempt: int = 0
+    names: tuple[str, ...] = ()
+    jobs: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -253,11 +274,21 @@ def github(run: Pass, client: Client, world: World) -> None:
             continue
         brief = _brief(run, slug)
         rebased = f"rebase|{slug}|{head[:12]}" in sent
-        failed, attempt = ("", 0) if rebased else ran_and_failed(run, pull)
-        again = _asked("refailed", FAILED, head) if attempt > 1 else None
+        red = Red() if rebased else ran_and_failed(run, pull)
+        again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
         ask = again or _asked("failed", FAILED, head)
-        if failed and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
-            deliver(run, client, world, number, failed, ask)
+        if red.reason and f"{ask.kind}|{slug}|{head[:12]}" not in sent:
+            told = f"failure|{slug}|{head[:12]}|{failure(run, red)}"
+            merged = "" if again else told_before(run, head, told, sent)
+            if merged:
+                run.box.mark(f"failed|{slug}|{head[:12]}")
+                run.box.mark(told)
+                run.say(
+                    f"failed {slug}: #{number} at {head[:12]} is a merge of main onto "
+                    f"{merged[:12]}, red on the failure its crew was told of, so not told again"
+                )
+            elif deliver(run, client, world, number, red.reason, ask):
+                run.box.mark(told)
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
@@ -329,7 +360,38 @@ def _asked(kind: str, message: str, head: str) -> Ask:
     )
 
 
-def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
+def failure(run: Pass, red: Red) -> str:
+    """Return the identity of a failure, as the first twelve characters of a digest: the failed
+    checks' names, and the pytest ids that their jobs' logs name as failed (`watch.failed_in`).
+    A job whose log GitHub does not give adds no id, so its failure is its check's name."""
+    tests = set()
+    for repo, number in red.jobs:
+        log = job_log(run, repo, number)
+        tests.update(failed_in(log).tests if log is not None else ())
+    said = "\n".join([*sorted(set(red.names)), "", *sorted(tests)])
+    return hashlib.sha256(said.encode()).hexdigest()[:12]
+
+
+def told_before(run: Pass, head: str, told: str, sent: list[str]) -> str:
+    """Return the head that this one merged main onto, where its crew was told of this same
+    failure (`told`) at that head, or nothing. Such a head is GitHub's merge of the base into the
+    branch, as update-branch makes it: a commit by `web-flow` with two parents, the branch's head
+    first. A head the crew pushed is never such a head, so it is told whatever it fails on."""
+    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/commits/{head}")
+    try:
+        commit = json.loads(asked.stdout) if asked.returncode == 0 else {}
+    except ValueError:
+        commit = {}
+    if not isinstance(commit, dict) or (commit.get("committer") or {}).get("login") != MERGER:
+        return ""
+    parents = [str((one or {}).get("sha") or "") for one in commit.get("parents") or []]
+    if len(parents) != 2 or not parents[0]:
+        return ""
+    same = told.replace(f"|{head[:12]}|", f"|{parents[0][:12]}|")
+    return parents[0] if same in sent else ""
+
+
+def ran_and_failed(run: Pass, pull: dict) -> Red:
     """Return the failed checks at the pull request's head, among the checks that ran, as `{reason}`
     or nothing. Also return the highest attempt of the workflow runs in which they failed. When
     GitHub says a check's job ran no step, the check never started: CI started no job, and the
@@ -338,8 +400,8 @@ def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
     required check is `cancelled`'s, which runs it again or tells the home, so none of its checks
     is named here."""
     if checks(pull) != "failed":
-        return "", 0
-    names, attempt, required = [], 1, cancelled.required(run)
+        return Red()
+    names, jobs, attempt, required = [], [], 1, cancelled.required(run)
     never = frozenset(pull.get(NEVER) or ())
     latest = latest_of_each(pull.get("statusCheckRollup") or [])
     theirs = cancelled.runs(latest, never, required)
@@ -353,20 +415,22 @@ def ran_and_failed(run: Pass, pull: dict) -> tuple[str, int]:
         given = job(run, *found.groups()) if found else {}
         attempt = max(attempt, int(given.get("run_attempt") or 1))
         names.append(check.get("name") or check.get("context") or "a check")
+        jobs.extend([found.groups()] if found else [])
     if not names:
-        return "", 0
-    return f"{', '.join(dict.fromkeys(names))} failed", attempt
+        return Red()
+    return Red(f"{', '.join(dict.fromkeys(names))} failed", attempt, tuple(names), tuple(jobs))
 
 
-def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> None:
+def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> bool:
     """Send the crew of a pull request one message, once per head, and write an event of the ask's
-    kind that says so."""
+    kind that says so. Say whether the message went."""
     sent = post(run, client, world, number, reason, ask)
     if sent:
         slug, head, message = sent
         line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
         run.find(slug, ask.kind, line, message, key=head[:12])
         run.say(line)
+    return bool(sent)
 
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
