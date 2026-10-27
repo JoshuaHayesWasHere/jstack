@@ -279,11 +279,14 @@ def _own(name: str, under: str) -> Path:
     """Return the directory `name` names, else `under` the home, and refuse the machine's own
     while a test runs (pytest sets `PYTEST_CURRENT_TEST`, and a process a test starts inherits
     it). The machine's own is under the account's home in the password database, which a test
-    that points `HOME` at a home of its own does not change."""
+    that points `HOME` at a home of its own does not change. Outside a test it is never asked
+    for, so a uid with no entry there still gets its directory."""
     path = Path(os.environ.get(name) or Path.home() / under)
     test = os.environ.get("PYTEST_CURRENT_TEST", "").rsplit(" ", 1)[0]
+    if not test:
+        return path
     real = Path(pwd.getpwuid(os.getuid()).pw_dir) / under
-    if test and path.expanduser().resolve() == real.resolve():
+    if path.expanduser().resolve() == real.resolve():
         raise RealDir(
             f"refused: the test {test} reached the real {real}: point {name} at the test's own"
             " directory, as the autouse fixture in testing/jstack_fixtures.py does"
