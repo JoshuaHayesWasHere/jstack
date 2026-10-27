@@ -10,14 +10,17 @@ stands, so a home is told once of a fault, and again only of a new one or as a n
 Told here are a fault with no row, one of the project or the machine, which the root home
 owns, and two faults of a row that no other step tells a home of: a crew of the root home's
 that hung at work, which `jbus.stall.hung` only logs, and a stalled row, whose `stall` event
-`jbus.stall.guarded`, `jbus.expedite` and `jbus.clock` only log, which its home owns. A child
-home hears of its own hung crew from `jbus.children`, whose nudge counts all it has out. A
-crew that is only quiet is not told of. Any other fault of a row is told by the step that
-already works that row, and the view reads its message as what the owner was told
-(`state._fixing`). A crew owns a red check of its own pull request, which `jbus.rebase` tells
-it of, and a red main whose main-red row it works. A crew whose thread ended with something
-left goes to its home through `jbus.leftover`, whose record counts as the telling. A user's
-entry is told to nobody: the band shows it.
+`jbus.stall.guarded`, `jbus.expedite` and `jbus.clock` only log, which its home owns. A stall
+whose wait has a clock is the clock's while it takes the wait to the home (`jbus.clock`), and
+is told here once the clock logged a stall of its own instead. A child home hears of its own
+hung crew from `jbus.children`, whose nudge counts all it has out. A crew that is only quiet is
+not told of. Any other fault of a row is told by the step that already works that row, and the
+view reads its message as what the owner was told (`state._fixing`). A crew owns a red check of
+its own pull request, which `jbus.rebase` tells it of, and a red main whose main-red row it
+works. A crew whose thread ended with something left goes to its home through
+`jbus.leftover`, whose record counts as the telling. A user's entry is told to nobody: the band
+shows it. The thread told is the one `state.owner` names, and one that T3 Code refuses is
+refused here too, each pass.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jbus import outbox, verbs
+from jbus import clock, outbox, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.threads import ROLES
@@ -105,18 +108,32 @@ def _hung(one: dict) -> bool:
     return one["kind"] == "thread" and hung and crew
 
 
-def _logged(one: dict) -> bool:
+def _clocked(found: state.Read, row: str) -> bool:
+    """Whether the row's wait has a clock that takes it to the home (`jbus.clock`): one that has
+    not reached the home yet, or one whose line went to the home. A clock that logged a stall of
+    its own instead takes it to nobody."""
+    wait = (found.table(clock.FILE) or {}).get(row)
+    if not isinstance(wait, dict):
+        return False
+    sent = found.records(outbox.FILE) or []
+    went = {line.get("key") for line in sent if line.get("went") == "sent"}
+    return not wait.get("home") or clock.home_key(row, wait) in went
+
+
+def _logged(found: state.Read, one: dict) -> bool:
     """Whether the entry is a fault of a row that the step that found it only logged, which
-    only this step tells: a hung crew (`_hung`), or a stalled row."""
-    return _hung(one) or one["kind"] == state.STALLED
+    only this step tells: a hung crew (`_hung`), or a stalled row whose wait no clock takes to
+    its home."""
+    return _hung(one) or (one["kind"] == state.STALLED and not _clocked(found, one["row"]))
 
 
 def tell(run: Pass, client: Client) -> None:
     """Tell the owner, once, of each fault of the project or the machine, each hung crew and
     each stalled row."""
-    for one in read(run).once(state.wrongs):
+    found = read(run)
+    for one in found.once(state.wrongs):
         fault = f"{one['kind']} {one['subj']}"
-        if one["owner"] == state.USER or one["fixing"] or (one["row"] and not _logged(one)):
+        if one["owner"] == state.USER or one["fixing"] or (one["row"] and not _logged(found, one)):
             continue
         key = state.key_of(one)
         try:
