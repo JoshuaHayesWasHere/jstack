@@ -75,7 +75,6 @@ NO_HOME = "it has no home: no home-id names a thread for the home of its brief"
 UNLISTED = "its home's thread {thread} is not one T3 Code lists as not settled"
 REFUSED = "T3 Code refused the message to its home's thread {thread}"
 SILENT = "T3 Code did not take the message to its home's thread {thread}"
-CAPPED = "its home's thread {thread} is capped, so it is told after the reset"
 UNSEEN = "its home is not told yet: T3 Code did not list the threads that are out"
 LATE = "its home, thread {thread}, has not closed it {minutes} min after jbus told it"
 MESSAGE = (
@@ -276,7 +275,7 @@ def _judge(
         run.say(f"wait {slug}: its home could not be told of what it left ({error})")
         return replace(record, why=SILENT.format(thread=thread))
     if not went:
-        return replace(record, why=CAPPED.format(thread=thread))
+        return record
     line = f"{KIND} {slug}: told its home, thread {thread}, of what it left"
     run.find(slug, KIND, line, text, key=f"{digest} {thread}")
     run.say(line)

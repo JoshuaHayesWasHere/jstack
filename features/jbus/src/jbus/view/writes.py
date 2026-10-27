@@ -109,6 +109,9 @@ class Writes:
         if not went.thread:
             why = f"{closed.slug} has no Thread: line in a brief or request"
             return False, why, "a pass sends it once one names its thread"
+        if went.held:
+            why = f"its thread {went.thread} is capped"
+            return False, why, "the first pass after the reset sends it"
         how = "T3 Code refused it" if went.refused else "T3 Code did not answer"
         return False, jbus.redact(f"{how} ({went.error})", hidden), pass_
 
