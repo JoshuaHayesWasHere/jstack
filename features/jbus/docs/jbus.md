@@ -22,7 +22,7 @@ One pass, under one lock, does this for every project in the config:
    A run on a head the pull request has left, one a newer push displaced, is neither run again nor told.
    It stops a process that a crew or reviewer left running once its turn ended, busy or idle, and a busy one a scout left, one whose parent is 1, that runs in the task's worktree or a temporary folder its session made (under /tmp, /var/tmp or a test slot's own folder), and that holds no test slot, and adds a `Left running:` line under the task's last Result or Report.
 5. It launches the approved rows of the queue, after it has asked every project for its open threads and pull requests ([What a pass launches](jbus/what-a-pass-launches.md)).
-6. It rewrites the queue's derived columns, says what waits on you, and sends the events meant for you to the project's home thread, or to a webhook as `wake` picks ([Where wakes go](jbus/events-and-the-webhook.md#where-wakes-go)).
+6. It rewrites the queue's derived columns, says what waits on you, and sends the events meant for you to the project's home thread ([Where wakes go](jbus/events-and-wakes.md#where-wakes-go)).
 
 jbus makes no judgment call.
 When no rule covers a case, jbus logs one line, `condition <slug>: <what>`, without posting it, and leaves that slug alone for the rest of the pass.
@@ -41,7 +41,7 @@ A run of `jmerge` holds the repo's merge lock from its read of main's tip to its
 - [Add a project](jbus/add-a-project.md)
 - [Back up the homes' state](jbus/back-up-the-homes-state.md)
 - [Decisions](jbus/decisions.md)
-- [Events and the webhook](jbus/events-and-the-webhook.md)
+- [Events and wakes](jbus/events-and-wakes.md)
 - [Measure the CI](jbus/measure-the-ci.md)
 - [Questions](jbus/questions.md)
 - [Set up jbus](jbus/set-up-jbus.md)
@@ -55,7 +55,7 @@ A run of `jmerge` holds the repo's merge lock from its read of main's tip to its
 - [The view](jbus/the-view.md)
 - [What a pass launches](jbus/what-a-pass-launches.md)
 - [What blocks](jbus/what-blocks.md)
-- [What the Chef is sent and may run](jbus/what-the-chef-is-sent-and-may-run.md)
+- [What the Chef may run](jbus/what-the-chef-may-run.md)
 - [What the threads noticed](jbus/what-the-threads-noticed.md)
 - [What waits on you](jbus/what-waits-on-you.md)
 - [When jbus fails](jbus/when-jbus-fails.md)

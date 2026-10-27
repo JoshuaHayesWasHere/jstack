@@ -30,9 +30,8 @@ To add a home with no repo, use `--scratch` in place of `--checkout`.
 The command first copies the config to `config.toml.<time>.bak` beside it.
 Both files are mode 600.
 Every other table stays as it is.
-The new table has `name`, `checkout` and `projectId`, and no webhook.
-Its wakes go to its home thread, or as the top-level `wake` picks ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
-It uses the top-level webhook when the config has one and its `wake` posts to a webhook.
+The new table has `name`, `checkout` and `projectId`.
+Its wakes go to its home thread ([Where wakes go](events-and-wakes.md#where-wakes-go)).
 A scratch home's table has `name`, `kind` and `projectId` instead.
 
 It prints `added: one [[project]] table, the file as it was is <backup>: the next pass works it, restart no unit`.

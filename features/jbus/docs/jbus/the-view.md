@@ -73,7 +73,7 @@ Each home there also has its `health`, from its own home thread, `since` for a h
 Each need also has its `subj`, the row or question it is about, so that no need reads only as its question.
 
 `/stack.json` has one list of what is wrong across the projects, `wrong`, oldest first.
-Its kinds are a red main, a failed or unread CI, failing or stranded wakes, a source that is there and cannot be read, a source the last pass could not ask, a thread that is hung or quiet, a stall jbus logged that still stands, and a pull request whose crew was told what it lacks and has not acted (`expedite.json`).
+Its kinds are a red main, a failed or unread CI, failing wakes of the home thread, a source that is there and cannot be read, a source the last pass could not ask, a thread that is hung or quiet, a stall jbus logged that still stands, and a pull request whose crew was told what it lacks and has not acted (`expedite.json`).
 A file a project has never had is no entry.
 Each entry has its `kind`, its `subj`, its `cause`, `since` when it went wrong, and `where`: each project and home it is in, with the drawer that has it.
 An entry of the bus or of a source with the same subject and cause in several projects is one entry that names them all, and any other entry stays one per project.

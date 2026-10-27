@@ -21,4 +21,5 @@ A scope that already holds the word, by any path, is not sent it again: that pri
 
 `--to` also names a scratch home, whose thread is in its own `home-id` as a repo's home's is ([A scratch home](a-scratch-home.md)), and `--all` does not reach one.
 
-A word is no event, so no webhook gets it. The log still has a line for it, which `jbus events` prints.
+A word is no event, so it wakes no thread.
+The log still has a line for it, which `jbus events` prints.

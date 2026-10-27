@@ -3,7 +3,7 @@
 `jbus poll` is one pass over every project.
 It reads the queue, the briefs, T3 Code and GitHub, launches what is approved and has room, tells each thread what it must act on, runs `jmerge`, and writes what it saw to the state directory.
 Every other `jbus` verb reads or writes that state, and `jbus view` is a local web page over it.
-This page has four journeys: a queue row from add to launch, a scout's request from add to launch, a gate that wakes the Chef, and a red main that files the brief for its fix.
+This page has four journeys: a queue row from add to launch, a scout's request from add to launch, a decision that wakes the home thread, and a red main that files the brief for its fix.
 The pass as a whole and the view have no recipe yet.
 Their tests are the ones that import the `jbus` package, which `scripts/select_tests.py` follows through the imports.
 A headless browser drives the view's page with axe (`features/jbus/tests/fixtures/jbus-view/axe-run.js`).
@@ -46,13 +46,12 @@ A scout's request, from add to launch (`scout-path`):
 - `scout-launch` launches one `scout: <slug>` thread on the next pass, in the project's own checkout, with no branch.
 - `scout-show` prints each request's state, its thread and what its last Report says.
 
-A gate wakes the Chef (`gate-wake`):
+A decision wakes the home thread (`home-wake`):
 
-- `gate-queue` queues a gate from stdin and prints `queued`.
-- `gate-once` prints `already sent` for the same gate piped twice.
-- `done-queue` queues a result from stdin.
-- `wake-post` POSTs the waiting events to the webhook on the next pass, with the project's key.
-- `wake-gap` holds what is queued within five minutes of the last POST.
+- `decide-queue` raises a decision with `jbus decide` and prints `raised:`.
+- `decide-once` prints `raised already:` for the same decision raised twice.
+- `wake-send` sends the waiting events to the home thread through T3 Code on the next pass.
+- `wake-gap` holds what is queued within five minutes of the last wake.
 - `status` prints the status file: the last pass, the outbox count, failed wakes.
 
 A red main files the brief for its fix (`main-red`):
@@ -75,8 +74,8 @@ A red main files the brief for its fix (`main-red`):
 - Run `jbus done <slug>` with the result's lines on stdin.
 - Run `jbus poll` for one pass.
 - Run `jbus status`.
-- Read the message that the Chef posts to you once the webhook wakes it.
-  A sandbox cannot reach the Chef.
+- Read the wake in the project's home thread.
+  A sandbox has no real thread.
 - After a merge whose commit on main has a failed check run, run `jbus poll`.
   On the live machine, the systemd timer runs it.
 - Run `jbus queue show` to see the row, and read the brief in the home's `tasks/`.
@@ -147,28 +146,45 @@ Preconditions:
 - **Proof.**
   Copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/scouts.json` into `$VERIFY_JSTACK_EVIDENCE`.
 
-### A gate wakes the Chef
+### A decision wakes the home thread
 
 Preconditions:
 
 - You are in a new sandbox, `env.sh` is sourced, and the doctor prints `doctor: ok`.
 - No `jbus poll` has run in it: `$JBUS_STATE_DIR/status.json` does not exist.
 
-- **Status before a pass.** Run `record gate-wake jbus status`. It prints `refused: no status at <path>: no pass has run` and exits 1.
-- **Pipe a gate.** Run `printf '## Gate <n>: may the demo task skip its tests?\nStatus: open\nDefault: it does not skip them\n' | record gate-wake jbus gate alpha`. It prints `queued`.
-- **Pipe it again.** Run the same command. It prints `already sent`.
+- **Status before a pass.**
+  Run `record home-wake jbus status`.
+  It prints `refused: no status at <path>: no pass has run` and exits 1.
+- **Raise a decision.**
+  Run `record home-wake jbus decide alpha --question 'may the demo task skip its tests?' --reply 'scope: no, keep them'`.
+  It prints `raised: alpha: may the demo task skip its tests?`.
+- **Raise it again.**
+  Run the same command.
+  It prints `raised already: alpha: may the demo task skip its tests?`.
 - **See it wait.**
-  Run `record gate-wake jq -c '.[] | {event, slug, line}' "$JBUS_STATE_DIR/demo/outbox.json"`.
-  It shows one event: `gate`, `alpha`, `gate alpha: may the demo task skip its tests?`.
-- **Pass.** Run `record gate-wake jbus poll`. It prints `woke demo: 1 events`.
-- **Check the POST.**
-  Run `record gate-wake jq -c '{key, events: [.events[] | {project, event, slug, line}]}' "$VERIFY_JSTACK_SANDBOX/t3/wake.jsonl"`.
-  The webhook got the gate event for the project `demo`, and `key` is `true`.
-  So the POST carried the project's key in both headers jbus sends it in.
-- **Pipe a result.** Run `printf 'Status: done\nBranch: alpha   Pull request: none\nLeft: none\n' | record gate-wake jbus done alpha`. It prints `queued`.
-- **Pass inside the gap.** Run `record gate-wake jbus poll`. It prints no `woke` line, and `t3/wake.jsonl` still has one line.
-- **Read the status.** Run `record gate-wake jbus status`. `projects.demo.outbox` is 1, `failed_wakes` is 0, and `last_pass` is this minute.
-- **Proof.** Copy `t3/wake.jsonl` and `$JBUS_STATE_DIR/status.json` into `$VERIFY_JSTACK_EVIDENCE`.
+  Run `record home-wake jq -c '.[] | {event, slug}' "$JBUS_STATE_DIR/demo/home-thread/outbox.json"`.
+  It shows one event: `decision`, `alpha`.
+- **Pass with no home thread.**
+  Run `record home-wake jbus poll`.
+  It prints `wake waits demo: no home thread, and the config names no home_thread, so its events wait in the outbox`, and the outbox still holds the decision.
+- **Give the home a thread, and pass.**
+  Run `echo mcp:sandbox-home > "$HOME/.local/state/home/demo/home-id"`, then `record home-wake jbus poll`.
+  It prints `woke demo: 1 events`.
+- **Check the send.**
+  Run `record home-wake jq -c 'select(.tool == "t3_thread_send") | .arguments | {threadId, mode, clientRequestId}' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
+  There is one line, to `mcp:sandbox-home`, in `queue` mode, with a `clientRequestId` that begins `wake|demo|`, and its `message` holds the decision's `say` line and the body as JSON.
+- **Ask whether wakes go.**
+  Run `record home-wake jbus wakes`.
+  It prints `wakes go: the home thread of demo is not failing`.
+- **Raise another inside the gap.**
+  Run `record home-wake jbus decide beta --question 'may beta wait a day?' --reply 'scope: yes'`, then `record home-wake jbus poll`.
+  It prints no `woke` line, and `t3/calls.jsonl` still has one `t3_thread_send`.
+- **Read the status.**
+  Run `record home-wake jbus status`.
+  `projects.demo.outbox` is 1, `failed_wakes` is 0, and `last_pass` is this minute.
+- **Proof.**
+  Copy `t3/calls.jsonl` and `$JBUS_STATE_DIR/status.json` into `$VERIFY_JSTACK_EVIDENCE`.
 
 ### A red main files the brief for its fix
 
@@ -212,21 +228,20 @@ A queue row, from add to launch:
 - The first pass in a sandbox records the state it finds and reports nothing about it.
   So a recipe that needs jbus to report something must run one pass before that thing happens.
 
-A gate wakes the Chef:
+A decision wakes the home thread:
 
-- A POST goes at most once in five minutes. After the first `woke` line, a recipe that needs a second POST waits five minutes or starts in a new sandbox. Do not edit `wake.json` to get past it.
-- `jbus gate` and `jbus done` act for the project whose repo the shell is in.
+- A wake goes at most once in five minutes.
+  After the first `woke` line, a recipe that needs a second wake waits five minutes or starts in a new sandbox.
+  Do not edit `wake.json` to get past it.
+- `jbus decide` acts for the project whose repo the shell is in.
   `env.sh` leaves the shell in the demo checkout.
-  From any other directory they print `refused: no project for this repo`.
-- jbus tells gates apart by the `## Gate <n>:` heading alone.
-  The same question for the same slug is the same gate, whatever the other lines say.
-- The stand-in's webhook always answers 200.
-  This recipe does not drive a webhook that is down.
-  `failed_wakes` counts such failures, and twelve failed wakes in a row raise a desktop notification.
-  `features/jbus/tests/test_jbus_wake.py` covers that case.
-- `wake.jsonl` keeps whether the key matched, never the key. `"key": false` is a POST with no key or a wrong one.
-- The outbox may hold more than the events you piped, because a pass adds its own (`queue demo: the table changed`).
-  Once a queue row exists, assert on the event you sent, not on a count.
+- The stand-in takes every `t3_thread_send`.
+  This recipe does not drive a home thread that T3 Code refuses.
+  `failed_wakes` counts such failures, and the third in a row raises the `home thread demo` alert.
+  `features/jbus/tests/test_jbus_wake_home.py` covers that case.
+- Where the sandbox's config still has the old `wake`, `webhook_url` or `webhook_key`, each pass also prints an `ignored:` line that names them.
+- The outbox may hold more than the decisions you raised, because a pass adds its own.
+  Assert on the event you raised, not on a count.
 
 A red main files the brief for its fix:
 

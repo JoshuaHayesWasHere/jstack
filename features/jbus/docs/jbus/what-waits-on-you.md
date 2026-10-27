@@ -7,7 +7,7 @@ The root is the one thing that only you can do, and there are four kinds:
   The line is `hand-merge #<n> <url>: <why>; safe because <fact> (proven at <head>); jmerge --accept <n> --by <user> --at "<YYYY-MM-DD HH:MM zone>"`, or `...; not yet, <what is short>` when `jmerge` would refuse the accept.
 - **A brief that changed after your go** is yours to approve again.
 - **A row with no approval that an approved row depends on** is yours to approve. The line holds the `jbus queue approve` command, with its `--sha`, and names the four bases to pick one from.
-- **A project with no sign-in to T3 Code** is yours to configure, and a missing webhook is not, since the webhook is optional ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
+- **A project with no sign-in to T3 Code** is yours to configure, since its wakes go to its home thread through T3 Code ([Where wakes go](events-and-wakes.md#where-wakes-go)).
 
 For each root, jbus sends one `waiting-on-user` event: `waiting-on-user <project>: <action> · unblocks <slugs> · since <HH:MM zone>`.
 It sends the root again each hour while the root is still open, and a pass that finds it gone prints `cleared <root>`.

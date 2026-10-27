@@ -133,8 +133,8 @@ jbus poll
 ```
 
 Before step 4 it printed `dispatch is off in the config: nothing is launched`, and now it does not.
-It asks for no webhook: jbus sends its wakes to each project's home thread through T3 Code ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
-A webhook, the relay and a Chef are optional add-ons, which `wake = "webhook"` or `wake = "both"` turns on.
+jbus sends its wakes to each project's home thread through T3 Code ([Where wakes go](events-and-wakes.md#where-wakes-go)).
+The relay and a Chef are optional add-ons.
 
 Then read what the last pass left:
 
@@ -142,7 +142,7 @@ Then read what the last pass left:
 jbus status
 ```
 
-`last_pass` is this minute, `token_expires` is when the sign-in runs out, the project's `wake` is `home`, and its `last_error` is empty.
+`last_pass` is this minute, `token_expires` is when the sign-in runs out, and the project's `last_error` is empty.
 `systemctl --user list-timers jbus.timer` shows when the timer runs the next pass.
 
 jbus now launches the rows you approve.

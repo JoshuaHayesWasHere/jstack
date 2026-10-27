@@ -73,7 +73,8 @@ A blocking finding that the crewmate declines gets that review all the same, eve
 No bot outside watches the homes or the queue.
 Each home clears its own blockers each time it wakes, with `jbus clear`: it takes the default of a gate left open, and briefs a fix of a failed check, a refused or stuck row, or a leftover.
 Every such fix has a `When green:` line, the exact check that ends it, and each blocker gets at most `retry_cap` fixes (2 with none), after which it comes to you as a decision.
-What reaches you is a `decision`, a `sign-in` or an `alert` that stands, each with a reply you can send as it is: jbus posts it to the relay, the relay sends it to your chat bot (Sous Chef, the brief's Chief Keef), and the bot pages you.
+What reaches you is a `decision`, a `sign-in` or an `alert` that stands, each with a reply you can send as it is: jbus wakes the project's home thread with it.
+Where you run the relay, what blocks also goes on to your chat bot (Sous Chef, the brief's Chief Keef), and the bot pages you.
 The rest, a merge, a stale thread, a retro, is in the digest.
 [Decisions](../../jbus/docs/jbus/decisions.md) has the rest.
 

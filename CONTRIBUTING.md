@@ -67,7 +67,7 @@ When a check fails, [A test of `make check` failed on a bound](features/repo-gua
 
 `features/repo-guards/tests/test_no_comments.py` fails `make check` on a comment in the files under `src/`, `hooks/*.sh`, `install.sh` and `tests/*.py`, other than a shebang, `# noqa`, `# type:` or `# pragma`.
 
-`verify-jstack` drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code, GitHub and the webhook.
+`verify-jstack` drives `jbus`, `jmerge`, `jgauge` and `install.sh` in a throwaway sandbox, with stand-ins for T3 Code and GitHub.
 Its folder is `features/verify-jstack/project-skill/`, which `install.sh` links as the checkout's `.claude/skills/verify-jstack` and `.cursor/skills/verify-jstack`, both untracked.
 A linked worktree has no such link, and reads the skill from `features/verify-jstack/project-skill/`, the folder `skills.json` names under `projectSkills`.
 

@@ -43,7 +43,7 @@ The mounts are those the stack writes: jbus's state and the homes, each project'
 A pass that systemd stops cannot say so itself, so jbus reads both timeouts from the journal of `jbus.service`.
 
 The relay is optional, and a machine with none has only the `relay` line above, `not watched`.
-jbus watches the relay only where the config posts to it, with a `webhook_url` or `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
+jbus watches the relay only where the config posts to it, with a `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
 jbus reads `RELAY_PORT` and `RELAY_STATE` from the relay's own env file, `~/.config/jbus-relay/env`, since `jbus.service` does not load that file.
 jbus posts a `refresh` to `blocking_url` each hour, so a relay it posts to hears a body at least that often.
 While the relay's unit is not active or its heartbeat is stale, jbus does not judge silence and errors.
@@ -61,7 +61,7 @@ A pass pages an incident once when it starts, and logs its end, a `quiet` `recov
 It tracks the incident in `streaks.json`, as it does every other alert.
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
 It goes to the desktop with `notify-send`.
-If you set a top-level webhook, an `alert:` page also goes there as an event of the machine, once and not once for each project.
+It also goes to the home thread of every project, as an event of the machine.
 A check that could not be read leaves its incident as it is.
 Some checks go away: a mount or an instance is gone, or the config no longer posts to the relay.
 The incident of such a check ends with no page.

@@ -1,15 +1,14 @@
 # The relay
 
 The relay is optional.
-jbus sends its wakes to each project's home thread by default, and posts to the relay only with `wake = "webhook"` or `wake = "both"` ([Where wakes go](events-and-the-webhook.md#where-wakes-go)).
-It sends what jbus posts on to a chat bot of your own, and pages you when that bot is silent.
+jbus sends its wakes to each project's home thread ([Where wakes go](events-and-wakes.md#where-wakes-go)), and posts the relay only what blocks, through the second target ([What blocks](what-blocks.md)).
+It sends what blocks on to a chat bot of your own, and pages you when that bot is silent.
 The chat bot's code is outside this repo, and this page is the contract the chat bot keeps.
 A machine with no relay loses nothing else, and `jinstall --doctor` prints `missing optional relay <env file>` for it.
 
 `jbus relay` is a server, not a pass.
 Where it runs, it is the one way jbus pages you.
-jbus posts only three kinds of event to its webhook: a `decision`, a `sign-in` and an `alert` that stands ([Decisions](decisions.md)).
-The relay sends each on to your chat bot, which pages you.
+jbus posts it the bodies of the second target and nothing else, and the relay sends each on to your chat bot, which pages you.
 No other bot watches the homes or the queue.
 It listens on `127.0.0.1`, on `RELAY_PORT`, which is 4390 when it is not set.
 With a port of 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound.
@@ -39,12 +38,9 @@ The relay prints `relay: refused to start: <each such key and why>`, never a val
 `systemctl --user status jbus-relay` then shows it failed.
 Nothing reads the `GATEKEEPER_WEBHOOK_URL` and `GATEKEEPER_WEBHOOK_KEY` of an older env file, since Gatekeeper is not a target.
 
-The relay sends two routes, both to the relay's webhook, and each POST says which in `relay: {"id", "route"}` beside the body's keys:
-
-| Route | What it sends |
-|---|---|
-| `everything` | Every body as it came. |
-| `blocking` | What blocks ([What blocks](what-blocks.md)). It sends the whole of a `reminder` or a `refresh`. It also sends the whole of an `events` body for the `blocking_url` pair, when that body has `items`. From any other body it sends only the events whose `loud` is `user`, the level a decision, a sign-in or an alert has unless its caller gave it the lower one. It then cuts `say` to the `say` lines of those events. The relay does not send a body with none of these on this route. |
+The relay sends one route, `blocking`, to your chat bot's webhook, and each POST names it in `relay: {"id", "route"}` beside the body's keys.
+The route sends what blocks ([What blocks](what-blocks.md)): the whole of a `reminder` or a `refresh`, and the whole of an `events` body that has `items`.
+The relay sends no other body.
 
 Each body the relay takes has an id.
 The id is the body's own `id` when that is a short name of letters, digits, `.`, `_` and `-`.
@@ -65,7 +61,7 @@ In both cases the journal says `not sent again`.
 jbus's bodies carry no time, so the same alert said again later has the same hashed id, and it goes once the window has passed.
 A body that went and was not yet written to `sent/` when the relay stopped goes once more after its start.
 
-The pager is a third route, `page`, spooled as the others are, with the pager as its target.
+The pager is a second route, `page`, spooled as the first is, with the pager as its target.
 The relay pages in the two cases of [What blocks](what-blocks.md).
 The page's body is `{"message"}`, one line, such as `demo: gate 33: tea or coffee?, blocking 47 min`.
 The line holds the project, the item's `line` and how long it has blocked, and, for a body your chat bot did not take, its event id.
@@ -92,8 +88,8 @@ The relay marks the items that body carried as seen, and answers 200 with `{"id"
 The relay answers 404 for an id that carried no item that is still open.
 Until your chat bot acknowledges a body, the relay pages every item of it that still blocks at 45 minutes.
 
-jbus posts to the relay only where the config names it, as a `webhook_url` or `blocking_url` that is `http://127.0.0.1:4390` ([Events and the webhook](events-and-the-webhook.md)), with `RELAY_INBOUND_KEY` as its key.
-Until one of them names the relay, jbus posts it nothing.
+jbus posts to the relay only where the config names it, as a `blocking_url` that is `http://127.0.0.1:4390`, with `RELAY_INBOUND_KEY` as its `blocking_key`.
+Until it names the relay, jbus posts it nothing.
 Through `blocking_url`, jbus posts the relay what blocks (`waiting.blocking`).
 
 ## Decisions from the chat
@@ -133,30 +129,3 @@ The relay answers with one of these:
 - 404 for a project the config does not have.
 - 409 for a decision jbus refuses, with jbus's sentence in `{"refused"}`.
 - 503 when the config cannot be read.
-
-## Cards in your chat bot's chat
-
-Each line of a work item's log is a card ([Work items](work-items.md)).
-The pass that follows the line posts the card to each webhook route that is the relay.
-Such a route is a project's or the top-level `webhook_url` set to `http://127.0.0.1:4390`, or to the `RELAY_PORT` of jbus's environment.
-A webhook that is not the relay gets no card, so the cards are in your chat bot's chat only.
-The relay sends each card on the `everything` route, and since a card has its own `id`, the relay sends it once.
-A route's `cards.json` keeps how many lines of the log have a card.
-A route's first pass posts one card for each live item, at its last line, and not the whole log.
-A POST that fails stops that route's cards until the next pass, which posts them again from there.
-
-This is the contract for the chat bot's side, whose code is outside this repo:
-
-```json
-{"kind": "item", "id": "demo.w3.5", "item": "w3", "project": "demo", "title": "One card per work item in the chat", "state": "approved", "owner": "home", "risk": "routine", "last": "Approved in jbus view by you, 11:52 EDT", "actions": [], "view": "https://<view host>/#/demo/item/w3"}
-```
-
-| Field | What the chat bot does with it |
-|---|---|
-| `kind` | `item`: a card, not an `events` body. |
-| `id` | The project and the line's id. It is the `seen_event` of a decision on this card. |
-| `item`, `project` | Which card this is. A new body for the same pair replaces the card in place, and the one with the higher line number wins. |
-| `title`, `state`, `owner`, `risk` | Shown on the card as they are. `state` is one of the eight states of [Work items](work-items.md). |
-| `last` | The last line in one sentence, shown under the title. A decision made in the view arrives here, as "Approved in jbus view by you, 11:52 EDT", and the next body brings the card's new buttons. |
-| `actions` | One button for each, in order, each a `POST /item` with that `verb`. It is empty for a review item (a merge, a secret, the config) and for one that is done or dropped. Such a card has the link and no button. |
-| `view` | The link to the item in jbus view, on every card. It uses the first origin of `JBUS_VIEW_ORIGINS`, the proxy the view is reached through. Without one, it uses the first name of `JBUS_VIEW_NAMES` or the address `JBUS_VIEW_HOST`, on port 4388. Without either, it uses 127.0.0.1. |
