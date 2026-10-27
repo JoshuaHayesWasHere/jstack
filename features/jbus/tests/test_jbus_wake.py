@@ -335,3 +335,15 @@ def test_an_event_larger_than_one_post_may_carry_goes_alone(tmp_path, webhook):
     (made.state / "outbox.json").write_text(json.dumps([small, large, small]))
     assert flush(made) == (3, [])
     assert [post["events"] for post in webhook.posts] == [[small], [large], [small]]
+
+
+def test_a_webhook_route_with_no_url_posts_nothing_and_keeps_no_error(tmp_path, monkeypatch):
+    project = Project("demo", tmp_path / "checkout", "demo", "project-1", "", "", wake="webhook")
+    made = wake.Box(tmp_path / "state", project)
+    made.send("alpha", "decision", "decision alpha: which?")
+    posted = []
+    monkeypatch.setattr(wake, "_post", lambda *given: posted.append(given) or "")
+    assert flush(made) == (0, [])
+    assert posted == []
+    marks = made.state / "wake.json"
+    assert "last_error" not in (json.loads(marks.read_text()) if marks.exists() else {})
