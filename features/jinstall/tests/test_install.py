@@ -769,7 +769,7 @@ def test_units_linked_where_templates_kept_them_before_a_move_are_old_and_a_run_
 
 
 @linux_only("test_launchd.py::test_a_plist_no_install_made_is_left_as_it_is")
-def test_a_unit_copied_by_hand_becomes_a_link_and_one_that_differs_is_left_alone(user):
+def test_a_unit_copied_by_hand_becomes_a_link(user):
     units = user.with_jbus()
     for name in UNITS:
         user.write(user.units / name, template(name).read_text())
@@ -778,15 +778,72 @@ def test_a_unit_copied_by_hand_becomes_a_link_and_one_that_differs_is_left_alone
     assert user.run() == (0, user.every("ok", units))
     assert all((user.units / name).is_symlink() for name in UNITS)
 
+
+@linux_only("test_launchd.py::test_a_plist_no_install_made_is_left_as_it_is")
+def test_a_unit_made_by_hand_is_backed_up_and_replaced_and_the_install_says_so(user):
+    units = user.with_jbus()
+    user.run()
     edited = user.units / "jbus.service"
     edited.unlink()
     edited.write_text("[Unit]\nDescription=mine\n")
-    for args in ((), ("--check",), ("--uninstall",)):
-        code, said = user.run(*args)
-        if args != ("--uninstall",):
-            differs = f"old {units} -> jbus.service -> not a link, differs"
-            assert (code, line_for(said, "units")) == (1, [differs])
-        assert edited.read_text() == "[Unit]\nDescription=mine\n"
+
+    differs = f"old {units} -> jbus.service -> not a link, differs: the install backs it up"
+    code, said = user.run("--check")
+    assert (code, line_for(said, "units")) == (1, [differs])
+    assert edited.read_text() == "[Unit]\nDescription=mine\n"
+
+    code, said, err = user.run_with_stderr()
+
+    (backup,) = user.units.glob("jbus.service.*.bak")
+    assert (code, said) == (0, user.every("ok", units))
+    assert os.readlink(edited) == str(template("jbus.service"))
+    assert backup.read_text() == "[Unit]\nDescription=mine\n"
+    assert (
+        f"install.sh: units {user.units}: jbus.service was not the install's: kept as {backup}"
+        in err
+    )
+    user.run("--uninstall")
+    assert backup.read_text() == "[Unit]\nDescription=mine\n"
+
+
+@linux_only("test_launchd.py::test_a_plist_no_install_made_is_left_as_it_is")
+def test_the_views_drop_in_is_written_from_the_config_and_follows_it(user):
+    units = user.with_jbus()
+    config = user.jbus / "config.toml"
+    view = (
+        '[view]\nhost = "192.0.2.7"\nnames = ["box", "box.tail.net"]\n'
+        'origins = ["https://jbus.example.org"]\n'
+    )
+    user.write(config, f'server = "http://127.0.0.1:1"\n{view}')
+    config.chmod(0o600)
+    drop_in = user.units / "jbus-view.service.d" / "jstack.conf"
+
+    assert user.run() == (0, user.every("ok", units))
+    assert drop_in.read_text() == (
+        f"# install.sh writes this from the [view] table of {config}: change that, not this.\n"
+        "[Service]\n"
+        'Environment="JBUS_VIEW_HOST=192.0.2.7"\n'
+        'Environment="JBUS_VIEW_NAMES=box,box.tail.net"\n'
+        'Environment="JBUS_VIEW_ORIGINS=https://jbus.example.org"\n'
+    )
+
+    user.write(config, 'server = "http://127.0.0.1:1"\n[view]\norigins = ["https://b.example"]\n')
+    stale = f"old {units} -> {drop_in} does not say the [view] of {config}"
+    assert line_for(user.run("--check")[1], "units") == [stale]
+    assert user.run() == (0, user.every("ok", units))
+    assert drop_in.read_text().splitlines()[2:] == [
+        'Environment="JBUS_VIEW_ORIGINS=https://b.example"'
+    ]
+
+    user.write(config, 'server = "http://127.0.0.1:1"\n')
+    assert line_for(user.run("--check")[1], "units") == [stale]
+    assert user.run() == (0, user.every("ok", units))
+    assert not drop_in.exists()
+
+    user.write(config, f'server = "http://127.0.0.1:1"\n{view}')
+    user.run()
+    user.run("--uninstall")
+    assert not drop_in.parent.exists()
 
 
 def record(user):

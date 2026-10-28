@@ -204,3 +204,26 @@ def test_a_project_names_the_files_a_command_writes_or_none(tmp_path, lines, wan
 def test_a_generated_that_is_not_a_list_of_file_arrow_command_is_refused(tmp_path, lines):
     with pytest.raises(jbus.Refused, match="refused: project demo has a generated that is not"):
         settings(tmp_path, lines)
+
+
+def test_the_view_table_gives_the_views_address_names_and_origins_or_none(tmp_path):
+    assert settings(tmp_path, "").view == jbus.View()
+    view = settings(
+        tmp_path,
+        '[view]\nhost = "192.0.2.7"\nnames = ["box"]\norigins = ["https://jbus.example.org"]\n',
+    ).view
+    assert view == jbus.View("192.0.2.7", ("box",), ("https://jbus.example.org",))
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        "[view]\nhost = 1\n",
+        '[view]\nnames = "box"\n',
+        "[view]\norigins = [1]\n",
+        '[view]\nport = "4389"\n',
+    ],
+)
+def test_a_view_table_with_another_key_or_shape_is_refused(tmp_path, lines):
+    with pytest.raises(jbus.Refused, match=r"refused: .* has a \[view\] that is not"):
+        settings(tmp_path, lines)
