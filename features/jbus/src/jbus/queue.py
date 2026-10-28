@@ -1661,7 +1661,8 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     line is rewritten, and the rest of it is the brief the go was given for, so a go that held
     is bound to the renamed brief. A row that was its own plan entry keeps the old slug as its
     entry. A row that did work for its parent's entry keeps doing it where a `Follows:` line names
-    the parent, and not where only its `cleanup-` slug did. The old slug goes into
+    the parent, and not where only its `cleanup-` slug did. A parent whose follow-ups count for its
+    entry (`parent_entry`) keeps its slug, since they name it. The old slug goes into
     `removed.json`, so the pass drops its item and no add brings it back; the row gets its item
     anew from the pass."""
     rows, old, new = batch.rows, verb.slug, verb.new
@@ -1681,6 +1682,10 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
             old in (*other.get("depends", []), *other.get("merge_after", []))
             or other.get("entry") == old
             or getattr(record(other), "follows", "") == old
+            or (
+                "parent_entry" in other
+                and named_parent(other["slug"], batch.brief(other["slug"]) or "") == old
+            )
         )
     )
     if naming:
