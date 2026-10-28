@@ -124,6 +124,9 @@ def step(action, before, after):
         "Retire": f"you retire child {k}",
         "Steps": f"you get child {k} going again",
         "Deliver": "a call reaches you",
+        # Lost is a step of the design only with its keep-on-fail guard out (canaries.py's
+        # canary for CallsReachJosh): the chart of today's code never draws it, a chart of that
+        # canary does.
         "Lost": "a failed post takes a call out of the outbox",
         "RouteFails": "the home thread fails",
         "RouteMends": "the home thread works again",
