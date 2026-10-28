@@ -164,6 +164,7 @@ def test_an_approval_by_an_answer_rests_on_the_answer_that_closed_the_question(k
     )
     kept = kitchen.state / "questions.json"
     assert go(kitchen, "alpha", "--answer", "2") == (1, f"refused: {kept} has no question 2\n")
+    kitchen.clock_reads(SAID_AT)
     said = ("--by", "user", "--at", SAID_AT, "--default", "the", "first")
     assert kitchen.main("answer", "1", *said)[0] == 0
     assert go(kitchen, "alpha", "--answer", "1")[0] == 0
@@ -316,6 +317,7 @@ def test_a_word_given_as_a_message_is_kept_with_the_messages_own_words_and_time(
 
 
 def test_a_typed_word_is_still_taken_and_is_not_checked(kitchen):
+    kitchen.clock_reads(SAID_AT)
     typed = ("--by", "user", "--at", SAID_AT, "launch", "alpha")
     assert kitchen.main("word", "--to", "demo", *typed)[0] == 0
     (kept,) = word.load(kitchen.state)

@@ -55,6 +55,8 @@ window.addEventListener("load", function () { setTimeout(function () {
       if (!drawer.open) continue;
       all("#dw [data-open]").forEach(function (b) { queue.push(b.getAttribute("data-open")); });
       ring(drawer, target);
+      /* As the view below, a drawer is checked as it opens, at its top. */
+      drawer.scrollTop = 0;
       return check(target, "#drawer").then(next);
     }
     return Promise.resolve();

@@ -38,7 +38,7 @@ function dChecks() {
   var at = { running: ["started", "started"], waiting: ["created", "asked for"], failed: ["updated", "ended"] }, title = { running: "Running", waiting: "Waiting for a runner", failed: "Failed, and not run again since" };
   return head("Under the line", "CI checks on GitHub") +
     '<div class="now' + (bad ? " e-op" : "") + '"><span class="tag">Now</span><span class="big">' + (c.error ? esc(c.error) : checksSay(rs)) + '</span>' +
-    '<span class="src">A check is one run of the workflow of ' + (S.repo ? '<code>' + esc(S.repo) + '</code>' : "the repo") + ' on GitHub, which a push to a branch or a pull request starts. A branch counts as failed, once, while the newest run of one of its workflows failed. A run held for an approval or by another run is in neither count.</span></div>' +
+    '<span class="src">Runs of ' + (S.repo ? '<code>' + esc(S.repo) + '</code>' : "the repo") + ' on GitHub. A branch counts as failed once, while its newest run failed.</span></div>' +
     CHECKS.map(function (k) {
       var runs = rs.now[k[0]];
       return '<h3>' + runs.length + " " + title[k[0]].toLowerCase() + '</h3>' + (runs.length ? '<ul class="clean steps">' + runs.map(function (r) {

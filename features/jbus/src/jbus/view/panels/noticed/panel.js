@@ -12,7 +12,7 @@ function dNoticed() {
   var all = S.noticed || [], fresh = noticedNew().length, older = S.noticed_older || 0;
   var h = head("Noticed", plural(fresh, "new line", "new lines") + " of " + (all.length + older) + ", newest first");
   h += '<p class="src" style="margin-top:15px">From <code>noticed.json</code>: each Noticed line a pass found in a brief or a request. A home marks each one with <code>jbus noticed take</code> or <code>drop</code>. Nothing here writes.</p>';
-  return h + (all.length ? '<ul class="clean rows">' + all.map(noticedRow).join("") + '</ul>' : '<p class="src">No Noticed line is kept yet.</p>') +
+  return h + (all.length ? fold(all, noticedRow, 5) : '<p class="src">No Noticed line is kept yet.</p>') +
     (older ? '<p class="src">' + plural(older, "older marked line is", "older marked lines are") + ' not shown: <code>jbus noticed --all</code> prints every one.</p>' : "");
 }
 panel({

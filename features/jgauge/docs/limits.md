@@ -148,7 +148,7 @@ This page records the pool numbers and changes none of them.
 | jmerge in a pass | `features/jbus/src/jbus/wake.py:79` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
 | jmerge's judge | `features/jmerge/src/jmerge/cli.py:60` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
 | Judged again | `features/jmerge/src/jmerge/cli.py:55` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
-| Rows that share files | `features/jbus/src/jbus/dispatch.py:50` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
+| Rows that share files | `features/jbus/src/jbus/dispatch.py:67` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
 | A failover's items | `features/jbus/src/jbus/failover.py:44` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `features/jbus/src/jbus/threads.py:119` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
 | Carry-ons a thread gets | `features/jbus/src/jbus/threads.py:129` | `CARRY_ONS = 2` | Before this repo's history | A thread is not woken forever | Design choice | Kept |
