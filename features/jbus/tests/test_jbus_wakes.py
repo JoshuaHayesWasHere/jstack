@@ -163,6 +163,45 @@ def test_one_red_on_two_branches_wakes_the_root_once_and_a_new_red_wakes_it_agai
     assert "- ci dependabot/pip/wheat: check failed" in second and second.count("\n- ci ") == 1
 
 
+def test_a_red_whose_jobs_cannot_be_read_waits_a_pass_and_wakes_the_root_once(launched):
+    """The review of #585: a red keyed by its fallback while its jobs cannot be read, and by its
+    tests once they can, woke the root twice. It waits for its tests, and unread is not kept as
+    no tests, so the one wake carries the key its tests give it."""
+    root = home(launched)["threadId"]
+    runs(launched, "dependabot/pip/oat")
+    launched.set("run-jobs.json", {"500": None})
+    launched.set("logs.json", {"900": log_of(0)})
+    launched.poll(NOW)
+    assert reds_told(launched, root) == []
+    launched.set("run-jobs.json", {"500": [job(0)]})
+    for minutes in (3, 6, 9):
+        launched.poll(NOW + minutes * MIN)
+    assert reds_told(launched, root) == ["ci dependabot/pip/oat: check failed"]
+    record = jbus.read_json(launched.state / wakes.FILE, {})
+    assert record["tests"] == {"500": ["tests/test_grain.py::test_0"]}
+    assert wakes.red_key(["tests/test_grain.py::test_0"]) in wakes.told_to(record, root)
+
+
+def test_a_red_whose_tests_stay_unread_wakes_once_with_the_key_it_first_got(launched):
+    root = home(launched)["threadId"]
+    runs(launched, "dependabot/pip/oat")
+    launched.set("run-jobs.json", {"500": None})
+    for minutes in (0, 3, 6, 9):
+        launched.poll(NOW + minutes * MIN)
+    launched.set("run-jobs.json", {"500": [job(0)]})
+    launched.set("logs.json", {"900": log_of(0)})
+    for minutes in (12, 15):
+        launched.poll(NOW + minutes * MIN)
+    assert reds_told(launched, root) == ["ci dependabot/pip/oat: check failed"]
+    assert jbus.read_json(launched.state / wakes.FILE, {})["tests"] == {"500": []}
+
+
+def reds_told(kitchen, thread):
+    """Each red the thread was told of, as its line on the list."""
+    said = [given["message"] for given in sends(kitchen) if given["threadId"] == thread]
+    return [line[2:] for one in said for line in one.splitlines() if line.startswith("- ci ")]
+
+
 def job(at):
     return {"id": 900 + at, "status": "completed", "conclusion": "failure"}
 

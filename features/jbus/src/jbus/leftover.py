@@ -65,7 +65,6 @@ from jbus.passes import Pass
 from jbus.watch import World, at_work, brief_of, home_thread, last_result, named
 
 KIND = "leftover"
-WAKES = "wakes.json"
 NAME = "leftover.json"
 CLOSE_MINUTES = 30
 REMIND_MINUTES = 15
@@ -246,13 +245,6 @@ def key_of(slug: str, left: str, kind: str = "left") -> str:
     return f"{kind} {slug}: {left}"
 
 
-def told(state: Path, thread: str, key: str) -> str:
-    """When the one list told the thread of the item with this key (`jbus.wakes`), or nothing."""
-    kept = (read_json(state / WAKES, {}).get("threads") or {}).get(thread) or {}
-    one = kept.get(key)
-    return str(one.get("at") or "") if isinstance(one, dict) else ""
-
-
 def raised(run: Pass, slug: str, record: Record) -> str:
     """What the root home is told of a leftover its own home did not close in time."""
     late_now = LATE.format(thread=record.thread, minutes=CLOSE_MINUTES)
@@ -264,6 +256,8 @@ def _judge(
 ) -> Record:
     """Return a leftover's record after this pass. The record says whether the home or the user
     has the leftover."""
+    from jbus.wakes import told
+
     thread = home_thread(run, brief)
     if not thread:
         return replace(record, why=NO_HOME)

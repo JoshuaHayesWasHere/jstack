@@ -1569,8 +1569,6 @@ def _wrong(
 
 
 USER, ROOT_HOME, CREW = "user", "root home", "crew"
-WAKES, WAKES_KIND = "wakes.json", "wakes"
-"""The one record of what a home was told, by thread (`jbus.wakes`), and its template."""
 CHECK_TOLD = ("failed", "refailed")
 """The outbox's templates that tell a crew its pull request's check failed (`jbus.rebase`)."""
 
@@ -1683,10 +1681,11 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
     if held and held.told and held.thread == one["to"]:
         return {"told": when(held.told), "what": leftover.KIND}
     key = key_of(one)
-    woken = ((read.table(WAKES) or {}).get("threads") or {}).get(one["to"]) or {}
-    for told in woken.values():
-        if isinstance(told, dict) and told.get("wrong") == key and when(told.get("at")):
-            return {"told": when(told["at"]), "what": WAKES_KIND}
+    from jbus import wakes
+
+    for told in wakes.told_to(read.table(wakes.FILE), one["to"]).values():
+        if told.get("wrong") == key and when(told.get("at")):
+            return {"told": when(told["at"]), "what": wakes.KIND}
     sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     for line in reversed(sent):
         at = when(line.get("at"))

@@ -28,7 +28,7 @@ from jbus.t3 import Client, T3Error
 from jbus.threads import ROLES
 from jbus.view import state
 from jbus.view.github import RUNS, shaped
-from jbus.watch import NOT_RED, _api, _failed_tests
+from jbus.watch import NOT_RED, _api, _log_failed
 from jmerge import mainjson
 
 if TYPE_CHECKING:
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 FILE = "wakes.json"
 KIND = "wakes"
+UNREAD = "unread"
 CREW = next(role for role in ROLES if role.name == "crew")
 MESSAGE = (
     "jbus: {count} new for this home in {project}, from the list of what is open:\n\n"
@@ -84,6 +85,19 @@ def kept(items: list[Item], seen: dict[str, Any], told: list[Item], at: str) -> 
     return record | {one.key: {"at": at, "wrong": one.wrong} for one in told}
 
 
+def told_to(record: Any, thread: str) -> dict[str, dict[str, str]]:
+    """What the one list told the thread, by item key, each as `{"at", "wrong"}`, from the record
+    `tell` keeps in `FILE`, `{"threads": {<thread>: {<key>: ...}}, "tests": ...}`."""
+    threads = record.get("threads") if isinstance(record, dict) else None
+    kept = (threads or {}).get(thread) if isinstance(threads, dict) else None
+    return {key: one for key, one in (kept or {}).items() if isinstance(one, dict)}
+
+
+def told(state_dir: Path, thread: str, key: str) -> str:
+    """When the one list told the thread of the item with this key, or nothing."""
+    return str(told_to(read_json(state_dir / FILE, {}), thread).get(key, {}).get("at") or "")
+
+
 @dataclass(frozen=True)
 class _Sources(state.Sources):
     """The view's sources of one project of a pass, whose home may have another name."""
@@ -128,29 +142,42 @@ def _woken(found: state.Read, one: dict) -> bool:
 
 
 class _Tests:
-    """The failing tests of red runs, read once a run from its failed jobs' logs."""
+    """The failing tests of red runs, read once a run from its failed jobs' logs. A run whose
+    tests cannot be read yet, its jobs or a failed job's log unanswered, is `UNREAD` for one pass,
+    and its red waits that pass. Still unread a pass later, it is keyed with no tests, and keeps
+    that key for its life, so one red never wakes a home twice."""
 
-    def __init__(self, run: Pass, kept: dict[str, list[str]]) -> None:
+    def __init__(self, run: Pass, kept: dict[str, Any]) -> None:
         self.run, self.kept, self.used = run, kept, {}
 
-    def of(self, url: str) -> list[str]:
+    def of(self, url: str) -> list[str] | None:
+        """Return the run's failing tests, or None while its red waits to have them read."""
         number = _RUN_ID.search(url or "")
         if not number:
             return []
         run_id = number[1]
-        if run_id not in self.kept:
-            asked = _api(self.run, f"repos/{{owner}}/{{repo}}/actions/runs/{run_id}/jobs")
-            if not isinstance(asked, dict):
-                return []
-            jobs = [
-                job
-                for job in asked.get("jobs") or []
-                if job.get("status") == "completed" and job.get("conclusion") not in NOT_RED
-            ]
-            failed = {test for job in jobs for test in _failed_tests(self.run, job.get("id"))}
-            self.kept[run_id] = sorted(failed)
+        if self.kept.get(run_id, UNREAD) == UNREAD:
+            read = self._read(run_id)
+            if read is None and run_id not in self.kept:
+                self.kept[run_id] = self.used[run_id] = UNREAD
+                return None
+            self.kept[run_id] = read or []
         self.used[run_id] = self.kept[run_id]
         return self.kept[run_id]
+
+    def _read(self, run_id: str) -> list[str] | None:
+        asked = _api(self.run, f"repos/{{owner}}/{{repo}}/actions/runs/{run_id}/jobs")
+        if not isinstance(asked, dict):
+            return None
+        failed = set()
+        for job in asked.get("jobs") or []:
+            if job.get("status") != "completed" or job.get("conclusion") in NOT_RED:
+                continue
+            said = _log_failed(self.run, job.get("id"))
+            if said is None:
+                return None
+            failed |= set(said.tests)
+        return sorted(failed)
 
 
 def red_key(tests: list[str]) -> str:
@@ -191,22 +218,27 @@ def _fixes(found: state.Read, row: str, lines: dict[str, str]) -> frozenset[str]
 
 def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
     """The items of the list from `state.wrongs`, each with the open item its cause is: a red
-    main's is the red at its tip, and a stalled row's is its own red."""
+    main's is the red at its tip, and a stalled row's is its own red. A red whose tests are not
+    read yet is on the list for no one this pass (`_Tests`), so what it causes still folds into
+    it."""
     wrongs = [one for one in found.once(state.wrongs) if one["owner"] != state.USER and one["to"]]
     keys, lines, reds = [], {}, {}
+    unread = set()
     for one in wrongs:
         failing = tests.of(_url(found, one)) if tests and one["kind"] == "ci" else []
+        if failing is None:
+            unread.add(len(keys))
         keys.append(red_key(failing) if failing else state.key_of(one).rsplit("|", 1)[0])
         lines[f"{one['kind']} {one['subj']}: {one['cause']}"] = keys[-1]
         if one["kind"] == "ci":
             reds[one["row"] or one["subj"]] = keys[-1]
     items = []
-    for key, one in zip(keys, wrongs, strict=True):
+    for at, (key, one) in enumerate(zip(keys, wrongs, strict=True)):
         cause = {"main": "main", state.STALLED: one["row"]}.get(one["kind"])
         items.append(
             Item(
                 key=key,
-                to=one["to"] if _woken(found, one) else "",
+                to=one["to"] if at not in unread and _woken(found, one) else "",
                 line=f"{one['kind']} {one['subj']}: {one['cause']}",
                 row=one["row"],
                 of=reds.get(cause, "") if cause else "",
@@ -267,7 +299,7 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     items = wrong_items(found, tests) + need_items(run, listed) + left_items(run)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
-        seen = threads.get(thread, {})
+        seen = told_to(record, thread)
         new = pick(items, seen, thread)
         told = new if new and _send(run, client, thread, new) else []
         threads[thread] = kept(items, seen, told, run.now.isoformat())
