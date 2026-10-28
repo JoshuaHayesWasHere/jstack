@@ -96,7 +96,12 @@ jbus tells this thread once for each head in conflict, so do not ask again.
 
 The file `crew-before-rebase` in the git directory is the record of a rebase from its start to its push. Its first line is the head before the rebase, the base, and the head the pull request had at GitHub when the rebase started. The push removes the file.
 
-If it stops, resolve the files it names and run `git rebase --continue` until the rebase is finished. A file that a command writes is never resolved by hand. The repo's `notes.md` names each one on a line `Generated: <file> -> <command>`, as jstack's does with `Generated: uv.lock -> uv lock`, and where it has no such line `uv.lock` is made by `uv lock`. Run this each time the rebase stops, with the block at the top. It names the files to resolve by hand first. Once those are resolved and added it takes the base's version of each generated file (during a rebase, `--ours` is the base being rebased onto) and runs its command, so the file is made from what both sides now ask for:
+If it stops, resolve the files it names and run `git rebase --continue` until the rebase is finished.
+A file that a command writes is never resolved by hand.
+The repo's `[[project]]` table in jbus's config names each one in its key `generated`, as `generated = ["uv.lock -> uv lock"]`, and where it names none `uv.lock` is made by `uv lock`.
+Run this each time the rebase stops, with the block at the top.
+It names the files to resolve by hand first.
+Once those are resolved and added it takes the base's version of each generated file (during a rebase, `--ours` is the base being rebased onto) and runs its command, so the file is made from what both sides now ask for:
 
 ```sh
 uv run --project "$T/../source" jmerge --remake

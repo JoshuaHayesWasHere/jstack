@@ -20,7 +20,8 @@ Apply each criterion to every finding:
 - Structural-mechanism check: when a test, a lint, a shell block in a skill, a script or a hook already enforces the rule or could enforce it cheaply, it is a plan entry, not an edit. Prose is for what a mechanism cannot enforce. A rule the thread had read and broke anyway is this case: more text will not hold it.
 - Skill-was-used: accept only findings that route to a skill, playbook, principle, template, hook or tool the thread used in the transcript. If a skill wasn't used but should have been, route to `tune description: <skill path>` when it loads by itself, or to the step that should have named it when it does not. If neither, reject as `skill-not-used`.
 - Already-covered: read the target file before accepting any edit row. If the proposal duplicates clear, well-placed existing guidance, reject as `already-covered`, because the issue is execution, not the text. If the existing guidance is buried, weak, or easy to skip past, accept the row but reframe the proposal as a wording / placement improvement that makes it fire (not a duplicate addition).
-- Short instruction files: nothing routes to `~/.claude/CLAUDE.md` or a repo's `CLAUDE.md` unless it is true of every session on the machine or in the repo. A standing rule of one repo is a line in that repo's `notes.md`, naming what enforces it.
+- Short instruction files: nothing routes to `~/.claude/CLAUDE.md` or a repo's `CLAUDE.md` unless it is true of every session on the machine or in the repo.
+  A standing rule of one repo is code: a check, a block or a skill's text, queued as a row, never a line in a file of the home's state.
 
 Drop (implementation details that drift):
 - "linter at SHA `bd91aa7` uses chars/4 heuristic"

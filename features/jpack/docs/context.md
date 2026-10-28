@@ -6,7 +6,9 @@ The skeleton is `features/jpack/templates/context/`.
 
 ## Where a pack lives
 
-A pack has one copy, in the repo it is about, at `<repo>/docs/context/`, and it changes only by a pull request there. No pack text is copied into jstack, into a home's `notes.md`, or into `standing.md`. That keeps a citation to the repo's commits checked beside that repo, and lets the repo's home change its own pack by its own pull requests.
+A pack has one copy, in the repo it is about, at `<repo>/docs/context/`, and it changes only by a pull request there.
+No pack text is copied into jstack, into a home's state, or into `standing.md`.
+That keeps a citation to the repo's commits checked beside that repo, and lets the repo's home change its own pack by its own pull requests.
 
 | File | Holds |
 |---|---|
@@ -26,10 +28,9 @@ jstack writes no repo's pack, and jbus edits none.
 The home skill's start ("See where things stand") prints `read whole: <checkout>/docs/context/INDEX.md` after `standing.md` and the handoff, when the file is there. The home reads the index whole and opens a note only when a step needs it. When what it knows disagrees, the first in this order wins:
 
 1. The user's word and `standing.md`.
-2. The home's `notes.md`.
-3. The source at its current revision.
-4. The pack.
-5. The model's memory, always labelled "from memory, not checked".
+2. The source at its current revision.
+3. The pack.
+4. The model's memory, always labelled "from memory, not checked".
 
 A pack line that a layer above it contradicts is reported, not acted on, and its fix is a pull request to the pack.
 

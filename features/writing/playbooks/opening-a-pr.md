@@ -14,7 +14,10 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 
 **One task, one pull request, from the worktree and branch the home gave you.** Its base is the default branch, and nothing is stacked on another task's branch, but for a link of a stack, whose brief says so (step 6). Work that turns out to be more than one pull request goes in the Result under "Noticed": the home splits it.
 
-1. Run the repo's check command (`notes.md` names it) until it passes. A heavy suite is run as `skills/crew/SKILL.md` "Do the task" says, by whoever it says. Where the repo has a verify skill, run it on what you changed. A pass is the real thing run and read, not "it compiles" (`principles/principle-prove-it-works.md`).
+1. Run the repo's check command (`$H/fresh-check`) until it passes.
+   A heavy suite is run as `skills/crew/SKILL.md` "Do the task" says, by whoever it says.
+   Where the repo has a verify skill, run it on what you changed.
+   A pass is the real thing run and read, not "it compiles" (`principles/principle-prove-it-works.md`).
 2. Read your own diff against the default branch once, as its first reader.
    Take out debug leftovers, anything outside the brief's **Where**, and every comment that narrates the change: a comment stays only for a why the code cannot show.
    The smallest diff that meets "Done when" ships (`principles/principle-laziness-protocol.md`).

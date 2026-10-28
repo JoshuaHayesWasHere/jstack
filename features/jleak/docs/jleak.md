@@ -59,7 +59,7 @@ A `-` in place of a file means the text piped in, and `--as <field>` gives the n
 Each finding is one line, `<file or field>:<line>: <pattern's name>`, and the last line is the count:
 
 ```text
-notes.md:3: user-name
+handoff.md:3: user-name
 secret-plan.md:0: private-repo
 2 findings
 ```
@@ -90,7 +90,7 @@ For each commit the destination does not have yet, it checks the message, each l
 ```text
 branch:1: user-name
 commit 1a2b3c4 message:3: private-repo
-commit 1a2b3c4 notes.md:12: home-path
+commit 1a2b3c4 handoff.md:12: home-path
 jleak: 3 findings, so the push is refused
 ```
 

@@ -6,7 +6,6 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 
 | File | Holds |
 |---|---|
-| `notes.md` | Facts about the repo that a new thread would otherwise relearn. A home reads it when a step needs one. No context pack text is copied here: a repo's pack is in its own checkout, at `<repo>/docs/context/` ([context.md](../../jpack/docs/context.md)). |
 | `standing.md` | Your standing rules for the repo's homes. A home reads it whole at its start. |
 | `tasks/<slug>.md` | A crewmate's brief, then its Result, then its Review. |
 | `scouts/<slug>.md` | A scout's request, then its report. |
@@ -14,7 +13,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `merge.log` | The lines `jmerge` printed, each after the time it was printed. |
 | `off` | Present when the automatic home is switched off for the repo. |
 | `merge-off` | Present when the automatic merge is switched off for the repo. |
-| `fresh-check` | Present when a pull request whose check started before main moved is proven over today's main on GitHub: `jmerge` asks GitHub to merge main into its branch, and the check at that head decides. No suite runs on this machine. Optional. |
+| `fresh-check` | The repo's check command, one line, which a crewmate runs once and `jbus queue add` holds a brief's check line to. Present, it also has a pull request whose check started before main moved proven over today's main on GitHub: `jmerge` asks GitHub to merge main into its branch, and the check at that head decides. No suite runs on this machine for a merge. Optional. |
 | `home-thread` | The sweep switch. With a thread id in it, the home runs `jmerge --sweep` at its start; empty or missing, nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. You write it by hand. |
 
 A home's own directory is the repo's directory for the root home, and `~/.local/state/home/<repo>/<scope>/` for a scoped one:
@@ -27,6 +26,7 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `gates.md` | Each question only you can answer, with the default taken. |
 | `blockers.json` | Each blocker this home briefed a fix of, by its key, with each fix queued for it: `jbus queue add` counts them against `retry_cap` ([Decisions](../../jbus/docs/jbus/decisions.md)). |
 | `home-id` | The home's thread id. The home's start writes it. |
+| `prefix` | A scoped home's slug prefix, such as `ux-`, which starts each of its briefs and requests. The root home writes it when it makes the scope. |
 | `log/` | Old handoffs, dated. |
 
 A thread messages its home only when the home has something to do.

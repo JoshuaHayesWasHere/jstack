@@ -179,7 +179,7 @@ For a span with no rows, the report prints that last part only when both `--sinc
 ## How jstack uses it
 
 The `home` skill runs `jgauge room` before a launch, the `pr-review` skill runs it before a review, and `jbus` runs it before each launch.
-A crewmate runs the check command that `notes.md` names.
+A crewmate runs the check command that the repo's `fresh-check` names.
 It runs that command once, under a test slot, as `jgauge check`, with the check command on stdin.
 A reviewer's proof runs in the short lane as `jgauge proof`, with the proof on stdin.
 A crewmate's targeted test runs run in the short lane, as `jgauge test-slot --short -- uv run pytest <files>`.

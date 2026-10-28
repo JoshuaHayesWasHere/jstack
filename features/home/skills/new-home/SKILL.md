@@ -53,7 +53,7 @@ else
     printf 'repo: %s\ncheckout: %s\nstate: %s\n' "$R" "$C" "$H"
     if [ -f "$H/plan.md" ]; then
         echo "1 state directory: already, $H has its plan.md"
-    elif mkdir -p "$H" && touch "$H/plan.md" "$H/notes.md"; then
+    elif mkdir -p "$H" && touch "$H/plan.md"; then
         echo "1 state directory: done, made $H"
     else
         echo "1 state directory: needs you: mkdir -p $H"
@@ -65,7 +65,9 @@ fi
 
 On `needs a repo`, `not a git repository` or `not a repo's home`, tell the user that line and stop: nothing was made. Otherwise keep the `repo:`, `checkout:` and `home-id:` lines for the steps below. The checkout is the repo's main checkout, also when the path typed is one of its worktrees.
 
-The directory is made as the home skill's first-home step makes it, with the same line: an empty `plan.md` and `notes.md`. `plan.md` is what says a home has started, so the home this skill launches is not told it is the first. `merge-seen` and `home-id` are the home's to write.
+The directory is made as the home skill's first-home step makes it, with the same line: an empty `plan.md`.
+`plan.md` is what says a home has started, so the home this skill launches is not told it is the first.
+`merge-seen` and `home-id` are the home's to write.
 
 ## 2. The T3 Code project
 

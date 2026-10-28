@@ -1,7 +1,8 @@
 """`jmerge --remake`: make each generated file of a stopped rebase again, from both sides.
 
-A file a command writes is never resolved by hand. The repo's `notes.md` names each one on a line
-`Generated: <file> -> <command>`, and where it has no such line `uv.lock` is made by `uv lock`.
+A file a command writes is never resolved by hand. The repo's `[[project]]` table in jbus's config
+names each one in its key `generated`, as `"<file> -> <command>"`, and where it names none `uv.lock`
+is made by `uv lock`.
 While a rebase is stopped, each file it stopped on that no line names is to resolve by hand, and
 those are named first. Once only generated files are left, each one takes the base's version
 (during a rebase, `--ours` is the base being rebased onto) and its command runs at the top of the
@@ -11,20 +12,26 @@ it each time the rebase stops.
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 
+import jbus
 from jmerge import gate
 
 DEFAULT = "uv.lock -> uv lock"
-GENERATED = re.compile(r"^[-* ]*Generated:\s*(.*)$")
 
 
-def table(notes: str) -> list[str]:
-    """The `Generated:` lines of the notes, with their backticks gone, or the default line."""
-    found = [m.group(1).replace("`", "") for m in map(GENERATED.match, notes.splitlines()) if m]
-    return found or [DEFAULT]
+def table(main: Path) -> list[str]:
+    """The `generated` lines of the project whose main checkout is `main`, or the default line
+    where jbus's config names none, or cannot be read."""
+    try:
+        config = jbus.load()
+    except jbus.Refused:
+        return [DEFAULT]
+    project = next(
+        (one for one in config.projects if one.checkout.resolve() == main.resolve()), None
+    )
+    return list(project.generated) if project and project.generated else [DEFAULT]
 
 
 def made_by(lines: list[str], file: str) -> str | None:
@@ -40,7 +47,7 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
 
-def remake(state: Path | None) -> list[str]:
+def remake() -> list[str]:
     """What the run did, a line each, as the crew skill reads it."""
     here = Path.cwd()
     asked = _git(here, "rev-parse", "--path-format=absolute", "--git-dir")
@@ -53,11 +60,8 @@ def remake(state: Path | None) -> list[str]:
     if top.returncode:
         return ["could not go to the top of the worktree: nothing made again"]
     top_dir = Path(top.stdout.strip())
-    try:
-        notes = (state / "notes.md").read_text(encoding="utf-8", errors="replace") if state else ""
-    except OSError:
-        notes = ""
-    lines = table(notes)
+    common = _git(here, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    lines = table(Path(common.stdout.strip()).parent)
     diff = _git(top_dir, "-c", "core.quotePath=false", "diff", "--name-only", "--diff-filter=U")
     stopped = [one for one in diff.stdout.splitlines() if one]
     by_hand = [one for one in stopped if made_by(lines, one) is None]

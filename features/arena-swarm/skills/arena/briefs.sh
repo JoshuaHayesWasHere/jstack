@@ -43,9 +43,9 @@ Task: "Make the artifact below on this branch, apart: another thread makes the s
 $(indent "$prompt")
 Done when:
 - the artifact is committed on this branch and pushed to \`origin/$slug-${1}\`, and no pull request is opened
-- the check command (\`notes.md\`) passes on it
+- the check command (\`\$H/fresh-check\`) passes on it
 - the Result names the alternatives it weighed and why each was set aside
-Proves it: \`git log origin/$slug-${1} --not origin/HEAD\` lists the candidate's commits, and the check command (\`notes.md\`) passes on them
+Proves it: \`git log origin/$slug-${1} --not origin/HEAD\` lists the candidate's commits, and the check command (\`\$H/fresh-check\`) passes on them
 Size: $size
 Where: $where
 Design: none, each runner makes the design itself, and the graft row $slug picks between the two

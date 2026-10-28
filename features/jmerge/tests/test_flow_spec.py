@@ -39,7 +39,7 @@ CITED = {
     "features/jbus/src/jbus/expedite.py:323": "ready.BROWSER_RED.pattern",
     "features/jbus/src/jbus/expedite.py:434": "world.open.items()",
     "scripts/select_tests.py:683-692,396": "lone = unowned()",
-    "features/crew/the-checks.md:81-86": "`jmerge` judges a red pull request again by itself",
+    "features/crew/the-checks.md:84-89": "`jmerge` judges a red pull request again by itself",
     "features/jbus/src/jbus/dispatch.py:322-354": "no room",
     "features/jbus/src/jbus/dispatch.py:500-502": "on = world.stack_on(run, unmerged, brief)",
     "features/jbus/src/jbus/rebase.py:276": "world.open.items()",

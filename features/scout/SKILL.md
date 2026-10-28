@@ -22,7 +22,9 @@ T=$(realpath ~/.claude/skills/scout/../../templates)
 
 ## Start
 
-1. Read `$H/scouts/<slug>.md` and `$H/notes.md`. From the rest of `$H`, read only what the request names. If the request does not exist and the message that started this thread has text below its first line, write that text, as is, to `$H/scouts/<slug>.md` and read it; otherwise say so and stop.
+1. Read `$H/scouts/<slug>.md`.
+   From the rest of `$H`, read only what the request names.
+   If the request does not exist and the message that started this thread has text below its first line, write that text, as is, to `$H/scouts/<slug>.md` and read it; otherwise say so and stop.
 2. Note what the checkout holds before you touch anything. Shell variables do not last from one call to the next, so run this in one call with the block at the top and `S` set to the slug:
 
    ```sh

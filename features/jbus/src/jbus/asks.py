@@ -166,10 +166,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         for line in ruled:
             print(line)
         try:
-            notes = (config.home(project) / "notes.md").read_text()
+            check = (config.home(project) / "fresh-check").read_text()
         except OSError:
-            notes = ""
-        warned = briefs.check_asked(text, notes)
+            check = ""
+        warned = briefs.check_asked(text, check)
         if warned:
             print(f"warning: {args.slug}'s {warned}")
         row = queue.fresh(state, args.slug)

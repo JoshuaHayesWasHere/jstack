@@ -129,7 +129,7 @@ def test_a_repo_is_found_by_its_folder_name_its_path_or_one_of_its_worktrees(mac
 
 
 def test_the_state_directory_is_the_one_the_home_skills_first_home_step_makes(machine):
-    line = 'mkdir -p "$H" && touch "$H/plan.md" "$H/notes.md"'
+    line = 'mkdir -p "$H" && touch "$H/plan.md"'
     assert line in block("home", "first home")
     assert line in block("new-home", "THE_TEXT_ENDS_HERE")
     machine.first("Winnie")
@@ -137,7 +137,7 @@ def test_the_state_directory_is_the_one_the_home_skills_first_home_step_makes(ma
     made = f"H={other}\nif {line}; then echo made; fi"
     assert subprocess.run(["sh", "-c", made], capture_output=True, text=True).stdout == "made\n"
     listed = [sorted((p.name, p.read_text()) for p in d.iterdir()) for d in (machine.state, other)]
-    assert listed[0] == listed[1] == [("notes.md", ""), ("plan.md", "")]
+    assert listed[0] == listed[1] == [("plan.md", "")]
 
 
 def test_a_folder_of_a_party_is_no_repos_home(machine):
@@ -153,7 +153,7 @@ def test_a_folder_of_a_party_is_no_repos_home(machine):
 
 def test_a_home_started_by_hand_gets_only_what_it_lacks(machine):
     machine.state.mkdir(parents=True)
-    for name, text in (("plan.md", ""), ("notes.md", ""), ("merge-seen", "0\n")):
+    for name, text in (("plan.md", ""), ("merge-seen", "0\n")):
         (machine.state / name).write_text(text)
     (machine.state / "home-id").write_text(f"{THREAD}\n")
     was = sorted(p.name for p in machine.state.iterdir())

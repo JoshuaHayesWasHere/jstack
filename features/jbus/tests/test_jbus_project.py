@@ -180,3 +180,27 @@ def test_a_project_names_the_directory_of_its_migrations_and_how_they_are_named(
 def test_a_directory_outside_the_checkout_or_an_unknown_naming_is_refused(tmp_path, lines):
     with pytest.raises(jbus.Refused, match="refused: project demo has migration"):
         settings(tmp_path, lines)
+
+
+@pytest.mark.parametrize(
+    ("lines", "want"),
+    [
+        ("", ()),
+        (
+            'generated = ["uv.lock -> uv lock", "a.json -> make a"]\n',
+            ("uv.lock -> uv lock", "a.json -> make a"),
+        ),
+    ],
+)
+def test_a_project_names_the_files_a_command_writes_or_none(tmp_path, lines, want):
+    (project,) = settings(tmp_path, lines).projects
+    assert project.generated == want
+
+
+@pytest.mark.parametrize(
+    "lines",
+    ['generated = "uv.lock -> uv lock"\n', 'generated = ["uv.lock"]\n', "generated = [1]\n"],
+)
+def test_a_generated_that_is_not_a_list_of_file_arrow_command_is_refused(tmp_path, lines):
+    with pytest.raises(jbus.Refused, match="refused: project demo has a generated that is not"):
+        settings(tmp_path, lines)

@@ -45,7 +45,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
        else
            printf 'root\ntitle: home: %s\n' "$R"
            if [ ! -f "$H/plan.md" ]; then
-               mkdir -p "$H" && touch "$H/plan.md" "$H/notes.md" && echo "first home: made $H"
+               mkdir -p "$H" && touch "$H/plan.md" && echo "first home: made $H"
            fi
        fi ;;
    esac
@@ -98,7 +98,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    Read `$H/standing.md` and `$M/handoff.md` whole, the user's standing rules and the note the last home left: the block below prints the path of each that is there.
    Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those two: read it whole as well.
    It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it.
-   When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then `$H/notes.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
+   When what you know disagrees, the first in this order wins: the user's word and `standing.md`, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
    A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`.
    A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../../jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
    Then run it in one call with the block at the top, the block that finds this home and the block that reads jbus ("Gates"), in the main checkout:
@@ -204,7 +204,16 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    It prints this home's part of what jbus and the files hold, each line cut at 110 characters, a line of the plan at 150 and one under `## to read` not at all, and each part at a few lines, with the command that prints the rest. Under `## plan`, one line for each entry of this home's plan: the slug, its one line, and its status. No status is written by hand, in the plan or anywhere else: `jbus plan` counts it from the entry's queue rows each time it is read, as `4 of 7 merged, #383 at pr, 1 queued not approved`. An entry with no row shows its `Stage:` line, and one from before shows its old line as `(typed) Status: ...`, which nobody checked. The plan is not read whole: read an entry's own section of `$M/plan.md` when you take that entry up, its "Done when" list and the user's words under `Decisions:`. On `no jbus plan`, read the file whole. Under `## queue`, what waits on the user, then each open row of this home's as its slug, status, pull request and why it waits. Under `## questions`, each open question of this home's, by its number. Under `## noticed`, each `Noticed` line of this home's briefs and requests that jbus keeps as new, by its key: mark each one once, with `jbus --project "$P" noticed take <key> --row <the queue row or plan entry it went to>` or `drop <key> --why <words>`, both with `--by` and `--at` as `queue remove` takes them. Under `## merged`, each `merged` line `jmerge` logged since this home's mark in `merge-seen`, which the merge step of step 5 moves, and not this block.
 
-   Under `## to read`, the last `## Result` or `## Report` heading of each brief and request that is this home's and that no home has marked read, at most eight: what came in that no home has read. A `## Review` or a `Finding:` line added under a heading that is marked shows nothing again. A home with no `$M/read-seen` yet marks every heading there is now, shows none, and says so: what came before the mark is the last homes'. Read each section it printed, then mark them read with the block below, and only then: a start cut off before the mark shows them to the next home again. A path under `read whole:` that ends in `handoff.next.md` is a note the last home wrote and was cut off before it put in place: read it too, for a gate only it holds. A brief or a request is this home's by what `whose` prints for it: a scoped home's when its `Home:` line names the scope, and the root home's when it has no such line or one that names no home. One written before, with a thread id on the line, is the home's whose `home-id` or whose handoff's `Was home:` line has that id. Read nothing else yet: not the log, not `plan.md`, not `$H/notes.md`. A step that needs a fact of the repo, its check command or a trap the notes name, reads `notes.md` then. The code is never the home's to read.
+   Under `## to read`, the last `## Result` or `## Report` heading of each brief and request that is this home's and that no home has marked read, at most eight: what came in that no home has read.
+   A `## Review` or a `Finding:` line added under a heading that is marked shows nothing again.
+   A home with no `$M/read-seen` yet marks every heading there is now, shows none, and says so: what came before the mark is the last homes'.
+   Read each section it printed, then mark them read with the block below, and only then: a start cut off before the mark shows them to the next home again.
+   A path under `read whole:` that ends in `handoff.next.md` is a note the last home wrote and was cut off before it put in place: read it too, for a gate only it holds.
+   A brief or a request is this home's by what `whose` prints for it: a scoped home's when its `Home:` line names the scope, and the root home's when it has no such line or one that names no home.
+   One written before, with a thread id on the line, is the home's whose `home-id` or whose handoff's `Was home:` line has that id.
+   Read nothing else yet: not the log, not `plan.md`.
+   A step that needs the repo's check command reads `$H/fresh-check` then.
+   The code is never the home's to read.
 
    Under them, each record another home kept for this one with `jbus noticed add --for`, which no home has marked: read it, and mark it once with `noticed take` or `drop`, as a line under `## noticed` is marked.
 

@@ -118,7 +118,7 @@ def test_a_codex_thread_in_t3_code_gets_the_line(scene):
 
 def test_a_state_directory_no_home_has_started_in_is_still_a_first_home(scene):
     (scene.home_dir / "tasks").mkdir(parents=True)
-    (scene.home_dir / "notes.md").write_text("- Check command: make check\n")
+    (scene.home_dir / "standing.md").write_text("- a standing rule\n")
     assert scene.start() == scene.said(first=True)
 
 
@@ -148,16 +148,16 @@ ROOT = f"root\ntitle: home: {NAME}\n"
 def test_the_home_skills_first_step_makes_the_home_the_hook_said_it_would(scene):
     assert scene.start() == scene.said(first=True)
     assert scene.run("home", first_step()) == f"{ROOT}first home: made {scene.home_dir}\n"
-    assert sorted(path.name for path in scene.home_dir.iterdir()) == ["notes.md", "plan.md"]
+    assert sorted(path.name for path in scene.home_dir.iterdir()) == ["plan.md"]
     assert scene.start() == scene.said(first=False)
     assert scene.run("home", first_step()) == ROOT
 
 
-def test_the_home_skills_first_step_keeps_the_notes_that_are_there(scene):
+def test_the_home_skills_first_step_keeps_the_files_that_are_there(scene):
     scene.home_dir.mkdir(parents=True)
-    (scene.home_dir / "notes.md").write_text("- Check command: make check\n")
+    (scene.home_dir / "fresh-check").write_text("make check\n")
     assert scene.run("home", first_step()) == f"{ROOT}first home: made {scene.home_dir}\n"
-    assert (scene.home_dir / "notes.md").read_text() == "- Check command: make check\n"
+    assert (scene.home_dir / "fresh-check").read_text() == "make check\n"
     assert (scene.home_dir / "plan.md").read_text() == ""
 
 

@@ -1823,9 +1823,9 @@ def parser() -> argparse.ArgumentParser:
         "--remake",
         action="store_true",
         help="while a rebase is stopped, name the files to resolve by hand, or make each "
-        "generated file again over the base's version, by the command the Generated: lines "
-        "of the state's notes.md give it (uv.lock by uv lock where none does); merge, remove "
-        "and log nothing",
+        "generated file again over the base's version, by the command the generated key of "
+        "the repo's [[project]] in jbus's config gives it (uv.lock by uv lock where none "
+        "does); merge, remove and log nothing",
     )
     instead.add_argument(
         "--gate",
@@ -1885,16 +1885,16 @@ def main(argv: list[str] | None = None) -> int:
         found = rangediff.verdict(Path.cwd(), before, head, args.base)
         print(f"{'clean' if found.clean else 'changed'}: {found.why}, by {found.command}")
         return 0
-    if args.remake or args.gate is not None:
-        found = state_of(Path.cwd())
-        if args.gate is not None:
-            if not args.gate:
-                raise SystemExit("jmerge: --gate takes the head the review keeps, not nothing")
-            if found is None:
-                raise SystemExit("jmerge: not in a git repository")
-            return merge_gate.review(found, args.gate, args.pr)
-        print("\n".join(remake.remake(found)))
+    if args.remake:
+        print("\n".join(remake.remake()))
         return 0
+    if args.gate is not None:
+        found = state_of(Path.cwd())
+        if not args.gate:
+            raise SystemExit("jmerge: --gate takes the head the review keeps, not nothing")
+        if found is None:
+            raise SystemExit("jmerge: not in a git repository")
+        return merge_gate.review(found, args.gate, args.pr)
     try:
         user = jsettings.load()
     except jsettings.Invalid as error:
