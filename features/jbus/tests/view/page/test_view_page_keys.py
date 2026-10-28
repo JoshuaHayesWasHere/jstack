@@ -3,16 +3,15 @@
 import pytest
 
 from testing.paths import REPO
+from view.days import TODAY, lineup
 from view.page.browser import (
     BROWSES,
     DESK,
     LAUNCH,
     PATIENCE,
     PHONE,
-    TODAY,
     a_day_of_threads,
     gated,
-    lineup,
     look,
 )
 from view.scene import stacked

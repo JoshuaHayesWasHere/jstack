@@ -7,16 +7,15 @@ import re
 import pytest
 
 from jbus import alert
+from view.days import TODAY, lineup
 from view.page.browser import (
     BROWSES,
     DESK,
     LAUNCH,
     PATIENCE,
     PHONE,
-    TODAY,
     WORDS,
     clean,
-    lineup,
     look,
     walked,
 )
