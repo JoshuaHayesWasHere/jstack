@@ -265,7 +265,6 @@ class Repo:
         self.gate = gate
         self.accepted: tuple[int, str] | None = None
         self.lifts: list[str] = []
-        self.carried: dict[int, str] = {}
         self.fetched = False
         self.through: int | None = None
         self.order: list[int] = []
@@ -749,8 +748,16 @@ class Repo:
             return red
         return self.base_merge.of(one, moved[0])
 
-    def proven_at(self, one: ready.PullRequest) -> str:
-        return self.carried.get(one.number) or one.head
+    def proven_at(self, one: ready.PullRequest, text: str) -> str:
+        """The head whose review proved the safety fact that holds at `one`'s head: that head's
+        own, else the last review's where the range-diff from its head to this one is clean, as
+        over a rebase, a `CI fix:` push or a merge of the base. A fix for the findings changes
+        the content, so no proof carries over it. The rule is the same in every review mode."""
+        last = proof.last(text)
+        if proof.fact(text, one.head) or not last or proof.fact(text, last) is None:
+            return one.head
+        verdict = self.range_diff(last, one.head, one.base, stacks.of(text))
+        return last if verdict.clean else one.head
 
     def waits(self, one: ready.PullRequest, default: str) -> Judgement:
         found = self.judge(one, default)
@@ -777,7 +784,6 @@ class Repo:
 
     def judged(self, one: ready.PullRequest, default: str, red: str = "") -> Judgement:
         brief = ready.brief_of(one.url, self.state / "tasks")
-        self.carried.pop(one.number, None)
         if brief is None:
             return Judgement("", "wait", ready.DRAFT if one.draft else ready.NO_BRIEF, "", None)
         text = _read(brief)
@@ -826,8 +832,6 @@ class Repo:
         elif reviewed:
             verdict = self.range_diff(reviewed, one.head, one.base, stacked)
             short = ready.short_on_content(verdict)
-            if not short:
-                self.carried[one.number] = reviewed
             note = ready.rebase_note(verdict) if rebase is None or rebase.did == "changed" else ""
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
@@ -1089,7 +1093,7 @@ class Repo:
             say(f"refused {about}: its hold {held}, and its head is {one.head[:12]}")
             return 1
         text = _read(self.state / "tasks" / f"{first.slug}.md")
-        at = self.proven_at(one)
+        at = self.proven_at(one, text)
         proven = proof.fact(text, at)
         if proven is None:
             say(f"refused {about}: {proof.short(text, at)}")

@@ -25,6 +25,11 @@ def _reviews(text: str) -> list[tuple[str, str]]:
     return [(head, said) for head, said in found]
 
 
+def last(text: str) -> str:
+    """The head of the last review that names one."""
+    return next((head for head, _ in reversed(_reviews(text)) if head), "")
+
+
 def fact(text: str, head: str) -> tuple[str, str] | None:
     said = next((said for at, said in reversed(_reviews(text)) if head and at == head), "")
     ended = [m for m in _EXIT.finditer(said) if m["ends"] is not None]
