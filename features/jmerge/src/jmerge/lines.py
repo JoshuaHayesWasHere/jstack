@@ -118,10 +118,11 @@ def ready(number: int, head: str, branch: str, slug: str, notes: Sequence[str]) 
 
 NOT_REINSTALLED = "the tool {tool} was not reinstalled after its package list changed ({why})"
 NOT_INSTALLED = "the install was not run again after the merge changed what it assembles ({why})"
+NOT_PULLED = "the main checkout was not pulled after the merge ({why})"
 UNFOLLOWED = re.compile(
     "|".join(
         re.escape(note).replace(r"\{tool\}", r"\S+").replace(r"\{why\}", ".*?") + "(?=, )"
-        for note in (NOT_REINSTALLED, NOT_INSTALLED)
+        for note in (NOT_REINSTALLED, NOT_INSTALLED, NOT_PULLED)
     )
 )
 
@@ -150,6 +151,13 @@ def not_installed(why: str) -> str:
     return NOT_INSTALLED.format(why=why)
 
 
+def not_pulled(why: str) -> str:
+    """The note of a merge after which `git pull --ff-only` failed in the main checkout. The
+    checkout stays behind the default branch, and nothing that follows the pull runs, until
+    someone pulls it."""
+    return NOT_PULLED.format(why=why)
+
+
 SKILLS = "skills changed: {names}"
 _SKILLS = re.compile(re.escape(SKILLS).replace(r"\{names\}", "([a-z0-9][a-z0-9 -]*)") + "(?=, )")
 
@@ -167,6 +175,6 @@ def skills_of(text: str) -> tuple[str, ...]:
 
 
 def unfollowed(text: str) -> str:
-    """The `not_reinstalled` and `not_installed` notes of a `merged` line, or an empty string
-    when the line has neither note."""
+    """The `not_reinstalled`, `not_installed` and `not_pulled` notes of a `merged` line, or an
+    empty string when the line has none of them."""
     return "; ".join(found[0] for found in UNFOLLOWED.finditer(text))
