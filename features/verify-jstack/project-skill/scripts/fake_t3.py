@@ -5,6 +5,8 @@ keeps everything it is told under the directory it is given:
 
     port          the port it listens on, written once it is ready
     threads.json  the threads it has, which a drive may edit between passes
+    messages.json the messages a drive gives a thread, by thread id, which `t3_thread_read`
+                  returns when jbus asks for one by its item id, as `jbus word --message` does
     calls.jsonl   one line for each tool call jbus made, with its arguments
     wake.jsonl    one line for each wake jbus sent a home thread, with the body it carried
 
@@ -49,6 +51,10 @@ class Fake:
     def threads(self) -> list[dict[str, Any]]:
         return json.loads(self.path.read_text())
 
+    def messages(self) -> dict[str, list[dict[str, Any]]]:
+        path = self.directory / "messages.json"
+        return json.loads(path.read_text()) if path.exists() else {}
+
     def keep(self, threads: list[dict[str, Any]]) -> None:
         self.path.write_text(json.dumps(threads, indent=2) + "\n")
 
@@ -69,7 +75,13 @@ class Fake:
             listed = [{k: v for k, v in t.items() if k != "branch"} for t in found]
             return {"projectId": given.get("projectId"), "threads": listed, "nextCursor": None}
         if name == "t3_thread_read":
-            return {"thread": by_id[given["threadId"]], "recentRuns": [], "items": []}
+            thread = given["threadId"]
+            if "itemId" in given:
+                said = self.messages().get(thread, [])
+                items = [one for one in said if one["itemId"] == given["itemId"]]
+                found = by_id.get(thread, {"threadId": thread, "title": "home: demo"})
+                return {"thread": found, "recentRuns": [], "items": items}
+            return {"thread": by_id[thread], "recentRuns": [], "items": []}
         if name == "t3_thread_send":
             if given["clientRequestId"].startswith("wake|"):
                 body = given["message"].split("```json\n", 1)[1].split("\n```", 1)[0]

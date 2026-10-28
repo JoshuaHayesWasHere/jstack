@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from jbus.health import PREFIX
-from test_verify_jstack import SCRIPTS, inside, launch
+from test_verify_jstack import SCRIPTS, inside, launch, says
 
 GATE = """## Gate <n>: tea or coffee?
 Status: open
@@ -129,7 +129,7 @@ def fix(slug, key, green="When green: `check` passes on the fix's pull request a
 
 
 def at_zoned():
-    """Now in this machine's time zone, as `jbus word --at` takes it: jbus holds a typed time
+    """Now in this machine's time zone, as `jbus queue remove --at` takes it: jbus holds a typed time
     to its own clock, which the sandbox does not fake."""
     return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
@@ -141,9 +141,9 @@ def brief_sha(sandbox, slug):
 
 
 def approve(sandbox, slug):
-    """Approve a row on the user's word, as `jbus word` keeps it."""
-    at = f'--at "{at_zoned()}"'
-    said = run(sandbox, f"jbus word --to demo --by user {at} go {slug}").stdout.split()
+    """Approve a row on the user's word, as `jbus word` keeps it from the user's message."""
+    ref = says(sandbox, f"go {slug}", message=f"m-go-{slug}")
+    said = run(sandbox, f"jbus word --to demo --message {ref}").stdout.split()
     sha = brief_sha(sandbox, slug)
     return run(sandbox, f"jbus queue approve {slug} --sha {sha} --word {said[-1]}")
 

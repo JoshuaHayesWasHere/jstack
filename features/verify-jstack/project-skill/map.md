@@ -18,7 +18,7 @@ Read this index before a drive, then use the matching feature file as the recipe
 
 - Treat every command as literal. Keep slugs, quotes and flags unchanged.
 - Put `record <feature file's name>` in front of each command that is part of the proof.
-- Reach jstack's own state through its commands. Edit by hand only the outside world: `gh/*.json`, `t3/threads.json`, `machine/proc/loadavg`, `machine/limits`, and the briefs a thread would write.
+- Reach jstack's own state through its commands. Edit by hand only the outside world: `gh/*.json`, `t3/threads.json`, `t3/messages.json`, `machine/proc/loadavg`, `machine/limits`, and the briefs a thread would write.
 - Start each recipe from a sandbox that has had no `jbus poll` unless its preconditions say otherwise.
 - Run `"$VERIFY_JSTACK_SCRIPTS/cleanup.sh"` when the recipe ends, and when it fails.
 
