@@ -27,6 +27,13 @@ The routes that read are `routes()`, all `GET`:
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
 
+Each answer the server builds from the state for the page and the feed, the stack, a project's
+state or a panel and the feed's needs, has one build running at a time, which every request for
+it joins.
+A request waits for it at most `shared.PATIENCE` seconds, then takes the last answer built, or
+503 where there is none yet (`shared`). So a build that is slow, or never ends, holds no later
+request, and requests that come faster than a build ends do not each start one more.
+
 The two writes are `WRITES`, `POST /answer` and `POST /approve`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
 have, gets 404. A panel may take writes of its own, `POST /panel/<panel>/<write>`, held to the
@@ -131,6 +138,7 @@ from jbus.bind import NoLookup
 from jbus.view import feeds, panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
+from jbus.view.shared import PATIENCE, Busy, Shared
 from jbus.view.state import Sources
 from jbus.view.writes import (
     ACT,
@@ -378,6 +386,11 @@ class App(Writes):
         state.keys(self.panels)
         self.code = Code(panels=tuple(panel.name for panel in self.panels))
         self.github = GitHub(self.clock)
+        self.shared, self.patience = Shared(), PATIENCE
+
+    def _shared(self, key: Any, build: Callable[[], Any]) -> Any:
+        """The answer `key` names, from its one build at a time (`shared`)."""
+        return self.shared.get(key, build, self.patience)
 
     def _project(self, query: dict[str, list[str]]) -> str | None:
         """The project an address names with `?project=`, or None where it names no project,
@@ -399,6 +412,28 @@ class App(Writes):
 
         built = state.stack(self.sources, self.clock(), runs, self.code.said(), self.panels, names)
         return clean(built, tuple(repos))
+
+    def _needs(self, name: str) -> list[dict[str, Any]]:
+        """What waits on the user in one project, for the feed (`state.needs`)."""
+
+        def build() -> list[dict[str, Any]]:
+            return state.needs(self.sources, name, self.clock(), self.github.runs, self.panels)
+
+        return self._shared(("needs", name), build)
+
+    def _read(self, name: str, panel: str | None) -> dict[str, Any] | None:
+        """What `/state.json` holds for one project, or what one panel of it builds."""
+        read = state.Read(
+            self.sources,
+            name,
+            self.clock(),
+            self.github.runs,
+            self.code.said(),
+            self.panels,
+            merged=self.github.merged,
+            landed=self.github.landed,
+        )
+        return read.asked(panel) if panel else read.answer()
 
     def _across(self, name: str) -> dict[str, Any] | None:
         """What `/panel/<name>.json` with no project holds for a panel that is `alone`: what its
@@ -430,6 +465,13 @@ class App(Writes):
         return clean(built, tuple(sorted({state.repo(self.sources, one) for one in names} - {""})))
 
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:
+        """The answer to a `GET`, or 503 where the build it needs has not given one in time."""
+        try:
+            return self._get(path, query)
+        except Busy:
+            return said(503, {"error": "the server is still building this answer, ask again"})
+
+    def _get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
             return Answer(200, page(self.panels), HTML)
         if path == "/font.woff2":
@@ -437,9 +479,9 @@ class App(Writes):
         if path == "/healthz":
             return said(200, {"ok": True})
         if path == "/stack.json":
-            return said(200, self._stack())
+            return said(200, self._shared(("stack",), self._stack))
         if path == "/feed":
-            return feeds.answer(self.sources, query, self.clock, self.github.runs, self.panels)
+            return feeds.answer(self.sources, query, self._needs)
         if path == "/digest.json":
             try:
                 since = digest.since(query.get("since", [""])[-1] or None, self.sources.user)
@@ -450,25 +492,18 @@ class App(Writes):
             repos = tuple(state.repo(self.sources, project.name) for project in config.projects)
             return said(200, clean(built, repos))
         task, panel = _TASK.fullmatch(path), _PANEL.fullmatch(path)
+        if panel and panel[1] not in {one.name for one in self.panels}:
+            return NOT_FOUND
         if panel and not query.get("project", [""])[-1]:
-            built = self._across(panel[1])
+            built = self._shared(("across", panel[1]), lambda: self._across(panel[1]))
             return NOT_FOUND if built is None else said(200, built)
         name = self._project(query)
         if name is None or not (task or panel or path == "/state.json"):
             return NOT_FOUND
         repo = state.repo(self.sources, name)
         if not task:
-            read = state.Read(
-                self.sources,
-                name,
-                self.clock(),
-                self.github.runs,
-                self.code.said(),
-                self.panels,
-                merged=self.github.merged,
-                landed=self.github.landed,
-            )
-            built = read.asked(panel[1]) if panel else read.answer()
+            asked = panel[1] if panel else None
+            built = self._shared(("read", name, asked), lambda: self._read(name, asked))
             return NOT_FOUND if built is None else said(200, clean(built, (repo,)))
         pulls = state.pulls(self.sources, name)
         if task[1] not in pulls:

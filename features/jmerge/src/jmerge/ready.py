@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import re
 import string
 from collections import Counter
@@ -49,8 +50,11 @@ class Reason(str):
     def format(self, *args: object, **kwargs: object) -> Reason:
         return Reason(self.step, super().format(*args, **kwargs), self.code)
 
-    @property
+    @functools.cached_property
     def pattern(self) -> str:
+        """The reason's text as a pattern, each field a value. It is made once for each reason:
+        the view reads a step of every line of the logs, and making it on each read held each
+        of its answers for seconds."""
         return "".join(
             re.escape(literal) + (_VALUE if name is not None else "")
             for literal, name, _, _ in string.Formatter().parse(self)
