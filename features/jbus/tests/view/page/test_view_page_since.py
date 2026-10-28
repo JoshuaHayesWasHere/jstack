@@ -3,9 +3,8 @@ what jbus kept and keeps the time of the visit, and a visit after three merges a
 names the three, newest first, and the row newly stuck. The time is all the page keeps, in the
 browser's own storage, and it sends it nowhere."""
 
-import re
-
 import json
+import re
 from pathlib import Path
 
 import pytest

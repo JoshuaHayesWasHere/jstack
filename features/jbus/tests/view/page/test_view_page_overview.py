@@ -423,7 +423,9 @@ def planned(scene):
 def desk(scene, tmp_path, screen=DESK, **how):
     """What the probe of the desk overview, `OVERVIEW`, read of `#/`: each part with its box, its
     words and what in it is cut, once every part has drawn."""
-    seen = look(scene, tmp_path, route="#/", screen=screen, script=OVERVIEW, at=8000, budget=12000, **how)
+    seen = look(
+        scene, tmp_path, route="#/", screen=screen, script=OVERVIEW, at=8000, budget=12000, **how
+    )
     assert seen["errors"] == []
     assert seen["scrollWidth"] == screen[0]
     return seen
@@ -443,7 +445,11 @@ def test_at_a_desk_every_ranked_question_is_answered_above_the_fold_of_the_t_mom
             part = parts.get(name)
             assert part, f"{question}: {name} is not drawn"
             assert part["text"] and not part["text"].startswith("Asking"), (question, name, part)
-            assert 0 <= part["box"]["top"] < part["box"]["bottom"] <= DESK[1], (question, name, part)
+            assert 0 <= part["box"]["top"] < part["box"]["bottom"] <= DESK[1], (
+                question,
+                name,
+                part,
+            )
     said = {name: part["text"].lower() for name, part in parts.items()}
     assert said["glance:band"].startswith("moving")
     assert said["you:tile"].startswith("needs you 4")
