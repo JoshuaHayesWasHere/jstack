@@ -182,7 +182,10 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
     assert all(row["seen"] and not row["quiet"] for row in stack["rows"])
     assert [(row["name"], row["counts"]) for row in stack["rows"]] == [
         ("larder", "0 open"),
-        ("demo", "9 open · 3 wait on you · 1 on default"),
+        (
+            "demo",
+            "9 open · 3 wait on you · check: 0 failing, 1 running or queued, 0 passed · 1 on default",
+        ),
         ("pantry", "2 open · 1 waits on you"),
     ]
     assert stack["rows"][0]["why"] == "CI could not be read, GitHub cannot be read"
