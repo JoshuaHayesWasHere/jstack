@@ -424,12 +424,13 @@ def load(directory: Path | None = None) -> Config:
 
 
 @contextmanager
-def locked(state: Path, name: str) -> Iterator[None]:
+def locked(state: Path, name: str, wait: bool = True) -> Iterator[None]:
     """Hold the lock file `name` under `state` from a state file's read to its write, so that no
-    other pass or verb writes the file between the two."""
+    other pass or verb writes the file between the two. With `wait` False, a lock another holds
+    raises `BlockingIOError` at once."""
     state.mkdir(parents=True, exist_ok=True)
     with open(state / name, "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        fcntl.flock(lock, fcntl.LOCK_EX if wait else fcntl.LOCK_EX | fcntl.LOCK_NB)
         yield
 
 

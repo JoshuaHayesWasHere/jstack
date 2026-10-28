@@ -42,6 +42,14 @@ class Replay:
             return self.annotations.get(int(found[1]), [])
         raise Unavailable(path)
 
+    def page(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
+        """The one page of `path`: the recording is one page of pull requests, and it has no
+        other page."""
+        if re.search(r"/pulls\?", path) and not path.endswith("&page=1"):
+            self.asked.append(path)
+            return []
+        return self.pages(path, key)
+
     def log(self, repo: str, job: int) -> str:
         if str(job) not in self.logs:
             raise Unavailable(str(job))

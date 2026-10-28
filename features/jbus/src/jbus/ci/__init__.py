@@ -14,6 +14,12 @@ machine's own zone.
 
 `--notice` is for a CI job: it prints the annotation that gives the collector the job's
 telemetry (`jbus.ci.notice`), and needs no config.
+
+Each pass of jbus keeps the ledger too, near the end of the pass (`STEPS`): it collects the runs of
+the last few hours (`collect.keep`) through the pass's own `gh`, in the project's checkout, while
+GitHub answered the pass and its API budget is above the floor. A pass whose collect GitHub did not
+answer, or answered in a shape the collector does not read, says so and goes on, and so does one
+whose collect `jbus ci` holds the ledger for.
 """
 
 from __future__ import annotations
@@ -22,14 +28,20 @@ import argparse
 import subprocess
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import jbus
 from jbus import verbs
 from jbus.ci import collect, ledger, notice, numbers, report
 
+if TYPE_CHECKING:
+    from jbus.cli import Half
+
 DAYS = 14
 WEEK = 7
 REMOTE = "origin"
+HERE = "{owner}/{repo}"
+"""The repo as `gh` reads it from the checkout it runs in."""
 
 
 def repo_of(checkout: Path) -> str:
@@ -135,3 +147,16 @@ VERBS = (
         "ci", "keep CI's job minutes and hold them to nine targets", _arguments, run, config=False
     ),
 )
+
+
+def _keep(half: Half) -> None:
+    """Keep the ledger of the pass's project, through the pass's own `gh` in its checkout."""
+    run = half.run
+    gh = collect.Cli(lambda command: run.run(*command))
+    try:
+        collect.keep(gh, HERE, run.state, run.now)
+    except (collect.Unavailable, KeyError, TypeError) as error:
+        run.say(f"ci: {run.project.name}: no job kept this pass: {str(error)[:200]}")
+
+
+STEPS = (verbs.Step("close", 80, "ci.keep", _keep, ("world", "budget")),)

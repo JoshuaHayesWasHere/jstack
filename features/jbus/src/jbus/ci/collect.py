@@ -1,17 +1,27 @@
 """Ask GitHub for a project's Actions jobs and pull requests, and keep them (`jbus.ci.ledger`).
 
-Every call is a read through `gh api`. The collector reads the repo's workflow runs of the last
-`days` days and the pull requests. For each run it reads the jobs the ledger does not keep yet, with
-`filter=all` so that it gets every attempt of a rerun. For each pull request it reads the timeline,
-where a force-push of its branch is an event. For a red job on a local runner it reads the log once,
-for the failing tests the log names and the runner faults the log shows.
+Every call is a read through `gh api`. The collector reads the repo's workflow runs created since a
+time and the pull requests updated since then. For each run that completed it reads the jobs the
+ledger does not keep yet, with `filter=all` so that it gets every attempt of a rerun. For each pull
+request whose update the ledger has not kept, it reads the timeline, where a force-push of its branch
+is an event: one the ledger kept at the same update keeps its force-pushes. The pull requests come a
+page at a time, the latest update first, and the collector stops at the first page that reaches back
+past the time. For a red job on a local runner it reads the log once, for the failing tests the log
+names and the runner faults the log shows.
+
+`jbus ci` collects the last `days` days (`collect`) and waits for the ledger's lock. Each pass of
+jbus collects too (`keep`, from the step in `jbus.ci`): the runs created in the last `PASS_HOURS`
+hours, at most `PASS_RUNS` new runs, so that a pass after a gap catches up over a few passes. It
+never waits for the lock: while `jbus ci` holds it, the pass collects nothing. A run that completes
+more than `PASS_HOURS` after it was created is kept by the next `jbus ci`.
 
 The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
 API returns only its annotations, since the API cannot read a job summary. The telemetry is an
 annotation titled `jstack-ci` whose message is a JSON object (`jbus.ci.notice` writes it).
 
-`Gh` is the interface to GitHub: `Cli` asks GitHub, and a test passes a `Gh` that replays
-a recording.
+`Gh` is the interface to GitHub: `Cli` asks GitHub through `gh`, by itself or through a pass's
+own runner, and a test passes a `Gh` that replays a recording. An answer that is not JSON, or not
+the shape the path gives, is `Unavailable`, as a GitHub that does not answer is.
 """
 
 from __future__ import annotations
@@ -19,8 +29,9 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -29,6 +40,9 @@ from jbus import locked
 from jbus.ci import ledger
 
 TITLE = "jstack-ci"
+PAGE = 100
+PASS_HOURS = 3
+PASS_RUNS = 30
 HOSTED = re.compile(r"^(ubuntu|windows|macos)-")
 EVIDENCE = re.compile(r"^(FAILED|ERROR|E  |##\[error\])")
 FAILING = re.compile(r"^(?:FAILED|ERROR) (\S+::\S+)")
@@ -53,10 +67,12 @@ class Unavailable(Exception):
 
 
 class Gh(Protocol):
-    """A `Gh` asks GitHub. `pages` returns the list GitHub gives for a path. When each page is
-    an object, the list is under `key` in it."""
+    """A `Gh` asks GitHub. `pages` returns the list GitHub gives for a path over every page, and
+    `page` the list of its one page. When each page is an object, the list is under `key` in it."""
 
     def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]: ...
+
+    def page(self, path: str, key: str | None = None) -> list[dict[str, Any]]: ...
 
     def log(self, repo: str, job: int) -> str: ...
 
@@ -68,25 +84,44 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
         raise Unavailable(str(error)[:200]) from error
 
 
+def _listed(page: Any, key: str | None) -> list[dict[str, Any]]:
+    """The list of one page, under `key` where the page is an object."""
+    found = (page.get(key) if isinstance(page, dict) else None) if key else page
+    if not isinstance(found, list) or not all(isinstance(one, dict) for one in found):
+        raise Unavailable("GitHub gave a page of another shape")
+    return found
+
+
 class Cli:
-    """Ask GitHub through `gh api`, one call at a time, and only read."""
+    """Ask GitHub through `gh api`, one call at a time, and only read. `ask` runs the command:
+    by itself, or as a pass of jbus runs it, in the project's checkout."""
 
-    def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
-        asked = _run(["gh", "api", "--paginate", "--slurp", path])
-        if asked.returncode:
-            raise Unavailable(" ".join(asked.stderr.split())[:200] or f"gh exit {asked.returncode}")
-        found: list[dict[str, Any]] = []
-        for page in json.loads(asked.stdout):
-            found.extend(page[key] if key else page)
-        return found
+    def __init__(self, ask: Callable[[list[str]], subprocess.CompletedProcess[str]] = _run):
+        self.ask = ask
 
-    def log(self, repo: str, job: int) -> str:
-        asked = _run(
-            ["gh", "api", "--allow-escape-sequences", f"repos/{repo}/actions/jobs/{job}/logs"]
-        )
+    def _said(self, *args: str) -> str:
+        asked = self.ask(["gh", "api", *args])
         if asked.returncode:
             raise Unavailable(" ".join(asked.stderr.split())[:200] or f"gh exit {asked.returncode}")
         return asked.stdout
+
+    def _json(self, *args: str) -> Any:
+        try:
+            return json.loads(self._said(*args))
+        except ValueError as error:
+            raise Unavailable("GitHub gave no JSON") from error
+
+    def pages(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
+        every = self._json(path, "--paginate", "--slurp")
+        if not isinstance(every, list):
+            raise Unavailable("GitHub gave no list of pages")
+        return [one for page in every for one in _listed(page, key)]
+
+    def page(self, path: str, key: str | None = None) -> list[dict[str, Any]]:
+        return _listed(self._json(path), key)
+
+    def log(self, repo: str, job: int) -> str:
+        return self._said(f"repos/{repo}/actions/jobs/{job}/logs", "--allow-escape-sequences")
 
 
 @dataclass(frozen=True)
@@ -201,56 +236,88 @@ def row(
     return made
 
 
-def pulls(gh: Gh, repo: str, since: datetime) -> list[dict[str, Any]]:
+def _pushes(gh: Gh, repo: str, number: int) -> list[str]:
+    timeline = gh.pages(f"repos/{repo}/issues/{number}/timeline?per_page=100")
+    return sorted(x["created_at"] for x in timeline if x.get("event") == "head_ref_force_pushed")
+
+
+def pulls(
+    gh: Gh, repo: str, since: datetime, held: dict[int, dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
     """Return the pull requests updated since `since`, each with the times someone
-    force-pushed its branch."""
-    found = gh.pages(f"repos/{repo}/pulls?state=all&sort=updated&direction=desc&per_page=100")
-    kept = []
-    for one in found:
-        updated = _time(one.get("updated_at") or one.get("created_at"))
-        if updated is not None and updated < since:
-            continue
-        timeline = gh.pages(f"repos/{repo}/issues/{one['number']}/timeline?per_page=100")
-        kept.append(
-            {
-                "number": one["number"],
-                "branch": one["head"]["ref"],
-                "head": one["head"]["sha"],
-                "created": one["created_at"],
-                "merged": one.get("merged_at"),
-                "closed": one.get("closed_at"),
-                "merge_commit": one.get("merge_commit_sha") if one.get("merged_at") else None,
-                "pushes": sorted(
-                    x["created_at"] for x in timeline if x.get("event") == "head_ref_force_pushed"
-                ),
-            }
-        )
-    return kept
+    force-pushed its branch. A page at a time, the latest update first, up to the first page
+    that reaches back past `since`. One that `held` keeps at the same update keeps its
+    force-pushes, and its timeline is not read again."""
+    held = held or {}
+    kept, number = [], 1
+    while True:
+        path = f"repos/{repo}/pulls?state=all&sort=updated&direction=desc&per_page={PAGE}"
+        found = gh.page(f"{path}&page={number}")
+        for one in found:
+            stamp = one.get("updated_at")
+            updated = _time(stamp or one.get("created_at"))
+            if updated is not None and updated < since:
+                continue
+            was = held.get(one["number"], {})
+            same = bool(stamp) and was.get("updated") == stamp
+            kept.append(
+                {
+                    "number": one["number"],
+                    "branch": one["head"]["ref"],
+                    "head": one["head"]["sha"],
+                    "created": one["created_at"],
+                    "updated": stamp,
+                    "merged": one.get("merged_at"),
+                    "closed": one.get("closed_at"),
+                    "merge_commit": one.get("merge_commit_sha") if one.get("merged_at") else None,
+                    "pushes": was["pushes"] if same else _pushes(gh, repo, one["number"]),
+                }
+            )
+        last = found[-1] if found else {}
+        oldest = _time(last.get("updated_at") or last.get("created_at"))
+        if len(found) < PAGE or (oldest is not None and oldest < since):
+            return kept
+        number += 1
 
 
 def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
     """Add to the ledger the jobs of the last `days` days that it does not have yet. Also keep
-    the pull requests."""
+    the pull requests. It waits for another collector to end first."""
     with locked(state, ledger.LOCK):
-        return _collect(gh, repo, state, now, days)
+        return _collect(gh, repo, state, now - timedelta(days=days))
 
 
-def _collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
-    since = now - timedelta(days=days)
+def keep(gh: Gh, repo: str, state: Path, now: datetime) -> Counts | None:
+    """What a pass collects: the runs of the last `PASS_HOURS` hours, at most `PASS_RUNS` new
+    ones. None where another collector holds the ledger, which the pass does not wait for."""
+    try:
+        with locked(state, ledger.LOCK, wait=False):
+            return _collect(gh, repo, state, now - timedelta(hours=PASS_HOURS), PASS_RUNS)
+    except BlockingIOError:
+        return None
+
+
+def _collect(gh: Gh, repo: str, state: Path, since: datetime, most: int | None = None) -> Counts:
+    """Keep the pull requests and the jobs of the runs created since `since`, of at most `most`
+    new runs. The pull requests' file is written only where one of them changed, and each run's
+    jobs as soon as they are read, so a collector stopped half way keeps what it read."""
     held = {one["number"]: one for one in ledger.read(state / ledger.PULLS)}
-    for one in pulls(gh, repo, since):
-        held[one["number"]] = one
-    everyone = sorted(held.values(), key=lambda one: one["number"])
-    ledger.rewrite(state / ledger.PULLS, everyone)
-    kept = ledger.read(state / ledger.JOBS)
-    seen = {(one["run"], one["attempt"]) for one in kept}
+    now_held = held | {one["number"]: one for one in pulls(gh, repo, since, held)}
+    everyone = sorted(now_held.values(), key=lambda one: one["number"])
+    if now_held != held:
+        ledger.rewrite(state / ledger.PULLS, everyone)
+    seen = {(one["run"], one["attempt"]) for one in ledger.read(state / ledger.JOBS)}
+    stamp = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     runs = gh.pages(
-        f"repos/{repo}/actions/runs?per_page=100&created=%3E%3D{since:%Y-%m-%d}", "workflow_runs"
+        f"repos/{repo}/actions/runs?per_page={PAGE}&created=%3E%3D{stamp}", "workflow_runs"
     )
+    new = [
+        run
+        for run in runs
+        if run.get("status") == "completed" and (run["id"], run.get("run_attempt") or 1) not in seen
+    ]
     added = 0
-    for run in runs:
-        if run.get("status") != "completed" or (run["id"], run.get("run_attempt") or 1) in seen:
-            continue
+    for run in new[:most]:
         rows = [
             row(gh, repo, run, job, everyone)
             for job in gh.pages(f"repos/{repo}/actions/runs/{run['id']}/jobs?filter=all", "jobs")

@@ -22,6 +22,7 @@ from jbus.ci import collect, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
 from test_jbus_kitchen import REPO as CHECKOUT
+from test_jbus_kitchen import iso
 
 HOST = "github.com"
 REPO = "JoshuaHayesWasHere/jstack"
@@ -505,3 +506,131 @@ def test_a_ci_report_that_is_not_true_or_false_is_refused(kitchen, value):
         1,
         "refused: project demo has a ci_report that is not true or false",
     )
+
+
+def test_a_pass_asks_for_the_runs_of_its_last_hours_and_keeps_at_most_its_share_of_new_runs(
+    tmp_path,
+):
+    asked = Replay()
+    counts = collect.keep(asked, REPO, tmp_path, NOW)
+    since = (NOW - timedelta(hours=collect.PASS_HOURS)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    (runs,) = [path for path in asked.asked if "/actions/runs?" in path]
+    assert runs.endswith(f"&created=%3E%3D{since}")
+    jobs = [path for path in asked.asked if path.endswith("/jobs?filter=all")]
+    assert len(jobs) == collect.PASS_RUNS
+    assert counts.jobs == len(ledger.read(tmp_path / ledger.JOBS)) > 0
+    more = collect.keep(Replay(), REPO, tmp_path, NOW)
+    assert more.jobs > 0
+    assert len({one["job"] for one in ledger.read(tmp_path / ledger.JOBS)}) == (
+        counts.jobs + more.jobs
+    )
+
+
+def test_a_pass_keeps_nothing_and_does_not_wait_while_jbus_ci_holds_the_ledger(tmp_path):
+    inside, release = threading.Event(), threading.Event()
+
+    class Held(Replay):
+        def page(self, path, key=None):
+            inside.set()
+            release.wait(10)
+            return super().page(path, key)
+
+    weekly = threading.Thread(target=collect.collect, args=(Held(), REPO, tmp_path, NOW, 14))
+    weekly.start()
+    try:
+        assert inside.wait(10)
+        asked = Replay()
+        assert collect.keep(asked, REPO, tmp_path, NOW) is None
+        assert asked.asked == []
+    finally:
+        release.set()
+        weekly.join(30)
+    assert len(ledger.read(tmp_path / ledger.JOBS)) == 314
+
+
+def test_a_pull_request_kept_at_the_same_update_is_not_asked_for_its_timeline_again(tmp_path):
+    class Updated(Replay):
+        def __init__(self, changed=()):
+            super().__init__()
+            for one in self.pulls:
+                moved = one["number"] in changed
+                one["updated_at"] = "2026-10-17T21:00:00Z" if moved else "2026-10-17T20:00:00Z"
+
+    def timelines(gh):
+        return {int(path.split("/")[-2]) for path in gh.asked if "/timeline" in path}
+
+    first = Updated()
+    collect.collect(first, REPO, tmp_path, NOW, 14)
+    assert len(timelines(first)) == 71
+    kept = {one["number"]: one for one in ledger.read(tmp_path / ledger.PULLS)}
+    pushed = next(number for number, one in kept.items() if one["pushes"])
+    again = Updated(changed={pushed})
+    collect.collect(again, REPO, tmp_path, NOW, 14)
+    assert timelines(again) == {pushed}
+    after = {one["number"]: one for one in ledger.read(tmp_path / ledger.PULLS)}
+    assert {n: one["pushes"] for n, one in after.items()} == {
+        n: one["pushes"] for n, one in kept.items()
+    }
+    assert after[pushed]["updated"] == "2026-10-17T21:00:00Z"
+
+
+def test_a_pull_request_with_no_update_time_is_asked_for_its_timeline_each_time(kept):
+    state, _ = kept
+    asked = Replay()
+    collect.collect(asked, REPO, state, NOW, 14)
+    assert len([path for path in asked.asked if "/timeline" in path]) == 71
+
+
+@pytest.mark.parametrize(
+    "said",
+    ['{"workflow_runs": []}', "[[1, 2]]", '[{"jobs": []}]', "not json"],
+    ids=["not a list of pages", "not objects", "no such key", "not json"],
+)
+def test_an_answer_of_another_shape_is_github_not_answering(said):
+    def ask(command):
+        return subprocess.CompletedProcess(command, 0, said, "")
+
+    with pytest.raises(Unavailable):
+        collect.Cli(ask).pages("repos/o/r/actions/runs?per_page=100", "workflow_runs")
+
+
+def test_every_pass_keeps_the_ci_ledger_of_its_project(kitchen):
+    """A pass that stops keeping `ci.jsonl` leaves the view and `jbus flow` a ledger that ages:
+    each pass adds the jobs of the runs that completed since the one before."""
+
+    def ran(number, job):
+        return {
+            "id": number,
+            "event": "pull_request",
+            "head_branch": "pie",
+            "head_sha": "a" * 40,
+            "run_attempt": 1,
+            "created_at": iso(KITCHEN_NOW - timedelta(minutes=20)),
+            "status": "completed",
+            "conclusion": "failure",
+            "pull_requests": [{"number": 7}],
+        }, {
+            "id": job,
+            "run_attempt": 1,
+            "name": "check",
+            "head_sha": "a" * 40,
+            "status": "completed",
+            "conclusion": "failure",
+            "created_at": iso(KITCHEN_NOW - timedelta(minutes=20)),
+            "started_at": iso(KITCHEN_NOW - timedelta(minutes=19)),
+            "completed_at": iso(KITCHEN_NOW - timedelta(minutes=10)),
+            "labels": ["ubuntu-latest"],
+            "runner_name": "GitHub Actions 1",
+            "steps": [{"name": "make check"}],
+        }
+
+    first, second = ran(501, 9001), ran(502, 9002)
+    kitchen.set("runs.json", {"workflow_runs": [first[0]]})
+    kitchen.set("run-jobs.json", {"501": [first[1]]})
+    kitchen.poll()
+    jobs = ledger.read(kitchen.state / ledger.JOBS)
+    assert [(one["job"], one["pr"], one["conclusion"]) for one in jobs] == [(9001, 7, "failure")]
+    kitchen.set("runs.json", {"workflow_runs": [second[0], first[0]]})
+    kitchen.set("run-jobs.json", {"501": [first[1]], "502": [second[1]]})
+    kitchen.poll()
+    assert [one["job"] for one in ledger.read(kitchen.state / ledger.JOBS)] == [9001, 9002]
