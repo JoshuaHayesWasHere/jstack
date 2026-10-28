@@ -181,7 +181,7 @@ function boardHomes() {
     var said = HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return n[one[0]] + " " + one[1]; }).join(", ");
     var bar = '<span class="seg-bar" role="img" aria-label="' + esc(said || "nothing open") + '">' + HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return '<i class="' + one[0] + '" style="flex:' + n[one[0]] + ' 0 0"></i>'; }).join("") + '</span>';
     var last = h.last && h.last.at ? boardAge(h.last.at) : "no act kept";
-    return '<a class="hl" data-home="' + esc(h.name) + '" href="#/?home=' + encodeURIComponent(h.name) + themed() + '"><b>' + (many ? esc(h.project) + " · " : "") + esc(h.name) + '</b><span class="hl-n">' + h.open + '</span>' + bar + '<span class="ago">' + last + '</span></a>';
+    return '<a class="ehl" data-home="' + esc(h.name) + '" href="#/?home=' + encodeURIComponent(h.name) + themed() + '"><b>' + (many ? esc(h.project) + " · " : "") + esc(h.name) + '</b><span class="ehl-n">' + h.open + '</span>' + bar + '<span class="ago">' + last + '</span></a>';
   }).join("");
   return '<section class="ovc" data-role="homes" aria-labelledby="ovc-homes"><h2 class="ovc-h" id="ovc-homes"><span class="tag">Every home</span> <span class="ovc-s">bar: ' + HL_BAR.map(function (one) { return one[1]; }).join(" · ") + '</span></h2>' + lines + '</section>';
 }

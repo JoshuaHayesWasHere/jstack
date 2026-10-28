@@ -547,3 +547,29 @@ def test_no_part_of_the_phone_cuts_its_words_without_a_way_to_open_them(scene, t
     DAYS[day](scene)
     seen = desk(scene, tmp_path, screen=PHONE)
     assert {one["name"]: one["cut"] for one in seen["parts"] if one["cut"]} == {}
+
+
+HEALTH = """
+window.addEventListener("load", function () {
+  var started = Date.now();
+  (function wait() {
+    var h = document.getElementById("health");
+    if ((!h || !h.textContent.trim()) && Date.now() - started < window.__at) { setTimeout(wait, 200); return; }
+    var pre = document.createElement("pre");
+    pre.id = "probe";
+    pre.textContent = JSON.stringify({ text: h.textContent, display: getComputedStyle(h).display });
+    (window.top === window ? document : window.top.document).body.appendChild(pre);
+  })();
+});
+"""
+"""A probe of a project's Health line: its words and how it is laid out."""
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_every_home_leaves_a_projects_health_line_a_paragraph(scene, tmp_path, screen):
+    """Every home's lines have a class of their own, so the project page's Health line keeps its
+    look and is not laid out as one of them."""
+    DAYS["t"](scene)
+    seen = look(scene, tmp_path, script=HEALTH, at=8000, budget=12000, screen=screen)
+    assert seen["text"].strip(), seen
+    assert seen["display"] == "block", seen
