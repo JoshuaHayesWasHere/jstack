@@ -1,10 +1,11 @@
 """A home is woken from one list: the open items it owns that are new to it since its last wake.
 
 The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
-(`blockers.deciding`) and the leftovers a home has (`jbus.leftover`). An item's key has no run and
-no time in it: a red's failing tests, a wrong's kind, subject and reason (`state.key_of`), a
-need's own key. `pick` takes the items one home thread owns that are new to it, less those its
-own thread caused and those whose cause is another open item, unless the row is that item's fix.
+(`blockers.deciding`), the leftovers a home has (`jbus.leftover`) and the entries whose go holds
+with no live row (`jbus.plan.owed`). An item's key has no run and no time in it: a red's failing
+tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes the items
+one home thread owns that are new to it, less those its own thread caused and those whose cause is
+another open item, unless the row is that item's fix.
 An item that leaves the list wakes no one, since a thread's record keeps only open keys.
 
 A pass sends each home thread at most one `wakes` message through the outbox. `wakes.json` is the
@@ -22,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import blockers, clock, leftover, outbox, read_json, verbs, write_json
+from jbus import blockers, clock, leftover, outbox, plan, queue, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.threads import ROLES
@@ -45,6 +46,13 @@ MESSAGE = (
     "gate: take the default and pipe it to `jbus gate <slug>`. jbus tells this home of an item "
     "once while it stays open, and of nothing that leaves the list.{texts}"
 )
+OWED = (
+    "The entry {entry} of {plan} has {user}'s go and no live row: its last row ended, and nothing "
+    "is queued for the rest. Queue its next row (`jbus queue add <slug> --entry {entry}`, a "
+    "scout's if it needs design, `--depends` for what it waits on), or close it with `jbus plan "
+    "close {entry}{scope}` once nothing is left to do."
+)
+OWED_LATE = "Its home, thread {thread}, has not done either in {minutes} min since jbus told it."
 _QUOTED = re.compile(r'\bjbus "([^"]+)"')
 _RUN_ID = re.compile(r"/actions/runs/(\d+)")
 
@@ -279,12 +287,41 @@ def left_items(run: Pass) -> list[Item]:
     return items
 
 
+def owed_items(run: Pass, record: dict[str, Any]) -> list[Item]:
+    """The entries whose go holds with no live row (`plan.owed`), each the item of its home's
+    thread, and the root home's too once its home has not acted on it in
+    `leftover.CLOSE_MINUTES`, as a leftover is."""
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        return []
+    root, items = root_of(run), []
+    for made in plan.owed(run.state, run.home, rows):
+        key = plan.owed_key(made)
+        line = f"{key}: go holds, no live row"
+        thread = thread_of(run.home / made.scope) or root
+        where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
+        flag = f" --scope {made.scope}" if made.scope else ""
+        text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
+        items.append(Item(key=key, to=thread, line=line, row=made.entry, text=text))
+        at = told_to(record, thread).get(key, {}).get("at", "")
+        if not at or thread == root:
+            continue
+        if leftover.late(leftover.Record("", told=at), run.now):
+            said = OWED_LATE.format(thread=thread, minutes=leftover.CLOSE_MINUTES)
+            items.append(
+                Item(key=f"{key} late", to=root, line=line, row=made.entry, text=f"{text} {said}")
+            )
+    return items
+
+
 def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     """Send each home thread, at most once a pass, the open items it owns that are new to it."""
     record = read_json(run.state / FILE, {})
     tests = _Tests(run, record.get("tests", {}))
     found = read(run)
     items = wrong_items(found, tests) + need_items(run, listed) + left_items(run)
+    items += owed_items(run, record)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)
