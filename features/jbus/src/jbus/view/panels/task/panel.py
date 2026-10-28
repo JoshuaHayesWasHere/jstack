@@ -5,7 +5,7 @@ says who fixes it and when jbus told them (`fixing`, from `state.fixing`).
 
 A task's `now` is the newest of two words with their times: the last line jmerge logged of its
 pull request in `merge.log`, and, for a task on the check step, the checks word of its row as
-the last pass saw it. The drawer
+the last pass saw it. It is kept only for a state whose say is jmerge's reason. The drawer
 leads with it, so no older reading stands as the current one."""
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from jbus.view.state import (
     MERGE_LOG,
     MOVES_FILE,
     PASS_FILE,
+    PULLED,
     QUEUE_FILE,
     WAITING_FILE,
     WORK_FILE,
@@ -79,9 +80,10 @@ SOURCES = (PASS_FILE, WORK_FILE, QUEUE_FILE, WAITING_FILE, MOVES_FILE, EVENTS_FI
 
 def now(task: dict[str, Any], passed: str | None) -> dict[str, Any] | None:
     """The newest of jmerge's last line of the task and the pass's checks word, or None where
-    neither has a time. jmerge's line wins a tie, since the pass read it."""
+    neither has a time. jmerge's line wins a tie, since the pass read it. Either word stands
+    only for a state whose say is jmerge's reason: a Lost or Behind task keeps its own."""
     said = []
-    if task["history"] and task["history"][-1]["at"]:
+    if task["state"]["kind"] in PULLED and task["history"] and task["history"][-1]["at"]:
         last = task["history"][-1]
         said.append({"at": last["at"], "by": "jmerge", "say": last["reason"] or last["word"]})
     if task["step"] == "check" and task["checks"] and passed:
