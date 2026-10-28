@@ -6,7 +6,7 @@ import re
 import pytest
 
 from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, clean, look
-from view.scene import in_check, slots
+from view.scene import in_check, slots, stacked_pr
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -27,7 +27,9 @@ def test_six_rows_in_check_and_every_slot_held_say_so_on_the_overview(
     if screen == PHONE:
         assert "Check 6 in check" not in said
         return
-    assert "Check 6 in check 0 failing, 6 running or queued, 0 passed oldest 1h00" in said
+    assert (
+        "Check 6 in check 0 failing, 6 running or queued, 0 passed, 0 stacked oldest 1h00" in said
+    )
     assert "Test slots: 4 of 4 held" in said
     assert "Load: 2.5 of " in said
 
@@ -52,4 +54,17 @@ def test_red_checks_that_outnumber_the_rest_are_what_slows_us(scene, tmp_path):
     clean(seen, DESK)
     said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
     assert "Slowed by 4 failing checks of 6 rows in check, the oldest for 1h00." in said
-    assert "Check 6 in check 4 failing, 1 running or queued, 1 passed oldest 1h00" in said
+    assert (
+        "Check 6 in check 4 failing, 1 running or queued, 1 passed, 0 stacked oldest 1h00" in said
+    )
+
+
+def test_stacked_rows_are_counted_apart_on_the_check_card_and_in_their_own_stage(scene, tmp_path):
+    """Two of the three merge after `bun-base`: the card counts them stacked, not by their
+    checks, and the board's strip has them in Stacked, apart from the one in Check."""
+    stacked_pr(scene)
+    seen = look(scene, tmp_path, route="#/", screen=DESK)
+    clean(seen, DESK)
+    said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
+    assert "Check 3 in check 0 failing, 0 running or queued, 1 passed, 2 stacked" in said
+    assert re.search(r"Check 1 oldest \S+ Stacked 2 oldest \S+ Merge 0", said)
