@@ -10,7 +10,8 @@ It asks GitHub, read-only through `gh api`, for three things:
 - the jobs of each run that has finished and is not stored yet
 - the pull requests, with their timelines, where a pull request changed since it was stored
 
-Each pass of jbus keeps the same two files, so they never age between two runs of `jbus ci`.
+For a project whose table says `ci_report = true`, each pass of jbus keeps the same two files, so they never age between two runs of `jbus ci`.
+A project that does not ask gets no call to GitHub for its CI on a pass, and no ledger in its state.
 A pass asks for the runs of the last 3 hours and stores at most 30 new runs, so a pass after a gap catches up over the next few passes.
 It asks only while GitHub answered the pass and its API budget is above the floor, and it never waits while `jbus ci` holds the files.
 A run that finishes more than 3 hours after GitHub created it waits for the next `jbus ci`.

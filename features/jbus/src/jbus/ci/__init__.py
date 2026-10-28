@@ -15,9 +15,10 @@ machine's own zone.
 `--notice` is for a CI job: it prints the annotation that gives the collector the job's
 telemetry (`jbus.ci.notice`), and needs no config.
 
-Each pass of jbus keeps the ledger too, near the end of the pass (`STEPS`): it collects the runs of
-the last few hours (`collect.keep`) through the pass's own `gh`, in the project's checkout, while
-GitHub answered the pass and its API budget is above the floor. A pass whose collect GitHub did not
+Each pass of jbus keeps the ledger too, for a project whose table says `ci_report = true`, near
+the end of the pass (`STEPS`): it collects the runs of the last few hours (`collect.keep`) through
+the pass's own `gh`, in the project's checkout, while GitHub answered the pass and its API budget
+is above the floor. A pass whose collect GitHub did not
 answer, answered in a shape the collector does not read, or found a ledger it cannot read or write
 says so and goes on, and so does one whose collect `jbus ci` holds the ledger for.
 """
@@ -150,10 +151,13 @@ VERBS = (
 
 
 def _keep(half: Half) -> None:
-    """Keep the ledger of the pass's project, through the pass's own `gh` in its checkout. It is
+    """Keep the ledger of the pass's project, through the pass's own `gh` in its checkout, where
+    the project asks for its report (`ci_report`), and nothing for one that does not. It is
     bookkeeping: a GitHub that does not answer, an answer of a shape the collector does not read,
     or a ledger that cannot be read or written costs the pass one line, never the rest of it."""
     run = half.run
+    if not run.project.ci_report:
+        return
     gh = collect.Cli(lambda command: run.run(*command))
     try:
         collect.keep(gh, HERE, run.state, run.now)

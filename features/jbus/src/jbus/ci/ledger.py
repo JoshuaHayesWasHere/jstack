@@ -20,7 +20,8 @@ file: `number`, `branch`, `head`, `created`, `updated` (GitHub's last update of 
 kept before this field has not), `merged`, `closed`, `merge_commit` and `pushes`, the times
 someone force-pushed its branch.
 
-`jbus ci` writes both files, and so does each pass of jbus (`jbus.ci.collect.keep`).
+`jbus ci` writes both files, and so does each pass of jbus for a project whose table says
+`ci_report = true` (`jbus.ci.collect.keep`).
 """
 
 from __future__ import annotations
