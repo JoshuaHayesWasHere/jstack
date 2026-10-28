@@ -58,6 +58,22 @@ CHECKLIST = "a checklist to copy into your todo list as printed"
 STEP = re.compile(r"^[0-9]+\. ")
 
 
+def _steps(playbook: str) -> list[str]:
+    """The playbook's numbered steps, one line each: a step written over several lines, its
+    sentences on indented lines under its number, is joined into one."""
+    steps: list[str] = []
+    within = False
+    for line in playbook.splitlines():
+        if STEP.match(line):
+            steps.append(line)
+            within = True
+        elif within and line[:1].isspace() and line.strip():
+            steps[-1] += " " + line.strip()
+        else:
+            within = False
+    return steps
+
+
 def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> list[str]:
     """Return what `jbus playbook` prints for `role`. `text` is the brief, request or plan,
     and `name` is the playbook's name when the caller gives one in place of the text's
@@ -93,7 +109,7 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
     for line in asked:
         has = "has" if any(one.startswith(line) for one in lines) else "lacks"
         said.append(f"{has} the line the playbook asks for: {line}")
-    steps = [line for line in playbook.splitlines() if STEP.match(line)]
+    steps = _steps(playbook)
     if steps:
         said.append(f"the steps of playbooks/{name}.md, {CHECKLIST}:")
         said += steps

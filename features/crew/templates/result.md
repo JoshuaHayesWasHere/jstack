@@ -17,6 +17,6 @@ Finding F<n>: fixed, <the finding in a few words> | not fixed, <the finding in a
 Second pass: <none, or needed since <the head the review saw>>, <why>   <this line only once the findings are handled, as the block of the crew skill's "A second pass" prints it>
 Fixed: <the head commit pushed for the review's findings, in full, or none needed and the reason; this line only once the findings are handled>
 Second reviewer: <threadId>   <this line only after `Second pass: needed`, once the second reviewer is launched>
+Gate: question <n>   <one such line for each gate this crew parked, as the crew skill's "Do the task" prints it>
 Steers: <what the user changed along the way, or none>
-Noticed: <things outside the task worth a plan entry, or none>
 Left: <uncommitted or unpushed work, or none>

@@ -149,11 +149,11 @@ def refused(home, sender, to, **given):
         (ROOT, FLOW, ["jbus word --to <project> --message <thread>/<message> --scope flow"]),
         (ROOT, FLOW, ["jbus stop answer flow"]),
         (FLOW, FLOW, ["send nothing"]),
-        (ROOT, FLOW_CREW, ["fl-task", "jbus noticed add --for flow"]),
+        (ROOT, FLOW_CREW, ["fl-task", "the flow home's work", "jbus queue add"]),
         (REVIEWER, FLOW_CREW, ["fl-task", "send nothing", "review notice"]),
-        (REVIEWER, FLOW, ["jbus noticed add --for flow"]),
-        (REVIEWER, ROOT, ["jbus noticed add --for root"]),
-        (REVIEWER, ROOT_CREW, ["root-task", "jbus noticed add --for root"]),
+        (REVIEWER, FLOW, ["the flow home's work", "jbus queue add"]),
+        (REVIEWER, ROOT, ["the root home's work", "jbus queue add"]),
+        (REVIEWER, ROOT_CREW, ["root-task", "the root home's work", "jbus queue add"]),
     ],
 )
 def test_a_send_between_homes_and_crews_is_refused_with_its_channel(home, sender, to, names):
@@ -162,9 +162,10 @@ def test_a_send_between_homes_and_crews_is_refused_with_its_channel(home, sender
         assert one in said, said
 
 
-def test_a_scope_to_another_scope_is_a_finding(home):
+def test_a_scope_to_another_scope_is_a_queued_row(home):
     jview_live(home)
-    assert "jbus noticed add --for jview" in refused(home, FLOW, JVIEW)
+    said = refused(home, FLOW, JVIEW)
+    assert "the jview home's work" in said and "jbus queue add" in said
 
 
 def test_the_jview_send_to_the_handed_off_root_at_12_57_names_the_root_now_and_jbus_stop(home):

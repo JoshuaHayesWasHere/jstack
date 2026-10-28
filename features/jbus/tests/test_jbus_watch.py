@@ -189,9 +189,9 @@ def test_a_failed_full_run_on_main_files_one_unapproved_brief_for_its_fix(kitche
     assert [(row["slug"], row["approved"]) for row in main_red(kitchen)] == [
         ("main-red-dddddddddddd", "")
     ]
-    brief.write_text(text + "Noticed: the home edited it\n")
+    brief.write_text(text + "Steers: the home edited it\n")
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert brief.read_text().endswith("Noticed: the home edited it\n")
+    assert brief.read_text().endswith("Steers: the home edited it\n")
     assert len(main_red(kitchen)) == 1
     line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
     assert kitchen.lines("retro") == [line]
@@ -515,9 +515,9 @@ def test_a_red_tip_filed_is_not_filed_again_on_the_next_pass(kitchen):
     shas = main_of(kitchen, "failure")
     kitchen.poll()
     brief = kitchen.home / "tasks" / f"main-red-{shas[-1][:12]}.md"
-    brief.write_text(brief.read_text() + "Noticed: the home edited it\n")
+    brief.write_text(brief.read_text() + "Steers: the home edited it\n")
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert brief.read_text().endswith("Noticed: the home edited it\n")
+    assert brief.read_text().endswith("Steers: the home edited it\n")
     assert [row["slug"] for row in main_red(kitchen)] == [f"main-red-{shas[-1][:12]}"]
 
 
@@ -627,10 +627,10 @@ def test_a_red_browser_run_filed_is_not_filed_again_and_an_edited_brief_stays(ki
     browser_runs(kitchen, browser_run())
     kitchen.poll()
     brief = kitchen.home / "tasks" / "browser-red-2026-10-12.md"
-    brief.write_text(brief.read_text() + "Noticed: the home edited it\n")
+    brief.write_text(brief.read_text() + "Steers: the home edited it\n")
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(minutes=6))
-    assert brief.read_text().endswith("Noticed: the home edited it\n")
+    assert brief.read_text().endswith("Steers: the home edited it\n")
     assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
     assert len(kitchen.lines("retro")) == 1
 

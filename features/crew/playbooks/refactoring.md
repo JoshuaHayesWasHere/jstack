@@ -25,7 +25,8 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 
 Never done here, and who does it:
 
-- **Building a missing feature or fixing a real bug the cleanup turns up.** Leave it out: ship the structural change against the pinned contract and put the rest in the Result under "Noticed", for the home to plan.
+- **Building a missing feature or fixing a real bug the cleanup turns up.**
+  Leave it out: ship the structural change against the pinned contract and queue the rest as `templates/a-fault-outside.md` says.
 - **A redesign.** The same: name it there and the home plans it as a feature.
 - **A cross-cutting reshape that will not fit one pull request.** This playbook is the focused-to-medium change. The larger one is the home's to split.
 
