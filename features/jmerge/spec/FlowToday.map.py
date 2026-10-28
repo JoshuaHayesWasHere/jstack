@@ -10,7 +10,7 @@ def _kind(v, p):
     ci = v["ci"][p]
     if ci == "none":
         return "waiting for a check"
-    if ("brFail" in v and v["brFail"][p]):
+    if "brFail" in v and v["brFail"][p]:
         return "its browser run red"
     if ci == "pass" and v["fixes"][p]:
         proved = v["proved"][p]
@@ -44,7 +44,7 @@ def _main(v):
         where = "Main red from a merge"
     else:
         where = "Main red from outside"
-    if ("brHold" in v and v["brHold"]):
+    if "brHold" in v and v["brHold"]:
         where += ", its browser red"
     return where + (", machine full" if v["full"] else "")
 

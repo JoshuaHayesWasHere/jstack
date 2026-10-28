@@ -62,10 +62,9 @@ CITED = {
     "features/jmerge/src/jmerge/rows.py:119": "ran.over == red and bool(failed)",
     "features/jmerge/src/jmerge/rows.py:326-329": "if red and not proves(red, failed, ran):",
     "features/jmerge/src/jmerge/rows.py:355": (
-        'if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in'
-        " fixing:"
+        'if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:'
     ),
-    "features/jmerge/src/jmerge/rows.py:370-371": "row.get(\"status\") not in queue.FINAL",
+    "features/jmerge/src/jmerge/rows.py:370-371": 'row.get("status") not in queue.FINAL',
     "features/jmerge/src/jmerge/cli.py:2035": "if state != ready.BROWSER_FAILED:",
     "features/jmerge/src/jmerge/rejudge.py:93": 'was.get("tip")',
     "features/jmerge/src/jmerge/cli.py:830": "self.moved(one.base, one.started)",
