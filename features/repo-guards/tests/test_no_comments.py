@@ -198,7 +198,6 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "features/jroles/units/jroles-mirror.timer",
         "features/grilling/templates/grill-page.html",
         "features/jmerge/src/jmerge/protected.txt",
-        "features/jmerge/src/jmerge/guarded.txt",
         "features/jmerge/src/jmerge/ci-paths.txt",
     } <= set(files)
 

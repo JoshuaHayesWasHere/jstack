@@ -14,7 +14,7 @@ import pytest
 import crew_helpers as crew
 import jsettings
 import test_home_merge as merge
-import test_jmerge_guarded as guarded
+import test_jmerge_run as jrun
 from jbriefs import findings
 from jmerge import gate as merge_gate
 from jmerge import ready
@@ -1522,16 +1522,16 @@ HEAD = "b" * 40
 NOT_SENT = "Sent to: not sent, clean"
 
 
-def later_pass(made, result, first, files=("a.txt",), run=None):
+def later_pass(made, result, first):
     """What `jmerge` says of a pull request whose first review had a finding that the head fixes.
     The brief has the lines the crewmate wrote then, and after them whatever a later pass left. The
     crewmate writes nothing after that pass."""
     done = f"Finding: fixed, it is wrong\nFixed: {made.head}\n{result}"
-    made.home.open_pull_request(made.head, checks=(guarded.STARTED,), files=list(files))
+    made.home.open_pull_request(made.head, checks=(jrun.STARTED,), files=["a.txt"])
 
     def says(section=""):
         (made.home.tasks / "alpha.md").write_text(merge.brief(first + section, done))
-        return (run or made.run)("--check")
+        return made.run("--check")
 
     return says
 
@@ -1546,27 +1546,6 @@ def test_jmerge_reads_a_clean_second_pass_nobody_was_sent_as_ready(tmp_path):
     assert says(merge.review("clean", made.head) + f"{NOT_SENT}\n") == [
         f"ready 7 {made.head} alpha alpha"
     ]
-
-
-def test_jmerge_reads_a_guarded_fixs_clean_scoped_pass_nobody_was_sent_as_ready(tmp_path):
-    rules = guarded.checkout(tmp_path, guarded.LISTED)
-    made = merge.Merged(merge.Home(tmp_path), tmp_path)
-    asked = (
-        "Second pass: none, the fix stayed inside the files the findings named\n"
-        f"Scoped review: needed since {made.start}, guarded\n"
-        f"Scoped reviewer: mcp:9, of {made.head}\n"
-    )
-    says = later_pass(
-        made,
-        asked,
-        guarded.proven("findings", made.start),
-        files=[guarded.SKILL],
-        run=lambda *flags: guarded.jmerge(made, rules, *flags),
-    )
-    short = f"no proven safety fact at {made.head[:12]} (blast-radius, review step 5)"
-    assert says() == guarded.guarded(short)
-    scoped = guarded.proven("clean", made.head) + f"Scope: range-diff a..b a..c\n{NOT_SENT}\n"
-    assert says(scoped) == [f"ready 7 {made.head} alpha alpha, guarded: {guarded.SKILL}"]
 
 
 def readiness():

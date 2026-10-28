@@ -12,8 +12,8 @@ name: macos
 # word, 2026-10-24: "changes should stay quick with mac bugs being caught during larger
 # regression runs"; and 2026-10-27: run only the Mac tests a change can reach).
 # It is a workflow of its own and not a job of check.yml: a run of check.yml has no conclusion
-# until its last job ends, and jmerge counts a green-tree marker only from a run that concluded
-# success (features/jmerge/src/jmerge/green.py), so a slow macOS job there would hold up every
+# until its last job ends, and main's full job counts a green-tree marker only from a run that
+# concluded success (scripts/green_tree.py), so a slow macOS job there would hold up every
 # marker. It runs on no push, so main's check never has it. macOS on Apple Silicon is
 # supported, so its check is required: the home's required-checks names it, and jmerge waits on
 # it. So the job always runs and reports, and only its steps are skipped.

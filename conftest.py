@@ -12,5 +12,5 @@ pytest_plugins = [
     "test_home_thread",
     "crew_helpers",
     "test_sweep",
-    "test_jmerge_guarded",
+    "test_jmerge_run",
 ]
