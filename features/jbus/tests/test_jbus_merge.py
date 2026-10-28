@@ -440,6 +440,20 @@ def test_a_merge_whose_install_was_not_run_again_is_an_alert(kitchen):
     assert kitchen.lines("alert") == [f"alert: demo: {NOT_INSTALLED}"]
 
 
+NOT_PULLED = (
+    "the main checkout was not pulled after the merge "
+    "(fatal: Not possible to fast-forward, aborting.)"
+)
+
+
+def test_a_merge_whose_main_checkout_was_not_pulled_is_an_alert(kitchen):
+    kitchen.set(
+        "jmerge.txt", f'merged 7 alpha abc1234 "a move", {NOT_PULLED}, kept: y, revert: x\n'
+    )
+    kitchen.poll()
+    assert kitchen.lines("alert") == [f"alert: demo: {NOT_PULLED}"]
+
+
 def test_a_merge_whose_tool_was_reinstalled_is_no_alert(kitchen):
     done = "reinstalled the tool jstack from /code/jstack: its package list changed"
     kitchen.set("jmerge.txt", f'merged 7 alpha abc1234 "a move", {done}, revert: x\n')

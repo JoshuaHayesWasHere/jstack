@@ -250,4 +250,4 @@ def test_a_release_reads_the_limit_from_the_home_gauge_its_copy_carries(
     monkeypatch.chdir(place)
     held = asked(served)["limit"]
     assert (held["limit"], held["ceiling"]) == (123000, 456000)
-    assert held["from"] == str(copy / usage.GAUGE)
+    assert held["from"] == str(copy / usage.GAUGE).replace(str(Path.home()) + "/", "~/", 1)
