@@ -9,9 +9,11 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 import jbus.queue
 from jbus import cli
 from test_jbus_kitchen import NOW, RESULT, TOKEN, iso
+from test_jbus_queue import add, rows
 
 
 def test_a_merge_is_one_line_with_its_pull_request_and_commit(kitchen):
@@ -30,6 +32,22 @@ def test_a_merge_first_seen_days_later_is_still_sent_once(kitchen):
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
     assert kitchen.lines("merged") == ["merged alpha #7 aaaaaaaaaaaa"]
+
+
+def test_every_merge_a_pass_sees_is_kept_and_known_once_github_lists_it_no_more(kitchen):
+    """`merged.json` of the project's state is written on every merge a pass sees, so it is a
+    record of the merges, and a merge that leaves GitHub's last hundred is asked for by name
+    nowhere."""
+    add(kitchen, "alpha", approve=False)
+    pull = kitchen.merged("alpha", 7, "a" * 40)
+    kitchen.set("merged.json", [pull, kitchen.merged("beta", 8, "b" * 40)])
+    kitchen.poll()
+    kept = jbus.read_json(kitchen.state / "merged.json", {})
+    assert {slug: one["number"] for slug, one in kept.items()} == {"alpha": 7, "beta": 8}
+    kitchen.set("merged.json", [{**pull, "old": True}])
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert rows(kitchen)["alpha"]["status"] == "merged"
+    assert [line for line in kitchen.log("gh") if "--head" in line] == []
 
 
 def test_a_first_pass_that_could_not_ask_t3_code_is_not_the_first_whole_pass(kitchen):

@@ -526,6 +526,27 @@ def test_a_pass_asks_for_the_runs_of_its_last_hours_and_keeps_at_most_its_share_
     )
 
 
+@pytest.mark.parametrize(
+    ("gap", "kept"),
+    [(timedelta(hours=1), 60), (timedelta(hours=6), 360), (timedelta(days=20), 14 * 24 * 60)],
+    ids=["no gap", "a gap longer than the pass's hours", "a gap longer than jbus ci's days"],
+)
+def test_a_pass_keeps_every_pull_request_updated_since_the_newest_the_ledger_holds(
+    tmp_path, gap, kept
+):
+    """`ci-prs.jsonl` is written on every merge: a pass that comes after a gap, longer than
+    `PASS_HOURS`, keeps each pull request merged in it, back as far as `jbus ci` reads."""
+    gh = Paged(15 * 24 * 60)
+    stamp = (NOW - gap).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ledger.rewrite(tmp_path / ledger.PULLS, [{"number": 0, "updated": stamp}])
+    collect.keep(gh, REPO, tmp_path, NOW)
+    minutes = max(kept, collect.PASS_HOURS * 60)
+    assert {one["number"] for one in ledger.read(tmp_path / ledger.PULLS)} == {
+        0,
+        *(one["number"] for one in gh.pulls[: minutes + 1]),
+    }
+
+
 def test_a_pass_keeps_nothing_and_does_not_wait_while_jbus_ci_holds_the_ledger(tmp_path):
     inside, release = threading.Event(), threading.Event()
 

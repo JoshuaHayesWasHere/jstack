@@ -1042,6 +1042,17 @@
         return '<li><span class="t">' + (s == null ? "" : hm(s)) + '</span><span><span class="chip ' + (c.state === "success" ? "ok" : c.state === "failure" ? "user" : "crew") + '">' + esc(c.state.replace("_", " ")) + '</span> ' + link(c.url, c.name) + '</span><span class="d">' + (s == null ? "" : e == null ? "running" : dur(e - s)) + '</span></li>';
       }).join("") + '</ul>' : '<p class="src" style="margin:var(--space-5) 0 0">' + esc(g.error || "No check run on this head.") + '</p>') +
       '<p class="src" style="margin:var(--space-5) 0 0">Asked ' + (ms(g.at) == null ? "now" : hm(ms(g.at), true)) + ', kept 30 s. Read-only.</p>';
+    ghDiffers(TASK[slug], g);
+  }
+  var GH_PASSED = { success: 1, skipped: 1, neutral: 1 }, GH_FAILED = { failure: 1, timed_out: 1, cancelled: 1, action_required: 1 };
+  function ghDiffers(t, g) {
+    var line = $("gh-differs"); if (!line || !t || !t.now || !g.checks.length) return;
+    var failed = g.checks.filter(function (c) { return GH_FAILED[c.state]; }).length, open = g.checks.filter(function (c) { return !GH_PASSED[c.state] && !GH_FAILED[c.state]; }).length;
+    var word = failed ? "failed" : open ? "pending" : "passed", ours = t.checks === "none" ? "pending" : t.checks;
+    if (word === ours) return;
+    var said = failed ? plural(failed, "check failed", "checks failed") : open ? plural(open, "check running or queued", "checks running or queued") : "every check passed";
+    line.textContent = t.now.by + " at " + hm(ms(t.now.at)) + ": " + t.now.say + "; GitHub at " + (ms(g.at) == null ? hm(NOW) : hm(ms(g.at))) + ": " + said + ".";
+    line.hidden = false;
   }
   var OPEN_GATE = null, TICKED_GATES = {}, BATCH = { busy: false, error: "" };
   var UNKNOWN_END = "The view server did not answer, so it is not known whether anything closed. Read the list again before you answer.";
