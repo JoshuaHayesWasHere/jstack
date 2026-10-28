@@ -189,16 +189,11 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         _, *ruled = made.line.split("\n")
         for line in [made.line] if made.outcome in ("gated", "noop") else ruled:
             print(line)
-    elif args.verb == "hold":
-        held = queue.hold(state, args.slug)
-        if held != f"held {args.slug}":
-            print(held)
-    elif args.verb == "remove":
-        asks = _asks(config, project)
-        print(queue.remove(state, args.slug, args.by, args.at, config.user, asks))
-    elif args.verb == "withdraw":
-        at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
-        print(queue.withdraw(state, args.slug, args.why, at, by, _asks(config, project)))
+    elif args.verb in ("hold", "remove", "withdraw"):
+        run = passes.Pass(config, project, datetime.now(UTC))
+        made = getattr(acts, args.verb)(args, run, _asks(config, project))
+        if made.line != f"held {args.slug}":
+            print(made.line)
     elif args.verb == "rename":
         at, by = config.user.stamp(queue.clock()), queue.who(queue.runner())
         print(queue.rename(state, args.slug, args.new, at, by, _asks(config, project)))
@@ -332,8 +327,14 @@ def _table(table: argparse.ArgumentParser) -> None:
         "remove", help="take a row out of the queue for good", allow_abbrev=False
     )
     remove.add_argument("slug")
-    remove.add_argument("--by", required=True)
-    remove.add_argument("--at", required=True, help="as approve takes it")
+    remove.add_argument(
+        "--message", metavar="THREAD/MESSAGE", help="the user's own message in T3 Code"
+    )
+    remove.add_argument(
+        "--page", metavar="SESSION/ENTRY", help="the user's own send from a Lavish page"
+    )
+    remove.add_argument("--by", help="the user's name, with --at, for words that were typed")
+    remove.add_argument("--at", help='"<YYYY-MM-DD HH:MM ZONE>", when the user said it')
     withdraw = table_verbs.add_parser(
         "withdraw",
         help="take out a row that never launched, as the home that runs it: for a row of "

@@ -1471,16 +1471,7 @@ def _do(
         return _take_out(batch, row, verb.slug, verb.by, verb.at, verb.why)
     if isinstance(verb, Rename):
         return _rename(batch, verb, asks)
-    if user is None:
-        raise Refused("refused: remove was given no settings to check --by and --at with")
     row = batch.row(verb.slug)
-    theirs = verb.by != user.user
-    if theirs and not _unlaunched(row):
-        raise Refused(
-            f"refused: {verb.slug} launched, and only {user.user} removes a row that launched, "
-            f"not {verb.by}"
-        )
-    verbs.typed_at(user, verb.at)
     _waited_on(rows, verb.slug)
     if asks is None:
         raise Refused("refused: remove was given nothing to ask what is out with")
@@ -1490,10 +1481,6 @@ def _do(
     is_out = is_out or asks.launched(verb.slug)
     if is_out:
         raise Refused(f"refused: {is_out}")
-    if theirs:
-        why = f"withdrawn, not removed: only {user.user} removes a row, and {verb.slug}"
-        why += " never launched"
-        return _take_out(batch, row, verb.slug, who(ran_by or runner()), verb.at, why)
     return _take_out(batch, row, verb.slug, verb.by, verb.at)
 
 
@@ -2024,9 +2011,11 @@ def hold(state: Path, slug: str) -> str:
     return _run(state, [(0, Hold(slug))])[0]
 
 
-def remove(state: Path, slug: str, by: str, at: str, user: jsettings.Settings, asks: Asks) -> str:
-    """Take the row out for good, and return the line that says what was done."""
-    return _run(state, [(0, Remove(slug, by, at))], user, asks)[0]
+def remove(state: Path, slug: str, by: str, at: str, asks: Asks) -> str:
+    """Take the row out for good, on the user's word that `by` and `at` name, and return the line
+    that says what was done. Whose word may remove a row is `jbus.acts`'s to say, before it calls
+    this."""
+    return _run(state, [(0, Remove(slug, by, at))], asks=asks)[0]
 
 
 def withdraw(
