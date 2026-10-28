@@ -148,9 +148,10 @@ def test_no_panel_card_is_drawn_over_the_homes_map(scene, tmp_path, screen):
     finally:
         served.close()
     assert [one["errors"] for one in seen.values()] == [[], []]
-    assert sorted(seen["#/"]["panels"]) == [
-        "glance", "milestones", "pipeline", "since", "slow", "throughput", "you"
-    ]
+    drawn = ["glance", "milestones", "since", "slow", "throughput", "you"]
+    if screen == DESK:
+        drawn = sorted([*drawn, "pipeline"])
+    assert sorted(seen["#/"]["panels"]) == drawn, "a phone draws no matrix"
     assert seen["#/homes"]["map"] and seen["#/homes"]["cards"]
     assert seen["#/homes"]["panels"] == []
 

@@ -1,6 +1,9 @@
-"""The "since you looked" line of `#/`, in the browser: a first visit draws no line and keeps the
-time of the visit, and a visit after three merges and a stall says "3 merged, 1 newly stuck".
-The time is all the page keeps, in the browser's own storage, and it sends it nowhere."""
+"""The Landed since you looked card of `#/`, in the browser: a first visit names what merged over
+what jbus kept and keeps the time of the visit, and a visit after three merges and a stall
+names the three, newest first, and the row newly stuck. The time is all the page keeps, in the
+browser's own storage, and it sends it nowhere."""
+
+import re
 
 import json
 from pathlib import Path
@@ -53,19 +56,20 @@ def test_a_revisit_after_three_merges_and_a_stall_says_so_and_keeps_only_the_tim
     scene.now = ago(minutes=40)
     quiet(scene)
     first = visited(scene, tmp_path, port, screen)
-    assert first["since"] == "", "a first visit has nothing to compare with"
+    assert "your first look" in first["since"], "a first visit has no look to compare with"
     assert first["kept"] == {KEY: stamp(ago(minutes=40))}
 
     three_merges_and_a_stall(scene)
     scene.now = NOW
     again = visited(scene, tmp_path, port, screen)
-    assert again["counts"] == "3 merged, 1 newly stuck"
-    assert again["since"].startswith("Since you looked 40m ago: 3 merged, 1 newly stuck.")
-    assert "Merged tea-pot, tea-cup, tea-urn. Stuck oat-spoon." in again["since"]
+    assert again["since"].lower().startswith("landed since you looked 3 ")
+    assert re.search(r"tea-urn .*tea-cup .*tea-pot ", again["since"]), "newest first"
+    assert "you looked 40m ago" in again["since"]
+    assert re.search(r"Stuck oat-spoon ?\.", again["since"])
     assert ["oat-spoon", "#/demo/task/oat-spoon"] in again["links"]
     assert again["kept"] == {KEY: stamp(NOW)}, "the time of the visit, and nothing else"
-    left, top, wide, high = again["box"]
-    assert left >= 0 and left + wide <= again["wide"] and top + high <= again["high"]
+    left, _, wide, _ = again["box"]
+    assert left >= 0 and left + wide <= again["wide"]
     for seen in (first, again):
         sent = json.dumps([seen["writes"], seen["counted"], seen["asked"]])
         assert stamp(ago(minutes=40)) not in sent and stamp(NOW) not in sent

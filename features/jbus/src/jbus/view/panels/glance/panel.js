@@ -98,6 +98,7 @@ function glanceCard() {
   var wrong = g.items.filter(function (it) { return it.tier === "wrong"; });
   var counts = wrong.length ? '<span class="gl-cw"><b>' + wrong.length + '</b> wrong</span>' : "";
   return '<section class="gl" data-role="glance" aria-labelledby="gl-h"><h2 class="gl-h" id="gl-h"><span class="gl-v">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</span> <span class="gl-c">' + counts + '</span></h2>' + glanceSub(g.verdict) +
+    (since ? '<p class="gl-since">Since you looked ' + esc(since.ago) + ' ago: ' + esc(since.said) + '.</p>' : "") +
     glanceTier("wrong", wrong) + '</section>';
 }
 function glanceTile(key, tag, value, said, tone, link) {
