@@ -78,6 +78,15 @@ def test_each_row_in_check_says_what_its_check_did_and_since_when():
     assert sum(not one.moving for one in found.values()) == 8
 
 
+def test_a_row_whose_required_check_has_not_passed_names_it_and_never_says_passed():
+    """H-01: jmerge waits on macos, and the newest check the pass saw, the aggregate `check`,
+    passed. The card said "check passed, jmerge has not moved it on"."""
+    seen = checked("check", "passed", 6, 2)
+    said = cause(task("check", "macos has not passed", ago(9), seen=seen, checks="pending"), NOW)
+    assert said == Cause("macos running or queued 6m", ago(6), False)
+    assert "passed" not in said.text
+
+
 def test_a_row_in_check_with_no_check_seen_gives_what_the_view_says():
     assert cause(task("check", NOT_PASSED, ago(3)), NOW) == Cause(NOT_PASSED, ago(3), False)
 
