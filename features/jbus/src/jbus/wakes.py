@@ -217,11 +217,17 @@ def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
     return items
 
 
+def root_of(run: Pass) -> str:
+    """The root home's thread, or with none the top-level `home_thread` its wakes go to
+    (`alert._thread`)."""
+    return thread_of(run.home) or run.config.home_thread
+
+
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that the root home passes on: each item of the list that the user
     has to decide (`blockers.deciding`). A row to approve is caused by the home whose brief it
     is."""
-    root = thread_of(run.home)
+    root = root_of(run)
     if not root:
         return []
     items = []
@@ -238,7 +244,7 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
 def left_items(run: Pass) -> list[Item]:
     """The leftovers its home has (`jbus.leftover`), each the item of that home's thread, and the
     root home's too once its home has not closed it in `leftover.CLOSE_MINUTES`."""
-    root, items = thread_of(run.home), []
+    root, items = root_of(run), []
     for slug, one in leftover.read(run.state).items():
         if one.why or one.busy or not one.thread:
             continue
