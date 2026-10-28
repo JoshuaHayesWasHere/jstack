@@ -18,7 +18,8 @@ old for its list of threads to be trusted.
 `watch`, a step of each pass, flags a home that has been quiet for its patience with work out, or
 a routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a
 `rhythm` file, its beat in minutes, and it is watched whatever it has out. Any other home is
-watched while it has a crew, a pull request, an owed entry, a question or a gate out. A home is
+watched while it has a crew, a pull request, an owed entry, a question or a gate out, and the root
+only while it has one of the first three: a question or a gate waits on the user. A home is
 quiet from the last thing it did that jbus can see: a write of one of its crew or reviewer
 threads, a change in what it has out, or, before jbus nudged it in this spell, a write of its
 home thread. A message queued to the home thread is no write (`threads`). A turn jbus's own nudge
@@ -66,6 +67,9 @@ PATIENCE = 60
 STALE = 10
 """The minutes after which the last pass's list of threads is too old to say what is out."""
 QUEUED = ("row queued", "row gate")
+USERS = ("out question ", "out gate ")
+"""What waits on the user and not on the home: the root is not watched for it, since it cannot
+be retired."""
 STEPS_OF = ("calm", "nudged1", "nudged2", "asked")
 ROOT = "/"
 """The root home's key in `children.json`: a scope is a directory, so none is named `/`."""
@@ -225,6 +229,8 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
     for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
         thread = homes.thread_of(scope)
         lines = out(run.home, scope, run.state, threads)
+        if scope == run.home:
+            lines = [line for line in lines if not line.startswith(USERS)]
         launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]
         beat = _rhythm(scope)
         if not thread or not (launched or beat):
