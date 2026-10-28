@@ -27,3 +27,15 @@ def test_a_wait_is_logged_once_and_again_when_its_reason_changes(merged):
     (said,) = merged.run()
     assert said.startswith("merged 7 alpha ")
     assert [line[17:] for line in merged.log()] == [*logged, said]
+
+
+def test_a_red_check_and_a_running_one_print_alike_and_are_logged_with_their_own_codes(merged):
+    """A check that failed and one still running print the same line, and the log tells them
+    apart: `check-failed` for the one whose latest run failed, `not-passed` for the other."""
+    waits = f"wait 7 {merge.URL}: {merge.NOT_PASSED}"
+    merged.home.open_pull_request(merged.head, checks=(merge.FAILED, merge.OTHER_PASSED))
+    assert merged.run() == [waits]
+    merged.home.open_pull_request(merged.head, checks=(merge.RUNNING, merge.OTHER_PASSED))
+    assert merged.run() == [waits]
+    logged = [f"{waits} [check-failed]", f"{waits} [not-passed]"]
+    assert [line[17:] for line in merged.log()] == logged
