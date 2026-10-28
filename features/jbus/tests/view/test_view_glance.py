@@ -8,7 +8,7 @@ from datetime import timedelta
 import jsettings
 from jbus.view import state as built
 from jbus.view.state import iso
-from view.scene import NOW, Scene, Served, ago, et, out, row
+from view.scene import NOW, Scene, Served, ago, et, item, out, row
 from view.test_view_wrong import STALL, idle
 from view.walk import runs, sources
 
@@ -36,7 +36,7 @@ def quiet(scene):
 
 def troubled(scene):
     """The quiet scene with a red main, a stall, a hung thread and two rows that wait for the
-    user's approval."""
+    user's approval, which jbus's list of what waits on the user holds."""
     quiet(scene)
     scene.queue(
         [
@@ -44,6 +44,12 @@ def troubled(scene):
             row("tea-pot", approved="", why="not approved", since=et(ago(minutes=20))),
             row("jam-jar", "running", thread="mcp:0000"),
             row("oat-spoon", "pr", pr="#12", checks="passed", why="wait: it has no review yet"),
+        ]
+    )
+    scene.waiting(
+        [
+            item("approve", f"approve:{slug}", f"approve {slug}: it", slug=slug)
+            for slug in ("tea-kettle", "tea-pot")
         ]
     )
     scene.passed(20, threads=[out("crew: jam-jar", "hung", minutes=25)])

@@ -126,6 +126,7 @@ def test_the_four_crew_reds_of_2026_10_27_are_each_on_its_row_and_none_is_the_us
     (scene.home / "home-id").write_text("mcp:root\n")
     scene.github([(slug, "completed", "failure") for slug in REDS])
     scene.queue([row(slug, "pr", pr=pr, thread=thread) for slug, (pr, thread, _) in REDS.items()])
+    scene.waiting([])
     scene.lines(
         "outbox.jsonl",
         [

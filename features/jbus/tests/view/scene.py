@@ -262,7 +262,12 @@ class Scene:
             [
                 item("gate", ASKED, "gate 4: tea or coffee?", hours=3, number="4"),
                 item("row", "row:jam-lid", "gate jam-lid: which lid?", minutes=50, slug="jam-lid"),
-                item("approve", "approve:tea-kettle", "approve tea-kettle: jbus queue approve"),
+                item(
+                    "approve",
+                    "approve:tea-kettle",
+                    "approve tea-kettle: jbus queue approve",
+                    slug="tea-kettle",
+                ),
                 item("hold", "#14", "hold 14: needs user", minutes=12, number=14),
             ]
         )
@@ -744,6 +749,7 @@ def kinds(scene):
                 slug="fig-vine",
             ),
             item("left", "left:fig-burr", "left fig-burr: status: paused", slug="fig-burr"),
+            item("left", "left:fig-rind", "left fig-rind: a tag is still to push", slug="fig-rind"),
         ]
     )
     scene.merge_log(logged(40, "wait", 32, "it has no review yet"))
