@@ -826,6 +826,11 @@ def test_the_views_drop_in_is_written_from_the_config_and_follows_it(user):
         'Environment="JBUS_VIEW_NAMES=box,box.tail.net"\n'
         'Environment="JBUS_VIEW_ORIGINS=https://jbus.example.org"\n'
     )
+    restart = "--user try-restart jbus-view.service"
+    assert user.said(user.systemctl_log).count(restart) == 1
+    user.systemctl_log.unlink()
+    user.run()
+    assert restart not in user.said(user.systemctl_log)
 
     user.write(config, 'server = "http://127.0.0.1:1"\n[view]\norigins = ["https://b.example"]\n')
     stale = f"old {units} -> {drop_in} does not say the [view] of {config}"
