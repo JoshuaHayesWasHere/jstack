@@ -14,7 +14,7 @@ Review: twice | review | none | after
 Playbook: <a row `a crewmate` runs, from the home skill's block that prints a row for each playbook> | none
 <The line below is there only in a brief a scoped home writes, and it is the scope's name, never a thread id. The root home's brief has no `Home:` line.>
 Home: <scope>
-<The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while an order that is only about merging is `--merge-after` and needs no line.>
+<The line below is there only for a row queued with `--depends`, and names each row it depends on before a colon with what of its work this row starts from after it, the code this row changes, calls or imports, one item for each and `;` between them, while a plan layer, docs order or a shared file is no such need and an order that is only about merging is `--merge-after` with no line.>
 Builds on: <slug>: <what of its work this row starts from>; <slug>: <what of its work>
 <The line below is there only for a link of a stack, in a plan whose head names the playbook `autopilot-stack`. Only the home writes it: the first word is the stack's name, the place counts from 1 at the bottom, and link 1 sits on the default branch.>
 Stack: <name> <place> on <the branch it sits on>
