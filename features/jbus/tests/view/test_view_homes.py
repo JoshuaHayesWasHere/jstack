@@ -10,7 +10,7 @@ row says which scope it named.
 import pytest
 
 from jbus.view import state as built
-from view.scene import NOW, OLD, RACK, ROOT, SHELF, Scene, ago, homed, iso, out
+from view.scene import IN_CHECK, NOW, OLD, RACK, ROOT, SHELF, Scene, ago, homed, in_check, iso, out
 from view.walk import runs, sources
 
 
@@ -177,3 +177,25 @@ def test_a_child_home_is_as_old_as_the_goal_line_that_made_its_scope(
     (project,) = stack["projects"]
     got = {one["name"]: one["started"] for one in project["homes"]}
     assert got == {ROOT: None, SHELF: started, RACK: None}
+
+
+def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_passed(
+    tmp_path, monkeypatch
+):
+    """pie-1 to pie-3 are pantry-shelf's: two red and one that passed. The root has the rest:
+    one red, one running, and one with no check reported yet, which waits for a runner."""
+    scene = Scene(tmp_path, monkeypatch)
+    in_check(scene, ["failed", "failed", "passed", "failed", "pending", "none"])
+    (scene.home / SHELF).mkdir()
+    (scene.home / SHELF / "home-id").write_text("mcp:shelf\n")
+    (scene.home / "tasks").mkdir(exist_ok=True)
+    for slug, _, _ in IN_CHECK[:3]:
+        brief = f"# {slug}: a made-up task\nHome: {SHELF}\nTask: x\n"
+        (scene.home / "tasks" / f"{slug}.md").write_text(brief)
+    stack, state = answers(scene)
+    (project,) = stack["projects"]
+    assert {one["name"]: one["in_check"] for one in project["homes"]} == {
+        ROOT: {"failing": 1, "waiting": 2, "passed": 0},
+        SHELF: {"failing": 2, "waiting": 0, "passed": 1},
+    }
+    assert state["summary"]["homes"] == project["homes"]

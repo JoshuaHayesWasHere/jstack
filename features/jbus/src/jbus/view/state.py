@@ -247,7 +247,7 @@ STEPS = (
     Step("review", "Review", "rev", "a reviewer reads it"),
     Step("findings", "Findings", "crew", "the crewmate handles the findings"),
     Step("second", "Second pass", "rev", "the content moved past its review"),
-    Step("check", "Check", "ci", "it waits for a runner, then runs"),
+    Step("check", "Check", "ci", "its check failed, runs or waits for a runner, or passed"),
     Step("proof", "Proof", "rev", "a guarded path needs a proven safety fact"),
     Step("rebase", "Rebase", "crew", "main moved under it, or a rebase dropped lines"),
     Step("hold", "Needs you", "user", "jmerge will not merge it until you say"),

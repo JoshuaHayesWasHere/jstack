@@ -383,7 +383,8 @@ def fake_gh(stub, args, cwd):
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
     request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
-    gives a list of pages, here two. A job comes from `jobs.json` by its id, or is one step at the
+    gives a list of pages, here two, and for the runs, a run's jobs and a check run's annotations
+    (none), one. A job comes from `jobs.json` by its id, or is one step at the
     first attempt where `jobs.json` has none for it. Its log comes from `logs.json` by its id, or is
     not found, and a log with an escape sequence in it is refused unless asked for with
     `--allow-escape-sequences`, as gh 2.102 does. A commit asked for by its sha lists the files it
@@ -432,6 +433,8 @@ def fake_gh(stub, args, cwd):
         kept = stub / "compare.json"
         known = json.loads(kept.read_text()) if kept.exists() else {}
         said = json.dumps({"status": known.get(args[1].split("/compare/")[1], "diverged")})
+    elif args[0] == "api" and args[1].split("?")[0].endswith("/annotations"):
+        said = "[[]]" if "--slurp" in args else "[]"
     elif args[0] == "api" and "/check-runs" in args[1]:
         runs = json.loads((stub / "check-runs.json").read_text())
         ref = args[1].split("/commits/")[-1].removesuffix("/check-runs")
@@ -439,6 +442,7 @@ def fake_gh(stub, args, cwd):
     elif args[0] == "api" and "/actions/runs?per_page=" in args[1]:
         kept = stub / "runs.json"
         said = kept.read_text() if kept.exists() else json.dumps({"workflow_runs": []})
+        said = json.dumps([json.loads(said)]) if "--slurp" in args else said
     elif args[0] == "api" and "/actions/runs?head_sha=" in args[1]:
         kept, sha = stub / "push-runs.json", args[1].split("head_sha=")[1].split("&")[0]
         listed = json.loads(kept.read_text()) if kept.exists() else {}
@@ -499,6 +503,7 @@ def fake_gh(stub, args, cwd):
         if every.get(args[1].split("/")[-2], []) is None:
             return 1, "", "gh: Bad Gateway (HTTP 502)\n"
         said = json.dumps({"jobs": every.get(args[1].split("/")[-2], [])})
+        said = json.dumps([json.loads(said)]) if "--slurp" in args else said
     elif args[0] == "api":
         said = (stub / "commits.json").read_text()
     else:

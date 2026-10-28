@@ -8,7 +8,12 @@ It asks GitHub, read-only through `gh api`, for three things:
 
 - the workflow runs of the last `--days` days, 14 by default
 - the jobs of each run that has finished and is not stored yet
-- the pull requests, with their timelines
+- the pull requests, with their timelines, where a pull request changed since it was stored
+
+Each pass of jbus keeps the same two files, so they never age between two runs of `jbus ci`.
+A pass asks for the runs of the last 3 hours and stores at most 30 new runs, so a pass after a gap catches up over the next few passes.
+It asks only while GitHub answered the pass and its API budget is above the floor, and it never waits while `jbus ci` holds the files.
+A run that finishes more than 3 hours after GitHub created it waits for the next `jbus ci`.
 
 
 It keeps what it collects in two files in the project's state directory:
@@ -20,7 +25,7 @@ It keeps what it collects in two files in the project's state directory:
   It names the `runner` and its `kind`, `hosted` or `local`, and the targets count the two kinds apart.
   For a red job on the local runner, it lists the failing `tests` and the runner faults (`signs`).
   A job cancelled while it waited has no runner and no start, and `jbus ci` keeps it and counts it.
-- `ci-prs.jsonl`, one line per pull request, rewritten each run, with the times its branch was force-pushed.
+- `ci-prs.jsonl`, one line per pull request, rewritten when one changed, with the time GitHub last updated it and the times its branch was force-pushed.
 
 A line also has a field for each change meant to move a number.
 A field is empty when the run did not give it.

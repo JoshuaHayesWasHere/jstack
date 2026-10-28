@@ -20,11 +20,14 @@ def test_six_rows_in_check_and_every_slot_held_say_so_on_the_overview(
     seen = look(scene, tmp_path, route="#/", screen=screen)
     clean(seen, screen)
     said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
-    assert "Slowed by 6 rows in check, the oldest for 1h00, and every test slot is held." in said
+    assert (
+        "Slowed by 6 checks running or queued of 6 rows in check, the oldest for 1h00, "
+        "and every test slot is held." in said
+    )
     if screen == PHONE:
-        assert "Runner" not in said
+        assert "Check 6 in check" not in said
         return
-    assert "Runner 6 in check oldest 1h00" in said
+    assert "Check 6 in check 0 failing, 6 running or queued, 0 passed oldest 1h00" in said
     assert "Test slots: 4 of 4 held" in said
     assert "Load: 2.5 of " in said
 
@@ -39,4 +42,14 @@ def test_a_band_the_reader_folds_or_opens_stays_so_when_the_overview_draws_again
     seen = look(scene, tmp_path, route="#/", screen=screen, walk=walk, at=6000, budget=12000)
     clean(seen, screen)
     said = " ".join(seen["screen"])
-    assert ("Runner" in said) is (screen == PHONE)
+    assert ("Check 6 in check" in said) is (screen == PHONE)
+
+
+def test_red_checks_that_outnumber_the_rest_are_what_slows_us(scene, tmp_path):
+    """Four of the six are red: the band names the failing checks, not a runner."""
+    in_check(scene, ["failed", "failed", "failed", "failed", "pending", "passed"])
+    seen = look(scene, tmp_path, route="#/", screen=DESK)
+    clean(seen, DESK)
+    said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
+    assert "Slowed by 4 failing checks of 6 rows in check, the oldest for 1h00." in said
+    assert "Check 6 in check 4 failing, 1 running or queued, 1 passed oldest 1h00" in said
