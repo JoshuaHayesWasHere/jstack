@@ -69,6 +69,7 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
         said: drawer.open ? text(document.getElementById("dw")) : "", peek: text(document.getElementById("peek")),
         acc: raw(document.querySelector("main .acc")), accept: raw(document.querySelector("main [data-accept]")),
         details: raw(document.querySelector("main [data-details]")), nsaid: raw(document.getElementById("nsaid")),
+        undo: focus && focus.getAttribute("data-undo") || "",
         changes: window.__changes.length });
       step(n + 1);
     }, 500);

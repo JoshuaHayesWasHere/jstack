@@ -3,6 +3,7 @@ header, the sidebar, and the overview's map of projects."""
 
 import json
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -689,6 +690,38 @@ def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends
     """The rail's Approve is the project page's: it counts 10 s with an Undo beside it, and only
     then posts the approval. An Undo tapped in the window posts nothing, and the Approve is back."""
     approves_once_and_undo_sends_nothing(*approved_and_undone(scene, tmp_path, "#/", screen))
+
+
+def a_minute_on(nth, body):
+    """Each answer of `/stack.json` a minute later than the last, so each poll draws the rail's
+    list time anew and the rail is drawn again."""
+    later = datetime.fromisoformat(body["at"]) + timedelta(minutes=nth)
+    return body | {"at": later.isoformat()}
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_a_poll_that_draws_the_rail_again_keeps_the_focus_on_undo_and_the_countdown_its_number(
+    scene, tmp_path, screen
+):
+    """A poll inside the countdown draws the rail again: the focus stays on the Undo that was
+    tapped into view, and the countdown still says how many seconds are left."""
+    one_to_approve(scene)
+    walk = ["look", f'tap:main [data-accept="{KETTLE}"]', *["look"] * 14]
+    seen = look(
+        scene,
+        tmp_path,
+        route="#/",
+        screen=screen,
+        walk=walk,
+        alter=a_minute_on,
+        at=4000 + 500 * len(walk),
+        budget=4000 + 500 * len(walk) + 4000,
+    )
+    assert seen["errors"] == []
+    assert seen["asked"].count("/stack.json") >= 3, seen["asked"]
+    for one in seen["walked"][1:]:
+        assert re.fullmatch(r"Approving it in \d+ s · Undo", one["acc"]), one
+        assert one["undo"] == KETTLE, one
 
 
 SHOWN = """window.addEventListener("load", function () { setTimeout(function () {
