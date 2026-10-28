@@ -28,6 +28,9 @@ window.addEventListener("unhandledrejection", function (e) { window.__errs.push(
         band: band && {
           calm: text(band.querySelector('[data-role="calm"]')),
           head: text(band.querySelector(".gl-h")),
+          word: text(band.querySelector('[data-role="verdict-word"]')),
+          cause: text(band.querySelector('[data-role="verdict-cause"]')),
+          needs: text(band.querySelector('[data-role="verdict-needs"]')),
           since: text(band.querySelector(".gl-since")),
           moving: text(band.querySelector(".gl-m")),
           tiers: all(".gl-t", band).map(function (t) {
