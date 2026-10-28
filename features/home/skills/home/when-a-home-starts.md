@@ -225,7 +225,6 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run.
    The merge step runs no `jmerge`, and the sweep runs one only while `$H/home-thread` holds an id.
    A message sent between the last home's handoff and this start reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
-   Then, on either start, run the first block of "A queue and its hourly audit" and do what it prints: an audit is its home's own, so this home schedules one for a queue that is out and deletes the one the last home left.
    Then do what "Its thread" says, under "The home before this one".
    Then end the start.
    A start the user began by typing `/home` asks where things stand: tell them in at most six lines what crewmates and scouts finished since the last home, what this start merged, swept and launched, what is still out, what is next in the plan and the note, any open decision, and the open questions step 4 printed, as "Show the open ones" ("Gates") says, by its block.
@@ -278,20 +277,14 @@ was=$(sed -n 's/^Was home:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$M/handoff.md" 
 if [ -z "$was" ] || [ "$was" = "$ME" ]; then
     echo "no home before this one: $M/handoff.md names none, so no task is taken over"
 else
-    said=$(the_reply | jq -rs --arg was "$was" --arg audit "audit: $R queue" --arg refused " $refused " '
+    said=$(the_reply | jq -rs --arg was "$was" --arg refused " $refused " '
         if length == 1 and (.[0].tasks | type) == "array" then .[0] else error("no tasks") end
         | [.tasks[] | select(.boundThreadId == $was)]
         | if length == 0 then "none: no scheduled task posts into \($was)" else .[] end
         | if type == "string" then .
           elif (.scheduledTaskId as $id | $refused | index(" \($id) ")) then "left \(.scheduledTaskId): \(.title) still posts into \($was), the call for it was refused"
-          elif .title == $audit then "delete \(.scheduledTaskId): the audit of the home before this one"
           else "take \(.scheduledTaskId): \(.title) posts into \($was), the home before this one" end' 2> /dev/null) || said="not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
     printf '%s\n' "$said"
-    kept=
-    if [ -s "$M/audit" ]; then read -r kept by < "$M/audit"; fi
-    case $said in
-    *"delete ${kept:-no audit is kept}: "*) uv run --project "$T/../source" jbus forget "$M/audit" "$M/audit-seen" > /dev/null ;;
-    esac
 fi
 ```
 
@@ -304,7 +297,6 @@ It prints one line for each task that posts into the last home, and never a task
   ```
 
   Nothing else in the call: the task keeps its title, its prompt, its schedule and, for a webhook, its address, so whoever posts to it is told nothing. One that was switched off stays off: tell the user its title. A task can only be bound by the thread that calls, which is why this is done here and not by the home that handed off.
-- `delete <id>`: delete it, as "Delete it" under "A queue and its hourly audit" says. An audit is its home's own, and step 5 schedules this home's: the block has dropped `$M/audit` where it kept that id. A delete that answers that there is no such task is done all the same.
 - `none` and `no home before this one`: nothing to do.
 
 After the calls, list the tasks again and run the block again, with the id of each task a call was refused for, a space between two, in place of `<the ids a call was refused for>`. It prints `none` when every one is taken. On `left <id>`, the task still posts into the last home: tell the user its id and what the call answered, make no second call for it, and go on.

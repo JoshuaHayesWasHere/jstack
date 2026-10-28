@@ -351,7 +351,8 @@ def test_a_home_told_and_then_settled_is_the_users_with_that_reason_and_not_rais
     assert stalls(kitchen) == []
     at["settled"] = False
     kitchen.poll(later(61))
-    assert stalls(kitchen) == [] and len(sends(kitchen)) == 2
+    raised = [one for one in sends(kitchen) if not one["clientRequestId"].startswith("home-stall|")]
+    assert stalls(kitchen) == [] and len(raised) == 2
 
 
 def test_a_pass_that_cannot_list_the_threads_out_leaves_an_untold_row_the_users(kitchen):

@@ -4,8 +4,8 @@ brief it.
 Each pass reads every home's plan, the root's and each scope's. An entry whose `Builds on:` line
 names rows or entries that have all merged, and that has no queue row (a scout's included), is an
 item of the one list that wakes the entry's home once: `brief <entry>: <dep> merged`. It leaves
-the list on the entry's first row. A parked entry raises nothing, and the entry's `Decisions:`
-text is never read for a wait. The tests run the real pass against the kitchen's fakes.
+the list on the entry's first row. A parked or scouting entry raises nothing, and the entry's
+`Decisions:` text is never read for a wait. The tests run the real pass against the kitchen's fakes.
 """
 
 import json
@@ -202,6 +202,17 @@ def test_a_parked_entry_wakes_nobody_when_its_builds_on_merged(kitchen):
     """A parked entry is one the user said waits: its `Builds on:` merging does not ask for it."""
     thread = home(kitchen)["threadId"]
     planned(kitchen, PLAN.replace("Stage: planned", "Stage: parked"))
+    queued(kitchen, "a")
+    merged(kitchen, "a")
+    kitchen.poll(NOW)
+    assert briefs(kitchen, thread) == []
+
+
+def test_a_scouting_entry_wakes_nobody_when_its_builds_on_merged(kitchen):
+    """`Stage: scouting` says a scout is out for the entry: its `Builds on:` merging does not ask
+    for a brief before that scout reports."""
+    thread = home(kitchen)["threadId"]
+    planned(kitchen, PLAN.replace("Stage: planned", "Stage: scouting"))
     queued(kitchen, "a")
     merged(kitchen, "a")
     kitchen.poll(NOW)

@@ -25,7 +25,11 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
    A `wait` that says the merge failed is a head that moved: go back to step 3 (`principles/principle-make-operations-idempotent.md`).
 6. Move the next link, and no other, as "A stack the user lands" says under "A link moves": the base of its pull request, its `Stack:` line, and one line to its crewmate. Run no sweep now. End the turn: its crewmate rebases its own branch onto the default branch, writes its `Rebase:` line and pushes, and its `fixed and green` line at the new head is what wakes you (`principles/principle-sequence-verifiable-units.md`).
 7. On that line, go to step 2. The order is read again after every merge, and the link that moved is judged again at its new head: its review stands, its checks ran again, and its `merged` line says which files the rebase changed.
-8. Close when the top link is merged, or at a stop the user leaves standing. Run the sweep of "Merging a pull request that is ready": it removes the branches that were kept. Account for every link by its line in `$H/merge.log` (`principles/principle-outcome-oriented-execution.md`): merged, with its pull request and commit, or not landed, with the reason. When all are merged, take the `Playbook:` line out of the plan's head and delete the audit if one is kept. Show the open gates.
+8. Close when the top link is merged, or at a stop the user leaves standing.
+   Run the sweep of "Merging a pull request that is ready": it removes the branches that were kept.
+   Account for every link by its line in `$H/merge.log` (`principles/principle-outcome-oriented-execution.md`): merged, with its pull request and commit, or not landed, with the reason.
+   When all are merged, take the `Playbook:` line out of the plan's head.
+   Show the open gates.
 
 Never done here, and who does it:
 
@@ -34,7 +38,8 @@ Never done here, and who does it:
 - **A rebase or a push of a link from the home.** The link's own crewmate does, on the home's one line.
 - **Moving two links at once, or a link whose parent is not merged.** Nobody does: one base changes after each merge.
 - **GitHub's auto-merge or merge-when-ready on a link.** Nobody does: `jmerge` merges at the head it checked.
-- **A watch on the pull request being landed.** Nobody does: the crewmate's line wakes this thread, and the audit catches one that was lost.
+- **A watch on the pull request being landed.**
+  Nobody does: jbus's pass merges it, and nudges this home when it stays quiet with work out.
 - **Verifying a link again after its move.** Nobody does: a review stands after a rebase, and the `Rebase:` line says what moved under it.
 
 **Hand over:** in this thread, to the user, after each merge and at the close: what landed, with pull request and commit; the link that stopped the landing and why; what the next link needs; and the open gates.
