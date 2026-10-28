@@ -9,8 +9,33 @@ import pytest
 from jbus import queue, view
 from jbus.view import panels
 from jbus.view.panels.usage import panel as usage
-from view.page.browser import BROWSES, LAUNCH, PATIENCE, WORDS, Proxy, clean, gated, look, shown
-from view.scene import DRAWN, NOW, Process, Served, a_noticed, ago, et, iso, out, rounded, table
+from view.page.browser import (
+    BROWSES,
+    LAUNCH,
+    PATIENCE,
+    WORDS,
+    Proxy,
+    browse,
+    clean,
+    gated,
+    look,
+    shown,
+)
+from view.scene import (
+    DRAWN,
+    NOW,
+    Process,
+    Served,
+    a_noticed,
+    ago,
+    et,
+    iso,
+    item,
+    out,
+    rounded,
+    row,
+    table,
+)
 from view.scene import folder as panel
 from view.test_view_owner import crewed, told
 
@@ -251,3 +276,40 @@ def test_a_fault_its_crew_owns_is_drawn_on_its_row_as_fixing_by_the_crew(scene, 
     at = ago(minutes=20).astimezone()
     assert "Fixing: crew of oat-milk, told " in task, task
     assert f"fixing: crew of oat-milk, told {at:%H:%M}" in board, board
+
+
+def folded(port, tmp_path, opens):
+    """The rows of the drawer that `opens` names, as the slugs of the tasks they open: those
+    shown, and those folded under its `details`, with what the fold's summary says."""
+    ran = browse(
+        f"--user-data-dir={tmp_path / 'profile'}",
+        "--virtual-time-budget=3000",
+        f"http://127.0.0.1:{port}/#/demo/{opens.replace(':', '/')}",
+    )
+    drawer = ran.stdout.partition('id="drawer"')[2].partition("</dialog>")[0]
+    shown_, _, rest = drawer.partition('<details class="more">')
+    summary = re.search(r"<summary>([^<]*)</summary>", rest)
+    found = [re.findall(r'data-open="task:(tea-\d)"', part) for part in (shown_, rest)]
+    return *found, summary and summary.group(1)
+
+
+def test_a_long_list_in_a_drawer_folds_and_the_row_it_was_opened_on_stays_shown(scene, tmp_path):
+    """Six rows wait for an approval. The drawer of what waits on you shows the first two and
+    folds the rest under how many they are. Opened on one of the folded rows, it shows that row
+    beside the first two."""
+    slugs = [f"tea-{n}" for n in range(6)]
+    scene.queue(table() + [row(slug, approved="", why="not approved") for slug in slugs])
+    scene.waiting(
+        [
+            item("approve", f"approve:{one}", f"approve {one}: jbus queue approve", slug=one)
+            for one in slugs
+        ]
+    )
+    served = Served(scene)
+    try:
+        kind = folded(served.port, tmp_path, "you:approve")
+        named = folded(served.port, tmp_path, "you:approve:tea-4")
+    finally:
+        served.close()
+    assert kind == (slugs[:2], slugs[2:], "4 more")
+    assert named == (["tea-0", "tea-1", "tea-4"], ["tea-2", "tea-3", "tea-5"], "3 more")

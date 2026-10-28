@@ -104,7 +104,7 @@
   .tok.th .src { font-family: var(--sans); font-size: var(--text-sm); }
   .tok.th.ended { border-style: dashed; color: var(--ink-2); }
   .filters { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-4) 0 var(--space-3); align-items: center; font-size: var(--text-sm); color: var(--ink-2); }
-  .fb { display: inline-flex; align-items: center; gap: var(--space-4); border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: 0 var(--space-6); background: var(--surface); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
+  .fb { display: inline-flex; align-items: center; min-height: 24px; gap: var(--space-4); border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: 0 var(--space-6); background: var(--surface); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
   .fb[aria-pressed="true"] { background: var(--sunk); border-color: var(--ink); }
   .fb i { font-style: normal; font-weight: 400; color: var(--ink-2); }
   .nx:empty { display: none; }
@@ -117,7 +117,6 @@
   .mk.lv-hung { background: var(--due); border-radius: var(--radius-xs); width: 9px; height: 9px; }
   .marked { margin: var(--space-5) 0 0; padding-left: var(--space-4); border-left: 3px solid var(--due); }
   .marked.lv-quiet { border-left-style: dashed; }
-  .mk.blk { width: 0; height: 0; border-radius: 0; border: 5px solid transparent; border-right-color: var(--due); }
   .bn { flex: none; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; line-height: 1.4; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--ink); color: var(--canvas); }
   .bk { font-family: var(--mono); font-size: var(--text-sm); color: var(--ink-2); background: none; border: 0; padding: 0; white-space: nowrap; }
   button.bk { cursor: pointer; border-bottom: 1px dotted var(--ink-2); }
@@ -518,7 +517,7 @@
   };
   var MARKS = [
     ["long", "Mark", "Over 30 minutes on its step."], ["rep", "Mark", "Not its first time on this step."],
-    ["blk", "Mark", "Blocked: what follows it names what blocks it."], ["bn", "Count", "How many tasks wait behind it to merge first."],
+    ["bn", "Count", "How many tasks wait behind it to merge first."],
     ["lv-moving", "Mark", "Its thread has a turn under way and writes."], ["lv-quiet", "Mark", "Its thread has a turn under way but has written nothing for a while."],
     ["lv-hung", "Mark", "Its thread has written nothing for longer, or a run waits behind it."]
   ];
@@ -934,8 +933,8 @@
   /* A drawer's list: its first `first` rows, then each later row `hit` picks, and the rest folded
      under their count, so a long list keeps a drawer short. A drawer opened on one row gives its
      other lists a `first` of 0. */
-  function fold(items, row, first, hit, kind) {
-    var shown = [], rest = [], ul = '<ul class="clean ' + (kind || "rows") + '">';
+  function fold(items, row, first, hit) {
+    var shown = [], rest = [], ul = '<ul class="clean rows">';
     items.forEach(function (one, i) { (i < first || (hit && hit(one)) ? shown : rest).push(one); });
     function rows(list) { return list.map(function (one) { return row(one); }).join(""); }
     return (shown.length ? ul + rows(shown) + '</ul>' : "") + (rest.length ? '<details class="more"><summary>' + (shown.length ? rest.length + " more" : "Show all " + rest.length) + '</summary>' + ul + rows(rest) + '</ul></details>' : "");
@@ -1022,7 +1021,7 @@
     h += '<p class="src" style="margin-top:var(--space-8)">Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
     h += '<h3>The steps of the line, top to bottom</h3><div id="hsteps">' + stepList() + '</div>';
     h += '<h3>Who holds a task, or what a thread is: its shape</h3><div id="hshapes">' + shapeList() + '</div>';
-    h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
+    h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--ink-2)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
     h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
     h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it</dd><dt><kbd>Esc</kbd></dt><dd>goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';
