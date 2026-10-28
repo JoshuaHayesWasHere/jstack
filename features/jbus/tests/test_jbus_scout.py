@@ -16,6 +16,8 @@ from test_jbus_entry_go import PLAN, plan_go
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import brief, go, rows
 
+AT = "2026-10-12 10:58 ET"
+
 
 @pytest.fixture
 def kitchen(tmp_path, monkeypatch, jstack_config):
@@ -318,6 +320,36 @@ def test_a_lost_launch_reply_is_adopted_and_never_launched_again(kitchen):
         True,
     )
     assert rows(kitchen)["alpha"]["thread"] == thread["threadId"]
+
+
+@pytest.mark.parametrize("status", ["preparing", "running", "waiting"])
+def test_a_launched_scout_row_whose_thread_is_at_work_is_not_removed(kitchen, status):
+    add(kitchen, "alpha")
+    go(kitchen, "alpha")
+    kitchen.poll()
+    thread = scout_thread(kitchen, "alpha")
+    thread["status"] = status
+    before = (kitchen.state / "queue.json").read_text()
+
+    code, said = kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", AT)
+
+    assert (code, said.splitlines()[0]) == (
+        1,
+        f"refused: alpha is out: its thread {thread['threadId']} is {status}",
+    )
+    assert (kitchen.state / "queue.json").read_text() == before
+
+
+def test_a_launched_scout_row_whose_thread_ended_is_removed(kitchen):
+    add(kitchen, "alpha")
+    go(kitchen, "alpha")
+    kitchen.poll()
+    scout_thread(kitchen, "alpha")["status"] = "completed"
+
+    code, said = kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", AT)
+
+    assert code == 0, said
+    assert "alpha" not in rows(kitchen)
 
 
 def test_the_scout_verbs_are_gone(kitchen):
