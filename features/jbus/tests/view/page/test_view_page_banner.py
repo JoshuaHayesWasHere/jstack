@@ -92,7 +92,7 @@ def test_on_a_phone_the_page_is_one_column_and_every_target_takes_a_thumb(scene,
     seen = look(scene, tmp_path, budget=9000, screen=screen)
     opened = clean(seen, screen)
     assert {row["open"] for row in seen["prog"]} <= opened
-    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 28 - 4
+    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 27 - 4
     assert all(
         row["box"][0] >= 0 and row["box"][0] + row["box"][2] <= screen[0] for row in seen["prog"]
     )

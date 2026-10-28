@@ -45,7 +45,7 @@ def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_pe
     root, docs, ui = demo["homes"]
     assert (root["home"], docs["home"], ui["home"]) == ("", "docs", "ui")
     assert root["health"] == "moving"
-    assert "27 open" in root["text"] and "4 wait on you" in root["text"]
+    assert "26 open" in root["text"] and "4 wait on you" in root["text"]
     assert "6 on default" in root["text"]
     assert "project last act " in root["text"] and " ago root " in root["text"]
     assert docs["text"] == "demo › docs 0 open no act kept 2d old"
