@@ -1,31 +1,34 @@
-"""The root's watch of its child homes: what a child has out, and the stall of a child that has
-gone quiet with work out.
+"""jbus's watch of the homes: what a home has out, and the stall of a home that has gone quiet
+with work out.
 
 A child home is a scope of the repo's home: a directory of the state with a `home-id` or a
-`Was home:` line. What a child has out (`out`) is read from jbus's own records, never from the
-child: each queue row of a brief of its that is not over, each entry of its plan whose go holds
-with no live row (`plan.owed`), each crew or reviewer thread of such a brief that the last pass
-found unsettled, each question jbus holds for it, and each open gate of its `gates.md`. A row that
-is queued and not launched is out, and it has no crew yet.
+`Was home:` line. The root home, the state directory itself, is watched as a child is, under the
+key `/` in `children.json`, which no scope's name can be. What a home has out (`out`) is read
+from jbus's own records, never from the home: each queue row of a brief of its that is not over,
+each entry of its plan whose go holds with no live row (`plan.owed`), each crew or reviewer
+thread of such a brief that the last pass found unsettled, each question jbus holds for it, and
+each open gate of its `gates.md`. A row that is queued and not launched is out, and it has no
+crew yet.
 
 `jbus out --scope <scope>` prints one line for each, and nothing when nothing is out. The
 handoff skill closes a scope only on that nothing (`NoRetireWithOpen` in
 `features/home/spec/HomeTree.tla`). It prints `unknown:` and ends 1 when jbus's last pass is too
 old for its list of threads to be trusted.
 
-`watch`, a step of each pass, flags a child that has been quiet for its patience with work out, or a
-routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a `rhythm`
-file, its beat in minutes, and it is watched whatever it has out. Any other child is watched while
-it has a crew, a pull request, an owed entry, a question or a gate out. A child is quiet from the
-last thing it did that the root can see: a write of one of its crew or reviewer threads, a change in
-what it has out, or, before the root nudged it in this spell, a write of its home thread. A turn the
-root's own nudge started is no progress, so once nudged the home thread's writes do not end the
-spell. At its patience (`PATIENCE`, or the routine's beat) the root nudges the child's home thread
-and the user hears of it at once, the first strike (`FirstStrike`); a patience after that nudge it
-nudges it again; a patience after the second it asks the user, and nudges no more (`NudgesBounded`,
-`AsksAfterTwo`). Each step waits a patience after the last, so a child first checked long after it
-went quiet still gets that time to act on a nudge. `children.json` keeps each spell: when it began,
-how far it went, when it took its last step, and what the child had out.
+`watch`, a step of each pass, flags a home that has been quiet for its patience with work out, or
+a routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a
+`rhythm` file, its beat in minutes, and it is watched whatever it has out. Any other home is
+watched while it has a crew, a pull request, an owed entry, a question or a gate out. A home is
+quiet from the last thing it did that jbus can see: a write of one of its crew or reviewer
+threads, a change in what it has out, or, before jbus nudged it in this spell, a write of its
+home thread. A message queued to the home thread is no write (`threads`). A turn jbus's own nudge
+started is no progress, so once nudged the home thread's writes do not end the spell. At its
+patience (`PATIENCE`, or the routine's beat) jbus nudges the home thread and the user hears of
+it at once, the first strike (`FirstStrike`); a patience after that nudge it nudges it again; a
+patience after the second it asks the user, and nudges no more (`NudgesBounded`,
+`AsksAfterTwo`). Each step waits a patience after the last, so a home first checked long after it
+went quiet still gets that time to act on a nudge. `children.json` keeps each spell: when it
+began, how far it went, when it took its last step, and what the home had out.
 """
 
 from __future__ import annotations
@@ -64,18 +67,21 @@ STALE = 10
 """The minutes after which the last pass's list of threads is too old to say what is out."""
 QUEUED = ("row queued", "row gate")
 STEPS_OF = ("calm", "nudged1", "nudged2", "asked")
+ROOT = "/"
+"""The root home's key in `children.json`: a scope is a directory, so none is named `/`."""
 NUDGE = (
-    "jbus: the home {scope} has had {what} out and has done nothing jbus can see for {minutes} "
-    "minutes. Carry on with your plan: read `jbus plan --scope {scope}` and your briefs' last "
+    "jbus: {home} has had {what} out and has done nothing jbus can see for {minutes} "
+    "minutes. Carry on with your plan: read `{plan}` and your briefs' last "
     "Results, and pick up each thread that stopped, as the home skill's \"Picking up a thread "
     'that stopped" says. This is nudge {n} of 2; after the second, the user is asked.'
 )
 
 
 def out(root: Path, scope: Path, state: Path, threads: list[dict[str, Any]]) -> list[str]:
-    """Return a line for each thing the scope at `scope` has out, in a fixed order: its rows that
-    are not over, its entries whose go holds with no live row, its crew and reviewer threads in
-    `threads` (the last pass's), its questions, and its open gates."""
+    """Return a line for each thing the home at `scope`, a scope or the root itself, has out, in
+    a fixed order: its rows that are not over, its entries whose go holds with no live row, its
+    crew and reviewer threads in `threads` (the last pass's), its questions, and its open
+    gates."""
     rows = queue.load(state)
     texts = {row["slug"]: queue.brief(state, row["slug"]) or "" for row in rows}
     for kind in ("tasks", "scouts"):
@@ -90,14 +96,14 @@ def out(root: Path, scope: Path, state: Path, threads: list[dict[str, Any]]) -> 
     found += [
         f"out entry {made.entry}: go holds, no live row"
         for made in plan.owed(state, root, rows)
-        if made.scope == scope.name
+        if made.scope == ("" if scope == root else scope.name)
     ]
     found += [
         f"out {one['slug']}: {one['role']} thread {one['id']} is not settled"
         for one in threads
         if one.get("role") in ("crew", "reviewer") and one.get("slug") in mine
     ]
-    own = f"home-{scope.name}"
+    own = "home" if scope == root else f"home-{scope.name}"
     found += [
         f"out question {one.number}: {one.question}"
         for one in questions.load(state)
@@ -204,20 +210,20 @@ def _send(run: Pass, client: Client, thread: str, message: str, key: str) -> boo
 
 
 def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> None:
-    """Count each child's quiet, and nudge, tell or ask for each one that is due. See the
-    module."""
+    """Count each home's quiet, the root's and each child's, and nudge, tell or ask for each one
+    that is due. See the module."""
     if threads is None:
         return
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}
-    for scope, _, _ in homes.scopes(run.home):
+    for scope in [run.home, *(one for one, _, _ in homes.scopes(run.home))]:
         thread = homes.thread_of(scope)
         lines = out(run.home, scope, run.state, threads)
         launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]
         beat = _rhythm(scope)
         if not thread or not (launched or beat):
             continue
-        name = scope.name
+        name = ROOT if scope == run.home else scope.name
         seen = hashlib.sha256("\n".join(line.split(": ")[0] for line in launched).encode())
         sig = seen.hexdigest()[:12]
         prev = was.get(name, {})
@@ -262,20 +268,22 @@ def _act(
     instance is capped no step is taken: the home could not act on it, so the step waits for the
     reset. The outbox holds a nudge, and the question waits here."""
     step, since = spell["step"], spell["since"]
+    home = "the root home" if name == ROOT else f"the home {name}"
     if step in ("calm", "nudged1"):
         n = 1 if step == "calm" else 2
-        text = NUDGE.format(scope=name, what=what, minutes=quiet, n=n)
+        plan = "jbus plan" if name == ROOT else f"jbus plan --scope {name}"
+        text = NUDGE.format(home=home, what=what, minutes=quiet, plan=plan, n=n)
         if not _send(run, client, thread, text, f"{STALL}|{name}|{since} {n}"):
             return False
         run.say(f"{STALL} {name}: nudged its home, thread {thread}, {n} of 2")
         if n == 2:
             return True
-        line = f"{STALL} {name}: the home {name} has had {what} out and been quiet {quiet} min"
+        line = f"{STALL} {name}: {home} has had {what} out and been quiet {quiet} min"
         run.find(name, STALL, f"{line}; jbus nudged it, thread {thread}", key=f"{since} strike")
         return True
     if outbox.capped(run, client, thread):
         return False
-    line = f"{STALL} {name}: the home {name} is still quiet after two nudges, {quiet} min"
+    line = f"{STALL} {name}: {home} is still quiet after two nudges, {quiet} min"
     run.find(
         name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"
     )

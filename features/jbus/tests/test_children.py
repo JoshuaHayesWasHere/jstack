@@ -1,5 +1,5 @@
-"""The root's watch of its child homes (`jbus.children`): a child with work out that stays quiet
-for its patience is nudged, the user hears of it at once, it is nudged once more, and then the
+"""jbus's watch of the homes (`jbus.children`): a child or the root with work out that stays
+quiet for its patience is nudged, the user hears of it at once, it is nudged once more, and then the
 user is asked, and nothing more is sent in that spell. Something the child does that the root can
 see ends the spell, and its home's reply to a nudge does not. A routine, a scope with a `rhythm`
 file, is watched with nothing out. `jbus out --scope` says what a scope has out."""
@@ -15,6 +15,7 @@ from test_jbus_queue import add, brief
 from test_jbus_row_ends import sends
 
 P = children.PATIENCE
+STALL = f"{children.STALL}|"
 
 
 def minutes(n):
@@ -107,6 +108,45 @@ def test_a_child_with_nothing_out_is_not_watched(kitchen):
     (kitchen.home / "idle" / "plan.md").write_text("# idle: plan\n")
     kitchen.poll(NOW)
     assert sends(kitchen) == [] and told(kitchen) == []
+
+
+@pytest.fixture
+def root(kitchen):
+    """A root home with no scope, its thread quiet for six hours, and a crew of its launched at
+    NOW that writes nothing after. Its thread keeps its count of items, so a wake queued to it is
+    no write, as in T3 Code (`test_a_message_queued_to_a_silent_thread_is_no_write`)."""
+    found = home(kitchen, idle=timedelta(hours=6), itemCount=40)
+    add(kitchen, "alpha")
+    kitchen.poll(NOW)
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == "crew: alpha"]
+    kitchen.t3.at_work.discard(crew["threadId"])
+    kitchen.forget()
+    return kitchen, found
+
+
+def test_a_quiet_root_home_is_nudged_twice_then_the_user_is_asked(root):
+    """The root home is watched as a scoped home is: its nudge names no scope."""
+    kitchen, found = root
+    for n in range(10, 5 * P, 10):
+        kitchen.poll(minutes(n))
+        nudges = [one for one in sends(kitchen) if one["clientRequestId"].startswith(STALL)]
+        assert [one["threadId"] for one in nudges] == [found["threadId"]] * (
+            0 if n < P else 1 if n < 2 * P else 2
+        )
+        assert len(told(kitchen)) == (0 if n < P else 1 if n < 3 * P else 2)
+    first = nudges[0]
+    assert "the root home has had" in first["message"] and "`jbus plan`" in first["message"]
+    assert "--scope" not in first["message"]
+    stalled, asked = told(kitchen)
+    assert "nudged it" in stalled and "after two nudges" in asked
+
+
+def test_a_root_home_with_nothing_out_is_not_watched(kitchen):
+    home(kitchen, idle=timedelta(hours=6))
+    kitchen.poll(NOW)
+    kitchen.poll(minutes(3 * P))
+    assert not [one for one in sends(kitchen) if one["clientRequestId"].startswith(STALL)]
+    assert told(kitchen) == []
 
 
 def test_jbus_out_says_what_a_scope_has_out_and_refuses_one_with_no_plan(child):
