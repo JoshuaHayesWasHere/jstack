@@ -5,15 +5,17 @@ It asks the view on this machine, at `127.0.0.1` and the view's port (`view.PORT
 `jbus link` gives), whether it is up (`/healthz`), and refuses when it is not. It then has headless
 Chromium load the route, at a width of 1440 or 390 (`SIZES`), and draw it. Chromium's virtual time
 stands still while a request is out, so its budget (`BUDGET_MS`) runs out only once the page has
-its answers and has drawn them, and before the page's next poll. A `--home` adds `&home=<home>` to
-the route, for a page that shows one home.
+its answers and has drawn them, and before the page's next poll. A `--home` adds
+`home=<project>/<home>` to the route's query, for a page that shows one home, as the board keys its
+home filter: a bare home is of the project `--project` names, or the one whose repo this is
+(`verbs.here`).
 
 It writes the one file `--out` names. A bare name goes into `$XDG_RUNTIME_DIR`, or `/tmp` where
 that is not set, and a path under a state directory is refused (`state_dirs`). Chromium runs on a
 profile of its own, in a temporary directory that is removed after it, and draws the PNG there: the
-file at `--out` is replaced only by a PNG that Chromium wrote. The command reads no config and no
-state. The page it loads counts its route, as for any visit, so the view adds a line to its
-`view-usage.jsonl` for each shot (`usage`).
+file at `--out` is replaced only by a PNG that Chromium wrote. The command reads no state, and no
+config but to name the project of a bare `--home`. The page it loads counts its route, as for any
+visit, so the view adds a line to its `view-usage.jsonl` for each shot (`usage`).
 
 Chromium runs in its sandbox. Where it cannot make the sandbox's namespaces, as in a container that
 gives it none, it aborts before it loads anything, and the shot is drawn again once with
@@ -33,7 +35,8 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import quote
 
-from jbus import view
+import jbus
+from jbus import verbs, view
 
 SIZES = {1440: (1440, 900), 390: (390, 844)}
 BUDGET_MS = 4000
@@ -99,7 +102,7 @@ def address(port: int, route: str, home: str | None) -> str:
         raise NoShot(f"no shot: {route!r} is no route of the page, which starts with #")
     route = route.removeprefix("/")
     if home:
-        route += f"&home={quote(home, safe='')}"
+        route += ("&" if "?" in route else "?") + f"home={quote(home, safe='/')}"
     return f"http://127.0.0.1:{port}/{route}"
 
 
@@ -165,7 +168,9 @@ def arguments(parser: argparse.ArgumentParser) -> None:
         "--out", required=True, help="the PNG to write, a bare name in $XDG_RUNTIME_DIR or /tmp"
     )
     parser.add_argument("--width", type=int, choices=sorted(SIZES, reverse=True), default=1440)
-    parser.add_argument("--home", help="the home the page shows, added to the route")
+    parser.add_argument(
+        "--home", help="the home the page shows, as <project>/<home> or a home of this project"
+    )
     parser.add_argument(
         "--port", type=int, default=0, help="the port of jbus view, its own by default"
     )
@@ -174,7 +179,10 @@ def arguments(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace) -> int:
     """Print the PNG's path, or why there is none."""
     try:
-        print(shoot(args.route, args.out, args.width, args.home, args.port))
+        home = args.home
+        if home and "/" not in home:
+            home = f"{verbs.here(jbus.load(), args.project).name}/{home}"
+        print(shoot(args.route, args.out, args.width, home, args.port))
     except NoShot as why:
         print(why)
         return 1

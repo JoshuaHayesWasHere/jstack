@@ -54,8 +54,8 @@ CITED = {
     "features/jbus/src/jbus/watch.py:1512-1513": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:237-240": 'row.get("merge_after", [])',
     "features/jmerge/src/jmerge/cli.py:451-459": "ready.STACKED_UNMOVED.format(",
-    "features/jmerge/src/jmerge/ready.py:1044-1046": "NOT_PASSED",
-    "features/jmerge/src/jmerge/ready.py:377-380": "def red_only",
+    "features/jmerge/src/jmerge/ready.py:1074-1076": "NOT_PASSED",
+    "features/jmerge/src/jmerge/ready.py:404-407": "def red_only",
     "features/jmerge/src/jmerge/rows.py:126": (
         "if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):"
     ),

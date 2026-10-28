@@ -462,8 +462,8 @@ def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
     alert = blocks()
     running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}, tmp_path / "state").up()
 
-    running.send(alert)
-    until(lambda: len(sous_chef.bodies("blocking")) == 1)
+    _, taken = running.send(alert)
+    until(lambda: f"relay: sent event {taken['id']} to webhook (blocking)" in running.said())
     time.sleep(0.35)
     running.send(alert)
 
@@ -493,7 +493,7 @@ def test_a_body_with_its_own_id_is_not_sent_again_after_the_window(hooks, tmp_pa
     env = {**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}
     first = Relay(env, tmp_path / "state").up()
     first.send(blocks(id="evt-1"))
-    until(lambda: sous_chef.bodies("blocking"))
+    until(lambda: "relay: sent event evt-1 to webhook (blocking)" in first.said())
     first.stop()
     time.sleep(0.35)
 
