@@ -35,6 +35,9 @@ CITE = re.compile(r"((?:features|scripts|\.github)/[\w./-]+):(\d+(?:-\d+)?(?:,\d
 
 CITED = {
     ".github/workflows/check.yml:4": "pull_request:",
+    ".github/workflows/browser.yml:22-23": "schedule:",
+    "features/jbus/src/jbus/expedite.py:329": "ready.BROWSER_RED.pattern",
+    "features/jbus/src/jbus/expedite.py:440": "world.open.items()",
     "scripts/select_tests.py:683-692,396": "lone = unowned()",
     "features/crew/the-checks.md:81-86": "`jmerge` judges a red pull request again by itself",
     "features/jbus/src/jbus/dispatch.py:322-354": "no room",
@@ -42,20 +45,32 @@ CITED = {
     "features/jbus/src/jbus/rebase.py:276": "world.open.items()",
     "features/jbus/src/jbus/stack.py:83": "world.open.items()",
     "features/jbus/src/jbus/stack.py:89-90": "world.merged.get(stacked.slug)",
-    "features/jbus/src/jbus/strays.py:491": '("crew", slug) in busy',
+    "features/jbus/src/jbus/strays.py:491": 'if not slug or ("crew", slug) in busy:',
     "features/jbus/src/jbus/strays.py:508-509,517": "burning = (taken |",
     "features/jbus/src/jbus/watch.py:1101-1122": "ran_by=queue.PASS",
+    "features/jbus/src/jbus/watch.py:1109-1111": "queue.fresh(run.state, name) is not None",
+    "features/jbus/src/jbus/watch.py:1168-1171": 'prefix="browser-red-"',
     "features/jbus/src/jbus/watch.py:1425,1468,1472,1475": "no briefed merge came in",
     "features/jbus/src/jbus/watch.py:1474-1475": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:237-240": 'row.get("merge_after", [])',
     "features/jmerge/src/jmerge/cli.py:451-459": "ready.STACKED_UNMOVED.format(",
     "features/jmerge/src/jmerge/ready.py:980-981": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:313-316": "def red_only",
-    "features/jmerge/src/jmerge/rows.py:126": "if not main.red",
+    "features/jmerge/src/jmerge/rows.py:126": (
+        "if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):"
+    ),
+    "features/jmerge/src/jmerge/rows.py:119": "ran.over == red and bool(failed)",
+    "features/jmerge/src/jmerge/rows.py:326-329": "if red and not proves(red, failed, ran):",
+    "features/jmerge/src/jmerge/rows.py:355": (
+        'if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in'
+        " fixing:"
+    ),
+    "features/jmerge/src/jmerge/rows.py:370-371": "row.get(\"status\") not in queue.FINAL",
+    "features/jmerge/src/jmerge/cli.py:2035": "if state != ready.BROWSER_FAILED:",
     "features/jmerge/src/jmerge/rejudge.py:93": 'was.get("tip")',
     "features/jmerge/src/jmerge/cli.py:830": "self.moved(one.base, one.started)",
     "features/jmerge/src/jmerge/cli.py:873": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:950": "self.red(one, default",
+    "features/jmerge/src/jmerge/cli.py:950": "or self.red(one, default, brief.stem, text)",
     "features/jmerge/src/jmerge/rejudge.py:73": "self.ask(one)",
 }
 
@@ -81,6 +96,28 @@ def test_each_line_a_model_cites_holds_the_condition_it_names():
     for cite, text in CITED.items():
         path, _, spans = cite.rpartition(":")
         assert text in lines_of(path, spans), cite
+
+
+STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
+OR = re.compile(r"\bor\b")
+
+
+def disjuncts(code):
+    """How many `or`s the Python text holds outside its string literals."""
+    return len(OR.findall(STRING.sub("", code)))
+
+
+def test_a_cite_of_one_python_line_quotes_each_or_on_it():
+    """A cite of one line of Python names a condition, and its quote holds every `or` that line
+    holds, so a disjunct the code gains, as `rows.red` gained the proof of a fix in #583, fails
+    here until the model takes it in. A span cites a block, and its quote names the block."""
+    checked = []
+    for cite, text in CITED.items():
+        path, _, line = cite.rpartition(":")
+        if path.endswith(".py") and line.isdigit():
+            checked.append(cite)
+            assert disjuncts(text) == disjuncts(lines_of(path, line)), cite
+    assert "features/jmerge/src/jmerge/rows.py:126" in checked
 
 
 def test_each_condition_of_the_design_s_rejudge_names_a_file_and_line():

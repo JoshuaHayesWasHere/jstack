@@ -32,12 +32,16 @@ CANARIES = {
     "NoGuard": ["NoMergeTurnsMainRed"],
     "NoRejudge": ["FlowsWhenGreen"],
     "NoSweep": ["FlowsWhenGreen", "MachineNotLeftFull"],
+    "NoProof": ["MainFixWaitsOnlyOnYou"],
 }
 
-# Today's code breaks one rule: a check that selects a test reading the whole tree only by
-# chance merges a change that breaks it. Since #427 jbus.strays stops what a crew left, busy or
-# idle, once its turn ended, so no leftover keeps the machine full.
-TODAY_BREAKS = ["NoMergeTurnsMainRed"]
+# Today's code breaks two rules. A check that selects a test reading the whole tree only by
+# chance merges a change that breaks it. And once main's fix row closed with its fix in an open
+# pull request, that fix merges only when its own check proves it, which it does only when it
+# selected the tests main failed and the red run's logs name them: otherwise nothing can merge.
+# Since #427 jbus.strays stops what a crew left, busy or idle, once its turn ended, so no
+# leftover keeps the machine full.
+TODAY_BREAKS = ["NoMergeTurnsMainRed", "MainFixWaitsOnlyOnYou"]
 
 # What jbus.strays stops of an idle process a finished turn left (FlowToday.tla's `Gap`), and
 # the rules the code breaks with it. Before #427 an idle one is stopped only once its row ended,
