@@ -14,8 +14,8 @@ jobs and merged pull requests of each configured project's repo, and prints for 
 - how long the machine had no room, why, and how long an account cap or a slot held a row
   (`measure.no_room`, `measure.caps`, `measure.slots`), and when jbus itself did not run;
 - GitHub's queue and run time, cancels and reruns, and the median and 90th percentile wall time
-  of a pull request's `check` (`measure.ci`); past `measure.RUNNERS_BACK_P90_MIN` minutes, the
-  text ends with a line that raises the parked row `measure.RUNNERS_BACK`;
+  of a pull request's `check` (`measure.ci`); past `RUNNERS_BACK_P90_MIN` minutes, the
+  text ends with a line that raises the parked row `RUNNERS_BACK`;
 - how many events paged the owner (`measure.pages`);
 - the share of the rows' time the records leave unexplained, and apart from it the share before
   any record of the row (`no record`), with when each source's records begin, since a window
@@ -48,6 +48,11 @@ from jbus.ci import ledger
 from jbus.flow import asks, measure, nudges, records
 
 DEFAULT_DAYS = 7
+RUNNERS_BACK = "jstack-runners-back"
+RUNNERS_BACK_P90_MIN = 8
+"""The row parked at the infra home that resumes on Josh's go once the 90th percentile of a pull
+request's `check` passes this many minutes over a window: `jbus flow` raises it, and never
+resumes it."""
 
 
 def build(
@@ -294,10 +299,10 @@ def text(said: dict[str, Any]) -> str:
     out += ["", f"paged the owner: {paged['total']} ({kinds})"]
     for repo, one in said["ci"].items():
         p90 = one["pr_check_p90_s"]
-        if p90 is not None and p90 > measure.RUNNERS_BACK_P90_MIN * 60:
+        if p90 is not None and p90 > RUNNERS_BACK_P90_MIN * 60:
             out.append(
                 f"{repo}: the p90 PR check is {p90 / 60:.1f} min over the window, so "
-                f"{measure.RUNNERS_BACK} (parked at infra) resumes on Josh's go"
+                f"{RUNNERS_BACK} (parked at infra) resumes on Josh's go"
             )
     return "\n".join(out)
 

@@ -49,15 +49,9 @@ OWN_CHECK = "check"
 """The check jbus's `checks` column follows. Another check a pull request needs (`borders`) is
 not in that column, so a row whose checks passed and that waits on another is waiting on a
 check nothing reports, not working."""
-RUNNERS_BACK = "jstack-runners-back"
-RUNNERS_BACK_P90_MIN = 8
-"""The row parked at the infra home that resumes on Josh's go once the 90th percentile of a pull
-request's `check` passes this many minutes over a window: `jbus flow` raises it, and never
-resumes it."""
 UNTIMED = ("cancelled", "skipped", "queued", "in_progress", "waiting", "requested", "pending")
-"""A run's conclusion, or its status before it has one, that is no measure of how long a check
-takes: a newer push cancels a pull request's check, a skipped one ran nothing, and one not
-finished has no end yet."""
+"""A run's conclusion, or status, that does not time a check: a newer push cancels a pull
+request's check, a skipped one ran nothing, and one not finished has no end yet."""
 REASONS = (
     (r"main is red|^\S+ is red at|is red at \w+: its latest", "main red"),
     (r"fails on \w+ over today's main|over today's main", "fails over today's main"),
@@ -713,10 +707,9 @@ def _no_job(run: Run) -> bool:
 
 def ci(found_runs: list[Run]) -> dict:
     """Return, for each repo, its runs, their conclusions, reruns, and the queue and run time
-    of their jobs, on GitHub's runners and on self-hosted ones, and the wall time of the `check`
-    runs of pull requests that finished, each from its start to its last update. A run's own
-    `run_started_at` is its creation, not a runner's start, so a job's queue is known only with
-    `--jobs`, or from the jobs `jbus ci` kept (`ledger_jobs`)."""
+    of their jobs, on GitHub's runners and self-hosted ones, and the time of a pull request's
+    finished `check` from its start to its last update. A run's `run_started_at` is its creation,
+    not a runner's start, so a job's queue is known only with `--jobs`, or from `ledger_jobs`."""
     said = {}
     by: defaultdict[str, list[Run]] = defaultdict(list)
     for run in found_runs:
