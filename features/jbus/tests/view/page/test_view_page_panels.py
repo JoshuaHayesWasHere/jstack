@@ -34,6 +34,7 @@ from view.scene import (
     out,
     rounded,
     row,
+    said_by_him,
     table,
 )
 from view.scene import folder as panel
@@ -313,3 +314,70 @@ def test_a_long_list_in_a_drawer_folds_and_the_row_it_was_opened_on_stays_shown(
         served.close()
     assert kind == (slugs[:2], slugs[2:], "4 more")
     assert named == (["tea-0", "tea-1", "tea-4"], ["tea-2", "tea-3", "tea-5"], "3 more")
+
+
+LISTS = """window.addEventListener("load", function () { setTimeout(function () {
+  var all = function (sel, el) { return [].slice.call((el || document).querySelectorAll(sel)); };
+  var named = function (li) {
+    var task = li.querySelector('[data-open^="task:"]');
+    var slug = task ? task.getAttribute("data-open").slice(5) : "row";
+    return slug + (li.classList.contains("hit") ? " hit" : "");
+  };
+  var lists = all("#drawer h3").map(function (h) {
+    var one = { head: h.textContent, shown: [], folded: [], summary: null, marker: null };
+    for (var el = h.nextElementSibling; el && el.tagName !== "H3"; el = el.nextElementSibling) {
+      if (el.matches("details.more")) {
+        var s = el.querySelector("summary"), look = getComputedStyle(s);
+        one.summary = s.textContent;
+        one.marker = look.display === "list-item" && look.listStyleType !== "none";
+        one.folded = all("li", el).map(named);
+      } else one.shown = one.shown.concat(all("li", el).map(named));
+    }
+    return one;
+  });
+  var pre = document.createElement("pre");
+  pre.id = "probe";
+  pre.textContent = JSON.stringify({ lists: lists });
+  document.body.appendChild(pre);
+}, window.__at); });
+"""
+
+
+def lists(scene, tmp_path, opens):
+    """The lists of the drawer that `opens` names: for each, its heading, the rows it shows and
+    those folded under its `details`, each as the slug of the task it opens (or `row`), marked
+    `hit` where it is the row the drawer was opened on, with what the fold's summary says and
+    whether the browser draws the summary a disclosure marker."""
+    route = "#/demo/" + opens.replace(":", "/")
+    seen = look(scene, tmp_path, at=2500, budget=6000, route=route, script=LISTS)
+    return [
+        (one["head"], one["shown"], one["folded"], one["summary"], one["marker"])
+        for one in seen["lists"]
+    ]
+
+
+def test_the_words_drawer_opened_on_an_approval_shows_it_and_folds_the_other_kinds(scene, tmp_path):
+    """One answer, two words and six approvals. Opened on the approval of `tea-4`, the drawer
+    shows that row beside the first two approvals, folds the other three under how many they
+    are, and folds the answers and the words whole. Opened on the approvals, it shows their
+    first two and folds the other kinds the same way. Each fold says it opens: the browser
+    draws its summary the disclosure marker a summary has."""
+    said_by_him(scene)
+    slugs = [f"tea-{n}" for n in range(6)]
+    scene.queue([row(slug) for slug in slugs])
+    others = [
+        ("1 questions you answered", [], ["row"], "Show all 1", True),
+        ("2 words sent down", [], ["row", "row"], "Show all 2", True),
+    ]
+    named = lists(scene, tmp_path / "named", "words:approval:tea-4")
+    kind = lists(scene, tmp_path / "kind", "words:approval")
+    assert named == others + [
+        (
+            "6 approvals of a row",
+            ["tea-0", "tea-1", "tea-4 hit"],
+            ["tea-2", "tea-3", "tea-5"],
+            "3 more",
+            True,
+        )
+    ]
+    assert kind == others + [("6 approvals of a row", slugs[:2], slugs[2:], "4 more", True)]
