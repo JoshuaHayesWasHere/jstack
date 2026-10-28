@@ -208,12 +208,11 @@ def _sweep() -> None:
         swept = subprocess.run(
             ["sh", str(Path(__file__).with_name("room.sh")), "sweep"],
             capture_output=True,
-            text=True,
             timeout=60,
         )
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.TimeoutExpired):
         return
-    removed = swept.stdout.strip()
+    removed = swept.stdout.decode(errors="replace").strip()
     if removed.isdecimal() and int(removed):
         where = os.environ.get("TMPFS") or "/tmp"
         print(

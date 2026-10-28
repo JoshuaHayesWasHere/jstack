@@ -501,6 +501,22 @@ def test_a_slot_let_go_clears_stale_pytest_runs_no_live_process_holds_from_tmp(s
     assert all(run.is_dir() for run in (fresh, held_open, held_by_lock))
 
 
+@pytest.mark.parametrize("lane", [["--slots", "1"], ["--short"]])
+def test_a_stop_told_during_the_sweep_ends_test_slot_at_once(slots, tmp_path, lane):
+    """The command has ended by the time the slot sweeps, so a stop told then ends `test-slot`
+    itself, with no wait for the sweep."""
+    stub = tmp_path / "stub"
+    stub.mkdir()
+    (stub / "find").write_text('#!/bin/sh\ntouch "$D/sweeping"\nexec sleep 30\n')
+    (stub / "find").chmod(0o755)
+    ran = slots(*lane, command=["true"], PATH=f"{stub}:{os.environ['PATH']}")
+    assert slots.waits(lambda: (slots.state / "sweeping").exists())
+    began = time.monotonic()
+    ran.send_signal(signal.SIGTERM)
+    assert ran.wait(timeout=10) == -signal.SIGTERM
+    assert time.monotonic() - began < 5
+
+
 THREAD = "mcp:thread-9"
 NOW = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
 
