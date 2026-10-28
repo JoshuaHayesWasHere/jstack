@@ -114,6 +114,7 @@ _NEED = {
         "home",
         "act",
         "sha",
+        "brief_at",
         "thread",
     )
 } | {"answerable": None, "unblocks": [None], "doors": [None]}
@@ -422,7 +423,8 @@ def _row(read: Read, waits: dict[str, Any], task: dict[str, Any]) -> dict[str, A
     """The need of an item of the list that names a row of the queue: the row's title, what
     holds it in the task's words (the item's line only where the task says nothing), since when
     the row is in that state (or else since when the item waits), its home, and the rows that
-    wait behind it."""
+    wait behind it. A row to approve is since when it came onto the list, as the drawer of what
+    waits counts it: its brief's own time is `brief_at`."""
     kind, slug = waits["kind"], task["slug"]
     title = _title(read, slug)
     said = task["state"]["say"] or task["state"]["waits"] or _after(waits["line"], waits["slug"])
@@ -439,7 +441,9 @@ def _row(read: Read, waits: dict[str, Any], task: dict[str, Any]) -> dict[str, A
         "key": waits["key"],
         "what": _cut(what, 100),
         "why": _cut(said if what != said else "", WHY),
-        "since": task["since"] or waits["since"],
+        "since": (waits["since"] or task["since"])
+        if kind == "approve"
+        else (task["since"] or waits["since"]),
         "unblocks": list(dict.fromkeys([*waits["unblocks"], *depends])),
         "subj": slug,
         "home": task["home"],
@@ -483,15 +487,18 @@ def _thread(read: Read, home: str) -> str:
 
 def _acted(read: Read, one: dict[str, Any]) -> dict[str, Any]:
     """A need with its one action, the default it goes ahead on, the sha of the brief that a
-    row to approve has now, and the thread of its home where the action is to write there."""
+    row to approve has now and when that brief was written, and the thread of its home where the
+    action is to write there."""
     kind = one["kind"]
     act = ACTS.get(kind) or (ANSWERS if kind == "gate" and one["answerable"] else THREADS)
-    sha = ""
+    sha, written = "", None
     if kind == "approve" and _SLUG.fullmatch(one["slug"]):
         sha = queue.brief_sha(queue.brief(read.state, one["slug"]) or "")[:12]
+        written = _mtime(queue.brief_path(read.state, one["slug"]))
     return one | {
         "act": act,
         "sha": sha,
+        "brief_at": written,
         "default": one["default"] or IDLE.get(kind, QUIET),
         "thread": _thread(read, one["home"]) if act == THREADS else "",
     }

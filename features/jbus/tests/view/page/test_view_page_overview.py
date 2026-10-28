@@ -679,3 +679,25 @@ def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends
     assert undone["writes"] == []
     assert undone["walked"][-1]["acc"] == "", undone["walked"][-1]
     assert undone["walked"][-1]["accept"] == "Approve"
+
+
+SHOWN = """window.addEventListener("load", function () { setTimeout(function () {
+  var pre = document.createElement("pre");
+  pre.id = "probe";
+  pre.textContent = JSON.stringify({ head: document.getElementById("needs-h").textContent,
+    open: [].filter.call(document.querySelectorAll("#needs a, #needs button"), function (el) {
+      return el.checkVisibility();
+    }).map(function (el) { return el.textContent.trim(); }) });
+  document.body.appendChild(pre);
+}, 3000); });"""
+"""A probe of the head of Needs you: its words, and each link or button of it that is drawn."""
+
+
+@pytest.mark.parametrize("route", ["#/demo", "#/homes"])
+def test_nothing_needs_you_draws_no_button_to_open(scene, tmp_path, route):
+    """With nothing waiting, the head of Needs you says so and offers nothing to open."""
+    scene.waiting([])
+    (scene.home / "gates.md").write_text("")
+    seen = look(scene, tmp_path, route=route, script=SHOWN, at=4000, budget=6000)
+    assert seen["head"].startswith(("Nothing needs you", "Nothing waits on you")), seen
+    assert seen["open"] == [], seen
