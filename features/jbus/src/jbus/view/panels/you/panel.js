@@ -14,8 +14,6 @@ function oneList(src) {
     return x == null ? (y == null ? 0 : 1) : y == null ? -1 : x - y;
   });
 }
-/* The gates already on their default, as one line that opens the list of gates: no gate of it
-   asks for an answer here. */
 function defaultLine(src) {
   var n = src.proceeds.length;
   return n ? '<a class="nm" href="' + esc(href(PROJECT, "you:gate")) + '">' + n + (n === 1 ? " takes its default" : " take their default") + ' &rsaquo;</a>' : "";
