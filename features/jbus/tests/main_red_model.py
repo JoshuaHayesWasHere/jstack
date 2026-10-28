@@ -25,10 +25,10 @@ lacks the red tip, its check ran another test file, or its check failed.
 
 The pull request `fl-fix` is not part of the state, since nothing `tell` reads depends on it.
 `proof` stands for what `jmerge.cli` reads of its check, and the real `rows.red` and
-`rows.browser_red` judge that. After
-each pass the properties judge it at every head the state allows, over each tip on main, with each
-of four checks (`CHECKS`): one that ran the whole suite and passed, one that ran the failing tests'
-file and passed, one that ran another file and passed, and one that failed.
+`rows.browser_red` judge that. After each pass the properties judge it at every head the state
+allows, over each tip on main, with each of four checks (`CHECKS`): one that ran the whole suite and
+passed, one that ran the failing tests' file and passed, one that ran another file and passed, and
+one that failed.
 
 The model has at most `TIPS` tips on main, at most `EVENTS` events, and zero or one open red pull
 request that jbus launched (`alpha`). The first tip, M0, is green and is there from the start.
@@ -45,7 +45,7 @@ Each kind of step matches the code as follows:
   may come between any two passes. The merge always reads a whole record, never a half-written one,
   because `write_json` writes a temporary file and `os.replace`s it
   (`features/jbus/src/jbus/__init__.py:435-445`). The model allows it only where
-  `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py:84-87`).
+  `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py`, `red`).
 - **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
