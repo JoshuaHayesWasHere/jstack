@@ -230,12 +230,8 @@ def _homes_dir(run: Pass, one: Word) -> Path:
     return run.home / one.home if one.home else run.home
 
 
-def _kept(one: Word) -> dict[str, object]:
-    return {name: value for name, value in asdict(one).items() if value or name != "via"}
-
-
 def _write(state: Path, words: list[Word]) -> None:
-    write_json(path(state), [_kept(one) for one in words], mode=0o600)
+    write_json(path(state), [asdict(one) for one in words], mode=0o600)
 
 
 def said(words: str, by: str, at: str, user: jsettings.Settings) -> str:

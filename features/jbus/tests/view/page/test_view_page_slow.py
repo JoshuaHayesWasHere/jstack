@@ -3,11 +3,14 @@ In check tile, with its rows split by their checks and the stacked ones counted 
 Slowed by card of the rail, and the machine's line of load and test slots."""
 
 import re
+from pathlib import Path
 
 import pytest
 
 from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, clean, look
 from view.scene import in_check, slots, stacked_pr
+
+OVERVIEW = (Path(__file__).parent / "overview.js").read_text()
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -43,6 +46,17 @@ def test_red_checks_that_outnumber_the_rest_are_what_slows_us(scene, tmp_path):
     words = said(seen)
     assert "in check 6 4 failing · 1 running or queued · 1 passed" in words
     assert re.search(r"slowed by failing checks 4 ", words), "the largest group first, counted"
+
+
+def test_a_ci_that_could_not_be_read_is_said_on_the_slowed_by_card(scene, tmp_path):
+    """GitHub does not answer: the Slowed by card's CI line says CI could not be read, and
+    counts no failing checks it never saw."""
+    in_check(scene)
+    scene.script("gh", "exit 1\n")
+    seen = look(scene, tmp_path, route="#/", screen=DESK, script=OVERVIEW, at=8000, budget=12000)
+    assert seen["errors"] == []
+    (rail,) = [one["text"] for one in seen["parts"] if one["name"] == "slow:rail"]
+    assert rail.endswith("CI: could not be read"), rail
 
 
 def test_stacked_rows_are_counted_apart_on_the_check_card(scene, tmp_path):

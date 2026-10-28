@@ -49,6 +49,26 @@ def test_the_committed_steps_fixture_takes_the_prescribed_step():
     assert score.score_steps(text, case).value == 1.0
 
 
+def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_gives():
+    """The key asks for the words pr-review's SKILL.md tells the reviewer to end such a finding
+    with, so a reviewer that does what the skill says scores 1."""
+    skill = (REPO / "features" / "pr-review" / "SKILL.md").read_text()
+    tag = re.search(r"with these words at the end of its line: `([^`]+)`", skill)[1]
+    case = next(one for one in run.steps_cases() if one["id"] == "pr-review-outside-where")
+    answer = f"Keep the finding and send it like any other, its line ending `{tag}`."
+    assert score.score_steps(answer, case).value == 1.0
+
+
+def test_a_fault_outside_where_scores_when_the_answer_uses_the_crew_skills_words():
+    """The crew skill says a fault outside the task makes "a queued row", so an answer in its
+    words scores 1 without the judge."""
+    rule = (REPO / "features" / "crew" / "do-the-task.md").read_text()
+    words = re.search(r"which makes it (a queued row)", rule)[1]
+    case = next(one for one in run.steps_cases() if one["id"] == "crew-outside-where")
+    answer = f"Leave it out of the diff: the off-by-one becomes {words} of its own."
+    assert score.score_steps(answer, case).value == 1.0
+
+
 def test_a_finding_with_no_bucket_is_unsettled_until_the_judge_reads_it():
     key = {
         "A1": {"fate": "sent", "fixed": True},
@@ -148,8 +168,10 @@ def test_write_with_no_claude_writes_nothing(tmp_path, monkeypatch):
 
 
 def test_the_committed_run_1_rescores_to_its_results_byte_for_byte(tmp_path, monkeypatch):
+    """run-1 was answered against an older `steps.json`, kept in `fixture/steps-of-run-1.json`."""
     for name in ("cases", "run-1"):
         shutil.copytree(EVAL / name, tmp_path / name)
+    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", tmp_path / "cases" / "steps.json")
     monkeypatch.setattr(run, "HERE", tmp_path)
     assert run.main(["--run", "run-1"]) == 0
     for name in ("scores.json", "results.md"):
@@ -211,8 +233,9 @@ def test_a_skill_is_read_before_and_after_its_move_into_a_features_skills_folder
 def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeypatch):
     for name in ("cases", "run-1"):
         shutil.copytree(EVAL / name, tmp_path / name)
-    monkeypatch.setattr(run, "HERE", tmp_path)
     steps = tmp_path / "cases" / "steps.json"
+    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", steps)
+    monkeypatch.setattr(run, "HERE", tmp_path)
     steps.write_text(steps.read_text().replace("Stale base: at", "Stale base:"))
     with pytest.raises(SystemExit, match="answered against cases"):
         run.main(["--run", "run-1"])
