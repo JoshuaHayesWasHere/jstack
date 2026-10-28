@@ -380,7 +380,7 @@
   .desk:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto auto 1fr; grid-template-areas: "band band" "kpis kpis" "matrix rail" "strip rail"; gap: var(--space-5) var(--space-8); align-items: start; }
   .desk > #cards { grid-area: band; min-width: 0; }
   #cards .gl { margin: 0; display: flow-root; padding: var(--space-6) var(--space-8); } #cards .gl-h, #cards .gl-v { display: block; }
-  #cards .gl-word { float: left; font-size: 44px; line-height: 1; margin: var(--space-2) var(--space-12) var(--space-2) 0; } #cards .gl-c { margin-left: var(--space-6); } #cards .gl-c:empty { display: none; } #cards .gl-t { clear: both; }
+  #cards .gl-word { float: left; font-size: var(--text-2xl); line-height: 1; margin: var(--space-2) var(--space-12) var(--space-2) 0; } #cards .gl-c { margin-left: var(--space-6); } #cards .gl-c:empty { display: none; } #cards .gl-t { clear: both; }
   #cards .gl-sub { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; } .desk > .ov-kpis { grid-area: kpis; } .desk > #matrix { grid-area: matrix; min-width: 0; }
   .desk > .ov-rail { grid-area: rail; display: grid; gap: var(--space-5); min-width: 0; } .desk > .ov-strip { grid-area: strip; }
   #matrix .mx { margin-bottom: 0; }
