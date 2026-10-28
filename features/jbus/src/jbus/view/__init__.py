@@ -22,7 +22,7 @@ The routes that read are `routes()`, all `GET`:
   `panels/` (`panels`). With no project, a panel that is `alone` gives what its `stack` builds
   across every project (`App._across`);
 - `/feed?project=<project>&after=<id>&wait=<s>`: what `jbus feed` prints, the project's events
-  and acts after a cursor, or a reset with what waits on the user, long polled (`feed`);
+  and acts after a cursor, or a reset with what waits on the user, long polled (`feeds`);
 - `/digest.json?since=`: what `jbus digest --json` prints (`digest.build`);
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
@@ -126,9 +126,9 @@ from urllib.parse import parse_qs
 
 import jbus
 import jsettings
-from jbus import Refused, digest, feed, record, stop, verbs
+from jbus import Refused, digest, record, stop, verbs
 from jbus.bind import NoLookup
-from jbus.view import panels, shot, state, usage
+from jbus.view import feeds, panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
 from jbus.view.state import Sources
@@ -429,25 +429,6 @@ class App(Writes):
         }
         return clean(built, tuple(sorted({state.repo(self.sources, one) for one in names} - {""})))
 
-    def _feed(self, query: dict[str, list[str]]) -> Answer:
-        """`/feed`: the page of one project's feed after the cursor `after`, long polled for up
-        to `wait` seconds (`feed`). The wait holds only this request's own thread."""
-        name = self._project(query)
-        if name is None:
-            return NOT_FOUND
-        try:
-            waits = feed.seconds(query.get("wait", ["0"])[-1] or "0")
-        except ValueError as error:
-            return said(400, {"error": str(error)})
-        runs, found = self.github.runs, self.panels
-
-        def needs() -> list[dict[str, Any]]:
-            return state.needs(self.sources, name, self.clock(), runs, found)
-
-        after = query.get("after", [""])[-1]
-        page = feed.wait(self.sources.state(name), name, after, waits, needs)
-        return said(200, clean(page, (state.repo(self.sources, name),)))
-
     def get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
             return Answer(200, page(self.panels), HTML)
@@ -458,7 +439,7 @@ class App(Writes):
         if path == "/stack.json":
             return said(200, self._stack())
         if path == "/feed":
-            return self._feed(query)
+            return feeds.answer(self.sources, query, self.clock, self.github.runs, self.panels)
         if path == "/digest.json":
             try:
                 since = digest.since(query.get("since", [""])[-1] or None, self.sources.user)
