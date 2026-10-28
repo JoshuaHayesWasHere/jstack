@@ -77,6 +77,7 @@ _WAITS = {
         "default",
         "home",
         "url",
+        "holds",
     )
 } | {
     "unblocks": [None],
@@ -273,6 +274,7 @@ def _waiting(
             "default": text(one.get("default"), 600),
             "home": text(one.get("home"), 60),
             "url": text(one.get("url")),
+            "holds": text(one.get("holds")),
             "unblocks": [
                 text(slug, 80) for slug in one.get("unblocks") or [] if isinstance(slug, str)
             ]
@@ -316,11 +318,11 @@ def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
     """Which queue an item is on: `needs`, `proceeds`, or None for one that asks the user
     nothing. Only a gate has a default to go ahead on. A question that jbus holds closes when the
     user stays silent, unless its gate has a `Holds:` line. A gate of a home's file has no timer,
-    and goes ahead on its default where it has one."""
+    and goes ahead on its default where it has one and no `Holds:` line."""
     if waits["kind"] != "gate":
         return NEEDS
     if one is None:
-        return PROCEEDS if waits["default"].strip() else NEEDS
+        return PROCEEDS if waits["default"].strip() and not waits["holds"] else NEEDS
     if one.question.endswith(questions.LINK):
         return None
     return NEEDS if one.holds else PROCEEDS
@@ -350,7 +352,7 @@ def _need(
     else:
         what, why = line, ""
     default = waits["default"]
-    if kind == "gate" and one is None and default.strip():
+    if kind == "gate" and one is None and default.strip() and not waits["holds"]:
         who = f"the home of {waits['home']}" if waits["home"] else "the home"
         stands = f". It stands until {who} closes it."
         default = _cut(default.strip().rstrip("."), 600 - len(stands)) + stands
@@ -368,7 +370,7 @@ def _need(
         "verb": ANSWER if kind == "gate" and not accepts else waiting.verb(kind),
         "answerable": waits["answerable"],
         "default": _cut(default, 600),
-        "risk": one.holds if one and one.holds else REVERSIBLE,
+        "risk": (one.holds if one else waits["holds"]) or REVERSIBLE,
         "unblocks": waits["unblocks"],
         "open": _route(read.name, waits, slug),
         "due": due,
