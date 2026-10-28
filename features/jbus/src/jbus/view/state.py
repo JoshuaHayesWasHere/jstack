@@ -111,7 +111,6 @@ from jbus import (
     leftover,
     merge,
     mirror,
-    noticed,
     old_names,
     outbox,
     questions,
@@ -1496,7 +1495,6 @@ SUMMARY = {
     "name": None,
     "repo": None,
     "waits": None,
-    "noticed": None,
     "open": None,
     "steps": {ANY: None},
     "merged": None,
@@ -1903,8 +1901,7 @@ def summary(read: Read) -> dict[str, Any]:
     """One project as the overview has it.
 
     It has how many things need the user. That is `waits`, the count of the project's
-    `needs` and nothing else. It also has the new noticed lines, counted apart because they
-    are no wait. It has the project's open tasks by step in the order of the line, what
+    `needs` and nothing else. It has the project's open tasks by step in the order of the line, what
     merged today, and its health. The threads are the ones that are out, or None where
     the last pass left no list. `blind` is what the project's page cannot say now. It leaves
     out what the page never can say. It also leaves out a source the view could not read,
@@ -1930,7 +1927,6 @@ def summary(read: Read) -> dict[str, Any]:
         "broken": broken(users(read), bus),
         "unplaced": [task["slug"] for task in read.tasks if task["step"] == UNKNOWN.key],
         "waits": len(read.panel("you")["needs"]),
-        "noticed": sum(1 for one in read.panel("noticed")["noticed"] if one["mark"] == noticed.NEW),
         "open": len(held),
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),

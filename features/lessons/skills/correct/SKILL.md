@@ -55,7 +55,7 @@ Take the levels in this order, and take a lower one only when you can say why th
 
 - Levels 1 to 3 are a change to the repo: a check or a test in it, run by its check command, locally and in CI. It goes the way every change goes: a brief, a crewmate, a pull request, one review. Nobody edits the default branch to "just add the check".
 - Level 4 is a queued row that codes the rule: a brief that turns the judgment call into a check, a block or a skill's text, which the home queues with `jbus queue add`, as `standing.md` already says of a standing rule.
-  A crewmate gives that row's task in its Result under "Noticed", for the home to queue.
+  A crewmate queues that row itself, as `templates/a-fault-outside.md` says.
   No rule is a line in a file of the home's state, and none goes in `~/.claude/CLAUDE.md`: that file is about the machine and stays short.
 - A class that is too big for one pull request, or that needs the user's word, is a plan entry: a heading, what holds when it is done, and the evidence, in the shape of `templates/plan-entry.md`. The home proposes it and the user decides.
 

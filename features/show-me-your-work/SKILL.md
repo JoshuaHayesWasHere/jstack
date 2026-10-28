@@ -74,4 +74,6 @@ At the end of the task, before the Result is written, read the log top to bottom
 
 Correct the log, not the story: a wrong row gets a new row after it with what happened and a pointer that resolves. Rows another thread wrote are not yours to check, but one your own work shows to be wrong gets a row the same way.
 
-Then write in the Result: the log's path and its number of rows on the `Proof:` line, and under "Noticed" each row whose evidence is weak or missing, each check claimed and not run, and each choice that looks risky now. "No flags" is an answer. The pull request's reviewer is the second reader, in a new thread: no subagent reviews the trail.
+Then write in the Result: the log's path and its number of rows on the `Proof:` line, and on the same line each row whose evidence is weak or missing, each check claimed and not run, and each choice that looks risky now.
+"No flags" is an answer.
+The pull request's reviewer is the second reader, in a new thread: no subagent reviews the trail.

@@ -213,7 +213,9 @@ Preconditions:
 - **Pass over the red main.** Run `record main-red jbus poll`, then `record main-red jbus events`. The log has `retro alpha: main check failed at dddddddddddd, 1 merges since the last green`.
 - **Read the row.** Run `record main-red jbus queue show`. It lists `main-red-dddddddddddd`, priority 0, with `approved` empty.
 - **Read the brief.** Run `record main-red cat "$HOME/.local/state/home/demo/tasks/main-red-dddddddddddd.md"`. It names the job's URL, `tests/test_a.py::test_one`, the merge `dddddddddddd feat: alpha (#7)`, `Playbook: bug-fix` and `Size: S`, and not `feat: older (#6)`.
-- **Pass again.** Edit the brief (`echo 'Noticed: edited' >> <that file>`), then run `record main-red jbus poll` and `record main-red jbus queue show`. The brief still ends with the edit, and the table still has one `main-red-` row.
+- **Pass again.**
+  Edit the brief (`echo 'Steers: edited' >> <that file>`), then run `record main-red jbus poll` and `record main-red jbus queue show`.
+  The brief still ends with the edit, and the table still has one `main-red-` row.
 - **Proof.** Copy `gh/calls.log`, the brief and `$JBUS_STATE_DIR/demo/queue.json` into `$VERIFY_JSTACK_EVIDENCE`, as the skill's Evidence section shows. `gh/calls.log` has the `check-runs` call for the red commit and the `actions/jobs/901/logs` call.
 
 ## Gotchas

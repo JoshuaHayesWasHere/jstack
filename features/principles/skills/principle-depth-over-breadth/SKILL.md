@@ -18,7 +18,10 @@ Judge a plan or a draft brief by three questions:
 - **What does it measure with?** The instruments a field-leading expert would reach for: a profiler, a bisect, a benchmark harness with a run count and a spread, a query over the real table. A plan that names the method and not the command has the vocabulary and not the instrument.
 - **What says it is done?** A test that fails before and passes after, a measured number against a stated target, a dataset the result predicts, an external tool's verdict, or the user's own check. When the answer is "the crewmate confirms", nothing outside the agent can disagree, so nothing is proved. Set a target the field would call ambitious and say it is reasonable.
 
-Depth changes those three answers and nothing else. A plan that answers them by adding a deliverable, such as a second report, another component or one more question beside the first, has gone wider. That is breadth, however useful, and it goes under "Noticed" for the home to plan. To tell the two apart, look at what is delivered: deeper work keeps the deliverable and changes where it starts, what it measures with and what judges it, and wider work adds a deliverable.
+Depth changes those three answers and nothing else.
+A plan that answers them by adding a deliverable, such as a second report, another component or one more question beside the first, has gone wider.
+That is breadth, however useful, and it is a row of its own, queued as `templates/a-fault-outside.md` says.
+To tell the two apart, look at what is delivered: deeper work keeps the deliverable and changes where it starts, what it measures with and what judges it, and wider work adds a deliverable.
 
 `/sharpen` asks these three of a task or a draft brief, after a first question on what a top professional would do that is not asked, and rewrites the prompt to ask for the answers.
 

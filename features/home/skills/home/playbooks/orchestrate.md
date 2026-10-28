@@ -17,7 +17,7 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
    Each constraint the user gave is a check or a block, queued as the first row, and nothing is pasted into a brief (`principles/principle-encode-lessons-in-structure.md`).
 3. Run a pilot: launch one entry, and take it to its merge before any other is launched (`principles/principle-sequence-verifiable-units.md`).
    It is there to prove wrong the brief, the check command and the size of an entry while that costs one thread.
-   Read its Result's "Noticed" and its Review, and change the remaining entries from them.
+   Read its Result's `Left:` line, its Review and the rows it queued, and change the remaining entries from them.
    Where the entries are near copies of each other, the first is the pilot and the rest launch when it merges.
 4. Scale.
    Put `Playbook: orchestrate` in the head of `$M/plan.md`, and schedule the audit as "A queue and its hourly audit" says: the same block and the same two calls as for `playbooks/autopilot-full.md`.

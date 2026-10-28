@@ -18,10 +18,10 @@ def test_each_new_section_is_one_event_and_a_second_pass_sends_nothing(kitchen):
     kitchen.quiet()
     review = "\n## Review\nVerdict: findings\nFindings:\n- high a.py:1 wrong\n"
     follow = "\n## Result, follow-up (2026-10-12, a steer)\nStatus: not done\n"
-    noticed = "\nalpha: gate\n" + GATE.format(
+    gate = "\nalpha: gate\n" + GATE.format(
         n="<n>", asked="in the brief?", status="open", slug="alpha"
     )
-    brief.write_text(brief.read_text() + RESULT + review + follow + noticed)
+    brief.write_text(brief.read_text() + RESULT + review + follow + gate)
     request.write_text(request.read_text() + "\n## Report\nStatus: done\nFindings:\n- one\n")
     gates.write_text(
         GATE.format(n=1, asked="an old one?", status="answered 2026-10-12: yes", slug="alpha")
@@ -86,7 +86,7 @@ def test_a_gate_inside_a_result_does_not_end_the_result(kitchen):
     brief = kitchen.brief("alpha")
     kitchen.quiet()
     gate = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
-    result = RESULT.replace("Left: none\n", f"Noticed:\nalpha: gate\n{gate}Left: none\n")
+    result = RESULT.replace("Left: none\n", f"alpha: gate\n{gate}Left: none\n")
     brief.write_text(brief.read_text() + result)
     kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
     kitchen.poll()
@@ -102,7 +102,7 @@ def test_a_gate_piped_to_jbus_and_written_in_the_brief_goes_once(kitchen):
     kitchen.quiet()
     lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=lines)[1] == "queued: question 1\n"
-    brief.write_text(brief.read_text() + RESULT + "Noticed:\nalpha: gate\n" + lines)
+    brief.write_text(brief.read_text() + RESULT + "alpha: gate\n" + lines)
     kitchen.poll()
     assert kitchen.main("gate", "alpha", stdin=lines)[1] == "already sent: question 1\n"
     assert kitchen.lines("gate") == ["gate alpha: question 1: which way?"]
@@ -157,12 +157,8 @@ def test_a_gate_a_scoped_home_piped_to_jbus_and_wrote_in_its_file_goes_once(kitc
     assert kitchen.lines("gate") == ["gate home: question 1: which berth?"]
 
 
-OLD = (
-    RESULT.replace("Left: none\n", "Noticed: an old line from another machine.\nLeft: none\n")
-    + "\n## Review\nVerdict: findings\nFindings:\n- warning a.py:1 off by one\n"
-    + "Noticed, from the review: an old review's line.\n"
-)
-OLD_REPORT = "Thread: mcp:an-old-scout\n\n## Report\nStatus: done\nNoticed: an old scout's line.\n"
+OLD = RESULT + "\n## Review\nVerdict: findings\nFindings:\n- warning a.py:1 off by one\n"
+OLD_REPORT = "Thread: mcp:an-old-scout\n\n## Report\nStatus: done\n"
 
 
 def _restore(kitchen):
@@ -183,9 +179,6 @@ def test_a_restored_tree_is_recorded_and_sends_nothing_old(kitchen):
     kitchen.poll()
     kinds = ("gate", "result", "review", "report")
     assert [event["line"] for event in kitchen.events() if event["event"] in kinds] == []
-    records = json.loads((kitchen.state / "noticed.json").read_text())["records"]
-    assert {one["slug"] for one in records} == {"check-speed", "crew-testing", "docs-sweep-2"}
-    assert {(one["mark"], one["why"]) for one in records} == {("dropped", "from before the list")}
     seen = json.loads((kitchen.state / "seen.json").read_text())
     assert "gate main fails make check at 198ea14?" in seen["tasks/crew-testing.md"]
     assert set(seen["scouts/check-speed.md"]) == {"## Report #1"}
@@ -199,7 +192,7 @@ def test_a_gate_a_live_thread_writes_after_a_restore_goes_once(kitchen):
     _restore(kitchen)
     kitchen.poll()
     gate = GATE.format(n="<n>", asked="which way now?", status="open", slug="live")
-    kitchen.brief("live", RESULT + "Noticed:\nlive: gate\n" + gate)
+    kitchen.brief("live", RESULT + "live: gate\n" + gate)
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(minutes=6))
     kinds = ("gate", "result", "review", "report")
@@ -217,12 +210,10 @@ def test_a_scout_a_home_launched_has_its_report_sent_though_no_row_names_it(kitc
     kitchen.quiet()
     request = kitchen.brief("look", "Thread: mcp:a-live-scout\n", kind="scouts")
     kitchen.poll()
-    request.write_text(request.read_text() + "\n## Report\nStatus: done\nNoticed: a new one.\n")
+    request.write_text(request.read_text() + "\n## Report\nStatus: done\n")
     _restore(kitchen)
     kitchen.poll(NOW + timedelta(minutes=3))
     kinds = ("gate", "result", "review", "report")
     assert [event["line"] for event in kitchen.events() if event["event"] in kinds] == [
         "report look: done"
     ]
-    records = json.loads((kitchen.state / "noticed.json").read_text())["records"]
-    assert [one["text"] for one in records if one["mark"] == "new"] == ["a new one."]
