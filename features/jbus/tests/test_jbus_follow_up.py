@@ -265,3 +265,24 @@ def test_a_held_follow_up_queued_again_with_a_new_brief_is_not_approved_by_rule(
     kitchen.quiet()
     kitchen.poll()
     assert "decision cleanup-alpha" in decided(kitchen)
+
+
+def test_an_entry_the_parent_only_inherited_makes_no_follow_up_unit(kitchen):
+    """`cleanup-alpha` counts for alpha's entry `epic` without being filed under it, so a row
+    given `--entry epic` that follows it is no unit of it, and a row given `--entry cleanup-alpha`
+    still is: the rule compares the entries the home gave."""
+    add(kitchen, "alpha", "--entry", "epic")
+    assert go(kitchen, "alpha")[0] == 0
+    add(kitchen, "cleanup-alpha")
+    assert rows(kitchen)["cleanup-alpha"]["approval"]["basis"] == queue.RULE
+    assert rows(kitchen)["cleanup-alpha"]["parent_entry"] == "epic"
+    said = add(kitchen, "gamma", "--entry", "epic", text=brief("gamma", follows("cleanup-alpha")))
+    assert said == [
+        "gamma waits for the user's go, not a follow-up: gamma is no follow-up's kind (cleanup-, "
+        "a fix jbus filed, an integration branch's sync) and does not do work for "
+        "cleanup-alpha's plan entry cleanup-alpha: its entry is epic"
+    ]
+    assert rows(kitchen)["gamma"]["approved"] == ""
+    text = brief("delta", follows("cleanup-alpha"))
+    add(kitchen, "delta", "--entry", "cleanup-alpha", text=text)
+    assert rows(kitchen)["delta"]["approval"]["follows"] == "cleanup-alpha"

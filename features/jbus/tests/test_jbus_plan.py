@@ -7,6 +7,7 @@ import json
 import pytest
 
 from jbus import plan as plans
+from jbus import queue
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import HEAD, RULE, add, adds, brief, rows
 
@@ -72,7 +73,7 @@ def test_add_keeps_the_entry_it_was_given_and_a_row_with_none_is_its_own(kitchen
     kitchen.main(
         "queue", "add", "part-1", "--priority", "1", "--entry", "part-1", stdin=brief("part-1")
     )
-    assert "entry" not in rows(kitchen)["part-1"]
+    assert rows(kitchen)["part-1"]["entry"] == "part-1"
 
 
 def test_a_batch_adds_a_row_with_its_entry_and_a_bad_entry_is_refused(kitchen):
@@ -250,4 +251,102 @@ def test_a_plan_asked_for_in_a_repo_the_config_does_not_name_is_refused(kitchen,
     assert (kitchen.home / "plan.md").read_text() == PLAN
     assert kitchen.main("--project", "demo", "plan")[1].splitlines()[2] == (
         "bare | an entry with nothing under it | no stage"
+    )
+
+
+def test_a_follow_up_that_names_no_entry_is_counted_for_its_parents(kitchen):
+    """A `cleanup-P`, a row with a `Follows: P` line and a fix jbus filed for P do work for P's
+    entry, and so does a follow-up of one of them. A row given its own entry keeps it."""
+    assert (
+        kitchen.main(
+            "queue", "add", "part-1", "--priority", "1", "--entry", "epic", stdin=brief("part-1")
+        )[0]
+        == 0
+    )
+    add(kitchen, "cleanup-part-1", approve=False)
+    add(kitchen, "cleanup-cleanup-part-1", approve=False)
+    add(kitchen, "beta", approve=False, text=brief("beta", "Follows: part-1\n"))
+    fix = brief("main-red-a", "Follows: part-1\n").replace(
+        'Decisions: "review it once"', f"Decisions: {queue.FILED}main"
+    )
+    queue.add(kitchen.state, "main-red-a", 0, [], fix, ran_by=queue.PASS)
+    code, said = kitchen.main(
+        "queue",
+        "add",
+        "gamma",
+        "--priority",
+        "1",
+        "--entry",
+        "parked-one",
+        stdin=brief("gamma", "Follows: part-1\n"),
+    )
+    assert code == 0, said
+    assert plan(kitchen)[:2] == [
+        "epic | one path for each fact | 0 of 5 merged, 5 queued not approved",
+        "parked-one | a thing for later | 0 of 1 merged, 1 queued not approved",
+    ]
+    assert (
+        "| cleanup-part-1 | 1 |  |  |  |  | epic (its parent's) |"
+        in kitchen.main("queue", "show")[1]
+    )
+
+
+def test_a_row_queued_before_its_parent_or_before_the_column_is_counted_after_a_pass(kitchen):
+    add(kitchen, "cleanup-part-2", approve=False)
+    assert plan(kitchen)[0] == "epic | one path for each fact | planned"
+    assert (
+        kitchen.main(
+            "queue", "add", "part-2", "--priority", "1", "--entry", "epic", stdin=brief("part-2")
+        )[0]
+        == 0
+    )
+    assert (
+        plan(kitchen)[0] == "epic | one path for each fact | 0 of 2 merged, 2 queued not approved"
+    )
+    table = kitchen.state / "queue.json"
+    listed = json.loads(table.read_text())
+    for row in listed:
+        row.pop("parent_entry", None)
+    table.write_text(json.dumps(listed))
+    seen(kitchen, part_2=("merged", "#7"), cleanup_part_2=("merged", "#8"))
+    assert plan(kitchen)[0] == "epic | one path for each fact | its row finished: close it"
+    kitchen.poll()
+    assert rows(kitchen)["cleanup-part-2"]["parent_entry"] == "epic"
+    seen(kitchen, part_2=("merged", "#7"), cleanup_part_2=("merged", "#8"))
+    assert plan(kitchen)[0] == (
+        "epic | one path for each fact | 0 of 2 merged, #7 at merged, #8 at merged"
+    )
+
+
+def test_a_renamed_follow_up_still_counts_for_its_parents_entry(kitchen):
+    assert (
+        kitchen.main(
+            "queue", "add", "part-1", "--priority", "1", "--entry", "epic", stdin=brief("part-1")
+        )[0]
+        == 0
+    )
+    add(kitchen, "beta", approve=False, text=brief("beta", "Follows: part-1\n"))
+    code, said = kitchen.main("queue", "rename", "beta", "beta-two")
+    assert code == 0, said
+    assert "entry" not in rows(kitchen)["beta-two"]
+    assert (
+        plan(kitchen)[0] == "epic | one path for each fact | 0 of 2 merged, 2 queued not approved"
+    )
+
+
+def test_a_follow_up_given_its_own_slug_as_entry_takes_none_from_its_parent(kitchen):
+    assert (
+        kitchen.main(
+            "queue", "add", "part-1", "--priority", "1", "--entry", "epic", stdin=brief("part-1")
+        )[0]
+        == 0
+    )
+    argv = ("queue", "add", "cleanup-part-1", "--priority", "1", "--entry", "cleanup-part-1")
+    assert kitchen.main(*argv, stdin=brief("cleanup-part-1"))[0] == 0
+    assert "parent_entry" not in rows(kitchen)["cleanup-part-1"]
+    kitchen.poll()
+    assert "parent_entry" not in rows(kitchen)["cleanup-part-1"]
+    seen(kitchen, part_1="queued", cleanup_part_1="queued")
+    assert plan(kitchen)[0] == (
+        "epic | one path for each fact | 0 of 1 merged, 1 queued not approved"
     )

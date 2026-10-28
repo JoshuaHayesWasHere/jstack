@@ -142,7 +142,8 @@ It also refuses a slug whose row merges after this one or depends on it, since n
 `remove` refuses a row that another row merges after, as it refuses one that another row depends on.
 `--entry` is optional too, and names the plan entry the row is work for, where that is not the row's own slug.
 An `add` of a row that exists sets `--priority`, `--depends` and `--merge-after` anew and keeps the row's entry unless you give `--entry`.
-`--entry <the row's own slug>` makes the row its own entry again.
+`--entry <the row's own slug>` makes the row its own entry again, and then it takes no entry from a parent it names.
+A follow-up with no `--entry` counts for its parent's entry in `jbus plan` ([The plan](the-plan.md)), and keeps it through a `rename` where a `Follows:` line names the parent.
 `jbus queue add <slug> --item <id>` links the row to the work item `--item` names ([Work items](work-items.md)).
 With no `--item`, a new row gets an item of its own, with source `cli`.
 `add` refuses an item that is not there, or that is another row's, and queues nothing.
