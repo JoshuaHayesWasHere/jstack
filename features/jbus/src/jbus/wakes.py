@@ -3,8 +3,8 @@
 The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
 with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
-(`jbus.plan.buildable`) and the deferred lines of a home's notes or plan (`jbus.prose`). An item's
-key has no run and no time in it: a red's failing
+(`jbus.plan.buildable`) and the deferred lines of a home's plan (`jbus.prose`). An item's key has
+no run and no time in it: a red's failing
 tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes the items
 one home thread owns that are new to it, less those its own thread caused and those whose cause is
 another open item, unless the row is that item's fix.
@@ -339,7 +339,7 @@ def brief_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
 
 
 def prose_items(run: Pass, record: dict[str, Any]) -> list[Item]:
-    """The deferred lines of a home's notes or plan written since the seed pass (`jbus.prose`),
+    """The deferred lines of a home's plan written since the seed pass (`jbus.prose`),
     each the item of its home's thread, and the root home's too once its home has not acted on it
     in `leftover.CLOSE_MINUTES`, as a leftover is."""
     root, items = root_of(run), []

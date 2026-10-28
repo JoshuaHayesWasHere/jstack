@@ -1,12 +1,12 @@
-"""A deferred action a home writes in its notes or plan is an item of the one list that wakes it.
+"""A deferred action a home writes in its plan is an item of the one list that wakes it.
 
-A line of a home's `notes.md` or `plan.md` that defers an action on an event no code watches,
-"take X out once #12 merges" or "on resume", is something a home must remember. jbus does not
-read the line's meaning: `deferred` matches it against `PATTERNS`, each within one sentence. Each
-such line is an item of the one list (`jbus.wakes`), keyed `prose:<file>:<hash of the line>`, with
-`<file>` the path under the root home's directory: the root home's for `notes.md` and the root
-`plan.md`, a scope's for the files of its directory. It asks for a row with `--depends`, which code
-does watch, or for the line to go. A line that is gone or reworded leaves the list.
+A line of a home's `plan.md` that defers an action on an event no code watches, "brief once foo
+lands" or "on resume", is something a home must remember. jbus does not read the line's meaning:
+`deferred` matches it against `PATTERNS`, each within one sentence. Each such line is an item of
+the one list (`jbus.wakes`), keyed `prose:<file>:<hash of the line>`, with `<file>` the plan's path
+under the root home's directory: the root home's for the root plan, a scope's for its own. It asks
+for a row with `--depends`, which code does watch, or for the line to go. A line that is gone or
+reworded leaves the list.
 
 `prose.json` in a project's state directory is the record, a `Line` for each key. The first pass
 that finds no record writes every line already there as `seeded`, an item of nobody, so only a
@@ -26,7 +26,7 @@ from jbus import read_json, verbs, write_json
 from jbus.passes import Pass
 
 NAME = "prose.json"
-FILES = ("notes.md", "plan.md")
+FILE = "plan.md"
 PATTERNS = tuple(
     re.compile(pattern, re.IGNORECASE)
     for pattern in (
@@ -64,17 +64,16 @@ def key_of(file: str, text: str) -> str:
 
 
 def found(home: Path) -> dict[str, Line]:
-    """Each deferred line of the root home's files and of each scope's, by its key."""
+    """Each deferred line of the root home's plan and of each scope's, by its key."""
     dirs = [(home, "")] + [(scope, scope.name) for scope, _, _ in homes.scopes(home)]
     lines = {}
     for directory, scope in dirs:
-        for name in FILES:
-            path = directory / name
-            text = path.read_text(errors="replace") if path.is_file() else ""
-            file = path.relative_to(home).as_posix()
-            for one in text.splitlines():
-                if deferred(one):
-                    lines[key_of(file, one.strip())] = Line(file, one.strip(), scope)
+        path = directory / FILE
+        text = path.read_text(errors="replace") if path.is_file() else ""
+        file = path.relative_to(home).as_posix()
+        for one in text.splitlines():
+            if deferred(one):
+                lines[key_of(file, one.strip())] = Line(file, one.strip(), scope)
     return lines
 
 

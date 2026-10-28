@@ -1,10 +1,10 @@
-"""A deferred action a home writes in its notes or plan is an item of the one list that wakes it.
+"""A deferred action a home writes in its plan is an item of the one list that wakes it.
 
-A line of a home's `notes.md` or `plan.md` that defers an action on an event no code watches
-("take X out once #12 merges", "on resume") is an item keyed `prose:<file>:<hash>`: the root's for
-`notes.md` and the root plan, a scope's for its plan. The first pass on a machine records every such
-line already there as told, so only a line written after it wakes a home. The tests run the real
-pass against the kitchen's fakes.
+A line of a home's `plan.md` that defers an action on an event no code watches ("take X out once
+#12 merges", "on resume") is an item keyed `prose:<file>:<hash>`: the root's for the root plan, a
+scope's for its plan. The first pass on a machine records every such line already there as told,
+so only a line written after it wakes a home. A home keeps no `notes.md` now, and one left on disk
+is not read. The tests run the real pass against the kitchen's fakes.
 """
 
 import json
@@ -18,7 +18,7 @@ from jbus import leftover, prose, wakes
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_leftover import home
 
-TODAY = Path(__file__).parent / "fixtures" / "prose" / "notes-2026-10-28.txt"
+TODAY = Path(__file__).parent / "fixtures" / "prose" / "deferred-2026-10-28.txt"
 NOTE = "- 2026-10-28: take X out once #12 merges"
 DECISION = "Decisions: brief once foo lands"
 ASK = "a home must remember this: make it a row with `--depends`, or delete the line"
@@ -34,9 +34,9 @@ def kitchen(tmp_path, monkeypatch):
 
 @pytest.fixture
 def homes(kitchen):
-    """The root home and the scope jview, each with a thread, and a notes.md and a plan each."""
+    """The root home and the scope jview, each with a thread and a plan."""
     root, scoped = home(kitchen), home(kitchen, "jview")
-    (kitchen.home / "notes.md").write_text("# demo: notes\n\n- 2026-10-27: a note\n")
+    (kitchen.home / "plan.md").write_text("# demo: plan\n\n## x: a thing\n")
     (kitchen.home / "jview" / "plan.md").write_text("# jview: plan\n\n## jv-x: a thing\n")
     return kitchen, root["threadId"], scoped["threadId"]
 
@@ -63,19 +63,21 @@ def append(path, line):
     path.write_text(path.read_text() + line + "\n")
 
 
-def test_a_notes_line_written_after_the_seed_wakes_the_root_once_and_leaves_when_deleted(homes):
+def test_a_root_plan_line_written_after_the_seed_wakes_the_root_once_and_leaves_when_deleted(
+    homes,
+):
     kitchen, root, scoped = homes
-    notes = kitchen.home / "notes.md"
+    plan = kitchen.home / "plan.md"
     kitchen.poll(NOW)
     assert prose_wakes(kitchen, root) == []
-    append(notes, NOTE)
+    append(plan, NOTE)
     kitchen.poll(NOW + timedelta(minutes=1))
     (said,) = prose_wakes(kitchen, root)
-    assert "- prose:notes.md:" in said and NOTE in said and ASK in said
+    assert "- prose:plan.md:" in said and NOTE in said and ASK in said
     kitchen.poll(NOW + timedelta(minutes=2))
     assert len(prose_wakes(kitchen, root)) == 1
     assert prose_wakes(kitchen, scoped) == []
-    notes.write_text(notes.read_text().replace(NOTE + "\n", ""))
+    plan.write_text(plan.read_text().replace(NOTE + "\n", ""))
     kitchen.poll(NOW + timedelta(minutes=3))
     assert listed(kitchen) == []
     assert len(prose_wakes(kitchen, root)) == 1
@@ -83,11 +85,11 @@ def test_a_notes_line_written_after_the_seed_wakes_the_root_once_and_leaves_when
 
 def test_a_reworded_line_leaves_the_list_and_the_new_wording_is_told_if_it_still_defers(homes):
     kitchen, root, _ = homes
-    notes = kitchen.home / "notes.md"
+    plan = kitchen.home / "plan.md"
     kitchen.poll(NOW)
-    append(notes, NOTE)
+    append(plan, NOTE)
     kitchen.poll(NOW + timedelta(minutes=1))
-    notes.write_text(notes.read_text().replace(NOTE, "- 2026-10-28: take X out, row x-out"))
+    plan.write_text(plan.read_text().replace(NOTE, "- 2026-10-28: take X out, row x-out"))
     kitchen.poll(NOW + timedelta(minutes=2))
     assert listed(kitchen) == []
     assert len(prose_wakes(kitchen, root)) == 1
@@ -113,20 +115,28 @@ def test_a_scope_plan_line_wakes_that_scope_once_and_the_root_once_late(homes):
     assert listed(kitchen) == []
 
 
-def test_the_seed_pass_over_todays_notes_wakes_nobody_and_a_later_line_alone_is_told(homes):
+def test_the_seed_pass_over_todays_lines_wakes_nobody_and_a_later_line_alone_is_told(homes):
     kitchen, root, scoped = homes
-    notes = kitchen.home / "notes.md"
-    shutil.copy(TODAY, notes)
+    plan = kitchen.home / "plan.md"
+    shutil.copy(TODAY, plan)
     kitchen.poll(NOW)
     kitchen.poll(NOW + timedelta(minutes=1))
     assert prose_wakes(kitchen, root) == prose_wakes(kitchen, scoped) == []
     seeded = {one.text for one in prose.read(kitchen.state).values() if one.seeded}
     assert seeded == {one.strip() for one in TODAY.read_text().splitlines() if prose.deferred(one)}
     assert len(seeded) == 22
-    append(notes, NOTE)
+    append(plan, NOTE)
     kitchen.poll(NOW + timedelta(minutes=2))
     (said,) = prose_wakes(kitchen, root)
     assert said.count("- prose:") == 1
+
+
+def test_a_notes_md_left_on_disk_is_not_read(homes):
+    kitchen, root, _ = homes
+    kitchen.poll(NOW)
+    (kitchen.home / "notes.md").write_text(NOTE + "\n")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert prose_wakes(kitchen, root) == [] and listed(kitchen) == []
 
 
 DEFERRED = [
