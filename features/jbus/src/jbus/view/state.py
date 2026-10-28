@@ -1234,6 +1234,10 @@ class Read:
         return _lines(self.home / "merge.log")
 
     @cached_property
+    def history(self) -> dict[int, list[dict[str, str]]]:
+        return _history(self.log or [], self.user)
+
+    @cached_property
     def where(self) -> str:
         return repo(self.sources, self.name)
 
@@ -1310,7 +1314,7 @@ class Read:
         seen = self.mine.get("rows")
         made = _tasks(
             self.rows,
-            _history(self.log or [], self.user),
+            self.history,
             self.judged,
             asked,
             self.moves or [],
@@ -1370,9 +1374,8 @@ class Read:
                 merged.append(
                     {"slug": one["slug"], "pr": one["pr"], "at": at, "approved": approved}
                 )
-        history = _history(self.log or [], self.user)
         for row in self.rows:
-            logged = history.get(number, []) if (number := _number(row)) is not None else []
+            logged = self.history.get(number, []) if (number := _number(row)) is not None else []
             at = logged[-1]["at"] if logged and logged[-1]["word"] == "merged" else None
             if at and at >= start and row["slug"] not in {m["slug"] for m in merged}:
                 approved = when(queue.ran_at(row), self.user)
