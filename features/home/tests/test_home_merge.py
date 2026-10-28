@@ -15,7 +15,7 @@ from datetime import date, datetime
 import pytest
 
 import repo_template
-from jmerge import ready
+from jmerge import lines, ready
 from test_home_thread import as_read
 from testing.layouts import assembled
 from testing.paths import skills
@@ -1006,7 +1006,9 @@ def test_a_main_checkout_that_cannot_be_pulled_is_said(merged):
     git(merged.home.main, "commit", "-q", "--allow-empty", "-m", "not pushed")
     (said,) = merged.run()
     commit, pulled = merged.on_main()
-    assert said.startswith(f"{merged_as(commit)}, not pulled: ")
+    unfollowed = lines.unfollowed(said)
+    assert unfollowed.startswith("the main checkout was not pulled after the merge (fatal: ")
+    assert said.startswith(f"{merged_as(commit)}, {unfollowed}, ")
     assert pulled != commit
     assert not merged.tree.exists()
 

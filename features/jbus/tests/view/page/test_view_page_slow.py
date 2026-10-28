@@ -1,5 +1,6 @@
-"""The band of what slows us, on the overview of every project, at a desk's size and a
-phone's. On a phone it is its first line, which opens to the rest."""
+"""What slows us, on the desk overview of every project, at a desk's size and a phone's: the
+In check tile, with its rows split by their checks and the stacked ones counted apart, the
+Slowed by card of the rail, and the machine's line of load and test slots."""
 
 import re
 
@@ -11,6 +12,11 @@ from view.scene import in_check, slots, stacked_pr
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
 
+def said(seen):
+    """The words on the screen, lowercased, since a tag is drawn in capitals."""
+    return re.sub(r" ([,.])", r"\1", " ".join(seen["screen"])).lower()
+
+
 @pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
 def test_six_rows_in_check_and_every_slot_held_say_so_on_the_overview(
     scene, tmp_path, monkeypatch, screen
@@ -19,51 +25,30 @@ def test_six_rows_in_check_and_every_slot_held_say_so_on_the_overview(
     slots(scene, monkeypatch, held=4)
     seen = look(scene, tmp_path, route="#/", screen=screen)
     clean(seen, screen)
-    said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
-    assert (
-        "Slowed by 6 checks running or queued of 6 rows in check, the oldest for 1h00, "
-        "and every test slot is held." in said
-    )
+    words = said(seen)
+    assert "in check 6 6 running or queued" in words
+    assert "slowed by" in words
     if screen == PHONE:
-        assert "Check 6 in check" not in said
         return
-    assert (
-        "Check 6 in check 0 failing, 6 running or queued, 0 passed, 0 stacked oldest 1h00" in said
-    )
-    assert "Test slots: 4 of 4 held" in said
-    assert "Load: 2.5 of " in said
-
-
-@pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
-def test_a_band_the_reader_folds_or_opens_stays_so_when_the_overview_draws_again(
-    scene, tmp_path, monkeypatch, screen
-):
-    in_check(scene)
-    slots(scene, monkeypatch, held=4)
-    walk = ['tap:[data-role="slow"] > summary', "hash:#/demo", "hash:#/", "look"]
-    seen = look(scene, tmp_path, route="#/", screen=screen, walk=walk, at=6000, budget=12000)
-    clean(seen, screen)
-    said = " ".join(seen["screen"])
-    assert ("Check 6 in check" in said) is (screen == PHONE)
+    assert "test slots: 4 of 4 held" in words
+    assert "load: 2.5 of " in words
 
 
 def test_red_checks_that_outnumber_the_rest_are_what_slows_us(scene, tmp_path):
-    """Four of the six are red: the band names the failing checks, not a runner."""
+    """Four of the six are red: the tile names the failing checks first, in the alarm colour,
+    and the Slowed by card leads with them."""
     in_check(scene, ["failed", "failed", "failed", "failed", "pending", "passed"])
     seen = look(scene, tmp_path, route="#/", screen=DESK)
     clean(seen, DESK)
-    said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
-    assert "Slowed by 4 failing checks of 6 rows in check, the oldest for 1h00." in said
-    assert (
-        "Check 6 in check 4 failing, 1 running or queued, 1 passed, 0 stacked oldest 1h00" in said
-    )
+    words = said(seen)
+    assert "in check 6 4 failing · 1 running or queued · 1 passed" in words
+    assert re.search(r"slowed by failing checks 4 ", words), "the largest group first, counted"
 
 
 def test_stacked_rows_are_counted_apart_on_the_check_card(scene, tmp_path):
-    """Two of the three merge after `bun-base`: the card counts them stacked, not by their
+    """Two of the three merge after `bun-base`: the tile counts them stacked, not by their
     checks."""
     stacked_pr(scene)
     seen = look(scene, tmp_path, route="#/", screen=DESK)
     clean(seen, DESK)
-    said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
-    assert "Check 3 in check 0 failing, 0 running or queued, 1 passed, 2 stacked" in said
+    assert "in check 1 + 2 stacked 1 passed" in said(seen)

@@ -202,7 +202,7 @@ window.addEventListener("load", function () { setTimeout(function () {
         }) };
     })(),
     /* The board of every project, the first screen. */
-    board: { shown: seen(document.getElementById("pipeline")) },
+    board: { shown: seen(document.getElementById("pipeline")) || seen(document.getElementById("desk")) },
     links: [],
     opened: []
   };

@@ -31,6 +31,10 @@
    It launches at once, and `jmerge` holds its pull request until that row has merged.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.
    A `--merge-after` names a row that is already queued, so a chain is queued from its first link up.
+   A wait goes on a `Builds on:` line or a `--depends`, never in prose: no code reads "brief once X lands" under a plan entry's `Decisions:`, so such a wait is forgotten.
+   Queue the waiting row now with `--depends`, a scout's included, where its brief can be written now.
+   Where it cannot, give the plan entry its own `Builds on:` line, in the brief's form, naming the rows or entries it starts from.
+   Once every one of them has merged and the entry has no row, jbus wakes its home once with `brief <entry>: <them> merged`: brief it then.
 
    Its `Skills:` line names what the crewmate runs besides the playbook, or says `none`, and a brief with no line names nothing.
    Write each name in its canonical form, pstack's, so it reads the same in Grok Bot and in T3: a skill as its directory, `architect`, and a principle as its file without `.md`, `principle-model-the-domain`.
