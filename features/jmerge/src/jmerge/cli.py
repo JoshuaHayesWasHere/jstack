@@ -753,7 +753,7 @@ class Repo:
         own, else the last review's where the range-diff from its head to this one is clean, as
         over a rebase, a `CI fix:` push or a merge of the base. A fix for the findings changes
         the content, so no proof carries over it. The rule is the same in every review mode."""
-        last = proof.last(text)
+        last = ready.said_of(text).reviewed
         if proof.fact(text, one.head) or not last or proof.fact(text, last) is None:
             return one.head
         verdict = self.range_diff(last, one.head, one.base, stacks.of(text))
