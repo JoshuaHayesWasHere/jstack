@@ -35,7 +35,7 @@ MakeChild(k) ==
 \* row, and the pass launches what is queued. A launched row is a change in what the child has
 \* out, so its spell ends.
 LaunchCrew(k) ==
-    /\ life[k] = "working"     \* jbus/dispatch.py:635 `"t3_thread_launch",`
+    /\ life[k] = "working"     \* jbus/dispatch.py:624 `"t3_thread_launch",`
     /\ work[k] = "none" /\ work' = Set(work, k, "crew") /\ Calm(k)
     /\ UNCHANGED <<life, up, broke, tip, seen, blind, lock, mode>>
 \* The crew opens the pull request ("Do the task" in the crew skill).
@@ -177,7 +177,7 @@ Check ==
 \* ---- merging: jbus alone, every home's pull request, one merge at a time
 
 \* jbus runs jmerge on each pass whatever home-thread holds, so it judges every home's pull
-\* request, and mode plays no part (jbus/merge.py:125 `ran = run.run("jmerge",
+\* request, and mode plays no part (jbus/merge.py:88 `ran = run.run("jmerge",
 \* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1930-1931
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==
