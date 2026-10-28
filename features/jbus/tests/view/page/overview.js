@@ -48,8 +48,10 @@ window.addEventListener("load", function () {
       regions: all("[data-region]").map(function (r) { return { name: r.getAttribute("data-region"), box: box(r) }; })
     };
   }
+  /* The board's own section is drawn only once the board has answered: Every home on a phone,
+     the matrix at a desk. The part that holds Every home is there, empty, before that. */
   (function wait() {
-    var parts = all("[data-part]"), ready = parts.length && !parts.some(asking) && document.querySelector(touch ? "[data-part='pipeline:homes']" : "[data-role=matrix]");
+    var parts = all("[data-part]"), ready = parts.length && !parts.some(asking) && document.querySelector(touch ? "[data-role=homes]" : "[data-role=matrix]");
     if (!ready && Date.now() - started < window.__at) { setTimeout(wait, 200); return; }
     var pre = document.createElement("pre");
     pre.id = "probe";
