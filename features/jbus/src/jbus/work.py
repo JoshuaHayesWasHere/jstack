@@ -43,7 +43,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from jbus import read_json, write_json
+from jbus import read_json, roles, write_json
 
 NAME = "work.json"
 T3, GITHUB = "T3 Code", "GitHub"
@@ -497,17 +497,14 @@ def holder(state: State, role: str = "", home: bool = False, after: bool = False
     `Left:` line is for after the merge (`after`) and a thread is at work on it, the crewmate
     holds the state. Either holder is on the lane of work that is running.
 
-    A role's holder is in `threads.ROLES`. `holder` imports `threads` inside the function,
-    since `threads` imports this module.
+    A role's holder is in `roles.ROLES`.
     """
     pattern = state.pattern
     if role:
         if pattern.who != "crew":
             return Holder(state.who, state.waits, "")
         waits = "its thread" if state.waits == "its crewmate" else state.waits
-        from jbus import threads
-
-        held = next((one.holder for one in threads.ROLES if one.name == role), threads.OTHER)
+        held = next((one.holder for one in roles.ROLES if one.name == role), roles.OTHER)
         return Holder(held, waits, "")
     if state.value not in ("leftover", "closed"):
         return Holder(state.who, state.waits, pattern.lane)

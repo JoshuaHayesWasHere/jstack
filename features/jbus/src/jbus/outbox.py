@@ -51,7 +51,9 @@ from typing import TYPE_CHECKING, Literal
 
 import jsettings
 from jbriefs import parse as briefs
+from jbus import review
 from jbus.t3 import Client, T3Error
+from jbus.watch import at_work, task_brief
 from jgauge import slot, waiters
 from jmerge import ready
 from jroles import ledger
@@ -106,8 +108,6 @@ def busy(run: Pass, client: Client, thread: str, row: str = "") -> bool:
     """Say whether the thread has a turn running, as T3 Code says of it now, or was sent a
     message that needs `act` in this pass (`Pass.told`). A thread that T3 Code says nothing of is
     not busy: the send that follows says what T3 Code said of it."""
-    from jbus.watch import at_work
-
     if jsettings.thread_id(thread) in run.told:
         return True
     try:
@@ -128,11 +128,8 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     """Say whether the thread is the row's crew and its pull request waits on a review at its head
     that a reviewer the crew launched has not written: jmerge's judge (`ready.short_of`) says the
     review or a scoped review is not written, and the brief names a reviewer with no `## Review` yet
-    (`rebase.reviewing`). A row with no open pull request in what this pass saw waits on no review,
+    (`review.reviewing`). A row with no open pull request in what this pass saw waits on no review,
     and a home told of the row (`jbus.wakes`, of a stall of that very review) waits on none."""
-    from jbus import clock, rebase
-    from jbus.watch import task_brief
-
     pull = run.world.open.get(row) if run.world else None
     head = (pull or {}).get("headRefOid", "")
     if not head:
@@ -140,8 +137,8 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     brief = task_brief(run, row)
     if jsettings.thread_id(thread) != jsettings.thread_id(briefs.thread_of(brief)):
         return False
-    unwritten = clock.class_of(ready.short_of(brief, head)) in ("review", "scoped")
-    return unwritten and rebase.reviewing(brief)
+    unwritten = review.class_of(ready.short_of(brief, head)) in ("review", "scoped")
+    return unwritten and review.reviewing(brief)
 
 
 RULES = (

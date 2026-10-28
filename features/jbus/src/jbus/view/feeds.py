@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from jbus import feed
+from jbus import cursor
 from jbus.view import panels, state
 from jbus.view.clean import clean
 from jbus.view.writes import NOT_FOUND, Answer, said
@@ -27,7 +27,7 @@ def answer(
     if name not in state.projects(sources):
         return NOT_FOUND
     try:
-        waits = feed.seconds(query.get("wait", ["0"])[-1] or "0")
+        waits = cursor.seconds(query.get("wait", ["0"])[-1] or "0")
     except ValueError as error:
         return said(400, {"error": str(error)})
 
@@ -35,5 +35,5 @@ def answer(
         return state.needs(sources, name, clock(), runs, found)
 
     after = query.get("after", [""])[-1]
-    page = feed.wait(sources.state(name), name, after, waits, needs)
+    page = cursor.wait(sources.state(name), name, after, waits, needs)
     return said(200, clean(page, (state.repo(sources, name),)))

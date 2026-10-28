@@ -8,7 +8,8 @@ main's tip to its merge, so a hand run of the user's never merges between them e
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
-`wait` line on its own. `step` goes by a reason's code where `merge.log` wrote one.
+`wait` line on its own. `step` goes by a reason's code where `merge.log` wrote one. `parse`, `step`
+and `Said` are in `jbus.judged`, below `jbus.watch`, which reads them too.
 
 A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`, and a merge gate
 that did not pass). `expedite` asks the crew to lift those first. This module sends the user
@@ -33,13 +34,14 @@ import re
 from typing import TYPE_CHECKING
 
 from jbus import alert, outbox, verbs
+from jbus.judged import Said, parse
+from jbus.judged import step as step
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.wake import JMERGE_TIMEOUT
 from jmerge import lines as lines_of
 from jmerge import ready
 from jmerge.lines import Line as Line
-from jmerge.lines import one as parse
 
 if TYPE_CHECKING:
     from jbus.cli import Half
@@ -69,45 +71,6 @@ TOLD = (
     "nothing about it. A question only {user} can answer is a gate: take the default and pipe "
     "it to `jbus gate <the fix's slug>`."
 )
-
-
-def step(said: str, code: str = "") -> str:
-    """Return the step a pull request waits on, read from the last line `jmerge` printed about it
-    (`<word>: <reason>`) and the reason's code where `merge.log` wrote one. A `hold` is on the
-    `hold` step, and a `wait` is on the step of its code (`ready.step_of`). A line with no code,
-    as `jmerge` prints it or as an older `merge.log` has it, takes the code its reason's text
-    gives (`ready.code_of`). Return nothing for a line with no reason, or for a reason no rule
-    names."""
-    word, _, reason = said.partition(": ")
-    if not reason:
-        return ""
-    if word == "hold":
-        return "hold"
-    return ready.step_of(code or ready.code_of(reason))
-
-
-class Said(list[str]):
-    """`Said` is the list of lines `jmerge` printed about pull requests in this pass, as it
-    printed them.
-
-    `failed` is true when `jmerge` did not run to its end. In that case, a pull request with no line
-    is one that `jmerge` did not reach. It is not one that `jmerge` read and had nothing to say
-    about.
-    """
-
-    failed = False
-
-    def crews(self, numbers: set[int]) -> Said:
-        """Return the lines as the user is to hear them. A hold of one of these pull requests
-        is its crew's to lift for now, so its line becomes a `wait`. The line stays in the
-        list. A pull request with no line counts as one that `jmerge` did not reach, and such
-        a pull request keeps the hold it had."""
-        mine = {text for text in self if (line := parse(text)) and line.number in numbers}
-        kept = Said(
-            "wait" + text[4:] if text in mine and text[:5] == "hold " else text for text in self
-        )
-        kept.failed = self.failed
-        return kept
 
 
 def merge(run: Pass) -> Said:

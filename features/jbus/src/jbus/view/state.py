@@ -120,8 +120,12 @@ from jbus import (
     work,
 )
 from jbus.live import LIVENESS, OUT
-from jbus.threads import OTHER, REPORT, ROLES
-from jbus.threads import shown as shown_roles
+from jbus.roles import OTHER, ROLES
+from jbus.roles import shown as shown_roles
+from jbus.threads import REPORT
+from jbus.told import FILE as TOLD
+from jbus.told import KIND as TOLD_KIND
+from jbus.told import told_to
 from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
@@ -1692,11 +1696,9 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
     if held and held.told and held.thread == one["to"]:
         return {"told": when(held.told), "what": leftover.KIND}
     key = key_of(one)
-    from jbus import wakes
-
-    for told in wakes.told_to(read.table(wakes.FILE) or {}, one["to"]).values():
+    for told in told_to(read.table(TOLD) or {}, one["to"]).values():
         if told.get("wrong") == key and when(told.get("at")):
-            return {"told": when(told["at"]), "what": wakes.KIND}
+            return {"told": when(told["at"]), "what": TOLD_KIND}
     sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     for line in reversed(sent):
         at = when(line.get("at"))
@@ -1981,7 +1983,7 @@ def stack(
     """What `/stack.json` holds.
 
     It has the machine once, the steps of the line and the roles of a thread
-    (`threads.ROLES`). It has a summary of each project of `names`, or of each project the
+    (`roles.ROLES`). It has a summary of each project of `names`, or of each project the
     state directory has. It has the user's two queues across the projects: `needs`, oldest
     first, and `proceeds`, the soonest to go ahead first. It has `wrong`, what is wrong across
     the projects that is the user's (`users`), with the machine's sources that are not ok, and

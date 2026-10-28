@@ -3,7 +3,8 @@ import re
 
 import pytest
 
-from jbus import scouts, threads
+from jbus import roles as threads
+from jbus import scouts
 from test_home_thread import NAME, Scene, as_read
 from test_tool_calls import CALLS, FILLED, errors
 from testing.paths import skills

@@ -125,7 +125,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbriefs import chains, meaning
+from jbriefs import chains, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbus import Refused, party, verbs, write_json
@@ -1177,6 +1177,12 @@ _ASKS = re.compile(
     re.IGNORECASE,
 )
 _GATED = "jbus gate"
+REQUEST_TEMPLATE = "scout-request.md"
+CREWMATE_ONLY = ("Task", "Size", "Pull request")
+REQUEST_OPTIONAL = ("Home",)
+READ_ONLY = "read-only"
+_PLACEHOLDER = re.compile(r"<[^<>\n]* [^<>\n]*>")
+_ITEM = re.compile(r"^\s*[-*+]\s+")
 _SHARED = re.compile(
     r"(?<![\w/.-])(?:readme\b|(?-i:(?!SKILL\.)[A-Z][A-Z_]*)\.md\b)|`docs/", re.IGNORECASE
 )
@@ -1269,14 +1275,60 @@ def conduct(text: str) -> list[str]:
     return found
 
 
+def request_template() -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Return the labels a request must have, each one the template has less `REQUEST_OPTIONAL`, and
+    the template's own placeholders, each `<...>` span of it with a space in it."""
+    text = skills.where("template", REQUEST_TEMPLATE).read_text()
+    named = (label for label, _ in briefs.fields(text) if label not in (briefs.TITLE, ""))
+    return tuple(label for label in named if label not in REQUEST_OPTIONAL), tuple(
+        dict.fromkeys(_PLACEHOLDER.findall(text))
+    )
+
+
+def request_faults(slug: str, text: str) -> list[str]:
+    """Every reason a request may not be stored, one line each.
+
+    A request is in the template's shape when its first line is `# <slug>: <what to find out>`,
+    each label of `labels` has a field whose lines are filled in (not the template's own
+    placeholders), its `Questions:` has at least one item, and its `Out of bounds:` starts
+    `read-only`. It has no line that only a crewmate's brief has, and its `Request:` line is no
+    longer than `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task
+    (`asks`).
+    """
+    found = []
+    held = briefs.fields(text)
+    title = held[0][1][0] if held and held[0][0] == briefs.TITLE else ""
+    if not title.startswith(f"{slug}: ") or not title.removeprefix(f"{slug}: ").strip():
+        found.append(f"first line is not # {slug}: <what to find out>")
+    fields = {label: lines for label, lines in reversed(held)}
+    labels, placeholders = request_template()
+    for label in labels:
+        if label not in fields:
+            found.append(f"no {label}: line")
+            continue
+        first, *rest = fields[label]
+        items = [_ITEM.sub("", line).strip() for line in rest if _ITEM.match(line)]
+        lines = [line for line in (first.strip(), *items) if line]
+        if not lines or (label == "Questions" and not items):
+            found.append(f"{label}: line is empty")
+        elif any(held in line for held in placeholders for line in lines):
+            found.append(f"{label}: line is the template's own text")
+        elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
+            found.append(f"Out of bounds: line does not start {READ_ONLY}")
+    for label in CREWMATE_ONLY:
+        if label in fields:
+            found.append(f"a {label}: line, which only a crewmate's brief has")
+    if long := briefs.overlong(text, "Request"):
+        found.append(long)
+    return [*found, *asks(text, "request")]
+
+
 def faults(text: str, slug: str = "") -> list[str]:
     """Every fault for which `add` refuses a brief: its fields' (`jbriefs.parse.faults`), then
     its conduct's (`conduct`). A scout's request (`requested`) is checked against its own
-    template instead (`jbus.scouts.faults`)."""
+    template instead (`request_faults`)."""
     if requested(text):
-        from jbus import scouts
-
-        return scouts.faults(slug, text)
+        return request_faults(slug, text)
     return [*briefs.faults(text), *conduct(text)]
 
 

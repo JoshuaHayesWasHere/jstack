@@ -79,9 +79,9 @@ import re
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from jbriefs import below, findings
+from jbriefs import below
 from jbriefs import parse as briefs
-from jbus import END_TURN, cancelled, dispatch, outbox, queue, verbs
+from jbus import END_TURN, cancelled, dispatch, outbox, queue, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import (
@@ -297,7 +297,7 @@ def github(run: Pass, client: Client, world: World) -> None:
         told = rebased or f"conflict|{slug}|{head[:12]}" in sent
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
             reason = "it conflicts with its base"
-            if _reviewed(brief):
+            if review.reviewed(brief):
                 ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
             else:
                 ask = _asked("conflict", CONFLICTED, head)
@@ -350,23 +350,7 @@ def owed(run: Pass, brief: str, head: str) -> bool:
         return False
     said_none = not all(map(below.launched, below.reviewers(brief, "Reviewer")))
     gated = re.search(rf"^(?:Unrun|Stuck|Stale base): at {re.escape(head)},", brief, re.M)
-    return not (_launched(brief) or said_none or _reviewed(brief) or gated)
-
-
-def reviewing(brief: str) -> bool:
-    """Say whether a reviewer the crew launched has not written its `## Review` yet."""
-    return _launched(brief) > _reviewed(brief)
-
-
-def _launched(brief: str) -> int:
-    """Return how many reviewer lines of the brief name a reviewer the crew launched."""
-    said = (one for kind in below.REVIEWERS for one in below.reviewers(brief, kind))
-    return sum(map(below.launched, said))
-
-
-def _reviewed(brief: str) -> int:
-    """Return how many `## Review` sections of the brief name the head they saw."""
-    return sum(1 for one in findings.triage(brief).sections if one.head)
+    return not (review.launched(brief) or said_none or review.reviewed(brief) or gated)
 
 
 def _asked(kind: str, message: str, head: str) -> Ask:

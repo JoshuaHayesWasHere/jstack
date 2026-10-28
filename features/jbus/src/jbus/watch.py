@@ -40,8 +40,9 @@ from typing import Any
 import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
-from jbus import Refused, budget, merge, queue, read_json, t3, verbs, work, write_json
-from jbus.merge import Said, parse
+from jbus import Refused, budget, queue, read_json, t3, verbs, work, write_json
+from jbus.judged import Said, parse, step
+from jbus.launches import records
 from jbus.mirror import last_result, sections
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error
@@ -503,10 +504,10 @@ def written(result: str) -> work.Written:
 
 def pull(world: World, slug: str, result: str, said: str) -> work.Pull:
     """Return the slug's pull request as the facet `Pull` has it. `said` is what `jmerge`
-    last said of an open one (`merge.step`). A `Branch:` line that ends on an address, with
+    last said of an open one (`jbus.judged.step`). A `Branch:` line that ends on an address, with
     neither an open nor a merged pull request under the slug, means that pull request closed."""
     if slug in world.open:
-        return work.Pull(merge.step(said) or work.Pull.OTHER)
+        return work.Pull(step(said) or work.Pull.OTHER)
     if slug in world.merged:
         return work.Pull.MERGED
     words = below.line(result, "Branch:").split()
@@ -1410,10 +1411,8 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = 
     needed for a test that turned green by chance, and the home hears of it once. The line that says
     a row is withdrawn is sent once the row is out, and a withdrawn row is never one of `fixes`
     again. A row filed for `green` itself, whose check passed on a rerun, is left as it is, and the
-    home hears of that once too. A row with a launch record is left for the pass that reads T3
-    Code's answer. It imports `dispatch` here, since `dispatch` imports this module."""
-    from jbus import dispatch
-
+    home hears of that once too. A row with a launch record (`jbus.launches`) is left for the pass
+    that reads T3 Code's answer."""
     for row in fixes:
         name = row["slug"]
         if green.startswith(name.rsplit("-", 1)[-1]):
@@ -1428,7 +1427,7 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = 
             )
             run.find(name, "retro", line, key=f"launched {name}", past=True)
             continue
-        if dispatch.records(run, name):
+        if records(run, name):
             continue
         why = f"{branch} is green at {green[:12]}, a later commit than the red it was filed for"
         try:
