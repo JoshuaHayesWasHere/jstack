@@ -27,6 +27,10 @@ places. jbus posts no event to it. It posts only each blocking item when the ite
 reminder, and each refresh (`wake.Box.blocking`). `load` refuses half of that pair, and both are
 secret.
 
+A `[view]` table is `Config.view`, the addresses `jbus view` is reached at beyond 127.0.0.1: the
+`host` it listens on too, the `names` a request may use, and the `origins` of a proxy in front of
+it. The view reads no config, so the install writes them into `jbus-view.service`'s drop-in.
+
 A `[[project]]` table whose `kind` is `scratch` is not a repo. It is a scratch home, for throwaway
 questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is the one place
 that turns a table into a project. It sorts a scratch table into `Config.scratch` and never into
@@ -140,6 +144,49 @@ def _cap(raw: dict[str, Any], key: str, default: int, path: Path) -> int:
 
 
 @dataclass(frozen=True)
+class View:
+    """The `[view]` table: what `JBUS_VIEW_HOST`, `JBUS_VIEW_NAMES` and `JBUS_VIEW_ORIGINS` say
+    to `jbus view` (`jbus.view.doors`), each empty where the table leaves it out."""
+
+    host: str = ""
+    names: tuple[str, ...] = ()
+    origins: tuple[str, ...] = ()
+
+    def environment(self) -> dict[str, str]:
+        """Each variable of the view the table sets, by name."""
+        said = {
+            "JBUS_VIEW_HOST": self.host,
+            "JBUS_VIEW_NAMES": ",".join(self.names),
+            "JBUS_VIEW_ORIGINS": ",".join(self.origins),
+        }
+        return {name: value for name, value in said.items() if value}
+
+
+def _view(raw: dict[str, Any], path: Path) -> View:
+    """The `[view]` table of the config, refused where it has another key, a `host` that is not
+    a string, or `names` or `origins` that are not lists of strings."""
+    table = raw.get("view", {})
+    lists = ("names", "origins")
+    if (
+        not isinstance(table, dict)
+        or set(table) - {"host", *lists}
+        or not isinstance(table.get("host", ""), str)
+        or not all(
+            isinstance(table.get(key, []), list)
+            and all(isinstance(one, str) for one in table.get(key, []))
+            for key in lists
+        )
+    ):
+        raise Refused(
+            f'refused: {path} has a [view] that is not host = "<address>", '
+            'names = ["<name>"] and origins = ["https://<host>"]'
+        )
+    return View(
+        table.get("host", ""), tuple(table.get("names", [])), tuple(table.get("origins", []))
+    )
+
+
+@dataclass(frozen=True)
 class Config:
     server: str
     runtime_mode: str | None
@@ -159,6 +206,7 @@ class Config:
     blocking: Hook = ("", "")
     scratch: tuple[Scratch, ...] = ()
     home_thread: str = ""
+    view: View = View()
 
     @property
     def token_path(self) -> Path:
@@ -358,6 +406,7 @@ def load(directory: Path | None = None) -> Config:
             f"refused: {path} has no top-level {missing} beside the other: give it both, or neither"
         )
     blocking = _pair(raw, BLOCKING)
+    view = _view(raw, path)
     try:
         projects, scratch = [], []
         for entry in raw.get("project", []):
@@ -434,6 +483,7 @@ def load(directory: Path | None = None) -> Config:
         blocking=blocking,
         scratch=tuple(scratch),
         home_thread=str(raw.get("home_thread") or ""),
+        view=view,
     )
 
 

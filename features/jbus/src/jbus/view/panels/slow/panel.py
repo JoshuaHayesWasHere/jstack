@@ -23,7 +23,6 @@ page already has: this panel does not give it again.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -120,20 +119,26 @@ def stages(reads: list[Read], needs: list[dict[str, Any]]) -> list[dict[str, Any
 
 def used(proc: Path, locks: Path, total: int) -> int | None:
     """How many of the lane's `total` lock files the kernel lists as held, or None where its
-    list of locks cannot be read. A lock is the device and the inode of its file, as
-    `<proc>/locks` gives them, and a line with `->` is a process that waits for the lock."""
+    list of locks cannot be read. A lock is the inode of its file, the last of the three fields
+    `<proc>/locks` gives as `major:minor:inode`, and a line with `->` is a process that waits for
+    the lock. The device is not matched: on btrfs `stat` gives a subvolume's own device and
+    `<proc>/locks` the filesystem's, and the lane's lock files share one directory."""
     try:
         listed = (proc / "locks").read_text().splitlines()
     except OSError:
         return None
-    held = {words[5] for words in map(str.split, listed) if len(words) > 5 and words[1] != "->"}
+    held = {
+        words[5].rpartition(":")[2]
+        for words in map(str.split, listed)
+        if len(words) > 5 and words[1] != "->"
+    }
     count = 0
     for n in range(1, total + 1):
         try:
             seen = (locks / f"{slot.full(total).lock}.{n}.lock").stat()
         except OSError:
             continue
-        count += f"{os.major(seen.st_dev):02x}:{os.minor(seen.st_dev):02x}:{seen.st_ino}" in held
+        count += str(seen.st_ino) in held
     return count
 
 

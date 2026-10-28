@@ -88,7 +88,7 @@ function dMilestones(arg, data) {
   var chains = entries.concat(m.integration), held = msHeld(chains);
   var stuck = chains.filter(function (c) { return c.holder && c.over < c.total; }), done = entries.filter(function (e) { return e.total && e.over === e.total; }).length;
   var h = head("Progress", "Milestones");
-  h += '<div class="now"><span class="tag">Now</span><span class="big">' + (stuck.length ? plural(stuck.length, "milestone is", "milestones are") + ' held, ' : "Nothing is held, ") + rowsOver + ' of ' + rows + ' rows merged</span>' +
+  h += '<div class="now"><span class="tag">Now</span><span class="big">' + (stuck.length ? plural(stuck.length, "milestone is", "milestones are") + ' held, ' : "No milestone held, ") + rowsOver + ' of ' + rows + ' rows merged</span>' +
     '<span class="src">' + plural(entries.length, "plan entry", "plan entries") + ' in ' + plural(m.homes.length, "home", "homes") + ', ' + plural(done, "has", "have") + ' every row finished.' +
     (stuck.length ? ' Held: ' + stuck.slice(0, 4).map(function (c) { return '<b>' + esc(c.key) + '</b> at <code>' + esc(c.holder.slug) + '</code>'; }).join(", ") + (stuck.length > 4 ? " and " + (stuck.length - 4) + " more" : "") + '.' : "") + '</span></div>' + msKey();
   h += m.homes.map(function (x) { return msHome(x, held); }).join("");
