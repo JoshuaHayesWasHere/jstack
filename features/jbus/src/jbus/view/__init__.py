@@ -28,11 +28,11 @@ The routes that read are `routes()`, all `GET`:
 - `/healthz`: `{"ok": true}`.
 
 Each answer the server builds from the state for the page and the feed, the stack, a project's
-state or a panel and the feed's needs, has one build running at a time, which every request for
-it joins.
-A request waits for it at most `shared.PATIENCE` seconds, then takes the last answer built, or
-503 where there is none yet (`shared`). So a build that is slow, or never ends, holds no later
-request, and requests that come faster than a build ends do not each start one more.
+state or a panel and the feed's needs, has one build running at a time (`shared`). A request takes
+a build that began after it came: the one it starts, or the next, which every request that comes
+while one runs shares. It waits for it at most `shared.PATIENCE` seconds, and then gets 503. So a
+build that is slow, or never ends, holds no later request, and requests that come faster than a
+build ends do not each start one more.
 
 The two writes are `WRITES`, `POST /answer` and `POST /approve`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not

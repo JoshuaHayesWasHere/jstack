@@ -6,14 +6,16 @@ Python runs one thread's code at a time. So when each request built its own answ
 came faster than a build ended each started one more, every build got slower, and the clients
 gave up while the server went on building for them: the server stopped answering at all.
 
-Now a request joins the build of its answer that is running, or starts one in a thread of its own,
-and waits for it at most `PATIENCE` seconds. A request still waiting then takes the last answer
-that build gave, or `Busy` where there is none yet, and the build goes on for the next request.
-So however many requests come, each answer has one build running at most.
+Now each answer has one build running at most. A request takes the answer of a build that began
+after it came, so no answer is older than its request: where none runs, it starts one, and where
+one runs, it joins the next, which starts once that one ends and which every request that comes
+meanwhile shares. A request waits for its build at most `PATIENCE` seconds, then gets `Busy`, and
+the server says so on its standard error. What a build raises, each request of it raises.
 """
 
 from __future__ import annotations
 
+import sys
 import threading
 from collections.abc import Callable, Hashable
 from typing import Any
@@ -23,50 +25,54 @@ PATIENCE = 6.0
 
 
 class Busy(Exception):
-    """The answer's first build has not ended in the time a request waits."""
+    """The build a request waits on has not ended in the time a request waits."""
 
 
 class _Run:
-    def __init__(self) -> None:
+    def __init__(self, build: Callable[[], Any]) -> None:
+        self.build = build
         self.done = threading.Event()
         self.value: Any = None
         self.error: BaseException | None = None
 
 
 class Shared:
-    """The build running for each answer, and the last answer each build gave."""
+    """The build running for each answer, and the one that starts after it."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._kept: dict[Hashable, Any] = {}
         self._running: dict[Hashable, _Run] = {}
+        self._next: dict[Hashable, _Run] = {}
 
     def get(self, key: Hashable, build: Callable[[], Any], patience: float = PATIENCE) -> Any:
-        """The answer `key` names: what the build running for it gives within `patience`
-        seconds, or else the last answer built for it. Raise `Busy` where none was built yet,
-        and what the build raised where it failed."""
+        """The answer `key` names, from a build that began after this call, within `patience`
+        seconds. Raise `Busy` where it has not ended by then, and what the build raised where it
+        failed."""
         with self._lock:
-            run = self._running.get(key)
-            if run is None:
-                run = self._running[key] = _Run()
-                threading.Thread(target=self._build, args=(key, build, run), daemon=True).start()
-        run.done.wait(patience)
-        with self._lock:
-            if run.done.is_set() and run.error is None:
-                return run.value
-            if key in self._kept:
-                return self._kept[key]
+            if key in self._running:
+                run = self._next.setdefault(key, _Run(build))
+            else:
+                run = self._running[key] = _Run(build)
+                threading.Thread(target=self._build, args=(key, run), daemon=True).start()
+        if not run.done.wait(patience):
+            print(f"jbus view: {key} is still building after {patience:g} s", file=sys.stderr)
+            raise Busy
         if run.error is not None:
             raise run.error
-        raise Busy
+        return run.value
 
-    def _build(self, key: Hashable, build: Callable[[], Any], run: _Run) -> None:
-        try:
-            run.value = build()
-        except BaseException as error:
-            run.error = error
-        with self._lock:
-            if run.error is None:
-                self._kept[key] = run.value
-            self._running.pop(key, None)
-        run.done.set()
+    def _build(self, key: Hashable, run: _Run | None) -> None:
+        """Run the build, then the next one where a request joined it, until none is left."""
+        while run is not None:
+            try:
+                run.value = run.build()
+            except BaseException as error:
+                run.error = error
+            with self._lock:
+                after = self._next.pop(key, None)
+                if after is None:
+                    self._running.pop(key, None)
+                else:
+                    self._running[key] = after
+            run.done.set()
+            run = after

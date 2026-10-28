@@ -10,7 +10,6 @@ import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
-from unittest.mock import ANY
 
 import pytest
 
@@ -301,7 +300,12 @@ def _at_once(served, path, times):
 
 
 @pytest.mark.parametrize(
-    ("path", "name"), [("/stack.json", "stack"), ("/feed?project=demo", "needs")]
+    ("path", "name"),
+    [
+        ("/stack.json", "stack"),
+        ("/feed?project=demo", "needs"),
+        ("/state.json?project=demo", "Read"),
+    ],
 )
 def test_a_build_that_does_not_end_holds_no_later_request(served, monkeypatch, path, name):
     served.doors.app.patience = 0.5
@@ -320,16 +324,48 @@ def test_a_build_that_does_not_end_holds_no_later_request(served, monkeypatch, p
         time.sleep(0.05)
 
 
-def test_a_slow_build_answers_with_the_last_one_built(served, monkeypatch):
-    first = served.json("/stack.json")
-    served.doors.app.patience = 0.5
-    let, started = _stuck(monkeypatch, "stack")
-    try:
-        assert _at_once(served, "/stack.json", 3) == [(200, ANY)] * 3
-        assert served.json("/stack.json") == first
-        assert len(started) == 1
-    finally:
-        let.set()
+def test_a_request_that_comes_while_a_build_runs_gets_a_build_begun_after_it(served, monkeypatch):
+    real, let, began = view.state.stack, threading.Event(), []
+
+    def build(*args, **kwargs):
+        began.append(time.monotonic())
+        if len(began) == 1:
+            let.wait(20)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(view.state, "stack", build)
+    first = threading.Thread(target=served.ask, args=("/stack.json",))
+    first.start()
+    while not began:
+        time.sleep(0.01)
+    asked = time.monotonic()
+    answers = []
+    later = threading.Thread(target=lambda: answers.extend(_at_once(served, "/stack.json", 3)))
+    later.start()
+    time.sleep(0.3)
+    let.set()
+    later.join()
+    first.join()
+    assert [status for status, _ in answers] == [200] * 3
+    assert len(began) == 2
+    assert began[1] > asked
+
+
+def test_a_build_that_fails_fails_its_requests_and_the_next_request_builds_again(
+    served, monkeypatch
+):
+    real, calls = view.state.stack, []
+
+    def build(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise OSError("the state could not be read")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(view.state, "stack", build)
+    assert served.ask("/stack.json")[0] == 500
+    assert served.ask("/stack.json")[0] == 200
+    assert len(calls) == 2
 
 
 def test_the_state_says_when_the_server_started_and_that_its_code_is_as_on_disk(served):
