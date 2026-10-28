@@ -232,27 +232,29 @@ function approveLine(w) {
   var need = S.needs.filter(function (x) { return x.key === w.key; })[0];
   return (need && need.sha ? "brief <code>" + esc(need.sha) + "</code> &middot; " : "") + '<a href="' + esc(href(PROJECT)) + '">Approve it in Needs you</a>';
 }
+var YOU_FIRST = 2;
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.needs.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes and logs as its <code>waiting</code> event, and also hold the gates that go ahead on their default, which Needs you counts apart as one line. A gate that jbus holds is answered here. A work item is approved in its own drawer.</p>';
+  h += '<p class="src" style="margin-top:15px">As Needs you counts it, from <code>waiting-on-user.json</code>.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
+    function mine(w) { return k === hit && (!named || named === w.slug || named === w.number); }
     if (!items.length && (k === "hold" || k === "config")) return;
     h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + kind.label + '</h3>' +
       (k === "gate" && can.length ? '<p style="margin:0 0 5px"><button type="button" class="btn" id="tickall">Tick all ' + can.length + ' that can be answered here</button></p>' : "") +
-      (items.length ? '<ul class="clean rows">' + items.map(function (w) {
-      var here = k === hit && (!named || named === w.slug || named === w.number);
+      (items.length ? fold(items, function (w) {
+      var here = mine(w);
       if (k === "gate") return '<li' + (here ? ' class="hit"' : "") + '>' + gateRow(w) + '</li>';
       var body = (w.slug ? taskBtn(w.slug) + " " : "") + (k === "hold" ? link(w.url, "#" + w.number) + " " : "");
       return '<li' + (here ? ' class="hit"' : "") + '>' + body + ' ' + ageChip(w.since, "user") +
         '<br>' + (k === "approve" ? approveLine(w) : esc(w.line)) +
         (w.unblocks && w.unblocks.length ? '<br><span class="tag">Unblocks</span> ' + w.unblocks.map(taskBtn).join(" ") : "") + '</li>';
-    }).join("") + '</ul>' : '<p class="src">None.</p>') +
+    }, hit && k !== hit ? 0 : YOU_FIRST, mine) : '<p class="src">None.</p>') +
       (k === "gate" && can.length ? '<div id="bfoot">' + batchFoot() + '</div>' : "") +
       (k === "gate" ? '<p class="src" style="margin:10px 0 0">' + openBtn("words:answer", "The questions you answered, in Your words") + '</p>' : "");
   });
   var shut = S.gates.filter(function (g) { return !g.open; });
-  if (shut.length) h += '<h3>' + plural(shut.length, "gate", "gates") + ' not open</h3><ul class="clean rows">' + shut.map(function (g) { return '<li><span class="n zero" data-gloss="count:question">' + esc(g.number) + '</span> ' + esc(g.question) + '<br><span class="src">' + esc(g.status) + '</span></li>'; }).join("") + '</ul>';
+  if (shut.length) h += '<h3>' + plural(shut.length, "gate", "gates") + ' not open</h3>' + fold(shut, function (g) { return '<li><span class="n zero" data-gloss="count:question">' + esc(g.number) + '</span> ' + esc(g.question) + '<br><span class="src">' + esc(g.status) + '</span></li>'; }, YOU_FIRST);
   return h;
 }
 document.addEventListener("click", function (e) {

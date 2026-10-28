@@ -201,18 +201,7 @@ def calm(scene):
 SCENES = {"busy": busy, "many": lambda scene: busy(scene, 16), "calm": calm}
 
 
-EVERY = [(scene, wide) for scene in ("busy", "many") for wide in SCREENS]
-
-
-KNOWN = {
-    (budget, scene, wide): unit
-    for budget, unit, broken in (
-        ("drawers", "jv-drawer-budgets", EVERY),
-        ("crumb", "jv-drawer-budgets", EVERY),
-        ("words", "jv-drawer-budgets", EVERY),
-    )
-    for scene, wide in broken
-}
+KNOWN: dict[tuple[str, str, int], str] = {}
 
 
 def cases(budget, scenes=("busy", "many"), widths=tuple(SCREENS)):

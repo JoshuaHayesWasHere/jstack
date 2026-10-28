@@ -115,6 +115,8 @@
   .mk.lv-moving { background: var(--ink-3); }
   .mk.lv-quiet { background: transparent; border: 1.5px dashed var(--due); width: 9px; height: 9px; }
   .mk.lv-hung { background: var(--due); border-radius: var(--radius-xs); width: 9px; height: 9px; }
+  .marked { margin: var(--space-5) 0 0; padding-left: var(--space-4); border-left: 3px solid var(--due); }
+  .marked.lv-quiet { border-left-style: dashed; }
   .mk.blk { width: 0; height: 0; border-radius: 0; border: 5px solid transparent; border-right-color: var(--due); }
   .bn { flex: none; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; line-height: 1.4; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--ink); color: var(--canvas); }
   .bk { font-family: var(--mono); font-size: var(--text-sm); color: var(--ink-2); background: none; border: 0; padding: 0; white-space: nowrap; }
@@ -148,6 +150,7 @@
   .linkish:hover { border-color: var(--ink); }
   .rows li { padding: var(--space-4) 0; border-top: 1px solid var(--hair); }
   .rows li:first-child { border-top: 0; }
+  details.more > summary { cursor: pointer; color: var(--ink-2); font-size: var(--text-sm); min-height: 44px; display: flex; align-items: center; }
   .rows li.hit { background: var(--due-tint); box-shadow: -10px 0 0 var(--due-tint), 10px 0 0 var(--due-tint); }
   .steps li { display: grid; grid-template-columns: 57.5px minmax(0, 1fr) auto; gap: var(--space-1) var(--space-5); padding: var(--space-3) 0; border-top: 1px solid var(--hair); font-size: var(--text-sm); align-items: baseline; }
   .steps li.one { grid-template-columns: minmax(0, 1fr); }
@@ -316,7 +319,7 @@
   .crumbs a { color: var(--ink-2); text-decoration: none; }
   .crumbs a:hover { text-decoration: underline; }
   .crumbs a[aria-current="page"] { color: var(--ink); }
-  .dw-h .crumbs { font-size: var(--text-sm); color: var(--ink-2); }
+  .dw-h .crumbs { display: flex; font-size: var(--text-sm); color: var(--ink-2); }
   .back { display: block; margin: var(--space-2) 0 var(--space-1); border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--ink); font-size: var(--text-sm); font-weight: 600; text-align: left; }
   .back:hover { text-decoration: underline; }
   .tip { position: fixed; z-index: 50; max-width: min(340px, calc(100vw - 20px)); background: var(--ink); color: var(--canvas); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-6) var(--space-5); font-size: var(--text-sm); line-height: 1.4; box-shadow: 0 6px 24px var(--shadow); }
@@ -562,7 +565,7 @@
     if (t.pending) more.push(plural(t.pending, "request waits", "requests wait") + " for an answer");
     if (t.page) more.push("it holds a page that waits on you");
     return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + title + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
-      (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
+      (c == null ? "no start kept" : "started " + day(c)) + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
   }
   function threadChip(t, project) {
     var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = TURN_UNDER_WAY[t.live] ? t.live : "", q = asked(t);
@@ -927,6 +930,15 @@
     var what = !PANELS[kind] ? "No drawer called " + kind : "No " + kind + (arg ? " named " + arg.replace(/:/g, " ") : " to show");
     return head("Not found", what) + '<div class="now e-op"><span class="big">' + esc(what) + ' in <code>' + esc(PROJECT) + '</code></span>' +
       'It is not there now: it may have ended, or the link is old or mistyped. <a href="' + esc(href(PROJECT)) + '">Open ' + esc(PROJECT) + '</a></div>';
+  }
+  /* A drawer's list: its first `first` rows, then each later row `hit` picks, and the rest folded
+     under their count, so a long list keeps a drawer short. A drawer opened on one row gives its
+     other lists a `first` of 0. */
+  function fold(items, row, first, hit, kind) {
+    var shown = [], rest = [], ul = '<ul class="clean ' + (kind || "rows") + '">';
+    items.forEach(function (one, i) { (i < first || (hit && hit(one)) ? shown : rest).push(one); });
+    function rows(list) { return list.map(function (one) { return row(one); }).join(""); }
+    return (shown.length ? ul + rows(shown) + '</ul>' : "") + (rest.length ? '<details class="more"><summary>' + (shown.length ? rest.length + " more" : "Show all " + rest.length) + '</summary>' + ul + rows(rest) + '</ul></details>' : "");
   }
   function openBtn(target, label) { return '<button type="button" class="linkish" data-open="' + esc(target) + '">' + esc(label) + '</button>'; }
   function taskBtn(slug) { return known(slug) ? openBtn("task:" + slug, slug) : '<code>' + esc(slug) + '</code>'; }
