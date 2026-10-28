@@ -87,7 +87,7 @@ For a home, reversible work is the plan, the briefs, the launches and the merge 
 A turn ends with no message to the user unless it asks a decision that is theirs or reports a stop nothing else can clear.
 A merge, a launch, a stuck thread dealt with, a Result read, a report written and a wait are told when the user asks for status, and at no other time.
 A turn the user started with a question (status, why, where, what) answers it in full, and is the one turn this section does not end.
-Every other turn ends here: one a thread, jbus or an audit tick started, a home's start, and a turn the user started with an instruction ("launch it", "fix that").
+Every other turn ends here: one a thread or jbus started, a home's start, and a turn the user started with an instruction ("launch it", "fix that").
 
 Write each thing the turn did as one line, its kind first:
 
@@ -200,7 +200,7 @@ An entry has the shape of `$T/plan-entry.md`: read it before writing the first o
 
 When `jbus plan` prints `finished: close it` for an entry, run `jbus plan close <entry>` (a scoped home adds `--scope <scope>`). It moves the entry's section, as it is, from `plan.md` to `plan-done.md` beside it, and is refused while a row of the entry is not over. An entry leaves `plan.md` this way and no other: none is deleted by hand, and `plan-done.md` is never read at a start.
 
-A plan of several entries that the user approves in one go runs as a queue: "A queue and its hourly audit" says when it starts and ends, and what the home schedules for it.
+A plan of several entries that the user approves in one go runs as a queue, by the playbook `autopilot-full` or `orchestrate`, and the home schedules nothing for it: jbus's pass merges, launches, and nudges a home that stays quiet with work out.
 
 ## The home does not do the work
 
@@ -233,7 +233,7 @@ When a thread this home sent out sends it a message, when the user asks for stat
 
 ## Clearing its own blockers
 
-Each time this home wakes, at its start, on a thread's message and on an audit tick, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
+Each time this home wakes, at its start and on a thread's message, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
 No bot outside watches the homes or the queue: this home clears its own blockers, and raises to the user only what the user has to decide.
 
 ## Gates
@@ -250,13 +250,12 @@ When a message says it is the user's word carried by jbus, when this home record
 
 At every home's start (step 5), on a `fixed and green` line, and whenever a pull request may be ready to merge: read `$T/../skills/home/merging-a-pull-request-that-is-ready.md` now.
 
-## A queue and its hourly audit
-
-At every home's start (step 5), when a queue playbook (`autopilot-full` or `orchestrate`) is taken up, on each audit tick, when a queue's last entry is set to done, and before a handoff: read `$T/../skills/home/queue-and-its-hourly-audit.md` now. Its "the next section" is "Picking up a thread that stopped", below.
-
 ## Picking up a thread that stopped
 
-A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one the audit printed as `stuck`. Its worktree and its brief hold what it did. The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own". It ends in one of two calls.
+A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one jbus's nudge names.
+Its worktree and its brief hold what it did.
+The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own".
+It ends in one of two calls.
 
 `jbus` tries once first, by the wait's age (`jbus.clock`).
 A pull request whose review is not written while its reviewer's thread is not at work gets that reviewer sent its line again; one that waits on its crew gets the crew one carry-on; a crew that ended with no Result has its two carry-ons.
@@ -272,7 +271,12 @@ Never send a plain carry-on to a thread that failed on a limit.
 
 A message first, when the thread can still take one: `t3_thread_send` to the id on the brief's `Thread:` line, one line, to carry on from its brief and its worktree and to redo nothing that is there.
 
-A new thread on the same worktree when it cannot: the send fails, the thread is archived or gone, or it was sent that message once and the next tick prints it `stuck` again. Find the worktree whose branch is the slug with `git worktree list --porcelain`, from the main checkout. With none, there is nothing to pick up: launch from step 2 of "Handing a task to a crewmate". Add one line to the brief, above its first `## ` heading, so the new thread knows it resumes: `Resume: <date>, the thread before this one stopped. Its work is in this worktree and in the last Result below: redo nothing that is there, and carry on from <the resume point>`. The crew skill reads the brief at its start, and a brief is trusted. Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
+A new thread on the same worktree when it cannot: the send fails, the thread is archived or gone, or it was sent that message once and jbus's next nudge names it again.
+Find the worktree whose branch is the slug with `git worktree list --porcelain`, from the main checkout.
+With none, there is nothing to pick up: launch from step 2 of "Handing a task to a crewmate".
+Add one line to the brief, above its first `## ` heading, so the new thread knows it resumes: `Resume: <date>, the thread before this one stopped. Its work is in this worktree and in the last Result below: redo nothing that is there, and carry on from <the resume point>`.
+The crew skill reads the brief at its start, and a brief is trusted.
+Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
 
 ```json
 {
@@ -317,7 +321,5 @@ Read `$T/../skills/handoff/SKILL.md` and do its steps, then stop working in this
 - The user moves to a different piece of work.
 - The context is past 300,000 tokens, or this thread has been compacted once. `hooks/home-gauge.sh` tells this thread its count after every tool call from then on, and at 350,000 it refuses every tool call but the ones the handoff makes: only the handoff runs.
 - The user says so.
-
-Before the handoff, end the audit of a queue, as "A queue and its hourly audit" says for a home that hands off: it posts into this thread, and the next home schedules its own.
 
 Say it plainly when one of them is reached: "This is a good point to hand off." Do not wait to be asked.

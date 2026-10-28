@@ -2,7 +2,7 @@
 (S15, OnlyDecisionsReachOwner in the flow-blockers spec).
 
 The home skill's "How a turn ends" gives the one block a home runs at the end of a turn that a
-thread, jbus or an audit tick started. The home writes into it what the turn did, one line each,
+thread or jbus started. The home writes into it what the turn did, one line each,
 and says to the user only what the block prints after `say:`. Each test takes that block from the
 skill and runs it, in one call with the block at the top and the block that finds this home, as
 the skill says. The day below is made up: it is the kinds of wake a home gets, not any day's text.
