@@ -6,7 +6,7 @@ What is raised reaches the user through jbus, which wakes this project's home th
 Where the user runs the jbus relay, what blocks also goes on to the user's chat bot (Sous Chef, the brief's Chief Keef), which pages the user.
 Everything else, a merge, a stale thread, a retro, a gate, a stall, is quiet, and the user reads it in the digest.
 
-Each time this home wakes (its start, a thread's message, an audit tick), run this from the main checkout, after the block at the top and the block that finds this home:
+Each time this home wakes (its start, a thread's message), run this from the main checkout, after the block at the top and the block that finds this home:
 
 ```sh
 : "${M:?run the block that finds this home first}"

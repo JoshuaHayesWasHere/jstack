@@ -8,11 +8,10 @@ import json
 
 import pytest
 
-from test_home_thread import NAME, NOTE, OTHER, THREAD, Scene, block
+from test_home_thread import NOTE, OTHER, THREAD, Scene, block
 from test_tool_calls import CALLS, FILLED, errors
 
 HOOK = "scheduled-task:hook"
-AUDIT = "scheduled-task:audit"
 ADDRESS = "https://relay.example/hooks/a-token-nobody-may-see"
 TASKS = "<the reply of list_scheduled_tasks>"
 THREADS = "<the reply of t3_thread_list>"
@@ -94,8 +93,6 @@ class T3:
             if given.get("bindToCurrentThread"):
                 task["boundThreadId"] = caller
             task["enabled"] = given.get("enabled", task["enabled"])
-        elif call.tool == "delete_scheduled_task":
-            del self.tasks[given["scheduledTaskId"]]
         elif call.tool == "t3_thread_list":
             asked = [
                 {key: value for key, value in thread.items() if key in SHOWN}
@@ -150,7 +147,7 @@ class Home(Scene):
 
     def takes(self, thread):
         """Run the first steps of a home's start in the order the skill gives. The home writes
-        its id, pins itself, then takes over or deletes the last home's tasks. After the home makes
+        its id, pins itself, then takes over the last home's tasks. After the home makes
         those calls, return what the block says about the tasks."""
         self.t3.threads.get(thread) or self.t3.thread(thread)
         self.home_starts(thread)
@@ -163,8 +160,6 @@ class Home(Scene):
                 take = call("home", "update_scheduled_task")
                 if self.t3.call(thread, take, **{FILLED[ID]: id}) == "refused":
                     refused.append(id)
-            elif word == "delete":
-                self.t3.call(thread, call("home", "delete_scheduled_task"), **{FILLED[ID]: id})
         return self.tasks_of_the_last(thread, refused=" ".join(refused))
 
     def looks(self, thread):
@@ -250,27 +245,6 @@ def test_the_next_home_takes_each_task_of_the_last_and_keeps_a_webhooks_address(
     assert take.given == {"scheduledTaskId": FILLED[ID], "bindToCurrentThread": True}
 
 
-@pytest.mark.parametrize("kept", [f"{AUDIT} {THREAD}\n", f"scheduled-task:its-own {OTHER}\n", None])
-def test_the_audit_of_the_last_home_is_deleted_and_what_was_kept_of_it_goes(home, kept):
-    home.starts(THREAD)
-    home.t3.task(AUDIT, THREAD, title=f"audit: {NAME} queue")
-    home.hands_off(THREAD, OTHER, steps=1)
-    home.home_starts(OTHER)
-    audit = home.home_dir / "audit"
-    if kept:
-        audit.write_text(kept)
-    assert home.tasks_of_the_last(OTHER) == [
-        f"delete {AUDIT}: the audit of the home before this one"
-    ]
-    assert (audit.read_text() if audit.exists() else None) == (
-        None if kept and kept.startswith(AUDIT) else kept
-    )
-    home.starts(OTHER)
-    assert home.t3.tasks == {}
-    queue = home.run("home", block("home", "schedule: a queue"), home.main, OTHER).stdout
-    assert not queue.startswith(("replace:", "delete:")) or AUDIT not in queue
-
-
 def test_a_task_of_another_home_is_left_where_it_is(home):
     another = "mcp:another-thread"
     home.starts(THREAD)
@@ -301,16 +275,14 @@ def test_a_reply_that_is_not_filled_in_is_said_and_names_no_task(home, reply):
     ]
 
 
-def test_the_handoff_names_the_tasks_the_next_home_takes_and_deletes_only_its_audit(home):
+def test_the_handoff_names_the_tasks_the_next_home_takes(home):
     home.starts(THREAD)
     assert home.listed_at_handoff(THREAD) == ["none: no scheduled task posts into this thread"]
     home.t3.task(HOOK, THREAD)
-    home.t3.task(AUDIT, THREAD, title=f"audit: {NAME} queue")
     home.t3.task("scheduled-task:theirs", OTHER)
     assert home.listed_at_handoff(THREAD) == [
         f"Scheduled task {HOOK}, jbus events: demo home: it posts into the thread that handed "
         "off, and the next home takes it over at its start",
-        f"delete {AUDIT}: the audit of a queue, which the home that hands off deletes",
     ]
 
 
@@ -411,7 +383,6 @@ def test_a_run_of_a_task_left_bound_makes_the_settled_home_active_and_the_start_
 def test_a_handoff_cut_off_anywhere_and_run_again_ends_in_the_same_state(home, cut, again):
     home.starts(THREAD)
     home.t3.task(HOOK, THREAD)
-    home.t3.task(AUDIT, THREAD, title=f"audit: {NAME} queue")
     home.hands_off(THREAD, OTHER, steps=cut)
     home.t3.runs(HOOK)
     if again == "the handoff":
