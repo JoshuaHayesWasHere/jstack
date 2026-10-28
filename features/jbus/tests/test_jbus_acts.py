@@ -12,7 +12,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import acts, item, questions, queue, waiting, wake
+from jbus import acts, item, party, questions, queue, waiting, wake
 from jbus import view as jview
 from jbus.view import state as view_state
 from test_jbus_kitchen import ASK, Kitchen
@@ -63,6 +63,16 @@ class Route:
             )
             answer = link.getresponse()
             return answer.status, json.loads(answer.read())
+        finally:
+            link.close()
+
+    def get(self, path):
+        import http.client
+
+        link = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+        try:
+            link.request("GET", path, headers={"Host": f"127.0.0.1:{self.port}"})
+            return json.loads(link.getresponse().read())
         finally:
             link.close()
 
@@ -245,6 +255,20 @@ def test_a_bot_go_on_a_brief_that_holds_parks_a_gate_for_the_user_and_approves_n
     assert rows(kitchen)["alpha"]["approval"]["checked"] is True
     assert questions.read(kitchen.state)[0].answer.closed_by == questions.CLEARED
     assert [one["outcome"] for one in logged(kitchen)] == ["gated", "gated", "done"]
+
+
+def test_a_fail_safe_line_under_holds_is_its_own_field_so_the_go_names_only_its_door(
+    kitchen, route
+):
+    add(kitchen, "alpha", approve=False, text=brief("alpha", HOLDS + SAFE))
+    assert party.doors(stored(kitchen, "alpha")) == ("rewrites history",)
+    status, said = bot_go(route, kitchen, "alpha")
+    assert status == 200, said
+    assert said["act"]["action"]["doors"] == ["rewrites history"]
+    needs = [one for one in route.get("/stack.json")["needs"] if one["kind"] == "gate"]
+    assert [one["what"] for one in needs] == ["may alpha go? Its brief holds for rewrites history"]
+    (asked,) = questions.read(kitchen.state)
+    assert (asked.holds, "too" in asked.context) == ("rewrites history", False)
 
 
 def test_a_bot_answer_closes_a_two_way_gate_and_is_refused_on_a_gate_that_holds(kitchen, route):
