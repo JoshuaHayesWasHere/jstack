@@ -7,7 +7,7 @@ import re
 import pytest
 
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, browse
-from view.scene import Served, ago, checked, iso, logged, row
+from view.scene import RUN, Served, ago, checked, iso, logged, row
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -34,7 +34,7 @@ def owed(scene):
             "conclusion": "success",
             "started_at": iso(ago(minutes=12)),
             "completed_at": iso(ago(minutes=1)),
-            "html_url": f"https://github.com/acme/demo/actions/runs/502/job/{n}",
+            "html_url": RUN.format(502) + f"/job/{n}",
         }
         for n, name in enumerate(("check", "check 2 of 4", "macos"))
     ]
