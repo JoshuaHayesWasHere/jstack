@@ -2,8 +2,7 @@
 started. A change to main counts when it touches the pull request's own paths or CI's paths
 (`features/jmerge/tests/test_jmerge_fresh.py`), and only then. A file of main's that imports
 the pull request's files, one they import, or one that names their path does not count, in a
-repo with a fresh-check file as in one without: Josh's word 7314ddd67c62 dropped that rule, after
-merge-wait-2 found 88 reruns it caused and no fault it caught.
+repo with a fresh-check file as in one without.
 
 The tests run the command against a real origin, as
 `features/jmerge/tests/test_jmerge_fresh.py` does."""

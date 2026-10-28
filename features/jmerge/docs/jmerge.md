@@ -280,8 +280,6 @@ wait <number> <url>: main changed <up to five paths, then "and <k> more"> after 
 If main moved only on other paths, the check still counts, and nobody rebases for it.
 That holds in a repo with a `fresh-check` file as in one without.
 A file of main's that imports the pull request's files, one they import, or one that names their path is such an other path.
-The rule that once held the merge for one went in Josh's word 7314ddd67c62 (2026-10-28).
-merge-wait-2 found 88 reruns that it alone caused in a week, and no fault caught among them.
 
 A repo opts in to proving a pull request over today's main with a `fresh-check` file in its state directory.
 `jmerge` reads only that the file has a line in it: no suite runs on this machine for a merge, and the command on that line is not run.
