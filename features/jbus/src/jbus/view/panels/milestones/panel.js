@@ -98,4 +98,37 @@ function dMilestones(arg, data) {
     (empty.length ? '<p class="src">No brief opens its pull request against ' + esc(empty.map(function (t) { return t.branch; }).join(", ")) + '.</p>' : "") + '</section>';
   return h + '<p class="src" style="margin-top:15px">Each chain is a milestone\'s rows in the order their dependencies give, toward its outcome. A mark is the state the last pass judged for the row. The count and its line are <code>jbus plan</code>\'s own. An integration branch is a branch of the home\'s <code>integration</code> file, and its rows are the briefs whose <code>Pull request:</code> line opens against it. A branch whose own pull request merged into the default branch has landed, and is not listed.</p>';
 }
-panel({ title: "Milestones", drawer: dMilestones, wide: true, reads: "server", gloss: { milestones: ["Milestones", "Each plan entry of each home and each integration branch as a chain of its rows toward its outcome, each row marked merged, working, waiting, queued, needs you, stuck or blocked, with the step that holds it and what it waits on."] } });
+var MS_ASKED = null;
+function msAsk() {
+  if (MS_ASKED || !STACK || !STACK.projects.length) return;
+  MS_ASKED = {};
+  STACK.projects.forEach(function (p) {
+    ask("/panel/milestones.json?project=" + encodeURIComponent(p.name)).then(function (a) { MS_ASKED[p.name] = a.data.milestones; render(); },
+      function () { MS_ASKED[p.name] = { error: "the view server did not answer" }; render(); });
+  });
+}
+function msRing(over, total) {
+  var r = 22, c = 2 * Math.PI * r;
+  return '<svg class="ring" width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle class="rt" cx="28" cy="28" r="' + r + '"></circle><circle class="rv" cx="28" cy="28" r="' + r + '" stroke-dasharray="' + (c * over / total).toFixed(1) + " " + c.toFixed(1) + '" transform="rotate(-90 28 28)"></circle></svg>';
+}
+function msNearest() {
+  msAsk();
+  if (!MS_ASKED) return "";
+  var tag = '<span class="tag" data-gloss="card:nearest">Nearest milestone</span>', names = STACK.projects.map(function (p) { return p.name; });
+  if (names.some(function (n) { return !MS_ASKED[n]; })) return '<section class="ovc" data-role="nearest"><h2 class="ovc-h">' + tag + '</h2><p class="ovc-s">Asking the plans.</p></section>';
+  var best = null;
+  names.forEach(function (n) {
+    (MS_ASKED[n].homes || []).forEach(function (h) {
+      h.entries.forEach(function (e) {
+        if (e.total && e.over < e.total && (!best || e.over / e.total > best.e.over / best.e.total)) best = { e: e, project: n, home: h.name };
+      });
+    });
+  });
+  if (!best) return '<section class="ovc" data-role="nearest"><h2 class="ovc-h">' + tag + '</h2><p class="ovc-s">' + (names.every(function (n) { return MS_ASKED[n].error; }) ? "Not known: " + esc(MS_ASKED[names[0]].error) + "." : "No plan entry has rows still to merge.") + '</p></section>';
+  var e = best.e;
+  return '<section class="ovc" data-role="nearest"><h2 class="ovc-h">' + tag + '</h2><a class="msr" href="' + esc(href(best.project, "milestones")) + '">' + msRing(e.over, e.total) +
+    '<span class="ovc-s"><code>' + esc(e.slug) + '</code> ' + esc(e.line) + '<br><b>' + e.over + ' of ' + e.total + '</b> rows merged' + (e.holder ? ", held at <code>" + esc(e.holder.slug) + "</code>" : "") + ' &middot; ' + esc(best.home || "root") + '</span></a></section>';
+}
+panel({ title: "Milestones", drawer: dMilestones, wide: true, reads: "server", parts: { nearest: msNearest }, gloss: {
+  nearest: ["Nearest milestone", "The card under the matrix: the plan entry with rows still to merge that is nearest done, as a share of its rows merged, with the row that holds it, if one does. Open it for every milestone."],
+  milestones: ["Milestones", "Each plan entry of each home and each integration branch as a chain of its rows toward its outcome, each row marked merged, working, waiting, queued, needs you, stuck or blocked, with the step that holds it and what it waits on."] } });

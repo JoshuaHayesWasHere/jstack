@@ -377,6 +377,59 @@
   .mx-ar { color: var(--ink-2); }
   .mx-cs { flex-basis: 100%; font-size: var(--text-sm); color: var(--ink-2); }
   @media (max-width: 640px) { .mx { display: none; } }
+  .desk:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto auto auto 1fr; grid-template-areas: "band band" "kpis kpis" "matrix rail" "strip rail"; gap: var(--space-5) var(--space-8); align-items: start; }
+  .desk > #cards { grid-area: band; min-width: 0; }
+  #cards .gl { margin: 0; display: flow-root; padding: var(--space-6) var(--space-8); } #cards .gl-h, #cards .gl-v { display: block; }
+  #cards .gl-word { float: left; font-size: 44px; line-height: 1; margin: var(--space-2) var(--space-12) var(--space-2) 0; } #cards .gl-c { margin-left: var(--space-6); } #cards .gl-c:empty { display: none; } #cards .gl-t { clear: both; }
+  #cards .gl-sub { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; } .desk > .ov-kpis { grid-area: kpis; } .desk > #matrix { grid-area: matrix; min-width: 0; }
+  .desk > .ov-rail { grid-area: rail; display: grid; gap: var(--space-5); min-width: 0; } .desk > .ov-strip { grid-area: strip; }
+  #matrix .mx { margin-bottom: 0; }
+  .ov-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-5); align-items: stretch; }
+  .ov-strip { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; gap: var(--space-5); align-items: start; }
+  .ov-strip > [data-part="since:landed"] { grid-column: 1; grid-row: 1 / span 2; } .ov-strip > [data-part="throughput:perday"] { grid-column: 2; grid-row: 1 / span 2; }
+  .ov-strip > [data-part="milestones:nearest"] { grid-column: 3; grid-row: 1; } .ov-strip > [data-part="slow:machine"] { grid-column: 3; grid-row: 2; }
+  .pt { min-width: 0; } .pt[hidden] { display: none; }
+  .tile, .ovc { display: block; min-width: 0; height: 100%; border: 1.5px solid var(--hair); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); text-decoration: none; padding: var(--space-5) var(--space-7); }
+  .tile.op, .ovc.op { border-left: 5px solid var(--due); } .tile.bad, .ovc.bad { border-left: 5px solid var(--missed); }
+  a.tile:hover { border-color: var(--line); }
+  .tile .tag, .ovc .tag { font-size: var(--text-xs); }
+  .tile-n { display: block; font-size: var(--text-2xl); font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .tile-n small { font-size: var(--text-sm); font-weight: 400; color: var(--ink-2); margin-left: var(--space-3); }
+  .tile-s, .ovc-s { display: block; font-size: var(--text-sm); color: var(--ink-2); line-height: 1.35; overflow-wrap: anywhere; }
+  .tile-s b, .ovc-s b { color: var(--ink); } .tile-s .alarm, .ovc .alarm { color: var(--missed); font-weight: 700; }
+  .tile-s a, .ovc-s a { color: var(--ink-2); }
+  .seg-bar { display: flex; gap: var(--space-px); height: 10px; margin: var(--space-2) 0 var(--space-3); border-radius: var(--radius-xs); overflow: hidden; background: var(--sunk); }
+  .seg-bar i { display: block; min-width: 2px; } .seg-bar .failing { background: var(--missed); } .seg-bar .waiting { background: var(--ink-2); } .seg-bar .passed { background: var(--line); } .seg-bar .norun { background: var(--hair); }
+  .hours { display: flex; align-items: flex-end; gap: var(--space-px); height: 28px; margin: var(--space-2) 0 var(--space-2); border-bottom: 1px solid var(--line); }
+  .hours i { flex: 1 1 0; min-width: 0; background: var(--ink-3); } .hours i.zero { background: var(--hair); }
+  .ovc-h { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--space-5); margin: 0 0 var(--space-3); font-size: var(--text-sm); font-weight: 400; line-height: 1.3; }
+  .ovc-h .tag b { font-size: var(--text-md); color: var(--ink); margin-left: var(--space-3); letter-spacing: 0; }
+  .ovc-h .src { font-size: var(--text-xs); }
+  .ovc ol { list-style: none; margin: 0; padding: 0; }
+  .rl { display: flex; gap: var(--space-2) var(--space-6); align-items: center; justify-content: space-between; padding: var(--space-3) 0; border-top: 1px solid var(--hair); }
+  .rl:first-child { border-top: 0; }
+  .rl-b { display: grid; min-width: 0; flex: 1 1 0; line-height: 1.3; font-size: var(--text-sm); overflow-wrap: anywhere; } .rl-b code { font-weight: 700; }
+  .rl-w { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rl-m { font-size: var(--text-xs); color: var(--ink-2); }
+  .rl .btn { flex: none; display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-5); font-size: var(--text-xs); text-decoration: none; color: var(--ink); }
+  .gr { display: grid; grid-template-columns: minmax(0, 1fr) 90px 2.2em; gap: var(--space-5); align-items: center; padding: var(--space-1) 0; font-size: var(--text-sm); }
+  .gr b { text-align: right; font-variant-numeric: tabular-nums; } .gr span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gr i { display: block; height: 8px; border-radius: var(--radius-xs); background: var(--sunk); overflow: hidden; } .gr i u { display: block; height: 100%; background: var(--ink-2); } .gr.failing i u { background: var(--missed); }
+  .ovc-f { margin: var(--space-3) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--hair); font-size: var(--text-xs); color: var(--ink-2); overflow-wrap: anywhere; } .ovc-f a { color: var(--ink-2); font-weight: 700; }
+  .ld { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); gap: 0 var(--space-4); font-size: var(--text-sm); line-height: 1.35; padding: var(--space-px) 0; } .ld span { color: var(--ink-2); font-variant-numeric: tabular-nums; } .ld a { overflow-wrap: anywhere; }
+  .days { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--space-2); align-items: end; height: 60px; margin: var(--space-3) 0 var(--space-2); }
+  .days i { display: block; background: var(--ink-3); border-radius: var(--radius-xs) var(--radius-xs) 0 0; } .days i.zero { background: var(--hair); }
+  .ring { flex: none; } .ring circle { fill: none; stroke-width: 5; } .ring .rt { stroke: var(--hair); } .ring .rv { stroke: var(--brand); }
+  .msr { display: flex; gap: var(--space-5); align-items: center; color: var(--ink); text-decoration: none; }
+  @media (max-width: 1180px) {
+    .desk:not([hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "band" "kpis" "matrix" "rail" "strip"; }
+    .ov-kpis { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
+  }
+  @media (max-width: 640px) {
+    #cards .gl-word { float: none; font-size: var(--text-2xl); margin: 0; }
+    .ov-strip { grid-template-columns: minmax(0, 1fr); } .ov-strip > .pt { grid-column: 1 !important; grid-row: auto !important; }
+    .rl .btn { min-height: 44px; } .tile-s a, .ovc-s a, .ovc-f a, .ld a { min-height: 44px; display: inline-flex; align-items: center; }
+  }
 </style>
 </head>
 <body>
@@ -395,7 +448,13 @@
 </header>
 <main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
-  <div id="cards"></div>
+  <div class="desk" id="desk" hidden>
+    <div id="cards" data-region="band"></div>
+    <div class="ov-kpis" id="ov-kpis" data-region="kpis" role="group" aria-label="The work in numbers"></div>
+    <div id="matrix" data-region="matrix"></div>
+    <aside class="ov-rail" id="ov-rail" data-region="rail" aria-label="What needs you and what slows the work"></aside>
+    <div class="ov-strip" id="ov-strip" data-region="strip"></div>
+  </div>
   <section class="needs" id="needs" aria-labelledby="needs-h" hidden>
     <h2 id="needs-h"></h2>
     <a class="btn fill go" id="needs-go" href="#/triage" hidden>Open</a>
@@ -886,6 +945,7 @@
     var board = !!PANELS.pipeline && !HOMES;
     $("stack").hidden = !!PROJECT || !STACK || TRIAGE || board;
     $("pipeline").hidden = !!PROJECT || !STACK || TRIAGE || !board;
+    $("desk").hidden = $("pipeline").hidden;
     $("triage").hidden = !!PROJECT || !STACK || !TRIAGE;
     $("one").hidden = !PROJECT || !S;
     var J = jb();
@@ -897,7 +957,7 @@
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
-    put($("cards"), PROJECT || TRIAGE || HOMES || NOSUCH ? "" : ORDER.filter(function (p) { return p.card; }).map(function (p) { return p.card(); }).join(""));
+    drawDesk(!(PROJECT || TRIAGE || HOMES || NOSUCH));
     if (TRIAGE) { $("needs").hidden = true; $("nx").hidden = true; } else $("nx").hidden = false;
     if (PROJECT) renderProject(); else if (TRIAGE) renderTriage(); else if (!board) renderStack();
     if (PANELS.pipeline) PANELS.pipeline.draw();
@@ -982,10 +1042,26 @@
     return '<li><span class="t">' + hm(ms(e.at)) + '</span><span><span class="chip ' + cls + '">' + esc(e.kind) + '</span> ' + (e.slug && known(e.slug) ? taskBtn(e.slug) : "") + '<span class="r">' + esc(e.line) + '</span></span><span class="d">' + esc(e.loud) + '</span></li>';
   }
 
-  var PANELS = {}, ORDER = [];
+  var PANELS = {}, ORDER = [], PARTS = {};
+  /* The desk overview, `#/` at a desk: each region and the parts it holds, in order. A part is
+     a panel's, `<panel>:<part>`, and a panel that is not served draws none of its parts. */
+  var DESK = [
+    ["cards", ["glance:band"]],
+    ["ov-kpis", ["you:tile", "glance:open", "slow:tile", "glance:act", "glance:merged"]],
+    ["ov-rail", ["you:rail", "slow:rail"]],
+    ["ov-strip", ["since:landed", "throughput:perday", "milestones:nearest", "slow:machine"]]
+  ];
+  function drawDesk(on) {
+    DESK.forEach(function (region) {
+      var box = $(region[0]), names = on ? region[1].filter(function (n) { return PARTS[n]; }) : [];
+      keyed(box, "div", "pt", names.map(function (n) { return { key: n, html: PARTS[n]() || "" }; }));
+      [].forEach.call(box.children, function (el) { el.setAttribute("data-part", el.getAttribute("data-key")); el.hidden = !el.innerHTML; });
+    });
+  }
   function panels(name, first) {
     return function (def) {
       def.name = name; def.first = first; PANELS[name] = def; ORDER.push(def);
+      Object.keys(def.parts || {}).forEach(function (k) { PARTS[name + ":" + k] = def.parts[k]; });
       Object.keys(def.gloss || {}).forEach(function (k) { GLOSS["card:" + k] = def.gloss[k]; });
     };
   }

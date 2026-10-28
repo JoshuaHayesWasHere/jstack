@@ -444,15 +444,16 @@ def test_at_a_desk_every_ranked_question_is_answered_above_the_fold_of_the_t_mom
             assert part, f"{question}: {name} is not drawn"
             assert part["text"] and not part["text"].startswith("Asking"), (question, name, part)
             assert 0 <= part["box"]["top"] < part["box"]["bottom"] <= DESK[1], (question, name, part)
-    assert parts["glance:band"]["text"].startswith("MOVING")
-    assert parts["you:tile"]["text"].startswith("Needs you 4")
-    assert parts["glance:open"]["text"].startswith("Open 44")
-    assert re.match(r"In check 28 \+ 8 stacked", parts["slow:tile"]["text"])
-    assert "18 failing · 2 running or queued · 6 passed · 2 no run" in parts["slow:tile"]["text"]
-    assert parts["glance:merged"]["text"].startswith("Merged today 27")
-    assert "10 of 14" in parts["milestones:nearest"]["text"]
-    assert parts["since:landed"]["text"].startswith("Landed")
-    assert "jv-build" in parts["milestones:nearest"]["text"]
+    said = {name: part["text"].lower() for name, part in parts.items()}
+    assert said["glance:band"].startswith("moving")
+    assert said["you:tile"].startswith("needs you 4")
+    assert said["glance:open"].startswith("open 44")
+    assert re.match(r"in check 28 \+ 8 stacked", said["slow:tile"])
+    assert "18 failing · 2 running or queued · 6 passed · 2 no run" in said["slow:tile"]
+    assert said["glance:merged"].startswith("merged today 27")
+    assert "10 of 14" in said["milestones:nearest"]
+    assert "jv-build" in said["milestones:nearest"]
+    assert said["since:landed"].startswith("landed")
 
 
 @pytest.mark.parametrize("day", list(DAYS))
