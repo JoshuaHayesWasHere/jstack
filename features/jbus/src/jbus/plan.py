@@ -491,8 +491,9 @@ def merged(slug: str, rows: list[queue.Row]) -> bool:
 def buildable(home: Path, rows: list[queue.Row]) -> list[Buildable]:
     """Return each entry of the root home's plan and of each scope's that is ready to brief: it
     has a `Builds on:` line whose rows or entries have all merged, no row of its own (a scout's
-    included), and a stage other than `parked`. Each is an item of the one list that wakes the
-    entry's home (`jbus.wakes`), and it leaves the list on the entry's first row."""
+    included), and a stage other than `parked` or `scouting` (a scout is out for it). Each is an
+    item of the one list that wakes the entry's home (`jbus.wakes`), and it leaves the list on the
+    entry's first row."""
     found = []
     for directory in [home, *(scope for scope, _, _ in homes.scopes(home))]:
         try:
@@ -502,7 +503,7 @@ def buildable(home: Path, rows: list[queue.Row]) -> list[Buildable]:
         for one in entries(text):
             if (
                 one.builds_on
-                and one.stage != "parked"
+                and one.stage not in ("parked", "scouting")
                 and not rows_of(one.slug, rows)
                 and all(merged(other, rows) for other in one.builds_on)
             ):
