@@ -50,7 +50,6 @@
 })();
 
 var BOARD = null, BOARD_ASKED = 0, BOARD_ASKING = false, BOARD_FAILED = "", BOARD_PROJECT = "", BOARD_OPEN = {};
-var BOARD_PHONE = window.matchMedia("(max-width: 640px)");
 
 function boardRows() { return BOARD && BOARD.rows || []; }
 function boardKey(project, slug) { return project + "/" + slug; }
@@ -170,6 +169,23 @@ function boardMatrix(view) {
     '<div class="mx-lg">' + legend + '</div>' + mxChains() + '</section>';
 }
 
+var HL_BAR = [["failing", "failing"], ["waiting", "running"], ["passed", "passed"], ["norun", "no run"], ["other", "other stages"]];
+
+function boardHomes() {
+  var homes = BOARD && BOARD.homes || [];
+  if (!homes.length) return "";
+  var many = homes.some(function (h) { return h.project !== homes[0].project; });
+  var lines = homes.map(function (h) {
+    var c = mxCell(h, "check"), w = c.waits || {}, told = (w.failing || 0) + (w.waiting || 0) + (w.passed || 0);
+    var n = { failing: w.failing || 0, waiting: w.waiting || 0, passed: w.passed || 0, norun: c.count - told, other: h.open - c.count };
+    var said = HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return n[one[0]] + " " + one[1]; }).join(", ");
+    var bar = '<span class="seg-bar" role="img" aria-label="' + esc(said || "nothing open") + '">' + HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return '<i class="' + one[0] + '" style="flex:' + n[one[0]] + ' 0 0"></i>'; }).join("") + '</span>';
+    var last = h.last && h.last.at ? boardAge(h.last.at) : "no act kept";
+    return '<a class="hl" data-home="' + esc(h.name) + '" href="#/?home=' + encodeURIComponent(h.name) + themed() + '"><b>' + (many ? esc(h.project) + " · " : "") + esc(h.name) + '</b><span class="hl-n">' + h.open + '</span>' + bar + '<span class="ago">' + last + '</span></a>';
+  }).join("");
+  return '<section class="ovc" data-role="homes" aria-labelledby="ovc-homes"><h2 class="ovc-h" id="ovc-homes"><span class="tag">Every home</span> <span class="ovc-s">bar: ' + HL_BAR.map(function (one) { return one[1]; }).join(" · ") + '</span></h2>' + lines + '</section>';
+}
+
 function boardStages(view) {
   if (!(BOARD.stages || []).some(function (s) { return s.key === view.stage; })) view.stage = "";
   var all = !view.home && !view.still && !view.stage;
@@ -214,7 +230,7 @@ function boardCard(r, marks, on) {
 }
 
 function boardCards(stages, hot, marks, on) {
-  var phone = BOARD_PHONE.matches;
+  var phone = NARROW.matches;
   return '<div class="pl-board' + (phone ? "" : " cols") + '" data-role="cards"' + (phone ? "" : ' style="grid-template-columns: ' + boardCols(stages) + '"') + '>' + stages.map(function (s) {
     var age = s.key === "merged" ? "today" : s.oldest ? "oldest " + boardAge(s.oldest.since) : "";
     var list = s.rows.length ? '<ol>' + s.rows.map(function (r) { return boardCard(r, marks, on); }).join("") + '</ol>' : s.count ? '<p class="pl-u">' + plural(s.count, "row", "rows") + ', none drawn</p>' : "";
@@ -277,7 +293,7 @@ function boardAsk() {
     var b = said && said.stages ? said : said && said.data && (said.data);
     if (!b || !b.stages) throw new Error("the board has no stages");
     BOARD = b; BOARD_FAILED = "";
-  }, function (e) { BOARD_FAILED = e && e.message || "no answer"; }).then(function () { BOARD_ASKING = false; boardDraw(); }, function (e) { BOARD_ASKING = false; BOARD_FAILED = e && e.message || "no answer"; boardDraw(); });
+  }, function (e) { BOARD_FAILED = e && e.message || "no answer"; }).then(function () { BOARD_ASKING = false; render(); }, function (e) { BOARD_ASKING = false; BOARD_FAILED = e && e.message || "no answer"; render(); });
 }
 
 function boardTab() {
@@ -348,7 +364,6 @@ document.addEventListener("keydown", function (e) {
   if (view.pick) { BOARD_PROJECT = ""; boardSet({ pick: "" }); return; }
   if (history.state && history.state.cell) history.back(); else boardSet({ home: "", stage: "" });
 });
-BOARD_PHONE.addEventListener("change", function () { boardDraw(); });
 window.addEventListener("resize", function () { if (!$("pipeline").hidden) setTimeout(boardLinks, 0); });
 
-panel({ draw: boardDraw });
+panel({ draw: boardDraw, parts: { homes: boardHomes } });

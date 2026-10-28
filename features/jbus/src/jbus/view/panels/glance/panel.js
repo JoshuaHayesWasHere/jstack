@@ -69,8 +69,9 @@ function glanceSub(v) {
   if (v.needs) bits.push('<span data-role="verdict-needs"><b>' + v.needs + '</b> ' + (v.needs === 1 ? "needs" : "need") + ' you</span>');
   bits.push(ms(v.last_merge) == null ? "No merge today" : "Last merge " + glanceWhen(v.last_merge) + ", " + v.per_hour + " merges an hour over the last " + v.window + " h");
   if (ms(v.quiet_since) != null) bits.push("Nothing done for " + short(NOW - ms(v.quiet_since)));
-  if (v.top.tier) bits.push((v.top.tier === "wrong" ? "Held by" : "Waits on you:") + ' <code>' + esc(v.top.subj) + '</code> ' + esc(v.top.cause) + (ms(v.top.since) == null ? "" : ', for ' + short(NOW - ms(v.top.since))));
-  return '<p class="gl-sub" data-role="verdict-sub" title="' + bits.join(" &middot; ").replace(/<[^>]*>/g, "") + '.">' + bits.join(" &middot; ") + '.</p>';
+  var top = v.top.tier ? ' &middot; ' + (v.top.tier === "wrong" ? "Held by" : "Waits on you:") + ' <code>' + esc(v.top.subj) + '</code> ' + esc(v.top.cause) + (ms(v.top.since) == null ? "" : ', for ' + short(NOW - ms(v.top.since))) : "";
+  var said = bits.join(" &middot; ") + (top && v.top.tier !== "wrong" ? '<span class="gl-top">' + top + '</span>' : top);
+  return '<p class="gl-sub" data-role="verdict-sub" title="' + said.replace(/<[^>]*>/g, "") + '.">' + said + '.</p>';
 }
 function glanceSince(g) {
   var visit = GLANCE_VISIT || { was: GLANCE_WAS, at: NOW };

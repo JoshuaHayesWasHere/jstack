@@ -425,7 +425,16 @@
     .desk:not([hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "band" "kpis" "matrix" "rail" "strip"; }
     .ov-kpis { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
   }
+  .ov-top:empty, .ov-tail:empty { display: none; }
+  .ov-top, .ov-tail { display: grid; gap: var(--space-5); min-width: 0; } .ov-tail { margin-top: var(--space-5); }
+  .hl { display: grid; grid-template-columns: minmax(0, 1fr) 2.2em minmax(0, 1.6fr) 2.6em; gap: var(--space-4); align-items: center; min-height: 44px; border-top: 1px solid var(--hair); color: var(--ink); text-decoration: none; font-size: var(--text-sm); }
+  .hl:first-child { border-top: 0; } .hl b { overflow-wrap: anywhere; } .hl .hl-n { font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; } .hl .ago { color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; }
+  .hl .seg-bar { margin: 0; } .seg-bar .other { background: var(--sunk); }
   @media (max-width: 640px) {
+    .desk:not([hidden]) { display: flex; flex-direction: column; } .desk > #matrix { display: none; }
+    #cards .gl { padding: var(--space-5) var(--space-6); } .ovc { padding: var(--space-4) var(--space-6); }
+    .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } #cards .gl-top { display: none; }
+    #cards .gl-sub, .rl-w { display: block; -webkit-line-clamp: none; overflow: visible; } .gr span { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
     #cards .gl-word { float: none; font-size: var(--text-2xl); margin: 0; }
     .ov-strip { grid-template-columns: minmax(0, 1fr); } .ov-strip > .pt { grid-column: 1 !important; grid-row: auto !important; }
     .rl .btn { min-height: 44px; } .tile-s a, .ovc-s a, .ovc-f a, .ld a { min-height: 44px; display: inline-flex; align-items: center; }
@@ -450,6 +459,7 @@
   <div class="dead" id="dead" role="alert"></div>
   <div class="desk" id="desk" hidden>
     <div id="cards" data-region="band"></div>
+    <div class="ov-top" id="ov-top" data-region="top"></div>
     <div class="ov-kpis" id="ov-kpis" data-region="kpis" role="group" aria-label="The work in numbers"></div>
     <div id="matrix" data-region="matrix"></div>
     <aside class="ov-rail" id="ov-rail" data-region="rail" aria-label="What needs you and what slows the work"></aside>
@@ -463,6 +473,7 @@
   </section>
   <p class="nx" id="nx"></p>
   <div id="pipeline" hidden></div>
+  <div class="ov-tail" id="ov-tail" data-region="tail"></div>
   <div class="tri" id="triage" hidden>
     <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
     <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
@@ -1047,14 +1058,31 @@
   }
 
   var PANELS = {}, ORDER = [], PARTS = {};
-  var DESK = [
-    ["cards", ["glance:band"]],
-    ["ov-kpis", ["you:tile", "glance:open", "slow:tile", "glance:act", "glance:merged"]],
-    ["ov-rail", ["you:rail", "slow:rail"]],
-    ["ov-strip", ["since:landed", "throughput:perday", "milestones:nearest", "slow:machine"]]
-  ];
+  /* Where each part of `#/` goes, at a desk and on a phone: each region in the page's order, and
+     its parts. On a phone the regions are one column, so their order is the order on screen and
+     the order Tab takes, and the board's stage folds come between Landed and the tail. */
+  var NARROW = window.matchMedia("(max-width: 640px)");
+  var DESK = {
+    wide: [
+      ["cards", ["glance:band"]],
+      ["ov-top", []],
+      ["ov-kpis", ["you:tile", "glance:open", "slow:tile", "glance:act", "glance:merged"]],
+      ["ov-rail", ["you:rail", "slow:rail"]],
+      ["ov-strip", ["since:landed", "throughput:perday", "milestones:nearest", "slow:machine"]],
+      ["ov-tail", []]
+    ],
+    phone: [
+      ["cards", ["glance:band"]],
+      ["ov-top", ["you:rail", "pipeline:homes"]],
+      ["ov-kpis", ["glance:open", "slow:tile", "glance:act", "glance:merged"]],
+      ["ov-rail", ["slow:rail"]],
+      ["ov-strip", ["since:landed"]],
+      ["ov-tail", ["throughput:perday", "milestones:nearest", "slow:machine"]]
+    ]
+  };
+  NARROW.addEventListener("change", function () { render(); });
   function drawDesk(on) {
-    DESK.forEach(function (region) {
+    DESK[NARROW.matches ? "phone" : "wide"].forEach(function (region) {
       var box = $(region[0]), names = on ? region[1].filter(function (n) { return PARTS[n]; }) : [];
       keyed(box, "div", "pt", names.map(function (n) { return { key: n, html: PARTS[n]() || "" }; }));
       [].forEach.call(box.children, function (el) { el.setAttribute("data-part", el.getAttribute("data-key")); el.hidden = !el.innerHTML; });
