@@ -4,10 +4,12 @@ The command line's `jbus queue approve` and `jbus answer`, and the bot's route, 
 jbus view, each call `act` with the `party.Party` that acts, the `party.Action` and the
 `party.Evidence` it rests on. `act` checks the action, does it through the existing verb
 (`queue.go`, `questions.answer`), and appends one `party.Act` line to the project's
-`acts.jsonl`, whatever came of it:
+`acts.jsonl`, whatever came of it. Each act is also a quiet `act` event of the project's log, with
+the act's id and its `subject`, so the feed (`jbus.feed`) gives events and acts in one order:
 
-- A go given with `seen`, the id of the last event the party read, is refused as stale when
-  `events.jsonl` has an event for the row after that one, or has no event of that id.
+- A go given with `seen`, the id of the last event the party read (`wake.entries`, the feed's
+  cursor), is refused as stale when `events.jsonl` has an event for the row after that one, or
+  has no event of that id. An `act` event names no row, so an act is no change to the row.
 - A go for a brief whose `Holds:` lines name a door (`party.doors`), from a party the door
   does not open for (`party.opens`), approves nothing. It parks a gate that holds for the user
   instead (`questions.park`), and the act is `gated`. The user's own go later closes that gate.
@@ -52,6 +54,8 @@ from jbus.t3 import typed
 
 LOG = "acts.jsonl"
 LOCK = "acts.lock"
+KIND = "act"
+EVENTS = {"act": "quiet"}
 BOT_KEY_SESSION = (
     "refused: jbus bot key runs in an agent's session: the bot's key is the user's to make, "
     "in a shell of their own, and the stored key is as it was"
@@ -141,6 +145,7 @@ def logged(
         gate=gate,
     )
     _write(run.state, made)
+    run.box.record(KIND, line, act=made.id, subject=action.subject)
     return made
 
 
@@ -228,31 +233,21 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
 
 
 def _stale(run: Pass, slug: str, seen: str) -> str:
-    """Why a go given after the event `seen` is stale, or nothing: the log has no such event, or
-    has an event for the row after it."""
+    """Why a go given after the event `seen` is stale, or nothing: the log has no event of that
+    id (`wake.entries`), or has an event for the row after it."""
     if not seen:
         return ""
-    log = events(run.state)
-    at = next((place for place, one in enumerate(log) if one.get("id") == seen), None)
+    log = wake.entries(run.state)
+    at = next((place for place, one in enumerate(log) if one["id"] == seen), None)
     if at is None:
         return f"refused: stale: no event {seen} in {run.project.name}'s log"
     later = [one for one in log[at + 1 :] if one.get("slug") == slug]
     if later:
         return (
-            f"refused: stale: {slug} changed after event {seen}, in event {later[-1].get('id')} "
+            f"refused: stale: {slug} changed after event {seen}, in event {later[-1]['id']} "
             f"({later[-1].get('line')})"
         )
     return ""
-
-
-def events(state: Path) -> list[dict[str, Any]]:
-    """The project's events as `events.jsonl` has them, oldest first, each with its `id`, which
-    `wake.Box.log` leaves out: the id a party names as the event it last saw."""
-    return [
-        record
-        for record in wake._records(state / wake.LOG)
-        if "event" in record and not any(key in record for key in wake.TOOK)
-    ]
 
 
 def _park(run: Pass, who: Party, action: Action, said: Evidence) -> int:

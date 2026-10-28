@@ -23,7 +23,7 @@
    A brief is checked when it is queued, not when it launches. `jbus queue add` refuses a brief that is short of anything a launch asks: a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pull request:`, `Review:` and `Playbook:` line, each filled in; a `Proves it:` line that names something outside the agent; a t-shirt size; a crewmate's playbook or `none`; a `Design:` line; and a `Skills:` line, where the brief has one, whose every name is a skill of `skills/` or a principle of `principles/`. It prints `refused: <slug>'s brief has <n> faults, and nothing is queued` and one line under it for each fault: mend the brief and add it again. Nothing is queued, so the user is never asked to approve a brief that cannot launch. A launch checks the same again.
    It also refuses a `Review: review` or `Review: after` with no `Decisions:` line that gives the user's words for it, and a brief that asks for a load on every core (`stress-ng --cpu 0`, `--cpu $(nproc)`) instead of a bounded one inside `jgauge test-slot`.
 
-   Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's work in hand when it starts, code it changes, calls or imports, or a Result it reads?
+   Its order behind other rows is one of two kinds, and one rule tells them apart from the plan alone: does this row's crew need another row's code in hand when it starts, code it changes, calls or imports?
    Where it does, the row is queued with `--depends <that row>`, and the brief has a `Builds on:` line that names that row before a colon and what of its work it starts from after it, as `$T/brief.md` shows.
    The row launches once that row has merged, or once it has opened its pull request: jbus then launches it stacked on that pull request's branch, writes its `Stacked on:` line, and moves it onto the default branch once that row merged.
    A row that builds on two rows whose pull requests are both open waits until one of them merged, since a stack sits on one branch.
@@ -31,6 +31,7 @@
    It launches at once, and `jmerge` holds its pull request until that row has merged.
    A brief stacks only on a parent whose code it changes, calls or imports: a stack holds a row behind its parent's whole review, so a stack with no code edge is a wait for nothing.
    A plan layer is no such need, and neither is docs order or a file two rows share.
+   A Result is no such need either: the home queues the row once that Result is written, with the lines it rests on in its brief's `Rests on:`, and no `Builds on:` line for it.
    Sibling work of one plan layer queues unstacked, with no `Builds on:` line for the layer under it, and is chained with `--merge-after` only where the order of the merges matters.
    `jbus queue add` refuses a brief whose `Builds on:` line gives a plan layer as its reason, such as `launch-caps: its merged code, the base of layer 2`.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.

@@ -107,9 +107,9 @@ UNWRITTEN = (
     "Read `tasks/{slug}.md` and its thread {thread}, then end it one of three ways:\n"
     "- the work is wanted and the thread can go on: send it a message to carry on "
     "(`t3_thread_send`), stopping its turn first if it hung;\n"
-    "- the work is wanted and the thread cannot go on: remove the row "
-    '(`jbus queue remove {slug} --by <who> --at "<time>"`) and queue it again for a new '
-    "thread;\n"
+    "- the work is wanted and the thread cannot go on: a launched row is {user}'s alone to "
+    "remove, so ask for its removal with a gate (`jbus gate {slug}`) whose default is that the "
+    "row stays, and once it is removed, queue the work again for a new thread;\n"
     "- nothing more is wanted, or it is already done: append a section "
     "`## Result, follow-up (<date>, <the reason>)` to `tasks/{slug}.md` with three lines: "
     "`Status: done`, `Branch: <its branch>   Pull request: none` and `Left: none`. Only "

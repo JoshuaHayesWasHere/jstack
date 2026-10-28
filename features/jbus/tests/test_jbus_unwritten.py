@@ -64,7 +64,10 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     assert "\n\njbus: alpha ended with nothing written" in said
     assert "its thread completed with nothing written" in said
     assert "`Status: done`" in said and "`Left: none`" in said
-    assert "`jbus queue remove alpha --by" in said
+    assert "ask for its removal with a gate (`jbus gate alpha`)" in said
+    assert "whose default is that the row stays" in said
+    assert "once it is removed, queue the work again" in said
+    assert "jbus queue remove" not in said
     assert listed(kitchen) == []
     assert [row["status"] for row in rows(kitchen).values()] == ["left"]
     kitchen.poll(NOW + (leftover.CLOSE_MINUTES + 1) * MIN)

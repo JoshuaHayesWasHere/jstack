@@ -246,6 +246,151 @@ def test_a_module_imported_by_name_is_imported_by_the_module_that_imports_by_nam
     assert repo.selected(head) == ["testing/tests/test_beta.py", "testing/tests/test_tree.py"]
 
 
+LOADER = {
+    "src/reg/__init__.py": "",
+    "src/reg/kinds.py": (
+        "import importlib\n\n\nclass Kind:\n    pass\n\n\n"
+        "def found():\n    return importlib.import_module('reg.plug')\n"
+    ),
+    "src/reg/plug.py": "P = 1\n",
+    "src/reg/run.py": "from reg import kinds\n\nFOUND = kinds.found()\n",
+    "testing/tests/test_kind.py": "from reg.kinds import Kind\n",
+    "testing/tests/test_run.py": "import reg.run\n",
+    "testing/tests/test_calls.py": "from reg.kinds import found\n\n\ndef test_it():\n    found()\n",
+    "testing/tests/test_typed.py": (
+        "from typing import TYPE_CHECKING\n\nfrom reg.kinds import Kind\n\n"
+        "if TYPE_CHECKING:\n    from reg.plug import P\n"
+    ),
+}
+
+
+def test_a_module_imported_by_name_in_a_function_is_imported_only_where_that_function_is_called(
+    tmp_path,
+):
+    """`reg.kinds` imports `reg.plug` by name only inside `found`. A test that imports `Kind` from
+    it never runs `found`, so a change to `reg.plug` does not reach it. A test that calls `found`,
+    or imports a module that calls it on import, does run it."""
+    repo = Repo(tmp_path, files={**FILES, **LOADER})
+    head = repo.change(["src/reg/plug.py"])
+
+    selected = repo.selected(head)
+
+    assert {"testing/tests/test_run.py", "testing/tests/test_calls.py"} <= set(selected)
+    assert "testing/tests/test_kind.py" not in selected
+
+
+HELD = {
+    "src/reg/later.py": (
+        "from functools import partial\n\nfrom reg import kinds\n\nLATER = partial(kinds.found)\n"
+    ),
+    "src/reg/lookup.py": (
+        "import reg.kinds\n\n\ndef get():\n    return getattr(reg.kinds, 'found')()\n"
+    ),
+    "src/reg/table.py": (
+        "import importlib\n\n\nclass Table:\n"
+        "    def load(self):\n        return importlib.import_module('reg.plug')\n"
+    ),
+    "src/reg/menu.py": (
+        "import importlib\n\nTITLE = 'menu'\n\n\n"
+        "def load():\n    return importlib.import_module('reg.plug')\n\n\nMENU = (load,)\n"
+    ),
+    "src/reg/mapped.py": (
+        "import importlib\n\n\ndef load(name):\n    return importlib.import_module(name)\n\n\n"
+        "list(map(load, ['reg.plug']))\n"
+    ),
+    "src/reg/wraps.py": (
+        "import importlib\n\n\ndef plugged(f):\n    importlib.import_module('reg.plug')\n"
+        "    return f\n\n\n@plugged\ndef thing():\n    pass\n"
+    ),
+    "src/reg/hooks.py": (
+        "import importlib\n\nHOOKS = []\n\n\ndef hook(f):\n    HOOKS.append(f)\n    return f\n\n\n"
+        "@hook\ndef load():\n    return importlib.import_module('reg.plug')\n"
+    ),
+    "testing/tests/test_later.py": "import reg.later\n",
+    "testing/tests/test_mapped.py": "import reg.mapped\n",
+    "testing/tests/test_wraps.py": "import reg.wraps\n",
+    "testing/tests/test_hooks.py": "import reg.hooks\n",
+    "testing/tests/test_menu.py": "from reg.menu import MENU\n\n\ndef test_it():\n    MENU[0]()\n",
+    "testing/tests/test_title.py": "from reg.menu import TITLE\n\n\ndef test_it():\n    TITLE\n",
+    "testing/tests/test_lookup.py": "import reg.lookup\n",
+    "testing/tests/test_table.py": "from reg.table import Table\n",
+}
+
+
+@pytest.mark.parametrize(
+    "test",
+    [
+        "test_later.py",
+        "test_lookup.py",
+        "test_table.py",
+        "test_menu.py",
+        "test_mapped.py",
+        "test_wraps.py",
+        "test_hooks.py",
+    ],
+)
+def test_a_function_that_imports_by_name_reaches_the_tests_that_may_call_it_however_they_name_it(
+    tmp_path, test
+):
+    """A function named but not called, as `partial(kinds.found)` holds it; one named by a string
+    to `getattr`; a method, which an object calls where no import names it; a registry that
+    holds one, `MENU = (load,)`, whose reader may call it; one passed to `map` on import; a
+    decorator that imports by name; and one a decorator may register: each may run."""
+    repo = Repo(tmp_path, files={**FILES, **LOADER, **HELD})
+    head = repo.change(["src/reg/plug.py"])
+
+    assert f"testing/tests/{test}" in repo.selected(head)
+
+
+def test_a_registry_that_holds_a_function_that_imports_by_name_reaches_only_its_readers(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **LOADER, **HELD})
+    head = repo.change(["src/reg/plug.py"])
+
+    assert "testing/tests/test_title.py" not in repo.selected(head)
+
+
+def test_a_test_that_imports_a_module_by_its_name_in_a_string_is_selected_by_a_change_to_it(
+    tmp_path,
+):
+    named = "import importlib\n\n\ndef test_it():\n    importlib.import_module('gamma.g')\n"
+    repo = Repo(tmp_path, files={**FILES, "testing/tests/test_named.py": named})
+    head = repo.change(["src/gamma/g.py"])
+
+    assert "testing/tests/test_named.py" in repo.selected(head)
+
+
+def test_an_import_only_a_type_checker_reads_selects_nothing(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **LOADER})
+    head = repo.change(["src/reg/plug.py"])
+
+    assert "testing/tests/test_typed.py" not in repo.selected(head)
+
+
+FOLDERS = {
+    "testing/tests/test_gamma_dir.py": (
+        "from pathlib import Path\n\nimport alpha.util\n\n"
+        "CONFIG = Path.home() / '.config' / 'gamma'\n"
+    ),
+    "testing/tests/test_gamma_bin.py": (
+        "import sys\nfrom pathlib import Path\n\nimport alpha.util\n\n"
+        "RUN = Path(sys.executable).parent / 'gamma'\nLOCAL = Path.home() / 'bin' / 'gamma'\n"
+    ),
+}
+
+
+def test_a_package_named_as_a_folder_of_a_path_is_not_run(tmp_path):
+    """`~/.config/gamma` names a folder, so the test does not run `gamma`. A path that ends in
+    `gamma` after `bin`, or after a folder no string names, may be the command, and the test that
+    spells it still runs."""
+    repo = Repo(tmp_path, files={**FILES, **FOLDERS})
+    head = repo.change(["src/gamma/g.py"])
+
+    selected = repo.selected(head)
+
+    assert "testing/tests/test_gamma_bin.py" in selected
+    assert "testing/tests/test_gamma_dir.py" not in selected
+
+
 def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_change_to_it(repo):
     head = repo.change(["src/gamma/g.py"])
 

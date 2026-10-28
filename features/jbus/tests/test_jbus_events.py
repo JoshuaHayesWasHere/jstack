@@ -102,6 +102,7 @@ def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events_un
     kitchen.poll()
     (gate,) = [one for one in logged(kitchen) if one["event"] == "gate"]
     assert gate["text"] == ASKED.strip()
+    (named,) = [one["id"] for one in wake.entries(kitchen.state) if one["event"] == "gate"]
     assert printed(kitchen, "--slug", "alpha") == [
         {
             "at": at(NOW),
@@ -111,7 +112,7 @@ def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events_un
             "line": "gate alpha: question 1: which way?",
             "text": ASKED.strip(),
             "posted": None,
-            "id": gate["id"],
+            "id": named,
         }
     ]
 
@@ -273,6 +274,7 @@ def test_the_daily_prune_drops_what_is_older_than_two_weeks(kitchen, clock):
 
 
 TABLE = {
+    "act": "quiet",
     "gate": "quiet",
     "waiting": "quiet",
     "alert": "user",

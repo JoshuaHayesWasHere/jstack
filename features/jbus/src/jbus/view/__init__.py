@@ -21,6 +21,8 @@ The routes that read are `routes()`, all `GET`:
 - `/panel/<name>.json?project=<project>`: what one panel builds, for each folder of
   `panels/` (`panels`). With no project, a panel that is `alone` gives what its `stack` builds
   across every project (`App._across`);
+- `/feed?project=<project>&after=<id>&wait=<s>`: what `jbus feed` prints, the project's events
+  and acts after a cursor, or a reset with what waits on the user, long polled (`feeds`);
 - `/digest.json?since=`: what `jbus digest --json` prints (`digest.build`);
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
@@ -126,7 +128,7 @@ import jbus
 import jsettings
 from jbus import Refused, digest, record, stop, verbs
 from jbus.bind import NoLookup
-from jbus.view import panels, shot, state, usage
+from jbus.view import feeds, panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
 from jbus.view.state import Sources
@@ -159,6 +161,7 @@ FIXED = (
     "/",
     "/font.woff2",
     "/stack.json",
+    "/feed",
     "/state.json",
     "/digest.json",
     "/task/<slug>/github",
@@ -435,6 +438,8 @@ class App(Writes):
             return said(200, {"ok": True})
         if path == "/stack.json":
             return said(200, self._stack())
+        if path == "/feed":
+            return feeds.answer(self.sources, query, self.clock, self.github.runs, self.panels)
         if path == "/digest.json":
             try:
                 since = digest.since(query.get("since", [""])[-1] or None, self.sources.user)

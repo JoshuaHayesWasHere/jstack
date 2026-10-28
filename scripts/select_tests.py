@@ -11,8 +11,12 @@ module may be in `src/`, a feature's `features/<name>/src/`, the tests or `testi
 in `testing/tests/` and in each feature's own folder of tests, `features/<name>/tests/`. A test file
 may sit in a folder below one of those, as `features/jbus/tests/view/test_view_bus.py` does. The
 script counts such a file as importing the `conftest.py` of each folder it is in below that
-`tests/`. A changed test file selects itself. The script counts a module that calls
-`importlib.import_module` as importing every module under its directory.
+`tests/`. A changed test file selects itself. An import inside `if TYPE_CHECKING:` never runs,
+so it counts for nothing. A call to `importlib.import_module` imports every module under the
+directory of the module that holds it, but only when that code runs. So it counts for the module
+itself when the module calls it on import, or when the module is one of the tests. Otherwise it
+counts for each module that names the function that holds it, through its imports. A call with
+a string also imports the module the string names.
 
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
@@ -114,6 +118,8 @@ LABEL = re.compile(r"[A-Z][\w-]*:")
 BROWSER = re.compile(r"^pytestmark\s*=.*\bpytest\.mark\.browser\b", re.M)
 WORDS = re.compile(r"[\s/\\'\"`:=,()\[\]{}*|<>;]+")
 DECLARED = "READ_SET"
+CHECKING = ("TYPE_CHECKING", "typing.TYPE_CHECKING")
+BY_NAME = {"import_module", "__import__"}
 INCLUDE = re.compile(r"read `\$T/\.\./skills/([^/`]+)/([^/`]+\.md)` now")
 
 
@@ -259,28 +265,167 @@ def declared(tree):
     return ()
 
 
-def read(tree):
-    """Return what this script reads from a module's tree: the names the module imports, the
-    words of its string constants, whether it imports by name, the names of its functions'
-    arguments, the paths it spells, and its read set."""
-    names, words, dynamic, args, paths = set(), set(), False, set(), set()
+def checking(node):
+    """Whether a node is an `if TYPE_CHECKING:`, whose body only a type checker reads."""
+    return isinstance(node, ast.If) and ast.unparse(node.test) in CHECKING
+
+
+def named(node):
+    """The names a node and the nodes in it name: `f` of `f()`, of `x.f` and of `partial(f)`."""
+    return {
+        getattr(one, "attr", getattr(one, "id", ""))
+        for one in ast.walk(node)
+        if isinstance(one, (ast.Name, ast.Attribute))
+    }
+
+
+def at_import(tree):
+    """The nodes that run when the module is imported: all but the bodies of its functions."""
+    todo = list(tree.body)
+    while todo:
+        node = todo.pop()
+        yield node
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            todo += [*getattr(node, "decorator_list", ()), *node.args.defaults]
+            todo += [one for one in node.args.kw_defaults if one]
+        else:
+            todo += ast.iter_child_nodes(node)
+
+
+def by_name(tree):
+    """`(on import, holders, targets)`: whether the module imports by name when it is imported,
+    the names that import by name when what they hold runs, and the modules its calls name in a
+    string, as `import_module("a.b")` does.
+
+    A holder is a function that imports by name or names a holder, as `partial(f)` does, since it
+    may call it later. A name the module binds on import to a value that names a holder is a
+    holder too: whoever reads the registry `VERBS = (Verb(..., f),)` may call `f`. The module
+    imports by name on import when it calls a holder then, or decorates with one. A holder that is
+    a method, or that a decorator may register, is called where no import names it, so the module
+    counts as importing by name on import then too."""
+    functions = [
+        node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    holds = {}
+    for one in functions:
+        holds.setdefault(one.name, set()).update(named(one) - {one.name})
+    records = {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+        and "dataclass" in set().union(*map(named, node.decorator_list))
+    }
+    run, decorated = set(), set()
+    for node in at_import(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value:
+            for target in getattr(node, "targets", [getattr(node, "target", None)]):
+                for name in named(target):
+                    holds.setdefault(name, set()).update(named(node.value))
+        elif isinstance(node, ast.Call):
+            run |= named(node.func)
+            if getattr(node.func, "id", None) not in records:
+                given = [*node.args, *(one.value for one in node.keywords)]
+                run |= set().union(*map(named, given))
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            run |= set().union(*map(named, node.decorator_list))
+            if node.decorator_list:
+                decorated.add(node.name)
+    holders = {name for name, held in holds.items() if held & BY_NAME}
+    while more := {name for name, held in holds.items() if held & holders} - holders:
+        holders |= more
+    methods = {
+        one.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+        for one in node.body
+        if isinstance(one, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    targets = {
+        node.args[0].value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and named(node.func) & BY_NAME and node.args
+        if isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)
+    }
+    on_import = bool(run & (BY_NAME | holders) or (methods | decorated) & holders)
+    return on_import, frozenset(holders), frozenset(targets)
+
+
+def bound(tree):
+    """Each name the module's imports bind, with the dotted name it is bound to: `a` for
+    `import a.b`, `a.b` for `import a.b as b` and for `from a import b`."""
+    found = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
+            for alias in node.names:
+                found[alias.asname or alias.name.split(".")[0]] = (
+                    alias.name if alias.asname else alias.name.split(".")[0]
+                )
+        elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+            found |= {
+                alias.asname or alias.name: f"{node.module}.{alias.name}" for alias in node.names
+            }
+    return found
+
+
+def dotted(node, names):
+    """The dotted name a node spells through the names the imports bind, or `None`."""
+    if isinstance(node, ast.Name):
+        return names.get(node.id)
+    if isinstance(node, ast.Attribute) and (root := dotted(node.value, names)):
+        return f"{root}.{node.attr}"
+    return None
+
+
+def folder(before):
+    """Whether the part of a chain of `/` after `before`, its previous part, is a folder: a part
+    after a string other than `bin`. A part after `bin`, or after a part that is no string, as in
+    `stub / "jbus"`, may be a command."""
+    return bool(before) and before[0] not in (None, "bin")
+
+
+def read(tree):
+    """Return what this script reads from a module's tree: the names the module imports, the
+    words of its string constants, where it imports by name (`by_name`), the names of its
+    functions' arguments, the paths it spells, its read set, and the dotted names it names through
+    its imports. An import in an `if TYPE_CHECKING:` is no import: it never runs. A string
+    that is a `folder` of a chain of `/` is spelled with the chain, and not as a path of its own:
+    the `jbus` of `home / ".config" / "jbus"` is a folder, not the package run in a process."""
+    names, words, args, paths, calls = set(), set(), set(), set(), set()
+    checked = {
+        id(one)
+        for node in ast.walk(tree)
+        if checking(node)
+        for part in node.body
+        for one in ast.walk(part)
+    }
+    chains = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)
+    ]
+    folders = {id(node.left) for node in chains} | {
+        id(node.right) for node in chains if folder(spelled(node)[-2:-1])
+    }
+    imports = bound(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and id(node) not in checked:
             names |= {alias.name for alias in node.names}
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
-            names.add(node.module)
-            names |= {f"{node.module}.{alias.name}" for alias in node.names}
-        elif isinstance(node, ast.Call):
-            called = getattr(node.func, "attr", getattr(node.func, "id", ""))
-            dynamic |= called in ("import_module", "__import__")
+            if id(node) not in checked:
+                names.add(node.module)
+                names |= {f"{node.module}.{alias.name}" for alias in node.names}
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            if name := dotted(node, imports):
+                calls.add(name)
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             words |= {node.value, *WORDS.split(node.value)}
-            paths.add(tuple(spelled(node)))
+            if id(node) not in folders:
+                paths.add(tuple(spelled(node)))
         elif isinstance(node, ast.arg):
             args.add(node.arg)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             paths.add(tuple(spelled(node)))
-    return names, words, dynamic, args, paths, declared(tree)
+    return names, words, by_name(tree), args, paths, declared(tree), frozenset(calls)
 
 
 def parents(name):
@@ -304,19 +449,38 @@ def sources():
 def edges():
     """Each module, with the modules it imports. A test may spell the name of a package in a `src/`
     folder. The script then counts the test as running that package in a process of its own, and so
-    as importing every module of the package."""
+    as importing every module of the package.
+
+    A module that imports by name imports every module under its directory, but only when that code
+    runs. So the module itself imports them when it imports by name on import, or when it is a
+    module of the tests, whose functions pytest runs. Otherwise each module that names, through its
+    imports, a function of it that imports by name imports them: by a name, or by a string, as
+    `getattr(module, "found")` does. Whoever imports that module inherits the edge. A module a
+    by-name call names in a string, as `import_module("a.b")` does, is imported the same way, even
+    when it lies outside the directory."""
     known = modules()
     packages = {}
     for path in known.values():
         if at := SOURCE.match(path):
             package = path[at.end() :].split("/")[0]
             packages[package] = path[: at.end()] + package
+    held = {}
+    for name, (_, _, (_, holders, _), _, _, _, _) in sources().items():
+        for one in holders:
+            held.setdefault(f"{name}.{one}", set()).add(name)
     found = {}
-    for name, (names, _, dynamic, _, paths, _) in sources().items():
+    for name, (names, words, (loaded, holders, _), _, paths, _, calls) in sources().items():
         reached = set().union(*map(parents, names)) & known.keys()
-        if dynamic:
-            below = Path(known[name]).parent.as_posix() + "/"
+        itself = {name} if loaded or holders and of_tests(known[name]) else set()
+        uses = calls | {
+            one
+            for one in held
+            if one.rpartition(".")[0] in names and one.rpartition(".")[2] in words
+        }
+        for loader in itself.union(*(held.get(one, ()) for one in uses)):
+            below = Path(known[loader]).parent.as_posix() + "/"
             reached |= {other for other, path in known.items() if path.startswith(below)}
+            reached |= set().union(*map(parents, sources()[loader][2][2])) & known.keys()
         if of_tests(known[name]):
             run = tuple(
                 f"{packages[one]}/"
@@ -602,7 +766,7 @@ def asking(module):
         hit |= more
     return {
         modules()[name]
-        for name, (_, words, _, args, _, _) in sources().items()
+        for name, (_, words, _, args, _, _, _) in sources().items()
         if TEST.fullmatch(modules()[name]) and (hit - own(name)) & (args | words)
     }
 

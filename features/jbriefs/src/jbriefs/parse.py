@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import asks, below, chains, skills, standing
+from jbriefs import asks, below, skills, standing
 
 NO_RESULT = "no result yet"
 DONE = "done"
@@ -604,7 +604,7 @@ CHECKS = (
     ("Size", sized),
     ("Playbook", playbook),
     ("Where", wheres),
-    ("Builds on", lambda text: chains.layered(fields(text))),
+    ("Builds on", lambda text: standing.layered(fields(text))),
     ("Review", lambda text: standing.review(fields(text), _filled(text, "Decisions"))),
     ("Load", lambda text: standing.load(one for one in fields(text) if one[0] != REST)),
 )
