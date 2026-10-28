@@ -30,10 +30,22 @@ more than the deepest row it waits on, and head is that row's head, the oldest a
 rows of a loop count as one row: each has the loop's depth and head, and a loop that waits on
 nothing outside it is depth 1, with its oldest row as head.
 
+`homes` gives each home of each project its row of the stage x home matrix: the root first, then
+each scope (`homes.Homes.scopes`), a scope with no open row included, and any other home a row
+names, the one with the most open rows first and by name among equals. Each has `open`, how
+many rows the board places in it, its `last` act (`state.acts`, the newest whose home it is),
+and a cell for each stage a row can be in (`CELLS`):
+`count`, the `oldest` row, `old`, how many have a `since` `OLD` or more ago, and `waits`, how
+many of its rows wait on each outcome of `checked.OUTCOMES`, as each row's `wait` gives it.
+
 `stuck` is the stage with the most rows not moving, the first in order among equals.
 `longest_wait` is the row not moving that came to its stage first. `longest` is the deepest
 chain: of the deepest rows, the one that has waited longest, then the one earliest in the
-process, and its head. `chains` counts the heads that another row waits back to.
+process, and its head. `path` is that chain from its head to that row, each step back the oldest
+row it waits on that is one less deep, or a row of its loop, and it stops short of the head
+where neither is left. `chains` counts the heads that another row
+waits back to. `stacked` counts the rows in `stacked` and the rows they merge after, their
+parents, with how many parents wait on each outcome of `checked.OUTCOMES`.
 
 `build` gives one project, `stack` every project jbus keeps. The panel is `ALONE`: `/stack.json`
 leaves it out, and `/panel/pipeline.json` with no project answers what `stack` gives
@@ -43,6 +55,7 @@ leaves it out, and `/panel/pipeline.json` with no project answers what `stack` g
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 from jbus import queue
@@ -94,6 +107,7 @@ STAGE_OF_STEP = {
 RUNNING_BY_WHO = {"rev": "review"}
 ROOT_NAME = "root"
 LINKS = ("depends", "merge_after")
+OLD = timedelta(hours=1)
 _ORDER = {key: at for at, (key, _) in enumerate(STAGES)}
 if missed := set(STEP) - {UNKNOWN.key} - set(STAGE_OF_STEP):
     raise ValueError(f"no stage for the steps {sorted(missed)}: add each to STAGE_OF_STEP")
@@ -101,6 +115,8 @@ if wrong := {*STAGE_OF_STEP.values(), *RUNNING_BY_WHO.values()} - set(_ORDER):
     raise ValueError(f"{sorted(wrong)} are no stage of STAGES")
 
 _AT = {"slug": None, "project": None, "since": None}
+CELLS = tuple(key for key, _ in STAGES if key != "merged")
+CELL = {"count": None, "oldest": _AT, "old": None, "waits": checked.SHAPE}
 BOARD = {
     "at": None,
     "stages": [
@@ -134,7 +150,18 @@ BOARD = {
         "head_stage": None,
         "head_cause": None,
         "chains": None,
+        "path": [None],
     },
+    "homes": [
+        {
+            "project": None,
+            "name": None,
+            "open": None,
+            "last": {"at": None, "what": None},
+            "cells": dict.fromkeys(CELLS, CELL),
+        }
+    ],
+    "stacked": {"rows": None, "parents": None, "waits": checked.SHAPE},
 }
 SHAPE = BOARD
 
@@ -270,6 +297,84 @@ def _at(card: Card | None) -> dict[str, Any] | None:
     return card and {"slug": card.slug, "project": card.project, "since": card.since}
 
 
+def _old(card: Card, now: datetime) -> bool:
+    """Whether the card's `since` is `OLD` or more before `now`."""
+    return card.since is not None and datetime.fromisoformat(card.since) <= now - OLD
+
+
+def _cell(mine: list[Card], now: datetime) -> dict[str, Any]:
+    waits = [card.wait for card in mine]
+    return {
+        "count": len(mine),
+        "oldest": _at(min(mine, key=_older, default=None)),
+        "old": sum(1 for card in mine if _old(card, now)),
+        "waits": {one: waits.count(one) for one in checked.OUTCOMES},
+    }
+
+
+def _homes(read: Read, placed: list[Card], now: datetime) -> list[dict[str, Any]]:
+    """The project's row of the matrix for each of its homes, in the order `homes` names."""
+    mine = [card for card in placed if card.project == read.name]
+    scopes = [one.name for one, _, _ in read.homes.scopes]
+    names = {ROOT_NAME, *scopes, *(card.home for card in mine)} - {ROOT_NAME}
+    count = {name: sum(1 for card in mine if card.home == name) for name in names}
+    names = [ROOT_NAME, *sorted(names, key=lambda name: (-count[name], name))]
+    last = {one["home"] or ROOT_NAME: one for one in read.acts if one["home"] is not None}
+    found = []
+    for name in names:
+        rows = [card for card in mine if card.home == name]
+        act = last.get(name)
+        found.append(
+            {
+                "project": read.name,
+                "name": name,
+                "open": len(rows),
+                "last": act and {"at": act["at"], "what": act["what"]},
+                "cells": {
+                    key: _cell([card for card in rows if card.stage == key], now) for key in CELLS
+                },
+            }
+        )
+    return found
+
+
+def _path(chains: dict[tuple[str, str], tuple[int, tuple[str, str]]], by, tail: Card) -> list[str]:
+    """The chain from its head to `tail`: each step back is the oldest row it waits on that is
+    one less deep with the same head, or, inside a loop, a row of the loop not yet taken."""
+    head = chains[tail.key][1]
+    path, at, seen = [tail], tail, {tail.key}
+    while at.key != head:
+        depth = chains[at.key][0]
+        ups = [by[(at.project, slug)] for slug, _ in at.waits_on]
+        ups = [up for up in ups if up.key not in seen and chains[up.key][1] == head]
+        ups = [up for up in ups if chains[up.key][0] == depth - 1] or [
+            up for up in ups if chains[up.key][0] == depth
+        ]
+        if not ups:
+            break
+        at = min(ups, key=lambda up: (_older(up), up.key))
+        seen.add(at.key)
+        path.append(at)
+    return [card.slug for card in reversed(path)]
+
+
+def _stacked(placed: list[Card], by: dict[tuple[str, str], Card]) -> dict[str, Any]:
+    """The rows in `stacked`, their parents, and what the parents wait on."""
+    rows = [card for card in placed if card.stage == "stacked"]
+    parents = {
+        (card.project, slug)
+        for card in rows
+        for slug, kind in card.waits_on
+        if kind == "merge_after"
+    }
+    waits = [by[key].wait for key in parents if key in by]
+    return {
+        "rows": len(rows),
+        "parents": len(parents),
+        "waits": {one: waits.count(one) for one in checked.OUTCOMES},
+    }
+
+
 def board(reads: list[Read], now: Any) -> dict[str, Any]:
     """The board of every project of `reads` at `now`."""
     every = [card for read in reads for card in read.once(cards)]
@@ -315,6 +420,7 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
             "head_stage": top.stage,
             "head_cause": top.cause.text,
             "chains": len(heads),
+            "path": _path(chains, by, deepest),
         }
     return {
         "at": iso(now),
@@ -356,6 +462,8 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
             "cause": text(first.cause.text, 300),
         },
         "longest": longest,
+        "homes": [one for read in reads for one in _homes(read, placed, now)],
+        "stacked": _stacked(placed, by),
     }
 
 
