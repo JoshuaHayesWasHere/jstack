@@ -4,7 +4,6 @@ The template is the one copy of the Result's shape, and the crew skill's stop bl
 hand, so both are read as a crewmate's Result would be."""
 
 from test_crew_needs_go import queued, start
-
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "crew" / "templates" / "result.md"
