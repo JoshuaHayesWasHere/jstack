@@ -124,6 +124,7 @@ SURFACES = {
     ("kind", "hold"): Surface(needs=True),
     ("kind", "config"): Surface(needs=True),
     ("kind", "held"): Surface(needs=True),
+    ("kind", "github"): Surface(needs=True),
     ("source", "ok"): Surface(),
     ("source", "missing"): Surface(),
     ("source", "unreadable"): Surface(broken="unread"),
@@ -329,6 +330,9 @@ def build(scene):
     listed.append(item("held", "held:0123456789ab", "held a, b: 31 minutes by the walk", hours=1))
     items |= {"gate": [questions.item(asked)["key"]], "config": ["config:t3"]}
     items["held"] = ["held:0123456789ab"]
+    spent = "GitHub's API allowance is spent: its core window has 0 of 5000 calls left"
+    listed.append(item("github", "github:demo", spent, hours=1))
+    items["github"] = ["github:demo"]
     scene.waiting(listed)
     alone = {}
     for role, liveness in itertools.product(threads.ROLES, live.LIVENESS):

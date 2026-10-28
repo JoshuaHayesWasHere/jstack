@@ -42,17 +42,17 @@ LaunchCrew(k) ==
 OpenPr(k) ==
     /\ work[k] = "crew" /\ work' = Set(work, k, "open")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* Its checks pass (jmerge/cli.py:902 `short = short or ready.short_on_github(`) and its
-\* review is written (jmerge/cli.py:883 `short = short or ready.short_of(text, one.head)`).
+\* Its checks pass (jmerge/cli.py:908 `short = short or ready.short_on_github(`) and its
+\* review is written (jmerge/cli.py:889 `short = short or ready.short_of(text, one.head)`).
 PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* A check turns red or a review goes stale (jmerge/cli.py:902
-\* `short = short or ready.short_on_github(`, jmerge/cli.py:883
+\* A check turns red or a review goes stale (jmerge/cli.py:908
+\* `short = short or ready.short_on_github(`, jmerge/cli.py:889
 \* `short = short or ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
 \* judges it again. A merge it had begun fails at the head it checked, and its run gives the merge
-\* lock back as it returns (jmerge/cli.py:1333 `lock.give()`).
+\* lock back as it returns (jmerge/cli.py:1339 `lock.give()`).
 PrDrops(k) ==
     /\ work[k] = "ready" /\ work' = Set(work, k, "again")
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
@@ -178,23 +178,23 @@ Check ==
 
 \* jbus runs jmerge on each pass whatever home-thread holds, so it judges every home's pull
 \* request, and mode plays no part (jbus/merge.py:88 `ran = run.run("jmerge",
-\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1930-1931
+\* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1936-1937
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==
-    /\ a = "jbus"     \* jmerge/cli.py:1930-1931 `if args.home: args.check = True`
-\* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1343 `while lock.take():`), a
-\* run that finds it held merges nothing (jmerge/cli.py:1361 `return lines.waits("wait", number,
-\* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1333 `lock.give()`).
+    /\ a = "jbus"     \* jmerge/cli.py:1936-1937 `if args.home: args.check = True`
+\* The read of main's tip takes the repo's merge lock (jmerge/cli.py:1349 `while lock.take():`), a
+\* run that finds it held merges nothing (jmerge/cli.py:1367 `return lines.waits("wait", number,
+\* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py:1339 `lock.give()`).
 Read(a, k) ==
-    /\ MayMerge(a, k)     \* jmerge/cli.py:877 `if self.others(text) and not self.every:`
-    /\ Ready(k)     \* jmerge/cli.py:992 `return Judgement(brief.stem, "", "", note, judged)`
-    /\ lock = "free"     \* jmerge/cli.py:1343 `while lock.take():`
-    /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1346 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
+    /\ MayMerge(a, k)     \* jmerge/cli.py:883 `if self.others(text) and not self.every:`
+    /\ Ready(k)     \* jmerge/cli.py:998 `return Judgement(brief.stem, "", "", note, judged)`
+    /\ lock = "free"     \* jmerge/cli.py:1349 `while lock.take():`
+    /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1352 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
     /\ lock' = k
     /\ UNCHANGED <<life, work, msg, quiet, watch, up, broke, tip, blind, mode>>
 Merge(a, k) ==
-    /\ seen[k][a] # NoTip     \* jmerge/cli.py:1347 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
-    /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1378 `"merge",`
+    /\ seen[k][a] # NoTip     \* jmerge/cli.py:1353 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
+    /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1384 `"merge",`
     /\ blind' = (blind \/ seen[k][a] # tip)
     /\ tip' = Up(tip, 2)
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
