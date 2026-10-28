@@ -10,9 +10,11 @@ import json
 import os
 import re
 import subprocess
+from datetime import UTC, datetime
 
 import pytest
 
+import jsettings
 from test_grill_page import page
 from test_home_thread import (
     CONTEXT,
@@ -77,6 +79,7 @@ class Home:
 
     def __init__(self, tmp_path, monkeypatch):
         self.kitchen = Kitchen(tmp_path / "kitchen", monkeypatch)
+        self.kitchen.clock_reads(AT)
         self.dir, self.main = self.kitchen.home, self.kitchen.checkout
         self.user = tmp_path / "user"
         (self.user / ".claude").mkdir(parents=True)
@@ -129,11 +132,13 @@ class Home:
     def shown(self, thread=ROOT, **more):
         return self.home("no open questions", thread, **more)
 
-    def closes(self, number, words, which="differs", by="user", at=AT, thread=ROOT):
+    def closes(self, number, words, which="differs", by="user", at=None, thread=ROOT):
+        """Run the home's block that answers a question. It runs jbus in a shell, on the
+        machine's own clock, so the time it types is that clock's unless `at` says another."""
         filled = {
             "<number>": str(number),
             "<the user's name>": by,
-            "<YYYY-MM-DD HH:MM ZONE>": at,
+            "<YYYY-MM-DD HH:MM ZONE>": at or jsettings.load().stamp(datetime.now(UTC)),
             "<default or differs>": which,
             "<the user's answer, in their words>": words,
         }
@@ -255,9 +260,10 @@ def test_an_answer_that_differs_is_closed_by_jbus_and_carried_by_jbus_alone(home
     home.pipes()
     home.kitchen.poll()
     words = "no & don't: \"coffee\", it's $HOME \\n"
-    said = home.closes(1, words)
+    at = jsettings.load().stamp(datetime.now(UTC))
+    said = home.closes(1, words, at=at)
     assert said == (
-        f'answered: question 1: "{words}", by user, {AT}, in {home.main} (not the default): '
+        f'answered: question 1: "{words}", by user, {at}, in {home.main} (not the default): '
         "the next pass tells alpha's thread"
     )
     assert home.sends() == []
@@ -265,7 +271,7 @@ def test_an_answer_that_differs_is_closed_by_jbus_and_carried_by_jbus_alone(home
     assert (kept["answer"]["words"], kept["answer"]["by"], kept["answer"]["at"]) == (
         words,
         "user",
-        AT,
+        at,
     )
     home.kitchen.poll()
     (sent,) = home.sends()

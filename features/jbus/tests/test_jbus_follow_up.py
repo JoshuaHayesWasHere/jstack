@@ -151,6 +151,7 @@ def test_new_work_waits_for_the_users_go_and_its_decision_is_sent(kitchen, slug,
     add(kitchen, "gone")
     assert go(kitchen, "gone")[0] == 0
     at = "2026-10-12 10:00 ET"
+    kitchen.clock_reads(at)
     assert kitchen.main("queue", "remove", "gone", "--by", "user", "--at", at)[0] == 0
     kitchen.quiet()
     said = add(kitchen, slug, *more, text=text)

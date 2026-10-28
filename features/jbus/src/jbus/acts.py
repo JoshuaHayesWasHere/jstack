@@ -418,8 +418,7 @@ def _answer_verb(args: argparse.Namespace, config: Config) -> int:
     if heard is None:
         if args.by != config.user.user:
             raise Refused(f"refused: only {config.user.user} answers a question, not {args.by}")
-        if not config.user.takes(args.at):
-            raise Refused(f'refused: --at is "{config.user.form(args.at)}"')
+        verbs.typed_at(config.user, args.at)
         said = Evidence("typed", "", " ".join(args.words), args.at, "", False)
     else:
         said = Evidence("t3-message", heard.ref, heard.words, heard.said_at, heard.said_in, True)

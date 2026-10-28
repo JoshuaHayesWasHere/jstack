@@ -32,9 +32,10 @@ from pathlib import Path
 import pytest
 
 import jbus
+import jsettings
 import repo_template
 from jbriefs import meaning
-from jbus import cli, live, queue, t3, wake, word
+from jbus import cli, live, queue, t3, verbs, wake, word
 from jgauge import slot, waiters
 from jroles import ledger
 from repo_template import IDENTITY
@@ -631,6 +632,7 @@ class Kitchen:
             self.fakes[str(script)] = fake, text
         self.started = subprocess.run
         monkeypatch.setattr(subprocess, "run", self.run)
+        monkeypatch.setattr(verbs, "clock", lambda: NOW)
         for name, text in (
             ("open.json", "[]"),
             ("merged.json", "[]"),
@@ -811,8 +813,18 @@ class Kitchen:
         assert cli.poll(jbus.load(), now, said.append) == 0
         return said
 
+    def clock_reads(self, at):
+        """Set the clock a typed `--at` is held to at the moment `at` names, as a test's
+        `jsettings` words it: the time the user said what the test types."""
+        user = jsettings.load()
+        moment = user.local(datetime.strptime(at.rsplit(" ", 1)[0], "%Y-%m-%d %H:%M"))
+        self.monkeypatch.setattr(verbs, "clock", lambda: moment)
+
     def main(self, *argv, stdin=""):
-        self.monkeypatch.setattr(sys, "stdin", io.StringIO(stdin))
+        """Run `jbus` with `argv`, and `stdin` as its input: text, or a stream a test made."""
+        self.monkeypatch.setattr(
+            sys, "stdin", io.StringIO(stdin) if isinstance(stdin, str) else stdin
+        )
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
             try:
@@ -995,7 +1007,7 @@ def test_an_answer_into_a_capped_thread_is_held_then_sent_once_after_the_reset(k
     kitchen.quiet()
     asked = GATE.format(n="<n>", asked="tea or coffee?", status="open", slug="alpha")
     assert kitchen.main("gate", "alpha", stdin=asked)[0] == 0
-    said = ("--by", "user", "--at", "2026-10-12 11:30 ET", "--differs", "coffee")
+    said = ("--by", "user", "--at", "2026-10-12 11:00 ET", "--differs", "coffee")
     assert kitchen.main("answer", "1", *said)[0] == 0
     resets = NOW + timedelta(minutes=40)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
