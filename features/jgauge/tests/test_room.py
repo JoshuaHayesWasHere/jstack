@@ -553,9 +553,9 @@ def test_a_machine_written_again_the_same_leaves_its_stubs_as_they_were(tmp_path
 def test_a_wait_for_room_ends_in_go_once_the_machine_has_room(tmp_path):
     env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     room = threading.Timer(0.4, machine, [tmp_path], IDLE)
+    started = time.monotonic()
     room.start()
     try:
-        started = time.monotonic()
         assert waited(env, "15") == (["go"], 0)
     finally:
         room.cancel()

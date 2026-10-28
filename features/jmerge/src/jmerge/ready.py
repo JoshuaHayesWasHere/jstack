@@ -200,6 +200,7 @@ CONTENT_CHANGED = Reason(
 NOT_PASSED = Reason("check", "{check} has not passed")
 CHECK_FAILED = Reason("check", "{check} has not passed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
+LIVE_RUN = Reason("check", "{check}'s run at {head} is {state}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
 TOUCHES = Reason("hold", "needs {user}, touches {path}")
@@ -310,6 +311,9 @@ class PullRequest:
     added: tuple[str, ...] = ()
     failed: tuple[str, ...] = ()
     unrun: tuple[str, ...] = ()
+    live: tuple[tuple[str, str], ...] = ()
+    """Each required check with no run of its own listed at the head whose workflow GitHub is
+    running there, with `queued` or `running` (`live`)."""
 
 
 def _at(text: str | None) -> datetime | None:
@@ -353,10 +357,33 @@ def waiting(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[s
     return tuple(name for name in required if not passed(rollup, name))
 
 
+def live(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[tuple[str, str], ...]:
+    """The required checks GitHub lists no run of at the head while it runs other jobs of the
+    workflow of that name there, each with `running` where one of those jobs is in progress and
+    `queued` where they all wait. GitHub lists a job only once the jobs it needs have ended, so
+    the check workflow's `check` is not listed while its shards run (merge-wait-1, 2026-10-28)."""
+    found = []
+    for name in required:
+        if latest(rollup, name):
+            continue
+        states = {
+            one.get("status")
+            for one in rollup
+            if one.get("workflowName") == name and one.get("status") != "COMPLETED"
+        }
+        if "IN_PROGRESS" in states:
+            found.append((name, "running"))
+        elif states:
+            found.append((name, "queued"))
+    return tuple(found)
+
+
 def unrun(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
-    """The required checks GitHub lists no run of at the head, in `required`'s order: no runner
-    is at work on them, as for a workflow the head's merge with its base does not have."""
-    return tuple(name for name in required if not latest(rollup, name))
+    """The required checks GitHub lists no run of at the head, and no job of their workflow at
+    work there, in `required`'s order: no runner is at work on them, as for a workflow the head's
+    merge with its base does not have."""
+    at_work = dict(live(rollup, required))
+    return tuple(name for name in required if not latest(rollup, name) and name not in at_work)
 
 
 def failed(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
@@ -427,6 +454,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
         failed=failed(listed.get("statusCheckRollup") or [], required),
         unrun=unrun(listed.get("statusCheckRollup") or [], required),
+        live=live(listed.get("statusCheckRollup") or [], required),
     )
 
 
@@ -1041,6 +1069,8 @@ def short_on_content(verdict: Verdict | None) -> str:
 def short_on_github(one: PullRequest) -> str:
     if one.waiting and one.waiting[0] in one.unrun:
         return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+    if one.waiting and (state := dict(one.live).get(one.waiting[0])):
+        return LIVE_RUN.format(check=one.waiting[0], head=one.head[:12], state=state)
     if one.waiting:
         failed = one.waiting[0] in one.failed
         return (CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])

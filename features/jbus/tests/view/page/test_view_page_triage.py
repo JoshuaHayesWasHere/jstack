@@ -9,6 +9,8 @@ scene's `wrong` has its row in the first 844 px of a phone. The tab in the heade
 is Josh's, and so does the drawer of what waits on him in each project.
 
 The scenes are the budget tests' `busy` and `many`, and `quiet` with 3 or 16 quiet projects.
+`quiet-3` is the T scene of the jv-score round: rows stand still and the wrong tier is empty, so
+the calm line counts the still rows and says no all-clear sentence.
 """
 
 import re
@@ -68,6 +70,7 @@ window.addEventListener("load", function () { setTimeout(function () {
       verb: text(btn), href: btn ? btn.getAttribute("href") : "" };
   };
   var parts = {};
+  var calm = document.getElementById("tri-calm"), calmLink = calm && calm.querySelector("a");
   all("main [data-role]").filter(shown).forEach(function (sec) {
     parts[sec.getAttribute("data-role")] = { text: text(sec), head: text(sec.querySelector("h2 b")),
       rows: all("li", sec).filter(shown).map(row),
@@ -75,7 +78,8 @@ window.addEventListener("load", function () { setTimeout(function () {
   });
   var tab = document.getElementById("tri"), drawer = document.getElementById("drawer");
   var out = { errors: window.__errs, hash: location.hash, atoms: atoms, parts: parts,
-    drawer: drawer.open ? text(document.getElementById("dw-title")) : "", tab: null };
+    drawer: drawer.open ? text(document.getElementById("dw-title")) : "", tab: null,
+    calmHref: calmLink ? calmLink.getAttribute("href") : "" };
   if (tab && shown(tab)) {
     out.tab = { text: text(tab), count: text(tab.querySelector("b")),
       href: tab.getAttribute("href"), current: tab.getAttribute("aria-current") || "" };
@@ -183,6 +187,20 @@ def test_a_quiet_project_adds_no_words(views, wide):
     assert len(many["stack"]["projects"]) - len(few["stack"]["projects"]) == 13
     counts = [words(one["#/triage"]["atoms"]) for one in (few, many)]
     assert counts[0] == counts[1], [one["#/triage"]["atoms"] for one in (few, many)]
+
+
+def test_the_calm_line_counts_the_still_rows_and_says_no_all_clear_over_the_t_scene(views):
+    seen = views("quiet-3", 1440)
+    groups = seen["stack"]["glance"]["verdict"]["groups"]
+    still = sum(one["count"] for one in groups)
+    assert still and seen["stack"]["wrong"] == [], (groups, seen["stack"]["wrong"])
+    page = seen["#/triage"]
+    text = " ".join(one["text"] for one in page["atoms"])
+    assert "nothing is wrong" not in text.lower(), text
+    assert "Everything else moves" not in text, text
+    calm = page["parts"]["calm"]["text"]
+    assert calm.startswith(f"{still} rows not moving, held by {groups[0]['count']} "), calm
+    assert page["calmHref"] == "#/", page["calmHref"]
 
 
 @pytest.mark.parametrize("name", ["busy", "many"])

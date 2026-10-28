@@ -92,10 +92,11 @@ class Carried(Kind, Protocol):
         --uninstall drops it all the same."""
         ...
 
-    def put(self, machine: Machine) -> None:
+    def put(self, machine: Machine) -> str | None:
         """Make the probe answer ok. The install calls it only when the probe answers missing,
         or answers an old that is replaceable. It is safe to run twice and safe to stop
-        halfway."""
+        halfway. It returns a line for the user where it moved something of theirs aside, and
+        None otherwise."""
         ...
 
     def drop(self, machine: Machine) -> Dropped:
@@ -736,6 +737,10 @@ class Commands:
         return Dropped(tuple(removed), tuple(kept))
 
 
+VIEW_DROP_IN = Path("jbus-view.service.d", "jstack.conf")
+"""The drop-in of `jbus-view.service` that the install writes from the `[view]` table of jbus's
+config, under the units' directory."""
+
 UNIT_FOLDERS = ("templates", "features/*/units")
 """Where the source keeps the units the install links: its `templates/`, and the `units/` of
 each feature whose units have moved there."""
@@ -811,17 +816,24 @@ class Units:
     old: the detail names the first piece that is not so: `lacks jbus-failed.service`,
       `jbus.timer is not enabled`, `jbus-ci.timer is enabled, and nothing asks for it`,
       `needs daemon-reload`. A regular file whose bytes equal its template is a copy that
-      someone made by hand from the README, and the install may replace it.
-    foreign: a file that differs from its template, `jbus.service -> not a link, differs`.
-      The need is also foreign for two cases that no put repairs: `no ~/.local/bin/jbus`,
-      and a manager that did not answer.
+      someone made by hand from the README, and the install may replace it. A regular file that
+      differs from its template is one made by hand too, `jbus.service -> not a link, differs:
+      the install backs it up`. A drop-in `VIEW_DROP_IN` that is not what the config's `[view]`
+      asks for, or that is there while the config has none, is old as well.
+    foreign: something other than a regular file or a link where a unit goes. The need is also
+      foreign for two cases that no put repairs: `no ~/.local/bin/jbus`, and a manager that did
+      not answer.
     put: refuse when there is no ~/.local/bin/jbus, so no timer starts on a missing program.
       Otherwise disable --now each opted unit that is enabled while its need is missing, make
-      `timers.target.wants` through the machine, link each unit to its template, run
-      daemon-reload, and run enable --now on each unit that is to be on.
+      `timers.target.wants` through the machine, move each unit made by hand aside to
+      `<name>.<time>.bak` beside it, which systemd does not read, and say so, link each unit to
+      its template, write or remove `VIEW_DROP_IN`, run daemon-reload, and run enable --now on
+      each unit that is to be on. A changed drop-in restarts `jbus-view.service` where it runs.
+      A config that jbus's loader refuses leaves the drop-in as it is.
     drop: run disable --now on each timer and opted unit whose link is the install's, unlink
-      each link that points at its template, and run daemon-reload. systemd's disable unlinks a
-      linked unit by itself, and drop unlinks the links that it leaves.
+      each link that points at its template, remove the drop-in, and run daemon-reload.
+      systemd's disable unlinks a linked unit by itself, and drop unlinks the links that it
+      leaves. A backup stays: it is the user's.
     Each systemctl step goes through `machine.systemctl`. So with a manager that reads
     another HOME, the need only makes, checks and removes the links."""
 
@@ -840,6 +852,42 @@ class Units:
             for name in self.names
             if points_at(self.directory / name, self._template(machine, name))
         ]
+
+    def _hand_made(self, machine: Machine, name: str) -> bool:
+        path = self.directory / name
+        return (
+            not path.is_symlink()
+            and path.is_file()
+            and not same_bytes(path, self._template(machine, name))
+        )
+
+    def _view(self) -> str | None:
+        """The drop-in that the config's `[view]` asks for, empty for none, or None where there
+        is no config that jbus's loader takes."""
+        if not self.config.is_file():
+            return None
+        try:
+            environment = jbus.load(self.config.parent).view.environment()
+        except Exception:
+            return None
+        if not environment:
+            return ""
+        lines = [
+            f"# install.sh writes this from the [view] table of {self.config}: "
+            "change that, not this.",
+            "[Service]",
+            *(f'Environment="{name}={value}"' for name, value in environment.items()),
+        ]
+        return "\n".join(lines) + "\n"
+
+    def _view_is_due(self) -> bool:
+        """Whether the drop-in differs from what the config's `[view]` asks for."""
+        wanted, path = self._view(), self.directory / VIEW_DROP_IN
+        if wanted is None:
+            return False
+        if not wanted:
+            return path.exists()
+        return not (path.is_file() and path.read_text() == wanted)
 
     def _wanted(self, machine: Machine, name: str) -> Path:
         target = wanted_by(self._template(machine, name))
@@ -867,6 +915,8 @@ class Units:
                 lacking.append(name)
             elif path.is_file() and same_bytes(path, template):
                 copies.append(name)
+            elif self._hand_made(machine, name):
+                return Found.old(f"{name} -> not a link, differs: the install backs it up")
             else:
                 return Found.foreign(f"{name} -> not a link, differs")
         if len(lacking) == len(self.names):
@@ -877,6 +927,9 @@ class Units:
             return Found.old(elsewhere[0])
         if copies:
             return Found.old(f"{' '.join(copies)}: a copy of its template, not a link")
+        if self._view_is_due():
+            drop_in = self.directory / VIEW_DROP_IN
+            return Found.old(f"{drop_in} does not say the [view] of {self.config}")
         if not (machine.home / ".local" / "bin" / "jbus").exists():
             return Found.foreign("no ~/.local/bin/jbus")
         on, off = self._split(machine)
@@ -902,7 +955,7 @@ class Units:
             said = ran.out.strip().splitlines()
             raise Refused(f"systemctl --user {' '.join(args)}: {said[-1] if said else ran.code}")
 
-    def put(self, machine: Machine) -> None:
+    def put(self, machine: Machine) -> str | None:
         if not (machine.home / ".local" / "bin" / "jbus").exists():
             raise Refused("no ~/.local/bin/jbus for the units to run, so none is linked")
         on, off = self._split(machine)
@@ -911,11 +964,27 @@ class Units:
                 self._systemctl(machine, "disable", "--now", name)
         for name in on:
             machine.make_dirs(self._wanted(machine, name).parent)
+        kept = []
         for name in self.names:
-            machine.link(self.directory / name, self._template(machine, name))
+            path = self.directory / name
+            if self._hand_made(machine, name):
+                backup = path.with_name(f"{name}.{datetime.now():%Y%m%d-%H%M%S-%f}.bak")
+                path.rename(backup)
+                kept.append(f"{name} was not the install's: kept as {backup}")
+            machine.link(path, self._template(machine, name))
+        restart = self._view_is_due()
+        if restart:
+            drop_in, wanted = self.directory / VIEW_DROP_IN, self._view()
+            if wanted:
+                machine.write_text(drop_in, wanted)
+            else:
+                machine.unlink(drop_in)
         self._systemctl(machine, "daemon-reload")
         for name in on:
             self._systemctl(machine, "enable", "--now", name)
+        if restart:
+            self._systemctl(machine, "try-restart", "jbus-view.service")
+        return "\n".join(kept) or None
 
     def drop(self, machine: Machine) -> Dropped:
         ours = self._ours(machine)
@@ -930,6 +999,8 @@ class Units:
         for name in ours:
             if points_at(self.directory / name, self._template(machine, name)):
                 machine.unlink(self.directory / name)
+        if (self.directory / VIEW_DROP_IN).is_file():
+            machine.unlink(self.directory / VIEW_DROP_IN)
         self._systemctl(machine, "daemon-reload")
         return Dropped(removed=tuple(f"unit {self.directory / name}" for name in ours))
 

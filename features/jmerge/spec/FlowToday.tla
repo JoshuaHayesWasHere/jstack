@@ -110,7 +110,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1044-1046
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1074-1076
     \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
     /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:126
@@ -184,7 +184,7 @@ BrowserFix(p) ==
 \* fresh check runs.
 Rejudge(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:873, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:377-380, red_only
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:404-407, red_only
     /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:830, base moved
     /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:950, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip

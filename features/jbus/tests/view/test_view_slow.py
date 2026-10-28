@@ -231,3 +231,22 @@ def test_a_held_flock_is_found_in_the_kernel_s_own_list_of_locks(tmp_path, monke
         for opened in held:
             os.close(opened)
     assert slow.used(proc, locks, 3) == 2
+
+
+def test_a_lock_the_kernel_lists_under_the_filesystem_s_device_is_held(tmp_path, monkeypatch):
+    """On btrfs `stat` gives a subvolume's own device, 0:2f, and `/proc/locks` the filesystem's,
+    00:1d: the slot whose file the kernel lists as locked is held all the same."""
+    locks, proc = tmp_path / "locks", tmp_path / "proc"
+    locks.mkdir()
+    proc.mkdir()
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(locks))
+    inodes = []
+    for n in (1, 2, 3):
+        (locks / f"test-slot.{n}.lock").touch()
+        inodes.append((locks / f"test-slot.{n}.lock").stat().st_ino)
+    (proc / "locks").write_text(
+        f"1: FLOCK  ADVISORY  WRITE 4116639 00:1d:{inodes[0]} 0 EOF\n"
+        f"2: FLOCK  ADVISORY  WRITE 4116640 00:1d:{inodes[2]} 0 EOF\n"
+        f"2: -> FLOCK  ADVISORY  WRITE 4116641 00:1d:{inodes[1]} 0 EOF\n"
+    )
+    assert slow.used(proc, locks, 3) == 2
