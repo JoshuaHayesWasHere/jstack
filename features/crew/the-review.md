@@ -46,21 +46,67 @@ The same words inside the task's text or a result do not count.
   The pull request merges once its check passes, and the reviewer turns its findings into a cleanup row, `cleanup-<slug>`, a follow-up that `jbus queue add` approves by the home's follow-up rule, so no findings come to this thread and the Result gets no `Finding` lines and no `Fixed:` line.
   While a home merges, jbus wakes this thread when every check has passed, and on `passed` it sends the thread that hears of a pull request ("Telling the home") one line, once for a head: `<slug>: <pull request url> at <full head commit> is green, and its brief says Review: after`.
 - `twice`: launch the reviewer as for `review`, and handle its findings in one fix round as below, with no block of "A second pass" and no `Second pass:` or `Scoped review:` line.
-  Once the `Fixed:` line names the head you pushed, launch the second review of that head as a second pass is launched, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
+  Once the `Fixed:` line names the head you pushed, launch the second review of that head by the launch block below with `second`, `/pr-review run <slug> again`, and add `Second reviewer: <threadId> #1` to the Result; after `Fixed: none needed` nothing changed, and no second review is owed.
   Fix nothing for the second review: its reviewer files its `warning` and `error` findings as a cleanup row, `cleanup-<slug>`, and drops its `info` ones, and nothing comes to this thread for it, since `jmerge` asks no line of the crew for a second review.
   `jmerge` merges once the second review is written, whatever it found, and the `fixed and green` line below is sent once it is.
 - `review`, and `launch a reviewer`: launch one for each line of the role map's review list, `jroles review`, or one where it lists none. The mode is not passed on: the reviewer reads the same line. It runs no test step and no suite, whatever the line says: what it does is under "The review" of the pr-review skill.
 
-To launch them, do it the way `$T/../skills/pr-review/SKILL.md` "Launching" says for `/pr-review` typed in a crewmate's thread: each line `jroles review` prints is one reviewer, told its number.
+To launch them, run the block below, and make one `t3_thread_launch` call for each `launch:` line it prints, with the JSON after `launch: ` as the call's arguments, as printed: `$T/../skills/pr-review/SKILL.md` "Launching" says what a reviewer does with its number.
+Never write a launch's arguments by hand: with no `workspaceStrategy` the reviewer opens in the project's main checkout and refuses to run there, and the block gives each call this worktree and its branch.
 Then add one line `Reviewer: <threadId> #<n>` to the Result for each, in the order they were launched, `<n>` the number its message gave it, and go on as "Stay on the pull request" says.
 Do not wait for the reviewer or read its thread.
 
 Each launch this section or "A second pass" makes runs `jroles review` as `uv run --project "$T/../source" jroles review --thread <thread id>`, with this thread's own id, which the `t3-code` server's `t3_thread_configuration` gives as `threadId`.
-When it exits 75 and prints no JSON, every instance of the review pool is capped, and it has registered this thread as a waiter until the cap's end, in the line it prints.
-Then make no launch and add no `Reviewer:` line, and end your turn at once with one line: `Waiting on the review pool: jbus will wake this thread when its cap ends.`
+The block runs it, in this worktree, with that id in place of `<thread id>`, `first`, `second` or `scoped` in place of `<pass>`, and for a scoped pass the message "A second pass" gives, whole, in place of `<message>`:
+
+```sh
+thread='<thread id>'
+pass='<pass>'
+message='<message>'
+top=$(git rev-parse --show-toplevel 2> /dev/null)
+branch=$(git branch --show-current 2> /dev/null)
+case $pass in
+first) title='review: <slug>, $n' said='/pr-review run <slug> $n' ;;
+second) title='review: <slug>, second pass' said='/pr-review run <slug> again' ;;
+scoped)
+    title='review: <slug>, scoped' said=$message
+    case $message in '' | '<'*) title= ;; esac
+    ;;
+*) title= ;;
+esac
+case $thread in '' | '<'*) title= ;; esac
+if [ -z "$title" ]; then
+    echo "not filled in: put this thread's id in place of <thread id>, first, second or scoped in place of <pass>, and for scoped the message in place of <message>"
+elif [ -z "$top" ] || [ -z "$branch" ]; then
+    echo "no launch: this thread is in no worktree on a branch, and a reviewer runs in the crew's worktree"
+else
+    selections=$(uv run --project "$T/../source" jroles review --thread "$thread")
+    code=$?
+    if [ "$code" -eq 75 ]; then
+        echo "capped: launch nothing and add no Reviewer: line"
+    elif [ "$code" -ne 0 ]; then
+        echo "no launch: jroles review ended $code"
+    else
+        printf '%s\n' "$selections" | grep -q '^{' || selections=null
+        [ "$pass" = first ] || selections=$(printf '%s\n' "$selections" | grep -m 1 .)
+        printf '%s\n' "$selections" | grep . | jq -cn --arg top "$top" --arg branch "$branch" \
+            --arg title "$title" --arg said "$said" '
+            [inputs] | to_entries[] | (.key + 1 | tostring) as $n
+            | {title: ($title | sub("\\$n"; $n)),
+               workspaceStrategy: {type: "existing_worktree", worktreePath: $top, branch: $branch},
+               message: ($said | sub("\\$n"; $n))}
+              + (if .value == null then {} else {modelSelection: .value} end)' |
+            sed 's/^/launch: /'
+    fi
+fi
+```
+
+On `capped`, every instance of the review pool is capped, and `jroles` has registered this thread as a waiter until the cap's end, in the line it printed.
+End your turn at once with one line: `Waiting on the review pool: jbus will wake this thread when its cap ends.`
 Never poll for the reset, never wait in a background job, and never count on a nudge from jbus's other messages: `jbus poll` sends this thread one message once the cap's end has passed, and that message is the wake.
-On it, make the same launch again.
+On it, run the block again.
 If the pool is capped again by then, the run registers this thread again and you stop again: each wait is woken once.
+On `no launch`, make none, and add what it printed to the Result.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 

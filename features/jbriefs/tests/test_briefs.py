@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 import pytest
 
-from jbriefs import below, cli, home, page, parse, skills
+from jbriefs import asks, below, cli, home, page, parse, skills
 from jbus import watch
 from testing.paths import REPO
 
@@ -700,7 +700,9 @@ def test_every_crewmate_playbook_on_disk_is_a_name_the_parser_takes_and_no_other
     taken = set()
     for path in skills.listed("playbook").values():
         by = next(line for line in path.read_text().splitlines() if line.startswith("Run by: "))
-        said = parse.playbook(SHAPED.replace("Playbook: feature", f"Playbook: {path.stem}"))
+        asked = "".join(f"{line}\n" for line in asks.asked(path.read_text()))
+        named = SHAPED.replace("Playbook: feature\n", f"Playbook: {path.stem}\n{asked}")
+        said = parse.playbook(named)
         if by.startswith("Run by: a crewmate,") and "never picked for a brief" not in by:
             assert said == "", path.stem
             taken.add(path.stem)
