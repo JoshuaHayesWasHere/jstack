@@ -35,7 +35,8 @@ one before it, which is out of date.
 
 The log is `events.jsonl`. jbus adds a line for each event when it queues the event, `{"at", "id",
 "event", "slug", "loud", "line", "text"}`, and one for each wake the home thread took,
-`{"at", "posted_home": [ids]}`. A party names an event by another id, which is unique (`entries`). The daily prune rewrites the file without its oldest lines. Both
+`{"at", "posted_home": [ids]}`. A party names an event by another id, which is unique
+(`entries`). The daily prune rewrites the file without its oldest lines. Both
 times come from the clock, so a wake's time is never before the time of what it carries. The id is
 a hash of the event as the outbox holds it, so jbus adds nothing to the outbox or to the wake for
 the log's sake. `Box.log` reads the events and the wakes of the home thread back as one list,

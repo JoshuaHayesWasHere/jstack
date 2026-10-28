@@ -149,7 +149,9 @@ def _feed(args: argparse.Namespace, config: Config) -> int:
 def _arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--after", default="", help="the id of the last event you read")
     parser.add_argument(
-        "--wait", default="0", help=f"wait up to this many seconds for a new event, {WAIT_MOST} at most"
+        "--wait",
+        default="0",
+        help=f"wait up to this many seconds for a new event, {WAIT_MOST} at most",
     )
 
 

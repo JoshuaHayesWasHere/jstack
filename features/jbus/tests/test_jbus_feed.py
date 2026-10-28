@@ -15,12 +15,12 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import wake
 from jbus import view as jview
+from jbus import wake
 from jbus.view import state as view_state
 from jbus.view.panels.you import panel as you
-from test_jbus_acts import CHAT, HOLDS, bot_go, gate, kitchen, route, stored  # noqa: F401
-from test_jbus_kitchen import GATE
+from test_jbus_acts import CHAT, HOLDS, Route, bot_go, gate, stored
+from test_jbus_kitchen import GATE, Kitchen
 from test_jbus_queue import add, brief, sha12
 from view.scene import free_port
 
@@ -29,6 +29,21 @@ FIELDS = ("project", "slug", "sha", "kind", "what", "default", "since", "doors")
 (scouts/bot-authority-shape.bots-reply.md, item 4): project, slug and the brief's sha, its
 kind, the exact ask, the default, when it started waiting, and whether it is a one-way door."""
 EVENT = ("v", "id", "at", "project", "kind", "subject", "line", "need", "act")
+
+
+@pytest.fixture
+def kitchen(tmp_path, monkeypatch):
+    made = Kitchen(tmp_path, monkeypatch)
+    made.word()
+    yield made
+    made.close()
+
+
+@pytest.fixture
+def route(kitchen):
+    made = Route(kitchen)
+    yield made
+    made.close()
 
 
 def box(kitchen):
