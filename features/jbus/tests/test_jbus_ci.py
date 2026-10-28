@@ -581,6 +581,46 @@ def test_a_pull_request_with_no_update_time_is_asked_for_its_timeline_each_time(
     assert len([path for path in asked.asked if "/timeline" in path]) == 71
 
 
+class Paged:
+    """GitHub's pull requests in pages of `collect.PAGE`, the latest update first: the `n`th is
+    updated `n` minutes before `NOW`. It counts each page it is asked for."""
+
+    def __init__(self, many):
+        def stamp(minutes):
+            return (NOW - timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        self.pulls = [
+            {
+                "number": many - n,
+                "head": {"ref": f"pie-{n}", "sha": "a" * 40},
+                "created_at": stamp(n + 1),
+                "updated_at": stamp(n),
+            }
+            for n in range(many)
+        ]
+        self.asked = []
+
+    def page(self, path, key=None):
+        number = int(path.rsplit("&page=", 1)[1])
+        self.asked.append(number)
+        return self.pulls[(number - 1) * collect.PAGE : number * collect.PAGE]
+
+    def pages(self, path, key=None):
+        return []
+
+
+@pytest.mark.parametrize(
+    ("many", "minutes", "kept", "asked"),
+    [(250, 300, 250, [1, 2, 3]), (300, 149.5, 150, [1, 2]), (200, 300, 200, [1, 2, 3])],
+    ids=["a short last page", "a page that reaches back past the window", "an empty last page"],
+)
+def test_the_pull_requests_are_read_a_page_at_a_time_up_to_the_window(many, minutes, kept, asked):
+    gh = Paged(many)
+    found = collect.pulls(gh, REPO, NOW - timedelta(minutes=minutes))
+    assert [one["number"] for one in found] == [one["number"] for one in gh.pulls[:kept]]
+    assert gh.asked == asked
+
+
 @pytest.mark.parametrize(
     "said",
     ['{"workflow_runs": []}', "[[1, 2]]", '[{"jobs": []}]', "not json"],
@@ -594,9 +634,10 @@ def test_an_answer_of_another_shape_is_github_not_answering(said):
         collect.Cli(ask).pages("repos/o/r/actions/runs?per_page=100", "workflow_runs")
 
 
-def test_every_pass_keeps_the_ci_ledger_of_its_project(kitchen):
+def test_every_pass_keeps_the_ci_ledger_of_a_project_that_asks_for_its_report(kitchen):
     """A pass that stops keeping `ci.jsonl` leaves the view and `jbus flow` a ledger that ages:
     each pass adds the jobs of the runs that completed since the one before."""
+    kitchen.config(own=("ci_report = true",))
 
     def ran(number, job):
         return {
@@ -639,6 +680,7 @@ def test_every_pass_keeps_the_ci_ledger_of_its_project(kitchen):
 def test_a_ledger_the_pass_cannot_write_is_said_and_the_pass_still_launches(kitchen):
     """Keeping the ledger is bookkeeping: a state directory where `ci.jsonl` cannot be written
     costs the pass that one line, never its launches."""
+    kitchen.config(own=("ci_report = true",))
     run, job = (
         {
             "id": 501,
@@ -673,3 +715,16 @@ def test_a_ledger_the_pass_cannot_write_is_said_and_the_pass_still_launches(kitc
     said = kitchen.poll()
     assert "launched alpha: mcp:thread-1" in said
     assert any(line.startswith("ci: demo: no job kept this pass: ") for line in said), said
+
+
+def test_a_pass_keeps_no_ci_ledger_for_a_project_that_does_not_ask_for_its_report(kitchen):
+    """`ci_report` is off unless the project's table says it, and a project that never asked
+    gets no call to GitHub for its CI and no ledger in its state."""
+    queued(kitchen, "alpha")
+    said = kitchen.poll()
+    assert "launched alpha: mcp:thread-1" in said
+    asked = [line for line in kitchen.log("gh") if "pulls?state=all" in line or "created=" in line]
+    assert asked == []
+    assert not (kitchen.state / ledger.JOBS).exists()
+    assert not (kitchen.state / ledger.PULLS).exists()
+    assert not any(line.startswith("ci: ") for line in said), said
