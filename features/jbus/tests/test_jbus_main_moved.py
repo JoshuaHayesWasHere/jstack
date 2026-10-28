@@ -383,12 +383,6 @@ def test_a_failed_tip_whose_check_is_rerun_and_passes_is_green_with_no_new_commi
     assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [""]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="a fix row approved once main is green again still launches: watch._retro says it "
-    "green again and leaves it (features/jbus/src/jbus/watch.py:1099-1102), and dispatch "
-    "launches it",
-)
 def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(launched):
     """As with main-red-b66eaae4c2ca: its tip's check failed, a rerun passed, and the row got its
     approval after that. A main that is green needs no fix, so jbus does not launch the row."""
@@ -405,7 +399,11 @@ def test_a_fix_row_approved_after_its_main_is_green_again_is_never_launched(laun
     assert go(launched, row)[0] == 0
     for minutes in (9, 12):
         launched.poll(NOW + timedelta(minutes=minutes))
-    assert [r.get("thread") for r in jbus.queue.load(launched.state) if r["slug"] == row] == [""]
+    (left,) = [r for r in jbus.queue.load(launched.state) if r["slug"] == row]
+    assert (left.get("thread"), left.get("status")) == ("", "queued")
+    assert left.get("why") == (
+        f"main is green again at {red[:12]}, its own commit, so it has no red to fix"
+    )
 
 
 def test_a_red_head_that_is_also_in_conflict_is_told_once_however_often_main_moves(launched):
