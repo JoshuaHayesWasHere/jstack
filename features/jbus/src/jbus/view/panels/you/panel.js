@@ -249,7 +249,7 @@ function dYou(arg) {
       return '<li' + (here ? ' class="hit"' : "") + '>' + body + ' ' + ageChip(w.since, "user") +
         '<br>' + (k === "approve" ? approveLine(w) : esc(w.line)) +
         (w.unblocks && w.unblocks.length ? '<br><span class="tag">Unblocks</span> ' + w.unblocks.map(taskBtn).join(" ") : "") + '</li>';
-    }, hit && k !== hit ? 0 : YOU_FIRST, named ? mine : null) : '<p class="src">None.</p>') +
+    }, hit && k !== hit ? 0 : YOU_FIRST, named || k === "gate" ? mine : null) : '<p class="src">None.</p>') +
       (k === "gate" && can.length ? '<div id="bfoot">' + batchFoot() + '</div>' : "") +
       (k === "gate" ? '<p class="src" style="margin:10px 0 0">' + openBtn("words:answer", "The questions you answered, in Your words") + '</p>' : "");
   });
