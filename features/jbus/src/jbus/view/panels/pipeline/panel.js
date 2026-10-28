@@ -331,8 +331,8 @@ document.addEventListener("click", function (e) {
   var cell = e.target.closest("[data-bcell]");
   if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     e.preventDefault();
-    // Only an entry pushed over the unfiltered board says cell, so Esc goes back to the board; any other cell replaces its entry and keeps its word.
-    var view = boardView(), over = !!(view.home || view.stage);
+    // Only an entry pushed over a board with no cell's filter says cell, so Esc goes back to that board; a cell over a cell replaces its entry and keeps its word.
+    var over = !!boardView().stage;
     enter(over ? "replaceState" : "pushState", { layers: [], back: false, cell: over ? !!(history.state && history.state.cell) : true }, cell.getAttribute("href"));
   }
   var s = e.target.closest("summary");
