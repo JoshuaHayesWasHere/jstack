@@ -416,8 +416,7 @@ def deciding(run: Pass, listed: list[waiting.Item] | None) -> list[tuple[waiting
 
 UNLISTED = frozenset({"config"})
 """The kinds of need the one list does not carry: a setup jbus lacks may be the sign-in to T3
-Code that the list's own message needs, so its decision waits as an event, which the home
-thread's streak alerts on the desktop."""
+Code that the list's message needs, so its decision is an event, whose failing wake alerts."""
 
 
 def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
@@ -426,8 +425,8 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
     in `UNLISTED`, which is an event of the home thread."""
     for one, said in deciding(run, listed):
         key, slug = _keyed(one)
-        listed_one = one["kind"] not in UNLISTED
-        decide(run.box, slug, key, said, _reply(run.project, one), listed=listed_one)
+        carried = one["kind"] not in UNLISTED
+        decide(run.box, slug, key, said, _reply(run.project, one), listed=carried)
 
 
 def _raise(half: Half) -> None:

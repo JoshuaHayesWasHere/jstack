@@ -85,17 +85,10 @@ def kept(items: list[Item], seen: dict[str, Any], told: list[Item], at: str) -> 
     return record | {one.key: {"at": at, "wrong": one.wrong} for one in told}
 
 
-def told_to(record: Any, thread: str) -> dict[str, dict[str, str]]:
-    """What the one list told the thread, by item key, each as `{"at", "wrong"}`, from the record
-    `tell` keeps in `FILE`, `{"threads": {<thread>: {<key>: ...}}, "tests": ...}`."""
-    threads = record.get("threads") if isinstance(record, dict) else None
-    kept = (threads or {}).get(thread) if isinstance(threads, dict) else None
-    return {key: one for key, one in (kept or {}).items() if isinstance(one, dict)}
-
-
-def told(state_dir: Path, thread: str, key: str) -> str:
-    """When the one list told the thread of the item with this key, or nothing."""
-    return str(told_to(read_json(state_dir / FILE, {}), thread).get(key, {}).get("at") or "")
+def told_to(record: dict[str, Any], thread: str) -> dict[str, dict[str, str]]:
+    """What the one list told the thread, by item key, from the record `tell` keeps in `FILE`:
+    `{"threads": {<thread>: {<key>: {"at", "wrong"}}}, "tests": {<run id>: <its tests>}}`."""
+    return (record.get("threads") or {}).get(thread) or {}
 
 
 @dataclass(frozen=True)
@@ -222,12 +215,10 @@ def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
     read yet is on the list for no one this pass (`_Tests`), so what it causes still folds into
     it."""
     wrongs = [one for one in found.once(state.wrongs) if one["owner"] != state.USER and one["to"]]
-    keys, lines, reds = [], {}, {}
-    unread = set()
+    keys, lines, reds, unread = [], {}, {}, set()
     for one in wrongs:
         failing = tests.of(_url(found, one)) if tests and one["kind"] == "ci" else []
-        if failing is None:
-            unread.add(len(keys))
+        unread |= {len(keys)} if failing is None else set()
         keys.append(red_key(failing) if failing else state.key_of(one).rsplit("|", 1)[0])
         lines[f"{one['kind']} {one['subj']}: {one['cause']}"] = keys[-1]
         if one["kind"] == "ci":
@@ -258,19 +249,16 @@ def root_of(run: Pass) -> str:
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that the root home passes on: each item of the list that the user
     has to decide (`blockers.deciding`), but for a kind in `blockers.UNLISTED`. A row to approve
-    is caused by the home whose brief it is."""
-    root = root_of(run)
-    if not root:
-        return []
-    items = []
+    is caused by the home whose brief it is. With no root home, they wake no one."""
+    root, items = root_of(run), []
     for one, said in blockers.deciding(run, listed):
         if one["kind"] in blockers.UNLISTED:
             continue
-        by = ""
-        if one["kind"] == "approve":
-            brief = run.home / "tasks" / f"{one['slug']}.md"
-            text = brief.read_text(errors="replace") if brief.exists() else ""
-            by = thread_of(homes.home_of(run.home, text)) if text else ""
+        brief = run.home / "tasks" / f"{one.get('slug')}.md"
+        text = (
+            brief.read_text(errors="replace") if one["kind"] == "approve" and brief.exists() else ""
+        )
+        by = thread_of(homes.home_of(run.home, text)) if text else ""
         items.append(Item(key=one["key"], to=root, line=said, row=one.get("slug") or "", by=by))
     return items
 

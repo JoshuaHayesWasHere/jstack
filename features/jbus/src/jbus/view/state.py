@@ -1683,7 +1683,7 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
     key = key_of(one)
     from jbus import wakes
 
-    for told in wakes.told_to(read.table(wakes.FILE), one["to"]).values():
+    for told in wakes.told_to(read.table(wakes.FILE) or {}, one["to"]).values():
         if told.get("wrong") == key and when(told.get("at")):
             return {"told": when(told["at"]), "what": wakes.KIND}
     sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]

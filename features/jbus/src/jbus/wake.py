@@ -316,14 +316,13 @@ class Box:
                 if key in sent:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
-            if made["loud"] == "user" and not listed:
+            queued = made["loud"] == "user" and not listed
+            if queued:
                 self.home.folder.mkdir(parents=True, exist_ok=True)
                 waiting = [*self._outbox(), made]
                 write_json(self.home.folder / "outbox.json", waiting, mode=0o600)
             took = {"event": kind, "slug": slug, "loud": made["loud"], "line": line}
-            self._log(
-                id=_id(made), **took, text=made["text"], owed=made["loud"] != "user" or listed
-            )
+            self._log(id=_id(made), **took, text=made["text"], owed=not queued)
         return True
 
     def record(self, kind: str, line: str, text: str = "", **more: Any) -> None:

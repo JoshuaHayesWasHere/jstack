@@ -27,8 +27,6 @@ crewmate and `jmerge` also use.
   empty until it did.
 - `why` is why the row is the user's at once, or empty. The reasons are that its home has no
   thread, or that T3 Code lists that thread as settled or does not list it.
-- `stalled` is when the one list told the root home that the row's home had not closed it, or
-  empty. A new `Left:` text keeps it, so jbus raises a row once.
 - `text` is what its home is told.
 - `busy` is true when a thread was at work on the row in the last pass, so the row waits on
   that thread.
@@ -36,8 +34,8 @@ crewmate and `jmerge` also use.
 `his` says whose a leftover is: a home's while `his` returns nothing, and the user's with
 the reason `his` gives. A leftover is the user's when it has a `why`, while jbus has told no
 home. Once `CLOSE_MINUTES` have passed since jbus told the home, it is an item of the root home's
-too, keyed `left-late:<slug>` (`raised`): it reaches the user only where no root home is listed to
-tell (`NO_ROOT`). The list of what waits on the user
+too, keyed `left-late <slug>: <left>` (`raised`): it reaches the user only where no root home is
+listed to tell (`NO_ROOT`). The list of what waits on the user
 (`waiting.left`) and the view read the same record. The pass that writes the list judges
 every row on it, so each record the list reads has `told` or `why`.
 
@@ -74,7 +72,6 @@ UNLISTED = "its home's thread {thread} is not one T3 Code lists as not settled"
 UNSEEN = "its home is not told yet: T3 Code did not list the threads that are out"
 LATE = "its home, thread {thread}, has not closed it {minutes} min after jbus told it"
 NO_ROOT = LATE + ", and no root home is listed to tell"
-LATE_KIND = "leftover-late"
 RAISED = (
     "jbus: {slug} ended with something left, and {late}. It is the root home's now: {user} is "
     "not asked.\n\n"
@@ -129,9 +126,13 @@ class Record:
     thread: str = ""
     told: str = ""
     why: str = ""
-    stalled: str = ""
     busy: bool = False
     text: str = ""
+
+
+def _known(one: dict[str, Any]) -> dict[str, Any]:
+    """A record's fields this `Record` has, as one written before `stalled` went still has it."""
+    return {key: value for key, value in one.items() if key in Record.__dataclass_fields__}
 
 
 def path(state: Path) -> Path:
@@ -143,7 +144,7 @@ def read(state: Path) -> dict[str, Record]:
     the file."""
     kept = read_json(path(state), {})
     try:
-        return {slug: Record(**one) for slug, one in kept.items()}
+        return {slug: Record(**_known(one)) for slug, one in kept.items()}
     except (AttributeError, TypeError):
         return {}
 
@@ -256,12 +257,13 @@ def _judge(
 ) -> Record:
     """Return a leftover's record after this pass. The record says whether the home or the user
     has the leftover."""
-    from jbus.wakes import told
+    from jbus import wakes
 
     thread = home_thread(run, brief)
     if not thread:
         return replace(record, why=NO_HOME)
-    at = told(run.state, thread, key_of(slug, record.left))
+    told = wakes.told_to(read_json(run.state / wakes.FILE, {}), thread)
+    at = told.get(key_of(slug, record.left), {}).get("at", "")
     if out is None:
         return replace(record, told=at) if at else replace(record, why=UNSEEN)
     if thread not in out:
@@ -273,8 +275,7 @@ def _judge(
     root = thread_of(run.home)
     if not root or root not in out:
         return replace(record, why=NO_ROOT.format(thread=thread, minutes=CLOSE_MINUTES))
-    raised_at = told(run.state, root, key_of(slug, record.left, "left-late"))
-    return replace(record, stalled=raised_at or record.stalled)
+    return record
 
 
 def tell(
@@ -305,7 +306,7 @@ def tell(
             continue
         before = was.get(slug)
         same = before is not None and before.left == text
-        record = before if same else Record(text, stalled=before.stalled if before else "")
+        record = before if same else Record(text)
         if slug in open_now:
             record = _judge(run, world, slug, brief, record, ids)
         kept[slug] = replace(record, busy=slug not in open_now)
