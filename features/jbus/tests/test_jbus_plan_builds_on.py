@@ -177,5 +177,5 @@ def test_a_scoped_entry_whose_builds_on_names_a_merged_entry_wakes_its_own_home(
     kitchen.poll(later(5))
     (said,) = briefs(kitchen, scoped)
     assert "- brief jview/bot-feed: bot-authority merged" in said
-    assert "--scope jview" in said
+    assert "the jview home's plan" in said
     assert briefs(kitchen, root) == []

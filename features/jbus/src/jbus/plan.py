@@ -29,6 +29,11 @@ the entry that has not launched waits for the user's go again, and a launched on
 
 A go that holds over an entry whose rows are all over is owed (`owed`): the user said go and
 nothing is queued, so its home is woken to queue the next row or close the entry.
+
+An entry that waits on other work says so on its `Builds on:` line, as a brief does
+(`jbriefs.chains.builds_on`), and never in its `Decisions:` prose. Once every row or entry the
+line names has merged and the entry has no row of its own, it is ready to brief (`buildable`):
+its home is woken to brief it and queue its first row.
 """
 
 from __future__ import annotations
@@ -44,6 +49,7 @@ from typing import Any
 
 import jsettings
 from jbriefs import home as homes
+from jbriefs.chains import builds_on
 from jbus import Config, Refused, locked, queue, read_json, t3, verbs, write_json
 
 LINE, STATUS = 56, 60
@@ -55,12 +61,13 @@ _SCOPE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 class Entry:
     """An `Entry` is one `## <slug>: <one line>` section of a plan. `stage` is what its
     `Stage:` line says, and `typed` is the whole `Status:` line of a plan from before. Either
-    may be empty."""
+    may be empty. `builds_on` is each row or entry its `Builds on:` line names."""
 
     slug: str
     line: str
     stage: str
     typed: str
+    builds_on: frozenset[str] = frozenset()
 
 
 def entries(text: str) -> list[Entry]:
@@ -75,11 +82,11 @@ def entries(text: str) -> list[Entry]:
             if heading:
                 found.append(Entry(heading["slug"], heading["line"].strip(), "", ""))
         elif inside and line.startswith("Stage:") and not found[-1].stage:
-            one = found[-1]
-            found[-1] = Entry(one.slug, one.line, line.removeprefix("Stage:").strip(), one.typed)
+            found[-1] = replace(found[-1], stage=line.removeprefix("Stage:").strip())
         elif inside and line.startswith("Status:") and not found[-1].typed:
-            one = found[-1]
-            found[-1] = Entry(one.slug, one.line, one.stage, line.strip())
+            found[-1] = replace(found[-1], typed=line.strip())
+        elif inside and line.startswith("Builds on:") and not found[-1].builds_on:
+            found[-1] = replace(found[-1], builds_on=builds_on(line))
     return found
 
 
@@ -443,7 +450,58 @@ def owed(state: Path, home: Path, rows: list[queue.Row]) -> list[Go]:
 def owed_key(made: Go) -> str:
     """The key of an owed entry on the one list: `owed <scope>/<entry>`, or `owed <entry>` for an
     entry of the root home's plan."""
-    return f"owed {made.scope}/{made.entry}" if made.scope else f"owed {made.entry}"
+    return _key("owed", made.scope, made.entry)
+
+
+def _key(word: str, scope: str, entry: str) -> str:
+    return f"{word} {scope}/{entry}" if scope else f"{word} {entry}"
+
+
+@dataclass(frozen=True)
+class Buildable:
+    """An entry of the plan of `scope` (empty for the root home's) that is ready to brief: the
+    rows or entries its `Builds on:` line names, `merged`, have all merged, and it has no row."""
+
+    scope: str
+    entry: str
+    merged: tuple[str, ...]
+
+    def key(self) -> str:
+        """Its key on the one list: `brief <scope>/<entry>`, or `brief <entry>` for the root's."""
+        return _key("brief", self.scope, self.entry)
+
+
+def merged(slug: str, rows: list[queue.Row]) -> bool:
+    """Return whether the row `slug` merged, or, where no row has that slug, whether the entry
+    `slug` has rows, every one of them final and one merged."""
+    named = [row for row in rows if row["slug"] == slug]
+    if named:
+        return named[0].get("status") == "merged"
+    mine = [row.get("status") for row in rows_of(slug, rows)]
+    return bool(mine) and all(word in queue.FINAL for word in mine) and "merged" in mine
+
+
+def buildable(home: Path, rows: list[queue.Row]) -> list[Buildable]:
+    """Return each entry of the root home's plan and of each scope's that is ready to brief: it
+    has a `Builds on:` line whose rows or entries have all merged, no row of its own (a scout's
+    included), and a stage other than `parked`. Each is an item of the one list that wakes the
+    entry's home (`jbus.wakes`), and it leaves the list on the entry's first row."""
+    found = []
+    for directory in [home, *(scope for scope, _, _ in homes.scopes(home))]:
+        try:
+            text = (directory / "plan.md").read_text()
+        except OSError:
+            continue
+        for one in entries(text):
+            if (
+                one.builds_on
+                and one.stage != "parked"
+                and not rows_of(one.slug, rows)
+                and all(merged(other, rows) for other in one.builds_on)
+            ):
+                scope = _scope(home, directory)
+                found.append(Buildable(scope, one.slug, tuple(sorted(one.builds_on))))
+    return found
 
 
 STEPS = (verbs.Step("before-watch", 9, "plan.entered", _entered),)

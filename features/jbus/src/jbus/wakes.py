@@ -1,8 +1,9 @@
 """A home is woken from one list: the open items it owns that are new to it since its last wake.
 
 The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
-(`blockers.deciding`), the leftovers a home has (`jbus.leftover`) and the entries whose go holds
-with no live row (`jbus.plan.owed`). An item's key has no run and no time in it: a red's failing
+(`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
+with no live row (`jbus.plan.owed`) and the entries whose `Builds on:` merged with no row
+(`jbus.plan.buildable`). An item's key has no run and no time in it: a red's failing
 tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes the items
 one home thread owns that are new to it, less those its own thread caused and those whose cause is
 another open item, unless the row is that item's fix.
@@ -51,6 +52,11 @@ OWED = (
     "is queued for the rest. Queue its next row (`jbus queue add <slug> --entry {entry}`, a "
     "scout's if it needs design, `--depends` for what it waits on), or close it with `jbus plan "
     "close {entry}{scope}` once nothing is left to do."
+)
+BRIEF = (
+    "The entry {entry} of {plan} builds on {merged}, which merged, and has no row. Brief it and "
+    "queue its first row (`jbus queue add <slug> --entry {entry}`, a scout's if it needs design, "
+    "`--depends` for what it still waits on), or change its `Builds on:` line if it waits on more."
 )
 OWED_LATE = "Its home, thread {thread}, has not done either in {minutes} min since jbus told it."
 _QUOTED = re.compile(r'\bjbus "([^"]+)"')
@@ -315,13 +321,30 @@ def owed_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     return items
 
 
+def brief_items(run: Pass) -> list[Item]:
+    """The entries ready to brief (`plan.buildable`), each the item of its home's thread."""
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        return []
+    root, items = root_of(run), []
+    for made in plan.buildable(run.home, rows):
+        merged = ", ".join(made.merged)
+        where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
+        text = BRIEF.format(entry=made.entry, plan=where, merged=merged)
+        line = f"{made.key()}: {merged} merged"
+        thread = thread_of(run.home / made.scope) or root
+        items.append(Item(key=made.key(), to=thread, line=line, row=made.entry, text=text))
+    return items
+
+
 def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     """Send each home thread, at most once a pass, the open items it owns that are new to it."""
     record = read_json(run.state / FILE, {})
     tests = _Tests(run, record.get("tests", {}))
     found = read(run)
     items = wrong_items(found, tests) + need_items(run, listed) + left_items(run)
-    items += owed_items(run, record)
+    items += owed_items(run, record) + brief_items(run)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)
