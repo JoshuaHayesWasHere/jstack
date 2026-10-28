@@ -84,11 +84,15 @@ def test_a_chromium_that_draws_no_png_leaves_the_out_as_it_was(
 
 
 @pytest.mark.parametrize(
-    ("home", "asked"),
-    [("jview", "#/?stage=crew&home=demo/jview"), ("other/x", "#/?stage=crew&home=other/x")],
+    ("route", "home", "asked"),
+    [
+        ("#/?stage=crew", "jview", "#/?stage=crew&home=demo/jview"),
+        ("#/?stage=crew", "other/x", "#/?stage=crew&home=other/x"),
+        ("#/", "jview", "#/?home=demo/jview"),
+    ],
 )
 def test_a_home_is_named_by_its_project_and_home(
-    served, kitchen, tmp_path, monkeypatch, home, asked
+    served, kitchen, tmp_path, monkeypatch, route, home, asked
 ):
     fake = tmp_path / "fake"
     fake.mkdir()
@@ -98,7 +102,7 @@ def test_a_home_is_named_by_its_project_and_home(
     monkeypatch.setenv("PATH", f"{fake}:/usr/bin:/bin")
     out = tmp_path / "shot.png"
     code, _ = kitchen.main(
-        "view-shot", "#/?stage=crew", "--home", home, "--out", str(out), "--port", str(served.port)
+        "view-shot", route, "--home", home, "--out", str(out), "--port", str(served.port)
     )
     assert code == 1
     assert pages.read_text() == f"http://127.0.0.1:{served.port}/{asked}\n"
