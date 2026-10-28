@@ -1,6 +1,6 @@
 ---- MODULE HomeTreeToday ----
-\* Today's code, at the branch hometree-rules, which adds the four guards of the design to main
-\* 64859143. A child home is a scoped home (home/scoped-homes.md), the root is the repo's root
+\* Today's code, as of main 859203e0 (2026-10-27): the branch hometree-rules gave main 64859143 the
+\* four guards of the design, and its cites follow the code since. A child home is a scoped home (home/scoped-homes.md), the root is the repo's root
 \* home, and jbus's pass is the root's check. Each condition of a step names the file and line
 \* that checks it, and quotes the code there in backticks: jbus/ is features/jbus/src/jbus/,
 \* jmerge/ is features/jmerge/src/jmerge/, jbriefs/ is features/jbriefs/src/jbriefs/, and home/
@@ -48,8 +48,9 @@ PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* A check turns red or a review goes stale (jmerge/cli.py:918 `ready.short_on_github(`,
-\* jmerge/cli.py:899 `ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
+\* A check turns red or a review goes stale (jmerge/cli.py:918
+\* `short = short or ready.short_on_github(`, jmerge/cli.py:899
+\* `short = short or ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
 \* judges it again. A merge it had begun fails at the head it checked, and its run gives the merge
 \* lock back as it returns (jmerge/cli.py:1326 `lock.give()`).
 PrDrops(k) ==

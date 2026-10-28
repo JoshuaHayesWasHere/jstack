@@ -52,24 +52,50 @@ QUOTE = re.compile(r"([\w./-]+\.(?:py|md)):(\d+(?:-\d+)?)\s*`([^`]+)`")
 """A citation of HomeTreeToday.tla with the code it quotes: `jbus/children.py:184 `...``."""
 
 
-def test_each_quote_of_the_code_model_is_on_the_lines_it_cites():
-    """Each `file:line` the code model quotes holds the quoted text on those lines, so a quote
-    the code has moved off or changed fails here, also where no Java runs TLC."""
+def quoted():
+    """Each quote of HomeTreeToday.tla: its file and span as cited, the quote, and the lines."""
     text = (SPEC / "HomeTreeToday.tla").read_text()
     flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
     files = subprocess.run(
         ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True
     ).stdout.split()
-    quotes = QUOTE.findall(flat)
-    assert len(quotes) > 40
-    stale = []
-    for path, span, quote in quotes:
+    for path, span, quote in QUOTE.findall(flat):
         (found,) = [one for one in files if one.endswith(f"/{path}")]
         first, _, last = span.partition("-")
         lines = (REPO / found).read_text().splitlines()[int(first) - 1 : int(last or first)]
+        yield path, span, quote, lines
+
+
+def test_each_quote_of_the_code_model_is_on_the_lines_it_cites():
+    """Each `file:line` the code model quotes holds the quoted text on those lines, so a quote
+    the code has moved off or changed fails here, also where no Java runs TLC."""
+    quotes = list(quoted())
+    assert len(quotes) > 40
+    stale = []
+    for path, span, quote, lines in quotes:
         if " ".join(quote.split()) not in " ".join(" ".join(lines).split()):
             stale.append(f"{path}:{span} `{quote}`")
     assert stale == []
+
+
+STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
+OR = re.compile(r"\bor\b")
+
+
+def disjuncts(code):
+    """How many `or`s the Python text holds outside its string literals."""
+    return len(OR.findall(STRING.sub("", code)))
+
+
+def test_a_quote_of_one_python_line_holds_each_or_on_it():
+    """A quote of one line of Python names a condition, and holds every `or` that line holds, so
+    a disjunct the code gains fails here until the model takes it in. A span quotes a block."""
+    short = [
+        f"{path}:{span} `{quote}`"
+        for path, span, quote, (line, *_) in quoted()
+        if path.endswith(".py") and span.isdigit() and disjuncts(quote) != disjuncts(line)
+    ]
+    assert short == []
 
 
 def test_the_runs_are_every_rule_in_every_scene_of_the_design_every_canary_and_today():
