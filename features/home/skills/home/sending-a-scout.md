@@ -23,6 +23,7 @@ When in doubt between the two, any one of the durable column's conditions decide
    It is approved as any row is, the entry's go included, and waits on its `--depends` as any row does.
    A pass launches it as `scout: <slug>` with the message `/scout <slug>`, in the project's own checkout and with no branch, writes the request back to `scouts/<slug>.md` with its `Thread:` line, and marks the row done once its Report says `Status: done`.
    `jbus queue show` lists it with `scout` in its `role` column, and the view shows it.
+   Once its Report says done, `jbus queue add <slug>` of the brief it delivered at `tasks/<slug>.md` makes the row the crewmate's, with no go.
 
 Anyone who is not this home, an expert bot included, asks for a durable scout the same way.
 A durable scout gets the check of the machine before its launch, as a crewmate does: the pass makes it.

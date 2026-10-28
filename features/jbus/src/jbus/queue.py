@@ -610,6 +610,20 @@ def role(row: Row) -> str:
     return row.get("role") or CREW
 
 
+def _handed(row: Row, made: str) -> bool:
+    """Return whether a crewmate's brief takes the row over: the row is a scout's whose Report
+    says done (`over`), and the scout delivered the brief at its own slug."""
+    return made == CREW and role(row) == SCOUT and over(row)
+
+
+def _hand_over(row: Row) -> None:
+    """Make a scout's finished row a crewmate's: it is queued again with no go, since its go was
+    for the request and not the brief."""
+    for column in ("role", "approval", "rebound", "held"):
+        row.pop(column, None)
+    row.update(approved="", brief_sha="", **_blank())
+
+
 def requested(text: str) -> bool:
     """Return whether the text is a scout's request and not a crewmate's brief: its head has a
     `Request:` line and no `Task:` line."""
@@ -1361,14 +1375,16 @@ def _do(
         _twin(batch, verb)
         found = [row for row in rows if row["slug"] == verb.slug]
         made = SCOUT if requested(body(verb.text)) else CREW
-        if found and role(found[0]) != made:
+        handed = bool(found) and _handed(found[0], made)
+        if found and role(found[0]) != made and not handed:
             theirs, given = ("scout's", "crewmate's") if made == CREW else ("crewmate's", "scout's")
             raise Refused(
                 f"refused: {verb.slug} is a {theirs} row, and its brief is a {given}: a row keeps "
-                "the role it was queued with"
+                "the role it was queued with, but for a scout's row whose Report says done, which "
+                "the crewmate's brief it delivered takes over"
             )
         faults = _new_faults(
-            found[0] if found else None, batch.brief(verb.slug), verb.text, verb.slug
+            found[0] if found and not handed else None, batch.brief(verb.slug), verb.text, verb.slug
         )
         if faults:
             many = "1 fault" if len(faults) == 1 else f"{len(faults)} faults"
@@ -1378,6 +1394,8 @@ def _do(
         row = (
             found[0] if found else {"slug": verb.slug, "approved": "", "brief_sha": "", **_blank()}
         )
+        if handed:
+            _hand_over(row)
         if made == SCOUT:
             row["role"] = SCOUT
         if verb.item and row.get("item", verb.item) != verb.item:
@@ -1394,7 +1412,7 @@ def _do(
         kept = record(row)
         if was is not None and not _bound(row) and row.get("approved") and approved_text(row, was):
             row.update(brief_sha=brief_sha(was), rebound=fingerprint(was))
-        if not found or (kept and kept.basis == RULE):
+        if not found or handed or (kept and kept.basis == RULE):
             batch.queued.append(verb.slug)
         batch.added.append(verb.slug)
         if not found:

@@ -96,7 +96,8 @@ jbus queue approve <slug> --sha <sha12> --word <id>
 - **`add`** takes a text whose head has a `Request:` line and no `Task:` line as a scout's request, and keeps it as a row whose `role` is `scout`.
   It checks the request against `features/scout/templates/scout-request.md` in place of a brief's lints.
   It refuses a request with a line that only a crewmate's brief has (`Size:`, `Pull request:`), and names the line, and a request out of the template's shape.
-  A row keeps the role it was first queued with.
+  A row keeps the role it was first queued with, until its Report says done.
+  Then the crewmate's brief the scout delivered at its slug takes the row over, with no go, and the pass launches it as any crewmate's once it has one.
   `--depends` needs the request's `Builds on:` line to name the row, as a brief's does.
 - **The go** is a row's go: your word with `jbus queue approve`, or the go of the row's plan entry under `go = "entry"`.
   The follow-up rule approves no request.

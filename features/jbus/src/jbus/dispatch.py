@@ -71,14 +71,20 @@ def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
     return run.config.state_dir / "launches" / run.project.name / slug / f"{brief_sha[:12]}.json"
 
 
-def records(run: Pass, slug: str) -> list[tuple[Path, dict[str, Any]]]:
+def records(run: Pass, slug: str, role: str = "") -> list[tuple[Path, dict[str, Any]]]:
+    """Return the slug's launch records, oldest first, or with `role` only those of that role: a
+    crewmate's record has no `role`, a scout's says `scout`."""
     directory = run.config.state_dir / "launches" / run.project.name / slug
-    return [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
+    found = [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
+    return [one for one in found if not role or (one[1].get("role") or queue.CREW) == role]
 
 
-def launched(run: Pass, slug: str) -> str:
-    """Return the thread id of the slug's launch, or nothing if it has none."""
-    return next((r["thread"] for _, r in reversed(records(run, slug)) if r.get("thread")), "")
+def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
+    """Return the thread id of the slug's launch of `role`, or nothing if it has none. A scout's
+    row taken over by the crewmate's brief it delivered keeps the scout's record beside the
+    crewmate's."""
+    found = records(run, slug, role)
+    return next((r["thread"] for _, r in reversed(found) if r.get("thread")), "")
 
 
 def write_thread(

@@ -238,6 +238,41 @@ def test_a_scout_row_is_done_on_its_report_and_a_row_that_depends_on_it_then_lau
     assert "crew: build" in [one["title"] for one in kitchen.t3.launches]
 
 
+def test_the_brief_a_scout_delivers_at_its_slug_takes_over_its_row_once_its_report_is_done(kitchen):
+    kitchen.config(max_running=8)
+    add(kitchen, "look", "--entry", "epic")
+    go(kitchen, "look")
+    kitchen.poll()
+    code, said = kitchen.main("queue", "add", "look", "--priority", "1", stdin=brief("look"))
+    assert code == 1
+    assert said.startswith("refused: look is a scout's row, and its brief is a crewmate's")
+
+    reported(kitchen, "look")
+    scout_thread(kitchen, "look")["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert rows(kitchen)["look"]["status"] == "done"
+    code, said = kitchen.main("queue", "add", "look", "--priority", "1", stdin=brief("look"))
+
+    assert code == 0, said
+    (row,) = queue.load(kitchen.state)
+    assert queue.role(row) == queue.CREW
+    assert (row["approved"], row["status"], row["thread"], row["entry"]) == (
+        "",
+        "queued",
+        "",
+        "epic",
+    )
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert [one["title"] for one in kitchen.t3.launches] == ["scout: look"]
+    assert go(kitchen, "look")[0] == 0
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert [one["title"] for one in kitchen.t3.launches] == ["scout: look", "crew: look"]
+    assert rows(kitchen)["look"]["status"] == "launched"
+    crew = [t for t in kitchen.t3.threads if t["title"] == "crew: look"][0]
+    assert rows(kitchen)["look"]["thread"] == crew["threadId"]
+    assert (kitchen.home / "scouts" / "look.md").exists()
+
+
 def test_a_request_whose_title_changed_after_its_go_does_not_launch(kitchen):
     add(kitchen, "alpha")
     go(kitchen, "alpha")

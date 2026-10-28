@@ -144,7 +144,7 @@ def _launch(half: Any) -> None:
         slug = row["slug"]
         if slug in run.removed:
             continue
-        records = dispatch.records(run, slug)
+        records = dispatch.records(run, slug, queue.SCOUT)
         if any(record.get("thread") for _, record in records):
             continue
         if records:
