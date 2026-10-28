@@ -344,7 +344,7 @@ def _plan(args: argparse.Namespace, config: Config) -> int:
         print(close(where, args.entry, rows))
         return 0
     if args.verb == "go":
-        print("\n".join(go(config, state, home, where, args.entry, args.message)))
+        print("\n".join(go(config, state, home, where, args.entry, args.message, rows)))
         return 0
     if args.verb == "stop":
         print("\n".join(stop(config.user, state, home, scope, args.entry)))
@@ -354,15 +354,29 @@ def _plan(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def go(config: Config, state: Path, home: Path, where: Path, entry: str, message: str) -> list[str]:
+def go(
+    config: Config,
+    state: Path,
+    home: Path,
+    where: Path,
+    entry: str,
+    message: str,
+    rows: list[queue.Row],
+) -> list[str]:
     """Keep the user's message as the go of the entry, bound to its head now, and approve the
-    rows of the entry that wait for a go. Refuse an entry the plan does not have, and a message
+    rows of the entry that wait for a go. Refuse an entry the plan does not have, an entry with
+    no queue row in any status, so no go is kept with nothing queued under it, and a message
     that is not the user's own (`t3.heard`)."""
     if not message:
         raise Refused("refused: go needs the user's word: --message <thread id>/<message id>")
     bound = head(where.read_text(), entry)
     if not bound:
         raise Refused(f"refused: {where} has no entry {entry}")
+    if not rows_of(entry, rows):
+        raise Refused(
+            f"refused: {entry} has no queue row: queue its first row, a scout's if it needs "
+            "design (--depends for what it waits on), then give the go"
+        )
     heard = t3.heard(config, message)
     made = Go(
         entry,

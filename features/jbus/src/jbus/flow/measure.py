@@ -49,6 +49,9 @@ OWN_CHECK = "check"
 """The check jbus's `checks` column follows. Another check a pull request needs (`borders`) is
 not in that column, so a row whose checks passed and that waits on another is waiting on a
 check nothing reports, not working."""
+UNTIMED = ("cancelled", "skipped", "queued", "in_progress", "waiting", "requested", "pending")
+"""A run's conclusion, or status, that does not time a check: a newer push cancels a pull
+request's check, a skipped one ran nothing, and one not finished has no end yet."""
 REASONS = (
     (r"main is red|^\S+ is red at|is red at \w+: its latest", "main red"),
     (r"fails on \w+ over today's main|over today's main", "fails over today's main"),
@@ -704,9 +707,9 @@ def _no_job(run: Run) -> bool:
 
 def ci(found_runs: list[Run]) -> dict:
     """Return, for each repo, its runs, their conclusions, reruns, and the queue and run time
-    of their jobs, on GitHub's runners and on self-hosted ones. A run's own `run_started_at` is its
-    creation, not a runner's start, so a job's queue is known only with `--jobs`, or from the
-    jobs `jbus ci` kept (`ledger_jobs`)."""
+    of their jobs, on GitHub's runners and self-hosted ones, and the time of a pull request's
+    finished `check` from its start to its last update. A run's `run_started_at` is its creation,
+    not a runner's start, so a job's queue is known only with `--jobs`, or from `ledger_jobs`."""
     said = {}
     by: defaultdict[str, list[Run]] = defaultdict(list)
     for run in found_runs:
@@ -716,6 +719,15 @@ def ci(found_runs: list[Run]) -> dict:
         queued = [q for one in each for q in one.queued]
         hosted = [q for one in each for q, h in zip(one.queued, one.hosted, strict=True) if h]
         ran = [r for one in each for r in one.ran]
+        checked = [
+            (one.updated - one.started).total_seconds()
+            for one in each
+            if one.workflow == OWN_CHECK
+            and one.event == "pull_request"
+            and one.started
+            and one.updated
+            and one.conclusion not in UNTIMED
+        ]
         said[repo] = {
             "runs": len(each),
             "failure": ends.get("failure", 0),
@@ -728,6 +740,9 @@ def ci(found_runs: list[Run]) -> dict:
             "queue_self_hosted_hours": round((sum(queued) - sum(hosted)) / 3600, 1),
             "run_hours": round(sum(ran) / 3600, 1),
             "run_median_s": _quantile(ran, 0.5),
+            "pr_checks": len(checked),
+            "pr_check_median_s": _quantile(checked, 0.5),
+            "pr_check_p90_s": _quantile(checked, 0.9),
         }
     return said
 

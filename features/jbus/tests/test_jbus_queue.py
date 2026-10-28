@@ -19,9 +19,9 @@ from test_machine_sizes import fake_proc
 AT = "2026-10-11 17:58 ET"
 HEAD = (
     "| slug | priority | depends | merge_after | approved | brief_sha | entry | status | thread "
-    "| pr | checks | updated | why | since |"
+    "| pr | checks | updated | why | since | role |"
 )
-RULE = "|" + " --- |" * 14
+RULE = "|" + " --- |" * 15
 SINCE = "since 2026-10-12 11:00 ET"
 NO_BASIS = (
     "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
@@ -132,8 +132,8 @@ def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(
     assert said.splitlines() == [
         HEAD,
         RULE,
-        f"| alpha | 1 |  |  | {GO} | {sha[:12]} |  | queued |  |  |  |  |  |  |",
-        "| beta | 2 | alpha, gamma |  |  |  |  | queued |  |  |  |  |  |  |",
+        f"| alpha | 1 |  |  | {GO} | {sha[:12]} |  | queued |  |  |  |  |  |  |  |",
+        "| beta | 2 | alpha, gamma |  |  |  |  | queued |  |  |  |  |  |  |  |",
     ]
     assert kitchen.main("queue", "hold", "alpha")[0] == 0
     assert (rows(kitchen)["alpha"]["approved"], rows(kitchen)["alpha"]["brief_sha"]) == ("", "")
@@ -498,11 +498,12 @@ def test_a_queue_event_holds_the_row_that_changed_and_what_changed_in_it(kitchen
     assert event["text"] == (
         "row-07: status queued -> running, thread (empty) -> mcp:thread-1\n\n"
         f"{HEAD}\n{RULE}\n"
-        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  | 2026-10-12 11:03 ET |  |  |\n"
+        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  "
+        "| 2026-10-12 11:03 ET |  |  |  |\n"
     )
     whole = table(kitchen)
-    assert whole.count("| row-") == 20 and len(whole) == 1989
-    assert event["text"].count("| row-") == 1 and len(event["text"]) == 372
+    assert whole.count("| row-") == 20 and len(whole) == 2062
+    assert event["text"].count("| row-") == 1 and len(event["text"]) == 388
 
 
 def test_a_removal_is_a_queue_event_of_the_row_that_went(kitchen):
@@ -516,7 +517,7 @@ def test_a_removal_is_a_queue_event_of_the_row_that_went(kitchen):
     )
     assert (
         event["text"]
-        == f"{HEAD}\n{RULE}\n| row-07 | 7 |  |  |  |  |  | queued |  |  |  |  |  |  |\n"
+        == f"{HEAD}\n{RULE}\n| row-07 | 7 |  |  |  |  |  | queued |  |  |  |  |  |  |  |\n"
     )
 
 

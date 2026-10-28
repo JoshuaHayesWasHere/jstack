@@ -40,7 +40,7 @@ takes a crew that a brief names on a `Thread:` line, and the homes in a `home-id
 home's and each scope's. `failover` goes through every project of the config, so this covers every
 jbus project. `failover` leaves alone a thread with nothing left to do: a crew whose task
 merged or ended clean, a reviewer whose task is over and whose brief's last Review has a
-verdict, a scout whose Report is written.
+verdict, a scout whose last Report says `Status: done`.
 
 `failover` handles each failed run once. After it queues the carry-on, it keeps the run's
 key, `failover|<thread>|<run>`, in `sent.json`. It keys a stall by the reset instead. A
@@ -174,9 +174,9 @@ def _over(run: Pass, world: World) -> dict[str, set[str]]:
     """Return, by role, the slugs whose threads have nothing left to do. The rule is the one
     jbus settles threads by (`threads.finished`): a crew whose task merged or ended clean, a
     reviewer whose task is over and whose brief's last Review has a verdict, and a scout whose
-    Report is written and waits on nobody. A verdict alone does not finish a reviewer. A
-    verdict is what makes jbus launch a scoped or second-pass reviewer, and that new reviewer
-    still has its own pass to do."""
+    last Report says `Status: done` and waits on nobody. A verdict alone does not finish a
+    reviewer. A verdict is what makes jbus launch a scoped or second-pass reviewer, and that new
+    reviewer still has its own pass to do."""
     done = threads.finished(run, world)
     return {"crew": done["crew: "], "reviewer": done["review: "], "scout": done["scout: "]}
 

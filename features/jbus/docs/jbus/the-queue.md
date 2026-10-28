@@ -55,7 +55,7 @@ Each column has one writer.
 
 | Columns | Written by |
 |---|---|
-| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item` | `jbus queue add`, `approve`, `hold`, `remove`, `withdraw` and `rename`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item` and `merge_after`. `hold` sets `held`, and `approve` clears it. |
+| `slug`, `priority`, `depends`, `merge_after`, `approved`, `approval`, `brief_sha`, `held`, `entry`, `item`, `role` | `jbus queue add`, `approve`, `hold`, `remove`, `withdraw` and `rename`, run by a home, the Chef or you. The Chef never runs `remove`, since a removal needs your word. Only `add` writes `entry`, `item`, `merge_after` and `role`, which is `scout` for a scout's request ([What a pass launches](what-a-pass-launches.md#a-scout)) and empty for a crewmate's brief. `hold` sets `held`, and `approve` clears it. |
 | `status`, `thread`, `pr`, `checks`, `updated` | A pass, from T3 Code and GitHub. No command takes one, and a pass rewrites a hand edit. |
 
 `jbus queue apply` reads a batch on stdin, one verb to a line.

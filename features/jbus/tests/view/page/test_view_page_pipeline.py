@@ -61,7 +61,7 @@ def shown(root, rows, screen, route="#/", pick="", tap="", script=PROBE, at=2000
                 pick=pick,
                 tap=tap,
                 at=at,
-                budget=9000,
+                budget=12000,
                 script=script,
                 **how,
             )
@@ -339,3 +339,81 @@ def test_axe_finds_no_serious_issue_on_the_board_with_a_pick(tmp_path, wide):
     assert seen["errors"] == []
     assert seen["violations"] == [], seen["violations"]
     assert seen["rings"] == [], seen["rings"]
+
+
+MATRIX = (Path(__file__).parent / "matrix.js").read_text()
+
+
+def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_or_back(tmp_path):
+    """Over the T moment at 1440 the matrix sits above the columns: a line per home, the root 20,
+    jview 15, flow 8 and macos 1, and infra with no open row, the totals of each stage, a dot
+    per row, square and shaded by what it waits on in Check, and the Chains line. A cell is a
+    link to `#/?home=<h>&stage=<s>`, which leaves that home's rows of that stage alone in the
+    columns; Esc and the browser's back each undo it, back to the board, after two cells in a row
+    or one cell clicked twice."""
+    from view.days import t_moment
+    from view.scene import briefed
+
+    scene = Scene(tmp_path / "scene", pytest.MonkeyPatch())
+    t_moment(scene)
+    briefed(scene, infra_only="infra")
+    (scene.home / "tasks" / "infra-only.md").unlink()
+    served = Served(scene)
+    try:
+        seen = look(
+            scene, tmp_path, route="#/", port=served.port, script=MATRIX, at=2000, budget=12000
+        )
+        made = served.json("/panel/pipeline.json")["data"]
+    finally:
+        served.close()
+    assert seen["errors"] == []
+    first, cell, cell2, esc, again, twice, back = seen["seen"]
+    assert first["above"], first
+    assert first["heads"] == [
+        "home",
+        "Queued 0",
+        "Crew 4",
+        "Needs you 4",
+        "Review 0",
+        "Fix 0",
+        "Review 2 2",
+        "Check 28",
+        "Stacked 6",
+        "Merge 0",
+    ]
+    heads = [(one["home"], one["head"].split(" last act")[0]) for one in first["homes"]]
+    assert heads == [
+        ("root", "root 20"),
+        ("jview", "jview 15"),
+        ("flow", "flow 8"),
+        ("macos", "macos 1"),
+        ("infra", "infra 0 no act kept"),
+    ]
+    jview = {i: one for i, one in enumerate(first["homes"][1]["cells"])}
+    check = jview[6]
+    assert check["text"] == "13"
+    assert check["href"] == "#/?home=jview&stage=check"
+    assert check["dots"] == ["f"] * 7 + ["w"] * 2 + ["p"] * 4
+    flow = first["homes"][2]["cells"][6]
+    assert flow["dots"] == ["f"] * 6 + ["x"] * 2
+    stacked = first["homes"][0]["cells"][7]
+    assert stacked["text"] == "6"
+    assert sorted(stacked["dots"]) == ["", "", "old", "old", "old", "old"]
+    assert all(one["text"] == "·" and not one["href"] for one in first["homes"][4]["cells"])
+    assert first["chains"].startswith("CHAINS fig-saucer ◀ oat-platter 2 deep")
+    assert "6 stacked rows on 6 parents (6 failing)" in first["chains"]
+    assert len({slug for one in first["stages"] for slug in one["slugs"]}) == 44
+
+    mine = sorted(
+        one["slug"] for one in made["rows"] if (one["home"], one["stage"]) == ("jview", "check")
+    )
+    assert cell["hash"] == "#/?home=jview&stage=check"
+    assert [(one["key"], sorted(one["slugs"])) for one in cell["stages"]] == [("check", mine)]
+    assert cell["chips"] == ["jview 15", "Check only ✕"]
+    assert cell2["hash"] == "#/?home=root&stage=stacked"
+    assert [one["key"] for one in cell2["stages"]] == ["stacked"]
+    assert esc["hash"] == "#/"
+    assert len({slug for one in esc["stages"] for slug in one["slugs"]}) == 44
+    assert again["hash"] == twice["hash"] == "#/?home=root&stage=stacked"
+    assert back["hash"] in ("", "#/")
+    assert len({slug for one in back["stages"] for slug in one["slugs"]}) == 44

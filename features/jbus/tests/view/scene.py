@@ -1189,6 +1189,7 @@ def piped(scene):
             row("tea-cup", depends=["tea-pot"], why="depends on tea-pot", since=stamp(25)),
             row("tea-saucer", depends=["tea-cup"], why="depends on tea-cup", since=stamp(20)),
             row("ux-look-pr", "pr", pr="#31", value="check", why="wait: check has not passed"),
+            row("look", "running", thread="mcp:look", role="scout", since=stamp(45)),
             row(
                 "cleanup-ux-look-pr",
                 "running",
@@ -1219,8 +1220,8 @@ def piped(scene):
     )
     (scene.home / "integration").write_text("release/mac\n")
     requested(scene, look=REQUEST.format(slug="look") + "Home: jview\n")
-    launch = {"state": "launched", "thread": "mcp:look", "at": iso(ago(minutes=45))}
-    scene.write("scouts.json", [{"slug": "look", "launch": launch}])
+    (scene.state / "briefs").mkdir(exist_ok=True)
+    (scene.state / "briefs" / "look.md").write_text(REQUEST.format(slug="look") + "Home: jview\n")
     scene.passed(
         20,
         threads=[out("crew: tea-pot"), out("crew: cleanup-ux-look-pr")],

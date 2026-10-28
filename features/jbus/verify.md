@@ -69,7 +69,7 @@ A red main files the brief for its fix (`main-red`):
 - Run `jbus queue show` to read the table.
 - Run `jbus poll` for one pass.
   On the live machine, the systemd timer runs it.
-- Run `jbus scout add <slug>` with the request on stdin, `jbus scout approve <slug> --sha <12 characters> --word <id>`, and `jbus scout show`.
+- Run `jbus queue add <slug> --priority <n>` with a scout's request on stdin, `jbus queue approve <slug> --sha <12 characters> --word <id>`, and `jbus queue show`.
 - Run `jbus gate <slug>` with the gate's lines on stdin, from the project's repo.
 - Run `jbus done <slug>` with the result's lines on stdin.
 - Run `jbus poll` for one pass.
@@ -120,31 +120,32 @@ Preconditions:
 - **Write the request.**
   Write a request in the shape of `features/scout/templates/scout-request.md` to `$VERIFY_JSTACK_SANDBOX/alpha.md`, with these lines: a first line `# alpha: <what to find out>`, a `Request:` line, a `Questions:` list, a `Deliver:` list, `Playbook: none` and `Out of bounds: read-only. <what it must not do>`.
 - **Add it.**
-  Run `record scout-path jbus --project demo scout add alpha < "$VERIFY_JSTACK_SANDBOX/alpha.md"`.
-  It prints `added alpha: request <12 characters>, waits for a go`, and the request is in `$HOME/.local/state/home/demo/scouts/alpha.md`.
+  Run `record scout-path jbus --project demo queue add alpha --priority 1 < "$VERIFY_JSTACK_SANDBOX/alpha.md"`.
+  The table has one row, `alpha`, with `scout` in its `role` column and `approved` empty, and the request is in `$JBUS_STATE_DIR/demo/briefs/alpha.md`.
 - **Try a crewmate's line.**
-  Pipe in a request with a `Task:` line, as `printf '# beta: x\nTask: "do it"\n' | record scout-path jbus --project demo scout add beta`.
-  It exits 1 and names `a Task: line, which only a crewmate's brief has`, and no `scouts/beta.md` is written.
+  Pipe in a request with a `Size:` line, as `{ cat "$VERIFY_JSTACK_SANDBOX/alpha.md" | sed 's/^# alpha:/# beta:/'; echo 'Size: S'; } | record scout-path jbus --project demo queue add beta --priority 1`.
+  It exits 1 and names `a Size: line, which only a crewmate's brief has`, and no `beta` row is added.
 - **Keep a word, and approve.**
-  Run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `record scout-path jbus --project demo scout approve alpha --sha <the 12 characters> --word <the id>`.
-  It prints `approved alpha: request <12 characters>, your word, ...`.
+  Run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)` and `record scout-path jbus --project demo queue approve alpha --sha "$sha" --word <the id>`.
+  The row's `approved` reads `your word, ...`.
 - **Pass.**
   Run `record scout-path jbus poll`.
   It prints `launched scout alpha: mcp:sandbox-thread-1`.
 - **Check the launch itself.**
   Run `record scout-path jq -c 'select(.tool == "t3_thread_launch") | .arguments' "$VERIFY_JSTACK_SANDBOX/t3/calls.jsonl"`.
   There is one line, titled `scout: alpha`, with the message `/scout alpha` and the workspace `{"type": "root"}`, and `t3/threads.json` gives its thread the branch `null`.
+  The request is in `$HOME/.local/state/home/demo/scouts/alpha.md`, with the line `Thread: mcp:sandbox-thread-1` added.
 - **Check the repo.**
   Run `record scout-path git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format='%(refname)'`.
   It lists `main` and the origin's refs, and no other branch.
 - **Pass again, and read the table.**
-  Run `record scout-path jbus poll`, then `record scout-path jbus --project demo scout show`.
-  Nothing more launches, and the row reads `| alpha | launched | none | mcp:sandbox-thread-1 | ...`.
+  Run `record scout-path jbus poll`, then `record scout-path jbus --project demo queue show`.
+  Nothing more launches, and the row is `running`, with `thread` `mcp:sandbox-thread-1`.
 - **Write a Report.**
-  Append `## Report` with `Status: done` to the request, then run `record scout-path jbus --project demo scout show`.
-  The row's report reads `reported`.
+  Append `## Report` with `Status: done` to `scouts/alpha.md`, run `record scout-path jbus poll`, then `record scout-path jbus --project demo queue show --all`.
+  The row's `status` is `done`.
 - **Proof.**
-  Copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/scouts.json` into `$VERIFY_JSTACK_EVIDENCE`.
+  Copy `t3/calls.jsonl`, `t3/threads.json`, the request and `$JBUS_STATE_DIR/demo/queue.json` into `$VERIFY_JSTACK_EVIDENCE`.
 
 ### A decision wakes the home thread
 

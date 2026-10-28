@@ -9,16 +9,17 @@ is the crew's, which carries on, and a hold jbus does not list is the merge's. O
 `running`, who holds the task decides (`RUNNING_BY_WHO`), and a hung, waiting or lost thread is
 the crew's still, since jbus lists no such thread as the user's. A task on no step the view
 knows is `unplaced`. A task on the step `check` whose outcome is `stacked` (`checked.outcome`),
-a pull request that merges after its parent row, is in `stacked` and not in `check`. A scout of
-`scouts.json` is in `scout` from its launch until its request has a Report (`state.request`).
-`merged` is a count of what merged today, into the default branch or an integration branch
-alike, and has no rows: a row merged is done as far as the queue goes, whatever branch it merged
-into.
+a pull request that merges after its parent row, is in `stacked` and not in `check`. A scout's
+row (`queue.role`) is in `scout` from its launch until its request has a Report
+(`state.request`). `merged` is a count of what merged today, into the default branch or an
+integration branch alike, and has no rows: a row merged is done as far as the queue goes,
+whatever branch it merged into.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its
-`cause_kind` is the value the last pass judged (`work.VALUES`). Its `wait` is what a row in
-`check` or `stacked` waits on, the outcome `checked.outcome` gives it (`failing`, `waiting`,
-`passed`, `stacked`, or None where it has none), and None for a row in any other stage. Its
+`cause_kind` is the value the last pass judged (`work.VALUES`). Its `wait` is what a row on the
+step `check` waits on, the outcome `checked.outcome` gives it (`failing`, `waiting`, `passed`,
+`stacked`, or None where it has none), in `check`, in `stacked` and in `you` alike, so a stacked
+row the user holds still counts as stacked, and None for a row on any other step. Its
 `home` is its brief's, as `homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names
 no home, as a cleanup brief names none, is the root's, `root`, whatever rows it links to.
 
@@ -29,10 +30,22 @@ more than the deepest row it waits on, and head is that row's head, the oldest a
 rows of a loop count as one row: each has the loop's depth and head, and a loop that waits on
 nothing outside it is depth 1, with its oldest row as head.
 
+`homes` gives each home of each project its row of the stage x home matrix: the root first, then
+each scope (`homes.Homes.scopes`), a scope with no open row included, and any other home a row
+names, the one with the most open rows first and by name among equals. Each has `open`, how
+many rows the board places in it, its `last` act (`state.acts`, the newest whose home it is),
+and a cell for each stage a row can be in (`CELLS`):
+`count`, the `oldest` row, `old`, how many have a `since` `OLD` or more ago, and `waits`, how
+many of its rows wait on each outcome of `checked.OUTCOMES`, as each row's `wait` gives it.
+
 `stuck` is the stage with the most rows not moving, the first in order among equals.
 `longest_wait` is the row not moving that came to its stage first. `longest` is the deepest
 chain: of the deepest rows, the one that has waited longest, then the one earliest in the
-process, and its head. `chains` counts the heads that another row waits back to.
+process, and its head. `path` is that chain from its head to that row, each step back the oldest
+row it waits on that is one less deep, or a row of its loop, and it stops short of the head
+where neither is left. `chains` counts the heads that another row
+waits back to. `stacked` counts the rows in `stacked` and the rows they merge after, their
+parents, with how many parents wait on each outcome of `checked.OUTCOMES`.
 
 `build` gives one project, `stack` every project jbus keeps. The panel is `ALONE`: `/stack.json`
 leaves it out, and `/panel/pipeline.json` with no project answers what `stack` gives
@@ -42,13 +55,12 @@ leaves it out, and `/panel/pipeline.json` with no project answers what `stack` g
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
-import jbus
-from jbus import scouts
+from jbus import queue
 from jbus.view import cause as causes
 from jbus.view import checked
-from jbus.view.homes import ROOT
 from jbus.view.state import (
     MOVES_FILE,
     PASS_FILE,
@@ -59,10 +71,8 @@ from jbus.view.state import (
     WORK_FILE,
     Read,
     iso,
-    kept,
     request,
     text,
-    when,
 )
 
 FIRST = False
@@ -95,9 +105,9 @@ STAGE_OF_STEP = {
     "merged": "merged",
 }
 RUNNING_BY_WHO = {"rev": "review"}
-WAITS = ("check", "stacked")
 ROOT_NAME = "root"
 LINKS = ("depends", "merge_after")
+OLD = timedelta(hours=1)
 _ORDER = {key: at for at, (key, _) in enumerate(STAGES)}
 if missed := set(STEP) - {UNKNOWN.key} - set(STAGE_OF_STEP):
     raise ValueError(f"no stage for the steps {sorted(missed)}: add each to STAGE_OF_STEP")
@@ -105,6 +115,8 @@ if wrong := {*STAGE_OF_STEP.values(), *RUNNING_BY_WHO.values()} - set(_ORDER):
     raise ValueError(f"{sorted(wrong)} are no stage of STAGES")
 
 _AT = {"slug": None, "project": None, "since": None}
+CELLS = tuple(key for key, _ in STAGES if key != "merged")
+CELL = {"count": None, "oldest": _AT, "old": None, "waits": checked.SHAPE}
 BOARD = {
     "at": None,
     "stages": [
@@ -138,17 +150,20 @@ BOARD = {
         "head_stage": None,
         "head_cause": None,
         "chains": None,
+        "path": [None],
     },
+    "homes": [
+        {
+            "project": None,
+            "name": None,
+            "open": None,
+            "last": {"at": None, "what": None},
+            "cells": dict.fromkeys(CELLS, CELL),
+        }
+    ],
+    "stacked": {"rows": None, "parents": None, "waits": checked.SHAPE},
 }
 SHAPE = BOARD
-
-
-def _scouted(read: Read) -> list[dict[str, Any]] | None:
-    """The rows of `scouts.json`, or None where the file does not parse."""
-    try:
-        return scouts.load(read.state)
-    except jbus.Refused:
-        return None
 
 
 SOURCES = (
@@ -157,7 +172,6 @@ SOURCES = (
     QUEUE_FILE,
     MOVES_FILE,
     WAITING_FILE,
-    kept(scouts.NAME, lambda read: read.once(_scouted), 45),
 )
 
 
@@ -211,6 +225,10 @@ def cards(read: Read) -> list[Card]:
         row = rows.get(task["slug"], {})
         links = tuple((one, kind) for kind in LINKS for one in row.get(kind) or [] if one in tasks)
         stage = _stage(task, needs)
+        kind = (task.get("state") or {}).get("kind") or UNKNOWN.key
+        if _researching(read, row) and stage != "you":
+            said = causes.Cause("scout researching, no Report yet", task["since"], True)
+            stage, kind = "scout", "scout"
         made.append(
             Card(
                 task["slug"],
@@ -219,22 +237,19 @@ def cards(read: Read) -> list[Card]:
                 stage,
                 task["since"],
                 said,
-                (task.get("state") or {}).get("kind") or UNKNOWN.key,
+                kind,
                 links,
-                checked.outcome(task) if stage in WAITS else None,
+                checked.outcome(task) if task["step"] == checked.STEP else None,
             )
         )
-    for one in read.once(_scouted) or []:
-        launch = one.get("launch") or {}
-        slug = one["slug"]
-        if not launch.get("thread") or request(read.home, slug)["state"] != "researching":
-            continue
-        since = when(launch.get("at"))
-        owner = read.homes.of_slug(slug, "scouts")
-        home = owner.name if owner is not None and owner.name != ROOT else ROOT_NAME
-        said = causes.Cause("scout researching, no Report yet", since, True)
-        made.append(Card(slug, read.name, home, "scout", since, said, "scout"))
     return made
+
+
+def _researching(read: Read, row: dict[str, Any]) -> bool:
+    """Whether a row is a scout's that launched and whose request has no Report yet."""
+    if queue.role(row) != queue.SCOUT or not row.get("thread"):
+        return False
+    return request(read.home, row["slug"])["state"] == "researching"
 
 
 def _chains(every: list[Card]) -> dict[tuple[str, str], tuple[int, tuple[str, str]]]:
@@ -282,6 +297,84 @@ def _at(card: Card | None) -> dict[str, Any] | None:
     return card and {"slug": card.slug, "project": card.project, "since": card.since}
 
 
+def _old(card: Card, now: datetime) -> bool:
+    """Whether the card's `since` is `OLD` or more before `now`."""
+    return card.since is not None and datetime.fromisoformat(card.since) <= now - OLD
+
+
+def _cell(mine: list[Card], now: datetime) -> dict[str, Any]:
+    waits = [card.wait for card in mine]
+    return {
+        "count": len(mine),
+        "oldest": _at(min(mine, key=_older, default=None)),
+        "old": sum(1 for card in mine if _old(card, now)),
+        "waits": {one: waits.count(one) for one in checked.OUTCOMES},
+    }
+
+
+def _homes(read: Read, placed: list[Card], now: datetime) -> list[dict[str, Any]]:
+    """The project's row of the matrix for each of its homes, in the order `homes` names."""
+    mine = [card for card in placed if card.project == read.name]
+    scopes = [one.name for one, _, _ in read.homes.scopes]
+    names = {ROOT_NAME, *scopes, *(card.home for card in mine)} - {ROOT_NAME}
+    count = {name: sum(1 for card in mine if card.home == name) for name in names}
+    names = [ROOT_NAME, *sorted(names, key=lambda name: (-count[name], name))]
+    last = {one["home"] or ROOT_NAME: one for one in read.acts if one["home"] is not None}
+    found = []
+    for name in names:
+        rows = [card for card in mine if card.home == name]
+        act = last.get(name)
+        found.append(
+            {
+                "project": read.name,
+                "name": name,
+                "open": len(rows),
+                "last": act and {"at": act["at"], "what": act["what"]},
+                "cells": {
+                    key: _cell([card for card in rows if card.stage == key], now) for key in CELLS
+                },
+            }
+        )
+    return found
+
+
+def _path(chains: dict[tuple[str, str], tuple[int, tuple[str, str]]], by, tail: Card) -> list[str]:
+    """The chain from its head to `tail`: each step back is the oldest row it waits on that is
+    one less deep with the same head, or, inside a loop, a row of the loop not yet taken."""
+    head = chains[tail.key][1]
+    path, at, seen = [tail], tail, {tail.key}
+    while at.key != head:
+        depth = chains[at.key][0]
+        ups = [by[(at.project, slug)] for slug, _ in at.waits_on]
+        ups = [up for up in ups if up.key not in seen and chains[up.key][1] == head]
+        ups = [up for up in ups if chains[up.key][0] == depth - 1] or [
+            up for up in ups if chains[up.key][0] == depth
+        ]
+        if not ups:
+            break
+        at = min(ups, key=lambda up: (_older(up), up.key))
+        seen.add(at.key)
+        path.append(at)
+    return [card.slug for card in reversed(path)]
+
+
+def _stacked(placed: list[Card], by: dict[tuple[str, str], Card]) -> dict[str, Any]:
+    """The rows in `stacked`, their parents, and what the parents wait on."""
+    rows = [card for card in placed if card.stage == "stacked"]
+    parents = {
+        (card.project, slug)
+        for card in rows
+        for slug, kind in card.waits_on
+        if kind == "merge_after"
+    }
+    waits = [by[key].wait for key in parents if key in by]
+    return {
+        "rows": len(rows),
+        "parents": len(parents),
+        "waits": {one: waits.count(one) for one in checked.OUTCOMES},
+    }
+
+
 def board(reads: list[Read], now: Any) -> dict[str, Any]:
     """The board of every project of `reads` at `now`."""
     every = [card for read in reads for card in read.once(cards)]
@@ -327,6 +420,7 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
             "head_stage": top.stage,
             "head_cause": top.cause.text,
             "chains": len(heads),
+            "path": _path(chains, by, deepest),
         }
     return {
         "at": iso(now),
@@ -368,6 +462,8 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
             "cause": text(first.cause.text, 300),
         },
         "longest": longest,
+        "homes": [one for read in reads for one in _homes(read, placed, now)],
+        "stacked": _stacked(placed, by),
     }
 
 
