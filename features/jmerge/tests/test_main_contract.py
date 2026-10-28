@@ -31,11 +31,9 @@ GREEN, RED, NEWER = "a" * 40, "b" * 40, "d" * 40
 
 def _filled(template):
     """A reason with each value it names filled in. Each value is a word with no space or
-    comma, as a user, a head or a path is. The values that a stale check needs are the
-    exception, and they come from `ready` itself."""
-    filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
+    comma, as a user, a head or a path is."""
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
-    return template.format(**{name: filled.get(name, "x1") for name in fields})
+    return template.format(**{name: "x1" for name in fields})
 
 
 REASONS = {name: (_filled(reason), reason.step) for name, reason in ready.reasons().items()}

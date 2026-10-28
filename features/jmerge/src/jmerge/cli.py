@@ -808,7 +808,7 @@ class Repo:
             return "", tip, ""
         path = ready.guarded_path(one, self.guarded, left)
         if path:
-            short = ready.short_on_main(stale, one.started, one.base, "a rebase", user=self.user)
+            short = ready.short_on_main(stale, one.started, one.base, rebase=True, user=self.user)
             return f"guarded (touches {path}), {short}", "", ""
         asks = self.merged is not None and self.merged.command
         if not asks and not own:
@@ -1348,7 +1348,7 @@ class Repo:
             self.numbers_on.clear()
             again_judged = self.waits(one, self.trunk or one.base)
             if again_judged.judged is None:
-                return f"{again_judged.verb} {number} {one.url}: {again_judged.why}"
+                return lines.waits(again_judged.verb, number, one.url, again_judged.why)
             rebase, judged = again_judged.note, again_judged.judged
         else:
             return lines.waits("wait", number, one.url, ready.MERGING)
@@ -1958,13 +1958,14 @@ def main(argv: list[str] | None = None) -> int:
             print(output, end="", flush=True)
         if not args.check and state.is_dir():
             waits = str(said.number) if said and said.word in ("wait", "hold") else ""
+            kept = lines.logged(line)
             if waits:
                 last = jbus.read_dict(state / "merge.log.last")
-                if last.get(waits) == line:
+                if last.get(waits) == kept:
                     return
-                last[waits] = line
+                last[waits] = kept
             with (state / "merge.log").open("a", encoding="utf-8") as log:
-                log.write(f"{now:%Y-%m-%d %H:%M} {line}\n{output}")
+                log.write(f"{now:%Y-%m-%d %H:%M} {kept}\n{output}")
             if waits:
                 jbus.write_json(state / "merge.log.last", last)
 

@@ -949,7 +949,7 @@ def test_a_pull_request_that_waits_is_left_and_logged(merged):
     line = f"wait 7 {URL}: {NOT_PASSED}"
     assert merged.run() == [line]
     assert merged.untouched()
-    assert [logged.split(" ", 2)[2] for logged in merged.log()] == [line]
+    assert [logged.split(" ", 2)[2] for logged in merged.log()] == [f"{line} [not-passed]"]
 
 
 def test_a_check_cancelled_and_then_run_again_to_a_pass_is_green(merged):
@@ -1068,8 +1068,9 @@ def test_each_line_is_logged_as_it_is_printed_not_at_the_end(merged):
     assert said[0] == f"wait 6 {URL[:-1]}6: no brief has a Result that names it"
     assert said[1].startswith("merged 7 alpha ")
     at_the_merge = (merged.home.stub / "log-at-merge").read_text().splitlines()
-    assert [logged.split(" ", 2)[2] for logged in at_the_merge] == said[:1]
-    assert [logged.split(" ", 2)[2] for logged in merged.log()] == said
+    waited = f"{said[0]} [no-brief]"
+    assert [logged.split(" ", 2)[2] for logged in at_the_merge] == [waited]
+    assert [logged.split(" ", 2)[2] for logged in merged.log()] == [waited, said[1]]
 
 
 OFF = f"wait 7 {URL}: auto-merge is off for this repo"

@@ -177,7 +177,7 @@ Check ==
 \* ---- merging: jbus alone, every home's pull request, one merge at a time
 
 \* jbus runs jmerge on each pass whatever home-thread holds, so it judges every home's pull
-\* request, and mode plays no part (jbus/merge.py:147 `ran = run.run("jmerge",
+\* request, and mode plays no part (jbus/merge.py:125 `ran = run.run("jmerge",
 \* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py:1906-1907
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==

@@ -31,12 +31,24 @@ _VALUE = ".+"
 
 
 class Reason(str):
-    step: str
+    """A reason `jmerge` gives for a pull request that does not merge: its text, the step it
+    puts the pull request on, and its code. The code is the fixed name a `wait` or `hold` line
+    carries beside the text (`lines.waits`), the constant's name in kebab case, so a reader
+    tells one reason from another without reading the text. `format` keeps the step and the
+    code, so a filled-in reason still says which one it is: `NOT_PASSED` and `CHECK_FAILED`
+    read alike and differ only in their code."""
 
-    def __new__(cls, step: str, text: str) -> Reason:
+    step: str
+    code: str = ""
+
+    def __new__(cls, step: str, text: str, code: str = "") -> Reason:
         made = super().__new__(cls, text)
         made.step = step
+        made.code = code
         return made
+
+    def format(self, *args: object, **kwargs: object) -> Reason:
+        return Reason(self.step, super().format(*args, **kwargs), self.code)
 
     @property
     def pattern(self) -> str:
@@ -48,6 +60,54 @@ class Reason(str):
 
 def reasons() -> dict[str, Reason]:
     return {name: value for name, value in globals().items() if isinstance(value, Reason)}
+
+
+UNKNOWN = "unknown"
+"""The code of a reason that no rule of `rules` names: the view shows it in its Unknown lane."""
+ELSEWHERE = (
+    ("no-proof", "proof", r"no proven safety fact"),
+    ("patch-changed", "second", r"the rebase changed the patch after"),
+    ("needs-rebase", "rebase", r"needs a rebase"),
+    ("check-unfinished", "check", r"check has not finished"),
+    ("fresh-check", "check", r"fresh check"),
+    ("unfetched", "check", r"could not be fetched"),
+    ("rules-behind", "check", r"jmerge's own rules"),
+    ("head-moved", "findings", r"^its head moved after"),
+    ("findings-unended", "findings", r"^\d+ of its \d+ findings have no Finding line"),
+)
+"""The code, step and pattern of each reason `jmerge` writes as plain text, from outside
+`Reason` (its run, its proof and its range-diff), and of the reasons an older `jmerge` wrote,
+which a log may still have."""
+_GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
+
+
+def rules() -> tuple[tuple[str, str, str], ...]:
+    """The `(code, step, pattern)` of each reason `jmerge` writes, in the order `code_of` tries
+    them: `ELSEWHERE` first, then each `Reason` in the order this module declares it. Each
+    pattern matches from the start of the reason. `ELSEWHERE` comes first so that the plain
+    text of a reason no `Reason` made is on its own step."""
+    return ELSEWHERE + tuple((one.code, one.step, "^" + one.pattern) for one in reasons().values())
+
+
+def code_of(why: str) -> str:
+    """The code of a reason: a `Reason`'s own, and for plain text the code of the first rule of
+    `rules` whose pattern matches it, past a `guarded (touches <path>), ` before it. A line
+    from before the codes is read this way too. `UNKNOWN` where no rule names it."""
+    if isinstance(why, Reason) and why.code:
+        return why.code
+    reason = _GUARDED.sub("", why)
+    return next((code for code, _, pattern in rules() if re.search(pattern, reason)), UNKNOWN)
+
+
+def codes() -> frozenset[str]:
+    """Every code a line can carry: each rule's, and `UNKNOWN`."""
+    return frozenset(code for code, _, _ in rules()) | {UNKNOWN}
+
+
+def step_of(code: str) -> str:
+    """The step a code puts a pull request on, or nothing for `UNKNOWN`, `other-home`, and a
+    code no rule has."""
+    return next((step for one, step, _ in rules() if one == code), "")
 
 
 OTHER_HOME = Reason("", "another home's")
@@ -138,6 +198,7 @@ CONTENT_CHANGED = Reason(
     "the rebase changed the content after its review; scoped review of {command}",
 )
 NOT_PASSED = Reason("check", "{check} has not passed")
+CHECK_FAILED = Reason("check", "{check} has not passed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
@@ -148,9 +209,12 @@ NO_START = Reason("check", "its check has no start time")
 NOT_SEEN = Reason("second", "its head is not the one its review saw")
 MAIN_CHANGED = Reason(
     "check",
-    "{default} changed {paths} after its check started at {since}; it needs {needs}",
+    "{default} changed {paths} after its check started at {since}; it needs a fresh check",
 )
-FRESH_CHECK = "a fresh check"
+MAIN_CHANGED_REBASE = Reason(
+    "rebase",
+    "{default} changed {paths} after its check started at {since}; it needs a rebase",
+)
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 NO_GO = Reason(
     "hold",
@@ -978,7 +1042,8 @@ def short_on_github(one: PullRequest) -> str:
     if one.waiting and one.waiting[0] in one.unrun:
         return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
     if one.waiting:
-        return NOT_PASSED.format(check=one.waiting[0])
+        failed = one.waiting[0] in one.failed
+        return (CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])
     if one.mergeable == "MERGEABLE":
         return ""
     if one.mergeable == "CONFLICTING":
@@ -1143,14 +1208,15 @@ def short_on_main(
     stale: tuple[str, ...],
     since: datetime,
     default: str = "main",
-    needs: str = FRESH_CHECK,
+    rebase: bool = False,
     *,
     user: Settings,
 ) -> str:
     if not stale:
         return ""
     paths = _first_five(stale)
-    return MAIN_CHANGED.format(default=default, paths=paths, since=user.clock(since), needs=needs)
+    reason = MAIN_CHANGED_REBASE if rebase else MAIN_CHANGED
+    return reason.format(default=default, paths=paths, since=user.clock(since))
 
 
 def related_note(stale: tuple[str, ...]) -> str:
@@ -1200,3 +1266,12 @@ def browser(rollup: list[dict]) -> str:
         if one.get("state") in going or one.get("status") not in ("COMPLETED", None):
             return BROWSER_PENDING
     return ""
+
+
+def _name_codes() -> None:
+    """Give each `Reason` its code: its name in lower case, words joined by `-`."""
+    for name, reason in reasons().items():
+        reason.code = name.lower().replace("_", "-")
+
+
+_name_codes()

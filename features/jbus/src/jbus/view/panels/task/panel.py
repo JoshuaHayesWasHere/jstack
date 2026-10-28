@@ -47,7 +47,7 @@ _TASK = {
     "thread": None,
     "gone": None,
     "depends": [{"slug": None, "state": None}],
-    "history": [{"at": None, "word": None, "step": None, "reason": None}],
+    "history": [{"at": None, "word": None, "step": None, "code": None, "reason": None}],
     "events": [_EVENT],
     "seen": {
         "threads": None,

@@ -187,18 +187,16 @@ def test_a_jmerge_that_stops_for_another_reason_is_still_said_on_each_pass(kitch
 
 
 STEPS = {name: reason.step for name, reason in ready.reasons().items()}
-WORDS = {"REQUIRED", "RULES", "GRAMMAR", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "FRESH_CHECK"}
+WORDS = {"REQUIRED", "RULES", "GRAMMAR", "KEPT", "PASSED", "FAILED", "TIMED_OUT", "UNKNOWN"}
 WORDS |= {"REVIEW", "NONE", "AFTER", "TWICE"}
 WORDS |= {"BROWSER", "BROWSER_FAILED", "BROWSER_PENDING"}
 
 
 def _filled(template):
     """Return a reason with each value it names filled in. A value is a word with no space or
-    comma, like a user, a head or a path. The one exception is the value that a stale check
-    needs, which comes from `ready` itself."""
-    filled = {"needs": getattr(ready, "FRESH_CHECK", "")}
+    comma, like a user, a head or a path."""
     fields = {name for _, name, _, _ in string.Formatter().parse(template) if name}
-    return template.format(**{name: filled.get(name, "x1") for name in fields})
+    return template.format(**{name: "x1" for name in fields})
 
 
 def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
@@ -207,8 +205,8 @@ def test_each_reason_jmerge_names_is_on_the_step_the_rules_give_it():
     earlier rule takes for another step, and on a constant that is no `Reason` and no word.
     `WORDS` are the strings that `ready` names but that are not reasons: the checks' names, the
     rules' path, the section that has the lists' grammar, the words of a note and of a local
-    check's result, the four review modes a brief's `Review:` line says, and the states of a
-    browser run.
+    check's result, the code of a reason no rule names, the four review modes a brief's
+    `Review:` line says, and the states of a browser run.
 
     One reason is on no step, and the view shows it as Unknown and tells no home: `OTHER_HOME`,
     a pull request of another home, which that home's own view places. `DRAFT` is a pull request
@@ -377,7 +375,7 @@ def test_a_row_the_view_cannot_place_is_told_to_its_home_once(kitchen):
     assert (sent["threadId"], sent["mode"]) == (home["threadId"], "queue")
     said = sent["message"]
     assert "alpha" in said and f"`wait: {UNPLACED}`" in said
-    assert "`merge.rules` in features/jbus/src/jbus/merge.py has no rule for it" in said
+    assert "`rules` in features/jmerge/src/jmerge/ready.py has no rule for it" in said
     assert "Brief the fix" in said
     assert listed(kitchen, "unplaced") == [] and loud(kitchen) == []
     kitchen.set("jmerge.txt", f"wait 9 {PULL}: another reason nobody has printed\n")

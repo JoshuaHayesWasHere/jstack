@@ -5,6 +5,11 @@ the lines back with `parse`, or with `one` for a single line. So the format that
 prints and the format that jbus parses come from one module and always match. A line with
 no number after its word, such as `wait: could not ask GitHub`, is about no pull request,
 and `parse` skips it.
+
+`merge.log` keeps each `wait` or `hold` line with its reason's code at its end in brackets,
+`[not-passed]` (`logged`, `ready.code_of`), so a reader of the log tells why a pull request
+waits without reading the reason's text. A line as `jmerge` prints it has no code, nor does a
+line logged before the codes, and its reader goes by the text as before.
 """
 
 from __future__ import annotations
@@ -16,6 +21,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from jmerge.ready import code_of, codes
+
 
 def said(ran: subprocess.CompletedProcess[str]) -> str:
     """The last line a command printed, on stderr or else stdout, or its exit code: how `jmerge`,
@@ -26,6 +33,7 @@ def said(ran: subprocess.CompletedProcess[str]) -> str:
 
 Word = Literal["merged", "wait", "hold", "refused"]
 LINE = re.compile(r"^(merged|wait|hold|refused) (\d+)\b(?: (\S+)(?: (.+))?)?")
+CODED = re.compile(r"^(.+) \[([a-z]+(?:-[a-z]+)*)\]$")
 READY = re.compile(r"^ready (\d+) \S+ .*?, (safe because .+ \(proven at [0-9a-f]+\))$")
 GATE_OK = "gate: ok"
 
@@ -36,14 +44,16 @@ class Line:
 
     `word` is `merged`, `wait` or `hold`, or `refused` when `jmerge` refuses an accept.
     `name` is the word after the number. It is the pull request's URL, or the merged slug
-    without the comma that follows it. `reason` is what follows the colon. A line with no
-    name has neither a `name` nor a `reason`, and a line with no colon has no `reason`.
+    without the comma that follows it. `reason` is what follows the colon, and `code` is the
+    reason's code where `merge.log` wrote one (`logged`). A line with no name has neither a
+    `name` nor a `reason`, and a line with no colon has no `reason`.
     """
 
     word: Word
     number: int
     name: str = ""
     reason: str = ""
+    code: str = ""
 
 
 def one(text: str) -> Line | None:
@@ -55,6 +65,9 @@ def one(text: str) -> Line | None:
     word, number, name, rest = found.groups()
     word = cast(Word, word)
     if rest and len(name) > 1 and name.endswith(":"):
+        coded = CODED.match(rest) if word in ("wait", "hold") else None
+        if coded and coded[2] in codes():
+            return Line(word, int(number), name[:-1], coded[1], coded[2])
         return Line(word, int(number), name[:-1], rest)
     return Line(word, int(number), (name or "").rstrip(","))
 
@@ -64,10 +77,30 @@ def parse(text: str) -> list[Line]:
     return [line for line in map(one, text.splitlines()) if line]
 
 
-def waits(verb: Literal["wait", "hold"], number: int, url: str, why: str) -> str:
+class Waiting(str):
+    """A `wait` or `hold` line as `jmerge` prints it, which keeps its reason's code for the log
+    (`logged`): the text alone cannot tell a check that failed from one still running."""
+
+    code: str
+
+
+def waits(verb: Literal["wait", "hold"], number: int | str, url: str, why: str) -> str:
     """The line for a pull request that does not merge on this run, with the reason it does not
     merge."""
-    return f"{verb} {number} {url}: {why}"
+    made = Waiting(f"{verb} {number} {url}: {why}")
+    made.code = code_of(why)
+    return made
+
+
+def logged(line: str) -> str:
+    """A line as `merge.log` keeps it: a `wait` or `hold` about a pull request ends with its
+    reason's code in brackets, the one `waits` kept or else the one its text gives, and any
+    other line is as printed."""
+    said = one(line)
+    if said is None or said.word not in ("wait", "hold") or not said.reason:
+        return line
+    code = line.code if isinstance(line, Waiting) else code_of(said.reason)
+    return f"{line} [{code}]"
 
 
 def merged(number: int, slug: str, commit: str, title: str, notes: Sequence[str], url: str) -> str:

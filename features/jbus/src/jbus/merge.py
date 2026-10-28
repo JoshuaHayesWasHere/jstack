@@ -8,7 +8,7 @@ main's tip to its merge, so a hand run of the user's never merges between them e
 
 `parse`, which is `jmerge.lines.one`, reads each line `jmerge` prints about a pull request. `stall`
 and `watch` read the `Line` that `parse` returns, not the text. `rebase` still reads the text of a
-`wait` line on its own.
+`wait` line on its own. `step` goes by a reason's code where `merge.log` wrote one.
 
 A `hold` is the user's to lift, except the ones a crew can lift (`UNRULED`, and a merge gate
 that did not pass). `expedite` asks the crew to lift those first. This module sends the user
@@ -17,7 +17,7 @@ no line: `waiting` lists the holds that are the user's.
 A sweep is `jmerge`'s job too, and jbus only asks what a sweep would remove. The one command
 jbus runs for a sweep is `SWEEP`, which has `--check`.
 
-When no rule of `rules` names a pull request's reason, the pull request is on no step, and
+When no rule of `ready.rules` names a pull request's reason, the pull request is on no step, and
 the view shows it in the Unknown lane. `unplaced` then sends the row's home one queued
 message for each row and each reason text. The fix is a new rule, and a home writes the brief
 for a rule. The message is a quiet event. The row is not the user's, so it is not in
@@ -61,7 +61,7 @@ UNPLACED = "unplaced"
 OFF_STEP = (ready.OTHER_HOME,)
 TOLD = (
     "jbus: the view cannot place {slug}. jmerge said of its pull request #{number} `{said}`, "
-    "and `merge.rules` in features/jbus/src/jbus/merge.py has no rule for it, so it shows in the "
+    "and `rules` in features/jmerge/src/jmerge/ready.py has no rule for it, so it shows in the "
     "Unknown "
     "lane. Brief the fix and queue it: the reason as a named `Reason` in "
     "features/jmerge/src/jmerge/ready.py, which names the step it puts it on. {user} is not "
@@ -71,41 +71,19 @@ TOLD = (
 )
 
 
-ELSEWHERE = (
-    ("proof", r"no proven safety fact"),
-    ("second", r"the rebase changed the patch after"),
-    ("rebase", r"needs a rebase"),
-    ("check", r"check has not finished|fresh check|could not be fetched|jmerge's own rules"),
-    ("findings", r"^its head moved after"),
-    ("findings", r"^\d+ of its \d+ findings have no Finding line"),
-)
-_GUARDED = re.compile(r"^guarded \(touches [^)]*\), ")
-
-
-def rules() -> tuple[tuple[str, str], ...]:
-    """Return the `(step, pattern)` of each reason `jmerge` writes, in the order `step` tries
-    them: `ELSEWHERE` first, then each `ready.Reason` in the order `ready` declares it. Each
-    pattern matches from the start of the reason.
-
-    `ELSEWHERE` has the reasons `jmerge` writes from outside `ready` (its run, its proof and its
-    range-diff), and the reasons an older `jmerge` wrote, which a log may still have. `ELSEWHERE`
-    comes first so that a `ready.MAIN_CHANGED` reason with `it needs a rebase` is on the rebase
-    step. `jmerge` gives that reason for a guarded path."""
-    return ELSEWHERE + tuple((one.step, "^" + one.pattern) for one in ready.reasons().values())
-
-
-def step(said: str) -> str:
+def step(said: str, code: str = "") -> str:
     """Return the step a pull request waits on, read from the last line `jmerge` printed about it
-    (`<word>: <reason>`). A `hold` is on the `hold` step, and a `wait` is on the first step of
-    `rules` whose pattern matches its reason. Return nothing for a line with no reason, or for a
-    reason no rule names."""
+    (`<word>: <reason>`) and the reason's code where `merge.log` wrote one. A `hold` is on the
+    `hold` step, and a `wait` is on the step of its code (`ready.step_of`). A line with no code,
+    as `jmerge` prints it or as an older `merge.log` has it, takes the code its reason's text
+    gives (`ready.code_of`). Return nothing for a line with no reason, or for a reason no rule
+    names."""
     word, _, reason = said.partition(": ")
     if not reason:
         return ""
     if word == "hold":
         return "hold"
-    reason = _GUARDED.sub("", reason)
-    return next((step for step, pattern in rules() if re.search(pattern, reason)), "")
+    return ready.step_of(code or ready.code_of(reason))
 
 
 class Said(list[str]):
