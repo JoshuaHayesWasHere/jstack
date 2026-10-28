@@ -229,8 +229,8 @@ DERIVED = "queue.derive queue.load leftover.tell"
 ONCE = "work.write item.follow stall.tell waiting.keep questions.read waiting.cadence"
 JUDGED = ONCE.replace("questions.read", "questions.read questions.read")
 TELL = "wakes.tell queue.load questions.read"
-OWNED = JUDGED.replace("waiting.cadence", f"{TELL} questions.read waiting.cadence")
-WORDED = ONCE.replace("waiting.cadence", f"{TELL} waiting.cadence")
+OWNED = JUDGED.replace("waiting.cadence", f"{TELL} questions.read queue.load waiting.cadence")
+WORDED = ONCE.replace("waiting.cadence", f"{TELL} queue.load waiting.cadence")
 CLOSE = "Box.snapshot_due Box.sweep_owed alert.flush"
 AFTER = {
     "short": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
