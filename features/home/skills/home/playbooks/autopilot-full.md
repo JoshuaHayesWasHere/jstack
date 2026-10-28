@@ -20,7 +20,8 @@ Each section named below is in `skills/home/SKILL.md`.
    Put `Playbook: autopilot-full` in the head of `$M/plan.md`, above the first entry.
    Schedule nothing: the queue moves on messages, and jbus's pass is its cadence (`principles/principle-encode-lessons-in-structure.md`).
 3. Queue each entry's first row, by step 3 of "When a thread sends a message", and jbus launches each one that `room` lets start.
-   Entries that hold no file in common run at once, and one that needs another's change is queued with `--depends` on it (`principles/principle-separate-before-serializing-shared-state.md`).
+   Entries that hold no file in common run at once, and one whose code changes, calls or imports another's change is queued with `--depends` on it (`principles/principle-separate-before-serializing-shared-state.md`).
+   Entries of one plan layer are siblings: they queue unstacked, with `--merge-after` only where the order of the merges matters.
    Each brief carries the whole of its pull request: build, the pull request, its checks, its review, its fixes.
 4. Work each message as "When a thread sends a message" says, and nothing more. The verdict on a pull request is its reviewer's and the merge is `jmerge`'s: you read no diff and judge no change. When a pull request merges, the next entry that can start gets a fresh crewmate, never the thread that just finished.
 5. Clear this home's blockers each wake ("Clearing its own blockers").
