@@ -11,14 +11,14 @@ message each, under the key `reload|<commit 12>|<thread>`, marked in
 `reload|<commit 12>`, and a `merged` line printed again for it adds nothing. So a thread hears
 of a merge once, and a send that got no answer, or that the outbox held, goes on a later pass.
 A thread started after the merge loaded the new text and is not told. A thread whose title
-gives no role (`threads.OTHER`) is the user's own and is not told either.
+gives no role (`roles.OTHER`) is the user's own and is not told either.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from jbus import outbox, read_json, record, t3, threads, verbs, write_json
+from jbus import outbox, read_json, record, roles, t3, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.watch import when
@@ -75,13 +75,13 @@ def _told(run: Pass, client: Client, merge: dict[str, Any], out: list[dict[str, 
     every = True
     for thread in out:
         at, title = thread["threadId"], str(thread.get("title", ""))
-        role, slug = threads.role_of(title)
+        role, slug = roles.role_of(title)
         try:
             began = when(thread["createdAt"])
         except (KeyError, TypeError, ValueError):
             began = landed
         key = f"{TEMPLATE}|{commit[:12]}|{at}"
-        if role == threads.OTHER or began > landed or key in run.box.sent():
+        if role == roles.OTHER or began > landed or key in run.box.sent():
             continue
         try:
             went = outbox.send(

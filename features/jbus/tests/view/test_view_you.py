@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from jbus import questions, threads, waiting, work
+from jbus import questions, waiting, work
+from jbus import roles as threads
 from jbus.view.panels.you import panel as panel_you
 from jbus.view.panels.you.panel import ACTS, ANSWERS, APPROVES, OPENS, THREADS
 from test_jbus_kitchen import GATE as PIPED

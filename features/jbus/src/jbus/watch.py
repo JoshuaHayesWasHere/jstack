@@ -40,9 +40,9 @@ from typing import Any
 import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
-from jbus import Refused, budget, merge, queue, read_json, t3, verbs, work, write_json
+from jbus import Refused, budget, queue, read_json, t3, verbs, work, write_json
+from jbus.judged import Said, parse, step
 from jbus.launches import records
-from jbus.merge import Said, parse
 from jbus.mirror import last_result, sections
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error
@@ -504,10 +504,10 @@ def written(result: str) -> work.Written:
 
 def pull(world: World, slug: str, result: str, said: str) -> work.Pull:
     """Return the slug's pull request as the facet `Pull` has it. `said` is what `jmerge`
-    last said of an open one (`merge.step`). A `Branch:` line that ends on an address, with
+    last said of an open one (`jbus.judged.step`). A `Branch:` line that ends on an address, with
     neither an open nor a merged pull request under the slug, means that pull request closed."""
     if slug in world.open:
-        return work.Pull(merge.step(said) or work.Pull.OTHER)
+        return work.Pull(step(said) or work.Pull.OTHER)
     if slug in world.merged:
         return work.Pull.MERGED
     words = below.line(result, "Branch:").split()

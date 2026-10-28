@@ -25,7 +25,7 @@ Each pass reads every open pull request whose brief has the line and has not mov
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
-  reviewer the crew launched has written no review (`rebase.reviewing`), since a move would change
+  reviewer the crew launched has written no review (`review.reviewing`), since a move would change
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts or a push the lease refuses leaves the branch as it was.
   For each of those, jbus tells the crew to move its own commits instead, from the base's last
@@ -48,7 +48,7 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs import parse as briefs
-from jbus import END_TURN, dispatch, rebase, verbs
+from jbus import END_TURN, dispatch, rebase, review, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client
 from jbus.watch import World, against, task_brief
@@ -216,7 +216,7 @@ def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, on
     it was, with the reason said."""
     head, number = str(pull["headRefOid"]), pull["number"]
     branch = str(pull.get("headRefName") or slug)
-    if rebase.reviewing(task_brief(run, slug)):
+    if review.reviewing(task_brief(run, slug)):
         return _left(run, slug, "a reviewer it launched has written no review yet")
     crew = _worktree(run, branch)
     busy = _busy(run, crew, head) if crew else ""

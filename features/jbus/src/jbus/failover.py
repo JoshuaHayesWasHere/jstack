@@ -75,7 +75,7 @@ import jroles
 import jsettings
 from jbriefs import parse as briefs
 from jbriefs.home import ids, scopes
-from jbus import dispatch, outbox, threads, verbs
+from jbus import dispatch, outbox, roles, threads, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World
@@ -107,7 +107,7 @@ _NUMBER = re.compile(r",\s*\d+$")
 @dataclass(frozen=True)
 class Mover:
     """A `Mover` is a thread failover may move, with its role. `role` is its name in
-    `threads.ROLES` (`crew`, `reviewer`, `scout`, `home`). `slug` is the brief it
+    `roles.ROLES` (`crew`, `reviewer`, `scout`, `home`). `slug` is the brief it
     works on, and a home has none."""
 
     role: str
@@ -160,7 +160,7 @@ def movers(run: Pass, listed: list[dict[str, Any]]) -> dict[str, Mover]:
     found = {}
     for thread in listed:
         at = thread.get("threadId")
-        role, slug = threads.role_of(str(thread.get("title", "")))
+        role, slug = roles.role_of(str(thread.get("title", "")))
         if at in homes:
             found[at] = Mover("home")
         elif at in named:

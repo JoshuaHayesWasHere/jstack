@@ -29,7 +29,8 @@ from pathlib import Path
 import pytest
 
 import jbus
-from jbus import live, questions, record, threads, waiting, work
+from jbus import live, questions, record, waiting, work
+from jbus import roles as threads
 from jbus.view import state as built
 from jbus.view.panels.checks.panel import GITHUB_FRESH
 from test_jbus_kitchen import GATE as PIPED

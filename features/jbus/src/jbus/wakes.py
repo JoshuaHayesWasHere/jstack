@@ -38,8 +38,8 @@ from jbus import (
     write_json,
 )
 from jbus.passes import Pass
+from jbus.roles import ROLES
 from jbus.t3 import Client, T3Error
-from jbus.threads import ROLES
 from jbus.told import FILE, KIND, told_to
 from jbus.view import state
 from jbus.view.github import RUNS, shaped

@@ -120,8 +120,9 @@ from jbus import (
     work,
 )
 from jbus.live import LIVENESS, OUT
-from jbus.threads import OTHER, REPORT, ROLES
-from jbus.threads import shown as shown_roles
+from jbus.roles import OTHER, ROLES
+from jbus.roles import shown as shown_roles
+from jbus.threads import REPORT
 from jbus.told import FILE as TOLD
 from jbus.told import KIND as TOLD_KIND
 from jbus.told import told_to
@@ -1982,7 +1983,7 @@ def stack(
     """What `/stack.json` holds.
 
     It has the machine once, the steps of the line and the roles of a thread
-    (`threads.ROLES`). It has a summary of each project of `names`, or of each project the
+    (`roles.ROLES`). It has a summary of each project of `names`, or of each project the
     state directory has. It has the user's two queues across the projects: `needs`, oldest
     first, and `proceeds`, the soonest to go ahead first. It has `wrong`, what is wrong across
     the projects that is the user's (`users`), with the machine's sources that are not ok, and

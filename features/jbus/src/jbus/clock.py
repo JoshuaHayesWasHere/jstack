@@ -80,6 +80,7 @@ from jbus import (
     write_json,
 )
 from jbus.passes import Pass
+from jbus.review import FIXES, class_of, matches
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, task_brief
 from jmerge import mainjson, ready
@@ -91,14 +92,6 @@ STALL = "stall"
 FILE = "clock.json"
 PASSES = 10
 AT_WORK = ("moving", "quiet", "waiting")
-FIXES = (ready.FIX_UNREVIEWED, ready.DECLINES_UNRULED)
-CLASSES = (
-    ("result", (ready.NO_BRIEF,)),
-    ("scoped", (*FIXES, ready.SCOPED_UNRULED, ready.CONTENT_CHANGED)),
-    ("review", (ready.NO_REVIEW, ready.NO_VERDICT, ready.TWICE_UNWRITTEN, ready.SECOND_UNWRITTEN)),
-)
-"""Each class with the reasons of `jmerge` it takes, matched by each reason's own pattern, so a
-reason that `jmerge` rewords keeps its clock."""
 CARRY_ON = (
     "jbus: pull request #{number} of this task has waited {passes} passes on you, with your "
     "thread not at work: {reason}. Carry on with your brief from where you stopped: read "
@@ -152,15 +145,6 @@ HELD_HOME = (
 _SEAT = re.compile(r"#(\d+)$")
 
 
-def _of(reason: str, reasons: tuple[ready.Reason, ...]) -> bool:
-    return any(re.fullmatch(one.pattern, reason) for one in reasons)
-
-
-def class_of(reason: str) -> str:
-    """Return the class of a wait `jmerge` gives, or nothing for a wait that has no clock here."""
-    return next((name for name, reasons in CLASSES if _of(reason, reasons)), "")
-
-
 def _id(said: str) -> str:
     """Return the thread a reviewer line names after its label, or nothing for `none`."""
     found = "".join(said.split()[:1]).rstrip(",")
@@ -199,7 +183,7 @@ def _ask(run: Pass, slug: str, kind: str, reason: str, head: str, brief: str) ->
         return briefs.thread_of(brief), ""
     if kind == "review":
         return named, expedite.AGAIN.format(slug=slug)
-    found = expedite.ranges(run, slug, head, "fix" if _of(reason, FIXES) else "rebase")
+    found = expedite.ranges(run, slug, head, "fix" if matches(reason, FIXES) else "rebase")
     if not found:
         return briefs.thread_of(brief), ""
     return named, expedite.SCOPED.format(slug=slug, old=found[0], new=found[1])
@@ -380,7 +364,7 @@ def held(
     groups: dict[str, dict[str, Any]] = {}
     for slug, pull in sorted(world.open.items(), key=lambda one: one[1]["number"]):
         word, _, reason = waits.said.get(str(pull["number"]), "").partition(": ")
-        if word != "wait" or not reason or class_of(reason) or _of(reason, RUNNER):
+        if word != "wait" or not reason or class_of(reason) or matches(reason, RUNNER):
             continue
         if _ahead(reason, world):
             continue
