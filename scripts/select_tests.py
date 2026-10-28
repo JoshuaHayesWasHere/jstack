@@ -330,11 +330,20 @@ def dotted(node, names):
     return None
 
 
+def folder(before):
+    """Whether the part of a chain of `/` after `before`, its previous part, is a folder: a part
+    after a string other than `bin`. A part after `bin`, or after a part that is no string, as in
+    `stub / "jbus"`, may be a command."""
+    return bool(before) and before[0] not in (None, "bin")
+
+
 def read(tree):
     """Return what this script reads from a module's tree: the names the module imports, the
     words of its string constants, where it imports by name (`by_name`), the names of its
     functions' arguments, the paths it spells, its read set, and the dotted names of what it calls
-    through its imports. An import in an `if TYPE_CHECKING:` is no import: it never runs."""
+    through its imports. An import in an `if TYPE_CHECKING:` is no import: it never runs. A string
+    that is a `folder` of a chain of `/` is spelled with the chain, and not as a path of its own:
+    the `jbus` of `home / ".config" / "jbus"` is a folder, not the package run in a process."""
     names, words, args, paths, calls = set(), set(), set(), set(), set()
     checked = {
         id(one)
@@ -342,6 +351,14 @@ def read(tree):
         if checking(node)
         for part in node.body
         for one in ast.walk(part)
+    }
+    chains = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)
+    ]
+    folders = {id(node.left) for node in chains} | {
+        id(node.right) for node in chains if folder(spelled(node)[-2:-1])
     }
     imports = bound(tree)
     for node in ast.walk(tree):
@@ -356,7 +373,8 @@ def read(tree):
                 calls.add(name)
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             words |= {node.value, *WORDS.split(node.value)}
-            paths.add(tuple(spelled(node)))
+            if id(node) not in folders:
+                paths.add(tuple(spelled(node)))
         elif isinstance(node, ast.arg):
             args.add(node.arg)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):

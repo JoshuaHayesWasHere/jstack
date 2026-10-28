@@ -286,6 +286,31 @@ def test_an_import_only_a_type_checker_reads_selects_nothing(tmp_path):
     assert "testing/tests/test_typed.py" not in repo.selected(head)
 
 
+FOLDERS = {
+    "testing/tests/test_gamma_dir.py": (
+        "from pathlib import Path\n\nimport alpha.util\n\n"
+        "CONFIG = Path.home() / '.config' / 'gamma'\n"
+    ),
+    "testing/tests/test_gamma_bin.py": (
+        "import sys\nfrom pathlib import Path\n\nimport alpha.util\n\n"
+        "RUN = Path(sys.executable).parent / 'gamma'\nLOCAL = Path.home() / 'bin' / 'gamma'\n"
+    ),
+}
+
+
+def test_a_package_named_as_a_folder_of_a_path_is_not_run(tmp_path):
+    """`~/.config/gamma` names a folder, so the test does not run `gamma`. A path that ends in
+    `gamma` after `bin`, or after a folder no string names, may be the command, and the test that
+    spells it still runs."""
+    repo = Repo(tmp_path, files={**FILES, **FOLDERS})
+    head = repo.change(["src/gamma/g.py"])
+
+    selected = repo.selected(head)
+
+    assert "testing/tests/test_gamma_bin.py" in selected
+    assert "testing/tests/test_gamma_dir.py" not in selected
+
+
 def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_change_to_it(repo):
     head = repo.change(["src/gamma/g.py"])
 
