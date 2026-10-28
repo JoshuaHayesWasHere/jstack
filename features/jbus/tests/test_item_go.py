@@ -1,10 +1,11 @@
 """The user's go for a work item, by its id: from the command and from the view. Each writes
 one `approved` line that says where it was said, and each refuses what the go's rules refuse,
-with a sentence, writing nothing."""
+with a sentence, writing nothing. The view's go is an act of the user over the view, logged in
+`acts.jsonl` whatever came of it."""
 
 import pytest
 
-from jbus import item
+from jbus import acts, item
 from view.scene import Served
 from view.test_view_answer import Counter
 
@@ -53,6 +54,10 @@ def test_the_view_records_the_users_go_and_refuses_one_the_item_moved_past(count
         status, said = approve(served, name, seen)
         assert status == 409
         assert f"{name} moved since {seen}" in said["say"]
+        assert [
+            (one["action"]["verb"], one["party"]["route"], one["outcome"])
+            for one in acts.read(kitchen.state)
+        ] == [("item", "view", "done"), ("item", "view", "refused")]
         assert approve(served, "w99", seen)[0] == 404
         assert served.write({"item": name}, path="/approve?project=demo")[0] == 400
         assert (
