@@ -10,7 +10,7 @@ import jbus
 import jsettings
 from jbus import rebase
 from jmerge import rangediff, ready
-from test_jbus_kitchen import NOW
+from test_jbus_kitchen import NOW, asks
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
 
@@ -106,7 +106,7 @@ CARRIED = (
 def test_a_line_that_does_not_wait_on_a_scoped_review_asks_nobody(launched, word, reason):
     out(launched, reason=reason, word=word)
     launched.poll()
-    assert sends(launched) == [] and launched.lines("rereview") == []
+    assert asks(launched) == [] and launched.lines("rereview") == []
 
 
 def test_a_pull_request_with_no_launch_record_is_asked_nothing(kitchen):
@@ -119,7 +119,7 @@ def test_a_pull_request_with_no_launch_record_is_asked_nothing(kitchen):
 def test_a_range_diff_of_a_head_the_crew_has_pushed_past_waits_for_the_next_pass(launched):
     out(launched, head="d" * 40, reason=waits("c" * 40))
     launched.poll()
-    assert sends(launched) == [] and launched.lines("rereview") == []
+    assert asks(launched) == [] and launched.lines("rereview") == []
     out(launched, head="d" * 40)
     launched.poll(NOW + timedelta(minutes=3))
     assert [given["clientRequestId"] for given in sends(launched)] == [
@@ -297,7 +297,7 @@ def test_a_drop_that_does_not_wait_on_the_crew_at_this_head_tells_nobody(
 ):
     out(launched, head=head, reason=reason, word=word)
     launched.poll()
-    assert sends(launched) == [] and launched.lines("drops") == []
+    assert asks(launched) == [] and launched.lines("drops") == []
 
 
 def test_the_drop_line_jbus_reads_is_the_line_jmerge_prints():

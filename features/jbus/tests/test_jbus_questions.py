@@ -14,7 +14,7 @@ import pytest
 import jbus
 from jbus import digest, questions, wake
 from jbus.view import state as view_state
-from test_jbus_kitchen import GATE, NOW, OPTIONS, Kitchen
+from test_jbus_kitchen import GATE, HOME, NOW, OPTIONS, Kitchen
 
 AT = "2026-10-12 11:30 ET"
 ACTED = " Its default is acted on already, and stands unless you stop it."
@@ -475,7 +475,8 @@ def test_a_home_closes_no_gate_that_holds_in_its_gates_file_and_the_pass_says_so
         "note alpha: question 2 holds (deletes data) for user's own answer, and "
         f"{kitchen.home / 'gates.md'} marked it answered: it stays open"
     )
-    assert [one for one in said if "question 2" in one] == [line]
+    told = f"wakes demo: told {HOME} of question 2: drop the old branch, it holds (deletes data)"
+    assert [one for one in said if "question 2" in one] == [line, f"{told} for your answer"]
     assert [one["key"] for one in listed(kitchen)] == ["gate:q2"]
     assert [one for one in kitchen.poll(later(20)) if "question 2" in one] == []
     assert answer(kitchen, 2, "yes", default=True)[0] == 1
@@ -832,7 +833,8 @@ def test_a_question_with_no_thread_line_is_asked_nothing_and_a_lost_send_goes_ne
     kitchen.t3.lose_send = False
     kitchen.poll(later(20))
     kitchen.poll(later(30))
-    assert list(kitchen.t3.messages) == ["options|alpha|1"]
+    asked = [key for key in kitchen.t3.messages if not key.startswith("wakes|")]
+    assert asked == ["options|alpha|1"]
     assert kitchen.lines("note") == [
         "note expert-sage-tea: question 2 has no options and no thread to ask",
         "note alpha: asked its thread for the options of question 1",

@@ -30,6 +30,7 @@ An item that leaves the list wakes no one.
 A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.
 A `decision` of an item on the list reaches a home thread only this way.
 Any other `decision`, as one `jbus decide` or `jbus clear` raises, reaches a home thread as an event.
+A `decision` of a setup jbus lacks reaches a home thread as an event too, since that setup may be the sign-in to T3 Code the list's message needs.
 
 ## The events
 

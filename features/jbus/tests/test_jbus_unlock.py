@@ -9,7 +9,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from test_jbus_kitchen import NOW, complete, sends
+from test_jbus_kitchen import NOW, asks, complete, sends
 from test_jbus_queue import add, gates
 
 URL = "https://example.test/pull/7"
@@ -249,7 +249,7 @@ def test_a_row_its_home_launched_by_hand_is_told_to_rebase_once_on_a_fresh_check
 def test_a_line_that_is_not_a_stale_wait_tells_nobody(launched, word, reason):
     out(launched, reason=reason, word=word)
     launched.poll()
-    assert sends(launched) == [] and launched.lines("rebase") == [] and gates(launched) == []
+    assert asks(launched) == [] and launched.lines("rebase") == [] and gates(launched) == []
     assert launched.lines("gate") == []
 
 

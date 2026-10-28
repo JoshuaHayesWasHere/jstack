@@ -225,13 +225,15 @@ def root_of(run: Pass) -> str:
 
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that the root home passes on: each item of the list that the user
-    has to decide (`blockers.deciding`). A row to approve is caused by the home whose brief it
-    is."""
+    has to decide (`blockers.deciding`), but for a kind in `blockers.UNLISTED`. A row to approve
+    is caused by the home whose brief it is."""
     root = root_of(run)
     if not root:
         return []
     items = []
     for one, said in blockers.deciding(run, listed):
+        if one["kind"] in blockers.UNLISTED:
+            continue
         by = ""
         if one["kind"] == "approve":
             brief = run.home / "tasks" / f"{one['slug']}.md"
