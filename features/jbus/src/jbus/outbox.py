@@ -129,7 +129,7 @@ def reviewing(run: Pass, client: Client, thread: str, row: str) -> bool:
     that a reviewer the crew launched has not written: jmerge's judge (`ready.short_of`) says the
     review or a scoped review is not written, and the brief names a reviewer with no `## Review` yet
     (`rebase.reviewing`). A row with no open pull request in what this pass saw waits on no review,
-    and a home told of the row (`jbus.owners`, of a stall of that very review) waits on none."""
+    and a home told of the row (`jbus.wakes`, of a stall of that very review) waits on none."""
     from jbus import clock, rebase
     from jbus.watch import task_brief
 

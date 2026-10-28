@@ -1,6 +1,7 @@
 """Every wait has a clock (S3 of reports/flow-blockers). A pull request that waits on a reviewer
 that never writes, or on a crew that stopped, is re-asked by its age in passes: jbus acts once by
-itself, and after a second miss sends one line to the home, never to the user. Like
+itself, and after a second miss logs one stall that the one list takes to the home, never to the
+user. Like
 `test_jbus_expedite.py`, the tests replay small made-up rows through the real pass against the
 fakes: the replay the report names for NoWaitWithoutClock is
 `test_a_review_that_never_comes_is_relaunched_and_then_goes_to_the_home_in_one_line`."""
@@ -156,7 +157,7 @@ def test_a_clock_s_stall_with_no_scoped_home_to_tell_goes_to_the_root_home_once(
     short.passes(2 * N)
     assert [one for one in kitchen.lines("stall") if "no home to tell" in one]
     (told,) = to(kitchen, root)
-    assert told.startswith("jbus: the stall alpha is wrong in demo")
+    assert told.startswith("jbus: 1 new for this home in demo") and "- stall alpha: " in told
     short.passes(N)
     assert len(to(kitchen, root)) == 1
 
@@ -222,20 +223,6 @@ def test_each_wait_on_a_reviewer_jmerge_gives_has_a_clock(reason, short, kitchen
     short.passes(N)
     assert len(sends(kitchen)) >= 1
     assert any(one["clientRequestId"].startswith("clock|alpha|") for one in sends(kitchen))
-
-
-def test_a_home_t3_code_refuses_the_line_is_one_quiet_stall_and_the_wait_is_not_dropped(
-    short, kitchen
-):
-    desk = home(kitchen)
-    kitchen.t3.forgot.add(desk["threadId"])
-    reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha")
-    short.out(NO_REVIEW, result=f"Reviewer: {reviewer['threadId']} #1\n", review=False)
-    said = short.passes(3 * N)
-    assert not any("told its home" in one for one in said)
-    (stall,) = [one for one in kitchen.lines("stall") if one.startswith("stall alpha: #7 waited")]
-    assert "refused its home" in stall and desk["threadId"] in stall
-    assert loud(kitchen) == [] and gates(kitchen) == []
 
 
 def test_a_reviewer_on_a_capped_instance_is_relaunched_only_after_the_reset(short, kitchen):

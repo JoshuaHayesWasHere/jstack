@@ -151,9 +151,9 @@ def test_the_clock_s_line_to_the_home_waits_for_the_home_s_reset(kitchen):
     assert len(sent(kitchen, "clock")) == 1
     cap(PRIME, resets=later(30))
     said = short.passes(20)
-    assert sent(kitchen, "clock-home") == [] and waits(said, "alpha")
+    assert sent(kitchen, "wakes") == [] and waits(said, "demo", "its wakes message")
     short.passes(5)
-    assert len(sent(kitchen, "clock-home")) == 1
+    assert len(sent(kitchen, "wakes")) == 1
 
 
 def test_a_hold_stall_line_waits_for_the_reset(kitchen):
@@ -199,9 +199,9 @@ def test_a_leftover_waits_for_its_home_s_reset_and_is_not_the_users_meanwhile(ki
     leaves(kitchen)
     cap("claudeAgent")
     for said in until(kitchen, 0, 3):
-        assert sent(kitchen, "leftover") == []
-        assert len(waits(said, "alpha", "its leftover message")) == 1, said
+        assert sent(kitchen, "wakes") == []
+        assert len(waits(said, "demo", "its wakes message")) == 1, said
         assert listed(kitchen) == [] and kitchen.waiting() == []
     until(kitchen, 41, 44)
-    assert len(sent(kitchen, "leftover")) == 1
+    assert len(sent(kitchen, "wakes")) == 1
     assert listed(kitchen) == [] and stalls(kitchen) == []

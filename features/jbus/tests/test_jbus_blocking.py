@@ -29,6 +29,8 @@ from test_jbus_questions import gate
 
 SECOND_KEY = "blocking-key-0123456789"
 NINE = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
+HELD_9 = [f"{NINE}, a pull request jmerge holds for your word"]
+"""The line the one list wakes the home with for hold 9 (`jbus.wakes`)."""
 TEN = "hold 10 https://example.test/pull/10: needs user, touches skills/home/SKILL.md"
 
 
@@ -162,8 +164,7 @@ def test_every_body_has_its_kind(kitchen, second):
     for minutes in (1, 16, 60):
         kitchen.poll(later(minutes))
     assert kinds(second) == ["events", "reminder", "refresh"]
-    assert {body["kind"] for body in kitchen.wakes.bodies} == {"events"}
-    assert all(sorted(body) == ["events", "kind", "say"] for body in kitchen.wakes.bodies)
+    assert kitchen.wakes.bodies == [] and kitchen.wakes.listed == [HELD_9]
 
 
 def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
@@ -176,11 +177,8 @@ def test_the_second_target_gets_what_blocks_and_nothing_quiet(kitchen, second):
     asked = gate("may I deploy the site tonight?", "beta")
     assert kitchen.main("gate", "beta", stdin=asked)[0] == 0
     kitchen.poll(later(1))
-    said = [line for post in kitchen.wakes.said for line in post]
-    assert said == [
-        "demo: decision beta: question 2: may I deploy the site tonight, it names touches prod "
-        "or real users. "
-        'Reply: "demo question 2: default"'
+    assert kitchen.wakes.said == [] and kitchen.wakes.listed == [
+        ["question 2: may I deploy the site tonight, it names touches prod or real users"]
     ]
     (opened,) = second.bodies
     assert keys(opened) == ["gate:q2"]
@@ -208,8 +206,7 @@ def test_a_failing_second_target_leaves_the_others_alone(kitchen, second):
     hold(kitchen, 9)
     for minutes in (1, 7, 13):
         kitchen.poll(later(minutes))
-    why = 'a pull request jmerge holds for your word. Reply: "demo #9: merge it"'
-    assert kitchen.wakes.said[0] == [f"demo: decision #9: {NINE}, {why}"]
+    assert kitchen.wakes.listed == [HELD_9]
     assert jbus.read_json(kitchen.state / "outbox.json", []) == []
     shown = kitchen.status()["projects"]["demo"]
     assert (shown["outbox"], shown["last_error"]) == (0, "")
@@ -253,12 +250,12 @@ def test_a_reminder_does_not_wait_on_the_gap(kitchen, second):
     assert kinds(second) == ["events", "events", "reminder"]
 
 
-def test_with_no_second_pair_nothing_is_posted_beyond_the_events(kitchen):
+def test_with_no_second_pair_nothing_is_posted_beyond_the_home_s_wake(kitchen):
     kitchen.poll()
     hold(kitchen, 9)
     for minutes in (1, 16, 61):
         kitchen.poll(later(minutes))
-    assert {body["kind"] for body in kitchen.wakes.bodies} == {"events"}
+    assert kitchen.wakes.bodies == [] and kitchen.wakes.listed == [HELD_9]
     assert not (kitchen.state / "blocking").exists()
     assert not (kitchen.state / waiting.BLOCKS).exists()
     assert "blocking" not in kitchen.status()["projects"]["demo"]

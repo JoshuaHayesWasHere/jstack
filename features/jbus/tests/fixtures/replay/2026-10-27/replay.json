@@ -1,0 +1,131 @@
+{
+ "root": "mcp:root-home",
+ "rows": {
+  "browser-pin": {
+   "thread": "mcp:crew-b",
+   "head": "310cfe1b570a",
+   "task": "root home, 2026-10-27, from jbus \"ci main: browser failed\"."
+  },
+  "no-webhook-path": {
+   "thread": "mcp:crew-a",
+   "head": "49544d1a326c"
+  },
+  "bot-authority-shape": {
+   "thread": "mcp:flow-home",
+   "head": "003a9964a33d"
+  }
+ },
+ "main": {
+  "red": "d1e3bd5e4c77",
+  "from": "2026-10-27T21:32:14"
+ },
+ "left": {
+  "main-red-d1e3bd5e4c77": "the red main's own fix of its browser run"
+ },
+ "sets": {
+  "A": [
+   "features/jbus/tests/view/page/test_view_page_overview.py::test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_default_and_action[screen0]",
+   "features/jbus/tests/view/page/test_view_page_overview.py::test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_default_and_action[screen1]"
+  ],
+  "B": [
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-phone-light]"
+  ]
+ },
+ "runs": [
+  {
+   "id": 40572091158,
+   "branch": "fl-msg-no-wrong",
+   "created": "2026-10-27T19:46:18Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40573411074,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T19:55:17Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40585099704,
+   "branch": "main",
+   "created": "2026-10-27T21:14:34Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40585404948,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T21:16:43Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40585542638,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T21:17:43Z",
+   "conclusion": "failure",
+   "tests": "B"
+  },
+  {
+   "id": 40587190584,
+   "branch": "main",
+   "created": "2026-10-27T21:29:18Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40587882812,
+   "branch": "browser-pin",
+   "created": "2026-10-27T21:34:20Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40597672172,
+   "branch": "browser-pin",
+   "created": "2026-10-27T22:49:12Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40600988294,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T23:16:29Z",
+   "conclusion": "failure",
+   "tests": "B"
+  },
+  {
+   "id": 40601264886,
+   "branch": "browser-pin",
+   "created": "2026-10-27T23:18:52Z",
+   "conclusion": "success"
+  },
+  {
+   "id": 40601266649,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T23:18:53Z",
+   "conclusion": "failure",
+   "tests": "A"
+  }
+ ]
+}

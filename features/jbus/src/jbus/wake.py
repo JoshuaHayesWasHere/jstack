@@ -297,12 +297,14 @@ class Box:
         cap: int = CAP,
         loud: Loud | None = None,
         machine: bool = False,
+        listed: bool = False,
     ) -> bool:
         """Queue one event. With a key, `send` only ever queues the first event of that key.
 
         An event for the user waits for a wake in the home thread's outbox. The chat line of an
-        event of the `machine` names no project. jbus only logs a quiet event, so the log is its
-        one record.
+        event of the `machine` names no project. An event `listed` is an item of the one list,
+        which takes it to a home thread (`jbus.wakes`), so it waits in no outbox. jbus only logs a
+        quiet event and a listed one, so the log is its one record.
         If jbus cannot write the event's line, the line is owed: jbus writes it into the log
         before any later line, as soon as it can write again. `send` returns False only for a
         key that was sent before.
@@ -314,12 +316,13 @@ class Box:
                 if key in sent:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
-            if made["loud"] == "user":
+            queued = made["loud"] == "user" and not listed
+            if queued:
                 self.home.folder.mkdir(parents=True, exist_ok=True)
                 waiting = [*self._outbox(), made]
                 write_json(self.home.folder / "outbox.json", waiting, mode=0o600)
             took = {"event": kind, "slug": slug, "loud": made["loud"], "line": line}
-            self._log(id=_id(made), **took, text=made["text"], owed=made["loud"] != "user")
+            self._log(id=_id(made), **took, text=made["text"], owed=not queued)
         return True
 
     def record(self, kind: str, line: str, text: str = "", **more: Any) -> None:

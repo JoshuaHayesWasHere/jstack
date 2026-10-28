@@ -124,8 +124,8 @@ Merge(p) ==
     \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1474-1475: main's red tip after a briefed merge is filed.
-    \* A green tip withdraws a fix row that never launched (watch.py:1435-1436), and in this model
+    \* features/jbus/src/jbus/watch.py:1466-1467: main's red tip after a briefed merge is filed.
+    \* A green tip withdraws a fix row that never launched (watch.py:1427-1428), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
     /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~proved[p]) THEN BOOLEAN ELSE {named}
@@ -167,8 +167,8 @@ CrewFix(p) ==
 \* Its own browser run failed, and the red is its own: main's last browser run passed, or the fix
 \* jbus filed for it is over. jbus tells its crew, which fixes its change, and its checks run again.
 BrowserFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py:440, open ones only
-    /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py:329, its browser run failed
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py:434, open ones only
+    /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py:323, its browser run failed
     /\ ~brHold                              \* features/jmerge/src/jmerge/rows.py:326-329
     /\ brBreaks' = [brBreaks EXCEPT ![p] = FALSE]
     /\ brFail' = [brFail EXCEPT ![p] = FALSE]
@@ -259,7 +259,7 @@ OutsideBreak ==
     /\ \/ /\ ~mainRed
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
-          \* features/jbus/src/jbus/watch.py:1425,1468,1472,1475: since #392 the fix row is filed for a
+          \* features/jbus/src/jbus/watch.py:1417,1460,1464,1467: since #392 the fix row is filed for a
           \* red tip with no briefed merge in the day before it too, under the row's own name.
           /\ fixRow' = TRUE
           /\ named' \in BOOLEAN
