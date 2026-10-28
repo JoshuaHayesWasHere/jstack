@@ -466,7 +466,7 @@ def test_a_merge_that_changes_a_skill_tells_each_thread_out_once(kitchen):
     assert set(told) == {crew["threadId"], reviewer["threadId"], home["threadId"]}
     for message in told.values():
         assert "#7" in message and "crew, home" in message and "\n" not in message
-    kitchen.t3.thread("delta", age=timedelta(0))
+    kitchen.t3.thread("delta", age=-timedelta(minutes=1))
     kitchen.poll(NOW + timedelta(minutes=1))
     assert len(sends(kitchen)) == 3
 
