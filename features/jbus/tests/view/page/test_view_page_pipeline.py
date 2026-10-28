@@ -339,3 +339,117 @@ def test_axe_finds_no_serious_issue_on_the_board_with_a_pick(tmp_path, wide):
     assert seen["errors"] == []
     assert seen["violations"] == [], seen["violations"]
     assert seen["rings"] == [], seen["rings"]
+
+
+MATRIX = """
+window.__errs = [];
+window.addEventListener("error", function (e) { window.__errs.push(String(e.message)); });
+window.addEventListener("load", function () { setTimeout(function () {
+  var all = function (sel, el) { return [].slice.call((el || document).querySelectorAll(sel)); };
+  var text = function (el) { return el ? el.innerText.replace(/\\s+/g, " ").trim() : ""; };
+  var board = document.getElementById("pipeline"), out = { errors: window.__errs, seen: [] };
+  function read(step) {
+    var m = board.querySelector("[data-role=matrix]"), box = m && m.getBoundingClientRect();
+    var cols = board.querySelector("[data-role=cards]"), top = cols && cols.getBoundingClientRect().top;
+    out.seen.push({
+      step: step, hash: location.hash,
+      heads: all("thead th", m).map(text),
+      homes: all("tbody tr", m).map(function (r) {
+        return { home: r.getAttribute("data-home"), head: text(r.querySelector("th")), cells: all("td", r).map(function (td) {
+          var a = td.querySelector("a");
+          return { text: text(td), href: a ? a.getAttribute("href") : "", dots: all(".mx-dots i", td).map(function (i) { return i.className; }) };
+        }) };
+      }),
+      chains: text(board.querySelector("[data-role=chains]")),
+      above: !!(box && top && box.bottom <= top),
+      stages: all("[data-stage]", cols).map(function (c) { return { key: c.getAttribute("data-stage"), slugs: all(".pl-c", c).map(function (b) { return b.getAttribute("data-bpick"); }) }; }),
+      chips: all("[data-role=chips] button[aria-pressed=true]", board).map(text)
+    });
+  }
+  var steps = [
+    function () { read("first"); board.querySelector('[data-bcell="jview/check"]').click(); },
+    function () { read("cell"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
+    function () { read("esc"); board.querySelector('[data-bcell="root/stacked"]').click(); },
+    function () { read("cell2"); history.back(); },
+    function () {
+      read("back");
+      var pre = document.createElement("pre"); pre.id = "probe"; pre.textContent = JSON.stringify(out);
+      (window.top === window ? document : window.top.document).body.appendChild(pre);
+    }
+  ];
+  (function next(n) { steps[n](); if (n + 1 < steps.length) setTimeout(function () { next(n + 1); }, 500); })(0);
+}, window.__at); });
+"""
+
+
+def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_or_back(tmp_path):
+    """Over the T moment at 1440 the matrix sits above the columns: a line per home, the root 20,
+    jview 15, flow 8 and macos 1, and infra with no open row, the totals of each stage, a dot
+    per row, square and shaded by what it waits on in Check, and the Chains line. A cell is a
+    link to `#/?home=<h>&stage=<s>`, which leaves that home's rows of that stage alone in the
+    columns; Esc and the browser's back each undo it."""
+    from view.days import t_moment
+    from view.scene import briefed
+
+    scene = Scene(tmp_path / "scene", pytest.MonkeyPatch())
+    t_moment(scene)
+    briefed(scene, infra_only="infra")
+    (scene.home / "tasks" / "infra-only.md").unlink()
+    served = Served(scene)
+    try:
+        seen = look(
+            scene, tmp_path, route="#/", port=served.port, script=MATRIX, at=2000, budget=9000
+        )
+        made = served.json("/panel/pipeline.json")["data"]
+    finally:
+        served.close()
+    assert seen["errors"] == []
+    first, cell, esc, cell2, back = seen["seen"]
+    assert first["above"], first
+    assert first["heads"] == [
+        "home",
+        "Queued 0",
+        "Crew 4",
+        "Needs you 4",
+        "Review 0",
+        "Fix 0",
+        "Review 2 2",
+        "Check 28",
+        "Stacked 6",
+        "Merge 0",
+    ]
+    heads = [(one["home"], one["head"].split(" last act")[0]) for one in first["homes"]]
+    assert heads == [
+        ("root", "root 20"),
+        ("jview", "jview 15"),
+        ("flow", "flow 8"),
+        ("macos", "macos 1"),
+        ("infra", "infra 0 no act kept"),
+    ]
+    jview = {i: one for i, one in enumerate(first["homes"][1]["cells"])}
+    check = jview[6]
+    assert check["text"] == "13"
+    assert check["href"] == "#/?home=jview&stage=check"
+    assert check["dots"] == ["f"] * 7 + ["w"] * 2 + ["p"] * 4
+    flow = first["homes"][2]["cells"][6]
+    assert flow["dots"] == ["f"] * 6 + ["x"] * 2
+    stacked = first["homes"][0]["cells"][7]
+    assert stacked["text"] == "6"
+    assert sorted(stacked["dots"]) == ["", "", "old", "old", "old", "old"]
+    assert all(one["text"] == "·" and not one["href"] for one in first["homes"][4]["cells"])
+    assert first["chains"].startswith("CHAINS fig-saucer ◀ oat-platter 2 deep")
+    assert "6 stacked rows on 6 parents (6 failing)" in first["chains"]
+    assert len({slug for one in first["stages"] for slug in one["slugs"]}) == 44
+
+    mine = sorted(
+        one["slug"] for one in made["rows"] if (one["home"], one["stage"]) == ("jview", "check")
+    )
+    assert cell["hash"] == "#/?home=jview&stage=check"
+    assert [(one["key"], sorted(one["slugs"])) for one in cell["stages"]] == [("check", mine)]
+    assert cell["chips"] == ["jview 15", "Check only ✕"]
+    assert esc["hash"] == "#/"
+    assert len({slug for one in esc["stages"] for slug in one["slugs"]}) == 44
+    assert cell2["hash"] == "#/?home=root&stage=stacked"
+    assert [one["key"] for one in cell2["stages"]] == ["stacked"]
+    assert back["hash"] in ("", "#/")
+    assert len({slug for one in back["stages"] for slug in one["slugs"]}) == 44

@@ -345,10 +345,10 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
     homes = {one["name"]: one for one in got["homes"]}
     assert [(one["name"], one["open"]) for one in got["homes"]] == [
         ("root", 20),
-        ("flow", 8),
-        ("infra", 0),
         ("jview", 15),
+        ("flow", 8),
         ("macos", 1),
+        ("infra", 0),
     ]
     assert {one["project"] for one in got["homes"]} == {"demo"}
     assert cells(homes["root"]) == {

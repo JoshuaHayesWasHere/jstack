@@ -31,8 +31,8 @@ rows of a loop count as one row: each has the loop's depth and head, and a loop 
 nothing outside it is depth 1, with its oldest row as head.
 
 `homes` gives each home of each project its row of the stage x home matrix: the root first, then
-each scope by name (`homes.Homes.scopes`), a scope with no open row included, then any other home
-a row names. Each has `open`, how many rows the board places in it, its `last` act
+each scope (`homes.Homes.scopes`), a scope with no open row included, and any other home a row
+names, the one with the most open rows first and by name among equals. Each has `open`, how many rows the board places in it, its `last` act
 (`state.acts`, the newest whose home it is), and a cell for each stage a row can be in (`CELLS`):
 `count`, the `oldest` row, `old`, how many came to the stage `OLD` or more ago, and `waits`, how
 many of its rows wait on each outcome of `checked.OUTCOMES`, as each row's `wait` gives it.
@@ -326,8 +326,9 @@ def _homes(read: Read, placed: list[Card], now: datetime) -> list[dict[str, Any]
     """The project's row of the matrix for each of its homes, in the order `homes` names."""
     mine = [card for card in placed if card.project == read.name]
     scopes = [one.name for one, _, _ in read.homes.scopes]
-    names = [ROOT_NAME, *scopes]
-    names += sorted({card.home for card in mine} - set(names))
+    names = {ROOT_NAME, *scopes, *(card.home for card in mine)} - {ROOT_NAME}
+    count = {name: sum(1 for card in mine if card.home == name) for name in names}
+    names = [ROOT_NAME, *sorted(names, key=lambda name: (-count[name], name))]
     last = {one["home"] or ROOT_NAME: one for one in read.acts if one["home"] is not None}
     found = []
     for name in names:
