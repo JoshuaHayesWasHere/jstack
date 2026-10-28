@@ -34,8 +34,11 @@ window.addEventListener("load", function () { setTimeout(function () {
     function () { document.getElementById("dw-close").click(); },
     function () { read("shut"); board.querySelector('[data-bcell="root/stacked"]').click(); },
     function () { read("over"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
+    function () { read("drawn"); board.querySelector('[data-bhome="jview"]').click(); },
+    function () { read("chip"); board.querySelector('[data-bcell="jview/check"]').click(); },
+    function () { read("chipcell"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
     function () {
-      read("drawn");
+      read("unchip");
       var pre = document.createElement("pre"); pre.id = "probe"; pre.textContent = JSON.stringify(out);
       (window.top === window ? document : window.top.document).body.appendChild(pre);
     }
