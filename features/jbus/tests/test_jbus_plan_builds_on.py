@@ -206,3 +206,14 @@ def test_a_parked_entry_wakes_nobody_when_its_builds_on_merged(kitchen):
     merged(kitchen, "a")
     kitchen.poll(NOW)
     assert briefs(kitchen, thread) == []
+
+
+def test_a_scouting_entry_wakes_nobody_when_its_builds_on_merged(kitchen):
+    """`Stage: scouting` says a scout is out for the entry: its `Builds on:` merging does not ask
+    for a brief before that scout reports."""
+    thread = home(kitchen)["threadId"]
+    planned(kitchen, PLAN.replace("Stage: planned", "Stage: scouting"))
+    queued(kitchen, "a")
+    merged(kitchen, "a")
+    kitchen.poll(NOW)
+    assert briefs(kitchen, thread) == []
