@@ -150,6 +150,23 @@ def test_an_entry_waits_for_every_row_its_builds_on_names(kitchen):
     assert "- brief next: a, b merged" in said
 
 
+def test_a_builds_on_line_wrapped_onto_a_second_line_is_read_whole(kitchen):
+    """The line is read as a brief's is: an item wrapped onto the next line is still one it waits
+    on."""
+    thread = home(kitchen)["threadId"]
+    wrapped = "Builds on: a: the table a adds;\n  b: the view b adds"
+    planned(kitchen, PLAN.replace("Builds on: a: the table a adds", wrapped))
+    queued(kitchen, "a")
+    queued(kitchen, "b")
+    merged(kitchen, "a")
+    kitchen.poll(NOW)
+    assert briefs(kitchen, thread) == []
+    merged(kitchen, "a", "b")
+    kitchen.poll(later(5))
+    (said,) = briefs(kitchen, thread)
+    assert "- brief next: a, b merged" in said
+
+
 SCOPED = """\
 # jview: plan
 

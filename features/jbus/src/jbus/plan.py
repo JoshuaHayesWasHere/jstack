@@ -72,8 +72,11 @@ class Entry:
 
 def entries(text: str) -> list[Entry]:
     """Return the entries of a plan, in its order. A `## ` heading that is not
-    `<slug>: <one line>` starts no entry, and ends the one above it."""
+    `<slug>: <one line>` starts no entry, and ends the one above it. The `Builds on:` line is
+    read over the entry's whole section, as a brief's is, so an item wrapped onto the next line
+    counts."""
     found: list[Entry] = []
+    bodies: list[list[str]] = []
     inside = False
     for line in text.splitlines():
         if line.startswith("## "):
@@ -81,13 +84,17 @@ def entries(text: str) -> list[Entry]:
             inside = heading is not None
             if heading:
                 found.append(Entry(heading["slug"], heading["line"].strip(), "", ""))
-        elif inside and line.startswith("Stage:") and not found[-1].stage:
-            found[-1] = replace(found[-1], stage=line.removeprefix("Stage:").strip())
-        elif inside and line.startswith("Status:") and not found[-1].typed:
-            found[-1] = replace(found[-1], typed=line.strip())
-        elif inside and line.startswith("Builds on:") and not found[-1].builds_on:
-            found[-1] = replace(found[-1], builds_on=builds_on(line))
-    return found
+                bodies.append([])
+        elif inside:
+            bodies[-1].append(line)
+            if line.startswith("Stage:") and not found[-1].stage:
+                found[-1] = replace(found[-1], stage=line.removeprefix("Stage:").strip())
+            elif line.startswith("Status:") and not found[-1].typed:
+                found[-1] = replace(found[-1], typed=line.strip())
+    return [
+        replace(one, builds_on=builds_on("\n".join(body)))
+        for one, body in zip(found, bodies, strict=True)
+    ]
 
 
 def rows_of(slug: str, rows: list[queue.Row]) -> list[queue.Row]:
