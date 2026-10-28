@@ -296,9 +296,6 @@ SECOND = (
 )
 
 
-# What `children.watch`, which runs after `mainmoved.tell`, has read since it watches the root:
-# the queue and the questions, to know both parse, then the root's `out`. A file that does not
-# parse stops it there.
 WATCH_READS = ["queue.load", "questions.read", "queue.load", "questions.read"]
 WATCHED = {
     "questions.json": WATCH_READS[:2],
@@ -309,7 +306,8 @@ WATCHED = {
 def moved(before, fixture="short"):
     """Return the calls recorded before the move, with the two that moved put where they are now,
     the `queue.load` of `queue.follow_ups`, a step added since, first, and what `children.watch`
-    reads since it watches the root."""
+    reads after `mainmoved.tell` since it watches the root: the queue and the questions, to know
+    both parse, then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
     calls = ["queue.load", *before.split()]
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
