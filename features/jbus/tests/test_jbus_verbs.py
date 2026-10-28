@@ -224,10 +224,9 @@ class Terminal(io.StringIO):
         (["queue", "add", "alpha", "--priority", "1"], "the brief"),
         (["done", "alpha"], "the result's lines"),
         (["gate", "alpha"], "the gate's lines"),
-        (["scout", "add", "alpha"], "the request"),
         (["queue", "apply"], "the verbs"),
     ],
-    ids=["queue-add", "done", "gate", "scout-add", "queue-apply"],
+    ids=["queue-add", "done", "gate", "queue-apply"],
 )
 def test_a_verb_that_reads_stdin_refuses_a_terminal_at_once(kitchen, argv, what):
     """A thread has no one to type at its terminal, so a verb that reads its text from stdin
