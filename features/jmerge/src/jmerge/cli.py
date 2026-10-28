@@ -1408,7 +1408,7 @@ class Repo:
         pulled = _run(self.main, "git", "pull", "--ff-only")
         self.numbers_on.clear()
         if pulled.returncode:
-            notes.append(f"not pulled: {lines.said(pulled)}")
+            notes.append(lines.not_pulled(lines.said(pulled)))
         else:
             notes += follow.follow(_run, self.main, before)
         kept = (
