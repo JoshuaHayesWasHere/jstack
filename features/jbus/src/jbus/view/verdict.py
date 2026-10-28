@@ -156,7 +156,7 @@ def _label(row: dict[str, Any]) -> tuple[str, str | None]:
 def _stacked(rows: list[dict[str, Any]]) -> str:
     """What stacked rows are: each one once, on the head its chain goes back to, the head with
     the most rows first."""
-    heads = Counter(row["head"] or "a merged or gone row" for row in rows)
+    heads = Counter(row["head"] if row["waits_on"] else "a merged or gone row" for row in rows)
     named = [head for head, _ in heads.most_common()]
     more = len(named) - SHOWN
     return f"stacked (on {', '.join(named[:SHOWN])}{f' and {more} more' if more > 0 else ''})"

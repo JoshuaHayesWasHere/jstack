@@ -81,8 +81,7 @@ def _check(task: dict[str, Any], now: datetime) -> Cause:
     if word == checked.FAILING and state != "failed":
         return Cause("a check failed", task.get("since"), False)
     waits = _NOT_PASSED.search(reason)
-    seen = state == "pending" and check.get("name") == (waits[1] if waits else None)
-    if word == checked.WAITING and waits and not seen:
+    if word == checked.WAITING and waits and (state != "pending" or check.get("name") != waits[1]):
         since = check.get("started") or task.get("since")
         return Cause(_join(waits[1], "running or queued", age(since, now)), since, False)
     if state == "pending":
