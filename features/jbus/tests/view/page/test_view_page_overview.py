@@ -16,12 +16,11 @@ from view.page.browser import (
     TODAY,
     WORDS,
     clean,
-    gated,
     lineup,
     look,
     walked,
 )
-from view.scene import Served, a_noticed, ago, asks, iso, said_by_him, stacked
+from view.scene import Served, a_noticed, ago, iso, said_by_him, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -131,10 +130,9 @@ def test_the_inbox_opened_in_one_project_is_folded_in_the_next(scene, tmp_path):
 def test_folding_the_inbox_keeps_an_accept_that_is_counting_on_screen_with_its_undo(
     scene, tmp_path
 ):
-    """An accept started on a row under the first 3 counts 10 seconds before it writes. Folding
-    the inbox in that time leaves that row shown, so its Undo stays in reach."""
-    gated(scene)
-    asks(scene, "honey?")
+    """An approval started on a row under the first 3 counts 10 seconds before it writes.
+    Folding the inbox in that time leaves that row shown, so its Undo stays in reach."""
+    lineup(scene, {"yours": 4}, merged=0, gates=0)
     screen = (DESK[0], DESK[1] + NEEDS)
     fold = "tap:#nfold [data-fold]"
     walk = [

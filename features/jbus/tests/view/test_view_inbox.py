@@ -216,5 +216,5 @@ def test_a_go_given_before_the_brief_changed_still_needs_the_user(counter):
     row = queue.fresh(counter.state, "oat-milk")
     assert row.get("approved") and row["why"].startswith("brief changed after approval")
     assert [key for key, one in needs(served).items() if one["slug"] == "oat-milk"] == [
-        "row:oat-milk"
+        "re-approve:oat-milk"
     ]

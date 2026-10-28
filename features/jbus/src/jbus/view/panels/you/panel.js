@@ -5,19 +5,22 @@ var ACT_SAYS = { answer: "Sending your answer", approve: "Approving it" };
 function needId(w) { return w.project + "/" + w.key; }
 function needNumber(w) { return w.answerable ? name(w.open.split("/").pop()) : ""; }
 function needLink(w) { var at = parse(w.open); return href(at.project, at.target); }
-function acts(w) { return w.act === "answer" ? w.answerable : w.act === "approve" ? (!!w.item || !!w.sha) : false; }
+function acts(w) { return w.act === "answer" ? w.answerable : w.act === "approve" ? !!w.sha : false; }
 function typed(w) { return !!(w.act === "answer" && FORM[needId(w)]); }
 function saysSlug(line, slug) { return (" " + line + " ").split(/[^\w.-]+/).indexOf(slug) >= 0; }
 function oneList(src) {
-  return src.needs.concat(src.proceeds).slice().sort(function (a, b) {
+  return src.needs.slice().sort(function (a, b) {
     var x = ms(a.since), y = ms(b.since);
     return x == null ? (y == null ? 0 : 1) : y == null ? -1 : x - y;
   });
 }
+function defaultLine(src) {
+  var n = src.proceeds.length;
+  return n ? '<a class="nm" href="' + esc(href(PROJECT, "you:gate")) + '">' + n + (n === 1 ? " takes its default" : " take their default") + ' &rsaquo;</a>' : "";
+}
 function needMeta(w) {
   var v = ms(w.since), due = ms(w.due), bits = PROJECT ? [] : [esc(w.project)];
   if (w.slug && !saysSlug(w.what, w.slug)) bits.push('<a class="ilk" href="' + esc(href(w.project, "task:" + w.slug)) + '" aria-label="Task ' + esc(w.slug) + ': open it">' + esc(w.slug) + '</a>');
-  if (w.item) bits.push('<a class="ilk" href="' + esc(needLink(w)) + '">' + esc(w.item) + '</a>');
   if (w.sha) bits.push("brief <code>" + esc(w.sha) + "</code>");
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
@@ -42,10 +45,9 @@ function fallLine(src) {
   put(box, bits.join(" &middot; "));
 }
 function needForm(w) {
-  var id = needId(w), keep = w.act === "answer" && w.verb === "Accept default";
-  var hint = keep ? "Your answer, or leave it empty to keep the default" : "Your answer";
+  var id = needId(w), hint = "Your answer";
   return '<div class="nf"><input type="text" maxlength="600" data-type="' + esc(id) + '" value="' + esc(TYPED[id] || "") + '" placeholder="' + esc(hint) + '" aria-label="' + esc(hint + ": " + w.what) + '">' +
-    '<button type="button" class="btn fill" data-accept="' + esc(id) + '">' + (keep && !(TYPED[id] || "").trim() ? "Keep default" : "Send") + '</button>' +
+    '<button type="button" class="btn fill" data-accept="' + esc(id) + '">' + "Send" + '</button>' +
     (w.act === "answer" ? '<button type="button" class="btn" data-shut="' + esc(id) + '">Cancel</button>' : "") + '</div>';
 }
 function needAct(w) {
@@ -57,12 +59,10 @@ function needAct(w) {
     return '<a class="btn fill" href="' + esc(needLink(w)) + '">' + esc(w.verb) + '</a>';
   }
   if (FORM[id]) return "";
-  if (w.act === "approve") return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Approves ' + esc(w.item || w.slug) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">Approve</button>';
-  var form = '<button type="button" class="btn" data-form="' + esc(id) + '" aria-description="Opens a box for your own answer to question ' + esc(needNumber(w)) + '">Answer&hellip;</button>';
-  if (w.verb !== "Accept default") return form.replace('class="btn"', 'class="btn fill"');
-  return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Accepts the default of question ' + esc(needNumber(w)) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">Accept default</button>' + form;
+  if (w.act === "approve") return '<button type="button" class="btn fill" data-accept="' + esc(id) + '" aria-description="Approves ' + esc(w.slug) + ' in ' + NEEDS_FOR + ' seconds, and it can be undone until then">Approve</button>';
+  return '<button type="button" class="btn fill" data-form="' + esc(id) + '" aria-description="Opens a box for your own answer to question ' + esc(needNumber(w)) + '">Answer&hellip;</button>';
 }
-function saysNow(now) { return now.w.act === "answer" && !now.words ? "Accepting the default" : ACT_SAYS[now.w.act]; }
+function saysNow(now) { return ACT_SAYS[now.w.act]; }
 function needRow(w, brief) {
   var act = needAct(w), title = '<a class="nw" href="' + esc(needLink(w)) + '"><b>' + esc(w.what) + '</b></a>';
   if (brief) return '<div class="nb">' + title + '<span class="nd"><b>Goes ahead:</b> ' + esc(w["default"]) + '</span></div>' +
@@ -120,7 +120,7 @@ function renderNeeds() {
     return;
   }
   var all = oneList(src), focus = document.activeElement, at = focus && focus.getAttribute && focus.getAttribute("data-type"), caret = at ? focus.selectionStart : 0;
-  put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + (soon.length ? ' <span class="nm">&middot; ' + soon.length + (soon.length === 1 ? " goes" : " go") + ' ahead on ' + (soon.length === 1 ? "its" : "their") + ' default</span>' : ""));
+  put($("needs-h"), (needs.length ? '<b class="nn" data-gloss="count:waits">' + needs.length + '</b> Needs you' : "Nothing needs you" + lastPass()) + (soon.length ? ' <span class="nm">&middot;</span> ' + defaultLine(src) : ""));
   var folded = !UNFOLDED && all.length > FIRST;
   keyed($("nq"), "li", "nr", all.map(function (w) { return { key: needId(w), html: needRow(w, !UNFOLDED) }; }));
   [].forEach.call($("nq").children, function (li, n) { li.hidden = folded && n >= FIRST && !ACCEPTING[li.getAttribute("data-key")]; });
@@ -133,12 +133,12 @@ function renderNeeds() {
   if (at) { var back = document.querySelector('#needs [data-type="' + CSS.escape(at) + '"]'); if (back && back !== document.activeElement) { back.focus(); back.setSelectionRange(caret, caret); } }
   ticks();
 }
-function findNeed(id) { var src = PROJECT ? S : STACK; return src.proceeds.concat(src.needs).filter(function (x) { return needId(x) === id; })[0]; }
+function findNeed(id) { var src = PROJECT ? S : STACK; return src.needs.filter(function (x) { return needId(x) === id; })[0]; }
 function startAccept(id) {
   var w = findNeed(id);
   if (!w || ACCEPTING[id] || !acts(w)) return;
   var words = (TYPED[id] || "").trim();
-  if (w.act === "answer" && !words && w.verb !== "Accept default") { SAID = [{ say: "This question has no default to keep: write your answer first.", bad: true }]; renderNeeds(); return; }
+  if (w.act === "answer" && !words) { SAID = [{ say: "Write your answer first.", bad: true }]; renderNeeds(); return; }
   SAID = [];
   var now = ACCEPTING[id] = { left: NEEDS_FOR, sent: false, w: w, words: words };
   now.timer = setInterval(function () {
@@ -163,13 +163,6 @@ function sendAccept(id) {
   now.sent = true; renderNeeds();
   function over(say, bad, undo) { delete ACCEPTING[id]; delete FORM[id]; if (!bad) delete TYPED[id]; SAID = [{ say: say, bad: bad, undo: undo }]; renderNeeds(); }
   function told(r, lost) { return r && r.say ? r.say : r && r.error ? "The server refused it: " + r.error + "." : lost; }
-  if (w.act === "approve" && w.item) {
-    ask("/approve" + here, { item: w.item, seen_event: w.seen }).then(function (r) {
-      over(told(r, LOST_APPROVAL), !r || r.http !== 200);
-      poll(true);
-    }, function () { over(LOST_APPROVAL, true); });
-    return;
-  }
   if (w.act === "approve") {
     ask("/panel/you/approve" + here, { slug: w.slug, sha: w.sha }).then(function (r) {
       var ok = r && r.http === 200;
@@ -241,7 +234,7 @@ function approveLine(w) {
 }
 function dYou(arg) {
   var hit = arg.split(":")[0], named = arg.slice(hit.length + 1), n = S.needs.length, h = head("Waits on you", plural(n, "thing waits", "things wait") + " on you"), can = gates();
-  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes, and also hold the gates that go ahead on their default. A gate that jbus holds is answered here. A work item is approved in its own drawer.</p>';
+  h += '<p class="src" style="margin-top:15px">The count is Needs you, as the band and the triage tab count it. The lists are from <code>waiting-on-user.json</code>, the one list a pass writes and logs as its <code>waiting</code> event, and also hold the gates that go ahead on their default, which Needs you counts apart as one line. A gate that jbus holds is answered here. A work item is approved in its own drawer.</p>';
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     if (!items.length && (k === "hold" || k === "config")) return;

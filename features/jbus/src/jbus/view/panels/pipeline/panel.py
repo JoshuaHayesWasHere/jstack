@@ -1,13 +1,17 @@
 """The pipeline: every open row of every project and home, placed in its stage of the process,
 with the chains its rows make and what holds the line.
 
-`STAGES` are the stages in the order of the process. A task is placed by the step the last pass
-gave it (`STAGE_OF_STEP`). On the step `running`, who holds the task decides (`RUNNING_BY_WHO`):
-a hung, waiting or lost thread is the user's, so it is in `you`, and any other is the crew's. A
-task on no step the view knows is `unplaced`. A scout of `scouts.json` is in `scout` from its
-launch until its request has a Report (`state.request`). `merged` is a count of what merged
-today, into the default branch or an integration branch alike, and has no rows: a row merged is
-done as far as the queue goes, whatever branch it merged into.
+`STAGES` are the stages in the order of the process. A task is in `you` when it is a need of the
+You panel, an item of jbus's list of what waits on the user, and `you` counts every need of that
+panel, a need that names no row too, so it is the one count every Needs-you widget gives. Any
+other task is placed by the step the last pass gave it (`STAGE_OF_STEP`): a gate on its default
+is the crew's, which carries on, and a hold jbus does not list is the merge's. On the step
+`running`, who holds the task decides (`RUNNING_BY_WHO`), and a hung, waiting or lost thread is
+the crew's still, since jbus lists no such thread as the user's. A task on no step the view
+knows is `unplaced`. A scout of `scouts.json` is in `scout` from its launch until its request
+has a Report (`state.request`). `merged` is a count of what merged today, into the default
+branch or an integration branch alike, and has no rows: a row merged is done as far as the queue
+goes, whatever branch it merged into.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its
 `cause_kind` is the value the last pass judged (`work.VALUES`). Its `home` is its brief's, as
@@ -46,6 +50,7 @@ from jbus.view.state import (
     QUEUE_FILE,
     STEP,
     UNKNOWN,
+    WAITING_FILE,
     WORK_FILE,
     Read,
     iso,
@@ -72,8 +77,8 @@ STAGES = (
 STAGE_OF_STEP = {
     "queued": "queued",
     "running": "crew",
-    "gate": "you",
-    "hold": "you",
+    "gate": "crew",
+    "hold": "merge",
     "result": "review",
     "review": "review",
     "findings": "fix",
@@ -83,7 +88,7 @@ STAGE_OF_STEP = {
     "rebase": "merge",
     "merged": "merged",
 }
-RUNNING_BY_WHO = {"rev": "review", "user": "you"}
+RUNNING_BY_WHO = {"rev": "review"}
 ROOT_NAME = "root"
 LINKS = ("depends", "merge_after")
 _ORDER = {key: at for at, (key, _) in enumerate(STAGES)}
@@ -143,6 +148,7 @@ SOURCES = (
     WORK_FILE,
     QUEUE_FILE,
     MOVES_FILE,
+    WAITING_FILE,
     kept(scouts.NAME, lambda read: read.once(_scouted), 45),
 )
 
@@ -170,7 +176,14 @@ def _older(card: Card) -> tuple[bool, str]:
     return card.since is None, card.since or ""
 
 
-def _stage(task: dict[str, Any]) -> str | None:
+def _needs(read: Read) -> frozenset[str]:
+    """The slug of each need of the You panel."""
+    return frozenset(one["slug"] for one in read.panel("you")["needs"] if one["slug"])
+
+
+def _stage(task: dict[str, Any], needs: frozenset[str]) -> str | None:
+    if task["slug"] in needs:
+        return "you"
     if task["step"] == "running":
         return RUNNING_BY_WHO.get(task["who"], STAGE_OF_STEP["running"])
     return STAGE_OF_STEP.get(task["step"])
@@ -178,6 +191,7 @@ def _stage(task: dict[str, Any]) -> str | None:
 
 def cards(read: Read) -> list[Card]:
     """Every open row of the project as a card: each task and each scout out."""
+    needs = read.once(_needs)
     rows = {row["slug"]: row for row in read.rows}
     tasks = {task["slug"] for task in read.tasks}
     made = []
@@ -190,7 +204,7 @@ def cards(read: Read) -> list[Card]:
                 task["slug"],
                 read.name,
                 task["home"] or ROOT_NAME,
-                _stage(task),
+                _stage(task, needs),
                 task["since"],
                 said,
                 (task.get("state") or {}).get("kind") or UNKNOWN.key,
@@ -267,12 +281,13 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
             waited.setdefault((card.project, slug), []).append(card.slug)
     placed.sort(key=lambda card: (_ORDER[card.stage], _older(card), card.project, card.slug))
     merged = sum(len(read.panel("merged")["merged"]) for read in reads)
+    needs = sum(len(read.panel("you")["needs"]) for read in reads)
     stages = []
     for key, name in STAGES:
         mine = [card for card in placed if card.stage == key]
         still = sum(1 for card in mine if not card.cause.moving)
         oldest = min(mine, key=_older, default=None)
-        count = merged if key == "merged" else len(mine)
+        count = {"merged": merged, "you": needs}.get(key, len(mine))
         stages.append(
             {"key": key, "name": name, "count": count, "still": still, "oldest": _at(oldest)}
         )
