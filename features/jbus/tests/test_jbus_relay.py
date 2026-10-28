@@ -199,9 +199,9 @@ class Relay:
         except urllib.error.HTTPError as error:
             return error.code, {}
 
-    def ack(self, id: str, key: str = INBOUND) -> int:
+    def ack(self, id: str, key: str = INBOUND, path: str = "/ack") -> int:
         request = urllib.request.Request(
-            f"http://127.0.0.1:{self.port}/ack",
+            f"http://127.0.0.1:{self.port}{path}",
             data=json.dumps({"id": id}).encode(),
             method="POST",
             headers={"Content-Type": "application/json", "X-Automation-Key": key},
@@ -688,6 +688,14 @@ def test_an_ack_with_the_wrong_key_or_an_unknown_id_marks_nothing(relay, hooks):
 
     until(lambda: pager.posts)
     assert len(pager.posts) == 1
+
+
+def test_a_post_to_the_old_decision_path_is_refused_and_nothing_is_taken(relay, hooks):
+    """Sous Chef's decisions on a card came back on `POST /item`; that path is gone, so a body
+    posted there is neither decided nor sent on as an event."""
+    assert relay.ack("w1", path="/item") == 404
+    assert relay.spooled("blocking") == []
+    until(lambda: "refused a POST to /item" in relay.said())
 
 
 def test_a_page_line_carries_no_url_with_a_token(relay, hooks):

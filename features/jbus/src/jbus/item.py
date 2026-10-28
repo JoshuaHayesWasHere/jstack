@@ -3,9 +3,8 @@ and one state, in `items.jsonl` in the project's state directory.
 
 jbus names an item `w<n>`, with a number it mints from the project's counter (`items-next.json`), as
 it mints a question's number. It never gives that name again, even if the log is lost. An item has a
-slug only once a row of the queue links to it. An item proposed in chat has none. When
-`jbus queue add` makes a row, the row links at once to the item that `--item` names, or to a new
-item that the command mints.
+slug only once a row of the queue links to it. When `jbus queue add` makes a row, the row links
+at once to the item that `--item` names, or to a new item that the command mints.
 
 The record is the log. jbus only ever appends to it, under `items.lock`, and never trims it:
 `forget` trims `events.jsonl` and leaves the log alone. A line is `{id, item, at, by, where,
@@ -28,8 +27,6 @@ line only where the item is not in that state yet, and only for a move the facts
 with nothing new writes nothing. Only `work.py` judges the row.
 
 `risk` is `review` where a person must look before anything is done, and `routine` otherwise.
-
-Each line is also a card for Sous Chef's chat, which `jbus.cards` makes and posts.
 """
 
 from __future__ import annotations
@@ -424,7 +421,7 @@ def told(box: wake.Box, made: dict[str, Any]) -> None:
 @dataclass(frozen=True)
 class Basis:
     """A Basis names the user's words that a go is based on, the way an approval of a row
-    names them (`queue.basis`): words said in the view, or a message of Sous Chef's chat."""
+    names them (`queue.basis`): words said in the view."""
 
     kind: str
     ref: str
@@ -447,21 +444,6 @@ def rests(basis: Basis | None) -> dict[str, Any]:
     }
 
 
-def chat(message: str, words: str, user: jsettings.Settings, now: datetime) -> Basis:
-    """Return the user's words as Sous Chef's chat quotes them, by the chat message's id or
-    link. Nothing reads them back from the chat, so the basis marks them `checked: false`."""
-    said = queue.Said(" ".join(words.split()), user.stamp(now), "chat", False, message)
-    return Basis("chat", message, said)
-
-
-def names(words: str, item: Item) -> bool:
-    """Say whether the words name the item, by its id or its slug as a whole name."""
-    return any(
-        name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", words, re.I)
-        for name in (item.id, item.slug)
-    )
-
-
 def approve(
     state: Path,
     box: wake.Box,
@@ -472,45 +454,19 @@ def approve(
     words: str,
     seen: str | None,
     user: jsettings.Settings,
-    project: str,
     basis: Basis | None = None,
 ) -> dict[str, Any]:
-    """Record the user's go for an item, by its id, from the chat, the view or the command.
-    Return the `approved` line. It has the word that the go cites, when the go names one
-    (`rests`). A go from chat is taken only when its words name the item and the item's risk is
-    `routine`: the user approves a review item in the view, and the refusal names the view's
-    link."""
+    """Record the user's go for an item, by its id, from the view or the command. Return the
+    `approved` line. It has the word that the go cites, when the go names one (`rests`)."""
     where = Where(where)
     if by != user.user:
         raise Refused(f"refused: only {user.user} approves an item, not {by}")
     said = f"approve by {by}" + (f": {words}" if words else "")
     more: dict[str, Any] = {**({"words": words} if words else {}), **rests(basis)}
     with locked(state, LOCK):
-        if where is Where.CHAT:
-            _from_chat(state, id, words, project)
         made = _put(state, Verb.APPROVE, item=id, by=by, where=where, line=said, seen=seen, **more)
     told(box, made)
     return made
-
-
-def _from_chat(state: Path, id: str, words: str, project: str) -> None:
-    """Refuse a go from chat when its words do not name the item, or when the item is a review
-    item. The caller holds `items.lock`, so no other writer adds a line between the check and
-    the go."""
-    item = items(state).get(id)
-    if item is None:
-        raise Refused(refusal(None, Verb.APPROVE, id))
-    link = f"#/{project}/item/{id}"
-    if not names(words, item):
-        slug = f" or its slug {item.slug}" if item.slug else ""
-        raise Refused(
-            f"refused: an approval from chat names the item, {id}{slug}, and these words "
-            f"name neither: approve it in the view, {link}"
-        )
-    if judged(state, item).risk is Risk.REVIEW:
-        raise Refused(
-            f"refused: {id} is a review item, approved in the view and not from chat: {link}"
-        )
 
 
 def risk(value: str, gates: Iterable[questions.Question]) -> Risk:

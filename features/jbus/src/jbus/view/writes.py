@@ -239,7 +239,6 @@ class Writes:
                 words="",
                 seen=seen,
                 user=user,
-                project=name,
                 basis=item.Basis("view", WHERE, heard),
             )
         except Refused as error:
