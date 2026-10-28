@@ -29,8 +29,16 @@ window.addEventListener("load", function () { setTimeout(function () {
     function () { read("esc"); board.querySelector('[data-bcell="root/stacked"]').click(); },
     function () { read("again"); board.querySelector('[data-bcell="root/stacked"]').click(); },
     function () { read("twice"); history.back(); },
+    function () { read("back"); board.querySelector('[data-bcell="jview/check"]').click(); },
+    function () { var b = document.createElement("button"); b.setAttribute("data-open", "help"); document.body.appendChild(b); b.click(); b.remove(); },
+    function () { document.getElementById("dw-close").click(); },
+    function () { read("shut"); board.querySelector('[data-bcell="root/stacked"]').click(); },
+    function () { read("over"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
+    function () { read("drawn"); board.querySelector('[data-bhome="jview"]').click(); },
+    function () { read("chip"); board.querySelector('[data-bcell="jview/check"]').click(); },
+    function () { read("chipcell"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
     function () {
-      read("back");
+      read("unchip");
       var pre = document.createElement("pre"); pre.id = "probe"; pre.textContent = JSON.stringify(out);
       (window.top === window ? document : window.top.document).body.appendChild(pre);
     }

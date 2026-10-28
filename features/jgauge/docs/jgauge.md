@@ -60,6 +60,8 @@ It waits for one of the machine-wide test slots, runs the command, and exits wit
 For a short targeted run, use the short lane, `jgauge test-slot --short -- <command>`.
 A short run never waits for a slot that a whole suite holds.
 The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a TLC model check it starts takes no second slot.
+Once it lets the slot go, it sweeps `/tmp` (`TMPFS`) as `jgauge room` does when `/tmp` is full, whatever share of its file slots is used: each `pytest-of-<user>/pytest-<n>` run of yours over 20 minutes old that no live process holds is removed, and stderr says `test-slot: removed <n> stale pytest directories under /tmp`.
+A run outside any slot, or one that was killed, leaves its basetemp there, and pytest's own retention keeps a killed run's for days.
 
 To change how many slots there are, see [The limits and how to change them](jgauge/change-a-limit.md).
 
@@ -103,7 +105,7 @@ It prints `go`, and writes a `note: ` line on stderr.
 On macOS, which has no `/proc`, it reads the load from `sysctl -n vm.loadavg`, the cores from `sysctl -n hw.ncpu`, and the memory available from `vm_stat`, as its free, inactive and speculative pages.
 macOS has no pressure lines and APFS no fixed count of file slots, so on macOS the CPU pressure, the memory pressure and the file slots are not read and hold no launch.
 On Linux a pressure file that cannot be read still prints `wait: `.
-On macOS `jgauge room` also skips its sweep of stale pytest runs from a full `/tmp`: the sweep finds the runs a live process holds through `/proc`, so with no `/proc` every run would look unheld.
+On macOS `jgauge room` and `jgauge test-slot` also skip their sweep of stale pytest runs from `/tmp`: the sweep finds the runs a live process holds through `/proc`, so with no `/proc` every run would look unheld.
 
 | Flag | What it does |
 |---|---|
