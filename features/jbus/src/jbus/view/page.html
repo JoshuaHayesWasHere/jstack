@@ -930,9 +930,6 @@
     return head("Not found", what) + '<div class="now e-op"><span class="big">' + esc(what) + ' in <code>' + esc(PROJECT) + '</code></span>' +
       'It is not there now: it may have ended, or the link is old or mistyped. <a href="' + esc(href(PROJECT)) + '">Open ' + esc(PROJECT) + '</a></div>';
   }
-  /* A drawer's list: its first `first` rows, then each later row `hit` picks, and the rest folded
-     under their count, so a long list keeps a drawer short. A drawer opened on one row gives its
-     other lists a `first` of 0. */
   function fold(items, row, first, hit) {
     var shown = [], rest = [], ul = '<ul class="clean rows">';
     items.forEach(function (one, i) { (i < first || (hit && hit(one)) ? shown : rest).push(one); });
