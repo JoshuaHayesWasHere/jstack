@@ -272,11 +272,18 @@
   .tab { font-size: var(--text-sm); font-weight: 700; color: var(--ink); text-decoration: none; border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-px) var(--space-6); white-space: nowrap; }
   .tab[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--canvas); }
   #homes[hidden] { display: none; }
+  .hmenu, .hbr { display: none; }
 
   @media (max-width: 640px) {
     main { padding: var(--space-4) var(--space-5) var(--space-16); }
     .hdr { position: static; padding: var(--space-2) var(--space-5); gap: 0 var(--space-5); }
-    .hdr h1.every, #pick, #theme, .readat:not(.stale), .machw:not(.op):not(.bad) { display: none; }
+    .hdr h1.every, .readat:not(.stale), .machw:not(.op):not(.bad), .hdr .crumbs a:not([aria-current]) { display: none; }
+    .brand[data-read] { flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; }
+    .brand[data-read]::after { content: attr(data-read); font-size: var(--text-xs); font-weight: 400; color: var(--ink-2); }
+    .hdr:not(.open) #homes, .hdr:not(.open) #pick, .hdr:not(.open) #theme { display: none; }
+    .hmenu { display: inline-flex; align-items: center; justify-content: center; }
+    .hdr.open .hbr { display: block; flex-basis: 100%; height: 0; order: 1; }
+    .hdr.open #homes, .hdr.open #pick, .hdr.open #theme { order: 2; }
     .brand { min-height: 44px; display: inline-flex; align-items: center; }
     .tab { min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-2); }
     .tok { min-height: 44px; border-radius: var(--radius-lg); padding: var(--space-2) var(--space-6); line-height: 1.3; }
@@ -425,7 +432,21 @@
     .desk:not([hidden]) { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "band" "kpis" "matrix" "rail" "strip"; }
     .ov-kpis { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); }
   }
+  .ov-top:empty, .ov-tail:empty { display: none; }
+  .ov-top, .ov-tail { display: grid; gap: var(--space-5); min-width: 0; } .ov-tail { margin-top: var(--space-5); }
+  .ehl { display: grid; grid-template-columns: minmax(0, 1fr) 2.2em minmax(0, 1.6fr) 4.2em; gap: var(--space-4); align-items: center; min-height: 44px; border-top: 1px solid var(--hair); color: var(--ink); text-decoration: none; font-size: var(--text-sm); }
+  .ehl:first-of-type { border-top: 0; } .ehl b { overflow-wrap: anywhere; } .ehl .ehl-n { font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; } .ehl .ago { color: var(--ink-2); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ehl .seg-bar { margin: 0; }
+  .ehl-k { display: inline-flex; flex-wrap: wrap; gap: 0 var(--space-4); } .ehl-k span { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+  .ehl-k i { display: inline-block; width: 12px; height: 10px; border-radius: var(--radius-xs); }
+  .ehl-k .failing { background: var(--missed); } .ehl-k .waiting { background: var(--ink-2); } .ehl-k .passed { background: var(--line); }
+  :is(.ehl .seg-bar, .ehl-k) .norun { background: repeating-linear-gradient(135deg, var(--line) 0 2px, transparent 2px 5px); }
+  :is(.ehl .seg-bar, .ehl-k) .other { background: radial-gradient(circle, var(--ink-3) 1px, transparent 1.5px) 0 0 / 4px 4px; }
   @media (max-width: 640px) {
+    .desk:not([hidden]) { display: flex; flex-direction: column; } .desk > #matrix { display: none; }
+    #cards .gl { padding: var(--space-5) var(--space-6); } .ovc { padding: var(--space-4) var(--space-6); }
+    .ov-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } #cards .gl-top { display: none; }
+    #cards .gl-sub, .rl-w { display: block; -webkit-line-clamp: none; overflow: visible; } .gr span { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
     #cards .gl-word { float: none; font-size: var(--text-2xl); margin: 0; }
     .ov-strip { grid-template-columns: minmax(0, 1fr); } .ov-strip > .pt { grid-column: 1 !important; grid-row: auto !important; }
     .rl .btn { min-height: 44px; } .tile-s a, .ovc-s a, .ovc-f a, .ld a { min-height: 44px; display: inline-flex; align-items: center; }
@@ -444,12 +465,15 @@
   <a class="machw" id="mach" hidden></a>
   <span class="scratchw" id="scratch" hidden></span>
   <a class="theme help" id="helpme" href="#/help" aria-keyshortcuts="?" aria-label="Every term on the page, the key ?"></a>
+  <button type="button" class="theme hmenu" id="hmenu" aria-expanded="false" aria-controls="homes pick theme" aria-label="More: Homes, the project and light or dark">&#8943;</button>
+  <span class="hbr"></span>
   <button type="button" class="theme" id="theme">Auto</button>
 </header>
 <main id="main" tabindex="-1">
   <div class="dead" id="dead" role="alert"></div>
   <div class="desk" id="desk" hidden>
     <div id="cards" data-region="band"></div>
+    <div class="ov-top" id="ov-top" data-region="top"></div>
     <div class="ov-kpis" id="ov-kpis" data-region="kpis" role="group" aria-label="The work in numbers"></div>
     <div id="matrix" data-region="matrix"></div>
     <aside class="ov-rail" id="ov-rail" data-region="rail" aria-label="What needs you and what slows the work"></aside>
@@ -463,6 +487,7 @@
   </section>
   <p class="nx" id="nx"></p>
   <div id="pipeline" hidden></div>
+  <div class="ov-tail" id="ov-tail" data-region="tail"></div>
   <div class="tri" id="triage" hidden>
     <section class="needs" data-role="ask" aria-labelledby="tri-yh"><h2 id="tri-yh"></h2><ol class="nq clean" id="tri-yl"></ol><div id="tri-yt"></div></section>
     <section class="needs wrong" data-role="wrong" aria-labelledby="tri-wh"><h2 id="tri-wh"></h2><ol class="nq clean" id="tri-wl"></ol><div id="tri-wt"></div></section>
@@ -957,7 +982,8 @@
     stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
     var read = ms(PROJECT ? S.at : STACK.at) || lastAnswer;
-    say($("readat"), gone ? "Stale since " + hm(read) : "Updated " + hm(read) + " \u00b7 live"); $("readat").classList.toggle("stale", gone);
+    say($("readat"), gone ? "Stale since " + hm(read) : "Updated " + hm(read) + " \u00b7 live");
+    if (gone) document.querySelector(".brand").removeAttribute("data-read"); else document.querySelector(".brand").setAttribute("data-read", "live \u00b7 " + hm(read)); $("readat").classList.toggle("stale", gone);
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();
@@ -1058,14 +1084,28 @@
   }
 
   var PANELS = {}, ORDER = [], PARTS = {};
-  var DESK = [
-    ["cards", ["glance:band"]],
-    ["ov-kpis", ["you:tile", "glance:open", "slow:tile", "glance:act", "glance:merged"]],
-    ["ov-rail", ["you:rail", "slow:rail"]],
-    ["ov-strip", ["since:landed", "throughput:perday", "milestones:nearest", "slow:machine"]]
-  ];
+  var NARROW = window.matchMedia("(max-width: 640px)");
+  var DESK = {
+    wide: [
+      ["cards", ["glance:band"]],
+      ["ov-top", []],
+      ["ov-kpis", ["you:tile", "glance:open", "slow:tile", "glance:act", "glance:merged"]],
+      ["ov-rail", ["you:rail", "slow:rail"]],
+      ["ov-strip", ["since:landed", "throughput:perday", "milestones:nearest", "slow:machine"]],
+      ["ov-tail", []]
+    ],
+    phone: [
+      ["cards", ["glance:band"]],
+      ["ov-top", ["you:rail", "pipeline:homes"]],
+      ["ov-kpis", ["glance:open", "slow:tile", "glance:act", "glance:merged"]],
+      ["ov-rail", ["slow:rail"]],
+      ["ov-strip", ["since:landed"]],
+      ["ov-tail", ["throughput:perday", "milestones:nearest", "slow:machine"]]
+    ]
+  };
+  NARROW.addEventListener("change", function () { render(); });
   function drawDesk(on) {
-    DESK.forEach(function (region) {
+    DESK[NARROW.matches ? "phone" : "wide"].forEach(function (region) {
       var box = $(region[0]), names = on ? region[1].filter(function (n) { return PARTS[n]; }) : [];
       keyed(box, "div", "pt", names.map(function (n) { return { key: n, html: PARTS[n]() || "" }; }));
       [].forEach.call(box.children, function (el) { el.setAttribute("data-part", el.getAttribute("data-key")); el.hidden = !el.innerHTML; });
@@ -1362,7 +1402,10 @@
     if (S || free(top())) openDrawer(top(), focus);
     else pending = top();
   }
-  window.addEventListener("hashchange", function () { route(); });
+  window.addEventListener("hashchange", function () { menu(false); route(); });
+  function menu(open) { document.querySelector(".hdr").classList.toggle("open", open); $("hmenu").setAttribute("aria-expanded", String(open)); }
+  $("hmenu").addEventListener("click", function () { menu($("hmenu").getAttribute("aria-expanded") !== "true"); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && $("hmenu").getAttribute("aria-expanded") === "true") { menu(false); $("hmenu").focus(); } });
   if (HASH.theme === "light" || HASH.theme === "dark") document.documentElement.setAttribute("data-theme-hash", HASH.theme);
   route();
   note("open", routeName());

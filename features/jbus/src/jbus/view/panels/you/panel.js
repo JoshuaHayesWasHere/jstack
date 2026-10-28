@@ -270,7 +270,7 @@ document.addEventListener("change", function (e) {
   TICKED_GATES[x.getAttribute("data-tick")] = x.checked;
   $("bfoot").innerHTML = batchFoot();
 });
-var YOU_RAIL = 4;
+var YOU_RAIL = 4, YOU_PHONE = 3;
 function youTile() {
   if (!STACK) return "";
   var needs = oneList(STACK), soon = STACK.proceeds.length, said = [];
@@ -280,13 +280,17 @@ function youTile() {
 }
 function youRail() {
   if (!STACK) return "";
-  var rows = yours(), shown = rows.slice(0, YOU_RAIL), soon = STACK.proceeds.length;
+  var rows = yours(), shown = rows.slice(0, NARROW.matches ? YOU_PHONE : YOU_RAIL), soon = STACK.proceeds.length;
   return '<section class="ovc' + (rows.length ? " op" : "") + '" data-role="rail-needs" aria-labelledby="ovc-you"><h2 class="ovc-h" id="ovc-you"><span class="tag" data-gloss="card:needs">Needs you <b>' + STACK.needs.length + '</b></span> <span class="ovc-s">jbus&#39;s list at ' + hm(NOW) + '</span></h2>' +
     (shown.length ? '<ul class="clean">' + shown.map(function (r) {
       return '<li class="rl"><span class="rl-b"><span class="rl-w" title="' + esc(r.subj + " " + r.what) + '"><code>' + esc(r.subj) + '</code> ' + esc(r.what) + '</span><span class="rl-m">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></span><a class="btn" href="' + esc(r.href) + '">' + esc(r.verb) + '</a></li>';
     }).join("") + '</ul>' : '<p class="ovc-s">Nothing waits on you' + lastPass() + '.</p>') +
-    (rows.length > shown.length ? '<p class="ovc-f"><a href="#/triage">+' + (rows.length - shown.length) + ' more in Triage</a></p>' : "") +
-    (soon ? '<p class="ovc-f" title="' + falls(STACK).replace(/<[^>]*>/g, "") + '">' + defaultLine(STACK) + '</p>' : "") + '</section>';
+    youFoot([rows.length > shown.length ? '<a href="#/triage">+' + (rows.length - shown.length) + ' more in Triage</a>' : "",
+      soon ? '<span title="' + falls(STACK).replace(/<[^>]*>/g, "") + '">' + defaultLine(STACK) + '</span>' : ""]) + '</section>';
+}
+function youFoot(said) {
+  said = said.filter(Boolean);
+  return said.length ? '<p class="ovc-f">' + said.join(" &middot; ") + '</p>' : "";
 }
 panel({
   reads: "mixed", drawer: dYou, draw: renderNeeds,
