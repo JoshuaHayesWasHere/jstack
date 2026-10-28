@@ -57,6 +57,18 @@ def merge_order(rows: list[queue.Row] | None, slugs: dict[int, str]) -> list[int
     return placed
 
 
+def project(checkout: Path) -> tuple[jbus.Config, jbus.Project] | None:
+    """jbus's config and its project of this checkout, or None where jbus has neither."""
+    try:
+        config = jbus.load()
+    except jbus.Refused:
+        return None
+    found = next(
+        (one for one in config.projects if one.checkout.resolve() == checkout.resolve()), None
+    )
+    return None if found is None else (config, found)
+
+
 def _state(checkout: Path) -> Path | None | bool:
     try:
         config = jbus.load()
