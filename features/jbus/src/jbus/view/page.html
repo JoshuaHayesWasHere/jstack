@@ -1115,11 +1115,14 @@
   };
   NARROW.addEventListener("change", function () { render(); });
   function drawDesk(on) {
+    var had = document.activeElement, held = had && had.closest("#desk [data-act]") ? had.getAttribute("data-undo") : null;
     DESK[NARROW.matches ? "phone" : "wide"].forEach(function (region) {
       var box = $(region[0]), names = on ? region[1].filter(function (n) { return PARTS[n]; }) : [];
       keyed(box, "div", "pt", names.map(function (n) { return { key: n, html: PARTS[n]() || "" }; }));
       [].forEach.call(box.children, function (el) { el.setAttribute("data-part", el.getAttribute("data-key")); el.hidden = !el.innerHTML; });
     });
+    PANELS.you.tick();
+    var back = held && !had.isConnected && document.querySelector('#desk [data-undo="' + CSS.escape(held) + '"]'); if (back) back.focus();
   }
   function panels(name, first) {
     return function (def) {
