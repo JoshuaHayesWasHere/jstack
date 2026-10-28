@@ -99,7 +99,7 @@ Check(p) ==
     /\ \E sel \in BOOLEAN :
         /\ ci' = [ci EXCEPT ![p] =
                 IF sel /\ ((mainRed /\ ~fixes[p]) \/ breaks[p]) THEN "fail" ELSE "pass"]
-        \* features/jmerge/src/jmerge/rows.py:119, the head holds the red tip and ran each failed test
+        \* features/jmerge/src/jmerge/rows.py:132, the head holds the red tip and ran each failed test
         /\ proved' = [proved EXCEPT ![p] = sel /\ mainRed /\ fixes[p] /\ ~breaks[p] /\ named]
     /\ ranRed' = [ranRed EXCEPT ![p] = mainRed]
     \* browser.yml runs every browser test, so its run fails exactly when one fails.
@@ -113,13 +113,13 @@ Merge(p) ==
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1072-1074
     \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
-    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:126
+    /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:139
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
-    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:2019
+    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:2074
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:451-459
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:452-460
     \* A merge_after row merges after its row.
-    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:237-240
+    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:250-253
     /\ st' = [st EXCEPT ![p] = "merged"]
     \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
@@ -169,7 +169,7 @@ CrewFix(p) ==
 BrowserFix(p) ==
     /\ st[p] = "open"                       \* features/jbus/src/jbus/expedite.py:434, open ones only
     /\ brFail[p]                            \* features/jbus/src/jbus/expedite.py:323, its browser run failed
-    /\ ~brHold                              \* features/jmerge/src/jmerge/rows.py:326-329
+    /\ ~brHold                              \* features/jmerge/src/jmerge/rows.py:339-342
     /\ brBreaks' = [brBreaks EXCEPT ![p] = FALSE]
     /\ brFail' = [brFail EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
@@ -183,10 +183,10 @@ BrowserFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:856, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:857, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:402-405, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:827, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:933, base not red
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:828, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:934, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
@@ -237,12 +237,12 @@ ApproveMainFix ==
 Nightly ==
     /\ viewBroken                           \* .github/workflows/browser.yml:22-23, its nightly run
     /\ ~brHold
-    /\ brHold' = TRUE                       \* features/jmerge/src/jmerge/rows.py:355, red and its fix open
+    /\ brHold' = TRUE                       \* features/jmerge/src/jmerge/rows.py:368, red and its fix open
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
                    Machine, Fix, brBreaks, brFail, viewBroken>>
 
 \* You approve the browser-red row, and its crew fixes main's view. Its row is over, so main's
-\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py:370-371).
+\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py:383-384).
 ApproveBrowserFix ==
     /\ brHold
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
