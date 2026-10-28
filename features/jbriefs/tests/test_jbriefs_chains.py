@@ -34,7 +34,7 @@ def stacking(text: str) -> list[str]:
     "line",
     [
         "launch-caps: its merged code, the base of layer 2",
-        "stack-onto-main: its merged code, the base of layer 4; rejudge-repeat-red: its merged code",
+        "stack-onto-main: the base of layer 4; rejudge-repeat-red: its merged code",
         "alpha: the plan layer before this one",
         "alpha: Layer 3's work",
     ],
