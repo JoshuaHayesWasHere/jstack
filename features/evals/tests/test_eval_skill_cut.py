@@ -59,6 +59,16 @@ def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_give
     assert score.score_steps(answer, case).value == 1.0
 
 
+def test_a_fault_outside_where_scores_when_the_answer_uses_the_crew_skills_words():
+    """The crew skill says a fault outside the task makes "a queued row", so an answer in its
+    words scores 1 without the judge."""
+    rule = (REPO / "features" / "crew" / "do-the-task.md").read_text()
+    words = re.search(r"which makes it (a queued row)", rule)[1]
+    case = next(one for one in run.steps_cases() if one["id"] == "crew-outside-where")
+    answer = f"Leave it out of the diff: the off-by-one becomes {words} of its own."
+    assert score.score_steps(answer, case).value == 1.0
+
+
 def test_a_finding_with_no_bucket_is_unsettled_until_the_judge_reads_it():
     key = {
         "A1": {"fate": "sent", "fixed": True},
