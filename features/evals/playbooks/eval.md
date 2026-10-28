@@ -50,8 +50,12 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 Never done here, and who does it:
 
 - **Promoting the variant.** A crewmate does, from a new brief the home plans.
-- **An eleventh subagent in a step, or one that has to remember.** Nobody does. Work that must outlast the step is a thread the home launches: a line under "Noticed".
-- **A model the brief does not name, or an effort above medium.** Nobody does. With no `Candidates:` line it is this session's model, with no `Judge:` line a Claude model no candidate ran on, and a line under "Noticed".
+- **An eleventh subagent in a step, or one that has to remember.**
+  Nobody does.
+  Work that must outlast the step is a thread the home launches: a queued row (`templates/a-fault-outside.md`).
+- **A model the brief does not name, or an effort above medium.**
+  Nobody does.
+  With no `Candidates:` line it is this session's model, with no `Judge:` line a Claude model no candidate ran on, and it is said on the Result's `Left:` line.
 - **A copy of the blocks of `skills/reflect/SKILL.md`, or a change to them.** Nobody does.
 
 **Hand over:** in the Result, to the home: the variant, the rubric, a note per candidate with its chain, the judge's verdict and where it differed from yours, and whether to promote the variant.

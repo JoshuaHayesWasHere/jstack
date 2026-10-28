@@ -15,4 +15,4 @@ Open it with the block of "A playbook of the home's own" in `skills/home/SKILL.m
 What follows `/swarm` is the task to fan out, and with nothing after it, ask the user what to fan out.
 
 In any other thread, start nothing: a swarm is many threads, and only a home launches threads.
-A crewmate or a scout writes `/swarm <the task>` under "Noticed" for its home, and a thread with no home tells the user to type it in the repo's home.
+A crewmate or a scout writes `/swarm <the task>` on its Result's `Left:` line for its home, and a thread with no home tells the user to type it in the repo's home.

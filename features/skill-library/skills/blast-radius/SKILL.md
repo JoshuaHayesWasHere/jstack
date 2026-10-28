@@ -56,7 +56,7 @@ Step 4 is usually one small script that imports the same library the app ships a
 6. For a big or wide change, ask more than one reader the same question and merge the answers.
    Readers that do not see each other still catch different real bugs.
    In a home, that is `/swarm` (`../swarm/SKILL.md`), with one scout for each reader, none shown another's answer.
-   In any other thread, read the change once for each reader in this thread, each pass from the diff alone and not from the last pass's notes, and write `/swarm <the question>` under "Noticed" for the home when the change is too wide for that.
+   In any other thread, read the change once for each reader in this thread, each pass from the diff alone and not from the last pass's notes, and write `/swarm <the question>` on the Result's `Left:` line for the home when the change is too wide for that.
 
 ## What to hand back
 
