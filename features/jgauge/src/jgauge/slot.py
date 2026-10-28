@@ -270,11 +270,10 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
             _signal(child, number, lane)
 
     def drop(_number: int, _frame: object) -> None:
-        pass
+        """In the default lane an interrupt is the command's to take, and the holder waits for it
+        to end. A handler and not SIG_IGN, set before the command starts: the command would
+        inherit SIG_IGN, and an interrupt that came while it started would end the holder."""
 
-    # In the default lane an interrupt is the command's to take, and the holder waits for it to
-    # end. A handler and not SIG_IGN, set before the command starts: the command would inherit
-    # SIG_IGN, and an interrupt that came while it started would end the holder.
     for told in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(told, pass_on)
     signal.signal(signal.SIGINT, drop if lane.limit is None else pass_on)
