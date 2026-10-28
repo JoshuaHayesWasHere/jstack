@@ -1,6 +1,6 @@
 var SLOW_NAME = { check: "Check", review: "Review", rebase: "Rebase", you: "You" };
 var SLOW_SAYS = { check: "in check", review: "in review", rebase: "to rebase", you: "wait on you" };
-var SLOW_CHECK = { failing: ["failing check", "failing checks"], waiting: ["check running or queued", "checks running or queued"], passed: ["passed check waiting for jmerge", "passed checks waiting for jmerge"] };
+var SLOW_CHECK = { failing: ["failing check", "failing checks"], waiting: ["check running or queued", "checks running or queued"], passed: ["passed check waiting for jmerge", "passed checks waiting for jmerge"], stacked: ["stacked row merging after its parent", "stacked rows merging after their parents"] };
 var SLOW_OPEN = null;
 document.addEventListener("click", function (e) { var s = e.target.closest && e.target.closest('[data-role="slow"] > summary'); if (s) SLOW_OPEN = !s.parentNode.open; });
 (function () {
@@ -33,7 +33,7 @@ function slowRows(s) {
   return plural(n, SLOW_CHECK[s.cause][0], SLOW_CHECK[s.cause][1]) + " of " + rows;
 }
 function slowAge(s) { var w = slowWait(s); return w == null ? (s.rows ? "no time kept" : "none") : "oldest " + short(w); }
-function slowChecks(s) { return s.checks ? '<span class="sl-a">' + s.checks.failing + " failing, " + s.checks.waiting + " running or queued, " + s.checks.passed + " passed</span>" : ""; }
+function slowChecks(s) { return s.checks ? '<span class="sl-a">' + s.checks.failing + " failing, " + s.checks.waiting + " running or queued, " + s.checks.passed + " passed, " + s.checks.stacked + " stacked</span>" : ""; }
 function slowSlots(t) {
   if (!t.total) return "Test slots: <b>not known</b>";
   if (!t.read) return "Test slots: <b>not known</b> of " + t.total;
@@ -68,7 +68,7 @@ function slowCard() { return STACK && STACK.slow ? slowBand(STACK.slow) : ""; }
 function dSlow(arg, data) {
   var g = data.slow;
   return head("The line", "What slows us") + '<div class="now' + (slowBusy(g) ? " e-op" : "") + '"><span class="tag">Now</span><span class="big">' + slowSay(g) + '</span></div>' + slowBody(g) +
-    '<p class="src" style="margin-top:10px">A row waits at a stage from when it came to it. Check is the step Check: of its rows, failing counts those with a check that failed, running or queued those whose check runs or waits for a runner, and passed those whose checks passed and that wait for jmerge, each by the latest run of each check, as jmerge reads them. The first line names the largest of the three. You is what Needs you lists. Test slots are the full lane of <code>jgauge test-slot</code>, where a thread runs its check command, read from the kernel&#39;s list of held locks. Load is the room&#39;s.</p>';
+    '<p class="src" style="margin-top:10px">A row waits at a stage from when it came to it. Check is the step Check: of its rows, failing counts those with a check that failed, running or queued those whose check runs or waits for a runner, passed those whose checks passed and that wait for jmerge, each by the latest run of each check, as jmerge reads them, and stacked those that merge after their parent row, whatever their own checks say. The first line names the largest of the four. You is what Needs you lists. Test slots are the full lane of <code>jgauge test-slot</code>, where a thread runs its check command, read from the kernel&#39;s list of held locks. Load is the room&#39;s.</p>';
 }
 panel({
   title: "What slows us",
@@ -77,5 +77,5 @@ panel({
   adds: {
     task: function (t) { return t.step === "check" || t.step === "rebase" || t.who === "rev" ? openBtn("slow", "What slows the line") : ""; }
   },
-  gloss: { slow: ["What slows us", "How many rows wait at each stage, check, review, rebase and you, with how long the oldest has waited, the rows in check split into failing, running or queued, and passed, how many of the machine's test slots are held, and the machine's load. Its first line names the stage whose oldest row has waited longest."] }
+  gloss: { slow: ["What slows us", "How many rows wait at each stage, check, review, rebase and you, with how long the oldest has waited, the rows in check split into failing, running or queued, passed, and stacked on a parent row, how many of the machine's test slots are held, and the machine's load. Its first line names the stage whose oldest row has waited longest."] }
 });

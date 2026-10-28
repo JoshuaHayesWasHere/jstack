@@ -3,9 +3,32 @@ chains its rows make and what holds the line, as `/panel/pipeline.json` answers 
 
 import pytest
 
-from view.scene import CAPTURED, Scene, Served, ago, captured, et, iso, item, piped, row
+from view.scene import (
+    CAPTURED,
+    Scene,
+    Served,
+    ago,
+    captured,
+    et,
+    iso,
+    item,
+    piped,
+    row,
+    stacked_pr,
+)
 
-KEYS = ["scout", "queued", "crew", "you", "review", "fix", "review2", "check", "merge"]
+KEYS = [
+    "scout",
+    "queued",
+    "crew",
+    "you",
+    "review",
+    "fix",
+    "review2",
+    "check",
+    "stacked",
+    "merge",
+]
 
 
 def board(scene, path="/panel/pipeline.json"):
@@ -49,6 +72,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "fix": (0, 0),
         "review2": (0, 0),
         "check": (1, 0),
+        "stacked": (0, 0),
         "merge": (0, 0),
         "merged": (2, 0),
     }
@@ -83,6 +107,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "waited_by": ["tea-cup"],
         "head": "tea-pot",
         "depth": 1,
+        "wait": None,
     }
     assert rows["demo", "tea-cup"] | {"waits_on": None} == {
         "slug": "tea-cup",
@@ -98,6 +123,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "waited_by": ["tea-saucer"],
         "head": "tea-pot",
         "depth": 2,
+        "wait": None,
     }
     assert rows["demo", "tea-cup"]["waits_on"] == [
         {"slug": "tea-pot", "project": "demo", "kind": "depends"}
@@ -184,9 +210,13 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
         "bl-macos-ci-required",
         "cleanup-ux-telemetry-pr",
     }
-    check = next(one for one in got["stages"] if one["key"] == "check")
-    assert (check["count"], check["still"]) == (12, 8)
-    assert got["stuck"] == {"stage": "check", "still": 8, "count": 12}
+    stages = {one["key"]: (one["count"], one["still"]) for one in got["stages"]}
+    assert (stages["check"], stages["stacked"]) == ((10, 6), (2, 2))
+    assert got["stuck"] == {"stage": "check", "still": 6, "count": 10}
+    assert {one["slug"] for one in got["rows"] if one["stage"] == "stacked"} == {
+        "cleanup-ux-homes-board-pr",
+        "cleanup-ux-asks-count",
+    }
     assert got["longest"] | {"chains": None} == {
         "depth": 2,
         "head": "mac-tree-spec-timeout",
@@ -268,4 +298,21 @@ def test_the_rows_of_a_loop_share_one_depth_and_head_and_a_row_behind_it_is_one_
         "loop-a": (1, "loop-a"),
         "loop-b": (1, "loop-a"),
         "loop-c": (2, "loop-a"),
+    }
+
+
+def test_a_stacked_pull_request_leaves_check_for_stacked_whatever_its_own_checks_say(scene):
+    """`bun-top` and `bun-lid` merge after `bun-base`, so they are in Stacked, though one's
+    checks passed and the other's failed. `bun-pot` passed and waits for `jmerge` in Check.
+    Every row in either stage says what it waits on, and no other row does."""
+    stacked_pr(scene, row("oat-pan", "running", thread="mcp:pan"))
+    got = board(scene)["data"]
+    stages = {one["key"]: one["count"] for one in got["stages"]}
+    assert (stages["check"], stages["stacked"]) == (1, 2)
+    rows = {one["slug"]: (one["stage"], one["wait"]) for one in got["rows"]}
+    assert rows == {
+        "bun-top": ("stacked", "stacked"),
+        "bun-lid": ("stacked", "stacked"),
+        "bun-pot": ("check", "passed"),
+        "oat-pan": ("crew", None),
     }

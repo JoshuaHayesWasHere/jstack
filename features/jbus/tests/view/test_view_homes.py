@@ -195,7 +195,7 @@ def test_each_home_counts_its_rows_in_check_as_failing_running_or_queued_and_pas
     stack, state = answers(scene)
     (project,) = stack["projects"]
     assert {one["name"]: one["in_check"] for one in project["homes"]} == {
-        ROOT: {"failing": 1, "waiting": 2, "passed": 0},
-        SHELF: {"failing": 2, "waiting": 0, "passed": 1},
+        ROOT: {"failing": 1, "waiting": 2, "passed": 0, "stacked": 0},
+        SHELF: {"failing": 2, "waiting": 0, "passed": 1, "stacked": 0},
     }
     assert state["summary"]["homes"] == project["homes"]

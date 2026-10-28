@@ -10,7 +10,7 @@ import re
 import pytest
 
 from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, clean, look
-from view.scene import IN_CHECK, OLD, RACK, SHELF, asks, homed, in_check
+from view.scene import IN_CHECK, OLD, RACK, SHELF, asks, homed, in_check, stacked_pr
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -85,3 +85,14 @@ def test_each_home_on_the_homes_map_says_what_the_checks_of_its_rows_in_check_di
     root = said.index("check: 1 failing, 2 running or queued, 0 passed")
     shelf = said.index("check: 2 failing, 0 running or queued, 1 passed")
     assert said.index(SHELF) < shelf and root < shelf, said
+
+
+def test_a_home_whose_rows_in_check_are_stacked_counts_them_on_the_homes_map(scene, tmp_path):
+    """Two of the root's three rows in check merge after `bun-base`, and one passed: the line
+    counts the two as stacked, not as passed."""
+    asks(scene)
+    stacked_pr(scene)
+    seen = look(scene, tmp_path, route="#/homes", screen=DESK)
+    clean(seen, DESK)
+    said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
+    assert "check: 0 failing, 0 running or queued, 1 passed, 2 stacked" in said, said

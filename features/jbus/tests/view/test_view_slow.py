@@ -9,7 +9,19 @@ import shutil
 import pytest
 
 from jbus.view.panels.slow import panel as slow
-from view.scene import GITHUB, Served, ago, et, in_check, iso, judge_row, row, slots, stacked
+from view.scene import (
+    GITHUB,
+    Served,
+    ago,
+    et,
+    in_check,
+    iso,
+    judge_row,
+    row,
+    slots,
+    stacked,
+    stacked_pr,
+)
 
 
 def stage(given, key):
@@ -27,7 +39,7 @@ def test_six_rows_in_check_and_four_of_four_slots_say_so_on_the_overview(scene, 
     check = stage(given, "check")
     assert (check["rows"], check["checks"], check["cause"]) == (
         6,
-        {"failing": 0, "waiting": 6, "passed": 0},
+        {"failing": 0, "waiting": 6, "passed": 0, "stacked": 0},
         "waiting",
     )
     assert check["oldest"] == {
@@ -102,7 +114,10 @@ def checked(scene, *words):
 
 def test_a_failing_check_is_counted_apart_from_one_that_runs_or_waits_and_one_that_passed(scene):
     check = checked(scene, "failed", "failed", "failed", "pending", "none", "passed")
-    assert (check["rows"], check["checks"]) == (6, {"failing": 3, "waiting": 2, "passed": 1})
+    assert (check["rows"], check["checks"]) == (
+        6,
+        {"failing": 3, "waiting": 2, "passed": 1, "stacked": 0},
+    )
     assert check["cause"] == "failing"
 
 
@@ -116,7 +131,26 @@ def test_the_cause_is_the_larger_count_and_a_tie_names_the_failing_checks(scene)
 
 def test_a_check_that_will_not_run_or_a_draft_is_in_check_and_in_none_of_the_three(scene):
     check = checked(scene, "unrun", "draft", "failed", "failed", "passed", "passed")
-    assert (check["rows"], check["checks"]) == (6, {"failing": 2, "waiting": 0, "passed": 2})
+    assert (check["rows"], check["checks"]) == (
+        6,
+        {"failing": 2, "waiting": 0, "passed": 2, "stacked": 0},
+    )
+
+
+def test_a_stacked_pull_request_is_counted_as_stacked_whatever_its_own_checks_say(scene):
+    """`bun-top`'s checks passed and `bun-lid`'s failed, and both merge after `bun-base`: each is
+    stacked, by its line's code or, with none, by its text. `bun-pot` passed and is not."""
+    stacked_pr(scene)
+    served = Served(scene)
+    try:
+        check = stage(served.json("/stack.json"), "check")
+    finally:
+        served.close()
+    assert (check["rows"], check["checks"]) == (
+        3,
+        {"failing": 0, "waiting": 0, "passed": 1, "stacked": 2},
+    )
+    assert check["cause"] == "stacked"
 
 
 def test_no_stage_but_check_has_counts_of_checks(served):
