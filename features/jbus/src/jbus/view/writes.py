@@ -23,13 +23,14 @@ from pathlib import Path
 from typing import Any
 
 import jbus
-from jbus import Refused, item, passes, questions, queue, t3, wake
+from jbus import Refused, acts, asks, item, party, passes, questions, queue, t3, wake
 from jbus.view import state
 from jbus.view.clean import clean
 from jbus.view.state import Sources
 
 WRITE = "/answer"
 APPROVE = "/approve"
+ACT = "/act"
 WRITES = (WRITE, APPROVE)
 WHERE = "jbus view"
 BATCH = 200
@@ -136,9 +137,8 @@ class Writes:
             closed, _ = questions.answer(
                 state_dir,
                 number,
-                given,
-                by=user.user,
-                at=user.stamp(now),
+                party=party.Party("user", "view"),
+                evidence=party.Evidence("view", "", given, user.stamp(now), WHERE),
                 where=WHERE,
                 keeps=keeps,
                 user=user,
@@ -263,3 +263,63 @@ class Writes:
             "last_event": now_is.last_event if now_is else None,
         }
         return said(status, clean(answer, (state.repo(self.sources, name),)))
+
+    def act(self, name: str, body: bytes, authorization: str) -> Answer:
+        """`POST /act`, the bot's own route: a go or an answer, taken by `jbus.acts.act` as the
+        bot, on the bot's word from its chat. Only a request with the bot's key is the bot's
+        (`acts.is_bot`), wherever it comes from."""
+        if not acts.is_bot(self.sources.state_dir, authorization):
+            return said(401, {"error": "this route is the bot's, and takes the bot's key"})
+        try:
+            asked = json.loads(body)
+            verb, given, seen = asked["action"], asked["evidence"], asked.get("seen") or ""
+            words = " ".join(str(asked.get("words") or "").split())
+            if verb == "go":
+                subject, pre = asked["slug"], asked["sha12"]
+                shaped = isinstance(subject, str) and isinstance(pre, str) and len(pre) == 12
+            else:
+                number, pre = asked["number"], ""
+                shaped = verb == "answer" and isinstance(number, int) and bool(words)
+                subject = str(number)
+                shaped = shaped and isinstance(asked.get("keeps", False), bool)
+            shaped = shaped and isinstance(seen, str) and isinstance(given, str)
+            evidence = party.evidence(given) if shaped else None
+        except (ValueError, TypeError, KeyError, AttributeError):
+            shaped, evidence = False, None
+        if not shaped or evidence is None or evidence.source != "bot-chat":
+            return said(
+                400,
+                {
+                    "error": "an act is {action: go, slug, sha12} or {action: answer, number, "
+                    "words, keeps}, with evidence bot-chat:<address>/<device> and an optional seen"
+                },
+            )
+        now = self.clock()
+        heard = replace(
+            evidence,
+            words=words or f"go {subject}",
+            said_at=self.sources.user.stamp(now),
+            said_in=f"bot-chat {evidence.ref}",
+        )
+        config = replace(
+            self.config(), state_dir=self.sources.state_dir, home_dir=self.sources.home_dir
+        )
+        project = config.project(name)
+        run = passes.Pass(config, project, now, say=lambda line: None)
+        action = party.Action(verb, subject, pre, seen)
+        try:
+            made = acts.act(
+                run,
+                party.BOT,
+                action,
+                heard,
+                asks=asks._asks(config, project) if verb == "go" else None,
+                keeps=bool(asked.get("keeps", False)),
+                where=f"{WHERE} {ACT}",
+                ran_by=queue.BOT,
+            )
+        except Refused as error:
+            kept = acts.read(self.sources.state(name))
+            last = kept[-1] if kept else None
+            return said(409, {"error": str(error), "act": last})
+        return said(200, {"act": asdict(made)})

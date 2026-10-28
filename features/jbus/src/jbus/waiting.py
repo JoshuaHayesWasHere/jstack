@@ -53,7 +53,7 @@ blocks when it is open and nothing can move without the user. That is the design
 
 - (a) a `gate` whose `default` is empty, or whose question or context names one of `PAUSE`. Only a
   gate in a home's `gates.md` can have an empty default, since `jbus gate` refuses a question with
-  none. jstack keeps no always-pause list of its own: `PAUSE` is that list, matched against the
+  none. `PAUSE` is the door table's words (`party.DOORS`), each by its case, matched against the
   gate's words;
 - (b) an `approve` item, which is a row whose `brief_sha` is empty because nobody approved it or
   because its brief changed after the go, and a row of the queue that waits with no brief in
@@ -98,6 +98,7 @@ from jbus import (
     merge,
     mirror,
     old_names,
+    party,
     questions,
     queue,
     read_json,
@@ -144,15 +145,7 @@ Item = dict[str, Any]
 
 NAME = "waiting-on-user.json"
 BLOCKS = "blocking.json"
-PAUSE = {
-    "force-push": r"\bforce[- ]?push",
-    "deploy": r"\bdeploy",
-    "deleting data": r"\b(delet|drop|eras|wip)\w*\b[^.]*\b(data|database|tables?|rows|records)\b",
-    "an outside message": (
-        r"\b(customers?|outside|external|public)\b[^.]*\b(message|e-?mail|post|reply)"
-        r"|\b(message|e-?mail|post|reply)\w*\b[^.]*\b(customers?|outside|external|public)\b"
-    ),
-}
+PAUSE = {one.case: one.named for one in party.DOORS if one.named}
 KEEP_REMINDED = timedelta(days=14)
 
 

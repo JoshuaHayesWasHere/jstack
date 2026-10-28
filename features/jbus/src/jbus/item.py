@@ -45,7 +45,19 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import Refused, locked, passes, questions, queue, read_json, verbs, wake, work, write_json
+from jbus import (
+    Refused,
+    locked,
+    party,
+    passes,
+    questions,
+    queue,
+    read_json,
+    verbs,
+    wake,
+    work,
+    write_json,
+)
 
 EVENTS = {
     "item.proposed": "quiet",
@@ -168,9 +180,7 @@ of it. `waiting_on_you` is what is asked of the user: a gate, a thread's request
 `jmerge` holds. A row with no go is `held` only where its item was queued: one that never
 had a go is still proposed or approved."""
 
-SECRET = re.compile(
-    r"\b(secrets?|tokens?|credentials?|passwords?|api[ -]?keys?|config(uration)?)\b", re.I
-)
+SECRET = re.compile(rf"{party.door('changes access or secrets').named}|\bconfig(uration)?\b", re.I)
 """The words of an open gate that make its item a review: it is about a secret or the
 config."""
 

@@ -396,9 +396,11 @@ def _scout(args: argparse.Namespace, config: jbus.Config) -> int:
     if args.verb == "add":
         print(add(state, home, args.slug, sys.stdin.read()))
     elif args.verb == "approve":
-        basis, ref, _ = queue.basis(vars(args))
-        said = asks._asks(config, project).said(basis, ref)
-        print(approve(state, home, args.slug, args.sha, said, (basis, ref), config.user))
+        unread, _ = queue.basis(vars(args))
+        said = asks._asks(config, project).said(unread.basis, unread.ref)
+        print(
+            approve(state, home, args.slug, args.sha, said, (unread.basis, unread.ref), config.user)
+        )
     else:
         print(render(home, load(state)), end="")
     return 0

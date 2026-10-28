@@ -58,6 +58,7 @@ from jbus import (
     Config,
     Project,
     Refused,
+    acts,
     alert,
     merge,
     project,
@@ -263,19 +264,21 @@ def _digest(args: argparse.Namespace, config: Config) -> int:
 
 
 def _events(args: argparse.Namespace, config: Config) -> int:
-    """Print the project's event log, one JSON object per line, oldest first. It writes nothing.
+    """Print the project's event log, one JSON object per line, oldest first, each sent one with
+    its `id`, the event a go's `--seen` names. It writes nothing.
 
     `--since` is an ISO 8601 time, or a day alone. A time with no zone is in the user's
     zone.
     """
     start = _start(args.since, config)
     project = verbs.project(config, args.project)
-    for one in Box(config.state(project), project).log():
+    state = config.state(project)
+    for one, raw in zip(Box(state, project).log(), acts.events(state), strict=False):
         if args.slug is not None and one["slug"] != args.slug:
             continue
         if start is not None and datetime.fromisoformat(one["at"]) < start:
             continue
-        print(json.dumps(one, sort_keys=True))
+        print(json.dumps(one | ({"id": raw["id"]} if "id" in raw else {}), sort_keys=True))
     return 0
 
 

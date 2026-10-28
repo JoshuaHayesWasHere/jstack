@@ -123,7 +123,7 @@ import jsettings
 from jbriefs import chains, meaning
 from jbriefs import home as homes
 from jbriefs import parse as briefs
-from jbus import Refused, verbs, write_json
+from jbus import Refused, party, verbs, write_json
 
 EVENTS = {"queue": "quiet"}
 CHEF = ("slug", "priority", "depends", "merge_after", "approved", "brief_sha", "entry")
@@ -159,6 +159,7 @@ ENTRY = "entry"
 ANSWER = "answer"
 GO_DEFAULT = "approve"
 SIZED = ("S", "M")
+BOT_CHAT = "bot-chat"
 BY_RULE = "--follows <parent slug>"
 FOLLOW_RULE = "a follow-up of approved work needs no new approval"
 FOLLOW_REF = "follow-up"
@@ -181,6 +182,7 @@ FOLLOW_UP = (
 )
 SESSION = "CLAUDE_CODE_SESSION_ID"
 GO_HOLDS = ", its go holds"
+ALREADY = "already approved"
 GO_VOID = ", its go does not hold for it: approve it again"
 
 Row = dict[str, Any]
@@ -287,6 +289,7 @@ def clock() -> datetime:
 
 
 PASS = {"session": "", "directory": "", "by": "jbus"}
+BOT = {"session": "", "directory": "", "by": "bot"}
 
 
 def runner() -> dict[str, str]:
@@ -299,6 +302,8 @@ def who(ran_by: dict[str, str]) -> str:
     ran, or a shell where no session ran it. A pass of jbus's (`PASS`) is jbus's pass."""
     if ran_by.get("by") == PASS["by"]:
         return "jbus's pass"
+    if ran_by.get("by") == BOT["by"]:
+        return "the bot"
     directory = ran_by.get("directory", "")
     if not ran_by.get("session"):
         return f"a shell in {directory}"
@@ -376,6 +381,8 @@ class Approval:
             return f"{parent}; {ran}; you did not speak of this row"
         if self.basis == PAGE:
             return f"your pick on a Lavish page, {self.said_at}, {Path(self.said_in).name}; {ran}"
+        if self.basis == BOT_CHAT:
+            return f"the bot's go for you, {self.said_at}, from {self.said_in}; {ran}"
         typed = "" if self.checked else " (time typed)"
         where = f", in {self.said_in}" if self.said_in else ""
         return f"your word, {self.said_at}{typed}{where}; {ran}"
@@ -637,13 +644,15 @@ class Add:
 class Approve:
     """`Approve` is the verb that records the user's go for the brief whose sha256 starts with
     `given`, on the words that `ref` names. For a go by a rule, `ref` is the rule's number and
-    `follows` is the parent row's slug."""
+    `follows` is the parent row's slug. `heard` is those words where the caller read them
+    already (`jbus.acts`), and the batch then asks nothing for them."""
 
     slug: str
     basis: str
     ref: str
     given: str
     follows: str = ""
+    heard: Said | None = None
 
 
 @dataclass(frozen=True)
@@ -722,12 +731,12 @@ _OPTIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
 _BRIEF, _END = "--- brief ", "--- end"
 
 
-def basis(given: Mapping[str, Any]) -> tuple[str, str, str]:
-    """Return the one basis that an `approve` was given, its reference, and the parent that a
-    follow-up names. A `--follows` is the follow-up rule's basis, `RULE` with `FOLLOW_REF`, and a
-    `--rule <n>` beside it is taken and not read: the rule is known by what it says. `basis`
-    refuses no basis or more than one, a `--rule` with no parent, and a name or a time beside the
-    basis."""
+def basis(given: Mapping[str, Any]) -> tuple[party.Evidence, str]:
+    """Return the evidence that an `approve` was given, not yet read, and the parent that a
+    follow-up names. Each basis is one `party.Evidence.source` (`party.SOURCE`). A `--follows`
+    is the follow-up rule's basis, `RULE` with `FOLLOW_REF`, and a `--rule <n>` beside it is
+    taken and not read: the rule is known by what it says. `basis` refuses no basis or more
+    than one, a `--rule` with no parent, and a name or a time beside the basis."""
     named = [(name, str(given[name])) for name in BASES if given.get(name) not in (None, "")]
     follows = str(given.get("follows") or "")
     ruled = given.get(RULE) not in (None, "")
@@ -739,7 +748,8 @@ def basis(given: Mapping[str, Any]) -> tuple[str, str, str]:
             f"refused: approve takes one basis, {BASIS}, or {BY_RULE}, and no --by and no "
             "--at: jbus writes who ran it and when"
         )
-    return (*named[0], follows)
+    name, ref = named[0]
+    return party.Evidence(party.SOURCE[name], ref), follows  # type: ignore[arg-type]
 
 
 def slugs(text: str) -> list[str]:
@@ -1332,6 +1342,9 @@ def _do(
         stored = brief_sha(text)
         if stored[:12] != verb.given:
             raise Refused(f"refused: {verb.slug}'s brief is {stored[:12]}, not {verb.given}")
+        again = row.get("approved") and approved_text(row, text) and not row.get("held")
+        if verb.heard is not None and again and not _ruled(row):
+            return f"{ALREADY} {verb.slug}: brief {stored[:12]}, {approval(row)}"
         if ruled and row.get("approved") and approved_text(row, text) and not _ruled(row):
             raise Refused(
                 f"refused: {verb.slug} has the user's go, which holds, and a follow-up's go "
@@ -1739,6 +1752,9 @@ def _run(
     said_by: dict[tuple[str, str], Said | Refused] = {}
     for _, verb in verbs:
         asked = [(verb.basis, verb.ref)] if isinstance(verb, Approve) and verb.basis != RULE else []
+        if isinstance(verb, Approve) and verb.heard is not None:
+            said_by[verb.basis, verb.ref] = verb.heard
+            asked = []
         for named in asked:
             if asks is not None and asks.said is not None and named not in said_by:
                 try:
@@ -1829,6 +1845,26 @@ def approve(
     go lets the follow-up rule approve."""
     kind, ref, follows = rests
     return _run(state, [(0, Approve(slug, kind, ref, given, follows))], user, asks)
+
+
+def go(
+    state: Path,
+    slug: str,
+    said: party.Evidence,
+    follows: str,
+    given: str,
+    user: jsettings.Settings,
+    asks: Asks,
+    ran_by: dict[str, str] | None = None,
+) -> list[str]:
+    """Record the go on the evidence `jbus.acts` read, or by the follow-up rule with the
+    parent `follows`, as `approve` does. A go the row's go already holds for writes nothing,
+    and its line starts `ALREADY`. `ran_by` is who ran it, `runner` where none is given."""
+    heard = None
+    if said.source != "rule":
+        heard = Said(said.words, said.said_at, said.said_in, said.checked, said.ref)
+    verb = Approve(slug, said.basis, said.ref, given, follows, heard)
+    return _run(state, [(0, verb)], user, asks, ran_by)
 
 
 def follow_ups(state: Path, branches: tuple[str, ...], user: jsettings.Settings) -> list[str]:
@@ -1960,8 +1996,8 @@ def parse(text: str) -> list[tuple[int, Verb]]:
             if verb == "hold":
                 verbs.append((number, Hold(slug)))
             elif verb == "approve":
-                kind, ref, follows = basis(given)
-                verbs.append((number, Approve(slug, kind, ref, given["sha"], follows)))
+                said, follows = basis(given)
+                verbs.append((number, Approve(slug, said.basis, said.ref, given["sha"], follows)))
             elif verb == "remove":
                 verbs.append((number, Remove(slug, given["by"], given["at"])))
             else:

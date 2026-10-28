@@ -25,7 +25,8 @@ modules declare the same rank, `chores` raises a `ValueError`.
 
 `project` and `here` are the two ways a verb finds its project.
 
-This module imports none of jbus's features, so that each feature can import this module.
+This module imports none of jbus's features, so that each feature can import this module. It
+imports `jbus.party`, the shapes of who acts, which imports nothing of jbus.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ from pathlib import Path
 from typing import Any
 
 import jbus
+from jbus import party
 
 FIRST = (
     "poll",
@@ -234,10 +236,32 @@ def here(config: jbus.Config, name: str | None) -> jbus.Project:
     raise jbus.Refused(f"refused: no project for this repo ({repo or 'not a repo'})")
 
 
+def _cli_party(given: str) -> str:
+    """Take `--as`: a party of the command line, and never the bot, which acts only over its own
+    route."""
+    if given not in party.CLI_PARTIES:
+        raise argparse.ArgumentTypeError(party.CLI_BOT.format(party=given))
+    return given
+
+
 def parser(found: dict[str, Verb], description: str | None) -> argparse.ArgumentParser:
     """Build the parser of `jbus`, with a parser for each verb that `declared` found."""
     made = argparse.ArgumentParser(prog="jbus", description=description, allow_abbrev=False)
     made.add_argument("--project", help="the project's name in the config, when it has several")
+    made.add_argument(
+        "--as",
+        dest="as_",
+        type=_cli_party,
+        metavar="PARTY",
+        help="who acts in a go or an answer: home, the default, or user, on the user's own "
+        "words that jbus reads (--message or --page); the bot acts only over POST /act",
+    )
+    made.add_argument(
+        "--evidence",
+        metavar="SOURCE:REF",
+        help="the words a go or an answer rests on, as <source>:<ref>, in place of its basis "
+        "option: t3-message, lavish-page, typed (a word's id) or answer",
+    )
     commands = made.add_subparsers(dest="command", required=True)
     for verb in found.values():
         verb.arguments(commands.add_parser(verb.name, help=verb.help, allow_abbrev=verb.abbrev))

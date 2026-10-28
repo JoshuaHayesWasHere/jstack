@@ -28,7 +28,7 @@ from urllib.parse import quote
 
 import daemons
 import jsettings
-from jbus import leftover, merge, noticed, questions, queue, view, word, work
+from jbus import leftover, merge, noticed, party, questions, queue, view, word, work
 from jbus.view import state as built
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
@@ -629,9 +629,8 @@ def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle")
     questions.answer(
         scene.state,
         number,
-        answer,
-        by=user.user,
-        at=et(ago(minutes=30)),
+        party=party.USER,
+        evidence=party.Evidence("typed", "", answer, et(ago(minutes=30))),
         where="Sous Chef",
         keeps=False,
         user=user,

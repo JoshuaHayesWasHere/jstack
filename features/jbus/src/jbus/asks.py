@@ -20,6 +20,7 @@ from typing import Any
 import jbus
 from jbriefs import parse as briefs
 from jbus import (
+    acts,
     blockers,
     dispatch,
     item,
@@ -127,7 +128,8 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             for _, verb in queue.parse(text):
                 if isinstance(verb, queue.Add):
                     releases.append(blockers.admit(config, project, verb.slug, verb.text))
-            print("\n".join(queue.apply(state, text, config.user, asks)))
+            run = passes.Pass(config, project, datetime.now(UTC))
+            print("\n".join(acts.batch(run, asks, args, text)))
         except BaseException:
             for release in releases:
                 release()
@@ -176,11 +178,10 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
             box = wake.Box(state, project)
             item.link(state, box, row, args.item or "", by, config.user.user)
     elif args.verb == "approve":
-        rests = queue.basis(vars(args))
-        _, *ruled = queue.approve(
-            state, args.slug, rests, args.sha, config.user, _asks(config, project)
-        )
-        for line in ruled:
+        run = passes.Pass(config, project, datetime.now(UTC))
+        made = acts.go(args, run, _asks(config, project))
+        _, *ruled = made.line.split("\n")
+        for line in [made.line] if made.outcome in ("gated", "noop") else ruled:
             print(line)
     elif args.verb == "hold":
         held = queue.hold(state, args.slug)
@@ -312,6 +313,12 @@ def _table(table: argparse.ArgumentParser) -> None:
     approve.add_argument("--by", help=argparse.SUPPRESS)
     approve.add_argument("--at", help=argparse.SUPPRESS)
     approve.add_argument("--sha", required=True, help="the first 12 of that brief's sha256")
+    approve.add_argument(
+        "--seen",
+        metavar="EVENT",
+        help="the id of the last event you read (jbus events): refused as stale when the row "
+        "changed after it",
+    )
     table_verbs.add_parser(
         "hold", help="take a row's approval back: no launch, and no merge"
     ).add_argument("slug")

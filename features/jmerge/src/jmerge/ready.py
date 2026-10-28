@@ -152,6 +152,10 @@ MAIN_CHANGED = Reason(
 )
 FRESH_CHECK = "a fresh check"
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
+NO_GO = Reason(
+    "hold",
+    "its queue row has no go: the user's go, or the bot's, lets it merge (jbus queue approve)",
+)
 MERGES_AFTER = Reason("check", "merges after {slug} ({open}), not merged yet")
 STACKED_ON = Reason(
     "check",

@@ -111,6 +111,7 @@ def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events_un
             "line": "gate alpha: question 1: which way?",
             "text": ASKED.strip(),
             "posted": None,
+            "id": gate["id"],
         }
     ]
 

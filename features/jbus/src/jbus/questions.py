@@ -20,7 +20,7 @@ closes it, and a pass does either only as this module says (`park`, `silent`, `c
   `Option`: its short `name`, what `follows` from it, whether it is the `default` that the
   thread took, and whether it is the one the thread `recommended`. A record written before gates had
   options has none;
-- `holds` and `fail_safe`: the case of `HOLDS` that the gate's `Holds:` line names, for a
+- `holds` and `fail_safe`: the case of `party.CASES` that the gate's `Holds:` line names, for a
   default that is irreversible or slow to revert, and the fail-safe that its `Fail-safe:` line
   names. Both are empty for a gate whose thread acted on its default at once, and for a record
   written before gates had them;
@@ -65,7 +65,7 @@ cause passes, the pass closes such a question that still waits (`clear`), with `
 a question the user answered keeps the answer.
 
 A gate whose default is irreversible or slow to revert holds: its thread does not act, and the
-question waits for the user. Its `Holds:` line names the case, one of `HOLDS`, and its
+question waits for the user. Its `Holds:` line names the case, one of `party.CASES`, and its
 `Fail-safe:` line names the dry-run, plan or bundle on which the user answers. Silence never closes
 such a gate. `jbus gate` refuses a `Holds:` line with no filled `Fail-safe:` line, an unknown
 case, two `Holds:` lines, and a `Fail-safe:` line with no `Holds:` line.
@@ -128,8 +128,9 @@ import jsettings
 from jbriefs import below, skills
 from jbriefs import parse as briefs
 from jbus import END_TURN, Config, Refused, locked, mirror, outbox, queue, t3, verbs, write_json
+from jbus.party import CASES, Evidence, Party
 from jbus.passes import Pass
-from jbus.t3 import Client, T3Error, T3Refused, typed
+from jbus.t3 import Client, T3Error, T3Refused
 
 LOCK = "questions.lock"
 EVENTS = {"note": "quiet"}
@@ -162,14 +163,6 @@ _GROUP = re.compile(r"\([^()]*\)$")
 COMMAND, HOME, SILENCE, CLEARED = "jbus answer", "gates.md", "silence", "cleared"
 QUIET = timedelta(0)
 UNANSWERED = "settled at once"
-HOLDS = (
-    "deletes data",
-    "rewrites history",
-    "spends money",
-    "touches prod or real users",
-    "changes access or secrets",
-    "publishes",
-)
 REFUSED = "T3 Code refused the answer to question {number}, so its thread was not told"
 FORM = (
     'each option you weighed is one line, the default you took among them: "Option: <short '
@@ -385,10 +378,10 @@ def _held(lines: str) -> tuple[str, str]:
         for name in ("Holds", "Fail-safe")
     }
     holds, safe = said["Holds"], said["Fail-safe"]
-    cases = " | ".join(HOLDS)
+    cases = " | ".join(CASES)
     if len(holds) > 1 or len(safe) > 1:
         what = f"the gate has two {'Holds' if len(holds) > 1 else 'Fail-safe'}: lines"
-    elif holds and holds[0] not in HOLDS:
+    elif holds and holds[0] not in CASES:
         what = f'the Holds: line says "{holds[0]}", and a gate that holds names one of: {cases}'
     elif holds and (not safe or not safe[0] or safe[0].startswith("<")):
         what = (
@@ -519,32 +512,28 @@ def clear(run: Pass, number: int, words: str) -> None:
 def answer(
     state: Path,
     number: int,
-    words: str,
     *,
-    by: str,
-    at: str,
+    party: Party,
+    evidence: Evidence,
     where: str,
     keeps: bool,
     user: jsettings.Settings,
-    heard: queue.Said | None = None,
 ) -> tuple[Question, str]:
-    """Close a question with the user's answer, and return it with the line of what the answer
-    started. `answer` refuses a second answer and puts the first in the refusal. The one exception
-    is a question that a pass closed by silence: that close is not the user's answer, so the
-    user's answer replaces it.
+    """Close a question with the user's answer, as `party` carried it on `evidence`: its words,
+    their time and where jbus read them, and return it with the line of what the answer started.
+    `answer` refuses a second answer and puts the first in the refusal. The one exception is a
+    question that a pass closed by silence: that close is not the user's answer, so the user's
+    answer replaces it. Whether the party may answer a gate that holds, or a go gate for a brief
+    that holds, is `jbus.acts`'s to say, before it calls this.
 
     An answer that keeps the default of a go gate is the user's go for its row: the row is
     approved on it (`queue.gone_ahead`), and the line says so.
 
     `keeps` says the answer is the default. Only the person who heard the answer knows
-    whether it keeps the default, because words such as "yes" do not say it. For an answer given as
-    `--message`, `heard` is the T3 Code message, and jbus reads the answer's words and time from it.
+    whether it keeps the default, because words such as "yes" do not say it.
     """
-    if by != user.user:
-        raise Refused(f"refused: only {user.user} answers a question, not {by}")
-    if not user.takes(at):
-        raise Refused(f'refused: --at is "{user.form(at)}"')
-    if not words.strip():
+    words = " ".join(evidence.words.split())
+    if not words:
         raise Refused("refused: an answer has the user's words")
     with locked(state, LOCK):
         count, records = _kept(state)
@@ -555,15 +544,23 @@ def answer(
         (one,) = found
         if one.answer and one.answer.closed_by != SILENCE:
             raise Refused(f"refused: question {number} was answered already: {one.answer.line()}")
-        given = Answer(" ".join(words.split()), by, at, where, keeps)
-        if heard:
-            given = replace(given, ref=heard.ref, said_in=heard.said_in, checked=heard.checked)
+        by = "the bot" if party.kind == "bot" else user.user
+        given = Answer(words, by, evidence.said_at, where, keeps)
+        if evidence.checked or evidence.ref:
+            given = replace(
+                given, ref=evidence.ref, said_in=evidence.said_in, checked=evidence.checked
+            )
         closed = replace(one, answer=given)
         _write(state, count, [closed if each.number == number else each for each in records])
-    if not (keeps and _go(closed)):
+    if not (keeps and go_gate(closed)):
         return closed, ""
     said = queue.Said(given.words, given.at, given.said_in, given.checked, given.ref)
-    return closed, queue.gone_ahead(state, closed.slug, number, at, user, said)
+    return closed, queue.gone_ahead(state, closed.slug, number, given.at, user, said)
+
+
+def question(state: Path, number: int) -> Question | None:
+    """The question of that number, as the file has it now."""
+    return next((one for one in read(state) if one.number == number), None)
 
 
 def basis(state: Path, ref: str) -> queue.Said:
@@ -656,10 +653,10 @@ def silent(run: Pass) -> None:
         except Unparsable:
             return
         silence = run.user.go == jsettings.SILENCE
-        goes = _go_gates(run.state) if silence and any(map(_go, records)) else set()
+        goes = _go_gates(run.state) if silence and any(map(go_gate, records)) else set()
         closed = [
             replace(one, answer=given)
-            if _quiet(one, run.now, window if one.slug in goes and _go(one) else QUIET)
+            if _quiet(one, run.now, window if one.slug in goes and go_gate(one) else QUIET)
             else one
             for one in records
         ]
@@ -671,7 +668,7 @@ def silent(run: Pass) -> None:
             line = f"{NOTE} {one.slug}: question {one.number} closed with its default, {UNANSWERED}"
             run.find(one.slug, NOTE, line, key=f"silence {one.number}")
             run.say(line)
-            if one.slug in goes and _go(one):
+            if one.slug in goes and go_gate(one):
                 went = queue.gone_ahead(
                     run.state, one.slug, one.number, run.user.stamp(run.now), run.user, None
                 )
@@ -679,7 +676,7 @@ def silent(run: Pass) -> None:
                     run.say(f"queue {run.project.name}: {went}")
 
 
-def _go(one: Question) -> bool:
+def go_gate(one: Question) -> bool:
     """Return whether the question's default is to approve its row: a go gate."""
     return one.default.strip().lower() == queue.GO_DEFAULT
 
@@ -717,7 +714,7 @@ def waits(state: Path, user: jsettings.Settings) -> Callable[[Question], str]:
     of any other question, or of a go gate whose silence starts its row."""
 
     def why(one: Question) -> str:
-        if not _go(one):
+        if not go_gate(one):
             return ""
         if user.go != jsettings.SILENCE:
             return f"the setting go is {user.go}, not {jsettings.SILENCE}"
@@ -734,9 +731,9 @@ def _state(one: Question, why: str) -> str:
     line of a link's conflict says neither, because that question asks the home."""
     if one.holds:
         return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
-    if _go(one) and why:
+    if go_gate(one) and why:
         return f" It waits for your answer, since silence starts nothing where {why}."
-    if _go(one):
+    if go_gate(one):
         return f" Unless you answer, it starts {one.slug} when its quiet window ends."
     if not one.question.endswith(LINK):
         return " Its default is acted on already, and stands unless you stop it."
@@ -759,7 +756,7 @@ def item(one: Question, why: str = "") -> dict[str, Any]:
         "home": "",
         "slug": one.slug,
         "since": one.asked_at,
-        "acted": not one.holds and not _go(one),
+        "acted": not one.holds and not go_gate(one),
         "holds": one.holds,
         "fail_safe": one.fail_safe,
     }
@@ -965,40 +962,12 @@ def _gate(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def _answer(args: argparse.Namespace, config: Config) -> int:
-    """`jbus answer`: close a question with the user's words, from wherever the user
-    answered."""
-    project = verbs.here(config, args.project)
-    heard = typed(args, config, "answer")
-    closed, went = answer(
-        config.state(project),
-        args.number,
-        heard.words if heard else " ".join(args.words),
-        by=config.user.user if heard else args.by,
-        at=heard.said_at if heard else args.at,
-        where=str(Path.cwd()),
-        keeps=args.keeps,
-        user=config.user,
-        heard=heard,
-    )
-    given = closed.answer
-    if went:
-        carried = f"nothing is sent, and {went}"
-    elif given.keeps and not closed.holds:
-        carried = "nothing is sent"
-    elif thread_of(config.home(project), closed.slug):
-        carried = f"the next pass tells {closed.slug}'s thread"
-    else:
-        carried = f"{closed.slug} has no Thread: line in a brief or request, so no thread is told"
-    print(f"answered: question {closed.number}: {given.line()}: {carried}")
-    return 0
-
-
 def _slug(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("slug")
 
 
-def _closes(closes: argparse.ArgumentParser) -> None:
+def closes(closes: argparse.ArgumentParser) -> None:
+    """Add the arguments of `jbus answer`, whose verb `jbus.acts` declares."""
     closes.add_argument("number", type=int, help="the question's number")
     closes.add_argument("--by", help="the user's name, with --at, for words that were typed")
     closes.add_argument(
@@ -1026,10 +995,7 @@ def _closes(closes: argparse.ArgumentParser) -> None:
     closes.add_argument("words", nargs="*", help="the user's words, with --by and --at")
 
 
-VERBS = (
-    verbs.Verb("gate", "keep a question for the user, its lines on stdin", _slug, _gate),
-    verbs.Verb("answer", "close a question with the user's answer", _closes, _answer, abbrev=False),
-)
+VERBS = (verbs.Verb("gate", "keep a question for the user, its lines on stdin", _slug, _gate),)
 
 STEPS = (
     verbs.Step(

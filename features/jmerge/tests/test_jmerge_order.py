@@ -118,10 +118,11 @@ def test_a_pull_request_whose_row_is_held_is_not_merged(two):
     assert (two.tree.exists(), two.branches()[1]) == (True, ["alpha", "main"])
 
 
-def test_a_row_that_was_never_approved_is_no_held_row(two):
+def test_a_row_with_no_go_waits_for_one_and_a_row_with_a_go_merges_as_before(two):
     queue_of(two.home, [row("alpha", pr="#7", approved=""), row("beta", pr="#8")])
-    assert merged_numbers(two.run("--check")) == []
-    assert [line.split()[0] for line in two.run("--check")] == ["ready", "ready"]
+    said = two.run()
+    assert said[0] == f"wait 7 {merge.URL}: {ready.NO_GO}"
+    assert merged_numbers(said) == [8]
 
 
 def test_a_repo_with_no_queue_merges_as_it_did(two):
@@ -155,6 +156,7 @@ def test_a_queue_file_the_filesystem_will_not_give_merges_nothing(two):
     ("reason", "step"),
     [
         (ready.ROW_HELD, "hold"),
+        (ready.NO_GO, "hold"),
         (ready.MERGES_AFTER.format(slug="alpha", open="#144"), "check"),
         (ready.MERGES_AFTER.format(slug="alpha", open="no pull request yet"), "check"),
         (ready.QUEUE_UNREADABLE, "hold"),

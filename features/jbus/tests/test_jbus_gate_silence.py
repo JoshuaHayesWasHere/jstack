@@ -213,7 +213,9 @@ def test_a_home_that_answered_in_its_gates_file_replaces_a_close_by_silence(kitc
 
 def test_a_gate_that_holds_answered_with_its_default_goes_to_its_thread_as_a_go_ahead(kitchen):
     gate(kitchen, LINES + "Holds: deletes data\n" + SAFE + OPTIONS)
-    code, said = kitchen.main("answer", "1", "--by", "user", "--at", AT, "--default", "yes")
+    kitchen.t3.says("mcp:a-home", "yes-go", "yes")
+    argv = ("--as", "user", "answer", "1", "--message", "mcp:a-home/yes-go", "--default")
+    code, said = kitchen.main(*argv)
     assert (code, said.endswith("the next pass tells alpha's thread\n")) == (0, True), said
     kitchen.poll(NOW + timedelta(minutes=10))
     kitchen.poll(NOW + timedelta(minutes=20))
@@ -258,12 +260,15 @@ def test_the_line_on_the_list_says_acted_on_or_what_holds_with_its_fail_safe(kit
 
 def test_a_gate_that_holds_answered_otherwise_tells_its_thread_not_to_take_the_default(kitchen):
     gate(kitchen, LINES + "Holds: deletes data\n" + SAFE + OPTIONS)
-    kitchen.main("answer", "1", "--by", "user", "--at", AT, "--differs", "keep", "them")
+    kitchen.t3.says("mcp:a-home", "keep-them", "keep them")
+    argv = ("--as", "user", "answer", "1", "--message", "mcp:a-home/keep-them", "--differs")
+    assert kitchen.main(*argv)[0] == 0
+    heard = record(kitchen)["answer"]["at"]
     kitchen.poll(NOW + timedelta(minutes=10))
     (sent,) = kitchen.t3.messages.values()
     assert sent["message"] == (
         "jbus: user answered question 1 (tea or coffee?), which held for the answer (deletes "
-        f'data), and the answer is not the default (made tea). The words, {AT}: "keep them". '
+        f'data), and the answer is not the default (made tea). The words, {heard}: "keep them". '
         "Do not take the default: do what the answer says, and add one line to the last "
         "Result or Report saying what you did. "
         "End your turn only once no check or proof you started runs in your "

@@ -132,6 +132,8 @@ def short(
         return ""
     if row.get("held"):
         return ready.ROW_HELD
+    if row and not row.get("approved"):
+        return ready.NO_GO
     for other in row.get("merge_after", []):
         ahead = table.get(other)
         if ahead is not None and ahead.get("status") not in queue.FINAL:
