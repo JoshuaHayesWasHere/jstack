@@ -49,7 +49,11 @@ IDENTITY = {
     "GIT_AUTHOR_EMAIL": "t@example.com",
     "GIT_COMMITTER_NAME": "t",
     "GIT_COMMITTER_EMAIL": "t@example.com",
+    "GIT_CONFIG_GLOBAL": "/dev/null",
+    "GIT_CONFIG_NOSYSTEM": "1",
 }
+PINNED_AT = datetime(2026, 9, 1, tzinfo=UTC)
+PINNED = "71703307a3e0071d8706eeb578e6a7365f7b4a96"
 
 
 def git(cwd, *args, env=None):
@@ -86,12 +90,8 @@ def subject(tmp_path):
     repo.mkdir()
     git(repo, "init", "-q", "-b", "main")
     sha = commit(repo, {"src/upload.py": UPLOAD, "src/other.py": "one\n"}, when=PINNED_AT)
-    assert sha == PINNED
+    assert sha == PINNED, f"the subject commit is {sha}, not {PINNED}: what in git changed its id?"
     return repo, sha
-
-
-PINNED_AT = datetime(2026, 9, 1, tzinfo=UTC)
-PINNED = "71703307a3e0071d8706eeb578e6a7365f7b4a96"
 
 
 def days_ago(days):

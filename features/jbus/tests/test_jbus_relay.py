@@ -462,8 +462,8 @@ def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
     alert = blocks()
     running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}, tmp_path / "state").up()
 
-    running.send(alert)
-    until(lambda: len(sous_chef.bodies("blocking")) == 1)
+    _, taken = running.send(alert)
+    until(lambda: f"relay: sent event {taken['id']} to webhook (blocking)" in running.said())
     time.sleep(0.35)
     running.send(alert)
 
