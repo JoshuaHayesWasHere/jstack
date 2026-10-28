@@ -6,7 +6,7 @@ from jbus import questions
 from jbus.view import state as built
 from jbus.view.panels.checks import panel as checks_panel
 from jbus.view.panels.room import panel as room_panel
-from view.scene import NOW, Scene, Served, asks, iso, kept, stacked
+from view.scene import NOW, Scene, Served, ago, asks, iso, kept, logged, row, stacked, table
 
 
 def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, monkeypatch):
@@ -97,6 +97,26 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
     assert shown["health"]["bus"] == {"outbox": 2, "failed_wakes": 0, "last_error": ""}
     assert shown["health"]["threads"] == 0
     assert "attic" not in json.dumps(stack)
+
+
+def test_a_merge_counts_once_merge_log_says_it_though_the_queue_and_the_pass_lag(scene):
+    """jmerge has merged #610 and logged it, but no pass has moved the row to merged yet,
+    and `work.json` still judges it waiting on its check."""
+    late = row("no-noticed", "pr", pr="#610", checks="passed", why="wait: check has not passed")
+    scene.queue([*table(), late])
+    scene.merge_log(logged(41, "merged", 9, "rye-loaf"), logged(2, "merged", 610, "no-noticed"))
+    served = Served(scene)
+    try:
+        verdict = served.json("/stack.json")["glance"]["verdict"]
+        merged = served.json("/panel/merged.json?project=demo")["data"]["merged"]
+    finally:
+        served.close()
+    assert verdict["last_merge"] == iso(ago(minutes=2))
+    assert [(one["slug"], one["pr"], one["at"]) for one in merged][-1] == (
+        "no-noticed",
+        "#610",
+        iso(ago(minutes=2)),
+    )
 
 
 def test_the_homes_off_the_bus_are_the_machines_and_on_no_projects_row(tmp_path, monkeypatch):
