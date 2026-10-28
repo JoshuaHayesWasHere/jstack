@@ -93,8 +93,13 @@ of a merge.
 
 `entry` is the Chef's column that only `add` writes: the slug of the plan entry that the row does
 work for, where that is not the row's own slug. An entry is often several briefs, and `jbus plan`
-counts an entry's status by the rows that name it (`jbus.plan`). A row with no `entry` is its
-own entry (`entry`).
+counts an entry's status by the rows that name it (`jbus.plan`). A row with no `entry` that names
+a parent, as a follow-up does (`named_parent`), does work for its parent's entry: jbus keeps that
+entry in the row's `parent_entry`, at the end of each batch and on each pass (`_inherit`), and
+counts the row for it (`entry`). Any other row with no `entry` is its own entry, and so is a row
+whose `entry` is its own slug, which `add --entry <its slug>` writes. The rules that
+approve a row by its entry read only the entry the home gave (`given_entry`), so an entry jbus
+inherited approves nothing.
 
 `item` is the other column only `add` writes: the id of the work item that the row
 represents (`jbus.item`). Once a row has one, jbus refuses an `add` that names another.
@@ -525,6 +530,7 @@ def _well_formed(row: Any) -> bool:
         and isinstance(row.get("merge_after", []), list)
         and all(isinstance(slug, str) for slug in row.get("merge_after", []))
         and isinstance(row.get("entry", ""), str)
+        and isinstance(row.get("parent_entry", ""), str)
         and isinstance(row.get("approved", ""), str)
         and isinstance(row.get("approval", {}), dict)
         and isinstance(row.get("brief_sha", ""), str)
@@ -591,8 +597,14 @@ def over(row: Row) -> bool:
 
 
 def entry(row: Row) -> str:
-    """Return the plan entry that the row does work for: the entry given to `add`, or the row's
-    own slug."""
+    """Return the plan entry that the row does work for: the entry given to `add`, or else the
+    entry of the parent it follows up (`parent_entry`), or else the row's own slug."""
+    return row.get("entry") or row.get("parent_entry") or row["slug"]
+
+
+def given_entry(row: Row) -> str:
+    """Return the plan entry that the home filed the row under: the entry given to `add`, or the
+    row's own slug. An entry inherited from a parent is not one."""
     return row.get("entry") or row["slug"]
 
 
@@ -628,8 +640,8 @@ def _row(rows: list[Row], slug: str, gone: dict[str, dict[str, str]]) -> Row:
 class Add:
     """`Add` is the verb that adds a new row, or gives a row its brief, priority, depends and
     merge_after again. It leaves the row's approval as it is, and its entry too where `entry`
-    is empty. An `entry` that is the row's own slug takes the row's entry away: the row is
-    then its own entry, and holds none."""
+    is empty. An `entry` that is the row's own slug makes the row its own entry, and it then
+    takes no entry from a parent it names."""
 
     slug: str
     priority: int
@@ -871,6 +883,43 @@ def named_parent(slug: str, text: str) -> str:
     return slug.removeprefix(CLEANUP) if slug.startswith(CLEANUP) else ""
 
 
+def _parents_entry(
+    batch: _Batch, slug: str, known: dict[str, str], seen: tuple[str, ...] = ()
+) -> str:
+    """Return the plan entry of the parent that the row `slug` names, or nothing where it names
+    none or the parent is no row (`_parent_row`). A parent in the table with no entry given that
+    names a parent too does work for that one's entry, up the chain. A removed parent gives the
+    entry it went with. `known` keeps each row's answer, so a pass reads each brief once."""
+    if slug in known:
+        return known[slug]
+    if slug in seen:
+        return ""
+    named = named_parent(slug, batch.brief(slug) or "")
+    found = ""
+    try:
+        parent, here = _parent_row(batch, slug, named) if named else (None, True)
+    except Refused:
+        parent = None
+    if parent is not None and (parent.get("entry") or not here):
+        found = entry(parent)
+    elif parent is not None:
+        found = _parents_entry(batch, named, known, (*seen, slug)) or named
+    known[slug] = found
+    return found
+
+
+def _inherit(batch: _Batch) -> None:
+    """Keep each row's `parent_entry`: the entry of the parent it follows up, for a row with no
+    entry given, and none for any other row or where that entry is the row's own slug."""
+    known: dict[str, str] = {}
+    for row in batch.rows:
+        found = "" if row.get("entry") else _parents_entry(batch, row["slug"], known)
+        if found and found != row["slug"]:
+            row["parent_entry"] = found
+        else:
+            row.pop("parent_entry", None)
+
+
 def _ruled(row: Row) -> bool:
     """Return whether the row's go is the follow-up rule's."""
     made = record(row)
@@ -948,12 +997,12 @@ def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: b
         raise Refused(
             f"refused: {slug}'s go followed {made.follows}, and its brief now follows {named}"
         )
-    unit = units and entry(row) == entry(parent)
+    unit = units and given_entry(row) == given_entry(parent)
     if not kind(row, text, branches) and not unit:
         raise Refused(
             f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed, an integration "
-            f"branch's sync) and does not do work for {named}'s plan entry {entry(parent)}: its "
-            f"entry is {entry(row)}"
+            f"branch's sync) and does not do work for {named}'s plan entry "
+            f"{given_entry(parent)}: its entry is {given_entry(row)}"
         )
     _parent(batch, slug, named)
     return named
@@ -1307,9 +1356,7 @@ def _do(
             row["merge_after"] = verb.merge_after
         if verb.item:
             row["item"] = verb.item
-        if verb.entry == verb.slug:
-            row.pop("entry", None)
-        elif verb.entry:
+        if verb.entry:
             row["entry"] = verb.entry
         was = batch.brief(verb.slug)
         kept = record(row)
@@ -1475,10 +1522,10 @@ def _entered(
     text = batch.brief(slug)
     if not _waits(row, text) or row is None or text is None or case(text):
         return ""
-    said = entry_go(text, entry(row))
+    said = entry_go(text, given_entry(row))
     if said is None:
         return ""
-    return _grant(batch, row, text, ENTRY, entry(row), said, user, ran_by)
+    return _grant(batch, row, text, ENTRY, given_entry(row), said, user, ran_by)
 
 
 def _void(rows: list[Row], row: Row) -> list[str]:
@@ -1508,8 +1555,8 @@ def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[st
             if not made or made.basis != ENTRY or not _unlaunched(row) or row.get("held"):
                 continue
             why = case(text) if text is not None else "its brief is gone"
-            if not why and entry_go(text or "", entry(row)) is None:
-                why = f"the go of its plan entry {entry(row)} no longer holds"
+            if not why and entry_go(text or "", given_entry(row)) is None:
+                why = f"the go of its plan entry {given_entry(row)} no longer holds"
             if why:
                 back = ", ".join(_void(rows, row))
                 said.append(f"{back} waits for the user's go: {why}")
@@ -1613,8 +1660,10 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     """Move an unlaunched row to the slug `new`, with its columns and its go. The brief's head
     line is rewritten, and the rest of it is the brief the go was given for, so a go that held
     is bound to the renamed brief. A row that was its own plan entry keeps the old slug as its
-    entry. The old slug goes into `removed.json`, so the pass drops its item and no add brings it
-    back; the row gets its item anew from the pass."""
+    entry. A row that did work for its parent's entry keeps doing it where a `Follows:` line names
+    the parent, and not where only its `cleanup-` slug did. The old slug goes into
+    `removed.json`, so the pass drops its item and no add brings it back; the row gets its item
+    anew from the pass."""
     rows, old, new = batch.rows, verb.slug, verb.new
     row = batch.row(old)
     _launching(row, asks)
@@ -1658,7 +1707,8 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
             row["rebound"] = fingerprint(renamed)
         row["brief_sha"] = brief_sha(renamed)
     row["slug"] = new
-    row.setdefault("entry", old)
+    if "parent_entry" not in row:
+        row.setdefault("entry", old)
     row.pop("item", None)
     batch.gone[old] = {"at": verb.at, "by": verb.by, "why": f"renamed to {new}"}
     batch.briefs[old] = None
@@ -1785,6 +1835,7 @@ def _run(
                 line = _by_rule(batch, slug, user, asks.integration if asks else (), ran_by=ran_by)
                 if line:
                     said.append(line)
+        _inherit(batch)
         for kept, text in batch.aside.items():
             kept.parent.mkdir(parents=True, exist_ok=True)
             kept.write_text(text)
@@ -1872,7 +1923,8 @@ def follow_ups(state: Path, branches: tuple[str, ...], user: jsettings.Settings)
     parent's go holds, as jbus's pass (`PASS`), and return the line of each go. A row approved here
     may be the parent of another, so the rows are asked again until a round approves none. A row
     that is no follow-up is left to the user, and nothing is said of it: each pass asks it
-    again."""
+    again. First it keeps each row's `parent_entry` (`_inherit`): a parent queued after its
+    follow-up, or given an entry since, is taken in there."""
     said: list[str] = []
     with _changing(state) as rows:
         try:
@@ -1880,6 +1932,7 @@ def follow_ups(state: Path, branches: tuple[str, ...], user: jsettings.Settings)
         except Unparsable:
             return said
         batch = _Batch(state, rows, gone, {}, [], {})
+        _inherit(batch)
         while True:
             lines = [
                 line
@@ -2096,6 +2149,8 @@ def render(rows: list[Row]) -> str:
                 value = approval(row)
             elif column == "brief_sha":
                 value = str(value)[:12]
+            elif column == "entry" and not value and row.get("parent_entry"):
+                value = f"{row['parent_entry']} (its parent's)"
             cells.append(str(value).replace("|", "\\|"))
         lines.append("| " + " | ".join(cells) + " |")
     return "\n".join(lines) + "\n"
