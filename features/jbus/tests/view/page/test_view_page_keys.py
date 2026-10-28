@@ -47,7 +47,7 @@ def test_a_link_to_the_glossary_opens_it_cold_over_every_project(scene, tmp_path
         "Every term on the page",
     )
     assert first["crumbs"] == [["All", "#/"], ["Every term on the page", "#/help"]]
-    assert "Step 2 of 12: a crewmate thread has the task" in first["said"], "notes come cold too"
+    assert "Step 2 of 11: a crewmate thread has the task" in first["said"], "notes come cold too"
     assert "Needs you What only you can move" in first["said"]
     assert seen["board"]["shown"], "the glossary is over the board of every project"
 

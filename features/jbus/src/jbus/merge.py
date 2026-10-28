@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 EVENTS = {"jmerge": "quiet", "sweep": "quiet", "unplaced": "quiet"}
 _NO_LIST = re.compile(
-    r"jmerge: .*(protected|guarded|ci-paths)\.txt "
+    r"jmerge: .*(protected|ci-paths)\.txt "
     r"(cannot be read|has a pattern that cannot be read)"
 )
 NO_LIST = "jmerge has no readable protected-paths list, nothing merges"

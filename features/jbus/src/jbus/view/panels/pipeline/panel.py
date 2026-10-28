@@ -100,7 +100,6 @@ STAGE_OF_STEP = {
     "findings": "fix",
     "second": "review2",
     "check": "check",
-    "proof": "merge",
     "rebase": "merge",
     "merged": "merged",
 }

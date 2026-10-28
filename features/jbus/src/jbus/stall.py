@@ -19,13 +19,6 @@ open. `tell` also rewrites `stall.json`, which records when jbus first saw each 
 last sent the root. `tell` returns the roots that are still open, and `waiting` lists them with
 everything else that waits on the user.
 
-`guarded` handles what waits on a crew. What waits on a crew is a pull request that changes a
-guarded path. `jmerge` keeps such a pull request on a `wait` line, and that line wakes nobody. The
-line may say that the head has no proven safety fact, while the head is a fix pushed after the last
-review. Then `guarded` asks the crew for the one scoped review that proves the fix, once per head.
-When the line still says the same of the same head after `PASSES` passes, `guarded` logs one
-`stall` event, which is quiet and in the digest. `guarded.json` counts the passes.
-
 `hung` handles a turn that hangs: a thread that is out and has written nothing for too long
 (`live`). `hung` sends one `stall` event for that thread and that run, and writes one line of
 `hung.jsonl`. A later pass adds a line that says what became of the turn: it wrote again by itself,
@@ -36,14 +29,11 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import jsettings
-from jbriefs import below, findings
-from jbriefs import parse as briefs
-from jbus import mirror, queue, read_json, rebase, verbs, waiting, write_json
+from jbus import queue, read_json, verbs, waiting, write_json
 from jbus.dispatch import launched
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
@@ -60,8 +50,6 @@ EVENTS = {"waiting-on-user": "quiet", "stall": "quiet"}
 EVENT = "waiting-on-user"
 AGAIN = 60 * 60
 
-_GUARDED = re.compile(r"guarded \(touches \S+\), .+")
-_UNPROVEN = re.compile(r"\bno proven safety fact at ([0-9a-f]{12})\b")
 STALL = "stall"
 PASSES = 10
 REVIEWING = 30
@@ -234,99 +222,6 @@ def tell(
     return shown
 
 
-def reviewed(brief: str) -> str:
-    """Return the head that the last review saw when it ran, as the crew skill's "A second pass"
-    reads it."""
-    heads = [one.head for one in findings.triage(brief).sections if one.ran]
-    return heads[-1] if heads else ""
-
-
-def launched_for(brief: str, head: str) -> bool:
-    """Say whether the crew already launched the scoped review of this head. The sign is a
-    `Scoped reviewer:` line that ends `of <head>`, as the crew skill's "A second pass" reads it. A
-    line that names another head is no launch for this head. Neither is a line that names no head,
-    as lines written for a rebase did before jbus's ask named the head. Neither is the line that a
-    session writes when it had no launch tool, `Scoped reviewer: none, ...`."""
-    return any(map(below.launched, below.reviewers(brief, "Scoped reviewer", head)))
-
-
-def prove(run: Pass, client: Client, world: World, number: int, slug: str, short: str) -> None:
-    """Ask the crew of a done brief for the scoped review of a fix that no review has proved.
-
-    `prove` asks nothing when the review is of the commit that `jmerge` names. That review's proof
-    is unproven or failed, and a second review of the same commit would not change it. Such a wait
-    is a stall. `prove` also asks nothing when the crew wrote a `Scoped reviewer:` line for the
-    head, including a line that says the crew had no launch tool. That crew has told its home and
-    has nothing more to do.
-
-    The commit that `jmerge` names is the head. For a rebase that changed the patch, the named
-    commit is the commit before the head instead: `jmerge` compared the head with that commit and
-    found no proof there, so the fix was rebased after no review proved it. Either way, `prove` asks
-    for a review of the head.
-    """
-    head = world.open[slug].get("headRefOid", "")
-    named = _UNPROVEN.search(short)
-    if not named or f"proof|{slug}|{head[:12]}" in run.box.sent():
-        return
-    brief = task_brief(run, slug)
-    changed = [(before, to) for moved, before, to in below.rebases(brief) if moved]
-    rebased = [before for before, to in changed[-1:] if to == head]
-    at = (rebased or [head])[0]
-    saw = reviewed(brief)
-    done = below.line(mirror.last_result(brief), "Status:") == "done"
-    if not at.startswith(named[1]) or not done or not saw or saw == at:
-        return
-    if below.reviewers(brief, "Scoped reviewer", head):
-        return
-    default = run.run("git", "symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD")
-    old, new = (run.run("git", "merge-base", default.stdout.strip(), to) for to in (saw, head))
-    if default.returncode or old.returncode or new.returncode:
-        run.say(f"wait {slug}: no range from the default branch to {saw[:12]} and {head[:12]}")
-        return
-    ask = rebase.unproven(f"{old.stdout.strip()}..{saw}", f"{new.stdout.strip()}..{head}")
-    rebase.deliver(run, client, world, number, short, ask)
-
-
-def guarded(run: Pass, client: Client, world: World, pulls: list[str]) -> None:
-    """Ask for the proof that a guarded pull request lacks, and say when a guarded wait lasts too
-    long.
-
-    `guarded` counts each pass in which `jmerge` says the same of the same head. At the `PASSES`th
-    pass it sends one `stall` event, which names the pull request, the head and the crew's thread.
-    `guarded` starts the count again, once, when the crew launches a scoped reviewer for the head.
-    The event then comes at the `REVIEWING`th pass and says so, since a review takes longer than
-    `PASSES` passes.
-    """
-    by_number = {pull["number"]: slug for slug, pull in world.open.items()}
-    was: dict[str, Any] = read_json(run.state / "guarded.json", {})
-    kept: dict[str, Any] = {}
-    for said in map(parse, pulls):
-        if not said or said.word != "wait" or not _GUARDED.fullmatch(said.reason):
-            continue
-        number, url, short = said.number, said.name, said.reason
-        slug = by_number.get(number, "")
-        head = world.open[slug].get("headRefOid", "") if slug else ""
-        if not head:
-            continue
-        prove(run, client, world, number, slug, short)
-        brief = task_brief(run, slug)
-        reviewing = launched_for(brief, head)
-        seen = was.get(slug, {})
-        same = (seen.get("head"), seen.get("short")) == (head, short)
-        same = same and seen.get("reviewing", False) == reviewing
-        passes = seen.get("passes", 0) + 1 if same else 1
-        kept[slug] = {"head": head, "short": short, "passes": passes, "reviewing": reviewing}
-        if passes >= (REVIEWING if reviewing else PASSES):
-            more = ", with a scoped reviewer launched" if reviewing else ""
-            line = (
-                f"{STALL} {slug}: #{number} {url} has waited {passes} passes at {head[:12]}"
-                f"{more}, {short}; its crew's thread is {briefs.thread_of(brief) or 'not known'}"
-            )
-            run.find(slug, STALL, line, key=f"{head[:12]} {reviewing} {short}")
-    if kept != was:
-        write_json(run.state / "guarded.json", kept)
-
-
 def _calls(run: Pass) -> dict[tuple[str, str], dict[str, Any]]:
     """Return each `hung` call in `hung.jsonl` whose end no later line records, by its thread and
     its run."""
@@ -440,13 +335,4 @@ def _tell(half: Half) -> None:
     half.roots = tell(half.run, half.client, half.seen.world, half.table, half.users)
 
 
-STEPS = (
-    verbs.Step(
-        "tellers",
-        110,
-        "stall.guarded",
-        lambda half: guarded(half.run, half.client, half.seen.world, half.said),
-        ("client", "world"),
-    ),
-    verbs.Step("close", 10, "stall.tell", _tell),
-)
+STEPS = (verbs.Step("close", 10, "stall.tell", _tell),)

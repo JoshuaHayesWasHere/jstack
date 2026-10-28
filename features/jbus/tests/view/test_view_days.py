@@ -65,14 +65,14 @@ def test_the_t_moment_has_44_open_over_four_homes_and_18_failing_checks(answers)
 
 
 @pytest.mark.parametrize("answers", ["many"], indirect=True)
-def test_the_overloaded_day_has_45_open_12_behind_its_head_and_7_on_the_user(answers):
-    """45 open over the root, jview and flow: 12 behind `tea-kettle`, which is not approved,
+def test_the_overloaded_day_has_44_open_12_behind_its_head_and_7_on_the_user(answers):
+    """44 open over the root, jview and flow: 12 behind `tea-kettle`, which is not approved,
     8 ready for a launch slot, and 7 that wait on the user, 4 to approve and 3 at a gate. 8
     gates go ahead on their default, and 12 merged today."""
     stack, board = answers
     project = stack["projects"][0]
-    assert (project["open"], project["merged"]) == (45, 12)
-    assert homes(stack) == {"": 19, "jview": 14, "flow": 12}
+    assert (project["open"], project["merged"]) == (44, 12)
+    assert homes(stack) == {"": 18, "jview": 14, "flow": 12}
     assert (len(stack["needs"]), len(stack["proceeds"])) == (7, 8)
     assert Counter(one["kind"] for one in stack["needs"]) == {"approve": 4, "row": 3}
     behind = [one for one in board["rows"] if one["stage"] == "queued" and one["waits_on"]]
@@ -86,6 +86,6 @@ def test_the_overloaded_day_has_45_open_12_behind_its_head_and_7_on_the_user(ans
         "fix": 2,
         "review2": 1,
         "check": 3,
-        "merge": 2,
+        "merge": 1,
         "merged": 12,
     }

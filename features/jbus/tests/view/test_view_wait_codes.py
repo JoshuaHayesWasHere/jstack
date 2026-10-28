@@ -11,15 +11,9 @@ from jmerge import lines, ready
 from view.scene import PULL, ago, et, row, tasks
 
 PLAIN = {
-    "no-proof": ("proof", "no proven safety fact at 0123456789ab (blast-radius, review step 5)"),
-    "patch-changed": (
-        "second",
-        "guarded (touches src/a.py), the rebase changed the patch after its review",
-    ),
-    "needs-rebase": (
-        "rebase",
-        "guarded (touches a), main changed b after its check started; it needs a rebase",
-    ),
+    "no-proof": ("", "no proven safety fact at 0123456789ab (blast-radius, review step 5)"),
+    "patch-changed": ("second", "the rebase changed the patch after its review"),
+    "needs-rebase": ("rebase", "main changed b after its check started; it needs a rebase"),
     "check-unfinished": ("check", "a check has not finished"),
     "fresh-check": (
         "check",

@@ -67,9 +67,7 @@ Needs = Literal["act", "decide"]
 WAKES = frozenset({"slot-wake", "pool-wake", "slot-end", "clock"})
 """The templates of a wake: `jbus.slotwait`'s three and the stall clock's line to the thread a wait
 is on. `slot` and `review` never hold them."""
-ASKS = frozenset(
-    {"unreviewed", "twice", "second", "fix", "declines", "unruled", "rereview", "proof"}
-)
+ASKS = frozenset({"unreviewed", "twice", "second", "fix", "declines", "unruled", "rereview"})
 """The templates that ask for the review itself: `jbus.expedite`'s kinds whose reason is a review
 not written, and `jbus.rebase`'s asks for a scoped review. `review` never holds them, since the
 review it waits on is what they ask for."""

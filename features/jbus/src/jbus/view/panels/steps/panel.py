@@ -1,4 +1,4 @@
-"""The line: its twelve steps from Queued to Merged, the lane of a task whose state the
+"""The line: its eleven steps from Queued to Merged, the lane of a task whose state the
 view cannot work out, and how many rows the queue has in each status."""
 
 from __future__ import annotations

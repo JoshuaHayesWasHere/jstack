@@ -1,6 +1,6 @@
 """When a pull request is short of something its crew can fix, jbus tells the crew what to do,
 once per reason and head. The desk gets a message only when that did not work. Like
-`test_jbus_guarded_ask.py`, the tests run the real pass against the fakes, with the lines
+`test_jbus_rereview.py`, the tests run the real pass against the fakes, with the lines
 `jmerge` prints, over commits that are really there."""
 
 import os
@@ -697,7 +697,7 @@ def test_findings_not_handled_do_not_wait_for_a_reviewer(short, kitchen):
     assert len(sends(kitchen)) == 1
 
 
-def test_a_hold_for_a_guarded_path_is_the_user_s_at_once(short, kitchen):
+def test_a_hold_for_a_protected_path_is_the_user_s_at_once(short, kitchen):
     held = f"hold 7 {URL}: needs user, touches src/jmerge/cli.py"
     kitchen.set("jmerge.txt", held + "\n")
     short.passes(1)

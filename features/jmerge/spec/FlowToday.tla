@@ -151,7 +151,7 @@ Restack(p) ==
 \* crew's own thread once its turn ends, so no room is asked for, and its turn may leave a
 \* process running.
 CrewFix(p) ==
-    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:276, open ones only
+    /\ st[p] = "open"                       \* features/jbus/src/jbus/rebase.py:263, open ones only
     /\ ci[p] = "fail"
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one

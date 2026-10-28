@@ -1,5 +1,5 @@
 """A feature declares the step it adds to a pass, and `first_half` and `second_half` run each slot's
-steps by rank. Like `test_jbus_guarded_ask.py`, the tests run the real pass against the fakes.
+steps by rank. Like `test_jbus_rereview.py`, the tests run the real pass against the fakes.
 
 `ORDER` is the order in which `first_half` called its tellers before any of them was a step. It is
 written out once, here, with each step added since then placed in its slot by rank. `BEFORE` is what
@@ -81,7 +81,6 @@ ORDER = [
     "tellers 75 reload.tell (client)",
     "tellers 80 threads.out and stall.hung (client, world)",
     "tellers 100 rebase.tell (client, world)",
-    "tellers 110 stall.guarded (client, world)",
     "after-expedite 1 expedite.tell",
     "after-expedite 5 strays.stop (client, world)",
     "after-expedite 10 mainmoved.tell (client, world)",
@@ -120,7 +119,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung watch.gone rebase.tell stall.guarded expedite.tell "
+        "threads.out stall.hung watch.gone rebase.tell expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
         [("jmerge", JMERGE)],
     ),
@@ -128,7 +127,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung rebase.tell stall.guarded expedite.tell mainmoved.tell "
+        "threads.out stall.hung rebase.tell expedite.tell mainmoved.tell "
         "remarks.tell dispatch.turns",
         [
             ("note", "note alpha: told its thread the answer to question 1"),
@@ -139,7 +138,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung rebase.tell stall.guarded expedite.tell mainmoved.tell "
+        "threads.out stall.hung rebase.tell expedite.tell mainmoved.tell "
         "remarks.tell dispatch.turns",
         [("word", "word demo: sent to mcp:a-home")],
     ),
@@ -147,7 +146,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung watch.gone rebase.tell stall.guarded expedite.tell "
+        "threads.out stall.hung watch.gone rebase.tell expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
         [
             ("result", "result alpha: done"),
@@ -160,7 +159,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung watch.gone rebase.tell stall.guarded expedite.tell "
+        "threads.out stall.hung watch.gone rebase.tell expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
         [
             ("jmerge", f"wait 7 {URL}: {CHANGED}: it needs a rebase"),
@@ -203,7 +202,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung watch.gone rebase.tell stall.guarded expedite.tell "
+        "threads.out stall.hung watch.gone rebase.tell expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
         [("condition", "condition demo: word-sends.json does not parse"), ("jmerge", JMERGE)],
     ),
@@ -211,7 +210,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung watch.gone rebase.tell stall.guarded expedite.tell "
+        "threads.out stall.hung watch.gone rebase.tell expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
         [("jmerge", JMERGE), ("condition", "condition demo: questions.json does not parse")],
     ),
@@ -219,7 +218,7 @@ BEFORE = {
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
-        "threads.out stall.hung rebase.tell stall.guarded expedite.tell mainmoved.tell "
+        "threads.out stall.hung rebase.tell expedite.tell mainmoved.tell "
         "remarks.tell",
         [("jmerge", JMERGE), ("condition", "condition demo: queue.json does not parse")],
     ),
@@ -268,7 +267,6 @@ CALLED = (
     (stall, "hung"),
     (watch, "gone"),
     (rebase, "tell"),
-    (stall, "guarded"),
     (expedite, "tell"),
     (expedite, "told"),
     (mainmoved, "tell"),
@@ -314,7 +312,7 @@ def moved(before, fixture="short"):
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
     if "watch.gone" in calls:
         calls.remove("watch.gone")
-        calls.insert(calls.index("stall.guarded") + 1, "watch.gone")
+        calls.insert(calls.index("rebase.tell") + 1, "watch.gone")
     if "mainmoved.tell" in calls:
         at = calls.index("mainmoved.tell") + 1
         calls[at:at] = WATCHED.get(fixture, WATCH_READS)

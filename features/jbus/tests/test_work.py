@@ -56,8 +56,8 @@ def test_every_combination_of_the_facets_is_one_state_and_what_matches_none_is_u
             assert (again.value, again.confirmed, again.facts.last) == ("ready", False, "ready")
         unknown += state.value == "unknown"
         answered_unknown += state.value == "unknown" and state.confirmed
-    assert walked == 6 * 11 * 2 * 4 * 12 * 2 * 4 == 50_688
-    assert (unknown, answered_unknown) == (15_324, 444)
+    assert walked == 6 * 11 * 2 * 4 * 11 * 2 * 4 == 46_464
+    assert (unknown, answered_unknown) == (14_084, 444)
     assert time.monotonic() - began < 10
 
 
@@ -76,7 +76,6 @@ def test_each_value_but_unknown_is_one_pattern_and_the_values_are_the_closed_set
         "findings",
         "second",
         "check",
-        "proof",
         "rebase",
         "hold",
         "launching",

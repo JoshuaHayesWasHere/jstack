@@ -41,19 +41,19 @@ MIDDLE = (900, 900)
 def test_the_first_screen_of_a_project_of_todays_size_is_no_more_than_150_words(scene, tmp_path):
     """The test uses a desk's screen and makes it as high as the Needs you queue, `NEEDS`.
     Here that queue has the four rows of the scene. The In progress section starts below that
-    queue, with a row for each of the other 24 open tasks."""
+    queue, with a row for each of the other 23 open tasks."""
     open_rows = lineup(scene, TODAY)
-    assert len(open_rows) == 28
+    assert len(open_rows) == 27
     screen = (DESK[0], DESK[1] + NEEDS)
     seen = look(scene, tmp_path, screen=screen)
     opened = clean(seen, screen)
     assert seen["font"] == 18
     assert seen["words"] <= WORDS, seen["words"]
     assert seen["shell"] <= SHELL, seen["shell"]
-    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 24
+    assert len([row for row in seen["prog"] if row["slug"] in open_rows]) == 23
     assert set(seen["first"]) <= opened
     assert {row["open"] for row in seen["prog"]} <= opened
-    assert len(opened) >= 24 + 6
+    assert len(opened) >= 23 + 6
 
 
 def test_a_task_in_needs_you_is_written_once_on_the_first_screen_of_a_project(scene, tmp_path):

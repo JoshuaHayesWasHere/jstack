@@ -87,7 +87,6 @@ def test_each_state_jbus_judges_puts_its_crew_on_one_stage(scene):
         "fig-result": "pr",
         "fig-review": "review",
         "fig-second": "review",
-        "fig-proof": "review",
         "fig-findings": "fixing",
         "fig-rebase": "fixing",
         "fig-check": "green",

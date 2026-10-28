@@ -161,7 +161,6 @@ NO_LIST = "condition demo: jmerge has no readable protected-paths list, nothing 
     "said",
     [
         "jmerge: /somewhere/src/jmerge/protected.txt cannot be read",
-        "jmerge: /somewhere/src/jmerge/guarded.txt cannot be read",
         "jmerge: /somewhere/src/jmerge/ci-paths.txt has a pattern that cannot be read, "
         "so nothing is merged: a//b",
         "jmerge: /somewhere/src/jmerge/protected.txt has a pattern that cannot be read, "
@@ -231,9 +230,6 @@ def test_a_reason_declared_in_ready_is_placed_on_its_step_with_no_other_edit(mon
     assert merge.step(said.format(name="x1")) == ""
     monkeypatch.setattr(ready, "NOT_WOUND", ready.Reason("findings", said[6:]), raising=False)
     assert merge.step(said.format(name="x1")) == "findings"
-    assert merge.step(f"wait: guarded (touches a.py), {ready.NOT_WOUND.format(name='b')}") == (
-        "findings"
-    )
 
 
 @pytest.mark.parametrize(
@@ -330,17 +326,9 @@ def test_every_reason_ready_returns_is_one_of_its_constants():
             "wait: its fix changed more than the findings named: the second pass is not written",
             "second",
         ),
-        (
-            "wait: guarded (touches src/a.py), the rebase changed the patch after its review",
-            "second",
-        ),
         ("wait: a check has not finished", "check"),
-        ("wait: guarded (touches src/a.py), no proven safety fact at 0123456789ab (x)", "proof"),
+        ("wait: no proven safety fact at 0123456789ab (x)", ""),
         ("wait: it conflicts with its base", "rebase"),
-        (
-            "wait: guarded (touches a), main changed b after its check started; it needs a rebase",
-            "rebase",
-        ),
         ("hold: needs user, the rebase dropped 1 of main's lines in src/a.py", "hold"),
         ("wait: its brief says Review: none, so it needs the user's word", "hold"),
         ("wait: another home's", ""),

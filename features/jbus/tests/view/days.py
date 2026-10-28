@@ -21,7 +21,6 @@ REASON = {
     "findings": "its findings are not handled: the Result has no Fixed line",
     "second": "its fix changed more than the findings named: the second pass is not written",
     "check": "check has not passed",
-    "proof": "guarded (touches src/a.py), no proven safety fact at 0123456789ab (step 5)",
     "rebase": "it conflicts with its base",
 }
 
@@ -37,7 +36,6 @@ TODAY = {
     "findings": 2,
     "second": 1,
     "check": 1,
-    "proof": 1,
     "rebase": 1,
 }
 
@@ -84,7 +82,7 @@ MANY = TODAY | {"yours": 4, "blocked": 12, "free": 8, "running": 6, "gate": 3, "
 
 
 MANY |= {"check": 3}
-"""The overloaded day (`reports/jv-glance/today/fixture-many-waiting-*`): 45 open, 12 behind
+"""The overloaded day (`reports/jv-glance/today/fixture-many-waiting-*`): 44 open, 12 behind
 `tea-kettle`, which is not approved, 8 ready for a launch slot, and 7 that wait on the user."""
 
 
