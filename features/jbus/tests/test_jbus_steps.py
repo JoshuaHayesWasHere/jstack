@@ -97,6 +97,7 @@ ORDER = [
     "derive 10 states.judged (sight)",
     "derive 20 states.derive (client, world, rows)",
     "after-derive 10 leftover.tell (world, rows)",
+    "after-derive 15 prose.tell",
     "after-derive 30 states.unplaced (client, world, rows)",
     "after-derive 40 states.keep_work (rows)",
     "after-derive 50 item.follow (rows)",

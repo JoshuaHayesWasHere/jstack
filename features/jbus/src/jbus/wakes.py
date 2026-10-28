@@ -2,8 +2,9 @@
 
 The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
 (`blockers.deciding`), the leftovers a home has (`jbus.leftover`), the entries whose go holds
-with no live row (`jbus.plan.owed`) and the entries whose `Builds on:` merged with no row
-(`jbus.plan.buildable`). An item's key has no run and no time in it: a red's failing
+with no live row (`jbus.plan.owed`), the entries whose `Builds on:` merged with no row
+(`jbus.plan.buildable`) and the deferred lines of a home's notes or plan (`jbus.prose`). An item's
+key has no run and no time in it: a red's failing
 tests, a wrong's kind, subject and reason (`state.key_of`), a need's own key. `pick` takes the items
 one home thread owns that are new to it, less those its own thread caused and those whose cause is
 another open item, unless the row is that item's fix.
@@ -18,13 +19,24 @@ from __future__ import annotations
 
 import hashlib
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import blockers, clock, leftover, outbox, plan, queue, read_json, verbs, write_json
+from jbus import (
+    blockers,
+    clock,
+    leftover,
+    outbox,
+    plan,
+    prose,
+    queue,
+    read_json,
+    verbs,
+    write_json,
+)
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.threads import ROLES
@@ -58,7 +70,11 @@ BRIEF = (
     "queue its first row (`jbus queue add <slug> --entry {entry}`, a scout's if it needs design, "
     "`--depends` for what it still waits on), or change its `Builds on:` line if it waits on more."
 )
-OWED_LATE = "Its home, thread {thread}, has not done either in {minutes} min since jbus told it."
+PROSE = (
+    "A line of {file} defers an action on an event no code watches, so a home must remember "
+    "this: make it a row with `--depends`, or delete the line."
+)
+LATE = "Its home, thread {thread}, has not acted on it in {minutes} min since jbus told it."
 _QUOTED = re.compile(r'\bjbus "([^"]+)"')
 _RUN_ID = re.compile(r"/actions/runs/(\d+)")
 
@@ -305,15 +321,7 @@ def owed_items(run: Pass, record: dict[str, Any], rows: list[queue.Row]) -> list
         where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
         flag = f" --scope {made.scope}" if made.scope else ""
         text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
-        items.append(Item(key=key, to=thread, line=line, row=made.entry, text=text))
-        at = told_to(record, thread).get(key, {}).get("at", "")
-        if not at or thread == root:
-            continue
-        if leftover.late(leftover.Record("", told=at), run.now):
-            said = OWED_LATE.format(thread=thread, minutes=leftover.CLOSE_MINUTES)
-            items.append(
-                Item(key=f"{key} late", to=root, line=line, row=made.entry, text=f"{text} {said}")
-            )
+        items += _with_late(run, record, root, Item(key, thread, line, made.entry, text=text))
     return items
 
 
@@ -330,6 +338,30 @@ def brief_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
     return items
 
 
+def prose_items(run: Pass, record: dict[str, Any]) -> list[Item]:
+    """The deferred lines of a home's notes or plan written since the seed pass (`jbus.prose`),
+    each the item of its home's thread, and the root home's too once its home has not acted on it
+    in `leftover.CLOSE_MINUTES`, as a leftover is."""
+    root, items = root_of(run), []
+    for key, one in (prose.read(run.state) or {}).items():
+        if one.seeded:
+            continue
+        thread = (thread_of(run.home / one.scope) if one.scope else "") or root
+        line, text = f"{key}: {one.text}", PROSE.format(file=one.file)
+        items += _with_late(run, record, root, Item(key, thread, line, text=text))
+    return items
+
+
+def _with_late(run: Pass, record: dict[str, Any], root: str, one: Item) -> list[Item]:
+    """The item, and the root home's item of it too once a home that is not the root was told of
+    it `leftover.CLOSE_MINUTES` ago or more."""
+    at = told_to(record, one.to).get(one.key, {}).get("at", "")
+    if not at or one.to == root or not leftover.late(leftover.Record("", told=at), run.now):
+        return [one]
+    said = LATE.format(thread=one.to, minutes=leftover.CLOSE_MINUTES)
+    return [one, replace(one, key=f"{one.key} late", to=root, text=f"{one.text} {said}")]
+
+
 def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     """Send each home thread, at most once a pass, the open items it owns that are new to it."""
     record = read_json(run.state / FILE, {})
@@ -342,6 +374,7 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
         pass
     else:
         items += owed_items(run, record, rows) + brief_items(run, rows)
+    items += prose_items(run, record)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)
