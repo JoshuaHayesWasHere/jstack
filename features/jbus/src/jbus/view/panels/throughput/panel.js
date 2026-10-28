@@ -12,8 +12,25 @@ function tpBars(days) {
       '<span class="src" style="border-top:1.5px solid var(--line);align-self:stretch;text-align:center;padding-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(i === last ? "today" : tpWeekday(d.day)) + '<br>' + esc(d.day.slice(5)) + '</span></li>';
   }).join("") + '</ol>';
 }
+var TP_WAITING = "GitHub has not answered yet", TP_AGAIN_MS = 2000, TP_TRIES = 6;
+function tpFetch(name, then, tries) {
+  ask("/panel/throughput.json?project=" + encodeURIComponent(name)).then(function (a) {
+    var t = a.data.throughput, n = tries || 1;
+    if (!t.read && t.error === TP_WAITING && n < TP_TRIES) setTimeout(function () { tpFetch(name, then, n + 1); }, TP_AGAIN_MS);
+    else then(t);
+  }, function () { then({ read: false, error: "the view server did not answer" }); });
+}
 function dThroughput(arg, data) {
-  var t = data.throughput;
+  var t = data.throughput, mine = turn;
+  if (!t.read && t.error === TP_WAITING) {
+    tpFetch(PROJECT, function (said) {
+      if (mine === turn && drawer.open) $("dw").innerHTML = said.days ? tpDrawn(said) : head("Throughput", "Merges by day") + '<p class="src" style="margin-top:var(--space-8)">The view server did not answer.</p>';
+    }, 2);
+    return head("Throughput", "Merges by day") + '<p class="src" style="margin-top:var(--space-8)">Asking GitHub for the merges of each day: it has not answered yet.</p>';
+  }
+  return tpDrawn(t);
+}
+function tpDrawn(t) {
   return head("Throughput", "Merges by day") +
     '<div class="now' + (t.read ? "" : " e-op") + '"><span class="tag">The last ' + t.days.length + ' days</span><span class="big">' + plural(t.total, "merge", "merges") + '</span>' +
     '<span class="src">' + (t.read ? 'Pull requests GitHub has as merged, counted by the day of your zone, today up to now. GitHub asked at ' + hm(ms(t.at)) + '.' : 'Not known: ' + esc(t.error) + '.') + '</span></div>' +
@@ -23,10 +40,7 @@ var TP_ASKED = null;
 function tpAsk() {
   if (TP_ASKED || !STACK || !STACK.projects.length) return;
   TP_ASKED = {};
-  STACK.projects.forEach(function (p) {
-    ask("/panel/throughput.json?project=" + encodeURIComponent(p.name)).then(function (a) { TP_ASKED[p.name] = a.data.throughput; render(); },
-      function () { TP_ASKED[p.name] = { read: false, error: "the view server did not answer" }; render(); });
-  });
+  STACK.projects.forEach(function (p) { tpFetch(p.name, function (t) { TP_ASKED[p.name] = t; render(); }); });
 }
 function tpPerDay() {
   tpAsk();
@@ -52,6 +66,6 @@ panel({
   reads: "server",
   gloss: {
     throughput: ["Throughput", "How many pull requests merged on each of the last seven days, and their total, as GitHub counts them."],
-    perday: ["Merged per day", "The card under the matrix: how many pull requests merged on each of the last seven days in every project, as GitHub counts them, asked once when the page loads. A day with none is drawn as a hairline."]
+    perday: ["Merged per day", "The card under the matrix: how many pull requests merged on each of the last seven days in every project, as GitHub counts them, asked when the page loads, and again while GitHub has not answered yet. A day with none is drawn as a hairline."]
   },
 });
