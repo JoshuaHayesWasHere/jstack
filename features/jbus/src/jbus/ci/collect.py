@@ -11,9 +11,11 @@ failing tests the log names and the runner faults the log shows.
 
 `jbus ci` collects the last `days` days (`collect`) and waits for the ledger's lock. Each pass of
 jbus collects too (`keep`, from the step in `jbus.ci`): the runs created in the last `PASS_HOURS`
-hours, at most `PASS_RUNS` new runs, so that a pass after a gap catches up over a few passes. It
-never waits for the lock: while `jbus ci` holds it, the pass collects nothing. A run that completes
-more than `PASS_HOURS` after it was created is kept by the next `jbus ci`.
+hours, at most `PASS_RUNS` new runs, so that a pass after a gap catches up over a few passes, and
+the pull requests updated since the newest update the ledger holds, where that is earlier, back at
+most `CATCH_UP`: a pass after a gap keeps every pull request merged in it. It never waits for the
+lock: while `jbus ci` holds it, the pass collects nothing. A run that completes more than
+`PASS_HOURS` after it was created is kept by the next `jbus ci`.
 
 The collector reads a job's telemetry from its check run's annotations. Of a job's own words, the
 API returns only its annotations, since the API cannot read a job summary. The telemetry is an
@@ -43,6 +45,7 @@ TITLE = "jstack-ci"
 PAGE = 100
 PASS_HOURS = 3
 PASS_RUNS = 30
+CATCH_UP = timedelta(days=14)
 HOSTED = re.compile(r"^(ubuntu|windows|macos)-")
 EVIDENCE = re.compile(r"^(FAILED|ERROR|E  |##\[error\])")
 FAILING = re.compile(r"^(?:FAILED|ERROR) (\S+::\S+)")
@@ -289,20 +292,34 @@ def collect(gh: Gh, repo: str, state: Path, now: datetime, days: int) -> Counts:
 
 def keep(gh: Gh, repo: str, state: Path, now: datetime) -> Counts | None:
     """What a pass collects: the runs of the last `PASS_HOURS` hours, at most `PASS_RUNS` new
-    ones. None where another collector holds the ledger, which the pass does not wait for."""
+    ones, and the pull requests updated since then or since the newest update the ledger holds,
+    whichever is earlier, back at most `CATCH_UP`. None where another collector holds the
+    ledger, which the pass does not wait for."""
     try:
         with locked(state, ledger.LOCK, wait=False):
-            return _collect(gh, repo, state, now - timedelta(hours=PASS_HOURS), PASS_RUNS)
+            since = now - timedelta(hours=PASS_HOURS)
+            return _collect(gh, repo, state, since, PASS_RUNS, now - CATCH_UP)
     except BlockingIOError:
         return None
 
 
-def _collect(gh: Gh, repo: str, state: Path, since: datetime, most: int | None = None) -> Counts:
+def _collect(
+    gh: Gh,
+    repo: str,
+    state: Path,
+    since: datetime,
+    most: int | None = None,
+    back: datetime | None = None,
+) -> Counts:
     """Keep the pull requests and the jobs of the runs created since `since`, of at most `most`
-    new runs. The pull requests' file is written only where one of them changed, and each run's
-    jobs as soon as they are read, so a collector stopped half way keeps what it read."""
+    new runs. With `back`, the pull requests are those updated since the newest update the
+    ledger holds where that is earlier than `since`, and not before `back`. The pull requests'
+    file is written only where one of them changed, and each run's jobs as soon as they are
+    read, so a collector stopped half way keeps what it read."""
     held = {one["number"]: one for one in ledger.read(state / ledger.PULLS)}
-    now_held = held | {one["number"]: one for one in pulls(gh, repo, since, held)}
+    updated = [when for one in held.values() if (when := _time(one.get("updated")))]
+    caught = since if back is None or not updated else max(back, min(since, max(updated)))
+    now_held = held | {one["number"]: one for one in pulls(gh, repo, caught, held)}
     everyone = sorted(now_held.values(), key=lambda one: one["number"])
     if now_held != held:
         ledger.rewrite(state / ledger.PULLS, everyone)
