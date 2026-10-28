@@ -70,6 +70,6 @@ Each now holds by the guard the design names for it, and a test in `features/hom
 
 - `Box.fold`, jbus's one-time move into the home thread's outbox of the calls an older jbus left in outboxes it no longer posts from.
 - A third child.
-- What one home leaves for another: a record by `jbus noticed add --for`, the user's word the root carries to a scope by `jbus word --scope`, and `jbus stop`, by which a scoped home reaches the root (#553, #567, #578).
+- What one home leaves for another: a queued row `--for` that home, the user's word the root carries to a scope by `jbus word --scope`, and `jbus stop`, by which a scoped home reaches the root (#553, #567, #578).
 - A pull request that stops being ready a second time, and a push to main by anything but a merge.
 - The crew's own stalls, which the crew skill and jbus's waits cover.

@@ -2,8 +2,9 @@
 
 jbus carries every message between a repo's homes, and every review notice, through its
 outbox: `jbus stop` from a scope to the root, `jbus word --scope` and `jbus stop answer` from the
-root to a scope, `jbus noticed add --for` for a finding one home has for another, and the notice
-jbus sends a crew once its review is written. A send of the agent's own skips the outbox's rules,
+root to a scope, and the notice jbus sends a crew once its review is written. A fault one thread
+finds in another home's work is no message at all: it is a row of the queue, `jbus queue add`
+(`templates/a-fault-outside.md`). A send of the agent's own skips the outbox's rules,
 so it is refused when the sender is a home or a reviewer of the repo and the thread is one of the
 repo's homes, now or before a handoff, or the crew on a brief's `Thread:` line. A home's send to
 a crew of its own briefs is a steer, and it goes. So does any send to a scout, to another repo's
@@ -128,7 +129,15 @@ def _channel(sender: Home, to: Home) -> str:
             f" <thread>/<message> --scope {to.name}`, and the answer to its stop by"
             f" `jbus stop answer {to.name} <row> <answer>`"
         )
-    return f"a finding for it goes by `jbus noticed add --for {to.name}`"
+    return _row(to.name)
+
+
+def _row(name: str) -> str:
+    """What carries a fault in the work of the home `name`: a row of the queue, not a send."""
+    return (
+        f"a fault in the {name} home's work with a known fix is a row: queue it unapproved with"
+        " `jbus queue add`, as templates/a-fault-outside.md says"
+    )
 
 
 def _handed_off(to: Home) -> str:
@@ -150,7 +159,7 @@ def refusal(state: Path, sender: str, to: str) -> str:
     if to_home is not None:
         stale = to != to_home.live()
         if from_home is None:
-            what = f"a finding for it goes by `jbus noticed add --for {to_home.name}`"
+            what = _row(to_home.name)
         else:
             what = _channel(from_home, to_home)
         if stale and to != sender:
@@ -167,10 +176,7 @@ def refusal(state: Path, sender: str, to: str) -> str:
             f"it is the crew of {crew.slug}, whose review this is: send nothing, jbus sends it the"
             " review notice once the `## Review` is written"
         )
-    return (
-        f"it is the crew of {crew.slug}, a brief of the {owner.name} home's: a finding for it goes"
-        f" by `jbus noticed add --for {owner.name}`"
-    )
+    return f"it is the crew of {crew.slug}, a brief of the {owner.name} home's: {_row(owner.name)}"
 
 
 def main() -> int:

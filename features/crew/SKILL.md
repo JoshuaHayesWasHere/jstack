@@ -34,7 +34,7 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
        *)
            line=$(printf '%s\n' "$said" | jq -r 'if .approved == "" then "no go: jbus holds no go for \(.slug)" else "the go does not hold for \(.brief.path): \(.approved)" end' 2> /dev/null) || line=$said
            [ -n "$line" ] || line="jbus printed nothing"
-           printf '\n## Result\nStatus: not done\nDone when: none started, the crew stopped at its start\nProof:\n- the go: %s\nBranch: %s   Pull request: none\nChanged: nothing\nSteers: none\nNoticed: none\nLeft: none\n' "$line" "$(git branch --show-current)" >> "$B"
+           printf '\n## Result\nStatus: not done\nDone when: none started, the crew stopped at its start\nProof:\n- the go: %s\nBranch: %s   Pull request: none\nChanged: nothing\nSteers: none\nLeft: none\n' "$line" "$(git branch --show-current)" >> "$B"
            echo "stop: $line"
            ;;
        esac
@@ -51,7 +51,19 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
    uv run --project "$T/../source" jbus playbook crewmate "$B"
    ```
 
-   It prints nothing when the brief says `none` or has no `Playbook:` line: go on with no playbook. On `no playbook`, do the same, and say what it printed in the Result under "Noticed". On `not a crewmate's`, the file is for a scout or the home: do the same again. When its first line is a path, read that file now. Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order. A step you do not do stays in the list as `skip: <reason>`. The Result's `Playbook:` line reports each step, as `$T/result.md` shows. A path the playbook names is from `$T/..`, the repo this skill lives in, also when the task is in another repo. A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the brief to have. Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook. On `no principle`, a citation names a file `principles/` does not have: say what it printed in the Result under "Noticed". On `lacks the line`, the brief stands as the home wrote it: say what it printed in the Result under "Noticed". The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and you say so in the Result under "Noticed".
+   It prints nothing when the brief says `none` or has no `Playbook:` line: go on with no playbook.
+   On `no playbook`, do the same, and write what it printed on the Result's `Playbook:` line.
+   On `not a crewmate's`, the file is for a scout or the home: do the same again.
+   When its first line is a path, read that file now.
+   Under the path it prints the playbook's numbered steps, a checklist: copy it into your todo list as printed, before any todo of your own (with no todo tool, write the list in this thread), and work the steps in order.
+   A step you do not do stays in the list as `skip: <reason>`.
+   The Result's `Playbook:` line reports each step, as `$T/result.md` shows.
+   A path the playbook names is from `$T/..`, the repo this skill lives in, also when the task is in another repo.
+   A line the block prints under the path that says `has` or `lacks` is a line the playbook's `Run by:` asks the brief to have.
+   Last, it prints each principle the playbook cites, once and in full, under a line that names them: it is the text a step's citation points to, read it with the playbook.
+   On `no principle`, a citation names a file `principles/` does not have: write what it printed on the Result's `Playbook:` line.
+   On `lacks the line`, the brief stands as the home wrote it: write what it printed on the Result's `Playbook:` line.
+   The playbook adds to this skill and does not replace it: where the two disagree, this skill wins, and the Result's `Playbook:` line says so.
    Then see whether the brief names skills. Run this with the block at the top:
 
    ```sh
@@ -59,7 +71,12 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
    uv run --project "$T/../source" jbriefs --skills "$B"
    ```
 
-   It prints nothing when the brief has no `Skills:` line or says `none`. Otherwise its first line, `loaded: <names>`, names each skill and principle the line names, by its canonical name, and under it each one's file in full: read them now, with the playbook, and do what each says while you work. A principle's old name, `model-the-domain`, is read as `principle-model-the-domain`. Last it prints the artifact each one owes, from `$T/skill-artifacts.md`: the Result's `Skills run:` section has one item for each, `- <name>: <the artifact>`, as `$T/result.md` shows. `jmerge` merges no pull request whose Result leaves a named one with no artifact, an empty one or a placeholder. A line `unknown skill: <name>` is a name jstack does not have, which the launch gates: say it in the Result under "Noticed", and go on with the rest.
+   It prints nothing when the brief has no `Skills:` line or says `none`.
+   Otherwise its first line, `loaded: <names>`, names each skill and principle the line names, by its canonical name, and under it each one's file in full: read them now, with the playbook, and do what each says while you work.
+   A principle's old name, `model-the-domain`, is read as `principle-model-the-domain`.
+   Last it prints the artifact each one owes, from `$T/skill-artifacts.md`: the Result's `Skills run:` section has one item for each, `- <name>: <the artifact>`, as `$T/result.md` shows.
+   `jmerge` merges no pull request whose Result leaves a named one with no artifact, an empty one or a placeholder.
+   A line `unknown skill: <name>` is a name jstack does not have, which the launch gates: write it on the Result's `Skills run:` line, and go on with the rest.
 4. Say in two lines what you are about to do, then start. Do not wait for a go-ahead: the brief is the go-ahead.
 
 ## Carry on
@@ -164,7 +181,7 @@ Once the pull request is open:
    The block has waited four minutes: run the block of "The checks", do what it prints, and then run this block again, in this turn, until it prints `end your turn` or the pull request has merged or closed.
    Add one line to the Result the first time, `Wakes: failing at <head>, checked by hand`.
 
-If the session has no `link_pull_request`, say so in the Result under "Noticed" and go on the same way: jbus's messages come all the same.
+If the session has no `link_pull_request`, go on the same way: jbus's messages come all the same.
 
 What wakes this thread is a message: from jbus, from the reviewer, from the home, or from the user. On each, first run this, with the block at the top. It reads the last Result, a follow-up included:
 

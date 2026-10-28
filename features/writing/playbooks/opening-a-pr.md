@@ -12,7 +12,9 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 
 Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json`'s `projectSkills` (jstack: `features/verify-jstack/project-skill/`).
 
-**One task, one pull request, from the worktree and branch the home gave you.** Its base is the default branch, and nothing is stacked on another task's branch, but for a link of a stack, whose brief says so (step 6). Work that turns out to be more than one pull request goes in the Result under "Noticed": the home splits it.
+**One task, one pull request, from the worktree and branch the home gave you.**
+Its base is the default branch, and nothing is stacked on another task's branch, but for a link of a stack, whose brief says so (step 6).
+Work that turns out to be more than one pull request goes on the Result's `Left:` line: the home splits it.
 
 1. Run the repo's check command (`$H/fresh-check`) until it passes.
    A heavy suite is run as `skills/crew/SKILL.md` "Do the task" says, by whoever it says.

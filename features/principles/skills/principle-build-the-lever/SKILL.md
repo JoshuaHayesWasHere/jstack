@@ -12,7 +12,9 @@ Do a one-off by the simplest direct path. The second time the same work comes up
 
 A codemod, generator, or script does the work the same way every time and reruns for free. The tool is one artifact a reviewer can read and rerun to check the work. Hand-done changes can only be re-verified by redoing them. A deterministic script turns "trust me" into "run this".
 
-Look for the lever in all work, including the work you do by hand. A step you repeat, or a step whose result must come out the same every time, is a step a script could take over. When building it is not this task's work (it is outside the brief's **Where**, or you have met the need once), name the step and the script it wants under "Noticed" in the Result, so the home can plan it.
+Look for the lever in all work, including the work you do by hand.
+A step you repeat, or a step whose result must come out the same every time, is a step a script could take over.
+When building it is not this task's work (it is outside the brief's **Where**, or you have met the need once), queue the script as a row of its own (`templates/a-fault-outside.md`).
 
 - Do the first unit by hand to learn the recipe. Build the tool when the second unit arrives, in this task or a later one. Prove it by rerunning it on the first unit and diffing against your hand-done version. Make the lever safe to rerun.
 - Codemod or script for edits, generator for repetitive files, a dump-to-sqlite query for analysis, a rerunnable check for verification.

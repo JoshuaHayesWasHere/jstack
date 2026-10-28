@@ -23,6 +23,7 @@ Never done here, and who does it:
 
 - **Reaching running threads.** Nobody does: a thread keeps the skill text it loaded, so the change is read by threads started after the merge. Say in the Result if a thread now out depends on it.
 - **Installing the skill.** The user does: a new skill needs a link from where skills are loaded, outside the repo. Name the link in the Result for the user to make.
-- **Adding the next skill.** The home plans it: a workflow you keep meeting that no skill covers is a line under "Noticed".
+- **Adding the next skill.**
+  The home plans it: a workflow you keep meeting that no skill covers is a row, queued as `templates/a-fault-outside.md` says.
 
 **Hand over:** in the pull request and the Result, to the reviewer and the home: what the skill does now, the design decisions that matter, and what you ran to validate it.

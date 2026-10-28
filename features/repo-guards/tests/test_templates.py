@@ -141,13 +141,14 @@ def resolved(skill, tmp_path):
 
 
 READS = {
-    "crew": {"gates.md", "rerun.md", "result.md", "skill-artifacts.md"},
+    "crew": {"a-fault-outside.md", "gates.md", "rerun.md", "result.md", "skill-artifacts.md"},
     "expert": {"expert-answer.md", "gates.md"},
     "grilling": {"grill-page.html", "grill-round.schema.json"},
     "handoff": {"handoff-seed.md", "handoff.md"},
     "home": {"brief.md", "context", "gates.md", "plan-entry.md", "scout-request.md"},
     "pr-review": {"rerun.md", "review.md"},
     "scout": {
+        "a-fault-outside.md",
         "brief.md",
         "gates.md",
         "grill-page.html",
