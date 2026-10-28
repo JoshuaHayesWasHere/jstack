@@ -273,7 +273,9 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
 
 ## A party's home
 
-A party's home plans nothing, briefs nothing and launches nothing but its own next thread. Its handoff is its page and that launch, with no plan, no notes, no merge and no seed. Two things, in order:
+A party's home plans nothing, briefs nothing and launches nothing but its own next thread.
+Its handoff is its page and that launch, with no plan, no merge and no seed.
+Two things, in order:
 
 1. **Write the new page**, at the path the first block printed after `write: `, `handoff.next.md` in the party's folder, in the shape its `handoff.md` has: the party's own, and not `$T/handoff.md`. A party with no page yet writes where things stand, what is next and what is open. Facts and pointers, as step 2 says of a home's. Leave `handoff.md` as it is, and write no `Was home:` line: the next block does both.
 

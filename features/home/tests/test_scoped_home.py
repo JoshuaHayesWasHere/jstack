@@ -1,6 +1,6 @@
 """A scoped home: `/home <scope>` starts a home beside the repo's root home. Its handoff, plan, log
-and `home-id` are in a directory of its own under the repo's state directory. It shares the notes,
-briefs, requests and pages with the root home. Each test takes every block from the home skill and
+and `home-id` are in a directory of its own under the repo's state directory. It shares the briefs,
+requests and pages with the root home. Each test takes every block from the home skill and
 runs it in a temporary repo that has both homes."""
 
 import os
@@ -40,7 +40,6 @@ class Homes(Scene):
         self.scope_dir = self.home_dir / SCOPE
         for kind in ("tasks", "scouts", "reports"):
             (self.home_dir / kind).mkdir()
-        (self.home_dir / "notes.md").write_text("- Check command: make check\n")
         for own, name, last in (
             (self.home_dir, "the root home", LAST_ROOT),
             (self.scope_dir, "the second home", LAST_SCOPED),

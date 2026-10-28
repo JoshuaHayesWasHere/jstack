@@ -35,7 +35,10 @@ grep -HE '^(Steers:|Noticed:|- (error|warning|info) )' "$H"/tasks/*.md 2> /dev/n
     grep -vE ':(Steers|Noticed): none$' | sed "s|^$H/tasks/||" | head -n 120
 ```
 
-A `Steers:` line is the user correcting a crewmate. A finding line is a reviewer correcting one. Then read the rest: the repo's `$H/notes.md` (a standing rule there is a correction somebody wrote down, and one with nothing enforcing it is a candidate), its `CLAUDE.md` or `AGENTS.md`, and the comments in the code that explain a workaround. In a repo with no home, the second list is empty: the commits, the pull request reviews (`gh pr list --state merged`, `gh pr view <n> --comments`) and the instruction files are the sources.
+A `Steers:` line is the user correcting a crewmate.
+A finding line is a reviewer correcting one.
+Then read the rest: the repo's `$H/standing.md` (a standing rule there is a correction the user gave, and one with nothing enforcing it is a candidate), its `CLAUDE.md` or `AGENTS.md`, and the comments in the code that explain a workaround.
+In a repo with no home, the second list is empty: the commits, the pull request reviews (`gh pr list --state merged`, `gh pr view <n> --comments`) and the instruction files are the sources.
 
 Group the mistakes into classes. A class counts once it has happened twice. Once is a one-off: leave it.
 
@@ -51,10 +54,14 @@ Take the levels in this order, and take a lower one only when you can say why th
 ## Where each lands in this flow
 
 - Levels 1 to 3 are a change to the repo: a check or a test in it, run by its check command, locally and in CI. It goes the way every change goes: a brief, a crewmate, a pull request, one review. Nobody edits the default branch to "just add the check".
-- Level 4 is one dated line in the repo's `notes.md` (`~/.local/state/home/<repo>/notes.md`), and it names what enforces it: `<the rule> (enforced by <the test, check or block>)`, or `(nothing enforces it: <why no level above works>)`. The home writes that file. A crewmate gives the line in its Result under "Noticed", word for word, for the home to add. Not in `~/.claude/CLAUDE.md`: that file is about the machine and stays short.
+- Level 4 is a queued row that codes the rule: a brief that turns the judgment call into a check, a block or a skill's text, which the home queues with `jbus queue add`, as `standing.md` already says of a standing rule.
+  A crewmate gives that row's task in its Result under "Noticed", for the home to queue.
+  No rule is a line in a file of the home's state, and none goes in `~/.claude/CLAUDE.md`: that file is about the machine and stays short.
 - A class that is too big for one pull request, or that needs the user's word, is a plan entry: a heading, what holds when it is done, and the evidence, in the shape of `templates/plan-entry.md`. The home proposes it and the user decides.
 
-`notes.md` is the rule table. When the user corrects you, fix the mistake and give the rule its line. If the rule was already there and nothing enforces it, that is a repeat: fix it at the highest level that works, in the same change, and change the line to name the check. Drop a line once its mistake cannot happen.
+There is no rule table.
+When the user corrects you, fix the mistake and code the rule at the highest level that works.
+A rule written down with nothing enforcing it is a repeat waiting to happen: code it in the same change.
 
 ## Fix and prove
 
@@ -62,4 +69,4 @@ Fix the most frequent classes first, one pull request each. Prove each new check
 
 ## What comes back
 
-For each class: its evidence (the commits, steers or findings, at least two), the level picked, and why no higher level works. Then where it landed or should land: the pull request, the `notes.md` line, or the proposed plan entry.
+For each class: its evidence (the commits, steers or findings, at least two), the level picked, and why no higher level works. Then where it landed or should land: the pull request, the queued row, or the proposed plan entry.

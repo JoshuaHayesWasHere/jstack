@@ -43,7 +43,7 @@ from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, merge, queue, read_json, t3, verbs, work, write_json
 from jbus.merge import Said, parse
 from jbus.mirror import last_result, sections
-from jbus.passes import Changed, Depends, Pass, Slot
+from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import holders, slot, waiters
@@ -854,6 +854,8 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
             return f"depends on {', '.join(slugs)}"
         case Slot():
             return "no slot"
+        case Rerun(sha):
+            return f"main is green again at {sha}, its own commit, so it has no red to fix"
     if found["status"] == "gate":
         return GATED
     if not row.get("approved"):

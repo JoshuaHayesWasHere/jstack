@@ -18,7 +18,9 @@ T=$(realpath ~/.claude/skills/crew/../../templates)
 
 ## Start
 
-1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`. If the brief does not exist and the message that started this thread has text below its first line, write that text, as is, to `$H/tasks/<slug>.md` and read it; otherwise say so and stop.
+1. Read `$H/tasks/<slug>.md`.
+   Nothing else from `$H` until a step names it, as "Do the task" names `$H/fresh-check`.
+   If the brief does not exist and the message that started this thread has text below its first line, write that text, as is, to `$H/tasks/<slug>.md` and read it; otherwise say so and stop.
    Then ask jbus whether the user's go holds for the brief on disk.
    Run this with the block at the top:
 

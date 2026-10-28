@@ -12,7 +12,8 @@ card: "Make the lesson stick | 2 | Reads one thread's transcript with three revi
 
 Typing `/reflect` is the user asking for those four, which is what "Ask before swarming" in `~/.claude/CLAUDE.md` wants. A brief that names this skill carries the same asking, from the home that wrote it. Nothing else starts it: not a hook, not a finished task, not the model by itself. Before step 1, say in the thread, in one line, that four subagents are about to start and the guess at their cost.
 
-It mines one thread for what is worth keeping, and ends in proposals. It edits no skill, no playbook, no `notes.md`, no plan and no `CLAUDE.md`: the home puts the proposals to the user, and what the user takes goes out as tasks.
+It mines one thread for what is worth keeping, and ends in proposals.
+It edits no skill, no playbook, no `standing.md`, no plan and no `CLAUDE.md`: the home puts the proposals to the user, and what the user takes goes out as tasks.
 
 Skip it, and say so, when the thread is trivial or when everything that went wrong was a skill followed badly, not a skill that was wrong. A one-off is not a lesson.
 

@@ -94,7 +94,11 @@ class Project:
     number when it lands. With `timestamped`, two names cannot collide. `jmerge` reads both.
 
     `ci_report` is whether `jbus-ci.timer` writes the project's week of CI (`jbus ci --each`).
-    It is off unless the project's table says `ci_report = true`."""
+    It is off unless the project's table says `ci_report = true`.
+
+    `generated` names each file of the repo that a command writes, as `<file> -> <command>`, for
+    `jmerge --remake`. It is empty where the table names none, and `jmerge` then makes `uv.lock`
+    by `uv lock`."""
 
     name: str
     checkout: Path
@@ -103,6 +107,7 @@ class Project:
     migrations: str = ""
     migration_names: str = NUMBERED
     ci_report: bool = False
+    generated: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -378,6 +383,14 @@ def load(directory: Path | None = None) -> Config:
                 raise Refused(
                     f"refused: project {entry['name']} has a ci_report that is not true or false"
                 )
+            generated = entry.get("generated", [])
+            if not isinstance(generated, list) or not all(
+                isinstance(one, str) and " -> " in one for one in generated
+            ):
+                raise Refused(
+                    f"refused: project {entry['name']} has a generated that is not a list of "
+                    '"<file> -> <command>"'
+                )
             projects.append(
                 Project(
                     name=str(entry["name"]),
@@ -387,6 +400,7 @@ def load(directory: Path | None = None) -> Config:
                     migrations=migrations,
                     migration_names=names,
                     ci_report=entry.get("ci_report", False),
+                    generated=tuple(generated),
                 )
             )
         server = str(raw["server"]).rstrip("/")

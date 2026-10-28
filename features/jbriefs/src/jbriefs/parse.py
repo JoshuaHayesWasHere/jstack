@@ -406,33 +406,33 @@ def proven(text: str) -> str:
     return found.why if found else ""
 
 
-_CHECK_COMMAND = re.compile(r"^[-* ]*Check command:[ \t]*`(?P<command>[^`\n]+)`", re.MULTILINE)
+_SLOT = re.compile(r"^jgauge\s+test-slot\s+--\s+")
 _BARE_CHECK = re.compile(r"\bmake check(?![-\w])")
 
 
-def check_command(notes: str) -> str:
-    """The repo's check command, as the `Check command:` line of its notes names it, or an empty
-    string when the notes name none."""
-    named = _CHECK_COMMAND.search(notes)
-    return named["command"].strip() if named else ""
+def check_command(fresh_check: str) -> str:
+    """The repo's check command: the first line of its `fresh-check`, with the `jgauge test-slot
+    --` it takes a slot by left off, or an empty string when the file names none."""
+    first = "".join(fresh_check.strip().splitlines()[:1]).strip()
+    return _SLOT.sub("", first)
 
 
-def check_asked(text: str, notes: str) -> str:
+def check_asked(text: str, fresh_check: str) -> str:
     """Why a brief's `Done when:` asks for the wrong check, as one line. It is an empty string
     when it does not.
 
-    The notes name the repo's check command on a `Check command:` line. When that command is
-    not a bare `make check`, a `Done when:` item that asks for a bare `make check` sends a
-    crewmate to run the full suite instead of the named command.
+    The repo's `fresh-check` names its check command. When that command is not a bare
+    `make check`, a `Done when:` item that asks for a bare `make check` sends a crewmate to run
+    the full suite instead of the named command.
     """
-    command = check_command(notes)
+    command = check_command(fresh_check)
     if not command or _BARE_CHECK.fullmatch(command):
         return ""
     if not any(_BARE_CHECK.search(item) for item in _done_when(text.splitlines())):
         return ""
     return (
-        f"brief's Done when: asks for `make check`, and notes.md names the check command "
-        f"`{command}`: a check line names the check command (`notes.md`)"
+        f"brief's Done when: asks for `make check`, and fresh-check names the check command "
+        f"`{command}`: a check line names the check command (`fresh-check`)"
     )
 
 

@@ -113,10 +113,10 @@
   <text class="file" x="419" y="316" text-anchor="middle">scouts/&lt;slug&gt;.md</text>
   <rect class="chip" x="494" y="300" width="124" height="24" rx="12"/>
   <text class="file" x="556" y="316" text-anchor="middle">tasks/&lt;slug&gt;.md</text>
-  <rect class="chip" x="628" y="300" width="76" height="24" rx="12"/>
-  <text class="file" x="666" y="316" text-anchor="middle">notes.md</text>
-  <rect class="chip" x="714" y="300" width="84" height="24" rx="12"/>
-  <text class="file" x="756" y="316" text-anchor="middle">merge.log</text>
-  <rect class="chip" x="808" y="300" width="92" height="24" rx="12"/>
-  <text class="file" x="854" y="316" text-anchor="middle">handoff.md</text>
+  <rect class="chip" x="628" y="300" width="96" height="24" rx="12"/>
+  <text class="file" x="676" y="316" text-anchor="middle">standing.md</text>
+  <rect class="chip" x="734" y="300" width="84" height="24" rx="12"/>
+  <text class="file" x="776" y="316" text-anchor="middle">merge.log</text>
+  <rect class="chip" x="828" y="300" width="92" height="24" rx="12"/>
+  <text class="file" x="874" y="316" text-anchor="middle">handoff.md</text>
 </svg>
