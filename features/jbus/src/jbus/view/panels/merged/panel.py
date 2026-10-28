@@ -1,6 +1,6 @@
 """What merged today: each row that moved to merged in the queue since the start of the user's
-day, and each row that `merge.log` records as merged while the row says another state
-(`Read.merged_since`)."""
+day, each row the pass judged merged while the row says another state, and each row whose last
+`merge.log` line is `merged`, from that line's time (`Read.merged_since`)."""
 
 from __future__ import annotations
 
