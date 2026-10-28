@@ -294,6 +294,48 @@ def test_a_row_stacked_on_a_merged_parent_is_not_named_as_its_own_head(scene):
     assert stacked["text"] == "stacked (on a merged or gone row)"
 
 
+HEADS = ("owed-entry", "jv-overview-desk", "root-stall-watch", "prose-lint", "memories-to-code")
+"""Heads of stacks, each with one more stacked row than the one after it."""
+
+
+@pytest.mark.parametrize(
+    ("heads", "text"),
+    [
+        (4, "stacked (on owed-entry, jv-overview-desk, root-stall-watch, prose-lint)"),
+        (5, "stacked (on owed-entry, jv-overview-desk, root-stall-watch and 2 more)"),
+    ],
+)
+def test_stacked_rows_name_their_heads_most_rows_first_and_never_hide_just_one(scene, heads, text):
+    """A cap of three names that hid a fourth said "and 1 more", a name hidden to save no room."""
+    rows, log, number = [], [], 40
+    for place, head in enumerate(HEADS[:heads]):
+        reason = "macos has not passed"
+        rows.append(row(head, "pr", pr=f"#{number}", checks="pending", why=f"wait: {reason}"))
+        log.append(logged(5, "wait", number, reason))
+        number += 1
+        for one in range(heads - place):
+            reason = ready.STACKED_ON.format(branch=head, slug=head, default="main")
+            slug = f"{head}-{one}"
+            rows.append(
+                row(
+                    slug,
+                    "pr",
+                    pr=f"#{number}",
+                    checks="passed",
+                    why=f"wait: {reason}",
+                    merge_after=[head],
+                )
+            )
+            said = jlines.waits("wait", number, PULL.format(number), reason)
+            log.append(f"{et(ago(minutes=10)).removesuffix(' ET')} {jlines.logged(said)}")
+            number += 1
+    scene.queue(rows)
+    scene.merge_log(*log)
+    verdict = stack(scene)["glance"]["verdict"]
+    stacked = next(one for one in verdict["groups"] if one["kind"] == "stacked")
+    assert stacked["text"] == text
+
+
 def test_the_overloaded_day_is_held_by_you_with_12_behind_its_head(scene):
     """The 12 rows behind `tea-kettle`, which is not approved, are the largest group, and they
     wait on the user, so the user holds the work; the 8 ready for a launch slot come after."""

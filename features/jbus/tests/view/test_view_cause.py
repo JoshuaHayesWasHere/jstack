@@ -93,6 +93,15 @@ def test_a_row_whose_required_check_has_not_passed_names_it_and_never_says_passe
     assert "passed" not in said.text
 
 
+def test_a_passed_check_beside_a_pending_word_never_says_passed():
+    """The check the pass saw passed, but jmerge's word is still pending for a reason that names
+    no check: the card must not say the check passed."""
+    seen = checked("check", "passed", 6, 2)
+    said = cause(task("check", "its checks are pending", ago(9), seen=seen, checks="pending"), NOW)
+    assert said == Cause("its checks are pending", ago(9), False)
+    assert "passed" not in said.text
+
+
 def test_a_row_in_check_with_no_check_seen_gives_what_the_view_says():
     assert cause(task("check", NOT_PASSED, ago(3)), NOW) == Cause(NOT_PASSED, ago(3), False)
 
