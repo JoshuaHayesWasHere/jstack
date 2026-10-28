@@ -41,6 +41,8 @@
     ".pl-det summary { min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; cursor: pointer; font-weight: 700; }" +
     ".pl-det summary span { font-weight: 400; color: var(--ink-2); }" +
     ".pl-det ol { padding-bottom: 8px; } .pl-det .pl-u { margin: 0 0 8px; }" +
+    ".pl-show { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 10px 0 0; padding: 4px 4px 4px 12px; border: 1.5px solid var(--focus); border-radius: 8px; background: var(--surface); font-size: 15px; font-weight: 700; scroll-margin-top: 12px; overflow-wrap: anywhere; }" +
+    ".pl-show button { font: inherit; min-width: 44px; min-height: 36px; color: var(--ink); background: none; border: 0; border-radius: 6px; cursor: pointer; }" +
     ".pl-unpl { margin: 10px 0 0; font-size: 15px; color: var(--ink-2); overflow-wrap: anywhere; }" +
     "@media (max-width: 1180px) { .pl-strip, .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
     "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-strip { display: none; } .pl-board { gap: 6px; }" +
@@ -49,16 +51,35 @@
   document.head.appendChild(css);
 })();
 
-var BOARD = null, BOARD_ASKED = 0, BOARD_ASKING = false, BOARD_FAILED = "", BOARD_PROJECT = "", BOARD_OPEN = {};
+var BOARD = null, BOARD_ASKED = 0, BOARD_ASKING = false, BOARD_FAILED = "", BOARD_PROJECT = "", BOARD_OPEN = {}, BOARD_SCROLL = false;
 
 function boardRows() { return BOARD && BOARD.rows || []; }
 function boardKey(project, slug) { return project + "/" + slug; }
+// A home is its project and its name, "infra/root": two projects each have a root. The board's
+// home filter is a project, "jstack", or one home, "jstack/root".
+function homeKey(project, home) { return project + "/" + home; }
+function homeHref(key) { return "#/?home=" + key.split("/").map(encodeURIComponent).join("/"); }
+function boardProjects() {
+  var seen = {};
+  boardRows().forEach(function (r) { seen[r.project] = true; });
+  (BOARD.homes || []).forEach(function (h) { seen[h.project] = true; });
+  return seen;
+}
+function homeLabel(project, home) { return (Object.keys(boardProjects()).length > 1 ? project + "\u00b7" : "") + home; }
+function homeSaid(key) { var at = key.indexOf("/"); return at < 0 ? key : homeLabel(key.slice(0, at), key.slice(at + 1)); }
+function boardOf(home) {
+  if (!home) return function () { return true; };
+  // An older link names a bare home, "?home=jview": it keeps meaning that home in any project.
+  if (home.indexOf("/") < 0 && !boardProjects()[home]) return function (r) { return r.home === home; };
+  return function (r) { return r.project === home || homeKey(r.project, r.home) === home; };
+}
 function boardAge(since) { var v = ms(since); return v == null ? "no time kept" : short((ms(BOARD.at) || NOW) - v); }
 function boardName(key) { var s = (BOARD.stages || []).filter(function (one) { return one.key === key; })[0]; return s ? s.name : key; }
 function boardView() { return { home: HASH.home || "", stage: HASH.stage || "", still: HASH.still === "1", pick: HASH.pick || "" }; }
 function boardPicked(view) {
   var rows = boardRows().filter(function (r) { return r.slug === view.pick; });
-  return rows.filter(function (r) { return r.project === BOARD_PROJECT; })[0] || rows[0] || null;
+  var project = BOARD_PROJECT || view.home.split("/")[0];
+  return rows.filter(function (r) { return r.project === project; })[0] || rows[0] || null;
 }
 
 function boardMarks(picked) {
@@ -125,7 +146,7 @@ function mxSaid(key, c) {
   return parts.length ? ": " + parts.join(", ") : "";
 }
 
-function mxCellHref(home, key) { return "#/?home=" + encodeURIComponent(home) + "&stage=" + encodeURIComponent(key) + themed(); }
+function mxCellHref(home, key) { return homeHref(home) + "&stage=" + encodeURIComponent(key) + themed(); }
 
 function mxChains() {
   var long = BOARD.longest, st = BOARD.stacked, words = { failing: "failing", waiting: "running or queued", passed: "passed", stacked: "stacked" };
@@ -145,7 +166,7 @@ function mxChains() {
 function boardMatrix(view) {
   var homes = BOARD.homes || [];
   if (!homes.length) return "";
-  var many = homes.some(function (h) { return h.project !== homes[0].project; });
+  var many = Object.keys(boardProjects()).length > 1;
   var keys = (BOARD.stages || []).filter(function (s) { return s.key !== "merged" && (s.key !== "scout" || homes.some(function (h) { return mxCell(h, "scout").count; })); });
   var heads = keys.map(function (s) {
     var total = homes.reduce(function (n, h) { return n + mxCell(h, s.key).count; }, 0);
@@ -153,20 +174,21 @@ function boardMatrix(view) {
   }).join("");
   var body = homes.map(function (h) {
     var last = h.last && h.last.at ? "last act " + boardAge(h.last.at) : "no act kept";
-    var label = (many ? esc(h.project) + " · " : "") + '<b>' + esc(h.name) + '</b> ' + h.open;
-    return '<tr data-home="' + esc(h.name) + '"><th scope="row">' + label + '<span class="mx-la"' + (h.last && h.last.what ? ' title="' + esc(h.last.what) + '"' : "") + '>' + last + '</span></th>' + keys.map(function (s) {
+    var label = (many ? esc(h.project) + "\u00b7" : "") + '<b>' + esc(h.name) + '</b> ' + h.open;
+    var key = homeKey(h.project, h.name), said = homeLabel(h.project, h.name);
+    return '<tr data-home="' + esc(key) + '"><th scope="row">' + label + '<span class="mx-la"' + (h.last && h.last.what ? ' title="' + esc(h.last.what) + '"' : "") + '>' + last + '</span></th>' + keys.map(function (s) {
       var c = mxCell(h, s.key);
       if (!c.count) return '<td class="mx-e">·</td>';
-      var on = view.home === h.name && view.stage === s.key;
-      return '<td><a class="mx-a' + (on ? " on" : "") + '"' + (on ? ' aria-current="true"' : "") + ' data-bcell="' + esc(h.name + "/" + s.key) + '" href="' + mxCellHref(h.name, s.key) + '" aria-label="' + esc(h.name + ", " + s.name + ": " + plural(c.count, "row", "rows") + mxSaid(s.key, c)) + '"><span class="mx-c">' + c.count + '</span>' + mxDots(s.key, c) + '</a></td>';
+      var on = view.home === key && view.stage === s.key;
+      return '<td><a class="mx-a' + (on ? " on" : "") + '"' + (on ? ' aria-current="true"' : "") + ' data-bcell="' + esc(key + "/" + s.key) + '" href="' + mxCellHref(key, s.key) + '" aria-label="' + esc(said + ", " + s.name + ": " + plural(c.count, "row", "rows") + mxSaid(s.key, c)) + '"><span class="mx-c">' + c.count + '</span>' + mxDots(s.key, c) + '</a></td>';
     }).join("") + '</tr>';
   }).join("");
   var legend = [["", "under 1 h"], ["old", "1 h or more"]].concat(MX_WAITS.map(function (one) { return [one[1], one[2]]; }), [["x", "no check ran"]]).map(function (one) {
     return '<span><span class="mx-dots"><i' + (one[0] ? ' class="' + one[0] + '"' : "") + '></i></span>' + one[1] + '</span>';
   }).join("");
   return '<section class="mx" data-part="pipeline:matrix" data-role="matrix" aria-label="Every stage, every home"><div class="mx-hd"><span class="tag">Every stage, every home</span><span class="src">a dot per row, filled at 1 h or more · click a cell for its rows</span></div>' +
-    '<div class="mx-w"><table><thead><tr><th scope="col" class="mx-hm">home</th>' + heads + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
-    '<div class="mx-lg">' + legend + '</div>' + mxChains() + '</section>';
+    '<div class="mx-lg">' + legend + '</div>' +
+    '<div class="mx-w"><table><thead><tr><th scope="col" class="mx-hm">home</th>' + heads + '</tr></thead><tbody>' + body + '</tbody></table></div>' + mxChains() + '</section>';
 }
 
 var HL_BAR = [["failing", "failing"], ["waiting", "running"], ["passed", "passed"], ["norun", "no run"], ["other", "other stages"]];
@@ -174,7 +196,7 @@ var HL_BAR = [["failing", "failing"], ["waiting", "running"], ["passed", "passed
 function boardHomes() {
   var homes = BOARD && BOARD.homes || [];
   if (!homes.length) return "";
-  var many = homes.some(function (h) { return h.project !== homes[0].project; }), drawn = {};
+  var drawn = {};
   var lines = homes.map(function (h) {
     var c = mxCell(h, "check"), w = c.waits || {}, told = (w.failing || 0) + (w.waiting || 0) + (w.passed || 0);
     var n = { failing: w.failing || 0, waiting: w.waiting || 0, passed: w.passed || 0, norun: c.count - told, other: h.open - c.count };
@@ -182,16 +204,17 @@ function boardHomes() {
     var said = HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return n[one[0]] + " " + one[1]; }).join(", ");
     var bar = '<span class="seg-bar" role="img" aria-label="' + esc(said || "nothing open") + '">' + HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return '<i class="' + one[0] + '" style="flex:' + n[one[0]] + ' 0 0"></i>'; }).join("") + '</span>';
     var at = h.last && ms(h.last.at), last = at == null ? "none" : short((ms(BOARD.at) || NOW) - at);
-    return '<a class="ehl" data-home="' + esc(h.name) + '" href="#/?home=' + encodeURIComponent(h.name) + themed() + '"><b>' + (many ? esc(h.project) + " · " : "") + esc(h.name) + '</b><span class="ehl-n">' + h.open + '</span>' + bar + '<span class="ago">' + last + '</span></a>';
+    var key = homeKey(h.project, h.name);
+    return '<a class="ehl" data-home="' + esc(key) + '" href="' + homeHref(key) + themed() + '"><b>' + esc(homeLabel(h.project, h.name)) + '</b><span class="ehl-n">' + h.open + '</span>' + bar + '<span class="ago">' + last + '</span></a>';
   }).join("");
   return '<section class="ovc" data-role="homes" aria-labelledby="ovc-homes"><h2 class="ovc-h" id="ovc-homes"><span class="tag">Every home</span> <span class="ovc-s ehl-k">' + HL_BAR.filter(function (one) { return drawn[one[0]]; }).map(function (one) { return '<span><i class="' + one[0] + '"></i>' + one[1] + '</span>'; }).join("") + '</span></h2>' + lines + '</section>';
 }
 
 function boardStages(view) {
   if (!(BOARD.stages || []).some(function (s) { return s.key === view.stage; })) view.stage = "";
-  var all = !view.home && !view.still && !view.stage;
+  var all = !view.home && !view.still && !view.stage, mine = boardOf(view.home);
   return (BOARD.stages || []).filter(function (s) { return !view.stage || s.key === view.stage; }).map(function (s) {
-    var rows = boardRows().filter(function (r) { return r.stage === s.key && (!view.home || r.home === view.home) && (!view.still || !r.moving); });
+    var rows = boardRows().filter(function (r) { return r.stage === s.key && mine(r) && (!view.still || !r.moving); });
     rows.sort(function (a, b) { return (a.moving - b.moving) || ((ms(a.since) || 0) - (ms(b.since) || 0)); });
     var still = rows.filter(function (r) { return !r.moving; }).length;
     var oldest = all ? s.oldest : rows.reduce(function (o, r) { return !o || (ms(r.since) || 0) < (ms(o.since) || 0) ? r : o; }, null);
@@ -211,22 +234,31 @@ function boardStrip(stages, hot) {
 }
 
 function boardChips(view) {
-  var homes = {}, still = 0;
-  boardRows().forEach(function (r) { homes[r.home] = (homes[r.home] || 0) + 1; if (!r.moving && (!view.home || r.home === view.home)) still += 1; });
+  var homes = {}, said = {}, still = 0, mine = boardOf(view.home);
+  boardRows().forEach(function (r) {
+    var key = homeKey(r.project, r.home);
+    homes[key] = (homes[key] || 0) + 1; said[key] = homeLabel(r.project, r.home);
+    if (!r.moving && mine(r)) still += 1;
+  });
   var named = Object.keys(homes).sort(function (a, b) { return homes[b] - homes[a] || (a < b ? -1 : 1); });
   function chip(attr, value, said, on) { return '<button type="button" id="ph-' + esc(attr === "data-bstill" ? "still" : value || "all") + '" ' + attr + '="' + esc(value) + '" aria-pressed="' + on + '">' + said + '</button>'; }
   return '<div class="pl-chips" data-role="chips" role="group" aria-label="Show the rows of">' +
     chip("data-bhome", "", "All homes " + boardRows().length, !view.home) +
-    named.map(function (h) { return chip("data-bhome", h, esc(h) + " " + homes[h], view.home === h); }).join("") +
-    chip("data-bstill", "1", "Not moving only " + still, view.still) +
-    (view.stage ? '<button type="button" id="ph-stage" data-bstage="" aria-pressed="true">' + esc(boardName(view.stage)) + ' only ✕</button>' : "") + '<a class="pl-hm" href="#/homes">Homes map</a></div>';
+    named.map(function (h) { return chip("data-bhome", h, esc(said[h]) + " " + homes[h], view.home === h); }).join("") +
+    chip("data-bstill", "1", "Not moving only " + still, view.still) + '<a class="pl-hm" href="#/homes">Homes map</a></div>';
+}
+
+function boardShowing(view) {
+  var said = [view.home ? homeSaid(view.home) : "", view.stage ? boardName(view.stage) : ""].filter(Boolean);
+  if (!said.length) return "";
+  return '<p class="pl-show" data-role="showing" tabindex="-1">Showing ' + esc(said.join(", ")) + ' <button type="button" data-bclear="1" aria-label="Show every home and stage">✕</button></p>';
 }
 
 function boardCard(r, marks, on) {
   var how = on ? marks[boardKey(r.project, r.slug)] || "dim" : "";
   var waits = r.waits_on.map(function (w) { return w.slug; });
   return '<li><button type="button" class="pl-c ' + (r.moving ? "mv" : "still") + (how ? " " + how : "") + '" data-bpick="' + esc(r.slug) + '" data-bproj="' + esc(r.project) + '" aria-pressed="' + (how === "pk") + '" title="' + esc(r.slug) + '">' +
-    '<span class="pl-s">' + esc(r.slug) + '</span><span class="pl-m">' + esc(r.home) + ' · ' + boardAge(r.since) + (r.moving ? "" : ", not moving") + '</span><span class="pl-w">' + esc(r.cause) + '</span>' +
+    '<span class="pl-s">' + esc(r.slug) + '</span><span class="pl-m">' + esc(homeLabel(r.project, r.home)) + ' · ' + boardAge(r.since) + (r.moving ? "" : ", not moving") + '</span><span class="pl-w">' + esc(r.cause) + '</span>' +
     (waits.length ? '<span class="pl-u">waits on ' + esc(waits.join(", ")) + '</span>' : "") + '</button></li>';
 }
 
@@ -316,13 +348,16 @@ function boardDraw() {
   }
   var view = boardView(), picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "";
   var stages = boardStages(view), had = boardWhere(document.activeElement);
-  var matrix = boardMatrix(view), html = boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
+  var matrix = boardMatrix(view), html = boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardShowing(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
   if (el.__drawn !== html || $("matrix").__drawn !== matrix) {
     put(el, html);
     put($("matrix"), matrix);
     var back = had && document.querySelector(had);
     if (back) back.focus({ preventScroll: true });
   }
+  var bar = BOARD_SCROLL && el.querySelector("[data-role=showing]");
+  BOARD_SCROLL = false;
+  if (bar) { bar.scrollIntoView({ block: "start" }); bar.focus({ preventScroll: true }); }
   setTimeout(boardLinks, 0);
 }
 
@@ -348,22 +383,24 @@ document.addEventListener("click", function (e) {
   var h = e.target.closest("[data-bhome]");
   if (h) { var home = h.getAttribute("data-bhome"); boardSet({ home: home && boardView().home === home ? "" : home }); return; }
   if (e.target.closest("[data-bstill]")) { boardSet({ still: !boardView().still }); return; }
-  if (e.target.closest("[data-bstage]")) { boardSet({ stage: "" }); return; }
+  if (e.target.closest("[data-bclear]")) { boardClear(); return; }
   var cell = e.target.closest("[data-bcell]");
   if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     e.preventDefault();
     var over = !!boardView().stage;
+    BOARD_SCROLL = true;
     enter(over ? "replaceState" : "pushState", { layers: [], back: false, cell: over ? !!(history.state && history.state.cell) : true }, cell.getAttribute("href"));
   }
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
 });
+function boardClear() { if (history.state && history.state.cell) history.back(); else boardSet({ home: "", stage: "" }); }
 document.addEventListener("keydown", function (e) {
   var view = boardView();
-  if (e.key !== "Escape" || $("pipeline").hidden || !(view.pick || view.stage) || drawer.open || typing(e.target)) return;
+  if (e.key !== "Escape" || $("pipeline").hidden || !(view.pick || view.stage || view.home) || drawer.open || typing(e.target)) return;
   e.preventDefault();
   if (view.pick) { BOARD_PROJECT = ""; boardSet({ pick: "" }); return; }
-  if (history.state && history.state.cell) history.back(); else boardSet({ home: "", stage: "" });
+  boardClear();
 });
 window.addEventListener("resize", function () { if (!$("pipeline").hidden) setTimeout(boardLinks, 0); });
 
