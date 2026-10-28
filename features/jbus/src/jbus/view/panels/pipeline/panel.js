@@ -171,6 +171,7 @@ function boardMatrix(view) {
 }
 
 function boardStages(view) {
+  if (!(BOARD.stages || []).some(function (s) { return s.key === view.stage; })) view.stage = "";
   var all = !view.home && !view.still && !view.stage;
   return (BOARD.stages || []).filter(function (s) { return !view.stage || s.key === view.stage; }).map(function (s) {
     var rows = boardRows().filter(function (r) { return r.stage === s.key && (!view.home || r.home === view.home) && (!view.still || !r.moving); });
@@ -327,6 +328,8 @@ document.addEventListener("click", function (e) {
   if (h) { var home = h.getAttribute("data-bhome"); boardSet({ home: home && boardView().home === home ? "" : home }); return; }
   if (e.target.closest("[data-bstill]")) { boardSet({ still: !boardView().still }); return; }
   if (e.target.closest("[data-bstage]")) { boardSet({ stage: "" }); return; }
+  var cell = e.target.closest("[data-bcell]");
+  if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); enter("pushState", { layers: [], back: false, cell: true }, cell.getAttribute("href")); }
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
 });
@@ -335,7 +338,7 @@ document.addEventListener("keydown", function (e) {
   if (e.key !== "Escape" || $("pipeline").hidden || !(view.pick || view.stage) || drawer.open || typing(e.target)) return;
   e.preventDefault();
   if (view.pick) { BOARD_PROJECT = ""; boardSet({ pick: "" }); return; }
-  boardSet({ home: "", stage: "" });
+  if (history.state && history.state.cell) history.back(); else boardSet({ home: "", stage: "" });
 });
 BOARD_PHONE.addEventListener("change", function () { boardDraw(); });
 window.addEventListener("resize", function () { if (!$("pipeline").hidden) setTimeout(boardLinks, 0); });

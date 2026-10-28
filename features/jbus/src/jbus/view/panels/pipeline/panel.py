@@ -35,14 +35,15 @@ each scope (`homes.Homes.scopes`), a scope with no open row included, and any ot
 names, the one with the most open rows first and by name among equals. Each has `open`, how
 many rows the board places in it, its `last` act (`state.acts`, the newest whose home it is),
 and a cell for each stage a row can be in (`CELLS`):
-`count`, the `oldest` row, `old`, how many came to the stage `OLD` or more ago, and `waits`, how
+`count`, the `oldest` row, `old`, how many have a `since` `OLD` or more ago, and `waits`, how
 many of its rows wait on each outcome of `checked.OUTCOMES`, as each row's `wait` gives it.
 
 `stuck` is the stage with the most rows not moving, the first in order among equals.
 `longest_wait` is the row not moving that came to its stage first. `longest` is the deepest
 chain: of the deepest rows, the one that has waited longest, then the one earliest in the
-process, and its head. `path` is that chain from its head to that row, each step a row it waits
-on that is one less deep, and the oldest of those. `chains` counts the heads that another row
+process, and its head. `path` is that chain from its head to that row, each step back the oldest
+row it waits on that is one less deep, or a row of its loop, and it stops short of the head
+where neither is left. `chains` counts the heads that another row
 waits back to. `stacked` counts the rows in `stacked` and the rows they merge after, their
 parents, with how many parents wait on each outcome of `checked.OUTCOMES`.
 
@@ -309,7 +310,7 @@ def _at(card: Card | None) -> dict[str, Any] | None:
 
 
 def _old(card: Card, now: datetime) -> bool:
-    """Whether the card came to its stage `OLD` or more before `now`."""
+    """Whether the card's `since` is `OLD` or more before `now`."""
     return card.since is not None and datetime.fromisoformat(card.since) <= now - OLD
 
 
@@ -350,18 +351,21 @@ def _homes(read: Read, placed: list[Card], now: datetime) -> list[dict[str, Any]
 
 
 def _path(chains: dict[tuple[str, str], tuple[int, tuple[str, str]]], by, tail: Card) -> list[str]:
-    """The chain from its head to `tail`, each step back the oldest row it waits on that is one
-    less deep and has the same head."""
-    depth, head = chains[tail.key]
-    path, at = [tail], tail
+    """The chain from its head to `tail`: each step back is the oldest row it waits on that is
+    one less deep with the same head, or, inside a loop, a row of the loop not yet taken."""
+    head = chains[tail.key][1]
+    path, at, seen = [tail], tail, {tail.key}
     while at.key != head:
+        depth = chains[at.key][0]
         ups = [by[(at.project, slug)] for slug, _ in at.waits_on]
-        ups = [up for up in ups if chains[up.key] == (depth - 1, head)]
+        ups = [up for up in ups if up.key not in seen and chains[up.key][1] == head]
+        ups = [up for up in ups if chains[up.key][0] == depth - 1] or [
+            up for up in ups if chains[up.key][0] == depth
+        ]
         if not ups:
-            path.append(by[head])
             break
         at = min(ups, key=lambda up: (_older(up), up.key))
-        depth -= 1
+        seen.add(at.key)
         path.append(at)
     return [card.slug for card in reversed(path)]
 

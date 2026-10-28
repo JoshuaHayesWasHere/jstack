@@ -305,6 +305,22 @@ def test_the_rows_of_a_loop_share_one_depth_and_head_and_a_row_behind_it_is_one_
     }
 
 
+def test_the_longest_chain_runs_through_a_loop_in_its_middle_back_to_its_head(scene):
+    """loop-a and loop-b wait on each other, and loop-a on the head: the path from loop-c, the
+    deepest, takes both rows of the loop on its way back, and claims no link that is not."""
+    scene.queue(
+        [
+            row("head-x", since=et(ago(minutes=40))),
+            row("loop-a", depends=["loop-b", "head-x"], since=et(ago(minutes=30))),
+            row("loop-b", depends=["loop-a"], since=et(ago(minutes=20))),
+            row("loop-c", depends=["loop-b"], since=et(ago(minutes=10))),
+        ]
+    )
+    longest = board(scene)["data"]["longest"]
+    assert (longest["depth"], longest["head"]) == (3, "head-x")
+    assert longest["path"] == ["head-x", "loop-a", "loop-b", "loop-c"]
+
+
 def test_a_stacked_pull_request_leaves_check_for_stacked_whatever_its_own_checks_say(scene):
     """`bun-top` and `bun-lid` merge after `bun-base`, so they are in Stacked, though one's
     checks passed and the other's failed. `bun-pot` passed and waits for `jmerge` in Check.
