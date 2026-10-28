@@ -147,6 +147,7 @@ def test_with_no_file_a_word_is_users_at_a_time_of_the_machines_zone_and_approve
         1,
         f'refused: --at is "<YYYY-MM-DD HH:MM {word(datetime(2026, 10, 11, 17, 58))}>"\n',
     )
+    kitchen.clock_reads(at)
     code, said = kitchen.main(*say, "--by", "user", "--at", at, "go")
     assert code == 0
     kept = said.split()[-1]
@@ -170,6 +171,7 @@ def test_a_config_that_names_robin_is_whom_jbus_takes_and_prints(kitchen, jstack
     kitchen.set("open.json", [kitchen.opened("ps-agnostic", 286)])
     kitchen.set("jmerge.txt", f"hold 286 {URL}: {why}\n")
     add(kitchen, "alpha", approve=False, depends="ps-agnostic")
+    kitchen.clock_reads(AT)
     say = ["word", "--to", "demo"]
     assert kitchen.main(*say, "--by", "user", "--at", AT, "go") == (
         1,
@@ -340,6 +342,7 @@ def test_across_a_clock_change_the_refusal_names_the_word_the_time_typed_has(jst
 
 def test_a_refused_word_asks_for_the_word_of_the_time_it_was_given(kitchen, jstack_config):
     jstack_config.write_text('timezone = "America/New_York"\n')
+    kitchen.clock_reads("2026-12-01 10:00 EST")
     go = ["word", "--to", "demo", "--by", "user"]
     assert kitchen.main(*go, "--at", "2026-12-01 10:00 EDT", "go") == (
         1,

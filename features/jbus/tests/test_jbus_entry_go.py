@@ -309,6 +309,7 @@ def test_under_silence_the_users_answer_that_keeps_a_go_gates_default_starts_its
     queued(kitchen, "alpha", entry=None)
     queued(kitchen, "beta", entry=None, text=brief("beta").replace("Size: S\n", "Size: L\n"))
     first, second = gate(kitchen, "alpha"), gate(kitchen, "beta")
+    kitchen.clock_reads(HEARD_AT)
     for number in (first, second):
         code, said = kitchen.main(
             "answer", str(number), "--by", "user", "--at", HEARD_AT, "--default", "yes, start it"

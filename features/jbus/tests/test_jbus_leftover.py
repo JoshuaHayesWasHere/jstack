@@ -96,6 +96,7 @@ def test_three_passes_send_the_home_one_message_and_a_new_left_text_a_second(kit
     merged(kitchen, left=NOTE)
     assert kitchen.main("gate", "alpha", stdin=ASK)[0] == 0
     assert kitchen.main("gate", "alpha", stdin=ASK.replace("tea or coffee", "milk"))[0] == 0
+    kitchen.clock_reads("2026-10-12 10:00 ET")
     answered = kitchen.main(
         "answer", "1", "--by", "user", "--at", "2026-10-12 10:00 ET", "--default", "tea it is"
     )
