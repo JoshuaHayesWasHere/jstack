@@ -83,7 +83,7 @@ Merge(p) ==
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
     /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:451-459
     \* A merge_after row merges after its row.
-    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:206-209
+    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:237-240
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy

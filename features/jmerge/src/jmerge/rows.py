@@ -131,30 +131,61 @@ def red(main: mainjson.Main, slug: str, ran: Ran = UNPROVED) -> str:
 _STAMP = r"^(?:\S+Z )?"
 _ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 _PYTEST = re.compile(_STAMP + r"(?:\+ )?(?:uv run |python3? -m )?pytest(?: (.*))?$", re.M)
-NARROWS = ("-k", "--deselect", "--lf", "--last-failed", "--sw", "--stepwise", "--sw-skip")
-"""The options of pytest that leave out tests by name or by the last run, so a run of no path
-under one of them is not the whole suite."""
+KEEPS = {
+    "-n": True,
+    "--numprocesses": True,
+    "--dist": True,
+    "--durations": True,
+    "--junitxml": True,
+    "--shard": True,
+    "-q": False,
+    "--quiet": False,
+    "-v": False,
+    "--verbose": False,
+}
+"""The options of pytest that leave the run whole, each with whether it takes a value: workers,
+timings, reports, output, and `--shard`, whose parts are each read from their own job. Any
+other option may leave out or stop tests (`--ignore`, `-k`, `--lf`, `--collect-only`, a plugin
+of `-p`), so a command with one says nothing."""
+CHECK = "not browser"
+"""The marker of `make check`'s run, `-m "not browser"`: `jmerge.cli` reads the check's jobs with
+it, for the tests main's failed check names."""
+BROWSER = "browser"
+"""The marker of `make check-browser`'s run, `-m browser`: `jmerge.cli` reads the browser run's
+job with it, for the tests main's failed browser run names."""
 
 
-def ran_in(log: str) -> Ran | None:
+def ran_in(log: str, mark: str) -> Ran | None:
     """What a job's log says it ran: the one pytest command it echoes, `make`'s echo of it or a
-    shell's trace (`+ `). A path is a word of it that names a test file or a folder; with none,
-    the whole suite ran. A log with no such command, or more than one, or one that narrows the
-    suite by name (`NARROWS`), says nothing."""
+    shell's trace (`+ `). A path is a word of it that is no option or an option's value; with
+    none, the whole suite ran. A log with no such command, or more than one, or one with an
+    option that is not known to leave the run whole (`KEEPS`), says nothing. So does a marker
+    other than `mark`, the one the caller reads the run for (`CHECK` or `BROWSER`), quoted or
+    not as a shell's trace prints it: another may leave tests out, and the check's `not browser`
+    runs none of the tests main's browser run failed, nor its `browser` any of the rest."""
+    marked = re.compile(rf"""(?:^| )-m ?(?:'{mark}'|"{mark}"|{mark})(?= |$)""")
     found = _PYTEST.findall(_ESCAPE.sub("", log))
     if len(found) != 1:
         return None
     try:
-        words = shlex.split(found[0])
+        words = shlex.split(marked.sub("", found[0]))
     except ValueError:
         return None
-    if any(word.split("=")[0] in NARROWS for word in words):
+    paths, value = [], False
+    for word in words:
+        if value:
+            value = False
+        elif not word.startswith("-"):
+            paths.append(word)
+        elif word.startswith("--") and "=" in word:
+            if not KEEPS.get(word.split("=")[0]):
+                return None
+        elif word in KEEPS:
+            value = KEEPS[word]
+        elif not (word[:2] in KEEPS and KEEPS[word[:2]]):
+            return None
+    if value:
         return None
-    paths = [
-        word
-        for word in words
-        if not word.startswith("-") and ("/" in word or word.endswith(".py") or "::" in word)
-    ]
     return Ran(every=not paths, paths=frozenset(paths))
 
 
