@@ -120,6 +120,9 @@ def test_the_seed_pass_over_todays_notes_wakes_nobody_and_a_later_line_alone_is_
     kitchen.poll(NOW)
     kitchen.poll(NOW + timedelta(minutes=1))
     assert prose_wakes(kitchen, root) == prose_wakes(kitchen, scoped) == []
+    seeded = {one.text for one in prose.read(kitchen.state).values() if one.seeded}
+    assert seeded == {one.strip() for one in TODAY.read_text().splitlines() if prose.deferred(one)}
+    assert len(seeded) == 22
     append(notes, NOTE)
     kitchen.poll(NOW + timedelta(minutes=2))
     (said,) = prose_wakes(kitchen, root)
