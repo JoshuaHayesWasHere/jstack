@@ -33,8 +33,10 @@ A link still on its base's branch gets no message to rebase onto main: its branc
   A row with a go is grandfathered, whatever a check added since says of its brief.
 - **No room** prints `wait <slug>: no room: <why>` and launches neither that row nor any after it in the pass.
   After `room_passes` passes in a row with no room, jbus records `condition <slug>: no room for <n> passes: <why>` once.
-- **A lost reply never leads to a second launch.**
+- **A lost reply leads to a second launch only when the connection dropped and no thread was made.**
   jbus writes a file keyed `<project>/<slug>/<brief_sha 12>` under `~/.local/state/jbus/launches/` before the call, and looks up the thread of a lost reply.
+  A launch whose connection dropped (ECONNRESET) and whose lookup finds no thread of its title and branch is launched once more, under the same file.
+  A second drop, a server error or any other lost reply is `condition <slug>: launch reply lost, <n> matching threads`.
 - **Overlap does not stop a launch.**
   Each crewmate has its own worktree and branch.
   Each pass compares every two briefs that are out, by their `Where:` lines and by the files each open pull request changes beyond its `Where:` (the `Diff:` of `jmerge --claims`).

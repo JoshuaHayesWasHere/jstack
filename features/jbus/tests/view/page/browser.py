@@ -594,4 +594,4 @@ def shown(port, tmp_path, opens):
 HOLDERS = ["user", "crew", "home", "rev", "ci", "bus", "dep", "ok", "scout", "other", "unknown"]
 
 
-MARKS = ["long", "rep", "blk", "bn", "lv-moving", "lv-quiet", "lv-hung"]
+MARKS = ["long", "rep", "bn", "lv-moving", "lv-quiet", "lv-hung"]

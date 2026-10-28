@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import subprocess
-import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -151,7 +150,7 @@ def _done(args: argparse.Namespace, config: Config) -> int:
     """Run `jbus done`: a thread with no home gives its result here, and jbus sends it at once."""
     project = verbs.here(config, args.project)
     run = Pass(config, project, datetime.now(UTC))
-    text = sys.stdin.read().strip()
+    text = verbs.piped("done", "the result's lines").strip()
     if not text:
         raise jbus.Refused("refused: no lines on stdin")
     line = f"result {args.slug}: {text.splitlines()[0]}"

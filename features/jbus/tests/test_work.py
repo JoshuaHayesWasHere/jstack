@@ -192,6 +192,7 @@ def test_a_pull_request_closed_unmerged_is_closed(kitchen):
 
 def test_a_row_removed_leaves_its_thread_removed(kitchen):
     add(kitchen, "alpha", approve=False)
+    kitchen.clock_reads(AT)
     remove = ("--project", "demo", "queue", "remove", "alpha", "--by", "user", "--at", AT)
     assert kitchen.main(*remove)[0] == 0
     thread = kitchen.t3.thread("alpha", "running")

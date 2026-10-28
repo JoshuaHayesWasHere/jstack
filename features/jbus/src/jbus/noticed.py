@@ -266,8 +266,7 @@ def mark(
     """Mark one new record taken by `row`, or dropped for `why`. Refuse anything else."""
     if not _NAME.fullmatch(by):
         raise jbus.Refused(f"refused: --by is one name with no comma, not {by!r}")
-    if not user.takes(at):
-        raise jbus.Refused(f'refused: --at is "{user.form(at)}"')
+    verbs.typed_at(user, at)
     if not row and not why.strip():
         raise jbus.Refused("refused: --why says why it is dropped, in words")
     if row and not _named(state, home, row):

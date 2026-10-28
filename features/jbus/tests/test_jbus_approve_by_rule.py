@@ -308,6 +308,7 @@ def test_a_removal_of_a_parent_that_did_not_merge_holds_its_follow_ups(kitchen):
     add(kitchen, "beta", approve=False)
     assert follow(kitchen, "beta", "alpha")[0] == 0
     at = "2026-10-12 10:00 ET"
+    kitchen.clock_reads(at)
     code, said = kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", at)
     assert code == 0 and said.splitlines()[0].endswith(
         ", and held beta: a follow-up approved by rule has no go without its parent's"
@@ -332,6 +333,7 @@ def test_a_parent_removed_earlier_in_the_batch_is_followed_only_where_it_went_as
         f'remove alpha --by user --at "{at}"\n'
         f"approve beta --rule 6 --follows alpha --sha {sha12(brief('beta'))}\n"
     )
+    kitchen.clock_reads(at)
     code, said = kitchen.main("queue", "apply", stdin=text)
     assert (code, said.strip()) == (
         1,

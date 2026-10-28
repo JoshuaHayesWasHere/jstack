@@ -36,7 +36,6 @@ Fail-safe: the dry-run lists the 3 branches, bundle at ~/b.bundle
 Option: remove them (default, recommended): the branches go
 Option: keep them: nothing changes
 """
-AT = "2026-10-12 00:30"
 
 
 @pytest.fixture(scope="module")
@@ -130,8 +129,9 @@ def fix(slug, key, green="When green: `check` passes on the fix's pull request a
 
 
 def at_zoned():
-    """AT with this machine's time zone at that time, as `jbus word --at` takes it."""
-    return f"{AT} {datetime.strptime(AT, '%Y-%m-%d %H:%M').astimezone().tzname()}"
+    """Now in this machine's time zone, as `jbus word --at` takes it: jbus holds a typed time
+    to its own clock, which the sandbox does not fake."""
+    return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
 
 def brief_sha(sandbox, slug):

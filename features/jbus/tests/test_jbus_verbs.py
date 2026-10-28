@@ -14,11 +14,14 @@ import io
 import re
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
 import jbus
+import jsettings
 from jbus import cli, t3, verbs
 from test_jbus_kitchen import GATE
 
@@ -203,3 +206,83 @@ def test_the_words_python_3_12_3_hands_back_are_the_verbs_words():
     given = argparse.Namespace(words=["kept"])
     assert verbs.words_left(given, ["--strange"]) == ["--strange"]
     assert given.words == ["kept"]
+
+
+class Terminal(io.StringIO):
+    """A stdin that is a terminal: a read of it waits for a line nobody types."""
+
+    def isatty(self):
+        return True
+
+    def read(self, *_):
+        raise AssertionError("read a terminal, which waits until somebody types")
+
+
+@pytest.mark.parametrize(
+    ("argv", "what"),
+    [
+        (["queue", "add", "alpha", "--priority", "1"], "the brief"),
+        (["done", "alpha"], "the result's lines"),
+        (["gate", "alpha"], "the gate's lines"),
+        (["queue", "apply"], "the verbs"),
+    ],
+    ids=["queue-add", "done", "gate", "queue-apply"],
+)
+def test_a_verb_that_reads_stdin_refuses_a_terminal_at_once(kitchen, argv, what):
+    """A thread has no one to type at its terminal, so a verb that reads its text from stdin
+    refuses a terminal before it reads, and names what to pipe in."""
+    verb = " ".join(one for one in argv if not one.startswith("-") and not one.isdigit())
+    verb, given = verb.removesuffix(" alpha"), " <slug>" if "alpha" in argv else ""
+    assert kitchen.main("--project", "demo", *argv, stdin=Terminal()) == (
+        1,
+        f"refused: stdin is a terminal, and jbus {verb} reads {what} from it: pipe them in, "
+        f"as in jbus {verb}{given} < <file>\n",
+    )
+    assert kitchen.events() == []
+
+
+OFF = "2026-10-12 08:00 ET"
+CLOCK = "the clock reads 2026-10-12 11:00 ET"
+
+
+@pytest.mark.parametrize(
+    ("argv", "kept"),
+    [
+        (["word", "--to", "demo", "--by", "user", "--at", OFF, "go"], "words.json"),
+        (
+            ["--project", "demo", "answer", "1", "--by", "user", "--at", OFF, "--default", "yes"],
+            "acts.jsonl",
+        ),
+    ],
+    ids=["word", "answer"],
+)
+def test_a_typed_at_far_off_the_clock_is_refused_and_nothing_is_kept(kitchen, argv, kept):
+    """A time an agent types is when the user said it, which it reads from `date` or the
+    message. One hours off the clock is a guess: jbus refuses it and keeps no record of it."""
+    lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
+    assert kitchen.main("--project", "demo", "gate", "alpha", stdin=lines)[0] == 0
+    assert kitchen.main(*argv) == (
+        1,
+        f"refused: --at {OFF} is 180 minutes off the clock, and {CLOCK}: take the time from "
+        "date or from the message's own timestamp, never a guess\n",
+    )
+    assert not (kitchen.state / kept).exists()
+
+
+@pytest.mark.parametrize(
+    ("clock", "taken", "refused"),
+    [
+        (datetime(2026, 11, 1, 5, 30, tzinfo=UTC), "EDT", "EST"),
+        (datetime(2026, 11, 1, 6, 30, tzinfo=UTC), "EST", "EDT"),
+    ],
+    ids=["first-01:30", "second-01:30"],
+)
+def test_the_hour_that_occurs_twice_is_read_by_its_zone_word(monkeypatch, clock, taken, refused):
+    """When the clocks go back, 01:30 occurs twice, an hour apart. A typed `--at` names which
+    one by its zone word, and is held to the clock as that one."""
+    user = jsettings.Settings(zone=ZoneInfo("America/New_York"))
+    monkeypatch.setattr(verbs, "clock", lambda: clock)
+    verbs.typed_at(user, f"2026-11-01 01:30 {taken}")
+    with pytest.raises(jbus.Refused) as off:
+        verbs.typed_at(user, f"2026-11-01 01:30 {refused}")
+    assert str(off.value).startswith(f"refused: --at 2026-11-01 01:30 {refused} is 60 minutes off")
