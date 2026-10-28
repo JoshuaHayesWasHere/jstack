@@ -22,7 +22,7 @@ from jbus.ci import collect, ledger, notice, numbers, report
 from jbus.ci.collect import Unavailable
 from test_jbus_kitchen import NOW as KITCHEN_NOW
 from test_jbus_kitchen import REPO as CHECKOUT
-from test_jbus_kitchen import iso
+from test_jbus_kitchen import iso, queued
 
 HOST = "github.com"
 REPO = "JoshuaHayesWasHere/jstack"
@@ -634,3 +634,42 @@ def test_every_pass_keeps_the_ci_ledger_of_its_project(kitchen):
     kitchen.set("run-jobs.json", {"501": [first[1]], "502": [second[1]]})
     kitchen.poll()
     assert [one["job"] for one in ledger.read(kitchen.state / ledger.JOBS)] == [9001, 9002]
+
+
+def test_a_ledger_the_pass_cannot_write_is_said_and_the_pass_still_launches(kitchen):
+    """Keeping the ledger is bookkeeping: a state directory where `ci.jsonl` cannot be written
+    costs the pass that one line, never its launches."""
+    run, job = (
+        {
+            "id": 501,
+            "event": "pull_request",
+            "head_branch": "pie",
+            "head_sha": "a" * 40,
+            "run_attempt": 1,
+            "created_at": iso(KITCHEN_NOW - timedelta(minutes=20)),
+            "status": "completed",
+            "conclusion": "success",
+            "pull_requests": [{"number": 7}],
+        },
+        {
+            "id": 9001,
+            "run_attempt": 1,
+            "name": "check",
+            "head_sha": "a" * 40,
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": iso(KITCHEN_NOW - timedelta(minutes=20)),
+            "started_at": iso(KITCHEN_NOW - timedelta(minutes=19)),
+            "completed_at": iso(KITCHEN_NOW - timedelta(minutes=10)),
+            "labels": ["ubuntu-latest"],
+            "runner_name": "GitHub Actions 1",
+            "steps": [{"name": "make check"}],
+        },
+    )
+    kitchen.set("runs.json", {"workflow_runs": [run]})
+    kitchen.set("run-jobs.json", {"501": [job]})
+    (kitchen.state / ledger.JOBS).mkdir(parents=True)
+    queued(kitchen, "alpha")
+    said = kitchen.poll()
+    assert "launched alpha: mcp:thread-1" in said
+    assert any(line.startswith("ci: demo: no job kept this pass: ") for line in said), said
