@@ -14,7 +14,23 @@ from jbus.view import panels
 from jbus.view import state as built
 from test_jbus_kitchen import NOW as POLLED
 from test_jbus_kitchen import Kitchen, complete
-from view.scene import GATE, JMERGE, NAMES, NOW, PULL, ago, et, iso, item, kinds, row, table, tasks
+from view.scene import (
+    GATE,
+    JMERGE,
+    NAMES,
+    NOW,
+    PULL,
+    ago,
+    checked,
+    et,
+    iso,
+    item,
+    kinds,
+    logged,
+    row,
+    table,
+    tasks,
+)
 
 
 def test_a_queued_row_is_yours_blocked_or_waiting_for_jbus(served):
@@ -613,3 +629,37 @@ def test_the_wait_band_is_the_list_the_pass_left_with_the_gates_read_now(scene, 
         "gate 6: milk?",
     ]
     assert waiting[1]["since"] is None
+
+
+def owed(scene, pass_minutes):
+    """owed-entry's scene of round-2026-10-28: the row jbus wrote says `checks: pending` with
+    jmerge's older reason, merge.log's newer line names macos, and the pass that ended
+    `pass_minutes` ago saw one check of four still pending."""
+    stale = "check has no run at 90a937d3305d"
+    scene.queue([row("owe-entry", "pr", pr="#13", checks="pending", why=f"wait: {stale}")])
+    scene.merge_log(logged(10, "wait", 13, stale), logged(2, "wait", 13, "macos has not passed"))
+    scene.passed(pass_minutes * 60, rows={"owe-entry": checked("check 2 of 4", "pending", 12)})
+
+
+def test_a_drawer_leads_with_the_newest_of_merge_log_and_the_pass_with_its_time(scene, served):
+    owed(scene, 4)
+    now = tasks(served.json("/state.json?project=demo"))["owe-entry"]["now"]
+    assert now == {"at": iso(ago(minutes=2)), "by": "jmerge", "say": "macos has not passed"}
+    owed(scene, 1)
+    now = tasks(served.json("/state.json?project=demo"))["owe-entry"]["now"]
+    assert now == {"at": iso(ago(minutes=1)), "by": "jbus", "say": "checks pending"}
+    assert "check 2 of 4" not in now["say"]
+
+
+def test_a_drawer_off_the_check_step_keeps_what_it_waits_on_at_its_head(scene, served):
+    owed(scene, 1)
+    why = "wait: it has no review yet"
+    scene.queue([row("owe-entry", "pr", pr="#13", checks="passed", why=why)])
+    scene.merge_log(logged(10, "wait", 13, "it has no review yet"))
+    found = tasks(served.json("/state.json?project=demo"))["owe-entry"]
+    assert found["step"] == "review"
+    assert found["now"] == {
+        "at": iso(ago(minutes=10)),
+        "by": "jmerge",
+        "say": "it has no review yet",
+    }
