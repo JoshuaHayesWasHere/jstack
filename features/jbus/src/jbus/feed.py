@@ -19,7 +19,9 @@ event is a `FeedEvent`, `{"v", "id", "at", "project", "kind", "subject", "line",
 A cursor the log does not have, because it is not an id or because the daily prune dropped its
 event (`wake.LOG_KEEP`), or no cursor, gives a page with `reset` true, no events, the cursor of
 the newest event, and `needs`: everything that waits on the user, to catch up from. The cursor
-is read before the needs, so an event that comes in between is on the next page.
+is read before the needs, so an event that comes in between is on the next page. On an empty
+log that cursor is `START`, which names the start of the log: a read after it gives every
+event from the first one, and waits like a read after any other cursor.
 
 A read may wait: `--wait <s>` or `&wait=<s>`, up to `WAIT_MOST` seconds, is a long poll. It
 returns at the first new event, or with no event once the time is up. A reset never waits.
@@ -41,6 +43,8 @@ from typing import Any
 from jbus import Config, Refused, acts, verbs, wake
 
 V = 1
+START = "start"
+"""The cursor before the first event of the log; an id is hex, so no event has it."""
 WAIT_MOST = 600
 TICK = 0.5
 WAIT = f"wait is a number of seconds, 0 to {WAIT_MOST}"
@@ -52,11 +56,10 @@ def read(state: Path, project: str, after: str, needs: Needs) -> dict[str, Any]:
     """The page after the cursor `after`, or the reset where the log has no event of that id.
     `needs` gives what waits on the user now, and is asked only for a page that shows it."""
     log = wake.entries(state)
-    newest = log[-1]["id"] if log else ""
-    at = next((place for place, one in enumerate(log) if one["id"] == after), None)
-    if not after or at is None:
-        return _page(project, True, newest, []) | {"needs": needs()}
-    new = log[at + 1 :]
+    cursors = [START] + [one["id"] for one in log]
+    if after not in cursors:
+        return _page(project, True, cursors[-1], []) | {"needs": needs()}
+    new = log[cursors.index(after) :]
     if not new:
         return _page(project, False, after, [])
     shown, made = needs(), {one["id"]: one for one in acts.read(state)}

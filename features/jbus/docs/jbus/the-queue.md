@@ -307,6 +307,7 @@ The page is `{"v": 1, "project", "reset", "cursor", "events"}`, and the next rea
 Each event is `{"v": 1, "id", "at", "project", "kind", "subject", "line", "need", "act"}`, in the order of the project's log, and each act is an event of the kind `act`, with the act as `acts.jsonl` has it.
 `need` is what waits on you about the event's subject now, as `/stack.json`'s `needs` has it, or null.
 A cursor the log does not have, an unknown one or one the 14-day prune dropped, or no cursor, gives `reset` true, no events, the newest cursor, and `needs`, everything that waits on you, to catch up from.
+On an empty log that cursor is `start`, the start of the log: a read after it gives every event from the first one, and waits like any other.
 `wait`, up to 600 seconds, is a long poll: the page comes at the first new event, or empty once the time is up, and a reset never waits.
 Each need names its `doors`, the cases of the one door table its action opens, so the bot can tell what it may not act on: a row to approve has those of its brief's `Holds:` lines, a gate those of its own, and any other need none.
 Nothing is pushed: the bot has no endpoint, and you want no webhook alarms.

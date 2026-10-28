@@ -298,3 +298,28 @@ def test_a_long_poll_sees_an_event_written_while_it_read_the_log(kitchen, monkey
         clock=lambda: next(ticks) / 100,
     )
     assert lines(page) == ["queue demo: beta is queued"]
+
+
+def test_a_reset_on_an_empty_log_gives_a_cursor_that_reads_from_its_first_event(kitchen):
+    made = box(kitchen)
+    start = fed(kitchen)
+    assert (start["reset"], start["events"], start["cursor"]) == (True, [], feed.START)
+    again = fed(kitchen, "--after", start["cursor"])
+    assert (again["reset"], again["events"], again["cursor"]) == (False, [], feed.START)
+    made.send("alpha", "queue", "queue demo: alpha is queued")
+    read = fed(kitchen, "--after", again["cursor"])
+    assert (read["reset"], lines(read)) == (False, ["queue demo: alpha is queued"])
+    assert read["cursor"] == read["events"][-1]["id"]
+
+
+def test_a_long_poll_on_an_empty_log_waits_for_its_first_event(kitchen):
+    made = box(kitchen)
+    cursor = fed(kitchen)["cursor"]
+    later = threading.Timer(1, made.send, ("alpha", "queue", "queue demo: alpha is queued"))
+    later.start()
+    began = time.monotonic()
+    page = fed(kitchen, "--after", cursor, "--wait", "5")
+    took = time.monotonic() - began
+    later.join()
+    assert (page["reset"], lines(page)) == (False, ["queue demo: alpha is queued"])
+    assert 1 <= took < 5
