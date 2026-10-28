@@ -59,7 +59,6 @@ A run of `jmerge` holds the repo's merge lock from its read of main's tip to its
 - [What a pass launches](jbus/what-a-pass-launches.md)
 - [What blocks](jbus/what-blocks.md)
 - [What the Chef may run](jbus/what-the-chef-may-run.md)
-- [What the threads noticed](jbus/what-the-threads-noticed.md)
 - [What waits on you](jbus/what-waits-on-you.md)
 - [When jbus fails](jbus/when-jbus-fails.md)
 - [Work items](jbus/work-items.md)

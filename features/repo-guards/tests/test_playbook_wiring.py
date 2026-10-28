@@ -528,7 +528,12 @@ def test_a_real_playbook_prints_the_real_principles_it_cites_under_sh_and_zsh(
         assert said.count(f"==> principles/{rule}.md <==") == 1
 
 
-NUMBERED = re.compile(r"^\d+\. \S.*$", re.M)
+NUMBERED = re.compile(r"^\d+\. \S.*(?:\n[ \t]+\S.*)*", re.M)
+
+
+def joined(step):
+    """A step as the checklist prints it: its indented lines joined onto its first."""
+    return " ".join(line.strip() for line in step.splitlines())
 
 
 @pytest.mark.parametrize(
@@ -543,8 +548,9 @@ def test_every_step_of_a_real_playbook_is_printed_word_for_word_as_a_numbered_ch
     skill, name, tmp_path
 ):
     """Each numbered step of the playbook prints as one line under the line that names the
-    steps, worded as the playbook has it and numbered from 1 to the last."""
-    steps = [step[0] for step in NUMBERED.finditer(PLAYBOOK[name].read_text())]
+    steps, worded as the playbook has it, its indented lines joined on, and numbered from 1 to
+    the last."""
+    steps = [joined(step[0]) for step in NUMBERED.finditer(PLAYBOOK[name].read_text())]
     assert [int(step.split(".")[0]) for step in steps] == list(range(1, len(steps) + 1))
     said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path)
     at = said.index(
@@ -562,7 +568,15 @@ def test_a_numbered_line_that_does_not_start_a_line_is_no_step(skill, tmp_path):
     )
     name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
     _, *said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
-    assert said[1:] == ["1. Do one thing.", "2. Then."]
+    assert said[1:] == ["1. Do one thing. 2. an indented line", "2. Then."]
+
+
+@pytest.mark.parametrize("skill", READERS)
+def test_a_step_written_a_sentence_a_line_prints_as_one_line(skill, tmp_path):
+    repo = cited(tmp_path, "\n1. Do one thing.\n   Then check it.\n\n   - not this\n2. Last.\n")
+    name = "for-a-crewmate" if skill == "crew" else "for-a-scout"
+    _, *said = opened(skill, written(skill, f"Playbook: {name}"), tmp_path, repo)
+    assert said[1:] == ["1. Do one thing. Then check it.", "2. Last."]
 
 
 def test_every_path_a_skill_reaches_through_its_templates_link_is_in_the_layout(tmp_path):

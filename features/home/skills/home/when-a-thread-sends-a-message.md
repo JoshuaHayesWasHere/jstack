@@ -34,7 +34,11 @@ What it has to plan on arrives as a message, and the rest it reads when the user
 
 On each message, do this without waiting for a word from the user.
 
-1. Read what landed: the last result, the review or the report the message is about, from disk. Not the thread that sent it. A gate that came as a message is one jbus could not take: do what the end of "Gates" says for it. A line `Gate: question <number>` in what you just read is a question jbus holds, and asks nothing here. The lines of a gate itself under "Noticed" in a Result or "Findings" in a Report are from a thread that had no home to send them to, or from one that wrote them under the skill as it was: hand them to jbus with the block of "Ask one", under that thread's slug, and only on `not asked` do the same for it as for one that came as a message.
+1. Read what landed: the last result, the review or the report the message is about, from disk.
+   Not the thread that sent it.
+   A gate that came as a message is one jbus could not take: do what the end of "Gates" says for it.
+   A line `Gate: question <number>` in what you just read is a question jbus holds, and asks nothing here.
+   The lines of a gate itself in a Result or under "Findings" in a Report are from a thread that had no home to send them to, or from one that wrote them under the skill as it was: hand them to jbus with the block of "Ask one", under that thread's slug, and only on `not asked` do the same for it as for one that came as a message.
 2. Run the merge step of "Merging a pull request that is ready".
    It runs no `jmerge`, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
    Then clear this home's blockers, as "Clearing its own blockers" says: a start and an audit tick run this step too, so every wake clears them.

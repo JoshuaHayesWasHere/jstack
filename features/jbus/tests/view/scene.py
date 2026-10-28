@@ -28,7 +28,7 @@ from urllib.parse import quote
 
 import daemons
 import jsettings
-from jbus import leftover, merge, noticed, party, questions, queue, view, word, work
+from jbus import leftover, merge, party, questions, queue, view, word, work
 from jbus.view import state as built
 from jmerge import lines as jlines
 from jmerge import ready
@@ -576,7 +576,7 @@ def tasks(state):
 def stacked(scene):
     """Beside `demo`, two small made-up projects of the state directory. `pantry` is in a
     repo of its own. It has one task running, one at a gate and one merged today, and it also
-    has a gate it asks and a noticed line. `larder` has an empty queue. Beside them are a
+    has a gate it asks. `larder` has an empty queue. Beside them are a
     directory with no queue, which is no project, and a retired project. jbus no longer looks
     after the retired project, and the view never reads it."""
     pantry, larder = scene.state_dir / "pantry", scene.state_dir / "larder"
@@ -1003,33 +1003,6 @@ def rounded(scene, slug="oat-milk"):
         ],
     )
     return brief, first, fixed
-
-
-def a_noticed(scene, *made):
-    """Records of `noticed.json`, each `(slug, mark, minutes ago, more)`, as a pass and the
-    two mark commands write them."""
-    records = []
-    for slug, mark, minutes, more in made:
-        said = f"{slug} saw a thing"
-        records.append(
-            {
-                "key": noticed.key(slug, said),
-                "slug": slug,
-                "kind": "tasks",
-                "section": "Result",
-                "label": "Noticed",
-                "text": said,
-                "seen_at": iso(ago(minutes=minutes)),
-                "mark": mark,
-                "row": "",
-                "why": "",
-                "by": "",
-                "at": "",
-                **more,
-            }
-        )
-    scene.write(noticed.NAME, {"records": records})
-    return [one["key"] for one in records]
 
 
 ROOT, SHELF, RACK, OLD = "", "pantry-shelf", "spice-rack", "old-shelf"

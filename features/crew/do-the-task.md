@@ -81,7 +81,9 @@
   A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Write each Markdown prose line you add or change as one sentence, and leave old lines as they are: jstack's check (`features/writing/scripts/prose_lint.py`) fails a new line that holds two.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
-- When every **Done when** line holds, stop. Do not go looking for more to improve. Anything noticed that is outside the task goes in the result under "Noticed", not into the diff.
+- When every **Done when** line holds, stop.
+  Do not go looking for more to improve.
+  A fault you find outside the task stays out of the diff: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
 - Before the pull request opens, with the work committed, ask which changed files the brief's **Where** does not cover.
   Ask again after each push for a review's findings ("The review"), and before each push for a failed check ("The checks"), so a reviewer launched on that push finds the line, since a fix can add a file outside **Where** after the `Wider:` lines were written.
   Run this in this worktree, with the block at the top and the brief's slug in place of the words in angle brackets:
@@ -158,7 +160,7 @@
   A brief with a `Stack:` line in its head is a link of a stack: its base is the branch of the link under it, the one this thread's worktree started from.
   A brief with a `Stacked on:` line in its head is a link jbus stacked: its row builds on a row whose pull request was open when it launched, and its worktree started from that pull request's branch.
   Its Result names the stack on its `Stacked on:` line, and jbus says when it moves ("A link that moved").
-  On `no base`, open no pull request: say what it printed in the Result under "Noticed" and in what you tell the home.
+  On `no base`, open no pull request: write what it printed on the Result's `Left:` line and in what you tell the home.
 
 The user may steer in this thread at any time. What they say here overrides the brief; record it in the result.
 
@@ -197,10 +199,10 @@ fi
 `jbus gate` checks the lines against `$T/gates.md`, the one copy of their shape, and refuses what they lack with `not sent: <why>`.
 It speaks for the project whose repo this worktree is of, and refuses a repo its config does not name.
 On `sent to jbus`, send the home nothing.
-The line under it, `Gate: question <number>`, is all the Result keeps of the gate: add it under "Noticed", as printed, and no line of the gate itself.
+The line under it, `Gate: question <number>`, is all the Result keeps of the gate: add it to the Result as a line of its own, as printed, and no line of the gate itself.
 Where the first line says `already answered: question <number>:`, nothing was asked: the same question was answered before, and the line gives that answer.
 Go by it, and take the default back where it differs.
-On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread "Telling the home" finds, and with no home there put them in the Result under "Noticed", the one place left that can hold them.
+On `to the home`, jbus holds nothing: send the lines, under a first line `<slug>: gate`, to the thread "Telling the home" finds, and with no home there put them in the Result above its `Left:` line, the one place left that can hold them.
 On `not sent`, nothing was queued: fill in the line it names and run it again.
 An answer that differs from the default comes back as a message here, from jbus.
 A review finding you cannot settle without the user's word is such a question.

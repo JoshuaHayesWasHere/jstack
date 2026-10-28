@@ -29,7 +29,9 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 Never done here, and who does it:
 
 - **An edit to the baseline, the harness or its threshold.** Only the user's word changes the spec: the gate of step 6 asks.
-- **A second component in this pull request.** The home splits several components into one brief each, shared primitives first. A second one goes in the Result under "Noticed".
+- **A second component in this pull request.**
+  The home splits several components into one brief each, shared primitives first.
+  A second one is a row, queued as `templates/a-fault-outside.md` says.
 - **Components moved side by side in worktrees you start.** The home launches them, one crewmate each.
 - **Parity claimed by eye, or from a diff that is "close".** Nobody claims it: zero, or the Result says does not hold.
 - **The screenshot run outside the lock, or a second way round it.** Nobody does: it waits its turn.
