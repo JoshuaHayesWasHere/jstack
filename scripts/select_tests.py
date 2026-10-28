@@ -309,6 +309,12 @@ def by_name(tree):
     holds = {}
     for one in functions:
         holds.setdefault(one.name, set()).update(named(one) - {one.name})
+    records = {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef)
+        and "dataclass" in set().union(*map(named, node.decorator_list))
+    }
     run, decorated = set(), set()
     for node in at_import(tree):
         if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value:
@@ -317,6 +323,9 @@ def by_name(tree):
                     holds.setdefault(name, set()).update(named(node.value))
         elif isinstance(node, ast.Call):
             run |= named(node.func)
+            if getattr(node.func, "id", None) not in records:
+                given = [*node.args, *(one.value for one in node.keywords)]
+                run |= set().union(*map(named, given))
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             run |= set().union(*map(named, node.decorator_list))
             if node.decorator_list:

@@ -294,7 +294,22 @@ HELD = {
         "import importlib\n\nTITLE = 'menu'\n\n\n"
         "def load():\n    return importlib.import_module('reg.plug')\n\n\nMENU = (load,)\n"
     ),
+    "src/reg/mapped.py": (
+        "import importlib\n\n\ndef load(name):\n    return importlib.import_module(name)\n\n\n"
+        "list(map(load, ['reg.plug']))\n"
+    ),
+    "src/reg/wraps.py": (
+        "import importlib\n\n\ndef plugged(f):\n    importlib.import_module('reg.plug')\n"
+        "    return f\n\n\n@plugged\ndef thing():\n    pass\n"
+    ),
+    "src/reg/hooks.py": (
+        "import importlib\n\nHOOKS = []\n\n\ndef hook(f):\n    HOOKS.append(f)\n    return f\n\n\n"
+        "@hook\ndef load():\n    return importlib.import_module('reg.plug')\n"
+    ),
     "testing/tests/test_later.py": "import reg.later\n",
+    "testing/tests/test_mapped.py": "import reg.mapped\n",
+    "testing/tests/test_wraps.py": "import reg.wraps\n",
+    "testing/tests/test_hooks.py": "import reg.hooks\n",
     "testing/tests/test_menu.py": "from reg.menu import MENU\n\n\ndef test_it():\n    MENU[0]()\n",
     "testing/tests/test_title.py": "from reg.menu import TITLE\n\n\ndef test_it():\n    TITLE\n",
     "testing/tests/test_lookup.py": "import reg.lookup\n",
@@ -303,14 +318,24 @@ HELD = {
 
 
 @pytest.mark.parametrize(
-    "test", ["test_later.py", "test_lookup.py", "test_table.py", "test_menu.py"]
+    "test",
+    [
+        "test_later.py",
+        "test_lookup.py",
+        "test_table.py",
+        "test_menu.py",
+        "test_mapped.py",
+        "test_wraps.py",
+        "test_hooks.py",
+    ],
 )
 def test_a_function_that_imports_by_name_reaches_the_tests_that_may_call_it_however_they_name_it(
     tmp_path, test
 ):
     """A function named but not called, as `partial(kinds.found)` holds it; one named by a string
-    to `getattr`; a method, which an object calls where no import names it; and a registry that
-    holds one, `MENU = (load,)`, whose reader may call it: each may run."""
+    to `getattr`; a method, which an object calls where no import names it; a registry that
+    holds one, `MENU = (load,)`, whose reader may call it; one passed to `map` on import; a
+    decorator that imports by name; and one a decorator may register: each may run."""
     repo = Repo(tmp_path, files={**FILES, **LOADER, **HELD})
     head = repo.change(["src/reg/plug.py"])
 
