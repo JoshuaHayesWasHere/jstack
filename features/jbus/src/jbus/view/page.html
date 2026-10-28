@@ -242,6 +242,7 @@
   .tri .calm { margin-top: var(--space-6); font-weight: 400; }
   .tri .nr { flex-wrap: nowrap; }
   .tri .nb { flex: 1 1 0; }
+  .tri .nr:has(.acc) { flex-wrap: wrap; } .tri .nr:has(.acc) .nb { flex-basis: 100%; } .tri .nr:has(.acc) .na { margin-left: auto; }
   .needs.bar:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-7); }
   .needs.bar h2 { flex: 1 1 0; min-width: 0; flex-wrap: wrap; }
   .needs.bar h2 .nm { font-weight: 400; }
@@ -423,6 +424,7 @@
   .rl .btn.fill { color: var(--on-brand); }
   .rl-a { flex: none; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-5); font-size: var(--text-xs); }
   .rl-d { color: var(--ink-2); font-weight: 700; }
+  .rl:has(.acc) { flex-wrap: wrap; } .rl:has(.acc) .rl-b { flex-basis: 100%; } .rl:has(.acc) .rl-a { margin-left: auto; }
   .ah .acc { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
   .ah-said:empty { display: none; } .ah-said .will { margin: var(--space-4) 0 0; }
   .gr { display: grid; grid-template-columns: minmax(0, 1fr) 90px 2.2em; gap: var(--space-5); align-items: center; padding: var(--space-1) 0; font-size: var(--text-sm); }
@@ -1173,7 +1175,7 @@
     drawer.scrollTop = 0;
     var back = focus && $("dw").querySelector('[data-open="' + CSS.escape(focus) + '"]');
     (back || $("dw-close")).focus();
-    var hit = !p.top && $("dw").querySelector(".hit"); if (hit) hit.scrollIntoView({ block: "center" });
+    var hit = $("dw").querySelector(".hit"); if (hit) hit.scrollIntoView({ block: "center" });
     titled();
   }
   function titled() {
