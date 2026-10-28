@@ -3,6 +3,7 @@ chains its rows make and what holds the line, as `/panel/pipeline.json` answers 
 
 import pytest
 
+from view.days import t_moment
 from view.scene import (
     CAPTURED,
     Scene,
@@ -12,6 +13,7 @@ from view.scene import (
     et,
     iso,
     item,
+    briefed,
     piped,
     row,
     stacked_pr,
@@ -171,6 +173,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "head_stage": "crew",
         "head_cause": "thread working",
         "chains": 2,
+        "path": ["tea-pot", "tea-cup", "tea-saucer"],
     }
 
 
@@ -224,6 +227,7 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
         "head_stage": "crew",
         "head_cause": "thread working",
         "chains": None,
+        "path": ["mac-tree-spec-timeout", "mac-sync-main-7"],
     }
     assert got["longest_wait"]["slug"] == "bl-lands"
     rows = {one["slug"]: one for one in got["rows"]}
@@ -315,4 +319,71 @@ def test_a_stacked_pull_request_leaves_check_for_stacked_whatever_its_own_checks
         "bun-lid": ("stacked", "stacked"),
         "bun-pot": ("check", "passed"),
         "oat-pan": ("crew", None),
+    }
+
+
+def cells(home):
+    """A home's cells that hold a row: the count, how many are an hour old or more, and each
+    outcome its rows wait on that one row has."""
+    return {
+        key: (one["count"], one["old"], {wait: n for wait, n in one["waits"].items() if n})
+        for key, one in home["cells"].items()
+        if one["count"]
+    }
+
+
+def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
+    """The T moment over the root, jview, flow and macos, as build/wire-1440.png draws it, and
+    `infra`, a scope with no open row, which has its line all the same: each home's open rows,
+    its last act, and a cell per stage with its rows, the ones an hour old or more and what the
+    rows in check and stacked wait on. The longest chain is two deep, a stacked row behind the
+    first failing check, and 6 stacked rows merge after 6 parents whose checks failed."""
+    t_moment(scene)
+    briefed(scene, infra_only="infra")
+    (scene.home / "tasks" / "infra-only.md").unlink()
+    got = board(scene)["data"]
+    homes = {one["name"]: one for one in got["homes"]}
+    assert [(one["name"], one["open"]) for one in got["homes"]] == [
+        ("root", 20),
+        ("flow", 8),
+        ("infra", 0),
+        ("jview", 15),
+        ("macos", 1),
+    ]
+    assert {one["project"] for one in got["homes"]} == {"demo"}
+    assert cells(homes["root"]) == {
+        "crew": (4, 0, {}),
+        "you": (2, 0, {}),
+        "review2": (1, 0, {}),
+        "check": (7, 5, {"failing": 5, "passed": 2}),
+        "stacked": (6, 4, {"stacked": 6}),
+    }
+    assert cells(homes["jview"]) == {
+        "you": (1, 0, {}),
+        "review2": (1, 0, {}),
+        "check": (13, 10, {"failing": 7, "waiting": 2, "passed": 4}),
+    }
+    assert cells(homes["flow"]) == {"check": (8, 6, {"failing": 6})}
+    assert cells(homes["macos"]) == {"you": (1, 0, {})}
+    assert cells(homes["infra"]) == {}
+    assert set(homes["infra"]["cells"]) == set(KEYS)
+    assert homes["infra"]["last"] is None
+    assert homes["macos"]["last"] == {
+        "at": iso(ago(minutes=10)),
+        "what": "hold 103 https://github.com/acme/demo/pull/103: needs user, touches "
+        "skills/crew/SKILL.md",
+    }
+    oldest = homes["root"]["cells"]["stacked"]["oldest"]
+    assert (oldest["slug"], oldest["project"]) == ("oat-platter", "demo")
+    rows = {one["slug"]: one for one in got["rows"]}
+    for home in got["homes"]:
+        for key, cell in home["cells"].items():
+            mine = [one for one in rows.values() if (one["home"], one["stage"]) == (home["name"], key)]
+            assert cell["count"] == len(mine)
+    assert got["longest"]["path"] == ["fig-saucer", "oat-platter"]
+    assert rows["oat-platter"]["waits_on"][0]["slug"] == "fig-saucer"
+    assert got["stacked"] == {
+        "rows": 6,
+        "parents": 6,
+        "waits": {"failing": 6, "waiting": 0, "passed": 0, "stacked": 0},
     }
