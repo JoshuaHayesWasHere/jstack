@@ -100,6 +100,26 @@ def test_a_check_that_ran_other_tests_does_not_prove_the_fix(replay):
     assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
 
 
+NARROWED = [
+    WHOLE.replace("--shard=2/4", "--ignore features/a/tests"),
+    WHOLE.replace("--shard=2/4", "--ignore=features/a/tests"),
+    WHOLE.replace("--shard=2/4", "--collect-only"),
+    WHOLE.replace('-m "not browser"', "-m slow"),
+]
+"""Commands that run less than the suite, or none of it, with options other than by name."""
+
+
+@pytest.mark.parametrize("log", NARROWED)
+def test_a_check_whose_command_leaves_out_or_stops_tests_does_not_prove_the_fix(replay, log):
+    """A changed Makefile `PYTEST` or workflow may run the check so: an option jmerge does not
+    know may narrow the run, so the command proves nothing."""
+    tip = red_main(replay)
+    flow_fix(
+        replay, job(11, log=log, replay=replay), job(12, name="check", log=PARTS, replay=replay)
+    )
+    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
+
+
 def test_a_passed_browser_run_does_not_prove_the_fix_its_check_did_not(replay):
     """The browser run's `pytest -m browser` names no path, but it ran only the browser tests:
     only the check's own parts say what ran of the rest."""
@@ -167,9 +187,10 @@ def test_a_log_s_one_pytest_command_says_what_ran(log):
         WHOLE.replace("--shard", "-k red --shard"),
         WHOLE.replace("--shard=2/4", "--deselect=x.py::y"),
         WHOLE.replace("--shard=2/4", "--lf"),
+        *NARROWED,
     ],
 )
-def test_a_log_with_no_command_two_or_one_that_narrows_by_name_says_nothing(log):
+def test_a_log_with_no_command_two_or_one_that_narrows_says_nothing(log):
     assert rows.ran_in(log) is None
 
 
