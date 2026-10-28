@@ -3,8 +3,9 @@
 `t3_thread_launch` has no retry key, so jbus keeps one: `<project>/<slug>/<brief_sha 12>`, a file
 under `launches/`. jbus writes the file with `state: intent` and fsyncs it before the call, and adds
 the thread id after the reply. jbus never launches again under a key that has a thread id. An intent
-with no thread id means the reply was lost. jbus settles such an intent by looking the thread up,
-never by calling again.
+with no thread id means the reply was lost. jbus settles such an intent by looking the thread up.
+It calls again only for a launch whose connection dropped (ECONNRESET, `T3Dropped`) and whose
+lookup finds no thread, and only once (`settle_lost`).
 
 Once a launch has its thread, `write_thread` puts `Thread: <id>` in the head of
 `tasks/<slug>.md`. It is the one line jbus ever writes in a brief after the launch. When a
@@ -56,7 +57,7 @@ from jbriefs import parse
 from jbriefs.home import home_of, named
 from jbus import queue, read_json, verbs, watch, write_json
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
-from jbus.t3 import Client, T3Error, T3Refused
+from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
 from jmerge import claims, mainjson
 from jmerge import stacked as stacks
@@ -276,13 +277,20 @@ def settle_lost(run: Pass, client: Client) -> None:
 
     A launch that stays lost becomes a gate. jbus does not launch its slug again until the
     user removes its file under `launches/` by hand. A lost launch holds back no other row.
+    The one exception is a launch whose connection dropped before any reply: with no thread of
+    its title and branch, its record turns `retry`, and the pass's turn launches the slug once
+    more under the same record. A retry that drops too is a gate like any other.
     If the lost launch's thread does exist, the pass counts that thread with every other
     thread that T3 Code lists.
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for path in sorted(directory.glob("*/*.json")):
         record, slug = read_json(path, {}), path.parent.name
-        if record.get("thread") or record.get("role") == queue.SCOUT:
+        if (
+            record.get("thread")
+            or record.get("role") == queue.SCOUT
+            or record.get("state") == "retry"
+        ):
             continue
         try:
             listed = crew_threads(client, run.project.project_id, f"{TITLE}{slug}")
@@ -301,6 +309,11 @@ def settle_lost(run: Pass, client: Client) -> None:
             )
             write_thread(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
+        elif not matching and record.get("dropped"):
+            write_json(
+                path, {"key": record.get("key"), "state": "retry", "at": run.now.isoformat()}
+            )
+            run.say(f"relaunch {slug}: its launch dropped and made no thread: once more")
         else:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
 
@@ -614,7 +627,9 @@ class Turns:
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
-            write_json(path, {"key": key, "state": "intent", "at": run.now.isoformat()})
+            retried = read_json(path, {}).get("state") == "retry"
+            intent = {"key": key, "state": "intent", "at": run.now.isoformat()}
+            write_json(path, {**intent, "retried": True} if retried else intent)
             try:
                 reply = client.call(
                     "t3_thread_launch",
@@ -633,6 +648,8 @@ class Turns:
                 run.gate(slug, "T3 Code refused the launch", str(error))
                 continue
             except T3Error as error:
+                if isinstance(error, T3Dropped) and not retried:
+                    write_json(path, {**intent, "dropped": True})
                 run.say(f"launch {slug}: no reply ({error}): it is looked up on the next pass")
                 run.gated.add(slug)
                 self.caps.add(home)

@@ -749,9 +749,9 @@ def test_a_launch_t3_code_refuses_is_a_gate_in_its_words_and_holds_no_other_row(
 
 def test_a_reply_that_stays_lost_holds_its_own_slug_and_no_other_row(kitchen):
     add(kitchen, "alpha", priority=1)
-    kitchen.t3.lose = "before"
+    kitchen.t3.status = 503
     kitchen.poll()
-    kitchen.t3.lose = None
+    kitchen.t3.status = 200
     add(kitchen, "beta", priority=2)
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(minutes=6))
