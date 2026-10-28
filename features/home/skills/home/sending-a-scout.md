@@ -16,14 +16,16 @@ When in doubt between the two, any one of the durable column's conditions decide
 
 **A durable scout** is a row of the queue, as a crewmate's task is:
 
-1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first. When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief. Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`. Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request. Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and no line for the root home. A scout that waits on another row's work has a `Builds on: <slug>: <what it uses>` line for each.
+1. Write the request, `scouts/<slug>.md`, in the shape of `$T/scout-request.md`: read it first. When the research is for a task to hand out, its "Deliver" list asks for the crewmate's brief. Its `Playbook:` line is a row `a scout` runs whose kind of question this is, from what the block in "Handing a task to a crewmate" that prints a row for each playbook prints, or `none`. Then run the block in "Handing a task to a crewmate" that asks for the deeper version, and write what it says into the request. Its `Home:` line is as "Handing a task to a crewmate" says for a brief's: the scope's name for a scoped home, and no line for the root home.
+   A scout that waits on another row's work has a `Builds on: <slug>: <what it uses>` line for each.
 2. Queue it: `jbus --project <project> queue add <slug> --priority <n> --entry <entry> [--depends <slug>,...] < scouts/<slug>.md`.
    A text with a `Request:` line and no `Task:` line is a request, so the row is a scout's, and `add` refuses one with a crewmate's line (`Size:`, `Pull request:`) or not in the template's shape.
    It is approved as any row is, the entry's go included, and waits on its `--depends` as any row does.
    A pass launches it as `scout: <slug>` with the message `/scout <slug>`, in the project's own checkout and with no branch, writes the request back to `scouts/<slug>.md` with its `Thread:` line, and marks the row done once its Report says `Status: done`.
    `jbus queue show` lists it with `scout` in its `role` column, and the view shows it.
 
-Anyone who is not this home, an expert bot included, asks for a durable scout the same way. A durable scout gets the check of the machine before its launch, as a crewmate does: the pass makes it.
+Anyone who is not this home, an expert bot included, asks for a durable scout the same way.
+A durable scout gets the check of the machine before its launch, as a crewmate does: the pass makes it.
 
 A scout that finishes writes its report under `## Report` in its request and sends this thread one message. It never becomes the crewmate: the crewmate starts later, in a fresh thread, from the brief.
 

@@ -98,13 +98,15 @@ jbus queue approve <slug> --sha <sha12> --word <id>
   It refuses a request with a line that only a crewmate's brief has (`Size:`, `Pull request:`), and names the line, and a request out of the template's shape.
   A row keeps the role it was first queued with.
   `--depends` needs the request's `Builds on:` line to name the row, as a brief's does.
-- **The go** is a row's go: your word with `jbus queue approve`, or the go of the row's plan entry under `go = "entry"`. The follow-up rule approves no request.
+- **The go** is a row's go: your word with `jbus queue approve`, or the go of the row's plan entry under `go = "entry"`.
+  The follow-up rule approves no request.
 - **A pass** launches each request whose go holds and whose depends are over (merged, a crewmate's row ended `done`, or a scout's row whose Report says `Status: done`), once, as a thread titled `scout: <slug>` whose message is `/scout <slug>`.
   The thread works in the project's own checkout as it stands, with no worktree and no branch, so it has nothing to commit and no pull request to open.
   Its model is the role map's `scout` line, it waits for `jgauge room --light`, and it takes no slot of `max_running`.
   jbus writes the queued request to `scouts/<slug>.md` in the home's state directory, or holds the launch with a condition where the file there is another request, and writes `Thread: <id>` into it.
   The next pass adopts the thread of a lost reply, so no request launches twice.
-- **`jbus queue show`** lists the row with `scout` in its `role` column. It is `queued` until it launches, then `launched` or `running`, `done` once its last Report says `Status: done`, and `left` for a Report that says anything else.
+- **`jbus queue show`** lists the row with `scout` in its `role` column.
+  It is `queued` until it launches, then `launched` or `running`, `done` once its last Report says `Status: done`, and `left` for a Report that says anything else.
 
 `jbus queue add` refuses a `Task:` or a `Request:` line longer than 2,000 characters, counting the text of the line and the lines under it.
 A transcript or a long text goes in a file the line names.
