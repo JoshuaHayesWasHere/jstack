@@ -32,8 +32,9 @@ nothing outside it is depth 1, with its oldest row as head.
 
 `homes` gives each home of each project its row of the stage x home matrix: the root first, then
 each scope (`homes.Homes.scopes`), a scope with no open row included, and any other home a row
-names, the one with the most open rows first and by name among equals. Each has `open`, how many rows the board places in it, its `last` act
-(`state.acts`, the newest whose home it is), and a cell for each stage a row can be in (`CELLS`):
+names, the one with the most open rows first and by name among equals. Each has `open`, how
+many rows the board places in it, its `last` act (`state.acts`, the newest whose home it is),
+and a cell for each stage a row can be in (`CELLS`):
 `count`, the `oldest` row, `old`, how many came to the stage `OLD` or more ago, and `waits`, how
 many of its rows wait on each outcome of `checked.OUTCOMES`, as each row's `wait` gives it.
 
@@ -369,7 +370,10 @@ def _stacked(placed: list[Card], by: dict[tuple[str, str], Card]) -> dict[str, A
     """The rows in `stacked`, their parents, and what the parents wait on."""
     rows = [card for card in placed if card.stage == "stacked"]
     parents = {
-        (card.project, slug) for card in rows for slug, kind in card.waits_on if kind == "merge_after"
+        (card.project, slug)
+        for card in rows
+        for slug, kind in card.waits_on
+        if kind == "merge_after"
     }
     waits = [by[key].wait for key in parents if key in by]
     return {

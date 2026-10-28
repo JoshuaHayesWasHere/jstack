@@ -9,11 +9,11 @@ from view.scene import (
     Scene,
     Served,
     ago,
+    briefed,
     captured,
     et,
     iso,
     item,
-    briefed,
     piped,
     row,
     stacked_pr,
@@ -378,7 +378,9 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
     rows = {one["slug"]: one for one in got["rows"]}
     for home in got["homes"]:
         for key, cell in home["cells"].items():
-            mine = [one for one in rows.values() if (one["home"], one["stage"]) == (home["name"], key)]
+            mine = [
+                one for one in rows.values() if (one["home"], one["stage"]) == (home["name"], key)
+            ]
             assert cell["count"] == len(mine)
     assert got["longest"]["path"] == ["fig-saucer", "oat-platter"]
     assert rows["oat-platter"]["waits_on"][0]["slug"] == "fig-saucer"
