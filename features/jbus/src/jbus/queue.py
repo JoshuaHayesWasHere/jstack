@@ -1480,8 +1480,7 @@ def _do(
             f"refused: {verb.slug} launched, and only {user.user} removes a row that launched, "
             f"not {verb.by}"
         )
-    if not user.takes(verb.at):
-        raise Refused(f'refused: --at is "{user.form(verb.at)}"')
+    verbs.typed_at(user, verb.at)
     _waited_on(rows, verb.slug)
     if asks is None:
         raise Refused("refused: remove was given nothing to ask what is out with")

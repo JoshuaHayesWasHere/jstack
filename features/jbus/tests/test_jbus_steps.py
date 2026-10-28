@@ -357,6 +357,7 @@ def question(kitchen):
 
 
 def worded(kitchen):
+    kitchen.clock_reads(AT)
     assert kitchen.main("word", "--to", "demo", "--by", "user", "--at", AT, "go", "on")[0] == 0
     (kitchen.home / "home-id").write_text("mcp:a-home\n")
 

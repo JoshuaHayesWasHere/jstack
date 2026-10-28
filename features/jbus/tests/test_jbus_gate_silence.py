@@ -183,6 +183,7 @@ def test_a_gate_that_holds_is_open_after_days(kitchen, case):
 def test_a_later_answer_that_differs_is_taken_and_carried_to_the_thread(kitchen):
     gate(kitchen)
     kitchen.poll(NOW)
+    kitchen.clock_reads(AT)
     code, said = kitchen.main("answer", "1", "--by", "user", "--at", AT, "--differs", "coffee")
     assert (code, said.startswith('answered: question 1: "coffee", by user')) == (0, True), said
     answer = record(kitchen)["answer"]

@@ -25,6 +25,7 @@ THREAD = "mcp:crew-alpha"
 @pytest.fixture
 def kitchen(tmp_path, monkeypatch):
     made = Kitchen(tmp_path, monkeypatch)
+    made.clock_reads(AT)
     made.brief("alpha", f"Thread: {THREAD}\n")
     made.quiet()
     yield made
@@ -40,6 +41,7 @@ def ask(kitchen, asked="tea or coffee?", slug="alpha"):
 
 
 def answer(kitchen, number, *words, default=False):
+    kitchen.clock_reads(AT)
     return kitchen.main(
         "answer", str(number), *SAID, "--default" if default else "--differs", *words
     )

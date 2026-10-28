@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -122,7 +121,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
     state = config.state(project)
     if args.verb == "apply":
         asks = _asks(config, project)
-        text = sys.stdin.read()
+        text = verbs.piped("queue apply", "the verbs", "")
         releases = []
         try:
             for _, verb in queue.parse(text):
@@ -139,7 +138,7 @@ def _queue(args: argparse.Namespace, config: jbus.Config) -> int:
         return _verify(state, args.slug, args.brief)
     if args.verb == "add":
         depends = queue.slugs(args.depends or "")
-        text = sys.stdin.read()
+        text = verbs.piped("queue add", "the brief")
         queue.owned(config.home(project), project.name, args.slug, text, args.adder, args.handed)
         release = blockers.admit(config, project, args.slug, text)
         try:
