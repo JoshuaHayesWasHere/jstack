@@ -253,7 +253,10 @@ At every home's start (step 5), on a `fixed and green` line, and whenever a pull
 
 ## Picking up a thread that stopped
 
-A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one jbus's nudge names. Its worktree and its brief hold what it did. The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own". It ends in one of two calls.
+A thread that stopped with its task unfinished is picked up, not started over: a turn a T3 Code restart cancelled, one that failed at the plan's limit, one jbus's nudge names.
+Its worktree and its brief hold what it did.
+The playbook `session-pickup` has the steps: open it with the block of "A playbook of the home's own".
+It ends in one of two calls.
 
 `jbus` tries once first, by the wait's age (`jbus.clock`).
 A pull request whose review is not written while its reviewer's thread is not at work gets that reviewer sent its line again; one that waits on its crew gets the crew one carry-on; a crew that ended with no Result has its two carry-ons.
@@ -269,7 +272,12 @@ Never send a plain carry-on to a thread that failed on a limit.
 
 A message first, when the thread can still take one: `t3_thread_send` to the id on the brief's `Thread:` line, one line, to carry on from its brief and its worktree and to redo nothing that is there.
 
-A new thread on the same worktree when it cannot: the send fails, the thread is archived or gone, or it was sent that message once and jbus's next nudge names it again. Find the worktree whose branch is the slug with `git worktree list --porcelain`, from the main checkout. With none, there is nothing to pick up: launch from step 2 of "Handing a task to a crewmate". Add one line to the brief, above its first `## ` heading, so the new thread knows it resumes: `Resume: <date>, the thread before this one stopped. Its work is in this worktree and in the last Result below: redo nothing that is there, and carry on from <the resume point>`. The crew skill reads the brief at its start, and a brief is trusted. Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
+A new thread on the same worktree when it cannot: the send fails, the thread is archived or gone, or it was sent that message once and jbus's next nudge names it again.
+Find the worktree whose branch is the slug with `git worktree list --porcelain`, from the main checkout.
+With none, there is nothing to pick up: launch from step 2 of "Handing a task to a crewmate".
+Add one line to the brief, above its first `## ` heading, so the new thread knows it resumes: `Resume: <date>, the thread before this one stopped. Its work is in this worktree and in the last Result below: redo nothing that is there, and carry on from <the resume point>`.
+The crew skill reads the brief at its start, and a brief is trusted.
+Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
 
 ```json
 {
