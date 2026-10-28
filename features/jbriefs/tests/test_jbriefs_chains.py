@@ -1,6 +1,6 @@
-"""A brief builds on a row only for that row's code, which it changes, calls or imports, or for
-its Result. A plan layer is no such need: `jbus queue add` refuses a brief whose `Builds on:` line
-gives a layer as its reason (`jbriefs.parse.faults`), so siblings of one layer queue unstacked."""
+"""A brief builds on a row only for that row's code, which it changes, calls or imports. A plan
+layer is no such need: `jbus queue add` refuses a brief whose `Builds on:` line gives a layer as
+its reason (`jbriefs.parse.faults`), so siblings of one layer queue unstacked."""
 
 import pytest
 
@@ -51,10 +51,9 @@ def test_a_builds_on_that_names_a_plan_layer_is_refused_and_says_what_a_stack_is
     [
         "alpha: `jbus.reviewed`, which its #571 adds and this calls",
         "alpha: the cache layer in `src/cache.py` that this changes",
-        "alpha: its Result's list of the files to change",
     ],
 )
-def test_a_builds_on_that_names_code_or_a_result_is_no_fault(line):
+def test_a_builds_on_that_names_code_is_no_fault(line):
     assert stacking(with_builds_on(line)) == []
 
 

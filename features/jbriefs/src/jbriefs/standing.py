@@ -1,8 +1,9 @@
-"""Two of the user's standing rules, as checks of a brief's fields (`jbriefs.parse.fields`).
+"""Three of the user's standing rules, as checks of a brief's fields (`jbriefs.parse.fields`).
 
-`parse.faults` runs both when a row is first queued. One holds a brief to `Review: twice` unless
-the user's word says otherwise, and the other holds its CPU load to a bounded one. Each takes the
-fields and returns why the brief breaks the rule as one line, or an empty string.
+`parse.faults` runs all three when a row is first queued. One holds a brief to `Review: twice`
+unless the user's word says otherwise, one holds its CPU load to a bounded one, and one keeps its
+`Builds on:` line from stacking it by plan layer. Each takes the fields and returns why the brief
+breaks the rule as one line, or an empty string.
 """
 
 from __future__ import annotations
@@ -93,3 +94,24 @@ def load(fields: Fields) -> str:
                         "test-slot`"
                     )
     return ""
+
+
+_LAYER = re.compile(r"\blayer\s+\d+\b|\b(?:plan|same|previous|prior|earlier|next)\s+layer\b", re.I)
+
+
+def layered(fields: Fields) -> str:
+    """Why a brief's `Builds on:` line may not be queued, as one line, or an empty string.
+
+    An item whose reason names a plan layer (`the base of layer 2`, `the plan layer before`) is
+    at fault. A `--depends` on an open pull request stacks the row on that branch, and a stack
+    by layer holds the row behind work its code never touches.
+    """
+    said = " ".join(_first(fields, "Builds on") or [])
+    found = [item.strip() for item in said.split(";") if _LAYER.search(item.partition(":")[2])]
+    if not found:
+        return ""
+    return (
+        f"brief's Builds on: line stacks by plan layer ({'; '.join(found)}): a row builds on "
+        "another only for code it changes, calls or imports. Sibling work of one layer queues "
+        "with no Builds on: line, and with --merge-after where the merge order matters"
+    )

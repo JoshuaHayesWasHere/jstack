@@ -22,7 +22,7 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 4. Scale.
    Put `Playbook: orchestrate` in the head of `$M/plan.md`, and schedule nothing: jbus's pass is the cadence, as for `playbooks/autopilot-full.md`.
    Queue each entry's next row on every message, and jbus launches what `room` lets start: a rolling window, never a batch that waits for its slowest.
-   A dependency is context, not only order: an entry that rests on another's result gets the lines of that Result in its brief's `Rests on:`, since a crewmate sees no sibling, and its `Builds on:` names that row only for code it changes, calls or imports or for that Result; sibling entries of one layer queue unstacked, and other order is `--merge-after`.
+   A dependency is context, not only order: an entry that rests on another's result gets the lines of that Result in its brief's `Rests on:`, since a crewmate sees no sibling, and its `Builds on:` names that row only for code it changes, calls or imports, never for that Result alone; sibling entries of one layer queue unstacked, and other order is `--merge-after`.
 5. Drain.
    A message is a queue event, not an interrupt: work it as "When a thread sends a message" says, and review nothing in the turn (`principles/principle-guard-the-context-window.md`).
    A result that needs judging is a scout's request or a new brief.
