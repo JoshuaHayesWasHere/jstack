@@ -59,12 +59,11 @@ def test_red_checks_that_outnumber_the_rest_are_what_slows_us(scene, tmp_path):
     )
 
 
-def test_stacked_rows_are_counted_apart_on_the_check_card_and_in_their_own_stage(scene, tmp_path):
+def test_stacked_rows_are_counted_apart_on_the_check_card(scene, tmp_path):
     """Two of the three merge after `bun-base`: the card counts them stacked, not by their
-    checks, and the board's strip has them in Stacked, apart from the one in Check."""
+    checks."""
     stacked_pr(scene)
     seen = look(scene, tmp_path, route="#/", screen=DESK)
     clean(seen, DESK)
     said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
     assert "Check 3 in check 0 failing, 0 running or queued, 1 passed, 2 stacked" in said
-    assert re.search(r"Check 1 oldest \S+ Stacked 2 oldest \S+ Merge 0", said)

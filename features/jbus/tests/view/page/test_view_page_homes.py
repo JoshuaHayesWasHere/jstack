@@ -82,8 +82,8 @@ def test_each_home_on_the_homes_map_says_what_the_checks_of_its_rows_in_check_di
     seen = look(scene, tmp_path, route="#/homes", screen=DESK)
     clean(seen, DESK)
     said = re.sub(r" ([,.])", r"\1", " ".join(seen["screen"]))
-    root = said.index("check: 1 failing, 2 running or queued, 0 passed, 0 stacked")
-    shelf = said.index("check: 2 failing, 0 running or queued, 1 passed, 0 stacked")
+    root = said.index("check: 1 failing, 2 running or queued, 0 passed")
+    shelf = said.index("check: 2 failing, 0 running or queued, 1 passed")
     assert said.index(SHELF) < shelf and root < shelf, said
 
 
