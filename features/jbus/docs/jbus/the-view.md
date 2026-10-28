@@ -99,8 +99,8 @@ The header holds the one project switcher (All and each project), the breadcrumb
 The state is "Machine ok", "jbus stopped" or "N passes failed" in red, or in amber one of "Machine: room full", "room not known", "runners down", "plan at its limit", "N homes off the bus" or "N sources unread".
 Those words link to the pulse drawer, which lists the machine's parts.
 When jbus has stopped or the server does not answer, one line under the header says so once.
-On a phone the header is one row: the name, Triage, the time of the last read as `live · hh:mm`, ?, and a menu button.
-It leaves out the machine's state while it is ok.
+On a phone the header is one row: the name with the time of the last read under it as `live · hh:mm`, the crumbs past All, Triage, ?, and a menu button.
+It leaves out the machine's state while it is ok, and says `Stale since` in the row while the server does not answer.
 The menu button opens a second row with Homes, the switcher and the theme; Esc or a new route shuts it.
 
 A project's card or line opens its page, `#/<project>`, which has nothing else on its first screen but:
