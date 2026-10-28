@@ -49,7 +49,7 @@ Each kind of step matches the code as follows:
 - **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
-  (`features/jbus/src/jbus/watch.py:919-963`): `green`, `failed`, `cancelled` (a later attempt that
+  (`features/jbus/src/jbus/watch.py:921-965`): `green`, `failed`, `cancelled` (a later attempt that
   was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
   run's job ran no step, `watch.NO_JOB`). `main_check` asks without `again`
   (`features/jbus/src/jbus/mainmoved.py`). So `cancelled` and `refused` reach `tell` only
