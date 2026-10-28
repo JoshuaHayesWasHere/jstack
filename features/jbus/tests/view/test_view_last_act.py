@@ -5,7 +5,8 @@ scouts filled their wireframes with (`reports/jv-glance/state/` of the jstack ho
 the 71 rows that were open then or ended that day, with their status at that moment, the home
 each one's brief names by `jbriefs.home_of`, and the ids of the root and of the three scopes.
 Beside them are the six hours of `events.jsonl` before it, with each line cut to 120
-characters, the same hours of `transitions.jsonl`, and the day's `merge.log`.
+characters, the same hours of `transitions.jsonl`, and the day's `merge.log`, whose one title
+that named TLC's every-core count of workers says it in other words, as the repo's TLC test asks.
 
 A reviewer of the wireframes (scout jv-glance-r4) found the root shown as quiet for 5h18, since
 its last merge, while its rows had events at 08:59 EDT. Another (jv-glance-r2) found 14 of the

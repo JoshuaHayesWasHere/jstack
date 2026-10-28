@@ -6,7 +6,7 @@ scroll. At a phone's size each card fits in one screen, so one scroll brings eac
 import pytest
 
 from view.page.browser import BROWSES, DESK, LAUNCH, PATIENCE, PHONE, look
-from view.scene import RACK, SHELF, homed
+from view.scene import PULL, RACK, SHELF, homed
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -43,7 +43,7 @@ LAST = [
     {"text": "last act 30m ago", "title": "result jam-jar: Status: done"},
     {
         "text": "last act 4m ago",
-        "title": "wait 13 https://github.com/acme/demo/pull/13: check has not passed",
+        "title": f"wait 13 {PULL.format(13)}: check has not passed",
     },
 ]
 """Each card's last act, the newest record of its home in the scene: rye-loaf's merge for the
