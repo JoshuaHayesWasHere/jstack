@@ -4,7 +4,8 @@ their status says another thing. Each state is the one that the last pass judged
 says who fixes it and when jbus told them (`fixing`, from `state.fixing`).
 
 A task's `now` is the newest of two words with their times: the last line jmerge logged of its
-pull request in `merge.log`, and the checks word of its row as the last pass saw it. The drawer
+pull request in `merge.log`, and, for a task on the check step, the checks word of its row as
+the last pass saw it. The drawer
 leads with it, so no older reading stands as the current one."""
 
 from __future__ import annotations
@@ -83,7 +84,7 @@ def now(task: dict[str, Any], passed: str | None) -> dict[str, Any] | None:
     if task["history"] and task["history"][-1]["at"]:
         last = task["history"][-1]
         said.append({"at": last["at"], "by": "jmerge", "say": last["reason"] or last["word"]})
-    if task["checks"] and passed:
+    if task["step"] == "check" and task["checks"] and passed:
         said.append({"at": passed, "by": "jbus", "say": f"checks {task['checks']}"})
     return max(said, key=lambda one: datetime.fromisoformat(one["at"]), default=None)
 

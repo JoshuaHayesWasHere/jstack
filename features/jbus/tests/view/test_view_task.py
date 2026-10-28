@@ -649,3 +649,17 @@ def test_a_drawer_leads_with_the_newest_of_merge_log_and_the_pass_with_its_time(
     now = tasks(served.json("/state.json?project=demo"))["owe-entry"]["now"]
     assert now == {"at": iso(ago(minutes=1)), "by": "jbus", "say": "checks pending"}
     assert "check 2 of 4" not in now["say"]
+
+
+def test_a_drawer_off_the_check_step_keeps_what_it_waits_on_at_its_head(scene, served):
+    owed(scene, 1)
+    why = "wait: it has no review yet"
+    scene.queue([row("owe-entry", "pr", pr="#13", checks="passed", why=why)])
+    scene.merge_log(logged(10, "wait", 13, "it has no review yet"))
+    found = tasks(served.json("/state.json?project=demo"))["owe-entry"]
+    assert found["step"] == "review"
+    assert found["now"] == {
+        "at": iso(ago(minutes=10)),
+        "by": "jmerge",
+        "say": "it has no review yet",
+    }
