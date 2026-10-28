@@ -1,29 +1,27 @@
 """The user's word, carried down to a home: one record that `jbus word` writes and jbus sends.
 
 A word is an approval or an instruction that answers no open question. The user says it
-wherever they are, most often to Sous Chef. `words.json` in a project's state directory is a
-list of `Word`:
+wherever they are, and a home records it with `jbus word --message`, which reads the user's own
+message from T3 Code. A word is an act (`jbus.acts`): one line of the project's `acts.jsonl`
+whose verb is `word`, kept once, with:
 
-- `id`: the first 12 characters of a hash of the project, the words, `by` and `at`, and of
-  `ref` when there is one. So the same word for the same project is the same record however
-  often the command runs.
-- `words`, `by`, `at`: what the user said, who said it, and when.
-- `ref`, `said_in`, `checked`: for a word given as `--message`, the `<thread id>/<message id>`
-  that jbus read from T3 Code, that thread's title, and true, since the words and the time are the
-  message's own. A word typed with `--by` and `--at` has no `ref`, no `said_in`, and `checked`
-  false.
-- `kept_at`: when `jbus word` recorded the word.
-- `home`: the scope of the home the word is for, or empty for the root home (`owner`).
-- `thread` and `sent_at`: the home's thread that received the word, and when. Both are empty
-  while the word waits.
-- `skipped`: why jbus posted the word to nobody. It is set for a word that was said in, or
-  recorded by, the home that the word is for. `thread` is then that home's thread, and
-  `sent_at` is the time when jbus kept the word. So the word is done, and nobody tells the home
-  what it recorded itself. `skipped` is empty for every other word.
-- `waits`: why the word has not gone yet, as the log last said it.
+- `id`: the first 12 characters of a hash of the project, the words, the user and the time, and
+  of `ref` when there is one, and of the scope for `--scope`. So the same word for the same
+  project is the same act however often the command runs.
+- the subject: the scope of the home the word is for, or empty for the root home (`owner`).
+- the evidence: the user's words, when they said them, and the message (`t3-message`, checked)
+  or the view (`view`) they were said in.
+- the line: `kept`, or why jbus posts the word to nobody (`skipped`). A word said in, or
+  recorded by, the home that the word is for is done at once, and nobody tells the home what it
+  recorded itself.
 
-A record from before may carry `via`, which jbus no longer reads: `load` drops it, and the word
-goes as every other word does.
+What became of a word is no act, since it changes: `word-sends.json` in the state directory
+maps each word's id to the home's thread that received it and when (`thread`, `sent_at`), or to
+why it has not gone yet (`waits`). A skipped word has no record there: its act says it went to
+its home's own thread when it was kept. `Word` is the read model of the two (`load`).
+
+The file of words jbus kept before words were acts is not read: a word it kept and never sent is
+said again with `jbus word --message`.
 
 A word goes to one home of the project, the one that owns its subject (`owner`): the home whose
 directory or brief the page it was given on (`--page`) is of, else the home of the briefs, requests
@@ -40,22 +38,17 @@ checked as the user's own. It keeps one record for each scope, whose id hashes t
 none for a scope that already holds the same word, by any path: the command says `held` for it.
 Each new one goes to its scope's thread at once, as a word of its own.
 
-A word given with neither `--from` nor `--message` names no thread, so when no page or slug decides
-it goes to the root home. In a project with scoped homes that may be a scope's own word, so the
-command still keeps and sends it, and says on stderr that it went to the root home and why
-(`unseen`). It does not refuse it: the user's word typed outside every home has no thread to give.
-
 A word goes once, as one queued message to the thread in that home's `home-id`. jbus reads that file
 when it sends the word, not when it keeps it (`jbriefs.home.thread_of`). The command sends the word
 at once, except to the home that recorded it. For a word said in that home's own thread (`--message`
 whose thread is the home's) or recorded by it (`--from <thread id>`), `keep` records the word as
 sent, with `skipped` saying why. With `--all`, `keep` does so only for the copy of the project whose
 home recorded the word. A home that handed off and has no `home-id` has no thread to send to, so a
-word for that home waits for the next home like any other word. A word that could not go waits in
-the file, and each pass tries it again (`deliver`). A home with no `home-id`, or one that handed
-off, gets the word on the first pass after the next home starts and writes its own id into
-`home-id`. The retry key is `word|<project>|<id>|<thread>`, and jbus writes `sent_at` only after T3
-Code accepted the message.
+word for that home waits for the next home like any other word. A word that could not go waits,
+and each pass tries it again (`deliver`). A home with no `home-id`, or one that handed off, gets
+the word on the first pass after the next home starts and writes its own id into `home-id`. The
+retry key is `word|<project>|<id>|<thread>`, and jbus writes `sent_at` only after T3 Code accepted
+the message.
 
 No part of a word is an event. A word is in no outbox, so no wake carries it, and whoever ran the
 command hears nothing back. The log still has a line
@@ -64,11 +57,11 @@ and `to`, which is the thread that received the word, or nothing while the word 
 posted it to nobody. A word that T3 Code refuses gets such a line too, and waits like any other.
 
 The command holds no lock of the pass, so a pass and the command can both hold the same unsent word.
-For that reason, under `words.lock`, jbus rereads the record from the file, writes what became of
+For that reason, under `word-sends.lock`, jbus rereads `word-sends.json`, writes what became of
 the word into it, and never changes a word that has `sent_at` again (`_change`).
 
-A file that does not parse, or that holds something other than a record, is `Unparsable`. jbus
-does not write over such a file, and a pass reports it in a gate and goes on.
+A `word-sends.json` that does not parse, or that holds something other than a map of records, is
+`Unparsable`. jbus does not write over such a file, and a pass reports it in a gate and goes on.
 """
 
 from __future__ import annotations
@@ -77,7 +70,6 @@ import argparse
 import hashlib
 import json
 import re
-import sys
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
@@ -86,16 +78,18 @@ from typing import TYPE_CHECKING
 
 import jsettings
 from jbriefs.home import home_of, scopes, thread_of
-from jbus import Config, Project, Refused, locked, outbox, queue, verbs, write_json
+from jbus import Config, Project, Refused, acts, locked, outbox, party, queue, verbs, write_json
 from jbus.passes import Pass
-from jbus.t3 import GONE, Client, T3Error, T3Refused, typed
+from jbus.t3 import GONE, Client, T3Error, T3Refused
+from jbus.t3 import heard as heard_in
 
 if TYPE_CHECKING:
     from jbus.cli import Half
 
-LOCK = "words.lock"
-NAME = "words.json"
+LOCK = "word-sends.lock"
+NAME = "word-sends.json"
 KIND = "word"
+KEPT = "kept"
 MESSAGE = (
     "jbus: this is {by}'s own word, said {at} and carried to this home by jbus. Take it as "
     "said by {by} in this thread. It answers no open question, and nothing is sent back "
@@ -108,21 +102,20 @@ REFUSED = "T3 Code refused it"
 CAPPED = "its home's thread is capped, so it goes on the first pass after the reset"
 SAID_IN_HOME = "it was said in this project's own home thread {thread}"
 BY_HOME = "it was recorded by this project's home thread {thread}"
-UNSEEN = (
-    "note: {project}'s word went to the root home: no page or slug of its words names a home, "
-    "and with neither --from nor --message jbus cannot tell the home it was said in"
-)
 THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
 EVERY = "every"
 SLUG = re.compile(r"[a-z0-9]+(?:\.[a-z0-9]+)*(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)+")
 
 
 class Unparsable(Refused):
-    """`words.json` is not what this module writes, so jbus does not write over it."""
+    """`word-sends.json` is not what this module writes, so jbus does not write over it."""
 
 
 @dataclass(frozen=True)
 class Word:
+    """A word as its act and `word-sends.json` have it. `by` is the party that kept it, as
+    `<kind>/<route>`: the words are the user's own."""
+
     id: str
     words: str
     by: str
@@ -142,21 +135,57 @@ def path(state: Path) -> Path:
     return state / NAME
 
 
-def load(state: Path) -> list[Word]:
-    """Return every word of the project, oldest first. `load` takes no lock and writes
-    nothing."""
+def _sends(state: Path) -> dict[str, dict[str, str]]:
+    """What became of each word, by its id. `_sends` takes no lock and writes nothing."""
     file = path(state)
     if not file.exists():
-        return []
+        return {}
     try:
-        return [Word(**_current(one)) for one in json.loads(file.read_text())]
-    except (OSError, ValueError, TypeError) as error:
+        found = json.loads(file.read_text())
+    except (OSError, ValueError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
+    if not isinstance(found, dict) or not all(isinstance(one, dict) for one in found.values()):
+        raise Unparsable(f"refused: {file} is not a map of words, and nothing writes it")
+    return found
 
 
-def _current(one: dict[str, object]) -> dict[str, object]:
-    """A record as `Word` takes it: the `via` of a record from before is dropped."""
-    return {key: value for key, value in one.items() if key != "via"}
+def load(state: Path) -> list[Word]:
+    """Return every word of the project, oldest first: each word act, with what became of it.
+    `load` takes no lock and writes nothing."""
+    sends = _sends(state)
+    try:
+        kept = acts.read(state)
+    except (OSError, ValueError) as error:
+        raise Unparsable(f"refused: {acts.path(state)} does not parse") from error
+    words: list[Word] = []
+    for one in kept:
+        if one["action"]["verb"] != KIND or one["id"] in {each.id for each in words}:
+            continue
+        said, who, line = one["evidence"], one["party"], one["line"]
+        made = Word(
+            id=one["id"],
+            words=said["words"],
+            by=f"{who['kind']}/{who['route']}",
+            at=said["said_at"],
+            kept_at=one["at"],
+            ref=said["ref"],
+            said_in=said["said_in"],
+            checked=said["checked"],
+            skipped="" if line == KEPT else line,
+            home=one["action"]["subject"],
+        )
+        sent = sends.get(made.id, {})
+        if made.skipped:
+            sent = {"thread": line.rsplit(" ", 1)[-1], "sent_at": one["at"]}
+        words.append(
+            replace(
+                made,
+                thread=str(sent.get("thread", "")),
+                sent_at=str(sent.get("sent_at", "")),
+                waits=str(sent.get("waits", "")),
+            )
+        )
+    return words
 
 
 def _whose(home: Path, brief: Path) -> str:
@@ -220,27 +249,16 @@ def owner(home: Path, words: str, page: str = "", *threads: str) -> str:
     return next((homes[one] for one in threads if one in homes), "")
 
 
-def unseen(home: Path, words: str, page: str) -> bool:
-    """Whether a word given with no thread fell to the root home in a project that has scoped
-    homes, so that `owner` could not tell whether it was a scope's own word."""
-    return bool(scopes(home)) and _decided(home, words, page) is None
-
-
 def _homes_dir(run: Pass, one: Word) -> Path:
     return run.home / one.home if one.home else run.home
 
 
-def _write(state: Path, words: list[Word]) -> None:
-    write_json(path(state), [asdict(one) for one in words], mode=0o600)
+def _write(state: Path, sends: dict[str, dict[str, str]]) -> None:
+    write_json(path(state), sends, mode=0o600)
 
 
-def said(words: str, by: str, at: str, user: jsettings.Settings) -> str:
-    """Return the words as jbus keeps them, on one line. Refuse what is not the user's
-    word."""
-    if by != user.user:
-        raise Refused(f"refused: only {user.user} gives a word, not {by}")
-    if not user.takes(at):
-        raise Refused(f'refused: --at is "{user.form(at)}"')
+def said(words: str) -> str:
+    """Return the words as jbus keeps them, on one line, and refuse none."""
     words = " ".join(words.split())
     if not words:
         raise Refused("refused: a word has the user's words")
@@ -249,61 +267,52 @@ def said(words: str, by: str, at: str, user: jsettings.Settings) -> str:
 
 def keep(
     run: Pass,
-    words: str,
-    by: str,
-    at: str,
-    heard: queue.Said | None = None,
+    who: party.Party,
+    heard: party.Evidence,
     recorder: str = "",
     page: str = "",
     scope: str | None = None,
 ) -> Word:
-    """Keep a word for the project, and return its record: the one there was, or a new one.
+    """Keep a word for the project as an act of `who`, and return its record: the one there was,
+    or a new one.
 
-    For a word given as `--message`, `heard` is the T3 Code message, and jbus reads the word's words
-    and time from it. `ref` is then the message's `<thread id>/<message id>`. `recorder` is the
-    thread that ran `jbus word`, for `--from`, and `page` the page it was given on, for `--page`.
-    A new word is for the home that `owner` names. When it was said in that home's thread, or
-    recorded by that thread, `keep` records the word as sent to that thread and posts it to nobody
-    (`skipped`).
+    `heard` is the user's words, read by jbus from a T3 Code message (`ref` is then the message's
+    `<thread id>/<message id>`) or given in the view. `recorder` is the thread that ran
+    `jbus word`, for `--from`, and `page` the page it was given on, for `--page`. A new word is for
+    the home that `owner` names. When it was said in that home's thread, or recorded by that
+    thread, `keep` records the word as sent to that thread and posts it to nobody (`skipped`).
 
     With `scope`, the word is for that scoped home and no other, and its id hashes the scope too.
-    A home that already holds the same word, kept by any path, gets no second record: `keep`
+    A home that already holds the same word, kept by any path, gets no second act: `keep`
     returns the one it holds.
+
+    The act is logged under `acts.lock` with `acts.logged`, not through `acts.act`, since a word
+    has no door and `keep` must find a word that is kept already and log a new one at once.
     """
-    ref = heard.ref if heard else ""
+    words, at, ref = said(heard.words), heard.said_at, heard.ref
     extra = [*([ref] if ref else []), *([f"scope:{scope}"] if scope is not None else [])]
-    named = json.dumps([run.project.name, words, by, at, *extra])
+    named = json.dumps([run.project.name, words, run.user.user, at, *extra])
     name = hashlib.sha256(named.encode()).hexdigest()[:12]
-    with locked(run.state, LOCK):
-        kept = load(run.state)
+    heard = replace(heard, words=words)
+    with locked(run.state, acts.LOCK):
         whose = scope
         if whose is None:
             whose = owner(run.home, words, page, ref.partition("/")[0], recorder)
-        for one in kept:
-            if one.id == name or (one.words, one.by, one.at, one.ref, one.home) == (
-                words,
-                by,
-                at,
-                ref,
-                whose,
-            ):
+        for one in load(run.state):
+            if one.id == name or (one.words, one.at, one.ref, one.home) == (words, at, ref, whose):
                 return one
-        kept_at = jsettings.stamp(run.now)
-        made = Word(name, words, by, at, kept_at, home=whose)
-        if heard:
-            made = replace(made, ref=ref, said_in=heard.said_in, checked=heard.checked)
-        mine = thread_of(_homes_dir(run, made))
+        mine = thread_of(run.home / whose if whose else run.home)
+        skipped = ""
         if mine and mine == ref.partition("/")[0]:
-            made = replace(
-                made, thread=mine, sent_at=kept_at, skipped=SAID_IN_HOME.format(thread=mine)
-            )
+            skipped = SAID_IN_HOME.format(thread=mine)
         elif mine and mine == recorder:
-            made = replace(made, thread=mine, sent_at=kept_at, skipped=BY_HOME.format(thread=mine))
-        _write(run.state, [*kept, made])
-    if made.skipped:
-        about = {"words": words, "by": by, "at": at, "to": ""}
-        run.box.record(KIND, f"{KIND} {run.project.name}: kept, {made.skipped}", words, word=about)
-    return made
+            skipped = BY_HOME.format(thread=mine)
+        acts.logged(run, who, party.Action(KIND, whose), heard, "done", skipped or KEPT, id=name)
+    if skipped:
+        about = {"words": words, "by": run.user.user, "at": at, "to": ""}
+        run.box.record(KIND, f"{KIND} {run.project.name}: kept, {skipped}", words, word=about)
+    (kept,) = [one for one in load(run.state) if one.id == name]
+    return kept
 
 
 def basis(state: Path, name: str) -> queue.Said:
@@ -312,7 +321,7 @@ def basis(state: Path, name: str) -> queue.Said:
     for one in load(state):
         if one.id == name:
             return queue.Said(one.words, one.at, one.said_in, one.checked, one.ref)
-    raise Refused(f"refused: {path(state)} has no word {name}")
+    raise Refused(f"refused: {acts.path(state)} has no word {name}")
 
 
 def _change(run: Pass, one: Word, **changed: str) -> bool:
@@ -320,14 +329,14 @@ def _change(run: Pass, one: Word, **changed: str) -> bool:
     anything. When jbus sent the word after the caller read `one`, `_change` leaves the word
     as it is."""
     with locked(run.state, LOCK):
-        kept = load(run.state)
-        found = [each for each in kept if each.id == one.id and not each.sent_at]
-        if not found:
+        sends = _sends(run.state)
+        if sends.get(one.id, {}).get("sent_at"):
             return False
-        now = replace(found[0], **changed)
-        _write(run.state, [now if each.id == one.id else each for each in kept])
+        now = replace(one, **changed)
+        sends[one.id] = {"thread": now.thread, "sent_at": now.sent_at, "waits": now.waits}
+        _write(run.state, sends)
     how = f"sent to {now.thread}" if now.sent_at else f"waits, {now.waits}"
-    about = {"words": now.words, "by": now.by, "at": now.at, "to": now.thread}
+    about = {"words": now.words, "by": run.user.user, "at": now.at, "to": now.thread}
     run.box.record(KIND, f"{KIND} {run.project.name}: {how}", now.words, word=about)
     return True
 
@@ -376,7 +385,7 @@ def deliver(run: Pass, client: Client | None) -> None:
             continue
         thread, name = thread_of(_homes_dir(run, one)), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
-        text = MESSAGE.format(**asdict(one))
+        text = MESSAGE.format(**(asdict(one) | {"by": run.user.user}))
         waits = post(run, client, thread, text, key, row=name, template=KIND)
         if not waits:
             at = jsettings.stamp(run.now)
@@ -430,14 +439,27 @@ def recorded_by(recorder: str, homes: list[str], client: Client | None) -> str:
     )
 
 
+TYPED = (
+    "refused: a word is the user's own message, --message <thread id>/<message id>, which jbus "
+    "reads from T3 Code: a word typed with --by and --at is not taken"
+)
+
+
+def _evidence(heard: queue.Said) -> party.Evidence:
+    """The user's message that jbus read, as the evidence of the word's act."""
+    return party.Evidence(
+        "t3-message", heard.ref, heard.words, heard.said_at, heard.said_in, heard.checked
+    )
+
+
 def _word(args: argparse.Namespace, config: Config) -> int:
     """`jbus word`: keep the user's word for one project's home, or for every home, from any
     checkout.
 
     The command keeps the word and sends it at once to the thread in the home's `home-id`.
-    The same words, `by` and `at` for the same project are the same word, so a second run
-    sends nothing again. The user types the words with `--by` and `--at`, or names a message
-    with `--message`, and jbus reads that message's words and time from T3 Code. For a word
+    The same message for the same project is the same word, so a second run sends nothing
+    again. The word is a message named with `--message`, and jbus reads that message's words
+    and time from T3 Code: a word typed with `--by` and `--at` is no longer taken. For a word
     said in a project's home thread, or recorded by it (`--from`), `keep` records the word
     as sent and posts it to nobody. Before it keeps anything, the command refuses a `--from`
     that names no thread (`recorded_by`), since a mistyped id would post the word back to the
@@ -445,21 +467,19 @@ def _word(args: argparse.Namespace, config: Config) -> int:
 
     The word goes to the home of the project that owns its subject (`owner`), so a home that
     records a word about another home's work forwards it there, and a word that names no home's
-    work stays with the home it was said in or recorded by. A word with no thread that falls to
-    the root home of a project with scoped homes gets a line on stderr (`unseen`).
+    work stays with the home it was said in or recorded by.
 
     `--to` names a project or a scratch home (`jbus.Scratch`). `--all` means every project
     and no scratch home, since a scratch home takes no word about the repos. When a project
-    refuses the word, for example because its `words.json` does not parse, the command says
+    refuses the word, for example because its `word-sends.json` does not parse, the command says
     so and skips that project. The other projects still get the word, and the command then
     exits 1.
     """
     projects = config.projects if args.all else (config.addressee(args.to),)
-    heard = typed(args, config, "word")
-    by, at = (config.user.user, heard.said_at) if heard else (args.by, args.at)
-    if heard is None and args.by == config.user.user:
-        verbs.typed_at(config.user, args.at or "")
-    words = said(heard.words if heard else " ".join(args.words), by, at, config.user)
+    if args.message is None:
+        raise Refused(TYPED)
+    heard = _evidence(heard_in(config, args.message))
+    who = acts.cli_party(args, heard)
     try:
         client = Client(config.server, config.token_path)
     except Refused:
@@ -476,16 +496,14 @@ def _word(args: argparse.Namespace, config: Config) -> int:
         if unchecked:
             print(unchecked)
     if args.scopes:
-        return _scoped(args, config, projects, heard, client, now)
+        return _scoped(args, config, projects, who, heard, client, now)
     code = 0
     for project in projects:
         run = Pass(config, project, now, lambda _: None)
         try:
-            was = keep(run, words, by, at, heard, args.recorder or "", args.page or "")
+            was = keep(run, who, heard, args.recorder or "", args.page or "")
             deliver(run, client)
             print(line(run, was))
-            if not (heard or args.recorder) and unseen(run.home, words, args.page or ""):
-                print(UNSEEN.format(project=project.name), file=sys.stderr)
         except Refused as error:
             print(error)
             code = 1
@@ -496,7 +514,8 @@ def _scoped(
     args: argparse.Namespace,
     config: Config,
     projects: tuple[Project, ...],
-    heard: queue.Said | None,
+    who: party.Party,
+    heard: party.Evidence,
     client: Client | None,
     now: datetime,
 ) -> int:
@@ -505,8 +524,6 @@ def _scoped(
     already."""
     if args.all:
         raise Refused("refused: --scope names the scoped homes of the project --to names")
-    if heard is None:
-        raise Refused("refused: --scope carries the user's own message, given as --message")
     (project,) = projects
     run = Pass(config, project, now, lambda _: None)
     known = [scope.name for scope, _, _ in scopes(run.home)]
@@ -519,15 +536,7 @@ def _scoped(
     before = {one.id for one in load(run.state)}
     kept: list[tuple[str, Word]] = []
     for scope in named:
-        was = keep(
-            run,
-            heard.words,
-            config.user.user,
-            heard.said_at,
-            heard,
-            args.recorder or "",
-            scope=scope,
-        )
+        was = keep(run, who, heard, args.recorder or "", scope=scope)
         kept.append((scope, was) if was.id in before else ("", was))
         before.add(was.id)
     deliver(run, client)
@@ -548,15 +557,10 @@ def _down(down: argparse.ArgumentParser) -> None:
         "--to", metavar="PROJECT", help="the project or the scratch home whose home it is for"
     )
     homes.add_argument("--all", action="store_true", help="the home of every project")
-    down.add_argument("--by", help="the user's name, with --at, for words that were typed")
-    down.add_argument(
-        "--at",
-        help='"<YYYY-MM-DD HH:MM ZONE>", the zone as jstack\'s config words it',
-    )
     down.add_argument(
         "--message",
         metavar="THREAD/MESSAGE",
-        help="the user's own message in T3 Code, in place of --by, --at and the words",
+        help="the user's own message in T3 Code, which jbus reads for the words and the time",
     )
     down.add_argument(
         "--from",
@@ -577,7 +581,6 @@ def _down(down: argparse.ArgumentParser) -> None:
         metavar="SCOPE",
         help=f"a scoped home the user's message goes to, given again for each, or {EVERY}",
     )
-    down.add_argument("words", nargs="*", help="the user's words, with --by and --at")
 
 
 VERBS = (
@@ -592,12 +595,12 @@ VERBS = (
 
 
 def _deliver(half: Half) -> None:
-    """Run `deliver` as a step. A `words.json` that does not parse raises a gate, and the pass
+    """Run `deliver` as a step. A `word-sends.json` that does not parse raises a gate, and the pass
     goes on."""
     try:
         deliver(half.run, half.client)
     except Unparsable:
-        half.run.gate(half.run.project.name, "words.json does not parse", str(path(half.run.state)))
+        half.run.gate(half.run.project.name, f"{NAME} does not parse", str(path(half.run.state)))
 
 
 def scratch(
@@ -607,7 +610,7 @@ def scratch(
     the work a scratch home gets from jbus, and `jbus.cli.poll` runs `scratch` once a pass as
     a chore. A scratch home is not one of the projects that a pass works through
     (`jbus.load`), so `scratch` cannot be one of a project's steps. When a scratch home's
-    `words.json` does not parse, `scratch` says so and raises no gate, since a scratch home
+    `word-sends.json` does not parse, `scratch` says so and raises no gate, since a scratch home
     has no outbox that could take a gate."""
     for one in config.scratch:
         run = Pass(config, one.addressee(), now, say)

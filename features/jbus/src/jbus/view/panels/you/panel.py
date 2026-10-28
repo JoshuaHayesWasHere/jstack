@@ -50,7 +50,7 @@ import jbus
 import jsettings
 from jbriefs import below
 from jbriefs import home as jbriefs
-from jbus import asks, dispatch, mirror, party, passes, questions, queue, t3, waiting, word
+from jbus import acts, asks, dispatch, mirror, party, passes, questions, queue, t3, waiting, word
 from jbus.view.state import (
     _SLUG,
     WAITING_FILE,
@@ -64,7 +64,7 @@ from jbus.view.state import (
     text,
     when,
 )
-from jbus.view.writes import SEND, Answer, said
+from jbus.view.writes import SEND, VIEW, Answer, said
 
 FIRST = True
 _WAITS = {
@@ -539,9 +539,10 @@ def _pass(app: Any, name: str) -> passes.Pass:
 
 
 def _keep(app: Any, name: str, words: str) -> tuple[passes.Pass, word.Word]:
-    """Keep the user's word for the project, said in the view now, as `jbus word` keeps it."""
-    run, user = _pass(app, name), app.sources.user
-    return run, word.keep(run, words, user.user, user.stamp(run.now))
+    """Keep the user's word for the project, said in the view now, as the view's act."""
+    run = _pass(app, name)
+    heard = party.Evidence("view", "", words, app.sources.user.stamp(run.now), SAID_IN)
+    return run, word.keep(run, VIEW, heard)
 
 
 def _went(run: passes.Pass, kept: word.Word) -> str:
@@ -583,12 +584,20 @@ def _approve(app: Any, name: str, body: bytes) -> Answer:
         return _refused(409, say)
     try:
         run, kept = _keep(app, name, f"Approve {slug}, brief {sha}, in {SAID_IN}")
-        rests = ("word", kept.id, "")
-        _, *ruled = queue.approve(
-            state, slug, rests, sha, app.sources.user, asks._asks(run.config, run.project)
+        heard = party.Evidence("typed", kept.id, kept.words, kept.at, SAID_IN)
+        made = acts.act(
+            run,
+            VIEW,
+            party.Action("go", slug, sha),
+            heard,
+            asks=asks._asks(run.config, run.project),
         )
     except jbus.Refused as error:
         return _refused(409, f"{slug} has no go: {str(error).removeprefix('refused: ')}.")
+    if made.outcome == "gated":
+        say = f"{slug} waits for your own word, read in T3 Code or on a Lavish page: {made.line}."
+        return said(200, {"say": " ".join([say, _went(run, kept)]), "slug": slug, "word": kept.id})
+    _, *ruled = made.line.split("\n")
     at = app.sources.user.clock(app.clock())
     say = " ".join([f"{slug} approved at {at}, on your word {kept.id}.", *ruled, _went(run, kept)])
     return said(200, {"say": say, "slug": slug, "word": kept.id})
@@ -610,9 +619,16 @@ def _hold(app: Any, name: str, body: bytes) -> Answer:
     out = dispatch.launched(run, slug) or asks._asks(run.config, run.project).launched(slug)
     if out:
         return _refused(409, f"{slug}'s go stands, since a launch is out: {out}.")
+    words = f"Hold {slug}: undo of word {given}, in {SAID_IN}"
     try:
-        held = queue.hold(state, slug)
-        run, kept = _keep(app, name, f"Hold {slug}: undo of word {given}, in {SAID_IN}")
+        held = acts.act(
+            run,
+            VIEW,
+            party.Action("hold", slug),
+            party.Evidence("view", "", words, app.sources.user.stamp(run.now), SAID_IN),
+            does=lambda: queue.hold(state, slug),
+        ).line
+        run, kept = _keep(app, name, words)
     except jbus.Refused as error:
         return _refused(409, f"{slug} was not held: {str(error).removeprefix('refused: ')}.")
     return said(200, {"say": f"{held}: its go is taken back. {_went(run, kept)}", "slug": slug})

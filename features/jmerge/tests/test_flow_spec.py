@@ -52,24 +52,24 @@ CITED = {
     "features/jbus/src/jbus/watch.py:1218-1221": 'prefix="browser-red-"',
     "features/jbus/src/jbus/watch.py:1467,1510,1514,1517": "no briefed merge came in",
     "features/jbus/src/jbus/watch.py:1516-1517": "_file(run, slug, sha,",
-    "features/jmerge/src/jmerge/rows.py:237-240": 'row.get("merge_after", [])',
-    "features/jmerge/src/jmerge/cli.py:451-459": "ready.STACKED_UNMOVED.format(",
+    "features/jmerge/src/jmerge/rows.py:250-253": 'row.get("merge_after", [])',
+    "features/jmerge/src/jmerge/cli.py:452-460": "ready.STACKED_UNMOVED.format(",
     "features/jmerge/src/jmerge/ready.py:1072-1074": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:402-405": "def red_only",
-    "features/jmerge/src/jmerge/rows.py:126": (
+    "features/jmerge/src/jmerge/rows.py:139": (
         "if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):"
     ),
-    "features/jmerge/src/jmerge/rows.py:119": "ran.over == red and bool(failed)",
-    "features/jmerge/src/jmerge/rows.py:326-329": "if red and not proves(red, failed, ran):",
-    "features/jmerge/src/jmerge/rows.py:355": (
+    "features/jmerge/src/jmerge/rows.py:132": "ran.over == red and bool(failed)",
+    "features/jmerge/src/jmerge/rows.py:339-342": "if red and not proves(red, failed, ran):",
+    "features/jmerge/src/jmerge/rows.py:368": (
         'if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:'
     ),
-    "features/jmerge/src/jmerge/rows.py:370-371": 'row.get("status") not in queue.FINAL',
-    "features/jmerge/src/jmerge/cli.py:2019": "if state != ready.BROWSER_FAILED:",
+    "features/jmerge/src/jmerge/rows.py:383-384": 'row.get("status") not in queue.FINAL',
+    "features/jmerge/src/jmerge/cli.py:2074": "if state != ready.BROWSER_FAILED:",
     "features/jmerge/src/jmerge/rejudge.py:93": 'was.get("tip")',
-    "features/jmerge/src/jmerge/cli.py:827": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:856": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:933": "or self.red(one, default, brief.stem, text)",
+    "features/jmerge/src/jmerge/cli.py:828": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:857": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:934": "or self.red(one, default, brief.stem, text)",
     "features/jmerge/src/jmerge/rejudge.py:73": "self.ask(one)",
 }
 
@@ -116,7 +116,7 @@ def test_a_cite_of_one_python_line_quotes_each_or_on_it():
         if path.endswith(".py") and line.isdigit():
             checked.append(cite)
             assert disjuncts(text) == disjuncts(lines_of(path, line)), cite
-    assert "features/jmerge/src/jmerge/rows.py:126" in checked
+    assert "features/jmerge/src/jmerge/rows.py:139" in checked
 
 
 def test_each_condition_of_the_design_s_rejudge_names_a_file_and_line():

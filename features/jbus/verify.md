@@ -126,7 +126,8 @@ Preconditions:
   Pipe in a request with a `Size:` line, as `{ cat "$VERIFY_JSTACK_SANDBOX/alpha.md" | sed 's/^# alpha:/# beta:/'; echo 'Size: S'; } | record scout-path jbus --project demo queue add beta --priority 1`.
   It exits 1 and names `a Size: line, which only a crewmate's brief has`, and no `beta` row is added.
 - **Keep a word, and approve.**
-  Run `record scout-path jbus word --to demo --by user --at "$(date '+%Y-%m-%d %H:%M %Z')" go`, which ends with the word's id, then `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)` and `record scout-path jbus --project demo queue approve alpha --sha "$sha" --word <the id>`.
+  Give the user's message to the stand-in with `printf '{"mcp:sandbox-chat": [{"itemId": "turn-item:message:m1", "messageId": "m1", "text": "go", "type": "user_message", "createdBy": "user", "updatedAt": "%s"}]}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$VERIFY_JSTACK_SANDBOX/t3/messages.json"`.
+  Run `record scout-path jbus word --to demo --message mcp:sandbox-chat/m1`, which ends with the word's id, then `sha=$(shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12)` and `record scout-path jbus --project demo queue approve alpha --sha "$sha" --word <the id>`.
   The row's `approved` reads `your word, ...`.
 - **Pass.**
   Run `record scout-path jbus poll`.

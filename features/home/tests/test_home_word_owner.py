@@ -9,7 +9,7 @@ the scoped home owns.
 
 import pytest
 
-from test_gates import AT, SCOPE, Home
+from test_gates import AT, HEARD, SCOPE, Home
 from test_jbus_kitchen import complete
 from test_jbus_word import thread
 
@@ -32,7 +32,7 @@ def home(tmp_path, monkeypatch):
 
 
 def test_a_word_about_a_scoped_homes_report_is_shown_at_that_homes_start_alone(home):
-    said = ("--by", "user", "--at", AT, "fix", "the", "bugs", "of", "the", "sp-chart", "report")
+    said = home.kitchen.message("fix the bugs of the sp-chart report", at=HEARD)
     assert home.kitchen.main("word", "--to", "demo", *said)[0] == 0
     assert home.word(SCOPED) == f"user, {AT}: fix the bugs of the sp-chart report"
     assert home.word(ROOT) == NONE

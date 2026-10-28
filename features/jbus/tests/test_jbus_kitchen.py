@@ -35,7 +35,7 @@ import jbus
 import jsettings
 import repo_template
 from jbriefs import meaning
-from jbus import cli, live, queue, t3, verbs, wake, word
+from jbus import acts, cli, live, party, queue, t3, verbs, wake, word
 from jgauge import slot, waiters
 from jroles import ledger
 from repo_template import IDENTITY
@@ -803,9 +803,23 @@ class Kitchen:
         the word long ago, and a test bases its approval on it."""
         state = self.state_dir / project
         if not any(one.id == SAID for one in word.load(state)):
-            kept = word.Word(SAID, "go", "user", SAID_AT, iso(NOW), "mcp:a-home", iso(NOW))
-            word._write(state, [*word.load(state), kept])
+            state.mkdir(parents=True, exist_ok=True)
+            heard = party.Evidence("typed", "", "go", SAID_AT)
+            kept = party.Act(
+                SAID, iso(NOW), party.HOME, party.Action("word", ""), heard, "done", word.KEPT
+            )
+            acts._write(state, kept)
+            sent = {"thread": "mcp:a-home", "sent_at": iso(NOW), "waits": ""}
+            word._write(state, word._sends(state) | {SAID: sent})
         return SAID
+
+    def message(self, words, at=NOW - timedelta(minutes=5)):
+        """Store the user's own message of `words`, said `at` (10:55 ET by default) in a chat of
+        theirs that is no home's, and return the options of `jbus word` that name it."""
+        chat = "mcp:" + "-".join("9" * size for size in (8, 4, 4, 4, 12))
+        name = f"m{len(self.t3.said)}"
+        self.t3.says(chat, name, words, updatedAt=iso(at), title="chat")
+        return ("--message", f"{chat}/{name}")
 
     def poll(self, now=NOW):
         self.t3.write(now)

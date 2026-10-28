@@ -29,9 +29,10 @@ It is a thread's message, and it approves nothing.
 
 ### A word this home records
 
-When Sous Chef relays the user's word to this home, the home records it with `jbus word`, so that `jbus queue approve --word` can name it.
+When the user gives this home a word in a T3 Code thread, the home records that message with `jbus word --message`, so that `jbus queue approve --word` can name it.
+jbus reads the message from T3 Code itself, and refuses one that is not the user's own, such as words another agent relayed, and takes no typed word.
 The home passes its own thread as `--from "$ME"`, so jbus keeps the word and posts nothing back into this thread.
-Without `--from`, jbus sends the word here as a queued message, and this home has already acted on it.
+Without `--from`, jbus sends a word said in another thread here as a queued message, and this home has already acted on it.
 The block that finds this home sets `$ME` to its id, and the block that reads jbus ("Gates") sets `$P` to the project.
 That id is the one line of this home's `home-id`, `mcp:<uuid>`, which the block checks `$ME` against, so pass `"$ME"` as it is and never type a name such as `home-<repo>` in its place.
 jbus refuses a `--from` that is not shaped `mcp:<uuid>`, or that T3 Code says is no thread, and keeps and sends nothing for it.
@@ -45,12 +46,11 @@ jbus word --to "$P" --from "$ME" --message '<thread id>/<message id>'
 It prints `kept: <project>, not posted, ..., word <id>`.
 `jbus queue approve --word` takes that id.
 jbus carries each word to the one home that owns its subject: the home whose page it was given on (`--page <file>`), else the home of the briefs, requests and rows its words name by slug, else the home it was said in (`--message`) or recorded by (`--from`), else the root home.
-So a word with no slug that this home records stays here, and only with `--from "$ME"`: without it jbus cannot tell this home's word from the root's, sends it to the root home, and says so on stderr.
+So a word with no slug that this home records with `--from "$ME"` stays here.
 So a word about a scoped home's work, recorded here, prints `sent: <project>, to the <scope> home at <thread>, word <id>`: that is the one line that forwards it, and this home briefs, queues and approves nothing of it.
 The root carries the user's word to scoped homes it names with `--scope <scope>`, given again for each or once as `--scope every`, in place of `--from`, and only with `--message`: it writes no words of its own into a scope.
 That prints `sent: <project>, to the <scope> home at <thread>, word <id>` for each scope it reached, or `held: ...` for a scope that holds the word already, which gets nothing again.
 A fault found in another home's work is no word: it is a queued row of that home's ("Scoped homes").
-To type the word in instead, pass `--by <name> --at "<YYYY-MM-DD HH:MM ZONE>" <words>` in place of `--message`, with the same `--from`.
 jbus posts a word that any other thread records to this home once, in the form the block above prints.
 
 ### A go given on a page

@@ -569,7 +569,7 @@ def test_a_merge_that_is_off_is_not_lifted_by_accept(proven_merged):
         ("--accept 7 --by Chef --at '2026-10-12 09:30 ET'", "only user accepts a hold, not Chef"),
         ("--accept 7 --at '2026-10-12 09:30 ET'", "only user accepts a hold, not nobody"),
         ("--accept 7 --by user --at today", '--at is "<YYYY-MM-DD HH:MM ET>"'),
-        ("--by user", "--by and --at go with --accept"),
+        ("--by user", "--by, --at and --message go with --accept"),
         ("--accept alpha --check", "--accept takes a pull request's number, not alpha"),
     ],
 )

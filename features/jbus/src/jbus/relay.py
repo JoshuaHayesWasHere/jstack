@@ -3,7 +3,8 @@ drops a body without a line in the journal.
 
 The relay listens on `RELAY_PORT` (4390) of 127.0.0.1. When the port is 0, it picks a free port. It
 names the port that it bound in the line `relay: listening on 127.0.0.1:<port>`. It takes a POST
-whose `X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one JSON object. Each body that it
+to `/`, or to `/ack` below, whose `X-Automation-Key` is `RELAY_INBOUND_KEY` and whose body is one
+JSON object; a POST to any other path gets 404 and is not taken. Each body that it
 takes gets an id: the body's own `id` when that is a short name, and otherwise a hash of the body,
 so a body posted twice has one id.
 
@@ -70,8 +71,6 @@ so in two cases:
 A POST to `/ack` that names an event id marks the items of that body as seen, and the relay does
 not page a seen item under (b). A page is one line. Each page goes through a spooled route of its
 own, `page`, and that route keeps the ids that it sent for good.
-
-Sous Chef sends its decisions on a card back on `POST /item`, with the same key (`jbus.chat`).
 """
 
 from __future__ import annotations
@@ -99,7 +98,7 @@ from pathlib import Path
 from typing import Any
 
 import jsettings
-from jbus import chat, leftover, silent, verbs
+from jbus import leftover, silent, verbs
 from jbus.bind import NoLookup
 
 Body = dict[str, Any]
@@ -702,8 +701,9 @@ class Relay:
                 path = urllib.parse.urlsplit(self.path).path
                 if path == "/ack":
                     return self._ack(body)
-                if path == "/item":
-                    return self._item(body)
+                if path != "/":
+                    relay.say(f"relay: refused a POST to {path[:40]}, which takes none")
+                    return self._answer(404)
                 try:
                     id = relay.take(body)
                 except OSError as error:
@@ -725,14 +725,6 @@ class Relay:
                     relay.say(f"relay: an ack named event {id}, which holds no open item")
                     return self._answer(404)
                 self._answer(200, {"id": id, "seen": seen})
-
-            def _item(self, body: Body) -> None:
-                code, said = chat.decide(body)
-                if code == 200:
-                    relay.say(f"relay: {said['item']} decided from chat, line {said['id']}")
-                else:
-                    relay.say(f"relay: a decision from chat answered {code}: {said['refused']}")
-                self._answer(code, said)
 
             def log_message(self, format: str, *args: Any) -> None:
                 pass

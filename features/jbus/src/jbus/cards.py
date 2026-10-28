@@ -1,28 +1,10 @@
-"""What a work item's card offers (`actions`), and the address of an item's page in jbus view
-(`view_link`).
-
-A card's `actions` are the decisions that the relay's `POST /item` accepts from the chat
-(`jbus.chat`). jbus posts no card any more.
-"""
+"""The address of a page of jbus view (`view_address`), and of an item's page (`view_link`)."""
 
 from __future__ import annotations
 
 import os
 
-from jbus.item import MOVES, Item, Risk, Verb
-
 VIEW_PORT = 4388
-ACTIONS: dict[Verb, str] = {Verb.APPROVE: "approve"}
-"""What a card offers, in order, by the name its button sends as the `verb` of the relay's
-`POST /item`."""
-
-
-def actions(item: Item) -> list[str]:
-    """Return what the card offers. A review item gets nothing, since the user decides it in
-    the view. Any other item gets each of `ACTIONS` that `MOVES` has from the item's state."""
-    if item.risk is Risk.REVIEW:
-        return []
-    return [name for one, name in ACTIONS.items() if (item.state, one) in MOVES]
 
 
 def view_address(page: str) -> str:

@@ -57,15 +57,28 @@ def merge_order(rows: list[queue.Row] | None, slugs: dict[int, str]) -> list[int
     return placed
 
 
-def _state(checkout: Path) -> Path | None | bool:
+def project(checkout: Path) -> tuple[jbus.Config, jbus.Project] | None:
+    """jbus's config and its project of this checkout, or None where jbus has no config file or
+    no project of it. Raise `jbus.Refused` where the config file is there and does not load, so a
+    caller fails closed."""
     try:
         config = jbus.load()
     except jbus.Refused:
-        return None if not (jbus.config_dir() / "config.toml").exists() else False
-    project = next(
+        if (jbus.config_dir() / "config.toml").exists():
+            raise
+        return None
+    found = next(
         (one for one in config.projects if one.checkout.resolve() == checkout.resolve()), None
     )
-    return None if project is None else config.state(project)
+    return None if found is None else (config, found)
+
+
+def _state(checkout: Path) -> Path | None | bool:
+    try:
+        found = project(checkout)
+    except jbus.Refused:
+        return False
+    return None if found is None else found[0].state(found[1])
 
 
 def read(checkout: Path) -> list[queue.Row] | None:

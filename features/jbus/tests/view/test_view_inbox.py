@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 from jbriefs import home as jbriefs
-from jbus import queue, word
+from jbus import acts, queue, word
 from jbus.view.panels.you import panel as panel_you
 from test_jbus_kitchen import complete
 from view.scene import EVIL, GATE, Scene, Served
@@ -95,7 +95,13 @@ def test_approve_keeps_the_users_word_gives_the_row_its_go_on_it_and_the_need_le
     approval = row["approval"]
     assert (approval["basis"], approval["ref"]) == ("word", said["word"])
     kept = words(counter)[said["word"]]
-    assert (kept.words, kept.by) == (f"Approve oat-milk, brief {sha}, in jbus view", "user")
+    assert (kept.words, kept.by) == (f"Approve oat-milk, brief {sha}, in jbus view", "user/view")
+    (go,) = [one for one in acts.read(counter.state) if one["action"]["verb"] == "go"]
+    assert (go["party"]["route"], go["evidence"]["ref"], go["outcome"]) == (
+        "view",
+        said["word"],
+        "done",
+    )
     assert approval["words"] == kept.words
     assert kept.thread == HOME and kept.sent_at
     assert any(said["word"] in one["message"] for one in counter.sends())

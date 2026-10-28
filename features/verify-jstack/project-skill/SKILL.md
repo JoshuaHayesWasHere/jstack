@@ -95,6 +95,7 @@ What a drive sets up and reads, all under `$VERIFY_JSTACK_SANDBOX`:
 | `gh/open.json`, `gh/merged.json`, `gh/commits.json`, `gh/checks.json`, `gh/logs/` | what GitHub would answer | edits them (`open-pull.sh` writes `open.json`) |
 | `gh/calls.log` | every `gh` call jbus and jmerge made | reads it |
 | `t3/threads.json` | the threads T3 Code has | edits a thread's `status` or `settled` between passes |
+| `t3/messages.json` | the user's messages, by thread id, that `jbus word --message <thread>/<message>` reads | writes one before a drive keeps the user's word |
 | `t3/calls.jsonl` | every tool call jbus made, with its arguments | reads it |
 | `t3/wake.jsonl` | every wake sent to a home thread, with the thread and the body it carried | reads it |
 | `machine/proc/loadavg`, `machine/limits` | the load and the plan limits `jgauge room` reads | edits them |

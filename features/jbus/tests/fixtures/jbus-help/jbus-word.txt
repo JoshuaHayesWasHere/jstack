@@ -1,21 +1,13 @@
-usage: jbus word [-h] (--to PROJECT | --all) [--by BY] [--at AT]
-                 [--message THREAD/MESSAGE] [--from THREAD] [--page FILE]
-                 [--scope SCOPE]
-                 [words ...]
-
-positional arguments:
-  words                 the user's words, with --by and --at
+usage: jbus word [-h] (--to PROJECT | --all) [--message THREAD/MESSAGE]
+                 [--from THREAD] [--page FILE] [--scope SCOPE]
 
 options:
   -h, --help            show this help message and exit
   --to PROJECT          the project or the scratch home whose home it is for
   --all                 the home of every project
-  --by BY               the user's name, with --at, for words that were typed
-  --at AT               "<YYYY-MM-DD HH:MM ZONE>", the zone as jstack's config
-                        words it
   --message THREAD/MESSAGE
-                        the user's own message in T3 Code, in place of --by,
-                        --at and the words
+                        the user's own message in T3 Code, which jbus reads
+                        for the words and the time
   --from THREAD         the thread running this: a word recorded by a
                         project's home is not posted to it
   --page FILE           the page the word was given on: the word goes to the

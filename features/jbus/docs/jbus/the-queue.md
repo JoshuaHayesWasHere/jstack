@@ -22,21 +22,21 @@ To approve it from a shell:
 
 2. Read the brief you approve, `~/.local/state/jbus/<project>/briefs/<slug>.md`.
    The sha is of that file.
-3. Record your go with `jbus word`, so jbus keeps your words:
+3. Say your go in a T3 Code thread, such as `go alpha`, and record that message with `jbus word`, so jbus keeps your words:
 
    ```sh
-   jbus word --to demo --by <user> --at "<YYYY-MM-DD HH:MM zone>" go alpha
+   jbus word --to demo --message <thread id>/<message id>
    ```
 
-   Its line ends with the word's id, such as `word 6f6dcb57a29b`.
-   `<user>` is the `user` of your jstack config, and the word also goes to the project's home.
+   jbus reads the message from T3 Code, and its line ends with the word's id, such as `word 6f6dcb57a29b`.
+   The word also goes to the project's home ([Your word to a home](your-word-to-a-home.md)).
 4. Approve the row on that word, with the command the first line gave:
 
    ```sh
    jbus --project demo queue approve alpha --sha 52e43397dc8c --word 6f6dcb57a29b
    ```
 
-   The table's `approved` column now says `your word, <time> (time typed); run <time> by <who>`.
+   The table's `approved` column now says `your word, <time>, in <thread title>; run <time> by <who>`.
 
 The next pass with room launches the row and prints `launched alpha: <thread id>`.
 To take the go back before it launches, run `jbus queue hold alpha`.
@@ -82,6 +82,8 @@ jbus queue approve <slug> --sha <sha12> --word <id>
 jbus queue hold <slug>
 jbus queue remove <slug> --by <user> --at "<YYYY-MM-DD HH:MM zone>"
 ```
+
+Typed alone, `jbus queue remove` also takes your own words that jbus reads itself, `--message <thread id>/<message id>` or `--page <session key>/<entry id>`, in place of `--by` and `--at`.
 
 Two more verbs let a home undo a row of its own that never launched, and run only typed alone:
 
@@ -168,7 +170,7 @@ An approval also names the words of yours that it is based on.
 
 | Basis | What it names |
 | --- | --- |
-| `--word <id>` | A word `jbus word` kept in the project's `words.json`. |
+| `--word <id>` | A word `jbus word` kept, an act of the project's `acts.jsonl` ([Your word to a home](your-word-to-a-home.md)). |
 | `--answer <number>` | The answer that `jbus answer` closed a question of the project's `questions.json` with. An open question, or one its home closed in a `gates.md`, is refused. |
 | `--message <thread id>/<message id>` | A message of yours in a T3 Code thread, which jbus reads when you approve, as `jbus word --message` does. |
 | `--page <session key>/<entry id>` | What you sent from a page of Lavish, an optional tool. It is the entry with that `id` in that session's `chat`. jbus reads it at the approval from Lavish's state file, `state.json` under `LAVISH_AXI_STATE_DIR` or `~/.lavish-axi`, and never writes that file. The record keeps the entry's `text` as the words, its `at` as when, and the page's file as where, and the row reads `your pick on a Lavish page, <time>, <page file name>`. jbus refuses, in one line, a state file that is not there, a session or an entry the file does not have, an entry whose `role` is not `user`, and a reference with no `/`. The grilling skill prints the reference of a page's last send. |
@@ -215,7 +217,7 @@ The row's `approval` field records the approval:
 | --- | --- |
 | `basis`, `ref` | `word`, `answer`, `message`, `page` or `bot-chat`, and the id, the number or the reference. By rule: `rule` and `follow-up`, or the rule's number for a record made before the rule was known by what it says. |
 | `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the follow-up rule's words and the line of the parent's go, or the line of the red run for a fix jbus filed, and the other two are empty, since you said nothing of the row. |
-| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. For a row approved by rule it is `true`, since jbus read the rule itself. |
+| `checked` | `true` when jbus read the words and the time from T3 Code, `false` for words it did not read itself: a typed answer, a word given on the page of `jbus view`, or a word typed before `jbus word` took only `--message`. For a row approved by rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
 | `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
 | `ran_by`, `ran_at` | The session that ran the command (`CLAUDE_CODE_SESSION_ID`) with its directory, and the time by the clock. No option gives either. |
@@ -247,27 +249,33 @@ jbus also writes the launch's own `Thread:` line.
 
 ### Who acts, and the acts log
 
-A go and an answer are acts, and each one, whatever came of it, appends one line to `~/.local/state/jbus/<project>/acts.jsonl`.
-`jbus queue approve` and `jbus answer` act on the command line, and the bot acts over its own route, `POST /act` on `jbus view`.
-All three call the one function `act` (`features/jbus/src/jbus/acts.py`), and its shapes are in `features/jbus/src/jbus/party.py`.
+A go, an answer, a hold, a removal, a withdrawal, a word, a work item's go and an accept are acts, and each one, whatever came of it, appends one line to `~/.local/state/jbus/<project>/acts.jsonl`.
+`jbus queue approve`, `jbus answer`, `jbus queue hold`, `jbus queue remove`, `jbus queue withdraw`, `jbus word`, each go, hold and remove line of a `jbus queue apply` batch, and `jmerge --accept` in a project of jbus's act on the command line.
+The page of `jbus view` acts as you over the view, and the bot acts over its own route, `POST /act` on `jbus view`.
+`features/jbus/src/jbus/acts.py` logs every one of them, most through its one function `act`, and the shapes are in `features/jbus/src/jbus/party.py`.
 
 An act's line is JSON with `v: 1`, an `id`, the time `at`, and these:
 
 | Key | What it holds |
 | --- | --- |
 | `party` | Who acted: `kind` is `user`, `bot`, `home` or `jbus`, and `route` is `cli`, `view` or `bot`. The bot has no name: one bot speaks for you. |
-| `action` | `verb`, `go` or `answer`, its `subject` (the slug, or the question's number), the `pre` sha it was given, the event it had `seen`, and the `doors` the brief or the gate holds for. |
+| `action` | `verb`, one of `go`, `answer`, `hold`, `remove`, `withdraw`, `word`, `item` and `accept`, its `subject` (the slug, the question's number, the item's id, or for a word the scope of the home it is for, empty for the root home), the `pre` sha or head it was given, the event it had `seen`, and the `doors` the brief, the gate or the pull request holds for. |
 | `evidence` | The words it rests on: `source`, `ref`, `words`, `said_at`, `said_in`, and `checked`, true only where jbus read your words and their time itself. |
 | `outcome` | `done`, `gated`, `refused` or `noop`. |
 | `line` | What the act printed, and `gate` the number of the gate a `gated` go parked. |
 
 Each basis is one `source`: `--word` is `typed`, `--answer` is `answer`, `--message` is `t3-message`, `--page` is `lavish-page`, and the follow-up rule is `rule`.
-The bot's words are `bot-chat`, and an answer on the view's page is `view`.
+The bot's words are `bot-chat`, and an answer, a hold, a work item's go and a word given on the view's page are `view`.
 The approval record in `queue.json` keeps its fields as before, so a bot's go reads `the bot's go for you, <time>, from bot-chat <address>/<device>; run <time> by the bot`.
 
 On the command line the party is `--as home`, the default, or `--as user`, given before the verb.
 `--as user` acts only on words jbus reads itself, `--message` or `--page`, or `--evidence t3-message:<thread>/<message>` in their place.
 `--as bot` is refused, with `refused: --as bot: the bot acts only over its own route, POST /act on jbus view, with its key, and on the command line a party is user or home`, so no crew or home acts as the bot.
+
+The page of `jbus view` acts as `user` with the route `view`, on `view` evidence that is not checked, since jbus took the words from the page and not from T3 Code.
+So the view opens no door.
+Its answer to a gate that holds is refused, and the gate stays open.
+Its go on a row whose brief holds keeps a word of the view's and parks a gate for your own word in place of the go.
 
 #### Doors
 
@@ -275,7 +283,7 @@ A door is an action that is irreversible or slow to revert, one of the six cases
 A brief holds for a door when a line of its head, above its first `## `, is `Holds: <case>`, with several cases split by commas.
 A line that names a case the table does not have holds for every door.
 An act on a door goes through only for you, on words jbus read itself.
-A go on such a brief from the bot or a home approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
+A go on such a brief from the bot, a home or the view approves nothing: it parks a gate that holds, `may <slug> go? Its brief holds for <case>`, and the act is `gated`.
 Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <thread>/<message>`, approves the row and closes that gate.
 `jbus queue apply` refuses a batch that approves a brief with a door, and applies nothing of it.
 
@@ -375,7 +383,10 @@ The brief `jbus queue verify` checks is the stored one, or the file `--brief <pa
 It exits 0 when the go holds, and 1 when it does not or there is no such row.
 
 `jbus queue remove` takes a row out of the queue permanently, and a batch takes the same line without `jbus queue`.
-A removal is your word, so `--by` is your name.
+A removal rests on your own words: `--message <thread id>/<message id>` or `--page <session key>/<entry id>`, which jbus reads itself, or typed `--by <user> --at "<YYYY-MM-DD HH:MM zone>"`, with your name as `--by`.
+A batch's `remove` line takes only the typed form.
+With none of these, or more than one, it prints `refused: remove takes the user's own words, one of --message <thread>/<message>, --page <session>/<entry>, or --by <user> with --at`.
+Each removal is an act, a line of `acts.jsonl` ([Who acts, and the acts log](#who-acts-and-the-acts-log)).
 
 One file tells a pass which slugs are gone permanently.
 `~/.local/state/jbus/<project>/removed.json` names each removed slug, with who said so and when.
@@ -405,9 +416,9 @@ jbus moves its stored copy of the brief to `removed/<slug>.<sha12>.md` in the sa
 
 A thread that ended or was settled does not stop a removal.
 
-`remove` by anyone but you withdraws a row that never launched instead of refusing it, and says so.
-Its line ends `withdrawn, not removed: only <user> removes a row, and <slug> never launched`, and `by` is the home that ran it, not the `--by` it typed.
-For a row that launched it is refused as `refused: <slug> launched, and only <user> removes a row that launched, not <by>`.
+A `--by` that is not you is refused, and nothing changes: `refused: only <user> removes a row, on their own words: --by <user>, or --message <thread>/<message> or --page <session>/<entry>, not <by>; a home takes out a row of its own that never launched with jbus queue withdraw`.
+In a batch the same refusal applies nothing of the batch.
+A home takes out a row of its own that never launched with `jbus queue withdraw` ([A home undoes its own row](#a-home-undoes-its-own-row)).
 
 ## A home undoes its own row
 

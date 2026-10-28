@@ -17,8 +17,7 @@ from test_jbus_kitchen import sends
 NAME = "scratch"
 SCRATCH_ID = "mcp:the-no-project-id"
 HOME = "mcp:" + "-".join("5c" * (size // 2) for size in (8, 4, 4, 4, 12))
-AT = "2026-10-12 10:55 ET"
-SAID = ("--by", "user", "--at", AT, "tidy", "this", "draft")
+WORDS = "tidy this draft"
 
 
 def add(kitchen, name=NAME, project=SCRATCH_ID):
@@ -86,7 +85,7 @@ def test_status_lists_the_scratch_home_with_its_thread_and_no_repo_fields(kitche
 
 
 def test_a_word_to_the_scratch_home_reaches_its_thread(kitchen, scratch):
-    code, out = kitchen.main("word", "--to", NAME, *SAID)
+    code, out = kitchen.main("word", "--to", NAME, *kitchen.message(WORDS))
     assert code == 0 and out.startswith(f"sent: {NAME}, to {HOME}, word "), out
     (sent,) = sends(kitchen)
     assert sent["threadId"] == HOME
@@ -94,14 +93,14 @@ def test_a_word_to_the_scratch_home_reaches_its_thread(kitchen, scratch):
 
 
 def test_a_word_recorded_from_the_scratch_homes_own_thread_is_kept_and_not_posted(kitchen, scratch):
-    code, out = kitchen.main("word", "--to", NAME, "--from", HOME, *SAID)
+    code, out = kitchen.main("word", "--to", NAME, "--from", HOME, *kitchen.message(WORDS))
     assert code == 0 and out.startswith(f"kept: {NAME}, not posted,"), out
     assert sends(kitchen) == []
 
 
 def test_a_word_that_waited_for_the_home_id_goes_on_the_next_pass(kitchen, scratch):
     (scratch / "home-id").unlink()
-    code, out = kitchen.main("word", "--to", NAME, *SAID)
+    code, out = kitchen.main("word", "--to", NAME, *kitchen.message(WORDS))
     assert code == 0 and out.startswith(f"waits: {NAME},"), out
     (scratch / "home-id").write_text(f"{HOME}\n")
     kitchen.poll()
@@ -119,7 +118,7 @@ def test_a_config_of_scratch_homes_alone_still_delivers_a_word_that_waited(kitch
     )
     assert jbus.load().projects == ()
     (scratch / "home-id").unlink()
-    code, out = kitchen.main("word", "--to", NAME, *SAID)
+    code, out = kitchen.main("word", "--to", NAME, *kitchen.message(WORDS))
     assert code == 0 and out.startswith(f"waits: {NAME},"), out
     (scratch / "home-id").write_text(f"{HOME}\n")
     kitchen.poll()

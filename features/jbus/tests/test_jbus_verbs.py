@@ -248,13 +248,12 @@ CLOCK = "the clock reads 2026-10-12 11:00 ET"
 @pytest.mark.parametrize(
     ("argv", "kept"),
     [
-        (["word", "--to", "demo", "--by", "user", "--at", OFF, "go"], "words.json"),
         (
             ["--project", "demo", "answer", "1", "--by", "user", "--at", OFF, "--default", "yes"],
             "acts.jsonl",
         ),
     ],
-    ids=["word", "answer"],
+    ids=["answer"],
 )
 def test_a_typed_at_far_off_the_clock_is_refused_and_nothing_is_kept(kitchen, argv, kept):
     """A time an agent types is when the user said it, which it reads from `date` or the

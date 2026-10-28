@@ -1,9 +1,14 @@
-usage: jbus queue remove [-h] --by BY --at AT slug
+usage: jbus queue remove [-h] [--message THREAD/MESSAGE]
+                         [--page SESSION/ENTRY] [--by BY] [--at AT]
+                         slug
 
 positional arguments:
   slug
 
 options:
-  -h, --help  show this help message and exit
-  --by BY
-  --at AT     as approve takes it
+  -h, --help            show this help message and exit
+  --message THREAD/MESSAGE
+                        the user's own message in T3 Code
+  --page SESSION/ENTRY  the user's own send from a Lavish page
+  --by BY               the user's name, with --at, for words that were typed
+  --at AT               "<YYYY-MM-DD HH:MM ZONE>", when the user said it

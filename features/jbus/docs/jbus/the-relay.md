@@ -97,38 +97,7 @@ Through `blocking_url`, jbus posts the relay what blocks (`waiting.blocking`).
 
 ## Decisions from the chat
 
-Your chat bot sends a decision made on a card back with `POST /item` on the relay's port, with `RELAY_INBOUND_KEY` in `X-Automation-Key`, as for `/ack`.
-Any other key gets 401 and changes nothing.
-The body is one JSON object:
-
-```json
-{"project": "demo", "item": "w3", "verb": "approve", "words": "go w3", "by": "you", "message": "<the chat message's id or link>", "seen_event": "demo.w3.4"}
-```
-
-| Field | What it is |
-|---|---|
-| `project`, `item` | The card's `project` and `item`. An item's id is unique only within its project, so the body names both. |
-| `verb` | One of the card's `actions`: `approve`. |
-| `words` | What was said: the user's words for `approve`. |
-| `by` | Who decided. It is the user (`user` in `~/.config/jstack/config.toml`), or the literal `Sous Chef` for a decision of the chat bot's own, whatever the chat bot's name is. |
-| `message` | The id or the link of the chat message where the user made the decision. A decision by the user with no `message` or no `words` gets 403. |
-| `seen_event` | The `id` of the card the decision was made on. |
-
-The relay records the decision as `jbus item approve` does, with `where: chat`, in the project's state, and writes one line of the item's log.
-When the chat bot decides by itself, `by` is `Sous Chef`, and the relay refuses an approval with that `by`.
-Only the user approves.
-A decision by the user is based on the chat message.
-The relay keeps the message as the line's `ref`, with the quoted words as `said` and `checked: false`, since nothing reads the words back from the chat.
-The relay takes an approval from chat only where its words name the item, by its id or its slug, and the item is routine.
-The relay refuses a verb the item's card does not offer now, with 409 and the view's link.
-A review item (a merge, a secret, the config) takes no approval from chat, and a done or dropped one takes none.
-The relay refuses a decision on a card whose line is no longer the item's last, and quotes the line that came after.
-So a card acted on twice moves the item once.
-The relay answers with one of these:
-
-- 200 with `{"id", "item", "line"}`, the line written.
-- 400 for a body that lacks a field.
-- 403 for a `by` that is neither `Sous Chef` nor the user, or for a decision by the user that lacks `message` or `words`.
-- 404 for a project the config does not have.
-- 409 for a decision jbus refuses, with jbus's sentence in `{"refused"}`.
-- 503 when the config cannot be read.
+The relay takes no decisions.
+It takes a POST to `/` and to `/ack` alone, and answers 404 to a POST to any other path and takes nothing of it.
+So a decision your chat bot posts back on a card is neither recorded nor sent on as an event.
+Your go and your answers reach jbus by the commands, by the page of `jbus view`, or from the bot over its own route, `POST /act` on `jbus view` ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)).

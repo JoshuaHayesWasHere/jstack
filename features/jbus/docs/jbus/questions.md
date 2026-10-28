@@ -62,9 +62,9 @@ A gate that holds is the exception: its thread waits for you, so the next pass s
 After `--differs`, the next pass sends your words to the thread that asked.
 You can also answer on the page of `jbus view`, which sends a differing answer at once: [Answer a question on the page](the-view.md#answer-a-question-on-the-page).
 
-The answer is a message of yours or is typed, as a word is: [Your word to a home](your-word-to-a-home.md) says what `--message` reads and what `checked` records.
-A gate that holds is answered only by you, on words jbus read itself: `jbus --as user answer <n> --message <thread>/<message>`, or the page of `jbus view`.
-A typed answer, an answer from a home, and the bot's answer over `POST /act` are refused for it, with `refused: question <n> holds (<case>): ...`, and it stays open.
+The answer is a message of yours, which jbus reads as `jbus word --message` does ([Your word to a home](your-word-to-a-home.md)), or is typed, and its `checked` is false then.
+A gate that holds is answered only by you, on words jbus read itself: `jbus --as user answer <n> --message <thread>/<message>`.
+A typed answer, an answer from a home, the bot's answer over `POST /act` and an answer on the page of `jbus view` are refused for it, with `refused: question <n> holds (<case>): ...`, and it stays open.
 The bot's answer closes any other gate.
 Each answer is an act, a line of `acts.jsonl`: [Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log).
 The table of cases is `party.DOORS` in `features/jbus/src/jbus/party.py`, which `jbus gate` checks a `Holds:` line against.
