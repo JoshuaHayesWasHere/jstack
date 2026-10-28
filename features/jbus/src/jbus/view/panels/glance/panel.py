@@ -14,6 +14,10 @@ What is wrong and owned by an agent is on its row, never in the band (`state.fix
 nothing that is wrong is the user's and nothing waits on the user, the band is `calm`: its one
 item is the line that says the work moves.
 
+Above the items is the verdict: one word of `verdict.WORDS` and its exact cause, which
+`verdict.judge` gives over the pipeline's board of every project, with the groups of still rows
+it counts, the count of what needs the user, and since when nothing was done.
+
 The page keeps when the user last looked, for every tab: each render while the tab shows keeps
 its time, and a tab nobody sees keeps none. A visit starts when the tab shows, and its "since you
 looked" line says what changed between the look before it and its start, so the line stays the
@@ -25,6 +29,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
+from jbus.view import verdict as verdicts
 from jbus.view.state import Read, iso, users
 
 FIRST = False
@@ -34,8 +39,13 @@ ITEM = {
     for key in ("tier", "kind", "subj", "cause", "since", "where", "open", "verb", "count")
 }
 TOP = {key: None for key in ("tier", "kind", "subj", "cause", "since")}
+GROUP = {key: None for key in ("kind", "text", "count", "head", "since")}
 VERDICT = {
-    "motion": None,
+    "word": None,
+    "cause": None,
+    "groups": [GROUP],
+    "needs": None,
+    "quiet_since": None,
     "last_merge": None,
     "per_hour": None,
     "window": None,
@@ -43,7 +53,7 @@ VERDICT = {
     "top": TOP,
 }
 SHAPE = {"glance": {"calm": None, "verdict": VERDICT, "items": [ITEM]}}
-WINDOW = 3
+WINDOW = verdicts.WINDOW
 """The hours over which the verdict counts merges an hour: the last three, across midnight too."""
 RANK = ("jbus", "main", "ci", "stall", "thread", "idle", "bus", "source", "unasked")
 """The kinds of `wrong` by how much each holds the work back, most first: the verdict names the
@@ -183,19 +193,35 @@ def _start(read: Read) -> str:
     return min(read.day, iso(read.now - timedelta(hours=WINDOW)))
 
 
+def _board(reads: list[Read]) -> dict[str, Any]:
+    """The rows of the pipeline's board of each project, and the rows it cannot place."""
+    boards = [read.panel("pipeline") for read in reads]
+    return {key: [one for board in boards for one in board[key]] for key in ("rows", "unplaced")}
+
+
 def _verdict(
-    answer: dict[str, Any], merges: list[str], now: datetime, top: dict[str, Any]
+    reads: list[Read],
+    needs: int,
+    wrong: list[dict[str, Any]],
+    merges: list[str],
+    last: str | None,
+    now: datetime,
+    top: dict[str, Any],
 ) -> dict[str, Any]:
-    """Whether the work moves: the last merge, the merges an hour over the last `WINDOW` hours,
-    and the top cause. It moves while a merge came in that window, is still where none did and
-    rows are open, and is at rest where nothing is open."""
+    """The verdict's word and its cause (`verdict.judge`), over the boards of `reads`, with the
+    groups of still rows it counts, what needs the user and since when the work is quiet. Beside
+    them are the last merge, the merges an hour over the last `WINDOW` hours, and the top
+    cause."""
     merges = sorted(merges, key=datetime.fromisoformat)
     start = now - timedelta(hours=WINDOW)
     recent = [at for at in merges if datetime.fromisoformat(at) >= start]
-    open_ = sum(one["open"] for one in answer["projects"])
-    motion = "moving" if recent else "still" if open_ else "rest"
+    judged = verdicts.judge(_board(reads), needs, wrong, merges, last, now)
     return {
-        "motion": motion,
+        "word": judged.word,
+        "cause": judged.cause,
+        "groups": [vars(one) for one in judged.groups],
+        "needs": judged.needs,
+        "quiet_since": judged.quiet_since,
         "last_merge": merges[-1] if merges else None,
         "per_hour": round(len(recent) / WINDOW, 1),
         "window": WINDOW,
@@ -204,14 +230,22 @@ def _verdict(
     }
 
 
-def band(answer: dict[str, Any], now: datetime, merges: list[str] = ()) -> dict[str, Any]:
+def _last(acts: list[dict[str, Any] | None]) -> str | None:
+    return max((one["at"] for one in acts if one), key=datetime.fromisoformat, default=None)
+
+
+def band(
+    answer: dict[str, Any], now: datetime, merges: list[str], reads: list[Read]
+) -> dict[str, Any]:
     """The band of `answer`, which holds what `/stack.json` holds, at `now`. `merges` are the
-    times of the merges across the projects since `_start`."""
+    times of the merges across the projects since `_start`, and `reads` the projects."""
     names = [one["name"] for one in answer["projects"]]
     wrong = _jbus(answer["machine"]["jbus"], names) + _wrong(answer["wrong"], names)
     wrong, yours = _oldest(wrong), _yours(answer["needs"])
     items = [*wrong, *yours, _moving(answer)]
-    verdict = _verdict(answer, list(merges), now, _top(wrong, yours))
+    last = _last([one["last"] for one in answer["projects"]])
+    needs = len(answer["needs"])
+    verdict = _verdict(reads, needs, wrong, merges, last, now, _top(wrong, yours))
     return {"glance": {"calm": not wrong and not yours, "verdict": verdict, "items": items}}
 
 
@@ -221,16 +255,18 @@ def stack(base: Read, reads: list[Read], answer: dict[str, Any]) -> dict[str, An
     `merged` reads (`Read.merged_since`), from the start of the user's day or of the window,
     whichever is earlier."""
     merges = [one["at"] for read in reads for one in read.merged_since(_start(read))]
-    return band(answer, base.now, merges)
+    return band(answer, base.now, merges, reads)
 
 
 def build(read: Read) -> dict[str, Any]:
     """The band of one project, from the project's own pieces: its list of what is wrong and
-    what waits on the user. The machine's part, jbus and the counts, is `/stack.json`'s."""
+    what waits on the user. The machine's part, jbus and the counts, is `/stack.json`'s, so the
+    verdict of one project cannot see that jbus stopped."""
     needs = read.panel("you")["needs"] if read.name else []
     names = [read.name] if read.name else []
     wrong, yours = _oldest(_wrong(users(read), names)), _yours(needs)
     merges = [one["at"] for one in read.merged_since(_start(read))] if read.name else []
-    project = {"projects": [{"open": len(read.tasks)}]}
-    verdict = _verdict(project, merges, read.now, _top(wrong, yours))
+    reads = [read] if read.name else []
+    last = _last(read.acts[-1:]) if read.name else None
+    verdict = _verdict(reads, len(needs), wrong, merges, last, read.now, _top(wrong, yours))
     return {"glance": {"calm": not wrong and not yours, "verdict": verdict, "items": wrong + yours}}

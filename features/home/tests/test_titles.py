@@ -3,7 +3,7 @@ import re
 
 import pytest
 
-from jbus import threads
+from jbus import scouts, threads
 from test_home_thread import NAME, Scene, as_read
 from test_tool_calls import CALLS, FILLED, errors
 from testing.paths import skills
@@ -57,22 +57,15 @@ def test_the_launch_starts_a_crewmate_named_for_its_role_in_a_worktree_on_the_ta
     assert (workspace["type"], workspace["branch"]) == ("worktree", SLUG)
 
 
-def test_a_durable_scout_is_launched_like_a_crewmate_and_leaves_the_task_branch_free():
-    launch = for_slug(call("workspaceStrategy", "scout"), SLUG)
-    assert launch["title"] == f"scout: {SLUG}"
-    assert launch["message"] == f"/scout {SLUG}"
-    crewmate = for_slug(call("workspaceStrategy"), SLUG)["workspaceStrategy"]
-    assert launch["workspaceStrategy"] == {**crewmate, "branch": f"scout-{SLUG}"}
-    assert launch["workspaceStrategy"]["branch"] != crewmate["branch"]
-
-
 def test_each_launch_has_a_twin_that_differs_only_by_the_model_selection():
     launches = [sent for sent in given() if "workspaceStrategy" in sent]
-    assert len(launches) == 8
+    tool = next(call for call in CALLS if call.tool == "t3_thread_launch")
+    assert len(launches) == 6
     for launch, twin in zip(launches[::2], launches[1::2], strict=True):
         assert "modelSelection" not in launch
         assert twin == {**launch, "modelSelection": json.loads(SELECTION)}
-    assert [call("workspaceStrategy", role) for role in ("scout", "crew")] == launches[:3:2]
+        assert errors(tool, launch) == [] and errors(tool, twin) == []
+    assert call("workspaceStrategy") == launches[0]
 
 
 def test_the_lookup_after_a_lost_reply_finds_the_launched_thread_and_no_other_role():
@@ -107,9 +100,10 @@ def test_the_rename_gives_this_thread_the_title_the_start_printed(tmp_path, type
         assert errors(rename, sent) == []
 
 
-def test_jbus_reads_the_slug_from_each_title_a_skill_launches_a_slugs_thread_with():
+def test_jbus_reads_the_slug_from_each_title_a_skill_or_jbus_launches_a_slugs_thread_with():
     written = "".join(call.written for call in CALLS)
     titles = set(re.findall(r'"title": "([a-z]+: <slug>[^"]*)"', written))
+    titles.add(f"{scouts.TITLE}<slug>")
     read = {
         (prefix, threads.slug_in(title.replace("<slug>", SLUG).replace("<n>", "2"), prefix))
         for title in titles

@@ -5,10 +5,13 @@ nothing waits on the user, when the band is the one line that says the work move
 
 from datetime import timedelta
 
+import pytest
+
 import jsettings
 from jbus.view import state as built
 from jbus.view.state import iso
-from view.scene import NOW, Scene, Served, ago, et, item, out, row
+from view.days import DAYS
+from view.scene import NOW, Scene, Served, ago, et, item, logged, out, row
 from view.test_view_wrong import STALL, idle
 from view.walk import runs, sources
 
@@ -88,8 +91,10 @@ def test_wrong_comes_first_then_what_waits_on_you_then_whether_it_moves(tmp_path
         assert one["cause"] and one["since"] and one["open"].startswith("#/")
 
 
-def test_the_verdict_names_motion_and_the_top_cause_with_its_age(tmp_path, monkeypatch):
-    """A red main holds every merge, so it is the top cause though a hung thread is older."""
+def test_the_verdict_names_its_word_and_the_top_cause_with_its_age(tmp_path, monkeypatch):
+    """A red main holds every merge, so it is the top cause though a hung thread is older. The
+    two rows not approved are the largest group of rows that do not move, so the word is that
+    the user holds the work."""
     scene = Scene(tmp_path, monkeypatch)
     troubled(scene)
     verdict = stack(scene)["glance"]["verdict"]
@@ -100,7 +105,8 @@ def test_the_verdict_names_motion_and_the_top_cause_with_its_age(tmp_path, monke
         "cause": f"red at {RED[:7]}",
         "since": iso(ago(minutes=12)),
     }
-    assert (verdict["motion"], verdict["last_merge"]) == ("moving", iso(ago(minutes=40)))
+    assert (verdict["word"], verdict["last_merge"]) == ("HELD BY YOU", iso(ago(minutes=40)))
+    assert verdict["cause"].startswith("2 not approved wait on you; slowed too by ")
     assert (verdict["per_hour"], verdict["window"]) == (0.3, 3)
 
 
@@ -109,11 +115,11 @@ def test_merges_an_hour_count_the_window_and_none_in_it_is_still(tmp_path, monke
     quiet(scene)
     scene.moves(*((f"rye-{n}", "pr", "merged", minutes) for n, minutes in enumerate((5, 50, 170))))
     verdict = stack(scene)["glance"]["verdict"]
-    assert (verdict["motion"], verdict["per_hour"]) == ("moving", 1.0)
+    assert (verdict["word"], verdict["per_hour"]) == ("MOVING", 1.0)
     assert verdict["merges"] == [iso(ago(minutes=m)) for m in (170, 50, 5)]
     scene.moves(("rye-loaf", "pr", "merged", 200))
     verdict = stack(scene)["glance"]["verdict"]
-    assert (verdict["motion"], verdict["per_hour"]) == ("still", 0.0)
+    assert (verdict["word"], verdict["per_hour"]) == ("MOVING", 0.0)
     assert verdict["last_merge"] == iso(ago(minutes=200))
     assert verdict["top"]["tier"] == ""
 
@@ -127,7 +133,7 @@ def test_a_merge_before_midnight_counts_in_the_window_after_it(tmp_path, monkeyp
     before = iso(midnight - timedelta(minutes=10))
     scene.lines("transitions.jsonl", [{"slug": "rye", "from": "pr", "to": "merged", "at": before}])
     verdict = built.stack(sources(scene), midnight + timedelta(hours=1), runs)["glance"]["verdict"]
-    assert (verdict["motion"], verdict["last_merge"]) == ("moving", before)
+    assert (verdict["word"], verdict["last_merge"]) == ("MOVING", before)
     assert verdict["per_hour"] == 0.3
 
 
@@ -175,3 +181,111 @@ def test_an_unreadable_streaks_file_is_a_wrong_source_and_says_no_pass_failed(
     glance = stack(scene)["glance"]
     assert ("wrong", "source", "streaks.json") in drawn(glance)
     assert all(one["kind"] != "jbus" for one in glance["items"])
+
+
+def stalled(scene):
+    """The quiet scene with its one row a pull request whose check failed, the last merge
+    200 minutes ago and the last act 45 minutes ago."""
+    quiet(scene)
+    why = "wait: check has not passed"
+    scene.queue([row("oat-spoon", "pr", pr="#12", checks="failed", why=why)])
+    scene.moves(("rye-loaf", "pr", "merged", 200))
+    scene.events(("result", "chef", "oat-spoon", "result oat-spoon: Status: done", 45))
+    scene.merge_log(logged(50, "wait", 12, "check has not passed"))
+
+
+def at_rest(scene):
+    """The quiet scene with nothing open."""
+    quiet(scene)
+    scene.queue([])
+
+
+def blind(scene):
+    """The quiet scene with jbus stopped."""
+    quiet(scene)
+    scene.timer(active="inactive", sub="dead")
+
+
+SCENES = {"stalled": stalled, "rest": at_rest, "blind": blind, "troubled": troubled, **DAYS}
+
+
+def verdict_of(scene, name):
+    SCENES[name](scene)
+    given = stack(scene)
+    return given, given["glance"]["verdict"]
+
+
+def test_the_t_moment_moves_slowed_by_18_failing_checks_and_8_stacked(scene):
+    """At T merges come every 11 minutes, and of the rows that do not move the 18 failing checks
+    are the largest group; the 8 stacked count the one held and the one left that the user
+    holds, as the check split counts them."""
+    given, verdict = verdict_of(scene, "t")
+    assert verdict["word"] == "MOVING"
+    assert verdict["cause"].startswith("slowed by 18 failing checks, 8 stacked (")
+    stacked = next(one for one in verdict["groups"] if one["kind"] == "stacked")
+    assert stacked["count"] == 8
+    checks = next(one for one in given["slow"]["stages"] if one["key"] == "check")["checks"]
+    assert checks["stacked"] == stacked["count"]
+    assert verdict["quiet_since"] is None
+
+
+def test_the_overloaded_day_is_held_by_you_with_12_behind_its_head(scene):
+    """The 12 rows behind `tea-kettle`, which is not approved, are the largest group, and they
+    wait on the user, so the user holds the work; the 8 ready for a launch slot come after."""
+    _, verdict = verdict_of(scene, "many")
+    assert verdict["word"] == "HELD BY YOU"
+    assert verdict["cause"] == (
+        "12 behind tea-kettle, 4 not approved and 3 at a gate wait on you; "
+        "slowed too by 8 ready for a launch slot, 3 waiting for a review and 3 passed and not moved"
+    )
+    behind = verdict["groups"][0]
+    assert (behind["kind"], behind["head"], behind["count"]) == ("behind", "tea-kettle", 12)
+
+
+def test_no_merge_in_3_hours_and_no_act_in_30_minutes_is_stalled(scene):
+    _, verdict = verdict_of(scene, "stalled")
+    assert verdict["word"] == "STALLED"
+    assert verdict["cause"] == (
+        "nothing merged in the last 3 h and nothing done in the last 30 min; still: 1 failing check"
+    )
+    assert verdict["quiet_since"] == iso(ago(minutes=45))
+
+
+def test_an_act_in_the_last_30_minutes_keeps_it_moving(scene):
+    stalled(scene)
+    scene.events(("result", "chef", "oat-spoon", "result oat-spoon: Status: done", 10))
+    verdict = stack(scene)["glance"]["verdict"]
+    assert (verdict["word"], verdict["quiet_since"]) == ("MOVING", None)
+    assert verdict["cause"] == "slowed by 1 failing check"
+
+
+def test_nothing_open_is_at_rest(scene):
+    _, verdict = verdict_of(scene, "rest")
+    assert (verdict["word"], verdict["cause"], verdict["groups"]) == (
+        "AT REST",
+        "nothing is open",
+        [],
+    )
+
+
+def test_jbus_stopped_is_cannot_see_whatever_else_holds(scene):
+    _, verdict = verdict_of(scene, "blind")
+    assert verdict["word"] == "CANNOT SEE"
+    assert verdict["cause"] == "jbus stopped: the timer is not active"
+
+
+def test_an_unreadable_source_is_cannot_see(scene):
+    stalled(scene)
+    (scene.state_dir / "streaks.json").write_text("{not json")
+    verdict = stack(scene)["glance"]["verdict"]
+    assert (verdict["word"], verdict["cause"]) == ("CANNOT SEE", "streaks.json cannot be read")
+
+
+@pytest.mark.parametrize("name", sorted(SCENES))
+def test_needs_you_in_the_band_is_the_count_of_needs(scene, name):
+    """The verdict says how many things need the user, the same count as `needs`, and the band's
+    tier of what waits on the user counts as many, its batch of approvals as each one."""
+    given, verdict = verdict_of(scene, name)
+    assert verdict["needs"] == len(given["needs"])
+    yours = [one for one in given["glance"]["items"] if one["tier"] == "yours"]
+    assert sum(one["count"] for one in yours) == verdict["needs"]

@@ -54,7 +54,7 @@ import jroles
 import jroles.mirror
 from jbriefs import parse
 from jbriefs.home import home_of, named
-from jbus import queue, read_json, verbs, write_json
+from jbus import queue, read_json, verbs, watch, write_json
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
@@ -71,14 +71,20 @@ def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
     return run.config.state_dir / "launches" / run.project.name / slug / f"{brief_sha[:12]}.json"
 
 
-def records(run: Pass, slug: str) -> list[tuple[Path, dict[str, Any]]]:
+def records(run: Pass, slug: str, role: str = "") -> list[tuple[Path, dict[str, Any]]]:
+    """Return the slug's launch records, oldest first, or with `role` only those of that role: a
+    crewmate's record has no `role`, a scout's says `scout`."""
     directory = run.config.state_dir / "launches" / run.project.name / slug
-    return [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
+    found = [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
+    return [one for one in found if not role or (one[1].get("role") or queue.CREW) == role]
 
 
-def launched(run: Pass, slug: str) -> str:
-    """Return the thread id of the slug's launch, or nothing if it has none."""
-    return next((r["thread"] for _, r in reversed(records(run, slug)) if r.get("thread")), "")
+def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
+    """Return the thread id of the slug's launch of `role`, or nothing if it has none. A scout's
+    row taken over by the crewmate's brief it delivered keeps the scout's record beside the
+    crewmate's."""
+    found = records(run, slug, role)
+    return next((r["thread"] for _, r in reversed(found) if r.get("thread")), "")
 
 
 def write_thread(
@@ -123,8 +129,10 @@ def write_missing(run: Pass) -> None:
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for slug in sorted(path.name for path in directory.glob("*") if path.is_dir()):
-        if launched(run, slug):
-            write_thread(run, slug, launched(run, slug), replace=False)
+        found = [record for _, record in reversed(records(run, slug)) if record.get("thread")]
+        if found:
+            kind = "scouts" if found[0].get("role") == queue.SCOUT else "tasks"
+            write_thread(run, slug, found[0]["thread"], replace=False, kind=kind)
 
 
 GREEN_MAIN = "Green main:"
@@ -274,7 +282,7 @@ def settle_lost(run: Pass, client: Client) -> None:
     directory = run.config.state_dir / "launches" / run.project.name
     for path in sorted(directory.glob("*/*.json")):
         record, slug = read_json(path, {}), path.parent.name
-        if record.get("thread"):
+        if record.get("thread") or record.get("role") == queue.SCOUT:
             continue
         try:
             listed = crew_threads(client, run.project.project_id, f"{TITLE}{slug}")
@@ -439,6 +447,7 @@ class Turns:
     world: World
     left: list[queue.Row]
     caps: Caps
+    reported: frozenset[str] = frozenset()
     capped: list[queue.Row] = field(default_factory=list)
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
@@ -464,7 +473,7 @@ class Turns:
         judges the row again, so the gate goes the pass its go holds.
         """
         run, world = self.run, self.world
-        merged = set(world.merged) - set(world.open)
+        merged = (set(world.merged) - set(world.open)) | self.reported
         while self.left:
             row = self.left.pop(0)
             slug = row["slug"]
@@ -680,10 +689,14 @@ class Turns:
 def turns(
     run: Pass, client: Client, world: World, rows: list[queue.Row], out: tuple[str, ...]
 ) -> Turns:
-    """Return the project's turns, with its rows and `out`, the slugs of its crews out
-    (`watch.Look.out`)."""
+    """Return the project's turns, with its crewmates' rows and `out`, the slugs of its crews out
+    (`watch.Look.out`). A scout's row is launched by `jbus.scouts`, and a row that depends on it
+    may launch once its Report says it is done (`watch.reported`)."""
     settle_lost(run, client)
-    return Turns(run, client, world, sorted(rows, key=queue.order), caps(run, out))
+    crew = sorted((row for row in rows if queue.role(row) == queue.CREW), key=queue.order)
+    made = Turns(run, client, world, crew, caps(run, out))
+    made.reported = watch.reported(run, rows)
+    return made
 
 
 def dispatch(projects: list[Turns], slots: int | None) -> list[str]:

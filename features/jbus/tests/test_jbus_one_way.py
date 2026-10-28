@@ -105,7 +105,7 @@ def test_only_locked_and_the_locks_of_their_own_take_a_flock():
         for name, tree in modules().items()
         if any(isinstance(node, ast.Attribute) and node.attr == "flock" for node in ast.walk(tree))
     ]
-    assert takers == ["__init__.py", "cli.py", "queue.py", "scouts.py", "snapshot.py"]
+    assert takers == ["__init__.py", "cli.py", "queue.py", "snapshot.py"]
 
 
 def test_only_listed_pages_the_threads():
