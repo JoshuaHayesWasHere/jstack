@@ -55,7 +55,7 @@ Never done here, and who does it:
   Work that must outlast the step is a thread the home launches: a queued row (`templates/a-fault-outside.md`).
 - **A model the brief does not name, or an effort above medium.**
   Nobody does.
-  With no `Candidates:` line it is this session's model, with no `Judge:` line a Claude model no candidate ran on, and it is said on the Result's `Left:` line.
+  With no `Candidates:` line it is this session's model, with no `Judge:` line a Claude model no candidate ran on, and it is said on the Result's `Proof:` line.
 - **A copy of the blocks of `skills/reflect/SKILL.md`, or a change to them.** Nobody does.
 
 **Hand over:** in the Result, to the home: the variant, the rubric, a note per candidate with its chain, the judge's verdict and where it differed from yours, and whether to promote the variant.

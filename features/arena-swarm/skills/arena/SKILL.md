@@ -15,4 +15,4 @@ Open it with the block of "A playbook of the home's own" in `skills/home/SKILL.m
 What follows `/arena` is the artifact to make, and with nothing after it, ask the user what to make.
 
 In any other thread, start nothing: an arena is four threads, and only a home launches threads.
-A crewmate or a scout writes `/arena <the artifact>` on its Result's `Left:` line for its home, and a thread with no home tells the user to type it in the repo's home.
+A crewmate or a scout parks a gate whose question is whether to run `/arena <the artifact>`, with the default that no arena runs, and a thread with no jbus tells the user to type it in the repo's home.

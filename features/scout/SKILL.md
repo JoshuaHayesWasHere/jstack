@@ -63,7 +63,9 @@ When in doubt, act and write down what you did.
 
 - The **Questions** list is the whole target. Answer each one. A question that cannot be answered gets the reason and what would answer it, not a guess.
 - Read the code, and read the docs. Docs means the repo's own (README, `docs/`, comments, changelog) and the outside documentation for any library, API or tool the task depends on. Read the outside docs for the version the repo pins, from the source: the installed package, `--help`, the project's own site or repo. Do not answer from memory what a doc can settle.
-- Every tool call only reads: file reads and searches, `git log`, `git show` and `git diff`, `gh` views, web fetches and searches, and commands that print and change nothing. Install nothing, start nothing, and run nothing that writes into the repo or changes state outside it. If a question needs such a run to answer, say so in the report and leave the run to a crewmate.
+- Every tool call only reads: file reads and searches, `git log`, `git show` and `git diff`, `gh` views, web fetches and searches, and commands that print and change nothing.
+  Install nothing, start nothing, and run nothing that writes into the repo or changes state outside it, but for the one `jbus queue add` of a fault outside the request ("Write it down").
+  If a question needs such a run to answer, say so in the report and leave the run to a crewmate.
 - A scout seldom meets a test slot, since a run that writes is a crewmate's. A command the request asks you to run under one, `jgauge test-slot --short --thread <thread id> -- <command>`, does not wait: `<thread id>` is this thread's own id, which the `t3-code` server's `t3_thread_configuration` with no arguments gives as `threadId` (if your harness defers it, load it first). With every slot taken it registers this thread as a waiter and ends 76. Then end your turn with one line, `Waiting on a test slot: jbus will wake this thread when one is free.`, and run the same command again when jbus wakes you. Never poll for a slot, never wait in a background job, and never end the turn with nothing said. On a machine with no jbus nothing wakes a waiter: leave `--thread <thread id>` off, and the call waits in place.
 - For a wide search, use an Explore subagent and keep its conclusion, not its output; or, with no subagent tool, do it in this thread.
 - Keep the evidence as you go: the command and what it printed, the path and line, the URL and the part that matters. A finding without one is a guess, and the report says so where it is.
@@ -118,7 +120,9 @@ Besides a gate jbus could not take, a scout sends its home nothing before the En
 
 ## Write it down
 
-Besides its note of the start and its note of what the home was told, a scout writes three kinds of file and no others, all under `$H`: its report, a brief, a page. The **Deliver** list says which.
+Besides its note of the start and its note of what the home was told, a scout writes three kinds of file and no others, all under `$H`: its report, a brief, a page.
+The **Deliver** list says which.
+The one thing it adds outside them is a queued row for a fault outside the request, whose brief it writes in `/tmp` first, as the line under the report says.
 
 **The report, always.** Read `$T/scout-report.md` now. Append it, filled in, to `$H/scouts/<slug>.md` under `## Report`. Keep it to 40 lines unless the request sets another length: the home reads it at the start of a short thread.
 A fault you find outside the request is no line of the report: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
