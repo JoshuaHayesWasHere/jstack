@@ -141,6 +141,26 @@ def test_a_quiet_root_home_is_nudged_twice_then_the_user_is_asked(root):
     assert "nudged it" in stalled and "after two nudges" in asked
 
 
+@pytest.mark.parametrize("name", ["queue.json", "questions.json"])
+def test_a_file_that_does_not_parse_holds_the_watch_and_the_pass_still_ends(root, name):
+    """A queue or question file that does not parse says nothing of what a home has out: the
+    pass gates it and ends well, nudges no home, and the watch goes on once it parses again."""
+    kitchen, found = root
+    file = kitchen.state / name
+    kept = file.read_text() if file.exists() else None
+    file.write_text("not json")
+    kitchen.poll(minutes(P + 10))
+    assert f"condition demo: {name} does not parse" in kitchen.lines("condition")
+    assert [one for one in sends(kitchen) if one["clientRequestId"].startswith(STALL)] == []
+    if kept is None:
+        file.unlink()
+    else:
+        file.write_text(kept)
+    kitchen.poll(minutes(P + 20))
+    nudges = [one for one in sends(kitchen) if one["clientRequestId"].startswith(STALL)]
+    assert [one["threadId"] for one in nudges] == [found["threadId"]]
+
+
 def test_a_root_home_with_nothing_out_is_not_watched(kitchen):
     home(kitchen, idle=timedelta(hours=6))
     kitchen.poll(NOW)

@@ -217,7 +217,7 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
         return
     try:
         queue.load(run.state)
-        questions.load(run.state)
+        questions.read(run.state)
     except (queue.Unparsable, questions.Unparsable):
         return
     was: dict[str, Any] = read_json(run.state / FILE, {})
