@@ -299,7 +299,7 @@ def _cut(given: str, cap: int = LINE) -> str:
     return given[:cap].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
-def _brief(read: Read, slug: str) -> str:
+def _queued_brief(read: Read, slug: str) -> str:
     """The brief that `slug` has in the project's `briefs/`, empty where there is no such
     brief."""
     try:
@@ -311,7 +311,7 @@ def _brief(read: Read, slug: str) -> str:
 def _title(read: Read, slug: str) -> str:
     """The title line of the brief that `slug` has in the project's `briefs/`, empty where
     there is no such brief."""
-    titled = (line[2:] for line in _brief(read, slug).splitlines() if line.startswith("# "))
+    titled = (line[2:] for line in _queued_brief(read, slug).splitlines() if line.startswith("# "))
     return _cut(next(titled, ""))
 
 
@@ -398,7 +398,7 @@ def _work(read: Read, kind: str, slug: str, waits: dict[str, Any]) -> dict[str, 
         "kind": kind,
         "verb": waiting.verb(kind),
         "risk": MERGES if kind == "hold" else REVERSIBLE,
-        "doors": list(party.doors(_brief(read, slug))) if kind == "approve" else [],
+        "doors": list(party.doors(_queued_brief(read, slug))) if kind == "approve" else [],
         "open": _route(read.name, waits, slug),
         "answerable": False,
         "default": "",
