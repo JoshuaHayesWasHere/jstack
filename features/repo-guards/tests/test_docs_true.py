@@ -311,7 +311,6 @@ def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):
     ]
     assert missing(trees["jbus"], page.replace("--sha", "--sum")) == [
         "jbus queue approve: --sha",
-        "jbus scout approve: --sha",
     ]
     assert missing(trees["jbus"], page.replace("launch-test", "launch")) == ["jbus t3: launch-test"]
     assert missing(trees["jbus"], page.replace("--project", "--repo")) == [

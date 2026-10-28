@@ -110,7 +110,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | Plan cushion, percent | `features/jgauge/src/jgauge/room.sh:7` | `CUSHION=${HEADROOM:-90}` | #102 (the owner's gate 20) at 100; account-limits, the owner's account-failover round 1, at 90 | A launch passes an account by before its plan window is used up | The provider's, not the machine's | Moved: the user's `headroom` in `config.toml`, `CUSHION=90` with none |
 | `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh:8` | `SLOTS=85` | Before this repo's history | `/tmp` never fills, which fails every shell | Six suites at once peak at 36% | Kept: a share |
 | A review skips the load | `features/jgauge/src/jgauge/cli.py:202` | `"--light",` | #102 (yelena, "at load 30 of 24 cores") | A review is not held by load it does not add | A review is about 2% of a core | Kept |
-| Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py:330` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
+| Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py:427` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
 
 ## The plan's pools
 

@@ -293,25 +293,29 @@ Out of bounds: read-only. Run nothing that writes.
 def test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch(sandbox):
     (sandbox.parent / "alpha.md").write_text(SCOUT_REQUEST)
     added = inside(
-        sandbox, 'jbus --project demo scout add alpha < "$VERIFY_JSTACK_SANDBOX/alpha.md"'
+        sandbox,
+        'jbus --project demo queue add alpha --priority 1 < "$VERIFY_JSTACK_SANDBOX/alpha.md"',
     )
     assert added.returncode == 0, added.stdout + added.stderr
-    sha = added.stdout.split("request ")[1][:12]
+    assert "| scout |" in added.stdout
+    stored = 'shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12'
+    sha = inside(sandbox, stored).stdout.strip()
     said = inside(sandbox, 'jbus word --to demo --by user --at "$(date "+%Y-%m-%d %H:%M %Z")" go')
     word = said.stdout.split()[-1]
 
     steps = [
-        f"jbus --project demo scout approve alpha --sha {sha} --word {word}",
+        f"jbus --project demo queue approve alpha --sha {sha} --word {word}",
         "jbus poll",
         "jbus poll",
-        "jbus --project demo scout show",
+        "jbus --project demo queue show",
         'git -C "$VERIFY_JSTACK_SANDBOX/demo" for-each-ref --format="%(refname)"',
     ]
     ran = inside(sandbox, " && ".join(steps))
 
     assert ran.returncode == 0, ran.stdout + ran.stderr
     assert ran.stdout.count("launched scout alpha: mcp:sandbox-thread-1") == 1
-    assert "| alpha | launched | none | mcp:sandbox-thread-1 |" in ran.stdout
+    row = [line for line in ran.stdout.splitlines() if line.startswith("| alpha |")][-1]
+    assert "| running |" in row and "| mcp:sandbox-thread-1 |" in row and "| scout |" in row
     refs = ["refs/heads/main", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]
     assert ran.stdout.splitlines()[-3:] == refs
     calls = (sandbox.parent / "t3" / "calls.jsonl").read_text().splitlines()

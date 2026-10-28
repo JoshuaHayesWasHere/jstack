@@ -62,7 +62,7 @@ def derive(half: Half) -> None:
 
     def facts(row: queue.Row) -> queue.Row:
         slug = row["slug"]
-        launched = dispatch.launched(run, slug)
+        launched = dispatch.launched(run, slug, queue.role(row))
         found = watch.status(run, world, slug, states.of(row, launched), launched)
         said = cancelled.why(run, slug) if found["status"] == "pr" else ""
         return {**found, "why": said or watch.why(run, row, found, waits, unread)}
@@ -98,13 +98,14 @@ def keep_work(half: Half) -> None:
     listed = []
     for row in rows:
         slug = row["slug"]
-        state = states.of(row, dispatch.launched(run, slug))
+        state = states.of(row, dispatch.launched(run, slug, queue.role(row)))
         record = held.get(slug)
         home = bool(record and not record.busy and not leftover.his(record, run.now))
         after = watch.after_merge(mirror.last_result(watch.brief_of(run, slug)))
+        role = "scout" if queue.role(row) == queue.SCOUT else ""
         line = work.entry(
             state,
-            work.holder(state, home=home, after=after),
+            work.holder(state, role=role, home=home, after=after),
             key=slug,
             kind="row",
             slug=slug,
@@ -112,7 +113,8 @@ def keep_work(half: Half) -> None:
             pr=row.get("pr", ""),
         )
         listed.append(line)
-    listed += watch.judged(run, half.out, {row["slug"] for row in rows}, half.answered())
+    mine = {(queue.role(row), row["slug"]) for row in rows}
+    listed += watch.judged(run, half.out, mine, half.answered())
     at = jsettings.stamp(run.now)
     work.write(run.state, at, half.answered(), listed)
 
