@@ -101,10 +101,9 @@ def test_a_launch_on_a_capped_pool_registers_this_thread_to_be_woken(tmp_path, m
     assert (wait.thread, wait.role, wait.until) == ("mcp:the-crew", "review", until.isoformat())
 
 
-def launched(tmp_path, roles, pass_, message="<message>"):
+def printed(tmp_path, roles, pass_, message="<message>"):
     """What the launch block of "The review" prints in a crew's worktree on the branch `alpha`,
     with `jroles` reading the role map `roles`: the real `jroles`, which `uv run` would start."""
-    import json
     import sys
 
     from crew_helpers import block
@@ -144,8 +143,15 @@ def launched(tmp_path, roles, pass_, message="<message>"):
         },
         check=True,
     )
-    lines = ran.stdout.splitlines()
-    assert all(line.startswith("launch: ") for line in lines), ran
+    return work, ran.stdout.splitlines()
+
+
+def launched(tmp_path, roles, pass_, message="<message>"):
+    """The `t3_thread_launch` calls the launch block prints, each as its arguments."""
+    import json
+
+    work, lines = printed(tmp_path, roles, pass_, message)
+    assert all(line.startswith("launch: ") for line in lines), lines
     return work, [json.loads(line.removeprefix("launch: ")) for line in lines]
 
 
@@ -199,3 +205,25 @@ def test_a_second_or_scoped_pass_is_one_reviewer_in_the_same_worktree(
     assert (call["title"], call["message"]) == (title, message)
     assert call["workspaceStrategy"]["worktreePath"] == str(work)
     assert call["modelSelection"]["model"] == "claude-sonnet-5-5"
+
+
+def test_a_scoped_pass_with_no_message_launches_nothing(tmp_path):
+    _, lines = printed(tmp_path, TWO, "scoped")
+    assert len(lines) == 1 and lines[0].startswith("not filled in: "), lines
+
+
+def test_a_capped_pool_prints_capped_and_no_launch(tmp_path, monkeypatch):
+    """The block's exit-75 branch: jroles registers the thread and makes no selection, and the
+    block says so, which is what ends the crew's turn until `jbus poll` wakes it."""
+    from datetime import UTC, datetime, timedelta
+
+    from jroles import ledger
+
+    monkeypatch.setenv("LIMITS", str(tmp_path / "state" / "limits"))
+    until = datetime.now(UTC) + timedelta(hours=2)
+    one = "review: claudeAgent claude-sonnet-5-5 claudeAgent_claude_prime effort=medium\n"
+    ledger.write(
+        ledger.Record("claudeAgent_claude_prime", "five_hour", ledger.FULL, int(until.timestamp()))
+    )
+    _, lines = printed(tmp_path, one, "first")
+    assert lines == ["capped: launch nothing and add no Reviewer: line"], lines

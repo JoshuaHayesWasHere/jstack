@@ -67,11 +67,14 @@ branch=$(git branch --show-current 2> /dev/null)
 case $pass in
 first) title='review: <slug>, $n' said='/pr-review run <slug> $n' ;;
 second) title='review: <slug>, second pass' said='/pr-review run <slug> again' ;;
-scoped) title='review: <slug>, scoped' said=$message ;;
+scoped)
+    title='review: <slug>, scoped' said=$message
+    case $message in '' | '<'*) title= ;; esac
+    ;;
 *) title= ;;
 esac
 if [ -z "$title" ]; then
-    echo "not filled in: put first, second or scoped in place of the placeholder"
+    echo "not filled in: put first, second or scoped in place of <pass>, and for scoped the message in place of <message>"
 elif [ -z "$top" ] || [ -z "$branch" ]; then
     echo "no launch: this thread is in no worktree on a branch, and a reviewer runs in the crew's worktree"
 else
