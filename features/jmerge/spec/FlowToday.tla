@@ -77,10 +77,10 @@ Leaves(p) ==
 \* A jbus pass launches the row's crew, which opens its pull request, and its turn ends.
 Launch(p) ==
     /\ st[p] = "queued"
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:330-362, no room
     \* A row that builds on an open one launches stacked on its branch (#411), and one that builds
     \* on a row with no pull request yet waits; merge_after is read only by jmerge.
-    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:504-506
+    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:513-515
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
     /\ Leaves(p)
@@ -124,8 +124,8 @@ Merge(p) ==
     \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1468-1469: main's red tip after a briefed merge is filed.
-    \* A green tip withdraws a fix row that never launched (watch.py:1427-1428), and in this model
+    \* features/jbus/src/jbus/watch.py:1512-1513: main's red tip after a briefed merge is filed.
+    \* A green tip withdraws a fix row that never launched (watch.py:1471-1472), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
     /\ named' \in IF breaks[p] /\ ~(mainRed /\ ~proved[p]) THEN BOOLEAN ELSE {named}
@@ -212,11 +212,11 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew either fixes main in its own pull request,
 \* which merges by its slug, or ends with no pull request, its fix in an open one, as on
 \* 2026-10-27, when two flow rows held the fix. Either way the row is over, and jbus files no other
-\* for the same red tip (features/jbus/src/jbus/watch.py:1111-1113).
+\* for the same red tip (features/jbus/src/jbus/watch.py:1155-1157).
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1103-1124, queued with no approval
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1147-1168, queued with no approval
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:330-362, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
@@ -231,7 +231,7 @@ ApproveMainFix ==
           /\ UNCHANGED <<mainRed, redBy>>
     /\ UNCHANGED <<st, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser>>
 
-\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1170-1173),
+\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1214-1217),
 \* whose run then holds as main's red each pull request whose own browser run failed.
 \* browser.yml runs on main only nightly, so the hold starts with its next run.
 Nightly ==
@@ -245,7 +245,7 @@ Nightly ==
 \* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py:370-371).
 ApproveBrowserFix ==
     /\ brHold
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:330-362, no room
     /\ viewBroken' = FALSE
     /\ brHold' = FALSE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
@@ -259,7 +259,7 @@ OutsideBreak ==
     /\ \/ /\ ~mainRed
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
-          \* features/jbus/src/jbus/watch.py:1419,1462,1466,1469: since #392 the fix row is filed for a
+          \* features/jbus/src/jbus/watch.py:1463,1506,1510,1513: since #392 the fix row is filed for a
           \* red tip with no briefed merge in the day before it too, under the row's own name.
           /\ fixRow' = TRUE
           /\ named' \in BOOLEAN

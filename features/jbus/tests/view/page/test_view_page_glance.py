@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from view.days import DAYS
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, look
 from view.page.test_view_page_budgets import SCENES
 from view.scene import NOW, Served, iso
@@ -28,7 +29,7 @@ def ms(moment):
 def glanced(scene, tmp_path, build="calm", route="#/", alter=None, at=600, budget=6000, **how):
     """What the probe of the band found on `route` of the scene that `build` makes. `how` sets
     the probe's own globals: `looked`, `hidden` and `flip`."""
-    SCENES[build](scene)
+    (DAYS | SCENES)[build](scene)
     said = "".join(f"window.__{key} = {json.dumps(value)};" for key, value in how.items())
     served = Served(scene)
     try:
@@ -100,7 +101,8 @@ def test_nothing_wrong_and_nothing_waiting_is_one_calm_line(scene, tmp_path):
 
     band = glanced(scene, tmp_path, alter=calm)["band"]
     assert band["calm"].startswith("All clear: nothing wrong, nothing waits on you.")
-    assert (band["tiers"], band["head"], band["since"], band["moving"]) == ([], None, None, None)
+    assert (band["tiers"], band["since"], band["moving"]) == ([], None, None)
+    assert band["word"] == "MOVING" and band["head"].startswith("MOVING Slowed by ")
 
 
 @pytest.mark.parametrize("route", ["#/homes", "#/demo", "#/triage", "#/nosuch"])
@@ -142,3 +144,19 @@ def test_after_the_user_looks_away_and_back_the_line_is_about_the_new_look(scene
     seen = glanced(scene, tmp_path, alter=wrongs(2), **how)
     assert seen["band"]["since"] is None
     assert seen["stamp"] == str(ms(NOW))
+
+
+@pytest.mark.parametrize("day", sorted(DAYS))
+def test_the_band_draws_the_verdict_word_and_how_many_need_you(scene, tmp_path, day):
+    """On each day the overview is shot over, the band draws the server's word large, its cause,
+    and in the line under it the count of `needs`, the same as Needs you."""
+    band = glanced(scene, tmp_path, build=day)["band"]
+    served = Served(scene)
+    try:
+        given = served.json("/stack.json")
+    finally:
+        served.close()
+    verdict = given["glance"]["verdict"]
+    assert band["word"] == verdict["word"]
+    assert band["cause"].lower() == f"{verdict['cause']}.".lower()
+    assert band["needs"] == f"{len(given['needs'])} need you"

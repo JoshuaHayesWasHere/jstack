@@ -557,7 +557,11 @@ class Seen:
 
     def crew(self, slug: str) -> dict[str, Any] | None:
         """Return the one crew thread out for a slug, as it appears in the list of threads out."""
-        found = [one for one in self.out or [] if one["role"] == "crew" and one["slug"] == slug]
+        return self.thread_of("crew", slug)
+
+    def thread_of(self, role: str, slug: str) -> dict[str, Any] | None:
+        """Return the one thread of `role` out for a slug, as the list of threads out has it."""
+        found = [one for one in self.out or [] if one["role"] == role and one["slug"] == slug]
         return found[0] if len(found) == 1 else None
 
 
@@ -592,8 +596,17 @@ def final(run: Pass, world: World | None, rows: list[dict[str, Any]]) -> frozens
     if world is None:
         return frozenset(row["slug"] for row in rows if row.get("status") in queue.FINAL)
     merged = set(world.merged) - set(world.open)
+    crew = [row for row in rows if queue.role(row) == queue.CREW]
+    done = {row["slug"] for row in crew if ended(run, world, row["slug"]) == End("done")}
+    return frozenset(merged | done | reported(run, rows))
+
+
+def reported(run: Pass, rows: list[dict[str, Any]]) -> frozenset[str]:
+    """Return the slugs of the scouts' rows whose last Report says `Status: done` (`owed`)."""
     return frozenset(
-        merged | {row["slug"] for row in rows if ended(run, world, row["slug"]) == End("done")}
+        row["slug"]
+        for row in rows
+        if queue.role(row) == queue.SCOUT and owed(run, "scout", row["slug"]) == work.Written.CLEAN
     )
 
 
@@ -606,6 +619,8 @@ def facts(
     GitHub would say: its facet is `none`, and `judge` passes over every pattern that
     narrows it."""
     slug = row["slug"]
+    if queue.role(row) == queue.SCOUT:
+        return _scouted(run, world, row, seen, launched, last)
     result = last_result(brief_of(run, slug))
     if world is not None:
         found = world.thread(slug)
@@ -634,6 +649,34 @@ def facts(
         last=last,
     )
     return made, said is None
+
+
+def _scouted(
+    run: Pass, world: World | None, row: dict[str, Any], seen: Seen, launched: str, last: str
+) -> tuple[work.Facts, bool]:
+    """Return the facts of a scout's row, as `facts` does for a crewmate's. Its thread is the
+    one titled `scout: <slug>` in the list of threads out, and what it wrote is its last Report
+    (`owed`). It has no pull request. A launched thread that left the list once its Report was
+    written was settled; one that left it with nothing written is still starting, as far as the
+    pass can tell."""
+    slug = row["slug"]
+    one = seen.thread_of("scout", slug)
+    said = thread(one, str((one or {}).get("live", ""))) if one else None
+    written = owed(run, "scout", slug)
+    if one is None and launched:
+        said = work.Thread.STARTING if written == work.Written.NONE else work.Thread.SETTLED
+    made = work.Facts(
+        row=row_of(run, row, unmet(run, world, row, seen.final)),
+        thread=said or work.Thread.NONE,
+        seen="" if said or one is None else str(one.get("status", "")),
+        launch=work.Launch.LAUNCHED if launched else work.Launch.NONE,
+        written=written,
+        pull=work.Pull.NONE,
+        question=work.Question.OPEN if slug in run.gated else work.Question.NONE,
+        answered=seen.answered,
+        last=last,
+    )
+    return made, one is not None and said is None
 
 
 class Judging:
@@ -717,11 +760,12 @@ def thread_facts(run: Pass, one: dict[str, Any], answered: work.Answered, last: 
 
 
 def judged(
-    run: Pass, out: list[dict[str, Any]] | None, rows: set[str], answered: work.Answered
+    run: Pass, out: list[dict[str, Any]] | None, rows: set[tuple[str, str]], answered: work.Answered
 ) -> list[dict[str, Any]]:
-    """Return the `work.json` lines of every thread out that belongs to no row: a scout, a
-    reviewer, a home, another, and a crew whose slug has no row. With no list of them, return
-    the last pass's lines, not confirmed."""
+    """Return the `work.json` lines of every thread out that belongs to no row: a reviewer, a
+    home, another, and a crew or a scout whose slug has no row of its role. `rows` holds each
+    row's role and slug (`queue.role`). With no list of them, return the last pass's lines, not
+    confirmed."""
     kept = work.read(run.state) or {"work": []}
     if out is None:
         return [
@@ -732,7 +776,7 @@ def judged(
     last = work.last(run.state)
     found = []
     for one in out:
-        if one.get("role") == "crew" and one.get("slug") in rows:
+        if (one.get("role"), one.get("slug")) in rows:
             continue
         made = thread_facts(run, one, answered, last.get(one["id"], ""))
         state = work.unforeseen(made) if made.seen else work.judge(made)

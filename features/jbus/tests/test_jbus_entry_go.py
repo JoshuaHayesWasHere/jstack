@@ -92,11 +92,11 @@ def launched(kitchen, slug, status="running"):
 
 
 def test_an_entry_go_approves_each_row_filed_under_it_and_an_edit_with_no_second_word(kitchen):
+    queued(kitchen, "alpha")
     code, said = plan_go(kitchen)
     assert code == 0, said
     assert said.startswith("went epic: your go for the plan entry epic, 2026-10-12 10:30 ET")
-    assert "approved alpha" in queued(kitchen, "alpha")
-    queued(kitchen, "beta")
+    assert "approved beta" in queued(kitchen, "beta")
     queued(kitchen, "gamma", entry="other")
     assert basis(kitchen, "alpha") == basis(kitchen, "beta") == (queue.ENTRY, "epic")
     assert basis(kitchen, "gamma") == ()
@@ -130,10 +130,22 @@ def test_a_row_queued_before_the_go_is_approved_on_the_next_pass(kitchen):
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
 
 
+def test_a_go_for_an_entry_with_no_row_is_refused_and_keeps_no_go(kitchen):
+    code, said = plan_go(kitchen)
+    assert code == 1, said
+    assert said.startswith("refused: epic has no queue row: queue its first row, a scout's")
+    assert not (kitchen.state / "goes.json").exists()
+    queued(kitchen, "alpha")
+    kitchen.poll()
+    assert basis(kitchen, "alpha") == ()
+    assert kitchen.t3.launches == []
+
+
 def test_a_message_that_is_not_the_users_own_gives_no_go(kitchen):
+    queued(kitchen, "alpha")
     code, said = plan_go(kitchen, createdBy="agent", creationSource="agent", type="agent_message")
     assert code == 1 and said.startswith(f"refused: message {HOME}/{MESSAGE} is not user's own")
-    queued(kitchen, "alpha")
+    kitchen.poll()
     assert basis(kitchen, "alpha") == ()
 
 
@@ -162,8 +174,8 @@ def closed(kitchen):
 
 @pytest.mark.parametrize("end", [stop, changed_head, closed])
 def test_a_go_that_ends_leaves_an_unlaunched_row_waiting_and_a_launched_one_going_on(kitchen, end):
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "beta")
     launched(kitchen, "beta")
     end(kitchen)
@@ -177,8 +189,8 @@ def test_a_go_that_ends_leaves_an_unlaunched_row_waiting_and_a_launched_one_goin
 
 
 def test_plan_stop_says_which_rows_wait_again_and_plan_shows_the_stop(kitchen):
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
     said = stop(kitchen)
     assert said.startswith("stopped epic's go") and "alpha waits for the user's go" in said
     assert basis(kitchen, "alpha") == ()
@@ -190,23 +202,23 @@ def test_plan_stop_says_which_rows_wait_again_and_plan_shows_the_stop(kitchen):
 
 
 def test_a_row_whose_brief_is_a_case_of_gates_md_waits_under_the_entry_go(kitchen):
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha", text=brief("alpha", "Holds: spends money\n"))
+    assert plan_go(kitchen)[0] == 0
     kitchen.poll()
     assert basis(kitchen, "alpha") == ()
 
 
 def test_a_case_added_to_a_brief_with_a_go_takes_the_go_back(kitchen):
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha", text=brief("alpha", "Holds: deletes data\n"))
     kitchen.poll()
     assert basis(kitchen, "alpha") == ()
 
 
 def test_a_case_row_that_follows_a_row_with_the_entry_go_waits_for_the_users_word(kitchen):
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
     said = queued(kitchen, "beta", text=brief("beta", "Follows: alpha\nHolds: spends money\n"))
     kitchen.poll()
     assert basis(kitchen, "beta") == ()
@@ -232,8 +244,8 @@ def waits_on_user(kitchen):
 
 def test_under_silence_a_gated_s_row_is_approved_after_the_window_and_not_before(kitchen):
     silence(kitchen)
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
     assert basis(kitchen, "alpha") == ()
     number = gate(kitchen, "alpha")
     kitchen.poll(NOW + timedelta(minutes=29))
@@ -347,11 +359,11 @@ def test_a_scoped_homes_go_approves_its_own_rows_and_its_stop_takes_them_back(ki
     (scope / "home-id").write_text("mcp:flow-home\n")
     (scope / "plan.md").write_text(FLOW_PLAN)
     kitchen.t3.says(HOME, MESSAGE, "go on the flow epic")
+    queued(kitchen, "alpha", text=brief("alpha").replace("Home: mcp:a-home\n", "Home: flow\n"))
     code, said = kitchen.main(
         "plan", "go", "epic", "--scope", "flow", "--message", f"{HOME}/{MESSAGE}"
     )
     assert code == 0, said
-    queued(kitchen, "alpha", text=brief("alpha").replace("Home: mcp:a-home\n", "Home: flow\n"))
     queued(kitchen, "beta")
     assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
     assert basis(kitchen, "beta") == ()
@@ -381,8 +393,8 @@ def test_under_silence_a_follow_up_two_hops_from_silences_go_waits_when_silence_
 def test_an_entry_a_follow_up_takes_from_its_parent_approves_nothing(kitchen):
     """The row counts for its parent's entry in `jbus plan`, and still waits for the user's go:
     only an entry the home gave with `--entry` is approved by that entry's go."""
-    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "alpha")
+    assert plan_go(kitchen)[0] == 0
     queued(kitchen, "beta", entry="", text=brief("beta", "Follows: alpha\n"))
     kitchen.poll()
     assert rows(kitchen)["beta"]["parent_entry"] == "epic"
