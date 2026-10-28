@@ -239,7 +239,7 @@ function dYou(arg) {
   S.kinds.forEach(function (kind) {
     var k = kind.name, items = waits(k);
     function mine(w) { return k === hit && (!named || named === w.slug || named === w.number); }
-    if (!items.length && (k === "hold" || k === "config")) return;
+    if (!items.length && (k === "hold" || k === "config" || k === "github")) return;
     h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + kind.label + '</h3>' +
       (k === "gate" && can.length ? '<p style="margin:0 0 5px"><button type="button" class="btn" id="tickall">Tick all ' + can.length + ' that can be answered here</button></p>' : "") +
       (items.length ? fold(items, function (w) {

@@ -130,6 +130,7 @@ from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
 from jbus.wake import LOG
+from jmerge import budget as allowance
 from jmerge import mainjson
 
 APPROVAL = 400
@@ -1794,7 +1795,9 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
         since = main["at"] if main["red"] == main["sha"] else None
         found.append(_wrong(read, "main", "main", f"red at {main['red'][:7]}", since, "pulse"))
     if checks["error"]:
-        found.append(_wrong(read, "ci", "CI", "could not be read", None, "checks"))
+        named = checks["error"] if allowance.is_named(checks["error"]) else ""
+        cause = f"could not be read: {named}" if named else "could not be read"
+        found.append(_wrong(read, "ci", "CI", cause, None, "checks"))
     else:
         for at in checks["now"]["failed"]:
             run = checks["runs"][at]

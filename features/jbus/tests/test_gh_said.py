@@ -5,10 +5,12 @@ exit code and the first line of its stderr, with tokens and URL queries cut out.
 runs it, and `jbus` through a pass of the kitchen. So they read each line where a person reads
 it: in what the command prints, in `merge.log`, and in the alert."""
 
+import json
 import re
 
 import test_home_merge as merge
-from test_jbus_kitchen import NOW
+from jbus import budget, waiting
+from test_jbus_kitchen import NOW, rate_limit
 from test_jbus_queue import add
 from test_jbus_row_ends import PULL, result
 from test_sweep import Scene
@@ -192,6 +194,49 @@ def test_a_run_of_failed_passes_is_one_streak_and_its_alert_says_what_gh_said(ki
     )
 
 
+LIMITED = "GraphQL: API rate limit already exceeded for user ID 1."
+SECONDARY = "HTTP 429: You have exceeded a secondary rate limit (https://api.github.com/graphql)"
+REFUSED = "GitHub refused it for its API rate limit"
+RESET = "2026-10-12 16:00 UTC"
+"""When `rate_limit` says each window starts again."""
+
+
+def test_a_gh_call_refused_for_the_rate_limit_names_the_window_and_when_it_starts_again(home):
+    """The stand-in `gh` answers the list of pull requests with GitHub's 403 for a spent
+    allowance, and `gh api rate_limit` with no call left: `jmerge` names the window and its reset
+    in place of what `gh` said."""
+    (home.stub / "rate-limit.json").write_text(json.dumps(rate_limit(0)))
+    gh_fails(home, code=1, said=f"{LIMITED}\n", on="pr list")
+    line = f"{START}: {REFUSED}: its core window has 0 of 5000 calls left until {RESET}"
+    assert home.run() == [line]
+    assert home.code == 1
+    assert logged(home) == [line]
+
+
+def test_a_secondary_rate_limit_says_what_is_left_and_claims_nothing_spent(home):
+    (home.stub / "rate-limit.json").write_text(json.dumps(rate_limit(4200)))
+    gh_fails(home, code=1, said=f"{SECONDARY}\n", on="pr list")
+    line = f"{START}: {REFUSED}: its core window has 4200 of 5000 calls left until {RESET}"
+    assert home.run() == [line]
+
+
+def test_a_rate_limit_whose_reset_gh_does_not_give_says_so(home):
+    gh_fails(home, code=1, said=f"{LIMITED}\n")
+    line = f"{START}: {REFUSED}, and `gh api rate_limit` did not say when it starts again"
+    assert home.run() == [line]
+
+
+def test_a_branch_whose_pull_requests_github_refuses_for_the_rate_limit_is_kept_and_says_so(
+    merged,
+):
+    (merged.home.stub / "rate-limit.json").write_text(json.dumps(rate_limit(0)))
+    gh_fails(merged.home, code=1, said=f"{LIMITED}\n", on="--base alpha")
+    (said,) = merged.run()
+    ask = f"could not ask GitHub whether a pull request is based on it: {REFUSED}: its core"
+    assert f"({ask} window has 0 of 5000 calls left until {RESET}), revert: " in said
+    assert merged.branches() == (["main"], ["alpha", "main"])
+
+
 DOWN = "HTTP 504: Gateway Timeout (https://api.github.com/x?token=" + TOKEN + ")"
 TOLD = "HTTP 504: Gateway Timeout (https://api.github.com/x)"
 
@@ -226,3 +271,27 @@ def test_a_jbus_gh_that_exits_zero_with_no_json_says_so(kitchen):
     assert waits_on_github(said) == [
         "wait demo: could not ask GitHub: gh exited 0: its output was not JSON"
     ]
+
+
+def github_items(kitchen):
+    return [
+        one["line"]
+        for one in waiting.read(kitchen.state) or []
+        if one["kind"] == "github" and one["key"] == "github:demo"
+    ]
+
+
+def test_a_jbus_pass_github_refuses_for_the_rate_limit_names_it_and_lists_it_once(kitchen):
+    """The budget read leaves calls above the floor, so the pass lists the pull requests, and
+    GitHub refuses that call for a secondary rate limit: the pass names the limit, and what waits
+    on the user holds it once, however many passes see it, until GitHub answers again."""
+    kitchen.set("rate-limit.json", rate_limit(budget.FLOOR + 1))
+    kitchen.set("gh-list-down", LIMITED)
+    line = f"{REFUSED}: its core window has {budget.FLOOR + 1} of 5000 calls left until {RESET}"
+    for minute in (0, 3):
+        said = kitchen.poll(NOW.replace(minute=minute))
+        assert waits_on_github(said) == [f"wait demo: could not ask GitHub: {line}"]
+        assert github_items(kitchen) == [line]
+    (kitchen.stub / "gh-list-down").unlink()
+    kitchen.poll(NOW.replace(minute=6))
+    assert github_items(kitchen) == []

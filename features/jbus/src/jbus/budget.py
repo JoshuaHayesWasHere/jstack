@@ -1,11 +1,13 @@
-"""`budget` is the one reading of GitHub's API budget, which jbus and every thread share: they all
-call GitHub with the one token `gh` holds, and GitHub gives that token so many calls an hour.
+"""`budget` is the floor jbus keeps under GitHub's API budget, which jbus and every thread share:
+they all call GitHub with the one token `gh` holds, and GitHub gives that token so many calls an
+hour.
 
 `gh api rate_limit` says what is left, and asking it spends nothing. GitHub keeps two windows
 that jbus spends: `core`, the REST calls of `gh api`, and `graphql`, the calls of `gh pr list`
-and `gh pr view`. The budget is held when either window has `FLOOR` calls or fewer left, and
-when GitHub gave no answer, since then nobody can tell. What is under the floor is kept for
-what must be asked: `jmerge`'s merge and the reads it makes.
+and `gh pr view`. `jmerge.budget` is the one reading of that answer, which `jmerge` shares to
+name a call GitHub refused for its rate limit. The budget is held when either window has `FLOOR`
+calls or fewer left, and when GitHub gave no answer, since then nobody can tell. What is under
+the floor is kept for what must be asked: `jmerge`'s merge and the reads it makes.
 
 A pass of jbus reads the budget before it asks GitHub for its world (`jbus.watch.look`). When it
 is held, the pass asks GitHub nothing and has no world, as when GitHub is silent, so no row
@@ -18,66 +20,22 @@ skills name each loop.
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
-from datetime import UTC, datetime
 
 import jbus
 from jbus import verbs
+from jmerge.budget import ASK, Budget, at, parse
 
 FLOOR = 1000
 """The calls kept in each window for what must be asked: a fifth of the 5,000 an hour that GitHub
 gives a signed-in user."""
-WINDOWS = ("core", "graphql")
-ASK = ["gh", "api", "rate_limit"]
 TEMPFAIL = 75
 TIMEOUT = 30
 AGAIN = 30
 
 Ask = Callable[[list[str]], "str | None"]
-
-
-@dataclass(frozen=True)
-class Window:
-    """What GitHub says is left of one window, and when the window starts again."""
-
-    name: str
-    remaining: int
-    limit: int
-    reset: datetime
-
-
-@dataclass(frozen=True)
-class Budget:
-    """GitHub's answer to `gh api rate_limit`: each window jbus spends."""
-
-    windows: tuple[Window, ...]
-
-    @property
-    def low(self) -> Window:
-        """The window with the fewest calls left."""
-        return min(self.windows, key=lambda one: one.remaining)
-
-
-def parse(text: str) -> Budget | None:
-    """Return the budget that `gh api rate_limit` printed, or None where it is not one."""
-    try:
-        resources = json.loads(text)["resources"]
-        windows = tuple(
-            Window(
-                name,
-                int(resources[name]["remaining"]),
-                int(resources[name]["limit"]),
-                datetime.fromtimestamp(int(resources[name]["reset"]), UTC),
-            )
-            for name in WINDOWS
-        )
-    except (ValueError, TypeError, KeyError, OverflowError, OSError):
-        return None
-    return Budget(windows)
 
 
 def ask(command: list[str]) -> str | None:
@@ -106,12 +64,8 @@ def held(budget: Budget | None, calls: int = 0) -> str:
     more = f", and {calls} calls would take it to {low.remaining - calls}" if calls else ""
     return (
         f"GitHub's {low.name} budget has {low.remaining} of {low.limit} calls left{more}, "
-        f"at or under the floor of {FLOOR} kept for merges, until {_at(low.reset)}"
+        f"at or under the floor of {FLOOR} kept for merges, until {at(low.reset)}"
     )
-
-
-def _at(when: datetime) -> str:
-    return when.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:

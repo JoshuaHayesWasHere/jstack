@@ -3,6 +3,9 @@
 - The **Done when** list is the whole target. Write the tests for it first where the repo has tests.
 - The brief is trusted. Read the files it names; where it names none, read only what the task needs. Do not check its findings again, and do not explore beyond it. If a finding turns out wrong, say so in the result and read only what that needs.
 - Stay inside **Where** and out of **Do not touch**. If the task cannot be done without crossing that line, stop and say so.
+- GitHub's API allowance is one for jbus, `jmerge` and every thread, and a loop of `gh` calls can spend it for all of them, merges included.
+  Before a loop of more than ten `gh` calls, such as a fetch for each job, run or pull request, run `uv run --project "$T/../source" jbus budget --calls <n>` with the calls it will make: it reads `gh api rate_limit`, which spends nothing.
+  While it says `held` and ends 75, make none of those calls, since the allowance is at the floor jbus keeps for merges: fetch less, or stop and say so in the Result.
 - While you work, run only the tests that cover the files you change, never the whole suite, in the short lane of the test slots. Run this in this worktree, with the block at the top and the tests in place of the words in angle brackets (in a Python repo, `uv run pytest <those test files>`):
 
   ```sh

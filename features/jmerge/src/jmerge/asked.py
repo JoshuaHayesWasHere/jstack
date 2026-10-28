@@ -1,7 +1,14 @@
+"""How `jmerge` and jbus say that `gh` gave no answer: its exit code and the first line of its
+stderr, with tokens and URL queries cut out, or, for a call GitHub refused for its rate limit,
+the window and when it starts again (`jmerge.budget`)."""
+
 from __future__ import annotations
 
 import re
 import subprocess
+from collections.abc import Callable
+
+from jmerge import budget
 
 LIMIT = 160
 NOTHING = "it said nothing"
@@ -18,9 +25,17 @@ def cut(text: str) -> str:
     return plain if len(plain) <= LIMIT else plain[: LIMIT - 3].rstrip() + "..."
 
 
-def why(ran: subprocess.CompletedProcess[str], said: str = "") -> str:
+Ask = Callable[..., subprocess.CompletedProcess[str]]
+"""Run a command, as `ask(*command)`, and return how it ran."""
+
+
+def why(ran: subprocess.CompletedProcess[str], ask: Ask, said: str = "") -> str:
+    """Why `ran` gave no answer, after a colon. A refusal for the rate limit asks `gh api
+    rate_limit` with `ask`, which spends nothing, and names the window in place of the stderr."""
     if ran.returncode == 0:
         return f": gh exited 0: {said or NOT_JSON}"
+    if budget.refused(ran.stderr or ""):
+        return f": {budget.named(ask(*budget.ASK))}"
     return f": gh exited {ran.returncode}: {cut(ran.stderr or '') or NOTHING}"
 
 

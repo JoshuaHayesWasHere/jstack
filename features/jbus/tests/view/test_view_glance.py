@@ -12,6 +12,7 @@ from jbus.view import state as built
 from jbus.view.state import iso
 from jmerge import lines as jlines
 from jmerge import ready
+from test_jbus_kitchen import rate_limit
 from view.days import DAYS
 from view.scene import NOW, PULL, Scene, Served, ago, et, item, logged, out, row
 from view.test_view_wrong import STALL, idle
@@ -396,3 +397,23 @@ def test_needs_you_in_the_band_is_the_count_of_needs(scene, name):
     assert verdict["needs"] == len(given["needs"])
     yours = [one for one in given["glance"]["items"] if one["tier"] == "yours"]
     assert sum(one["count"] for one in yours) == verdict["needs"]
+
+
+def test_ci_github_refuses_for_the_rate_limit_is_cannot_see_with_the_limit_named(scene):
+    """The stand-in `gh` refuses the list of runs with GitHub's 403 for a spent allowance, and
+    answers `gh api rate_limit`: the view cannot see CI, and says why in place of no reason."""
+    stalled(scene)
+    scene.write("rate-limit.json", rate_limit(0), scene.root)
+    scene.script(
+        "gh",
+        'case "$*" in\n'
+        f'"api rate_limit") cat {scene.root}/rate-limit.json ;;\n'
+        '*) echo "gh: API rate limit exceeded for user ID 1. (HTTP 403)" >&2; exit 1 ;;\n'
+        "esac\n",
+    )
+    verdict = stack(scene)["glance"]["verdict"]
+    assert (verdict["word"], verdict["cause"]) == (
+        "CANNOT SEE",
+        "CI could not be read: GitHub refused it for its API rate limit: its core window has 0 of "
+        "5000 calls left until 2026-10-12 16:00 UTC",
+    )

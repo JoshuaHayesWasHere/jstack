@@ -40,6 +40,7 @@ from typing import Any, Protocol
 import jsettings
 from jbus import locked
 from jbus.ci import ledger
+from jmerge import budget as allowance
 
 TITLE = "jstack-ci"
 PAGE = 100
@@ -104,6 +105,8 @@ class Cli:
 
     def _said(self, *args: str) -> str:
         asked = self.ask(["gh", "api", *args])
+        if asked.returncode and allowance.refused(asked.stderr):
+            raise Unavailable(allowance.named(self.ask(allowance.ASK)))
         if asked.returncode:
             raise Unavailable(" ".join(asked.stderr.split())[:200] or f"gh exit {asked.returncode}")
         return asked.stdout

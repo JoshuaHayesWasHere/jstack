@@ -14,7 +14,9 @@ and none is still open. The token stays inside `gh`. Of an answer the server tak
 named fields, never a title, a body, a diff or a log.
 
 When GitHub does not answer, the server keeps that failure for as long as it would keep an
-answer that did come. So it does not ask GitHub on every request while GitHub is down.
+answer that did come. So it does not ask GitHub on every request while GitHub is down. A call
+GitHub refused for its rate limit is kept as the line that names the window and when it starts
+again (`jmerge.budget`), in place of `DOWN`.
 
 No request waits on GitHub for more than `PATIENCE` seconds. The server runs `gh` in a
 thread of its own, one at a time for each question. A request still waiting after that time
@@ -34,6 +36,7 @@ from typing import Any
 from urllib.parse import quote
 
 from jbus.view.state import iso, text, when
+from jmerge import budget as allowance
 
 RUNS, RUNS_KEPT, PULL_KEPT, MERGED_KEPT, LANDED_KEPT = 40, 60, 30, 300, 300
 MERGED_MOST, FROM_MOST = 1000, 100
@@ -45,10 +48,21 @@ UNKNOWN = "the repo is not known"
 _SHA = re.compile(r"[0-9a-f]{40}")
 
 
+class Limited(Exception):
+    """GitHub refused a call for its rate limit. The message is the line that says so."""
+
+
+def _run(*command: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, capture_output=True, text=True, timeout=TIMEOUT)
+
+
 def _ask(*said: str) -> Any:
-    """What `gh <said>` printed, as JSON, or None where it did not answer."""
+    """What `gh <said>` printed, as JSON, or None where it did not answer. Raise `Limited` where
+    GitHub refused it for its rate limit."""
     try:
-        asked = subprocess.run(["gh", *said], capture_output=True, text=True, timeout=TIMEOUT)
+        asked = _run("gh", *said)
+        if asked.returncode and allowance.refused(asked.stderr):
+            raise Limited(allowance.named(_run(*allowance.ASK)))
         return json.loads(asked.stdout) if asked.returncode == 0 else None
     except (OSError, subprocess.SubprocessError, ValueError):
         return None
@@ -106,6 +120,8 @@ class GitHub:
         def fetch(done: threading.Event) -> None:
             try:
                 answer = ask()
+            except Limited as limited:
+                answer = none | {"error": str(limited)}
             except Exception:
                 answer = none | {"error": DOWN}
             with self._lock:

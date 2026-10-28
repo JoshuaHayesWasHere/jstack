@@ -117,6 +117,8 @@ case "$1 $2" in
         esac ;;
     "api repos/"*"/check-runs")
         cat "$STUB/main-check-runs.json" ;;
+    "api rate_limit")
+        cat "$STUB/rate-limit.json" ;;
     "pr merge")
         [ "$4 $5" = "--squash --match-head-commit" ] || exit 64
         cp "$LOG" "$STUB/log-at-merge" 2> /dev/null
