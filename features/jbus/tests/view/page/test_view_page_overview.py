@@ -184,7 +184,8 @@ def test_a_bare_link_shows_every_project_once_from_one_request_a_poll(scene, tmp
         ("larder", "0 open"),
         (
             "demo",
-            "9 open · 3 wait on you · check: 0 failing, 1 running or queued, 0 passed · 1 on default",
+            "9 open · 3 wait on you · check: 0 failing, 1 running or queued, 0 passed"
+            " · 1 on default",
         ),
         ("pantry", "2 open · 1 waits on you"),
     ]
