@@ -199,7 +199,11 @@ def _sweep() -> None:
     """Remove the pytest runs under `/tmp/pytest-of-<user>` that are over 20 minutes old and that
     no live process holds, with room's own sweep, and say how many went. A run outside any slot,
     or one that was killed, leaves its basetemp there, and pytest's retention keeps a killed run's
-    for days. A sweep that fails stops nothing: the slot is already let go."""
+    for days. A sweep that fails stops nothing: the slot is already let go. The signals go back
+    to their defaults first, so a stop told now ends `test-slot` and is not passed to a command
+    that has already ended."""
+    for told in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        signal.signal(told, signal.SIG_DFL)
     try:
         swept = subprocess.run(
             ["sh", str(Path(__file__).with_name("room.sh")), "sweep"],
@@ -207,7 +211,7 @@ def _sweep() -> None:
             text=True,
             timeout=60,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.SubprocessError):
         return
     removed = swept.stdout.strip()
     if removed.isdecimal() and int(removed):

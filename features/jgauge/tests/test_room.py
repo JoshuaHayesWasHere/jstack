@@ -1135,6 +1135,26 @@ def test_a_mac_neither_sweeps_tmp_nor_counts_its_file_slots(tmp_path):
     assert not (tmp_path / "stub" / "asked").exists()
 
 
+@pytest.mark.parametrize("given", ["no proc", "a proc"])
+def test_the_sweep_a_slot_runs_on_a_mac_removes_nothing_unless_given_a_proc(tmp_path, given):
+    """`room.sh sweep`, which every `jgauge test-slot` runs as it lets its slot go, tells a held
+    run from /proc. A Mac has none, so there it removes nothing, unless a test gives it one."""
+    linux, tmp = tmpfs(tmp_path, 1000)
+    made = runs(tmp, "joshua", [1, 2, 3])
+    env = mac(tmp_path, env=linux)
+    if given == "a proc":
+        env["PROC"] = linux["PROC"]
+    swept = subprocess.run(
+        ["sh", str(ROOM), "sweep"], env=env, capture_output=True, text=True, check=True
+    )
+    if given == "a proc":
+        assert (swept.stdout, swept.stderr) == ("3\n", "")
+        assert not any(path.exists() for path in made)
+    else:
+        assert (swept.stdout, swept.stderr) == ("0\n", "")
+        assert all(path.is_dir() for path in made)
+
+
 def processes(where, *each, uptime=1000.0):
     """Processes in the machine's /proc: each a command, a working directory, and the seconds
     of CPU it used over its life, all of which began 900 s after the machine booted. With 100
