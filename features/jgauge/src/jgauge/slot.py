@@ -39,6 +39,10 @@ shared. Pytest's own retention did not keep that one small: a run that was kille
 up, and runs at once shared its numbering. Only the slot's holder writes in the directory. It
 removes the directory when it lets the slot go, however the command ended. A holder that dies
 cannot, so the next one to take the slot removes what is left before its command starts.
+
+A slot let go then sweeps the shared `pytest-of-<user>` in `/tmp` (`TMPFS`) with room's sweep: the
+runs there over 20 minutes old that no live process holds, which runs outside any slot and runs
+that were killed leave, go whatever share of the file slots is used.
 """
 
 from __future__ import annotations
@@ -191,6 +195,28 @@ def _temporary(lock: Path) -> Path:
     return own
 
 
+def _sweep() -> None:
+    """Remove the pytest runs under `/tmp/pytest-of-<user>` that are over 20 minutes old and that
+    no live process holds, with room's own sweep, and say how many went. A run outside any slot,
+    or one that was killed, leaves its basetemp there, and pytest's retention keeps a killed run's
+    for days. A sweep that fails stops nothing: the slot is already let go."""
+    try:
+        swept = subprocess.run(
+            ["sh", str(Path(__file__).with_name("room.sh")), "sweep"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return
+    removed = swept.stdout.strip()
+    if removed.isdecimal() and int(removed):
+        where = os.environ.get("TMPFS") or "/tmp"
+        print(
+            f"test-slot: removed {removed} stale pytest directories under {where}", file=sys.stderr
+        )
+
+
 def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
     """Send the signal to the command, and in the short lane to every process it started, which
     is its process group. A group with no process left to signal is no fault: Linux says ESRCH,
@@ -271,3 +297,4 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
             holders.end(lock.parent, mine.id, 1 if code is None else code, datetime.now(UTC))
         shutil.rmtree(own, ignore_errors=True)
         os.close(held)
+        _sweep()
