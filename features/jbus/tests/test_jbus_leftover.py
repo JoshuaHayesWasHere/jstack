@@ -104,9 +104,10 @@ def test_three_passes_send_the_home_one_message_and_a_new_left_text_a_second(kit
         kitchen.poll()
     (sent,) = sends(kitchen)
     assert (sent["threadId"], sent["mode"]) == (at["threadId"], "queue")
-    assert sent["clientRequestId"].startswith("leftover|alpha|")
+    assert sent["clientRequestId"].startswith("wakes|demo|")
     said = sent["message"]
-    assert said.startswith("jbus: alpha ended with something left")
+    assert f"\n- left alpha: {NOTE}\n" in said
+    assert "\n\njbus: alpha ended with something left" in said
     assert f"Its pull request #9 {PULL} is merged." in said
     assert f"Left: {NOTE}\n" in said
     assert 'Question 1: tea or coffee? It is answered: "tea it is", by user' in said
@@ -119,7 +120,6 @@ def test_three_passes_send_the_home_one_message_and_a_new_left_text_a_second(kit
     first, second = sends(kitchen)
     assert first == sent and second["clientRequestId"] != sent["clientRequestId"]
     assert "Left: only the index page\n" in second["message"]
-    assert len(kitchen.lines("leftover")) == 2
 
 
 def test_a_task_that_ended_with_no_pull_request_says_so_to_its_home(kitchen):
@@ -173,16 +173,16 @@ def test_a_leftover_open_thirty_minutes_is_said_to_the_root_home_and_not_the_use
     assert stalls(kitchen) == []
     first, raised = sends(kitchen)
     assert (raised["threadId"], raised["mode"]) == (root, "queue")
-    assert raised["clientRequestId"].startswith("leftover-late|alpha|")
+    assert raised["clientRequestId"].startswith("wakes|demo|")
     late = f"its home, thread {scoped}, has not closed it 30 min after jbus told it"
-    assert raised["message"].startswith(f"jbus: alpha ended with something left, and {late}.")
+    assert f"\n\njbus: alpha ended with something left, and {late}." in raised["message"]
     assert "Left: the docs" in raised["message"]
     assert "jbus says this row to the root home once" in first["message"]
     (task,) = state(kitchen, later(95))["tasks"]
     assert task["who"] != "user"
     kitchen.brief("alpha", "Home: pantry\n" + result("the index page"))
     kitchen.poll(later(96))
-    kitchen.poll(later(130))
+    kitchen.poll(later(120))
     assert len(sends(kitchen)) == 3 and listed(kitchen) == []
 
 
@@ -258,7 +258,11 @@ def test_a_scoped_homes_brief_goes_to_that_scope_by_its_name_or_its_thread(kitch
     ended(kitchen, "gamma", head=f"Home: {root['threadId']}\n")
     ended(kitchen, "delta", head="Home: mcp:a-thread-that-is-no-home\n")
     kitchen.poll()
-    went = {one["clientRequestId"].split("|")[1]: one["threadId"] for one in sends(kitchen)}
+    went = {
+        slug: one["threadId"]
+        for one in sends(kitchen)
+        for slug in re.findall(r"^- left (\w+):", one["message"], re.M)
+    }
     assert went == {
         "alpha": scope["threadId"],
         "beta": scope["threadId"],
@@ -272,21 +276,11 @@ def test_a_message_t3_code_does_not_take_is_sent_on_the_next_pass(kitchen):
     ended(kitchen)
     kitchen.t3.lose_send = True
     said = kitchen.poll()
-    assert [line for line in said if line.startswith("wait alpha: its home could not be told")]
-    why = f"T3 Code did not take the message to its home's thread {at}"
-    assert kitchen.t3.messages == {} and listed(kitchen) == [f"left alpha: left: the docs; {why}"]
+    assert [line for line in said if line.startswith(f"wait demo: {at} could not be woken")]
+    assert kitchen.t3.messages == {} and listed(kitchen) == []
     kitchen.t3.lose_send = False
     kitchen.poll(later(40))
     assert len(kitchen.t3.messages) == 1 and listed(kitchen) == [] and stalls(kitchen) == []
-
-
-def test_a_message_t3_code_refuses_leaves_the_row_the_users_with_the_reason(kitchen):
-    at = home(kitchen)["threadId"]
-    ended(kitchen)
-    kitchen.t3.refuse_send = True
-    kitchen.poll()
-    why = f"T3 Code refused the message to its home's thread {at}"
-    assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
 
 
 def test_a_row_that_leaves_nothing_or_is_still_out_has_no_record_and_no_message(kitchen):
@@ -340,7 +334,7 @@ def test_a_home_that_took_over_is_told_too_and_its_thirty_minutes_start_then(kit
     assert stalls(kitchen) == [] and listed(kitchen) == []
     raised = sends(kitchen)[-1]
     assert (raised["threadId"], len(sends(kitchen))) == (second["threadId"], 3)
-    assert raised["clientRequestId"].startswith("leftover-late|alpha|")
+    assert "\n\njbus: alpha ended with something left, and its home" in raised["message"]
 
 
 def test_a_home_told_and_then_settled_is_the_users_with_that_reason_and_not_raised(kitchen):

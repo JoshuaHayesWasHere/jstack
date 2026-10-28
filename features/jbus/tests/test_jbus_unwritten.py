@@ -54,9 +54,9 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     for minutes in (1, 2):
         kitchen.poll(NOW + minutes * MIN)
     (sent,) = told(kitchen, at)
-    assert sent["clientRequestId"].startswith("leftover|alpha|") and sent["mode"] == "queue"
+    assert sent["clientRequestId"].startswith("wakes|demo|") and sent["mode"] == "queue"
     said = sent["message"]
-    assert said.startswith("jbus: alpha ended with nothing written")
+    assert "\n\njbus: alpha ended with nothing written" in said
     assert "its thread completed with nothing written" in said
     assert "`Status: done`" in said and "`Left: none`" in said
     assert "`jbus queue remove alpha --by" in said
@@ -65,7 +65,7 @@ def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitch
     kitchen.poll(NOW + (leftover.CLOSE_MINUTES + 1) * MIN)
     assert listed(kitchen) == []
     first, late = told(kitchen, at)
-    assert first == sent and late["clientRequestId"].startswith(f"{leftover.LATE_KIND}|alpha|")
+    assert first == sent and "and its home, thread" in late["message"]
 
 
 def test_a_thread_that_hung_with_nothing_written_is_told_to_its_home_to_interrupt(kitchen):

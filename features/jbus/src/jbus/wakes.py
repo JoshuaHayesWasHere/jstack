@@ -1,33 +1,15 @@
 """A home is woken from one list: the open items it owns that are new to it since its last wake.
 
-The list is what the view already builds. It holds each entry of `state.wrongs` that an agent owns,
-for the thread that `state.owner` names. Where the project's wakes go to its home thread, it also
-holds each need of the user that the root home passes on (`blockers.deciding`). An item's key is
-what the item is, with no run and no time in it: a red's failing tests where its run's log names
-them, and a wrong's kind, subject and reason where it does not (`state.key_of`). A need keeps its
-own key. One red is one item whatever runs or branches show it. `pick` takes, of the items that
-one home thread owns, those that are new to it:
+The items are the entries of `state.wrongs` an agent owns, the needs the root home passes on
+(`blockers.deciding`) and the leftovers a home has (`jbus.leftover`). An item's key has no run and
+no time in it: a red's failing tests, a wrong's kind, subject and reason (`state.key_of`), a
+need's own key. `pick` takes the items one home thread owns that are new to it, less those its
+own thread caused and those whose cause is another open item, unless the row is that item's fix.
+An item that leaves the list wakes no one, since a thread's record keeps only open keys.
 
-- an item that the home's own thread caused does not wake it. A row to approve is caused by the
-  home whose brief it is, since a home queues only its own briefs (`queue.owned`);
-- an item whose cause is another open item folds into that item: the stall of a row whose pull
-  request is red folds into the red, and so does a red main into the red of its tip. The row
-  that fixes the item is the exception. Its brief names the item (`Fix of:`, or the line it was
-  queued from in its `Task:`), and a stall of a fix on the very red it fixes is news;
-- an item that leaves the list wakes no one, since the keys a home has seen keep only the open
-  ones, and a later return of the item is news again.
-
-A pass sends each home thread at most one message, `wakes`, through the outbox, with the line of
-each item that is new to it. `wakes.json` in the project's state is the one record of what a home
-was told. It keeps, by thread, each open item's key with when it was told and its `state.key_of`,
-which the view reads as what the owner was told (`state._fixing`). It also keeps the failing
-tests of each red run that it read, so a log is read once.
-
-Of the faults of a row, only those that no step that works the row tells are items here: a crew of
-the root home's that hung at work, and a stalled row whose wait no clock takes to its home
-(`jbus.clock`). A crew is told of its own work by the step that works it, as a crew's carry-on
-(`jbus.rebase`, `jbus.expedite`), and what a thread asked or a reviewer wrote goes to its reader
-as it is: neither is an item of the list.
+A pass sends each home thread at most one `wakes` message through the outbox. `wakes.json` is the
+one record of what a home was told, which the view reads too (`state._fixing`). A fault of a row
+that the step working the row tells, as a crew's carry-on, is on the list only as a cause.
 """
 
 from __future__ import annotations
@@ -40,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import blockers, clock, outbox, read_json, verbs, write_json
+from jbus import blockers, clock, leftover, outbox, read_json, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.threads import ROLES
@@ -60,7 +42,7 @@ MESSAGE = (
     "{lines}\n\n"
     "Fix each, or hand it to the thread whose work it is. A question only {user} can answer is a "
     "gate: take the default and pipe it to `jbus gate <slug>`. jbus tells this home of an item "
-    "once while it stays open, and of nothing that leaves the list."
+    "once while it stays open, and of nothing that leaves the list.{texts}"
 )
 _QUOTED = re.compile(r'\bjbus "([^"]+)"')
 _RUN_ID = re.compile(r"/actions/runs/(\d+)")
@@ -68,9 +50,8 @@ _RUN_ID = re.compile(r"/actions/runs/(\d+)")
 
 @dataclass(frozen=True)
 class Item:
-    """One open item of the list: its key, the thread that owns it (`to`), its line, the row it
-    is about, the thread that caused it (`by`), the key of the open item that caused it (`of`),
-    and the keys of the items its row is the fix of (`fixes`)."""
+    """One open item: `to` owns it, `by` caused it, `of` is the key of the item that caused it, and
+    `fixes` the keys of the items its row is the fix of."""
 
     key: str
     to: str
@@ -80,6 +61,7 @@ class Item:
     of: str = ""
     fixes: frozenset[str] = field(default_factory=frozenset)
     wrong: str = ""
+    text: str = ""
 
 
 def pick(items: list[Item], seen: dict[str, Any], thread: str) -> list[Item]:
@@ -134,24 +116,15 @@ def _hung(one: dict) -> bool:
     return one["kind"] == "thread" and hung and crew
 
 
-def _clocked(found: state.Read, row: str) -> bool:
-    """Whether the row's wait has a clock that takes it to the home (`jbus.clock`): one that has
-    not reached the home yet, or one whose line went to the home."""
-    wait = (found.table(clock.FILE) or {}).get(row)
-    if not isinstance(wait, dict):
-        return False
-    sent = found.records(outbox.FILE) or []
-    went = {line.get("key") for line in sent if line.get("went") == "sent"}
-    return not wait.get("home") or clock.home_key(row, wait) in went
-
-
 def _woken(found: state.Read, one: dict) -> bool:
     """Whether a wrong wakes its owner: a fault with no row, a hung crew, or a stalled row whose
-    wait no clock takes to its home. Any other fault of a row, as a red check of a crew's pull
-    request, is told by the step that works the row, and is on the list only as a cause."""
+    wait no clock still works (`jbus.clock`). Any other fault of a row, as a red check of a crew's
+    pull request, is told by the step that works the row, and is on the list only as a cause."""
     if not one["row"]:
         return True
-    return _hung(one) or (one["kind"] == state.STALLED and not _clocked(found, one["row"]))
+    wait = (found.table(clock.FILE) or {}).get(one["row"])
+    clocked = isinstance(wait, dict) and not wait.get("home")
+    return _hung(one) or (one["kind"] == state.STALLED and not clocked)
 
 
 class _Tests:
@@ -183,10 +156,6 @@ class _Tests:
 def red_key(tests: list[str]) -> str:
     """The key of a red by its failing tests: the same set is the same red on any branch."""
     return f"red|{hashlib.sha256('|'.join(sorted(tests)).encode()).hexdigest()[:12]}"
-
-
-def line_of(one: dict) -> str:
-    return f"{one['kind']} {one['subj']}: {one['cause']}"
 
 
 def _url(found: state.Read, one: dict) -> str:
@@ -221,30 +190,26 @@ def _fixes(found: state.Read, row: str, lines: dict[str, str]) -> frozenset[str]
 
 
 def wrong_items(found: state.Read, tests: _Tests | None) -> list[Item]:
-    """The items of the list from `state.wrongs`: each with its key, its owner thread, and the
-    open item its cause is."""
+    """The items of the list from `state.wrongs`, each with the open item its cause is: a red
+    main's is the red at its tip, and a stalled row's is its own red."""
     wrongs = [one for one in found.once(state.wrongs) if one["owner"] != state.USER and one["to"]]
-    keys: dict[int, str] = {}
-    for at, one in enumerate(wrongs):
+    keys, lines, reds = [], {}, {}
+    for one in wrongs:
         failing = tests.of(_url(found, one)) if tests and one["kind"] == "ci" else []
-        keys[at] = red_key(failing) if failing else state.key_of(one).rsplit("|", 1)[0]
-    lines = {line_of(one): keys[at] for at, one in enumerate(wrongs)}
-    ci = [one for one in wrongs if one["kind"] == "ci"]
-    red_of = {one["row"]: keys[at] for at, one in enumerate(wrongs) if one["kind"] == "ci"}
-    reds = [keys[at] for at, one in enumerate(wrongs) if one["kind"] == "ci"]
-    main_red = next((key for key, one in zip(reds, ci, strict=True) if one["subj"] == "main"), "")
+        keys.append(red_key(failing) if failing else state.key_of(one).rsplit("|", 1)[0])
+        lines[f"{one['kind']} {one['subj']}: {one['cause']}"] = keys[-1]
+        if one["kind"] == "ci":
+            reds[one["row"] or one["subj"]] = keys[-1]
     items = []
-    for at, one in enumerate(wrongs):
-        cause = main_red if one["kind"] == "main" else ""
-        if one["kind"] == state.STALLED:
-            cause = red_of.get(one["row"], "")
+    for key, one in zip(keys, wrongs, strict=True):
+        cause = {"main": "main", state.STALLED: one["row"]}.get(one["kind"])
         items.append(
             Item(
-                key=keys[at],
+                key=key,
                 to=one["to"] if _woken(found, one) else "",
-                line=line_of(one),
+                line=f"{one['kind']} {one['subj']}: {one['cause']}",
                 row=one["row"],
-                of=cause,
+                of=reds.get(cause, "") if cause else "",
                 fixes=_fixes(found, one["row"], lines),
                 wrong=state.key_of(one),
             )
@@ -270,26 +235,35 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
     return items
 
 
+def left_items(run: Pass) -> list[Item]:
+    """The leftovers its home has (`jbus.leftover`), each the item of that home's thread, and the
+    root home's too once its home has not closed it in `leftover.CLOSE_MINUTES`."""
+    root, items = thread_of(run.home), []
+    for slug, one in leftover.read(run.state).items():
+        if one.why or one.busy or not one.thread:
+            continue
+        line = leftover.key_of(slug, one.left)
+        items.append(Item(key=line, to=one.thread, line=line, row=slug, text=one.text))
+        if root and leftover.late(one, run.now):
+            key = leftover.key_of(slug, one.left, "left-late")
+            text = leftover.raised(run, slug, one)
+            items.append(Item(key=key, to=root, line=line, row=slug, text=text))
+    return items
+
+
 def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     """Send each home thread, at most once a pass, the open items it owns that are new to it."""
     record = read_json(run.state / FILE, {})
     tests = _Tests(run, record.get("tests", {}))
     found = read(run)
-    needs = need_items(run, listed)
-    items = wrong_items(found, tests) + needs
-    owned = {
-        one["to"]
-        for one in found.once(state.wrongs)
-        if one["owner"] == state.ROOT_HOME or one["owner"].startswith("home ")
-    }
+    items = wrong_items(found, tests) + need_items(run, listed) + left_items(run)
     threads = record.get("threads", {})
-    for thread in sorted((owned | {one.to for one in needs}) - {""}):
+    for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = threads.get(thread, {})
         new = pick(items, seen, thread)
-        if new and _send(run, client, thread, new):
-            threads[thread] = kept(items, seen, new, run.now.isoformat())
-        else:
-            threads[thread] = kept(items, seen, [], run.now.isoformat())
+        told = new if new and _send(run, client, thread, new) else []
+        threads[thread] = kept(items, seen, told, run.now.isoformat())
+    threads = {thread: seen for thread, seen in threads.items() if seen}
     write_json(run.state / FILE, {"threads": threads, "tests": tests.used})
 
 
@@ -300,6 +274,7 @@ def _send(run: Pass, client: Client, thread: str, new: list[Item]) -> bool:
         count=len(new),
         project=run.project.name,
         lines="\n".join(f"- {one.line}" for one in new),
+        texts="".join(f"\n\n{one.text}" for one in new if one.text),
         user=run.user.user,
     )
     try:

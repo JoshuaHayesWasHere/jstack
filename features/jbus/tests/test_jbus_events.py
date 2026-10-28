@@ -317,7 +317,6 @@ TABLE = {
     "reviewed": "quiet",
     "overlap": "quiet",
     "note": "quiet",
-    "leftover": "quiet",
     "unplaced": "quiet",
     "item.proposed": "quiet",
     "item.linked": "quiet",

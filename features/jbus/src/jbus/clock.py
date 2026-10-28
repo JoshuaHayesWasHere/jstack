@@ -24,8 +24,8 @@ since the reviewer's Start reads the line as its message. A scoped reviewer that
 no `worktreePath` runs in the main checkout and refuses there, so it is sent nothing: its crew is
 told instead (`ROOTED`), once for the head, to launch one in the crew's own worktree. It sends a
 crew one carry-on that names the wait. The count starts again. At `PASSES` more, the second miss,
-jbus sends the brief's home one line and owns the wait no longer. With no home, or a home T3 Code
-refuses the line, it logs one quiet `stall` instead. Neither goes to the user. A turn that hangs is
+jbus logs one quiet `stall` and owns the wait no longer: the stall is an item of the one list,
+which takes it to the brief's home (`jbus.wakes`), and never to the user. A turn that hangs is
 counted as stopped, and jbus does not interrupt it: interrupting a hung turn waits on the user's
 own rule for it (jv-hung-interrupt), so the home picks it up.
 
@@ -103,11 +103,6 @@ CARRY_ON = (
     "thread not at work: {reason}. Carry on with your brief from where you stopped: read "
     "`tasks/{slug}.md` and your worktree's `git status` and `git log` first, keep what is "
     "committed, do not start over, and do what the crew skill says next for your pull request."
-)
-HOME = (
-    "jbus: {slug}'s pull request #{number} still waits, {reason}, {passes} passes after jbus "
-    "{did}, with {thread} not at work. It is the home's from here: pick it up as the home skill's "
-    '"Picking up a thread that stopped" says. Its crew\'s thread is {crew}.'
 )
 ROOTED = (
     "jbus: your scoped reviewer {reviewer} of pull request #{number} has no worktree: it runs in "
@@ -282,40 +277,18 @@ def _act(run: Pass, client: Client, slug: str, wait: dict[str, Any]) -> bool:
     return True
 
 
-def home_key(slug: str, wait: dict[str, Any]) -> str:
-    """The outbox's key of the one line that tells the brief's home that a wait still waits."""
-    return f"{CLOCK}-home|{slug}|{wait['kind']} {wait['head'][:12]} {wait['thread']}"
-
-
-def _home(run: Pass, client: Client, slug: str, wait: dict[str, Any], brief: str) -> bool:
-    """Tell the brief's home, in one line, that a wait jbus acted on still waits. With no home, log
-    one quiet stall, and one too where T3 Code refused the home the line. Return whether it is
-    done."""
+def _home(run: Pass, slug: str, wait: dict[str, Any], brief: str) -> None:
+    """Log one quiet stall of a wait jbus acted on that still waits. The stall is an item of the
+    one list, which takes it to the brief's home, or to the root home where it has none
+    (`jbus.wakes`)."""
     did = wait.get("did") or ("relaunched its reviewer" if wait["line"] else "carried its crew on")
     crew = briefs.thread_of(brief) or "not known"
-    text = HOME.format(
-        slug=slug,
-        number=wait["number"],
-        reason=wait["reason"],
-        passes=wait["passes"],
-        did=did,
-        thread=wait["thread"],
-        crew=crew,
-    )
-    at = watch.home_thread(run, brief)
+    home = watch.home_thread(run, brief)
+    why = "it is its home's from here" if home else "it has no home to tell"
     key = f"{wait['kind']} {wait['head'][:12]} {wait['thread']}"
-    sending = home_key(slug, wait)
-    went = _send(run, client, at, text, sending, needs="decide") if at else "no home"
-    if not went:
-        return False
-    if went == "sent":
-        run.say(f"{CLOCK} {slug}: told its home, thread {at}, that #{wait['number']} still waits")
-        return True
-    why = f"T3 Code refused its home, {at}, the line" if at else "it has no home to tell"
     line = f"{STALL} {slug}: #{wait['number']} waited {wait['passes']} passes after jbus {did}"
-    line += f", {wait['reason']}, and {why}; its crew's thread is {crew}"
-    run.find(slug, STALL, line, key=f"{CLOCK} {key}")
-    return True
+    line += f", {wait['reason']}, with {wait['thread']} not at work, and {why}"
+    run.find(slug, STALL, f"{line}; its crew's thread is {crew}", key=f"{CLOCK} {key}")
 
 
 def _nudges(run: Pass, slug: str, head: str) -> int:
@@ -366,7 +339,8 @@ def tick(
             continue
         if not wait["acted"] and _act(run, client, slug, wait):
             wait |= {"acted": True, "passes": 0}
-        elif wait["acted"] and _home(run, client, slug, wait, brief):
+        elif wait["acted"]:
+            _home(run, slug, wait, brief)
             wait["home"] = True
     if kept != was:
         write_json(run.state / FILE, kept)
