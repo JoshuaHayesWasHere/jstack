@@ -583,7 +583,12 @@ def test_on_a_phone_the_probe_waits_for_every_home_when_the_board_answers_last(s
     for each home, and not the empty part drawn before the board came."""
     DAYS["t"](scene)
     seen = desk(scene, tmp_path, screen=PHONE, script=LATE_BOARD + OVERVIEW)
-    assert [one["home"] for one in seen["homes"]] == ["root", "jview", "flow", "macos"]
+    assert [one["home"] for one in seen["homes"]] == [
+        "demo/root",
+        "demo/jview",
+        "demo/flow",
+        "demo/macos",
+    ]
 
 
 @pytest.mark.parametrize("day", list(DAYS))
