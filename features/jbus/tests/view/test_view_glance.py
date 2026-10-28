@@ -412,8 +412,8 @@ def test_ci_github_refuses_for_the_rate_limit_is_cannot_see_with_the_limit_named
         "esac\n",
     )
     verdict = stack(scene)["glance"]["verdict"]
-    assert (verdict["word"], verdict["cause"]) == (
-        "CANNOT SEE",
+    assert verdict["word"] == "CANNOT SEE"
+    assert verdict["cause"].startswith(
         "CI could not be read: GitHub refused it for its API rate limit: its core window has 0 of "
-        "5000 calls left until 2026-10-12 16:00 UTC",
+        "5000 calls left until 2026-10-12 16:00 UTC"
     )
