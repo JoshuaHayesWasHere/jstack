@@ -47,7 +47,8 @@ is that red. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEA
 request is open, since that row's own wait is what holds it, a hold that is the user's (step
 `hold`, already on what waits on the user) and a wait with its own clock above are no such hold.
 A required check with no run at the head (`ready.NO_RUN`) is no wait on the merge runner: no
-runner is at work on it, so it is a hold.
+runner is at work on it, so it is a hold. One whose workflow GitHub runs there (`ready.LIVE_RUN`)
+is such a wait.
 A row ahead with no open pull request, closed with no merge or not opened yet, holds its rows
 with nothing watching it, so that wait is a hold. `held.json`
 keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
@@ -124,6 +125,7 @@ RUNNER = (
     ready.RULES_CHANGED,
     ready.UNDECIDED,
     ready.NOT_PASSED,
+    ready.LIVE_RUN,
     ready.MIGRATION_MERGING,
     ready.BASE_MERGE_ASKED,
     ready.BASE_MERGE_DUE,

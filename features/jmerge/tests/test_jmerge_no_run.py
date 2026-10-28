@@ -8,6 +8,12 @@ base tip, as for a base that moved under a green pull request. Then GitHub runs 
 at the updated head. A hold on that reason is no wait on the merge runner, so it wakes its home
 (`clock.held`).
 
+A required check that waits on other jobs of its workflow, as `check` waits on its four shards, is
+not listed at the head until they end, while GitHub runs them (merge-wait-1, 2026-10-28: #610's
+`check has no run at ebd54cb4de4e` while its shards ran 14:06:50 to 14:15:01Z). It waits on that
+run, queued or running, and not as a check with no run: no base merge is asked, and the hold is a
+wait on the runner.
+
 The tests run the command as `test_jmerge_rejudge` does, against a real origin and a fake `gh`."""
 
 import json
@@ -68,6 +74,50 @@ def test_a_running_macos_still_waits_as_today_and_asks_nothing(tmp_path):
     replay.main_at({"main.txt": "theirs\n"}, FIXED, "green")
     assert replay.run() == [f"wait 479 {url(479)}: macos has not passed"]
     assert replay.updated() == []
+
+
+def shard(status):
+    """A shard of the check workflow, which GitHub lists before the job named `check` exists."""
+    return {**run("", "check 1 of 4", status), "workflowName": "check"}
+
+
+def live_of(tmp_path, status):
+    """A pull request whose borders and macos passed, and whose check workflow is at work with
+    no job named `check` listed yet, in a repo whose main moved since."""
+    replay = Replay(tmp_path, fresh=False)
+    (replay.kitchen.home.state / "required-checks").write_text(REQUIRED)
+    checks = (BORDERS, {**run("SUCCESS", "macos"), "startedAt": STARTED}, shard(status))
+    head = replay.kitchen.crew("one", 479, {"one.txt": "ours\n"}, checks=checks)
+    (replay.kitchen.home.stub / "branch-479").write_text("one")
+    replay.main_at({"main.txt": "theirs\n"}, FIXED, "green")
+    return replay, head
+
+
+def test_a_check_whose_workflow_runs_reads_as_running_and_asks_nothing(tmp_path):
+    replay, head = live_of(tmp_path, "IN_PROGRESS")
+    said = replay.run()
+    assert said == [f"wait 479 {url(479)}: check's run at {head[:12]} is running"]
+    assert ready.code_of(said[0].split(": ", 1)[1]) == "live-run"
+    assert replay.updated() == []
+
+
+def test_a_check_whose_workflow_is_queued_reads_as_queued(tmp_path):
+    replay, head = live_of(tmp_path, "QUEUED")
+    assert replay.run() == [f"wait 479 {url(479)}: check's run at {head[:12]} is queued"]
+    assert replay.updated() == []
+
+
+def test_a_check_whose_workflow_ended_with_no_check_job_has_no_run(tmp_path):
+    """With nothing of its workflow at work, GitHub has no run of the check at the head."""
+    replay, head = live_of(tmp_path, "COMPLETED")
+    assert replay.run() == [f"wait 479 {url(479)}: check has no run at {head[:12]}"]
+
+
+def test_rows_waiting_on_a_running_check_are_no_hold(kitchen):
+    """A runner is at work on the run, so the rows wait on the merge runner and wake nobody."""
+    held = Held(kitchen, ready.LIVE_RUN.format(check="check", head="abcdef123456", state="running"))
+    held.until(31)
+    assert held.told() == []
 
 
 def test_rows_held_on_a_check_with_no_run_wake_their_home_after_the_hold_minutes(kitchen):
