@@ -59,7 +59,7 @@ def test_a_bare_name_goes_into_the_runtime_directory(shooting, tmp_path, capsys,
     runtime = tmp_path / "run"
     runtime.mkdir()
     monkeypatch.setenv("XDG_RUNTIME_DIR", str(runtime))
-    code, said = shot(capsys, "#/", "--out", "shot.png", "--home", "jview", "--port", shooting)
+    code, said = shot(capsys, "#/", "--out", "shot.png", "--home", "demo/jview", "--port", shooting)
     assert (code, said) == (0, str(runtime / "shot.png"))
     assert size(runtime / "shot.png")[0] == 1440
 
