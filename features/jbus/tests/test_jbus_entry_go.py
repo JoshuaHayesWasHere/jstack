@@ -376,3 +376,15 @@ def test_under_silence_a_follow_up_two_hops_from_silences_go_waits_when_silence_
     )
     queued(kitchen, "cleanup-cleanup-alpha", entry=None, text=big)
     assert basis(kitchen, "cleanup-cleanup-alpha") == ()
+
+
+def test_an_entry_a_follow_up_takes_from_its_parent_approves_nothing(kitchen):
+    """The row counts for its parent's entry in `jbus plan`, and still waits for the user's go:
+    only an entry the home gave with `--entry` is approved by that entry's go."""
+    assert plan_go(kitchen)[0] == 0
+    queued(kitchen, "alpha")
+    queued(kitchen, "beta", entry="", text=brief("beta", "Follows: alpha\n"))
+    kitchen.poll()
+    assert rows(kitchen)["beta"]["parent_entry"] == "epic"
+    assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
+    assert basis(kitchen, "beta") == ()
