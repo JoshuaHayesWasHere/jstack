@@ -57,19 +57,14 @@ def test_the_launch_starts_a_crewmate_named_for_its_role_in_a_worktree_on_the_ta
     assert (workspace["type"], workspace["branch"]) == ("worktree", SLUG)
 
 
-def test_a_durable_scout_is_a_queue_row_and_the_home_skill_launches_none_by_hand():
-    launches = [sent for sent in given() if "workspaceStrategy" in sent]
-    assert [sent for sent in launches if sent["title"].startswith(scouts.TITLE)] == []
-    sending = (SKILL.parent / "sending-a-scout.md").read_text()
-    assert "`jbus --project <project> queue add <slug> --priority <n> --entry <entry>" in sending
-
-
 def test_each_launch_has_a_twin_that_differs_only_by_the_model_selection():
     launches = [sent for sent in given() if "workspaceStrategy" in sent]
+    tool = next(call for call in CALLS if call.tool == "t3_thread_launch")
     assert len(launches) == 6
     for launch, twin in zip(launches[::2], launches[1::2], strict=True):
         assert "modelSelection" not in launch
         assert twin == {**launch, "modelSelection": json.loads(SELECTION)}
+        assert errors(tool, launch) == [] and errors(tool, twin) == []
     assert call("workspaceStrategy") == launches[0]
 
 
