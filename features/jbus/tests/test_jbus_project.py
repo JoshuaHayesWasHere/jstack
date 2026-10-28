@@ -210,9 +210,9 @@ def test_the_view_table_gives_the_views_address_names_and_origins_or_none(tmp_pa
     assert settings(tmp_path, "").view == jbus.View()
     view = settings(
         tmp_path,
-        '[view]\nhost = "192.0.2.7"\nnames = ["box"]\norigins = ["https://jbus.example.org"]\n',
+        '[view]\nhost = "192.0.2.7"\nnames = ["box"]\norigins = ["https://example.test"]\n',
     ).view
-    assert view == jbus.View("192.0.2.7", ("box",), ("https://jbus.example.org",))
+    assert view == jbus.View("192.0.2.7", ("box",), ("https://example.test",))
 
 
 @pytest.mark.parametrize(
