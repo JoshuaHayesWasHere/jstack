@@ -10,8 +10,10 @@ import pytest
 import jsettings
 from jbus.view import state as built
 from jbus.view.state import iso
+from jmerge import lines as jlines
+from jmerge import ready
 from view.days import DAYS
-from view.scene import NOW, Scene, Served, ago, et, item, logged, out, row
+from view.scene import NOW, PULL, Scene, Served, ago, et, item, logged, out, row
 from view.test_view_wrong import STALL, idle
 from view.walk import runs, sources
 
@@ -227,6 +229,69 @@ def test_the_t_moment_moves_slowed_by_18_failing_checks_and_8_stacked(scene):
     checks = next(one for one in given["slow"]["stages"] if one["key"] == "check")["checks"]
     assert checks["stacked"] == stacked["count"]
     assert verdict["quiet_since"] is None
+
+
+PARENTS = {
+    "pull-failed-alert": ["owed-entry"],
+    "plan-builds-on-fires": ["owed-entry", "jv-overview-desk"],
+    "root-stall-watch": ["owed-entry"],
+    "prose-lint": ["owed-entry"],
+    "memories-to-code": ["plan-builds-on-fires"],
+    "cleanup-plan-builds-on-fires": ["plan-builds-on-fires"],
+    "cleanup-root-stall-watch": ["root-stall-watch"],
+    "jv-overview-phone": ["jv-overview-desk"],
+    "cleanup-jv-overview-desk": ["jv-overview-desk"],
+    "cleanup-jv-overview-phone": ["jv-overview-phone"],
+}
+"""Ten stacked rows of round-2026-10-28's jstack, with 11 parent links between them: seven go
+back to owed-entry and three to jv-overview-desk."""
+
+
+def test_stacked_rows_are_counted_once_each_and_named_by_the_rows_they_go_back_to(scene):
+    """H-09: the verdict said "their parents: 6 running, 3 stacked, 2 merge", 11 parents for 10
+    rows, as it summed each row's parent links."""
+    rows, log = [], []
+    for number, slug in enumerate(("owed-entry", "jv-overview-desk"), 40):
+        reason = "macos has not passed"
+        rows.append(row(slug, "pr", pr=f"#{number}", checks="pending", why=f"wait: {reason}"))
+        log.append(logged(5, "wait", number, reason))
+    for number, (slug, parents) in enumerate(PARENTS.items(), 50):
+        reason = ready.STACKED_ON.format(branch=parents[0], slug=parents[0], default="main")
+        why = f"wait: {reason}"
+        rows.append(row(slug, "pr", pr=f"#{number}", checks="passed", why=why, merge_after=parents))
+        said = jlines.waits("wait", number, PULL.format(number), reason)
+        log.append(f"{et(ago(minutes=10)).removesuffix(' ET')} {jlines.logged(said)}")
+    scene.queue(rows)
+    scene.merge_log(*log)
+    verdict = stack(scene)["glance"]["verdict"]
+    stacked = next(one for one in verdict["groups"] if one["kind"] == "stacked")
+    assert stacked["count"] == 10
+    assert stacked["text"] == "stacked (on owed-entry, jv-overview-desk)"
+    assert "10 stacked (on owed-entry, jv-overview-desk)" in verdict["cause"]
+
+
+def test_a_row_stacked_on_a_merged_parent_is_not_named_as_its_own_head(scene):
+    """The board keeps only open rows as links, so a row whose parent merged waits on none and
+    is its own head."""
+    reason = ready.STACKED_ON.format(branch="owed-entry", slug="owed-entry", default="main")
+    said = jlines.waits("wait", 51, PULL.format(51), reason)
+    scene.queue(
+        [
+            row("owed-entry", "merged", pr="#50"),
+            row(
+                "prose-lint",
+                "pr",
+                pr="#51",
+                checks="passed",
+                why=f"wait: {reason}",
+                merge_after=["owed-entry"],
+            ),
+        ]
+    )
+    scene.merge_log(f"{et(ago(minutes=10)).removesuffix(' ET')} {jlines.logged(said)}")
+    verdict = stack(scene)["glance"]["verdict"]
+    stacked = next(one for one in verdict["groups"] if one["kind"] == "stacked")
+    assert stacked["text"] == "stacked (on a merged or gone row)"
 
 
 def test_the_overloaded_day_is_held_by_you_with_12_behind_its_head(scene):

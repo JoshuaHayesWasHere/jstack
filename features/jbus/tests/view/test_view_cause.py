@@ -53,11 +53,17 @@ CAPTURE = {
 }
 
 
+def _word(seen: dict) -> str:
+    state = seen["check"]["state"]
+    return state if state in ("passed", "failed") else ""
+
+
 def test_each_row_in_check_says_what_its_check_did_and_since_when():
     """`CAPTURE` is the 12 rows in Check on the live `/state.json` at 08:06 EDT 2026-10-26, as
-    the scout kept them: each said only "check has not passed", whatever its check had done."""
+    the scout kept them: each said only "check has not passed", whatever its check had done. A
+    check that answered has jmerge's word beside it, as the pass writes it (`checks`)."""
     found = {
-        slug: cause(task("check", reason, ago(minutes), seen=seen), NOW)
+        slug: cause(task("check", reason, ago(minutes), seen=seen, checks=_word(seen)), NOW)
         for slug, (reason, minutes, seen) in CAPTURE.items()
     }
     passed = ", jmerge has not moved it on"
@@ -76,6 +82,15 @@ def test_each_row_in_check_says_what_its_check_did_and_since_when():
         "ux-find": Cause("check 1 of 4 running 11m", ago(11), True),
     }
     assert sum(not one.moving for one in found.values()) == 8
+
+
+def test_a_row_whose_required_check_has_not_passed_names_it_and_never_says_passed():
+    """H-01: jmerge waits on macos, and the newest check the pass saw, the aggregate `check`,
+    passed. The card said "check passed, jmerge has not moved it on"."""
+    seen = checked("check", "passed", 6, 2)
+    said = cause(task("check", "macos has not passed", ago(9), seen=seen, checks="pending"), NOW)
+    assert said == Cause("macos running or queued 6m", ago(6), False)
+    assert "passed" not in said.text
 
 
 def test_a_row_in_check_with_no_check_seen_gives_what_the_view_says():
