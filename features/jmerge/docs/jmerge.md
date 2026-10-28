@@ -269,13 +269,7 @@ A pull request waits when one of those paths is one of these:
 
 - a path the pull request also changes
 - a CI path in `features/jmerge/src/jmerge/ci-paths.txt` (`.github/workflows/`, `/pyproject.toml`, `/uv.lock`, `/Makefile`)
-- a caller of the pull request's files, or a file they depend on
 
-`jmerge` finds callers and dependencies by reading main's files at the tip and the pull request's own files at the head.
-One file is linked to another in two cases.
-It imports the other as Python does, by the other file's dotted path or any tail of it.
-Or it names the other file's path, and that path contains a `/`.
-A `conftest.py` counts for every Python file under its directory.
 The wait reads:
 
 ```
@@ -283,18 +277,9 @@ wait <number> <url>: main changed <up to five paths, then "and <k> more"> after 
 ```
 
 `main` there is the name of the base branch.
-If main moved only on other paths, none of them a caller or a dependency, the check still counts, and nobody rebases for it.
-
-A caller or a dependency holds the merge only in a repo with a `fresh-check` file, where GitHub's check proves the head over today's main.
-A repo with no such file has no way to test that, and a rebase would move the reviewed head for a file the pull request does not change.
-So when every changed path main brought is a caller or a dependency, and none is the pull request's own or a CI path, the check still counts there.
-The pull request merges on it, and the `ready` and `merged` lines, and `merge.log`, carry this note:
-
-```
-fresh: none, main changed related <up to five paths, then "and <k> more">; no fresh-check file
-```
-
-A path the pull request also changes, or a CI path, still makes it wait.
+If main moved only on other paths, the check still counts, and nobody rebases for it.
+That holds in a repo with a `fresh-check` file as in one without.
+A file of main's that imports the pull request's files, one they import, or one that names their path is such an other path.
 
 A repo opts in to proving a pull request over today's main with a `fresh-check` file in its state directory.
 `jmerge` reads only that the file has a line in it: no suite runs on this machine for a merge, and the command on that line is not run.
@@ -349,6 +334,9 @@ A check that a repo requires before its workflow reaches the base gets no run at
 When that is all that holds the pull request, it merges cleanly, and its base has moved since its check started, `jmerge` asks GitHub to merge the base into the branch, as for a green pull request whose base moved.
 The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, asked once for a head and a base tip, and GitHub runs the base's workflows at the new head.
 With the base unmoved, the line stays `<check> has no run at <head12>`: that is no wait on the merge runner, so jbus wakes the home once it is held longer than `clock.HOLD_MINUTES` (`features/jbus/src/jbus/clock.py`).
+A check that waits on other jobs of its workflow, as `check` waits on its four shards, is not listed at the head until they end.
+While GitHub runs a job of the workflow of the check's name there, the line is `<check>'s run at <head12> is running`, or `is queued` while they all wait, and not `has no run`.
+That is a wait on the merge runner, and no base merge is asked for it (merge-wait-1, 2026-10-28: #610 read `check has no run at ebd54cb4de4e` while its shards ran).
 
 ## Merge gate
 
@@ -511,7 +499,7 @@ For each part of the gate that fails, it prints `wait <number> <url>: guarded (t
   In a brief from before the current rule, it can also be the head named on a `Rebase: patch unchanged` line, when the patch-ids of its two commits match.
   Otherwise the reason is `its head is not the one its review saw`.
 - **A rebase, and no local check.**
-  If main changed one of its paths, a CI path, or a caller or a dependency of its files since the check started, a guarded pull request waits for a rebase, and GitHub is not asked to update it.
+  If main changed one of its paths or a CI path since the check started, a guarded pull request waits for a rebase, and GitHub is not asked to update it.
   Its line ends `it needs a rebase`.
 - **A proven safety fact.**
   At the commit it saw, the review proved the one fact that makes the change safe.

@@ -1234,6 +1234,10 @@ class Read:
         return _lines(self.home / "merge.log")
 
     @cached_property
+    def history(self) -> dict[int, list[dict[str, str]]]:
+        return _history(self.log or [], self.user)
+
+    @cached_property
     def where(self) -> str:
         return repo(self.sources, self.name)
 
@@ -1310,7 +1314,7 @@ class Read:
         seen = self.mine.get("rows")
         made = _tasks(
             self.rows,
-            _history(self.log or [], self.user),
+            self.history,
             self.judged,
             asked,
             self.moves or [],
@@ -1344,9 +1348,10 @@ class Read:
 
     def merged_since(self, start: str) -> list[dict[str, Any]]:
         """Each merge at or after `start`, oldest first: each row that moved to merged in the
-        queue, and each row that `merge.log` records as merged while the row says another
-        state. The view works it out once for each `start`: the panel `merged` and the band
-        `glance` ask for the same one for most of the day."""
+        queue, each row the pass judged merged while the row says another state, and each row
+        whose last `merge.log` line is `merged`, at that line's time, before any pass reads it.
+        The view works it out once for each `start`: the panel `merged` and the band `glance`
+        ask for the same one for most of the day."""
         if ("merged", start) not in self._kept:
             self._kept["merged", start] = self._merged_since(start)
         return self._kept["merged", start]
@@ -1368,6 +1373,14 @@ class Read:
                 approved = one["approved_at"]
                 merged.append(
                     {"slug": one["slug"], "pr": one["pr"], "at": at, "approved": approved}
+                )
+        for row in self.rows:
+            logged = self.history.get(number, []) if (number := _number(row)) is not None else []
+            at = logged[-1]["at"] if logged and logged[-1]["word"] == "merged" else None
+            if at and at >= start and row["slug"] not in {m["slug"] for m in merged}:
+                approved = when(queue.ran_at(row), self.user)
+                merged.append(
+                    {"slug": row["slug"], "pr": f"#{number}", "at": at, "approved": approved}
                 )
         merged.sort(key=lambda one: one["at"])
         return merged

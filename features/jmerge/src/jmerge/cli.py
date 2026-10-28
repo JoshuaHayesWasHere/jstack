@@ -802,8 +802,7 @@ class Repo:
         if moved is None:
             return f"{one.base} could not be fetched to see what changed after its check", "", ""
         tip, paths = moved
-        own = ready.stale_paths(one.files, left, paths, self.ci)
-        stale = own or self.related(one, left, tip, paths)
+        stale = ready.stale_paths(one.files, left, paths, self.ci)
         if not stale:
             return "", tip, ""
         path = ready.guarded_path(one, self.guarded, left)
@@ -811,8 +810,6 @@ class Repo:
             short = ready.short_on_main(stale, one.started, one.base, rebase=True, user=self.user)
             return f"guarded (touches {path}), {short}", "", ""
         asks = self.merged is not None and self.merged.command
-        if not asks and not own:
-            return "", tip, ready.related_note(stale)
         if not asks:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
         found = self.merged.of(one.head, tip)
@@ -835,20 +832,6 @@ class Repo:
         ):
             return red
         return self.base_merge.of(one, moved[0])
-
-    def related(
-        self, one: ready.PullRequest, left: tuple[str, ...], tip: str, paths: tuple[str, ...]
-    ) -> tuple[str, ...]:
-        ours = {
-            path: _text(self.main, "git", "show", f"{one.head}:{path}") or "" for path in one.files
-        }
-        ours |= {path: "" for path in left if path not in ours}
-        theirs = {
-            path: _text(self.main, "git", "show", f"{tip}:{path}") or ""
-            for path in paths
-            if path not in ours
-        }
-        return ready.callers_and_dependencies(ours, theirs)
 
     def short_of_guarded(
         self, one: ready.PullRequest, text: str, rebase: ready.Rebase | None, note: str
@@ -1753,8 +1736,8 @@ def parser() -> argparse.ArgumentParser:
         "merges with a merge commit where the repo allows one, else as a squash. "
         "A draft is never merged, with any flag. "
         "One whose check started before main changed one of its paths, a CI path "
-        "(features/jmerge/src/jmerge/ci-paths.txt), or a caller of its files or something "
-        "they depend on waits for a fresh check: where the repo's state has a "
+        "(features/jmerge/src/jmerge/ci-paths.txt) waits for a fresh check: where the "
+        "repo's state has a "
         "fresh-check file, GitHub is asked to merge main into its branch, and its check at "
         "the updated head stands in; no suite runs on this machine. One whose rebase dropped "
         "a line waits for its crew to say why and for the scoped review to uphold it, and is "

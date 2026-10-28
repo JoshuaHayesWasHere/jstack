@@ -66,6 +66,7 @@ After a change to any of the six fields, the user must give the go again.
 Among them, a brief whose `Review:` is `review` or `after` needs a `Decisions:` line with the user's words for it, or `none, <why>` where jbus files the brief, since `twice` is the default.
 Another refuses a brief whose head asks for a load that takes every core (`stress-ng --cpu 0`, `stress-ng --cpu $(nproc)`, every core), and names a bounded load inside `jgauge test-slot` instead.
 `features/jbriefs/src/jbriefs/standing.py` holds the two.
+A third, `layered` in `features/jbriefs/src/jbriefs/chains.py`, refuses a brief whose `Builds on:` line gives a plan layer as its reason (`the base of layer 2`), since a row stacks only on a parent whose code it changes, calls or imports.
 A check added after a row got its go does not apply to that row, so it refuses neither the row's brief nor its launch.
 [What an approval is bound to](../../jbus/docs/jbus/the-queue.md#what-an-approval-is-bound-to) has the rules.
 

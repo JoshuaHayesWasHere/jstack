@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import re
 import string
 from collections import Counter
@@ -200,6 +199,7 @@ CONTENT_CHANGED = Reason(
 NOT_PASSED = Reason("check", "{check} has not passed")
 CHECK_FAILED = Reason("check", "{check} has not passed")
 NO_RUN = Reason("check", "{check} has no run at {head}")
+LIVE_RUN = Reason("check", "{check}'s run at {head} is {state}")
 CONFLICTS = Reason("rebase", "it conflicts with its base")
 UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
 TOUCHES = Reason("hold", "needs {user}, touches {path}")
@@ -289,7 +289,6 @@ _RULED = "{id}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_SKIPPED = "fresh: skipped, tree {tree} passed in {at}, on {head} over {tip}"
-_RELATED_NOTE = "fresh: none, main changed related {paths}; no fresh-check file"
 
 
 @dataclass(frozen=True)
@@ -310,6 +309,9 @@ class PullRequest:
     added: tuple[str, ...] = ()
     failed: tuple[str, ...] = ()
     unrun: tuple[str, ...] = ()
+    live: tuple[tuple[str, str], ...] = ()
+    """Each required check with no run of its own listed at the head whose workflow GitHub is
+    running there, with `queued` or `running` (`live`)."""
 
 
 def _at(text: str | None) -> datetime | None:
@@ -353,10 +355,33 @@ def waiting(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[s
     return tuple(name for name in required if not passed(rollup, name))
 
 
+def live(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[tuple[str, str], ...]:
+    """The required checks GitHub lists no run of at the head while it runs other jobs of the
+    workflow of that name there, each with `running` where one of those jobs is in progress and
+    `queued` where they all wait. GitHub lists a job only once the jobs it needs have ended, so
+    the check workflow's `check` is not listed while its shards run (merge-wait-1, 2026-10-28)."""
+    found = []
+    for name in required:
+        if latest(rollup, name):
+            continue
+        states = {
+            one.get("status")
+            for one in rollup
+            if one.get("workflowName") == name and one.get("status") != "COMPLETED"
+        }
+        if "IN_PROGRESS" in states:
+            found.append((name, "running"))
+        elif states:
+            found.append((name, "queued"))
+    return tuple(found)
+
+
 def unrun(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
-    """The required checks GitHub lists no run of at the head, in `required`'s order: no runner
-    is at work on them, as for a workflow the head's merge with its base does not have."""
-    return tuple(name for name in required if not latest(rollup, name))
+    """The required checks GitHub lists no run of at the head, and no job of their workflow at
+    work there, in `required`'s order: no runner is at work on them, as for a workflow the head's
+    merge with its base does not have."""
+    at_work = dict(live(rollup, required))
+    return tuple(name for name in required if not latest(rollup, name) and name not in at_work)
 
 
 def failed(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
@@ -427,6 +452,7 @@ def pull_request(listed: dict, required: tuple[str, ...] = REQUIRED) -> PullRequ
         added=tuple(one["path"] for one in listed["files"] if one.get("changeType") == "ADDED"),
         failed=failed(listed.get("statusCheckRollup") or [], required),
         unrun=unrun(listed.get("statusCheckRollup") or [], required),
+        live=live(listed.get("statusCheckRollup") or [], required),
     )
 
 
@@ -1041,6 +1067,8 @@ def short_on_content(verdict: Verdict | None) -> str:
 def short_on_github(one: PullRequest) -> str:
     if one.waiting and one.waiting[0] in one.unrun:
         return NO_RUN.format(check=one.waiting[0], head=one.head[:12])
+    if one.waiting and (state := dict(one.live).get(one.waiting[0])):
+        return LIVE_RUN.format(check=one.waiting[0], head=one.head[:12], state=state)
     if one.waiting:
         failed = one.waiting[0] in one.failed
         return (CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])
@@ -1143,67 +1171,6 @@ def stale_paths(
     return tuple(dict.fromkeys(stale))
 
 
-def modules(path: str) -> tuple[str, ...]:
-    if not path.endswith(".py"):
-        return ()
-    parts = path[: -len(".py")].split("/")
-    if parts[-1] == "__init__":
-        parts.pop()
-    if not parts:
-        return ()
-    return tuple(".".join(parts[start:]) for start in range(len(parts)))
-
-
-def imports(path: str, text: str) -> set[str]:
-    if not path.endswith(".py"):
-        return set()
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return set()
-    package = path.endswith("/__init__.py") or path == "__init__.py"
-    full = modules(path)[:1]
-    homes = [name.split(".") if package else name.split(".")[:-1] for name in full]
-    loaded = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            named = [alias.name for alias in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                up = node.level - 1
-                bases = [home[: len(home) - up] for home in homes if len(home) >= up]
-                froms = [
-                    ".".join([*base, *(node.module or "").split(".")]).strip(".") for base in bases
-                ]
-            else:
-                froms = [node.module or ""]
-            named = [f"{base}.{alias.name}".strip(".") for base in froms for alias in node.names]
-            named += froms
-        else:
-            continue
-        for name in filter(None, named):
-            parts = name.split(".")
-            loaded.update(".".join(parts[:end]) for end in range(1, len(parts) + 1))
-    return loaded
-
-
-def uses(path: str, text: str, other: str) -> bool:
-    if other.endswith("conftest.py") and path.endswith(".py"):
-        if path.startswith(other[: -len("conftest.py")]):
-            return True
-    if "/" in other and other in text:
-        return True
-    return bool(imports(path, text) & set(modules(other)))
-
-
-def callers_and_dependencies(ours: dict[str, str], theirs: dict[str, str]) -> tuple[str, ...]:
-    return tuple(
-        path
-        for path, text in theirs.items()
-        if any(uses(path, text, own) or uses(own, ours[own], path) for own in ours)
-    )
-
-
 def short_on_main(
     stale: tuple[str, ...],
     since: datetime,
@@ -1217,10 +1184,6 @@ def short_on_main(
     paths = _first_five(stale)
     reason = MAIN_CHANGED_REBASE if rebase else MAIN_CHANGED
     return reason.format(default=default, paths=paths, since=user.clock(since))
-
-
-def related_note(stale: tuple[str, ...]) -> str:
-    return _RELATED_NOTE.format(paths=_first_five(stale))
 
 
 def _first_five(paths: tuple[str, ...]) -> str:
