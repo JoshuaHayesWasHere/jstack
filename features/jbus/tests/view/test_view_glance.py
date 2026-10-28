@@ -54,8 +54,8 @@ def troubled(scene):
     )
     scene.waiting(
         [
-            item("approve", f"approve:{slug}", f"approve {slug}: it", slug=slug)
-            for slug in ("tea-kettle", "tea-pot")
+            item("approve", f"approve:{slug}", f"approve {slug}: it", slug=slug, minutes=minutes)
+            for slug, minutes in (("tea-kettle", 50), ("tea-pot", 20))
         ]
     )
     scene.passed(20, threads=[out("crew: jam-jar", "hung", minutes=25)])

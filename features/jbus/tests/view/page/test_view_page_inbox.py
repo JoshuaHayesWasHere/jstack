@@ -67,11 +67,11 @@ def test_approve_and_its_undo_reach_jbus_and_a_gate_links_to_its_home(tmp_path, 
     assert links == [("A", "Write to its home", "t3-thread://v1/mcp:home-demo")]
 
 
-def test_the_drawer_of_what_waits_hands_over_no_cli_line_for_a_row_to_approve(
+def test_the_drawer_of_what_waits_approves_a_row_in_place_and_hands_over_no_cli_line(
     tmp_path, monkeypatch
 ):
-    """Its row says which brief waits and sends the user to its Approve in Needs you, not to a
-    `jbus queue approve` line with placeholders to fill in."""
+    """Its row says which brief waits and has the Approve of Needs you, which counts its 10 s
+    with an Undo right there, not a `jbus queue approve` line with placeholders to fill in."""
     counter = Counter(tmp_path, monkeypatch)
     code, said = counter.kitchen.main(
         "queue", "add", "oat-milk", "--priority", "1", stdin=complete("oat-milk")
@@ -86,14 +86,15 @@ def test_the_drawer_of_what_waits_hands_over_no_cli_line_for_a_row_to_approve(
             tmp_path / "look",
             route="#/demo/you/approve",
             port=served.port,
-            walk=["look"],
-            at=4000,
-            budget=8000,
+            walk=["look", 'tap:#dw [data-accept="demo/approve:oat-milk"]', "look"],
+            at=6000,
+            budget=10000,
         )
     finally:
         served.close()
         counter.kitchen.close()
     assert seen["errors"] == []
-    (drawer,) = [one["said"] for one in seen["walked"]]
+    drawer, tapped, _ = [one["said"] for one in seen["walked"]]
     assert "queue approve" not in drawer and "<id>" not in drawer
-    assert f"brief {sha}" in drawer and "Approve it in Needs you" in drawer
+    assert f"brief {sha}, written " in drawer and "Approving it in" not in drawer
+    assert "Approving it in" in tapped and "Undo" in tapped

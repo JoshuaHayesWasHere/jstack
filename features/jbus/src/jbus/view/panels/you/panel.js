@@ -21,13 +21,14 @@ function defaultLine(src) {
 function needMeta(w) {
   var v = ms(w.since), due = ms(w.due), bits = PROJECT ? [] : [esc(w.project)];
   if (w.slug && !saysSlug(w.what, w.slug)) bits.push('<a class="ilk" href="' + esc(href(w.project, "task:" + w.slug)) + '" aria-label="Task ' + esc(w.slug) + ': open it">' + esc(w.slug) + '</a>');
-  if (w.sha) bits.push("brief <code>" + esc(w.sha) + "</code>");
+  if (w.sha) bits.push(briefSaid(w));
   bits.push(v == null ? "no time kept" : NOW - v < 60e3 ? "new" : "waiting " + short(NOW - v));
   if (due != null) bits.push(due <= NOW ? "goes ahead now" : "goes ahead in " + short(due - NOW) + ", at " + hm(due));
   if (w.risk !== "reversible") bits.push(esc(w.risk));
   if (w.unblocks.length) bits.push("unblocks " + esc(w.unblocks.slice(0, 2).join(", ")) + (w.unblocks.length > 2 ? " and " + (w.unblocks.length - 2) + " more" : ""));
   return bits.join(" &middot; ");
 }
+function briefSaid(w) { var at = ms(w.brief_at); return "brief <code>" + esc(w.sha) + "</code>" + (at == null ? "" : ", written " + esc(day(at))); }
 function falls(src) {
   var due = src.proceeds.map(function (w) { return ms(w.due); }).filter(function (v) { return v != null; }), first = due.length ? Math.min.apply(null, due) : null;
   if (first == null) return src.needs.length ? "Nothing falls due on its own: each waits for you." : "";
@@ -52,7 +53,7 @@ function needForm(w) {
 }
 function needAct(w) {
   var id = needId(w), now = ACCEPTING[id];
-  if (now) return '<span class="acc">' + (now.sent ? saysNow(now) + "&hellip;" : saysNow(now) + ' in <span class="cd"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
+  if (now) return '<span class="acc">' + (now.over ? esc(now.over) : now.sent ? saysNow(now) + "&hellip;" : saysNow(now) + ' in <span class="cd" data-cd="' + esc(id) + '"></span> s &middot; <button type="button" class="btn" data-undo="' + esc(id) + '">Undo</button>') + '</span>';
   if (w.act === "thread" && w.thread) return '<a class="btn fill" href="' + esc(w.thread) + '" aria-description="Opens the thread of its home in T3 Code, where you write about it">Write to its home</a>';
   if (!acts(w)) {
     if (PROJECT) return '<button type="button" class="btn fill" data-open="' + esc(parse(w.open).target) + '">' + esc(w.verb) + '</button>';
@@ -63,6 +64,18 @@ function needAct(w) {
   return '<button type="button" class="btn fill" data-form="' + esc(id) + '" aria-description="Opens a box for your own answer to question ' + esc(needNumber(w)) + '">Answer&hellip;</button>';
 }
 function saysNow(now) { return ACT_SAYS[now.w.act]; }
+function approvesHere(w) { return !!w && w.act === "approve" && acts(w); }
+function actHere(w) { return '<span class="ah" data-act="' + esc(needId(w)) + '">' + needAct(w) + '</span>'; }
+function saidHere() { return '<div class="ah-said" data-said role="status">' + saidRows() + '</div>'; }
+function acted() {
+  renderNeeds();
+  [].forEach.call(document.querySelectorAll("[data-act]"), function (el) {
+    var w = findNeed(el.getAttribute("data-act"));
+    if (w) put(el, needAct(w));
+  });
+  [].forEach.call(document.querySelectorAll("[data-said]"), function (el) { put(el, saidRows()); });
+  ticks();
+}
 function needRow(w, brief) {
   var act = needAct(w), title = '<a class="nw" href="' + esc(needLink(w)) + '"><b>' + esc(w.what) + '</b></a>';
   if (brief) return '<div class="nb">' + title + '<span class="nd"><b>Goes ahead:</b> ' + esc(w["default"]) + '</span></div>' +
@@ -81,14 +94,15 @@ function saidRows() {
   }).join("");
 }
 function ticks() {
-  [].forEach.call(document.querySelectorAll("#needs .cd"), function (el) {
-    var id = el.closest("[data-key]").getAttribute("data-key"), now = ACCEPTING[id];
+  [].forEach.call(document.querySelectorAll(".cd[data-cd]"), function (el) {
+    var now = ACCEPTING[el.getAttribute("data-cd")];
     if (now) say(el, String(now.left));
   });
 }
 function leaveAccepts() {
   Object.keys(ACCEPTING).forEach(function (id) {
     var now = ACCEPTING[id];
+    if (now.over && !findNeed(id)) { delete ACCEPTING[id]; return; }
     if (now.sent || !PROJECT || PROJECT === now.w.project) return;
     clearInterval(now.timer); delete ACCEPTING[id];
   });
@@ -133,12 +147,13 @@ function renderNeeds() {
   if (at) { var back = document.querySelector('#needs [data-type="' + CSS.escape(at) + '"]'); if (back && back !== document.activeElement) { back.focus(); back.setSelectionRange(caret, caret); } }
   ticks();
 }
-function findNeed(id) { var src = PROJECT ? S : STACK; return src.needs.filter(function (x) { return needId(x) === id; })[0]; }
-function startAccept(id) {
+function findNeed(id) { var src = PROJECT ? S : STACK; return src ? src.needs.filter(function (x) { return needId(x) === id; })[0] : undefined; }
+function within(el) { return el.closest("[data-act]") || $("needs"); }
+function startAccept(id, from) {
   var w = findNeed(id);
   if (!w || ACCEPTING[id] || !acts(w)) return;
   var words = (TYPED[id] || "").trim();
-  if (w.act === "answer" && !words) { SAID = [{ say: "Write your answer first.", bad: true }]; renderNeeds(); return; }
+  if (w.act === "answer" && !words) { SAID = [{ say: "Write your answer first.", bad: true }]; acted(); return; }
   SAID = [];
   var now = ACCEPTING[id] = { left: NEEDS_FOR, sent: false, w: w, words: words };
   now.timer = setInterval(function () {
@@ -149,19 +164,22 @@ function startAccept(id) {
     clearInterval(now.timer);
     sendAccept(id);
   }, 1000);
-  renderNeeds();
-  var undo = document.querySelector('#needs [data-undo="' + CSS.escape(id) + '"]'); if (undo) undo.focus();
+  acted();
+  var undo = (from || $("needs")).querySelector('[data-undo="' + CSS.escape(id) + '"]'); if (undo) undo.focus();
 }
-function undoAccept(id) {
+function undoAccept(id, from) {
   var now = ACCEPTING[id]; if (!now || now.sent) return;
   clearInterval(now.timer); delete ACCEPTING[id];
-  renderNeeds();
-  var back = document.querySelector('#needs [data-accept="' + CSS.escape(id) + '"]'); if (back) back.focus();
+  acted();
+  var back = (from || $("needs")).querySelector('[data-accept="' + CSS.escape(id) + '"]'); if (back) back.focus();
 }
 function sendAccept(id) {
   var now = ACCEPTING[id], w = now.w, here = "?project=" + encodeURIComponent(w.project);
-  now.sent = true; renderNeeds();
-  function over(say, bad, undo) { delete ACCEPTING[id]; delete FORM[id]; if (!bad) delete TYPED[id]; SAID = [{ say: say, bad: bad, undo: undo }]; renderNeeds(); }
+  now.sent = true; acted();
+  function over(say, bad, undo) {
+    if (bad) delete ACCEPTING[id]; else now.over = say;
+    delete FORM[id]; if (!bad) delete TYPED[id]; SAID = [{ say: say, bad: bad, undo: undo }]; acted();
+  }
   function told(r, lost) { return r && r.say ? r.say : r && r.error ? "The server refused it: " + r.error + "." : lost; }
   if (w.act === "approve") {
     ask("/panel/you/approve" + here, { slug: w.slug, sha: w.sha }).then(function (r) {
@@ -180,16 +198,16 @@ function sendAccept(id) {
 }
 function unsay() {
   var s = SAID[0], u = s && s.undo; if (!u) return;
-  s.undo = null; renderNeeds();
+  s.undo = null; acted();
   ask("/panel/you/hold?project=" + encodeURIComponent(u.project), { slug: u.slug, word: u.word }).then(function (r) {
     SAID = [{ say: r && r.say ? r.say : "The view server did not answer, so it is not known whether the go was taken back.", bad: !r || r.http !== 200 }];
-    renderNeeds(); poll(true);
-  }, function () { SAID = [{ say: "The view server did not answer, so it is not known whether the go was taken back.", bad: true }]; renderNeeds(); });
+    acted(); poll(true);
+  }, function () { SAID = [{ say: "The view server did not answer, so it is not known whether the go was taken back.", bad: true }]; acted(); });
 }
 document.addEventListener("click", function (e) {
   var a = e.target.closest("[data-accept]"), u = e.target.closest("[data-undo]"), f = e.target.closest("[data-form]"), x = e.target.closest("[data-shut]");
-  if (a) startAccept(a.getAttribute("data-accept"));
-  else if (u) undoAccept(u.getAttribute("data-undo"));
+  if (a) startAccept(a.getAttribute("data-accept"), within(a));
+  else if (u) undoAccept(u.getAttribute("data-undo"), within(u));
   else if (f) { var id = f.getAttribute("data-form"); FORM[id] = true; renderNeeds(); var box = document.querySelector('#needs [data-type="' + CSS.escape(id) + '"]'); if (box) box.focus(); }
   else if (x) { delete FORM[x.getAttribute("data-shut")]; renderNeeds(); }
   else if (e.target.closest("[data-unsay]")) unsay();
@@ -230,7 +248,8 @@ function sendBatch() {
 }
 function approveLine(w) {
   var need = S.needs.filter(function (x) { return x.key === w.key; })[0];
-  return (need && need.sha ? "brief <code>" + esc(need.sha) + "</code> &middot; " : "") + '<a href="' + esc(href(PROJECT)) + '">Approve it in Needs you</a>';
+  if (!approvesHere(need)) return esc(w.line);
+  return briefSaid(need) + ' &middot; ' + actHere(need);
 }
 var YOU_FIRST = 2;
 function dYou(arg) {
@@ -251,6 +270,7 @@ function dYou(arg) {
         (w.unblocks && w.unblocks.length ? '<br><span class="tag">Unblocks</span> ' + w.unblocks.map(taskBtn).join(" ") : "") + '</li>';
     }, hit && k !== hit ? 0 : YOU_FIRST, named || k === "gate" ? mine : null) : '<p class="src">None.</p>') +
       (k === "gate" && can.length ? '<div id="bfoot">' + batchFoot() + '</div>' : "") +
+      (k === "approve" && items.length ? saidHere() : "") +
       (k === "gate" ? '<p class="src" style="margin:10px 0 0">' + openBtn("words:answer", "The questions you answered, in Your words") + '</p>' : "");
   });
   var shut = S.gates.filter(function (g) { return !g.open; });
@@ -283,17 +303,21 @@ function youRail() {
   var rows = yours(), shown = rows.slice(0, NARROW.matches ? YOU_PHONE : YOU_RAIL), soon = STACK.proceeds.length;
   return '<section class="ovc' + (rows.length ? " op" : "") + '" data-role="rail-needs" aria-labelledby="ovc-you"><h2 class="ovc-h" id="ovc-you"><span class="tag" data-gloss="card:needs">Needs you <b>' + STACK.needs.length + '</b></span> <span class="ovc-s">jbus&#39;s list at ' + hm(NOW) + '</span></h2>' +
     (shown.length ? '<ul class="clean">' + shown.map(function (r) {
-      return '<li class="rl"><span class="rl-b"><span class="rl-w" title="' + esc(r.subj + " " + r.what) + '"><code>' + esc(r.subj) + '</code> ' + esc(r.what) + '</span><span class="rl-m">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></span><a class="btn" href="' + esc(r.href) + '">' + esc(r.verb) + '</a></li>';
-    }).join("") + '</ul>' : '<p class="ovc-s">Nothing waits on you' + lastPass() + '.</p>') +
+      return '<li class="rl"><span class="rl-b"><span class="rl-w" title="' + esc(r.subj + " " + r.what) + '"><code>' + esc(r.subj) + '</code> ' + esc(r.what) + '</span><span class="rl-m">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></span>' + needGo(r) + '</li>';
+    }).join("") + '</ul>' : '<p class="ovc-s">Nothing waits on you' + lastPass() + '.</p>') + saidHere() +
     youFoot([rows.length > shown.length ? '<a href="#/triage">+' + (rows.length - shown.length) + ' more in Triage</a>' : "",
       soon ? '<span title="' + falls(STACK).replace(/<[^>]*>/g, "") + '">' + defaultLine(STACK) + '</span>' : ""]) + '</section>';
+}
+function needGo(r, fill) {
+  if (approvesHere(r.need)) return '<span class="rl-a">' + actHere(r.need) + '<a class="rl-d" data-details href="' + esc(r.href) + '" aria-label="Details of ' + esc(r.subj) + '">Details</a></span>';
+  return '<a class="btn' + (fill ? " fill" : "") + '" href="' + esc(r.href) + '">' + esc(r.verb) + '</a>';
 }
 function youFoot(said) {
   said = said.filter(Boolean);
   return said.length ? '<p class="ovc-f">' + said.join(" &middot; ") + '</p>' : "";
 }
 panel({
-  reads: "mixed", drawer: dYou, draw: renderNeeds,
+  reads: "mixed", drawer: dYou, draw: renderNeeds, row: needGo, said: saidHere, tick: ticks,
   parts: { tile: youTile, rail: youRail },
   gloss: { needs: ["Needs you", "What waits on you in every project, oldest first, as jbus's last pass listed it, each with the one thing to do. A gate that goes ahead on its default is counted apart, as the line under the list: it needs nothing from you unless you would say otherwise."] }
 });

@@ -134,6 +134,7 @@
   .dw-h h2.mono { font-family: var(--mono); }
   .btn { border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: var(--space-1) var(--space-8); background: var(--surface); cursor: pointer; font-size: var(--text-sm); font-weight: 600; flex: none; }
   a.btn { display: inline-flex; align-items: center; text-decoration: none; color: var(--ink); }
+  a.btn[hidden] { display: none; }
   .dw h3 { margin: var(--space-12) 0 var(--space-4); font-size: var(--text-sm); color: var(--ink-2); letter-spacing: 0.05em; text-transform: uppercase; }
   .chip { display: inline-block; padding: var(--space-px) var(--space-5); border-radius: var(--radius-pill); font-size: var(--text-sm); font-weight: 600; max-width: 100%; }
   .chip.user { background: var(--due-tint); color: var(--due); }
@@ -241,6 +242,7 @@
   .tri .calm { margin-top: var(--space-6); font-weight: 400; }
   .tri .nr { flex-wrap: nowrap; }
   .tri .nb { flex: 1 1 0; }
+  .tri .nr:has(.acc) { flex-wrap: wrap; } .tri .nr:has(.acc) .nb { flex-basis: 100%; } .tri .nr:has(.acc) .na { margin-left: auto; }
   .needs.bar:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-7); }
   .needs.bar h2 { flex: 1 1 0; min-width: 0; flex-wrap: wrap; }
   .needs.bar h2 .nm { font-weight: 400; }
@@ -419,6 +421,12 @@
   .rl-w { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .rl-m { font-size: var(--text-xs); color: var(--ink-2); }
   .rl .btn { flex: none; display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-5); font-size: var(--text-xs); text-decoration: none; color: var(--ink); }
+  .rl .btn.fill { color: var(--on-brand); }
+  .rl-a { flex: none; display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-2) var(--space-5); font-size: var(--text-xs); }
+  .rl-d { color: var(--ink-2); font-weight: 700; }
+  .rl:has(.acc) { flex-wrap: wrap; } .rl:has(.acc) .rl-b { flex-basis: 100%; } .rl:has(.acc) .rl-a { margin-left: auto; }
+  .ah .acc { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+  .ah-said:empty { display: none; } .ah-said .will { margin: var(--space-4) 0 0; }
   .gr { display: grid; grid-template-columns: minmax(0, 1fr) 90px 2.2em; gap: var(--space-5); align-items: center; padding: var(--space-1) 0; font-size: var(--text-sm); }
   .gr b { text-align: right; font-variant-numeric: tabular-nums; } .gr span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .gr i { display: block; height: 8px; border-radius: var(--radius-xs); background: var(--sunk); overflow: hidden; } .gr i u { display: block; height: 100%; background: var(--ink-2); } .gr.failing i u { background: var(--missed); }
@@ -449,7 +457,7 @@
     #cards .gl-sub, .rl-w { display: block; -webkit-line-clamp: none; overflow: visible; } .gr span { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
     #cards .gl-word { float: none; font-size: var(--text-2xl); margin: 0; }
     .ov-strip { grid-template-columns: minmax(0, 1fr); } .ov-strip > .pt { grid-column: 1 !important; grid-row: auto !important; }
-    .rl .btn { min-height: 44px; } .tile-s a, .ovc-s a, .ovc-f a, .ld a { min-height: 44px; display: inline-flex; align-items: center; }
+    .rl .btn, .rl-d { min-height: 44px; } .rl-d { display: inline-flex; align-items: center; } .tile-s a, .ovc-s a, .ovc-f a, .ld a { min-height: 44px; display: inline-flex; align-items: center; }
   }
 </style>
 </head>
@@ -808,7 +816,7 @@
   function yours() {
     var rows = [], batch = {};
     STACK.needs.forEach(function (w) {
-      var row = { key: w.project + "/" + w.key, subj: w.subj || w.what, what: w.what, where: homePath(w.project, w.home), since: w.since, verb: w.verb, href: linkOf(w.open) };
+      var row = { key: w.project + "/" + w.key, subj: w.subj || w.what, what: w.what, where: homePath(w.project, w.home), since: w.since, verb: w.verb, href: linkOf(w.open), need: w };
       if (w.kind !== "approve") { rows.push(row); return; }
       var k = w.project + "/" + w.kind;
       if (batch[k]) { batch[k].push(w); return; }
@@ -824,6 +832,7 @@
       r.where = b[0].project;
       r.verb = "Approve " + b.length;
       r.href = href(b[0].project, "you:approve");
+      r.need = null;
     });
     return rows;
   }
@@ -836,7 +845,7 @@
   }
   function triRow(r, n, fill) {
     return '<div class="nb"><span class="nw"><code>' + esc(r.subj) + '</code>' + (r.what && r.what !== r.subj ? " " + esc(r.what) : "") + '</span><span class="nm">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></div>' +
-      '<div class="na"><a class="btn' + (fill && n === 0 ? " fill" : "") + '" href="' + esc(r.href) + '">' + esc(r.verb) + '</a></div>';
+      '<div class="na">' + PANELS.you.row(r, fill && n === 0) + '</div>';
   }
   function triList(part, rows, count, title, fill) {
     var box = $("tri-" + part), sec = box.parentElement, shown = TRI_ALL[part] ? rows : rows.slice(0, TRI_MAX), rest = rows.length - shown.length;
@@ -865,7 +874,8 @@
   }
   function renderTriage() {
     var mine = yours(), wrong = wrongRows();
-    put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail());
+    put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail() + PANELS.you.said());
+    PANELS.you.tick();
     $("tri-yl").parentElement.hidden = !mine.length && !STACK.proceeds.length;
     put($("tri-wt"), triList("wl", wrong, wrong.length, "Wrong", false));
     put($("tri-calm"), calmLine(STACK.needs.length, wrong.length));
@@ -1109,11 +1119,14 @@
   };
   NARROW.addEventListener("change", function () { render(); });
   function drawDesk(on) {
+    var had = document.activeElement, held = had && had.closest("#desk [data-act]") ? had.getAttribute("data-undo") : null;
     DESK[NARROW.matches ? "phone" : "wide"].forEach(function (region) {
       var box = $(region[0]), names = on ? region[1].filter(function (n) { return PARTS[n]; }) : [];
       keyed(box, "div", "pt", names.map(function (n) { return { key: n, html: PARTS[n]() || "" }; }));
       [].forEach.call(box.children, function (el) { el.setAttribute("data-part", el.getAttribute("data-key")); el.hidden = !el.innerHTML; });
     });
+    PANELS.you.tick();
+    var back = held && !had.isConnected && document.querySelector('#desk [data-undo="' + CSS.escape(held) + '"]'); if (back) back.focus();
   }
   function panels(name, first) {
     return function (def) {
