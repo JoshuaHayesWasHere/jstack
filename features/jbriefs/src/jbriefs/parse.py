@@ -322,7 +322,7 @@ def designed(text: str) -> str:
 
 TITLE = "title"
 REST = "the rest"
-_LABEL = re.compile(r"(?P<label>[A-Z][A-Za-z]*(?: [A-Za-z]+){0,3}):(?:[ \t]|$)")
+_LABEL = re.compile(r"(?P<label>[A-Z][A-Za-z]*(?:[ -][A-Za-z]+){0,3}):(?:[ \t]|$)")
 REQUIRED = (
     "Task",
     "Done when",

@@ -887,3 +887,18 @@ def test_no_module_of_jbus_or_jmerge_compiles_a_regex_for_a_brief_head_line():
 )
 def test_the_scan_finds_a_regex_for_a_head_line(line):
     assert head_line_regexes(f"import re\n{line}\n")
+
+
+@pytest.mark.parametrize(
+    ("line", "label"),
+    [("Fail-safe: a bundle", "Fail-safe"), ("Built on it: nothing", "Built on it")],
+)
+def test_a_label_word_may_hold_a_hyphen_between_letters(line, label):
+    said = parse.fields(f"# a: b\nHolds: rewrites history\n{line}\n")
+    assert [one for one, _ in said] == [parse.TITLE, "Holds", label]
+
+
+@pytest.mark.parametrize("line", ["Wait - then Foo: bar", "Foo-: x", "Foo--bar: x"])
+def test_a_line_whose_hyphen_is_not_between_letters_continues_the_field_above(line):
+    said = parse.fields(f"# a: b\nHolds: rewrites history\n{line}\n")
+    assert said[1:] == [("Holds", ["rewrites history", line])]
