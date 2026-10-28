@@ -150,6 +150,22 @@ def not_installed(why: str) -> str:
     return NOT_INSTALLED.format(why=why)
 
 
+SKILLS = "skills changed: {names}"
+_SKILLS = re.compile(re.escape(SKILLS).replace(r"\{names\}", "([a-z0-9][a-z0-9 -]*)") + "(?=, )")
+
+
+def skills_changed(names: Sequence[str]) -> str:
+    """The note of a merge that changed the `SKILL.md` of each skill or principle named. A
+    thread out still runs the text it loaded before, so jbus tells it (`jbus.reload`)."""
+    return SKILLS.format(names=" ".join(names))
+
+
+def skills_of(text: str) -> tuple[str, ...]:
+    """The skills that the `skills_changed` note of a `merged` line names, or none."""
+    found = _SKILLS.search(text)
+    return tuple(found[1].split()) if found else ()
+
+
 def unfollowed(text: str) -> str:
     """The `not_reinstalled` and `not_installed` notes of a `merged` line, or an empty string
     when the line has neither note."""

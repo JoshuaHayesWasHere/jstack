@@ -24,6 +24,12 @@ module compares the layouts, not the merge's paths. An edit to a file that a lin
 points at needs no install, so nothing runs for it. When a failed install left a layout stale,
 this module installs it again after the next merge. Nothing runs where every layout matches
 what the checkout makes, or on a machine installed from elsewhere.
+
+A thread keeps the text of each skill it loaded, and runs it until it reads the file again.
+So the last note names each skill or principle whose `SKILL.md` the pull changed, as the
+checkout's `skills.json` lists it now, and jbus tells the threads out (`jbus.reload`). A
+skill's other files are read from disk when its steps name them, so a change to them needs no
+note.
 """
 
 from __future__ import annotations
@@ -34,6 +40,7 @@ import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
+from jbriefs import skills
 from jinstall import layout
 from jinstall.harnesses import HARNESSES
 from jinstall.kinds import State
@@ -64,9 +71,10 @@ def packages(project: dict) -> object:
 def follow(run: Run, main: Path, before: str) -> list[str]:
     """The notes for a pull of the main checkout from `before` to its HEAD. First comes the note
     of the tool, `lines.reinstalled` or `lines.not_reinstalled`, then the note of the install,
-    `lines.installed` or `lines.not_installed`, and each note appears only when its step was
-    due."""
-    return [note for note in (_tool(run, main, before), _install(run, main)) if note]
+    `lines.installed` or `lines.not_installed`, then `lines.skills_changed`, and each note
+    appears only when its step was due."""
+    notes = (_tool(run, main, before), _install(run, main), _skills(run, main, before))
+    return [note for note in notes if note]
 
 
 def _tool(run: Run, main: Path, before: str) -> str:
@@ -100,6 +108,24 @@ def _install(run: Run, main: Path) -> str:
     if ran.returncode:
         return lines.not_installed(f"sh install.sh: {_failed(ran)}")
     return lines.installed(main)
+
+
+def _skills(run: Run, main: Path, before: str) -> str:
+    try:
+        files = {
+            path: name
+            for kind in skills.NAMEABLE
+            for name, path in skills.listed(kind, main).items()
+            if path.name == "SKILL.md"
+        }
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+    diff = run(main, "git", "diff", "--name-only", before, "HEAD")
+    if diff.returncode:
+        return ""
+    paths = [main / path for path in diff.stdout.splitlines()]
+    changed = sorted({files[path] for path in paths if path in files})
+    return lines.skills_changed(changed) if changed else ""
 
 
 def _failed(ran: subprocess.CompletedProcess[str]) -> str:
