@@ -83,7 +83,7 @@ def test_a_gate_that_fails_holds_the_pull_request_with_its_first_line_and_merges
     assert kitchen.run() == [f"hold 6 {url(6)}: its merge gate failed: no receipt for a.txt"]
     assert kitchen.calls() == []
     logged = log(kitchen)
-    assert "its merge gate failed: no receipt for a.txt\n" in logged
+    assert "its merge gate failed: no receipt for a.txt [gate-failed]\n" in logged
     assert "  | no receipt for a.txt\n  | replay it first\n" in logged
     holds = kitchen.home.state / "holds.json"
     assert not holds.exists() or json.loads(holds.read_text()) == {}

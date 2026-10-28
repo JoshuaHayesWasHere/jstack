@@ -65,6 +65,11 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
 | `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
+In `merge.log`, a `wait` or `hold` line ends with its reason's code in brackets, as `wait 7 <url>: check has not passed [check-failed]`, and the line it prints has none.
+The code is fixed for a reason whatever its text says: a `Reason` in `features/jmerge/src/jmerge/ready.py` has its constant's name in lower case, its words joined by `-` (`CHECK_FAILED` is `check-failed`), and a reason given as plain text has the code of its rule in `ready.rules`.
+`check has not passed` is `check-failed` where every latest run of the check failed and `not-passed` where one is queued, running or passed, and a reason no rule names is `unknown`.
+jbus and the view read a pull request's step from the code, and from the text on a line logged before the codes.
+
 A pull request that waits does not make `jmerge` exit non-zero.
 `jmerge` exits non-zero when it runs outside a git repository, when `gh` is missing, when it could not ask GitHub, or when it refuses an `--accept`.
 
