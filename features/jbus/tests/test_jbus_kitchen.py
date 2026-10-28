@@ -812,7 +812,10 @@ class Kitchen:
         return said
 
     def main(self, *argv, stdin=""):
-        self.monkeypatch.setattr(sys, "stdin", io.StringIO(stdin))
+        """Run `jbus` with `argv`, and `stdin` as its input: text, or a stream a test made."""
+        self.monkeypatch.setattr(
+            sys, "stdin", io.StringIO(stdin) if isinstance(stdin, str) else stdin
+        )
         out = io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
             try:

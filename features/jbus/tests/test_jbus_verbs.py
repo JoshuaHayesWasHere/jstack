@@ -203,3 +203,62 @@ def test_the_words_python_3_12_3_hands_back_are_the_verbs_words():
     given = argparse.Namespace(words=["kept"])
     assert verbs.words_left(given, ["--strange"]) == ["--strange"]
     assert given.words == ["kept"]
+
+
+class Terminal(io.StringIO):
+    """A stdin that is a terminal: a read of it waits for a line nobody types."""
+
+    def isatty(self):
+        return True
+
+    def read(self, *_):
+        raise AssertionError("read a terminal, which waits until somebody types")
+
+
+@pytest.mark.parametrize(
+    ("argv", "what"),
+    [
+        (["queue", "add", "alpha", "--priority", "1"], "the brief"),
+        (["done", "alpha"], "the result's lines"),
+        (["gate", "alpha"], "the gate's lines"),
+    ],
+    ids=["queue-add", "done", "gate"],
+)
+def test_a_verb_that_reads_stdin_refuses_a_terminal_at_once(kitchen, argv, what):
+    """A thread has no one to type at its terminal, so a verb that reads its text from stdin
+    refuses a terminal before it reads, and names what to pipe in."""
+    verb = " ".join(argv[: argv.index("alpha")])
+    assert kitchen.main("--project", "demo", *argv, stdin=Terminal()) == (
+        1,
+        f"refused: stdin is a terminal, and jbus {verb} reads {what} from it: pipe them in, "
+        f"as in jbus {verb} <slug> < <file>\n",
+    )
+    assert kitchen.events() == []
+
+
+OFF = "2026-10-12 08:00 ET"
+CLOCK = "the clock reads 2026-10-12 11:00 ET"
+
+
+@pytest.mark.parametrize(
+    ("argv", "kept"),
+    [
+        (["word", "--to", "demo", "--by", "user", "--at", OFF, "go"], "words.json"),
+        (
+            ["--project", "demo", "answer", "1", "--by", "user", "--at", OFF, "--default", "yes"],
+            "acts.jsonl",
+        ),
+    ],
+    ids=["word", "answer"],
+)
+def test_a_typed_at_far_off_the_clock_is_refused_and_nothing_is_kept(kitchen, argv, kept):
+    """A time an agent types is when the user said it, which it reads from `date` or the
+    message. One hours off the clock is a guess: jbus refuses it and keeps no record of it."""
+    lines = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
+    assert kitchen.main("--project", "demo", "gate", "alpha", stdin=lines)[0] == 0
+    assert kitchen.main(*argv) == (
+        1,
+        f"refused: --at {OFF} is 180 minutes off the clock, and {CLOCK}: take the time from "
+        "date or from the message's own timestamp, never a guess\n",
+    )
+    assert not (kitchen.state / kept).exists()
