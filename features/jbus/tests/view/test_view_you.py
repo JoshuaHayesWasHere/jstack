@@ -422,6 +422,9 @@ def test_the_waiting_event_of_a_busy_moment_is_four_needs_and_one_line_of_defaul
     assert sum(home["waits"] for home in project["homes"]) == 4
     (you,) = [one for one in stack["slow"]["stages"] if one["key"] == "you"]
     assert you["rows"] == 4
+    board = served.json("/panel/pipeline.json")["data"]
+    (stage,) = [one for one in board["stages"] if one["key"] == "you"]
+    assert stage["count"] == 4
 
 
 DEFAULTS = r"""

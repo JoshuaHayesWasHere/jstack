@@ -56,10 +56,6 @@ def test_a_question_its_home_closed_is_drawn_as_closed_by_its_home_and_not_as_hi
     assert "not the default" not in said
 
 
-"""The gate's own Accept default in its row of Needs you, beside the rows to approve, which
-accept inline too."""
-
-
 @pytest.mark.parametrize("screen", [DESK, PHONE])
 def test_a_gate_is_opened_and_answered_each_of_the_three_ways(scene, tmp_path, screen):
     tea, milk, sugar = gated(scene)

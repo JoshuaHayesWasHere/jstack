@@ -1148,7 +1148,8 @@ def piped(scene):
     cleanup-ux-look-pr stacked on it, a brief with no home; oat-lid at a gate; mac-a merged
     today into the integration branch `release/mac`, which has not landed; rye-loaf merged
     today; bad-row in no state the view knows; and the scout `look` of jview, out with no Report.
-    `pantry` has the root alone, with fig-jam running and fig-tart at a gate."""
+    `pantry` has the root alone, with fig-jam running and fig-tart at a gate. jbus lists each gate
+    as waiting on the user."""
     scene.queue(
         [
             row("tea-pot", "running", thread="mcp:tea-pot", since=stamp(30)),
@@ -1177,6 +1178,9 @@ def piped(scene):
     scene.merge_log(logged(15, "wait", 31, "check has not passed"))
     briefed(scene, tea_pot="jview", tea_cup="jview", tea_saucer=None, ux_look_pr="jview")
     briefed(scene, cleanup_ux_look_pr=None, oat_lid=None)
+    scene.waiting(
+        [item("row", "row:oat-lid", "gate oat-lid: which lid?", minutes=90, slug="oat-lid")]
+    )
     (scene.home / "tasks" / "mac-a.md").write_text(
         "# mac-a: a made-up task\nPull request: open one against release/mac when done\n"
     )
@@ -1199,6 +1203,8 @@ def piped(scene):
     (pantry / "queue.json").write_text(json.dumps(rows))
     lines = [judge_row(one, pantry) for one in rows]
     (pantry / "work.json").write_text(json.dumps({"at": iso(NOW), "work": lines}))
+    tart = item("row", "row:fig-tart", "gate fig-tart: which tin?", minutes=40, slug="fig-tart")
+    scene.write("waiting-on-user.json", [tart], pantry)
 
 
 CAPTURED = "jstack"
