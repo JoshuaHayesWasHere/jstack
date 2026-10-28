@@ -176,7 +176,6 @@ def load(state: Path) -> list[Word]:
         )
         sent = sends.get(made.id, {})
         if made.skipped:
-            # The act says the word went to no one: its home's own thread, which ends the line.
             sent = {"thread": line.rsplit(" ", 1)[-1], "sent_at": one["at"]}
         words.append(
             replace(
