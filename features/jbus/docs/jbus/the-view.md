@@ -50,7 +50,8 @@ On a phone (640 pixels wide or less) the same table's `phone` side places the pa
 The order on screen is the order of the page, so Tab takes it too, and the parts after the folds are drawn under the board.
 At 390 by 844 over the T moment and the overloaded day, the band, Needs you and Every home end above y=844.
 On a phone Needs you shows its first three, the band leaves out what waits on you since Needs you is right under it, and no line is cut: a phone has no pointer to hover a title with, so every line wraps.
-Every home is a line for each home of each project, in the matrix's order, a link to `#/?home=<home>`: its open rows, a bar of them split into failing, running, passed, no run and other stages, and how long ago it last acted, on one line. The legend under its heading names only the kinds some bar draws, each beside a swatch of its paint: no run is hatched and other stages dotted, so neither reads as the empty bar.
+Every home is a line for each home of each project, in the matrix's order, a link to `#/?home=<home>`: its open rows, a bar of them split into failing, running, passed, no run and other stages, and how long ago it last acted, on one line.
+The legend under its heading names only the kinds some bar draws, each beside a swatch of its paint: no run is hatched and other stages dotted, so neither reads as the empty bar.
 On the desk the bar of what waits on you is not drawn, since the tile and the rail say it.
 
 The matrix and the board under the desk have these parts:
@@ -98,7 +99,9 @@ The header holds the one project switcher (All and each project), the breadcrumb
 The state is "Machine ok", "jbus stopped" or "N passes failed" in red, or in amber one of "Machine: room full", "room not known", "runners down", "plan at its limit", "N homes off the bus" or "N sources unread".
 Those words link to the pulse drawer, which lists the machine's parts.
 When jbus has stopped or the server does not answer, one line under the header says so once.
-On a phone the header is one row: the name, Triage, the time of the last read as `live · hh:mm`, ?, and a menu button. It leaves out the machine's state while it is ok. The menu button opens a second row with Homes, the switcher and the theme; Esc or a new route shuts it.
+On a phone the header is one row: the name, Triage, the time of the last read as `live · hh:mm`, ?, and a menu button.
+It leaves out the machine's state while it is ok.
+The menu button opens a second row with Homes, the switcher and the theme; Esc or a new route shuts it.
 
 A project's card or line opens its page, `#/<project>`, which has nothing else on its first screen but:
 
