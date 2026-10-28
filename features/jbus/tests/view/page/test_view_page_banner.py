@@ -4,7 +4,8 @@ import json
 
 import pytest
 
-from view.page.browser import BROWSES, LAUNCH, PATIENCE, PHONE, TODAY, clean, lineup, look
+from view.days import TODAY, lineup
+from view.page.browser import BROWSES, LAUNCH, PATIENCE, PHONE, clean, look
 from view.scene import NOW, ago
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]

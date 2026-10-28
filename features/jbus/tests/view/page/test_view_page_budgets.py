@@ -31,16 +31,15 @@ import shutil
 
 import pytest
 
+from view.days import TODAY, lineup
 from view.page.browser import (
     BROWSES,
     DESK,
     LAUNCH,
     PATIENCE,
     PHONE,
-    TODAY,
     a_day_of_threads,
     child_homes,
-    lineup,
     look,
     mapped,
 )
