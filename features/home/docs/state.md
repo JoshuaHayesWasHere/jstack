@@ -14,7 +14,7 @@ A repo has one root home, and may have scoped homes beside it, each for one goal
 | `merge.log` | The lines `jmerge` printed, each after the time it was printed. |
 | `off` | Present when the automatic home is switched off for the repo. |
 | `merge-off` | Present when the automatic merge is switched off for the repo. |
-| `fresh-check` | One line, the command `jmerge` runs as the repo's local check. Optional. |
+| `fresh-check` | Present when a pull request whose check started before main moved is proven over today's main on GitHub: `jmerge` asks GitHub to merge main into its branch, and the check at that head decides. No suite runs on this machine. Optional. |
 | `home-thread` | The sweep switch. With a thread id in it, the home runs `jmerge --sweep` at its start; empty or missing, nobody sweeps. It decides nothing of the merge: `jbus` runs `jmerge` on each pass whatever it holds. You write it by hand. |
 
 A home's own directory is the repo's directory for the root home, and `~/.local/state/home/<repo>/<scope>/` for a scoped one:
@@ -30,9 +30,9 @@ A home's own directory is the repo's directory for the root home, and `~/.local/
 | `log/` | Old handoffs, dated. |
 
 A thread messages its home only when the home has something to do.
-A crewmate tells it that its pull request is fixed and green, that it is green with no review to come, that its task ended with no pull request, or that its task is paused.
+A crewmate tells it only that its task ended with no pull request, or that its task is paused.
 A scout tells it that its report is written.
-Either sends a gate.
+A gate goes to `jbus gate`, and to the home only on a machine with no jbus.
 A crewmate sends nothing when its pull request opens or when the findings are handled.
 A reviewer sends nothing: jbus tells the crewmate of its review when the crewmate owes a line, and the home only when the brief has no `Thread:` line.
 "Telling the home" in `features/crew/SKILL.md` has every case.

@@ -28,6 +28,7 @@ The renewal starts the count over for the new expiry.
 ## The quiet lines
 
 From `warn_days` days before the sign-in runs out (5 by default), the first pass of each day records `condition <project>: T3 sign-in expires <YYYY-MM-DD> <zone>, run jbus t3 login` and shows it as a desktop notification.
+On macOS, which has no `notify-send`, it shows no desktop notification.
 Each project's `sign_in` in `jbus status` says the same, and `token_expires` gives the time.
 
 Once T3 Code refuses the token, each pass prints `wait <project>: T3 Code could not be asked (<why>)`, launches nothing and watches no thread.

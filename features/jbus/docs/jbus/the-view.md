@@ -3,10 +3,13 @@
 `jbus view` is a server, not a pass.
 It shows what the passes left, and it runs whether or not the timer does, so it can show that jbus has stopped.
 It listens on `127.0.0.1`, on port 4388 or the one `--port` names.
-`jinstall` links `jbus-view.service` and leaves it off, and `systemctl --user enable --now jbus-view.service` starts it.
-The variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit.
+On Linux, `jinstall` links `jbus-view.service` and leaves it off, and `systemctl --user enable --now jbus-view.service` starts it.
+On macOS the install makes no agent for the view, so you run `jbus view` yourself.
+On Linux the variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit.
+On macOS you set them in the shell that runs `jbus view`.
 When the code on disk is newer than the code the view is running, and a trial run of the newer code starts, the view ends with status 75 (`NEWER_CODE` in `features/jbus/src/jbus/view/__init__.py`).
 The unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
+On macOS nothing starts it again, so you run `jbus view` again yourself.
 
 | Variable | What it does |
 |---|---|
@@ -17,7 +20,7 @@ The unit's `RestartForceExitStatus=75` starts it again on the new code, and `Suc
 [The view's look](../working-on-jbus/the-views-look.md) has its colours and type, for working on the page.
 
 To show the page, the view reads no config of jbus and no secret.
-It takes `GET` requests and three writes, `POST /answer`, `POST /approve` and `POST /usage`.
+It takes `GET` requests and these writes: `POST /answer`, `POST /approve`, `POST /usage`, the Needs you panel's `POST /panel/you/approve` and `POST /panel/you/hold`, and the bot's `POST /act`.
 Any other method gets 405.
 
 ### What the bare link shows
@@ -47,10 +50,10 @@ A project's page leads with the queue of what needs you in that project, oldest 
 
 | Part | What it shows |
 |---|---|
-| Needs you | The project's queue. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only a real gate is here: a gate that holds (`Holds:`), a pull request jmerge holds, a row to approve, a row at a gate, a leftover or a setup. A gate with a default, which the first pass that sees it closes, is in the folded list "Will proceed on default" under the queue, with the time it goes ahead. Its "Accept default" is the one filled button of the page. It waits 10 seconds, and Undo stops it. Only then does the page POST `/answer` once and show the server's sentence. Every other action is an outline button that opens the drawer with the exact command or link. On a project's page, a token beside the queue shows the new noticed lines, labelled "not counted". With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
+| Needs you | The project's queue. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. Only what you alone can move is here: a gate that holds (`Holds:`) or has no default, a pull request jmerge holds, a row or work item to approve, a row at a gate, a leftover, a closed pull request, a hung turn, a thread that waits on a request or is gone, and a setup. A gate with a default, which the first pass that sees it closes, is in the folded list "Will proceed on default" under the queue, with the time it goes ahead. Each need has one filled button: Accept default, Approve, Answer, Write to its home, or one that opens its drawer with the exact command or link. Accept default and Approve wait 10 seconds, and Undo stops them. Only then does the page send one request: `POST /answer` for Accept default, `POST /panel/you/approve` for a row's Approve and `POST /approve` for a work item's, and show the server's sentence. On a project's page, a token beside the queue shows the new noticed lines, labelled "not counted". With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table. |
 
 The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine's state.
-The state is "Machine ok", "Machine: room full" in amber, or "jbus stopped" in red.
+The state is "Machine ok", "jbus stopped" or "N passes failed" in red, or in amber one of "Machine: room full", "room not known", "runners down", "plan at its limit", "N homes off the bus" or "N sources unread".
 Those words link to the pulse drawer, which lists the machine's parts.
 When jbus has stopped or the server does not answer, one line under the header says so once.
 On a phone the header is one row, and it leaves out the switcher, the theme, the time of the last read while it is fresh, and the machine's state while it is ok.
@@ -122,8 +125,9 @@ A link to a project the state directory does not have, a retired one included, s
 A link can also name a task the project does not have, or a drawer of something that is not there now.
 Such a link opens a drawer that says which name was not found, and where.
 
-The page asks the server once each 15 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one.
-To build its reply, `/stack.json` runs the machine's checks (systemd, the room script, the runner units) once, however many projects there are.
+The page asks the server every 5 seconds, for the view in front: `/stack.json` for every project, and `/state.json?project=<project>` for one.
+A project's page also asks `/stack.json` again each minute.
+To build its reply, `/stack.json` runs the machine's checks (systemd, or launchd on macOS, the room script and the runner units) once, however many projects there are.
 It also asks GitHub for the runs of each repo, and keeps GitHub's reply for a minute.
 The page does not redraw a part whose drawing did not change.
 An answer to a gate goes to the one project whose page it is, as `POST /answer?project=<project>`, and a write that names no project gets 404.
@@ -159,9 +163,10 @@ If T3 Code refuses the message or does not reply, the view still closes the ques
 You can answer a question only once.
 The view refuses a second answer, and the page shows the first one.
 
-There is no sign-in.
+The page has no sign-in.
 The page is reachable only on the addresses the view listens on.
-The view refuses a write whose `Origin` header is not its own address, so another site open in your browser cannot answer or approve for you.
+The view refuses a page's write whose `Origin` header is not its own address, so another site open in your browser cannot answer or approve for you.
+`POST /act` is the bot's route: it needs no `Origin`, takes only the bot's key (`jbus bot key`), and gets 401 without it.
 Whoever can reach the port can answer and approve, as any shell on this machine can with `jbus answer` and `jbus item approve`.
 A client that is not a browser can set the `Origin` header to anything.
 The server reads jbus's config and the sign-in to T3 Code only for a write that has an answer or a word to send, and it sends neither to the page.

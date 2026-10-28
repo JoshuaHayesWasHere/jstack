@@ -54,13 +54,14 @@ A thread that is already running moves to another account only at a real cap of 
 | `headroom`, the share of a usage window at which a launch counts an account as full | `90` | `~/.config/jstack/config.toml` | `jroles`, `jbus`, `jgauge room` |
 | `room_passes`, how many passes a row waits for room before its gate | `10` | `~/.config/jbus/config.toml` | `jbus` |
 
-`jgauge` derives the three sizes from the whole machine, from its processors in `/proc/stat` and its `MemTotal`.
+`jgauge` derives the three sizes from the whole machine: its processors in `/proc/stat` and its `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`.
 `jgauge` never uses a caller's own CPU quota, so that `jbus.service` and every shell count the same slots.
 `jgauge` refuses a value that is not a whole number of 1 or more, and prints one line that says so.
 [Configuration](../../../jinstall/docs/configuration.md#the-machines-sizes) has every key of the three files.
 
 ## The limits that are fixed
 
+On macOS, `jgauge room` reads only the load and the memory available, since macOS has no pressure lines and no fixed count of file slots.
 `jgauge room` waits while any of these readings crosses its line, and you cannot change these lines:
 
 | Line | Value |

@@ -5,7 +5,8 @@ A thread whose turn ended that way shows `cancelled` or `interrupted`, and its b
 The same happens when the plan's five-hour limit is reached, and then every turn ends `failed`.
 
 - **With `jbus` running,** a pass sends a crewmate whose thread is `failed`, `interrupted` or `cancelled`, with no Result and no pull request, one message to carry on, at most twice.
-  After a third end, `jbus` reports `condition <slug>: thread ended <status> after two carry-ons`, and the thread is yours to restart.
+  After a third end, `jbus` tells the brief's home in one line, and the wait is that home's.
+  With no home, `jbus` reports `condition <slug>: thread ended <status> after two carry-ons`, and the thread is yours to restart.
   A thread that shows `completed` with no Result gets no message.
   `jbus` reports it as `stale <slug>: ...`, and you or the home send the message.
 - **With a home,** tell the home which thread stopped. The home sends it one message.

@@ -77,7 +77,7 @@ It ends with main's red minutes by day.
 A week where every target is met, or has no data, sends nothing.
 A week with a missed target sends one `alert` event, only once that day.
 The event names each missed target and the report.
-A run that fails shows in `journalctl --user -u jbus-ci`.
+A run that fails shows in `journalctl --user -u jbus-ci` on Linux, and in `~/Library/Logs/jstack/jstack.jbus-ci.log` on macOS.
 
 The `ci` panel of [the view](the-view.md) opens at `#/<project>/ci`.
 It has no card, so the first screen keeps its size.

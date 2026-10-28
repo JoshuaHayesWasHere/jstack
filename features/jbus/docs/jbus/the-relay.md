@@ -14,8 +14,9 @@ It listens on `127.0.0.1`, on `RELAY_PORT`, which is 4390 when it is not set.
 With a port of 0 it picks a free port, and its line `relay: listening on 127.0.0.1:<port>` names the port it bound.
 It sends each body posted to it on to the relay's webhook, `RELAY_WEBHOOK_URL`, with the key `RELAY_WEBHOOK_KEY`.
 When your chat bot is silent, it also pages you through the fallback pager.
-Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads.
-The install links `features/jbus/units/jbus-relay.service` on every machine.
+Its settings are the lines of `~/.config/jbus-relay/env`, which `jbus-relay.service` reads on Linux and the `jstack.jbus-relay` launchd agent reads on macOS.
+On Linux the install links `features/jbus/units/jbus-relay.service` on every machine.
+On macOS it writes `~/Library/LaunchAgents/jstack.jbus-relay.plist` only once the env file holds every key.
 It enables and starts the unit only once `~/.config/jbus-relay/env` holds every key the relay needs.
 With no env file, the install leaves the unit off, and nothing alerts.
 If the env file would stop the relay at start, the install leaves the unit as it was, and the doctor's `relay` line names each key and why.
@@ -35,7 +36,8 @@ Remove it first, and `jinstall --check` says when it is gone.
 
 A key that is missing, empty or `REPLACE_ME` stops the relay at start, and that includes the pager's keys.
 The relay prints `relay: refused to start: <each such key and why>`, never a value, and exits with code 2, which the unit does not restart.
-`systemctl --user status jbus-relay` then shows it failed.
+On Linux, `systemctl --user status jbus-relay` then shows it failed.
+On macOS, `launchctl print gui/$(id -u)/jstack.jbus-relay` shows it, and the line is in `~/Library/Logs/jstack/jstack.jbus-relay.log`.
 Nothing reads the `GATEKEEPER_WEBHOOK_URL` and `GATEKEEPER_WEBHOOK_KEY` of an older env file, since Gatekeeper is not a target.
 
 The relay sends one route, `blocking`, to your chat bot's webhook, and each POST names it in `relay: {"id", "route"}` beside the body's keys.
@@ -69,7 +71,8 @@ A URL in the line that carries a key, as a query or a user, is cut to `<url>`.
 A page's id is kept permanently, so it goes once, also across a restart.
 A page the pager did not take goes again, as on any route.
 A page the pager refused permanently, with a 4xx such as the 400 for an unknown `PAGER_HA_SERVICE`, stays in `dead/page/` and is not paged again.
-The relay also shows the line on the desktop with `notify-send -u critical`, once, when the page is spooled.
+Where `notify-send` is on the PATH, as on a Linux desktop, the relay also shows the line with `notify-send -u critical`, once, when the page is spooled.
+Elsewhere, such as on macOS, the journal or log says the page was not raised on the desktop.
 `watch.json` in the state holds what the relay knows of what blocks: the items of each project, the ones seen, and the event id that carried each.
 
 The relay writes `heartbeat.json` in its state each minute and on each body it takes.

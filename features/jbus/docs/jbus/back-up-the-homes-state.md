@@ -41,5 +41,5 @@ To turn it off again, remove the remote, `git -C ~/.local/state/home remote remo
 A snapshot that did not finish fails the unit, whose `OnFailure=jbus-snapshot-failed.service` runs `jbus snapshot --alarm`.
 The first failure alerts at once, and the later ones in the same run of failures do not alert ([When jbus fails](when-jbus-fails.md)).
 The first snapshot that finishes after them says it recovered.
-`systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs, and `git -C ~/.local/state/home log -1` shows the last one.
-To take one now, run `systemctl --user start jbus-snapshot.service`.
+`systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs on Linux, and `git -C ~/.local/state/home log -1` shows the last one.
+To take one now, run `systemctl --user start jbus-snapshot.service` on Linux, or `jbus snapshot` on macOS.

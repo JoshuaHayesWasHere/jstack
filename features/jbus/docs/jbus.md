@@ -2,10 +2,12 @@
 
 jbus does a home's routine work with no model.
 The work you approve then goes through launch, review and merge while no thread is open.
-A systemd timer runs one pass a minute, `jbus poll`, over every repo in its config.
+A timer runs one pass a minute, `jbus poll`, over every repo in its config.
+On Linux and WSL2 the timer is the systemd user unit `jbus.timer`, and on macOS it is the launchd agent `jstack.jbus`.
 A pass launches the rows of the queue you approved as crewmate threads in T3 Code, tells each thread what its pull request is short of, runs `jmerge` to merge what is ready, and tells you what waits on you.
 
-jbus needs T3 Code running on the machine, `gh` signed in to GitHub, and a systemd user manager for its timer.
+jbus needs T3 Code running on the machine, `gh` signed in to GitHub, and a service manager for its timer.
+That is a systemd user manager on Linux, the same on WSL2 once systemd is turned on in the distro, and launchd on macOS.
 [Set up jbus](jbus/set-up-jbus.md) has the five steps from a release install to a jbus that launches work.
 
 ## What a pass does
@@ -27,7 +29,8 @@ One pass, under one lock, does this for every project in the config:
 jbus makes no judgment call.
 When no rule covers a case, jbus logs one line, `condition <slug>: <what>`, without posting it, and leaves that slug alone for the rest of the pass.
 On a project's first pass, jbus records the Results, Reviews, Reports, questions and merges that are already there and sends none of them.
-jbus writes nothing to GitHub but a rerun of a cancelled check, and merges nothing itself.
+jbus writes three things to GitHub: a rerun of a cancelled check, a new base for a stacked pull request whose base merged, and a push of that link's commits moved onto the new base, under a lease.
+jbus merges nothing itself.
 `jmerge` does the merging.
 
 jbus is the only merger, whatever `~/.local/state/home/<repo>/home-thread` holds, and no home runs `jmerge` to merge.

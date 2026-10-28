@@ -139,8 +139,8 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>features/home/hooks/home-start.sh</code>, which prints <code>features/home/templates/hook-message.md</code>. Writes its thread id into <code>home-id</code>, runs steps 12 and 13 once, then reports in six lines.</small></div><i class="ar b"></i></div>
-      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;notes.md</b><small>read</small></div><div class="box file"><b>home-id</b><small>written: this thread's id</small></div><div class="box file"><b>home-thread</b><small>read: the merge switch, which only you write</small></div></div>
+      <div class="cell h"><div class="box"><b><span class="n">1</span>Start</b><small><code>/home</code>, or the hook <code>features/home/hooks/home-start.sh</code>, which prints <code>features/home/templates/hook-message.md</code>. Writes its thread id into <code>home-id</code>, runs step 13 only while <code>home-thread</code> holds an id, runs no merge, then reports in six lines.</small></div><i class="ar b"></i></div>
+      <div class="cell s"><div class="box file"><b>handoff.md &nbsp;plan.md &nbsp;notes.md</b><small>read</small></div><div class="box file"><b>home-id</b><small>written: this thread's id</small></div><div class="box file"><b>home-thread</b><small>read: the sweep switch, which only you write</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
     </div>
@@ -169,7 +169,7 @@
     <div class="row">
       <div class="cell h"><div class="box"><b><span class="n">4</span>Brief and launch</b><small>Launches when the machine has room. A file that another brief names never stops a launch. <code>jmerge --claims</code> names the overlap, and the second pull request to merge rebases. <code>t3_thread_launch</code> starts a new thread in a new worktree, with the message <code>/crew &lt;slug&gt;</code>.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the brief, shaped as <code>features/jbriefs/templates/brief.md</code>, then its <code>Thread:</code> line</small></div><div class="box file"><b>the jbus queue</b><small>a row for the brief, in jbus's own state, by <code>jbus queue add --entry &lt;entry&gt;</code>. The home writes no status into <code>plan.md</code>. <code>jbus plan</code> counts it from the rows.</small></div><i class="ar r"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>It reads the brief and <code>notes.md</code>, and nothing else. Then it reads the playbook that the brief's <code>Playbook:</code> line names, such as <code>features/crew/playbooks/bug-fix.md</code>.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">5</span>Start</b><small>It reads the brief and <code>notes.md</code>, and nothing else. It asks <code>jbus</code> whether your go holds for that brief, and stops with a Result when it does not. Then it reads the playbook that the brief's <code>Playbook:</code> line names, such as <code>features/crew/playbooks/bug-fix.md</code>.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -197,7 +197,7 @@
     <div class="row rev">
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Result</code>, shaped as <code>features/crew/templates/result.md</code></small></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">8</span>Write the Result</b><small>It sends no message. The home hears of the pull request only at step 11, if at all. The crewmate arms no watch, and its turn ends.</small></div></div>
+      <div class="cell c"><div class="box"><b><span class="n">8</span>Write the Result</b><small>It sends no message. The home hears nothing of the pull request: <code>jbus</code> reads the brief and merges it. The crewmate arms no watch, and its turn ends.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -205,13 +205,13 @@
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>the Result gains <code>Reviewer:</code></small></div><i class="ar l"></i></div>
       <div class="cell c"><div class="box"><b><span class="n">9</span>Launch the reviewer</b><small>Once, when the pull request opens, so the review runs beside CI. The crewmate fixes a failed check first. <code>t3_thread_launch</code> in the same worktree, with the message <code>/pr-review run &lt;slug&gt;</code>.</small></div><i class="ar l"></i></div>
-      <div class="cell g"><div class="box"><b>Checks run</b><small>jbus wakes the crewmate only when a check fails, or when the checks pass and the crewmate owes the home a line.</small></div></div>
+      <div class="cell g"><div class="box"><b>Checks run</b><small>jbus wakes the crewmate when a check fails, when its review is written and it owes a line, when the pull request has a conflict, and when the owner comments on GitHub.</small></div></div>
     </div>
 
     <div class="row rev">
       <div class="cell h"></div>
       <div class="cell s"><div class="box file"><b>tasks/&lt;slug&gt;.md</b><small>gains <code>## Review</code>, shaped as <code>features/pr-review/templates/review.md</code></small></div><i class="ar l"></i></div>
-      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>One thread, one review, one proof</b><small>It reads the diff itself, judges what it found and proves one fact by running code. It fixes nothing and settles itself, and jbus archives it once the pull request merges or closes.</small></div><div class="box msg"><span class="tag">Message, to the crewmate</span><b>the findings</b><small>each with its severity, file and line</small></div></div>
+      <div class="cell c other"><div class="box rev"><span class="tag">Reviewer thread</span><b>One thread, one review, one proof</b><small>It reads the diff itself, judges what it found and proves one fact by running code. It fixes nothing and settles itself, and jbus archives it once the pull request merges or closes.</small></div><div class="box msg"><span class="tag">Message, from jbus to the crewmate</span><b>its review is written</b><small>with the findings by id, sent only when <code>jmerge</code> says the crewmate owes a line</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -230,9 +230,9 @@
     </div>
 
     <div class="row rev">
-      <div class="cell h"><div class="box plain"><b>Woken by the message</b><small>It runs no watch and polls nothing.</small></div><i class="ar l"></i></div>
-      <div class="cell s"><div class="box msg"><span class="tag">Message</span><b>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</b></div><i class="ar l"></i></div>
-      <div class="cell c"><div class="box"><b><span class="n">11</span>Tell the home, once</b><small>When the findings are handled and the fixed head is green, and only while <code>home-thread</code> holds an id: the home then reads what <code>jbus</code> merged. With it empty, the crewmate sends nothing.</small></div></div>
+      <div class="cell h"></div>
+      <div class="cell s"></div>
+      <div class="cell c"><div class="box"><b><span class="n">11</span>Send the home nothing</b><small>When the findings are handled and the fixed head is green, the crewmate sends no line. <code>jbus</code> reads the <code>Fixed:</code> line from the brief and merges on its next pass.</small></div></div>
       <div class="cell g"></div>
     </div>
 
@@ -244,7 +244,7 @@
     </div>
 
     <div class="row">
-      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small>The home runs <code>jmerge --sweep</code> once at each start, while it merges. The sweep removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
+      <div class="cell h"><div class="box"><b><span class="n">13</span>Sweep</b><small>The home runs <code>jmerge --sweep</code> once at each start, while <code>home-thread</code> holds an id. The sweep removes what a finished thread left and prints why it kept the rest.</small></div><i class="ar r"></i></div>
       <div class="cell s"><div class="box file"><b>merge.log</b><small>what was swept, dated</small></div></div>
       <div class="cell c"></div>
       <div class="cell g"></div>
@@ -266,12 +266,11 @@
   <table>
     <thead><tr><th>The message</th><th>From, to</th><th>Sent when</th></tr></thead>
     <tbody>
-      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is fixed and green</code></td><td>Crewmate, to its home</td><td>The review's findings are handled and every check has passed. The crewmate sends it only while <code>home-thread</code> holds an id, and the home reads what <code>jbus</code> did of it: <code>jbus</code> merges it either way.</td></tr>
-      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to its home</td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It waits for your word.</td></tr>
+      <tr><td><code>&lt;slug&gt;: &lt;pull request url&gt; at &lt;full head commit&gt; is green and has no review</code></td><td>Crewmate, to <code>jbus gate</code></td><td>The brief says <code>Review: none</code>, or no reviewer could be launched. It is parked as a gate whose default is that the pull request waits for your word.</td></tr>
       <tr><td>The task ended with no pull request</td><td>Crewmate, to its home</td><td>Its Result names none. At most five lines.</td></tr>
       <tr><td>The report is written</td><td>Scout, to its home</td><td>Once, at its end. Once more only if a page's feedback changed the report.</td></tr>
       <tr><td><code>&lt;slug&gt;: gate</code></td><td>Crewmate or scout, to its home</td><td>It took a default on a question only you can answer, and carried on, on a machine with no <code>jbus</code>. With <code>jbus</code>, the gate goes to <code>jbus gate</code>, and the thread sends no message.</td></tr>
-      <tr><td>A review's findings</td><td>Reviewer, to the crewmate</td><td>After its one run. To the home only when the brief has no <code>Thread:</code> line.</td></tr>
+      <tr><td>A review's notice</td><td><code>jbus</code>, to the crewmate</td><td>Once every reviewer of the head has written and <code>jmerge</code> says the crewmate owes a line. To the home only when the brief has no <code>Thread:</code> line.</td></tr>
     </tbody>
   </table>
   <details><summary>Whom a message goes to</summary><p>The id in a <code>home-id</code>, read when the message is sent: the root home's, or the one in <code>&lt;scope&gt;/</code> when the <code>Home:</code> line of the brief or request names that scope. No brief names a thread. With no home listening, the thread sends nothing, and the next home reads the result from disk.</p></details>
@@ -330,9 +329,9 @@
     <li>No home writes another home's directory.</li>
     <li>A scoped home's slugs and branches start with its prefix.</li>
     <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home &lt;threadId&gt;</code> merges nothing.</li>
-    <li>Homes do not message each other, except about a decision that crosses scopes.</li>
+    <li>Homes never send each other a message of their own. The root carries your word to a scope with <code>jbus word --scope</code>, a scope reaches the root only with <code>jbus stop</code>, and a finding for another home goes by <code>jbus noticed add --for</code>.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
-    <li>A scoped home whose plan has no open entry closes at its handoff, and it starts no next home.</li>
+    <li>A scoped home closes at its handoff when its plan has no open entry and <code>jbus out --scope</code> prints nothing, and then it starts no next home.</li>
     <li>The root home reads a scope's handoff and open plan entries when you ask for status.</li>
   </ul>
 </section>
@@ -358,7 +357,7 @@
       <tr><td><code>jmerge --gate &lt;head&gt; --pr &lt;pr&gt;</code></td><td>In a review, on the head it reviews</td><td>Nothing for a gate that passes, else one finding</td><td>Nothing</td></tr>
     </tbody>
   </table>
-  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, and its findings are handled (<code>Fixed:</code>). A wider fix has had its second pass. The check named <code>check</code>, or each check that the repo's <code>required-checks</code> file lists, has passed at the pull request's head. That green run still covers today's main. GitHub says the pull request can merge. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
+  <details><summary>What "ready" and "removable" mean</summary><p>Ready: a review is written, and its findings are handled (<code>Fixed:</code>). A wider fix has had its second pass. The check named <code>check</code>, or each check that the repo's <code>required-checks</code> file lists, has passed at the pull request's head. That green run still covers today's main. GitHub says the pull request can merge. Its queue row has your go, or the bot's. Its own browser run, where it has one, has not failed. Main is not red, or this pull request is the fix of that red. The rules are in <code>features/jmerge/src/jmerge/ready.py</code>. Removable: the last Result says done with nothing left, the pull request is merged or there is none, and nothing uncommitted or unpushed would be lost. The rules are in <code>features/jmerge/src/jmerge/sweep.py</code>.</p></details>
 </section>
 
 <section>
@@ -370,7 +369,7 @@
       <tr><td>Crewmate: done, no pull request, nothing left, worktree clean</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
       <tr><td>Crewmate: pull request merged</td><td><span class="chip auto">auto</span></td><td>T3 Code, because the pull request is linked to the thread</td></tr>
       <tr><td>Scout: report done, no page</td><td><span class="chip auto">auto</span></td><td>Itself, once the home is told</td></tr>
-      <tr><td>Reviewer: findings sent, <code>## Review</code> written</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
+      <tr><td>Reviewer: <code>## Review</code> written</td><td><span class="chip auto">auto</span></td><td>Itself, as its last step</td></tr>
       <tr><td>Home: <code>/handoff</code> finished</td><td><span class="chip auto">auto</span></td><td>Itself, after it has launched the next home</td></tr>
       <tr><td>Crewmate: pull request open</td><td><span class="chip never">not yet</span></td><td>Stays on the pull request</td></tr>
       <tr><td>Scout: report done, with a page</td><td><span class="chip never">not yet</span></td><td>Itself, once you have ended the page's session</td></tr>

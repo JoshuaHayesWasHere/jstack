@@ -9,10 +9,11 @@ The root is the one thing that only you can do, and there are four kinds:
 - **A row with no approval that an approved row depends on** is yours to approve. The line holds the `jbus queue approve` command, with its `--sha`, and names the four bases to pick one from.
 - **A project with no sign-in to T3 Code** is yours to configure, since its wakes go to its home thread through T3 Code ([Where wakes go](events-and-wakes.md#where-wakes-go)).
 
-For each root, jbus sends one `waiting-on-user` event: `waiting-on-user <project>: <action> · unblocks <slugs> · since <HH:MM zone>`.
+For each root, jbus logs one quiet `waiting-on-user` event, which goes to no thread: `waiting-on-user <project>: <action> · unblocks <slugs> · since <HH:MM zone>`.
 It sends the root again each hour while the root is still open, and a pass that finds it gone prints `cleared <root>`.
 Each time a root is due, jbus shows its line as a desktop notification with `notify-send`, whether or not it queues an event.
-While the last send of the project's first wake route failed, jbus queues only the first, and also prints the line in the journal.
+On macOS, which has no `notify-send`, jbus raises nothing on the desktop.
+While the last wake of the project's home thread failed, jbus also prints the line in the journal.
 Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with the roots that are still open, and `jbus queue show` prints them above the table.
 
 A row that ended with something left is not yours while its home has it.

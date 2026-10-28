@@ -100,7 +100,7 @@ The head must have a `Task:`, `Done when:`, `Proves it:`, `Size:`, `Where:`, `Pu
 Each must be filled in, not left as the template's own text.
 A line is not filled in while it, or an item of a list under it, is still the template's `<...>`, bare or quoted.
 A `Pull request:` or `Review:` line that still offers its choices (`review | none`) is not filled in either.
-Five lines must also hold the right kind of value:
+These five lines must also hold the right kind of value, and `add` makes more checks besides, in `jbriefs.parse.CHECKS` and `jbus.queue.conduct`:
 
 - `Proves it:` names something outside the agent.
 - `Size:` is a t-shirt size.
@@ -212,8 +212,8 @@ The row's `approval` field records the approval:
 
 | Field | What it holds |
 | --- | --- |
-| `basis`, `ref` | `word`, `answer` or `message`, and the id, the number or the `<thread id>/<message id>`. By rule: `rule`, and the rule's number. |
-| `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the rule's text as `standing.md` had it then, and the other two are empty, since you said nothing of the row. |
+| `basis`, `ref` | `word`, `answer`, `message`, `page` or `bot-chat`, and the id, the number or the reference. By rule: `rule` and `follow-up`, or the rule's number for a record made before the rule was known by what it says. |
+| `words`, `said_at`, `said_in` | Your words, when you said them, and the title of the thread you said them in, where jbus knows it. By rule: the follow-up rule's words and the line of the parent's go, or the line of the red run for a fix jbus filed, and the other two are empty, since you said nothing of the row. |
 | `checked` | `true` when jbus read the words and the time from T3 Code, `false` for a word or an answer that was typed. For a row approved by rule it is `true`, since jbus read the rule itself. |
 | `follows` | By rule only: the slug of the parent row. |
 | `ground` | By rule only, for a fix jbus filed from a red check, which names no parent: the words that name the red run, which the line says in place of the parent (above). |
@@ -224,7 +224,7 @@ The row's `approval` field records the approval:
 `jbus queue show` prints it in the `approved` column as `your word, <said_at>, in <said_in>; run <ran_at> by <who>`, with `(time typed)` after the time where `checked` is false.
 `<who>` is `the <directory> home` for a session, and `a shell in <directory>` where no session ran it.
 The view's row says the same line.
-A row approved by rule prints `rule <n>, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and the view's row says the same and carries a `by rule <n>` mark.
+A row approved by rule prints `the follow-up rule, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and the view's row says the same and carries a `by rule` mark.
 `jbus queue hold <parent>` takes back the parent's go and the go of each of its queued follow-ups.
 It prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`.
 `jbus queue remove` of a parent that did not merge does the same.
@@ -234,10 +234,10 @@ A row approved before these records existed holds only the typed string.
 It keeps its go, still launches, and prints `<the string> (typed, not checked)`.
 jbus reads no time out of such a string, so the view gives no time from approval to merge for it.
 
-The sha leaves out the `Home:`, `Thread:` and `Green main:` lines of the brief's head, the lines above its first `## `.
+The sha leaves out the `Home:`, `Thread:`, `Green main:` and `Stacked on:` lines of the brief's head, the lines above its first `## `.
 They say whom the brief is sent to and where main last passed, not what it asks for.
 jbus keeps the stored brief whole, those lines included.
-A launch sends the brief without the three lines.
+A launch sends the brief without those four lines, and a row that launches stacked gets its `Stacked on:` line in place of `Green main:`.
 It writes its own `Green main: <sha>` line under the brief's first line, both in the brief it sends and in the home's `tasks/<slug>.md`.
 The crew rebases onto that sha when main is red.
 The sha is the last tip of main whose check passed, `green` in `main.json`.
@@ -284,7 +284,7 @@ A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is r
 
 #### The bot's route
 
-The bot gives a go or an answer with `POST /act` on `jbus view`, with a JSON body:
+The bot gives a go or an answer with `POST /act?project=<name>` on `jbus view`, with a JSON body, and an address with no known project gets 404:
 
 ```
 {"action": "go", "slug": "alpha", "sha12": "52e43397dc8c", "evidence": "bot-chat:<address>/<device>", "seen": "<event id>"}

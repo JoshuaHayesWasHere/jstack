@@ -26,7 +26,7 @@ One task takes at least two threads, a crewmate and a reviewer.
 Each thread keeps its records in a state directory outside the repo.
 A thread can end at any time, and the next one starts from those files.
 A thread does reversible work without asking.
-It pauses only before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside.
+It waits for you only before a step that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes.
 A question only you can answer becomes a **gate**.
 The thread takes a default, carries on, and asks you.
 Your answer closes the gate, and with no answer the gate keeps its default.
@@ -56,8 +56,8 @@ jstack runs without it.
 
 | Need | What you lose without it |
 |---|---|
-| `jbus`, with its config and its sign-in | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself or hand the merge to a home. `jbus` sends its wakes to each project's home thread, and has no webhook. |
-| systemd `--user` | No background jobs. On macOS, launchd runs them in its place. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
+| `jbus`, with its config and its sign-in | Nothing runs between your threads, so the work moves only while a home is open, and you run `jmerge` yourself. `jbus` sends its wakes to each project's home thread, and has no webhook. |
+| systemd `--user`, or launchd on macOS | No background jobs. On macOS, launchd runs them in its place. The install enables these timers: the `jbus` pass each minute, its check for a missing pass, `jgauge-limits` and `jgauge-sample`, and `jroles-mirror`. It enables the weekly CI report, the relay and the backup only once their config is there. |
 | The limits file, `~/.local/state/claude/limits` | `jgauge room` cannot see the plan's five-hour and weekly limits, so only the machine's readings hold a launch back. `jinstall` sets a status line that writes the file, unless you have a status line of your own. |
 | The backup: a private remote and `gitleaks` | The homes' state directory is not pushed anywhere. With an `origin` on `~/.local/state/home` and `gitleaks` on the machine, a timer commits and pushes it twice a day ([Back up the homes' state](features/jbus/docs/jbus/back-up-the-homes-state.md)). |
 | `lavish-axi` | No visual pages. A scout writes its report with no page, and a round of questions is asked as text. |
@@ -79,6 +79,7 @@ It writes outside jstack's own folders for each of the three.
 In this tutorial we install jstack, point it at a repo of yours, and merge one pull request that its threads wrote.
 
 1. Install the latest release and set it up. The script needs only `curl` and a shell.
+	If the `curl` line fails with a 404, the repo has no release yet: install from a clone, as [jinstall](features/jinstall/docs/jinstall.md#install-from-a-clone) shows.
 
 	```sh
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh
@@ -152,12 +153,9 @@ In this tutorial we install jstack, point it at a repo of yours, and merge one p
 	No person has to approve on GitHub.
 	The reviewer thread's review counts as the approval.
 
-Nothing merges by itself until you choose who does it.
+Nothing merges by itself until `jbus` runs.
 Set up [`jbus`](features/jbus/docs/jbus/set-up-jbus.md), and its timer runs `jmerge` each minute.
-Or let one home merge.
-The home writes its thread id into `home-id` in the state directory when it starts.
-Write that id, on one line, into a file `home-thread` beside it.
-[Configuration](features/jinstall/docs/configuration.md#switches-for-one-repo) has both.
+Without it, run `jmerge` yourself, since no home merges.
 To add jleak's git hooks to another repo, run `jinstall --repo` in it ([Git hooks in your repos](features/jinstall/docs/jinstall.md#git-hooks-in-your-repos)).
 
 To remove jstack from the machine, run `jinstall --uninstall`, then `uv tool uninstall jstack`.

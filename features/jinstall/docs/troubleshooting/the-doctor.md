@@ -30,7 +30,8 @@ A word in angle brackets stands for a value on your machine.
 | `doctor: not ok, <n> hard` | `<n>` hard lines are not `ok`. The doctor exits 1. | Fix each `hard` line that does not start with `ok`. |
 
 `jinstall` and `jinstall --check` have no last line.
-They exit 1 when any line they print is not `ok`.
+They exit 1 when a line they print is not `ok`.
+The one exception is an optional git hook of a repo's own, whose `old` line leaves the exit code at 0.
 
 ## Lines from the install itself
 
