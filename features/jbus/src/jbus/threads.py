@@ -248,18 +248,20 @@ def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> s
 def _scouts(run: Pass) -> dict[str, str]:
     """Return each scout that has a Report, with the reason its thread stays. The reason is empty
     for a scout that is over. A scout whose last Report does not say `Status: done` stays, as the
-    scout skill's End keeps it."""
+    scout skill's End keeps it, and a page that waits is the reason it gives first."""
     pages, undone = {}, set()
     for slug, text in _briefs(run, "scouts").items():
         whole = mirror.sections(text)
         reports = [body for heading, body in whole if heading == REPORT]
-        if reports and _says_done(reports[-1]):
+        if reports:
             pages[slug] = mirror.page(reports[-1])
-        elif reports:
-            undone.add(slug)
+            if not _says_done(reports[-1]):
+                undone.add(slug)
     sessions = lavish.sessions() if any(pages.values()) else []
-    held = {slug: _waits(run, slug, page, sessions) for slug, page in pages.items()}
-    return held | dict.fromkeys(undone, UNDONE)
+    return {
+        slug: _waits(run, slug, page, sessions) or (UNDONE if slug in undone else "")
+        for slug, page in pages.items()
+    }
 
 
 def shut(world: World, briefs: dict[str, str]) -> set[str]:
