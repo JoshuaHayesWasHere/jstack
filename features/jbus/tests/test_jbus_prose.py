@@ -18,7 +18,7 @@ from jbus import leftover, prose, wakes
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_leftover import home
 
-TODAY = Path(__file__).parent / "fixtures" / "prose" / "notes-2026-10-28.md"
+TODAY = Path(__file__).parent / "fixtures" / "prose" / "notes-2026-10-28.txt"
 NOTE = "- 2026-10-28: take X out once #12 merges"
 DECISION = "Decisions: brief once foo lands"
 ASK = "a home must remember this: make it a row with `--depends`, or delete the line"
