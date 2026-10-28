@@ -55,7 +55,7 @@ import jroles.mirror
 from jbriefs import parse
 from jbriefs.home import home_of, named
 from jbus import queue, read_json, verbs, write_json
-from jbus.passes import Changed, Depends, Pass, Slot
+from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
 from jmerge import claims, mainjson
@@ -448,7 +448,8 @@ class Turns:
         on, that waits only for a free slot.
 
         The method skips every other row. jbus never launches a row again once the row's thread
-        has ended with a Result. When a row waits because its brief changed, or waits on a slug
+        has ended with a Result, nor a fix row of a red main whose own commit went green on a
+        rerun (`_rerun`). When a row waits because its brief changed, or waits on a slug
         it depends on, the method adds the reason to `Pass.reasons`. A row waits on a slug until
         that slug has merged, or has ended `done` with no pull request, or until the one slug it
         still waits on has opened its pull request: it then launches stacked on that pull
@@ -473,6 +474,9 @@ class Turns:
             if ended(run, world, slug):
                 continue
             if not row.get("approved"):
+                continue
+            if mainjson.fix_of(slug) and (rerun := _rerun(run, slug)):
+                run.reasons[slug] = Rerun(rerun)
                 continue
             if slug in world.settled:
                 if not full:
@@ -728,6 +732,15 @@ STEPS = (
         ("sight", "budget"),
     ),
 )
+
+
+def _rerun(run: Pass, slug: str) -> str:
+    """Return the green commit of main, where it is the very commit the fix row `slug` was filed
+    for, and nothing otherwise. Such a red was a check that failed and then passed on a rerun:
+    there is no red left to fix. `watch._withdraw` takes out a row that a later green made
+    needless, and leaves this one, so the launch is where it stops."""
+    green = mainjson.read(run.state).green
+    return green[:12] if green and green.startswith(slug.removeprefix(mainjson.FIX)) else ""
 
 
 def homed(text: str, brief: str) -> str:
