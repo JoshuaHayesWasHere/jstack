@@ -133,8 +133,9 @@ def test_on_a_phone_every_target_of_the_map_takes_a_thumb_and_nothing_is_cut(sce
 @pytest.mark.parametrize("screen", [DESK, PHONE], ids=["desk", "phone"])
 def test_no_panel_card_is_drawn_over_the_homes_map(scene, tmp_path, screen):
     """The panels' parts of the desk, the glance band and its tiles, what needs you, what slows
-    us, the matrix, what landed since the user looked, merges per day and the nearest milestone,
-    are the overview's: `#/` draws each of them, and `#/homes` draws none, only the map."""
+    us, the matrix (on a phone, a line for every home), what landed since the user looked, merges
+    per day and the nearest milestone, are the overview's: `#/` draws each of them, and `#/homes`
+    draws none, only the map."""
     SCENES["busy"](scene)
     looked = f"window.__looked = {int((NOW - timedelta(hours=2)).timestamp() * 1000)};"
     served = Served(scene)
@@ -148,10 +149,8 @@ def test_no_panel_card_is_drawn_over_the_homes_map(scene, tmp_path, screen):
     finally:
         served.close()
     assert [one["errors"] for one in seen.values()] == [[], []]
-    drawn = ["glance", "milestones", "since", "slow", "throughput", "you"]
-    if screen == DESK:
-        drawn = sorted([*drawn, "pipeline"])
-    assert sorted(seen["#/"]["panels"]) == drawn, "a phone draws no matrix"
+    drawn = ["glance", "milestones", "pipeline", "since", "slow", "throughput", "you"]
+    assert sorted(seen["#/"]["panels"]) == drawn
     assert seen["#/homes"]["map"] and seen["#/homes"]["cards"]
     assert seen["#/homes"]["panels"] == []
 

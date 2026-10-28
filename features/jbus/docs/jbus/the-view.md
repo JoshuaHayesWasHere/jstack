@@ -45,14 +45,20 @@ At a desk, the first screen is a desk of regions, from the top:
 
 At 1440 by 900 over the T moment, the desk answers the eight questions it ranks first above y=900, the parts that answer each as `QUESTIONS` in `test_view_page_overview.py` lists them.
 Each region and the parts it holds, in order, are one table in the page (`DESK`), and each part is a panel's (`parts`).
-Below 1180 pixels wide the regions are one column, and the strip is one column on a phone, where the matrix is not drawn.
+Below 1180 pixels wide the regions are one column.
+On a phone (640 pixels wide or less) the same table's `phone` side places the parts, one column top to bottom: the band, Needs you, Every home, the four tiles other than Needs you two by two, Slowed by, Landed, the board's stage folds, Merged per day, the nearest milestone and the machine.
+The order on screen is the order of the page, so Tab takes it too, and the parts after the folds are drawn under the board.
+At 390 by 844 over the T moment and the overloaded day, the band, Needs you and Every home end above y=844.
+On a phone Needs you shows its first three, the band leaves out what waits on you since Needs you is right under it, and no line is cut: a phone has no pointer to hover a title with, so every line wraps.
+Every home is a line for each home of each project, in the matrix's order, a link to `#/?home=<home>`: its open rows, a bar of them split into failing, running, passed, no run and other stages, and how long ago it last acted, on one line.
+The legend under its heading names only the kinds some bar draws, each beside a swatch of its paint: no run is hatched and other stages dotted, so neither reads as the empty bar.
 On the desk the bar of what waits on you is not drawn, since the tile and the rail say it.
 
 The matrix and the board under the desk have these parts:
 
 | Part | What it shows |
 |---|---|
-| Every stage, every home | The matrix, a line for each home of each project, the root first and then the one with the most open rows, a home with none included: its open rows and its last act, and a cell for each stage with its count and a dot per row, filled once the row has been an hour in the stage. In Check each dot is a square shaded by what the row waits on: a failing check, one running or queued, one passed that waits for jmerge, or no check run. Each column's head has its total. A cell is a link to `#/?home=<home>&stage=<stage>`, which leaves that home's rows of that stage alone in the columns below; Esc or the browser's back undoes it. On a phone the matrix is not drawn. |
+| Every stage, every home | The matrix, a line for each home of each project, the root first and then the one with the most open rows, a home with none included: its open rows and its last act, and a cell for each stage with its count and a dot per row, filled once the row has been an hour in the stage. In Check each dot is a square shaded by what the row waits on: a failing check, one running or queued, one passed that waits for jmerge, or no check run. Each column's head has its total. A cell is a link to `#/?home=<home>&stage=<stage>`, which leaves that home's rows of that stage alone in the columns below; Esc or the browser's back undoes it. On a phone the matrix is not drawn, and Every home stands in for it. |
 | Chains | Under the matrix, the longest chain drawn from its head to its deepest row, how deep it is and how many chains there are, and how many rows are stacked on how many parents, with what the parents wait on. Picking a slug there picks it on the board. |
 | Headlines | Most stuck: the stage with the most rows not moving, and its oldest such row with its cause. Waiting longest: the row not moving for the longest, its stage and its cause. Longest chain: how deep it is, how many chains there are, and its head with the head's stage and cause. |
 | Stages | A strip with each stage's count, its oldest age and a bar of its rows not moving. The stages are Scout, Queued, Crew, Needs you, Review, Fix, Review 2, Check, Stacked, Merge and Merged (today's), and a pull request on the step check that merges after its parent row is in Stacked, not Check, whatever its own checks say; each row on the step check carries its `wait`, failing, waiting, passed or stacked, in Needs you too, and a row merged into an integration branch counts there as one merged into the default branch does. Needs you holds the rows jbus's list of what waits on you names, and counts every need of that list, the count every Needs-you widget gives; a gate on its default stays in Crew, and a hold jbus does not list is in Merge. |
@@ -93,7 +99,9 @@ The header holds the one project switcher (All and each project), the breadcrumb
 The state is "Machine ok", "jbus stopped" or "N passes failed" in red, or in amber one of "Machine: room full", "room not known", "runners down", "plan at its limit", "N homes off the bus" or "N sources unread".
 Those words link to the pulse drawer, which lists the machine's parts.
 When jbus has stopped or the server does not answer, one line under the header says so once.
-On a phone the header is one row, and it leaves out the switcher, the theme, the time of the last read while it is fresh, and the machine's state while it is ok.
+On a phone the header is one row: the name with the time of the last read under it as `live · hh:mm`, the crumbs past All, Triage, ?, and a menu button.
+It leaves out the machine's state while it is ok, and says `Stale since` in the row while the server does not answer.
+The menu button opens a second row with Homes, the switcher and the theme; Esc or a new route shuts it.
 
 A project's card or line opens its page, `#/<project>`, which has nothing else on its first screen but:
 

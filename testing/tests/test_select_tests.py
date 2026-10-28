@@ -312,8 +312,20 @@ HELD = {
     "testing/tests/test_hooks.py": "import reg.hooks\n",
     "testing/tests/test_menu.py": "from reg.menu import MENU\n\n\ndef test_it():\n    MENU[0]()\n",
     "testing/tests/test_title.py": "from reg.menu import TITLE\n\n\ndef test_it():\n    TITLE\n",
+    "src/reg/verbs.py": (
+        "import importlib\nfrom dataclasses import dataclass\n\nTITLE = 'verbs'\n\n\n"
+        "@dataclass\nclass Verb:\n    name: str\n    run: object\n\n\n"
+        "def load():\n    return importlib.import_module('reg.plug')\n\n\n"
+        "VERBS = (Verb('load', load),)\n"
+    ),
     "testing/tests/test_lookup.py": "import reg.lookup\n",
     "testing/tests/test_table.py": "from reg.table import Table\n",
+    "testing/tests/test_verbs.py": (
+        "from reg.verbs import VERBS\n\n\ndef test_it():\n    VERBS[0].run()\n"
+    ),
+    "testing/tests/test_verb_title.py": (
+        "from reg.verbs import TITLE\n\n\ndef test_it():\n    TITLE\n"
+    ),
 }
 
 
@@ -327,6 +339,7 @@ HELD = {
         "test_mapped.py",
         "test_wraps.py",
         "test_hooks.py",
+        "test_verbs.py",
     ],
 )
 def test_a_function_that_imports_by_name_reaches_the_tests_that_may_call_it_however_they_name_it(
@@ -342,11 +355,53 @@ def test_a_function_that_imports_by_name_reaches_the_tests_that_may_call_it_howe
     assert f"testing/tests/{test}" in repo.selected(head)
 
 
-def test_a_registry_that_holds_a_function_that_imports_by_name_reaches_only_its_readers(tmp_path):
+@pytest.mark.parametrize("test", ["test_title.py", "test_verb_title.py"])
+def test_a_registry_that_holds_a_function_that_imports_by_name_reaches_only_its_readers(
+    tmp_path, test
+):
+    """`MENU = (load,)` and `VERBS = (Verb('load', load),)` only hold `load`: building a dataclass
+    of the module stores its arguments and runs none of them."""
     repo = Repo(tmp_path, files={**FILES, **LOADER, **HELD})
     head = repo.change(["src/reg/plug.py"])
 
-    assert "testing/tests/test_title.py" not in repo.selected(head)
+    assert f"testing/tests/{test}" not in repo.selected(head)
+
+
+EXPORTED = {
+    "re-export": (
+        "from reg.kinds import found\n",
+        "from reg import found\n\n\ndef test_it():\n    found()\n",
+    ),
+    "star": ("", "from reg.kinds import *\n\n\ndef test_it():\n    found()\n"),
+    "star re-export": (
+        "from reg.kinds import *\n",
+        "import reg\n\n\ndef test_it():\n    reg.found()\n",
+    ),
+}
+
+
+@pytest.mark.parametrize("way", EXPORTED)
+def test_a_function_that_imports_by_name_reaches_the_tests_that_call_it_through_a_re_export(
+    tmp_path, way
+):
+    """A package that re-exports `found`, by name or with a star, and a test that star-imports
+    it, each reach the module that defines it, so a change to what `found` loads selects the
+    test that calls it there, and not one that only imports the package."""
+    package, test = EXPORTED[way]
+    files = {
+        **FILES,
+        **LOADER,
+        "src/reg/__init__.py": package,
+        "testing/tests/test_exported.py": test,
+        "testing/tests/test_package.py": "import reg\n",
+    }
+    repo = Repo(tmp_path, files=files)
+    head = repo.change(["src/reg/plug.py"])
+
+    selected = repo.selected(head)
+
+    assert "testing/tests/test_exported.py" in selected
+    assert "testing/tests/test_package.py" not in selected
 
 
 def test_a_test_that_imports_a_module_by_its_name_in_a_string_is_selected_by_a_change_to_it(

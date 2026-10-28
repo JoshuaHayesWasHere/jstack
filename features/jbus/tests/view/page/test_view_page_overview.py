@@ -446,3 +446,157 @@ def test_no_part_of_the_desk_cuts_its_words_without_a_title_or_a_way_to_open_the
     DAYS[day](scene)
     seen = desk(scene, tmp_path)
     assert {one["name"]: one["cut"] for one in seen["parts"] if one["cut"]} == {}
+
+
+PHONE_QUESTIONS = {
+    "are we stalled, and why": ("glance:band",),
+    "where is all the work, every stage, every home": ("pipeline:homes",),
+    "what needs me right now": ("you:rail",),
+}
+"""The first 3 ranked questions, and the part of the phone's overview that answers each: the
+verdict, Every home and Needs you."""
+
+
+HL_BAR = {
+    "failing": "failing",
+    "waiting": "running",
+    "passed": "passed",
+    "norun": "no run",
+    "other": "other stages",
+}
+"""Each kind of row in a home's bar, in the bar's order, and the word its legend has for it."""
+
+
+PHONE_ORDER = (
+    ("glance:band",),
+    ("you:rail",),
+    ("pipeline:homes",),
+    ("glance:open", "slow:tile"),
+    ("glance:act", "glance:merged"),
+    ("slow:rail",),
+    ("since:landed",),
+    ("board",),
+    ("throughput:perday",),
+    ("milestones:nearest",),
+    ("slow:machine",),
+)
+"""The overview at 390, top to bottom, a row of the screen to each tuple: the verdict, Needs you,
+Every home, the KPIs two by two, Slowed by, Landed, the board's stage folds, 7 d, the milestone and
+the machine (`reports/jv-glance/build/wire-390.png`). `board` is the board, `#pipeline`."""
+
+
+@pytest.mark.parametrize("day", list(DAYS))
+def test_on_a_phone_questions_1_to_3_are_answered_above_the_fold(scene, tmp_path, day):
+    """At 390 by 844 the verdict, Needs you and Every home are drawn, say something, and end
+    above y=844. The header keeps Triage, ? and, under the name, the time of the last read, and
+    its menu button opens Homes, the project and light or dark, all inside the screen."""
+    DAYS[day](scene)
+    seen = desk(scene, tmp_path, screen=PHONE)
+    parts = {one["name"]: one for one in seen["parts"]}
+    for question, answers in PHONE_QUESTIONS.items():
+        for name in answers:
+            part = parts.get(name)
+            assert part, f"{question}: {name} is not drawn"
+            assert part["text"] and not part["text"].startswith("Asking"), (question, name, part)
+            assert 0 <= part["box"]["top"] < part["box"]["bottom"] <= PHONE[1], (
+                question,
+                name,
+                part["box"],
+            )
+    shut = {one["id"]: one for one in seen["header"]}
+    assert shut["tri"]["text"].startswith("Triage"), shut["tri"]
+    assert shut["helpme"]["label"].endswith("the key ?"), shut["helpme"]
+    assert re.fullmatch(r'"live · \d\d:\d\d"', seen["stamp"]), seen["stamp"]
+    assert shut["hmenu"]["expanded"] == "false", shut["hmenu"]
+    assert [i for i, one in shut.items() if one["shown"]] == ["tri", "helpme", "hmenu"]
+    opened = {one["id"]: one for one in seen["opened"]}
+    assert opened["hmenu"]["expanded"] == "true", opened["hmenu"]
+    assert [i for i, one in opened.items() if not one["shown"]] == ["readat"], opened
+    for one in [shut["tri"], shut["helpme"], shut["hmenu"], *opened.values()]:
+        assert 0 <= one["box"]["left"] and one["box"]["right"] <= PHONE[0], one
+
+
+@pytest.mark.parametrize("day", list(DAYS))
+def test_on_a_phone_the_overview_is_one_column_in_the_order_of_the_wireframe(scene, tmp_path, day):
+    """Each row of `PHONE_ORDER` starts below the one before it ends, and the parts of a row share
+    its top, left to right. The Needs you tile is not drawn: the list right under the verdict says
+    it, and the KPIs are the other four."""
+    DAYS[day](scene)
+    planned(scene)
+    seen = desk(scene, tmp_path, screen=PHONE)
+    boxes = {one["name"]: one["box"] for one in seen["parts"]} | {"board": seen["board"]}
+    assert "you:tile" not in boxes
+    drawn = [name for row in PHONE_ORDER for name in row]
+    assert [name for name in drawn if name not in boxes] == []
+    assert sorted(boxes, key=lambda name: (boxes[name]["top"], boxes[name]["left"])) == drawn
+    bottom = 0
+    for row in PHONE_ORDER:
+        tops = {boxes[name]["top"] for name in row}
+        assert len(tops) == 1 and min(tops) >= bottom, (row, tops, bottom)
+        lefts = [boxes[name]["left"] for name in row]
+        assert lefts == sorted(lefts) and len(set(lefts)) == len(row), (row, lefts)
+        bottom = max(boxes[name]["bottom"] for name in row)
+
+
+def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scene, tmp_path):
+    """Over the T moment, each home of the project is one line, the root first and then by its
+    open rows: its name, its open count, a bar of its rows in check by outcome beside the rest,
+    and how long ago it last acted, on one line. Each line opens the board's rows of that home.
+    The legend names only the kinds a bar draws, each in its own paint."""
+    DAYS["t"](scene)
+    seen = desk(scene, tmp_path, screen=PHONE)
+    homes = seen["homes"]
+    assert [(one["home"], one["text"].split()[:2]) for one in homes] == [
+        ("root", ["root", "20"]),
+        ("jview", ["jview", "15"]),
+        ("flow", ["flow", "8"]),
+        ("macos", ["macos", "1"]),
+    ]
+    assert all(re.fullmatch(r"\d+m|\d+h\d\d|\d+d|none", one["ago"]["text"]) for one in homes), homes
+    assert [one["ago"]["lines"] for one in homes] == [1] * len(homes), homes
+    assert [one["href"] for one in homes] == [f"#/?home={one['home']}" for one in homes]
+    assert all(one["box"]["bottom"] - one["box"]["top"] >= 44 for one in homes), homes
+    drawn = {cls for one in homes for cls in one["bar"]}
+    legend = seen["legend"]
+    assert [one["cls"] for one in legend] == [cls for cls in HL_BAR if cls in drawn], legend
+    assert [one["text"] for one in legend] == [HL_BAR[one["cls"]] for one in legend], legend
+    paints = [one["paint"] for one in legend]
+    assert len(set(paints)) == len(paints) and "rgba(0, 0, 0, 0) none" not in paints, legend
+
+
+@pytest.mark.parametrize("day", list(DAYS))
+def test_no_part_of_the_phone_cuts_its_words_without_a_way_to_open_them(scene, tmp_path, day):
+    """A phone has no pointer to hover a title with, so each part wraps its words or is a link
+    or a button to the rest of them."""
+    DAYS[day](scene)
+    seen = desk(scene, tmp_path, screen=PHONE)
+    assert {one["name"]: one["cut"] for one in seen["parts"] if one["cut"]} == {}
+
+
+HEALTH = """
+window.addEventListener("load", function () {
+  var started = Date.now();
+  (function wait() {
+    var h = document.getElementById("health");
+    if ((!h || !h.textContent.trim()) && Date.now() - started < window.__at) {
+      setTimeout(wait, 200);
+      return;
+    }
+    var pre = document.createElement("pre");
+    pre.id = "probe";
+    pre.textContent = JSON.stringify({ text: h.textContent, display: getComputedStyle(h).display });
+    (window.top === window ? document : window.top.document).body.appendChild(pre);
+  })();
+});
+"""
+"""A probe of a project's Health line: its words and how it is laid out."""
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_every_home_leaves_a_projects_health_line_a_paragraph(scene, tmp_path, screen):
+    """Every home's lines have a class of their own, so the project page's Health line keeps its
+    look and is not laid out as one of them."""
+    DAYS["t"](scene)
+    seen = look(scene, tmp_path, script=HEALTH, at=8000, budget=12000, screen=screen)
+    assert seen["text"].strip(), seen
+    assert seen["display"] == "block", seen

@@ -320,6 +320,7 @@ def test_a_file_gate_that_holds_for_a_door_is_a_need_and_not_a_gate_that_takes_i
     assert stack["proceeds"] == []
     (need,) = [one for one in stack["needs"] if one["what"] == "drop the old tables?"]
     assert (need["kind"], need["risk"], need["default"]) == ("gate", "deletes data", "drop them")
+    assert need["doors"] == ["deletes data"]
 
 
 def test_a_hold_no_thread_works_on_is_a_need_of_the_user_s(scene, served):
