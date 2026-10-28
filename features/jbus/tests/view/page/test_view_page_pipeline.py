@@ -11,6 +11,7 @@ the headlines, picks a row, counts the cards it marks and the cards it dims, and
 The page never runs wider than the screen, and axe finds no serious issue on it.
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -27,7 +28,7 @@ from view.page.browser import (
     boarded,
     look,
 )
-from view.scene import Scene, Served
+from view.scene import NOW, Scene, Served, iso, judge_row, row, stamp
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 60)]
 
@@ -245,8 +246,8 @@ def test_home_chips_count_and_filter_and_the_choice_is_in_the_address(tmp_path):
         tmp_path / "jview",
         "27",
         DESK,
-        route="#/flow?home=jview&still=1",
-        tap='[data-bhome="macos"]',
+        route="#/flow?home=jstack/jview&still=1",
+        tap='[data-bhome="jstack/macos"]',
     )
     first = seen["before"]
     homes = {}
@@ -264,7 +265,7 @@ def test_home_chips_count_and_filter_and_the_choice_is_in_the_address(tmp_path):
         one["slug"] for one in made["rows"] if one["home"] == "jview" and not one["moving"]
     )
     after = seen["after"]
-    assert "home=macos" in after["hash"] and "still=1" in after["hash"]
+    assert "home=jstack/macos" in after["hash"] and "still=1" in after["hash"]
     cards = sorted(c["slug"] for s in after["stages"] for c in s["cards"])
     assert cards == sorted(
         one["slug"] for one in made["rows"] if one["home"] == "macos" and not one["moving"]
@@ -275,7 +276,11 @@ def test_home_chips_count_and_filter_and_the_choice_is_in_the_address(tmp_path):
 def test_a_drawer_opened_over_the_homes_map_or_a_filtered_board_closes_back_to_it(tmp_path, where):
     """A drawer keeps the view it opened over: closing it comes back to `#/homes`, or to the
     board with its home, its filter and its pick."""
-    route = "#/homes" if where == "homes" else f"#/?home=jview&still=1&pick={a_middle(board('27'))}"
+    route = (
+        "#/homes"
+        if where == "homes"
+        else f"#/?home=jstack/jview&still=1&pick={a_middle(board('27'))}"
+    )
     seen, _ = shown(
         tmp_path, "27", DESK, route=route, script="", walk=["open:help", "close"], at=4000
     )
@@ -292,7 +297,11 @@ def test_a_link_with_a_drawer_open_over_the_homes_map_or_a_filtered_board_loads_
 ):
     """A link to a drawer over `#/homes`, or over a filtered board, loads with the drawer open
     over that view, and closing it comes back to the view the link named."""
-    route = "#/homes" if where == "homes" else f"#/?home=jview&still=1&pick={a_middle(board('27'))}"
+    route = (
+        "#/homes"
+        if where == "homes"
+        else f"#/?home=jstack/jview&still=1&pick={a_middle(board('27'))}"
+    )
     link = route + ("&" if "?" in route else "?") + "open=help"
     seen, _ = shown(tmp_path, "27", DESK, route=link, script="", walk=["wait", "close"], at=4000)
     assert seen["errors"] == []
@@ -304,11 +313,11 @@ def test_a_link_with_a_drawer_open_over_the_homes_map_or_a_filtered_board_loads_
 def test_a_chip_that_has_the_focus_filters_the_board_and_keeps_the_focus(tmp_path):
     """A click focuses a chip before it filters, as a pointer does: the board draws again and
     gives the focus back to the same chip."""
-    chip = '[data-bhome="jview"]'
+    chip = '[data-bhome="jstack/jview"]'
     seen, _ = shown(tmp_path, "27", DESK, script="", walk=[f"focus:{chip}", f"tap:{chip}"], at=4000)
     assert seen["errors"] == []
-    assert seen["walked"][-1]["hash"] == "#/?home=jview"
-    assert seen["walked"][-1]["focus"] == "ph-jview"
+    assert seen["walked"][-1]["hash"] == "#/?home=jstack/jview"
+    assert seen["walked"][-1]["focus"] == "ph-jstack/jview"
 
 
 def test_the_homes_map_moved_to_its_own_tab(tmp_path):
@@ -345,13 +354,14 @@ MATRIX = (Path(__file__).parent / "matrix.js").read_text()
 
 
 def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_or_back(tmp_path):
-    """Over the T moment at 1440 the matrix sits above the columns: a line per home, the root 20,
-    jview 15, flow 8 and macos 1, and infra with no open row, the totals of each stage, a dot
-    per row, square and shaded by what it waits on in Check, and the Chains line. A cell is a
-    link to `#/?home=<h>&stage=<s>`, which leaves that home's rows of that stage alone in the
-    columns; Esc and the browser's back each undo it, back to the board, after two cells in a row
-    or one cell clicked twice, and Esc does after a drawer opened and shut between two cells; over a
-    home chip, Esc undoes the cell back to the chip's board."""
+    """Over the T moment at 1440 the matrix sits above the columns, its legend before its table:
+    a line per home, the root 20, jview 15, flow 8 and macos 1, and infra with no open row, the
+    totals of each stage, a dot per row, square and shaded by what it waits on in Check, and the
+    Chains line. A cell is a link to `#/?home=<project>/<home>&stage=<s>`, which leaves that
+    home's rows of that stage alone in the columns under a "Showing <home>, <stage> ✕" bar
+    scrolled into view; Esc and the browser's back each undo it, back to the board, after two
+    cells in a row or one cell clicked twice, and Esc does after a drawer opened and shut between
+    two cells; over a home chip, Esc undoes the cell back to the chip's board."""
     from view.days import t_moment
     from view.scene import briefed
 
@@ -368,10 +378,10 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     finally:
         served.close()
     assert seen["errors"] == []
-    first, cell, cell2, esc, again, twice, back, shut, over, drawn, chip, chipcell, unchip = seen[
-        "seen"
-    ]
-    assert first["above"], first
+    first, cell, cell2, esc, again, twice, back, _, _, shut, over, drawn, chip, chipcell, unchip = (
+        seen["seen"]
+    )
+    assert first["above"] and first["legend"], first
     assert first["heads"] == [
         "home",
         "Queued 0",
@@ -386,16 +396,16 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     ]
     heads = [(one["home"], one["head"].split(" last act")[0]) for one in first["homes"]]
     assert heads == [
-        ("root", "root 20"),
-        ("jview", "jview 15"),
-        ("flow", "flow 8"),
-        ("macos", "macos 1"),
-        ("infra", "infra 0 no act kept"),
+        ("demo/root", "root 20"),
+        ("demo/jview", "jview 15"),
+        ("demo/flow", "flow 8"),
+        ("demo/macos", "macos 1"),
+        ("demo/infra", "infra 0 no act kept"),
     ]
     jview = {i: one for i, one in enumerate(first["homes"][1]["cells"])}
     check = jview[6]
     assert check["text"] == "13"
-    assert check["href"] == "#/?home=jview&stage=check"
+    assert check["href"] == "#/?home=demo/jview&stage=check"
     assert check["dots"] == ["f"] * 7 + ["w"] * 2 + ["p"] * 4
     flow = first["homes"][2]["cells"][6]
     assert flow["dots"] == ["f"] * 6 + ["x"] * 2
@@ -406,25 +416,152 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     assert first["chains"].startswith("CHAINS fig-saucer ◀ oat-platter 2 deep")
     assert "6 stacked rows on 6 parents (6 failing)" in first["chains"]
     assert len({slug for one in first["stages"] for slug in one["slugs"]}) == 44
+    assert first["bar"] == ""
 
     mine = sorted(
         one["slug"] for one in made["rows"] if (one["home"], one["stage"]) == ("jview", "check")
     )
-    assert cell["hash"] == "#/?home=jview&stage=check"
+    assert cell["hash"] == "#/?home=demo/jview&stage=check"
     assert [(one["key"], sorted(one["slugs"])) for one in cell["stages"]] == [("check", mine)]
-    assert cell["chips"] == ["jview 15", "Check only ✕"]
-    assert cell2["hash"] == "#/?home=root&stage=stacked"
+    assert [one["text"] for one in cell["chips"] if one["pressed"]] == ["jview 15"]
+    assert cell["bar"] == "Showing jview, Check ✕"
+    assert cell["barSeen"], cell
+    assert cell2["hash"] == "#/?home=demo/root&stage=stacked"
     assert [one["key"] for one in cell2["stages"]] == ["stacked"]
     assert esc["hash"] == "#/"
+    assert esc["bar"] == ""
     assert len({slug for one in esc["stages"] for slug in one["slugs"]}) == 44
-    assert again["hash"] == twice["hash"] == "#/?home=root&stage=stacked"
+    assert again["hash"] == twice["hash"] == "#/?home=demo/root&stage=stacked"
     assert back["hash"] in ("", "#/")
     assert len({slug for one in back["stages"] for slug in one["slugs"]}) == 44
-    assert shut["hash"] == "#/?home=jview&stage=check"
-    assert over["hash"] == "#/?home=root&stage=stacked"
+    assert shut["hash"] == "#/?home=demo/jview&stage=check"
+    assert over["hash"] == "#/?home=demo/root&stage=stacked"
     assert drawn["hash"] == "#/"
     assert len({slug for one in drawn["stages"] for slug in one["slugs"]}) == 44
-    assert chip["hash"] == "#/?home=jview"
-    assert chipcell["hash"] == "#/?home=jview&stage=check"
+    assert chip["hash"] == "#/?home=demo/jview"
+    assert chipcell["hash"] == "#/?home=demo/jview&stage=check"
     assert unchip["hash"] == chip["hash"]
     assert unchip["chips"] == chip["chips"]
+
+
+def two_roots(scene):
+    """Two projects, each with only its root home: jstack has 12 open rows, ten queued and two
+    at a gate no one lists, so in Crew, and infra has one, stt-bench-run, in Crew the same way."""
+    rows = [row(f"js-row-{n}", since=stamp(10 + n)) for n in range(10)]
+    rows += [
+        row(f"js-gate-{n}", "gate", why="a gate the Chef has", since=stamp(30 + n))
+        for n in range(2)
+    ]
+    scene.queue(rows)
+    infra = scene.state_dir / "infra"
+    for made in (infra, scene.home_dir / "infra"):
+        made.mkdir()
+    mine = [row("stt-bench-run", "gate", why="a gate the Chef has", since=stamp(50))]
+    (infra / "queue.json").write_text(json.dumps(mine))
+    work = {"at": iso(NOW), "work": [judge_row(one, infra) for one in mine]}
+    (infra / "work.json").write_text(json.dumps(work))
+
+
+def test_two_projects_each_with_a_root_are_two_homes_in_every_chip_card_link_and_filter(tmp_path):
+    """jstack's root and infra's root are two homes: two chips, "infra·root 1" and
+    "jstack·root 12", a card meta that names the project, a matrix line each, and
+    infra's Crew cell lists infra's row alone, under "Showing infra·root, Crew ✕".
+    The bar's ✕ gives every row back."""
+    scene = Scene(tmp_path / "scene", pytest.MonkeyPatch(), name="jstack")
+    two_roots(scene)
+    served = Served(scene)
+    walk = 'window.__cells = ["cell:infra/root/crew", "clear"];\n'
+    try:
+        seen = look(
+            scene,
+            tmp_path,
+            route="#/",
+            port=served.port,
+            script=walk + MATRIX,
+            at=2000,
+            budget=12000,
+        )
+    finally:
+        served.close()
+    assert seen["errors"] == []
+    first, cell, cleared = seen["seen"]
+    chips = [one["text"] for one in first["chips"]]
+    assert chips[0] == "All homes 13"
+    assert sorted(chips[1:-1]) == ["infra·root 1", "jstack·root 12"]
+    assert sorted(one["home"] for one in first["homes"]) == ["infra/root", "jstack/root"]
+    metas = {one["slug"]: one["meta"] for one in first["cards"]}
+    assert metas["stt-bench-run"].startswith("infra·root · ")
+    assert metas["js-gate-0"].startswith("jstack·root · ")
+    infra = next(one for one in first["homes"] if one["home"] == "infra/root")
+    crew = [one["href"] for one in infra["cells"] if one["href"]]
+    assert crew == ["#/?home=infra/root&stage=crew"]
+
+    assert cell["hash"] == "#/?home=infra/root&stage=crew"
+    assert [(one["key"], one["slugs"]) for one in cell["stages"]] == [("crew", ["stt-bench-run"])]
+    assert [one["text"] for one in cell["chips"] if one["pressed"]] == ["infra·root 1"]
+    assert cell["bar"] == "Showing infra·root, Crew ✕"
+    assert cell["barSeen"], cell
+    assert cleared["hash"] in ("", "#/")
+    assert cleared["bar"] == ""
+    assert len(cleared["cards"]) == 13
+
+
+def walk_two_roots(tmp_path, route, steps):
+    """Reads the two-roots board at `route` before each of `steps` and after the last."""
+    scene = Scene(tmp_path / "scene", pytest.MonkeyPatch(), name="jstack")
+    two_roots(scene)
+    served = Served(scene)
+    walk = f"window.__cells = {json.dumps(steps)};\n"
+    try:
+        seen = look(
+            scene,
+            tmp_path,
+            route=route,
+            port=served.port,
+            script=walk + MATRIX,
+            at=2000,
+            budget=12000,
+        )
+    finally:
+        served.close()
+    assert seen["errors"] == []
+    return seen["seen"]
+
+
+@pytest.mark.parametrize(
+    ("route", "said", "slugs"),
+    [
+        ("#/?home=jstack", "Showing jstack ✕", 12),
+        ("#/?home=root", "Showing root ✕", 13),
+    ],
+)
+def test_a_project_alone_or_an_older_bare_home_filters_the_two_roots(tmp_path, route, said, slugs):
+    """`?home=jstack` names a project and keeps its rows alone, with no infra row; an older
+    link's bare `?home=root` names no project, so it keeps the root of each project."""
+    (seen,) = walk_two_roots(tmp_path, route, [])
+    cards = [one["slug"] for one in seen["cards"]]
+    assert len(cards) == slugs
+    assert ("stt-bench-run" in cards) == (slugs == 13)
+    assert seen["bar"] == said
+
+
+def test_the_bars_x_shows_every_home_and_esc_or_x_clears_a_chip_alone(tmp_path):
+    """A cell clicked over a chip is a step of its own, yet the bar's ✕ shows every home and
+    stage, as its label says, and does not step back to the chip. Esc and ✕ clear a chip alone."""
+    steps = [
+        "chip:infra/root",
+        "cell:infra/root/crew",
+        "clear",
+        "chip:infra/root",
+        "esc",
+        "chip:infra/root",
+        "clear",
+    ]
+    _, chip, cell, cleared, chip2, esced, chip3, unchipped = walk_two_roots(tmp_path, "#/", steps)
+    assert chip["hash"] == chip2["hash"] == chip3["hash"] == "#/?home=infra/root"
+    assert chip["bar"] == "Showing infra·root ✕"
+    assert cell["hash"] == "#/?home=infra/root&stage=crew"
+    for after in (cleared, esced, unchipped):
+        assert after["hash"] in ("", "#/"), after["hash"]
+        assert after["bar"] == ""
+        assert len(after["cards"]) == 13

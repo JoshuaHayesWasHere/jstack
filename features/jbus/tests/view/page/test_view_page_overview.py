@@ -541,16 +541,17 @@ def test_on_a_phone_the_overview_is_one_column_in_the_order_of_the_wireframe(sce
 def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scene, tmp_path):
     """Over the T moment, each home of the project is one line, the root first and then by its
     open rows: its name, its open count, a bar of its rows in check by outcome beside the rest,
-    and how long ago it last acted, on one line. Each line opens the board's rows of that home.
-    The legend names only the kinds a bar draws, each in its own paint."""
+    and how long ago it last acted, on one line. Each line opens the board's rows of that home,
+    keyed by its project and its name, `#/?home=demo/root`. The legend names only the kinds a bar
+    draws, each in its own paint."""
     DAYS["t"](scene)
     seen = desk(scene, tmp_path, screen=PHONE)
     homes = seen["homes"]
     assert [(one["home"], one["text"].split()[:2]) for one in homes] == [
-        ("root", ["root", "20"]),
-        ("jview", ["jview", "15"]),
-        ("flow", ["flow", "8"]),
-        ("macos", ["macos", "1"]),
+        ("demo/root", ["root", "20"]),
+        ("demo/jview", ["jview", "15"]),
+        ("demo/flow", ["flow", "8"]),
+        ("demo/macos", ["macos", "1"]),
     ]
     assert all(re.fullmatch(r"\d+m|\d+h\d\d|\d+d|none", one["ago"]["text"]) for one in homes), homes
     assert [one["ago"]["lines"] for one in homes] == [1] * len(homes), homes
@@ -582,7 +583,12 @@ def test_on_a_phone_the_probe_waits_for_every_home_when_the_board_answers_last(s
     for each home, and not the empty part drawn before the board came."""
     DAYS["t"](scene)
     seen = desk(scene, tmp_path, screen=PHONE, script=LATE_BOARD + OVERVIEW)
-    assert [one["home"] for one in seen["homes"]] == ["root", "jview", "flow", "macos"]
+    assert [one["home"] for one in seen["homes"]] == [
+        "demo/root",
+        "demo/jview",
+        "demo/flow",
+        "demo/macos",
+    ]
 
 
 @pytest.mark.parametrize("day", list(DAYS))
