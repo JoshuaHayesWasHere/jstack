@@ -63,7 +63,7 @@ function boardCard(h, stages) {
   var sum = stages.filter(function (s) { return count[s.key]; }).map(function (s) { return '<span><b>' + count[s.key] + '</b> ' + esc(s.name.toLowerCase()) + '</span>'; }).join("");
   var since = ms(h.since);
   return '<section class="bd-card ' + tone + '" aria-label="' + esc(h.name ? "home " + h.name : "root home") + '">' +
-    '<h3 class="bd-h">' + esc(h.name || "root") + ' <span class="bd-hs"><span class="' + health[1] + '">' + esc(health[0]) + (since == null ? "" : " " + short(NOW - since)) + '</span> &middot; ' + plural(h.workers.length, "worker", "workers") + (h.waits ? ' &middot; <span class="ask">' + plural(h.waits, "waits", "wait") + ' on you</span>' : "") + '</span></h3>' +
+    '<h3 class="bd-h">' + esc(h.name || "root") + ' <span class="bd-hs"><span class="' + health[1] + '">' + esc(health[0]) + (since == null ? "" : " " + short(NOW - since)) + '</span> &middot; ' + plural(h.workers.length, "worker", "workers") + (h.waits ? ' &middot; <span class="ask">' + plural(h.waits, "waits", "wait") + ' on you</span>' : "") + ' &middot; ' + lastAct(h.last, "") + '</span></h3>' +
     (h.goal ? '<p class="bd-goal"><b>Goal</b> ' + esc(h.goal) + '</p>' : "") +
     (h.chain.length ? '<ol class="bd-chain" aria-label="the plan, in order">' + h.chain.map(boardStep).join("") + '</ol>' : "") +
     (sum ? '<div class="bd-sum" aria-label="workers by stage">' + sum + '</div>' : "") +

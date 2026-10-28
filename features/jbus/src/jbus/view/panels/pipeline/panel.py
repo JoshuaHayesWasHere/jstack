@@ -10,9 +10,9 @@ today, into the default branch or an integration branch alike, and has no rows: 
 done as far as the queue goes, whatever branch it merged into.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its
-`cause_kind` is the value the last pass judged (`work.VALUES`). Its `home` is its brief's. A row
-whose brief names no home, as a cleanup brief names none, takes the home of a row it links to,
-and else is the root's, `root`.
+`cause_kind` is the value the last pass judged (`work.VALUES`). Its `home` is its brief's, as
+`homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names no home, as a cleanup
+brief names none, is the root's, `root`, whatever rows it links to.
 
 A row waits on each row its `depends` and `merge_after` name that is still open: a task of its
 project, so not merged, done or judged through. `waited_by` is the reverse, among the rows the
@@ -176,30 +176,8 @@ def _stage(task: dict[str, Any]) -> str | None:
     return STAGE_OF_STEP.get(task["step"])
 
 
-def _homes(read: Read) -> dict[str, str]:
-    """The home of each row of the queue and of each slug a row links to. A slug whose brief
-    names no home takes the first home found along its links, and else is the root's."""
-    own = {task["slug"]: task["home"] for task in (*read.tasks, *read.ended)}
-    links = {row["slug"]: [one for key in LINKS for one in row.get(key) or []] for row in read.rows}
-    found: dict[str, str] = {}
-
-    def home(slug: str, seen: frozenset[str]) -> str:
-        mine = own[slug] if slug in own else read.homes.of_task(slug).name
-        if mine != ROOT:
-            return mine
-        for one in links.get(slug, ()):
-            if one not in seen and (theirs := home(one, seen | {slug})):
-                return theirs
-        return ROOT
-
-    for slug in {*links, *(one for each in links.values() for one in each)}:
-        found[slug] = home(slug, frozenset()) or ROOT_NAME
-    return found
-
-
 def cards(read: Read) -> list[Card]:
     """Every open row of the project as a card: each task and each scout out."""
-    homes = read.once(_homes)
     rows = {row["slug"]: row for row in read.rows}
     tasks = {task["slug"] for task in read.tasks}
     made = []
@@ -211,7 +189,7 @@ def cards(read: Read) -> list[Card]:
             Card(
                 task["slug"],
                 read.name,
-                homes.get(task["slug"], ROOT_NAME),
+                task["home"] or ROOT_NAME,
                 _stage(task),
                 task["since"],
                 said,

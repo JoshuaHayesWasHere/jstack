@@ -30,10 +30,11 @@ def mapped(scene, tmp_path, name="busy", screen=DESK, **how):
 def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_per_child_home(
     scene, tmp_path
 ):
-    """demo has what is wrong, so it comes first. Its root is the card's first line, then each
-    child home by name: `docs` with nothing open, and `ui`, whose turn ended with its row out,
-    and how old the home is. That row's stall and the crewmate that hung are the `ui` home's to
-    fix, so they are drawn on their rows and not here. The failed run of CI, which no row owns
+    """demo has what is wrong, so it comes first. Its root is the card's first line, with the
+    project's last act and its own, then each child home by name: `docs` with nothing open and
+    no act kept, and `ui`, whose turn ended with its row out, and how old the home is. That
+    row's stall and the crewmate that hung are the `ui` home's to fix, so they are drawn on
+    their rows and not here. The failed run of CI, which no row owns
     and no root home is listed to fix, is a line under the root. bakery and pantry have
     something that waits on the user and come next."""
     seen, stack = mapped(scene, tmp_path)
@@ -46,7 +47,8 @@ def test_a_card_for_each_project_that_has_something_the_root_first_and_a_line_pe
     assert root["health"] == "moving"
     assert "27 open" in root["text"] and "4 wait on you" in root["text"]
     assert "6 on default" in root["text"]
-    assert docs["text"] == "demo › docs 0 open 2d old"
+    assert "project last act " in root["text"] and " ago root " in root["text"]
+    assert docs["text"] == "demo › docs 0 open no act kept 2d old"
     assert ui["text"].startswith("demo › ui home not running 1 open")
     assert (ui["flags"], ui["age"]) == ([], "3d old")
     assert demo["wrong"] == ["tea-saucer check failed 30m"]

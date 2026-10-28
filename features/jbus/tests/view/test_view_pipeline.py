@@ -104,13 +104,13 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     ]
     saucer = rows["demo", "tea-saucer"]
     assert (saucer["home"], saucer["head"], saucer["depth"], saucer["waited_by"]) == (
-        "jview",
+        "root",
         "tea-pot",
         3,
         [],
     )
     cleanup = rows["demo", "cleanup-ux-look-pr"]
-    assert cleanup["home"] == "jview"
+    assert cleanup["home"] == "root"
     assert cleanup["waits_on"] == [{"slug": "ux-look-pr", "project": "demo", "kind": "merge_after"}]
     assert (cleanup["head"], cleanup["depth"]) == ("ux-look-pr", 2)
     look = rows["demo", "ux-look-pr"]
@@ -197,7 +197,7 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
     }
     assert got["longest_wait"]["slug"] == "bl-lands"
     rows = {one["slug"]: one for one in got["rows"]}
-    assert rows["cleanup-ux-look-pr"]["home"] == "jview"
+    assert rows["cleanup-ux-look-pr"]["home"] == "root"
     assert rows["mac-sync-main-7"]["home"] == "macos"
 
 

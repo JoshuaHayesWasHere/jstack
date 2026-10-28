@@ -646,6 +646,10 @@
     cards.sort(function (a, b) { return (a.tone !== "bad") - (b.tone !== "bad") || b.p.waits - a.p.waits || (a.p.name < b.p.name ? -1 : 1); });
     return { machine: machine, cards: cards, quiet: quiet };
   }
+  function lastAct(l, who) {
+    var v = ms(l && l.at), when = v == null ? "no act kept" : NOW - v < 60e3 ? "acted now" : "last act " + short(NOW - v) + " ago";
+    return '<span class="ct"' + (l && l.what ? ' title="' + esc(l.what) + '"' : "") + '>' + esc((who ? who + " " : "") + when) + '</span>';
+  }
   function homeLine(m, h) {
     var root = h.name === "", hs = HEALTH[h.health], said = m.said[h.name], counts = [h.open + " open"];
     if (h.waits) counts.push(plural(h.waits, "waits", "wait") + " on you");
@@ -653,6 +657,8 @@
     var bits = [root ? '<a class="cn" href="' + esc(href(m.p.name)) + '">' + esc(m.p.name) + '</a>' : '<span class="hp">' + esc(homePath(m.p.name, h.name)) + '</span>'];
     if (hs) bits.push('<span class="hh' + (hs[1] ? " " + hs[1] : "") + '"' + (said ? ' data-wrong="' + esc(wrongKey(said)) + '"' : "") + '>' + esc(hs[0] + (h.since ? " " + ago(h.since) : "")) + '</span>');
     bits.push('<span class="ct">' + counts.join(" &middot; ") + '</span>');
+    if (root) bits.push(lastAct(m.p.last, "project"));
+    bits.push(lastAct(h.last, root ? "root" : ""));
     m.flags[h.name].forEach(function (w) { bits.push('<a class="hf" data-wrong="' + esc(wrongKey(w)) + '" href="' + esc(linkOf(w.where[0].open)) + '" title="' + esc(w.cause) + '">' + esc(w.subj + " " + FLAG[w.kind]) + '</a>'); });
     if (!root && h.started) bits.push('<span class="ha">' + esc(ago(h.started)) + ' old</span>');
     var lines = m.lines[h.name].map(function (w) { return wrongLine(w); });

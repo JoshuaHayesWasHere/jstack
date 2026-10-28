@@ -17,6 +17,12 @@ home's `scouts/`. A home's own thread is the home whose `home-id`, or whose hand
 `group` gives the project's homes: the root first, then each scope in name order, each with
 the open tasks and the needs that are its own, its health and the day its scope was made.
 
+`group` also gives each home its `last` act: the newest of the acts it is given, `state.acts`,
+whose home is that home, with its time and its line, or None where it has none. An act is
+placed by the key its record names (`of_key`): a row's slug, a pull request of a row as
+`#<number>`, a scout's slug, or a home's own thread id. An act whose key is none of these, as
+jbus's line about the whole project names none, is no home's.
+
 A home's health is the `health` of its own thread, the home thread the last pass listed for
 it (`state._home_work`), and of the one that is out where it listed two, as a handoff leaves
 them. Where the health is `quiet` or `hung`, `since` is the time that thread last wrote. A home
@@ -46,6 +52,7 @@ GROUP = {
     "health": None,
     "since": None,
     "started": None,
+    "last": {"at": None, "what": None},
 }
 SINCE = ("quiet", "hung")
 _GOAL = re.compile(r"^Goal \((\d{4}-\d\d-\d\d)\b", re.M)
@@ -125,6 +132,19 @@ class Homes:
             return self.of_task(slug)
         return self.of_slug(slug, "scouts") if role == "scout" else None
 
+    def of_key(self, key: str, pulls: dict[str, str], rows: set[str]) -> str | None:
+        """The home of what an act's record names: the brief's of a slug, the request's of a
+        scout, the row's of a pull request `#<number>` that `pulls` gives the slug of, the root
+        for a slug of `rows` with no brief, and the home of a home's own thread id. None for
+        any other key."""
+        key = pulls.get(key.removeprefix("#"), "") if key.startswith("#") else key
+        owner = self.of_slug(key) or self.of_slug(key, "scouts")
+        if owner is None and key in rows:
+            owner = Owner()
+        if owner is None and key:
+            owner = self.of_thread({"role": "home", "slug": ""}, key)
+        return owner.name if owner is not None else None
+
     def of_gate(self, scope: str) -> str:
         """The home of a gate of a `gates.md`, by the name of the directory it is in: that
         scope while it is one, else the root."""
@@ -142,10 +162,13 @@ class Homes:
         tasks: list[dict[str, Any]],
         needs: list[dict[str, Any]],
         threads: list[dict[str, Any]] | None = None,
+        acts: list[dict[str, Any]] | None = None,
     ) -> list[Any]:
         """The project's homes, the root first and then each scope by name, each with how many
         open tasks and needs are its own, its health from `threads`, the threads the last pass
-        listed with each one's home, and the day its scope was made."""
+        listed with each one's home, the day its scope was made, and its newest act of
+        `acts`, which are oldest first."""
+        last = {one["home"]: {"at": one["at"], "what": one["what"]} for one in acts or []}
         own = [one for one in threads or [] if one["role"] == "home"]
         found = []
         for name, scope in ((ROOT, None), *((one.name, one) for one, _, _ in self.scopes)):
@@ -163,6 +186,7 @@ class Homes:
                     "health": health,
                     "since": thread["updated"] if thread and health in SINCE else None,
                     "started": self.started(scope) if scope else None,
+                    "last": last.get(name),
                 }
             )
         return found
