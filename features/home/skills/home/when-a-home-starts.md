@@ -186,7 +186,15 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    fi
    ```
 
-   It prints this home's part of what jbus and the files hold, each line cut at 110 characters, a line of the plan at 150 and one under `## to read` not at all, and each part at a few lines, with the command that prints the rest. Under `## plan`, one line for each entry of this home's plan: the slug, its one line, and its status. No status is written by hand, in the plan or anywhere else: `jbus plan` counts it from the entry's queue rows each time it is read, as `4 of 7 merged, #383 at pr, 1 queued not approved`. An entry with no row shows its `Stage:` line, and one from before shows its old line as `(typed) Status: ...`, which nobody checked. The plan is not read whole: read an entry's own section of `$M/plan.md` when you take that entry up, its "Done when" list and the user's words under `Decisions:`. On `no jbus plan`, read the file whole. Under `## queue`, what waits on the user, then each open row of this home's as its slug, status, pull request and why it waits. Under `## questions`, each open question of this home's, by its number. Under `## merged`, each `merged` line `jmerge` logged since this home's mark in `merge-seen`, which the merge step of step 5 moves, and not this block.
+   It prints this home's part of what jbus and the files hold, each line cut at 110 characters, a line of the plan at 150 and one under `## to read` not at all, and each part at a few lines, with the command that prints the rest.
+   Under `## plan`, one line for each entry of this home's plan: the slug, its one line, and its status.
+   No status is written by hand, in the plan or anywhere else: `jbus plan` counts it from the entry's queue rows each time it is read, as `4 of 7 merged, #383 at pr, 1 queued not approved`.
+   An entry with no row shows its `Stage:` line, and one from before shows its old line as `(typed) Status: ...`, which nobody checked.
+   The plan is not read whole: read an entry's own section of `$M/plan.md` when you take that entry up, its "Done when" list and the user's words under `Decisions:`.
+   On `no jbus plan`, read the file whole.
+   Under `## queue`, what waits on the user, then each open row of this home's as its slug, status, pull request and why it waits.
+   Under `## questions`, each open question of this home's, by its number.
+   Under `## merged`, each `merged` line `jmerge` logged since this home's mark in `merge-seen`, which the merge step of step 5 moves, and not this block.
 
    Under `## to read`, the last `## Result` or `## Report` heading of each brief and request that is this home's and that no home has marked read, at most eight: what came in that no home has read.
    A `## Review` or a `Finding:` line added under a heading that is marked shows nothing again.
