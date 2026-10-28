@@ -114,7 +114,10 @@ def checked(scene, *words):
 
 def test_a_failing_check_is_counted_apart_from_one_that_runs_or_waits_and_one_that_passed(scene):
     check = checked(scene, "failed", "failed", "failed", "pending", "none", "passed")
-    assert (check["rows"], check["checks"]) == (6, {"failing": 3, "waiting": 2, "passed": 1, "stacked": 0})
+    assert (check["rows"], check["checks"]) == (
+        6,
+        {"failing": 3, "waiting": 2, "passed": 1, "stacked": 0},
+    )
     assert check["cause"] == "failing"
 
 
@@ -128,12 +131,15 @@ def test_the_cause_is_the_larger_count_and_a_tie_names_the_failing_checks(scene)
 
 def test_a_check_that_will_not_run_or_a_draft_is_in_check_and_in_none_of_the_three(scene):
     check = checked(scene, "unrun", "draft", "failed", "failed", "passed", "passed")
-    assert (check["rows"], check["checks"]) == (6, {"failing": 2, "waiting": 0, "passed": 2, "stacked": 0})
+    assert (check["rows"], check["checks"]) == (
+        6,
+        {"failing": 2, "waiting": 0, "passed": 2, "stacked": 0},
+    )
 
 
 def test_a_stacked_pull_request_is_counted_as_stacked_whatever_its_own_checks_say(scene):
-    """`jam-top`'s checks passed and `jam-lid`'s failed, and both merge after `jam-base`: each is
-    stacked, by its line's code or, with none, by its text. `jam-pot` passed and is not."""
+    """`bun-top`'s checks passed and `bun-lid`'s failed, and both merge after `bun-base`: each is
+    stacked, by its line's code or, with none, by its text. `bun-pot` passed and is not."""
     stacked_pr(scene)
     served = Served(scene)
     try:

@@ -6,8 +6,9 @@ A stage is a row of `STAGES`. Three take the tasks of the line by their step or 
 `rebase`. The fourth, `you`, is what Needs you lists, so its count is the one the page's Needs you
 gives. A task's age at its stage is its `since`, which the line gives (`state._tasks`). The stage
 `check` also has `checks`, how many of its rows have a failing check, one that runs or waits for a
-runner, and one that passed and waits for `jmerge` (`checked`), and `cause`, the largest of the
-three, which is what slows the rows in check. Every other stage has None for both.
+runner, one that passed and waits for `jmerge`, and how many are stacked and merge after another
+row, whatever their own checks say (`checked`), and `cause`, the largest of the four, which is
+what slows the rows in check. Every other stage has None for both.
 
 The test slots are the full lane of `jgauge test-slot` (`jgauge.slot`), where a thread runs the
 check command. The panel never takes a slot's lock to see whether it is free, as

@@ -210,9 +210,13 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
         "bl-macos-ci-required",
         "cleanup-ux-telemetry-pr",
     }
-    check = next(one for one in got["stages"] if one["key"] == "check")
-    assert (check["count"], check["still"]) == (12, 8)
-    assert got["stuck"] == {"stage": "check", "still": 8, "count": 12}
+    stages = {one["key"]: (one["count"], one["still"]) for one in got["stages"]}
+    assert (stages["check"], stages["stacked"]) == ((10, 6), (2, 2))
+    assert got["stuck"] == {"stage": "check", "still": 6, "count": 10}
+    assert {one["slug"] for one in got["rows"] if one["stage"] == "stacked"} == {
+        "cleanup-ux-homes-board-pr",
+        "cleanup-ux-asks-count",
+    }
     assert got["longest"] | {"chains": None} == {
         "depth": 2,
         "head": "mac-tree-spec-timeout",
@@ -298,8 +302,8 @@ def test_the_rows_of_a_loop_share_one_depth_and_head_and_a_row_behind_it_is_one_
 
 
 def test_a_stacked_pull_request_leaves_check_for_stacked_whatever_its_own_checks_say(scene):
-    """`jam-top` and `jam-lid` merge after `jam-base`, so they are in Stacked, though one's
-    checks passed and the other's failed. `jam-pot` passed and waits for `jmerge` in Check.
+    """`bun-top` and `bun-lid` merge after `bun-base`, so they are in Stacked, though one's
+    checks passed and the other's failed. `bun-pot` passed and waits for `jmerge` in Check.
     Every row in either stage says what it waits on, and no other row does."""
     stacked_pr(scene, row("oat-pan", "running", thread="mcp:pan"))
     got = board(scene)["data"]
@@ -307,8 +311,8 @@ def test_a_stacked_pull_request_leaves_check_for_stacked_whatever_its_own_checks
     assert (stages["check"], stages["stacked"]) == (1, 2)
     rows = {one["slug"]: (one["stage"], one["wait"]) for one in got["rows"]}
     assert rows == {
-        "jam-top": ("stacked", "stacked"),
-        "jam-lid": ("stacked", "stacked"),
-        "jam-pot": ("check", "passed"),
+        "bun-top": ("stacked", "stacked"),
+        "bun-lid": ("stacked", "stacked"),
+        "bun-pot": ("check", "passed"),
         "oat-pan": ("crew", None),
     }

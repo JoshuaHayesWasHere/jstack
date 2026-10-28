@@ -21,7 +21,7 @@ from typing import Any
 from jbus.view import checked
 from jbus.view.state import NO_REVIEWER
 
-STACKED = "stacked on"
+STACKED = checked.STACKED_TEXT[0]
 _AFTER = re.compile(r"merges after ([a-z0-9][a-z0-9._-]*)")
 
 

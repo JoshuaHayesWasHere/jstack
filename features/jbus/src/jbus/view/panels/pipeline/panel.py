@@ -8,15 +8,19 @@ other task is placed by the step the last pass gave it (`STAGE_OF_STEP`): a gate
 is the crew's, which carries on, and a hold jbus does not list is the merge's. On the step
 `running`, who holds the task decides (`RUNNING_BY_WHO`), and a hung, waiting or lost thread is
 the crew's still, since jbus lists no such thread as the user's. A task on no step the view
-knows is `unplaced`. A scout of `scouts.json` is in `scout` from its launch until its request
-has a Report (`state.request`). `merged` is a count of what merged today, into the default
-branch or an integration branch alike, and has no rows: a row merged is done as far as the queue
-goes, whatever branch it merged into.
+knows is `unplaced`. A task on the step `check` whose outcome is `stacked` (`checked.outcome`),
+a pull request that merges after its parent row, is in `stacked` and not in `check`. A scout of
+`scouts.json` is in `scout` from its launch until its request has a Report (`state.request`).
+`merged` is a count of what merged today, into the default branch or an integration branch
+alike, and has no rows: a row merged is done as far as the queue goes, whatever branch it merged
+into.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its
-`cause_kind` is the value the last pass judged (`work.VALUES`). Its `home` is its brief's, as
-`homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names no home, as a cleanup
-brief names none, is the root's, `root`, whatever rows it links to.
+`cause_kind` is the value the last pass judged (`work.VALUES`). Its `wait` is what a row in
+`check` or `stacked` waits on, the outcome `checked.outcome` gives it (`failing`, `waiting`,
+`passed`, `stacked`, or None where it has none), and None for a row in any other stage. Its
+`home` is its brief's, as `homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names
+no home, as a cleanup brief names none, is the root's, `root`, whatever rows it links to.
 
 A row waits on each row its `depends` and `merge_after` name that is still open: a task of its
 project, so not merged, done or judged through. `waited_by` is the reverse, among the rows the
@@ -43,6 +47,7 @@ from typing import Any
 import jbus
 from jbus import scouts
 from jbus.view import cause as causes
+from jbus.view import checked
 from jbus.view.homes import ROOT
 from jbus.view.state import (
     MOVES_FILE,
@@ -71,6 +76,7 @@ STAGES = (
     ("fix", "Fix"),
     ("review2", "Review 2"),
     ("check", "Check"),
+    ("stacked", "Stacked"),
     ("merge", "Merge"),
     ("merged", "Merged"),
 )
@@ -89,6 +95,7 @@ STAGE_OF_STEP = {
     "merged": "merged",
 }
 RUNNING_BY_WHO = {"rev": "review"}
+WAITS = ("check", "stacked")
 ROOT_NAME = "root"
 LINKS = ("depends", "merge_after")
 _ORDER = {key: at for at, (key, _) in enumerate(STAGES)}
@@ -118,6 +125,7 @@ BOARD = {
             "waited_by": [None],
             "head": None,
             "depth": None,
+            "wait": None,
         }
     ],
     "unplaced": [{"slug": None, "project": None, "cause": None}],
@@ -165,6 +173,7 @@ class Card:
     cause: causes.Cause
     kind: str
     waits_on: tuple[tuple[str, str], ...] = ()
+    wait: str | None = None
 
     @property
     def key(self) -> tuple[str, str]:
@@ -186,6 +195,8 @@ def _stage(task: dict[str, Any], needs: frozenset[str]) -> str | None:
         return "you"
     if task["step"] == "running":
         return RUNNING_BY_WHO.get(task["who"], STAGE_OF_STEP["running"])
+    if task["step"] == checked.STEP and checked.outcome(task) == checked.STACKED:
+        return "stacked"
     return STAGE_OF_STEP.get(task["step"])
 
 
@@ -199,16 +210,18 @@ def cards(read: Read) -> list[Card]:
         said = causes.cause(task, read.now)
         row = rows.get(task["slug"], {})
         links = tuple((one, kind) for kind in LINKS for one in row.get(kind) or [] if one in tasks)
+        stage = _stage(task, needs)
         made.append(
             Card(
                 task["slug"],
                 read.name,
                 task["home"] or ROOT_NAME,
-                _stage(task, needs),
+                stage,
                 task["since"],
                 said,
                 (task.get("state") or {}).get("kind") or UNKNOWN.key,
                 links,
+                checked.outcome(task) if stage in WAITS else None,
             )
         )
     for one in read.once(_scouted) or []:
@@ -336,6 +349,7 @@ def board(reads: list[Read], now: Any) -> dict[str, Any]:
                 "waited_by": sorted(waited.get(card.key, [])),
                 "head": by[chains[card.key][1]].slug,
                 "depth": chains[card.key][0],
+                "wait": card.wait,
             }
             for card in placed
         ],
