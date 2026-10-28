@@ -595,6 +595,34 @@ def test_a_red_browser_run_files_one_brief_approved_by_rule_naming_its_failed_te
     assert kitchen.lines("retro") == [line]
 
 
+def test_a_red_browser_run_whose_log_says_the_browser_moved_names_the_shots_to_keep(kitchen):
+    shot = "features/jbus/tests/view/page/test_view_page_look.py::test_each_route[all-desk-light]"
+    moved = (
+        "the shots were drawn by Google Chrome 155.0.8059.39, and this is Google Chrome "
+        f"156.0.8078.47: {jbus.watch.BROWSER.moved}"
+    )
+    browser_runs(kitchen, browser_run())
+    log = (
+        f"2026-10-18T07:09:02.0000000Z E               Failed: {moved}\n"
+        f"2026-10-18T07:09:03.0000000Z FAILED {shot} - Failed: {moved}\n"
+        "2026-10-18T07:09:03.0000000Z ===== 1 failed, 93 passed in 400.00s =====\n"
+    )
+    kitchen.set("logs.json", {"911": log})
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    keep = "gh run download 88 -n jbus-view-shots -D features/jbus/tests/fixtures/jbus-view/shots"
+    assert f"`{keep}`" in text
+    where = text.split("\nWhere: ")[1].split("\n")[0]
+    assert "`features/jbus/tests/fixtures/jbus-view/shots/`" in where
+
+
+def test_a_red_browser_run_whose_log_does_not_say_the_browser_moved_names_no_shots(kitchen):
+    browser_runs(kitchen, browser_run())
+    kitchen.poll()
+    text = (kitchen.home / "tasks" / "browser-red-2026-10-12.md").read_text()
+    assert "jbus-view-shots" not in text
+
+
 def test_a_red_browser_run_filed_is_not_filed_again_and_an_edited_brief_stays(kitchen):
     browser_runs(kitchen, browser_run())
     kitchen.poll()
