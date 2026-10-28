@@ -68,10 +68,11 @@ var SLOW_GROUPS = 6;
 function slowRail() {
   var v = STACK && STACK.glance && STACK.glance.verdict;
   if (!v) return "";
-  var top = Math.max.apply(null, v.groups.map(function (g) { return g.count; }).concat([1])), ci = { failed: 0, error: 0, running: 0, waiting: 0 };
-  STACK.projects.forEach(function (p) { var k = p.health && p.health.checks; if (k) Object.keys(ci).forEach(function (n) { ci[n] += k[n] || 0; }); });
-  var bad = ci.failed + ci.error, one = STACK.projects.length === 1 ? STACK.projects[0].name : "";
-  var line = (bad ? '<b class="alarm">' + bad + '</b> failing' : "none failing") + ", " + ci.running + " running, " + ci.waiting + " queued";
+  var top = Math.max.apply(null, v.groups.map(function (g) { return g.count; }).concat([1])), ci = { failed: 0, running: 0, waiting: 0 }, unread = 0;
+  STACK.projects.forEach(function (p) { var k = p.health && p.health.checks; if (k && k.error) unread += 1; else if (k) Object.keys(ci).forEach(function (n) { ci[n] += k[n] || 0; }); });
+  var one = STACK.projects.length === 1 ? STACK.projects[0].name : "";
+  var line = (ci.failed ? '<b class="alarm">' + ci.failed + '</b> failing' : "none failing") + ", " + ci.running + " running, " + ci.waiting + " queued";
+  if (unread) line = '<b class="alarm">could not be read</b>' + (unread < STACK.projects.length ? " in " + plural(unread, "project", "projects") + "; elsewhere " + line : "");
   return '<section class="ovc" data-role="slowed" aria-labelledby="ovc-slow"><h2 class="ovc-h" id="ovc-slow"><span class="tag" data-gloss="card:slowed">Slowed by</span></h2>' +
     (v.groups.length ? '<ul class="clean">' + v.groups.slice(0, SLOW_GROUPS).map(function (g) {
       var since = ms(g.since);

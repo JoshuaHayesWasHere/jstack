@@ -151,7 +151,7 @@ panel({
     "verdict-moving": ["MOVING", "Rows are open and the work goes on: a merge in the last 3 hours, or an act in the last 30 minutes. The cause names what slows it, the largest groups of rows that do not move."],
     "verdict-rest": ["AT REST", "Nothing is open: no row, no scout. Nothing is wrong and nothing waits."],
     open: ["Open", "How many rows are open in every project, and how many of them each home has. The matrix below puts each in its stage."],
-    act: ["Since last act", "How long ago anything was last done in any project: a launch, a move, a merge, a line jmerge wrote. Under it, the row that has stood still longest, and where. Amber once nothing was done for 30 minutes and nothing merged for 3 hours."],
+    act: ["Since last act", "How long ago anything was last done in any project: a launch, a move, a merge, a line jmerge wrote. Under it, the row that has stood still longest, and where. Amber once nothing was done for 30 minutes, a merge included, even when something merged in the last 3 hours."],
     merged: ["Merged today", "How many rows merged today, as each project counts them, and a bar for each hour since midnight, an hour with none drawn as a hairline. Then how many merged in the last 3 hours."]
   },
   parts: { band: glanceCard, open: glanceOpen, act: glanceAct, merged: glanceMerged }
