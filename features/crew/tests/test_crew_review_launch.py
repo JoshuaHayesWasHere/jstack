@@ -150,8 +150,7 @@ def launched(tmp_path, roles, pass_, message="<message>"):
 
 
 TWO = (
-    "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=medium\n"
-    "review: codex gpt-5.5 codex\n"
+    "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=medium\nreview: codex gpt-5.5 codex\n"
 )
 
 
@@ -160,7 +159,10 @@ def test_each_reviewer_is_launched_in_the_crews_own_worktree_and_branch(tmp_path
     run (cleanup-ux-inbox-pr, 2026-10-26): every call the block prints carries it."""
     work, calls = launched(tmp_path, TWO, "first")
     assert [call["title"] for call in calls] == ["review: alpha, 1", "review: alpha, 2"]
-    assert [call["message"] for call in calls] == ["/pr-review run alpha 1", "/pr-review run alpha 2"]
+    assert [call["message"] for call in calls] == [
+        "/pr-review run alpha 1",
+        "/pr-review run alpha 2",
+    ]
     for call in calls:
         assert call["workspaceStrategy"] == {
             "type": "existing_worktree",
@@ -174,7 +176,11 @@ def test_a_map_with_no_review_line_gives_one_call_that_inherits_the_model(tmp_pa
     work, (call,) = launched(tmp_path, None, "first")
     assert call == {
         "title": "review: alpha, 1",
-        "workspaceStrategy": {"type": "existing_worktree", "worktreePath": str(work), "branch": "alpha"},
+        "workspaceStrategy": {
+            "type": "existing_worktree",
+            "worktreePath": str(work),
+            "branch": "alpha",
+        },
         "message": "/pr-review run alpha 1",
     }
 
@@ -186,7 +192,9 @@ def test_a_map_with_no_review_line_gives_one_call_that_inherits_the_model(tmp_pa
         ("scoped", "review: alpha, scoped", "/pr-review run alpha scoped a..b c..d"),
     ],
 )
-def test_a_second_or_scoped_pass_is_one_reviewer_in_the_same_worktree(tmp_path, pass_, title, message):
+def test_a_second_or_scoped_pass_is_one_reviewer_in_the_same_worktree(
+    tmp_path, pass_, title, message
+):
     work, (call,) = launched(tmp_path, TWO, pass_, "/pr-review run alpha scoped a..b c..d")
     assert (call["title"], call["message"]) == (title, message)
     assert call["workspaceStrategy"]["worktreePath"] == str(work)
