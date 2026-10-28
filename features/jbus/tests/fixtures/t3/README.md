@@ -14,8 +14,8 @@ CI has no T3 Code, which is why the schemas are copies.
 | `t3_project_list.json` | `mcp__t3-code__t3_project_list` | the new-home skill (the project whose checkout is the repo) |
 | `t3_project_create.json` | `mcp__t3-code__t3_project_create` | the new-home skill (a repo with no project yet) |
 | `link_pull_request.json` | `mcp__t3-code__link_pull_request` | the crew skill (the crewmate links its pull request, written in the line) |
-| `schedule_task.json` | `mcp__t3-code__schedule_task` | the home skill (the hourly audit of a queue), the expert skill (its webhook), the make-bot-ui skill (the webhook of the thread its buttons wake) |
-| `delete_scheduled_task.json` | `mcp__t3-code__delete_scheduled_task` | the home skill (the audit, when its queue ends or its home hands off), the expert skill (a webhook it could not take over) |
+| `schedule_task.json` | `mcp__t3-code__schedule_task` | the expert skill (its webhook), the make-bot-ui skill (the webhook of the thread its buttons wake) |
+| `delete_scheduled_task.json` | `mcp__t3-code__delete_scheduled_task` | the expert skill (a webhook it could not take over) |
 | `update_scheduled_task.json` | `mcp__t3-code__update_scheduled_task` | the home skill (a home takes over each task bound to the home before it), the handoff skill (a closed scope's home switches its tasks off), the expert skill (an expert takes over the webhook of the thread before it) |
 
 Taken on 2026-10-10 from T3 Code `0.0.46_nightly.20261010.2935` (`yay -Q t3code-nightly-bin`), in a Claude Code thread started by that build. The two for a scheduled task, and `t3_thread_send.json`, were taken on 2026-10-11 from the same build. `update_scheduled_task.json` was taken on 2026-10-12, also from that build. The two for a project were taken on 2026-10-13 from `0.0.46_nightly.20261013.3066`.
