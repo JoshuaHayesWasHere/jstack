@@ -27,7 +27,9 @@ Verify skill: `.claude/skills/verify-*/`, else a `verify-*` item of `skills.json
 
 Never done here, and who does it:
 
-- **A loop of fixes toward a target.** A crewmate does, from a brief with `playbooks/hillclimb.md`. This playbook is one fix: what else the profile showed goes under "Noticed".
+- **A loop of fixes toward a target.**
+  A crewmate does, from a brief with `playbooks/hillclimb.md`.
+  This playbook is one fix: what else the profile showed is a queued row or nothing (`templates/a-fault-outside.md`).
 - **Handing the fix to a subagent.** Nobody does: the one who measured types the change, on this session's own model and effort.
 - **A measurement outside the heavy-suite lock, when its command starts several workers.** Nobody does: the benchmark skill says how the lock goes around the runs.
 - **Relaxing the claim to fit the number.** Nobody does. A claim that was not met is reported as not met.

@@ -6,13 +6,12 @@ from jbus import questions
 from jbus.view import state as built
 from jbus.view.panels.checks import panel as checks_panel
 from jbus.view.panels.room import panel as room_panel
-from view.scene import NOW, Scene, Served, a_noticed, asks, iso, kept, stacked
+from view.scene import NOW, Scene, Served, asks, iso, kept, stacked
 
 
 def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     stacked(scene)
-    a_noticed(scene, ("tea-kettle", "new", 5, {}), ("jam-jar", "dropped", 9, {}))
     served = Served(scene)
     try:
         stack = served.json("/stack.json")
@@ -49,7 +48,6 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         ],
         "unplaced": [],
         "waits": 0,
-        "noticed": 0,
         "open": 0,
         "steps": {},
         "merged": 0,
@@ -76,12 +74,12 @@ def test_the_stack_is_the_machine_once_and_a_summary_of_each_project(tmp_path, m
         },
     }
     pantry = by["pantry"]
-    assert (pantry["repo"], pantry["waits"], pantry["noticed"]) == ("acme/pantry", 1, 0)
+    assert (pantry["repo"], pantry["waits"]) == ("acme/pantry", 1)
     assert "waiting" not in pantry
     assert (pantry["open"], pantry["steps"], pantry["merged"]) == (2, {"running": 1, "gate": 1}, 1)
     assert pantry["health"]["checks"] == {"running": 1, "waiting": 0, "failed": 0, "error": ""}
     shown = by["demo"]
-    assert (shown["repo"], shown["waits"], shown["noticed"]) == ("acme/demo", 3, 1)
+    assert (shown["repo"], shown["waits"]) == ("acme/demo", 3)
     assert shown["waits"] == len(demo["needs"]), "the gate of a home's file has its default"
     assert len(demo["waiting"]) == 4 and [one["kind"] for one in demo["proceeds"]] == ["gate"]
     steps = [one["step"] for one in demo["tasks"]]

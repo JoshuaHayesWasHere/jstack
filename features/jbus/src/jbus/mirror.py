@@ -23,7 +23,7 @@ from pathlib import Path
 
 from jbriefs import below
 from jbriefs import parse as briefs
-from jbus import noticed, queue, read_json, verbs, write_json
+from jbus import queue, read_json, verbs, write_json
 from jbus.passes import Pass
 
 EVENTS = {
@@ -224,9 +224,8 @@ def scan(
     no heading. So a later pass can tell that a pass read the file. Suppose no pass ever read a
     file, and no row of the queue has or had its slug. Then the file arrived with all its
     sections at once, as a file in a tree restored from a backup does. The pass records it and
-    sends nothing for it, and `noticed.keep` adds its `Noticed` lines as lines from before. A
-    brief jbus launched has a row. A home writes a scout's request before the launch, so a
-    pass reads the request before the scout's Report is in it.
+    sends nothing for it. A brief jbus launched has a row. A home writes a scout's request
+    before the launch, so a pass reads the request before the scout's Report is in it.
 
     It reads the `gates.md` of each scoped home too. A gate that such a file holds as answered
     the first time a pass reads it was answered before, and the pass sends nothing for it.
@@ -280,11 +279,6 @@ def scan(
             fresh = new(file, f"{what} {key}", whole, again=False)
             if fresh and not (first and what == "gate answered"):
                 sent += run.find(slug, what, line, whole, key=key, past=True)
-    if restored:
-        try:
-            noticed.keep(run.state, run.home, run.now, before=frozenset(restored))
-        except noticed.Unparsable:
-            pass
     write_json(seen_path, seen)
     return sent
 

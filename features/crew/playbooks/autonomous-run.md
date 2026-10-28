@@ -17,7 +17,7 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 3. Loop. Make the smallest change the evidence so far justifies, run the predicate command and the repo's check command, and read what they print. If a line moved to `holds` and nothing moved back, commit. If not, discard the change in full, `git checkout -- <files>` and `git clean -f -- <the files it added>`: what "might help" is reverted, not left to ride. Log one row per round, what changed and which lines moved. Each round ends in the check before the next begins, never several changes and one check at the end (`principles/principle-sequence-verifiable-units.md`). Wait for every command inside this turn: a thread that ends its turn on a background command is not woken.
 4. What turns up on the way is yours when it is inside the brief's **Where** and reversible: a flaky check, a broken script, a related bug in a file you are in.
    Fix it at its cause in a commit of its own, log the row, and go back to the predicate (`principles/principle-fix-root-causes.md`).
-   What is outside **Where** goes under "Noticed".
+   What is outside **Where** is a queued row or nothing (`templates/a-fault-outside.md`).
    Ask nothing that an experiment can settle.
    A question only the user can answer is parked as a gate with your default, as `skills/crew/SKILL.md` "Do the task" says, and the run carries on (`principles/principle-never-block-on-the-human.md`).
    The four things that skill's "Carry on" never does on a default are gates that hold the same way, and the run carries on beside them.
@@ -29,7 +29,8 @@ A path such as `principles/<name>.md` or `skills/crew/SKILL.md` is from the root
 Never done here, and who does it:
 
 - **A timer, a loop or a watcher that wakes this thread.** Nobody arms one. Before the pull request the run is this thread's turn. After it, `watch_pull_request` wakes the thread.
-- **A fix outside the brief's Where, in a pull request of its own.** The home plans it, from a line under "Noticed".
+- **A fix outside the brief's Where, in a pull request of its own.**
+  It is a row, queued as `templates/a-fault-outside.md` says.
 - **Loosening "Done when".** The user does, in this thread or through the home. A line you think is wrong is a gate, and the run goes on to the line as written.
 - **Stopping to ask.**
   Nobody does.

@@ -6,7 +6,7 @@ merged lately. `look` counts the threads of a slug that was removed from the que
 out of its answer, so no pass finds such a thread stale or tells it to carry on. The slug's pull
 requests stay in the answer. When only GitHub was silent, the answer from `look` still gives how
 many crews are out. The machine has one such count: `jbus poll` adds it up over every project.
-`watch` sends a line for what a home would have noticed: a merge; a thread that ran past its
+`watch` sends a line for what a home would have seen: a merge; a thread that ran past its
 timebox, waits on a request, or ended with no Result; a main branch whose check failed after a
 merge; a red run of a nightly workflow (`NIGHTLIES`); and a revert. `watch` names no cause and
 changes nothing.
@@ -911,7 +911,7 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
 
 
 def watch(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
-    """Send a line for each thing a home would have noticed, and a gate for what no rule covers.
+    """Send a line for each thing a home would have seen, and a gate for what no rule covers.
 
     The thread of a queue row that completed with a Result is no gate: its row says how it
     ended (`ended`).

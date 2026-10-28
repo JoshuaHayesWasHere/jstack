@@ -15,7 +15,7 @@ A home is not told a word it recorded itself. A word said in the home's own thre
 With `--message <thread id>/<message id>`, jbus reads the message from T3 Code itself and takes its text and its own time: nothing is typed. A message that is not your own is refused, `refused: message <ref> is not <user>'s own: T3 Code has it as a <type> by <who>`. What an agent or jbus sent into a thread is such a message, though T3 Code lists it as a user message. The record then has `ref`, the title of the thread as `said_in`, and `checked: true`. The typed form, `--by` and `--at` with the words, is still taken, and its record has `checked: false`: jbus checks the name and the form of the time, and cannot check that you said it then. `--message` with `--by`, `--at` or words is refused.
 
 The root home carries your word to scoped homes with `jbus word --to <project> --message <thread id>/<message id> --scope <scope>`, given again for each scope, or once as `--scope every`.
-It keeps one record of the word for each scope, which goes in that home's next wake for its records ([What the threads noticed](what-the-threads-noticed.md)), and prints `kept: <project>, for the <scope> home, word <id>, in its next wake`.
+It keeps one record of the word for each scope and sends it to that home's thread at once, as any word, and prints `sent: <project>, to the <scope> home at <thread>, word <id>`, or why it waits.
 A scope that already holds the word, by any path, is not sent it again: that prints `held: <project>, the <scope> home holds word <id>, so it is not sent again`.
 `--scope` takes only `--message`, so the root writes no words of its own, and it is refused with `--all`, with a scope the project does not have, and as `every` for a project with no scoped home.
 

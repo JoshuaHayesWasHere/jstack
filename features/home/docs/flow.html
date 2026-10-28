@@ -290,6 +290,7 @@
       <tr><td><code>features/scout/templates/scout-report.md</code></td><td>3</td><td>Scout</td><td>The <code>## Report</code> section of its request</td></tr>
       <tr><td><code>features/jbriefs/templates/brief.md</code></td><td>4</td><td>Home, or a scout when its request asks</td><td><code>tasks/&lt;slug&gt;.md</code></td></tr>
       <tr><td><code>features/home/templates/gates.md</code></td><td>6</td><td>The thread that asks</td><td>A gate, as <code>jbus gate</code> takes it</td></tr>
+      <tr><td><code>features/crew/templates/a-fault-outside.md</code></td><td>6</td><td>Crewmate, and a scout</td><td>A fault found outside the task, queued unapproved as a row of its own, or nothing</td></tr>
       <tr><td><code>features/pr-review/templates/pr-body.md</code></td><td>7</td><td>Crewmate</td><td>The pull request's body</td></tr>
       <tr><td><code>features/crew/templates/result.md</code></td><td>8</td><td>Crewmate</td><td>The <code>## Result</code> section of its brief</td></tr>
       <tr><td><code>features/skill-library/templates/skill-artifacts.md</code></td><td>8</td><td>Crewmate, and a scout</td><td>The artifact each name on a <code>Skills:</code> line leaves under <code>Skills run:</code> in the Result or the Report</td></tr>
@@ -329,7 +330,7 @@
     <li>No home writes another home's directory.</li>
     <li>A scoped home's slugs and branches start with its prefix.</li>
     <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home &lt;threadId&gt;</code> merges nothing.</li>
-    <li>Homes never send each other a message of their own. The root carries your word to a scope with <code>jbus word --scope</code>, a scope reaches the root only with <code>jbus stop</code>, and a finding for another home goes by <code>jbus noticed add --for</code>.</li>
+    <li>Homes never send each other a message of their own. The root carries your word to a scope with <code>jbus word --scope</code>, a scope reaches the root only with <code>jbus stop</code>, and a fault found in another home's work is a queued row of that home's.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
     <li>A scoped home closes at its handoff when its plan has no open entry and <code>jbus out --scope</code> prints nothing, and then it starts no next home.</li>
     <li>The root home reads a scope's handoff and open plan entries when you ask for status.</li>

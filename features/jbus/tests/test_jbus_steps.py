@@ -68,7 +68,6 @@ ORDER = [
     "before-watch 41 slotwait.wake_capped (client)",
     "before-watch 42 slotwait.wake_ended (client)",
     "tellers 10 mirror.scan (sight)",
-    "tellers 15 noticed.scan (sight)",
     "tellers 20 questions.tell (sight, client)",
     "tellers 30 questions.propose (sight, client)",
     "tellers 40 watch.watch (client, world)",
@@ -112,7 +111,6 @@ ORDER = [
     "close 60 chores.sweep (budget)",
     "close 70 packs.check",
     "close 80 ci.keep (world, budget)",
-    "close 90 noticed.wake (sight, client)",
 ]
 JMERGE = f"wait 7 {URL}: {NO_FIXED}"
 

@@ -28,9 +28,13 @@ The frame around the steps is not yours: `features/skill-library/templates/playb
 
 Never done here, and who does it:
 
-- **A change to the frame**: `features/skill-library/templates/playbook.md` and the shape test are a task of their own: a line under "Noticed", for the home to plan.
-- **A change to a skill so that the playbook is found.** Nobody does: the home's block reads the directory. A playbook that needs a skill to do something new says so under "Noticed", and the home plans it.
-- **A second playbook in the same pull request.** One kind of task, one file, one trial. The next is a line under "Noticed".
+- **A change to the frame**: `features/skill-library/templates/playbook.md` and the shape test are a task of their own: a row, queued as `templates/a-fault-outside.md` says.
+- **A change to a skill so that the playbook is found.**
+  Nobody does: the home's block reads the directory.
+  A playbook that needs a skill to do something new is a row, queued as `templates/a-fault-outside.md` says, and the home plans it.
+- **A second playbook in the same pull request.**
+  One kind of task, one file, one trial.
+  The next is a row, queued as `templates/a-fault-outside.md` says.
 - **Reaching running threads.** Nobody does: a home picks the playbook after the merge and a `git pull` in the main checkout.
 
 **Hand over:** in the pull request and the Result, to the reviewer and the home: the two closest playbooks and why neither fits, the four lines of step 2, the evidence the steps came from, and the trial of step 7 (what helped, what got in the way, what was skipped).
