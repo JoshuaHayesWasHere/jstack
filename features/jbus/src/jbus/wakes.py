@@ -293,14 +293,10 @@ def left_items(run: Pass) -> list[Item]:
     return items
 
 
-def owed_items(run: Pass, record: dict[str, Any]) -> list[Item]:
+def owed_items(run: Pass, record: dict[str, Any], rows: list[queue.Row]) -> list[Item]:
     """The entries whose go holds with no live row (`plan.owed`), each the item of its home's
     thread, and the root home's too once its home has not acted on it in
     `leftover.CLOSE_MINUTES`, as a leftover is."""
-    try:
-        rows = queue.load(run.state)
-    except queue.Unparsable:
-        return []
     root, items = root_of(run), []
     for made in plan.owed(run.state, run.home, rows):
         key = plan.owed_key(made)
@@ -321,12 +317,8 @@ def owed_items(run: Pass, record: dict[str, Any]) -> list[Item]:
     return items
 
 
-def brief_items(run: Pass) -> list[Item]:
+def brief_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
     """The entries ready to brief (`plan.buildable`), each the item of its home's thread."""
-    try:
-        rows = queue.load(run.state)
-    except queue.Unparsable:
-        return []
     root, items = root_of(run), []
     for made in plan.buildable(run.home, rows):
         merged = ", ".join(made.merged)
@@ -344,7 +336,12 @@ def tell(run: Pass, client: Client, listed: list | None = None) -> None:
     tests = _Tests(run, record.get("tests", {}))
     found = read(run)
     items = wrong_items(found, tests) + need_items(run, listed) + left_items(run)
-    items += owed_items(run, record) + brief_items(run)
+    try:
+        rows = queue.load(run.state)
+    except queue.Unparsable:
+        pass
+    else:
+        items += owed_items(run, record, rows) + brief_items(run, rows)
     threads = record.get("threads", {})
     for thread in sorted(({one.to for one in items} | set(threads)) - {""}):
         seen = told_to(record, thread)
