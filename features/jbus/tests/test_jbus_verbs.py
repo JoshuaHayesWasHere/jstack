@@ -14,11 +14,14 @@ import io
 import re
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
 import jbus
+import jsettings
 from jbus import cli, t3, verbs
 from test_jbus_kitchen import GATE
 
@@ -265,3 +268,22 @@ def test_a_typed_at_far_off_the_clock_is_refused_and_nothing_is_kept(kitchen, ar
         "date or from the message's own timestamp, never a guess\n",
     )
     assert not (kitchen.state / kept).exists()
+
+
+@pytest.mark.parametrize(
+    ("clock", "taken", "refused"),
+    [
+        (datetime(2026, 11, 1, 5, 30, tzinfo=UTC), "EDT", "EST"),
+        (datetime(2026, 11, 1, 6, 30, tzinfo=UTC), "EST", "EDT"),
+    ],
+    ids=["first-01:30", "second-01:30"],
+)
+def test_the_hour_that_occurs_twice_is_read_by_its_zone_word(monkeypatch, clock, taken, refused):
+    """When the clocks go back, 01:30 occurs twice, an hour apart. A typed `--at` names which
+    one by its zone word, and is held to the clock as that one."""
+    user = jsettings.Settings(zone=ZoneInfo("America/New_York"))
+    monkeypatch.setattr(verbs, "clock", lambda: clock)
+    verbs.typed_at(user, f"2026-11-01 01:30 {taken}")
+    with pytest.raises(jbus.Refused) as off:
+        verbs.typed_at(user, f"2026-11-01 01:30 {refused}")
+    assert str(off.value).startswith(f"refused: --at 2026-11-01 01:30 {refused} is 60 minutes off")
