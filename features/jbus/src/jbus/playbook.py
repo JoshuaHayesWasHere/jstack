@@ -34,8 +34,8 @@ import re
 from pathlib import Path
 
 import jbus
+from jbriefs import asks, skills
 from jbriefs import parse as briefs
-from jbriefs import skills
 from jbus import verbs
 
 REPO: Path | None = None
@@ -93,7 +93,7 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
     if whose != ROLES[role]:
         said = f"not {WHOSE[ROLES[role]]}: playbooks/{name}.md is for {whose}"
         return [f"{said}: the crewmate worked with none" if role == "reviewer" else said]
-    asked = briefs.asked(playbook)
+    asked = asks.asked(playbook)
     cited = list(dict.fromkeys(CITED.findall(playbook)))
     principles = skills.listed("principle", repo)
     found = {one: principles.get(_named(one)) for one in cited}
@@ -104,7 +104,7 @@ def opened(role: str, text: str, name: str = "", repo: Path | None = None) -> li
     if role == "home":
         return [str(path.resolve()), *(f"asks of its brief: {line}" for line in asked)]
     said = [str(path.resolve())]
-    missing = briefs.lacks(text, playbook)
+    missing = asks.lacks(text, playbook)
     for line in asked:
         has = "lacks" if line in missing else "has"
         said.append(f"{has} the line the playbook asks for: {line}")
