@@ -46,9 +46,10 @@ MESSAGE = (
 
 
 def logged(kitchen, project="demo"):
+    """The project's events but its acts, which `acts.jsonl` holds and these tests read there."""
     code, out = kitchen.main("--project", project, "events")
     assert code == 0
-    return [json.loads(line) for line in out.splitlines()]
+    return [one for one in map(json.loads, out.splitlines()) if one["event"] != acts.KIND]
 
 
 def decide(kitchen):
