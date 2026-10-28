@@ -270,6 +270,30 @@ def test_stacked_rows_are_counted_once_each_and_named_by_the_rows_they_go_back_t
     assert "10 stacked (on owed-entry, jv-overview-desk)" in verdict["cause"]
 
 
+def test_a_row_stacked_on_a_merged_parent_is_not_named_as_its_own_head(scene):
+    """The board keeps only open rows as links, so a row whose parent merged waits on none and
+    is its own head."""
+    reason = ready.STACKED_ON.format(branch="owed-entry", slug="owed-entry", default="main")
+    said = jlines.waits("wait", 51, PULL.format(51), reason)
+    scene.queue(
+        [
+            row("owed-entry", "merged", pr="#50"),
+            row(
+                "prose-lint",
+                "pr",
+                pr="#51",
+                checks="passed",
+                why=f"wait: {reason}",
+                merge_after=["owed-entry"],
+            ),
+        ]
+    )
+    scene.merge_log(f"{et(ago(minutes=10)).removesuffix(' ET')} {jlines.logged(said)}")
+    verdict = stack(scene)["glance"]["verdict"]
+    stacked = next(one for one in verdict["groups"] if one["kind"] == "stacked")
+    assert stacked["text"] == "stacked (on a merged or gone row)"
+
+
 def test_the_overloaded_day_is_held_by_you_with_12_behind_its_head(scene):
     """The 12 rows behind `tea-kettle`, which is not approved, are the largest group, and they
     wait on the user, so the user holds the work; the 8 ready for a launch slot come after."""
