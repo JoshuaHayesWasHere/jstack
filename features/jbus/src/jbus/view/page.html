@@ -277,7 +277,9 @@
   @media (max-width: 640px) {
     main { padding: var(--space-4) var(--space-5) var(--space-16); }
     .hdr { position: static; padding: var(--space-2) var(--space-5); gap: 0 var(--space-5); }
-    .hdr h1.every, .machw:not(.op):not(.bad) { display: none; }
+    .hdr h1.every, .readat:not(.stale), .machw:not(.op):not(.bad), .hdr .crumbs a:not([aria-current]) { display: none; }
+    .brand[data-read] { flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1.2; }
+    .brand[data-read]::after { content: attr(data-read); font-size: var(--text-xs); font-weight: 400; color: var(--ink-2); }
     .hdr:not(.open) #homes, .hdr:not(.open) #pick, .hdr:not(.open) #theme { display: none; }
     .hmenu { display: inline-flex; align-items: center; justify-content: center; }
     .hdr.open .hbr { display: block; flex-basis: 100%; height: 0; order: 1; }
@@ -980,7 +982,8 @@
     stopped = J.stopped;
     document.body.classList.toggle("stopped", stopped || gone);
     var read = ms(PROJECT ? S.at : STACK.at) || lastAnswer;
-    say($("readat"), gone ? "Stale since " + hm(read) : NARROW.matches ? "live \u00b7 " + hm(read) : "Updated " + hm(read) + " \u00b7 live"); $("readat").classList.toggle("stale", gone);
+    say($("readat"), gone ? "Stale since " + hm(read) : "Updated " + hm(read) + " \u00b7 live");
+    if (gone) document.querySelector(".brand").removeAttribute("data-read"); else document.querySelector(".brand").setAttribute("data-read", "live \u00b7 " + hm(read)); $("readat").classList.toggle("stale", gone);
     $("readat").title = gone ? "The view server does not answer: this is the last thing it said" : "The time of the last read of the server, asked every " + POLL_MS / 1000 + " s";
     renderDead();
     PANELS.you.draw();

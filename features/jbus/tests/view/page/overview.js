@@ -42,6 +42,7 @@ window.addEventListener("load", function () {
       chains: (function (c) { return c ? { box: box(c), text: text(c) } : null; })(document.querySelector("[data-role=chains]")),
       board: box(document.getElementById("pipeline")),
       header: header(),
+      stamp: getComputedStyle(document.querySelector(".hdr .brand"), "::after").content,
       homes: all("[data-part='pipeline:homes'] [data-home]").map(function (a) { return { home: a.getAttribute("data-home"), text: text(a), href: a.getAttribute("href"), box: box(a), bar: all(".seg-bar i", a).map(function (i) { return i.className; }), ago: lines(a.querySelector(".ago")) }; }),
       legend: all("[data-part='pipeline:homes'] .ehl-k > span").map(function (k) { var s = getComputedStyle(k.querySelector("i")); return { text: text(k), cls: k.querySelector("i").className, paint: s.backgroundColor + " " + s.backgroundImage }; }),
       regions: all("[data-region]").map(function (r) { return { name: r.getAttribute("data-region"), box: box(r) }; })
