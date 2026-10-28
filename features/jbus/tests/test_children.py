@@ -197,3 +197,15 @@ def test_jbus_out_says_unknown_while_the_last_pass_could_not_ask_t3_code(child):
     code, said = kitchen.main("--project", "demo", "out", "--scope", "sc")
     assert code == 1
     assert said.startswith("unknown: jbus's last pass could not ask T3 Code about demo")
+
+
+def test_a_root_home_with_only_a_gate_out_is_not_watched(kitchen):
+    """An open gate waits on the user, not on the root home, and the root cannot be retired: with
+    nothing else out, its quiet thread is neither nudged nor told of."""
+    home(kitchen, idle=timedelta(hours=6))
+    (kitchen.home / "gates.md").write_text("## Gate 1: ship it?\nStatus: open\n")
+    assert children.out(kitchen.home, kitchen.home, kitchen.state, []) == ["out gate 1: ship it?"]
+    for n in range(0, 5 * P, 10):
+        kitchen.poll(minutes(n))
+    assert not [one for one in sends(kitchen) if one["clientRequestId"].startswith(STALL)]
+    assert told(kitchen) == []

@@ -267,9 +267,10 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
 
     When GitHub is silent, jbus still knows the crews out, and they count toward `max_running`.
 
-    The list of merged pull requests is the last hundred. When the queue names a slug that is
-    not in that list, `look` asks GitHub for it by name. `look` keeps any merge that it finds
-    that way, so the slug stays merged.
+    The list of merged pull requests is the last hundred. `look` keeps every merge it sees in
+    `merged.json` of the project's state, a record of the merges written on each one. When the
+    queue names a slug that is in neither, `look` asks GitHub for it by name, and keeps the merge
+    it finds that way too, so the slug stays merged.
 
     `look` keeps a pull request under the slug whose brief names it (`tied`), and under the
     name of its branch where no brief does. When a slug's brief names a pull request, `look`
@@ -325,6 +326,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
                     never = reading.never_started(rollup, lambda *at: job(run, *at))
                     pull[NEVER] = sorted(never)
                 into[slug_of.get(pull.get("url", "").rstrip("/"), pull["headRefName"])] = pull
+        if kept | world.merged != kept:
+            kept |= world.merged
+            write_json(run.state / "merged.json", kept)
         for slug in sorted(named - set(world.open) - set(world.merged)):
             if slug not in kept:
                 if slug in url_of:

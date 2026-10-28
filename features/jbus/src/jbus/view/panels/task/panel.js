@@ -23,7 +23,8 @@ function dTask(slug) {
     return head("Task", slug + (m.pr ? " " + m.pr : ""), true) + '<div class="now w-ok"><span class="tag">Now: Merged</span><span class="big">Merged at ' + hm(at) + (ap == null ? "" : ", " + dur(at - ap) + " after approval") + '</span></div>' + (m.pr ? ghBox(slug) : "");
   }
   var st = t.state, bl = t.blocked, h = head("Task", slug + (t.pr ? " " + t.pr : ""), true);
-  h += '<div class="now w-' + (t.who === "dep" || t.who === "bus" ? "plain" : esc(t.who)) + '"><span class="tag">Now: ' + esc(st.name) + '</span><span class="big">' + esc(st.say) + '</span>' +
+  h += '<div class="now w-' + (t.who === "dep" || t.who === "bus" ? "plain" : esc(t.who)) + '"><span class="tag">Now: ' + esc(st.name) + '</span><span class="big">' + esc(t.now ? t.now.say : st.say) + '</span>' +
+    (t.now ? '<span class="chip plain">' + esc(t.now.by) + ' at ' + day(ms(t.now.at)) + '</span> ' : "") +
     '<span class="chip ' + esc(t.who) + '">waits for ' + esc(st.waits) + '</span> ' + ageChip(t.since) + ' ' +
     (t.visits > 1 ? '<span class="chip plain">' + ord(t.visits) + ' time here</span> ' : "") +
     (bl && bl.by ? '<p class="marked">Blocked by ' + taskBtn(bl.by) + ' <span class="chip plain">' + esc(bl.state) + '</span></p>' : "") +
@@ -34,10 +35,11 @@ function dTask(slug) {
     (t.unconfirmed ? '<p style="margin:10px 0 0">' + gap("not confirmed") + ' ' + esc(t.unconfirmed.line.replace(/^not confirmed /, "")) + '.</p>' : "") +
     (ITEM_OF[slug] ? '<p style="margin:10px 0 0">Work item ' + openBtn("item:" + ITEM_OF[slug].id, ITEM_OF[slug].id) + ' <span class="chip plain">' + esc(ITEM_WORD[ITEM_OF[slug].state]) + '</span></p>' : "") +
     added("task", t).map(function (a) { return '<p style="margin:10px 0 0">' + a.said + '</p>'; }).join("") +
+    (t.pr ? '<p id="gh-differs" style="margin:10px 0 0" hidden></p>' : "") +
     '</div>';
   if (t.pr) h += ghBox(slug);
   if (t.depends.length) h += '<h3>Depends on</h3><ul class="clean steps">' + t.depends.map(function (d) {
-    return '<li class="one"><span>' + taskBtn(d.slug) + ' <span class="chip ' + (d.state === "merged" || d.state === "done" ? "ok" : "user") + '">' + esc(d.state) + '</span></span></li>';
+    return '<li class="one"><span>' + taskBtn(d.slug) + ' <span class="chip ' + (/^(merged|done)\b/.test(d.state) ? "ok" : "user") + '">' + esc(d.state) + '</span></span></li>';
   }).join("") + '</ul>';
   var segs = segments(t);
   if (segs.length) {
@@ -53,7 +55,7 @@ function dTask(slug) {
   }
   var seen = t.seen;
   h += '<h3>What the last pass saw</h3><dl class="kv"><dt>thread</dt><dd>' + (seen.thread_status ? esc(seen.thread_status) + (ms(seen.thread_updated) == null ? "" : ", updated " + day(ms(seen.thread_updated))) : "none") + (seen.live ? ' <span class="chip ' + LIVE[seen.live] + '">' + esc(seen.live) + '</span>' : "") + '</dd><dt>threads out</dt><dd>' + seen.threads + '</dd>' +
-    (seen.check ? '<dt>check</dt><dd>' + esc(seen.check.name) + ' <b>' + esc(seen.check.state) + '</b>' + (ms(seen.check.started) == null ? "" : ", started " + hm(ms(seen.check.started), true)) + '</dd>' : "") + '</dl>';
+    (t.checks ? '<dt>checks</dt><dd><b>' + esc(t.checks) + '</b></dd>' : "") + '</dl>';
   h += '<h3>Events sent about this task</h3>' + (t.events.length ? '<ul class="clean steps">' + t.events.slice().reverse().map(eventRow).join("") + '</ul>' : '<p class="src">None in the log.</p>');
   h += '<h3>The queue row, as jbus wrote it' + (st.row ? ", which disagrees" : "") + '</h3><dl class="kv">' +
     [["slug", t.slug], ["status", t.status], ["priority", t.priority], ["approved", t.approved], ["updated", ms(t.updated) == null ? "" : day(ms(t.updated))], ["checks", t.checks], ["pr", t.row_pr], ["depends", t.depends.map(function (d) { return d.slug; }).join(", ")], ["thread", t.thread]]
