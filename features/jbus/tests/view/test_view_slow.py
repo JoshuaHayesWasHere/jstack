@@ -24,9 +24,13 @@ def test_six_rows_in_check_and_four_of_four_slots_say_so_on_the_overview(scene, 
         given = served.json("/stack.json")
     finally:
         served.close()
-    runner = stage(given, "runner")
-    assert (runner["rows"], runner["running"]) == (6, 0)
-    assert runner["oldest"] == {
+    check = stage(given, "check")
+    assert (check["rows"], check["checks"], check["cause"]) == (
+        6,
+        {"failing": 0, "waiting": 6, "passed": 0},
+        "waiting",
+    )
+    assert check["oldest"] == {
         "what": "pie-6",
         "project": "demo",
         "since": iso(ago(minutes=60)),
@@ -45,7 +49,7 @@ def test_each_stage_counts_its_own_rows_and_you_is_what_needs_you_counts(served)
     given = served.json("/stack.json")
     demo = served.json("/state.json?project=demo")
     by = {one["slug"]: one for one in demo["tasks"]}
-    for key, steps in (("runner", {"check"}), ("rebase", {"rebase"})):
+    for key, steps in (("check", {"check"}), ("rebase", {"rebase"})):
         mine = [one for one in by.values() if one["step"] in steps]
         assert stage(given, key)["rows"] == len(mine), key
     review = [one for one in by.values() if one["who"] == "rev"]
@@ -60,7 +64,7 @@ def test_each_stage_counts_its_own_rows_and_you_is_what_needs_you_counts(served)
         "since": first["since"],
         "open": first["open"],
     }
-    assert [one["key"] for one in given["slow"]["stages"]] == ["runner", "review", "rebase", "you"]
+    assert [one["key"] for one in given["slow"]["stages"]] == ["check", "review", "rebase", "you"]
 
 
 def test_the_stages_count_every_project_and_name_the_oldest_across_them(scene):
@@ -80,27 +84,45 @@ def test_the_stages_count_every_project_and_name_the_oldest_across_them(scene):
         demo = served.json("/panel/slow.json?project=demo")["data"]
     finally:
         served.close()
-    runner = stage(given, "runner")
-    assert runner["rows"] == stage(demo, "runner")["rows"] + 1
-    assert (runner["oldest"]["what"], runner["oldest"]["project"]) == ("fig-pie", "pantry")
-    assert runner["oldest"]["since"] == iso(ago(minutes=300))
+    check = stage(given, "check")
+    assert check["rows"] == stage(demo, "check")["rows"] + 1
+    assert check["checks"]["waiting"] == stage(demo, "check")["checks"]["waiting"] + 1
+    assert (check["oldest"]["what"], check["oldest"]["project"]) == ("fig-pie", "pantry")
+    assert check["oldest"]["since"] == iso(ago(minutes=300))
 
 
-def test_a_check_with_a_runner_is_counted_apart_from_one_that_waits_for_it(scene, monkeypatch):
-    in_check(scene)
-    seen = {
-        "pie-1": {
-            "check": {"name": "check", "state": "in_progress", "started": iso(ago(minutes=3))}
-        },
-        "pie-2": {"check": {"name": "check", "state": "queued", "started": None}},
-    }
-    scene.passed(seconds_ago=20, rows=seen)
+def checked(scene, *words):
+    in_check(scene, words)
     served = Served(scene)
     try:
-        runner = stage(served.json("/stack.json"), "runner")
+        return stage(served.json("/stack.json"), "check")
     finally:
         served.close()
-    assert (runner["rows"], runner["running"]) == (6, 1)
+
+
+def test_a_failing_check_is_counted_apart_from_one_that_runs_or_waits_and_one_that_passed(scene):
+    check = checked(scene, "failed", "failed", "failed", "pending", "none", "passed")
+    assert (check["rows"], check["checks"]) == (6, {"failing": 3, "waiting": 2, "passed": 1})
+    assert check["cause"] == "failing"
+
+
+def test_the_cause_is_the_larger_count_and_a_tie_names_the_failing_checks(scene):
+    assert checked(scene, "failed", "passed", "passed", "passed", "passed")["cause"] == "passed"
+    assert checked(scene, "failed", "failed", "failed")["cause"] == "failing"
+    assert checked(scene, "failed", "failed", "failed", "passed", "passed", "passed")["cause"] == (
+        "failing"
+    )
+
+
+def test_a_check_that_will_not_run_or_a_draft_is_in_check_and_in_none_of_the_three(scene):
+    check = checked(scene, "unrun", "draft", "failed", "failed", "passed", "passed")
+    assert (check["rows"], check["checks"]) == (6, {"failing": 2, "waiting": 0, "passed": 2})
+
+
+def test_no_stage_but_check_has_counts_of_checks(served):
+    given = served.json("/stack.json")
+    assert [one["key"] for one in given["slow"]["stages"] if one["checks"] is not None] == ["check"]
+    assert [one["key"] for one in given["slow"]["stages"] if one["cause"] is not None] == ["check"]
 
 
 def test_the_threads_that_wait_for_a_slot_are_counted_with_the_oldest_wait(scene, monkeypatch):
