@@ -28,7 +28,8 @@ An item the home's own thread caused does not wake it, as a row to approve whose
 An item whose cause is another open item folds into that item, as the stall of a row whose pull request is red, unless the row is that item's fix.
 An item that leaves the list wakes no one.
 A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.
-A `decision` reaches a home thread only this way.
+A `decision` of an item on the list reaches a home thread only this way.
+Any other `decision`, as one `jbus decide` or `jbus clear` raises, reaches a home thread as an event.
 
 ## The events
 

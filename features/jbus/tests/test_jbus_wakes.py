@@ -143,3 +143,29 @@ def test_a_guarded_stall_is_told_to_its_home_once(tmp_path, monkeypatch):
     (one,) = [one for one in wrongs(kitchen, later(11)) if one["kind"] == "stall"]
     assert (one["owner"], one["fixing"]["what"]) == ("root home", wakes.KIND)
     kitchen.close()
+
+
+def test_one_red_on_two_branches_wakes_the_root_once_and_a_new_red_wakes_it_again(launched):
+    """The review of #585: the pass keys a red by the failing tests its run's log names, so two
+    branches red on the same test are one item, and a red on another test is news."""
+    root = home(launched)["threadId"]
+    runs(launched, "dependabot/pip/oat", "dependabot/pip/rye")
+    launched.set("run-jobs.json", {str(500 + at): [job(at)] for at in range(3)})
+    launched.set("logs.json", {str(900 + at): log_of(at) for at in range(3)} | {"901": log_of(0)})
+    for minutes in (0, 3):
+        launched.poll(NOW + minutes * MIN)
+    (first,) = [given["message"] for given in sends(launched) if given["threadId"] == root]
+    assert first.count("\n- ci ") == 1
+    runs(launched, "dependabot/pip/oat", "dependabot/pip/rye", "dependabot/pip/wheat")
+    for minutes in (6, 9):
+        launched.poll(NOW + minutes * MIN)
+    _, second = [given["message"] for given in sends(launched) if given["threadId"] == root]
+    assert "- ci dependabot/pip/wheat: check failed" in second and second.count("\n- ci ") == 1
+
+
+def job(at):
+    return {"id": 900 + at, "status": "completed", "conclusion": "failure"}
+
+
+def log_of(at):
+    return f"FAILED tests/test_grain.py::test_{at}\n"

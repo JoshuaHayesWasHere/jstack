@@ -18,11 +18,13 @@ import json
 import socket
 from datetime import timedelta
 
+import pytest
+
 import jbus
-from jbus import alert, wake
+from jbus import alert, blockers, wake
 from jroles import ledger
 from test_jbus_kitchen import HOME, NOW
-from test_jbus_signal import later
+from test_jbus_signal import decide, later
 
 TOP = "mcp:top-home"
 
@@ -37,17 +39,8 @@ def waiting(kitchen):
     return jbus.read_json(kitchen.state / wake.HOME / "outbox.json", [])
 
 
-def decide(kitchen):
-    """Queue one alert, an event that starts a POST for the user and wakes the home thread: a
-    decision reaches a home thread only from the one list (`jbus.wakes`)."""
-    config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo")).send(
-        "alpha", "alert", "alert alpha: which one?"
-    )
-
-
 def homed(kitchen, **config):
-    """Write the config with these settings, and have an alert wait."""
+    """Write the config with these settings, and have a decision wait."""
     kitchen.config(**config)
     decide(kitchen)
 
@@ -59,7 +52,7 @@ def sent_events(kitchen):
 
 def decide_again(kitchen):
     config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo")).send("beta", "alert", "alert beta: ?")
+    wake.Box(kitchen.state, config.project("demo")).send("beta", "decision", "decision beta: ?")
 
 
 def listener():
@@ -86,11 +79,28 @@ def test_the_event_reaches_the_home_thread(kitchen):
     said = kitchen.poll(NOW)
     (sent,) = wakes(kitchen)
     assert sent["mode"] == "queue"
-    assert "demo: alert alpha: which one?" in sent["message"]
+    assert "demo: decision alpha: which one?" in sent["message"]
     body = json.loads(sent["message"].split("```json\n", 1)[1].split("\n```", 1)[0])
-    assert body["kind"] == "events" and body["say"] == ["demo: alert alpha: which one?"]
-    assert [one["event"] for one in body["events"]] == ["alert"]
+    assert body["kind"] == "events" and body["say"] == ["demo: decision alpha: which one?"]
+    assert [one["event"] for one in body["events"]] == ["decision"]
     assert "woke demo: 1 events" in said
+
+
+@pytest.mark.parametrize("listed", [False, True], ids=["jbus decide", "an item of the list"])
+def test_a_decision_reaches_the_home_thread_as_an_event_unless_the_one_list_carries_it(
+    kitchen, listed
+):
+    """The review of #585: a decision `jbus decide`, `jbus clear` or a fix past its retry cap
+    raises is on no list, so the home thread gets its event. One of an item on the list does
+    not, since the list wakes the home with it."""
+    homed(kitchen)
+    kitchen.poll(NOW)
+    before = len(wakes(kitchen))
+    box = wake.Box(kitchen.state, jbus.load().project("demo"))
+    blockers.decide(box, "beta", "beta-key", "which way?", "this way", listed=listed)
+    kitchen.poll(later(10))
+    told = [one["message"] for one in wakes(kitchen)[before:]]
+    assert any("decision beta: which way?" in one for one in told) is not listed
 
 
 def test_an_old_config_with_wake_both_and_a_webhook_url_loads_as_home_and_posts_nothing(kitchen):
@@ -146,9 +156,8 @@ def test_a_webhook_streak_from_before_is_gone_after_one_pass_with_no_line(kitche
 
 
 def test_what_an_old_webhook_outbox_holds_reaches_the_home_thread_once(kitchen):
-    """2026-10-23: decisions, which an alert stands in for here, waited for the own webhook under
-    `wake = "webhook"`, the webhook refused them, and `wake = "home"` left them in that outbox for
-    good."""
+    """2026-10-23: decisions waited for the own webhook under `wake = "webhook"`, the webhook
+    refused them, and `wake = "home"` left them in that outbox for good."""
     kitchen.config()
     decide(kitchen)
     decide_again(kitchen)
@@ -160,8 +169,8 @@ def test_what_an_old_webhook_outbox_holds_reaches_the_home_thread_once(kitchen):
     jbus.write_json(kitchen.state / "unposted.json", {"told": []})
     said = kitchen.poll(NOW)
     lines = sent_events(kitchen)
-    assert lines.count("alert alpha: which one?") == 1
-    assert lines.count("alert beta: ?") == 1
+    assert lines.count("decision alpha: which one?") == 1
+    assert lines.count("decision beta: ?") == 1
     assert waiting(kitchen) == []
     assert not (kitchen.state / "outbox.json").exists()
     assert not (kitchen.state / "top-level").exists()
@@ -216,7 +225,7 @@ def test_t3_refusing_keeps_the_events_and_alerts_in_the_journal_and_on_the_desk(
     for number in range(3):
         said += kitchen.poll(later(5 * number))
     assert wakes(kitchen) == []
-    assert any(one["event"] == "alert" for one in waiting(kitchen))
+    assert any(one["event"] == "decision" for one in waiting(kitchen))
     line = next(one for one in said if one.startswith("demo: alert: home thread demo failed 3"))
     assert f"jbus | {line.removeprefix('demo: ')}" in kitchen.log("notify")
     code, printed = kitchen.main("wakes")
@@ -224,7 +233,7 @@ def test_t3_refusing_keeps_the_events_and_alerts_in_the_journal_and_on_the_desk(
     kitchen.t3.refuse_send = False
     said = kitchen.poll(later(20))
     (sent,) = wakes(kitchen)
-    assert "alert alpha" in sent["message"]
+    assert "decision alpha" in sent["message"]
     assert any(one.startswith("demo: recovered: home thread demo") for one in said)
     assert kitchen.main("wakes") == (0, "wakes go: the home thread of demo is not failing\n")
 
@@ -273,8 +282,8 @@ def test_an_event_the_home_thread_took_shows_as_posted(kitchen):
     homed(kitchen)
     kitchen.poll(NOW)
     assert len(wakes(kitchen)) == 1
-    (alert,) = kitchen.events("alert")
-    assert alert["posted"] is not None
+    (decision,) = kitchen.events("decision")
+    assert decision["posted"] is not None
 
 
 def test_each_event_for_the_user_reaches_the_home_thread(kitchen):
@@ -285,7 +294,7 @@ def test_each_event_for_the_user_reaches_the_home_thread(kitchen):
     kitchen.poll(NOW)
     (sent,) = wakes(kitchen)
     body = json.loads(sent["message"].split("```json\n", 1)[1].split("\n```", 1)[0])
-    kinds = {"sign-in", "home-stall", "alert"}
+    kinds = {"decision", "sign-in", "home-stall", "alert"}
     assert {one["event"] for one in body["events"]} == kinds
 
 
@@ -298,10 +307,10 @@ def test_a_wake_to_a_capped_home_thread_waits_with_no_alert_and_goes_once_after_
     for number in range(4):
         said += kitchen.poll(later(5 * number))
     assert wakes(kitchen) == []
-    assert [one["event"] for one in waiting(kitchen)] == ["alert"]
+    assert [one["event"] for one in waiting(kitchen)] == ["decision"]
     assert [one for one in said if "alert:" in one or "wake failed" in one] == []
     kitchen.poll(later(25))
     kitchen.poll(later(35))
     (sent,) = wakes(kitchen)
-    assert "demo: alert alpha: which one?" in sent["message"]
+    assert "demo: decision alpha: which one?" in sent["message"]
     assert waiting(kitchen) == []

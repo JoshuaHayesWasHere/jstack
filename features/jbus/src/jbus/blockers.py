@@ -130,10 +130,12 @@ def head(text: str, name: str) -> str:
     return ""
 
 
-def decide(box: Box, slug: str, key: str, said: str, reply: str) -> bool:
-    """Raise one decision for the key, and return False when it was raised before."""
+def decide(box: Box, slug: str, key: str, said: str, reply: str, *, listed: bool = False) -> bool:
+    """Raise one decision for the key, and return False when it was raised before. A decision
+    `listed` reaches a home thread from the one list (`jbus.wakes`), and only the log keeps its
+    event."""
     line = f'{KIND} {slug}: {said}. Reply: "{reply}"'
-    return box.send(slug, KIND, line, key=f"{KIND}|{key}")
+    return box.send(slug, KIND, line, key=f"{KIND}|{key}", listed=listed)
 
 
 def _count(number: int, noun: str) -> str:
@@ -417,7 +419,7 @@ def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
     hears of it from the one list (`jbus.wakes`), and the log keeps this event."""
     for one, said in deciding(run, listed):
         key, slug = _keyed(one)
-        decide(run.box, slug, key, said, _reply(run.project, one))
+        decide(run.box, slug, key, said, _reply(run.project, one), listed=True)
 
 
 def _raise(half: Half) -> None:
