@@ -126,7 +126,9 @@ NoRetireWithOpen ==
 CallsReachJosh == \A m \in Msgs : Queued(m) ~> msg[m] = "told"
 
 \* The root flags a child within K checks of observable quiet with work out, and a routine on
-\* a missed beat, from signals the child does not send.
+\* a missed beat, from signals the child does not send. jbus watches the root home's own quiet by
+\* the same loop (children.watch), as one more home that never retires, so a feature child here
+\* stands for it: the root needs no state of its own in Kids.
 StallFlagged == \A k \in Kids : (Watched(k) /\ quiet[k] >= Patience(k)) => watch[k] # "calm"
 
 \* A stall reaches Josh on the first strike.

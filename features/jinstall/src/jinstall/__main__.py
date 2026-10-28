@@ -88,7 +88,8 @@ def install(machine: Machine, write: bool, repo: Path | None = None) -> Report:
         found = kind.probe(machine)
         if write and found.state is not State.OK and found.replaceable:
             try:
-                kind.put(machine)
+                if said := kind.put(machine):
+                    notes += [f"install.sh: {need.name}: {line}" for line in said.splitlines()]
             except (OSError, Moved, Refused) as error:
                 notes.append(f"install.sh: {need.name}: {error}")
             found = kind.probe(machine)
@@ -133,8 +134,8 @@ def setup(machine: Machine) -> Report:
             try:
                 if seeds:
                     machine.seed(kind.path, kind.text(machine), kind.mode)
-                else:
-                    kind.put(machine)
+                elif said := kind.put(machine):
+                    notes += [f"install.sh: {need.name}: {line}" for line in said.splitlines()]
             except (OSError, Moved, Refused) as error:
                 notes.append(f"install.sh: {need.name}: {error}")
             found = kind.probe(machine)
