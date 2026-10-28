@@ -15,7 +15,9 @@ home's `scouts/`. A home's own thread is the home whose `home-id`, or whose hand
 `Was home:` line, has its id. A thread that is none of these has no home.
 
 `group` gives the project's homes: the root first, then each scope in name order, each with
-the open tasks and the needs that are its own, its health and the day its scope was made.
+the open tasks and the needs that are its own, its health and the day its scope was made. Each also
+has `in_check`, how many of its rows in check have a failing check, one that runs or waits for a
+runner, and one that passed and waits for `jmerge` (`checked`).
 
 `group` also gives each home its `last` act: the newest of the acts it is given, `state.acts`,
 whose home is that home, with its time and its line, or None where it has none. An act is
@@ -43,12 +45,14 @@ from pathlib import Path
 from typing import Any
 
 from jbriefs import home as jbriefs
+from jbus.view import checked
 
 ROOT = ""
 GROUP = {
     "name": None,
     "open": None,
     "waits": None,
+    "in_check": checked.SHAPE,
     "health": None,
     "since": None,
     "started": None,
@@ -166,8 +170,8 @@ class Homes:
     ) -> list[Any]:
         """The project's homes, the root first and then each scope by name, each with how many
         open tasks and needs are its own, its health from `threads`, the threads the last pass
-        listed with each one's home, the day its scope was made, and its newest act of
-        `acts`, which are oldest first."""
+        listed with each one's home, its rows in check by what their check did, the day its scope
+        was made, and its newest act of `acts`, which are oldest first."""
         last = {one["home"]: {"at": one["at"], "what": one["what"]} for one in acts or []}
         own = [one for one in threads or [] if one["role"] == "home"]
         found = []
@@ -178,11 +182,13 @@ class Homes:
             )
             thread = mine[-1] if mine else None
             health = "unknown" if threads is None else thread["health"] if thread else "none"
+            rows = [task for task in tasks if task["home"] == name]
             found.append(
                 {
                     "name": name,
-                    "open": sum(1 for task in tasks if task["home"] == name),
+                    "open": len(rows),
                     "waits": sum(1 for need in needs if need["home"] == name),
+                    "in_check": checked.count(rows),
                     "health": health,
                     "since": thread["updated"] if thread and health in SINCE else None,
                     "started": self.started(scope) if scope else None,

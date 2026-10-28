@@ -1073,12 +1073,14 @@ def homed(scene):
 IN_CHECK = [(f"pie-{n}", 20 + n, 10 * n) for n in range(1, 7)]
 
 
-def in_check(scene):
-    """Six pull requests whose check has not passed: `pie-6`'s wait is the oldest, an hour."""
+def in_check(scene, checks=()):
+    """Six pull requests whose check has not passed: `pie-6`'s wait is the oldest, an hour.
+    Each one's checks are `pending`, or the word `checks` gives it, in the order of `IN_CHECK`."""
+    words = [*checks, *["pending"] * len(IN_CHECK)]
     scene.queue(
         [
-            row(slug, "pr", pr=f"#{number}", checks="pending", why="wait: check has not passed")
-            for slug, number, _ in IN_CHECK
+            row(slug, "pr", pr=f"#{number}", checks=word, why="wait: check has not passed")
+            for (slug, number, _), word in zip(IN_CHECK, words, strict=False)
         ]
     )
     scene.merge_log(

@@ -82,6 +82,19 @@ def test_a_row_in_check_with_no_check_seen_gives_what_the_view_says():
     assert cause(task("check", NOT_PASSED, ago(3)), NOW) == Cause(NOT_PASSED, ago(3), False)
 
 
+def test_a_check_that_has_not_started_waits_for_a_runner_and_is_not_running():
+    seen = {"check": {"name": "check", "state": "pending", "started": None, "completed": None}}
+    said = cause(task("check", NOT_PASSED, ago(9), seen=seen), NOW)
+    assert said == Cause("check queued, waits for a runner", ago(9), False)
+
+
+def test_a_row_whose_checks_failed_says_so_while_its_newest_check_still_runs():
+    """The newest check, a lint, runs, and `check` failed before it: the row is red."""
+    seen = checked("lint", "pending", 2)
+    said = cause(task("check", NOT_PASSED, ago(20), seen=seen, checks="failed"), NOW)
+    assert said == Cause("a check failed", ago(20), False)
+
+
 @pytest.mark.parametrize(
     ("given", "said"),
     [

@@ -2,11 +2,12 @@
 that has waited longest, and how many of the machine's test slots are held.
 
 A stage is a row of `STAGES`. Three take the tasks of the line by their step or their holder:
-`runner` is the step `check`, where a row waits for a runner and then for its check to end;
-`review` is every step a reviewer holds; `rebase` is the step `rebase`. The fourth, `you`, is
-what Needs you lists, so its count is the one the page's Needs you gives. A task's age at its
-stage is its `since`, which the line gives (`state._tasks`). Of a row in check, `running` counts
-the ones whose check has started and not ended: the rest wait for a runner.
+`check` is the step `check`; `review` is every step a reviewer holds; `rebase` is the step
+`rebase`. The fourth, `you`, is what Needs you lists, so its count is the one the page's Needs you
+gives. A task's age at its stage is its `since`, which the line gives (`state._tasks`). The stage
+`check` also has `checks`, how many of its rows have a failing check, one that runs or waits for a
+runner, and one that passed and waits for `jmerge` (`checked`), and `cause`, the largest of the
+three, which is what slows the rows in check. Every other stage has None for both.
 
 The test slots are the full lane of `jgauge test-slot` (`jgauge.slot`), where a thread runs the
 check command. The panel never takes a slot's lock to see whether it is free, as
@@ -28,6 +29,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from jbus.view import checked
 from jbus.view.state import Read, Source, iso
 from jgauge import slot, waiters
 
@@ -35,7 +37,16 @@ FIRST = False
 _OLDEST = {"what": None, "project": None, "since": None, "open": None}
 SHAPE = {
     "slow": {
-        "stages": [{"key": None, "name": None, "rows": None, "running": None, "oldest": _OLDEST}],
+        "stages": [
+            {
+                "key": None,
+                "name": None,
+                "rows": None,
+                "checks": checked.SHAPE,
+                "cause": None,
+                "oldest": _OLDEST,
+            }
+        ],
         "slots": {"read": None, "used": None, "total": None, "waiting": None, "since": None},
     }
 }
@@ -52,16 +63,11 @@ class Stage:
 
 
 STAGES = (
-    Stage("runner", "a runner", lambda task: task["step"] == "check"),
+    Stage(checked.STEP, "check", lambda task: task["step"] == checked.STEP),
     Stage("review", "review", lambda task: task["who"] == "rev"),
     Stage("rebase", "a rebase", lambda task: task["step"] == "rebase"),
 )
 YOU = "you"
-
-
-def _running(task: dict[str, Any]) -> bool:
-    check = task["seen"]["check"] or {}
-    return bool(check.get("started")) and not check.get("completed")
 
 
 def _first(found: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -86,20 +92,28 @@ def stages(reads: list[Read], needs: list[dict[str, Any]]) -> list[dict[str, Any
                 for name, task in mine
             ]
         )
-        running = sum(1 for _, task in mine if _running(task)) if stage.key == "runner" else None
+        counts = checked.count([task for _, task in mine]) if stage.key == checked.STEP else None
         found.append(
             {
                 "key": stage.key,
                 "name": stage.name,
                 "rows": len(mine),
-                "running": running,
+                "checks": counts,
+                "cause": checked.cause(counts) if counts else None,
                 "oldest": oldest,
             }
         )
     oldest = _first([{key: one[key] for key in _OLDEST} for one in needs])
     return [
         *found,
-        {"key": YOU, "name": YOU, "rows": len(needs), "running": None, "oldest": oldest},
+        {
+            "key": YOU,
+            "name": YOU,
+            "rows": len(needs),
+            "checks": None,
+            "cause": None,
+            "oldest": oldest,
+        },
     ]
 
 

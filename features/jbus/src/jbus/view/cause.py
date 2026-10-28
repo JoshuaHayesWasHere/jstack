@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from jbus.view import checked
 from jbus.view.state import NO_REVIEWER
 
 STACKED = "stacked on"
@@ -76,9 +77,13 @@ def _check(task: dict[str, Any], now: datetime) -> Cause:
         return Cause(_join("merges after", parent or "its parent row"), task.get("since"), False)
     check = _seen(task).get("check") or {}
     state = check.get("state")
+    if checked.outcome(task) == checked.FAILING and state != "failed":
+        return Cause("a check failed", task.get("since"), False)
     if state == "pending":
         started = check.get("started")
         name = check.get("name") or "its check"
+        if not started:
+            return Cause(f"{name} queued, waits for a runner", task.get("since"), False)
         return Cause(_join(name, "running", age(started, now)), started, True)
     if state in ("passed", "failed"):
         done = check.get("completed")
