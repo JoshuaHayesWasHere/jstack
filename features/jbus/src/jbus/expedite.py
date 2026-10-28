@@ -28,9 +28,9 @@ reason with its sentence:
   decline needs, even where the crew pushed nothing;
 - `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each finding and answer
   it `fixed`, or, where the crew still stands by the decline, tell its home. The stall for this
-  reason goes to the home's thread and never to the user (`OVERRULED_HOME`). Only a decline on one
-  of `findings.RISKS` is the user's to settle. That one is a `hold`, and jbus asks no crew to lift
-  it;
+  reason goes to the home's thread on the one list (`jbus.wakes`) and never to the user. Only a
+  decline on one of `findings.RISKS` is the user's to settle. That one is a `hold`, and jbus asks
+  no crew to lift it;
 - `unruled`, a `hold` that says `the review of <head> did not rule on the drops in <files>`:
   launch the scoped pass over the rebase, and push nothing meanwhile;
 - `unreviewed`, `it has no review yet`: launch the reviewer the pull request is owed. Or send a
@@ -95,7 +95,7 @@ from jbus import END_TURN, dispatch, merge, outbox, read_json, rebase, verbs, wr
 from jbus.passes import Pass
 from jbus.stall import PASSES, REVIEWING
 from jbus.t3 import Client, T3Error
-from jbus.watch import World, at_work, home_thread, task_brief
+from jbus.watch import World, at_work, task_brief
 from jmerge import ready
 
 if TYPE_CHECKING:
@@ -120,12 +120,6 @@ NO_FIX_RANGE = (
 RERUN = "rerun.md"
 ANSWERED = ("unfixed", "unpushed", "unended", "unanswered", "uncited", "repeated", "risky")
 AGAIN = "/pr-review run {slug} again"
-OVERRULED_HOME = (
-    "jbus: {slug}'s pull request #{number} waits on its crew, which has not acted on it in "
-    "{since} passes: {reason}. A decline the scoped pass did not uphold is the crew's to fix, "
-    "and yours to settle with it where it holds the decline; {user} is not asked, since the "
-    "finding is on none of review-triage's categories. Its crew's thread is {thread}."
-)
 SCOPED = "/pr-review run {slug} scoped {old} {new}"
 MESSAGE = (
     "jbus: pull request #{number} waits on you, and jmerge keeps saying the same of it "
@@ -489,57 +483,12 @@ def tell(run: Pass, client: Client, world: World, pulls: merge.Said) -> set[int]
                 f"{STALL} {slug}: #{number} is as short as it was {since} passes after its "
                 f"crew was told{work}, at {head[:12]}, {reason}; its crew's thread is {thread}"
             )
-            if row.kind == "overruled":
-                _to_home(run, client, slug, number, since, reason)
-            else:
-                run.find(slug, STALL, line, key=f"{head[:12]} {row.kind}")
+            run.find(slug, STALL, line, key=f"{head[:12]} {row.kind}")
             if row.word == "hold" and busy is False and entry.get("idle", 0) >= PASSES:
                 entry["users"] = True
     if kept != was:
         write_json(run.state / FILE, kept)
     return hand
-
-
-def _to_home(run: Pass, client: Client, slug: str, number: int, since: int, reason: str) -> None:
-    """Send the home the stall of a decline that the scoped review did not uphold, once for
-    the slug and the reason. The home gets it instead of the user. jbus never pages the user for
-    it, since the finding is in none of review-triage's categories. Where there is no home,
-    the pass prints the stall, and the view keeps showing the pull request on the findings
-    step. When a message fails to send, the next pass sends it again."""
-    brief = task_brief(run, slug)
-    thread = home_thread(run, brief)
-    if not thread:
-        run.say(f"wait {slug}: #{number} waits on its crew, {reason}, and it has no home to tell")
-        return
-    digest = f"overruled|{slug}|{reason}"
-    if digest in run.box.sent():
-        return
-    text = OVERRULED_HOME.format(
-        slug=slug,
-        number=number,
-        since=since,
-        reason=reason,
-        user=run.user.user,
-        thread=briefs.thread_of(brief) or "not known",
-    )
-    try:
-        went = outbox.send(
-            run,
-            client,
-            thread=thread,
-            row=slug,
-            key=digest,
-            text=text,
-            template="overruled",
-            needs="decide",
-        )
-    except T3Error as error:
-        run.say(f"wait {slug}: its home could not be told of the decline not upheld ({error})")
-        return
-    if not went:
-        return
-    run.box.mark(digest)
-    run.say(f"{STALL} {slug}: told its home, thread {thread}, of #{number}: {reason}")
 
 
 def _tell(

@@ -20,7 +20,7 @@ One pass, under one lock, does this for every project in the config:
    It makes one event for each finding, such as `merged <slug> #<n> <sha>`, `stale <slug>: ...` or `retro <slug>: ...` ([A red main](jbus/a-red-main.md)).
 4. It tells each crewmate's thread what it must act on: a failed check, a conflict, a review it is owed.
    A required check of a row's pull request that ran and was cancelled or timed out at its head is no crewmate's: at its run's first attempt jbus runs it again once (`gh run rerun <run> --failed`) and logs `cancelled <slug>: ran #<n>'s check again, run <run> at <head>`.
-   A check cancelled again at a later attempt, or one GitHub will not run again, is told to the brief's home in one line, once for the head, and that line is the row's why.
+   A check cancelled again at a later attempt, or one GitHub will not run again, is one stall, once for the head, that the one list takes to the brief's home, and its line is the row's why.
    A run on a head the pull request has left, one a newer push displaced, is neither run again nor told.
    It stops a process that a crew or reviewer left running once its turn ended, busy or idle, and a busy one a scout left, one whose parent is 1, that runs in the task's worktree or a temporary folder its session made (under /tmp, /var/tmp or a test slot's own folder), and that holds no test slot, and adds a `Left running:` line under the task's last Result or Report.
 5. It launches the approved rows of the queue, after it has asked every project for its open threads and pull requests ([What a pass launches](jbus/what-a-pass-launches.md)).
