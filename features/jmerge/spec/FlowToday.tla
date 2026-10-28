@@ -79,11 +79,11 @@ Check(p) ==
 Merge(p) ==
     /\ st[p] = "open"
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:980-981
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:87
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/rows.py:126
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:448-456
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:451-459
     \* A merge_after row merges after its row.
-    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:137-140
+    /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:206-209
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = (mainRed \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE redBy
@@ -122,10 +122,10 @@ CrewFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:870, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:873, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:313-316, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:827, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:947, base not red
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:830, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:950, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine>>
