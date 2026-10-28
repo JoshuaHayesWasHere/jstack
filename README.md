@@ -79,7 +79,7 @@ It writes outside jstack's own folders for each of the three.
 In this tutorial we install jstack, point it at a repo of yours, and merge one pull request that its threads wrote.
 
 1. Install the latest release and set it up. The script needs only `curl` and a shell.
-	jstack has no release yet, so for now install from a clone, as [jinstall](features/jinstall/docs/jinstall.md#before-the-first-release) shows.
+	If the `curl` line fails with a 404, the repo has no release yet: install from a clone, as [jinstall](features/jinstall/docs/jinstall.md#install-from-a-clone) shows.
 
 	```sh
 	curl -fsSL https://github.com/JoshuaHayesWasHere/jstack/releases/latest/download/install.sh | sh

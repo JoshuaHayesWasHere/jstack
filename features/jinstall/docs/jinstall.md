@@ -20,10 +20,10 @@ uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@v<version>
 jinstall --setup
 ```
 
-### Before the first release
+### Install from a clone
 
-jstack has no release yet, so the `curl` line and the `uv tool install` line above have nothing to install.
-Until the first release, install from a clone of the repo.
+Where the repo has no release, the `curl` line fails with a 404 and the `uv tool install` line finds no tag.
+Then install from a clone of the repo.
 Install `uv` first, from [Installing uv](https://docs.astral.sh/uv/getting-started/installation/), because in a clone the script does not install it.
 Then clone the repo and set it up from the clone:
 
