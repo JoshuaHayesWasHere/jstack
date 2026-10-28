@@ -28,7 +28,7 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 |---|---|---|
 | `disk <mount>` | The share of the mount's space used, as `df` gives it. | 80% |
 | `inodes <mount>` | The share of the mount's inodes used. A filesystem that counts none, such as btrfs, has no such line. | 80% |
-| `timeout jbus` | The passes systemd stopped at `jbus.service`'s `TimeoutStartSec`, in its journal over the last 60 minutes. | 1 |
+| `timeout jbus` | The passes stopped at `jbus.service`'s `TimeoutStartSec`, in its journal on Linux or its agent's log on macOS, over the last 60 minutes. | 1 |
 | `timeout jmerge` | How many times a pass stopped `jmerge` at its 17-minute timeout, read from the line the pass writes to the same journal. | 1 |
 | `relay` | The state of `jbus-relay.service`. | not `active` |
 | `relay heartbeat` | How long since the relay last wrote its heartbeat. | 3 minutes |
@@ -40,7 +40,7 @@ The first word is `ok`, `over`, or `?` for a check that could not be read.
 | `capped <instance>` | The windows of the instance that are full, and until when. | 100% of a window |
 
 The mounts are those the stack writes: jbus's state and the homes, each project's checkout, the temp directory, your home directory, the ledger, and the relay's state.
-A pass that systemd stops cannot say so itself, so jbus reads both timeouts from the journal of `jbus.service`.
+A pass that is stopped cannot say so itself, so on Linux jbus reads both timeouts from the journal of `jbus.service`, and on macOS from the agent's log, `~/Library/Logs/jstack/jstack.jbus.log`.
 
 The relay is optional, and a machine with none has only the `relay` line above, `not watched`.
 jbus watches the relay only where the config posts to it, with a `blocking_url` on 127.0.0.1 or localhost at `RELAY_PORT` ([The relay](the-relay.md)).
@@ -61,6 +61,7 @@ A pass pages an incident once when it starts, and logs its end, a `quiet` `recov
 It tracks the incident in `streaks.json`, as it does every other alert.
 The page is the line `jbus health` prints, after `alert:` or `recovered:`.
 It goes to the desktop with `notify-send`.
+On macOS, which has no `notify-send`, it goes to no desktop.
 It also goes to the home thread of every project, as an event of the machine.
 A check that could not be read leaves its incident as it is.
 Some checks go away: a mount or an instance is gone, or the config no longer posts to the relay.

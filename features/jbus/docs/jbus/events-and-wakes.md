@@ -14,6 +14,8 @@ It keeps a five-minute gap, in its own outbox in `home-thread/` inside the proje
 A project whose home has no thread sends its wakes to the thread in a top-level `home_thread = "<thread id>"`, where the config has one.
 With neither, the events wait in the outbox, and the journal says so once.
 A send that T3 Code does not take (T3 Code is down, or the thread is gone) keeps the events in the outbox for the next pass and counts the `home thread <project>` streak, which alerts in the journal and on the desktop at the third failure in a row.
+A wake that the outbox holds for a capped home thread waits for the reset and counts no streak.
+The desktop alert shows only where `notify-send` is on the PATH.
 `jbus wakes` prints `wakes fail: <the alert line>` and exits 1 while that streak alerts, and `wakes go: the home thread of <project> is not failing` otherwise.
 
 ## The events
@@ -33,7 +35,7 @@ A wake carries `user` kinds only, such as a `decision`, its `decision.withdrawn`
 A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).
 A `decision.withdrawn` says that a decision raised before is no longer yours to take, and why.
 A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
-The routine events, `merged`, `stale`, `retro`, `gate`, `stall` and `waiting`, go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
+The routine events, `merged`, `stale`, `retro`, `gate`, `stall`, `waiting` and `recovered`, go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
 A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
 
 A wake starts only when a `user` event waits, and it carries nothing else.

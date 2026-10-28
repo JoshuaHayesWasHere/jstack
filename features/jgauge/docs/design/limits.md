@@ -92,7 +92,7 @@ Only `resolve` creates a `Limit`, so every value a caller holds is 1 or more.
 So a count that you edit by hand applies the next time a caller takes a slot.
 Two callers that read at the same time cannot change each other's result.
 
-The derivation reads only whole-machine facts: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`.
+The derivation reads only whole-machine facts: the `cpuN` lines of `$PROC/stat` and `MemTotal` of `$PROC/meminfo`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`.
 It never reads the caller's cgroup quota, affinity or `nproc`, which differ between `jbus.service`, a `systemd-run` scope, an agent's slice and a CI container on the same machine.
 The Makefile does read the quota when it sizes its workers, on purpose.
 The Makefile sizes a run's workers to the run, and `sizes.py` sizes a machine's slots to the machine.
@@ -117,7 +117,7 @@ The crew cap derives the same 24 that the owner set by hand, so jstack's source 
 
 Each key is set in one local file.
 `test_slots` and `short_slots` go in `~/.config/jstack/machine.toml`, beside jsettings' `config.toml` and not in it.
-That way `config.toml` keeps its strict three keys, which name the user and set the time zone.
+That way `config.toml` keeps only its own keys, and no machine size goes in it.
 `max_running` stays in jbus's config, where it is today.
 jbus passes the raw value to `resolve`, which checks it as it checks any count.
 The order is `--slots`, then `TEST_SLOTS` (both for the full lane only), then the key's local file, then the derived value.

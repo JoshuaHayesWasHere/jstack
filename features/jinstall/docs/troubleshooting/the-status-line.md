@@ -2,7 +2,7 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing optional statusline <file>` | `<file>` has no `statusLine`, so nothing writes the limits file. | Run `jinstall`. |
+| `missing optional statusline <file>` | `<file>` has no `statusLine`, so only `jgauge limits` and its timer write the limits file. | Run `jinstall`. |
 | `old optional statusline <file> -> <command>` | The status line runs jgauge's `limits.sh` from another layout or copy. | Run `jinstall`. |
 
 The doctor prints no line for a status line of your own.

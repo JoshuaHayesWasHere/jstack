@@ -19,5 +19,6 @@ No other file names the panel.
 When the server reads a panel's data itself, the panel says so with `reads`.
 The head of the panel's drawer then says that the server read the data at that request.
 
-An edit of `panel.js` is live on the next request, and the server restarts itself after an edit of `panel.py`.
+An edit of `panel.js` is live on the next request, and after an edit of `panel.py` the server ends and its unit starts it again on Linux.
+On macOS you start `jbus view` again yourself.
 `features/jbus/src/jbus/view/panels/__init__.py` lists everything a panel may declare.

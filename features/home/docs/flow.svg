@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 968 348" role="img" aria-labelledby="flow-title flow-desc" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif">
   <title id="flow-title">How a task flows through jstack</title>
-  <desc id="flow-desc">You say what is wanted. A home thread plans and writes a brief. A scout thread may research a question first, read only. A crewmate thread does the one task in its own worktree and opens the pull request. A reviewer thread reviews it and sends findings back. jbus, a command with no model, runs jmerge, which merges what is reviewed, fixed and green to main. Every thread and jbus reads and writes the state directory, outside the repo.</desc>
+  <desc id="flow-desc">You say what is wanted. A home thread plans and writes a brief. A scout thread may research a question first, read only. A crewmate thread does the one task in its own worktree and opens the pull request. A reviewer thread reviews it and writes its findings into the brief, and jbus tells the crewmate when it owes a line. jbus, a command with no model, runs jmerge, which merges what is reviewed, fixed and green to main. Every thread and jbus reads and writes the state directory, outside the repo.</desc>
   <style>
     .card { fill: #f6f8fa; stroke: #d0d7de; }
     .thread { fill: #0969da; }
@@ -66,7 +66,7 @@
   <path class="line" d="M436 114H530" marker-end="url(#tip)"/>
   <text class="label" x="484" y="105" text-anchor="middle">pull request</text>
   <path class="line" d="M532 148H438" marker-end="url(#tip)"/>
-  <text class="label" x="484" y="166" text-anchor="middle">findings</text>
+  <text class="label" x="484" y="166" text-anchor="middle">via jbus</text>
 
   <rect class="card" x="532" y="70" width="180" height="120" rx="8"/>
   <rect class="thread" x="532" y="78" width="3" height="104" rx="1.5"/>

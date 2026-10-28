@@ -29,7 +29,7 @@ To make merges wait for other checks, follow these steps.
 2. Write the names of the checks in a file named `required-checks`, one name to a line.
 3. Run `jmerge --check` and read the `wait` lines.
 
-For example, the `required-checks` file of jstack's own repo names `check` (its test suite) and `borders` (its border lint), so its pull requests wait for both.
+For example, the `required-checks` file of jstack's own repo names `check` (its test suite), `borders` (its border lint) and `macos` (its macOS job), so its pull requests wait for all three.
 If the file names a check that your repo's CI never runs, every pull request waits.
 
 ## Accept a pull request it holds
@@ -78,7 +78,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   `jmerge` never merges a draft, whatever flags you pass.
   A crew opens its pull request as a draft, and CI runs no check on one, so a draft is judged as any other pull request but for its checks, and waits on the first reason that holds: its review, its fix, its queue row, a red main, a drop or a hold.
   Once none holds, a run without `--check` marks it ready (`gh pr ready`) and prints `wait <number> <url>: reviewed and fixed, so marked ready, and CI runs its check at <head>`, so its one check runs on the head that merges.
-  With `--check`, or where GitHub refuses the mark, it prints `wait <number> <url>: draft`, never a wait on its check.
+  With `--check` it prints `wait <number> <url>: draft`, never a wait on its check.
+  Where GitHub refuses the mark, it prints `wait <number> <url>: draft, and gh pr ready refused it: <what gh said>`.
   A draft whose brief says `Review: none` is marked ready too, so the user's word has a check to go by, and it still holds for that word.
 - **A brief names it.**
   A brief's Result has the pull request on its `Branch:` line.
@@ -100,7 +101,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   Its parser, `features/jbriefs/src/jbriefs/findings.py`, is the one the crew skill and jbus use too.
   Each finding gets an id, `F1`, `F2`, ..., in the order it appears.
   Two reviewers' findings share one id when they are at the same head, in the same file within 5 lines (`NEAR`), and cite the same principle.
-  Three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in any bucket.
+  Three kinds of finding block: an `(bucket: Act on)` finding, a finding written before the buckets existed, and a finding tagged `(risk: <area>)` in the Act on or Consider bucket.
   A `Consider` finding does not block, and a finding's severity does not change whether it blocks.
   An answer is `Finding F<n>: fixed, ...` or `Finding F<n>: not fixed, ..., because <reason>`.
   A decline counts only if its reason cites a `path:line`, a command in backticks, or a gate the Result names (`Gate: question <n>`).
@@ -132,10 +133,11 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   The file has one check name per line, and `jmerge` ignores blank lines and the spaces around a name.
   With no such file, or one that names no check, the only required check is `check` (`ready.REQUIRED`).
   A check that the repo's workflows never run then blocks no merge.
-  For example, jstack's own state directory names `check` (the suite) and `borders` (the border lint), so its pull requests wait for both.
+  For example, jstack's own state directory names `check` (the suite), `borders` (the border lint) and `macos` (the macOS job), so its pull requests wait for all three.
   A pull request waits with `<check> has not passed` for the first required check that has not passed, and with `it conflicts with its base` for a conflict.
   Where GitHub lists no run of that check at the head, the line is `<check> has no run at <head12>` instead: no runner is at work on it, as for a workflow that reached the base after the head's checks ran.
-  A pull request into an integration branch has no check of its own to wait on: CI runs the pull request check into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
+  A pull request into an integration branch does not wait on `check`: CI runs that check on a pull request into main alone, and the branch's red hold stands for it (`ready.unchecked_into`).
+  It still waits on every other check the `required-checks` file names.
 - **Its queue row lets it merge.**
   Once each run, `jmerge` reads the `queue.json` of the jbus project that the current checkout belongs to (`features/jmerge/src/jmerge/rows.py`).
   It looks up the row whose slug is the brief's slug.
@@ -175,7 +177,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   The wait ends when jbus sees a green tip.
   After the fix merges and the check of main's new tip passes, the other pull requests stop waiting on the next run.
   A repo with no jbus config, no project or no `main.json` has no such wait.
-  If `jmerge` cannot read the file, it reports that main's state is not known.
+  If `jmerge` cannot read the file, nothing is known of main, and no pull request waits on a red main.
   `jmerge` checks main's state only for a pull request into main.
   A pull request into an integration branch waits when that branch's tip is red instead, unless it is the fix of that red ("Integration branches").
   jbus checks every commit that was main's tip since jbus's last pass.
@@ -250,7 +252,7 @@ These rules make no pull request wait in a repo with no `migrations` key, and no
   With `migration_names = "timestamped"` the names cannot collide, and `jmerge` skips the number check.
   The pull requests still merge one at a time, in the same order.
 
-Each reason is a constant of `features/jmerge/src/jmerge/ready.py` (`MIGRATION_TAKEN`, `MIGRATION_MERGING`, `MIGRATION_REBASING`) with a rule in `merge.RULES`.
+Each reason is a constant of `features/jmerge/src/jmerge/ready.py` (`MIGRATION_TAKEN`, `MIGRATION_MERGING`, `MIGRATION_REBASING`) with a rule in `rules()` of `features/jbus/src/jbus/merge.py`.
 The rule for a taken number is on the `rebase` step, and the rules for the two waits on another pull request are on the `check` step.
 
 ## Fresh against main
@@ -290,7 +292,8 @@ fresh: none, main changed related <up to five paths, then "and <k> more">; no fr
 A path the pull request also changes, or a CI path, still makes it wait.
 
 A repo opts in to proving a pull request over today's main with a `fresh-check` file in its state directory.
-`jmerge` reads only that the file is there: no suite runs on this machine for a merge, and the command in the file is not run.
+`jmerge` reads only that the file has a line in it: no suite runs on this machine for a merge, and the command on that line is not run.
+An empty `fresh-check` file counts as no file.
 `jmerge` merges the head over today's main with `git merge-tree`.
 It first asks GitHub for a green marker of that merge's tree (`features/jmerge/src/jmerge/green.py`).
 A green marker is one of two things:
@@ -542,13 +545,13 @@ It writes an `accepted` line to `merge.log` that records who accepted and when, 
 |---|---|
 | `--check` | Prints `ready` lines in place of merging. It merges nothing, logs nothing and asks GitHub to update no branch. It does run the merge gate, and prints its hold. |
 | `--accept <number>` | Lifts the hold of one pull request and merges it, with `--by` and `--at`. |
-| `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each marker under `refs/jstack/green-tree/` on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. It keeps a worktree while a process works in it, and also when it cannot read `/proc` to tell. With `--check` it prints what is removable and removes nothing. |
+| `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each marker under `refs/jstack/green-tree/` on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. It keeps a worktree while a process works in it, and also when it cannot read the list of processes to tell: `/proc` on Linux, `lsof` on macOS. With `--check` it prints what is removable and removes nothing. |
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. For a brief with an open pull request, the line goes on with `Diff:` and each file that pull request changes, or that its last Result's `Wider:` line names, which its `Where:` does not cover, in backticks. GitHub lists up to 100 files of each pull request here. jbus reads the lines on each pass to tell an `overlap`. |
 | `--scope <slug>` | Changes nothing. It prints, for the brief's branch against the branch it left (the default branch, or for a link of a stack the branch it sits on), `outside: <path>` for each changed file the brief's `Where:` line does not cover, and `wider: <path>: <why>` for each one the last Result's `Wider: <path>: <why>` line gives a reason for. It prints nothing when every file is inside, and exits 1 with a reason on stderr when the brief's `Where:` names no path or neither the branch nor its pull request can be read. For a branch that is gone, it asks the branch's pull request. |
 | `--checks [<pr>]` | Changes nothing. It prints the state of one pull request's checks in one line, each check counted by its latest run: `passed: every check passed at <head>`, `failed: ...`, `wait: ...` or `unrun: no check ran at <head>`. The pull request is a number, an address or a branch, and by default the current branch's. It is the one reading of a pull request's checks. The crew and pr-review skills call it, and jbus reads with the same code (`features/jmerge/src/jmerge/checks.py`). What `jmerge` merges on is narrower: the required checks alone, as the merge rule on green says. |
 | `--range-diff <before>..<head>` | Changes nothing and prints `clean: <why>` when the rebase from `<before>` to `<head>` left the content as it was, by the range-diff `jmerge` carries a review over with (`features/jmerge/src/jmerge/rangediff.py`), else `changed: <why>`. |
 | `--base <branch>` | With `--range-diff`, the branch both heads sit on, `main` by default. |
-| `--remake` | Merges nothing. While a rebase is stopped in this worktree it prints the files to resolve by hand, under `resolve these by hand and git add them, then run this again:`. Once only generated files are left, it makes each one again: it takes the base's version and runs the command the `Generated: <file> -> <command>` lines of the state's `notes.md` give it, `uv lock` for `uv.lock` where no line does, and prints `made again: <file>, by <command> over the base's version`, or `not made: ...` where the command did not write it. With no rebase stopped it prints `no rebase is stopped here: nothing to make again`, and with nothing left `nothing is left to resolve: git rebase --continue`. The crew skill's "A conflict" runs it each time the rebase stops. |
+| `--remake` | Merges nothing. While a rebase is stopped in this worktree it prints the files to resolve by hand, under `resolve these by hand and git add them, then run this again:`. Once only generated files are left, it makes each one again: it takes the base's version and runs the command the `Generated: <file> -> <command>` lines of the state's `notes.md` give it, `uv lock` for `uv.lock` when `notes.md` has no `Generated:` line at all, and prints `made again: <file>, by <command> over the base's version`, or `not made: ...` where the command did not write it. With no rebase stopped it prints `no rebase is stopped here: nothing to make again`, and with nothing left `nothing is left to resolve: git rebase --continue`. The crew skill's "A conflict" runs it each time the rebase stops. |
 | `--gate <head>` | Merges nothing. It runs the repo's merge gate in this worktree on `<head>`, as the reviewer does: with where the pull request left its base and `<head>` as its last two arguments and as `BASE` and `HEAD`, and a limit of 9 minutes. It prints nothing for a repo with no gate or a gate that passes, and one `error` finding for a gate that fails or runs over. It exits 1, with why on stderr, when that base could not be worked out. |
 | `--pr <pr>` | With `--gate`, the pull request whose base the gate takes: a number, an address or a branch, and by default the current branch's. |
 | `--home <id>` | The home that is asking: says what `jmerge` would do of that home's pull requests, as `--check` does, and merges nothing. |

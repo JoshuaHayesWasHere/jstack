@@ -192,7 +192,7 @@ Otherwise the writer keeps the line with the later reset.
 A writer rounds its reset down to the second, and the usage endpoint's reset can differ by a second either way between calls.
 The rule means that a lower share of a window never replaces a cap on it.
 `jgauge limits` writes the ledger on a schedule, before a launch needs it.
-`jgauge-limits.timer` runs `jgauge limits` every two minutes.
+On Linux `jgauge-limits.timer` runs `jgauge limits` every two minutes, and on macOS a launchd agent made from it does.
 `jgauge limits` reads each Claude account's use from the usage endpoint with that home's own token.
 When the token has expired, it reads the answer Claude Code cached in that home's `.claude.json`, while that answer is under 15 minutes old ([jgauge](../../jgauge/docs/jgauge.md)).
 The other two writers write only after an event.
@@ -226,7 +226,7 @@ It also copies the shared keys of `~/.claude.json` into the extra home's `.claud
 It changes `~/.claude` too.
 `jroles mirror` moves an entry that only the extra home has into `~/.claude`, and puts a link to it in the mirror.
 `jroles mirror` also combines the skill use of every home into `~/.claude.json`.
-The install (`jinstall`) enables `jroles-mirror.timer`, which runs `jroles mirror` every 5 minutes.
+The install (`jinstall`) runs `jroles mirror` every 5 minutes: on Linux through `jroles-mirror.timer`, and on macOS through a launchd agent made from it.
 When `providers.json` has no extra Claude home, `jroles mirror` has nothing to mirror and changes nothing.
 
 The mirror shares every entry of `~/.claude` as a symlink: `projects` (the memory and the transcripts), `history.jsonl`, `file-history`, `downloads`, `uploads`, `skills`, `plugins`, `settings.json`, `CLAUDE.md`, and any entry that `~/.claude` gains later, from the next run on.
@@ -277,7 +277,8 @@ A run then combines no `skillUsage` until someone fixes the entry.
 For a mirror with nothing to do, `--check` prints `ok <home> mirrors ~/.claude`.
 `jroles mirror --instance <id>` reads or mirrors only that instance, and exits 2 for an id that is not a mirror.
 `features/jroles/units/jroles-mirror.timer` runs `jroles mirror` every 5 minutes, through `jroles-mirror.service`.
-The install (`jinstall`) links and enables both units with the jbus units.
+On Linux the install (`jinstall`) links and enables both units with the jbus units.
+On macOS it writes them as launchd agents under `~/Library/LaunchAgents`.
 `jinstall --check` prints `ok optional mirror <home>`, or `old optional mirror <home> -> <the first line of --check>` while the mirror differs.
 
 Before `jbus` launches a crew on a mirror instance, or moves a capped thread onto one, it runs `jroles mirror --check --instance <id>`.

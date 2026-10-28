@@ -14,7 +14,7 @@ A record has the slug, the section it is from, its text whole, when a pass first
 | `jbus noticed take <key> --row <slug> --by <name> --at "<YYYY-MM-DD HH:MM zone>"` | Marks a new record taken by the queue row or the plan entry `--row` names, of any home's `plan.md` or `plan-done.md`. A slug that is neither is refused. |
 | `jbus noticed drop <key> --why <words> --by <name> --at "<YYYY-MM-DD HH:MM zone>"` | Marks a new record dropped, with why. |
 
-A record kept with `add` has its slug `home` or `home-<scope>`, the section `from <thread id>`, and `for` and `from` set.
+A record kept with `add` has its slug `home` or `home-<scope>`, the section `from <the home that kept it>`, such as `from root`, and `for` and `from` set.
 At the end of each pass, jbus wakes each home at most once for the records and the `--scope` words that are new for it, through the outbox: one message that lists them, sent only while the home has no turn running, and never to the root for a record that is not its own.
 A home's start lists its records under "to read".
 

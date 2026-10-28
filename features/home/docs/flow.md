@@ -1,6 +1,6 @@
 # How a task flows
 
-![A home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer sends findings back, and jbus runs jmerge, which merges to main. Every thread reads and writes the state directory.](flow.svg)
+![A home plans and writes a brief, a scout researches when needed, a crewmate does the one task and opens the pull request, a reviewer writes its findings into the brief, and jbus tells the crewmate and runs jmerge, which merges to main, and every thread reads and writes the state directory.](flow.svg)
 
 A thread is an agent with a model, and a command has no model.
 The state directory is the only thing the threads share.
@@ -54,7 +54,7 @@ Without asking you, the threads do everything else that is reversible.
 | An approval | Before a task launches | That task does not launch. Other tasks go on. |
 | A gate | At any step of any thread | Nothing waits. The default stands until you change it. |
 | A held pull request | At the merge | The pull request stays open. Nothing else is held up unless it depends on it. |
-| One of the four pauses | Before a force-push to a shared branch, a deploy, deleting data, or a message to anyone outside | The thread asks in its own thread and waits for your answer. These are the only things a thread asks first. |
+| One of the six doors | Before a default that deletes data, rewrites history, spends money, touches prod or real users, changes access or secrets, or publishes | The thread does the fail-safe instead, parks a gate that holds, and carries on with what does not depend on it. Only your own answer closes that gate. |
 | A pull request with no review | Its brief says `Review: none` | It never merges by itself. It waits for your word. |
 
 A brief that says `Review: after` merges once its check passes, and its review's findings become a cleanup row, `cleanup-<slug>`.

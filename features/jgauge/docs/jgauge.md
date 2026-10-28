@@ -18,10 +18,11 @@ The slots stop many threads at once from overloading the machine or using up the
   Where the token has expired, it reads the usage response that Claude Code cached in that home's `.claude.json` instead.
   It never refreshes, writes or prints a token.
   The install (`jinstall`) enables `jgauge-limits.timer`, which runs `jgauge limits` every 2 minutes.
-  To stop the calls, run `systemctl --user disable --now jgauge-limits.timer`.
+  To stop the calls on Linux, run `systemctl --user disable --now jgauge-limits.timer`.
+  On macOS, run `launchctl bootout gui/$(id -u)/jstack.jgauge-limits`.
   After that, two writers update the ledger: the status line command, and `jbus` when an account reaches a cap ([jroles](../../jroles/docs/jroles.md#the-ledger)).
-  Each `jinstall` run enables the timer, so the next run turns it back on.
-  Until then, `jinstall --check` reports the timer as not enabled.
+  Each `jinstall` run enables the timer on Linux, or loads the agent on macOS, so the next run turns it back on.
+  Until then, `jinstall --check` reports `jgauge-limits.timer is not enabled` on Linux, or `jstack.jgauge-limits is not loaded` on macOS.
 
 ## See what a thread cost
 
@@ -39,7 +40,7 @@ It prints the spend of every Claude run that started in the period, in units: un
 The spend is split by kind of run, by instance and by five-hour window.
 The kinds are first crew run, reviews, fix rounds, jbus sends, homes, scouts and capped failures.
 A crew's later run is a fix round or a jbus send by the key jbus put in the message it sent, and by that message's text where the key says nothing.
-A five-hour window ends at a reset that a usage-limit failure names, and otherwise starts at the first run outside any window.
+A five-hour window ends at the reset that a five-hour usage-limit failure names, and otherwise starts at the first run outside any window.
 Last, for each day it prints the minutes in which every Claude instance that ran in the week was capped.
 An instance is capped from each usage-limit failure to the reset that failure names.
 
@@ -77,7 +78,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge sizes` | Prints the machine's three sizes, `test_slots`, `short_slots` and `max_running`, each as its caller gets it and where it came from (a flag or `TEST_SLOTS`, `~/.config/jstack/machine.toml` or jbus's config, else derived from the processors of `/proc/stat` and `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`), with the derived value beside an override, then room's six lines. [The limits and how to change them](jgauge/change-a-limit.md) has each one. |
 | `jgauge test-slot [--slots N] -- <command>` | Runs the command while it holds one of N machine-wide test slots, and ends with the command's exit code. A slot is a lock file, `~/.local/state/locks/test-slot.<n>.lock`. When all are held it prints `test-slot: waiting for one of <N> slots` on stderr and waits. N is `--slots`, else `TEST_SLOTS`, else `test_slots` in `~/.config/jstack/machine.toml`, else what the machine derives: every slot at once runs at most one desk worker a processor, 4 on most machines of 8 cores or more, 5 on 10, 11 or 15. |
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
-| `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once. With a slot free it runs the command as above and takes the thread out of the waiters. With every slot of the lane taken it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line saying it waits and that jbus will wake it, and ends 76. `jbus poll` sends the oldest waiter on a lane one message when a slot of the lane is free (`slotwait.wake`, features/jbus/docs/jbus.md), and the thread runs the same command again. A run that takes its slot is on record in `~/.local/state/locks/test-slot-holders.json` (thread id, the command's pid, lane, command, start) while its command runs, and with its end and exit code once the command ends, however it ends: jbus counts the thread as at work while the run holds the slot, and wakes it once when the run ends (`slotwait.wake_ended`). `JGAUGE_LOCKS_DIR` moves the lock files, the waiters file and the holders file, for a test. |
+| `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call. It tries once. With a slot free it runs the command as above and takes the thread out of the waiters. With every slot of the lane taken, or every free one held for a woken waiter of another thread, it registers the thread as a waiter (thread id, lane, command) in `~/.local/state/locks/test-slot-waiters.json`, prints one line saying it waits and that jbus will wake it, and ends 76. `jbus poll` sends the oldest waiter on a lane one message when a slot of the lane is free (`slotwait.wake`, features/jbus/docs/jbus.md), and the thread runs the same command again. A run that takes its slot is on record in `~/.local/state/locks/test-slot-holders.json` (thread id, the command's pid, lane, command, start) while its command runs, and with its end and exit code once the command ends, however it ends: jbus counts the thread as at work while the run holds the slot, and wakes it once when the run ends (`slotwait.wake_ended`). `JGAUGE_LOCKS_DIR` moves the lock files, the waiters file and the holders file, for a test. |
 | `jgauge test-slot --waiters` | Prints the registered waiters, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
 | `jgauge check [--thread <id>] [--wait <seconds>] < <the check command>` | Starts the check command it reads from stdin on this worktree, under a slot of the full lane, in a session of its own, or joins the run an earlier call started, and waits on it for up to 540 s; it prints `started`, `joined` or `checked`, then `waiting` (exit 76, with every slot taken, the thread registered as with `test-slot --thread`), `stale` (exit 75, the worktree changed while it ran), `done: the check exited <n>` (exit n), `running` or `lost`, and keeps its files in `<git dir>/crew-check/`: `pid`, `out`, `exit`, `tree` (the worktree's tree, written with an index of its own), `told` and `run`. |
 | `jgauge proof --dir <dir> --kept <head> [--thread <id>] [--wait <seconds>] < <the proof>` | The same for a reviewer's proof, in the short lane, only while the checkout is at `<head>` with no rebase going on (else `unproven:`, exit 1); it runs the proof with `D` set to `<dir>`, prints `exit <n>`, the last 5 lines, `unproven: the head moved under the proof` when the head moved, and `git status --porcelain`, ends 0 on that answer, and keeps `proof.pid`, `proof.out`, `proof.exit`, `proof.key`, `proof.told` and `proof.cmd` in `<dir>`. |
@@ -118,7 +119,7 @@ On macOS `jgauge room` also skips its sweep of stale pytest runs from a full `/t
 
 `jgauge limits` reads each Claude account's five-hour and weekly use and writes it to the ledger ([jroles](../../jroles/docs/jroles.md#the-ledger)), before the account reaches a cap.
 The accounts are the Claude instances of `~/.config/jstack/providers.json`, each at its `config.homePath`.
-When the file does not declare `claudeAgent`, the accounts also include `claudeAgent` at `~/.claude`.
+When no instance of the file has `~/.claude` as its home, the accounts also include `claudeAgent` at `~/.claude`.
 For each account, it calls `GET https://api.anthropic.com/api/oauth/usage` with the home's own access token from `<home>/.credentials.json`, while the token has not expired.
 When the token has expired, it reads `cachedUsageUtilization`, the answer Claude Code cached in the home's `.claude.json` (`~/.claude.json` for `~/.claude`).
 It uses the cached response only while the response is under 15 minutes old and belongs to the account signed in to that home.
@@ -154,7 +155,8 @@ Once its first row is older than that, `jgauge sample` rewrites the log with the
 The timer sets `OnUnitActiveSec=15s` and `AccuracySec=1s`.
 It also sets `OnBootSec=1min` for the first run, since `OnUnitActiveSec` counts from the last start.
 A week of samples is a little under 40,320 rows.
-Each run adds its start and finish lines to the user journal.
+On Linux each run adds its start and finish lines to the user journal.
+On macOS each run writes them to `~/Library/Logs/jstack/jstack.jgauge-sample.log`.
 The install (`jinstall`) links and enables the timer with the jbus units.
 
 `jgauge sample --report` reads the rows of the log from `--since` up to `--until`.
@@ -165,14 +167,14 @@ That line is `LOAD` in `room.sh`, 200% of the cores, rounded the way `room.sh` r
 The report gives that count, its share of the rows read, and its share of the rows over the load line.
 The count shows how often `jgauge room` held a launch on load alone while CPU pressure was under its line.
 The report prints the count of rows with no load or no CPU pressure as a separate output line, and leaves those rows out of the load count.
-Then it prints the highest CPU pressure, memory pressure, load and `/tmp` use, each with how many rows were at or over room's own line for it.
+Then it prints the highest CPU pressure and memory pressure, each with how many rows were at or over room's line for it, the highest load as a share of the cores, and the highest `/tmp` use with how many rows were over room's line.
 Last, it prints what jbus recorded in the span, from each project's `events.jsonl` under `JBUS_STATE_DIR`:
 
 - the `stall` events
 - the threads woken from a wait for a test slot, and how many of them waited over 5 minutes
 - the rows that jbus gated because `jgauge room` found no room
 
-The report prints that last part even for a span with no rows.
+For a span with no rows, the report prints that last part only when both `--since` and `--until` are given.
 
 ## How jstack uses it
 

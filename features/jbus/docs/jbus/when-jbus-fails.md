@@ -7,15 +7,20 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 - `blocking <project>`, a body of the project's that the second target did not take.
 - `jmerge <project>`, a `jmerge` that did not run. When it stopped because it could not ask GitHub, the alert's `<why>` is its line, `wait: could not ask GitHub: gh exited <code>: <what gh said>`; a run of such passes is one streak whatever the text of each says. A pass of jbus that cannot ask GitHub says the same, `wait <project>: could not ask GitHub: gh exited <code>: <what gh said>`.
 - `snapshot`, a snapshot of the homes' state that did not finish. `jbus snapshot --alarm` counts it.
-- `stale`, a look that found no pass ended in the last 2 hours. `jbus-stale.timer` runs `jbus alarm --stale 2h` every 15 minutes, from 2 hours after boot or install, apart from `jbus.timer`, so a `jbus.timer` that is stopped or disabled, or a `jbus.service` that never starts, is caught: `jbus-failed.service` runs only when a pass fails, and a timer that is stopped fails nothing. The look reads the end of the last pass from `~/.local/state/jbus/pass.json`, or its start while a pass runs or after one that died, and with no `pass.json` at all it counts too. The next pass in which nothing raised ends the streak. The look runs the same `jbus` program as the pass, so a jbus that cannot start at all (an import that fails) stops both, and nothing alerts: that is the limit of this watch.
+- `stale`, a look that found no pass ended in the last 2 hours.
+  `jbus-stale.timer` runs `jbus alarm --stale 2h` every 15 minutes, from 2 hours after boot or install on Linux and from 15 minutes after the agent loads on macOS, apart from `jbus.timer`, so a `jbus.timer` that is stopped or disabled, or a `jbus.service` that never starts, is caught: `jbus-failed.service` runs only when a pass fails, and a timer that is stopped fails nothing.
+  The look reads the end of the last pass from `~/.local/state/jbus/pass.json`, or its start while a pass runs or after one that died, and with no `pass.json` at all it counts too.
+  The next pass in which nothing raised ends the streak.
+  The look runs the same `jbus` program as the pass, so a jbus that cannot start at all (an import that fails) stops both, and nothing alerts: that is the limit of this watch.
 
 The alert goes out after 3 failures in a row, and for `snapshot` and `stale` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`.
 Later failures say nothing.
 The first success after an alert logs `recovered: <key> after <n> failures since <HH:MM zone>`, a `quiet` event that `jbus digest` lists and that wakes no thread.
 An alert is a `user` event, so it waits in the project's outbox and goes to its home thread.
 jbus raises a `pass`, `snapshot` or `stale` alert on the desktop with `notify-send`, and the others while the project's home thread is failing.
+On macOS, which has no `notify-send`, jbus raises nothing on the desktop, and the home thread's message is the page.
 An alert that stands also blocks, so it goes to the second target too where the config has one, and from there to the relay ([What blocks](what-blocks.md)).
-Each alert and recovered line is also printed in the journal, as `<project>: <line>`, so `journalctl --user -u jbus` has it.
+Each alert and recovered line is also printed in the journal, as `<project>: <line>`, so `journalctl --user -u jbus` has it on Linux, and `~/Library/Logs/jstack/jstack.jbus.log` has it on macOS.
 
 A second target that refuses keeps the `error` text of its JSON body, with no URL and no key, as `the second target answered 400: <error>`, in the journal and in its `last_error`.
 `jbus wakes`, run in a repo's checkout, prints `wakes fail: <the alert line>` and exits 1 while the `home thread <project>` streak of the repo's project has alerted.

@@ -4,7 +4,7 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `wait: load <load> is at or over 200% of <n> cores; the busiest: <command> in <folder> (<n>%), ...` | The run queue is twice the cores: a backstop past what CPU pressure already says. The line ends `; the busiest:` with the three processes that used the largest share of a core over their lives, each with its command and its working directory. A review never says it: its check, `jgauge room --light`, skips the load. | Wait for running tests or builds to end, or stop a process the line names that nothing needs. |
+| `wait: load <load> is at or over 200% of <n> cores; the busiest: <command> in <folder> (<n>%), ...` | The run queue is twice the cores: a backstop past what CPU pressure already says. On Linux the line ends `; the busiest:` with the three processes that used the largest share of a core over their lives, each with its command and its working directory. On macOS the line has no busiest part. A review never says it: its check, `jgauge room --light`, skips the load. | Wait for running tests or builds to end, or stop a process the line names that nothing needs. |
 | `wait: CPU pressure <n> is at or over 40` | Something waited for a core for that share of the last minute (`some avg60` of `/proc/pressure/cpu`). A review never says it: `jgauge room --light` skips it with the load. | Wait for running tests or builds to end. |
 | `wait: <n> GB of memory available, under 6` | The machine is short of memory. | Close what holds the memory. |
 | `wait: memory pressure <n> is at or over 10` | Programs wait on memory. | Close what holds the memory. |
@@ -16,5 +16,5 @@
 
 A `note: the plan's ... not known` line on stderr is no `wait:`. It says the limits file is missing or stale, and `jgauge room` still prints `go`.
 
-A `note: <a>'s <window> limit is 100% used and resets in <time>; the pool has room on <b>` line on stderr is no `wait:` either: one instance of the pool is full, `<b>` has room, and `jgauge room` prints `go`.
+A `note: <a>'s <window> limit is <n>% used and resets in <time>; the pool has room on <b>` line on stderr is no `wait:` either: one instance of the pool is at or over your `headroom`, `<b>` has room, and `jgauge room` prints `go`.
 A `note: room reads claudeAgent's limits: <why>` line says the role map could not be used, so the check read the file `LIMITS` names, as it does for a role with no pool.

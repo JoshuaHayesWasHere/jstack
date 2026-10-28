@@ -20,6 +20,23 @@ uv tool install git+https://github.com/JoshuaHayesWasHere/jstack@v<version>
 jinstall --setup
 ```
 
+### Before the first release
+
+jstack has no release yet, so the `curl` line and the `uv tool install` line above have nothing to install.
+Until the first release, install from a clone of the repo.
+Install `uv` first, from [Installing uv](https://docs.astral.sh/uv/getting-started/installation/), because in a clone the script does not install it.
+Then clone the repo and set it up from the clone:
+
+```sh
+git clone https://github.com/JoshuaHayesWasHere/jstack
+cd jstack
+sh install.sh --setup
+```
+
+The script installs the nine commands as an editable install of the clone, so keep the clone where it is.
+Run it in the main checkout, not in a worktree.
+From then on, `jinstall` and its verbs work as this page says, and [Working on jstack](#working-on-jstack) has what a clone checks in addition.
+
 ## The verbs
 
 | Verb | What it does |
@@ -34,7 +51,7 @@ jinstall --setup
 `--setup` puts every part that [What the install writes](#what-the-install-writes) lists.
 Where no file is there yet, it also writes your jstack config and a role map where every role inherits.
 It also writes a `jbus` config with `dispatch = false`, so `jbus` launches nothing.
-Then it links the units.
+Then it links the units, or on macOS writes and loads the launchd agents.
 Run each command a `needs you` line names, such as `gh auth login`, then run `--setup` again.
 A `missing optional` line names a layer you may leave off, such as the relay or the backup.
 A second run writes nothing.
@@ -170,7 +187,7 @@ In a checkout, `sh install.sh` runs the same code as `jinstall`, before any comm
 |---|---|---|
 | Runs as | `jinstall [<verb>]` | `sh install.sh [<verb>]`, or `jinstall` of an editable install |
 | The layouts are assembled from | `<tool venv>/share/jstack` | `<checkout>` |
-| Units link to | `<tool venv>/share/jstack/templates/` | `<checkout>/templates/` |
+| Units link to | `<tool venv>/share/jstack/features/<feature>/units/` | `<checkout>/features/<feature>/units/` |
 | The commands are ok when | uv's tool `jstack` is the release's version, not editable | uv's tool `jstack` is an editable install of the checkout |
 | Also checked | nothing more | the generated files are current (`generated files are current`) |
 | The git hooks link to | `<tool venv>/share/jstack/features/jleak/hooks/` | `<checkout>/features/jleak/hooks/` |

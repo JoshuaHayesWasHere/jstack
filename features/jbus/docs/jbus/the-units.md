@@ -1,6 +1,7 @@
 # The units
 
-`jinstall` links each systemd unit of `features/jbus/units/` into `~/.config/systemd/user/`, reloads systemd, and enables the timers that run jbus.
+On Linux and WSL2, `jinstall` links each systemd unit of `features/jbus/units/` into `~/.config/systemd/user/`, reloads systemd, and enables the timers that run jbus.
+On macOS it makes one launchd agent from each unit that systemd would enable, as `~/Library/LaunchAgents/jstack.<unit stem>.plist`, and it logs each agent to `~/Library/Logs/jstack/jstack.<unit stem>.log`.
 In a release the links point into the tool's own copy, `<tool venv>/share/jstack/features/jbus/units/`, and in a checkout they point into the checkout.
 Each unit runs `~/.local/bin/jbus`.
 
@@ -13,7 +14,7 @@ Each unit runs `~/.local/bin/jbus`.
 | `jbus-snapshot-failed.service` | `jbus snapshot --alarm` | When a snapshot fails | Started by `jbus-snapshot.service` |
 | `jbus-ci.timer`, `jbus-ci.service` | `jbus ci --report --each` | Mondays at 09:00 in the machine's zone | Once a project says `ci_report = true` |
 | `jbus-relay.service` | `jbus relay` | Always on, restarted on a failure | Once `~/.config/jbus-relay/env` holds every key the relay needs |
-| `jbus-view.service` | `jbus view` | Always on | Never: `systemctl --user enable --now jbus-view.service` starts it |
+| `jbus-view.service` | `jbus view` | Always on | Never: on Linux `systemctl --user enable --now jbus-view.service` starts it, and on macOS the view gets no agent, so you run `jbus view` yourself |
 
 `jbus.service` stops a pass after 20 minutes (`TimeoutStartSec=20min`).
 `jbus-stale.timer` catches a timer that stopped.
@@ -27,3 +28,4 @@ Each unit's `Documentation=` names the page of these docs for what it runs, such
 `%Y`, the folder of the unit's file, gives the page's path.
 `systemctl --user show -p Documentation <unit>` prints that page.
 A unit copied in place of the link loses that, and `jinstall --check` reports the copy as old.
+On macOS the agents keep no `Documentation=`, so this works on Linux only.

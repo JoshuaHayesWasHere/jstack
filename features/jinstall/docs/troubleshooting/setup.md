@@ -25,5 +25,5 @@ Setup writes three configs, each only where no file is there yet:
   `server` is the server that `t3.json`, the T3 sign-in in the same folder, names.
   When `t3.json` names no server, `server` is `http://127.0.0.1:3773`.
 
-Setup links the units in the same run, because the jbus config exists by then.
+Setup puts the units in the same run, as links on Linux and launchd agents on macOS, because the jbus config exists by then.
 `jinstall --uninstall` removes each of the three only while its bytes are the ones setup wrote, and says `kept <name> -> yours, it is not as setup wrote it` for one you changed.

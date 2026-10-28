@@ -28,7 +28,8 @@ server = "http://127.0.0.1:3773"
 dispatch = false
 ```
 
-The setup also linked jbus's systemd units and turned on `jbus.timer`, so a pass runs every minute from now on.
+The setup also turned on jbus's timer, so a pass runs every minute from now on.
+On Linux and WSL2 it linked jbus's systemd user units and enabled `jbus.timer`, and on macOS it wrote and loaded the launchd agent `jstack.jbus`.
 With `dispatch = false` and no project, a pass does nothing.
 If T3 Code listens on another address, `jq -r .origin ~/.t3/userdata/server-runtime.json` prints it.
 Put that address in `server`.
@@ -143,15 +144,17 @@ jbus status
 ```
 
 `last_pass` is this minute, `token_expires` is when the sign-in runs out, and the project's `last_error` is empty.
-`systemctl --user list-timers jbus.timer` shows when the timer runs the next pass.
+On Linux, `systemctl --user list-timers jbus.timer` shows when the timer runs the next pass.
+On macOS, `launchctl print gui/$(id -u)/jstack.jbus` shows the agent and its interval.
 
 jbus now launches the rows you approve.
 To give it the first one, follow [Approve a row](the-queue.md#approve-a-row).
-jbus tells you what waits on you in the project's home thread, on the desktop with `notify-send`, and in `jbus status`.
+jbus tells you what waits on you in the project's home thread, in `jbus status`, and on the desktop where `notify-send` is on the PATH.
 
 ## Stop jbus
 
 To stop every launch, run `touch ~/.local/state/jbus/stop`.
 The passes go on, and jbus still merges, reads and sends.
-To stop the passes, run `systemctl --user disable --now jbus.timer`.
+To stop the passes on Linux, run `systemctl --user disable --now jbus.timer`.
+On macOS, run `launchctl bootout gui/$(id -u)/jstack.jbus`, which holds until the next login or install.
 [The units](the-units.md) lists each unit the setup linked.

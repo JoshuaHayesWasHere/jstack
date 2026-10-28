@@ -30,8 +30,9 @@ A gate acts unless stopped.
 The thread acts on its default at once and carries on, and the question is shown to you as already acted on: each one on the list of what waits on you has `acted: true`.
 No question parks work while it waits.
 The first pass that sees a question with no `Holds:` line closes it with its default at once, by silence.
+A go gate, a home's pick for a new row parked under the setting `go = "silence"`, waits `go_quiet_minutes` first, and its close by silence approves its row.
 The answer on the record is `default`, `closed_by: silence`, `by: jbus`, the time of that pass, and `where: settled at once`.
-It is not your word, and no approval rests on it.
+Any other close by silence is not your word, and no approval rests on it.
 The question leaves the list, the log has one `note`, and nothing is sent, since the thread already acted.
 You can still answer it later.
 Your answer replaces the close by silence, and one that differs goes to the thread as any other.

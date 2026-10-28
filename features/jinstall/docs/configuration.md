@@ -111,6 +111,8 @@ These keys go above the first `[[project]]`. `jbus` reads every key on this page
 | `runtimeMode` | None | The runtime mode that goes out with every launch, such as `full-access`. |
 | `dispatch` | `true` | With `dispatch = false`, `jbus` launches nothing. |
 | `max_running` | Derived: one a processor, while each has 2 GiB | How many crewmates may be out at once, counted across every project. `jbus` refuses a value under 1. `jgauge sizes` prints it and where it came from ([The machine's sizes](#the-machines-sizes)). |
+| `max_per_home` | 6 | How many crewmates one home may have out at once. `jbus` refuses a value that is not a whole number of 1 or more. |
+| `max_per_project` | 24 | How many crewmates one project may have out at once, across its homes. `jbus` refuses a value that is not a whole number of 1 or more. |
 | `room_passes` | `10` | How many passes a row waits for room before its gate. |
 | `warn_days` | `5` | How many days ahead of the sign-in's expiry its gate opens. |
 | `wake_alert` | `12` | Nothing. `jbus` reads the key and no code uses it. |
@@ -214,7 +216,7 @@ The doctor prints `ok optional mirror <home>` for each, `missing` while the home
 ## The machine's sizes
 
 Three numbers are sizes of the machine: the full test slots, the short test slots and the crew cap.
-`jgauge.sizes` derives each default from the whole machine: its processors in `/proc/stat` and its `MemTotal`.
+`jgauge.sizes` derives each default from the whole machine: its processors in `/proc/stat` and its `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` from `sysctl`.
 It never uses the caller's own CPU quota, so `jbus.service` and every shell count the same slots.
 `jgauge sizes` prints the three sizes, each with the value its caller gets and where that value came from.
 Then it prints the six limits of `jgauge room`, which `room.sh` keeps.

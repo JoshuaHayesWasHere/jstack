@@ -1,8 +1,10 @@
 # A red main
 
 A pass watches the check of the default branch, `main`, after each merge.
-When main's check fails within a day of a merge, the pass reports `retro <slug>: main check failed at <sha12>, <n> merges since the last green`.
-While main is red, every pull request waits except the one that fixes main, and jbus files the brief for that fix.
+When main's check fails, the pass reports `retro <slug>: main check failed at <sha12>, <n> merges since the last green`, with the slug of the briefed merge of the day before.
+With no such merge it reports `retro main-red-<sha12>: main check failed at <sha12>, <n> merges since the last green, and no briefed merge came in the day before it`.
+While main is red, every pull request waits except a fix of it, and jbus files a brief for that fix.
+A fix is the `main-red-<sha12>` row jbus files, or any pull request whose head contains the red tip and whose own check ran and passed each test that failed there.
 
 ## The fix's brief
 
@@ -16,7 +18,9 @@ The brief holds:
 
 The pass queues it with no go (`queue add`), at the top of its project.
 Its `priority` is one less than the lowest `priority` among the project's rows, or 0 when there are none.
-So once you approve it, it is the next launch in that project.
+Where a briefed merge came in the day before the red, the brief has `Follows: <that slug>`, and a pass approves it on that row's go.
+Otherwise it waits for your go.
+So once it has its go, it is the next launch in that project.
 
 - A pass files it whenever the queue has no `main-red-<sha12>` row.
   So if a pass stopped before it added the row, the next pass files it, and a removed row is not filed again.
@@ -24,8 +28,10 @@ So once you approve it, it is the next launch in that project.
   Only a red tip is a main to fix.
 - A project's first pass files no brief, and neither does a pass for a merged slug that was removed.
   The next pass files a red tip that the first pass found.
-- When main's tip is green again and a `main-red-<sha12>` row has not launched, the pass leaves the row as it is.
-  It says so once, in a quiet line: `retro main-red-<sha12>: main is green again at <sha12>, and its row is left as it is`.
+- When main's tip is green at a later commit and a `main-red-<sha12>` row has not launched, the pass withdraws the row.
+  It says so once: `retro main-red-<sha12>: main is green again at <sha12>, and its row is withdrawn`.
+  A row that launched is left to its crew and its pull request.
+  A row whose own commit went green on a rerun is left as it is, and the pass says `retro main-red-<sha12>: main is green again at <sha12>, and its row is left as it is`.
 - If the queue refuses the brief, the pass reports a `condition` line.
 
 jbus reads a slug that starts `main-red-` as the fix of a red main, so do not give a brief of your own such a slug.
@@ -39,6 +45,7 @@ The pass that tells a red pull request that main is green again writes it (`feat
 |---|---|
 | `broken` | The tip whose check failed, kept until a green tip follows. While main's tip is not green, it is the red main. |
 | `green` | The last tip whose check passed. |
+| `failed` | The tests that failed at `broken`, read once from the red run's logs. A pull request whose own check passed each of them is a fix. |
 | `fixed` | The green tip, written by a pass that still owes a crew its message and keeps the old commit to look at again. Main reads as green from that pass on. |
 
 A tip whose check has not ended or was cancelled changes neither field, so a main stays red until a later tip is green.

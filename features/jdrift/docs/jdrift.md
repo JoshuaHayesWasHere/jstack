@@ -30,7 +30,7 @@ It prints one line for each upstream path the map names, then the lines for jsta
 | `same` | The upstream file has not changed since the pin. |
 | `changed` | The upstream file has changed since the pin, with the commits that changed it. |
 | `gone` | The upstream file is no longer there. |
-| `own` | A file on the `jstack's own:` line, which has no upstream and never drifts, such as `principles/principle-depth-over-breadth.md`. |
+| `own` | A file on the `jstack's own:` line, which has no upstream and never drifts, such as `features/principles/skills/principle-depth-over-breadth/SKILL.md`. |
 | `new` | An upstream skill or playbook that the map does not name and `Not taken:` does not list. |
 
 | Flag | What it does |
