@@ -296,8 +296,31 @@ def playbook(text: str) -> str:
     elif not crewmates(name):
         fault = f"names {name}, which is not a crewmate's playbook"
     else:
-        return ""
+        missing = lacks(text, skills.where("playbook", name).read_text())
+        if not missing:
+            return ""
+        named = ", ".join(f"`{line}`" for line in missing)
+        return (
+            f"brief's Playbook: line names {name}, whose Run by: asks a brief for lines it "
+            f"lacks: {named} (an investigation opens no pull request until the user says so)"
+        )
     return f"brief's Playbook: line {fault} {_PLAYBOOK}"
+
+
+_ASKED = re.compile(r"`([^`]*)`")
+
+
+def asked(playbook: str) -> list[str]:
+    """The lines a playbook's `Run by:` asks a brief to have: each code span after its words
+    `in a brief with`. An investigation's playbook asks for `Pull request: ask first`."""
+    by = next((line for line in playbook.splitlines() if line.startswith("Run by: ")), "")
+    return _ASKED.findall(by.partition(" in a brief with ")[2])
+
+
+def lacks(text: str, playbook: str) -> list[str]:
+    """The lines `asked` names that no line of `text` starts with."""
+    lines = text.splitlines()
+    return [one for one in asked(playbook) if not any(line.startswith(one) for line in lines)]
 
 
 NO_DESIGN = "brief has no Design: line (run /architect or say none, <why>)"
