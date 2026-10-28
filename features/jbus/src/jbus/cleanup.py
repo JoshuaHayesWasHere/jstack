@@ -125,7 +125,7 @@ def brief(
     return head + (
         f"Done when:\n{listed}\n"
         "- Each finding above is fixed, or the Result says why it stands, citing a path:line.\n"
-        "- The check command (`notes.md`) passes.\n"
+        "- The check command (`$H/fresh-check`) passes.\n"
         "Proves it: CI's `check` job on the pull request, and a test for each finding fixed "
         "where one can be written.\n"
         "Size: S\n"

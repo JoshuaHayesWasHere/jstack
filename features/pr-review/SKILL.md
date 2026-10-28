@@ -49,7 +49,9 @@ It prints the value, or nothing for a brief with no such line.
 
 The line has two meanings and no more: `none`, and a review. A word a brief from before carries after `review` is read as `review`.
 
-A reviewer runs no test step and no suite, whatever the brief or the repo's `notes.md` says. The tests are CI's `check`, which runs beside the review and has passed before `jmerge` merges, and the crewmate's own runs (the crew skill, "Do the task"). The one thing a reviewer runs is a targeted proof of the fact the change is safe because of ("The review", step 5).
+A reviewer runs no test step and no suite, whatever the brief says.
+The tests are CI's `check`, which runs beside the review and has passed before `jmerge` merges, and the crewmate's own runs (the crew skill, "Do the task").
+The one thing a reviewer runs is a targeted proof of the fact the change is safe because of ("The review", step 5).
 
 ## What a review covers
 
@@ -85,7 +87,9 @@ This thread is a **reviewer**. It reads the diff, judges what it found, proves o
 
 ### Start
 
-1. Read `$H/tasks/<slug>.md` and `$H/notes.md`. Nothing else from `$H`, but for what the blocks under "After the review" read by themselves. Then work out who this reviewer is, and then whether this message may start a review.
+1. Read `$H/tasks/<slug>.md`.
+   Nothing else from `$H`, but for what the blocks under "After the review" read by themselves.
+   Then work out who this reviewer is, and then whether this message may start a review.
 
    Who this reviewer is goes on the section's `By:` line, under its heading: the provider, the model and the effort this thread runs on, and its number, `#<n>`.
    Ask the thread itself: the `t3-code` server's `t3_thread_configuration` with no `threadId` (if your harness defers it, load it first).

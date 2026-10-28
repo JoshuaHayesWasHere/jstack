@@ -47,7 +47,7 @@ class Machine:
         (self.home / ".claude" / "skills").symlink_to(assembled() / "skills")
         git(self.repo, "init", "-q", "-b", "wip")
         git(self.repo, "commit", "-q", "--allow-empty", "-m", "one")
-        for name, text in (("plan.md", ""), ("notes.md", ""), ("home-id", f"{THREAD}\n")):
+        for name, text in (("plan.md", ""), ("home-id", f"{THREAD}\n")):
             (self.state / name).write_text(text)
         self.config.write_text(CONFIG)
         self.config.chmod(0o600)

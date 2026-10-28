@@ -43,9 +43,9 @@ def make(homes, thread=ROOT, scope=NEW, prefix=PREFIX, owns=OWNS):
     return homes.step(MAKES, thread, **filled).stdout.splitlines()
 
 
-def test_the_root_home_makes_a_scope_with_its_plan_and_its_section_of_the_shared_notes(homes):
-    """The block dates the plan and the notes with the day it runs on. The test accepts the day
-    it started and the next day, since the block may run after midnight."""
+def test_the_root_home_makes_a_scope_with_its_plan_and_its_prefix(homes):
+    """The block dates the plan with the day it runs on. The test accepts the day it started and
+    the next day, since the block may run after midnight."""
     before = homes.state()
     first = date.today().isoformat()
     made, launch = make(homes)
@@ -56,17 +56,11 @@ def test_the_root_home_makes_a_scope_with_its_plan_and_its_section_of_the_shared
     }
     assert made.startswith(f"made: scope {NEW}")
     assert launch.startswith(MAKES)
-    assert homes.changed(before) == ["notes.md", f"{NEW}/plan.md"]
+    assert homes.changed(before) == [f"{NEW}/plan.md", f"{NEW}/prefix"]
     assert (homes.home_dir / NEW / "plan.md").read_text() == (
         f"# {NAME}, {NEW}: plan\n\nGoal ({today}, the user): {OWNS}\n"
     )
-    notes = (homes.home_dir / "notes.md").read_text()
-    assert notes.startswith(before["notes.md"].decode())
-    heading, *section = notes.removeprefix(before["notes.md"].decode()).strip().splitlines()
-    assert heading == f"## Scoped home: {NEW}, {today}"
-    said = "\n".join(section)
-    assert OWNS in said
-    assert f"`{PREFIX}*.md`" in said and f"`/home {NEW}`" in said and f"`{NEW}/`" in said
+    assert (homes.home_dir / NEW / "prefix").read_text() == f"{PREFIX}\n"
 
 
 def test_the_launch_it_prints_is_a_call_the_tool_takes_and_starts_that_scope_s_home(homes):
@@ -106,7 +100,7 @@ def test_the_launch_is_json_whatever_the_repo_is_called(tmp_path, monkeypatch):
         ({"scope": "off"}, "off is a file of a demo repo's own directory"),
         ({"scope": "merge.log"}, "merge.log is a file of a demo repo's own directory"),
         ({"scope": SCOPE}, f"{SCOPE} is already a scope of a demo repo"),
-        ({"scope": "notes.md"}, "notes.md is there already"),
+        ({"scope": "standing.md"}, "standing.md is there already"),
         ({"scope": "../other"}, "../other is not a name a scope can have"),
         ({"scope": ".hidden"}, ".hidden is not a name a scope can have"),
         ({"scope": "two words"}, "two words is not a name a scope can have"),
@@ -126,10 +120,11 @@ def test_the_launch_is_json_whatever_the_repo_is_called(tmp_path, monkeypatch):
 )
 def test_a_scope_that_cannot_be_made_is_refused_and_nothing_is_written(homes, asked, why):
     homes.sent("tasks", "sc-open", f"Home: {SCOPED}")
+    (homes.home_dir / "standing.md").write_text("")
     make(homes, scope="pstack", prefix="ps-")
-    with (homes.home_dir / "notes.md").open("a") as notes:
-        notes.write("- Its briefs and requests are `tasks/rs-*.md` and `scouts/rs-*.md`.\n")
-        notes.write("- Its briefs are `old-er-*.md` in the shared `tasks/`.\n")
+    for scope, prefix in (("review-speed", "rs-"), ("older", "old-er-")):
+        (homes.home_dir / scope).mkdir()
+        (homes.home_dir / scope / "prefix").write_text(f"{prefix}\n")
     before = homes.state()
     (said,) = make(homes, **asked)
     assert said.startswith(f"not made: {why}")
@@ -145,15 +140,16 @@ def test_a_scoped_home_that_is_asked_for_a_scope_is_refused_and_nothing_is_writt
     assert homes.changed(before) == []
 
 
-def test_a_scope_that_could_not_be_written_whole_is_taken_back(homes):
-    notes = homes.home_dir / "notes.md"
-    notes.chmod(0o444)
+def test_a_scope_that_could_not_be_written_is_refused_and_nothing_is_written(homes):
+    homes.home_dir.chmod(0o555)
     before = homes.state()
-    (said,) = make(homes)
+    try:
+        (said,) = make(homes)
+    finally:
+        homes.home_dir.chmod(0o755)
     assert said.startswith("not made: ") and said.endswith("Nothing is written.")
     assert homes.changed(before) == []
     assert not (homes.home_dir / NEW).exists()
-    notes.chmod(0o644)
     made, _ = make(homes)
     assert made.startswith(f"made: scope {NEW}")
 

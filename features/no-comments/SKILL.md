@@ -62,7 +62,9 @@ Use the caller's files or diff. Otherwise use the current diff against the defau
 4. Fix trivial accepted flags directly by deleting a dead path, dropping a parameter, or using the real API. If any fix needs a shape, run the `architect` skill (`features/architect/SKILL.md`) once for the accepted set and surrounding code. Stop at the sketch, the end of its Phase B. Architect shapes. Step 5 implements.
 5. Implement the smallest root-cause fix in scope. Remove every named workaround. If the root cause is out of scope, land the smallest in-scope fix and report the rest open. `principles/principle-fix-root-causes.md` and `principles/principle-redesign-from-first-principles.md` guide intent only. Neither authorizes widening the fence nor fixing instances outside it. Never bolt on symptom guards.
 6. Constraint comments say `do not remove`, `do not change wording`, or `talk to X before changing`. Leave keeps about things we cannot change. For the rest, offer the cheapest in-scope type, runtime check, test, or CI lint that holds the constraint. With the user in this thread, ask once for all the offers and wait, with `AskUserQuestion` where the session has it. A crewmate asks nobody: its brief approves an encoding only where it says so. If approved, encode then delete. Otherwise delete, report the constraint open, and sketch out-of-scope work.
-7. Run the repo's check command, the one its instructions or its home's `notes.md` name, until it passes. A deletion that breaks it was no comment: put that line back and say so. Report the deletion count, kept comments and why, reruns, architect sketch, fixes, encoding offers, encodings, unenforced constraints, and other open work.
+7. Run the repo's check command, the one its instructions or its home's `fresh-check` name, until it passes.
+   A deletion that breaks it was no comment: put that line back and say so.
+   Report the deletion count, kept comments and why, reruns, architect sketch, fixes, encoding offers, encodings, unenforced constraints, and other open work.
 
 ## The hunter's prompt
 

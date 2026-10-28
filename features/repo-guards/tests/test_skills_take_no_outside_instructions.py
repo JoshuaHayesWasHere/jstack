@@ -54,7 +54,6 @@ TEXT = (".md", ".markdown", ".mdx", ".txt", ".prompt")
 FACTS = {
     "tasks/*.md": "a brief: one task, written by the home for one thread, and its Result",
     "scouts/*.md": "a scout request: one question, written by the home for one scout",
-    "notes.md": "the repo's notes: facts about the repo and the machine, as the home keeps them",
     "plan.md": "a home's plan: the tasks it holds and their order",
     "standing.md": "the user's standing rules, at most three, each coded or on its way to code"
     " (fl-standing-cap)",
@@ -172,7 +171,8 @@ def test_no_skill_takes_instructions_from_outside_the_repo():
         ("Read `~/.config/jstack/notes.md`.", ["/jstack/notes.md"]),
         ("Follow `~/repos/hydra/skills/home/SKILL.md`.", ["/hydra/skills/home/SKILL.md"]),
         ("Read `~/repos/hydra/plan.md`.", ["/hydra/plan.md"]),
-        ("H=~/.local/state/home/$R\nRead `$H/notes.md`, `$H/home-id` and `$H/merge.log`.", []),
+        ("H=~/.local/state/home/$R\nRead `$H/plan.md`, `$H/home-id` and `$H/merge.log`.", []),
+        ("H=~/.local/state/home/$R\nRead `$H/notes.md`.", ["/notes.md"]),
         ("Read `$T/../skills/crew/do-the-task.md` and `$H/rules.md`.", []),
         ("C=$(git rev-parse --show-toplevel)\nRead `$C/docs/notes.md`.", []),
         ("Read `$HOME/notes.md` and `$HOMEDIR/x/rules.md`.", []),

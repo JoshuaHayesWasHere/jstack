@@ -1,9 +1,8 @@
 """The crew skill's generated files: the crewmate regenerates a lock file that a rebase stops on.
 
-The step is `jmerge --remake`, which reads the `Generated:` lines of the notes in the repo's state,
-`~/.local/state/home/<main checkout>`. Each test runs the step with a `HOME` of its own, the main
-checkout `main`, and the uv cache of the user the tests run as, so `uv lock --offline` still finds
-what it needs."""
+The step is `jmerge --remake`, which reads the `generated` key of the repo's `[[project]]` in
+jbus's config. Each test runs the step with a `HOME` of its own, the main checkout `main`, and the
+uv cache of the user the tests run as, so `uv lock --offline` still finds what it needs."""
 
 import os
 import shutil
@@ -29,9 +28,20 @@ exec {uv} "$@"
 """
 
 
-def notes_of(tmp_path):
-    """Where `jmerge` reads the notes of the repo whose main checkout is `main`."""
-    return tmp_path / "user" / ".local" / "state" / "home" / "main" / "notes.md"
+def generated(tmp_path, *lines):
+    """Write jbus's config with one project, the main checkout `main`, whose `generated` key
+    names `lines`, and a `notes.md` in its state that says otherwise, which nothing reads."""
+    config = tmp_path / "user" / ".config" / "jbus" / "config.toml"
+    config.parent.mkdir(parents=True)
+    listed = ", ".join(f"'{line}'" for line in lines)
+    config.write_text(
+        'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "main"\n'
+        f'checkout = "{tmp_path / "main"}"\nprojectId = "p"\ngenerated = [{listed}]\n'
+    )
+    config.chmod(0o600)
+    notes = tmp_path / "user" / ".local" / "state" / "home" / "main" / "notes.md"
+    notes.parent.mkdir(parents=True)
+    notes.write_text("Generated: uv.lock -> false\n")
 
 
 def venv_of(pr):
@@ -55,6 +65,7 @@ def stays(pr, about):
         about,
         HOME=str(user),
         JBUS_HOME_DIR=str(user / ".local" / "state" / "home"),
+        JBUS_CONFIG_DIR=str(user / ".config" / "jbus"),
         UV_CACHE_DIR=uv_cache(),
     )
 
@@ -120,12 +131,11 @@ class Locked(PullRequest):
 
 
 @pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed")
-@pytest.mark.parametrize("notes", [None, "- Generated: `uv.lock` -> `uv lock --offline`\n"])
-def test_a_lock_file_a_rebase_stops_on_is_made_again_from_both_sides(notes, tmp_path):
+@pytest.mark.parametrize("lines", [None, ("uv.lock -> uv lock --offline",)])
+def test_a_lock_file_a_rebase_stops_on_is_made_again_from_both_sides(lines, tmp_path):
     pr = Locked(tmp_path)
-    if notes:
-        notes_of(tmp_path).parent.mkdir(parents=True)
-        notes_of(tmp_path).write_text(f"# notes\n\n- Check command: `true`\n{notes}")
+    if lines:
+        generated(tmp_path, *lines)
     assert stays(pr, "jmerge --remake") == ["no rebase is stopped here: nothing to make again"]
     assert stays(pr, "mergeable") == [STOPPED, "pyproject.toml", "uv.lock"]
     assert stays(pr, "jmerge --remake") == [
@@ -135,7 +145,7 @@ def test_a_lock_file_a_rebase_stops_on_is_made_again_from_both_sides(notes, tmp_
     assert "<<<<<<<" in (pr.work / "uv.lock").read_text()
     (pr.work / "pyproject.toml").write_text(pr.project("ours", "theirs"))
     git(pr.work, "add", "pyproject.toml")
-    command = "uv lock --offline" if notes else "uv lock"
+    command = "uv lock --offline" if lines else "uv lock"
     assert stays(pr, "jmerge --remake") == [
         f"made again: uv.lock, by {command} over the base's version"
     ]
@@ -159,12 +169,10 @@ def test_a_lock_file_a_rebase_stops_on_is_made_again_from_both_sides(notes, tmp_
     assert stays(pr, "Kept:") == ["Kept: every line, in pyproject.toml uv.lock"]
 
 
-def test_a_file_the_notes_say_a_command_writes_is_made_by_that_command(tmp_path):
+def test_a_file_the_config_says_a_command_writes_is_made_by_that_command(tmp_path):
     pr = PullRequest(tmp_path, None, "shared.txt")
     asked(pr, "CONFLICTING")
-    notes_of(tmp_path).parent.mkdir(parents=True)
-    made = "Generated: shared.txt -> echo made from both > shared.txt\n"
-    notes_of(tmp_path).write_text(f"# notes\n{made}")
+    generated(tmp_path, "shared.txt -> echo made from both > shared.txt")
     assert stays(pr, "mergeable") == [STOPPED, "shared.txt"]
     assert stays(pr, "jmerge --remake") == [
         "made again: shared.txt, by echo made from both > shared.txt over the base's version"
@@ -178,9 +186,8 @@ def test_a_generated_file_is_made_outside_the_venv_that_runs_jmerge(tmp_path):
     the ones in the venv of the `uv run --project` that starts `jmerge --remake`."""
     pr = PullRequest(tmp_path, None, "shared.txt")
     asked(pr, "CONFLICTING")
-    notes_of(tmp_path).parent.mkdir(parents=True)
     made = "command -v python3 > shared.txt; echo ${VIRTUAL_ENV-unset} >> shared.txt"
-    notes_of(tmp_path).write_text(f"Generated: shared.txt -> {made}\n")
+    generated(tmp_path, f"shared.txt -> {made}")
     assert stays(pr, "mergeable") == [STOPPED, "shared.txt"]
     (said,) = stays(pr, "jmerge --remake")
     assert said.startswith("made again: shared.txt, by ")
@@ -190,10 +197,9 @@ def test_a_generated_file_is_made_outside_the_venv_that_runs_jmerge(tmp_path):
 
 
 @pytest.mark.skipif(shutil.which("uv") is None, reason="uv is not installed")
-def test_with_a_line_in_the_notes_a_lock_file_no_line_names_is_resolved_by_hand(tmp_path):
+def test_with_a_line_in_the_config_a_lock_file_no_line_names_is_resolved_by_hand(tmp_path):
     pr = Locked(tmp_path)
-    notes_of(tmp_path).parent.mkdir(parents=True)
-    notes_of(tmp_path).write_text("Generated: schema.json -> make schema\n")
+    generated(tmp_path, "schema.json -> make schema")
     assert stays(pr, "mergeable") == [STOPPED, "pyproject.toml", "uv.lock"]
     assert stays(pr, "jmerge --remake") == [
         "resolve these by hand and git add them, then run this again:",

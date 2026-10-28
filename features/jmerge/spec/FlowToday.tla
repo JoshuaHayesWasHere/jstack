@@ -156,7 +156,7 @@ CrewFix(p) ==
     /\ breaks[p]
     \* A failure over a base that moved reads as `stale`, and the crew waits for jmerge's one
     \* message, which jbus sends it.
-    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:81-86
+    /\ (~ranRed[p] \/ told[p])              \* features/crew/the-checks.md:84-89
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ told' = [told EXCEPT ![p] = FALSE]

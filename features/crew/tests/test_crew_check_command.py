@@ -87,11 +87,12 @@ def test_the_full_run_of_the_check_command_holds_a_test_slot_and_ends_with_its_e
     ]
 
 
-def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check(tmp_path):
-    """The block runs what the repo's notes name, `make check-fast BASE=origin/main` on the
-    fast track, under a test slot, and nothing else. A `make` on the path records each run."""
-    notes = "- Check command: `make check-fast BASE=origin/main`, while the fast track holds.\n"
-    command = briefs.check_command(notes)
+def test_the_one_check_is_the_command_fresh_check_names_and_never_a_full_make_check(tmp_path):
+    """The block runs what the repo's fresh-check names, `make check-fast BASE=origin/main` with
+    the slot it takes left off, under a test slot, and nothing else. A `make` on the path records
+    each run."""
+    check = "jgauge test-slot -- make check-fast BASE=origin/main\n"
+    command = briefs.check_command(check)
     locks = tmp_path / "home" / ".local" / "state" / "locks"
     ran = tmp_path / "make.log"
     stub = tmp_path / "stub"
@@ -105,7 +106,7 @@ def test_the_one_check_is_the_command_the_notes_name_and_never_a_full_make_check
     assert (said[-1], code) == ("done: the check exited 0", 0)
     assert ran.read_text().splitlines() == ["check-fast BASE=origin/main held"]
     step = sections()["Do the task"]
-    assert "(`notes.md` names it)" in step
+    assert "`$H/fresh-check`" in step
     assert not re.search(r"make check(?![-\w])", step)
 
 
@@ -310,11 +311,11 @@ def test_a_targeted_run_takes_the_short_lane_and_never_waits_on_a_full_suite(tmp
 def test_a_failed_check_on_the_pull_request_runs_the_check_block_it_names(tmp_path):
     """The `failed` answer of "The checks" names the section whose block runs the check
     command. That block holds a test slot and ends with the command's exit code."""
-    (answer,) = [
-        line
-        for line in sections()["Stay on the pull request"].splitlines()
-        if line.startswith("- `failed`: a check ran and failed.")
-    ]
+    (answer,) = re.findall(
+        r"^- `failed`: a check ran and failed\..*(?:\n  .*)*",
+        sections()["Stay on the pull request"],
+        re.M,
+    )
     (named,) = re.findall(r'the block of "([^"]+)" that runs it', answer)
     locks = tmp_path / "home" / ".local" / "state" / "locks"
     held = f"! flock -n {locks}/test-slot.1.lock true && echo held; exit 3"

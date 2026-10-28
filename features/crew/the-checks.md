@@ -9,7 +9,10 @@ uv run --project "$T/../source" jmerge --checks
 Its first word is one of four answers:
 
 - `passed`: every check passed. The pull request is green.
-- `failed`: a check ran and failed. Run the check command in this worktree (`notes.md` names it) with the block of "Do the task" that runs it, until it prints `done`, in this turn. On `waiting`, stop as "Do the task" says. Then run the block of "A failed check" below, and do what its first word says.
+- `failed`: a check ran and failed.
+  Run the check command in this worktree (the first line of `$H/fresh-check`) with the block of "Do the task" that runs it, until it prints `done`, in this turn.
+  On `waiting`, stop as "Do the task" says.
+  Then run the block of "A failed check" below, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, the pull request is a draft, or GitHub could not be asked.
   CI runs no check on a draft, so a draft's answer is `wait` whatever its rollup holds, until `jmerge` marks it ready once it is reviewed and fixed.
   End your turn: jbus sends this thread a message when a check ran and failed at this head, or, where the home is owed a line on green, when every check passed.

@@ -20,7 +20,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
 - No home asks another what it has out. The launch check of "When a thread sends a message" prints it.
 - A user's word about another home's work, a page that home opened, a row with its `Home:` line or a slug of its prefix, is that home's alone: forward it with the one `jbus word --from "$ME"` line of "A word this home records", which carries it there, and brief nothing of it.
 
-A scoped home gives each brief and request a slug that starts with its prefix, the one its section of `$H/notes.md` names.
+A scoped home gives each brief and request a slug that starts with its prefix, the one line of `$M/prefix`.
 
 **Stopping on the root** is a scoped home's, and the only way it reaches the root.
 A stop is a fact of the queue that jbus checks: one of this home's own open rows is held by another home's open row, or by something no home owns, and this home cannot clear it.
@@ -90,11 +90,14 @@ if [ -z "$why" ]; then
         for sent in "$H"/tasks/"$prefix"*.md "$H"/scouts/"$prefix"*.md; do
             if [ -f "$sent" ]; then why="a brief or a request already starts with $prefix: $sent"; fi
         done
-        for given in $(grep -o '[a-z0-9-]*-\*\.md' "$H/notes.md" 2> /dev/null | sed 's/\*\.md$//'); do
+        for kept in "$H"/*/prefix; do
+            [ -f "$kept" ] || continue
+            given=$(awk 'NF {print $(1); exit}' "$kept")
             case $given in
-            "$prefix") why="the slug prefix $prefix is another home's, as $H/notes.md says" ;;
-            "$prefix"*) why="the slug prefix $prefix is the start of $given, which $H/notes.md gives to another home" ;;
-            *) case $prefix in "$given"*) why="the slug prefix $prefix starts with $given, which $H/notes.md gives to another home" ;; esac ;;
+            '') ;;
+            "$prefix") why="the slug prefix $prefix is another home's, as $kept says" ;;
+            "$prefix"*) why="the slug prefix $prefix is the start of $given, which $kept gives to another home" ;;
+            *) case $prefix in "$given"*) why="the slug prefix $prefix starts with $given, which $kept gives to another home" ;; esac ;;
             esac
         done ;;
     esac
@@ -110,22 +113,22 @@ else
     day=$(date +%F)
     if mkdir "$H/$scope" 2> /dev/null &&
         printf '# %s, %s: plan\n\nGoal (%s, the user): %s\n' "$R" "$scope" "$day" "$owns" 2> /dev/null > "$H/$scope/plan.md" &&
-        {
-            if [ -s "$H/notes.md" ]; then echo; fi
-            printf '## Scoped home: %s, %s\n' "$scope" "$day"
-            printf -- '- A scoped home (`home: %s %s`), made by the root home on the user'"'"'s word. It owns: %s\n' "$R" "$scope" "$owns"
-            printf -- '- Its handoff, plan and log are in `%s/`. Its briefs and scout requests are `%s*.md` in the shared `tasks/` and `scouts/`, and its branches start with `%s`. This file stays shared. Start it with `/home %s`. The root home plans no `%s` task, and that home plans nothing else.\n' "$scope" "$prefix" "$prefix" "$scope" "$prefix"
-        } 2> /dev/null >> "$H/notes.md"; then
-        echo "made: scope $scope, with $H/$scope/plan.md and its section in $H/notes.md"
+        printf '%s\n' "$prefix" 2> /dev/null > "$H/$scope/prefix"; then
+        echo "made: scope $scope, with $H/$scope/plan.md and its prefix $prefix in $H/$scope/prefix"
         printf 'launch: {"title": "home: %s %s", "workspaceStrategy": {"type": "root"}, "message": "/home %s"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')" "$scope" "$scope"
     else
-        uv run --project "$T/../source" jbus forget --dir "$H/$scope/plan.md" "$H/$scope" > /dev/null 2>&1
-        echo "not made: $H/$scope/plan.md or the section in $H/notes.md could not be written, and what was made is taken back. Nothing is written."
+        uv run --project "$T/../source" jbus forget --dir "$H/$scope/plan.md" "$H/$scope/prefix" "$H/$scope" > /dev/null 2>&1
+        echo "not made: $H/$scope/plan.md or $H/$scope/prefix could not be written, and what was made is taken back. Nothing is written."
     fi
 fi
 ```
 
-On `made:`, the scope has its plan, with the goal as its first line, and a dated section in the shared notes that says what it owns and its prefix. Start its home with `t3_thread_launch`, on `go` from `room`: send what the block printed after `launch: `, as it is. It starts in the main checkout, as every home does. A lost reply is looked for by that title, as "Handing a task to a crewmate" says. Give the user the link. With no such tool, tell the user to open a new thread in this project and type `/home <scope>`.
+On `made:`, the scope has its plan, with the goal as its first line, and its prefix in `$H/<scope>/prefix`: the root home plans no task of that prefix, and that home plans nothing else.
+Start its home with `t3_thread_launch`, on `go` from `room`: send what the block printed after `launch: `, as it is.
+It starts in the main checkout, as every home does.
+A lost reply is looked for by that title, as "Handing a task to a crewmate" says.
+Give the user the link.
+With no such tool, tell the user to open a new thread in this project and type `/home <scope>`.
 
 On `not made:` nothing is written: tell the user what the line says. A name or a prefix that is taken needs another from them.
 

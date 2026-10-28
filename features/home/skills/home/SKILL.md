@@ -63,7 +63,8 @@ Run it after the block at the top, in the same call as each block below that nam
 | `$M/told` | Each decision and stop a turn's end told the user, one a line, so each is told once, and each `local` one is shown on status until a `cleared local` line ends it ("How a turn ends"). | One line per decision or stop |
 | `$M/merge-seen` | How many lines of `$H/merge.log` this home has read, so that each `merged` line of jbus's is relayed once ("Merging a pull request that is ready"). | One number |
 | `$M/log/` | Old handoffs, dated. Nobody reads these at start. | Unbounded |
-| `$H/notes.md` | Facts about this repo that a new thread would otherwise relearn the hard way. Read when a step needs one of them, not whole at a start. | At most 60 lines |
+| `$H/fresh-check` | The repo's check command, a crewmate's one run of the check and the line `jbus queue add` holds a brief's check line to, and the switch that has `jmerge` prove a pull request over today's main on GitHub. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
+| `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
 | `$H/standing.md` | The user's standing rules for this repo's homes, carried from home to home. Read whole at every start. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `features/home/docs/state.md`). | Short |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
 | `$H/scouts/<slug>.md` | A scout's request, and its report, whichever home wrote it. | One page |
