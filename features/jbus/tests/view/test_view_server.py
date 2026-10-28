@@ -10,6 +10,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime, timedelta
+from unittest.mock import ANY
 
 import pytest
 
@@ -263,6 +264,72 @@ def test_many_requests_at_once_each_get_an_answer(served):
     for thread in threads:
         thread.join()
     assert answers == [200] * 12
+
+
+def _stuck(monkeypatch, name):
+    """Make `state.<name>` a build that does not end until the test lets it, and count each
+    build that starts."""
+    real, let, started = getattr(view.state, name), threading.Event(), []
+
+    def build(*args, **kwargs):
+        started.append(1)
+        let.wait(20)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(view.state, name, build)
+    return let, started
+
+
+def _at_once(served, path, times):
+    """Ask `path` `times` times at once, and give each status with the seconds it took."""
+    answers = []
+
+    def ask():
+        began = time.monotonic()
+        try:
+            status = served.ask(path)[0]
+        except OSError as error:
+            status = type(error).__name__
+        answers.append((status, time.monotonic() - began))
+
+    threads = [threading.Thread(target=ask) for _ in range(times)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    return answers
+
+
+@pytest.mark.parametrize(
+    ("path", "name"), [("/stack.json", "stack"), ("/feed?project=demo", "needs")]
+)
+def test_a_build_that_does_not_end_holds_no_later_request(served, monkeypatch, path, name):
+    served.doors.app.patience = 0.5
+    let, started = _stuck(monkeypatch, name)
+    try:
+        answers = _at_once(served, path, 4)
+        assert [status for status, _ in answers] == [503] * 4
+        assert max(seconds for _, seconds in answers) < 3
+        assert len(started) == 1
+        assert served.json("/healthz") == {"ok": True}
+    finally:
+        let.set()
+    deadline = time.monotonic() + 10
+    while served.ask(path)[0] != 200:
+        assert time.monotonic() < deadline
+        time.sleep(0.05)
+
+
+def test_a_slow_build_answers_with_the_last_one_built(served, monkeypatch):
+    first = served.json("/stack.json")
+    served.doors.app.patience = 0.5
+    let, started = _stuck(monkeypatch, "stack")
+    try:
+        assert _at_once(served, "/stack.json", 3) == [(200, ANY)] * 3
+        assert served.json("/stack.json") == first
+        assert len(started) == 1
+    finally:
+        let.set()
 
 
 def test_the_state_says_when_the_server_started_and_that_its_code_is_as_on_disk(served):
