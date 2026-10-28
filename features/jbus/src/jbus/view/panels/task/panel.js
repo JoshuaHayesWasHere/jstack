@@ -26,9 +26,9 @@ function dTask(slug) {
   h += '<div class="now w-' + (t.who === "dep" || t.who === "bus" ? "plain" : esc(t.who)) + '"><span class="tag">Now: ' + esc(st.name) + '</span><span class="big">' + esc(st.say) + '</span>' +
     '<span class="chip ' + esc(t.who) + '">waits for ' + esc(st.waits) + '</span> ' + ageChip(t.since) + ' ' +
     (t.visits > 1 ? '<span class="chip plain">' + ord(t.visits) + ' time here</span> ' : "") +
-    (bl && bl.by ? '<p style="margin:10px 0 0"><i class="mk blk"></i> Blocked by ' + taskBtn(bl.by) + ' <span class="chip plain">' + esc(bl.state) + '</span></p>' : "") +
+    (bl && bl.by ? '<p class="marked">Blocked by ' + taskBtn(bl.by) + ' <span class="chip plain">' + esc(bl.state) + '</span></p>' : "") +
     (t.blocks ? '<p style="margin:10px 0 0"><span class="bn">' + t.blocks + '</span> ' + behind(t.blocks).replace(/^\d+ /, "") + ': ' + t.behind.map(taskBtn).join(", ") + '</p>' : "") +
-    (t.seen.live === "quiet" || t.seen.live === "hung" ? '<p style="margin:10px 0 0"><i class="mk lv-' + t.seen.live + '"></i> ' + esc(silence(t.seen.live, t.seen.wrote, t.seen.run_started, t.seen.queued)) + '</p>' : "") +
+    (t.seen.live === "quiet" || t.seen.live === "hung" ? '<p class="marked lv-' + t.seen.live + '">' + esc(silence(t.seen.live, t.seen.wrote, t.seen.run_started, t.seen.queued)) + '</p>' : "") +
     (t.fixing ? '<p style="margin:10px 0 0">' + esc(fixingLine(t.fixing)) + '</p>' : "") +
     (st.row ? '<p style="margin:10px 0 0">' + gap("the row disagrees") + ' ' + esc(st.row) + '.</p>' : "") +
     (t.unconfirmed ? '<p style="margin:10px 0 0">' + gap("not confirmed") + ' ' + esc(t.unconfirmed.line.replace(/^not confirmed /, "")) + '.</p>' : "") +

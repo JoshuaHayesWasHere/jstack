@@ -71,6 +71,10 @@ class T3Refused(T3Error):
     """The server answered no, and made nothing."""
 
 
+class T3Dropped(T3Error):
+    """The connection dropped (ECONNRESET) before the server gave any reply."""
+
+
 def _at(url: str) -> str:
     """Name the server by its path only, since no message from jbus carries a URL."""
     return f"T3 Code at {urllib.parse.urlsplit(url).path}"
@@ -86,7 +90,11 @@ def _post(url: str, body: bytes, headers: dict[str, str], timeout: float) -> tup
         kind = T3Refused if 400 <= error.code < 500 else T3Error
         raise kind(f"{_at(url)} answered {error.code}: {said}") from error
     except (OSError, ValueError) as error:
-        raise T3Error(f"{_at(url)} could not be reached: {error}") from error
+        reset = isinstance(error, ConnectionResetError) or isinstance(
+            getattr(error, "reason", None), ConnectionResetError
+        )
+        kind = T3Dropped if reset else T3Error
+        raise kind(f"{_at(url)} could not be reached: {error}") from error
 
 
 def _get_json(url: str, timeout: float = 8) -> dict[str, Any]:

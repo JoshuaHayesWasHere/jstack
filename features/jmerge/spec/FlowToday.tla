@@ -77,10 +77,10 @@ Leaves(p) ==
 \* A jbus pass launches the row's crew, which opens its pull request, and its turn ends.
 Launch(p) ==
     /\ st[p] = "queued"
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:330-362, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
     \* A row that builds on an open one launches stacked on its branch (#411), and one that builds
     \* on a row with no pull request yet waits; merge_after is read only by jmerge.
-    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:513-515
+    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:526-528
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
     /\ Leaves(p)
@@ -216,7 +216,7 @@ Sweep ==
 ApproveMainFix ==
     /\ mainRed
     /\ fixRow                               \* features/jbus/src/jbus/watch.py:1147-1168, queued with no approval
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:330-362, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
@@ -245,7 +245,7 @@ Nightly ==
 \* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py:370-371).
 ApproveBrowserFix ==
     /\ brHold
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:330-362, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
     /\ viewBroken' = FALSE
     /\ brHold' = FALSE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
