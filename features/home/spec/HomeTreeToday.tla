@@ -70,7 +70,7 @@ CrewEnds(k) ==
 RaiseCall(c) ==
     /\ c \in Raised
     /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:176 `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wake.py:321 `waiting = [*self._outbox(), made]`
+    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wake.py:322 `waiting = [*self._outbox(), made]`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
     /\ UNCHANGED <<life, work, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
@@ -103,15 +103,15 @@ Answer(c) ==
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
     /\ watch[k] = "asked"     \* jbus/children.py:274 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:588 `why = post(body(some))`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:587 `why = post(body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
 \* A pass posts what waits in the home thread's outbox, its one route to Josh. Only a post that
-\* goes through takes a call out of the outbox (jbus/wake.py:593 `write_json(outbox,
+\* goes through takes a call out of the outbox (jbus/wake.py:592 `write_json(outbox,
 \* waiting[sent:], mode=0o600)`), so one that fails leaves it there for the next pass.
 Deliver(m) ==
     /\ msg[m] = "home"     \* jbus/alert.py:301 `sent = run.box.flush(`
-    /\ up     \* jbus/wake.py:588-590 `why = post(body(some)) if why: break`
+    /\ up     \* jbus/wake.py:587-589 `why = post(body(some)) if why: break`
     /\ msg' = Set(msg, m, "told")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The home thread fails: T3 Code is down, or the thread is gone.

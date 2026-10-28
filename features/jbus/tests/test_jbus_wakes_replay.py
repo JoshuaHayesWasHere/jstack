@@ -54,7 +54,7 @@ def github(kitchen, at):
             "created_at": run["created"],
             "run_started_at": run["created"],
             "updated_at": run["created"],
-            "html_url": f"https://github.com/o/r/actions/runs/{run['id']}",
+            "html_url": f"https://example.test/o/r/actions/runs/{run['id']}",
         }
         for run in runs
     ]
