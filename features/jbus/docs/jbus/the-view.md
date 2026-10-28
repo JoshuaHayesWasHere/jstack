@@ -91,7 +91,7 @@ A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `wakes.json`, `outbox.jsonl`, the leftover record or the main-red row.
 `wrong`, the band's wrong tier, the since line and a project's red reasons hold only the user's entries.
 Any other is on its row, on the board card and in the task drawer, as `fixing: <owner>, told <time>`.
-A home hears of these from the one list ([One list wakes a home](events-and-the-webhook.md#one-list-wakes-a-home)), and any other fault of a row is told by the step that works that row.
+A home hears of these from the one list ([One list wakes a home](events-and-wakes.md#one-list-wakes-a-home)), and any other fault of a row is told by the step that works that row.
 
 ### Every view is a link
 
