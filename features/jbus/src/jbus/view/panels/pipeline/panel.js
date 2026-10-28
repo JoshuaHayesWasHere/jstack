@@ -55,8 +55,6 @@ var BOARD = null, BOARD_ASKED = 0, BOARD_ASKING = false, BOARD_FAILED = "", BOAR
 
 function boardRows() { return BOARD && BOARD.rows || []; }
 function boardKey(project, slug) { return project + "/" + slug; }
-// A home is its project and its name, "infra/root": two projects each have a root. The board's
-// home filter is a project, "jstack", or one home, "jstack/root".
 function homeKey(project, home) { return project + "/" + home; }
 function homeHref(key) { return "#/?home=" + key.split("/").map(encodeURIComponent).join("/"); }
 function boardProjects() {
@@ -69,7 +67,6 @@ function homeLabel(project, home) { return (Object.keys(boardProjects()).length 
 function homeSaid(key) { var at = key.indexOf("/"); return at < 0 ? key : homeLabel(key.slice(0, at), key.slice(at + 1)); }
 function boardOf(home) {
   if (!home) return function () { return true; };
-  // An older link names a bare home, "?home=jview": it keeps meaning that home in any project.
   if (home.indexOf("/") < 0 && !boardProjects()[home]) return function (r) { return r.home === home; };
   return function (r) { return r.project === home || homeKey(r.project, r.home) === home; };
 }
@@ -394,9 +391,7 @@ document.addEventListener("click", function (e) {
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
 });
-// Esc steps back out of a cell's entry, to the board the cell was clicked on.
 function boardClear() { if (history.state && history.state.cell) history.back(); else boardAll(); }
-// The bar's ✕ shows every home and stage, also over a chip chosen before the cell, so the entry is no cell's any more.
 function boardAll() {
   if (history.state && history.state.cell) history.replaceState(Object.assign({}, history.state, { cell: false }), "", location.href);
   boardSet({ home: "", stage: "" });
