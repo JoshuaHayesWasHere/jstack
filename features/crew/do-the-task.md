@@ -81,7 +81,8 @@
   A repo with no heavy suite has nothing more here: its check command is the whole of it.
 - Write each Markdown prose line you add or change as one sentence, and leave old lines as they are: jstack's check (`features/writing/scripts/prose_lint.py`) fails a new line that holds two.
 - Keep the proof as you go: for each **Done when** line, the command you ran and what it printed, or what you looked at. It goes on the Result's `Proof:` line, and a **Done when** line with no proof there is "does not hold".
-- When every **Done when** line holds, stop. Do not go looking for more to improve.
+- When every **Done when** line holds, stop.
+  Do not go looking for more to improve.
   A fault you find outside the task stays out of the diff: read `$T/a-fault-outside.md`, which makes it a queued row or nothing.
 - Before the pull request opens, with the work committed, ask which changed files the brief's **Where** does not cover.
   Ask again after each push for a review's findings ("The review"), and before each push for a failed check ("The checks"), so a reviewer launched on that push finds the line, since a fix can add a file outside **Where** after the `Wider:` lines were written.
