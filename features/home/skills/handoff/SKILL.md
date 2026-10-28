@@ -181,12 +181,11 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
    if [ -n "$still" ]; then printf '%s\n' "$still" | sed 's/^/kept open: /'; fi
    printf 'title: home: %s%s\n' "$R" "${scope:+ $scope}"
    if [ -z "$closed" ]; then printf 'message: /home %s<seed>\n' "${scope:+$scope }"; fi
-   jq -rs --arg me "$ME" --arg audit "audit: $R queue" '
+   jq -rs --arg me "$ME" '
        if length == 1 and (.[0].tasks | type) == "array" then .[0] else error("no tasks") end
        | [.tasks[] | select(.boundThreadId == $me)]
        | if length == 0 then "none: no scheduled task posts into this thread" else .[] end
        | if type == "string" then .
-         elif .title == $audit then "delete \(.scheduledTaskId): the audit of a queue, which the home that hands off deletes"
          else "Scheduled task \(.scheduledTaskId), \(.title): it posts into the thread that handed off, and the next home takes it over at its start" end' 2> /dev/null << 'THE_REPLY_ENDS_HERE' ||
    <the reply of list_scheduled_tasks>
    THE_REPLY_ENDS_HERE
@@ -203,7 +202,7 @@ It prints which home this is and where step 2 writes the note. On `party <name>`
    - `closed before`: look for the next home as step 4 says after a lost launch, with the `title:` it printed. With none, go on with step 4. With one, launch nothing: tell the user its link, then step 5.
    - `the home of a closed scope`, with or without `closed before`: write no seed and launch nothing. No home comes after this one to take a scheduled task over, so switch off each one it printed a `Scheduled task` line for, with the `t3-code` server's `update_scheduled_task` (if your harness defers it, load it first), `{"scheduledTaskId": "<scheduledTaskId>", "enabled": false}`. A task that is off runs nothing, so it cannot make this thread active again, and it keeps its address for the home that `/home <scope>` starts to take over. Delete none. Tell the user, in three lines at most, what was written, that the scope is closed with no home after this one, and each task that is now off. Then step 5.
 
-   Under those lines it prints one line for each scheduled task that posts into this thread, and never a task's address. On `delete <id>`, delete that task now, as "A home that hands off" in `$T/../skills/home/SKILL.md` says. A `Scheduled task` line asks nothing of a home that is followed by another: this thread cannot hand a task on, since a task is bound only by the thread that calls, and the next home's start takes each one over by the `Was home:` line, until when a run of one makes this thread active again. On `not read`, in a session with no such tool, there is nothing to do: the next home's start lists them.
+   Under those lines it prints one line for each scheduled task that posts into this thread, and never a task's address. A `Scheduled task` line asks nothing of a home that is followed by another: this thread cannot hand a task on, since a task is bound only by the thread that calls, and the next home's start takes each one over by the `Was home:` line, until when a run of one makes this thread active again. On `not read`, in a session with no such tool, there is nothing to do: the next home's start lists them.
 
    A home's own `home-id` holds its id: the home's start wrote it there, and nothing else does.
    `home-thread` is another file, the switch that has a home run the sweep: it is set by hand, and the block leaves it as it is.

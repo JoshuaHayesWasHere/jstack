@@ -211,8 +211,14 @@ def _send(run: Pass, client: Client, thread: str, message: str, key: str) -> boo
 
 def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> None:
     """Count each home's quiet, the root's and each child's, and nudge, tell or ask for each one
-    that is due. See the module."""
+    that is due. See the module. A queue or a question file that does not parse says nothing of
+    what is out: the pass gates it, and the watch waits for it."""
     if threads is None:
+        return
+    try:
+        queue.load(run.state)
+        questions.load(run.state)
+    except (queue.Unparsable, questions.Unparsable):
         return
     was: dict[str, Any] = read_json(run.state / FILE, {})
     kept: dict[str, Any] = {}

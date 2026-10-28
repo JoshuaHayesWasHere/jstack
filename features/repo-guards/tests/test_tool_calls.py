@@ -166,8 +166,6 @@ def test_the_skills_have_calls_to_check():
     ]
     settles = [call.given for call in CALLS if call.where.startswith("home:")]
     assert {"action": "settle", "threadId": FILLED["<thread>"]} in settles
-    of_a_home = [call.tool for call in CALLS if call.where.startswith("home:")]
-    assert of_a_home.count("schedule_task") == of_a_home.count("delete_scheduled_task") == 1
     on_a_worktree_that_is_there = [
         call.given["workspaceStrategy"]
         for call in LAUNCHES

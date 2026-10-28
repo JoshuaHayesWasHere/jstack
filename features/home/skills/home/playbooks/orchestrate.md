@@ -20,10 +20,10 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
    Read its Result's `Left:` line, its Review and the rows it queued, and change the remaining entries from them.
    Where the entries are near copies of each other, the first is the pilot and the rest launch when it merges.
 4. Scale.
-   Put `Playbook: orchestrate` in the head of `$M/plan.md`, and schedule the audit as "A queue and its hourly audit" says: the same block and the same two calls as for `playbooks/autopilot-full.md`.
+   Put `Playbook: orchestrate` in the head of `$M/plan.md`, and schedule nothing: jbus's pass is the cadence, as for `playbooks/autopilot-full.md`.
    Queue each entry's next row on every message, and jbus launches what `room` lets start: a rolling window, never a batch that waits for its slowest.
    A dependency is context, not only order: an entry that rests on another's result gets the lines of that Result in its brief's `Rests on:`, since a crewmate sees no sibling, and its `Builds on:` names that row; other order is `--merge-after`.
-5. Drain. A message is a queue event, not an interrupt: work it as "When a thread sends a message" says, a tick as "One tick" says, and review nothing in the turn (`principles/principle-guard-the-context-window.md`). A result that needs judging is a scout's request or a new brief. End each drain with one line of count against the predicate: merged, out, planned, open gates.
+5. Drain. A message is a queue event, not an interrupt: work it as "When a thread sends a message" says, and review nothing in the turn (`principles/principle-guard-the-context-window.md`). A result that needs judging is a scout's request or a new brief. End each drain with one line of count against the predicate: merged, out, planned, open gates.
 6. Handle a failure by its kind (`principles/principle-fix-root-causes.md`), and clear the home's own blockers on every wake ("Clearing its own blockers").
    A thread that stopped is picked up with the playbook `session-pickup`, twice at most, and then its entry is written again, smaller.
    When more launches would only make more of the same failure (a pilot that was wrong, a check command that is broken, CI that starts no job), put a dated stop line at the top of the plan, launch nothing, let what is out finish, make the cause a task, and take the line out when it merges.
@@ -31,7 +31,7 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
    Every brief this plan launched ends one of three ways: merged, ended with no pull request, or abandoned with its reason in the plan.
    The sweep prints no `kept` line that is unexplained.
    The predicate is counted from the plan and `$H/merge.log`.
-   Then delete the audit, take the `Playbook:` line out, queue a row that codes what kept coming back, and hand off.
+   Then take the `Playbook:` line out, queue a row that codes what kept coming back, and hand off.
 
 Never done here, and who does it:
 
@@ -40,7 +40,7 @@ Never done here, and who does it:
 - **A store, a ledger or an inbox of your own.** Nobody keeps one: `$H` is the store, a brief's Result and Review the ledger, `$M/gates.md` the gates.
 - **A verifier on another model, a cloud worker, a raised effort.** Nobody does: one reviewer, this session's model, medium effort.
 - **Stopping at a share of a wall clock.** `room` decides each launch, by its `CUSHION` line.
-- **Resuming a thread to see how it is.** Nobody does: read its brief and its branch, as the tick does.
+- **Resuming a thread to see how it is.** Nobody does: read its brief and its branch.
 - **A stack.** Nobody does here.
 
 **Hand over:** in this thread, to the user, at the close and when asked: the predicate and the count against it, what merged with its pull requests, what was abandoned and why, the open gates, which are the only asks, and where the record is.
