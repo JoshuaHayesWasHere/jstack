@@ -189,6 +189,41 @@ def test_main_json_is_the_one_record_of_the_red_tip_and_both_readers_agree(kitch
     assert jmerge_rows.main(kitchen.checkout).red == ""
 
 
+def test_main_json_keeps_the_tests_that_failed_at_the_red_tip(kitchen):
+    """`tell` keeps beside `broken` the tests its run's logs name, which `jmerge` reads to know a
+    fix by its own check. The run's `full` job gathers its parts and names nothing of its own."""
+    checks(kitchen, tip(kitchen), "success")
+    kitchen.poll()
+    red = move(kitchen, "failure")
+    part = {"id": 91, "name": "full 2 of 4", "status": "completed", "conclusion": "failure"}
+    gathers = {**part, "id": 92, "name": "full"}
+    kitchen.set("check-runs.json", {red: [part, gathers]})
+    failed = (
+        "FAILED features/a/tests/test_a.py::test_x - assert 1\n= 1 failed, 9 passed in 2.0s =\n"
+    )
+    kitchen.set("logs.json", {"91": failed, "92": "the parts of the full run ended failure\n"})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    record = json.loads((kitchen.state / "main.json").read_text())
+    assert (record["broken"], record["failed"]) == (red, ["features/a/tests/test_a.py::test_x"])
+    assert kept(kitchen).failed == ("features/a/tests/test_a.py::test_x",)
+
+
+def test_a_red_tip_whose_part_failed_with_no_test_named_keeps_no_failed_test(kitchen):
+    """A part that ran out of time names no test, so the red is not known by its tests, and only
+    the fix row's slug lets a pull request through it."""
+    checks(kitchen, tip(kitchen), "success")
+    kitchen.poll()
+    red = move(kitchen, "failure")
+    one = {"id": 91, "name": "full 1 of 4", "status": "completed", "conclusion": "failure"}
+    kitchen.set("check-runs.json", {red: [one, {**one, "id": 93, "name": "full 3 of 4"}]})
+    named = "FAILED features/a/tests/test_a.py::test_x\n= 1 failed in 2.0s =\n"
+    kitchen.set("logs.json", {"91": named, "93": "The job has exceeded the maximum time\n"})
+    kitchen.poll(NOW + timedelta(minutes=3))
+    record = json.loads((kitchen.state / "main.json").read_text())
+    assert (record["broken"], record["failed"]) == (red, [])
+    assert kept(kitchen).failed == ()
+
+
 crews = test_jbus_main_moved.launched
 
 

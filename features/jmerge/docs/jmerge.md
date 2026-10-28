@@ -155,8 +155,19 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   It judges them before the fresh check, so a run never asks GitHub to update a pull request that must wait.
 - **Main is not red, or it is the fix of a red main.**
   jbus records main's red tip as `broken` in `main.json` beside the queue, and that file is the one record of it (`features/jbus/docs/jbus.md`).
-  While `main.json` names a red tip and main's tip is not green, `jmerge` merges only the fix, the pull request whose brief is `main-red-<sha12>`.
+  While `main.json` names a red tip and main's tip is not green, `jmerge` merges only a fix of it.
   Every other pull request waits as `main is red at <sha12>, its fix merges first`.
+  A fix is known by what its own check proved, whatever its slug, since the row that writes the code is often not the one jbus filed: on 2026-10-27 the fixes were two flow rows, held behind a red whose `main-red-` row closed with no pull request.
+  A pull request is the fix when its head contains the red tip, every check at that head passed, and the jobs of its `check` ran each test that failed at the red tip.
+  The browser run's jobs do not count: its `pytest -m browser` names no path, yet it ran only the browser tests.
+  `main.json` keeps those tests as `failed`, read once from the red run's logs (`jbus.mainmoved.failed_at`).
+  A job's log says what it ran by its one pytest command: the test files and folders it names, or with none the whole suite.
+  A log with no such command, or more than one, or one that leaves tests out by name (`pytest -k`, `pytest --deselect`, `pytest --lf`), says nothing.
+  A test the fix deleted or skipped counts as passed, as it does for main's own check.
+  Where the red run's logs name no failed test, or fewer than they count (a part that ran out of time, a lint), nothing proves the fix but its slug.
+  The brief `main-red-<sha12>` that jbus files for the red is still a fix by its slug.
+  A pull request whose check ran other tests, failed, or ran at a head without the red tip waits.
+  `jmerge` reads the logs only for a green pull request into a red main, once a run for each head, and stops once they cover every failed test.
   `jmerge` judges this after the queue row's wait and before the fresh check.
   The wait ends when jbus sees a green tip.
   After the fix merges and the check of main's new tip passes, the other pull requests stop waiting on the next run.
@@ -178,7 +189,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   When main's last browser run on main failed too, the red is main's, and the pull request waits as `main is red at <sha12>, its fix merges first`, the sha12 being that run's commit.
   It is main's only while the row jbus filed for the fix of that run is open, since browser.yml runs on main only nightly and its last run there stays red until the next one.
   Once that fix merged, or where jbus filed no fix for the run, the red is the pull request's, and its crew is told.
-  The fix of that red, the row jbus files as `browser-red-<date>`, is held by its own red as any other pull request is.
+  The fix of that red is held by its own red as any other pull request is: the row jbus files as `browser-red-<date>`, or a pull request whose browser run, at a head that contains the commit of main's red run, passed each test main's run failed.
+  `jmerge` reads those tests from the logs of main's red run's jobs, and what the pull request's run ran and failed from its own log, as for a red main.
   `jmerge` asks GitHub for main's browser runs only for a pull request whose browser run failed, once a run, and where GitHub gives no answer the red is the pull request's.
   A draft's browser run is waived as its failed checks are, and a reviewed draft is marked ready.
   `jmerge` judges this after main's red, so a pull request short of a review or a rebase line says that first.

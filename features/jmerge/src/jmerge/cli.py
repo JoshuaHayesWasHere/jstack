@@ -22,6 +22,7 @@ import jbus
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
+from jbus.watch import failed_in
 from jmerge import (
     checks,
     claims,
@@ -355,6 +356,8 @@ class Repo:
         self.required = ready.required_of(_read(state / REQUIRED_CHECKS))
         self.trunk = ""
         self.reds: dict[str, list[dict]] = {}
+        self.proofs: dict[tuple[int, str, str, str], rows.Ran] = {}
+        self.logs: dict[str, str | None] = {}
         self.open: list[ready.PullRequest] = []
         self.heads: dict[int, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
@@ -1011,7 +1014,10 @@ class Repo:
         answer for a branch, the branch is not known to be red, as with a main that jbus never
         judged."""
         if one.base == default:
-            return rows.red(self.main_state, slug) or browser_red(self, one, default, slug)
+            main, ran = self.main_state, rows.UNPROVED
+            if main.red and main.failed and not mainjson.fix_of(slug):
+                ran = self.proved(one, main.red, main.failed)
+            return rows.red(main, slug, ran) or browser_red(self, one, default, slug)
         if one.base not in self.reds:
             asked = subprocess.run(
                 ["gh", "api", f"repos/{{owner}}/{{repo}}/commits/{one.base}/check-runs"],
@@ -1026,6 +1032,97 @@ class Repo:
                 runs = []
             self.reds[one.base] = runs if isinstance(runs, list) else []
         return rows.base_red(one.base, self.reds[one.base], slug, text)
+
+    def proved(self, one: ready.PullRequest, red: str, failed: tuple[str, ...]) -> rows.Ran:
+        """What the pull request's own check proved of the red tip `red` (`rows.Ran`), once a
+        run for each head. A check proves nothing until every check of the head has passed, and
+        nothing where the head lacks `red`. Then each passed job's log says what it ran
+        (`rows.ran_in`), and the logs are read until they cover every test in `failed`. Only the
+        jobs of the required check count (`checked`): a browser run's `pytest -m browser` names no
+        path and ran no test of the rest."""
+        key = (one.number, one.head, red, "check")
+        if key not in self.proofs:
+            self.proofs[key] = rows.UNPROVED
+            rollup = self.reds.get(ROLLUP.format(number=one.number), [])
+            if passed(rollup) and self.has(one) and not self.outside(red, one.head):
+                every, paths = False, frozenset[str]()
+                for job in jobs(checked(rollup)):
+                    found = rows.ran_in(self.job_log(job) or "")
+                    if found is not None:
+                        every, paths = every or found.every, paths | found.paths
+                    ran = rows.Ran(over=red, every=every, paths=paths)
+                    self.proofs[key] = ran
+                    if all(map(ran.covers, failed)):
+                        break
+        return self.proofs[key]
+
+    def proved_browser(self, one: ready.PullRequest, red: str) -> rows.Ran:
+        """What the pull request's own browser run proved of main's red browser run at `red`:
+        what it ran and the tests it failed, which it names in full, at a head that has `red`."""
+        key = (one.number, one.head, red, ready.BROWSER)
+        if key not in self.proofs:
+            self.proofs[key] = rows.UNPROVED
+            rollup = self.reds.get(ROLLUP.format(number=one.number), [])
+            run = ready.latest(rollup, ready.BROWSER)
+            job = jobs(run, ("FAILURE",))
+            log = self.job_log(job[0]) if len(job) == 1 else None
+            found = rows.ran_in(log or "")
+            if found is not None and self.has(one) and not self.outside(red, one.head):
+                failed = failed_in(log or "")
+                if failed.count == len(failed.tests):
+                    self.proofs[key] = rows.Ran(
+                        red, found.every, found.paths, frozenset(failed.tests)
+                    )
+        return self.proofs[key]
+
+    def run_failed(self, run: object) -> tuple[str, ...]:
+        """The tests a run failed, as its failed jobs' logs name them (`mainjson.failures`), or
+        none where GitHub did not list its jobs or give a log."""
+        said = self.api(f"repos/{{owner}}/{{repo}}/actions/runs/{run}/jobs?per_page=100")
+        listed = said.get("jobs") if isinstance(said, dict) else None
+        named = []
+        for job in listed if isinstance(listed, list) else []:
+            if not isinstance(job, dict) or job.get("conclusion") in rows.NOT_RED:
+                continue
+            log = self.job_log(str(job.get("id")))
+            if log is None:
+                return ()
+            found = failed_in(log)
+            named.append((str(job.get("name") or ""), found.tests, found.count))
+        return tuple(mainjson.failures(named))
+
+    def api(self, path: str) -> object:
+        """GitHub's answer to `gh api <path>`, or None."""
+        asked = subprocess.run(
+            ["gh", "api", path],
+            cwd=self.main,
+            capture_output=True,
+            text=True,
+            env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+        )
+        try:
+            return None if asked.returncode else json.loads(asked.stdout)
+        except ValueError:
+            return None
+
+    def job_log(self, job: str) -> str | None:
+        """A job's log, as GitHub gives it, once a run, or None. gh gives a log that holds escape
+        sequences only when asked to, as `jbus.watch.job_log` does."""
+        if job not in self.logs:
+            asked = subprocess.run(
+                [
+                    "gh",
+                    "api",
+                    f"repos/{{owner}}/{{repo}}/actions/jobs/{job}/logs",
+                    "--allow-escape-sequences",
+                ],
+                cwd=self.main,
+                capture_output=True,
+                text=True,
+                env={**os.environ, **({"GH_REPO": self.about[1]} if self.about else {})},
+            )
+            self.logs[job] = None if asked.returncode else asked.stdout
+        return self.logs[job]
 
     def patches(
         self, base: str, compared: tuple[str, ...], stacked: stacks.Stacked | None
@@ -1958,4 +2055,46 @@ def browser_red(repo: Repo, one: ready.PullRequest, default: str, slug: str) -> 
         listed = runs if isinstance(runs, list) else []
         repo.reds[key] = [run for run in listed if isinstance(run, dict)]
     fixing = rows.browser_fixing(repo.main, repo.queue)
-    return rows.browser_red(one.head, slug, repo.reds[key], default, fixing)
+    run = rows.main_browser_run(repo.reds[key], default, fixing)
+    ran, failed = rows.UNPROVED, ()
+    if run is not None and not slug.startswith(rows.BROWSER_FIX):
+        failed = repo.run_failed(run.get("id"))
+        if failed:
+            ran = repo.proved_browser(one, str(run.get("head_sha") or ""))
+    return rows.browser_red(one.head, slug, repo.reds[key], default, fixing, ran, failed)
+
+
+_JOB = re.compile(r"/job/(\d+)")
+PASSED = ("SUCCESS", "NEUTRAL", "SKIPPED")
+
+
+def passed(rollup: list[dict]) -> bool:
+    """Whether every check of the head has run and passed, the latest run of each, so every
+    part of a check that runs in parts passed."""
+    names = {one.get("name") or one.get("context") for one in rollup}
+    latest = [run for name in names for run in ready.latest(rollup, name)]
+    return bool(latest) and all(
+        one.get("conclusion") in PASSED or one.get("state") == "SUCCESS" for one in latest
+    )
+
+
+def checked(rollup: list[dict]) -> list[dict]:
+    """The runs in `rollup` of the required check and its parts, as `check 1 of 4` is of
+    `check`."""
+    return [
+        one
+        for one in rollup
+        if any(
+            (one.get("name") or "") == name or (one.get("name") or "").startswith(f"{name} ")
+            for name in ready.REQUIRED
+        )
+    ]
+
+
+def jobs(rollup: list[dict], ended: tuple[str, ...] = PASSED) -> list[str]:
+    """The ids of the jobs of the checks in `rollup` that ended so, from their links."""
+    return [
+        found[1]
+        for one in rollup
+        if one.get("conclusion") in ended and (found := _JOB.search(one.get("detailsUrl") or ""))
+    ]

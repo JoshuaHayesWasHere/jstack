@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,10 +85,77 @@ def main(checkout: Path) -> mainjson.Main:
     return mainjson.read(state) if isinstance(state, Path) else mainjson.Main()
 
 
-def red(main: mainjson.Main, slug: str) -> str:
-    if not main.red or mainjson.fix_of(slug):
+@dataclass(frozen=True)
+class Ran:
+    """What a pull request's own check proved at its head, as `jmerge.cli` reads it from its
+    check runs' logs (`ran_in`): `over`, the red tip its head contains, or nothing; `every`,
+    whether it ran the whole suite; `paths`, the test files and folders it ran otherwise; and
+    `failed`, the tests it failed. A check that did not pass proves what its failed tests say
+    and nothing of the rest, since a part of it may have stopped early: `failed` is read only
+    from a browser run, which runs every browser test."""
+
+    over: str = ""
+    every: bool = False
+    paths: frozenset[str] = frozenset()
+    failed: frozenset[str] = frozenset()
+
+    def covers(self, test: str) -> bool:
+        """Whether the check ran `test`, a pytest id, and passed it."""
+        path = test.split("::")[0]
+        ran = self.every or any(
+            path == one or path.startswith(f"{one.rstrip('/')}/") for one in self.paths
+        )
+        return ran and test not in self.failed
+
+
+UNPROVED = Ran()
+"""A check that proves nothing: no head over the red tip, no test run."""
+
+
+def proves(red: str, failed: Sequence[str], ran: Ran) -> bool:
+    """Whether a check proves the fix of the red tip `red`: its head contains that tip, and it
+    ran each test that failed there and passed it. Where no failed test is known, nothing
+    proves the fix."""
+    return bool(red) and ran.over == red and bool(failed) and all(map(ran.covers, failed))
+
+
+def red(main: mainjson.Main, slug: str, ran: Ran = UNPROVED) -> str:
+    """The hold on a pull request into main while main is red: none for a fix, the pull request
+    whose check proves it (`proves`, of the tests `main.json` names at the red tip), or the brief
+    jbus filed for it (`mainjson.fix_of`)."""
+    if not main.red or mainjson.fix_of(slug) or proves(main.red, main.failed, ran):
         return ""
     return ready.MAIN_RED.format(sha=main.red[: mainjson.SHA])
+
+
+_STAMP = r"^(?:\S+Z )?"
+_ESCAPE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+_PYTEST = re.compile(_STAMP + r"(?:\+ )?(?:uv run |python3? -m )?pytest(?: (.*))?$", re.M)
+NARROWS = ("-k", "--deselect", "--lf", "--last-failed", "--sw", "--stepwise", "--sw-skip")
+"""The options of pytest that leave out tests by name or by the last run, so a run of no path
+under one of them is not the whole suite."""
+
+
+def ran_in(log: str) -> Ran | None:
+    """What a job's log says it ran: the one pytest command it echoes, `make`'s echo of it or a
+    shell's trace (`+ `). A path is a word of it that names a test file or a folder; with none,
+    the whole suite ran. A log with no such command, or more than one, or one that narrows the
+    suite by name (`NARROWS`), says nothing."""
+    found = _PYTEST.findall(_ESCAPE.sub("", log))
+    if len(found) != 1:
+        return None
+    try:
+        words = shlex.split(found[0])
+    except ValueError:
+        return None
+    if any(word.split("=")[0] in NARROWS for word in words):
+        return None
+    paths = [
+        word
+        for word in words
+        if not word.startswith("-") and ("/" in word or word.endswith(".py") or "::" in word)
+    ]
+    return Ran(every=not paths, paths=frozenset(paths))
 
 
 def base_red(base: str, runs: list[dict], slug: str, text: str = "") -> str:
@@ -207,21 +276,37 @@ BROWSER_FIX = "browser-red-"
 (`jbus.watch.BROWSER`)."""
 
 
-def browser_red(head: str, slug: str, runs: list[dict], default: str, fixing: set[str]) -> str:
+def browser_red(
+    head: str,
+    slug: str,
+    runs: list[dict],
+    default: str,
+    fixing: set[str],
+    ran: Ran = UNPROVED,
+    failed: Sequence[str] = (),
+) -> str:
     """The hold on a pull request whose own browser run failed at `head`. The red is main's where
     main's last browser run failed too and its fix is open (`main_browser_red`, of `runs`, main's
     browser.yml runs as GitHub lists them, and `fixing`, from `browser_fixing`), and it waits as
-    for a red main, unless it is the fix of that red, the row jbus files for it (`BROWSER_FIX`).
-    Otherwise the red is the pull request's own, which jbus tells its crew
-    (`jbus.expedite.TABLE`)."""
+    for a red main, unless it is the fix of that red. The fix is the pull request whose browser
+    run proves it (`proves`, of `failed`, the tests main's run failed, and `ran`, what its own run
+    ran and failed), or the row jbus files for it (`BROWSER_FIX`). Otherwise the red is the pull
+    request's own, which jbus tells its crew (`jbus.expedite.TABLE`)."""
     red = "" if slug.startswith(BROWSER_FIX) else main_browser_red(runs, default, fixing)
-    if red:
+    if red and not proves(red, failed, ran):
         return ready.MAIN_RED.format(sha=red[: mainjson.SHA])
     return ready.BROWSER_RED.format(head=head[: mainjson.SHA])
 
 
 def main_browser_red(runs: list[dict], default: str, fixing: set[str]) -> str:
-    """The commit of main's last browser run where it failed and its fix is open, or nothing.
+    """The commit of main's last browser run where it failed and its fix is open, or nothing
+    (`main_browser_run`)."""
+    last = main_browser_run(runs, default, fixing)
+    return str(last.get("head_sha") or "") if last else ""
+
+
+def main_browser_run(runs: list[dict], default: str, fixing: set[str]) -> dict | None:
+    """Main's last browser run where it failed and its fix is open, or nothing.
     `runs` are the workflow's completed runs: a pull request's run, or a run on another branch
     than `default`, says nothing of main, and a cancelled or skipped one judged no code
     (`jbus.watch.NOT_RED`). browser.yml runs on main only nightly, so its last run there stays
@@ -237,8 +322,8 @@ def main_browser_red(runs: list[dict], default: str, fixing: set[str]) -> str:
     ]
     last = max(ran, key=lambda one: str(one.get("created_at") or ""), default=None)
     if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:
-        return ""
-    return str(last.get("head_sha") or "")
+        return None
+    return last
 
 
 BROWSER_SEEN = "browser-runs.json"
