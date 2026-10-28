@@ -15,8 +15,9 @@ script counts such a file as importing the `conftest.py` of each folder it is in
 so it counts for nothing. A call to `importlib.import_module` imports every module under the
 directory of the module that holds it, but only when that code runs. So it counts for the module
 itself when the module calls it on import, or when the module is one of the tests. Otherwise it
-counts for each module that names the function that holds it, through its imports. A call with
-a string also imports the module the string names.
+counts for each module that names the function that holds it, through its imports, a package
+that re-exports it, or a star import. A call with a string also imports the module the string
+names.
 
 A test may hold a string that is the name of a package of a `src/`. The script counts such a
 test as running that package in a process of its own, so the test imports every module of the
@@ -352,7 +353,8 @@ def by_name(tree):
 
 def bound(tree):
     """Each name the module's imports bind, with the dotted name it is bound to: `a` for
-    `import a.b`, `a.b` for `import a.b as b` and for `from a import b`."""
+    `import a.b`, `a.b` for `import a.b as b` and for `from a import b`. A star import binds
+    names this script does not read, so `from a import *` is kept as `*a`, bound to `a`."""
     found = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
@@ -361,9 +363,11 @@ def bound(tree):
                     alias.name if alias.asname else alias.name.split(".")[0]
                 )
         elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
-            found |= {
-                alias.asname or alias.name: f"{node.module}.{alias.name}" for alias in node.names
-            }
+            for alias in node.names:
+                if alias.name == "*":
+                    found[f"*{node.module}"] = node.module
+                else:
+                    found[alias.asname or alias.name] = f"{node.module}.{alias.name}"
     return found
 
 
@@ -386,8 +390,10 @@ def folder(before):
 def read(tree):
     """Return what this script reads from a module's tree: the names the module imports, the
     words of its string constants, where it imports by name (`by_name`), the names of its
-    functions' arguments, the paths it spells, its read set, and the dotted names it names through
-    its imports. An import in an `if TYPE_CHECKING:` is no import: it never runs. A string
+    functions' arguments, the paths it spells, its read set, the dotted names it names through
+    its imports, and those imports (`bound`). A name no import binds may come from a star import,
+    so it is named under each module the module star-imports. An import in an
+    `if TYPE_CHECKING:` is no import: it never runs. A string
     that is a `folder` of a chain of `/` is spelled with the chain, and not as a path of its own:
     the `jbus` of `home / ".config" / "jbus"` is a folder, not the package run in a process."""
     names, words, args, paths, calls = set(), set(), set(), set(), set()
@@ -407,6 +413,7 @@ def read(tree):
         id(node.right) for node in chains if folder(spelled(node)[-2:-1])
     }
     imports = bound(tree)
+    stars = [module for local, module in imports.items() if local.startswith("*")]
     for node in ast.walk(tree):
         if isinstance(node, ast.Import) and id(node) not in checked:
             names |= {alias.name for alias in node.names}
@@ -417,6 +424,8 @@ def read(tree):
         elif isinstance(node, (ast.Name, ast.Attribute)):
             if name := dotted(node, imports):
                 calls.add(name)
+            elif isinstance(node, ast.Name):
+                calls |= {f"{module}.{node.id}" for module in stars}
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             words |= {node.value, *WORDS.split(node.value)}
             if id(node) not in folders:
@@ -425,7 +434,7 @@ def read(tree):
             args.add(node.arg)
         if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
             paths.add(tuple(spelled(node)))
-    return names, words, by_name(tree), args, paths, declared(tree), frozenset(calls)
+    return names, words, by_name(tree), args, paths, declared(tree), frozenset(calls), imports
 
 
 def parents(name):
@@ -465,11 +474,12 @@ def edges():
             package = path[at.end() :].split("/")[0]
             packages[package] = path[: at.end()] + package
     held = {}
-    for name, (_, _, (_, holders, _), _, _, _, _) in sources().items():
+    for name, (_, _, (_, holders, _), _, _, _, _, _) in sources().items():
         for one in holders:
             held.setdefault(f"{name}.{one}", set()).add(name)
+    held = exported(held)
     found = {}
-    for name, (names, words, (loaded, holders, _), _, paths, _, calls) in sources().items():
+    for name, (names, words, (loaded, holders, _), _, paths, _, calls, _) in sources().items():
         reached = set().union(*map(parents, names)) & known.keys()
         itself = {name} if loaded or holders and of_tests(known[name]) else set()
         uses = calls | {
@@ -491,6 +501,33 @@ def edges():
             reached |= conftests(name) & known.keys()
         found[name] = reached - {name}
     return found
+
+
+def exported(held):
+    """`held`, each holder's dotted name with the modules whose code it runs, and with it each
+    name a module binds to a holder: `reg.found` for `from reg.kinds import found` in `reg`, and
+    for `from reg.kinds import *` there. A test that calls a holder by the name of a package that
+    re-exports it runs the holder all the same."""
+    held = {key: set(loaders) for key, loaders in held.items()}
+    while True:
+        more = {}
+        for name, one in sources().items():
+            for local, target in one[7].items():
+                if local.startswith("*"):
+                    pairs = [
+                        (f"{name}.{key.rpartition('.')[2]}", key)
+                        for key in held
+                        if key.rpartition(".")[0] == target
+                    ]
+                else:
+                    pairs = [(f"{name}.{local}", target)] if target in held else []
+                for key, source in pairs:
+                    if not held[source] <= held.get(key, set()):
+                        more.setdefault(key, set()).update(held[source])
+        if not more:
+            return held
+        for key, loaders in more.items():
+            held.setdefault(key, set()).update(loaders)
 
 
 def conftests(name):
@@ -766,7 +803,7 @@ def asking(module):
         hit |= more
     return {
         modules()[name]
-        for name, (_, words, _, args, _, _, _) in sources().items()
+        for name, (_, words, _, args, _, _, _, _) in sources().items()
         if TEST.fullmatch(modules()[name]) and (hit - own(name)) & (args | words)
     }
 
