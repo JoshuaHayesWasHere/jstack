@@ -2,7 +2,7 @@
 
 A scratch home is a home with no repo, for throwaway questions and drafts.
 Its threads run in T3 Code's "No project", whose workspace is `~/.t3/scratch`.
-jbus sends your word to it and runs no step of a repo for it: no queue, no `jmerge`, no sweep, no CI, no reader of hot files or of what the threads noticed, and no snapshot of its tasks.
+jbus sends your word to it and runs no step of a repo for it: no queue, no `jmerge`, no sweep, no CI, no reader of hot files, and no snapshot of its tasks.
 Nothing in it pushes, opens a pull request or launches a crew.
 
 ## Add it

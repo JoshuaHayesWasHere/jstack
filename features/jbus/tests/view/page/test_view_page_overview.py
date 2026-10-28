@@ -19,7 +19,7 @@ from view.page.browser import (
     look,
     walked,
 )
-from view.scene import Served, a_noticed, ago, iso, said_by_him, stacked
+from view.scene import Served, ago, iso, said_by_him, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -287,29 +287,6 @@ def test_a_link_to_a_project_that_is_not_there_says_so_and_reads_no_retired_one(
     assert "attic" not in json.dumps(seen["stack"])
     seen = look(scene, tmp_path, route="#/%E0")
     assert seen["errors"] == [] and seen["stack"]["none"].startswith("No project named %E0 ")
-
-
-def test_the_new_noticed_lines_are_a_count_beside_the_queue_that_opens_their_panel(scene, tmp_path):
-    lineup(scene, TODAY)
-    a_noticed(
-        scene,
-        *((slug, "new", 5 + at, {}) for at, slug in enumerate(("tea-kettle", "jam-kettle"))),
-        ("oat-kettle", "dropped", 400, {"why": "from before the list", "by": "jbus"}),
-    )
-    seen = look(scene, tmp_path)
-    opened = clean(seen)
-    tile = seen["needs"]["extra"][-1]
-    assert (tile["text"], tile["open"]) == ("2 noticed, not counted", "noticed")
-    assert not any("noticed" in one["what"] for one in seen["needs"]["now"])
-    assert "noticed" in opened
-    drawer = {one["target"]: one for one in seen["opened"]}["noticed"]
-    assert drawer["title"] == "2 new lines of 3, newest first"
-    assert seen["words"] <= WORDS, seen["words"]
-
-    a_noticed(scene, ("oat-kettle", "dropped", 400, {"why": "from before the list"}))
-    seen = look(scene, tmp_path)
-    assert seen["needs"]["extra"] == []
-    assert seen["words"] <= WORDS, seen["words"]
 
 
 def test_a_stopped_jbus_is_one_line_over_the_map_of_every_project(scene, tmp_path):

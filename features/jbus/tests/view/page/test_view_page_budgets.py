@@ -3,7 +3,7 @@ tests" (jview-ux-c), less the ones that belong to one layout.
 
 Each budget is checked on two scenes, at a desk's width, at 900 and at a phone's. `busy` is the
 tests' busy day in six projects: every step of the lineup in `demo`, a crewmate that hung, a
-failing CI run, gates and noticed lines, and three more projects beside `stacked`'s two. demo
+failing CI run, gates, and three more projects beside `stacked`'s two. demo
 has two child homes, and one of them has a row that stalled (`browser.child_homes`). `many` is
 the same with sixteen projects. A third scene, `calm`, has nothing wrong in it.
 
@@ -47,7 +47,6 @@ from view.scene import (
     GITHUB,
     Scene,
     Served,
-    a_noticed,
     ago,
     et,
     iso,
@@ -182,7 +181,6 @@ def busy(scene, projects=6):
     stacked(scene)
     a_day_of_threads(scene)
     child_homes(scene)
-    a_noticed(scene, *((f"oat-{n}", "new", 10 + n, {}) for n in range(12)))
     for n, name in enumerate(EXTRA[: projects - 3]):
         another(scene, name, n)
     a_day_old(scene)

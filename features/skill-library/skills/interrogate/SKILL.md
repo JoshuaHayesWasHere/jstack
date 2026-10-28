@@ -93,7 +93,9 @@ You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator
 - **Noted**. Technically valid but not actionable. Context-dependent, premature optimization, or low-impact at this stage.
 - **Dismissed**. Wrong, nitpicky, or missing context, with a brief reason.
 
-The four buckets are how this verdict reads to the user. A finding of a pull request's own review has two endings and no more, `Finding: fixed` and `Finding: not fixed, ..., because`, and `skills/crew/SKILL.md` "The review" is where they are written. In a crewmate's thread the verdict still applies nothing by itself: what the crewmate then fixes stays inside the brief's **Where**, and the rest goes in the Result under "Noticed".
+The four buckets are how this verdict reads to the user.
+A finding of a pull request's own review has two endings and no more, `Finding: fixed` and `Finding: not fixed, ..., because`, and `skills/crew/SKILL.md` "The review" is where they are written.
+In a crewmate's thread the verdict still applies nothing by itself: what the crewmate then fixes stays inside the brief's **Where**, and the rest is a queued row or nothing (`templates/a-fault-outside.md`).
 
 ## Output Format
 

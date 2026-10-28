@@ -26,7 +26,6 @@ from view.scene import (
     NOW,
     Process,
     Served,
-    a_noticed,
     ago,
     et,
     iso,
@@ -105,7 +104,6 @@ def test_every_panel_is_opened_from_the_first_screen_or_from_a_drawer(scene, tmp
     made = {"id": "w1.1", "item": "w1", "at": iso(ago(minutes=9)), "by": "Josh", "where": "chat"}
     made |= {"line": "proposed", "verb": "proposed", "project": "demo", "slug": "jam-jar"}
     (scene.state / "items.jsonl").write_text(json.dumps(made) + "\n")
-    a_noticed(scene, ("alpha", "new", 5, {}))
     scene.passed(20, threads=[out("home: demo")])
     seen = look(scene, tmp_path)
     assert unreached(seen, drawn(panels.found())) == []

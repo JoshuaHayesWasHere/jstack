@@ -9,6 +9,7 @@ refuses a home's row whose brief names another home, unless `--for` hands it ove
 The tests run the real command against the kitchen's faked T3 Code server.
 """
 
+import json
 from datetime import timedelta
 
 import pytest
@@ -219,9 +220,7 @@ def scoped(kitchen, *argv):
 
 
 def wakes(kitchen):
-    return [
-        one["threadId"] for one in sends(kitchen) if one["clientRequestId"].startswith("records|")
-    ]
+    return [one["threadId"] for one in sends(kitchen) if one["clientRequestId"].startswith("word|")]
 
 
 @pytest.fixture
@@ -236,11 +235,12 @@ def test_one_word_to_every_scope_wakes_three_homes_once_and_a_second_run_wakes_n
     code, out = scoped(three, "--scope", "every")
     lines = out.splitlines()
     assert code == 0 and [one.split(", word ")[0] for one in lines] == [
-        f"kept: demo, for the {scope} home" for scope in ("flow", "macos", "view")
+        f"sent: demo, to the {scope} home at {at}"
+        for scope, at in (("flow", FLOW), ("macos", MAC), ("view", VIEW))
     ]
-    assert sends(three) == []
-    three.poll()
     assert sorted(wakes(three)) == sorted([FLOW, MAC, VIEW])
+    three.poll()
+    assert len(wakes(three)) == 3
     assert ROOT not in wakes(three)
     assert all(
         "user's own word, said" in one["message"] and one["message"].endswith(ASKED)
@@ -257,7 +257,6 @@ def test_the_wake_carries_a_long_word_whole(three):
     three.t3.says(SOUS, "m3", long, title="Sous Chef")
     code, out = three.main("word", "--to", "demo", "--message", f"{SOUS}/m3", "--scope", "flow")
     assert code == 0, out
-    three.poll()
     (sent,) = sends(three)
     assert len(long) > 2000 and sent["message"].endswith(long)
 
@@ -271,9 +270,9 @@ def test_a_scope_that_holds_the_word_by_any_path_is_not_sent_it_again(three):
     )
     flow, macos = out.splitlines()
     assert code == 0 and flow.startswith("held: demo, the flow home holds word ")
-    assert macos.startswith("kept: demo, for the macos home, word ")
+    assert macos.startswith(f"sent: demo, to the macos home at {MAC}, word ")
     three.poll()
-    assert wakes(three) == [MAC]
+    assert wakes(three) == [FLOW, MAC]
 
 
 @pytest.mark.parametrize(
@@ -290,3 +289,16 @@ def test_a_word_to_no_scope_or_with_no_message_of_the_users_is_refused(three, ar
         code, out = scoped(three, *argv)
     assert (code, out.startswith(refused)) == (1, True), out
     assert word.load(three.state) == []
+
+
+def test_a_word_kept_for_a_records_wake_before_goes_on_the_next_pass(three):
+    """A `words.json` from before holds a scoped word with `via` and no `sent_at`, which the wake
+    for a home's records once carried. The file still parses, and a pass sends the word to its
+    home as it sends any other."""
+    old = {"id": "a1b2c3d4e5f6", "words": ASKED, "by": "user", "at": AT, "kept_at": AT}
+    three.state.mkdir(parents=True, exist_ok=True)
+    word.path(three.state).write_text(json.dumps([old | {"home": "macos", "via": "records"}]))
+    three.poll()
+    assert wakes(three) == [MAC]
+    (kept,) = word.load(three.state)
+    assert (kept.thread, bool(kept.sent_at)) == (MAC, True)
