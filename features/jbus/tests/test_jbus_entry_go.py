@@ -18,9 +18,11 @@ from datetime import datetime, timedelta
 import pytest
 
 import jbus
-from jbus import questions, queue
+from jbus import leftover, questions, queue, wakes
 from test_jbus_kitchen import NOW, Kitchen
+from test_jbus_leftover import home
 from test_jbus_queue import brief, rows, widened
+from test_jbus_row_ends import result
 
 HOME, MESSAGE = "mcp:a-home", "a-go-of-his"
 HEARD_AT = "2026-10-12 10:30 ET"
@@ -401,3 +403,124 @@ def test_an_entry_a_follow_up_takes_from_its_parent_approves_nothing(kitchen):
     assert rows(kitchen)["beta"]["parent_entry"] == "epic"
     assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
     assert basis(kitchen, "beta") == ()
+
+
+JVIEW_PLAN = """\
+# jview: plan
+
+## jv-build: build the view
+Stage: planned
+Done when:
+- it is built
+"""
+
+
+@pytest.fixture
+def jview(kitchen):
+    """The jv-build state: the root home and the scope jview with homes, and the entry jv-build of
+    jview's plan with the user's go, whose one row is its design scout."""
+    root, scoped = home(kitchen), home(kitchen, "jview")
+    (kitchen.home / "jview" / "plan.md").write_text(JVIEW_PLAN)
+    text = brief("jv-design").replace("Home: mcp:a-home\n", "Home: jview\n")
+    queued(kitchen, "jv-design", entry="jv-build", text=text)
+    kitchen.t3.says(HOME, MESSAGE, "go on jv-build")
+    code, said = kitchen.main(
+        "plan", "go", "jv-build", "--scope", "jview", "--message", f"{HOME}/{MESSAGE}"
+    )
+    assert code == 0, said
+    return kitchen, root["threadId"], scoped["threadId"]
+
+
+def reported(kitchen, slug):
+    """End the row the way a crew ends it: its thread completed, its Result done with no pull
+    request and nothing left."""
+    made = kitchen.t3.thread(slug, "completed")
+    launched(kitchen, slug, status="launched")
+    table = kitchen.state / "queue.json"
+    listed = json.loads(table.read_text())
+    for row in listed:
+        if row["slug"] == slug:
+            row["thread"] = made["threadId"]
+    table.write_text(json.dumps(listed))
+    kitchen.brief(slug, "Home: jview\n" + result())
+
+
+def owed_wakes(kitchen, thread):
+    """The messages of the one list to the thread that name an owed entry."""
+    return [
+        given["message"]
+        for tool, given in kitchen.t3.calls
+        if tool == "t3_thread_send"
+        and given["threadId"] == thread
+        and given["clientRequestId"].startswith("wakes|")
+        and "owed " in given["message"]
+    ]
+
+
+def out(kitchen, scope="jview"):
+    code, said = kitchen.main("--project", "demo", "out", "--scope", scope)
+    assert code == 0, said
+    return said.splitlines()
+
+
+def test_a_holding_go_whose_last_row_ended_wakes_its_home_once_and_jbus_out_says_it(jview):
+    """The replay of jv-build: its design scout reported, nothing else queued, and the go still
+    holds. The home is woken once, the root once it is still open `CLOSE_MINUTES` later, and the
+    item leaves the list on a new row."""
+    kitchen, root, scoped = jview
+    reported(kitchen, "jv-design")
+    kitchen.poll(NOW)
+    (said,) = owed_wakes(kitchen, scoped)
+    assert "- owed jview/jv-build: go holds, no live row" in said
+    assert "jbus queue add <slug> --entry jv-build" in said
+    assert "jbus plan close jv-build --scope jview" in said
+    assert "out entry jv-build: go holds, no live row" in out(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=5))
+    assert len(owed_wakes(kitchen, scoped)) == 1
+    assert owed_wakes(kitchen, root) == []
+    kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 1))
+    (late,) = owed_wakes(kitchen, root)
+    assert "- owed jview/jv-build: go holds, no live row" in late and scoped in late
+    assert len(owed_wakes(kitchen, scoped)) == 1
+    text = brief("jv-build-2").replace("Home: mcp:a-home\n", "Home: jview\n")
+    queued(kitchen, "jv-build-2", entry="jv-build", text=text)
+    assert not any(line.startswith("out entry ") for line in out(kitchen))
+    kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 2))
+    told = json.loads((kitchen.state / wakes.FILE).read_text())["threads"]
+    assert not any(key.startswith("owed") for seen in told.values() for key in seen)
+
+
+def test_an_entry_closed_after_its_home_was_told_leaves_the_list_and_never_reaches_the_root(jview):
+    kitchen, root, scoped = jview
+    reported(kitchen, "jv-design")
+    kitchen.poll(NOW)
+    code, said = kitchen.main("plan", "close", "jv-build", "--scope", "jview")
+    assert code == 0, said
+    assert out(kitchen) == []
+    kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 1))
+    assert len(owed_wakes(kitchen, scoped)) == 1
+    assert out(kitchen) == []
+
+
+def test_an_entry_whose_live_row_waits_on_depends_raises_nothing(jview):
+    kitchen, root, scoped = jview
+    reported(kitchen, "jv-design")
+    queued(kitchen, "jv-first", entry="other")
+    code, said = kitchen.main(
+        "queue",
+        "add",
+        "jv-next",
+        "--priority",
+        "1",
+        "--entry",
+        "jv-build",
+        "--depends",
+        "jv-first",
+        stdin=brief("jv-next", "Builds on: jv-first\n").replace(
+            "Home: mcp:a-home\n", "Home: jview\n"
+        ),
+    )
+    assert code == 0, said
+    kitchen.poll(NOW)
+    assert owed_wakes(kitchen, scoped) == owed_wakes(kitchen, root) == []
+    assert not any(line.startswith("out entry ") for line in out(kitchen))

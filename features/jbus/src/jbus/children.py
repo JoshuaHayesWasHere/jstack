@@ -3,29 +3,29 @@ gone quiet with work out.
 
 A child home is a scope of the repo's home: a directory of the state with a `home-id` or a
 `Was home:` line. What a child has out (`out`) is read from jbus's own records, never from the
-child: each queue row of a brief of its that is not over, each crew or reviewer thread of such a
-brief that the last pass found unsettled, each question jbus holds for it, and each open gate of
-its `gates.md`. A row that is queued and not launched is out, and it has no crew yet.
+child: each queue row of a brief of its that is not over, each entry of its plan whose go holds
+with no live row (`plan.owed`), each crew or reviewer thread of such a brief that the last pass
+found unsettled, each question jbus holds for it, and each open gate of its `gates.md`. A row that
+is queued and not launched is out, and it has no crew yet.
 
 `jbus out --scope <scope>` prints one line for each, and nothing when nothing is out. The
 handoff skill closes a scope only on that nothing (`NoRetireWithOpen` in
 `features/home/spec/HomeTree.tla`). It prints `unknown:` and ends 1 when jbus's last pass is too
 old for its list of threads to be trusted.
 
-`watch`, a step of each pass, flags a child that has been quiet for its patience with work out,
-or a routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a
-`rhythm` file, its beat in minutes, and it is watched whatever it has out. Any other child is
-watched while it has a crew, a pull request, a question or a gate out. A child is quiet from the
-last thing it did that the root can see: a write of one of its crew or reviewer threads, a change
-in what it has out, or, before the root nudged it in this spell, a write of its home thread. A
-turn the root's own nudge started is no progress, so once nudged the home thread's writes do not
-end the spell. At its patience (`PATIENCE`, or the routine's beat) the root nudges the child's
-home thread and the user hears of it at once, the first strike (`FirstStrike`); a patience
-after that nudge it nudges it again; a patience after the second it asks the user, and nudges no
-more (`NudgesBounded`, `AsksAfterTwo`). Each step waits a patience after the last, so a child
-first checked long after it went quiet still gets that time to act on a nudge. `children.json`
-keeps each spell: when it began, how far it went, when it took its last step, and what the child
-had out.
+`watch`, a step of each pass, flags a child that has been quiet for its patience with work out, or a
+routine that missed its beat (`StallFlagged`). A routine is a scope whose directory has a `rhythm`
+file, its beat in minutes, and it is watched whatever it has out. Any other child is watched while
+it has a crew, a pull request, an owed entry, a question or a gate out. A child is quiet from the
+last thing it did that the root can see: a write of one of its crew or reviewer threads, a change in
+what it has out, or, before the root nudged it in this spell, a write of its home thread. A turn the
+root's own nudge started is no progress, so once nudged the home thread's writes do not end the
+spell. At its patience (`PATIENCE`, or the routine's beat) the root nudges the child's home thread
+and the user hears of it at once, the first strike (`FirstStrike`); a patience after that nudge it
+nudges it again; a patience after the second it asks the user, and nudges no more (`NudgesBounded`,
+`AsksAfterTwo`). Each step waits a patience after the last, so a child first checked long after it
+went quiet still gets that time to act on a nudge. `children.json` keeps each spell: when it began,
+how far it went, when it took its last step, and what the child had out.
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ from jbus import (
     Refused,
     mirror,
     outbox,
+    plan,
     questions,
     queue,
     read_json,
@@ -73,8 +74,8 @@ NUDGE = (
 
 def out(root: Path, scope: Path, state: Path, threads: list[dict[str, Any]]) -> list[str]:
     """Return a line for each thing the scope at `scope` has out, in a fixed order: its rows that
-    are not over, its crew and reviewer threads in `threads` (the last pass's), its questions,
-    and its open gates."""
+    are not over, its entries whose go holds with no live row, its crew and reviewer threads in
+    `threads` (the last pass's), its questions, and its open gates."""
     rows = queue.load(state)
     texts = {row["slug"]: queue.brief(state, row["slug"]) or "" for row in rows}
     for kind in ("tasks", "scouts"):
@@ -85,6 +86,11 @@ def out(root: Path, scope: Path, state: Path, threads: list[dict[str, Any]]) -> 
         f"out {row['slug']}: row {row.get('status') or 'queued'}"
         for row in rows
         if row["slug"] in mine and not queue.over(row)
+    ]
+    found += [
+        f"out entry {made.entry}: go holds, no live row"
+        for made in plan.owed(state, root, rows)
+        if made.scope == scope.name
     ]
     found += [
         f"out {one['slug']}: {one['role']} thread {one['id']} is not settled"
