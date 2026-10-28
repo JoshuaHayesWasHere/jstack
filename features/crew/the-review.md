@@ -106,7 +106,7 @@ End your turn at once with one line: `Waiting on the review pool: jbus will wake
 Never poll for the reset, never wait in a background job, and never count on a nudge from jbus's other messages: `jbus poll` sends this thread one message once the cap's end has passed, and that message is the wake.
 On it, run the block again.
 If the pool is capped again by then, the run registers this thread again and you stop again: each wait is woken once.
-On `no launch`, make none, and add what it printed to the Result under "Noticed".
+On `no launch`, make none, and add what it printed to the Result.
 
 If the session has no `t3_thread_launch`, write `Reviewer: none, no launch tool in this session` in its place, tell the home as below, and go on the same way.
 
