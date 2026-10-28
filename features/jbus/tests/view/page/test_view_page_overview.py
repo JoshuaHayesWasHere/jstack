@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from jbus import alert
+from jbus import alert, queue
 from view.days import DAYS, TODAY, lineup
 from view.page.browser import (
     BROWSES,
@@ -20,7 +20,7 @@ from view.page.browser import (
     look,
     walked,
 )
-from view.scene import Served, ago, iso, said_by_him, stacked
+from view.scene import REQUEST, Served, ago, iso, item, said_by_him, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -621,3 +621,61 @@ def test_every_home_leaves_a_projects_health_line_a_paragraph(scene, tmp_path, s
     seen = look(scene, tmp_path, script=HEALTH, at=8000, budget=12000, screen=screen)
     assert seen["text"].strip(), seen
     assert seen["display"] == "block", seen
+
+
+KETTLE = "demo/approve:tea-kettle"
+"""The one need of `one_to_approve`: the row tea-kettle, waiting for its go."""
+
+
+def one_to_approve(scene):
+    """One need, tea-kettle's approval, for a brief that is on disk, and no gate. It returns the
+    sha of the brief, which an approval names."""
+    scene.waiting(
+        [item("approve", "approve:tea-kettle", "approve tea-kettle", slug="tea-kettle", hours=2)]
+    )
+    (scene.home / "gates.md").write_text("")
+    brief = queue.brief_path(scene.state, "tea-kettle")
+    brief.parent.mkdir(exist_ok=True)
+    brief.write_text(REQUEST.format(slug="tea-kettle"))
+    return queue.brief_sha(brief.read_text())[:12]
+
+
+COUNTED = 24
+"""Looks, each 0.5 s, that outlast the 10-second countdown and the write after it."""
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends_nothing(
+    scene, tmp_path, screen
+):
+    """The rail's Approve is the project page's: it counts 10 s with an Undo beside it, and only
+    then posts the approval. An Undo tapped in the window posts nothing, and the Approve is back."""
+    sha = one_to_approve(scene)
+    accept, undo = f'#desk [data-accept="{KETTLE}"]', f'#desk [data-undo="{KETTLE}"]'
+    walks = {
+        "kept": ["look", f"tap:{accept}", *["look"] * COUNTED],
+        "undone": ["look", f"tap:{accept}", "look", f"tap:{undo}", *["look"] * COUNTED],
+    }
+    seen = {
+        name: look(
+            scene,
+            tmp_path / name,
+            route="#/",
+            screen=screen,
+            walk=walk,
+            at=4000 + 500 * len(walk),
+            budget=4000 + 500 * len(walk) + 4000,
+        )
+        for name, walk in walks.items()
+    }
+    for one in seen.values():
+        assert one["errors"] == []
+    kept, undone = seen["kept"], seen["undone"]
+    assert kept["walked"][0]["details"] == "Details", kept["walked"][0]
+    counting = kept["walked"][1]["acc"]
+    assert counting.startswith("Approving it in") and counting.endswith("Undo"), counting
+    assert [one["path"].partition("?")[0] for one in kept["writes"]] == ["/panel/you/approve"]
+    assert kept["writes"][0]["body"] == {"slug": "tea-kettle", "sha": sha}
+    assert undone["writes"] == []
+    assert undone["walked"][-1]["acc"] == "", undone["walked"][-1]
+    assert undone["walked"][-1]["accept"] == "Approve"
