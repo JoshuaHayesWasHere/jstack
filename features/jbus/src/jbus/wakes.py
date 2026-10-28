@@ -249,7 +249,7 @@ def root_of(run: Pass) -> str:
 def need_items(run: Pass, listed: list | None) -> list[Item]:
     """The needs of the user that the root home passes on: each item of the list that the user
     has to decide (`blockers.deciding`), but for a kind in `blockers.UNLISTED`. A row to approve
-    is caused by the home whose brief it is. With no root home, they wake no one."""
+    is caused by the home whose brief it is. They wake the root's thread (`root_of`)."""
     root, items = root_of(run), []
     for one, said in blockers.deciding(run, listed):
         if one["kind"] in blockers.UNLISTED:
