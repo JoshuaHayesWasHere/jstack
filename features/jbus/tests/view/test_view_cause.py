@@ -53,11 +53,17 @@ CAPTURE = {
 }
 
 
+def _word(seen: dict) -> str:
+    state = seen["check"]["state"]
+    return state if state in ("passed", "failed") else ""
+
+
 def test_each_row_in_check_says_what_its_check_did_and_since_when():
     """`CAPTURE` is the 12 rows in Check on the live `/state.json` at 08:06 EDT 2026-10-26, as
-    the scout kept them: each said only "check has not passed", whatever its check had done."""
+    the scout kept them: each said only "check has not passed", whatever its check had done. A
+    check that answered has jmerge's word beside it, as the pass writes it (`checks`)."""
     found = {
-        slug: cause(task("check", reason, ago(minutes), seen=seen), NOW)
+        slug: cause(task("check", reason, ago(minutes), seen=seen, checks=_word(seen)), NOW)
         for slug, (reason, minutes, seen) in CAPTURE.items()
     }
     passed = ", jmerge has not moved it on"

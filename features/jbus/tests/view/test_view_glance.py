@@ -10,9 +10,9 @@ import pytest
 import jsettings
 from jbus.view import state as built
 from jbus.view.state import iso
-from view.days import DAYS
 from jmerge import lines as jlines
 from jmerge import ready
+from view.days import DAYS
 from view.scene import NOW, PULL, Scene, Served, ago, et, item, logged, out, row
 from view.test_view_wrong import STALL, idle
 from view.walk import runs, sources

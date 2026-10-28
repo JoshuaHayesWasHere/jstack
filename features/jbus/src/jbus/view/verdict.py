@@ -4,10 +4,10 @@ cause, counted from the pipeline's board (`panels/pipeline`), so the page counts
 `groups` sorts the still rows of the board, the ones whose cause says they do not move, by what
 each waits on. A row with a `wait` is grouped by it: a failing check, a check that runs or waits
 for a runner, a check that passed and a row that has not moved since, or a row stacked on its
-parent, whose group says what its parents' own checks did. A row in check with no `wait` has no
-run. Any other row that waits on another row is behind its head, the row its chain goes back to,
-and any other row is grouped by the value the last pass judged (`cause_kind`). The largest group
-comes first, and of two as large the first of `RANK`.
+parent, whose group names the heads its rows' chains go back to. A row in check with no `wait`
+has no run. Any other row that waits on another row is behind its head, the row its chain goes
+back to, and any other row is grouped by the value the last pass judged (`cause_kind`). The
+largest group comes first, and of two as large the first of `RANK`.
 
 `judge` gives the first word of `WORDS` that holds:
 
@@ -153,23 +153,20 @@ def _label(row: dict[str, Any]) -> tuple[str, str | None]:
     return row["cause_kind"], None
 
 
-def _stacked(rows: list[dict[str, Any]], by: dict[tuple[str, str], dict[str, Any]]) -> str:
-    """What stacked rows are, with what each one's parents' own checks did."""
-    parents = Counter(
-        WAIT.get(parent["wait"] or "", parent["stage"]) if parent else "merged or gone"
-        for row in rows
-        for one in row["waits_on"]
-        for parent in [by.get((one["project"], one["slug"]))]
-    )
-    said = ", ".join(f"{n} {kind}" for kind, n in parents.most_common())
-    return f"stacked (their parents: {said})" if said else "stacked"
+def _stacked(rows: list[dict[str, Any]]) -> str:
+    """What stacked rows are: each one once, on the head its chain goes back to, the head with
+    the most rows first."""
+    heads = Counter(row["head"] or "a merged or gone row" for row in rows)
+    named = [head for head, _ in heads.most_common()]
+    more = len(named) - SHOWN
+    return f"stacked (on {', '.join(named[:SHOWN])}{f' and {more} more' if more > 0 else ''})"
 
 
-def _text(kind: str, head: str | None, rows: list[dict[str, Any]], by: dict) -> str:
+def _text(kind: str, head: str | None, rows: list[dict[str, Any]]) -> str:
     if kind == BEHIND:
         return f"behind {head}"
     if kind == "stacked":
-        return _stacked(rows, by)
+        return _stacked(rows)
     one, many = TEXT.get(kind, (kind, kind))
     return one if len(rows) == 1 else many
 
@@ -178,17 +175,15 @@ def _rank(group: Group) -> tuple[int, int, str]:
     return -group.count, RANK.index(group.kind) if group.kind in RANK else len(RANK), group.text
 
 
-def _grouped(rows: list[dict[str, Any]], every: list[dict[str, Any]]) -> tuple[Group, ...]:
-    """The rows grouped by what they wait on, largest first; `every` is the board's rows, which
-    hold the rows' parents."""
-    by = {(row["project"], row["slug"]): row for row in every}
+def _grouped(rows: list[dict[str, Any]]) -> tuple[Group, ...]:
+    """The rows grouped by what they wait on, largest first."""
     lots: dict[tuple[str, str | None], list[dict[str, Any]]] = {}
     for row in rows:
         lots.setdefault(_label(row), []).append(row)
     made = [
         Group(
             kind,
-            _text(kind, head, lot, by),
+            _text(kind, head, lot),
             len(lot),
             head,
             min((row["since"] for row in lot if row["since"]), default=None),
@@ -204,7 +199,7 @@ def _still(board: dict[str, Any]) -> list[dict[str, Any]]:
 
 def groups(board: dict[str, Any]) -> tuple[Group, ...]:
     """The still rows of `board` grouped by what they wait on, largest first."""
-    return _grouped(_still(board), board["rows"])
+    return _grouped(_still(board))
 
 
 def _yours(row: dict[str, Any], by: dict[tuple[str, str], dict[str, Any]]) -> bool:
@@ -257,8 +252,8 @@ def judge(
         return said(AT_REST, "nothing is open")
     by = {(row["project"], row["slug"]): row for row in board["rows"]}
     still = _still(board)
-    mine = _grouped([row for row in still if _yours(row, by)], board["rows"])
-    rest = _grouped([row for row in still if not _yours(row, by)], board["rows"])
+    mine = _grouped([row for row in still if _yours(row, by)])
+    rest = _grouped([row for row in still if not _yours(row, by)])
     if mine and (not rest or _rank(mine[0]) <= _rank(rest[0])):
         waits = "waits" if sum(one.count for one in mine[:SHOWN]) == 1 else "wait"
         cause = f"{_listed(mine)} {waits} on you"

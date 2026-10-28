@@ -23,6 +23,7 @@ from jbus.view.state import NO_REVIEWER
 
 STACKED = checked.STACKED_ON
 _AFTER = re.compile(r"merges after ([a-z0-9][a-z0-9._-]*)")
+_NOT_PASSED = re.compile(r"(\S+) has not passed$")
 
 
 @dataclass(frozen=True)
@@ -76,16 +77,21 @@ def _check(task: dict[str, Any], now: datetime) -> Cause:
         parent = after[1] if after else (task.get("blockers") or [task.get("waits_on") or ""])[0]
         return Cause(_join("merges after", parent or "its parent row"), task.get("since"), False)
     check = _seen(task).get("check") or {}
-    state = check.get("state")
-    if checked.outcome(task) == checked.FAILING and state != "failed":
+    state, word = check.get("state"), checked.outcome(task)
+    if word == checked.FAILING and state != "failed":
         return Cause("a check failed", task.get("since"), False)
+    waits = _NOT_PASSED.search(reason)
+    seen = state == "pending" and check.get("name") == (waits[1] if waits else None)
+    if word == checked.WAITING and waits and not seen:
+        since = check.get("started") or task.get("since")
+        return Cause(_join(waits[1], "running or queued", age(since, now)), since, False)
     if state == "pending":
         started = check.get("started")
         name = check.get("name") or "its check"
         if not started:
             return Cause(f"{name} queued, waits for a runner", task.get("since"), False)
         return Cause(_join(name, "running", age(started, now)), started, True)
-    if state in ("passed", "failed"):
+    if state == "failed" or (state == "passed" and word == checked.PASSED):
         done = check.get("completed")
         text = _join("check", state, _ago(done, now))
         if state == "passed":
