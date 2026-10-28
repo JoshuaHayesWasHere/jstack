@@ -35,9 +35,9 @@ request that jbus launched (`alpha`). The first tip, M0, is green and is there f
 
 Each kind of step matches the code as follows:
 
-- **pass**: one run of `tell` under the pass lock (`features/jbus/src/jbus/cli.py:215-219`). No two
+- **pass**: one run of `tell` under the pass lock (`features/jbus/src/jbus/cli.py:218-222`). No two
   passes overlap, so a pass is one indivisible step. In a pass, jmerge reads `main.json` before
-  `tell` writes it: `features/jbus/src/jbus/cli.py:146` runs `merge.merge`, and `tell` runs later,
+  `tell` writes it: `features/jbus/src/jbus/cli.py:149` runs `merge.merge`, and `tell` runs later,
   in the `after-expedite` slot (`features/jbus/src/jbus/mainmoved.py:229-237`). So the model writes
   a merge in a pass as the event `lands, jmerge merges` followed by the event `pass`. That merge
   reads the record the last pass wrote, as a merge between passes does.
@@ -49,7 +49,7 @@ Each kind of step matches the code as follows:
 - **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
-  (`features/jbus/src/jbus/watch.py:921-965`): `green`, `failed`, `cancelled` (a later attempt that
+  (`features/jbus/src/jbus/watch.py:965-1009`): `green`, `failed`, `cancelled` (a later attempt that
   was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
   run's job ran no step, `watch.NO_JOB`). `main_check` asks without `again`
   (`features/jbus/src/jbus/mainmoved.py`). So `cancelled` and `refused` reach `tell` only
