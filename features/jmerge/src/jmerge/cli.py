@@ -73,6 +73,11 @@ def _run(cwd: Path, *command: str, stdin: str | None = None) -> subprocess.Compl
         return subprocess.CompletedProcess(command, 124, "", said)
 
 
+def _why(cwd: Path, asked: subprocess.CompletedProcess[str], said: str = "") -> str:
+    """Why `gh` gave no answer, asking `gh api rate_limit` in `cwd` for a rate-limit refusal."""
+    return asked_why(asked, functools.partial(_run, cwd), said)
+
+
 def _text(cwd: Path, *command: str) -> str | None:
     ran = subprocess.run(command, cwd=cwd, capture_output=True)
     return None if ran.returncode else ran.stdout.decode(errors="replace")
@@ -547,7 +552,7 @@ class Repo:
         except (ValueError, KeyError, TypeError, AttributeError):
             open_pulls, files = None, {}
         if asked.returncode or open_pulls is None:
-            print(f"wait: could not ask GitHub{asked_why(asked)}", flush=True)
+            print(f"wait: could not ask GitHub{_why(self.main, asked)}", flush=True)
             return 1
         homes = self.homes.known
         for brief in sorted((self.state / "tasks").glob("*.md")):
@@ -618,9 +623,9 @@ class Repo:
             ".defaultBranchRef.name",
         )
         if asked.returncode:
-            return "", asked_why(asked)
+            return "", _why(self.main, asked)
         branch = asked.stdout.strip()
-        return branch, "" if branch else asked_why(asked, "it named no default branch")
+        return branch, "" if branch else _why(self.main, asked, "it named no default branch")
 
     def based_on(self, branch: str) -> str:
         """When a pull request merges and its branch is deleted, GitHub retargets every open pull
@@ -646,7 +651,8 @@ class Repo:
         except (ValueError, KeyError, TypeError):
             numbers = None
         if asked.returncode or numbers is None:
-            return f"could not ask GitHub whether a pull request is based on it{asked_why(asked)}"
+            why = _why(self.main, asked)
+            return f"could not ask GitHub whether a pull request is based on it{why}"
         if not numbers:
             return ""
         several = "s" if len(numbers) > 1 else ""
@@ -1590,7 +1596,7 @@ class Sweep:
             except (ValueError, KeyError, TypeError):
                 state = ""
             if not state:
-                silent = asked_why(asked)
+                silent = _why(self.main, asked)
         tree = left.get(sweep.WORKTREE, "")
         status = _run(self.main, "git", "-C", tree, "status", "--porcelain") if tree else None
         refs = (sweep.LOCAL, sweep.REMOTE)
@@ -2004,7 +2010,7 @@ def main(argv: list[str] | None = None) -> int:
         listed = None
     default, silent = repo.default() if listed else ("", "")
     if asked.returncode or listed is None:
-        silent = asked_why(asked)
+        silent = _why(main_checkout, asked)
     if silent:
         say(f"wait: could not ask GitHub{silent}")
         return 1

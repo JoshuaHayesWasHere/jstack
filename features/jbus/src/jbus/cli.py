@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import fcntl
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -159,7 +159,7 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
     crew = [row for row in half.rows or [] if queue.role(row) == queue.CREW]
     half.seen = watch.look(run, client, crew)
     if half.blind:
-        half.seen = watch.Look(out=half.seen.out, why=half.seen.why, held=half.seen.held)
+        half.seen = replace(half.seen, world=None)
     run.world = half.seen.world
     if half.seen.world is not None and client is not None:
         archived.ask(run, client, half.seen.world, crew)

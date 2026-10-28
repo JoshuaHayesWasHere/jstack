@@ -48,6 +48,7 @@ from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Error
 from jbus.wake import cut
 from jgauge import holders, slot, waiters
+from jmerge import budget as allowance
 from jmerge import checks as reading
 from jmerge import mainjson
 from jmerge import stacked as stacks
@@ -162,12 +163,16 @@ class Look:
     jbus knows whenever T3 Code answered. A pass counts them by home and by project
     (`dispatch.Caps`). `why` is the reason T3 Code did not answer. `held` is why the pass asked
     GitHub nothing to save its API budget, or why it could not tell what is left of it.
+    `spent` is the line that says GitHub's API allowance is spent: a window with no call left,
+    or a call GitHub refused for its rate limit (`jmerge.budget`). It is empty where neither,
+    and None where the pass could not tell, since GitHub did not say what is left.
     """
 
     world: World | None = None
     out: tuple[str, ...] | None = None
     why: str = ""
     held: str = ""
+    spent: str | None = None
 
 
 def when(stamp: str) -> datetime:
@@ -212,7 +217,7 @@ def pulls(run: Pass, state: str, fields: str, *more: str) -> list[dict[str, Any]
     except ValueError:
         pulls = None
     if not isinstance(pulls, list):
-        raise Silent(asked_why(asked))
+        raise Silent(asked_why(asked, run.run))
     return pulls
 
 
@@ -232,7 +237,7 @@ def _named(run: Pass, url: str) -> list[dict[str, Any]]:
     except ValueError:
         pull = None
     if not isinstance(pull, dict):
-        raise Silent(asked_why(asked))
+        raise Silent(asked_why(asked, run.run))
     return [pull] if pull.get("state") == "MERGED" else []
 
 
@@ -285,8 +290,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     asked = run.run(*budget.ASK)
     left = budget.parse(asked.stdout) if asked.returncode == 0 else None
     held = budget.held(left)
+    spent = None if left is None else allowance.spent(left)
     if client is None:
-        return replace(_silent(run, "no token: run `jbus t3 login`"), held=held)
+        return replace(_silent(run, "no token: run `jbus t3 login`"), held=held, spent=spent)
     locks = slot.locks_dir()
     world = World(
         waiting={one.thread for one in waiters.read(locks) if not one.woken},
@@ -297,7 +303,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     try:
         listed = crew_threads(client, run.project.project_id)
     except T3Error as error:
-        return replace(_silent(run, str(error)), held=held)
+        return replace(_silent(run, str(error)), held=held, spent=spent)
     for thread in sorted(listed, key=lambda t: t.get("createdAt", "")):
         slug = thread["title"][len(TITLE) :].strip()
         if thread.get("settled"):
@@ -308,13 +314,13 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     for slug in run.removed:
         world.threads.pop(slug, None)
     if left is None:
-        run.say(f"wait {run.project.name}: could not ask GitHub{asked_why(asked)}")
+        run.say(f"wait {run.project.name}: could not ask GitHub{asked_why(asked, run.run)}")
         return Look(out=out, held=held)
     if held:
         run.say(f"wait {run.project.name}: GitHub not asked: {held}")
         key = f"budget {left.low.name} {left.low.reset.isoformat()}"
         run.condition(run.project.name, "GitHub's API budget is under the floor", held, key=key)
-        return Look(out=out, held=held)
+        return Look(out=out, held=held, spent=spent)
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
     try:
@@ -343,8 +349,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
             world.merged[slug] = kept[slug]
     except Silent as silent:
         run.say(f"wait {run.project.name}: could not ask GitHub{silent}")
-        return Look(out=out)
-    return Look(world, out)
+        said = str(silent).removeprefix(": ")
+        return Look(out=out, spent=said if allowance.is_named(said) else spent)
+    return Look(world, out, spent=spent)
 
 
 def checks(pull: dict[str, Any]) -> str:
