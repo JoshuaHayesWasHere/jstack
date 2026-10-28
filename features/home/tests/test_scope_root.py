@@ -1,6 +1,5 @@
 """The root home's side of a scoped home. The root home makes a scope with one block. When the user
-asks for status, it reads each scope's handoff and open plan entries. Before a launch it runs
-`jmerge --claims` to name the overlaps, in place of reading every brief. The tests take every block
+asks for status, it reads each scope's handoff and open plan entries. The tests take every block
 and the command from the home skill and run them in a temporary repo."""
 
 import json
@@ -13,8 +12,6 @@ import pytest
 
 import test_home_thread
 from jbriefs.skills import listed
-from test_claims import PULLS, brief, result
-from test_home_merge import ME, OTHER, Home, block, paths
 from test_home_thread import NAME, Scene
 from test_scoped_home import ROOT, SCOPE, SCOPED, Homes
 from test_tool_calls import Call, errors
@@ -269,42 +266,6 @@ def test_on_status_the_root_reads_each_scope_s_queue_rows(homes, monkeypatch):
         "sc-pr | review | https://example.test/pull/7 | a reviewer is out\n"
     ) in said
     assert "root-row" not in said
-
-
-def launch_check(home, slug):
-    """The home skill's launch check, run from the main checkout with the block at the top."""
-    return home.sh(f"{paths()}\n{block('overlaps ').replace('<slug>', slug)}")
-
-
-def test_the_launch_check_names_the_briefs_of_every_home_on_the_task_s_files(tmp_path):
-    home = Home(tmp_path)
-    (home.state / "home-id").write_text(f"{ME}\n")
-    scope = home.state / "pstack"
-    scope.mkdir()
-    (scope / "home-id").write_text(f"{OTHER}\n")
-    (home.tasks / "task.md").write_text(brief("task", thread=False, where="`playbooks/a.md`"))
-    (home.tasks / "alpha.md").write_text(brief("alpha", home=ME))
-    (home.tasks / "ps-gamma.md").write_text(
-        brief("ps-gamma", home=OTHER, where="`playbooks/`", result=result(PULLS.format(12)))
-    )
-    (home.tasks / "merged.md").write_text(
-        brief("merged", where="`playbooks/`", result=result(PULLS.format(7)))
-    )
-    (home.stub / "list.json").write_text(json.dumps([{"number": 12, "url": PULLS.format(12)}]))
-    kept = {path: path.read_bytes() for path in home.state.rglob("*") if path.is_file()}
-    said = launch_check(home, "task")
-    assert (home.stderr, home.code) == ("", 0)
-    assert said[:-1] == ["overlaps ps-gamma (#12) on `playbooks/a.md`: the second to merge rebases"]
-    assert said[-1].startswith("go: ")
-    assert {path: path.read_bytes() for path in home.state.rglob("*") if path.is_file()} == kept
-
-
-def test_the_launch_check_waits_when_github_cannot_be_asked(tmp_path):
-    home = Home(tmp_path)
-    (home.tasks / "alpha.md").write_text(brief("alpha"))
-    assert launch_check(home, "task") == [
-        "wait: could not ask GitHub: gh exited 1: it said nothing"
-    ]
 
 
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh is not installed")

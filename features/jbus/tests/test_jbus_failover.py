@@ -486,7 +486,7 @@ def test_a_scout_moves_and_reads_its_request(kitchen):
 
 
 REVIEWED = "## Review\nHead: abc\nVerdict: findings\n"
-REPORTED = "## Report\nThe answer.\n"
+REPORTED = "## Report\nStatus: done\nThe answer.\n"
 DONE = "## Result\nStatus: done\nLeft: none\nBranch: alpha, no pull request\n"
 
 

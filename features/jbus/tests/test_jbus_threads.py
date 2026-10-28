@@ -189,6 +189,15 @@ def test_a_page_with_no_session_jbus_can_find_is_said_while_its_thread_is_out(ki
     assert not [said for said in kitchen.poll(NOW + timedelta(minutes=6)) if "wait look" in said]
 
 
+@pytest.mark.parametrize("status", ["blocked", "not done", "done, mostly", ""])
+def test_a_scout_whose_last_report_does_not_say_status_done_stays(kitchen, status):
+    kitchen.brief("look", "\n## Report\nStatus: done\nPage: none\n", kind="scouts")
+    with (kitchen.home / "scouts" / "look.md").open("a") as request:
+        request.write(f"\n## Report\nStatus: {status}\nBrief: none   Page: none\n")
+    kitchen.t3.thread("look", "completed", title="scout: look")
+    assert settled(kitchen) == []
+
+
 def test_of_two_reports_the_last_one_says_whether_a_page_waits(kitchen):
     file = scout_with(kitchen, "none")
     kitchen.lavish(ab12=(file, "open"))
