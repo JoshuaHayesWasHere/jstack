@@ -71,6 +71,15 @@ check-fast:
 	set -x; \
 	uv run ruff check . && uv run ruff format --check . && $(PYTEST) $$tests
 
+# This checkout's `jbus view`, to show a branch's page before it merges: on VIEW_PORT, beside the
+# live view on 4388, with the JBUS_VIEW_* variables of the live jbus-view.service (the drop-in
+# that install.sh writes from the [view] table of jbus's config). It runs until Ctrl-C.
+VIEW_PORT ?= 4389
+
+.PHONY: view-preview
+view-preview:
+	env $$(systemctl --user show jbus-view.service --property Environment --value 2> /dev/null | tr ' ' '\n' | grep '^JBUS_VIEW_') uv run jbus view --port $(VIEW_PORT)
+
 # Only the tests marked `browser`, which open a real browser and hold the machine's browser
 # lock. They run one at a time, so there are no workers, and no lint: `check` has that.
 .PHONY: check-browser

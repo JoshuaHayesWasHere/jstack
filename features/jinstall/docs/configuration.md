@@ -103,6 +103,18 @@ state = "<the repo's directory name under ~/.local/state/home>"
 projectId = "<the T3 Code project id>"
 ```
 
+A `[view]` table says where `jbus view` is reached beyond `127.0.0.1`, and `jinstall` writes it into `jbus-view.service`'s drop-in ([The view](../../jbus/docs/jbus/the-view.md)):
+
+```toml
+[view]
+host = "<an address of this machine, such as its tailnet one>"
+names = ["<a host name a request may use>"]
+origins = ["https://<the host of a proxy in front of the view>"]
+```
+
+Each key may be left out, and a config with no `[view]` gets no drop-in.
+`jbus` refuses a table with another key, a `host` that is not a string, or `names` or `origins` that are not lists of strings.
+
 These keys go above the first `[[project]]`. `jbus` reads every key on this page, and so does the doctor, through the same loader.
 
 | Key | Default | What it sets |

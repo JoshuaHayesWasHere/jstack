@@ -5,7 +5,8 @@ It shows what the passes left, and it runs whether or not the timer does, so it 
 It listens on `127.0.0.1`, on port 4388 or the one `--port` names.
 On Linux, `jinstall` links `jbus-view.service` and leaves it off, and `systemctl --user enable --now jbus-view.service` starts it.
 On macOS the install makes no agent for the view, so you run `jbus view` yourself.
-On Linux the variables below go in a file under `~/.config/environment.d/`, which the user manager reads for every unit.
+On Linux the variables below come from the `[view]` table of jbus's config ([Configuration](../../../jinstall/docs/configuration.md#jbus)).
+`jinstall` writes them into the unit's drop-in, `~/.config/systemd/user/jbus-view.service.d/jstack.conf`, and restarts a running view when they change, so you link no drop-in by hand.
 On macOS you set them in the shell that runs `jbus view`.
 When the code on disk is newer than the code the view is running, and a trial run of the newer code starts, the view ends with status 75 (`NEWER_CODE` in `features/jbus/src/jbus/view/__init__.py`).
 The unit's `RestartForceExitStatus=75` starts it again on the new code, and `SuccessExitStatus=75` keeps that end from counting as a failure.
@@ -16,6 +17,10 @@ On macOS nothing starts it again, so you run `jbus view` again yourself.
 | `JBUS_VIEW_HOST` | One more address of this machine to listen on, such as its tailnet address. The view refuses an address that means every address, such as `0.0.0.0`. |
 | `JBUS_VIEW_NAMES` | The host names, with commas, that a request may use beside `localhost` and the two addresses. A request under any other `Host` gets 403. |
 | `JBUS_VIEW_ORIGINS` | The origins, with commas, the view is reached at through a proxy that passes the `Host` header on, such as `https://<host name>`. A request under the host of one, with the scheme's default port or none, is known, and a write under it is taken only from that exact origin. The view refuses, at its start, a value that is not `http://` or `https://`, a host and an optional port, with no path. |
+
+To show a branch's view before it merges, run `make view-preview` in its worktree.
+It serves that checkout's `jbus view` on port 4389, beside the live one on 4388, with the live unit's variables, until you stop it with Ctrl-C.
+`VIEW_PORT=<port>` names another port.
 
 [The view's look](../working-on-jbus/the-views-look.md) has its colours and type, for working on the page.
 
