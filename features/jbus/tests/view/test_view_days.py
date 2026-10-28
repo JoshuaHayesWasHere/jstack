@@ -1,11 +1,11 @@
-"""The two days the overview is shot over, `T` and the overloaded `MANY` (`browser.DAYS`), give
+"""The two days the overview is shot over, `T` and the overloaded `MANY` (`days.DAYS`), give
 the counts they are made for, as `/stack.json` and `/panel/pipeline.json` answer them."""
 
 from collections import Counter
 
 import pytest
 
-from view.page.browser import DAYS
+from view.days import DAYS
 from view.scene import Served
 
 

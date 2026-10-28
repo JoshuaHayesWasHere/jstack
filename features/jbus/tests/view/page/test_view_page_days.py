@@ -1,4 +1,4 @@
-"""`jbus view-shot` of the overview, `#/`, over each day of `browser.DAYS`, at a desk's 1440 and a
+"""`jbus view-shot` of the overview, `#/`, over each day of `days.DAYS`, at a desk's 1440 and a
 phone's 390: four shots kept under `fixtures/jbus-view/shots/` as `day-<day>-<width>.png`, the
 pictures each later change to the overview is shown by.
 
@@ -18,7 +18,8 @@ from pathlib import Path
 import pytest
 
 from jbus import cli
-from view.page.browser import CHROMIUM, DAYS, FONTS, LAUNCH, PATIENCE
+from view.days import DAYS
+from view.page.browser import CHROMIUM, FONTS, LAUNCH, PATIENCE
 from view.page.test_view_page_look import SHOTS
 from view.scene import Served
 
