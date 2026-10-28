@@ -334,6 +334,24 @@ def test_a_renamed_follow_up_still_counts_for_its_parents_entry(kitchen):
     )
 
 
+@pytest.mark.parametrize("given", ["epic", ""])
+def test_a_parent_whose_follow_ups_count_for_its_entry_keeps_its_slug(kitchen, given):
+    slug = "part-1" if given else "epic"
+    argv = ("--entry", given) if given else ()
+    add_ = ("queue", "add", slug, "--priority", "1", *argv)
+    assert kitchen.main(*add_, stdin=brief(slug))[0] == 0
+    add(kitchen, f"cleanup-{slug}", approve=False)
+    add(kitchen, "beta", approve=False, text=brief("beta", f"Follows: {slug}\n"))
+    counted = "epic | one path for each fact | 0 of 3 merged, 3 queued not approved"
+    assert plan(kitchen)[0] == counted
+    code, said = kitchen.main("queue", "rename", slug, "renamed")
+    assert (code, said) == (
+        1,
+        f"refused: beta, cleanup-{slug} names {slug}, so {slug} keeps its slug\n",
+    )
+    assert plan(kitchen)[0] == counted
+
+
 def test_a_follow_up_given_its_own_slug_as_entry_takes_none_from_its_parent(kitchen):
     assert (
         kitchen.main(
