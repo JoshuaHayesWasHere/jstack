@@ -32,7 +32,9 @@ run loads them. `test_home_merge` runs `uv cache dir` only when a test needs the
 """
 
 import os
+import shutil
 import sys
+import tempfile
 
 import pytest
 
@@ -113,6 +115,19 @@ def no_machine_state(tmp_path_factory, monkeypatch):
     `LIMITS` names, so a test never reads the machine's ledger. A test that needs its own `LIMITS`
     sets the variable again itself."""
     monkeypatch.setenv("LIMITS", str(tmp_path_factory.mktemp("state") / "limits"))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def no_sweep_of_tmp():
+    """Point `TMPFS` at an empty directory of the run's own on `/tmp`, so the sweep that each
+    `jgauge test-slot` runs as it lets its slot go never removes the machine's pytest runs, and
+    room still counts the file slots of `/tmp`. A test that needs its own `TMPFS` sets the
+    variable again itself."""
+    own = tempfile.mkdtemp(prefix="jstack-tmpfs-", dir="/tmp")
+    with pytest.MonkeyPatch.context() as run:
+        run.setenv("TMPFS", own)
+        yield
+    shutil.rmtree(own, ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)

@@ -1,4 +1,25 @@
 #!/bin/sh
+sweep() (
+  if [ -z "${PROC:-}" ] && [ "$(uname -s 2> /dev/null)" = Darwin ]; then echo 0; return; fi
+  PROC=${PROC:-/proc}
+  TMPFS=${TMPFS:-/tmp}
+  here=$(cd "$TMPFS" 2> /dev/null && pwd -P) || { echo 0; return; }
+  stale=$({
+    find "$PROC"/[0-9]*/cwd "$PROC"/[0-9]*/fd/ -maxdepth 1 -type l -exec readlink {} + 2> /dev/null
+    printf '\001\n'
+    find "$here"/pytest-of-* -mindepth 1 -maxdepth 1 -name 'pytest-*' -type d -user "$(id -u)" -mmin +20 2> /dev/null
+  } | awk '
+    $(0) == "\001" {runs = 1; next}
+    !runs {path = $(0); while (path ~ /.\//) {held[path]; sub(/\/[^\/]*$/, "", path)}; next}
+    !($(0) in held)')
+  printf '%s\n' "$stale" | while IFS= read -r run; do
+    [ -n "$run" ] || continue
+    pid=$(head -c 20 "$run/.lock" 2> /dev/null)
+    case $pid in ("" | *[!0-9]*) ;; (*) [ -e "$PROC/$pid" ] && continue ;; esac
+    rm -rf -- "$run" 2> /dev/null
+    [ -e "$run" ] || echo "$run"
+  done | awk 'END {print NR}'
+)
 room() (
   LOAD=200
   CPU=40
@@ -50,23 +71,8 @@ room() (
       print total, used
     }'; }
   if [ "$tmp" = 1 ]; then slots=$(read_slots); fi
-  if [ "$tmp" = 1 ] && echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}' &&
-    here=$(cd "$TMPFS" 2> /dev/null && pwd -P); then
-    stale=$({
-      find "$PROC"/[0-9]*/cwd "$PROC"/[0-9]*/fd/ -maxdepth 1 -type l -exec readlink {} + 2> /dev/null
-      printf '\001\n'
-      find "$here"/pytest-of-* -mindepth 1 -maxdepth 1 -name 'pytest-*' -type d -user "$(id -u)" -mmin +20 2> /dev/null
-    } | awk '
-      $(0) == "\001" {runs = 1; next}
-      !runs {path = $(0); while (path ~ /.\//) {held[path]; sub(/\/[^\/]*$/, "", path)}; next}
-      !($(0) in held)')
-    removed=$(printf '%s\n' "$stale" | while IFS= read -r run; do
-      [ -n "$run" ] || continue
-      pid=$(head -c 20 "$run/.lock" 2> /dev/null)
-      case $pid in ("" | *[!0-9]*) ;; (*) [ -e "$PROC/$pid" ] && continue ;; esac
-      rm -rf -- "$run" 2> /dev/null
-      [ -e "$run" ] || echo "$run"
-    done | awk 'END {print NR}')
+  if [ "$tmp" = 1 ] && echo "$slots" | awk -v SLOTS="$SLOTS" '{exit !($(1) ~ /^[0-9]+$/ && $(2) ~ /^[0-9]+$/ && $(2) * 100 > $(1) * SLOTS)}'; then
+    removed=$(sweep)
     if [ "$removed" -gt 0 ]; then
       was=$slots
       slots=$(read_slots)
@@ -202,4 +208,4 @@ room() (
   esac
   echo "$said"
 )
-room
+if [ "${1:-}" = sweep ]; then sweep; else room; fi
