@@ -246,6 +246,46 @@ def test_a_module_imported_by_name_is_imported_by_the_module_that_imports_by_nam
     assert repo.selected(head) == ["testing/tests/test_beta.py", "testing/tests/test_tree.py"]
 
 
+LOADER = {
+    "src/reg/__init__.py": "",
+    "src/reg/kinds.py": (
+        "import importlib\n\n\nclass Kind:\n    pass\n\n\n"
+        "def found():\n    return importlib.import_module('reg.plug')\n"
+    ),
+    "src/reg/plug.py": "P = 1\n",
+    "src/reg/run.py": "from reg import kinds\n\nFOUND = kinds.found()\n",
+    "testing/tests/test_kind.py": "from reg.kinds import Kind\n",
+    "testing/tests/test_run.py": "import reg.run\n",
+    "testing/tests/test_calls.py": "from reg.kinds import found\n\n\ndef test_it():\n    found()\n",
+    "testing/tests/test_typed.py": (
+        "from typing import TYPE_CHECKING\n\nfrom reg.kinds import Kind\n\n"
+        "if TYPE_CHECKING:\n    from reg.plug import P\n"
+    ),
+}
+
+
+def test_a_module_imported_by_name_in_a_function_is_imported_only_where_that_function_is_called(
+    tmp_path,
+):
+    """`reg.kinds` imports `reg.plug` by name only inside `found`. A test that imports `Kind` from
+    it never runs `found`, so a change to `reg.plug` does not reach it. A test that calls `found`,
+    or imports a module that calls it on import, does run it."""
+    repo = Repo(tmp_path, files={**FILES, **LOADER})
+    head = repo.change(["src/reg/plug.py"])
+
+    selected = repo.selected(head)
+
+    assert {"testing/tests/test_run.py", "testing/tests/test_calls.py"} <= set(selected)
+    assert "testing/tests/test_kind.py" not in selected
+
+
+def test_an_import_only_a_type_checker_reads_selects_nothing(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **LOADER})
+    head = repo.change(["src/reg/plug.py"])
+
+    assert "testing/tests/test_typed.py" not in repo.selected(head)
+
+
 def test_a_test_that_runs_a_package_in_a_process_of_its_own_is_selected_by_a_change_to_it(repo):
     head = repo.change(["src/gamma/g.py"])
 
