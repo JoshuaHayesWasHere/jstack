@@ -136,25 +136,25 @@ def test_with_no_file_a_word_is_users_at_a_time_of_the_machines_zone_and_approve
 ):
     jstack_config.unlink()
     add(kitchen, "alpha", approve=False)
+    add(kitchen, "beta", approve=False)
     sha = sha12(brief("alpha"))
     at = f"2026-10-11 17:58 {word(datetime(2026, 10, 11, 17, 58))}"
-    say = ["word", "--to", "demo"]
-    assert kitchen.main(*say, "--by", "Robin", "--at", at, "go") == (
-        1,
-        "refused: only user gives a word, not Robin\n",
+    out = ["queue", "remove", "beta"]
+    assert kitchen.main(*out, "--by", "Robin", "--at", at)[1].startswith(
+        "refused: only user removes a row, on their own words: --by user, or --message "
     )
-    assert kitchen.main(*say, "--by", "user", "--at", "2026-10-11 17:58 Nowhere", "go") == (
+    assert kitchen.main(*out, "--by", "user", "--at", "2026-10-11 17:58 Nowhere") == (
         1,
         f'refused: --at is "<YYYY-MM-DD HH:MM {word(datetime(2026, 10, 11, 17, 58))}>"\n',
     )
-    kitchen.clock_reads(at)
-    code, said = kitchen.main(*say, "--by", "user", "--at", at, "go")
-    assert code == 0
+    code, said = kitchen.main("word", "--to", "demo", *kitchen.message("go"))
+    assert code == 0, said
     kept = said.split()[-1]
     assert kitchen.main("queue", "approve", "alpha", "--word", kept, "--sha", sha)[0] == 0
+    said_at = jsettings.DEFAULTS.stamp(NOW - timedelta(minutes=5))
     ran = jsettings.DEFAULTS.stamp(NOW)
     assert rows(kitchen)["alpha"]["approved"] == (
-        f"your word, {at} (time typed); run {ran} by the demo home"
+        f"your word, {said_at}, in chat; run {ran} by the demo home"
     )
     kitchen.poll()
     assert [launch["title"] for launch in kitchen.t3.launches] == ["crew: alpha"]
@@ -172,16 +172,14 @@ def test_a_config_that_names_robin_is_whom_jbus_takes_and_prints(kitchen, jstack
     kitchen.set("jmerge.txt", f"hold 286 {URL}: {why}\n")
     add(kitchen, "alpha", approve=False, depends="ps-agnostic")
     kitchen.clock_reads(AT)
-    say = ["word", "--to", "demo"]
-    assert kitchen.main(*say, "--by", "user", "--at", AT, "go") == (
-        1,
-        "refused: only Robin gives a word, not user\n",
+    assert kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", AT)[1].startswith(
+        "refused: only Robin removes a row, on their own words: --by Robin, or --message "
     )
-    kept = kitchen.main(*say, "--by", "Robin", "--at", AT, "go")[1].split()[-1]
+    kept = kitchen.main("word", "--to", "demo", *kitchen.message("go"))[1].split()[-1]
     built = brief("alpha", "Builds on: ps-agnostic\n")
     go = ["queue", "approve", "alpha", "--sha", sha12(built)]
     assert kitchen.main(*go, "--word", kept)[0] == 0
-    assert rows(kitchen)["alpha"]["approval"]["said_at"] == AT
+    assert rows(kitchen)["alpha"]["approval"]["said_at"] == "2026-10-12 10:55 ET"
     kitchen.poll()
     hand = (
         f"hand-merge #286 {URL}: {why}; {SAFE};"
@@ -340,15 +338,16 @@ def test_across_a_clock_change_the_refusal_names_the_word_the_time_typed_has(jst
     assert not user.takes("2026-11-01 02:30 EDT")
 
 
-def test_a_refused_word_asks_for_the_word_of_the_time_it_was_given(kitchen, jstack_config):
+def test_a_refused_time_asks_for_the_word_of_the_time_it_was_given(kitchen, jstack_config):
     jstack_config.write_text('timezone = "America/New_York"\n')
     kitchen.clock_reads("2026-12-01 10:00 EST")
-    go = ["word", "--to", "demo", "--by", "user"]
-    assert kitchen.main(*go, "--at", "2026-12-01 10:00 EDT", "go") == (
+    add(kitchen, "alpha", approve=False)
+    out = ["queue", "remove", "alpha", "--by", "user"]
+    assert kitchen.main(*out, "--at", "2026-12-01 10:00 EDT") == (
         1,
         'refused: --at is "<YYYY-MM-DD HH:MM EST>"\n',
     )
-    assert kitchen.main(*go, "--at", "2026-12-01 10:00 EST", "go")[0] == 0
+    assert kitchen.main(*out, "--at", "2026-12-01 10:00 EST")[0] == 0
 
 
 @pytest.mark.parametrize("given", ["0", "100.5", '"90"', "true", "-1"])
