@@ -829,7 +829,9 @@ def test_the_views_drop_in_is_written_from_the_config_and_follows_it(user):
     restart = "--user try-restart jbus-view.service"
     assert user.said(user.systemctl_log).count(restart) == 1
     user.systemctl_log.unlink()
-    user.run()
+    (user.units / "jbus-failed.service").unlink()
+    assert user.run() == (0, user.every("ok", units))
+    assert "--user daemon-reload" in user.said(user.systemctl_log)
     assert restart not in user.said(user.systemctl_log)
 
     user.write(config, 'server = "http://127.0.0.1:1"\n[view]\norigins = ["https://b.example"]\n')
