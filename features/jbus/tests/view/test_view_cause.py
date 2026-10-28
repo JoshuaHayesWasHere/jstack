@@ -173,10 +173,6 @@ def test_a_row_whose_checks_failed_says_so_while_its_newest_check_still_runs():
             Cause("needs a rebase by its crewmate: it conflicts with its base", ago(4), False),
         ),
         (
-            task("proof", "the guard needs a proof", ago(4)),
-            Cause("needs a proof from its reviewer: the guard needs a proof", ago(4), False),
-        ),
-        (
             task("hold", "needs Josh, touches CI", ago(7)),
             Cause("held for your word: needs Josh, touches CI", ago(7), False),
         ),

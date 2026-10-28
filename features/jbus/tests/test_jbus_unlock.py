@@ -122,12 +122,11 @@ def launched(kitchen):
 @pytest.mark.parametrize(
     "reason",
     [
-        CHANGED + ": it needs a rebase",
         CHANGED + ": it needs a fresh check",
         "its check fails on cccccccccccc over today's main",
         "it conflicts with its base",
     ],
-    ids=["guarded", "fresh", "fails over main", "conflict"],
+    ids=["fresh", "fails over main", "conflict"],
 )
 def test_a_stale_pull_request_tells_its_crew_to_rebase_with_a_backup_ref_and_a_lease(
     launched, reason
@@ -191,11 +190,10 @@ def test_a_new_head_that_conflicts_again_is_told_to_rebase_again_not_gated(launc
 @pytest.mark.parametrize(
     "reason",
     [
-        CHANGED + ": it needs a rebase",
         "make check fails on cccccccccccc over today's main bbbbbbbbbbbb",
         "it conflicts with its base",
     ],
-    ids=["guarded", "fails over main", "conflict"],
+    ids=["fails over main", "conflict"],
 )
 def test_a_real_conflict_or_failure_tells_the_crew_to_rebase(launched, reason):
     out(launched, reason=reason)

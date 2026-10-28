@@ -164,10 +164,6 @@ def _rebase(task: dict[str, Any], now: datetime) -> Cause:
     return Cause(f"needs a rebase by its crewmate: {_say(task)}", task.get("since"), False)
 
 
-def _proof(task: dict[str, Any], now: datetime) -> Cause:
-    return Cause(f"needs a proof from its reviewer: {_say(task)}", task.get("since"), False)
-
-
 def _hold(task: dict[str, Any], now: datetime) -> Cause:
     return Cause(f"held for your word: {_say(task)}", task.get("since"), False)
 
@@ -187,7 +183,6 @@ WORDS: dict[str, Callable[[dict[str, Any], datetime], Cause]] = {
     "second": _second,
     "findings": _findings,
     "rebase": _rebase,
-    "proof": _proof,
     "hold": _hold,
 }
 

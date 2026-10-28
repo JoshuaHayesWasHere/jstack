@@ -298,7 +298,6 @@ TABLE = {
     "rereview": "quiet",
     "restack": "quiet",
     "drops": "quiet",
-    "proof": "quiet",
     "failed": "quiet",
     "conflict": "quiet",
     "refailed": "quiet",

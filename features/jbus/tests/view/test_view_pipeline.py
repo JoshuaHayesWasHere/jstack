@@ -249,7 +249,6 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
         ("pr", "findings", "fix"),
         ("pr", "second", "review2"),
         ("pr", "check", "check"),
-        ("pr", "proof", "merge"),
         ("pr", "rebase", "merge"),
         ("pr", "unknown", None),
     ],

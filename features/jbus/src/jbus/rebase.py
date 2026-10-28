@@ -31,10 +31,8 @@ line does. So the third kind ends in a scoped-review ask too: jbus asks the crew
 once per head, under `rereview|<slug>|<head 12>`. A head that already has that mark, or whose
 Result has a `Scoped reviewer:` line of it, is asked nothing more.
 
-`deliver` is the one function that sends these messages. `stall` calls `deliver` too, for a line
-that this module does not read: a guarded pull request with a fix that no review has proved
-(`unproven`), under the key `proof|<slug>|<head 12>`. `post` sends the message without writing the
-event, and `expedite` calls `post` and writes an event of its own.
+`deliver` is the one function that sends these messages. `post` sends the message without writing
+the event, and `expedite` calls `post` and writes an event of its own.
 
 Each of these messages names a head. jbus sends each message with `mode: queue`, so the crew reads
 the message in a separate turn, after its running turn ends. In two cases the crew would read the
@@ -101,7 +99,6 @@ EVENTS = {
     "rebase": "quiet",
     "rereview": "quiet",
     "drops": "quiet",
-    "proof": "quiet",
     "failed": "quiet",
     "conflict": "quiet",
     "refailed": "quiet",
@@ -137,10 +134,6 @@ REREVIEW = (
 UNRULED = (
     "jbus: your Result explains the lines the rebase of pull request #{number} dropped, and no "
     "scoped review has ruled on them yet ({command})."
-)
-UNPROVEN = (
-    "jbus: the fix you pushed to pull request #{number} has no review at its head, and jmerge "
-    "waits on it ({reason})."
 )
 SCOPED = (
     " If the Result already has a `Scoped reviewer:` line that names this head, launch nothing "
@@ -208,12 +201,6 @@ def content(line: str) -> tuple[int, str, Ask] | None:
             asked = _scoped(why.replace("{command}", named[1]), named[2], named[3])
             return int(found[1]), found[2], Ask("rereview", *asked, named[4])
     return None
-
-
-def unproven(old: str, new: str) -> Ask:
-    """Return the scoped review that jbus requests when no review has proved a fix. Its two ranges
-    are the patch up to the head that the last review saw and the patch up to the current head."""
-    return Ask("proof", *_scoped(UNPROVEN, old, new), new.rpartition("..")[2])
 
 
 def _scoped(why: str, old: str, new: str) -> tuple[str, str, str]:

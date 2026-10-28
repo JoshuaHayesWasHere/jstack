@@ -142,7 +142,6 @@ STEP_KEYS = [
     "findings",
     "second",
     "check",
-    "proof",
     "rebase",
     "hold",
     "merged",

@@ -61,7 +61,7 @@ def test_every_event_has_its_kind_s_loudness_and_only_one_for_the_chat_has_a_say
         "sign-in",
     ]
     assert wake.LOUDNESS["drops"] == "quiet" and wake.LOUDNESS["heartbeat"] == "quiet"
-    assert wake.LOUDNESS["stall"] == "quiet" and wake.LOUDNESS["proof"] == "quiet"
+    assert wake.LOUDNESS["stall"] == "quiet" and wake.LOUDNESS["rereview"] == "quiet"
     assert wake.LOUDNESS["gate"] == "quiet" and wake.LOUDNESS["waiting"] == "quiet"
     assert wake.LOUDNESS["merged"] == "quiet" and wake.LOUDNESS["condition"] == "quiet"
     assert wake.LOUDNESS["expedite"] == "quiet" and wake.LOUDNESS["waiting-on-user"] == "quiet"
@@ -193,7 +193,6 @@ def test_every_kind_jbus_sends_is_in_the_table_and_the_table_names_no_other():
         "rebase",
         "rereview",
         "drops",
-        "proof",
         "failed",
         "conflict",
         "refailed",

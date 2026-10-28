@@ -15,8 +15,8 @@ entry the line `jbus plan` prints for it (`plan.status`), so the bar and the wor
 
 Each row is a step of the chain, in the order its `depends` give, and among steps that depend on
 none of each other, the ones further along first. A step's mark is the group `state.RANK` puts
-the value the last pass judged in: `merged`, `working`, `waiting` (on a reviewer, a check or a
-proof), `queued`, `needs you`, or `stuck` (a thread hung or lost, a pull request closed, a state
+the value the last pass judged in: `merged`, `working`, `waiting` (on a reviewer or a
+check), `queued`, `needs you`, or `stuck` (a thread hung or lost, a pull request closed, a state
 no pass could work out). A step that waits on another row is `blocked`, and says on which. A row
 with no task is `merged` where the queue counts it as over, and `stuck` otherwise, as an unknown
 state is.

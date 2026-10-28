@@ -93,7 +93,6 @@ class Pull(StrEnum):
     FINDINGS = "findings"
     SECOND = "second"
     CHECK = "check"
-    PROOF = "proof"
     REBASE = "rebase"
     HOLD = "hold"
     OTHER = "other"
@@ -117,7 +116,6 @@ STEPPED = (
     Pull.FINDINGS,
     Pull.SECOND,
     Pull.CHECK,
-    Pull.PROOF,
     Pull.REBASE,
     Pull.HOLD,
 )
@@ -292,7 +290,6 @@ PATTERNS = (
     Pattern(
         "check", "Check", "ci", "the check runner", "check", thread=STILL, pull=_set(Pull.CHECK)
     ),
-    Pattern("proof", "Proof", "rev", "its reviewer", "proof", thread=STILL, pull=_set(Pull.PROOF)),
     Pattern(
         "rebase", "Rebase", "crew", "its crewmate", "rebase", thread=STILL, pull=_set(Pull.REBASE)
     ),

@@ -79,7 +79,6 @@ TEXT = {
     "review": ("waiting for a review", "waiting for a review"),
     "findings": ("with findings to handle", "with findings to handle"),
     "second": ("waiting for a second review", "waiting for a second review"),
-    "proof": ("waiting for a proof", "waiting for a proof"),
     "rebase": ("to rebase", "to rebase"),
     "scout": ("scouting", "scouting"),
     "failing": ("failing check", "failing checks"),
@@ -111,7 +110,6 @@ RANK = (
     "passed",
     NO_RUN,
     "stacked",
-    "proof",
     "rebase",
 )
 """The order of two groups as large: what waits on the user first, then the order of the
