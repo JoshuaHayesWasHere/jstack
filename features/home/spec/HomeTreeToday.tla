@@ -26,7 +26,7 @@ Calm(k) ==
 
 \* ---- a child's own steps
 
-\* Only the root home makes a scope, on the user's word (home/scoped-homes.md:56 `**Making a scope**
+\* Only the root home makes a scope, on the user's word (home/scoped-homes.md:57 `**Making a scope**
 \* is the root home's, and only on the user's word`).
 MakeChild(k) ==
     /\ k \in Made /\ life[k] = "unmade" /\ life' = Set(life, k, "working")
