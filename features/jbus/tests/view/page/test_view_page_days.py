@@ -3,8 +3,9 @@ phone's 390: four shots kept under `fixtures/jbus-view/shots/` as `day-<day>-<wi
 pictures each later change to the overview is shown by.
 
 The shots are the command's own, with the browser of these tests as its `chromium`, the fonts
-of `browser.FONTS` and the zone UTC. The page reads the server's clock, the scene's, so each draw
-of a day is the same. Each run compares the shot with the one kept, as `test_view_page_look.py`
+of `browser.FONTS` and the zone UTC. The page reads the server's clock, the scene's, and the
+machine's cores and test slots are pinned to a runner's 4 and 2, so each draw of a day is the
+same on any machine. Each run compares the shot with the one kept, as `test_view_page_look.py`
 does: by the share of its pixels that `moved`, on the browser that drew the kept ones only
 (`drawn_by`). `JSTACK_SHOTS=keep` writes them afresh, and a change that moves the overview runs
 this module that way and commits the shots with it. `JSTACK_SHOTS_OUT=<dir>` also writes each
@@ -22,7 +23,7 @@ from jbus import cli
 from view.days import DAYS
 from view.page.browser import CHROMIUM, FONTS, LAUNCH, PATIENCE
 from view.page.test_view_page_look import DRAWN_BY, MOVED, SHOTS, browser, drawn_by, moved
-from view.scene import Served
+from view.scene import Served, slots
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + 2 * (LAUNCH + 5) + 30)]
 
@@ -40,6 +41,8 @@ def test_view_shot_draws_the_overview_of_each_day_at_each_width(
     scene, tmp_path, monkeypatch, capsys, day, wide
 ):
     DAYS[day](scene)
+    slots(scene, monkeypatch, held=0, total=2)
+    monkeypatch.setattr(os, "cpu_count", lambda: 4)
     monkeypatch.setenv("TZ", "UTC")
     monkeypatch.setenv("FONTCONFIG_FILE", str(FONTS))
     monkeypatch.setenv("JBUS_STATE_DIR", str(scene.state_dir))
