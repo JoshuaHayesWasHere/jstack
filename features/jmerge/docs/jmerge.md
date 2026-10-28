@@ -490,6 +490,15 @@ The typed form, `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zo
 It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
 It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head.
+
+**A proven safety fact.**
+At the commit it saw, the review proved the one fact that makes the change safe.
+That proof is the `Proof:` line of the `## Review` section, a command that ended `exit 0`.
+The last review's proof carries over to a later head whose range-diff from the review's head is clean, in every review mode.
+That head can be a rebase, a `CI fix:` push, or a merge of the base into the branch, such as the one `jmerge` asks GitHub for when the base moved after the check started.
+It does not carry over a fix pushed for the review's findings, nor a merge of the base that changes the patch, since the range-diff of either is not clean.
+Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, review step 5)`.
+
 `--by` takes only the `user` of `~/.config/jstack/config.toml`, which is `user` when that file names none.
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` and the merge gate apply.
 `jmerge --accept <number> --check` says what it would do.

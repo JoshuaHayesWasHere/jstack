@@ -115,9 +115,9 @@ Merge(p) ==
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
     /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:139
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
-    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:1954
+    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:1958
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:370-378
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:369-377
     \* A merge_after row merges after its row.
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:250-253
     /\ st' = [st EXCEPT ![p] = "merged"]
@@ -183,10 +183,10 @@ BrowserFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:764, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:771, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:394-397, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:743, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:841, base not red
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:742, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:845, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
