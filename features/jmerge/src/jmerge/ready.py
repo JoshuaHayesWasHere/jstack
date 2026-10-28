@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import re
 import string
 from collections import Counter
@@ -290,7 +289,6 @@ _RULED = "{id}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
 _FRESH_SKIPPED = "fresh: skipped, tree {tree} passed in {at}, on {head} over {tip}"
-_RELATED_NOTE = "fresh: none, main changed related {paths}; no fresh-check file"
 
 
 @dataclass(frozen=True)
@@ -1173,67 +1171,6 @@ def stale_paths(
     return tuple(dict.fromkeys(stale))
 
 
-def modules(path: str) -> tuple[str, ...]:
-    if not path.endswith(".py"):
-        return ()
-    parts = path[: -len(".py")].split("/")
-    if parts[-1] == "__init__":
-        parts.pop()
-    if not parts:
-        return ()
-    return tuple(".".join(parts[start:]) for start in range(len(parts)))
-
-
-def imports(path: str, text: str) -> set[str]:
-    if not path.endswith(".py"):
-        return set()
-    try:
-        tree = ast.parse(text)
-    except (SyntaxError, ValueError):
-        return set()
-    package = path.endswith("/__init__.py") or path == "__init__.py"
-    full = modules(path)[:1]
-    homes = [name.split(".") if package else name.split(".")[:-1] for name in full]
-    loaded = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            named = [alias.name for alias in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                up = node.level - 1
-                bases = [home[: len(home) - up] for home in homes if len(home) >= up]
-                froms = [
-                    ".".join([*base, *(node.module or "").split(".")]).strip(".") for base in bases
-                ]
-            else:
-                froms = [node.module or ""]
-            named = [f"{base}.{alias.name}".strip(".") for base in froms for alias in node.names]
-            named += froms
-        else:
-            continue
-        for name in filter(None, named):
-            parts = name.split(".")
-            loaded.update(".".join(parts[:end]) for end in range(1, len(parts) + 1))
-    return loaded
-
-
-def uses(path: str, text: str, other: str) -> bool:
-    if other.endswith("conftest.py") and path.endswith(".py"):
-        if path.startswith(other[: -len("conftest.py")]):
-            return True
-    if "/" in other and other in text:
-        return True
-    return bool(imports(path, text) & set(modules(other)))
-
-
-def callers_and_dependencies(ours: dict[str, str], theirs: dict[str, str]) -> tuple[str, ...]:
-    return tuple(
-        path
-        for path, text in theirs.items()
-        if any(uses(path, text, own) or uses(own, ours[own], path) for own in ours)
-    )
-
-
 def short_on_main(
     stale: tuple[str, ...],
     since: datetime,
@@ -1247,10 +1184,6 @@ def short_on_main(
     paths = _first_five(stale)
     reason = MAIN_CHANGED_REBASE if rebase else MAIN_CHANGED
     return reason.format(default=default, paths=paths, since=user.clock(since))
-
-
-def related_note(stale: tuple[str, ...]) -> str:
-    return _RELATED_NOTE.format(paths=_first_five(stale))
 
 
 def _first_five(paths: tuple[str, ...]) -> str:
