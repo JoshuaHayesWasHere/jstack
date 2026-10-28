@@ -146,8 +146,8 @@ This page records the pool numbers and changes none of them.
 | A wake's quiet gap | `features/jbus/src/jbus/wake.py:76` | `GAP = 5 * 60` | Before this repo's history | A thread is not woken twice at once | Design choice | Kept |
 | A pass's command | `features/jbus/src/jbus/wake.py:78` | `COMMAND_TIMEOUT = 300` | #42 | A slow check never stops a pass | Design choice | Kept |
 | jmerge in a pass | `features/jbus/src/jbus/wake.py:79` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
-| jmerge's judge | `features/jmerge/src/jmerge/cli.py:58` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
-| Judged again | `features/jmerge/src/jmerge/cli.py:53` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
+| jmerge's judge | `features/jmerge/src/jmerge/cli.py:59` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
+| Judged again | `features/jmerge/src/jmerge/cli.py:54` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
 | Rows that share files | `features/jbus/src/jbus/dispatch.py:67` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
 | A failover's items | `features/jbus/src/jbus/failover.py:44` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `features/jbus/src/jbus/threads.py:119` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
@@ -156,7 +156,7 @@ This page records the pool numbers and changes none of them.
 | Passes before an expedite | `features/jbus/src/jbus/expedite.py:81` | `AFTER = 3` | Before this repo's history | A crew is told what to do | Design choice | Kept |
 | A woken waiter's claim on a slot | `features/jgauge/src/jgauge/waiters.py:48` | `HOLDS = timedelta(minutes=10)` | #70 | A woken thread has its slot kept for it, and loses the claim if it does not come | Design choice: a turn takes up to a few minutes to come back | Kept |
 | A wait no thread came back for | `features/jgauge/src/jgauge/waiters.py:49` | `FORGOTTEN = timedelta(hours=1)` | #70 | A dead waiter does not hold its place in the queue | Design choice | Kept |
-| GitHub's file list | `features/jmerge/src/jmerge/ready.py:140` | `UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")` | #2, and jmerge-all-files for the full read | No merge with files nobody saw: `gh pr list` lists at most 100, so jmerge reads the rest from GitHub's files endpoint, which lists at most 3000, and holds only past that or when the read fails | GitHub's limit, not the machine's | Moved: from 100 files to 3000 |
+| GitHub's file list | `features/jmerge/src/jmerge/ready.py:206` | `UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")` | #2, and jmerge-all-files for the full read | No merge with files nobody saw: `gh pr list` lists at most 100, so jmerge reads the rest from GitHub's files endpoint, which lists at most 3000, and holds only past that or when the read fails | GitHub's limit, not the machine's | Moved: from 100 files to 3000 |
 | The heavy-suite lock | `~/.local/state/locks/heavy-suite.lock` | One at a time | Before this repo's history | A heavy suite runs alone on the machine | Design choice | Kept |
 | The browser lock | `~/.local/state/locks/browser.lock` | One at a time | Before this repo's history | One browser test at a time | Design choice | Kept |
 
