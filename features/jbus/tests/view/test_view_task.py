@@ -663,3 +663,16 @@ def test_a_drawer_off_the_check_step_keeps_what_it_waits_on_at_its_head(scene, s
         "by": "jmerge",
         "say": "it has no review yet",
     }
+
+
+def test_a_drawer_whose_state_is_not_jmerge_s_keeps_its_own_say_at_its_head(scene, served):
+    why = "wait: it has no review yet"
+    lost = row("owe-entry", "pr", pr="#13", why=why, value="lost", facts={"thread": "failed"})
+    scene.queue([lost])
+    scene.merge_log(logged(30, "wait", 13, "it has no review yet"))
+    found = tasks(served.json("/state.json?project=demo"))["owe-entry"]
+    assert (found["state"]["name"], found["state"]["say"]) == (
+        "Lost",
+        "its thread ended early and wrote nothing back",
+    )
+    assert found["now"] is None
