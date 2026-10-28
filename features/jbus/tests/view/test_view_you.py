@@ -306,6 +306,22 @@ def test_a_retired_scopes_gates_wait_on_nobody_and_a_file_gate_stands_until_its_
     ]
 
 
+def test_a_file_gate_that_holds_for_a_door_is_a_need_and_not_a_gate_that_takes_its_default(
+    scene, served
+):
+    """A gate of a home's file whose `Holds:` line names a door waits for the user as a question
+    jbus holds that holds does: it is a need with that door as its risk, whatever its default,
+    and it does not go ahead on its default."""
+    (scene.home / "gates.md").write_text(
+        GATE.format(n=40, asked="drop the old tables?", status="open", default="drop them")
+        + "Holds: deletes data\nFail-safe: the dump of the tables, in the plan\n"
+    )
+    stack = served.json("/stack.json")
+    assert stack["proceeds"] == []
+    (need,) = [one for one in stack["needs"] if one["what"] == "drop the old tables?"]
+    assert (need["kind"], need["risk"]) == ("gate", "deletes data")
+
+
 def test_a_hold_no_thread_works_on_is_a_need_of_the_user_s(scene, served):
     """A hold that woke its home (`clock.held`) is on Needs you, with its rows and reason."""
     line = "held one, two: 31 minutes by main is red at abcdef123456, its fix merges first"
