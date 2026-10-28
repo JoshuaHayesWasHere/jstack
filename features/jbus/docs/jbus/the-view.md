@@ -102,7 +102,7 @@ A project's card or line opens its page, `#/<project>`, which has nothing else o
 | Needs you | The project's queue, as above. |
 | In progress | One row for each open task that is not in Needs you, and one for each scout or reviewer thread with no task. A task in Needs you is drawn there only. One table sorts the rows (`RANK` in `features/jbus/src/jbus/view/state.py`): what is broken first, then what waits on you, then what works, then what waits on others, then what is queued. A row says the slug, its state in words, who holds it, and its age. A chip appears only for what is wrong or waiting: a thread hung or quiet, a failed check, a task behind another task, or a task not confirmed since a time. One click on the heading shows the queue as a flow. |
 | Merged | The count of today's merges, and a closed list of them. |
-| Health | One line, each part a link to its drawer. It says "All well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
+| Health | One line, each part a link to its drawer. It says "jbus well" and the time of the last pass, or names each thing that is broken. The line also shows the threads out and the blind spots, and names the rows the view cannot place. |
 
 A project with child homes draws In progress under one heading per home, the root first and then each child home by name.
 Each heading gives the home's open tasks and what of it waits on you, and a child home with nothing open is that heading alone.

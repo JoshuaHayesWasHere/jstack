@@ -169,7 +169,7 @@ class Machine:
     ("thread", "route", "png"),
     [
         (ROOT, "#/", "jview-flow-demo-root.png"),
-        (SCOPED, "#/?home=jview", "jview-flow-demo-jview.png"),
+        (SCOPED, "#/?home=demo/jview", "jview-flow-demo-jview.png"),
     ],
 )
 def test_a_status_reply_names_the_boards_headlines_and_ends_with_its_picture_and_link(
@@ -188,7 +188,7 @@ def test_a_status_reply_names_the_boards_headlines_and_ends_with_its_picture_and
 
 def test_with_no_view_running_the_reply_carries_the_link_alone(tmp_path, no_view):
     machine = Machine(tmp_path)
-    assert machine.status(no_view, SCOPED, NO_VIEW="1") == [f"{no_view}/#/?home=jview"]
+    assert machine.status(no_view, SCOPED, NO_VIEW="1") == [f"{no_view}/#/?home=demo/jview"]
     assert len(machine.asked()) == 1
 
 

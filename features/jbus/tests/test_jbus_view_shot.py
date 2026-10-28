@@ -81,3 +81,28 @@ def test_a_chromium_that_draws_no_png_leaves_the_out_as_it_was(
     code, said = shot(capsys, "#/", "--out", str(out), "--port", str(served.port))
     assert (code, said) == (1, "no shot: chromium wrote no PNG (exit 0)")
     assert out.read_bytes() == b"the last shot"
+
+
+@pytest.mark.parametrize(
+    ("route", "home", "asked"),
+    [
+        ("#/?stage=crew", "jview", "#/?stage=crew&home=demo/jview"),
+        ("#/?stage=crew", "other/x", "#/?stage=crew&home=other/x"),
+        ("#/", "jview", "#/?home=demo/jview"),
+    ],
+)
+def test_a_home_is_named_by_its_project_and_home(
+    served, kitchen, tmp_path, monkeypatch, route, home, asked
+):
+    fake = tmp_path / "fake"
+    fake.mkdir()
+    pages = tmp_path / "pages"
+    (fake / "chromium").write_text(f'#!/bin/sh\nfor page; do :; done\necho "$page" >> {pages}\n')
+    (fake / "chromium").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}:/usr/bin:/bin")
+    out = tmp_path / "shot.png"
+    code, _ = kitchen.main(
+        "view-shot", route, "--home", home, "--out", str(out), "--port", str(served.port)
+    )
+    assert code == 1
+    assert pages.read_text() == f"http://127.0.0.1:{served.port}/{asked}\n"

@@ -99,3 +99,140 @@ def test_a_launch_on_a_capped_pool_registers_this_thread_to_be_woken(tmp_path, m
     assert main(words[5:], now=now) == 75
     (wait,) = waits.read(waits.where())
     assert (wait.thread, wait.role, wait.until) == ("mcp:the-crew", "review", until.isoformat())
+
+
+def printed(tmp_path, roles, pass_, message="<message>", thread="mcp:the-crew"):
+    """What the launch block of "The review" prints in a crew's worktree on the branch `alpha`,
+    with `jroles` reading the role map `roles`: the real `jroles`, which `uv run` would start."""
+    import sys
+
+    from crew_helpers import block
+
+    main, work = tmp_path / "main", tmp_path / "trees" / "alpha"
+    subprocess.run(["git", "init", "-q", "-b", "main", main], check=True)
+    git = ["git", "-C", main, "-c", "user.name=t", "-c", "user.email=t@example.test"]
+    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "start"], check=True)
+    subprocess.run([*git, "worktree", "add", "-q", "-b", "alpha", work], check=True)
+    stub = tmp_path / "stub"
+    stub.mkdir()
+    (stub / "uv").write_text(f'#!/bin/sh\nshift 4\nexec {sys.executable} -m jroles "$@"\n')
+    (stub / "uv").chmod(0o755)
+    config = tmp_path / "config" / "jstack"
+    config.mkdir(parents=True)
+    if roles is not None:
+        (config / "roles").write_text(roles)
+    script = (
+        block("The review", "workspaceStrategy")
+        .replace("<slug>", "alpha")
+        .replace("<thread id>", thread)
+        .replace("<pass>", pass_)
+        .replace("<message>", message)
+    )
+    ran = subprocess.run(
+        ["sh", "-c", script],
+        capture_output=True,
+        text=True,
+        cwd=work,
+        env={
+            **os.environ,
+            "PATH": f"{stub}:{os.environ['PATH']}",
+            "PYTHONPATH": os.pathsep.join(sys.path),
+            "XDG_CONFIG_HOME": str(tmp_path / "config"),
+            "LIMITS": str(tmp_path / "state" / "limits"),
+            "T": str(assembled() / "templates"),
+        },
+        check=True,
+    )
+    return work, ran.stdout.splitlines()
+
+
+def launched(tmp_path, roles, pass_, message="<message>"):
+    """The `t3_thread_launch` calls the launch block prints, each as its arguments."""
+    import json
+
+    work, lines = printed(tmp_path, roles, pass_, message)
+    assert all(line.startswith("launch: ") for line in lines), lines
+    return work, [json.loads(line.removeprefix("launch: ")) for line in lines]
+
+
+TWO = (
+    "review: claudeAgent claude-sonnet-5-5 claudeAgent effort=medium\nreview: codex gpt-5.5 codex\n"
+)
+
+
+def test_each_reviewer_is_launched_in_the_crews_own_worktree_and_branch(tmp_path):
+    """Reviewers launched with no `workspaceStrategy` opened in the main checkout and refused to
+    run (cleanup-ux-inbox-pr, 2026-10-26): every call the block prints carries it."""
+    work, calls = launched(tmp_path, TWO, "first")
+    assert [call["title"] for call in calls] == ["review: alpha, 1", "review: alpha, 2"]
+    assert [call["message"] for call in calls] == [
+        "/pr-review run alpha 1",
+        "/pr-review run alpha 2",
+    ]
+    for call in calls:
+        assert call["workspaceStrategy"] == {
+            "type": "existing_worktree",
+            "worktreePath": str(work),
+            "branch": "alpha",
+        }
+    assert [call["modelSelection"]["model"] for call in calls] == ["claude-sonnet-5-5", "gpt-5.5"]
+
+
+def test_a_map_with_no_review_line_gives_one_call_that_inherits_the_model(tmp_path):
+    work, (call,) = launched(tmp_path, None, "first")
+    assert call == {
+        "title": "review: alpha, 1",
+        "workspaceStrategy": {
+            "type": "existing_worktree",
+            "worktreePath": str(work),
+            "branch": "alpha",
+        },
+        "message": "/pr-review run alpha 1",
+    }
+
+
+@pytest.mark.parametrize(
+    ("pass_", "title", "message"),
+    [
+        ("second", "review: alpha, second pass", "/pr-review run alpha again"),
+        ("scoped", "review: alpha, scoped", "/pr-review run alpha scoped a..b c..d"),
+    ],
+)
+def test_a_second_or_scoped_pass_is_one_reviewer_in_the_same_worktree(
+    tmp_path, pass_, title, message
+):
+    work, (call,) = launched(tmp_path, TWO, pass_, "/pr-review run alpha scoped a..b c..d")
+    assert (call["title"], call["message"]) == (title, message)
+    assert call["workspaceStrategy"]["worktreePath"] == str(work)
+    assert call["modelSelection"]["model"] == "claude-sonnet-5-5"
+
+
+def test_a_scoped_pass_with_no_message_launches_nothing(tmp_path):
+    _, lines = printed(tmp_path, TWO, "scoped")
+    assert len(lines) == 1 and lines[0].startswith("not filled in: "), lines
+
+
+def test_a_launch_with_no_thread_id_launches_nothing_and_registers_no_waiter(tmp_path):
+    """Left unfilled, a capped pool would register a waiter named `<thread id>`, whose wake
+    goes to no thread, so the crew's turn would never resume: the block runs no `jroles`."""
+    _, lines = printed(tmp_path, TWO, "first", thread="<thread id>")
+    assert len(lines) == 1 and lines[0].startswith("not filled in: "), lines
+    assert "<thread id>" in lines[0], lines
+    assert not (tmp_path / "state" / "limits").exists()
+
+
+def test_a_capped_pool_prints_capped_and_no_launch(tmp_path, monkeypatch):
+    """The block's exit-75 branch: jroles registers the thread and makes no selection, and the
+    block says so, which is what ends the crew's turn until `jbus poll` wakes it."""
+    from datetime import UTC, datetime, timedelta
+
+    from jroles import ledger
+
+    monkeypatch.setenv("LIMITS", str(tmp_path / "state" / "limits"))
+    until = datetime.now(UTC) + timedelta(hours=2)
+    one = "review: claudeAgent claude-sonnet-5-5 claudeAgent_claude_prime effort=medium\n"
+    ledger.write(
+        ledger.Record("claudeAgent_claude_prime", "five_hour", ledger.FULL, int(until.timestamp()))
+    )
+    _, lines = printed(tmp_path, one, "first")
+    assert lines == ["capped: launch nothing and add no Reviewer: line"], lines

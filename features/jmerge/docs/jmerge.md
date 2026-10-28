@@ -349,6 +349,9 @@ A check that a repo requires before its workflow reaches the base gets no run at
 When that is all that holds the pull request, it merges cleanly, and its base has moved since its check started, `jmerge` asks GitHub to merge the base into the branch, as for a green pull request whose base moved.
 The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`, asked once for a head and a base tip, and GitHub runs the base's workflows at the new head.
 With the base unmoved, the line stays `<check> has no run at <head12>`: that is no wait on the merge runner, so jbus wakes the home once it is held longer than `clock.HOLD_MINUTES` (`features/jbus/src/jbus/clock.py`).
+A check that waits on other jobs of its workflow, as `check` waits on its four shards, is not listed at the head until they end.
+While GitHub runs a job of the workflow of the check's name there, the line is `<check>'s run at <head12> is running`, or `is queued` while they all wait, and not `has no run`.
+That is a wait on the merge runner, and no base merge is asked for it (merge-wait-1, 2026-10-28: #610 read `check has no run at ebd54cb4de4e` while its shards ran).
 
 ## Merge gate
 

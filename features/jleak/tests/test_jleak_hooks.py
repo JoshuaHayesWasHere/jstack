@@ -408,3 +408,24 @@ def test_what_the_hook_cannot_read_is_refused_only_when_it_may_be_a_command_it_c
     for given, code in (("gh pr create {", 2), ("not json", 0)):
         done = subprocess.run(["sh", str(COMMAND)], input=given, capture_output=True, text=True)
         assert done.returncode == code, given
+
+
+CROWS = "gh pr view 12  # the crew's pull request"
+
+
+def test_a_home_path_in_a_block_it_reads_whole_is_refused_with_the_fix(patterns):
+    """A pr-review block that starts with a `cd` to the worktree, as on 2026-10-20: a quote the
+    hook cannot close makes it read the block whole, and the refusal says what to change."""
+    patterns.write_text("[patterns]\nhome-path = '/home/someone(?![\\w-])'\n")
+    code, said = hook(f"cd /home/someone/worktrees/a-task\n{CROWS}")
+    assert code == 2
+    assert said[0] == "command:1: home-path"
+    assert said[1].startswith("jleak: 1 finding, so the command is refused: drop the cd line")
+    assert "`~` or `$HOME`" in said[1], said
+    assert hook(CROWS) == (0, [])
+
+
+def test_a_finding_that_is_not_a_home_path_keeps_the_plain_fix(patterns):
+    patterns.write_text(f"[patterns]\nhome-path = '/home/someone'\ncodename = '{WORD}'\n")
+    code, said = hook(f"cd /home/someone/wt\n{CROWS}\necho {WORD}")
+    assert code == 2 and said[-1] == REFUSED.replace("1 finding", "2 findings"), said

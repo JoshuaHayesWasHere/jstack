@@ -7,7 +7,8 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `gate`: an open question that jbus holds (`questions`), with `source` `jbus` and a line that says
   `question <n>`, which is the number that `jbus answer` takes. A `gate` is also an open gate in the
   home's `gates.md` or in a scoped home's, with its `number`, `question`, `default`, the `home` it
-  is in (nothing for the repo's own) and the `slug` that asked. When jbus holds a gate from a
+  is in (nothing for the repo's own), the `slug` that asked and what its `Holds:` line
+  says. When jbus holds a gate from a
   `gates.md` as a question, open or closed, the item is that question, and this module skips the
   copy of the gate in the file;
 - `row`: a row of the queue at `gate` that has no open pull request, with its `slug`. The line is
@@ -264,6 +265,7 @@ def gates(
                 "default": below.line(body, "Default:"),
                 "home": where,
                 "slug": mirror.asker(body),
+                "holds": below.line(body, "Holds:"),
             }
         )
     found += [questions.item(one, why(one)) for one in held if one.answer is None]
