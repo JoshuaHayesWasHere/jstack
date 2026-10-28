@@ -64,10 +64,6 @@ function needAct(w) {
   return '<button type="button" class="btn fill" data-form="' + esc(id) + '" aria-description="Opens a box for your own answer to question ' + esc(needNumber(w)) + '">Answer&hellip;</button>';
 }
 function saysNow(now) { return ACT_SAYS[now.w.act]; }
-/* An approve need drawn outside the project's list (the front rail, Triage, the drawer of what
-   waits) is its needAct in a holder keyed by the need, and a link to its drawer beside it.
-   `acted` paints every holder and every box of what was said from ACCEPTING, so a countdown
-   started in one place shows the same wherever the need is drawn. */
 function approvesHere(w) { return !!w && w.act === "approve" && acts(w); }
 function actHere(w) { return '<span class="ah" data-act="' + esc(needId(w)) + '">' + needAct(w) + '</span>'; }
 function saidHere() { return '<div class="ah-said" data-said role="status">' + saidRows() + '</div>'; }
@@ -312,8 +308,6 @@ function youRail() {
     youFoot([rows.length > shown.length ? '<a href="#/triage">+' + (rows.length - shown.length) + ' more in Triage</a>' : "",
       soon ? '<span title="' + falls(STACK).replace(/<[^>]*>/g, "") + '">' + defaultLine(STACK) + '</span>' : ""]) + '</section>';
 }
-/* The control of a row of the rail or of Triage: an approval it approves where it is, with a
-   link to its drawer; any other row, and a batch of approvals, opens where it is done. */
 function needGo(r, fill) {
   if (approvesHere(r.need)) return '<span class="rl-a">' + actHere(r.need) + '<a class="rl-d" data-details href="' + esc(r.href) + '" aria-label="Details of ' + esc(r.subj) + '">Details</a></span>';
   return '<a class="btn' + (fill ? " fill" : "") + '" href="' + esc(r.href) + '">' + esc(r.verb) + '</a>';
