@@ -392,10 +392,10 @@ def read(tree):
     words of its string constants, where it imports by name (`by_name`), the names of its
     functions' arguments, the paths it spells, its read set, the dotted names it names through
     its imports, and those imports (`bound`). A name no import binds may come from a star import,
-    so it is named under each module the module star-imports. An import in an
-    `if TYPE_CHECKING:` is no import: it never runs. A string
-    that is a `folder` of a chain of `/` is spelled with the chain, and not as a path of its own:
-    the `jbus` of `home / ".config" / "jbus"` is a folder, not the package run in a process."""
+    so it is named under each module the module star-imports. An import in an `if TYPE_CHECKING:`
+    is no import: it never runs. A string that is a `folder` of a chain of `/` is spelled with the
+    chain, and not as a path of its own: the `jbus` of `home / ".config" / "jbus"` is a folder,
+    not the package run in a process."""
     names, words, args, paths, calls = set(), set(), set(), set(), set()
     checked = {
         id(one)
