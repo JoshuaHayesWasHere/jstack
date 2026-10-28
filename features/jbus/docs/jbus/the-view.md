@@ -33,9 +33,24 @@ From the top, the board has these parts, under the line of what waits on you:
 | Part | What it shows |
 |---|---|
 | Headlines | Most stuck: the stage with the most rows not moving, and its oldest such row with its cause. Waiting longest: the row not moving for the longest, its stage and its cause. Longest chain: how deep it is, how many chains there are, and its head with the head's stage and cause. |
-| Stages | A strip with each stage's count, its oldest age and a bar of its rows not moving. The stages are Scout, Queued, Crew, Needs you, Review, Fix, Review 2, Check, Stacked, Merge and Merged (today's), and a pull request on the step check that merges after its parent row is in Stacked, not Check, whatever its own checks say; each row in Check or Stacked carries its `wait`, failing, waiting, passed or stacked, and a row merged into an integration branch counts there as one merged into the default branch does. Needs you holds the rows jbus's list of what waits on you names, and counts every need of that list, the count every Needs-you widget gives; a gate on its default stays in Crew, and a hold jbus does not list is in Merge. |
+| Stages | A strip with each stage's count, its oldest age and a bar of its rows not moving. The stages are Scout, Queued, Crew, Needs you, Review, Fix, Review 2, Check, Stacked, Merge and Merged (today's), and a pull request on the step check that merges after its parent row is in Stacked, not Check, whatever its own checks say; each row on the step check carries its `wait`, failing, waiting, passed or stacked, in Needs you too, and a row merged into an integration branch counts there as one merged into the default branch does. Needs you holds the rows jbus's list of what waits on you names, and counts every need of that list, the count every Needs-you widget gives; a gate on its default stays in Crew, and a hold jbus does not list is in Merge. |
 | Home chips | A chip for each home with its count, and "Not moving only". They filter the cards, and the choice is kept in the address: `#/?home=<home>&still=1`. |
 | Cards | A column for each stage, the most stuck one outlined, with a card for each row: its slug, home, age and cause, and an amber edge when it is not moving. Picking a card marks what it waits on and what waits on it, back to the head, links them over the columns and dims the rest; the pick is kept as `pick=<slug>`, and Esc clears it. On a phone each stage is a fold with its count and oldest age, the most stuck one open. |
+
+Over the board, the band at a glance leads with the verdict: one word, drawn large, and its exact cause, from one rule (`judge` in `features/jbus/src/jbus/view/verdict.py`).
+The rule groups the rows that do not move by what each waits on: its check's outcome, the head it is behind, or else the value the last pass judged.
+The word is the first of these that holds:
+
+| Word | When |
+|---|---|
+| CANNOT SEE | jbus is stopped or its passes fail, a source the view reads cannot be read, or CI could not be read; the cause is that line. |
+| HELD BY YOU | The largest group of rows that do not move waits on you, in Needs you or behind a head that is; the cause names those groups, then what else slows the work. |
+| STALLED | Rows are open, nothing merged in the last 3 hours and nothing was done in the last 30 minutes. |
+| MOVING | Rows are open otherwise; the cause names the largest groups of rows that do not move. |
+| AT REST | Nothing is open. |
+
+Under the word, the band says how many things need you whenever that is not 0, the same count as `/stack.json`'s `needs`.
+`/stack.json` has the verdict as `glance.verdict`, with its `word`, its `cause`, the `groups` it counted, `needs`, and `quiet_since`, the time of the last act or merge once none came in 30 minutes.
 
 The header's Homes tab, `#/homes`, shows every project as a map of each project and its homes.
 From the top, it has these parts:
