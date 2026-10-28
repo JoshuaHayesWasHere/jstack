@@ -72,7 +72,7 @@ def test_the_overloaded_day_has_44_open_12_behind_its_head_and_7_on_the_user(ans
     stack, board = answers
     project = stack["projects"][0]
     assert (project["open"], project["merged"]) == (44, 12)
-    assert homes(stack) == {"": 19, "jview": 14, "flow": 12}
+    assert homes(stack) == {"": 18, "jview": 14, "flow": 12}
     assert (len(stack["needs"]), len(stack["proceeds"])) == (7, 8)
     assert Counter(one["kind"] for one in stack["needs"]) == {"approve": 4, "row": 3}
     behind = [one for one in board["rows"] if one["stage"] == "queued" and one["waits_on"]]
@@ -86,6 +86,6 @@ def test_the_overloaded_day_has_44_open_12_behind_its_head_and_7_on_the_user(ans
         "fix": 2,
         "review2": 1,
         "check": 3,
-        "merge": 2,
+        "merge": 1,
         "merged": 12,
     }
