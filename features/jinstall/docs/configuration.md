@@ -41,7 +41,7 @@ go_quiet_minutes = 30
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
-| `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by`, `jbus word --by` and `jbus answer --by` take. It is also the user whose own T3 Code message `--message` must name, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
+| `user` | `user` | The one name that `jmerge --accept --by`, `jbus queue remove --by` and `jbus answer --by` take. It is also the user whose own T3 Code message `--message` must name, as `jbus word --message` always does, and the name in `hold <number> <url>: needs <user>, <why>`. | `jmerge`, `jbus` |
 | `timezone` | The machine's own zone | The zone of every time the commands print and take. It is an IANA name, such as `Europe/Berlin`. | `jmerge`, `jbus`, `jinstall --doctor` |
 | `timezone_label` | The zone's abbreviation at the time printed, such as `CEST` | The word that follows a time in a printed line and in `--at`. The docs write it as `<zone>`. | `jmerge`, `jbus` |
 | `headroom` | `90` | The share of a usage window, in percent, at which a new launch counts a provider instance as full and goes to the next instance of its pool. At the same share, `jgauge room` waits ([jroles](../../jroles/docs/jroles.md#the-ledger)). A thread already running moves only at a real cap, 100. The value is a number over 0 and up to 100. | `jroles`, `jbus`, `jgauge room` |

@@ -397,11 +397,11 @@ def planned(scene):
     )
 
 
-def desk(scene, tmp_path, screen=DESK, **how):
+def desk(scene, tmp_path, screen=DESK, script=OVERVIEW, **how):
     """What the probe of the desk overview, `OVERVIEW`, read of `#/`: each part with its box, its
     words and what in it is cut, once every part has drawn."""
     seen = look(
-        scene, tmp_path, route="#/", screen=screen, script=OVERVIEW, at=8000, budget=12000, **how
+        scene, tmp_path, route="#/", screen=screen, script=script, at=8000, budget=12000, **how
     )
     assert seen["errors"] == []
     assert seen["scrollWidth"] == screen[0]
@@ -562,6 +562,27 @@ def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scen
     assert [one["text"] for one in legend] == [HL_BAR[one["cls"]] for one in legend], legend
     paints = [one["paint"] for one in legend]
     assert len(set(paints)) == len(paints) and "rgba(0, 0, 0, 0) none" not in paints, legend
+
+
+LATE_BOARD = """
+window.fetch = (function (fetch) {
+  return function (path, how) {
+    if (String(path).indexOf("/panel/pipeline.json") !== 0) return fetch(path, how);
+    var later = new Promise(function (done) { setTimeout(done, 2000); });
+    return later.then(function () { return fetch(path, how); });
+  };
+})(window.fetch);
+"""
+"""The page's `/panel/pipeline.json` answers 2 s after it is asked, so every other part of the
+overview has answered while the board is still being asked."""
+
+
+def test_on_a_phone_the_probe_waits_for_every_home_when_the_board_answers_last(scene, tmp_path):
+    """With the board the last to answer, the phone's probe still reads Every home with a line
+    for each home, and not the empty part drawn before the board came."""
+    DAYS["t"](scene)
+    seen = desk(scene, tmp_path, screen=PHONE, script=LATE_BOARD + OVERVIEW)
+    assert [one["home"] for one in seen["homes"]] == ["root", "jview", "flow", "macos"]
 
 
 @pytest.mark.parametrize("day", list(DAYS))

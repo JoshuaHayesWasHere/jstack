@@ -1,4 +1,4 @@
-"""`act`: the one way a party gives a go or an answer, and the log of every act, `acts.jsonl`.
+"""`act`: the one way a party acts on jbus's state, and the log of every act, `acts.jsonl`.
 
 The command line's `jbus queue approve` and `jbus answer`, and the bot's route, `POST /act` on
 jbus view, each call `act` with the `party.Party` that acts, the `party.Action` and the
@@ -17,8 +17,16 @@ the act's id and its `subject`, so the feed (`jbus.feed`) gives events and acts 
 - An answer to a gate that holds, from a party the door does not open for, is `refused`, and
   the gate stays open.
 
+Every other verb (`party.Verb`) is given by its caller as `does`, which does the verb and returns
+its line, or raises `Refused`: `queue hold`, `remove` and `withdraw`, a word, the view's go of a
+work item, and `jmerge --accept`. `act` checks it as it checks a go, the event `seen` and the
+doors the caller found, and a door the party may not open parks the gate `parked` names and does
+nothing (`gated`). Only an accept has doors: the brief's `Holds:` lines and a protected path.
+
 Acts are taken one at a time, under `acts.lock`: `queue.lock` and `questions.lock` are taken by
-the verbs themselves, and an act holds them only through those verbs.
+the verbs themselves, and an act holds them only through those verbs. A `does` runs outside
+`acts.lock`, so a merge does not hold every other act back, and it never takes an act itself:
+`locked` takes a lock a second time in one process by waiting on it forever.
 """
 
 from __future__ import annotations
@@ -30,7 +38,8 @@ import json
 import os
 import secrets
 import sys
-from dataclasses import asdict, replace
+from collections.abc import Callable
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -93,28 +102,86 @@ def _write(state: Path, made: Act) -> None:
         os.close(handle)
 
 
+@dataclass(frozen=True)
+class Parked:
+    """The gate a verb given as `does` waits on when its door does not open for the party: the
+    question, what happens on no answer, how the user gives the word that does it, and what is
+    kept."""
+
+    question: str
+    default: str
+    given: str
+    fail_safe: str
+
+
 def act(
     run: Pass,
     who: Party,
     action: Action,
     said: Evidence,
     *,
+    does: Callable[[], str] | None = None,
+    parked: Parked | None = None,
     asks: queue.Asks | None = None,
     follows: str = "",
     keeps: bool = False,
     where: str = "",
     ran_by: dict[str, str] | None = None,
+    id: str = "",
 ) -> Act:
     """Take one act and log it. Return the act; a refused one raises `Refused` with its line,
     once it is logged. `follows` is the parent of a go by the follow-up rule, `keeps` says an
     answer is the default, and `where` is where an answer was given. A go needs `asks`, which
-    `queue.go` takes."""
+    `queue.go` takes. Any verb but a go and an answer is done by `does`, and one with doors
+    names the gate it parks, `parked`. `id` is the act's own id where the verb keeps one (a
+    word's), else the hash of the act."""
+    if action.verb not in ("go", "answer"):
+        return _done(run, who, action, said, does, parked, id)
     with locked(run.state, LOCK):
         if action.verb == "go":
             action, outcome, line, gate = _go(run, asks, who, action, said, follows, ran_by)
         else:
             action, outcome, line, gate = _answer(run, who, action, said, keeps, where)
         made = logged(run, who, action, said, outcome, line, gate)
+    if outcome == "refused":
+        raise Refused(line)
+    return made
+
+
+def _done(
+    run: Pass,
+    who: Party,
+    action: Action,
+    said: Evidence,
+    does: Callable[[], str] | None,
+    parked: Parked | None,
+    id: str,
+) -> Act:
+    """Take an act whose verb `does` does: refused when stale, gated on a door the party may not
+    open, else done or refused by the verb itself, which runs with no lock of this module's."""
+    with locked(run.state, LOCK):
+        stale = _stale(run, action.subject, action.seen)
+        if stale or does is None:
+            line = stale or f"refused: {action.verb} was given nothing to do it with"
+            logged(run, who, action, said, "refused", line, id=id)
+            raise Refused(line)
+        if action.doors and not party.opens(who, said):
+            if parked is None:
+                line = f"refused: {action.verb} {action.subject} holds and names no gate"
+                logged(run, who, action, said, "refused", line, id=id)
+                raise Refused(line)
+            number = _parked(run, who, action, said, parked)
+            line = (
+                f"gated {action.verb} {action.subject}: it holds for {', '.join(action.doors)}, "
+                f"so it waits for {run.user.user}'s own word: question {number}"
+            )
+            return logged(run, who, action, said, "gated", line, number, id=id)
+    try:
+        line, outcome = does(), "done"
+    except Refused as error:
+        line, outcome = str(error), "refused"
+    with locked(run.state, LOCK):
+        made = logged(run, who, action, said, outcome, line, id=id)  # type: ignore[arg-type]
     if outcome == "refused":
         raise Refused(line)
     return made
@@ -128,14 +195,17 @@ def logged(
     outcome: party.Outcome,
     line: str,
     gate: int | None = None,
+    *,
+    id: str = "",
 ) -> Act:
     """Append one act to the log, as it came out, and return it. The caller holds the lock, or
-    logs what a batch did (`queue apply`)."""
+    logs what a batch did (`queue apply`). `id` is the act's own id where the verb keeps one,
+    else the hash of the act."""
     at = jsettings.stamp(run.now)
     body = {"at": at, "party": asdict(who), "action": asdict(action), "line": line}
     body["evidence"] = asdict(said)
     made = Act(
-        id=hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16],
+        id=id or hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16],
         at=at,
         party=who,
         action=action,
@@ -277,6 +347,32 @@ def _park(run: Pass, who: Party, action: Action, said: Evidence) -> int:
     return one.number
 
 
+def _parked(run: Pass, who: Party, action: Action, said: Evidence, parked: Parked) -> int:
+    """Park the gate a verb on a door waits on, as `_park` does a go's, and return its number."""
+    case, *rest = action.doors
+    also = f"; it holds for {', '.join(rest)} too" if rest else ""
+    user = run.user.user
+    lines = "\n".join(
+        (
+            f"## Gate <n>: {parked.question}",
+            "Status: open",
+            f"Asked by: {action.subject}, by the {who.kind}'s {action.verb}",
+            f"Default: {parked.default}",
+            f"Built on it: nothing, since the {action.verb} was not done",
+            f"Undo: nothing to undo; {parked.given}",
+            f"Holds: {case}",
+            f"Fail-safe: {parked.fail_safe}",
+            f"Context: the {who.kind} acted on {said.source} {said.ref or said.words}, and a "
+            f"door opens only on {user}'s own word that jbus reads in T3 Code or on a Lavish "
+            f"page{also}",
+            f"Option: wait (default, recommended): {parked.default}",
+            f"Option: {action.verb}: {parked.given}",
+        )
+    )
+    one, _ = questions.park(run, action.subject, lines)
+    return one.number
+
+
 def is_bot(state_dir: Path, authorization: str) -> bool:
     """Whether a request is the bot's: its `Authorization` header is `Bearer <key>`, and the
     key's sha256 is the one `jbus bot key` kept in jbus's state. This is the one test of who
@@ -371,10 +467,87 @@ def go(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
     return act(run, who, action, said, asks=asks, follows=follows)
 
 
+OWN = {"t3-message": "message", "lavish-page": "page"}
+"""The options of the user's own words, which jbus reads itself, that a verb on a row takes."""
+REMOVE_BY = (
+    "refused: only {user} removes a row, on their own words: --by {user}, or --message "
+    "<thread>/<message> or --page <session>/<entry>, not {by}; a home takes out a row of its own "
+    "that never launched with jbus queue withdraw"
+)
+REMOVE_WORDS = (
+    "refused: remove takes the user's own words, one of --message <thread>/<message>, --page "
+    "<session>/<entry>, or --by <user> with --at"
+)
+
+
+def own(args: argparse.Namespace, asks: queue.Asks, words: str, run: Pass) -> Evidence:
+    """The evidence a verb on a row rests on: the user's words that `--evidence` names, read now,
+    or else the command's own words, typed now by whoever runs it."""
+    given = given_evidence(args, OWN)
+    if given:
+        ((name, ref),) = given.items()
+        return read_evidence(asks, Evidence(party.SOURCE[name], ref))  # type: ignore[arg-type]
+    return Evidence("typed", "", words, run.user.stamp(run.now))
+
+
+def hold(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
+    """`jbus queue hold` as an act: no door, so any party holds a row."""
+    said = own(args, asks, f"hold {args.slug}", run)
+    who = cli_party(args, said)
+    held = Action("hold", args.slug)
+    return act(run, who, held, said, does=lambda: queue.hold(run.state, args.slug))
+
+
+def withdraw(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
+    """`jbus queue withdraw` as an act, its words the reason it gives."""
+    said = own(args, asks, args.why, run)
+    who = cli_party(args, said)
+    at, by = run.user.stamp(queue.clock()), queue.who(queue.runner())
+    slug = args.slug
+    return act(
+        run,
+        who,
+        Action("withdraw", slug),
+        said,
+        does=lambda: queue.withdraw(run.state, slug, args.why, at, by, asks),
+    )
+
+
+def remove(args: argparse.Namespace, run: Pass, asks: queue.Asks) -> Act:
+    """`jbus queue remove` as an act: on the user's message or page, read now, or on the words
+    typed with `--by` and `--at`. Only the user's own words remove a row, and the act of any
+    other `--by` is refused and logged."""
+    given = vars(args) | given_evidence(args, OWN)
+    named = [name for name in OWN.values() if given.get(name)]
+    typed = given.get("by") is not None or given.get("at") is not None
+    if len(named) + typed != 1:
+        raise Refused(REMOVE_WORDS)
+    slug, user = args.slug, run.user.user
+    if named:
+        (name,) = named
+        source = next(one for one, option in OWN.items() if option == name)
+        said = read_evidence(asks, Evidence(source, given[name]))  # type: ignore[arg-type]
+        by, at = user, said.said_at
+    else:
+        by, at = given.get("by") or "", given.get("at") or ""
+        said = Evidence("typed", "", f"remove {slug}", at)
+    who = cli_party(args, said)
+
+    def does() -> str:
+        if by != user:
+            raise Refused(REMOVE_BY.format(user=user, by=by or "nobody"))
+        if not said.checked:
+            verbs.typed_at(run.user, at)
+        return queue.remove(run.state, slug, by, at, asks)
+
+    return act(run, who, Action("remove", slug), said, does=does)
+
+
 def batch(run: Pass, asks: queue.Asks, args: argparse.Namespace, text: str) -> list[str]:
     """`jbus queue apply` with its approve lines as acts: a go on a brief that holds, the one
     stored or one the batch adds, is refused in a batch, since its door is checked by
-    `jbus queue approve` alone, and each go the batch made is logged once the batch is done."""
+    `jbus queue approve` alone, and so is a remove that is not on the user's own words. Each
+    go, hold and remove the batch made is logged once the batch is done."""
     kind = getattr(args, "as_", None) or "home"
     if kind != "home":
         raise Refused(f"refused: --as {kind}: a batch acts as the home, and nothing was applied")
@@ -392,13 +565,34 @@ def batch(run: Pass, asks: queue.Asks, args: argparse.Namespace, text: str) -> l
                 f"{', '.join(held)}, so its go goes by jbus queue approve alone, and nothing in "
                 "the batch was applied"
             )
+    for verb in lines:
+        if isinstance(verb, queue.Remove):
+            if verb.by != run.user.user:
+                said = REMOVE_BY.format(user=run.user.user, by=verb.by).removeprefix("refused: ")
+                raise Refused(
+                    f"refused: remove {verb.slug} in a batch: {said}, and nothing in the batch "
+                    "was applied"
+                )
+            verbs.typed_at(run.user, verb.at)
     with locked(run.state, LOCK):
         said = queue.apply(run.state, text, run.user, asks)
-        for verb in gos:
-            source = party.SOURCE[verb.basis]
-            line = next((one for one in said if one.startswith(f"approved {verb.slug}:")), "")
-            action = Action("go", verb.slug, verb.given)
-            logged(run, party.HOME, action, Evidence(source, verb.ref), "done", line)  # type: ignore[arg-type]
+        for verb in lines:
+            if isinstance(verb, queue.Approve):
+                source = party.SOURCE[verb.basis]
+                done = f"approved {verb.slug}:"
+                action, evidence = Action("go", verb.slug, verb.given), Evidence(source, verb.ref)  # type: ignore[arg-type]
+            elif isinstance(verb, queue.Hold):
+                done = f"held {verb.slug}"
+                action = Action("hold", verb.slug)
+                evidence = Evidence("typed", "", f"hold {verb.slug}", run.user.stamp(run.now))
+            elif isinstance(verb, queue.Remove):
+                done = f"removed {verb.slug}:"
+                action = Action("remove", verb.slug)
+                evidence = Evidence("typed", "", f"remove {verb.slug}", verb.at)
+            else:
+                continue
+            line = next((one for one in said if one.startswith(done)), "")
+            logged(run, party.HOME, action, evidence, "done", line)
     return said
 
 

@@ -1,5 +1,6 @@
-"""`jbus word` sends the user's word to a home. jbus keeps the word, sends it once to the thread in
-the home's `home-id`, and puts it in no wake.
+"""`jbus word` sends the user's word to a home. jbus keeps the word as an act, sends it once to the
+thread in the home's `home-id`, and puts it in no wake. The word is the user's own message, read
+from T3 Code: a word typed with `--by` and `--at` is not taken.
 
 Every test runs the real command and the real pass against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
@@ -11,13 +12,12 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import passes, wake, word
-from test_jbus_kitchen import NOW, sends
+from jbus import acts, party, passes, t3, wake, word
+from test_jbus_kitchen import NOW, iso, sends
 
 AT = "2026-10-12 10:55 ET"
 WORDS = "hold every merge until I say"
-SAID = ("--by", "user", "--at", AT, "hold", "every", "merge", "until", "I", "say")
-ID = "fb958f86caaf"
+ID = "9e0a0bcb94dd"
 
 
 def thread(digit):
@@ -26,19 +26,30 @@ def thread(digit):
 
 
 HOME, WAS, CREW, NOBODY = thread("a"), thread("b"), thread("c"), thread("0")
-OTHER = "39c1c8882b2f"
+CHAT, REF = thread("e"), f"{thread('e')}/m-word"
+SAID = ("--message", REF)
+
+
+@pytest.fixture(autouse=True)
+def said(kitchen):
+    """The user said WORDS at AT, in a thread of theirs that is no home's."""
+    kitchen.t3.says(CHAT, "m-word", WORDS, updatedAt=iso(NOW - timedelta(minutes=5)), title="chat")
+
+
+OTHER = "caeb11cd4f1b"
 MESSAGE = (
     "jbus: this is user's own word, said 2026-10-12 10:55 ET and carried to this home by "
     "jbus. Take it as said by user in this thread. It answers no open question, and nothing "
-    "is sent back for it. It is word fb958f86caaf: a row it approves is approved with --word "
-    "fb958f86caaf.\n\nhold every merge until I say"
+    "is sent back for it. It is word 9e0a0bcb94dd: a row it approves is approved with --word "
+    "9e0a0bcb94dd.\n\nhold every merge until I say"
 )
 
 
 def logged(kitchen, project="demo"):
+    """The project's events but its acts, which `acts.jsonl` holds and these tests read there."""
     code, out = kitchen.main("--project", project, "events")
     assert code == 0
-    return [json.loads(line) for line in out.splitlines()]
+    return [one for one in map(json.loads, out.splitlines()) if one["event"] != acts.KIND]
 
 
 def decide(kitchen):
@@ -113,8 +124,8 @@ def test_all_sends_it_once_to_each_projects_home(kitchen):
 
 
 def kept_not_posted(kitchen, why, project="demo", thread="home-1", name=ID):
-    """Return what the command says of a word it kept and posted to nobody, and the record it
-    left."""
+    """Return what the command says of a word it kept and posted to nobody. Its act alone says
+    it went to its home's thread: `word-sends.json` need not hold it."""
     (one,) = [each for each in word.load(kitchen.state) if each.id == name]
     assert one.thread == thread and one.sent_at and one.waits == ""
     return f"kept: {project}, not posted, {why}, word {name}\n"
@@ -140,6 +151,7 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
     )
     assert event["word"] == {"words": WORDS, "by": "user", "at": event["word"]["at"], "to": ""}
     assert word.basis(kitchen.state, kept.id).words == WORDS
+    assert not word.path(kitchen.state).exists()
 
 
 def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
@@ -157,6 +169,7 @@ def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
             kitchen, f"it was recorded by this project's home thread {HOME}", thread=HOME
         ),
     )
+    assert not word.path(kitchen.state).exists()
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == [] and kitchen.wakes.posts == []
 
@@ -221,7 +234,7 @@ def test_a_from_that_is_not_a_thread_id_is_refused_and_nothing_is_kept_or_sent(k
         1,
         f'refused: --from is a T3 Code thread id, mcp:<uuid>, not "{given}"\n',
     )
-    assert not (kitchen.state / "words.json").exists()
+    assert word.load(kitchen.state) == []
     assert [tool for tool, _ in kitchen.t3.calls if tool == "t3_thread_send"] == []
 
 
@@ -231,13 +244,21 @@ def test_a_from_that_names_a_thread_t3_code_does_not_have_is_refused(kitchen):
         1,
         f"refused: --from {NOBODY} is no thread of T3 Code, and not this home's\n",
     )
-    assert not (kitchen.state / "words.json").exists()
+    assert word.load(kitchen.state) == []
     assert [tool for tool, _ in kitchen.t3.calls if tool == "t3_thread_send"] == []
 
 
 def test_a_from_t3_code_gives_no_answer_about_goes_on_the_shape_alone_and_says_so(kitchen):
+    """T3 Code gives the user's message, and no answer on the thread of `--from`."""
     (kitchen.home / "home-id").write_text(f"{HOME}\n")
-    kitchen.t3.lose_read = True
+    read = t3.Client.call
+
+    def lossy(client, tool, given):
+        if tool == "t3_thread_read" and not given.get("itemId"):
+            raise t3.T3Error("no answer")
+        return read(client, tool, given)
+
+    kitchen.monkeypatch.setattr(t3.Client, "call", lossy)
     assert kitchen.main("word", "--to", "demo", "--from", NOBODY, *SAID) == (
         0,
         f"unchecked: --from {NOBODY} has the shape of a thread id, and T3 Code gave no answer "
@@ -265,8 +286,8 @@ def test_a_word_for_a_home_with_no_home_id_waits_and_goes_on_the_pass_after_its_
     assert kitchen.main("word", "--to", "demo", *SAID) == (0, f"waits: demo, {why}, word {ID}\n")
     kitchen.poll()
     assert sends(kitchen) == []
-    (kept,) = jbus.read_json(kitchen.state / "words.json", None)
-    assert (kept["words"], kept["by"], kept["at"], kept["sent_at"]) == (WORDS, "user", AT, "")
+    (kept,) = word.load(kitchen.state)
+    assert (kept.words, kept.by, kept.at, kept.sent_at) == (WORDS, "home/cli", AT, "")
     assert [one["line"] for one in logged(kitchen)] == [f"word demo: waits, {why}"]
     (kitchen.home / "home-id").write_text("home-1\n")
     assert "word demo: sent to home-1" in kitchen.poll(NOW + timedelta(minutes=5))
@@ -317,7 +338,8 @@ def test_a_word_a_pass_sent_meanwhile_is_not_written_back_as_waiting(kitchen):
     (kitchen.home / "home-id").write_text("home-1\n")
     config = jbus.load()
     run = passes.Pass(config, config.project("demo"), NOW, lambda _: None)
-    held = word.keep(run, WORDS, "user", AT)
+    heard = party.Evidence("t3-message", REF, WORDS, AT, "chat", True)
+    held = word.keep(run, party.HOME, heard)
     assert "word demo: sent to home-1" in kitchen.poll()
     assert word._change(run, held, waits=word.NO_ANSWER) is False
     assert word._change(run, held, thread="home-2", sent_at="later", waits="") is False
@@ -330,52 +352,72 @@ def test_a_word_a_pass_sent_meanwhile_is_not_written_back_as_waiting(kitchen):
     )
 
 
-@pytest.mark.parametrize("text", ["not json", '[{"id": "a", "nope": 1}]'], ids=["text", "field"])
+@pytest.mark.parametrize("text", ["not json", '[{"id": "a", "nope": 1}]'], ids=["text", "list"])
 def test_a_words_file_that_does_not_parse_is_a_gate_and_the_rest_of_the_pass_runs(kitchen, text):
     kitchen.state.mkdir(parents=True, exist_ok=True)
-    (kitchen.state / "words.json").write_text(text)
+    word.path(kitchen.state).write_text(text)
     said = kitchen.poll()
-    assert kitchen.lines("condition") == ["condition demo: words.json does not parse"]
+    assert kitchen.lines("condition") == ["condition demo: word-sends.json does not parse"]
     assert not [line for line in said if line.startswith(("pass failed", "wait: crews out"))]
     assert (
         jbus.read_json(kitchen.state / "wake.json", {})["began"] is True
         and kitchen.status()["projects"]["demo"]["last_error"] == ""
     )
-    assert (kitchen.state / "words.json").read_text() == text
+    assert word.path(kitchen.state).read_text() == text
     code, out = kitchen.main("word", "--to", "demo", *SAID)
-    assert code == 1 and "words.json does not parse, and nothing writes it" in out
+    assert code == 1 and "word-sends.json " in out and "nothing writes it" in out
 
 
 def test_a_word_with_no_sign_in_waits_for_a_pass_that_has_one(kitchen):
+    """A word the view keeps needs no read of T3 Code, and waits while jbus is not signed in."""
     (kitchen.home / "home-id").write_text("home-1\n")
-    token = kitchen.config_dir / "t3.json"
-    stored = token.read_text()
-    kitchen.write(token, "{}")
-    said = f"waits: demo, jbus is not signed in to T3 Code, word {ID}\n"
-    assert kitchen.main("word", "--to", "demo", *SAID) == (0, said)
-    kitchen.write(token, stored)
+    config = jbus.load()
+    run = passes.Pass(config, config.project("demo"), NOW, lambda _: None)
+    held = word.keep(run, party.Party("user", "view"), party.Evidence("view", "", WORDS, AT))
+    word.deliver(run, None)
+    said = f"waits: demo, jbus is not signed in to T3 Code, word {held.id}"
+    assert word.line(run, held) == said
     assert "word demo: sent to home-1" in kitchen.poll()
 
 
 @pytest.mark.parametrize(
     ("argv", "says"),
     [
-        (["--to", "demo", "--by", "Chef", "--at", AT, "go"], "only user gives a word, not Chef"),
-        (
-            ["--to", "demo", "--by", "user", "--at", "today", "go"],
-            '--at is "<YYYY-MM-DD HH:MM ET>"',
-        ),
-        (["--to", "demo", "--by", "user", "--at", AT, " "], "a word has the user's words"),
-        (["--to", "nope", "--by", "user", "--at", AT, "go"], "no project nope, have demo"),
+        (["--to", "demo"], word.TYPED.removeprefix("refused: ")),
+        (["--to", "demo", "--message", f"{CHAT}/m-blank"], f"message {CHAT}/m-blank has no words"),
+        (["--to", "nope", *SAID], "no project nope, have demo"),
     ],
-    ids=["not-the-user", "no-time", "no-words", "no-such-project"],
+    ids=["no-message", "no-words", "no-such-project"],
 )
 def test_what_is_not_the_users_word_for_a_project_is_refused_and_nothing_is_kept(
     kitchen, argv, says
 ):
     (kitchen.home / "home-id").write_text("home-1\n")
+    kitchen.t3.says(CHAT, "m-blank", " ")
     assert kitchen.main("word", *argv) == (1, f"refused: {says}\n")
-    assert not (kitchen.state / "words.json").exists() and sends(kitchen) == []
+    assert word.load(kitchen.state) == [] and sends(kitchen) == []
+
+
+def test_a_word_typed_with_by_and_at_is_no_longer_taken(kitchen):
+    """Only the user's own message is a word: `--by` and `--at` are gone."""
+    code, out = kitchen.main("word", "--to", "demo", "--by", "user", "--at", AT, "go")
+    assert code == 2 and "unrecognized arguments: --by user --at" in out
+    assert word.load(kitchen.state) == [] and sends(kitchen) == []
+
+
+def test_a_word_is_an_act_kept_once_with_the_users_message_as_its_evidence(kitchen):
+    (kitchen.home / "home-id").write_text("home-1\n")
+    kitchen.main("word", "--to", "demo", *SAID)
+    kitchen.main("word", "--to", "demo", *SAID)
+    (one,) = [each for each in acts.read(kitchen.state) if each["action"]["verb"] == "word"]
+    assert (one["id"], one["party"]["kind"], one["outcome"], one["line"]) == (
+        ID,
+        "home",
+        "done",
+        "kept",
+    )
+    assert (one["evidence"]["source"], one["evidence"]["ref"]) == ("t3-message", REF)
+    assert one["evidence"]["checked"] is True
 
 
 def test_a_word_names_one_project_or_all_and_not_both(kitchen):
@@ -388,9 +430,9 @@ def test_all_passes_over_a_project_whose_words_file_does_not_parse(kitchen):
     (kitchen.home / "home-id").write_text("home-1\n")
     (side.home / "home-id").write_text("home-2\n")
     kitchen.state.mkdir(parents=True, exist_ok=True)
-    (kitchen.state / "words.json").write_text("not json")
+    word.path(kitchen.state).write_text("not json")
     code, out = kitchen.main("word", "--all", *SAID)
-    refused = f"refused: {kitchen.state / 'words.json'} does not parse, and nothing writes it"
+    refused = f"refused: {word.path(kitchen.state)} does not parse, and nothing writes it"
     assert (code, out) == (1, f"{refused}\nsent: other, to home-2, word {OTHER}\n")
     assert [one["threadId"] for one in sends(kitchen)] == ["home-2"]
 
@@ -399,8 +441,7 @@ def test_a_word_sent_whose_record_was_not_written_goes_again_under_the_same_key(
     """The run stopped after T3 Code said yes and before the command wrote `sent_at`."""
     (kitchen.home / "home-id").write_text("home-1\n")
     kitchen.main("word", "--to", "demo", *SAID)
-    (kept,) = jbus.read_json(kitchen.state / "words.json", None)
-    jbus.write_json(kitchen.state / "words.json", [{**kept, "thread": "", "sent_at": ""}])
+    word._write(kitchen.state, {ID: {"thread": "", "sent_at": "", "waits": ""}})
     assert "word demo: sent to home-1" in kitchen.poll()
     assert [one["clientRequestId"] for one in sends(kitchen)] == [f"word|demo|{ID}|home-1"] * 2
     assert list(kitchen.t3.messages) == [f"word|demo|{ID}|home-1"]

@@ -15,7 +15,7 @@ import jsettings
 from jbus import acts, item, party, questions, queue, waiting, wake
 from jbus import view as jview
 from jbus.view import state as view_state
-from test_jbus_kitchen import ASK, Kitchen
+from test_jbus_kitchen import ASK, SAID, Kitchen
 from test_jbus_queue import add, adds, approves, batch, brief, rows, sha12
 from view.scene import free_port
 
@@ -88,7 +88,8 @@ def route(kitchen):
 
 
 def logged(kitchen):
-    return acts.read(kitchen.state)
+    """Every act but the kitchen's word, which `kitchen.word` keeps for the gos to rest on."""
+    return [one for one in acts.read(kitchen.state) if one["id"] != SAID]
 
 
 def stored(kitchen, slug):

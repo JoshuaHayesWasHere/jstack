@@ -7,12 +7,14 @@ from datetime import timedelta
 import pytest
 
 import jsettings
-from jbus import questions, queue, view
+from jbus import acts, questions, queue, view
 from jroles import ledger
 from test_jbus_kitchen import GATE as PIPED
 from test_jbus_kitchen import NOW as POLLED
 from test_jbus_kitchen import Kitchen
 from view.scene import EVIL, NOW, PANTRY, PROXIED, Served, ago, asks, et, iso, kept
+
+HOLDING = "Holds: publishes\nFail-safe: the dry run of the post, in the plan\n"
 
 
 def test_another_method_is_405(served):
@@ -147,6 +149,27 @@ def test_a_second_write_to_a_question_is_refused_with_the_first_answer(scene, se
     assert (refused["first"]["words"], refused["first"]["keeps"]) == ("the first one", True)
     assert refused["first"]["line"] == first
     assert kept(scene.state)[number].answer.words == "the first one"
+
+
+def test_each_answer_of_the_view_is_an_act_and_one_to_a_gate_that_holds_is_refused(scene, served):
+    """The view is the user over a page jbus does not read, so its words open no door."""
+    number = asks(scene)
+    assert served.write({"numbers": [number]})[0] == 200
+    lines = PIPED.format(n="<n>", asked="post the menu?", status="open", slug="jam-jar")
+    held = questions.ask(scene.state, scene.home, "jam-jar", lines + HOLDING, NOW)[0].number
+    status, said = served.write({"numbers": [held]})
+    (refused,) = said["refused"]
+    assert (status, refused["say"]) == (
+        409,
+        f"Question {held} did not close: question {held} holds (publishes): only user's own "
+        "word, read in T3 Code or on a Lavish page, answers it, so it stays open.",
+    )
+    assert kept(scene.state)[held].answer is None
+    logged = [
+        (one["action"]["subject"], one["party"]["route"], one["evidence"]["source"], one["outcome"])
+        for one in acts.read(scene.state)
+    ]
+    assert logged == [(str(number), "view", "view", "done"), (str(held), "view", "view", "refused")]
 
 
 def test_three_are_closed_in_one_request_and_one_answered_already_is_said_by_number(scene, served):

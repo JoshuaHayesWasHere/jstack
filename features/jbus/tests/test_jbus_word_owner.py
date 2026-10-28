@@ -15,12 +15,12 @@ from datetime import timedelta
 import pytest
 
 from jbus import word
-from test_jbus_kitchen import NOW, Kitchen, complete, sends
+from test_jbus_kitchen import NOW, Kitchen, complete, iso, sends
 from test_jbus_word import AT, thread
 
 ROOT, FLOW, NEXT, CREW, VIEW = thread("a"), thread("f"), thread("e"), thread("c"), thread("d")
+CHAT = thread("9")
 SCOPE, OTHER = "flow", "view"
-SAID = ("--by", "user", "--at", AT)
 
 
 @pytest.fixture
@@ -41,7 +41,11 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def says(kitchen, *words, more=()):
-    return kitchen.main("word", "--to", "demo", *SAID, *more, *words)
+    """The user says the words in a thread of theirs that is no home's, and a home records them."""
+    message = f"m{len(kitchen.t3.said)}"
+    at = iso(NOW - timedelta(minutes=5))
+    kitchen.t3.says(CHAT, message, " ".join(words), updatedAt=at, title="chat")
+    return kitchen.main("word", "--to", "demo", "--message", f"{CHAT}/{message}", *more)
 
 
 def to(kitchen):
@@ -133,7 +137,6 @@ def test_a_word_said_in_a_scoped_homes_thread_stays_in_that_scope(kitchen):
 def test_the_same_word_recorded_by_the_root_is_the_roots(kitchen):
     code, out = says(kitchen, "show", "me", "the", "board", more=("--from", ROOT))
     assert (code, out.startswith("kept: demo, not posted, it was recorded by ")) == (0, True)
-    assert "went to the root home" not in out
     (kept,) = word.load(kitchen.state)
     assert (kept.home, kept.thread) == ("", ROOT)
 
@@ -149,12 +152,9 @@ def test_a_scoped_homes_word_that_names_the_roots_slug_goes_to_the_root(kitchen)
     assert to(kitchen) == [ROOT]
 
 
-def test_a_word_from_no_home_that_falls_to_the_root_says_so(kitchen):
-    code, out = says(kitchen, "show", "me", "the", "board")
-    assert code == 0
+def test_a_word_said_in_no_homes_thread_that_names_no_home_goes_to_the_root(kitchen):
+    assert says(kitchen, "show", "me", "the", "board")[0] == 0
     assert to(kitchen) == [ROOT]
-    assert "went to the root home" in out
-    assert "went to the root home" not in says(kitchen, "fix", "fl-statechart")[1]
 
 
 def test_a_scoped_homes_word_waits_for_its_home_and_not_for_the_root(kitchen):
@@ -279,11 +279,11 @@ def test_a_scope_that_holds_the_word_by_any_path_is_not_sent_it_again(three):
     ("argv", "refused"),
     [
         (("--scope", "nowhere"), "refused: --scope nowhere is no scoped home of demo"),
-        (("--scope", "flow", *SAID, "typed", "words"), "refused: --scope carries the user's own"),
+        (("--scope", "flow"), word.TYPED),
     ],
 )
 def test_a_word_to_no_scope_or_with_no_message_of_the_users_is_refused(three, argv, refused):
-    if "--by" in argv:
+    if argv == ("--scope", "flow"):
         code, out = three.main("word", "--to", "demo", *argv)
     else:
         code, out = scoped(three, *argv)
@@ -291,14 +291,11 @@ def test_a_word_to_no_scope_or_with_no_message_of_the_users_is_refused(three, ar
     assert word.load(three.state) == []
 
 
-def test_a_word_kept_for_a_records_wake_before_goes_on_the_next_pass(three):
-    """A `words.json` from before holds a scoped word with `via` and no `sent_at`, which the wake
-    for a home's records once carried. The file still parses, and a pass sends the word to its
-    home as it sends any other."""
+def test_the_file_of_words_kept_before_words_were_acts_is_not_read(three):
+    """A word the old file kept and never sent is no word now: the home says it again with
+    `jbus word --message`."""
     old = {"id": "a1b2c3d4e5f6", "words": ASKED, "by": "user", "at": AT, "kept_at": AT}
     three.state.mkdir(parents=True, exist_ok=True)
-    word.path(three.state).write_text(json.dumps([old | {"home": "macos", "via": "records"}]))
+    (three.state / "words.json").write_text(json.dumps([old | {"home": "macos"}]))
     three.poll()
-    assert wakes(three) == [MAC]
-    (kept,) = word.load(three.state)
-    assert (kept.thread, bool(kept.sent_at)) == (MAC, True)
+    assert wakes(three) == [] and word.load(three.state) == []

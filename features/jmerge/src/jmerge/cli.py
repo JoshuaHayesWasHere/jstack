@@ -24,6 +24,7 @@ from jbriefs import home as home_rule
 from jbriefs import parse
 from jbus.watch import failed_in
 from jmerge import (
+    accepts,
     checks,
     claims,
     follow,
@@ -1170,7 +1171,11 @@ class Repo:
         when: str | None,
         say: Callable[[str], None],
         check: bool,
+        acting: accepts.Acting | None = None,
     ) -> int:
+        """Lift the hold of `one` and merge it, the user's hand-merge. With `acting`, the accept
+        is an act of jbus's (`jmerge.accepts`): a door the party may not open parks a gate and
+        merges nothing. `check` says what it would do, and is no act."""
         about = f"{one.number} {one.url}"
         first = self.waits(one, default)
         if first.verb != "hold":
@@ -1202,13 +1207,32 @@ class Repo:
             notes = [f"accepted: {why}", safe]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
             return 0
-        say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
-        said = self.merge(one, found.slug, found.note, found.judged)
-        say(said)
-        if not said.startswith("merged "):
-            return 1
-        self.holds_are({n: head for n, head in self.holds().items() if n != str(one.number)})
-        return 0
+        ran: list[str] = []
+
+        def does() -> str:
+            ran.append(one.head)
+            say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
+            said = self.merge(one, found.slug, found.note, found.judged)
+            say(said)
+            if not said.startswith("merged "):
+                raise jbus.Refused(said)
+            self.holds_are({n: head for n, head in self.holds().items() if n != str(one.number)})
+            return said
+
+        if acting is None:
+            try:
+                does()
+            except jbus.Refused:
+                return 1
+            return 0
+        touched = bool(ready.guarded_path(one, self.protected, self.left(one) or ()))
+        held = accepts.doors(text, touched)
+        outcome, line = accepts.accept(acting, one.number, found.slug, one.head, held, does)
+        if outcome == "done":
+            return 0
+        if not ran:
+            say(line)
+        return 1
 
     def clear_up(self, branch: str, head: str) -> str:
         tree = at = ""
@@ -1822,7 +1846,8 @@ def parser() -> argparse.ArgumentParser:
         "--accept",
         metavar="NUMBER",
         help="lift the hold of this pull request at its current head and merge it: the "
-        "user's hand-merge, with --by and --at; with --check alone, say what it would do",
+        "user's hand-merge, on --message or on --by and --at, taken as an act of jbus's; with "
+        "--check alone, say what it would do",
     )
     top.add_argument(
         "--base",
@@ -1842,6 +1867,20 @@ def parser() -> argparse.ArgumentParser:
     )
     top.add_argument(
         "--at", metavar="WHEN", help='with --accept: when it was said, "YYYY-MM-DD HH:MM ZONE"'
+    )
+    top.add_argument(
+        "--message",
+        metavar="THREAD/MESSAGE",
+        help="with --accept: the user's own message in T3 Code, which jbus reads, in place of "
+        "--by and --at",
+    )
+    top.add_argument(
+        "--as",
+        dest="as_",
+        choices=("home", "user"),
+        default="home",
+        help="with --accept: the party that accepts, a home (default) or the user, who acts on "
+        "a --message alone",
     )
     top.add_argument(
         "--land",
@@ -1882,16 +1921,19 @@ def main(argv: list[str] | None = None) -> int:
         user = jsettings.load()
     except jsettings.Invalid as error:
         raise SystemExit(f"jmerge: {error}") from None
-    if args.accept is None and (args.by or args.at):
-        raise SystemExit("jmerge: --by and --at go with --accept")
+    if args.accept is None and (args.by or args.at or args.message):
+        raise SystemExit("jmerge: --by, --at and --message go with --accept")
+    if args.message and (args.by or args.at):
+        raise SystemExit("jmerge: --accept takes --message, or --by and --at, and not both")
     if args.accept is not None and not args.accept.isdigit():
         raise SystemExit(f"jmerge: --accept takes a pull request's number, not {args.accept}")
     if args.home:
         args.check = True
-    said = args.accept is not None and not (args.check and not args.by and not args.at)
-    if said and args.by != user.user:
+    typed = bool(args.by or args.at)
+    said = args.accept is not None and not (args.check and not typed and not args.message)
+    if said and not args.message and args.by != user.user:
         raise SystemExit(f"jmerge: only {user.user} accepts a hold, not {args.by or 'nobody'}")
-    if said and not user.takes(args.at or ""):
+    if said and not args.message and not user.takes(args.at or ""):
         raise SystemExit(f'jmerge: --at is "{user.form(args.at or "")}"')
     here = _run(Path.cwd(), "git", "rev-parse", "--path-format=absolute", "--git-common-dir")
     if here.returncode:
@@ -1974,7 +2016,20 @@ def main(argv: list[str] | None = None) -> int:
         if found is None:
             say(f"refused {args.accept}: no open pull request has that number")
             return 1
-        return repo.accept(found, default, args.by, args.at, say, args.check)
+        acting = None
+        if said and not args.check:
+            try:
+                acting = accepts.acting(main_checkout, args.message, args.at, args.as_, user)
+            except jbus.Refused as error:
+                say(f"refused {args.accept}: {str(error).removeprefix('refused: ')}")
+                return 1
+            if acting is None and args.message:
+                say(f"refused {args.accept}: --message is read by jbus, which has no project here")
+                return 1
+        by, at = args.by, args.at
+        if acting is not None and args.message:
+            by, at = user.user, acting.said.said_at
+        return repo.accept(found, default, by, at, say, args.check, acting)
 
     for one in repo.line_up(listed, default):
         found = repo.waits(one, default)

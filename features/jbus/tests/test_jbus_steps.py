@@ -50,7 +50,7 @@ from test_jbus_clock import NO_FIX_REVIEW, N, to
 from test_jbus_expedite import NO_FIXED, URL, Short
 from test_jbus_fresh_head import Due
 from test_jbus_kitchen import NOW, PROJECT, sends
-from test_jbus_questions import AT, answer, ask
+from test_jbus_questions import answer, ask
 from test_jbus_remarks import OWNER, one
 from test_jbus_rereview import out as rereview_out
 from test_jbus_unlock import CHANGED
@@ -199,13 +199,13 @@ BEFORE = {
         "watch.look expedite.told",
         [("jmerge", JMERGE), ("condition", "condition demo: removed.json does not parse")],
     ),
-    "words.json": (
+    "word-sends.json": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
         "watch.look mirror.scan questions.tell questions.read questions.propose "
         "questions.read watch.watch threads.tie threads.resume threads.merged "
         "threads.out stall.hung watch.gone rebase.tell stall.guarded expedite.tell "
         "mainmoved.tell remarks.tell dispatch.turns",
-        [("condition", "condition demo: words.json does not parse"), ("jmerge", JMERGE)],
+        [("condition", "condition demo: word-sends.json does not parse"), ("jmerge", JMERGE)],
     ),
     "questions.json": (
         "word.deliver merge.merge queue.load questions.closed_in_files questions.read "
@@ -241,7 +241,7 @@ AFTER = {
     "t3 down": f"{JUDGED} {CLOSE}",
     "signed out": f"{JUDGED} {CLOSE}",
     "blind": f"stall.tell waiting.cadence {CLOSE}",
-    "words.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
+    "word-sends.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "questions.json": f"{DERIVED} merge.unplaced {OWNED} Box.began {CLOSE}",
     "queue.json": f"{OWNED.removeprefix('work.write item.follow ')} Box.began {CLOSE}",
 }
@@ -369,8 +369,7 @@ def question(kitchen):
 
 
 def worded(kitchen):
-    kitchen.clock_reads(AT)
-    assert kitchen.main("word", "--to", "demo", "--by", "user", "--at", AT, "go", "on")[0] == 0
+    assert kitchen.main("word", "--to", "demo", *kitchen.message("go on"))[0] == 0
     (kitchen.home / "home-id").write_text("mcp:a-home\n")
 
 
@@ -411,7 +410,7 @@ FIXTURES = {
     "t3 down": t3_down,
     "signed out": signed_out,
     "blind": unparsed("removed.json"),
-    "words.json": unparsed("words.json"),
+    "word-sends.json": unparsed("word-sends.json"),
     "questions.json": unparsed("questions.json"),
     "queue.json": unparsed("queue.json"),
 }

@@ -2,7 +2,7 @@
 
 import json
 
-from jbus import questions
+from jbus import questions, word
 from jbus.view import state as built
 from jbus.view.panels.checks import panel as checks_panel
 from jbus.view.panels.room import panel as room_panel
@@ -148,7 +148,7 @@ def test_a_scratch_home_is_on_the_machine_with_its_thread_and_has_no_lane(tmp_pa
     status["scratch"] = {"scratch": {"project_id": "mcp:no-project", "home_thread": "mcp:t"}}
     scene.write("status.json", status, scene.state_dir)
     (scene.state_dir / "scratch").mkdir()
-    scene.write("words.json", [], scene.state_dir / "scratch")
+    scene.write(word.NAME, {}, scene.state_dir / "scratch")
     served = Served(scene)
     try:
         stack = served.json("/stack.json")

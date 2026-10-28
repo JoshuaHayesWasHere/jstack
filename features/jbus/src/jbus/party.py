@@ -13,8 +13,8 @@ that acted, the `Action` it took, the `Evidence` it acted on, and what came of i
   read the words and their time itself, in T3 Code or on a Lavish page; anything typed or
   carried by the bot is not checked. Each basis of an approval (`jbus.queue.BASES`, `RULE`
   and `ENTRY`) is one `source` (`SOURCE`).
-- `Action`: a go for a row, or an answer to a question, with what it was given to check
-  against: the brief's sha for a go, and the event the actor last saw.
+- `Action`: what the party did (`Verb`) to what, with what it was given to check against: the
+  brief's sha for a go, the head for an accept, and the event the actor last saw.
 - `Act`: the record, `v` 1, with its `outcome`: `done`, `gated` (a door the party may not open
   alone, parked as a gate for the user), `refused`, or `noop` (the same go again).
 
@@ -34,7 +34,7 @@ Route = Literal["cli", "view", "bot"]
 Source = Literal[
     "t3-message", "lavish-page", "bot-chat", "typed", "answer", "rule", "plan-entry", "view"
 ]
-Verb = Literal["go", "answer"]
+Verb = Literal["go", "answer", "hold", "remove", "withdraw", "accept", "word", "item"]
 Outcome = Literal["done", "gated", "refused", "noop"]
 SOURCES: tuple[str, ...] = get_args(Source)
 CLI_PARTIES = ("user", "home")
@@ -131,9 +131,12 @@ def evidence(given: str) -> Evidence:
 
 @dataclass(frozen=True)
 class Action:
-    """A go for the row `subject` whose brief's sha starts with `pre`, or the answer to the
-    question numbered `subject`. `seen` is the event the party last saw, or nothing. `doors`
-    are the cases the brief or the gate holds for."""
+    """One verb on its subject: a go for the row `subject` whose brief's sha starts with `pre`,
+    the answer to the question numbered `subject`, a hold, remove or withdraw of the row
+    `subject`, the accept of the pull request of the row `subject` at the head `pre`, a word for
+    the home whose scope is `subject` (empty for the root home), or the go of the work item
+    `subject`. `seen` is the event the party last saw, or nothing. `doors` are the cases the
+    action holds for: the brief's or the gate's, and for an accept a protected path's."""
 
     verb: Verb
     subject: str

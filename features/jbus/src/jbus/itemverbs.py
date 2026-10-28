@@ -72,7 +72,6 @@ def _item(args: argparse.Namespace, config: jbus.Config) -> int:
             words=args.words,
             seen=args.seen,
             user=config.user,
-            project=project.name,
         )
         print(f"approved {args.id}")
         return 0

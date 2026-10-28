@@ -3,7 +3,8 @@
 one list, newest first, of three kinds of entry, each with the key that the page opens it by. An
 approval with no record has no time, and such approvals come last, by slug.
 
-The panel reads `questions.json`, `words.json` and the queue, and writes none of them. An
+The panel reads `questions.json`, the word acts of `acts.jsonl` with `word-sends.json`, and the
+queue, and writes none of them. An
 answered question is on no waiting list (`waiting.gates`), so this panel is the one place that
 lists it. An approval is the record that `queue.approve` writes. For a row approved before jbus
 kept that record, the approval is the string the row had then, and the panel marks it as no
@@ -14,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from jbus import questions, queue, word
+from jbus import acts, questions, queue, word
 from jbus.view.state import QUEUE_FILE, WORDS, Read, kept, text, when
 
 FIRST = True
@@ -68,7 +69,8 @@ def _kept(read: Read) -> list[word.Word] | None:
 
 SOURCES = (
     kept(questions.NAME, lambda read: read.once(_asked), 80),
-    kept(word.NAME, lambda read: read.once(_kept), 85),
+    kept(acts.LOG, lambda read: read.once(_kept), 85),
+    kept(word.NAME, lambda read: read.once(_kept), 86),
     QUEUE_FILE,
 )
 

@@ -43,6 +43,18 @@ def inside(env_sh, command):
     )
 
 
+def says(env_sh, words, thread="mcp:sandbox-user", message="m-word"):
+    """Give the fake T3 Code a message the user typed, and return it as `--message` takes it."""
+    path = env_sh.parent / "t3" / "messages.json"
+    kept = json.loads(path.read_text()) if path.exists() else {}
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    item = {"itemId": f"turn-item:message:{message}", "messageId": message, "text": words}
+    item |= {"type": "user_message", "createdBy": "user", "updatedAt": stamp}
+    kept[thread] = [*kept.get(thread, []), item]
+    path.write_text(json.dumps(kept))
+    return f"{thread}/{message}"
+
+
 def script(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"#!/bin/sh\n{text}\n")
@@ -300,7 +312,7 @@ def test_a_scout_goes_from_its_request_to_a_launched_thread_with_no_branch(sandb
     assert "| scout |" in added.stdout
     stored = 'shasum -a 256 "$JBUS_STATE_DIR/demo/briefs/alpha.md" | cut -c1-12'
     sha = inside(sandbox, stored).stdout.strip()
-    said = inside(sandbox, 'jbus word --to demo --by user --at "$(date "+%Y-%m-%d %H:%M %Z")" go')
+    said = inside(sandbox, f"jbus word --to demo --message {says(sandbox, 'go')}")
     word = said.stdout.split()[-1]
 
     steps = [

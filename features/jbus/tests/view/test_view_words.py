@@ -53,7 +53,7 @@ def test_the_words_panel_lists_his_answers_his_words_and_each_approval_newest_fi
     assert [one for one in said if one.get("question") == "milk?"] == []
     assert served.json("/panel/words.json?project=demo")["data"] == {"words": said}
     names = {one["name"]: one["state"] for one in state["sources"]}
-    assert (names["questions.json"], names["words.json"]) == ("ok", "ok")
+    assert (names["questions.json"], names["acts.jsonl"], names["word-sends.json"]) == ("ok",) * 3
 
 
 def test_a_question_its_home_closed_in_gates_md_is_said_to_be_closed_by_its_home(scene, served):
@@ -85,7 +85,8 @@ def test_a_words_file_that_does_not_parse_is_said_and_the_rest_is_listed(scene, 
     number = said_by_him(scene)
     (scene.state / word.NAME).write_text("{not json")
     state = served.json("/state.json?project=demo")
-    assert {one["name"]: one["state"] for one in state["sources"]}["words.json"] == "unreadable"
+    names = {one["name"]: one["state"] for one in state["sources"]}
+    assert names["word-sends.json"] == "unreadable"
     assert f"question:{number}" in [one["key"] for one in state["words"]]
     assert [one for one in state["words"] if one["kind"] == "word"] == []
 
