@@ -162,7 +162,7 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   The browser run's jobs do not count: its `pytest -m browser` names no path, yet it ran only the browser tests.
   `main.json` keeps those tests as `failed`, read once from the red run's logs (`jbus.mainmoved.failed_at`).
   A job's log says what it ran by its one pytest command: the test files and folders it names, or with none the whole suite.
-  A log with no such command, or more than one, or one that leaves tests out by name (`-k`, `--deselect`, `--lf`), says nothing.
+  A log with no such command, or more than one, or one that leaves tests out by name (`pytest -k`, `pytest --deselect`, `pytest --lf`), says nothing.
   A test the fix deleted or skipped counts as passed, as it does for main's own check.
   Where the red run's logs name no failed test, or fewer than they count (a part that ran out of time, a lint), nothing proves the fix but its slug.
   The brief `main-red-<sha12>` that jbus files for the red is still a fix by its slug.
