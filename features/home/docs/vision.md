@@ -39,7 +39,7 @@ A fix goes to the cause, not around it: real fixes, not band-aids.
 The work runs fast and in parallel.
 Testing is lean: targeted tests while building, then the check command once.
 
-Code holds the pacing: `features/jbus/src/jbus/dispatch.py:13-22` hands out launches up to the machine's `max_running` cap and holds a row until `jgauge room` says there is room.
+Code holds the pacing: `features/jbus/src/jbus/dispatch.py:14-24` hands out launches up to the machine's `max_running` cap and holds a row until `jgauge room` says there is room.
 
 ## Quiet unless something is wrong
 
