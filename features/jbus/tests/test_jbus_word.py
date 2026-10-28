@@ -123,8 +123,8 @@ def test_all_sends_it_once_to_each_projects_home(kitchen):
 
 
 def kept_not_posted(kitchen, why, project="demo", thread="home-1", name=ID):
-    """Return what the command says of a word it kept and posted to nobody, and the record it
-    left."""
+    """Return what the command says of a word it kept and posted to nobody. Its act alone says
+    it went to its home's thread: `word-sends.json` need not hold it."""
     (one,) = [each for each in word.load(kitchen.state) if each.id == name]
     assert one.thread == thread and one.sent_at and one.waits == ""
     return f"kept: {project}, not posted, {why}, word {name}\n"
@@ -150,6 +150,7 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
     )
     assert event["word"] == {"words": WORDS, "by": "user", "at": event["word"]["at"], "to": ""}
     assert word.basis(kitchen.state, kept.id).words == WORDS
+    assert not word.path(kitchen.state).exists()
 
 
 def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
@@ -167,6 +168,7 @@ def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
             kitchen, f"it was recorded by this project's home thread {HOME}", thread=HOME
         ),
     )
+    assert not word.path(kitchen.state).exists()
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == [] and kitchen.wakes.posts == []
 

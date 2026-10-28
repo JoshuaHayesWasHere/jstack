@@ -4,11 +4,13 @@ opens a door, a pull request that touches a protected path, is the user's alone 
 reads itself: a home's accept on typed words parks a gate and merges nothing.
 
 The tests run the command against a real origin and a fake `gh`, as `test_jmerge_fresh` does,
-with a jbus config whose project is the kitchen's main checkout.
+with a jbus config whose project is the kitchen's main checkout, and the fake T3 Code of
+`test_jbus_kitchen`, which gives jbus the user's own message.
 """
 
 import json
 import sys
+import time
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -17,6 +19,7 @@ import pytest
 import jsettings
 import test_home_merge as merge
 from jbus import acts, questions
+from test_jbus_kitchen import T3, TOKEN, iso
 from test_jmerge_fresh import LINES, Kitchen, url
 
 PROOF = "Proof: `make check`, exit 0: nothing else reads the file\n"
@@ -25,10 +28,14 @@ PROOF = "Proof: `make check`, exit 0: nothing else reads the file\n"
 @pytest.fixture
 def kitchen(tmp_path):
     made = Kitchen(tmp_path, {"a.txt": LINES, "secrets/prod.json": "{}\n"})
+    made.t3 = T3()
     config = made.home.user / ".config" / "jbus"
     config.mkdir(parents=True)
+    token = {"server": made.t3.url, "token": {"access_token": TOKEN}, "obtained_at": time.time()}
+    (config / "t3.json").write_text(json.dumps(token))
+    (config / "t3.json").chmod(0o600)
     (config / "config.toml").write_text(
-        'server = "http://127.0.0.1:9"\n'
+        f"server = {json.dumps(made.t3.url)}\n"
         "[[project]]\n"
         f"name = {json.dumps(merge.NAME)}\n"
         f"checkout = {json.dumps(str(made.home.main))}\n"
@@ -39,16 +46,21 @@ def kitchen(tmp_path):
     made.jbus = made.home.user / ".local" / "state" / "jbus" / merge.NAME
     made.jbus.mkdir(parents=True)
     (made.jbus / "queue.json").write_text("[]\n")
-    return made
+    yield made
+    made.t3.close()
 
 
-def held(kitchen, slug, number, files, changed=None):
-    """A crewmate's pull request, proven at its head, that `jmerge` holds."""
+def held(kitchen, slug, number, files, changed=None, holds=""):
+    """A crewmate's pull request, proven at its head, that `jmerge` holds. `holds` is the
+    brief's `Holds:` line."""
     head = kitchen.crew(slug, number, files)
     if changed:
         kitchen.pulls[slug]["changedFiles"] = changed
         kitchen.brief(slug, head)
-    with (kitchen.home.tasks / f"{slug}.md").open("a") as brief:
+    task = kitchen.home.tasks / f"{slug}.md"
+    if holds:
+        task.write_text(task.read_text().replace("Task:", f"Holds: {holds}\nTask:", 1))
+    with task.open("a") as brief:
         brief.write(PROOF)
     (said,) = kitchen.run()
     assert said.startswith(f"hold {number} "), said
@@ -58,10 +70,21 @@ def held(kitchen, slug, number, files, changed=None):
 def accept(kitchen, number, *more):
     now = datetime.now(UTC).astimezone(ZoneInfo("America/New_York"))
     at = f"{now:%Y-%m-%d %H:%M} ET"
-    flags = ("--accept", str(number), "--by", jsettings.DEFAULTS.user, "--at", f'"{at}"', *more)
+    return jmerge(
+        kitchen, "--accept", str(number), "--by", jsettings.DEFAULTS.user, "--at", f'"{at}"', *more
+    )
+
+
+def jmerge(kitchen, *flags):
     return kitchen.home.sh(
         f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -m jmerge ' + " ".join(flags)
     )
+
+
+def said(kitchen, words):
+    """The user's own message in a chat of theirs, as `--message` names it."""
+    kitchen.t3.says("mcp:a-chat", "m-accept", words, updatedAt=iso(datetime.now(UTC)))
+    return "mcp:a-chat/m-accept"
 
 
 def last(kitchen):
@@ -84,6 +107,29 @@ def test_a_homes_typed_accept_of_a_protected_path_is_gated_and_merges_nothing(ki
     )
 
 
+def test_the_users_own_message_opens_the_door_of_a_protected_path_and_merges(kitchen):
+    held(kitchen, "alpha", 6, {"secrets/prod.json": '{"key": 1}\n'})
+    ref = said(kitchen, "merge 6")
+    out = jmerge(kitchen, "--accept", "6", "--as", "user", "--message", ref)
+    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
+    assert out[0].startswith(f"accepted 6 {url(6)}: ")
+    assert [call.split()[2] for call in kitchen.calls()] == ["6"]
+    assert last(kitchen) == ("accept", "user", "t3-message", "done")
+    assert acts.read(kitchen.jbus)[-1]["evidence"]["checked"] is True
+    assert questions.read(kitchen.jbus) == []
+
+
+def test_a_homes_accept_of_a_brief_that_holds_is_gated(kitchen):
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3, holds="publishes")
+    out = accept(kitchen, 7)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1].startswith("gated accept beta: it holds for publishes, so ")
+    assert kitchen.calls() == []
+    assert last(kitchen) == ("accept", "home", "typed", "gated")
+    (gate,) = questions.read(kitchen.jbus)
+    assert (gate.slug, gate.holds) == ("beta", "publishes")
+
+
 def test_a_typed_accept_that_opens_no_door_merges_and_is_logged(kitchen):
     held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3)
     said = accept(kitchen, 7)
@@ -92,6 +138,16 @@ def test_a_typed_accept_that_opens_no_door_merges_and_is_logged(kitchen):
     assert [call.split()[2] for call in kitchen.calls()] == ["7"]
     assert last(kitchen) == ("accept", "home", "typed", "done")
     assert acts.read(kitchen.jbus)[-1]["action"]["subject"] == "beta"
+
+
+def test_an_accept_where_the_jbus_config_does_not_load_is_refused_and_merges_nothing(kitchen):
+    held(kitchen, "beta", 7, {"a.txt": "ours\n" + LINES}, changed=3)
+    (kitchen.home.user / ".config" / "jbus" / "config.toml").chmod(0o644)
+    out = accept(kitchen, 7)
+    assert kitchen.home.code == 1, (out, kitchen.home.stderr)
+    assert out[-1].startswith("refused 7: "), out
+    assert kitchen.calls() == []
+    assert acts.read(kitchen.jbus) == []
 
 
 def test_the_check_of_an_accept_is_no_act(kitchen):

@@ -42,8 +42,8 @@ def acting(
     checkout: Path, message: str | None, at: str | None, as_: str, user: jsettings.Settings
 ) -> Acting | None:
     """The party and the evidence of an accept, in the jbus project of `checkout`, or None where
-    jbus has no project for it. Refuse a message that is not the user's own, and `--as user`
-    on typed words."""
+    jbus has no project for it. Refuse a config that does not load, a message that is not the
+    user's own, and `--as user` on typed words."""
     found = rows.project(checkout)
     if found is None:
         return None

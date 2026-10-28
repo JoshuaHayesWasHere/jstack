@@ -17,7 +17,8 @@ whose verb is `word`, kept once, with:
 
 What became of a word is no act, since it changes: `word-sends.json` in the state directory
 maps each word's id to the home's thread that received it and when (`thread`, `sent_at`), or to
-why it has not gone yet (`waits`). `Word` is the read model of the two (`load`).
+why it has not gone yet (`waits`). A skipped word has no record there: its act says it went to
+its home's own thread when it was kept. `Word` is the read model of the two (`load`).
 
 The file of words jbus kept before words were acts is not read: a word it kept and never sent is
 said again with `jbus word --message`.
@@ -174,6 +175,9 @@ def load(state: Path) -> list[Word]:
             home=one["action"]["subject"],
         )
         sent = sends.get(made.id, {})
+        if made.skipped:
+            # The act says the word went to no one: its home's own thread, which ends the line.
+            sent = {"thread": line.rsplit(" ", 1)[-1], "sent_at": one["at"]}
         words.append(
             replace(
                 made,
@@ -304,14 +308,10 @@ def keep(
             skipped = SAID_IN_HOME.format(thread=mine)
         elif mine and mine == recorder:
             skipped = BY_HOME.format(thread=mine)
-        made = acts.logged(
+        acts.logged(
             run, who, party.Action(KIND, whose), heard, "done", skipped or KEPT, id=name
         )
     if skipped:
-        with locked(run.state, LOCK):
-            sends = _sends(run.state)
-            sends[name] = {"thread": mine, "sent_at": made.at, "waits": ""}
-            _write(run.state, sends)
         about = {"words": words, "by": run.user.user, "at": at, "to": ""}
         run.box.record(KIND, f"{KIND} {run.project.name}: kept, {skipped}", words, word=about)
     (kept,) = [one for one in load(run.state) if one.id == name]
