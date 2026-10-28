@@ -379,6 +379,36 @@ def test_each_workflow_of_main_is_red_on_its_own_and_one_left_red_is_said():
     assert (leaks["red_spans"], leaks["no_job_runs"], leaks["no_job_hours"]) == (0, 1, 3.1)
 
 
+@pytest.mark.parametrize(("minutes", "raised"), [(7, False), (9, True)])
+def test_a_slow_pull_request_check_raises_the_parked_runners_row(minutes, raised):
+    checks = [
+        run(n, at(n), "success", branch="topic", event="pull_request", minutes=minutes)
+        for n in (1, 2, 3)
+    ]
+    listed = checks + [
+        run(4, at(4), "success", minutes=30),
+        {**run(5, at(5), "success", event="pull_request", minutes=30), "name": "release"},
+        run(6, at(6), "cancelled", branch="topic", event="pull_request", minutes=1),
+    ]
+    said = flow.build([], [], records.runs("o/demo", listed, {}), {}, {}, at(-48), at(48))
+    ci = said["ci"]["o/demo"]
+    assert (ci["pr_checks"], ci["pr_check_median_s"], ci["pr_check_p90_s"]) == (
+        3,
+        minutes * 60.0,
+        minutes * 60.0,
+    )
+    assert json.loads(json.dumps(said))["ci"]["o/demo"]["pr_check_p90_s"] == minutes * 60.0
+    out = flow.text(said | {"missing": []})
+    line = (
+        f"o/demo: the p90 PR check is {minutes}.0 min over the window, so jstack-runners-back "
+        "(parked at infra) resumes on Josh's go"
+    )
+    if raised:
+        assert out.splitlines()[-1] == line
+    else:
+        assert "jstack-runners-back" not in out
+
+
 def test_the_jobs_jbus_ci_kept_give_the_runner_queue():
     kept = [
         {"created": at(0).isoformat(), "started": at(0.5).isoformat(), "kind": "local"},

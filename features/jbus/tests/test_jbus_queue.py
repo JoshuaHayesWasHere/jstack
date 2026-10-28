@@ -13,15 +13,15 @@ from jsonschema import Draft202012Validator
 import jbus
 import test_tool_calls as tools
 from jbus import cli, passes, queue, wake
-from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RESULT, SAID, Kitchen
+from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
 AT = "2026-10-11 17:58 ET"
 HEAD = (
     "| slug | priority | depends | merge_after | approved | brief_sha | entry | status | thread "
-    "| pr | checks | updated | why | since |"
+    "| pr | checks | updated | why | since | role |"
 )
-RULE = "|" + " --- |" * 14
+RULE = "|" + " --- |" * 15
 SINCE = "since 2026-10-12 11:00 ET"
 NO_BASIS = (
     "approve takes one basis, --word <id>, --answer <number>, --message <thread id>/<message "
@@ -132,8 +132,8 @@ def test_add_approve_and_hold_write_the_chefs_columns_and_show_prints_the_table(
     assert said.splitlines() == [
         HEAD,
         RULE,
-        f"| alpha | 1 |  |  | {GO} | {sha[:12]} |  | queued |  |  |  |  |  |  |",
-        "| beta | 2 | alpha, gamma |  |  |  |  | queued |  |  |  |  |  |  |",
+        f"| alpha | 1 |  |  | {GO} | {sha[:12]} |  | queued |  |  |  |  |  |  |  |",
+        "| beta | 2 | alpha, gamma |  |  |  |  | queued |  |  |  |  |  |  |  |",
     ]
     assert kitchen.main("queue", "hold", "alpha")[0] == 0
     assert (rows(kitchen)["alpha"]["approved"], rows(kitchen)["alpha"]["brief_sha"]) == ("", "")
@@ -498,25 +498,26 @@ def test_a_queue_event_holds_the_row_that_changed_and_what_changed_in_it(kitchen
     assert event["text"] == (
         "row-07: status queued -> running, thread (empty) -> mcp:thread-1\n\n"
         f"{HEAD}\n{RULE}\n"
-        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  | 2026-10-12 11:03 ET |  |  |\n"
+        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  "
+        "| 2026-10-12 11:03 ET |  |  |  |\n"
     )
     whole = table(kitchen)
-    assert whole.count("| row-") == 20 and len(whole) == 1989
-    assert event["text"].count("| row-") == 1 and len(event["text"]) == 372
+    assert whole.count("| row-") == 20 and len(whole) == 2062
+    assert event["text"].count("| row-") == 1 and len(event["text"]) == 388
 
 
 def test_a_removal_is_a_queue_event_of_the_row_that_went(kitchen):
     twenty(kitchen)
-    removal = ("queue", "remove", "row-07", "--by", "user", "--at", AT)
+    removal = ("queue", "remove", "row-07", "--by", "user", "--at", RAN)
     assert kitchen.main(*removal)[0] == 0
     (event,) = kitchen.events("queue")
     assert (event["slug"], event["line"]) == (
         "row-07",
-        f"queue demo: removed row-07, {AT} by user",
+        f"queue demo: removed row-07, {RAN} by user",
     )
     assert (
         event["text"]
-        == f"{HEAD}\n{RULE}\n| row-07 | 7 |  |  |  |  |  | queued |  |  |  |  |  |  |\n"
+        == f"{HEAD}\n{RULE}\n| row-07 | 7 |  |  |  |  |  | queued |  |  |  |  |  |  |  |\n"
     )
 
 
@@ -748,9 +749,9 @@ def test_a_launch_t3_code_refuses_is_a_gate_in_its_words_and_holds_no_other_row(
 
 def test_a_reply_that_stays_lost_holds_its_own_slug_and_no_other_row(kitchen):
     add(kitchen, "alpha", priority=1)
-    kitchen.t3.lose = "before"
+    kitchen.t3.status = 503
     kitchen.poll()
-    kitchen.t3.lose = None
+    kitchen.t3.status = 200
     add(kitchen, "beta", priority=2)
     kitchen.poll(NOW + timedelta(minutes=3))
     kitchen.poll(NOW + timedelta(minutes=6))
@@ -868,15 +869,41 @@ def test_a_reply_lost_after_the_thread_was_made_adopts_that_thread(kitchen):
     assert rows(kitchen)["alpha"]["thread"] == "mcp:thread-1"
 
 
+def test_a_launch_dropped_before_any_thread_was_made_is_launched_once_more(kitchen):
+    """A dropped connection (ECONNRESET) says T3 Code never answered. The next pass lists the
+    threads by title, and with none made it launches once more, under the same go."""
+    add(kitchen, "alpha")
+    kitchen.t3.lose = "before"
+    kitchen.poll()
+    kitchen.t3.lose = None
+    said = kitchen.poll(NOW + timedelta(minutes=3))
+    assert "launched alpha: mcp:thread-1" in said
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha", "crew: alpha"]
+    assert gates(kitchen) == [] and rows(kitchen)["alpha"]["thread"] == "mcp:thread-1"
+    assert "Thread: mcp:thread-1" in (kitchen.home / "tasks/alpha.md").read_text().splitlines()
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(kitchen.t3.launches) == 2
+
+
+def test_a_launch_dropped_twice_is_a_gate_after_its_one_retry(kitchen):
+    add(kitchen, "alpha")
+    kitchen.t3.lose = "before"
+    for minutes in (0, 3, 6, 9):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert gates(kitchen) == ["condition alpha: launch reply lost, 0 matching threads"]
+    assert len(kitchen.t3.launches) == 2
+
+
 @pytest.mark.parametrize("others, count", [(0, 0), (1, 2)])
 def test_a_lost_reply_with_no_thread_or_several_is_a_gate_and_no_retry(kitchen, others, count):
     add(kitchen, "alpha")
-    kitchen.t3.lose = "after" if others else "before"
+    kitchen.t3.lose = "after" if others else None
+    kitchen.t3.status = 200 if others else 503
     kitchen.poll()
     for _ in range(others):
         kitchen.t3.thread("alpha", "completed", settled=True)
     kitchen.t3.thread("alpha-two", "running", settled=True)
-    kitchen.t3.lose = None
+    kitchen.t3.lose, kitchen.t3.status = None, 200
     for minutes in (3, 6, 9):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     assert gates(kitchen)[0] == f"condition alpha: launch reply lost, {count} matching threads"
@@ -1422,8 +1449,6 @@ def test_a_row_another_merges_after_is_not_removed(kitchen):
     add(kitchen, "alpha", approve=False)
     argv = ["queue", "add", "beta", "--priority", "2", "--merge-after", "alpha"]
     kitchen.main("--project", "demo", *argv, stdin=brief("beta"))
-    code, said = kitchen.main(
-        "queue", "remove", "alpha", "--by", "user", "--at", "2026-10-11 17:58 ET"
-    )
+    code, said = kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", RAN)
     assert code != 0
     assert "beta wait on alpha: remove them first" in said

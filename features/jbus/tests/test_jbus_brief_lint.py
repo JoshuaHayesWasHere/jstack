@@ -1,4 +1,4 @@
-"""`jbus queue add` and `jbus scout add` refuse a brief that would have its thread ask the user
+"""`jbus queue add` refuses a brief that would have its thread ask the user
 mid-task, a brief that claims a shared doc outside a docs sweep, and a brief whose test copies an
 incident's text word for word (`jbus.queue.conduct`). Like `test_jbus_queue.py`, the tests run the
 real command against a faked T3 Code server, `gh` and `jmerge`, with small made-up briefs."""
@@ -119,10 +119,10 @@ def test_a_small_made_up_row_and_a_short_quote_are_queued(kitchen):
 
 def test_a_scout_request_that_asks_the_user_is_refused_and_a_clean_one_stored(kitchen):
     asking = request("alpha", "Notes: if the answer is unclear, stop and ask the user\n")
-    code, said = kitchen.main("scout", "add", "alpha", stdin=asking)
+    code, said = kitchen.main("queue", "add", "alpha", "--priority", "1", stdin=asking)
     assert code == 1
     assert said.splitlines() == [
-        "refused: alpha's request has 1 fault, and nothing is stored",
+        "refused: alpha's request has 1 fault, and nothing is queued",
         f'- request asks the user mid-task ("stop and ask"): {ASKS}',
     ]
-    assert kitchen.main("scout", "add", "beta", stdin=request("beta"))[0] == 0
+    assert kitchen.main("queue", "add", "beta", "--priority", "1", stdin=request("beta"))[0] == 0

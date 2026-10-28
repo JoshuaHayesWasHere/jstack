@@ -465,6 +465,8 @@ def _word(args: argparse.Namespace, config: Config) -> int:
     projects = config.projects if args.all else (config.addressee(args.to),)
     heard = typed(args, config, "word")
     by, at = (config.user.user, heard.said_at) if heard else (args.by, args.at)
+    if heard is None and args.by == config.user.user:
+        verbs.typed_at(config.user, args.at or "")
     words = said(heard.words if heard else " ".join(args.words), by, at, config.user)
     try:
         client = Client(config.server, config.token_path)

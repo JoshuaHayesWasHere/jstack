@@ -104,7 +104,7 @@
   .tok.th .src { font-family: var(--sans); font-size: var(--text-sm); }
   .tok.th.ended { border-style: dashed; color: var(--ink-2); }
   .filters { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-4) 0 var(--space-3); align-items: center; font-size: var(--text-sm); color: var(--ink-2); }
-  .fb { display: inline-flex; align-items: center; gap: var(--space-4); border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: 0 var(--space-6); background: var(--surface); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
+  .fb { display: inline-flex; align-items: center; min-height: 24px; gap: var(--space-4); border: 1.5px solid var(--line); border-radius: var(--radius-pill); padding: 0 var(--space-6); background: var(--surface); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
   .fb[aria-pressed="true"] { background: var(--sunk); border-color: var(--ink); }
   .fb i { font-style: normal; font-weight: 400; color: var(--ink-2); }
   .nx:empty { display: none; }
@@ -115,7 +115,8 @@
   .mk.lv-moving { background: var(--ink-3); }
   .mk.lv-quiet { background: transparent; border: 1.5px dashed var(--due); width: 9px; height: 9px; }
   .mk.lv-hung { background: var(--due); border-radius: var(--radius-xs); width: 9px; height: 9px; }
-  .mk.blk { width: 0; height: 0; border-radius: 0; border: 5px solid transparent; border-right-color: var(--due); }
+  .marked { margin: var(--space-5) 0 0; padding-left: var(--space-4); border-left: 3px solid var(--due); }
+  .marked.lv-quiet { border-left-style: dashed; }
   .bn { flex: none; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; line-height: 1.4; padding: 0 var(--space-3); border-radius: var(--radius-pill); background: var(--ink); color: var(--canvas); }
   .bk { font-family: var(--mono); font-size: var(--text-sm); color: var(--ink-2); background: none; border: 0; padding: 0; white-space: nowrap; }
   button.bk { cursor: pointer; border-bottom: 1px dotted var(--ink-2); }
@@ -148,6 +149,7 @@
   .linkish:hover { border-color: var(--ink); }
   .rows li { padding: var(--space-4) 0; border-top: 1px solid var(--hair); }
   .rows li:first-child { border-top: 0; }
+  details.more > summary { cursor: pointer; color: var(--ink-2); font-size: var(--text-sm); min-height: 44px; display: flex; align-items: center; }
   .rows li.hit { background: var(--due-tint); box-shadow: -10px 0 0 var(--due-tint), 10px 0 0 var(--due-tint); }
   .steps li { display: grid; grid-template-columns: 57.5px minmax(0, 1fr) auto; gap: var(--space-1) var(--space-5); padding: var(--space-3) 0; border-top: 1px solid var(--hair); font-size: var(--text-sm); align-items: baseline; }
   .steps li.one { grid-template-columns: minmax(0, 1fr); }
@@ -316,7 +318,7 @@
   .crumbs a { color: var(--ink-2); text-decoration: none; }
   .crumbs a:hover { text-decoration: underline; }
   .crumbs a[aria-current="page"] { color: var(--ink); }
-  .dw-h .crumbs { font-size: var(--text-sm); color: var(--ink-2); }
+  .dw-h .crumbs { display: flex; font-size: var(--text-sm); color: var(--ink-2); }
   .back { display: block; margin: var(--space-2) 0 var(--space-1); border: 0; background: transparent; padding: 0; cursor: pointer; color: var(--ink); font-size: var(--text-sm); font-weight: 600; text-align: left; }
   .back:hover { text-decoration: underline; }
   .tip { position: fixed; z-index: 50; max-width: min(340px, calc(100vw - 20px)); background: var(--ink); color: var(--canvas); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-6) var(--space-5); font-size: var(--text-sm); line-height: 1.4; box-shadow: 0 6px 24px var(--shadow); }
@@ -343,6 +345,38 @@
     .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   }
+  .mx { margin-bottom: var(--space-5); border: 1.5px solid var(--hair); border-radius: var(--radius-lg); background: var(--surface); padding: var(--space-4) var(--space-7) var(--space-5); }
+  .mx-hd { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 var(--space-6); }
+  .mx-w { overflow-x: auto; }
+  .mx table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-top: var(--space-3); }
+  .mx th, .mx td { text-align: left; vertical-align: top; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--hair); font-size: var(--text-sm); }
+  .mx thead th { font-size: var(--text-xs); font-weight: 700; color: var(--ink-2); }
+  .mx thead th .mx-c { display: block; font-size: var(--text-lg); color: var(--ink); }
+  .mx th.mx-hm { width: 132px; } .mx th.mx-ck { width: 150px; }
+  .mx tbody th { font-weight: 400; } .mx tbody th b { font-size: var(--text-md); }
+  .mx-la { display: block; font-size: var(--text-xs); color: var(--ink-3); }
+  .mx-c { font-weight: 800; font-size: var(--text-md); }
+  .mx-e { color: var(--line); }
+  .mx-a { display: block; color: var(--ink); text-decoration: none; border-radius: var(--radius-sm); }
+  .mx-a:hover, .mx-a.on { background: var(--sunk); }
+  .mx-a.on { box-shadow: 0 0 0 1.5px var(--ink); }
+  .mx-dots { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+  .mx-dots b { font-size: var(--text-xs); line-height: 9px; }
+  .mx-dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink-2); }
+  .mx-dots i.old { background: var(--ink-2); }
+  .mx-dots i.f, .mx-dots i.w, .mx-dots i.p, .mx-dots i.x { border-radius: var(--radius-xs); }
+  .mx-dots i.f { background: var(--ink); border-color: var(--ink); }
+  .mx-dots i.w { background: var(--line); border-color: var(--line); }
+  .mx-dots i.p { background: var(--hair); border-color: var(--line); }
+  .mx-dots i.x { border-style: dashed; }
+  .mx-lg { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-7); margin-top: var(--space-3); font-size: var(--text-xs); color: var(--ink-3); }
+  .mx-lg .mx-dots { display: inline-flex; margin: 0 var(--space-2) 0 0; }
+  .mx-ch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1.5px dashed var(--hair); }
+  .mx-n { font: inherit; font-family: var(--mono); font-size: var(--text-xs); color: var(--ink); background: var(--surface); border: 1.5px solid var(--ink-2); border-radius: var(--radius-sm); padding: var(--space-px) var(--space-4); cursor: pointer; }
+  .mx-n.hd { border-width: 3px; border-color: var(--ink); }
+  .mx-ar { color: var(--ink-2); }
+  .mx-cs { flex-basis: 100%; font-size: var(--text-sm); color: var(--ink-2); }
+  @media (max-width: 640px) { .mx { display: none; } }
 </style>
 </head>
 <body>
@@ -422,7 +456,7 @@
   function themed() { return HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : ""; }
   function href(project, target) {
     var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "", theme = HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "";
-    var q = project || TRIAGE ? [] : ["home", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
+    var q = project || TRIAGE ? [] : ["home", "stage", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
     if (target) q.push("open=" + encodeURIComponent(target));
     if (!project && !TRIAGE && (HOMES || q.length > !!target)) return "#/" + (HOMES ? "homes" : "") + (q.length ? "?" + q.join("&") : "") + theme;
     return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + theme;
@@ -483,7 +517,7 @@
   };
   var MARKS = [
     ["long", "Mark", "Over 30 minutes on its step."], ["rep", "Mark", "Not its first time on this step."],
-    ["blk", "Mark", "Blocked: what follows it names what blocks it."], ["bn", "Count", "How many tasks wait behind it to merge first."],
+    ["bn", "Count", "How many tasks wait behind it to merge first."],
     ["lv-moving", "Mark", "Its thread has a turn under way and writes."], ["lv-quiet", "Mark", "Its thread has a turn under way but has written nothing for a while."],
     ["lv-hung", "Mark", "Its thread has written nothing for longer, or a run waits behind it."]
   ];
@@ -530,7 +564,7 @@
     if (t.pending) more.push(plural(t.pending, "request waits", "requests wait") + " for an answer");
     if (t.page) more.push("it holds a page that waits on you");
     return '<li><span class="chip ' + LIVE[t.live] + '">' + esc(t.live) + '</span> ' + title + ' <span class="src">' + esc(t.status) + '</span><br><span class="src">' +
-      (c == null ? "no start kept" : "started " + day(c) + ", " + dur(NOW - c) + " ago") + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
+      (c == null ? "no start kept" : "started " + day(c)) + ", " + (u == null ? "no write kept" : "last wrote " + day(u) + ", " + dur(NOW - u) + " ago") + (more.length ? ", " + esc(more.join(", ")) : "") + '</span></li>';
   }
   function threadChip(t, project) {
     var r = ROLE[t.role] || ROLE.other, u = ms(t.updated), live = TURN_UNDER_WAY[t.live] ? t.live : "", q = asked(t);
@@ -896,6 +930,12 @@
     return head("Not found", what) + '<div class="now e-op"><span class="big">' + esc(what) + ' in <code>' + esc(PROJECT) + '</code></span>' +
       'It is not there now: it may have ended, or the link is old or mistyped. <a href="' + esc(href(PROJECT)) + '">Open ' + esc(PROJECT) + '</a></div>';
   }
+  function fold(items, row, first, hit) {
+    var shown = [], rest = [], ul = '<ul class="clean rows">';
+    items.forEach(function (one, i) { (i < first || (hit && hit(one)) ? shown : rest).push(one); });
+    function rows(list) { return list.map(function (one) { return row(one); }).join(""); }
+    return (shown.length ? ul + rows(shown) + '</ul>' : "") + (rest.length ? '<details class="more"><summary>' + (shown.length ? rest.length + " more" : "Show all " + rest.length) + '</summary>' + ul + rows(rest) + '</ul></details>' : "");
+  }
   function openBtn(target, label) { return '<button type="button" class="linkish" data-open="' + esc(target) + '">' + esc(label) + '</button>'; }
   function taskBtn(slug) { return known(slug) ? openBtn("task:" + slug, slug) : '<code>' + esc(slug) + '</code>'; }
   function link(url, label) { return /^https:\/\/github\.com\//.test(url || "") ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(label) + '</a>' : esc(label); }
@@ -978,7 +1018,7 @@
     h += '<p class="src" style="margin-top:var(--space-8)">Hover a shape, a mark or a count, or reach a token by Tab, and what it means shows beside it. <kbd>?</kbd> opens this list from anywhere.</p>';
     h += '<h3>The steps of the line, top to bottom</h3><div id="hsteps">' + stepList() + '</div>';
     h += '<h3>Who holds a task, or what a thread is: its shape</h3><div id="hshapes">' + shapeList() + '</div>';
-    h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again").replace("blk", "blocked"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
+    h += '<h3>Marks on a token</h3><dl class="gloss">' + MARKS.map(function (m) { return '<dt><span class="gw">' + (m[0] === "bn" ? '<span class="bn">1</span>' : '<i class="mk ' + m[0] + '"></i>') + '</span>' + (m[0] === "bn" ? "Tasks behind it" : esc(m[0].replace("lv-", "its thread is ").replace("long", "long on its step").replace("rep", "again"))) + '</dt><dd>' + esc(m[2]) + '</dd>'; }).join("") + '</dl>';
     h += '<h3>Dots of health</h3>' + glossList("sign", function (k) { return '<span class="gw">' + (k.indexOf("hd") === 0 ? '<i class="hd' + (k === "hd-op" ? " op" : "") + '"></i>' : k === "sd" ? '<i class="sd" style="background:var(--ink-2)"></i>' : '<i class="dot' + (k === "dot" ? "" : " " + k.slice(4)) + '"></i>') + '</span>'; });
     h += '<h3>Cards</h3>' + glossList("card") + '<h3>Words</h3>' + glossList("term") + '<h3>Counts</h3>' + glossList("count");
     h += '<h3>Keys</h3><dl class="kv"><dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>g</kbd> <kbd>a</kbd></dt><dd>every project</dd><dt><kbd>g</kbd> <kbd>p</kbd></dt><dd>the next project</dd><dt><kbd>Tab</kbd></dt><dd>every card, token and link, in order; a token it reaches shows what its shape means</dd><dt><kbd>Enter</kbd></dt><dd>opens it</dd><dt><kbd>Esc</kbd></dt><dd>goes back one drawer</dd><dt>browser back</dt><dd>the same as the drawer\'s arrow back</dd></dl>';

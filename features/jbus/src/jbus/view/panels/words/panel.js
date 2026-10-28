@@ -1,3 +1,4 @@
+var WORDS_FIRST = 2;
 var WORDKIND = { answer: "questions you answered", word: "words sent down", approval: "approvals of a row" };
 function wordsOf(kind) { return S.words.filter(function (w) { return w.kind === kind; }); }
 function wordEntry(key) { return S.words.filter(function (w) { return w.key === key; })[0] || null; }
@@ -35,7 +36,7 @@ function dWords(arg) {
   ["answer", "word", "approval"].forEach(function (k) {
     var items = wordsOf(k);
     h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + WORDKIND[k] + '</h3>' +
-      (items.length ? '<ul class="clean rows">' + items.map(function (w) { return wordRow(w, kind === k ? hit : ""); }).join("") + '</ul>' : '<p class="src">None.</p>');
+      (items.length ? fold(items, function (w) { return wordRow(w, kind === k ? hit : ""); }, kind && k !== kind ? 0 : WORDS_FIRST, function (w) { return w.key === hit; }) : '<p class="src">None.</p>');
   });
   return h;
 }

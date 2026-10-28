@@ -3,8 +3,9 @@
 `t3_thread_launch` has no retry key, so jbus keeps one: `<project>/<slug>/<brief_sha 12>`, a file
 under `launches/`. jbus writes the file with `state: intent` and fsyncs it before the call, and adds
 the thread id after the reply. jbus never launches again under a key that has a thread id. An intent
-with no thread id means the reply was lost. jbus settles such an intent by looking the thread up,
-never by calling again.
+with no thread id means the reply was lost. jbus settles such an intent by looking the thread up.
+It calls again only for a launch whose connection dropped (ECONNRESET, `T3Dropped`) and whose
+lookup finds no thread, and only once (`settle_lost`).
 
 Once a launch has its thread, `write_thread` puts `Thread: <id>` in the head of
 `tasks/<slug>.md`. It is the one line jbus ever writes in a brief after the launch. When a
@@ -54,9 +55,9 @@ import jroles
 import jroles.mirror
 from jbriefs import parse
 from jbriefs.home import home_of, named
-from jbus import queue, read_json, verbs, write_json
+from jbus import queue, read_json, verbs, watch, write_json
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
-from jbus.t3 import Client, T3Error, T3Refused
+from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
 from jmerge import claims, mainjson
 from jmerge import stacked as stacks
@@ -71,14 +72,20 @@ def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
     return run.config.state_dir / "launches" / run.project.name / slug / f"{brief_sha[:12]}.json"
 
 
-def records(run: Pass, slug: str) -> list[tuple[Path, dict[str, Any]]]:
+def records(run: Pass, slug: str, role: str = "") -> list[tuple[Path, dict[str, Any]]]:
+    """Return the slug's launch records, oldest first, or with `role` only those of that role: a
+    crewmate's record has no `role`, a scout's says `scout`."""
     directory = run.config.state_dir / "launches" / run.project.name / slug
-    return [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
+    found = [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
+    return [one for one in found if not role or (one[1].get("role") or queue.CREW) == role]
 
 
-def launched(run: Pass, slug: str) -> str:
-    """Return the thread id of the slug's launch, or nothing if it has none."""
-    return next((r["thread"] for _, r in reversed(records(run, slug)) if r.get("thread")), "")
+def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
+    """Return the thread id of the slug's launch of `role`, or nothing if it has none. A scout's
+    row taken over by the crewmate's brief it delivered keeps the scout's record beside the
+    crewmate's."""
+    found = records(run, slug, role)
+    return next((r["thread"] for _, r in reversed(found) if r.get("thread")), "")
 
 
 def write_thread(
@@ -123,8 +130,10 @@ def write_missing(run: Pass) -> None:
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for slug in sorted(path.name for path in directory.glob("*") if path.is_dir()):
-        if launched(run, slug):
-            write_thread(run, slug, launched(run, slug), replace=False)
+        found = [record for _, record in reversed(records(run, slug)) if record.get("thread")]
+        if found:
+            kind = "scouts" if found[0].get("role") == queue.SCOUT else "tasks"
+            write_thread(run, slug, found[0]["thread"], replace=False, kind=kind)
 
 
 GREEN_MAIN = "Green main:"
@@ -268,13 +277,20 @@ def settle_lost(run: Pass, client: Client) -> None:
 
     A launch that stays lost becomes a gate. jbus does not launch its slug again until the
     user removes its file under `launches/` by hand. A lost launch holds back no other row.
+    The one exception is a launch whose connection dropped before any reply: with no thread of
+    its title and branch, its record turns `retry`, and the pass's turn launches the slug once
+    more under the same record. A retry that drops too is a gate like any other.
     If the lost launch's thread does exist, the pass counts that thread with every other
     thread that T3 Code lists.
     """
     directory = run.config.state_dir / "launches" / run.project.name
     for path in sorted(directory.glob("*/*.json")):
         record, slug = read_json(path, {}), path.parent.name
-        if record.get("thread"):
+        if (
+            record.get("thread")
+            or record.get("role") == queue.SCOUT
+            or record.get("state") == "retry"
+        ):
             continue
         try:
             listed = crew_threads(client, run.project.project_id, f"{TITLE}{slug}")
@@ -293,6 +309,11 @@ def settle_lost(run: Pass, client: Client) -> None:
             )
             write_thread(run, slug, matching[0])
             run.say(f"adopted {slug}: {matching[0]}")
+        elif not matching and record.get("dropped"):
+            write_json(
+                path, {"key": record.get("key"), "state": "retry", "at": run.now.isoformat()}
+            )
+            run.say(f"relaunch {slug}: its launch dropped and made no thread: once more")
         else:
             run.gate(slug, f"launch reply lost, {len(matching)} matching threads", str(path))
 
@@ -439,6 +460,7 @@ class Turns:
     world: World
     left: list[queue.Row]
     caps: Caps
+    reported: frozenset[str] = frozenset()
     capped: list[queue.Row] = field(default_factory=list)
     waited: dict[str, Any] = field(default_factory=dict)
     checked: dict[str, bool] = field(default_factory=dict)
@@ -464,7 +486,7 @@ class Turns:
         judges the row again, so the gate goes the pass its go holds.
         """
         run, world = self.run, self.world
-        merged = set(world.merged) - set(world.open)
+        merged = (set(world.merged) - set(world.open)) | self.reported
         while self.left:
             row = self.left.pop(0)
             slug = row["slug"]
@@ -605,7 +627,9 @@ class Turns:
             sha = queue.brief_sha(brief)
             path = record_path(run, slug, sha)
             key = f"{run.project.name}/{slug}/{sha[:12]}"
-            write_json(path, {"key": key, "state": "intent", "at": run.now.isoformat()})
+            retried = read_json(path, {}).get("state") == "retry"
+            intent = {"key": key, "state": "intent", "at": run.now.isoformat()}
+            write_json(path, {**intent, "retried": True} if retried else intent)
             try:
                 reply = client.call(
                     "t3_thread_launch",
@@ -624,6 +648,8 @@ class Turns:
                 run.gate(slug, "T3 Code refused the launch", str(error))
                 continue
             except T3Error as error:
+                if isinstance(error, T3Dropped) and not retried:
+                    write_json(path, {**intent, "dropped": True})
                 run.say(f"launch {slug}: no reply ({error}): it is looked up on the next pass")
                 run.gated.add(slug)
                 self.caps.add(home)
@@ -680,10 +706,14 @@ class Turns:
 def turns(
     run: Pass, client: Client, world: World, rows: list[queue.Row], out: tuple[str, ...]
 ) -> Turns:
-    """Return the project's turns, with its rows and `out`, the slugs of its crews out
-    (`watch.Look.out`)."""
+    """Return the project's turns, with its crewmates' rows and `out`, the slugs of its crews out
+    (`watch.Look.out`). A scout's row is launched by `jbus.scouts`, and a row that depends on it
+    may launch once its Report says it is done (`watch.reported`)."""
     settle_lost(run, client)
-    return Turns(run, client, world, sorted(rows, key=queue.order), caps(run, out))
+    crew = sorted((row for row in rows if queue.role(row) == queue.CREW), key=queue.order)
+    made = Turns(run, client, world, crew, caps(run, out))
+    made.reported = watch.reported(run, rows)
+    return made
 
 
 def dispatch(projects: list[Turns], slots: int | None) -> list[str]:

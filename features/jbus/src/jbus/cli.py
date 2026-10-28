@@ -136,7 +136,9 @@ def steps(half: Half, slot: str) -> None:
 def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
     """Run a project's pass up to any launch: merge, read, ask, and say what it found.
 
-    This function runs the fixed steps of the pass in order, with a call to `steps` per slot.
+    This function runs the fixed steps of the pass in order, with a call to `steps` per slot. What
+    it asks GitHub and T3 Code of the rows is asked of the crewmates' rows: a scout's row has no
+    branch and no `crew: ` thread, and `jbus.scouts` launches it.
     """
     name = run.project.name
     half = Half(run, client)
@@ -154,18 +156,19 @@ def first_half(run: passes.Pass, client: t3.Client | None) -> Half:
         half.held = frozenset(one.key for one in questions.read(run.state))
     except questions.Unparsable:
         run.gate(name, "questions.json does not parse", str(questions.path(run.state)))
-    half.seen = watch.look(run, client, half.rows or [])
+    crew = [row for row in half.rows or [] if queue.role(row) == queue.CREW]
+    half.seen = watch.look(run, client, crew)
     if half.blind:
         half.seen = watch.Look(out=half.seen.out, why=half.seen.why, held=half.seen.held)
     run.world = half.seen.world
     if half.seen.world is not None and client is not None:
-        archived.ask(run, client, half.seen.world, half.rows or [])
+        archived.ask(run, client, half.seen.world, crew)
     steps(half, "tellers")
     rows, world = half.rows, half.seen.world
     if world is not None and client is not None:
         half.gone = frozenset(
             row["slug"]
-            for row in rows or []
+            for row in crew
             if watch.gone(run, world, row["slug"], dispatch.launched(run, row["slug"]))
         )
     steps(half, "after-expedite")

@@ -38,66 +38,10 @@ On each message, do this without waiting for a word from the user.
 2. Run the merge step of "Merging a pull request that is ready".
    It runs no `jmerge`, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
    Then clear this home's blockers, as "Clearing its own blockers" says: a start and an audit tick run this step too, so every wake clears them.
-3. Run `jbus plan` and close each entry it prints `finished: close it` for ("Planning"). Write no status: the plan holds none. Then launch the next planned task, by "Handing a task to a crewmate" or "Sending a scout", when all of these hold. Any one that fails leaves the task where it is, with the reason kept for step 4:
-   - its plan entry's `Stage:` line says `planned`, its own brief is not out (`tasks/<slug>.md` has no `Thread:` line, and its row, where it has one, is still `queued`), and nothing it waits on is unmerged: a task is never stacked on another's branch, but in a plan whose head names `autopilot-stack` ("A stack the user lands");
-   - no answer from the user is outstanding for it: an open decision in its entry, or a scout's brief that "Sending a scout" says to show first and the user has not yet seen;
-   - its work is in this repo;
-   - the launch check, under this list, does not say `wait`;
-   - `room` says `go`.
-
-   The launch check names the briefs still out whose `Where:` meets the task's, of any home of this repo. A file another brief names never holds a launch: the overlap is information for the user, and the second pull request to merge rebases. Run it from the main checkout, in one call with the block at the top, with the task's slug in place of the word in angle brackets:
-
-   ```sh
-   slug='<slug>'
-   if [ -f "$H/scouts/$slug.md" ] && ! [ -f "$H/tasks/$slug.md" ]; then
-       echo "go: a scout changes no files, so it overlaps nothing"
-   elif ! said=$(uv run --project "$T/../source" jmerge --claims) || [ "${said#wait:}" != "$said" ]; then
-       case $said in
-       wait:*) printf '%s\n' "$said" ;;
-       *) echo "wait: jmerge --claims did not finish, no overlap was read" ;;
-       esac
-   else
-       printf '%s\n' "$said" | awk -v slug="$slug" '
-           function paths(where, into,    n, i, part) {
-               n = split(where, part, "`")
-               for (i = 2; i <= n; i += 2) if (part[i] ~ /[\/.]/) into[part[i]] = 1
-           }
-           function under(path, directory) {
-               sub(/\/+$/, "", directory)
-               return index(path, directory "/") == 1
-           }
-           {
-               at = index($(0), " Where: ")
-               if (!at) next
-               head = substr($(0), 1, at - 1)
-               if ($(1) == slug) { paths(substr($(0), at), mine); own = 1; next }
-               if (substr(head, length($(1)) + 2, 13) == "not launched ") next
-               state = substr(head, length($(1)) + 2)
-               sub(/ [^ ]+$/, "", state)
-               sub(/^(paused )?pull request /, "#", state)
-               out[$(1)] = state
-               where[$(1)] = substr($(0), at)
-           }
-           END {
-               if (!own) {
-                   print "wait: jmerge --claims has no line for " slug ": write its brief first, then run this again"
-                   exit
-               }
-               for (other in out) {
-                   split("", theirs)
-                   paths(where[other], theirs)
-                   named = ""
-                   for (path in mine) for (their in theirs)
-                       if (path == their || under(path, their) || under(their, path))
-                           named = named (named == "" ? "" : ", ") "`" (length(path) >= length(their) ? path : their) "`"
-                   if (named != "") print "overlaps " other " (" out[other] ") on " named ": the second to merge rebases"
-               }
-               print "go: an overlap holds nothing, name each one in the launch message"
-           }'
-   fi
-   ```
-
-   It prints a line `overlaps <slug> (<#number, out or paused>) on <paths>: the second to merge rebases` for each brief out whose `Where:` names a path of the task's, a file or a directory one is under, and last `go`. A scout's request, in `scouts/` with no brief in `tasks/`, gets `go` alone. On a `wait:` line that says the task has no line, its brief is not on disk yet: write it ("Handing a task to a crewmate" step 1), then run the check again. Name each overlap to the user in the launch message, and launch: it holds nothing. A brief not launched yet is not out, and is left out. On a line that begins `wait:`, nothing was read: launch nothing. Do not read the briefs in `$H/tasks/` for this, and do not ask another home.
+3. Run `jbus plan` and close each entry it prints `finished: close it` for ("Planning").
+   Write no status: the plan holds none.
+   Then queue each approved entry's next row with `jbus queue add --entry <entry>`, with `--depends` for what it waits on.
+   Launch nothing by hand: jbus's pass launches a row once it is approved and what it depends on has merged, checks `room` first, and tells the files two briefs out share.
 4. End the turn by "How a turn ends": what landed, what was merged, what was launched with its link, what was parked, and what waits and why are its lines, and the user hears only a decision or a stop among them.
    When nothing is left planned or out, that is a `handled:` line, told with the open questions when the user asks for status ("Gates").
 

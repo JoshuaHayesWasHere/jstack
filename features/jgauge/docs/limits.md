@@ -110,7 +110,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | Plan cushion, percent | `features/jgauge/src/jgauge/room.sh:7` | `CUSHION=${HEADROOM:-90}` | #102 (the owner's gate 20) at 100; account-limits, the owner's account-failover round 1, at 90 | A launch passes an account by before its plan window is used up | The provider's, not the machine's | Moved: the user's `headroom` in `config.toml`, `CUSHION=90` with none |
 | `/tmp` file slots line, percent | `features/jgauge/src/jgauge/room.sh:8` | `SLOTS=85` | Before this repo's history | `/tmp` never fills, which fails every shell | Six suites at once peak at 36% | Kept: a share |
 | A review skips the load | `features/jgauge/src/jgauge/cli.py:202` | `"--light",` | #102 (yelena, "at load 30 of 24 cores") | A review is not held by load it does not add | A review is about 2% of a core | Kept |
-| Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py:330` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
+| Passes a row waits for room before its gate | `features/jbus/src/jbus/__init__.py:427` | `room_passes=int(raw.get("room_passes", 10)),` | Before this repo's history | The owner hears of a row room holds for long | The busy night's hold was 7 passes | Kept: a design choice |
 
 ## The plan's pools
 
@@ -148,7 +148,7 @@ This page records the pool numbers and changes none of them.
 | jmerge in a pass | `features/jbus/src/jbus/wake.py:79` | `JMERGE_TIMEOUT = 17 * 60` | #42 | A slow merge never stops a pass | Design choice, over the merge gate's 10 min | Kept |
 | jmerge's judge | `features/jmerge/src/jmerge/cli.py:60` | `TIMEOUT_SECONDS = 120` | Before this repo's history | A model call does not hang a merge | Design choice | Kept |
 | Judged again | `features/jmerge/src/jmerge/cli.py:55` | `JUDGED_AGAIN_AT_MOST = 2` | Before this repo's history | A merge is not judged forever | Design choice | Kept |
-| Rows that share files | `features/jbus/src/jbus/dispatch.py:50` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
+| Rows that share files | `features/jbus/src/jbus/dispatch.py:67` | `OVERLAP_PATHS = 5` | Before this repo's history | Two crews out on the same files | Design choice | Kept |
 | A failover's items | `features/jbus/src/jbus/failover.py:44` | `ITEMS = 12` | Before this repo's history | A move's message stays short | Design choice | Kept |
 | Runs a thread keeps | `features/jbus/src/jbus/threads.py:119` | `RUNS = 20` | Before this repo's history | A thread's history stays small | Design choice | Kept |
 | Carry-ons a thread gets | `features/jbus/src/jbus/threads.py:129` | `CARRY_ONS = 2` | Before this repo's history | A thread is not woken forever | Design choice | Kept |

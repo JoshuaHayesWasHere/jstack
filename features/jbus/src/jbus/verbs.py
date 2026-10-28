@@ -25,6 +25,11 @@ modules declare the same rank, `chores` raises a `ValueError`.
 
 `project` and `here` are the two ways a verb finds its project.
 
+`piped` is how a verb reads its text from stdin: a thread has nobody to type at a terminal, so it
+refuses one at once. `typed_at` is how a verb takes the `--at` an agent types for when the user
+said something: as `jsettings` words a time, and within `TYPED_MINUTES` of `clock`, since a time
+further off is a guess and not a reading of `date` or of the message.
+
 This module imports none of jbus's features, so that each feature can import this module. It
 imports `jbus.party`, the shapes of who acts, which imports nothing of jbus.
 """
@@ -36,13 +41,18 @@ import importlib
 import pkgutil
 import re
 import subprocess
+import sys
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jbus
 from jbus import party
+
+if TYPE_CHECKING:
+    import jsettings
 
 FIRST = (
     "poll",
@@ -234,6 +244,43 @@ def here(config: jbus.Config, name: str | None) -> jbus.Project:
         if one.state == repo:
             return one
     raise jbus.Refused(f"refused: no project for this repo ({repo or 'not a repo'})")
+
+
+TYPED_MINUTES = 10
+
+
+def clock() -> datetime:
+    """Now: what a typed `--at` is held to."""
+    return datetime.now(UTC)
+
+
+def piped(verb: str, what: str, given: str = " <slug>") -> str:
+    """Return stdin's text, or refuse a terminal, which would wait for a line nobody types."""
+    if sys.stdin.isatty():
+        raise jbus.Refused(
+            f"refused: stdin is a terminal, and jbus {verb} reads {what} from it: pipe them in, "
+            f"as in jbus {verb}{given} < <file>"
+        )
+    return sys.stdin.read()
+
+
+def typed_at(user: jsettings.Settings, at: str) -> None:
+    """Refuse an `--at` that is not a time as `user.stamp` writes it, or that is more than
+    `TYPED_MINUTES` off the clock."""
+    if not user.takes(at):
+        raise jbus.Refused(f'refused: --at is "{user.form(at)}"')
+    now = clock()
+    typed, word = at.rsplit(" ", 1)
+    said = user.local(datetime.strptime(typed, "%Y-%m-%d %H:%M"))
+    if user.word(said) != word:
+        said = user.local(said.replace(tzinfo=None, fold=1))
+    off = round(abs((said - now).total_seconds()) / 60)
+    if off > TYPED_MINUTES:
+        raise jbus.Refused(
+            f"refused: --at {at} is {off} minutes off the clock, and the clock reads "
+            f"{user.stamp(now)}: take the time from date or from the message's own timestamp, "
+            "never a guess"
+        )
 
 
 def _cli_party(given: str) -> str:

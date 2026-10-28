@@ -63,7 +63,7 @@ CrewFix(p) ==
     \* pull request that carries main's fix reads a failure over that red as its own, since main
     \* goes green only once it merges: a step the code lacks (FlowToday.tla's CrewFix).
     /\ (~ranRed[p] \/ told[p] \/ fixes[p])
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
     /\ breaks' = [breaks EXCEPT ![p] = FALSE]
     /\ ci' = [ci EXCEPT ![p] = "none"]
     /\ full' \in BOOLEAN                    \* a turn may leave processes running
@@ -94,7 +94,7 @@ Sweep ==
 ApproveMainFix ==
     /\ mainRed
     /\ fixRow
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:322-354, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
