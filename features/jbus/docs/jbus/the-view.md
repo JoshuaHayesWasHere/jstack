@@ -87,7 +87,7 @@ A project's page leads with the queue of what needs you in that project, oldest 
 
 | Part | What it shows |
 |---|---|
-| Needs you | The project's queue. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. The queue has one source, jbus's list of what waits on you (`waiting-on-user.json`, which each pass logs as its `waiting` event), and every count of Needs you on the page counts it. Each item of that list is a need unless it is on its default: a gate that holds (`Holds:`) or has no default, a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a hold no thread works on, and a setup. What the system fixes by itself, such as a hung turn or a lost thread, is no need: it shows where it is wrong, on its row. The gates already on their default ask nothing, so they are one line under the heading, "6 take their default", which opens the list of gates. Each need has one filled button: Approve, Answer, Write to its home, or one that opens its drawer with the exact command or link. Approve waits 10 seconds, and Undo stops it. Only then does the page send one request, `POST /panel/you/approve`, and show the server's sentence. With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table, each with its `doors`, the cases of the one door table its action opens. |
+| Needs you | The project's queue. A row says what it is and why in words, the one default it carries, the project, how long it has waited, what it unblocks, and one action. The queue has one source, jbus's list of what waits on you (`waiting-on-user.json`, which each pass logs as its `waiting` event), and every count of Needs you on the page counts it. Each item of that list is a need unless it is on its default: a gate that holds (`Holds:`) or has no default, a pull request jmerge holds, a row to approve, a row at a gate, a leftover, a hold no thread works on, and a setup. What the system fixes by itself, such as a hung turn or a lost thread, is no need: it shows where it is wrong, on its row. The gates already on their default ask nothing, so they are one line under the heading, "6 take their default", which opens the list of gates. Each need has one filled button: Approve, Answer, Write to its home, or one that opens its drawer with the exact command or link. Approve waits 10 seconds, and Undo stops it. Only then does the page send one request, `POST /panel/you/approve`, and show the server's sentence. The go and its undo, `POST /panel/you/hold`, are acts of yours over the view, and a go on a brief with a `Holds:` line approves nothing: it parks a gate that waits for your own word, read in T3 Code or on a Lavish page. With nothing waiting, the queue says "Nothing needs you" and the time of the last pass. The server builds the queue in `/stack.json` as `needs` and `proceeds`, closed records with a verb from one table, each with its `doors`, the cases of the one door table its action opens. |
 
 The header holds the one project switcher (All and each project), the breadcrumbs, the time of the last read, and the machine's state.
 The state is "Machine ok", "jbus stopped" or "N passes failed" in red, or in amber one of "Machine: room full", "room not known", "runners down", "plan at its limit", "N homes off the bus" or "N sources unread".
@@ -197,6 +197,8 @@ To pick another option or to use your own words, open that gate by itself.
 
 The view records the answer as `jbus answer` records it.
 The record names the user of your settings, the time by the server's clock, and `jbus view` as the place.
+The answer is an act of yours over the view, a line of `acts.jsonl`, on `view` evidence that jbus did not read itself ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)).
+So the view refuses an answer to a gate with a `Holds:` line, and that gate stays open for your own answer, `jbus --as user answer <n> --message <thread>/<message>`.
 An answer that is not the default goes to the thread that asked in the same request.
 It goes as one queued message, the same message a pass would send.
 If T3 Code refuses the message or does not reply, the view still closes the question, the page says why the answer was not sent, and the next pass sends it.
@@ -219,6 +221,7 @@ Your go for one goes to `POST /approve?project=<project>`, with the body `{item,
 `seen_event` is the item's last line as the page showed it.
 The view decides nothing about the go.
 It calls `jbus.item.approve`, as `jbus item approve` does, by the user of your settings, in the view.
+The go is an act of yours over the view, a line of `acts.jsonl`.
 The go's line records that it was said in the view, with the basis `view`, the server's clock, and `checked` false.
 A go whose `seen_event` is not the item's last line gets 409, and its sentence quotes the line that came after.
 So a second POST of the same go gets 409, and the view does not write it.

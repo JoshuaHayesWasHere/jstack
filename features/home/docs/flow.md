@@ -44,7 +44,8 @@ Without asking you, the threads do everything else that is reversible.
 - **A gate.** A thread met a question only you can answer, took a default and carried on. You keep the default, or change it.
 - **A held pull request.**
   `jmerge` printed `hold`.
-  You give `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](../../jinstall/docs/configuration.md#jstack).
+  You give `jmerge --accept <number> --as user --message <thread id>/<message id>`, naming your own message in T3 Code, or the typed `jmerge --accept <number> --by <user> --at "<date and time>"`, where `<user>` is the `user` of your [configuration](../../jinstall/docs/configuration.md#jstack).
+  A brief with a `Holds:` line, or a pull request that touches a protected path, merges only on your own message: any other accept parks a gate for you and merges nothing.
   Add `--check` to see what it would do.
   `jmerge` refuses `--accept` unless the review proved the fact that makes the change safe.
   [jmerge](../../jmerge/docs/jmerge.md) has the rest.

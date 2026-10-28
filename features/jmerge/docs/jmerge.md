@@ -34,7 +34,7 @@ If the file names a check that your repo's CI never runs, every pull request wai
 
 ## Accept a pull request it holds
 
-Run `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zone>"` from the main checkout.
+Run `jmerge --accept <number> --as user --message <thread id>/<message id>` from the main checkout, naming your own message in T3 Code.
 The section "Accept a held pull request" lists what `jmerge` checks before it merges.
 
 ## What a merge does
@@ -519,9 +519,11 @@ For each part of the gate that fails, it prints `wait <number> <url>: guarded (t
 Never run `gh pr merge` by hand.
 
 ```sh
-jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zone>"
+jmerge --accept <number> --as user --message <thread id>/<message id>
 ```
 
+`--message` names your own message in T3 Code, which jbus reads for your words and their time, in place of `--by` and `--at`.
+The typed form, `jmerge --accept <number> --by <user> --at "YYYY-MM-DD HH:MM <zone>"`, is still taken, and opens no door.
 `<zone>` is your `timezone_label`, or your time zone's abbreviation at that time, such as `CEST`.
 [Configuration](../../jinstall/docs/configuration.md#jstack) has both keys.
 
@@ -532,12 +534,22 @@ It refuses a pull request that is not held, one whose head is not the head on re
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so the guarded gate and `merge-off` apply.
 `jmerge --accept <number> --check` says what it would do.
 
+Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).
+`--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.
+An accept opens a door when the brief has `Holds:` lines, and when the pull request touches a protected path, the case "changes access or secrets".
+Only you open a door, on your own message: `--as user` with `--message`.
+Any other party's accept on a door, a home's or one on typed words, parks a gate for you, `may jmerge merge pull request <number> of <slug>? It holds for <cases>`, and merges nothing.
+`--message` in a checkout that is no project of jbus's is refused, and there the accept runs on `--by` and `--at` alone and nothing logs it.
+`--check` is no act and records nothing.
+
 ## Arguments
 
 | Argument | What it does |
 |---|---|
 | `--check` | Prints `ready` lines in place of merging. It merges nothing, logs nothing and asks GitHub to update no branch. It does run the merge gate, and prints its hold. |
-| `--accept <number>` | Lifts the hold of one pull request and merges it, with `--by` and `--at`. |
+| `--accept <number>` | Lifts the hold of one pull request and merges it, on `--message <thread id>/<message id>` or on `--by` and `--at`, as the party `--as` names. |
+| `--message <thread id>/<message id>` | With `--accept`, your own message in T3 Code, which jbus reads, in place of `--by` and `--at`. |
+| `--as home\|user` | With `--accept`, the party that accepts: `home`, the default, or `user`, who acts on a `--message` alone. |
 | `--sweep` | Merges nothing. It removes what each finished thread left once its work is all merged or pushed: the worktree and the branches. It also deletes each marker under `refs/jstack/green-tree/` on the origin whose commit is more than 7 days old. It prints what it removed and what it kept. It keeps a worktree while a process works in it, and also when it cannot read the list of processes to tell: `/proc` on Linux, `lsof` on macOS. With `--check` it prints what is removable and removes nothing. |
 | `--claims` | Changes nothing. It prints one line per brief that still holds files, with its state, its home and its `Where:` line. For a brief with an open pull request, the line goes on with `Diff:` and each file that pull request changes, or that its last Result's `Wider:` line names, which its `Where:` does not cover, in backticks. GitHub lists up to 100 files of each pull request here. jbus reads the lines on each pass to tell an `overlap`. |
 | `--scope <slug>` | Changes nothing. It prints, for the brief's branch against the branch it left (the default branch, or for a link of a stack the branch it sits on), `outside: <path>` for each changed file the brief's `Where:` line does not cover, and `wider: <path>: <why>` for each one the last Result's `Wider: <path>: <why>` line gives a reason for. It prints nothing when every file is inside, and exits 1 with a reason on stderr when the brief's `Where:` names no path or neither the branch nor its pull request can be read. For a branch that is gone, it asks the branch's pull request. |

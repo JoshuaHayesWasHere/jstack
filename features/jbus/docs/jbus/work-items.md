@@ -29,7 +29,7 @@ The kinds are `item.proposed`, `item.approved`, `item.queued`, `item.launched`, 
 A pass writes a line only when its row moves the item to a new state.
 A pass with nothing new writes none.
 
-A decision made in your chat bot's chat comes back through the relay ([Decisions from the chat](the-relay.md#decisions-from-the-chat)).
+A decision made in your chat bot's chat does not come back through the relay ([Decisions from the chat](the-relay.md#decisions-from-the-chat)).
 
 An item's risk is `review` for these, and `routine` for anything else:
 
@@ -42,7 +42,7 @@ An item's risk is `review` for these, and `routine` for anything else:
 | Verb | What it does |
 |---|---|
 | `jbus item propose --title <title> --by <name> [--where chat\|view\|cli] [--owner <owner>]` | Proposes an item with no row, and prints its id. `--where` is where it was said, `cli` with none, and is the item's source. `--owner` is who will do it, `home` with none. |
-| `jbus item approve <id> --by <user> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Your go for an item, by its id. The command refuses a `--by` of anyone but you. `--words` keeps what you said, as you said it. `--seen` names the item's last line as the writer saw it, and the command refuses the move if the item has moved since. From `chat`, the command takes the go only when the words name the item, by its id or its slug, and its risk is `routine`. It refuses a review item, with the view's link `#/<project>/item/<id>`. |
+| `jbus item approve <id> --by <user> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Your go for an item, by its id. The command refuses a `--by` of anyone but you. `--words` keeps what you said, as you said it. `--seen` names the item's last line as the writer saw it, and the command refuses the move if the item has moved since. |
 | `jbus item drop <id> --by <name> [--where chat\|view\|cli] [--words <words>] [--seen <line id>]` | Drops an item that will not be done. |
 | `jbus item show <id>` | Prints the item, its state, its slug, its source, its owner, its risk, its last line, and each of its lines. |
 | `jbus item list` | Prints every item, one line each: its id, state, risk, slug and title. |
