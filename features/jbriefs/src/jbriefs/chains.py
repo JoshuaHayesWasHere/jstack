@@ -4,6 +4,7 @@ code the row changes, calls or imports, or a Result it reads, and never the plan
 in: `layered` is the brief's fault for a line that gives a layer as its reason."""
 
 import re
+from collections.abc import Iterable
 
 from jbriefs import parse
 
@@ -18,7 +19,7 @@ def builds_on(text: str) -> frozenset[str]:
     commas. Otherwise it is prose, a `;` inside a description or a line with no colon, and names
     none.
     """
-    said = _said(text)
+    said = _said(parse.fields(text))
     named: set[str] = set()
     for item in said.split(";"):
         head, colon, _ = item.partition(":")
@@ -32,25 +33,26 @@ def builds_on(text: str) -> frozenset[str]:
     return frozenset(named)
 
 
-def layered(text: str) -> str:
-    """Why a brief's `Builds on:` line may not be queued, as one line, or an empty string.
+def layered(held: Iterable[tuple[str, list[str]]]) -> str:
+    """Why a brief's `Builds on:` line may not be queued, as one line, or an empty string. `held`
+    is the brief's fields, as `jbriefs.parse.fields` reads them.
 
     An item whose reason names a plan layer (`the base of layer 2`, `the plan layer before`) is
     at fault. A `--depends` on an open pull request stacks the row on that branch, and a stack
     by layer holds the row behind work its code never touches.
     """
-    held = [
-        item.strip() for item in _said(text).split(";") if _LAYER.search(item.partition(":")[2])
+    found = [
+        item.strip() for item in _said(held).split(";") if _LAYER.search(item.partition(":")[2])
     ]
-    if not held:
+    if not found:
         return ""
     return (
-        f"brief's Builds on: line stacks by plan layer ({'; '.join(held)}): a row builds on "
+        f"brief's Builds on: line stacks by plan layer ({'; '.join(found)}): a row builds on "
         "another only for code it changes, calls or imports, or for its Result. Sibling work of "
         "one layer queues with no Builds on: line, and with --merge-after where the merge order "
         "matters"
     )
 
 
-def _said(text: str) -> str:
-    return next((" ".join(lines) for name, lines in parse.fields(text) if name == "Builds on"), "")
+def _said(held: Iterable[tuple[str, list[str]]]) -> str:
+    return next((" ".join(lines) for name, lines in held if name == "Builds on"), "")
