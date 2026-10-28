@@ -63,6 +63,14 @@ def test_s2_a_green_tip_ends_the_red_in_every_order():
     holds(EVERY, "S2")
 
 
+def test_s3_a_check_that_proves_the_fix_of_a_red_tip_seen_one_at_a_time_is_not_held():
+    holds(ONE_AT_A_TIME, "S3")
+
+
+def test_s3_a_check_that_proves_the_fix_is_not_held_in_every_order():
+    holds(EVERY, "S3")
+
+
 @pytest.mark.parametrize("pull", [False, True])
 def test_a_trace_starts_from_its_own_red_pull_request_whatever_order_the_key_has(pull):
     """A trace's start line says whether the red pull request was open. The walk reads that from

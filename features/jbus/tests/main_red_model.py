@@ -3,8 +3,8 @@ merges, check answers, T3 Code answers and jbus passes within the bounds below, 
 model runs the real `jbus.mainmoved.tell` as jbus's step and the real `jmerge.rows.red` as jmerge's
 read.
 
-The model checks two properties on the record after every pass. Both come from the rule "Main is not
-red" in `features/jmerge/docs/jmerge.md`:
+The model checks three properties on the record after every pass. Each comes from the rule "Main is
+not red" in `features/jmerge/docs/jmerge.md`:
 
 - **S1, no merge onto a known red main.** Take the newest tip whose check has settled
   (`mainjson.SETTLED`: `green` or `failed`). If that check failed, `rows.red` is not empty for a
@@ -13,6 +13,20 @@ red" in `features/jmerge/docs/jmerge.md`:
 - **S2, no stuck red.** When `rows.red` names a tip, neither that tip nor any tip that landed after
   it has a `green` check. The harm when it breaks: jmerge holds every pull request as "main is red"
   after a fix has made main green, and the queue stops until somebody looks.
+- **S3, no held fix.** When `rows.red` names a tip, an open pull request whose own check, at a head
+  that contains that tip, ran each test that failed there and passed it is held neither by
+  `rows.red` nor as main's red by `rows.browser_red`, whatever its slug (`fl-fix` here) and whether
+  or not the fix row jbus filed for a red browser run is open. The harm when it breaks: the fix
+  that another row wrote waits behind the red it fixes, and once the filed fix row closes nothing
+  can merge, as on 2026-10-27 from 17:28.
+
+S1 also holds the open pull request `fl-fix` wherever its check did not prove the fix: its head
+lacks the red tip, its check ran another test file, or its check failed.
+
+The pull request `fl-fix` is not part of the state, since nothing `tell` reads depends on it. After
+each pass the properties judge it at every head the state allows, over each tip on main, with each
+of four checks (`CHECKS`): one that ran the whole suite and passed, one that ran the failing tests'
+file and passed, one that ran another file and passed, and one that failed.
 
 The model has at most `TIPS` tips on main, at most `EVENTS` events, and zero or one open red pull
 request that jbus launched (`alpha`). The first tip, M0, is green and is there from the start.
@@ -89,11 +103,17 @@ TIPS = 4
 EVENTS = 10
 MERGED = "beta"
 RED_PR = "alpha"
+FIX_PR = "fl-fix"
 THREAD = "mcp:thread-1"
 HEAD = "c" * 40
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
 SETTLES = ("green", "failed", "cancelled", "refused", "nojob")
 ANSWERS, LOSES, REFUSES = "answers", "loses the send", "refuses the send"
+TEST_FILE = "features/m/tests/test_m.py"
+OTHER_FILE = "features/o/tests/test_o.py"
+CHECKS = ("ran every test", "ran the failing file", "ran another file", "failed")
+PROVES = CHECKS[:2]
+BROWSER_RUN = "41"
 
 
 def sha(tip: int) -> str:
@@ -258,10 +278,54 @@ class Files:
         return State(state.checks, record, sent, state.pull, looked), client.calls > 0
 
 
+def failing(tip: int) -> str:
+    """Return the test that failed at a tip whose check failed, as the red run's log names it."""
+    return f"{TEST_FILE}::test_M{tip}"
+
+
+def browser_runs(tip: int) -> list[dict[str, Any]]:
+    """Return main's last browser run, red at `tip`, as GitHub lists browser.yml's runs."""
+    return [
+        {
+            "id": BROWSER_RUN,
+            "event": "schedule",
+            "head_branch": "main",
+            "head_sha": sha(tip),
+            "status": "completed",
+            "conclusion": "failure",
+            "created_at": "2026-10-20T07:00:00Z",
+        }
+    ]
+
+
+def held(files: Files, head: int, check: str) -> list[str]:
+    """Return jmerge's holds on `fl-fix` as main's red, at a head over the tip `head` whose check
+    is `check`: `rows.red`, and `rows.browser_red` where main's browser run is red at the same
+    tip, with its filed fix row open and closed."""
+    main = mainjson.read(files.state)
+    holds = [rows.red(main, FIX_PR)]
+    tip = next((tip for tip in range(TIPS) if sha(tip) == main.red), None)
+    if tip is not None:
+        for fixing in ({BROWSER_RUN}, set()):
+            said = rows.browser_red(HEAD, FIX_PR, browser_runs(tip), "main", fixing)
+            holds.append(said if said.startswith("main is red") else "")
+    return [one for one in holds if one]
+
+
 def s1(state: State, files: Files) -> bool:
-    """Return whether S1 holds on the state that a pass leaves."""
-    settled = [check for check in state.checks if check in mainjson.SETTLED]
-    return not settled or settled[-1] != "failed" or files.red(state) != ""
+    """Return whether S1 holds on the state that a pass leaves: a known red main holds `beta`,
+    and `fl-fix` at each head whose check does not prove the fix of that tip."""
+    settled = [tip for tip, check in enumerate(state.checks) if check in mainjson.SETTLED]
+    if not settled or state.checks[settled[-1]] != "failed":
+        return True
+    if files.red(state) == "":
+        return False
+    for head in range(len(state.checks)):
+        for check in CHECKS:
+            proved = check in PROVES and head >= settled[-1]
+            if not proved and not held(files, head, check)[:1]:
+                return False
+    return True
 
 
 def s2(state: State, files: Files) -> bool:
@@ -273,7 +337,33 @@ def s2(state: State, files: Files) -> bool:
     return "green" not in state.checks[tip:]
 
 
-PROPERTIES = {"S1": s1, "S2": s2}
+def s3(state: State, files: Files) -> bool:
+    """Return whether S3 holds on the state that a pass leaves: while jmerge reads main as red,
+    `fl-fix` is not held as main's red at any head over the red tip whose check proves the fix."""
+    if not files.red(state):
+        return True
+    red = mainjson.read(files.state).red
+    tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
+    return not any(
+        held(files, head, check) for head in range(tip, len(state.checks)) for check in PROVES
+    )
+
+
+def held_fix(state: State, files: Files) -> str:
+    """Return the line that ends an S3 trace: the first head and check at which jmerge holds
+    `fl-fix`, and what it says."""
+    red = mainjson.read(files.state).red
+    tip = next(tip for tip in range(len(state.checks)) if sha(tip) == red)
+    for head in range(tip, len(state.checks)):
+        for check in PROVES:
+            if said := held(files, head, check):
+                return f"jmerge holds {FIX_PR}, its head over M{head}, its check {check}: {said[0]}"
+    return ""
+
+
+PROPERTIES = {"S1": s1, "S2": s2, "S3": s3}
+SAID = {"S3": held_fix}
+"""The line a property's trace ends with, where the state alone does not say what broke."""
 
 
 @dataclass(frozen=True)
@@ -383,7 +473,8 @@ def walk(options: Options) -> Found:
                         continue
                     found.broken[prop] += 1
                     if prop not in found.traces:
-                        found.traces[prop] = trace(parents, key)
+                        said = SAID[prop](step.after, files) if prop in SAID else ""
+                        found.traces[prop] = trace(parents, key) + ([name(said)] if said else [])
         found.states = len(parents)
     found.seconds = time.monotonic() - began
     return found
