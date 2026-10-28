@@ -18,7 +18,8 @@ Every pass rewrites `~/.local/state/jbus/<project>/waiting-on-user.json` with th
 
 A spent GitHub API allowance is one item of that list, of the kind `github`, whatever the calls GitHub refused.
 Its line names the window and when it starts again, such as `GitHub refused it for its API rate limit: its core window has 0 of 5000 calls left until 2026-10-28 16:20 UTC`, and `jmerge` and the pass print the same line in place of what `gh` said.
-It goes on the first pass that reads calls left again, it never blocks, and while it stands a pass asks GitHub only what merging needs ([`jbus budget`](the-verbs.md)).
+It goes on the first pass that reads calls left again, and it never blocks.
+A window with no call left is under the floor, so the pass asks GitHub only what merging needs ([`jbus budget`](the-verbs.md)).
 
 A row that ended with something left is not yours while its home has it.
 jbus tells the home once ("The leftover" in [Tying a crewmate to its thread](../working-on-jbus/tying-a-crewmate-to-its-thread.md)), and the row waits on that home.

@@ -140,7 +140,8 @@ IDLE = {
     "left": "It stays as it was left, and nothing cleans it up.",
     "hold": "The pull request waits, and nothing merges it.",
     "config": "jbus goes on without it.",
-    "github": "jbus asks GitHub only what merging needs, and the allowance starts again by itself.",
+    "github": "It clears by itself when GitHub's window starts again, and until then jmerge "
+    "still merges.",
     "gate": "It waits for your answer.",
 }
 """What happens if the user does nothing, for a need whose kind has no default of its own. Any
