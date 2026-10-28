@@ -3,10 +3,10 @@ phone's 390: four shots kept under `fixtures/jbus-view/shots/` as `day-<day>-<wi
 pictures each later change to the overview is shown by.
 
 The shots are the command's own, with the browser of these tests as its `chromium`, the fonts
-of `browser.FONTS` and the zone UTC. The page draws the time of its last read, which the command
-does not hide, so a shot is not compared pixel by pixel: the look of each route is kept by
-`test_view_page_look.py`. Each run checks that the command draws each one at its width, and that
-one is kept. `JSTACK_SHOTS=keep` writes them afresh, and a change that moves the overview runs
+of `browser.FONTS` and the zone UTC. The page reads the server's clock, the scene's, so each draw
+of a day is the same. Each run compares the shot with the one kept, as `test_view_page_look.py`
+does: by the share of its pixels that `moved`, on the browser that drew the kept ones only
+(`drawn_by`). `JSTACK_SHOTS=keep` writes them afresh, and a change that moves the overview runs
 this module that way and commits the shots with it. `JSTACK_SHOTS_OUT=<dir>` also writes each
 one into that folder."""
 
@@ -16,11 +16,12 @@ import struct
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
 from jbus import cli
 from view.days import DAYS
 from view.page.browser import CHROMIUM, FONTS, LAUNCH, PATIENCE
-from view.page.test_view_page_look import SHOTS
+from view.page.test_view_page_look import DRAWN_BY, MOVED, SHOTS, browser, drawn_by, moved
 from view.scene import Served
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + 2 * (LAUNCH + 5) + 30)]
@@ -64,6 +65,15 @@ def test_view_shot_draws_the_overview_of_each_day_at_each_width(
     for folder in out:
         folder.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(drawn, folder / drawn.name)
+        (folder / DRAWN_BY).write_text(browser() + "\n")
+    if os.environ.get("JSTACK_SHOTS") == "keep":
+        return
+    drawn_by((SHOTS / DRAWN_BY).read_text().strip(), browser())
     kept = SHOTS / drawn.name
     assert kept.exists(), f"no shot is kept for {kept.name}: run with JSTACK_SHOTS=keep"
-    assert width(kept) == wide
+    with Image.open(kept) as old, Image.open(drawn) as new:
+        share = moved(old.convert("RGB"), new.convert("RGB"))
+    assert share <= MOVED, (
+        f"{share:.2%} of {kept.name} moved; the new shot is {drawn}. If the change means it, "
+        "run with JSTACK_SHOTS=keep and commit the shots."
+    )
