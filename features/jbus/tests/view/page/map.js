@@ -34,10 +34,10 @@ window.addEventListener("load", function () {
     quiet: all("#map-q li").map(function (l) { return { project: l.getAttribute("data-key"), text: text(l), href: l.querySelector("a").getAttribute("href") }; }),
     machine: all("#map-m .wl").map(text),
     map: (function (m) { return !m.hidden && m.getBoundingClientRect().height > 0; })(document.getElementById("stack")),
-    panels: all("#cards > *").filter(function (el) {
+    panels: all("#desk [data-part]").filter(function (el) {
       var b = el.getBoundingClientRect();
       return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }) && b.width > 0 && b.height > 0;
-    }).map(function (el) { return el.getAttribute("data-role"); }),
+    }).map(function (el) { return el.getAttribute("data-part").split(":")[0]; }).filter(function (name, n, all) { return all.indexOf(name) === n; }),
     wrong: all("[data-wrong]").filter(seen).map(function (el) { return el.getAttribute("data-wrong"); }),
     groups: all("#prog .pgg .pgh").map(text),
     words: ["header", "main"].map(function (q) { return (text(document.querySelector(q)).match(/\S+/g) || []).length; }).reduce(function (a, b) { return a + b; }, 0),

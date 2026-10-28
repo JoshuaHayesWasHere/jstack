@@ -33,7 +33,22 @@ Any other method gets 405.
 The bare link, `http://127.0.0.1:4388/` or `#/` (and its alias `#/flow`), shows every project at once, as the board of every open row in its stage, from `/panel/pipeline.json`.
 A project is a directory of `~/.local/state/jbus` that holds a `queue.json`.
 The view never reads or shows a project retired to `~/.local/state/jbus-retired`.
-From the top, the board has these parts, under the line of what waits on you:
+At a desk, the first screen is a desk of regions, from the top:
+
+| Region | What it shows |
+|---|---|
+| Band | The verdict, as below, with what is wrong under it and, after a look, what changed since you looked. |
+| Tiles | Five numbers. Needs you: how many things wait on you, the oldest, and how many take their default; it opens `#/triage`. Open: the open rows, and how many each home has. In check: the rows at the step Check, the stacked ones counted apart, with a bar and a line that split the rest into failing (in the alarm colour), running or queued, passed and no run; it opens `#/?stage=check`. Since last act: how long ago anything was last done, and the row that has stood still longest. Merged today: the merges each project counts today, with a bar for each hour since midnight, an hour with none drawn as a hairline. |
+| Matrix | Every stage, every home, and its chains, the first two parts of the table below. |
+| Rail | Needs you: the first four things that wait on you, each with its one verb, then how many more Triage has and how many take their default. Slowed by: the groups of rows that do not move, from `glance.verdict.groups`, each with a bar, and the projects' CI checks, which open the checks drawer. |
+| Strip | Under the matrix. Landed since you looked: what merged since this browser last showed the page, newest first, by name, and what got stuck; on a first look, what jbus kept. Merged per day: the last seven days, asked of `/panel/throughput.json` once when the page loads. Nearest milestone: the plan entry with rows still to merge that is nearest done, asked of `/panel/milestones.json` once when the page loads. Machine: its load against its cores, its room, and its test slots. |
+
+At 1440 by 900 over the T moment, the desk answers the eight questions it ranks first above y=900, the parts that answer each as `QUESTIONS` in `test_view_page_overview.py` lists them.
+Each region and the parts it holds, in order, are one table in the page (`DESK`), and each part is a panel's (`parts`).
+Below 1180 pixels wide the regions are one column, and the strip is one column on a phone, where the matrix is not drawn.
+On the desk the bar of what waits on you is not drawn, since the tile and the rail say it.
+
+The matrix and the board under the desk have these parts:
 
 | Part | What it shows |
 |---|---|
@@ -111,7 +126,7 @@ Each thing wrong has an `owner`, by one rule for each kind (`OWNERS` in `feature
 It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a wake the home thread does not take, or T3 Code not answering.
 A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `wakes.json`, `outbox.jsonl`, the leftover record or the main-red row.
-`wrong`, the band's wrong tier, the since line and a project's red reasons hold only the user's entries.
+`wrong`, the band's wrong tier, its since line and a project's red reasons hold only the user's entries.
 Any other is on its row, on the board card and in the task drawer, as `fixing: <owner>, told <time>`.
 A home hears of these from the one list ([One list wakes a home](events-and-wakes.md#one-list-wakes-a-home)), and any other fault of a row is told by the step that works that row.
 

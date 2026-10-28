@@ -19,9 +19,39 @@ function dThroughput(arg, data) {
     '<span class="src">' + (t.read ? 'Pull requests GitHub has as merged, counted by the day of your zone, today up to now. GitHub asked at ' + hm(ms(t.at)) + '.' : 'Not known: ' + esc(t.error) + '.') + '</span></div>' +
     tpBars(t.days);
 }
+var TP_ASKED = null;
+function tpAsk() {
+  if (TP_ASKED || !STACK || !STACK.projects.length) return;
+  TP_ASKED = {};
+  STACK.projects.forEach(function (p) {
+    ask("/panel/throughput.json?project=" + encodeURIComponent(p.name)).then(function (a) { TP_ASKED[p.name] = a.data.throughput; render(); },
+      function () { TP_ASKED[p.name] = { read: false, error: "the view server did not answer" }; render(); });
+  });
+}
+function tpPerDay() {
+  tpAsk();
+  if (!TP_ASKED) return "";
+  var names = STACK.projects.map(function (p) { return p.name; }), said = names.map(function (n) { return TP_ASKED[n]; });
+  var tag = '<span class="tag" data-gloss="card:perday">Merged per day</span>', one = names.length === 1 ? href(names[0], "throughput") : "";
+  if (said.some(function (t) { return !t; })) return '<section class="ovc" data-role="perday"><h2 class="ovc-h">' + tag + '</h2><p class="ovc-s">Asking GitHub for the merges of each day.</p></section>';
+  var read = said.filter(function (t) { return t.read; }), by = {}, order = [];
+  read.forEach(function (t) { t.days.forEach(function (d) { if (!(d.day in by)) { by[d.day] = 0; order.push(d.day); } by[d.day] += d.merged; }); });
+  order.sort();
+  if (!read.length) return '<section class="ovc" data-role="perday"><h2 class="ovc-h">' + tag + '</h2><p class="ovc-s">Not known: ' + esc(said[0].error || "GitHub did not answer") + '.</p></section>';
+  var top = Math.max.apply(null, order.map(function (d) { return by[d]; }).concat([1])), total = order.reduce(function (n, d) { return n + by[d]; }, 0);
+  var bars = '<span class="days" role="img" aria-label="' + esc(order.map(function (d) { return d + ": " + by[d]; }).join(", ")) + '">' + order.map(function (d) {
+    return '<i' + (by[d] ? "" : ' class="zero"') + ' title="' + esc(d + ": " + plural(by[d], "merge", "merges")) + '" style="height:' + (by[d] ? Math.max(3, Math.round(60 * by[d] / top)) : 1) + 'px"></i>';
+  }).join("") + '</span>';
+  var line = "<b>" + total + "</b> over the last " + order.length + " days, today up to now" + (read.length < said.length ? ", " + (said.length - read.length) + " of " + said.length + " projects not known" : "");
+  return '<section class="ovc" data-role="perday"><h2 class="ovc-h">' + tag + ' <b>' + by[order[order.length - 1]] + '</b> <span class="ovc-s">today</span></h2>' + bars + '<p class="ovc-s">' + (one ? '<a href="' + esc(one) + '">' + line + '</a>' : line) + '</p></section>';
+}
 panel({
   title: "Throughput",
+  parts: { perday: tpPerDay },
   drawer: dThroughput,
   reads: "server",
-  gloss: { throughput: ["Throughput", "How many pull requests merged on each of the last seven days, and their total, as GitHub counts them."] },
+  gloss: {
+    throughput: ["Throughput", "How many pull requests merged on each of the last seven days, and their total, as GitHub counts them."],
+    perday: ["Merged per day", "The card under the matrix: how many pull requests merged on each of the last seven days in every project, as GitHub counts them, asked once when the page loads. A day with none is drawn as a hairline."]
+  },
 });

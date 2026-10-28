@@ -3,11 +3,12 @@ header, the sidebar, and the overview's map of projects."""
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
 from jbus import alert
-from view.days import TODAY, lineup
+from view.days import DAYS, TODAY, lineup
 from view.page.browser import (
     BROWSES,
     DESK,
@@ -363,3 +364,85 @@ def test_the_drawers_name_the_kinds_and_roles_as_state_json_gives_them(scene, tm
     assert all(word in help_["said"] for word in ROLE_WORDS), help_["said"]
     (overview,) = walked(scene, tmp_path, "#/help", ["look"])
     assert all(word in overview["said"] for word in ROLE_WORDS), overview["said"]
+
+
+OVERVIEW = (Path(__file__).parent / "overview.js").read_text()
+
+
+QUESTIONS = {
+    "are we stalled, and why": ("glance:band", "slow:rail", "glance:act"),
+    "where is all the work, every stage, every home": ("pipeline:matrix", "glance:open"),
+    "what needs me right now": ("you:tile", "you:rail"),
+    "what is blocking what": ("chains",),
+    "how close are we to a milestone": ("milestones:nearest",),
+    "how much got done today, or this week": ("glance:merged", "throughput:perday"),
+    "what landed since I last looked": ("since:landed",),
+    "why are N items sitting in check or review": ("slow:tile", "slow:rail"),
+}
+"""Each ranked question of `reports/jv-glance/ranking.md`, in its order, and the parts of the desk
+overview that answer it. `chains` is the Chains line under the matrix."""
+
+
+def planned(scene):
+    """The T moment with a plan entry, `jv-build`, whose rows are 10 of the day's merged rows and
+    4 of its rows in check, so the nearest milestone is 10 of 14."""
+    rows = json.loads((scene.state / "queue.json").read_text())
+    merged = [one for one in rows if one["status"] == "merged"][:10]
+    checked = [one for one in rows if one["status"] == "pr"][:4]
+    for one in merged + checked:
+        one["entry"] = "jv-build"
+    scene.write("queue.json", rows)
+    (scene.home / "plan.md").write_text(
+        "# demo: plan\n\n## jv-build: the monitoring overview\nStage: planned\n"
+    )
+
+
+def desk(scene, tmp_path, screen=DESK, **how):
+    """What the probe of the desk overview, `OVERVIEW`, read of `#/`: each part with its box, its
+    words and what in it is cut, once every part has drawn."""
+    seen = look(
+        scene, tmp_path, route="#/", screen=screen, script=OVERVIEW, at=8000, budget=12000, **how
+    )
+    assert seen["errors"] == []
+    assert seen["scrollWidth"] == screen[0]
+    return seen
+
+
+def test_at_a_desk_every_ranked_question_is_answered_above_the_fold_of_the_t_moment(
+    scene, tmp_path
+):
+    """At 1440 by 900 over the T moment, each part that answers a ranked question is drawn, says
+    something, and ends above y=900, so every question is answered on the first screen."""
+    DAYS["t"](scene)
+    planned(scene)
+    seen = desk(scene, tmp_path)
+    parts = {one["name"]: one for one in seen["parts"]} | {"chains": seen["chains"]}
+    for question, answers in QUESTIONS.items():
+        for name in answers:
+            part = parts.get(name)
+            assert part, f"{question}: {name} is not drawn"
+            assert part["text"] and not part["text"].startswith("Asking"), (question, name, part)
+            assert 0 <= part["box"]["top"] < part["box"]["bottom"] <= DESK[1], (
+                question,
+                name,
+                part,
+            )
+    said = {name: part["text"].lower() for name, part in parts.items()}
+    assert said["glance:band"].startswith("moving")
+    assert said["you:tile"].startswith("needs you 4")
+    assert said["glance:open"].startswith("open 44")
+    assert re.match(r"in check 28 \+ 8 stacked", said["slow:tile"])
+    assert "18 failing · 2 running or queued · 6 passed · 2 no run" in said["slow:tile"]
+    assert said["glance:merged"].startswith("merged today 27")
+    assert "10 of 14" in said["milestones:nearest"]
+    assert "jv-build" in said["milestones:nearest"]
+    assert said["since:landed"].startswith("landed")
+
+
+@pytest.mark.parametrize("day", list(DAYS))
+def test_no_part_of_the_desk_cuts_its_words_without_a_title_or_a_way_to_open_them(
+    scene, tmp_path, day
+):
+    DAYS[day](scene)
+    seen = desk(scene, tmp_path)
+    assert {one["name"]: one["cut"] for one in seen["parts"] if one["cut"]} == {}
