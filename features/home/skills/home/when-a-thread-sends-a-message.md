@@ -83,12 +83,12 @@ Run this with the block at the top and the block that finds this home:
 route='#/' scope=root
 if [ "${M:?run the block that finds this home first}" != "$H" ]; then
     scope=${M##*/}
-    route="#/?home=$scope"
 fi
 if ! link=$(uv run --project "$T/../source" jbus link 2> /dev/null); then
     echo "no jview link: jbus has no page for $R"
 else
     view=${link%%#*}
+    [ "$scope" = root ] || route="#/?home=${link##*#/}/$scope"
     curl -fsS --max-time 5 "${view%/}/panel/board.json" 2> /dev/null | jq -r '
         (.stages | map({(.key): .name}) | add) as $name
         | "first: "
