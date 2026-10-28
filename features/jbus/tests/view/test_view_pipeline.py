@@ -353,8 +353,9 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
     """The T moment over the root, jview, flow and macos, as build/wire-1440.png draws it, and
     `infra`, a scope with no open row, which has its line all the same: each home's open rows,
     its last act, and a cell per stage with its rows, the ones an hour old or more and what the
-    rows in check and stacked wait on. The longest chain is two deep, a stacked row behind the
-    first failing check, and 6 stacked rows merge after 6 parents whose checks failed."""
+    rows in check, stacked and needs you wait on. The longest chain is two deep, a stacked row
+    behind the first failing check, and 6 stacked rows merge after 6 parents whose checks
+    failed."""
     t_moment(scene)
     briefed(scene, infra_only="infra")
     (scene.home / "tasks" / "infra-only.md").unlink()
@@ -370,7 +371,7 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
     assert {one["project"] for one in got["homes"]} == {"demo"}
     assert cells(homes["root"]) == {
         "crew": (4, 0, {}),
-        "you": (2, 0, {}),
+        "you": (2, 0, {"stacked": 2}),
         "review2": (1, 0, {}),
         "check": (7, 5, {"failing": 5, "passed": 2}),
         "stacked": (6, 4, {"stacked": 6}),
