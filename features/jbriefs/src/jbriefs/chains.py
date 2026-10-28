@@ -1,7 +1,7 @@
 """The rows a brief builds on, as its `Builds on:` line names them. `jbus queue add` holds a
-row's `--depends` to these: a row depends only on a row whose work it starts from. That work is
-code the row changes, calls or imports, or a Result it reads, and never the plan layer it sits
-in: `layered` is the brief's fault for a line that gives a layer as its reason."""
+row's `--depends` to these: a row depends only on a row whose code it changes, calls or imports,
+and never on the plan layer it sits in: `jbriefs.standing.layered` is the brief's fault for a
+line that gives a layer as its reason."""
 
 import re
 from collections.abc import Iterable
@@ -9,7 +9,6 @@ from collections.abc import Iterable
 from jbriefs import parse
 
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
-_LAYER = re.compile(r"\blayer\s+\d+\b|\b(?:plan|same|previous|prior|earlier|next)\s+layer\b", re.I)
 
 
 def builds_on(text: str) -> frozenset[str]:
@@ -31,27 +30,6 @@ def builds_on(text: str) -> frozenset[str]:
         if all(_SLUG.fullmatch(word) for word in words):
             named.update(words)
     return frozenset(named)
-
-
-def layered(held: Iterable[tuple[str, list[str]]]) -> str:
-    """Why a brief's `Builds on:` line may not be queued, as one line, or an empty string. `held`
-    is the brief's fields, as `jbriefs.parse.fields` reads them.
-
-    An item whose reason names a plan layer (`the base of layer 2`, `the plan layer before`) is
-    at fault. A `--depends` on an open pull request stacks the row on that branch, and a stack
-    by layer holds the row behind work its code never touches.
-    """
-    found = [
-        item.strip() for item in _said(held).split(";") if _LAYER.search(item.partition(":")[2])
-    ]
-    if not found:
-        return ""
-    return (
-        f"brief's Builds on: line stacks by plan layer ({'; '.join(found)}): a row builds on "
-        "another only for code it changes, calls or imports, or for its Result. Sibling work of "
-        "one layer queues with no Builds on: line, and with --merge-after where the merge order "
-        "matters"
-    )
 
 
 def _said(held: Iterable[tuple[str, list[str]]]) -> str:
