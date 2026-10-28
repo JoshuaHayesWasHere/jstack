@@ -157,6 +157,7 @@ class Skilled:
 
 
 INSTALLED = "ran the install again in {}: the merge changed what it assembles"
+TOLD = "skills changed: demo"
 
 
 def test_a_merge_that_moves_a_skill_runs_the_install_once(merged, monkeypatch):
@@ -165,20 +166,26 @@ def test_a_merge_that_moves_a_skill_runs_the_install_once(merged, monkeypatch):
     said = merged.run()
     commit, pulled = merged.on_main()
     assert pulled == commit
-    assert said == [merged_line(commit, INSTALLED.format(merged.home.main))]
+    assert said == [merged_line(commit, INSTALLED.format(merged.home.main), TOLD)]
     assert skilled.calls() == [""]
 
 
 @pytest.mark.parametrize(
-    "touched",
-    ["skills/demo/notes.md", ("skills/demo/SKILL.md", LINKED), "skills.json"],
+    ("touched", "told"),
+    [
+        ("skills/demo/notes.md", ()),
+        (("skills/demo/SKILL.md", LINKED), (TOLD,)),
+        ("skills.json", ()),
+    ],
     ids=["a file added to a skill", "a link the layout rewrites", "a catalog it cannot read"],
 )
-def test_a_merge_that_changes_what_the_install_makes_runs_it_once(merged, monkeypatch, touched):
+def test_a_merge_that_changes_what_the_install_makes_runs_it_once(
+    merged, monkeypatch, touched, told
+):
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     skilled = Skilled(merged, touched=[touched])
     said = merged.run()
-    assert said == [merged_line(merged.on_main()[0], INSTALLED.format(merged.home.main))]
+    assert said == [merged_line(merged.on_main()[0], INSTALLED.format(merged.home.main), *told)]
     assert skilled.calls() == [""]
 
 
@@ -189,21 +196,25 @@ def test_a_merge_that_changes_what_the_install_makes_runs_it_once(merged, monkey
         ("src/demo/a.py",),
         ("skills/demo/tests/test_a.py",),
         ("skills/demo/.notes",),
-        ("skills/demo/SKILL.md",),
     ],
-    ids=[
-        "nothing else",
-        "code outside every skill",
-        "a skill's tests",
-        "a hidden file",
-        "an edit the link makes live",
-    ],
+    ids=["nothing else", "code outside every skill", "a skill's tests", "a hidden file"],
 )
 def test_a_merge_that_leaves_the_layout_as_it_is_runs_nothing(merged, monkeypatch, touched):
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     skilled = Skilled(merged, touched=touched)
     said = merged.run()
     assert said == [merged_line(merged.on_main()[0])]
+    assert skilled.calls() == []
+
+
+def test_a_merge_that_edits_a_skill_names_it_and_runs_no_install(merged, monkeypatch):
+    """A thread keeps the text of each skill it loaded, so the `merged` line names each skill
+    whose `SKILL.md` the merge changed, for jbus to tell the threads out. The link already
+    makes the edit live, so the install does not run."""
+    monkeypatch.delenv("XDG_DATA_HOME", raising=False)
+    skilled = Skilled(merged, touched=["skills/demo/SKILL.md"])
+    said = merged.run()
+    assert said == [merged_line(merged.on_main()[0], TOLD)]
     assert skilled.calls() == []
 
 
@@ -223,7 +234,7 @@ def test_a_machine_installed_from_elsewhere_is_not_installed_from_this_checkout(
     (skilled.layout / "source").unlink()
     (skilled.layout / "source").symlink_to(tmp_path)
     said = merged.run()
-    assert said == [merged_line(merged.on_main()[0])]
+    assert said == [merged_line(merged.on_main()[0], TOLD)]
     assert skilled.calls() == []
 
 
@@ -238,5 +249,5 @@ def test_an_install_that_fails_is_said_on_the_merged_line(merged, monkeypatch):
         "the install was not run again after the merge changed what it assembles "
         "(sh install.sh: old hard layout codex /y -> stale: skills/demo/SKILL.md)"
     )
-    assert said == [merged_line(merged.on_main()[0], not_done)]
+    assert said == [merged_line(merged.on_main()[0], not_done, TOLD)]
     assert skilled.calls() == [""]

@@ -445,3 +445,41 @@ def test_a_merge_whose_tool_was_reinstalled_is_no_alert(kitchen):
     kitchen.set("jmerge.txt", f'merged 7 alpha abc1234 "a move", {done}, revert: x\n')
     kitchen.poll()
     assert kitchen.lines("alert") == []
+
+
+CHANGED = 'merged 7 alpha abc1234def5 "a skill", skills changed: crew home, revert: x\n'
+
+
+def test_a_merge_that_changes_a_skill_tells_each_thread_out_once(kitchen):
+    """notes.md lines 31 and 266: a thread keeps the skill text it loaded, so after a merge that
+    changed a skill it runs the old text until told, and the home told 19 crews by hand. Each
+    thread out with a role is told once, naming the skills; a thread started after the merge,
+    a settled one and one whose title gives no role are not."""
+    crew = kitchen.t3.thread("alpha")
+    reviewer = kitchen.t3.thread("beta", "completed", idle=timedelta(1), title="review: beta")
+    home = kitchen.t3.thread("demo", "completed", idle=timedelta(1), title="home: demo")
+    kitchen.t3.thread("gamma", "completed", idle=timedelta(1), settled=True)
+    kitchen.t3.thread("chat", "completed", idle=timedelta(1), title="a chat of the user's")
+    kitchen.set("jmerge.txt", CHANGED)
+    kitchen.poll()
+    told = {one["threadId"]: one["message"] for one in sends(kitchen)}
+    assert set(told) == {crew["threadId"], reviewer["threadId"], home["threadId"]}
+    for message in told.values():
+        assert "#7" in message and "crew, home" in message and "\n" not in message
+    kitchen.t3.thread("delta", age=timedelta(0))
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert len(sends(kitchen)) == 3
+
+
+def test_a_skill_note_t3_did_not_take_is_sent_on_the_next_pass(kitchen):
+    crew = kitchen.t3.thread("alpha")
+    kitchen.set("jmerge.txt", CHANGED)
+    kitchen.t3.lose_send = True
+    kitchen.poll()
+    kitchen.t3.lose_send = False
+    kitchen.set("jmerge.txt", "")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    kitchen.poll(NOW + timedelta(minutes=2))
+    went = [one for one in sends(kitchen) if one["threadId"] == crew["threadId"]]
+    assert len({one["clientRequestId"] for one in went}) == 1
+    assert "crew, home" in went[-1]["message"]
