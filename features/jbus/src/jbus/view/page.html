@@ -536,11 +536,12 @@
   var STACK = null, NOSUCH = "", PROJECT = null, TRIAGE = false, HOMES = false, QUERY = "", HASH = {}, LAYERS = [], BACK = false;
   function name(t) { try { return decodeURIComponent(t); } catch (e) { return t; } }
   function parse(hash) {
-    var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {};
+    var parts = hash.replace(/^#/, "").split("&"), path = parts[0].charAt(0) === "/" ? parts.shift() : "/", more = {}, q = path.indexOf("?");
+    if (q >= 0) { parts.unshift(path.slice(q + 1)); path = path.slice(0, q); }
     parts.forEach(function (kv) { var p = kv.split("="); if (p[0]) more[p[0]] = name(p.slice(1).join("=")); });
     var segs = path.slice(1).split("/"), kind = segs[1] ? name(segs[1]) : "", arg = segs.slice(2).map(name).join(":");
-    var home = segs.length === 1 && /^(flow|homes)?(?:\?(.*))?$/.exec(segs[0]), q = home && home[2] ? home[2].split("=") : [];
-    if (home) { if (q[0]) more[q[0]] = name(q.slice(1).join("=")); return { project: "", target: more.open || "", more: more, homes: home[1] === "homes" }; }
+    var home = segs.length === 1 && /^(flow|homes)?$/.exec(segs[0]);
+    if (home) return { project: "", target: more.open || "", more: more, homes: home[1] === "homes" };
     if (segs[0] === "triage") return { project: "", target: "", more: more, triage: true };
     if (segs[0] === "help") return { project: "", target: "help" + (segs[1] ? ":" + segs.slice(1).map(name).join(":") : ""), more: more };
     return { project: name(segs[0] || ""), target: kind ? kind + (arg ? ":" + arg : "") : more.open || "", more: more };
@@ -548,12 +549,15 @@
   function themed() { return HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : ""; }
   function href(project, target) {
     var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "", theme = HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "";
-    var q = project || TRIAGE ? [] : ["home", "stage", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
+    var q = project || TRIAGE ? [] : ["home", "stage", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]).replace(/%2F/g, "/"); });
     if (target) q.push("open=" + encodeURIComponent(target));
     if (!project && !TRIAGE && (HOMES || q.length > !!target)) return "#/" + (HOMES ? "homes" : "") + (q.length ? "?" + q.join("&") : "") + theme;
     return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + theme;
   }
-  function board(slug) { return "#/" + (slug ? "&pick=" + encodeURIComponent(slug) : "") + themed(); }
+  function board(slug, project) {
+    var p = project === undefined ? PROJECT : project, q = [p ? "home=" + encodeURIComponent(p) : "", slug ? "pick=" + encodeURIComponent(slug) : ""].filter(Boolean);
+    return "#/" + (q.length ? "?" + q.join("&") : "") + themed();
+  }
   (function () {
     var old = new URLSearchParams(location.search).get("project"), at = parse(location.hash);
     HASH = at.more; HOMES = !!at.homes;
@@ -1389,7 +1393,7 @@
   }
   function route(given, address) {
     var old = parse(typeof address === "string" ? address : location.hash);
-    if (old.project && /^flow(:|$)/.test(old.target)) { address = board(old.target.slice(5)); given = null; history.replaceState(null, "", address); }
+    if (old.project && /^flow(:|$)/.test(old.target)) { address = board(old.target.slice(5), old.project); given = null; history.replaceState(null, "", address); }
     var at = parse(typeof address === "string" ? address : location.hash), st = given && given.layers ? given : history.state, was = PROJECT, before = top(), deeper = LAYERS.length, first = LAYERS.length ? LAYERS[0].target : "";
     if (!st || !st.layers) { st = { layers: at.target ? [{ target: at.target }] : [], back: false }; history.replaceState(st, ""); }
     var wanted = EXPECT; EXPECT = null;

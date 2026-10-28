@@ -145,9 +145,10 @@ def test_the_kinds_are_in_state_json_as_the_page_shows_them_and_an_added_kind_wi
         "gate",
         "config",
         "held",
+        "github",
     ]
     assert {one["name"]: one["verb"] for one in kinds}["gate"] == "Accept default"
-    added = waiting.Kind("chore", "Chores for you", "Do it", 7)
+    added = waiting.Kind("chore", "Chores for you", "Do it", 9)
     monkeypatch.setattr(waiting, "KINDS", (*waiting.KINDS, added))
     assert served.json("/state.json?project=demo")["kinds"][-1] == asdict(added)
     assert waiting.kind("chore:sweep") == "chore"
@@ -479,3 +480,19 @@ def test_the_gates_on_their_default_are_one_line_that_asks_nothing():
     assert "1 takes its default" in said["1"] and "6 take their default" in said["6"]
     assert 'href="#/demo/you:gate"' in said["6"]
     assert "button" not in said["6"] and "data-accept" not in said["6"]
+
+
+def test_a_spent_allowance_is_one_need_that_opens_and_clears_by_itself(tmp_path, monkeypatch):
+    scene = Scene(tmp_path, monkeypatch)
+    line = "GitHub refused it for its API rate limit: its core window has 0 of 5000 calls left"
+    scene.waiting([item("github", "github:demo", line, minutes=4)])
+    served = Served(scene)
+    try:
+        needs = served.json("/state.json?project=demo")["needs"]
+    finally:
+        served.close()
+    (need,) = needs
+    assert (need["kind"], need["what"], need["verb"]) == ("github", line, "See when it resets")
+    assert (need["act"], need["thread"]) == (OPENS, "")
+    assert need["default"] == panel_you.IDLE["github"]
+    assert need["open"] == "#/demo/you/github"

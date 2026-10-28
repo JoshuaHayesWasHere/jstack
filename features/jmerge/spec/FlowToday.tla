@@ -115,16 +115,16 @@ Merge(p) ==
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
     /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:139
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
-    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:2074
+    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:2080
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:452-460
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:457-465
     \* A merge_after row merges after its row.
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:250-253
     /\ st' = [st EXCEPT ![p] = "merged"]
     \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1515-1516: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1522-1523: main's red tip after a briefed merge is filed.
     \* A green tip withdraws a fix row that never launched (watch.py:1475-1476), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
@@ -183,10 +183,10 @@ BrowserFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:857, every open one
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:863, every open one
     /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:402-405, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:828, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:934, base not red
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:834, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:940, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
@@ -212,10 +212,10 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew either fixes main in its own pull request,
 \* which merges by its slug, or ends with no pull request, its fix in an open one, as on
 \* 2026-10-27, when two flow rows held the fix. Either way the row is over, and jbus files no other
-\* for the same red tip (features/jbus/src/jbus/watch.py:1160-1162).
+\* for the same red tip (features/jbus/src/jbus/watch.py:1167-1169).
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1152-1173, queued with no approval
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1159-1180, queued with no approval
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
@@ -231,7 +231,7 @@ ApproveMainFix ==
           /\ UNCHANGED <<mainRed, redBy>>
     /\ UNCHANGED <<st, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser>>
 
-\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1219-1222),
+\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1226-1229),
 \* whose run then holds as main's red each pull request whose own browser run failed.
 \* browser.yml runs on main only nightly, so the hold starts with its next run.
 Nightly ==
@@ -259,7 +259,7 @@ OutsideBreak ==
     /\ \/ /\ ~mainRed
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
-          \* features/jbus/src/jbus/watch.py:1466,1509,1513,1516: since #392 the fix row is filed for a
+          \* features/jbus/src/jbus/watch.py:1473,1516,1520,1523: since #392 the fix row is filed for a
           \* red tip with no briefed merge in the day before it too, under the row's own name.
           /\ fixRow' = TRUE
           /\ named' \in BOOLEAN

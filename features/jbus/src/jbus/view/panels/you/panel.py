@@ -132,7 +132,7 @@ WHY = 60
 ROWS = frozenset({"row", "approve", "hold", "left"})
 """The kinds of the list of what waits on the user whose item names a row of the queue."""
 ANSWERS, APPROVES, THREADS, OPENS = "answer", "approve", "thread", "open"
-ACTS = {"approve": APPROVES, "config": OPENS}
+ACTS = {"approve": APPROVES, "config": OPENS, "github": OPENS}
 """The action of a need by its kind. A gate's is `answer` where jbus holds its question, and
 `thread` where it lives in a home's file. Any other kind's is `thread`."""
 IDLE = {
@@ -141,6 +141,8 @@ IDLE = {
     "left": "It stays as it was left, and nothing cleans it up.",
     "hold": "The pull request waits, and nothing merges it.",
     "config": "jbus goes on without it.",
+    "github": "It clears by itself when GitHub's window starts again, and until then jmerge "
+    "still merges.",
     "gate": "It waits for your answer.",
 }
 """What happens if the user does nothing, for a need whose kind has no default of its own. Any

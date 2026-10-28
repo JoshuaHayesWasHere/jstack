@@ -51,7 +51,8 @@ SHOWN = 3
 """How many groups a cause names."""
 UNSEEN = frozenset({("jbus", None), ("source", None), ("ci", "could not be read")})
 """The kinds of `wrong` that leave the view blind, with the cause that does where a kind has
-causes that do not: a failed run of CI is wrong but seen."""
+causes that do not: a failed run of CI is wrong but seen. A cause is matched by what it says
+before its first colon, so CI that could not be read for GitHub's rate limit is blind too."""
 YOU = "you"
 BEHIND, NO_RUN = "behind", "no run"
 WAIT = {
@@ -244,7 +245,7 @@ def judge(
     blind = [
         one
         for one in wrong
-        if (one["kind"], None) in UNSEEN or (one["kind"], one["cause"]) in UNSEEN
+        if (one["kind"], None) in UNSEEN or (one["kind"], one["cause"].partition(":")[0]) in UNSEEN
     ]
     if blind:
         first = blind[0]

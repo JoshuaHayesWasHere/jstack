@@ -12,7 +12,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import budget, queue
+from jbus import budget, queue, waiting
 from jbus.flow import records
 from test_jbus_kitchen import NOW, PROJECT, Kitchen, rate_limit
 from test_jbus_queue import add, launches
@@ -148,3 +148,27 @@ def test_jobs_are_refused_where_the_floor_allows_them_and_they_would_spend_half(
     monkeypatch.setattr(records, "ask", lambda command, cwd=None: given)
     assert budget.held(budget.parse(given), 1251) == ""
     assert records.affordable(1250) and not records.affordable(1251)
+
+
+def spent_items(kitchen):
+    return [one["line"] for one in waiting.read(kitchen.state) or [] if one["kind"] == "github"]
+
+
+def test_a_spent_window_waits_on_the_user_once_until_it_starts_again(kitchen):
+    """A window with no call left is one item of what waits on the user, through every pass that
+    reads it so, and through a pass that could not read the budget. Above nothing, it goes, as
+    the floor still holds the pass's calls."""
+    add(kitchen, "alpha")
+    spent = (
+        "GitHub's API allowance is spent: its core window has 0 of 5000 calls left "
+        "until 2026-10-12 16:00 UTC"
+    )
+    for minutes in (0, 3):
+        passed(kitchen, minutes, 0)
+        assert spent_items(kitchen) == [spent]
+    passed(kitchen, 6, "")
+    assert spent_items(kitchen) == [spent]
+    said, calls, _, _, _ = passed(kitchen, 9, budget.FLOOR // 2)
+    assert spent_items(kitchen) == []
+    assert calls == ["api rate_limit"]
+    assert kitchen.lines("decision") == []

@@ -28,7 +28,13 @@ Each pass rewrites the list. An item is one thing only the user can do,
 - `held`: rows held by one reason with no thread at work on it, from the pass that woke their home
   (`clock.held`), with their `rows` and the `home` that owns them. It leaves the list once the hold
   clears or a thread takes it up;
-- `config`: no sign-in to T3 Code.
+- `config`: no sign-in to T3 Code;
+- `github`: GitHub's API allowance is spent, one item for the project whatever the calls it
+  refused, with the line that names the window and when it starts again (`jmerge.budget`). The
+  pass's own reading says so (`watch.Look.spent`): a window that `gh api rate_limit` says has no
+  call left, or a call GitHub refused for its rate limit. It leaves the list on the first pass
+  that reads calls left again, and a pass that could not read the allowance keeps it as it was.
+  It clears by itself, so it never blocks.
 
 No list holds an item of a slug that was removed from the queue (`queue.removed`). `read` leaves
 such an item out of what the last pass left, and `keep` leaves it out of what the pass finds. So the
@@ -139,6 +145,7 @@ KINDS = (
     Kind("hold", "Pull requests jmerge holds for your word", "Review merge", 3),
     Kind("held", "Holds no thread works on", "Pick it up", 7),
     Kind("config", "Setup jbus lacks", "Set up", 6),
+    Kind("github", "GitHub's API allowance spent", "See when it resets", 8),
 )
 
 Item = dict[str, Any]
@@ -381,12 +388,15 @@ def keep(
     *,
     derived: bool,
     read_all: bool,
+    spent: str | None = "",
 ) -> list[Item]:
     """Rewrite the list, and log one quiet event when the new list's keys differ from the old
     list's.
 
     `roots` is the list that `stall.tell` returns. `derived` says the rows' statuses are this
     pass's, and `read_all` says that `dispatch` read every row of the queue in this pass.
+    `spent` is the line that says GitHub's API allowance is spent, nothing where it is not, and
+    None where the pass could not tell (`watch.Look.spent`).
 
     `dispatch` records a condition for a row only in a pass in which it reads that row with a slot
     free. Some passes record no condition for a row that is at `gate` on the list. If the row is not
@@ -423,6 +433,10 @@ def keep(
     found += unapproved(run, rows) if rows is not None else had("approve")
     found += holds(run, world, pulls, had("hold"))
     found += held(run.state)
+    if spent is None:
+        found += had("github")
+    elif spent:
+        found.append({"kind": "github", "key": f"github:{run.project.name}", "line": spent})
     secret = run.config.secrets()
     items = {one["key"]: one for one in redact(found, secret)}
     for root in redact(roots, secret):
@@ -679,7 +693,14 @@ def _keep(half: Half) -> None:
     the home merges is what `jmerge --check` said in this pass (`merge.shown`)."""
     run, world, rows, pulls = half.run, half.seen.world, half.table, half.shown.crews(half.crews)
     half.listed = keep(
-        run, world, rows, pulls, half.roots, derived=half.derived, read_all=half.read
+        run,
+        world,
+        rows,
+        pulls,
+        half.roots,
+        derived=half.derived,
+        read_all=half.read,
+        spent=half.seen.spent,
     )
 
 

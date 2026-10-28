@@ -76,7 +76,7 @@ def slots(tmp_path):
 
     start.waits, start.started, start.release = waits, started, release
     start.hold, start.free, start.locks, start.state = hold, free, locks, state
-    start.tmpfs = tmpfs
+    start.tmpfs, start.env = tmpfs, env
     yield start
     free()
     for name in "abc":
@@ -173,6 +173,34 @@ def test_an_interrupt_is_the_commands_to_take_and_the_holder_waits_for_it_to_end
     assert holder.poll() is None
     slots.release("a")
     assert holder.wait(timeout=5) == 0
+
+
+INTERRUPTED_AS_IT_STARTS = """
+import os, signal, subprocess, sys
+from jgauge.cli import main
+started = subprocess.Popen
+def interrupted(command, *args, **kwargs):
+    if command == sys.argv[sys.argv.index("--") + 1:]:
+        os.kill(os.getpid(), signal.SIGINT)
+    return started(command, *args, **kwargs)
+subprocess.Popen = interrupted
+sys.argv[0] = "jgauge"
+sys.exit(main())
+"""
+
+
+def test_an_interrupt_as_the_command_starts_is_the_commands_to_take_too(slots):
+    """The interrupt comes while the holder starts the command, as it did on a busy CI runner
+    once the command had begun and before the holder had turned to ignore it."""
+    ran = subprocess.run(
+        [sys.executable, "-c", INTERRUPTED_AS_IT_STARTS, "test-slot", "--slots", "1"]
+        + ["--", "sh", "-c", "exit 3"],
+        env=slots.env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert ran.returncode == 3, ran.stderr
 
 
 def test_a_holder_told_to_stop_stops_its_command_too(slots):
