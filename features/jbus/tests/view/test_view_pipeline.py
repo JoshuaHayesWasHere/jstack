@@ -6,6 +6,7 @@ import pytest
 from view.days import t_moment
 from view.scene import (
     CAPTURED,
+    PULL,
     Scene,
     Served,
     ago,
@@ -386,8 +387,7 @@ def test_the_t_moments_matrix_has_a_line_for_every_home_an_empty_one_too(scene):
     assert homes["infra"]["last"] is None
     assert homes["macos"]["last"] == {
         "at": iso(ago(minutes=10)),
-        "what": "hold 103 https://github.com/acme/demo/pull/103: needs user, touches "
-        "skills/crew/SKILL.md",
+        "what": f"hold 103 {PULL.format(103)}: needs user, touches skills/crew/SKILL.md",
     }
     oldest = homes["root"]["cells"]["stacked"]["oldest"]
     assert (oldest["slug"], oldest["project"]) == ("oat-platter", "demo")
