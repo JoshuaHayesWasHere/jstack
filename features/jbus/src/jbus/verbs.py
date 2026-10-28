@@ -270,7 +270,10 @@ def typed_at(user: jsettings.Settings, at: str) -> None:
     if not user.takes(at):
         raise jbus.Refused(f'refused: --at is "{user.form(at)}"')
     now = clock()
-    said = user.local(datetime.strptime(at.rsplit(" ", 1)[0], "%Y-%m-%d %H:%M"))
+    typed, word = at.rsplit(" ", 1)
+    said = user.local(datetime.strptime(typed, "%Y-%m-%d %H:%M"))
+    if user.word(said) != word:
+        said = user.local(said.replace(tzinfo=None, fold=1))
     off = round(abs((said - now).total_seconds()) / 60)
     if off > TYPED_MINUTES:
         raise jbus.Refused(

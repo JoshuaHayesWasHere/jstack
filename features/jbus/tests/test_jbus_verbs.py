@@ -221,17 +221,20 @@ class Terminal(io.StringIO):
         (["queue", "add", "alpha", "--priority", "1"], "the brief"),
         (["done", "alpha"], "the result's lines"),
         (["gate", "alpha"], "the gate's lines"),
+        (["scout", "add", "alpha"], "the request"),
+        (["queue", "apply"], "the verbs"),
     ],
-    ids=["queue-add", "done", "gate"],
+    ids=["queue-add", "done", "gate", "scout-add", "queue-apply"],
 )
 def test_a_verb_that_reads_stdin_refuses_a_terminal_at_once(kitchen, argv, what):
     """A thread has no one to type at its terminal, so a verb that reads its text from stdin
     refuses a terminal before it reads, and names what to pipe in."""
-    verb = " ".join(argv[: argv.index("alpha")])
+    verb = " ".join(one for one in argv if not one.startswith("-") and not one.isdigit())
+    verb, given = verb.removesuffix(" alpha"), " <slug>" if "alpha" in argv else ""
     assert kitchen.main("--project", "demo", *argv, stdin=Terminal()) == (
         1,
         f"refused: stdin is a terminal, and jbus {verb} reads {what} from it: pipe them in, "
-        f"as in jbus {verb} <slug> < <file>\n",
+        f"as in jbus {verb}{given} < <file>\n",
     )
     assert kitchen.events() == []
 
