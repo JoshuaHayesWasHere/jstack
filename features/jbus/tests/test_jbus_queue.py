@@ -869,15 +869,41 @@ def test_a_reply_lost_after_the_thread_was_made_adopts_that_thread(kitchen):
     assert rows(kitchen)["alpha"]["thread"] == "mcp:thread-1"
 
 
+def test_a_launch_dropped_before_any_thread_was_made_is_launched_once_more(kitchen):
+    """A dropped connection (ECONNRESET) says T3 Code never answered. The next pass lists the
+    threads by title, and with none made it launches once more, under the same go."""
+    add(kitchen, "alpha")
+    kitchen.t3.lose = "before"
+    kitchen.poll()
+    kitchen.t3.lose = None
+    said = kitchen.poll(NOW + timedelta(minutes=3))
+    assert "launched alpha: mcp:thread-1" in said
+    assert [given["title"] for given in kitchen.t3.launches] == ["crew: alpha", "crew: alpha"]
+    assert gates(kitchen) == [] and rows(kitchen)["alpha"]["thread"] == "mcp:thread-1"
+    assert "Thread: mcp:thread-1" in (kitchen.home / "tasks/alpha.md").read_text().splitlines()
+    kitchen.poll(NOW + timedelta(minutes=6))
+    assert len(kitchen.t3.launches) == 2
+
+
+def test_a_launch_dropped_twice_is_a_gate_after_its_one_retry(kitchen):
+    add(kitchen, "alpha")
+    kitchen.t3.lose = "before"
+    for minutes in (0, 3, 6, 9):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert gates(kitchen) == ["condition alpha: launch reply lost, 0 matching threads"]
+    assert len(kitchen.t3.launches) == 2
+
+
 @pytest.mark.parametrize("others, count", [(0, 0), (1, 2)])
 def test_a_lost_reply_with_no_thread_or_several_is_a_gate_and_no_retry(kitchen, others, count):
     add(kitchen, "alpha")
-    kitchen.t3.lose = "after" if others else "before"
+    kitchen.t3.lose = "after" if others else None
+    kitchen.t3.status = 200 if others else 503
     kitchen.poll()
     for _ in range(others):
         kitchen.t3.thread("alpha", "completed", settled=True)
     kitchen.t3.thread("alpha-two", "running", settled=True)
-    kitchen.t3.lose = None
+    kitchen.t3.lose, kitchen.t3.status = None, 200
     for minutes in (3, 6, 9):
         kitchen.poll(NOW + timedelta(minutes=minutes))
     assert gates(kitchen)[0] == f"condition alpha: launch reply lost, {count} matching threads"
