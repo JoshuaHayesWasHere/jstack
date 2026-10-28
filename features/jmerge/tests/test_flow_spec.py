@@ -53,7 +53,7 @@ CITED = {
     "features/jbus/src/jbus/watch.py:1473,1516,1520,1523": "no briefed merge came in",
     "features/jbus/src/jbus/watch.py:1522-1523": "_file(run, slug, sha,",
     "features/jmerge/src/jmerge/rows.py:250-253": 'row.get("merge_after", [])',
-    "features/jmerge/src/jmerge/cli.py:370-378": "ready.STACKED_UNMOVED.format(",
+    "features/jmerge/src/jmerge/cli.py:369-377": "ready.STACKED_UNMOVED.format(",
     "features/jmerge/src/jmerge/ready.py:1064-1066": "NOT_PASSED",
     "features/jmerge/src/jmerge/ready.py:394-397": "def red_only",
     "features/jmerge/src/jmerge/rows.py:139": (
@@ -65,11 +65,11 @@ CITED = {
         'if last is None or last.get("conclusion") in NOT_RED or str(last.get("id")) not in fixing:'
     ),
     "features/jmerge/src/jmerge/rows.py:383-384": 'row.get("status") not in queue.FINAL',
-    "features/jmerge/src/jmerge/cli.py:1954": "if state != ready.BROWSER_FAILED:",
+    "features/jmerge/src/jmerge/cli.py:1958": "if state != ready.BROWSER_FAILED:",
     "features/jmerge/src/jmerge/rejudge.py:93": 'was.get("tip")',
-    "features/jmerge/src/jmerge/cli.py:743": "self.moved(one.base, one.started)",
-    "features/jmerge/src/jmerge/cli.py:764": "def judge(",
-    "features/jmerge/src/jmerge/cli.py:841": "or self.red(one, default, brief.stem, text)",
+    "features/jmerge/src/jmerge/cli.py:742": "self.moved(one.base, one.started)",
+    "features/jmerge/src/jmerge/cli.py:771": "def judge(",
+    "features/jmerge/src/jmerge/cli.py:845": "or self.red(one, default, brief.stem, text)",
     "features/jmerge/src/jmerge/rejudge.py:73": "self.ask(one)",
 }
 
