@@ -4,8 +4,9 @@ A thread keeps the text of each skill it loaded and runs it until it reads the f
 after a merge that changed a skill, a thread out runs the old text. `jmerge` names on its
 `merged` line each skill whose `SKILL.md` the merge changed (`jmerge.lines.skills_of`).
 
-`tell` keeps each such merge in `reload.json` until every thread that was out when the merge
-landed is told: one message each, under the key `reload|<commit 12>|<thread>`, marked in
+`tell` keeps each such merge in `reload.json`, written before any send so a pass that stops
+partway loses none, until every thread that was out when the merge landed is told: one
+message each, under the key `reload|<commit 12>|<thread>`, marked in
 `sent.json` once T3 Code took it. Once every one is told, the merge itself is marked,
 `reload|<commit 12>`, and a `merged` line printed again for it adds nothing. So a thread hears
 of a merge once, and a send that got no answer, or that the outbox held, goes on a later pass.
@@ -57,11 +58,11 @@ def tell(run: Pass, client: Client, said: Iterable[str]) -> None:
     kept = owed(run, said)
     if not kept:
         return
+    write_json(run.state / FILE, kept)
     try:
         out = t3.listed(client, run.project.project_id, settled=False)
     except T3Error as error:
         run.say(f"wait {run.project.name}: the threads out could not be told of a skill ({error})")
-        write_json(run.state / FILE, kept)
         return
     write_json(run.state / FILE, [one for one in kept if not _told(run, client, one, out)])
 

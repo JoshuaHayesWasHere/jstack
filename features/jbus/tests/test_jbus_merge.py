@@ -483,3 +483,24 @@ def test_a_skill_note_t3_did_not_take_is_sent_on_the_next_pass(kitchen):
     went = [one for one in sends(kitchen) if one["threadId"] == crew["threadId"]]
     assert len({one["clientRequestId"] for one in went}) == 1
     assert "crew, home" in went[-1]["message"]
+
+
+def test_a_skill_note_whose_pass_stops_partway_is_kept_for_the_next(kitchen, monkeypatch):
+    """A pass that stops while it sends still keeps the merge, since jmerge prints its line
+    once: the pass fails, and the next one sends the note."""
+    from jbus import outbox
+
+    crew = kitchen.t3.thread("alpha")
+    kitchen.set("jmerge.txt", CHANGED)
+    real = outbox.send
+
+    def broken(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(outbox, "send", broken)
+    with pytest.raises(AssertionError):
+        kitchen.poll()
+    monkeypatch.setattr(outbox, "send", real)
+    kitchen.set("jmerge.txt", "")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert [one["threadId"] for one in sends(kitchen)] == [crew["threadId"]]
