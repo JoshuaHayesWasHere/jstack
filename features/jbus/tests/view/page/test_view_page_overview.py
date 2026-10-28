@@ -554,7 +554,10 @@ window.addEventListener("load", function () {
   var started = Date.now();
   (function wait() {
     var h = document.getElementById("health");
-    if ((!h || !h.textContent.trim()) && Date.now() - started < window.__at) { setTimeout(wait, 200); return; }
+    if ((!h || !h.textContent.trim()) && Date.now() - started < window.__at) {
+      setTimeout(wait, 200);
+      return;
+    }
     var pre = document.createElement("pre");
     pre.id = "probe";
     pre.textContent = JSON.stringify({ text: h.textContent, display: getComputedStyle(h).display });
