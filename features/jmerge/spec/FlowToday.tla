@@ -77,10 +77,10 @@ Leaves(p) ==
 \* A jbus pass launches the row's crew, which opens its pull request, and its turn ends.
 Launch(p) ==
     /\ st[p] = "queued"
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
     \* A row that builds on an open one launches stacked on its branch (#411), and one that builds
     \* on a row with no pull request yet waits; merge_after is read only by jmerge.
-    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:526-528
+    /\ (p = "b" /\ link = "depends") => st["a"] # "queued"   \* features/jbus/src/jbus/dispatch.py:515-517
     /\ st' = [st EXCEPT ![p] = "open"]
     /\ on' = [on EXCEPT ![p] = IF p = "b" /\ link = "depends" /\ st["a"] = "open" THEN "a" ELSE "main"]
     /\ Leaves(p)
@@ -124,7 +124,7 @@ Merge(p) ==
     \* A proved fix ends the red once main's new tip is checked green, which this step takes as one.
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
     /\ redBy' = IF breaks[p] THEN "merge" ELSE IF proved[p] THEN "none" ELSE redBy
-    \* features/jbus/src/jbus/watch.py:1516-1517: main's red tip after a briefed merge is filed.
+    \* features/jbus/src/jbus/watch.py:1515-1516: main's red tip after a briefed merge is filed.
     \* A green tip withdraws a fix row that never launched (watch.py:1475-1476), and in this model
     \* a queued fix row has not launched.
     /\ fixRow' = ((fixRow /\ ~proved[p]) \/ breaks[p])
@@ -212,11 +212,11 @@ Sweep ==
 \* You approve the main-red row jbus filed, and its crew either fixes main in its own pull request,
 \* which merges by its slug, or ends with no pull request, its fix in an open one, as on
 \* 2026-10-27, when two flow rows held the fix. Either way the row is over, and jbus files no other
-\* for the same red tip (features/jbus/src/jbus/watch.py:1159-1161).
+\* for the same red tip (features/jbus/src/jbus/watch.py:1160-1162).
 ApproveMainFix ==
     /\ mainRed
-    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1151-1172, queued with no approval
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
+    /\ fixRow                               \* features/jbus/src/jbus/watch.py:1152-1173, queued with no approval
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
     /\ fixRow' = FALSE
     /\ \/ /\ mainRed' = FALSE
           /\ redBy' = "none"
@@ -231,7 +231,7 @@ ApproveMainFix ==
           /\ UNCHANGED <<mainRed, redBy>>
     /\ UNCHANGED <<st, ranRed, breaks, told, outsideLeft, link, on, Machine, named, Browser>>
 
-\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1218-1221),
+\* main's browser run fails, and jbus files its browser-red row (features/jbus/src/jbus/watch.py:1219-1222),
 \* whose run then holds as main's red each pull request whose own browser run failed.
 \* browser.yml runs on main only nightly, so the hold starts with its next run.
 Nightly ==
@@ -245,7 +245,7 @@ Nightly ==
 \* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py:383-384).
 ApproveBrowserFix ==
     /\ brHold
-    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:343-375, no room
+    /\ ~full                                \* features/jbus/src/jbus/dispatch.py:332-364, no room
     /\ viewBroken' = FALSE
     /\ brHold' = FALSE
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on,
@@ -259,7 +259,7 @@ OutsideBreak ==
     /\ \/ /\ ~mainRed
           /\ mainRed' = TRUE
           /\ redBy' = "outside"
-          \* features/jbus/src/jbus/watch.py:1467,1510,1514,1517: since #392 the fix row is filed for a
+          \* features/jbus/src/jbus/watch.py:1466,1509,1513,1516: since #392 the fix row is filed for a
           \* red tip with no briefed merge in the day before it too, under the row's own name.
           /\ fixRow' = TRUE
           /\ named' \in BOOLEAN
