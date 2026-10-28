@@ -23,7 +23,9 @@ not red" in `features/jmerge/docs/jmerge.md`:
 S1 also holds the open pull request `fl-fix` wherever its check did not prove the fix: its head
 lacks the red tip, its check ran another test file, or its check failed.
 
-The pull request `fl-fix` is not part of the state, since nothing `tell` reads depends on it. After
+The pull request `fl-fix` is not part of the state, since nothing `tell` reads depends on it.
+`proof` stands for what `jmerge.cli` reads of its check, and the real `rows.red` and
+`rows.browser_red` judge that. After
 each pass the properties judge it at every head the state allows, over each tip on main, with each
 of four checks (`CHECKS`): one that ran the whole suite and passed, one that ran the failing tests'
 file and passed, one that ran another file and passed, and one that failed.
@@ -59,12 +61,13 @@ Each kind of step matches the code as follows:
   `features/jbus/src/jbus/mainmoved.py:201-204`) or refuses it (`T3Refused`, 196-200).
 
 The model stubs these, and only these. `mainmoved.main_check` returns the tip's check from the
-model, where the real one would ask GitHub. GitHub's list of main's commits is the model's tips,
-each the first parent of the next. `dispatch.launched` says that jbus launched `alpha`, and
-`jbriefs.parse.thread_of` gives its thread. `rebase.held` holds back no message, because no rule
-of `jbus.outbox` holds the crew: its turn has ended, it waits on no slot and on no review. `Pass`,
-`Client` and `World` are fakes with only what `tell` reads. `sent.json` and `main.json` are real
-files in a temporary state directory, and the real code writes them.
+model, where the real one would ask GitHub. `mainmoved.failed_at` returns the one test that failed
+at a red tip (`failing`), where the real one reads the red run's logs. GitHub's list of main's
+commits is the model's tips, each the first parent of the next. `dispatch.launched` says that jbus
+launched `alpha`, and `jbriefs.parse.thread_of` gives its thread. `rebase.held` holds back no
+message, because no rule of `jbus.outbox` holds the crew: its turn has ended, it waits on no slot
+and on no review. `Pass`, `Client` and `World` are fakes with only what `tell` reads. `sent.json`
+and `main.json` are real files in a temporary state directory, and the real code writes them.
 
 The model does not cover a message `rebase.held` keeps back (`held` in `main.json`), a pull request
 that conflicts or that GitHub has not judged, more than one open pull request, a red pull request
@@ -230,10 +233,11 @@ def red_pull() -> dict[str, Any]:
 
 @contextmanager
 def stubbed() -> Iterator[None]:
-    """Put in the four stubs and nothing else: GitHub's answer, the launch record, the brief's
-    thread, and a crew whose turn has ended."""
+    """Put in the five stubs and nothing else: GitHub's two answers, the launch record, the
+    brief's thread, and a crew whose turn has ended."""
     with (
         mock.patch.object(mainmoved, "main_check", lambda run, at, again=False: run.checks[at]),
+        mock.patch.object(mainmoved, "failed_at", lambda run, at: [failing(int(at[0]))]),
         mock.patch.object(dispatch, "launched", lambda run, slug: THREAD if slug == RED_PR else ""),
         mock.patch.object(briefs, "thread_of", lambda brief: THREAD),
         mock.patch.object(rebase, "held", lambda *args: False),
@@ -298,16 +302,31 @@ def browser_runs(tip: int) -> list[dict[str, Any]]:
     ]
 
 
+def proof(main: mainjson.Main, head: int, check: str) -> rows.Ran:
+    """Return what `jmerge.cli` reads of `fl-fix`'s check at a head over the tip `head`: `over`
+    is the red tip where the head contains it, and the rest is what the check's logs say it ran
+    and failed. The check that failed failed the tests `main.json` names."""
+    tip = next((tip for tip in range(TIPS) if sha(tip) == main.red), None)
+    over = main.red if tip is not None and tip <= head else ""
+    if check == CHECKS[0]:
+        return rows.Ran(over=over, every=True)
+    if check == CHECKS[3]:
+        return rows.Ran(over=over, every=True, failed=frozenset(main.failed))
+    return rows.Ran(over=over, paths=frozenset({TEST_FILE if check == CHECKS[1] else OTHER_FILE}))
+
+
 def held(files: Files, head: int, check: str) -> list[str]:
     """Return jmerge's holds on `fl-fix` as main's red, at a head over the tip `head` whose check
     is `check`: `rows.red`, and `rows.browser_red` where main's browser run is red at the same
-    tip, with its filed fix row open and closed."""
+    tip and failed the same tests, with its filed fix row open and closed."""
     main = mainjson.read(files.state)
-    holds = [rows.red(main, FIX_PR)]
+    ran = proof(main, head, check)
+    holds = [rows.red(main, FIX_PR, ran)]
     tip = next((tip for tip in range(TIPS) if sha(tip) == main.red), None)
     if tip is not None:
         for fixing in ({BROWSER_RUN}, set()):
-            said = rows.browser_red(HEAD, FIX_PR, browser_runs(tip), "main", fixing)
+            runs = browser_runs(tip)
+            said = rows.browser_red(HEAD, FIX_PR, runs, "main", fixing, ran, main.failed)
             holds.append(said if said.startswith("main is red") else "")
     return [one for one in holds if one]
 
@@ -361,8 +380,22 @@ def held_fix(state: State, files: Files) -> str:
     return ""
 
 
+def let_through(state: State, files: Files) -> str:
+    """Return the line that ends an S1 trace: the pull request jmerge lets merge onto the red
+    main, and for `fl-fix` the head and check it lets through."""
+    if files.red(state) == "":
+        return f"jmerge lets {MERGED} merge onto the red main"
+    settled = [tip for tip, check in enumerate(state.checks) if check in mainjson.SETTLED]
+    for head in range(len(state.checks)):
+        for check in CHECKS:
+            proved = check in PROVES and head >= settled[-1]
+            if not proved and not held(files, head, check)[:1]:
+                return f"jmerge lets {FIX_PR} merge, its head over M{head}, its check {check}"
+    return ""
+
+
 PROPERTIES = {"S1": s1, "S2": s2, "S3": s3}
-SAID = {"S3": held_fix}
+SAID = {"S1": let_through, "S3": held_fix}
 """The line a property's trace ends with, where the state alone does not say what broke."""
 
 

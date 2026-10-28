@@ -13,15 +13,17 @@ passes, the file no longer keeps `broken`. So `red` here is `broken` while the t
 ended, or was cancelled, changes neither.
 
 Two readers go through `read`. A launch names `green` on the brief's `Green main:` line
-(`jbus.dispatch`), and while `red` is set, `jmerge` merges no pull request but the fix's
-(`jmerge.rows`). The fix is the brief `main-red-<sha12>` that `jbus.watch` files ahead of
-every row, so a slug that starts with `FIX` is a fix. A file that is missing or cannot be read
-means nothing is known, and `jmerge` then merges as it did before. When a pass of `tell` has
-not yet sent its message, it keeps the record's commit so that the next pass looks at that
-commit again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green
-while T3 Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's
-message, that pass does the same. Older records, written before the file kept `broken`, name a
-failed tip only by its `check`, and that tip is red too.
+(`jbus.dispatch`), and while `red` is set, `jmerge` merges no pull request but a fix
+(`jmerge.rows.red`). A fix is a pull request whose own check, at a head that contains the red tip,
+ran each test in `failed` and passed it, or the brief `main-red-<sha12>` that `jbus.watch` files
+ahead of every row, whose slug starts with `FIX`. `failed` is the tests the red run's logs name, as
+`failures` reads them: `tell` asks once for each red tip. A file that is missing or cannot be read
+means nothing is known, and `jmerge` then merges as it did before. When a pass of `tell` has not
+yet sent its message, it keeps the record's commit so that the next pass looks at that commit
+again. It also adds `fixed`, the green tip, as `owed` does. So a main that turns green while T3
+Code cannot be reached is green here at once. When `rebase.held` keeps back a pass's message, that
+pass does the same. Older records, written before the file kept `broken`, name a failed tip only by
+its `check`, and that tip is red too.
 """
 
 from __future__ import annotations
@@ -59,16 +61,21 @@ class Record(TypedDict):
     """The slugs whose main-moved message `rebase.held` kept back."""
     fixed: NotRequired[str]
     """The green tip that ended `broken`, written on the owed path: it reads as green."""
+    failed: NotRequired[list[str]]
+    """The tests that failed at `broken`, as `failures` reads the red run's logs. It is empty
+    where the logs name no test, or fewer than they count, and missing where they were not read."""
 
 
 _TEXTS = ("main", "at", "check", "broken", "green", "fixed")
-_LISTS = ("pending", "held")
+_LISTS = ("pending", "held", "failed")
 
 
 @dataclass(frozen=True)
 class Main:
     green: str = ""
     red: str = ""
+    failed: tuple[str, ...] = ()
+    """The tests that failed at `red`, or none known."""
 
 
 def of(record: object) -> Main:
@@ -84,7 +91,10 @@ def of(record: object) -> Main:
         return Main(green=fixed)
     if check == "green":
         return Main(green=tip)
-    return Main(green=kept, red=broken or (tip if check == "failed" else ""))
+    red = broken or (tip if check == "failed" else "")
+    failed = record.get("failed") if broken else None
+    named = isinstance(failed, list) and all(isinstance(one, str) for one in failed)
+    return Main(green=kept, red=red, failed=tuple(failed) if named else ())
 
 
 def _raw(state: Path) -> object:
@@ -126,11 +136,15 @@ def record(
     held: Sequence[str] = (),
     fixed: str = "",
     pending: Sequence[str] = (),
+    failed: Sequence[str] | None = None,
 ) -> Record:
-    """The record of a pass, with no key for a value it was not given."""
+    """The record of a pass, with no key for a value it was not given. `failed` is kept beside
+    `broken` even when it is empty, which says the red run's logs were read."""
     made: Record = {"main": main, "at": at, "check": check}
     if broken:
         made["broken"] = broken
+        if failed is not None:
+            made["failed"] = list(failed)
     if fixed:
         made["fixed"] = fixed
     if pending:
@@ -149,5 +163,23 @@ def owed(was: Record, fixed: str) -> Record:
 
 
 def fix_of(slug: str) -> bool:
-    """Whether the slug is the brief of a fix for a red main."""
+    """Whether the slug is the brief jbus files for the fix of a red main."""
     return slug.startswith(FIX)
+
+
+def failures(jobs: Sequence[tuple[str, tuple[str, ...], int]]) -> list[str]:
+    """The tests a red run failed, from each failed job's name, the tests its log names and how
+    many it counts (`jbus.watch.failed_in`). A job whose name another failed job's starts with,
+    as `full` is to `full 1 of 4`, gathers its parts and names nothing of its own. Any other job
+    that counts no failed test, or more than it names, failed for something no test names: the
+    timeout of a part, a lint, a step before the tests. Then the run is not known by its tests,
+    and this gives none."""
+    names = [name for name, _, _ in jobs]
+    tests: list[str] = []
+    for name, named, count in jobs:
+        if any(other.startswith(f"{name} ") for other in names):
+            continue
+        if not count or count > len(named):
+            return []
+        tests += named
+    return list(dict.fromkeys(tests))

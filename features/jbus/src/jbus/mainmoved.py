@@ -14,6 +14,10 @@ and for `jmerge`. `tell` keeps a red tip there as `broken` until a green tip fol
 `tell` loses no tip whose check had not ended when the tip landed, and no second red tip
 either. It keeps the last tip whose check passed as `green`.
 
+`tell` keeps beside `broken` the tests that failed there, as `failed_at` reads them from the red
+run's logs once for each red tip: `jmerge.rows.red` lets through a pull request whose own check
+ran each of them and passed it.
+
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
 newer tip on top of it. `tell` keeps a tip whose check has not ended as `pending`, and looks
@@ -65,7 +69,7 @@ from jbriefs import parse as briefs
 from jbus import Refused, dispatch, outbox, questions, read_json, rebase, verbs, write_json
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
-from jbus.watch import NO_JOB, World, _api, _check, checks
+from jbus.watch import NO_JOB, NOT_RED, World, _api, _check, _judged, _log_failed, checks
 from jmerge import mainjson
 from jmerge import stacked as stacks
 from jmerge.mainjson import SETTLED
@@ -127,6 +131,21 @@ def main_check(run: Pass, sha: str, again: bool = False) -> str:
     answer = _check(run, known, sha)
     write_json(run.state / "checks.json", known)
     return answer
+
+
+def failed_at(run: Pass, sha: str) -> list[str] | None:
+    """Return the tests that failed at a red tip of main, as its failed check runs' logs name
+    them (`mainjson.failures`), or None where a log could not be read, so that the next pass
+    asks again."""
+    jobs = []
+    for one in _judged(run, sha)[0]:
+        if one.get("status") != "completed" or one.get("conclusion") in NOT_RED:
+            continue
+        found = _log_failed(run, one.get("id"))
+        if found is None:
+            return None
+        jobs.append((str(one.get("name") or ""), found.tests, found.count))
+    return mainjson.failures(jobs)
 
 
 def landed(run: Pass, last: str, main: str) -> list[str]:
@@ -290,11 +309,14 @@ def tell(run: Pass, client: Client, world: World) -> None:
         run.say(line)
     if not owed:
         at = (was.get("at") if main == last else "") or run.now.isoformat()
+        kept_red = broken or (red if held else "")
+        failed = was.get("failed") if kept_red == was.get("broken") else None
         record = mainjson.record(
             main=main,
             at=at,
             check=check,
-            broken=broken or (red if held else ""),
+            broken=kept_red,
+            failed=failed if failed is not None or not kept_red else failed_at(run, kept_red),
             fixed="" if broken or not held else fixed,
             pending=waiting[-WAITING:],
             green=green or mainjson.of(was).green,
