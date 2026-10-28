@@ -60,6 +60,7 @@ Each launch this section or "A second pass" makes runs `jroles review` as `uv ru
 The block runs it, in this worktree, with that id in place of `<thread id>`, `first`, `second` or `scoped` in place of `<pass>`, and for a scoped pass the message "A second pass" gives, whole, in place of `<message>`:
 
 ```sh
+thread='<thread id>'
 pass='<pass>'
 message='<message>'
 top=$(git rev-parse --show-toplevel 2> /dev/null)
@@ -73,12 +74,13 @@ scoped)
     ;;
 *) title= ;;
 esac
+case $thread in '' | '<'*) title= ;; esac
 if [ -z "$title" ]; then
-    echo "not filled in: put first, second or scoped in place of <pass>, and for scoped the message in place of <message>"
+    echo "not filled in: put this thread's id in place of <thread id>, first, second or scoped in place of <pass>, and for scoped the message in place of <message>"
 elif [ -z "$top" ] || [ -z "$branch" ]; then
     echo "no launch: this thread is in no worktree on a branch, and a reviewer runs in the crew's worktree"
 else
-    selections=$(uv run --project "$T/../source" jroles review --thread '<thread id>')
+    selections=$(uv run --project "$T/../source" jroles review --thread "$thread")
     code=$?
     if [ "$code" -eq 75 ]; then
         echo "capped: launch nothing and add no Reviewer: line"

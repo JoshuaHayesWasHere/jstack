@@ -101,7 +101,7 @@ def test_a_launch_on_a_capped_pool_registers_this_thread_to_be_woken(tmp_path, m
     assert (wait.thread, wait.role, wait.until) == ("mcp:the-crew", "review", until.isoformat())
 
 
-def printed(tmp_path, roles, pass_, message="<message>"):
+def printed(tmp_path, roles, pass_, message="<message>", thread="mcp:the-crew"):
     """What the launch block of "The review" prints in a crew's worktree on the branch `alpha`,
     with `jroles` reading the role map `roles`: the real `jroles`, which `uv run` would start."""
     import sys
@@ -124,7 +124,7 @@ def printed(tmp_path, roles, pass_, message="<message>"):
     script = (
         block("The review", "workspaceStrategy")
         .replace("<slug>", "alpha")
-        .replace("<thread id>", "mcp:the-crew")
+        .replace("<thread id>", thread)
         .replace("<pass>", pass_)
         .replace("<message>", message)
     )
@@ -210,6 +210,15 @@ def test_a_second_or_scoped_pass_is_one_reviewer_in_the_same_worktree(
 def test_a_scoped_pass_with_no_message_launches_nothing(tmp_path):
     _, lines = printed(tmp_path, TWO, "scoped")
     assert len(lines) == 1 and lines[0].startswith("not filled in: "), lines
+
+
+def test_a_launch_with_no_thread_id_launches_nothing_and_registers_no_waiter(tmp_path):
+    """Left unfilled, a capped pool would register a waiter named `<thread id>`, whose wake
+    goes to no thread, so the crew's turn would never resume: the block runs no `jroles`."""
+    _, lines = printed(tmp_path, TWO, "first", thread="<thread id>")
+    assert len(lines) == 1 and lines[0].startswith("not filled in: "), lines
+    assert "<thread id>" in lines[0], lines
+    assert not (tmp_path / "state" / "limits").exists()
 
 
 def test_a_capped_pool_prints_capped_and_no_launch(tmp_path, monkeypatch):
