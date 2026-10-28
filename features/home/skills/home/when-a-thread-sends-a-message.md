@@ -29,7 +29,7 @@ A reviewer's findings go into the brief, and jbus tells the crewmate of them onl
 A thread with a question only the user can answer takes a default, carries on and pipes the gate to `jbus gate <slug>`, which keeps it as a numbered question: the home reads the open ones from jbus, shows them, and closes one with the user's answer, which jbus carries back when it differs ("Gates").
 With `home-thread` empty no line about a pull request is sent here: jbus reads the brief and the pull request on each pass, and the merge step prints what it found.
 Only a thread at one of the four pauses of "Carry on" asks in its own thread and waits: it shows as `waiting` in T3 Code, which is what reaches the user.
-The home does not poll for any of it and runs no watch on its state directory or on GitHub, with one exception, in the user's words: "an hourly scheduled run through T3's schedule_task, only while a queue is out, removed when it ends" ("A queue and its hourly audit").
+The home does not poll for any of it and runs no watch at all, on its state directory, on GitHub or on its threads: jbus watches it, and nudges a home that stays quiet with work out (`jbus.children`).
 What it has to plan on arrives as a message, and the rest it reads when the user asks for status and at the start of the next home: the gates from jbus ("Gates"), the results from disk.
 
 On each message, do this without waiting for a word from the user.
@@ -41,7 +41,7 @@ On each message, do this without waiting for a word from the user.
    The lines of a gate itself in a Result or under "Findings" in a Report are from a thread that had no home to send them to, or from one that wrote them under the skill as it was: hand them to jbus with the block of "Ask one", under that thread's slug, and only on `not asked` do the same for it as for one that came as a message.
 2. Run the merge step of "Merging a pull request that is ready".
    It runs no `jmerge`, and prints what jbus's `jmerge` merged since this home last read the log, then its last line for each open pull request.
-   Then clear this home's blockers, as "Clearing its own blockers" says: a start and an audit tick run this step too, so every wake clears them.
+   Then clear this home's blockers, as "Clearing its own blockers" says: a start runs this step too, so every wake clears them.
 3. Run `jbus plan` and close each entry it prints `finished: close it` for ("Planning").
    Write no status: the plan holds none.
    Then queue each approved entry's next row with `jbus queue add --entry <entry>`, with `--depends` for what it waits on.

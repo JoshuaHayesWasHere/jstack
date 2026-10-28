@@ -12,7 +12,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import leftover, watch
+from jbus import children, leftover, watch
 from jgauge import holders, slot, waiters
 from test_jbus_kitchen import NOW, iso
 from test_jbus_leftover import home
@@ -43,7 +43,12 @@ def lost(kitchen, status="completed", quiet=40):
 
 
 def told(kitchen, at):
-    return [given for given in sends(kitchen) if given["threadId"] == at]
+    """What jbus sent the thread, but for the watch's nudges of a quiet home (`jbus.children`)."""
+    return [
+        given
+        for given in sends(kitchen)
+        if given["threadId"] == at and not given["clientRequestId"].startswith(f"{children.STALL}|")
+    ]
 
 
 def test_a_thread_that_ended_with_nothing_written_is_sent_to_its_home_once(kitchen):
