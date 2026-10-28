@@ -457,6 +457,16 @@ PHONE_QUESTIONS = {
 verdict, Every home and Needs you."""
 
 
+HL_BAR = {
+    "failing": "failing",
+    "waiting": "running",
+    "passed": "passed",
+    "norun": "no run",
+    "other": "other stages",
+}
+"""Each kind of row in a home's bar, in the bar's order, and the word its legend has for it."""
+
+
 PHONE_ORDER = (
     ("glance:band",),
     ("you:rail",),
@@ -478,7 +488,8 @@ the machine (`reports/jv-glance/build/wire-390.png`). `board` is the board, `#pi
 @pytest.mark.parametrize("day", list(DAYS))
 def test_on_a_phone_questions_1_to_3_are_answered_above_the_fold(scene, tmp_path, day):
     """At 390 by 844 the verdict, Needs you and Every home are drawn, say something, and end
-    above y=844, and the header still has Triage and ?, inside the screen."""
+    above y=844. The header keeps Triage, ? and the time of the last read, and its menu button
+    opens Homes, the project and light or dark, all inside the screen."""
     DAYS[day](scene)
     seen = desk(scene, tmp_path, screen=PHONE)
     parts = {one["name"]: one for one in seen["parts"]}
@@ -492,10 +503,17 @@ def test_on_a_phone_questions_1_to_3_are_answered_above_the_fold(scene, tmp_path
                 name,
                 part["box"],
             )
-    tri, help_ = seen["header"]
-    assert tri["shown"] and tri["text"].startswith("Triage"), tri
-    assert help_["shown"] and help_["label"].endswith("the key ?"), help_
-    assert all(0 <= one["box"]["left"] and one["box"]["right"] <= PHONE[0] for one in (tri, help_))
+    shut = {one["id"]: one for one in seen["header"]}
+    assert shut["tri"]["text"].startswith("Triage"), shut["tri"]
+    assert shut["helpme"]["label"].endswith("the key ?"), shut["helpme"]
+    assert re.fullmatch(r"live · \d\d:\d\d", shut["readat"]["text"]), shut["readat"]
+    assert shut["hmenu"]["expanded"] == "false", shut["hmenu"]
+    assert [i for i, one in shut.items() if one["shown"]] == ["tri", "readat", "helpme", "hmenu"]
+    opened = {one["id"]: one for one in seen["opened"]}
+    assert opened["hmenu"]["expanded"] == "true", opened["hmenu"]
+    assert all(one["shown"] for one in opened.values()), opened
+    for one in list(shut.values())[:4] + list(opened.values()):
+        assert 0 <= one["box"]["left"] and one["box"]["right"] <= PHONE[0], one
 
 
 @pytest.mark.parametrize("day", list(DAYS))
@@ -523,7 +541,8 @@ def test_on_a_phone_the_overview_is_one_column_in_the_order_of_the_wireframe(sce
 def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scene, tmp_path):
     """Over the T moment, each home of the project is one line, the root first and then by its
     open rows: its name, its open count, a bar of its rows in check by outcome beside the rest,
-    and how long ago it last acted. Each line opens the board's rows of that home."""
+    and how long ago it last acted, on one line. Each line opens the board's rows of that home.
+    The legend names only the kinds a bar draws, each in its own paint."""
     DAYS["t"](scene)
     seen = desk(scene, tmp_path, screen=PHONE)
     homes = seen["homes"]
@@ -533,11 +552,16 @@ def test_every_home_is_a_line_with_its_open_rows_its_check_and_its_last_act(scen
         ("flow", ["flow", "8"]),
         ("macos", ["macos", "1"]),
     ]
-    assert all(re.search(r"\d+[smhd]\b|no act kept", one["text"]) for one in homes), homes
+    assert all(re.fullmatch(r"\d+m|\d+h\d\d|\d+d|none", one["ago"]["text"]) for one in homes), homes
+    assert [one["ago"]["lines"] for one in homes] == [1] * len(homes), homes
     assert [one["href"] for one in homes] == [f"#/?home={one['home']}" for one in homes]
     assert all(one["box"]["bottom"] - one["box"]["top"] >= 44 for one in homes), homes
-    (part,) = [one for one in seen["parts"] if one["name"] == "pipeline:homes"]
-    assert re.search(r"failing.*running.*passed.*no run.*other stages", part["text"]), part
+    drawn = {cls for one in homes for cls in one["bar"]}
+    legend = seen["legend"]
+    assert [one["cls"] for one in legend] == [cls for cls in HL_BAR if cls in drawn], legend
+    assert [one["text"] for one in legend] == [HL_BAR[one["cls"]] for one in legend], legend
+    paints = [one["paint"] for one in legend]
+    assert len(set(paints)) == len(paints) and "rgba(0, 0, 0, 0) none" not in paints, legend
 
 
 @pytest.mark.parametrize("day", list(DAYS))

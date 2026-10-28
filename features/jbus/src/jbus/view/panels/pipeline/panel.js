@@ -45,7 +45,7 @@
     "@media (max-width: 1180px) { .pl-strip, .pl-board.cols { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; } }" +
     "@media (max-width: 640px) { .pl-heads { grid-template-columns: minmax(0, 1fr); gap: 6px; } .pl-strip { display: none; } .pl-board { gap: 6px; }" +
     " .pl-chips button, .pl-hm { min-height: 44px; } .pl-hm { display: inline-flex; align-items: center; padding: 0 6px; } .pl-c { min-height: 44px; font-size: 15px; } }" +
-    "@media (max-width: 1024px) { #homes { display: none; } .pl-hm { display: inline-flex; align-items: center; } }";
+    "@media (min-width: 641px) and (max-width: 1024px) { #homes { display: none; } } @media (max-width: 1024px) { .pl-hm { display: inline-flex; align-items: center; } }";
   document.head.appendChild(css);
 })();
 
@@ -174,16 +174,17 @@ var HL_BAR = [["failing", "failing"], ["waiting", "running"], ["passed", "passed
 function boardHomes() {
   var homes = BOARD && BOARD.homes || [];
   if (!homes.length) return "";
-  var many = homes.some(function (h) { return h.project !== homes[0].project; });
+  var many = homes.some(function (h) { return h.project !== homes[0].project; }), drawn = {};
   var lines = homes.map(function (h) {
     var c = mxCell(h, "check"), w = c.waits || {}, told = (w.failing || 0) + (w.waiting || 0) + (w.passed || 0);
     var n = { failing: w.failing || 0, waiting: w.waiting || 0, passed: w.passed || 0, norun: c.count - told, other: h.open - c.count };
+    HL_BAR.forEach(function (one) { if (n[one[0]]) drawn[one[0]] = true; });
     var said = HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return n[one[0]] + " " + one[1]; }).join(", ");
     var bar = '<span class="seg-bar" role="img" aria-label="' + esc(said || "nothing open") + '">' + HL_BAR.filter(function (one) { return n[one[0]]; }).map(function (one) { return '<i class="' + one[0] + '" style="flex:' + n[one[0]] + ' 0 0"></i>'; }).join("") + '</span>';
-    var last = h.last && h.last.at ? boardAge(h.last.at) : "no act kept";
+    var at = h.last && ms(h.last.at), last = at == null ? "none" : short((ms(BOARD.at) || NOW) - at);
     return '<a class="ehl" data-home="' + esc(h.name) + '" href="#/?home=' + encodeURIComponent(h.name) + themed() + '"><b>' + (many ? esc(h.project) + " · " : "") + esc(h.name) + '</b><span class="ehl-n">' + h.open + '</span>' + bar + '<span class="ago">' + last + '</span></a>';
   }).join("");
-  return '<section class="ovc" data-role="homes" aria-labelledby="ovc-homes"><h2 class="ovc-h" id="ovc-homes"><span class="tag">Every home</span> <span class="ovc-s">bar: ' + HL_BAR.map(function (one) { return one[1]; }).join(" · ") + '</span></h2>' + lines + '</section>';
+  return '<section class="ovc" data-role="homes" aria-labelledby="ovc-homes"><h2 class="ovc-h" id="ovc-homes"><span class="tag">Every home</span> <span class="ovc-s ehl-k">' + HL_BAR.filter(function (one) { return drawn[one[0]]; }).map(function (one) { return '<span><i class="' + one[0] + '"></i>' + one[1] + '</span>'; }).join("") + '</span></h2>' + lines + '</section>';
 }
 
 function boardStages(view) {
