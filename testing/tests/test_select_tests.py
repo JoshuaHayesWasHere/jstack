@@ -279,6 +279,61 @@ def test_a_module_imported_by_name_in_a_function_is_imported_only_where_that_fun
     assert "testing/tests/test_kind.py" not in selected
 
 
+HELD = {
+    "src/reg/later.py": (
+        "from functools import partial\n\nfrom reg import kinds\n\nLATER = partial(kinds.found)\n"
+    ),
+    "src/reg/lookup.py": (
+        "import reg.kinds\n\n\ndef get():\n    return getattr(reg.kinds, 'found')()\n"
+    ),
+    "src/reg/table.py": (
+        "import importlib\n\n\nclass Table:\n"
+        "    def load(self):\n        return importlib.import_module('reg.plug')\n"
+    ),
+    "src/reg/menu.py": (
+        "import importlib\n\nTITLE = 'menu'\n\n\n"
+        "def load():\n    return importlib.import_module('reg.plug')\n\n\nMENU = (load,)\n"
+    ),
+    "testing/tests/test_later.py": "import reg.later\n",
+    "testing/tests/test_menu.py": "from reg.menu import MENU\n\n\ndef test_it():\n    MENU[0]()\n",
+    "testing/tests/test_title.py": "from reg.menu import TITLE\n\n\ndef test_it():\n    TITLE\n",
+    "testing/tests/test_lookup.py": "import reg.lookup\n",
+    "testing/tests/test_table.py": "from reg.table import Table\n",
+}
+
+
+@pytest.mark.parametrize(
+    "test", ["test_later.py", "test_lookup.py", "test_table.py", "test_menu.py"]
+)
+def test_a_function_that_imports_by_name_reaches_the_tests_that_may_call_it_however_they_name_it(
+    tmp_path, test
+):
+    """A function named but not called, as `partial(kinds.found)` holds it; one named by a string
+    to `getattr`; a method, which an object calls where no import names it; and a registry that
+    holds one, `MENU = (load,)`, whose reader may call it: each may run."""
+    repo = Repo(tmp_path, files={**FILES, **LOADER, **HELD})
+    head = repo.change(["src/reg/plug.py"])
+
+    assert f"testing/tests/{test}" in repo.selected(head)
+
+
+def test_a_registry_that_holds_a_function_that_imports_by_name_reaches_only_its_readers(tmp_path):
+    repo = Repo(tmp_path, files={**FILES, **LOADER, **HELD})
+    head = repo.change(["src/reg/plug.py"])
+
+    assert "testing/tests/test_title.py" not in repo.selected(head)
+
+
+def test_a_test_that_imports_a_module_by_its_name_in_a_string_is_selected_by_a_change_to_it(
+    tmp_path,
+):
+    named = "import importlib\n\n\ndef test_it():\n    importlib.import_module('gamma.g')\n"
+    repo = Repo(tmp_path, files={**FILES, "testing/tests/test_named.py": named})
+    head = repo.change(["src/gamma/g.py"])
+
+    assert "testing/tests/test_named.py" in repo.selected(head)
+
+
 def test_an_import_only_a_type_checker_reads_selects_nothing(tmp_path):
     repo = Repo(tmp_path, files={**FILES, **LOADER})
     head = repo.change(["src/reg/plug.py"])
