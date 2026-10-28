@@ -5,6 +5,10 @@ var GLANCE_TIER = { wrong: "Wrong", yours: "Waits on you" };
   css.textContent =
     ".gl { margin-top: 10px; border: 1.5px solid var(--hair); border-radius: 10px; background: var(--surface); padding: 6px 14px 8px; }" +
     ".gl-h { font-size: 18px; font-weight: 400; line-height: 1.35; margin: 0 0 2px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }" +
+    ".gl-word { display: block; font-size: 30px; font-weight: 800; letter-spacing: .04em; line-height: 1.15; color: var(--ink); }" +
+    ".gl-word.wrong { color: var(--missed); } .gl-word.yours, .gl-word.stalled { color: var(--due); }" +
+    ".gl-cause { display: block; overflow-wrap: anywhere; }" +
+    ".gl-sub { margin: 2px 0 0; font-size: 15px; color: var(--ink-2); } .gl-sub b { color: var(--ink); }" +
     ".gl-v { flex: 1 1 320px; min-width: 0; } .gl-v b { font-weight: 800; }" +
     ".gl-c { flex: none; display: inline-flex; gap: 10px; font-weight: 700; white-space: nowrap; overflow-wrap: normal; } .gl-c b { font-size: 22px; line-height: 1.1; }" +
     ".gl-cw { color: var(--missed); } .gl-cy { color: var(--due); }" +
@@ -24,7 +28,7 @@ var GLANCE_TIER = { wrong: "Wrong", yours: "Waits on you" };
     ".gl-m b, .gl-calm b { color: var(--ink); }" +
     ".gl.calm { border-left: 5px solid var(--brand); }" +
     ".gl-calm { margin: 2px 0; font-size: 17px; }" +
-    "@media (max-width: 640px) { .gl { padding: 6px 10px 8px; } .gl-r .btn { min-height: 44px; } .gl-s { font-size: 16px; } }";
+    "@media (max-width: 640px) { .gl { padding: 6px 10px 8px; } .gl-r .btn { min-height: 44px; } .gl-s { font-size: 16px; } .gl-word { font-size: 24px; } }";
   document.head.appendChild(css);
 })();
 function glanceAge(t) { var v = ms(t); return v == null ? "no time kept" : ago(t); }
@@ -48,12 +52,25 @@ function glanceStamp() { try { return Number(localStorage.getItem(GLANCE_KEY)) |
 function glanceShown() { return document.visibilityState !== "hidden"; }
 var GLANCE_WAS = glanceStamp();
 document.addEventListener("visibilitychange", function () { if (!glanceShown()) GLANCE_VISIT = null; else if (!GLANCE_VISIT) GLANCE_WAS = glanceStamp(); });
-var GLANCE_MOTION = { moving: "Moving.", still: "Not moving.", rest: "At rest." };
-function glanceVerdict(v) {
-  var said = '<b>' + GLANCE_MOTION[v.motion] + '</b> ' +
-    (ms(v.last_merge) == null ? "No merge today." : "Last merge " + glanceWhen(v.last_merge) + ", " + v.per_hour + " merges an hour over the last " + v.window + " h.");
-  if (v.top.tier) said += ' ' + (v.top.tier === "wrong" ? "Held by" : "Waits on you:") + ' <code>' + esc(v.top.subj) + '</code> ' + esc(v.top.cause) + (ms(v.top.since) == null ? "" : ', for ' + short(NOW - ms(v.top.since))) + '.';
-  return said;
+var GLANCE_WORD = {
+  "CANNOT SEE": ["wrong", "verdict-cannot-see"],
+  "HELD BY YOU": ["yours", "verdict-held"],
+  "STALLED": ["stalled", "verdict-stalled"],
+  "MOVING": ["", "verdict-moving"],
+  "AT REST": ["", "verdict-rest"]
+};
+function glanceWord(v) {
+  var w = GLANCE_WORD[v.word] || ["", ""];
+  return '<span class="gl-word ' + w[0] + '" data-role="verdict-word" data-word="' + esc(v.word) + '" data-gloss="card:' + w[1] + '">' + esc(v.word) + '</span>';
+}
+function glanceCause(v) { return '<span class="gl-cause" data-role="verdict-cause">' + esc(v.cause.charAt(0).toUpperCase() + v.cause.slice(1)) + '.</span>'; }
+function glanceSub(v) {
+  var bits = [];
+  if (v.needs) bits.push('<span data-role="verdict-needs"><b>' + v.needs + '</b> ' + (v.needs === 1 ? "needs" : "need") + ' you</span>');
+  bits.push(ms(v.last_merge) == null ? "No merge today" : "Last merge " + glanceWhen(v.last_merge) + ", " + v.per_hour + " merges an hour over the last " + v.window + " h");
+  if (ms(v.quiet_since) != null) bits.push("Nothing done for " + short(NOW - ms(v.quiet_since)));
+  if (v.top.tier) bits.push((v.top.tier === "wrong" ? "Held by" : "Waits on you:") + ' <code>' + esc(v.top.subj) + '</code> ' + esc(v.top.cause) + (ms(v.top.since) == null ? "" : ', for ' + short(NOW - ms(v.top.since))));
+  return '<p class="gl-sub" data-role="verdict-sub">' + bits.join(" &middot; ") + '.</p>';
 }
 function glanceSince(g) {
   var visit = GLANCE_VISIT || { was: GLANCE_WAS, at: NOW };
@@ -75,18 +92,26 @@ function glanceCard() {
   var g = STACK && STACK.glance;
   if (!g) return "";
   var moving = g.items.filter(function (it) { return it.tier === "moving"; })[0], since = glanceSince(g);
-  if (g.calm) return '<section class="gl calm" data-role="glance" aria-label="At a glance"><p class="gl-calm" data-role="calm"><b>All clear:</b> nothing wrong, nothing waits on you. ' + glanceVerdict(g.verdict) + ' ' + (moving ? glanceMoving(moving) : "") +
+  if (g.calm) return '<section class="gl calm" data-role="glance" aria-label="At a glance"><h2 class="gl-h">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</h2>' + glanceSub(g.verdict) +
+    '<p class="gl-calm" data-role="calm"><b>All clear:</b> nothing wrong, nothing waits on you. ' + (moving ? glanceMoving(moving) : "") +
     (since && since.merged ? ' &middot; ' + plural(since.merged, "merge", "merges") + ' since you looked' : "") + '</p></section>';
   var wrong = g.items.filter(function (it) { return it.tier === "wrong"; }), yours = g.items.filter(function (it) { return it.tier === "yours"; });
   var counts = [], owed = yours.reduce(function (n, it) { return n + (it.count || 1); }, 0);
   if (wrong.length) counts.push('<span class="gl-cw"><b>' + wrong.length + '</b> wrong</span>');
   if (owed) counts.push('<span class="gl-cy"><b>' + owed + '</b> ' + (owed === 1 ? "waits" : "wait") + ' on you</span>');
-  return '<section class="gl" data-role="glance" aria-labelledby="gl-h"><h2 class="gl-h" id="gl-h"><span class="gl-v">' + glanceVerdict(g.verdict) + '</span> <span class="gl-c">' + counts.join(" ") + '</span></h2>' +
+  return '<section class="gl" data-role="glance" aria-labelledby="gl-h"><h2 class="gl-h" id="gl-h"><span class="gl-v">' + glanceWord(g.verdict) + glanceCause(g.verdict) + '</span> <span class="gl-c">' + counts.join(" ") + '</span></h2>' + glanceSub(g.verdict) +
     (since ? '<p class="gl-since">Since you looked ' + esc(since.ago) + ' ago: ' + esc(since.said) + '.</p>' : "") +
     glanceTier("wrong", wrong) + glanceTier("yours", yours) +
     (moving ? '<p class="gl-m">' + glanceMoving(moving) + '</p>' : "") + '</section>';
 }
 panel({
-  gloss: { glance: ["At a glance", "The band at the top of the overview of every project. Its first line is the verdict: whether the work moves, with the last merge and the merges an hour over the last 3 hours, and the one thing that holds it back most, with how long. Then what is wrong, then what waits on you, then the open work. With nothing wrong and nothing waiting on you, it is one line."] },
+  gloss: {
+    glance: ["At a glance", "The band at the top of the overview of every project. It leads with the verdict: one word, large, and its exact cause, counted from the board's rows that do not move. Under it: how many things need you, the last merge and the merges an hour over the last 3 hours, and the one thing that holds the work back most. Then what is wrong, then what waits on you, then the open work."],
+    "verdict-cannot-see": ["CANNOT SEE", "The first word that holds wins, and this one comes first: jbus is stopped or its passes fail, a source the view reads cannot be read, or CI could not be read. The view cannot say how the work goes, so it says what it cannot see."],
+    "verdict-held": ["HELD BY YOU", "The largest group of rows that do not move waits on you: rows in Needs you, or rows behind a head that is. The cause names those groups, then what else slows the work."],
+    "verdict-stalled": ["STALLED", "Rows are open, nothing merged in the last 3 hours, and nothing was done in the last 30 minutes. The cause names the largest groups of rows that do not move."],
+    "verdict-moving": ["MOVING", "Rows are open and the work goes on: a merge in the last 3 hours, or an act in the last 30 minutes. The cause names what slows it, the largest groups of rows that do not move."],
+    "verdict-rest": ["AT REST", "Nothing is open: no row, no scout. Nothing is wrong and nothing waits."]
+  },
   card: glanceCard
 });

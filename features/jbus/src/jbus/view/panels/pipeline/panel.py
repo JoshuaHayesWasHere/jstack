@@ -16,9 +16,10 @@ alike, and has no rows: a row merged is done as far as the queue goes, whatever 
 into.
 
 A row's `cause`, `cause_since` and `moving` are what `cause.cause` says of its task, and its
-`cause_kind` is the value the last pass judged (`work.VALUES`). Its `wait` is what a row in
-`check` or `stacked` waits on, the outcome `checked.outcome` gives it (`failing`, `waiting`,
-`passed`, `stacked`, or None where it has none), and None for a row in any other stage. Its
+`cause_kind` is the value the last pass judged (`work.VALUES`). Its `wait` is what a row on the
+step `check` waits on, the outcome `checked.outcome` gives it (`failing`, `waiting`, `passed`,
+`stacked`, or None where it has none), in `check`, in `stacked` and in `you` alike, so a stacked
+row the user holds still counts as stacked, and None for a row on any other step. Its
 `home` is its brief's, as `homes.Homes` gives it from `jbriefs.home_of`: a row whose brief names
 no home, as a cleanup brief names none, is the root's, `root`, whatever rows it links to.
 
@@ -95,7 +96,6 @@ STAGE_OF_STEP = {
     "merged": "merged",
 }
 RUNNING_BY_WHO = {"rev": "review"}
-WAITS = ("check", "stacked")
 ROOT_NAME = "root"
 LINKS = ("depends", "merge_after")
 _ORDER = {key: at for at, (key, _) in enumerate(STAGES)}
@@ -221,7 +221,7 @@ def cards(read: Read) -> list[Card]:
                 said,
                 (task.get("state") or {}).get("kind") or UNKNOWN.key,
                 links,
-                checked.outcome(task) if stage in WAITS else None,
+                checked.outcome(task) if task["step"] == checked.STEP else None,
             )
         )
     for one in read.once(_scouted) or []:
