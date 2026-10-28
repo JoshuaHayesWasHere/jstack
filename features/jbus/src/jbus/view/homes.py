@@ -17,7 +17,8 @@ home's `scouts/`. A home's own thread is the home whose `home-id`, or whose hand
 `group` gives the project's homes: the root first, then each scope in name order, each with
 the open tasks and the needs that are its own, its health and the day its scope was made. Each also
 has `in_check`, how many of its rows in check have a failing check, one that runs or waits for a
-runner, and one that passed and waits for `jmerge` (`checked`).
+runner, one that passed and waits for `jmerge`, and how many are stacked and merge after another
+row (`checked`).
 
 `group` also gives each home its `last` act: the newest of the acts it is given, `state.acts`,
 whose home is that home, with its time and its line, or None where it has none. An act is
