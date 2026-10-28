@@ -311,7 +311,7 @@ def test_a_file_gate_that_holds_for_a_door_is_a_need_and_not_a_gate_that_takes_i
 ):
     """A gate of a home's file whose `Holds:` line names a door waits for the user as a question
     jbus holds that holds does: it is a need with that door as its risk, whatever its default,
-    and it does not go ahead on its default."""
+    and it does not go ahead on its default, nor does its default say it stands."""
     (scene.home / "gates.md").write_text(
         GATE.format(n=40, asked="drop the old tables?", status="open", default="drop them")
         + "Holds: deletes data\nFail-safe: the dump of the tables, in the plan\n"
@@ -319,7 +319,7 @@ def test_a_file_gate_that_holds_for_a_door_is_a_need_and_not_a_gate_that_takes_i
     stack = served.json("/stack.json")
     assert stack["proceeds"] == []
     (need,) = [one for one in stack["needs"] if one["what"] == "drop the old tables?"]
-    assert (need["kind"], need["risk"]) == ("gate", "deletes data")
+    assert (need["kind"], need["risk"], need["default"]) == ("gate", "deletes data", "drop them")
 
 
 def test_a_hold_no_thread_works_on_is_a_need_of_the_user_s(scene, served):

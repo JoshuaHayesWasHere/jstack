@@ -352,7 +352,7 @@ def _need(
     else:
         what, why = line, ""
     default = waits["default"]
-    if kind == "gate" and one is None and default.strip():
+    if kind == "gate" and one is None and default.strip() and not waits["holds"]:
         who = f"the home of {waits['home']}" if waits["home"] else "the home"
         stands = f". It stands until {who} closes it."
         default = _cut(default.strip().rstrip("."), 600 - len(stands)) + stands
