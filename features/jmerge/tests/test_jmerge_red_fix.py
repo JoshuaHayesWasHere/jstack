@@ -174,7 +174,7 @@ def test_the_filed_fix_row_still_merges_by_its_slug(replay):
 )
 def test_a_log_s_one_pytest_command_says_what_ran(log):
     """bash's trace quotes, dash's does not, and make echoes the command it runs."""
-    ran = rows.ran_in(log)
+    ran = rows.ran_in(log, rows.CHECK)
     assert ran is not None
     assert ran.covers(FAILED) == ("--shard=2/4" in log or "test_a.py" in log)
     assert not ran.covers("features/c/tests/test_c.py::test_other") or ran.every
@@ -192,7 +192,16 @@ def test_a_log_s_one_pytest_command_says_what_ran(log):
     ],
 )
 def test_a_log_with_no_command_two_or_one_that_narrows_says_nothing(log):
-    assert rows.ran_in(log) is None
+    assert rows.ran_in(log, rows.CHECK) is None
+
+
+def test_a_run_is_read_for_the_marker_its_caller_expects():
+    """The check's `not browser` ran none of the browser tests, and the browser run's `browser`
+    none of the rest, so each says nothing to the other's reader."""
+    browser = "2026-10-27T17:41:00Z uv run pytest -m browser\n"
+    assert rows.ran_in(browser, rows.BROWSER) == rows.Ran(every=True)
+    assert rows.ran_in(browser, rows.CHECK) is None
+    assert rows.ran_in(WHOLE, rows.BROWSER) is None
 
 
 def test_a_folder_covers_the_tests_under_it_and_a_failed_test_is_not_covered():

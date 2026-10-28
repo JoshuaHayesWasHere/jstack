@@ -1047,7 +1047,7 @@ class Repo:
             if passed(rollup) and self.has(one) and not self.outside(red, one.head):
                 every, paths = False, frozenset[str]()
                 for job in jobs(checked(rollup)):
-                    found = rows.ran_in(self.job_log(job) or "")
+                    found = rows.ran_in(self.job_log(job) or "", rows.CHECK)
                     if found is not None:
                         every, paths = every or found.every, paths | found.paths
                     ran = rows.Ran(over=red, every=every, paths=paths)
@@ -1066,7 +1066,7 @@ class Repo:
             run = ready.latest(rollup, ready.BROWSER)
             job = jobs(run, ("FAILURE",))
             log = self.job_log(job[0]) if len(job) == 1 else None
-            found = rows.ran_in(log or "")
+            found = rows.ran_in(log or "", rows.BROWSER)
             if found is not None and self.has(one) and not self.outside(red, one.head):
                 failed = failed_in(log or "")
                 if failed.count == len(failed.tests):
