@@ -333,7 +333,11 @@ document.addEventListener("click", function (e) {
   if (e.target.closest("[data-bstill]")) { boardSet({ still: !boardView().still }); return; }
   if (e.target.closest("[data-bstage]")) { boardSet({ stage: "" }); return; }
   var cell = e.target.closest("[data-bcell]");
-  if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); enter(history.state && history.state.cell ? "replaceState" : "pushState", { layers: [], back: false, cell: true }, cell.getAttribute("href")); }
+  if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    e.preventDefault();
+    var over = !!boardView().stage;
+    enter(over ? "replaceState" : "pushState", { layers: [], back: false, cell: over ? !!(history.state && history.state.cell) : true }, cell.getAttribute("href"));
+  }
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
 });

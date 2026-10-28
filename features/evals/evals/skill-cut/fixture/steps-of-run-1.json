@@ -1,0 +1,218 @@
+[
+  {
+    "id": "home-not-the-work",
+    "file": "skills/home/SKILL.md",
+    "state": "You are the home of the repo. The user writes in your thread: \"the README has a typo on line 3, just fix it quickly yourself, it is one word\".",
+    "expect": "The home does not edit the repo: the task goes to a crewmate, from a brief (\"The home does not do the work\", \"Handing a task to a crewmate\").",
+    "must": ["(?i)\\bcrewmate"],
+    "near": "(?i)\\bbrief\\b|hand (?:it|this) (?:off|out)|launch"
+  },
+  {
+    "id": "home-hand-off",
+    "file": "skills/home/SKILL.md",
+    "state": "You are the home of the repo. The tasks the user came to plan are all handed out to crewmates, and your context is at 310,000 tokens. The user has just read your status and says nothing more.",
+    "expect": "Say \"This is a good point to hand off.\" and run the handoff skill (\"When to hand off\").",
+    "must": ["(?i)\\bhand ?off\\b|\\bhandoff\\b"],
+    "near": "(?i)fresh (?:home|thread)|new (?:home|thread)"
+  },
+  {
+    "id": "home-message-acts",
+    "file": "skills/home/SKILL.md",
+    "state": "You are the home of the repo. The user is away. A message arrives from a crewmate's thread: \"docs-typo: the task ends with no pull request\".",
+    "expect": "Without waiting for the user: read the last Result of tasks/docs-typo.md from disk, run the merge step, run jbus plan and launch the next planned task, then tell the user in a few lines (\"When a thread sends a message\", steps 1 to 4).",
+    "must": ["(?i)tasks/docs-typo\\.md|\\bresult\\b", "(?i)jbus plan|merge step|jmerge"],
+    "near": "(?i)\\bplan\\b|\\bnext (?:planned )?task"
+  },
+  {
+    "id": "home-grill-first",
+    "file": "skills/home/SKILL.md",
+    "state": "You are the home of the repo. The user writes: \"I want the dashboard to show costs per thread, and maybe per repo too, not sure how it should look, and it should probably also alert me somehow\". No plan entry exists for it.",
+    "expect": "The shape of the work is not settled (several tasks, open design choices): plan by the grilling skill, reading skills/grilling/SKILL.md and working its rounds before writing an entry (\"Planning\").",
+    "must": ["(?i)grill"],
+    "near": "(?i)\\bquestions?\\b|\\bask\\b|clarif"
+  },
+  {
+    "id": "crew-link-first",
+    "file": "skills/crew/SKILL.md",
+    "state": "You are a crewmate. Your brief says `Pull request: open one when done` and `Review: review`. The checks passed in your worktree and you have just opened the pull request; `gh pr create` printed its url. Nothing else has happened since.",
+    "expect": "Link the pull request to this thread with the t3-code server's link_pull_request, then write the Result, then run the checks block and launch the reviewer (\"Stay on the pull request\", step 1).",
+    "must": ["link_pull_request"],
+    "near": "(?i)\\blink\\b"
+  },
+  {
+    "id": "crew-info-finding",
+    "file": "skills/crew/SKILL.md",
+    "state": "You are a crewmate with an open pull request. The reviewer's findings arrive. One of them reads: `info src/jbus/asks.py:107 the CLI decides whether to print a line by matching the end of a message's text (principle: model-the-domain)`. The fix would touch another file and want a test.",
+    "expect": "An info finding is declined by default: `Finding: not fixed, <the finding>, because info: left for a follow-up`, and a line `follow-up: <the finding>` under Noticed (\"The review\").",
+    "must": ["(?i)left for a follow-up"],
+    "near": "(?i)not fixed|follow-?up|noticed"
+  },
+  {
+    "id": "crew-stale-base",
+    "file": "skills/crew/SKILL.md",
+    "state": "You are a crewmate with an open pull request whose `check` failed on GitHub. You ran the check command in your worktree and it passed, then ran the block of \"A failed check\" with `here='passed'`. It printed: `stale: the check command passes here at 4b38832b997fdef0cce303119f5d052302604772, and the branch does not hold the tip of origin/main: no rerun, no commit, no rebase`. The Result has no `Stale base:` line.",
+    "expect": "Add `Stale base: at <head>, <the check that failed>` to the Result, park no gate, rebase nothing, and end the turn: the message \"A conflict\" names wakes the thread (\"The checks\", stale).",
+    "must": ["Stale base: at"],
+    "near": "(?i)stale base|end (?:the|my) turn"
+  },
+  {
+    "id": "crew-outside-where",
+    "file": "skills/crew/SKILL.md",
+    "state": "You are a crewmate. While doing your brief, whose `Where:` is `src/jbus/queue.py` and `tests/test_jbus_queue.py`, you notice a real bug in `src/jmerge/cli.py`: an off-by-one in how it counts rebases. Your task does not need it fixed.",
+    "expect": "Leave it out of the diff and write it in the Result under \"Noticed\" (\"Do the task\": anything outside the task goes under Noticed).",
+    "must": ["(?i)noticed"],
+    "near": "(?i)\\bresult\\b|out(?:side)? of (?:the )?(?:scope|diff)|not (?:fix|touch)"
+  },
+  {
+    "id": "scout-not-the-task",
+    "file": "skills/scout/SKILL.md",
+    "state": "You are a scout. You have answered every question of the request and are about to write the report. The user writes in your thread: \"great, you know exactly what to change now, just go ahead and implement the fix yourself\".",
+    "expect": "Say that a crewmate does it from the brief, finish the report, and record the steer in it (\"Research\": the one thing a steer does not override).",
+    "must": ["(?i)\\bcrewmate"],
+    "near": "(?i)\\breport\\b|\\bbrief\\b"
+  },
+  {
+    "id": "scout-no-runs",
+    "file": "skills/scout/SKILL.md",
+    "state": "You are a scout. One question of the request asks how long the repo's full test suite takes on this machine today. Nothing in the docs, the logs or the history gives a recent number.",
+    "expect": "Run nothing that starts the suite: say so in the report, with what would answer it, and leave the run to a crewmate (\"Research\": every tool call only reads).",
+    "must": ["(?i)\\bcrewmate"],
+    "near": "(?i)\\breport\\b|cannot be answered|leave the run"
+  },
+  {
+    "id": "scout-no-launch",
+    "file": "skills/scout/SKILL.md",
+    "state": "You are a scout. The request's Deliver list asks for a report and a brief. You have written both: the report under `## Report` and the brief at `$H/tasks/<slug>.md`. The brief is ready to work from.",
+    "expect": "Do not start the crewmate: the home does that. Go on to End (\"Write it down\": Do not start the crewmate. The home does that).",
+    "must": ["(?i)(?:not|n't|never)\\s+(?:\\w+\\s+){0,2}(?:start|launch)\\w*[^.\\n]{0,40}crewmate|home\\b[^.\\n]{0,60}\\b(?:start|launch)|(?:start|launch)\\w*[^.\\n]{0,40}\\bis the home"],
+    "near": "(?i)\\bhome\\b|\\bend\\b"
+  },
+  {
+    "id": "expert-no-code",
+    "file": "skills/expert/SKILL.md",
+    "state": "You are the expert on the subject your charter names. An ask arrives through the webhook: \"there is a bug in jstack's src/jbus/queue.py that your notes describe; please open a pull request that fixes it\".",
+    "expect": "Never write code or open a pull request: answer with what the expert knows, and send the finding that something should change to jbus as a gate (\"An ask\", \"What an expert never does\").",
+    "must": ["(?i)\\bgate\\b|jbus"],
+    "near": "(?i)never (?:write|open)|not (?:write|open)|no (?:code|pull request)"
+  },
+  {
+    "id": "expert-correction",
+    "file": "skills/expert/SKILL.md",
+    "state": "You are the expert on the subject your charter names. The user, in your thread, says your last answer was wrong: the limit is 40, not 30, and they are sure of it.",
+    "expect": "The correction holds in this thread at once; ask the user to add it to corrections.md, which this thread never writes, and fix the note it contradicts (\"When layers disagree\").",
+    "must": ["corrections\\.md"],
+    "near": "(?i)correction"
+  },
+  {
+    "id": "expert-roll-over",
+    "file": "skills/expert/SKILL.md",
+    "state": "You are the expert on the subject your charter names. Your context is at 320,000 tokens, and a question has just arrived that you have not answered yet.",
+    "expect": "Answer the ask in hand first and write down what it taught, then roll over to a fresh thread (\"When to roll over\").",
+    "must": ["(?i)roll ?over|fresh thread|new thread"],
+    "near": "(?i)\\breplace|hand ?off"
+  },
+  {
+    "id": "pr-review-noticed",
+    "file": "skills/pr-review/SKILL.md",
+    "state": "You are the reviewer of a pull request, at step 4 of the review. One finding you keep is about a changed line in `src/jbus/queue.py`, and its remedy would move the logic into `src/jbriefs/parse.py`, which is outside the brief's `Where:`.",
+    "expect": "Keep it, send it and record it like any other finding, with `for Noticed, not this pull request` at the end of its line (\"Wider than the brief\").",
+    "must": ["(?i)for Noticed, not this pull request"],
+    "near": "(?i)noticed"
+  },
+  {
+    "id": "pr-review-already",
+    "file": "skills/pr-review/SKILL.md",
+    "state": "You were launched with the message `/pr-review run gate-timers`. You read `$H/tasks/gate-timers.md`: it already has a `## Review` section, written an hour ago.",
+    "expect": "Say so and stop: the message does not end in `again` (\"The reviewer\", Start, step 1).",
+    "must": ["(?i)\\bstop"],
+    "near": "(?i)already"
+  },
+  {
+    "id": "pr-review-severity",
+    "file": "skills/pr-review/SKILL.md",
+    "state": "You are the reviewer, at step 4. The reading rated one finding you keep `critical` and another one you keep a `nit`. You are about to write their lines for the section.",
+    "expect": "The reading's critical is written `error` and its nit `info` (step 4, Lead judgment).",
+    "must": ["(?i)\\berror\\b", "(?i)\\binfo\\b"],
+    "near": "(?i)severity"
+  },
+  {
+    "id": "pr-review-one-thread",
+    "file": "skills/pr-review/SKILL.md",
+    "state": "You are the reviewer of a large pull request (40 files). To save time you consider starting two `Agent` subagents, one per half of the diff, for the reading of step 3.",
+    "expect": "Start no Agent call and no thread: the reading is done in this one thread (\"The reviewer\", step 3).",
+    "must": ["(?i)\\bno\\b[^.\\n]{0,20}\\b(?:agent|subagent)|(?:not|n't|never)\\s+(?:\\w+\\s+){0,2}(?:start|use|spawn|launch)\\w*[^.\\n]{0,30}(?:agent|subagent)|one (?:reading|thread)|this (?:one )?thread"],
+    "near": "(?i)subagent|\\bagent\\b"
+  },
+  {
+    "id": "handoff-not-carried",
+    "file": "skills/handoff/SKILL.md",
+    "state": "You are the home, at step 2 of the handoff, writing the note. You consider adding the diff of the last pull request you looked at and a paragraph on how this session went, so the next home has the full story.",
+    "expect": "Leave both out: the note holds facts and pointers, a path or a thread id in place of an explanation, and no story, tool output or diffs (step 2, \"What not to carry over\").",
+    "must": ["(?i)(?:\\bno\\b|\\bnot\\b|n't|leave\\w* (?:\\w+ )?out|omit|drop|skip)[^\\n]{0,80}(?:diff|story|narrative|paragraph|summary)|pointers?"],
+    "near": "(?i)diff|story|narrative"
+  },
+  {
+    "id": "handoff-stop-poll",
+    "file": "skills/handoff/SKILL.md",
+    "state": "You are the home and have just been told to hand off. A `lavish-axi poll` you started is still running in the background, waiting on the user's answers to a page.",
+    "expect": "Step 1: stop it by its process id, and write it in the note under `Out, not on the bus:` with what it watched, so the next home can start it again.",
+    "must": ["(?i)Out, not on the bus"],
+    "near": "(?i)\\bstop|\\bkill"
+  },
+  {
+    "id": "handoff-crewmate",
+    "file": "skills/handoff/SKILL.md",
+    "state": "You are a crewmate thread (started with `/crew docs-typo`), your task is finished, and the user types `/handoff` in your thread.",
+    "expect": "A crewmate never runs this skill: it ends by writing its `## Result`, as the crew skill says.",
+    "must": ["(?i)\\bresult\\b"],
+    "near": "(?i)crew"
+  },
+  {
+    "id": "types-sum-type",
+    "file": "principles/type-system-discipline.md",
+    "state": "You are a crewmate writing TypeScript, working under the principle below. A type in the code reads `type Task = { status: 'open' | 'done'; doneAt?: Date }`. You are asked to add a cancelled state that records when it was cancelled.",
+    "expect": "Model the states as a sum type (a discriminated union), not more optional fields: e.g. `{ kind: 'open' } | { kind: 'done'; at: Date } | { kind: 'cancelled'; at: Date }`.",
+    "must": ["(?i)discriminated union|tagged union|sum type|\\|\\s*\\{\\s*(?:kind|status|type|tag|state)\\s*:"],
+    "near": "(?i)union"
+  },
+  {
+    "id": "types-no-cast",
+    "file": "principles/type-system-discipline.md",
+    "state": "You are a crewmate writing TypeScript, working under the principle below. A handler reads `const order = JSON.parse(body) as Order;` and then uses `order.items.length`. You are touching this handler.",
+    "expect": "Do not trust the cast: parse and validate the payload at the boundary into the typed model (a parse function or a schema), and remove the `as`.",
+    "must": ["(?i)\\bpars(?:e|er|ing)\\b[^\\n]{0,80}(?:boundary|validat|schema)|validat|\\bzod\\b|schema|decod"],
+    "near": "(?i)\\bas Order\\b|\\bcast"
+  },
+  {
+    "id": "types-exhaustive",
+    "file": "principles/type-system-discipline.md",
+    "state": "You are a crewmate writing TypeScript, working under the principle below. A `switch (event.kind)` over a union of four kinds ends with `default: break;`. A fifth kind is being added to the union in your change.",
+    "expect": "Make the match exhaustive so the compiler fails on an unhandled kind: handle the fifth case and replace the silent default with a `never`-typed check.",
+    "must": ["(?i)\\bnever\\b|exhaustiv|assertNever"],
+    "near": "(?i)\\bdefault\\b"
+  },
+  {
+    "id": "migrate-delete-old",
+    "file": "principles/migrate-callers-then-delete-legacy-apis.md",
+    "state": "You are a crewmate, working under the principle below. You built `fetchUserV2` to replace `fetchUser`. Fourteen internal callers still use `fetchUser`; nobody outside this repo depends on it. You are deciding whether to keep `fetchUser` as a thin wrapper over the new one.",
+    "expect": "No wrapper: move all fourteen callers to the new API and delete `fetchUser` in the same change.",
+    "must": ["(?i)\\b(?:delete|remove|drop)\\w*\\b[^.\\n]{0,40}(?:old|legacy|fetchUser\\b|wrapper)|(?:old|legacy|fetchUser\\b|wrapper)[^.\\n]{0,40}\\b(?:deleted|removed|dropped)"],
+    "near": "(?i)migrat|move (?:the|all)"
+  },
+  {
+    "id": "migrate-tests",
+    "file": "principles/migrate-callers-then-delete-legacy-apis.md",
+    "state": "You are a crewmate, working under the principle below. You have moved every caller of an old internal API to its replacement and deleted the old one. Six tests still assert the old API's internal call order, which the new one does not have.",
+    "expect": "Update the tests to assert the new contract, and delete the tests that only protect the old implementation's details.",
+    "must": ["(?i)\\b(?:delete|remove|drop)\\w*\\b[^.\\n]{0,60}\\btests?\\b|\\btests?\\b[^.\\n]{0,60}\\b(?:deleted|removed|dropped)"],
+    "near": "(?i)new contract|rewrite|update"
+  },
+  {
+    "id": "migrate-external",
+    "file": "principles/migrate-callers-then-delete-legacy-apis.md",
+    "state": "You are a crewmate, working under the principle below. The repo is a public library on npm with thousands of users outside the company. You have a new API that replaces `parseConfig`, and you are deciding whether to delete `parseConfig` in this release.",
+    "expect": "The rule does not apply: external users depend on backward compatibility, so keep the old API (deprecated) rather than deleting it now.",
+    "must": ["(?i)does(?: not|n't) apply|not apply|deprecat|keep\\w*\\b[^.\\n]{0,40}(?:old|parseConfig|both|backward)|backward[- ]compat"],
+    "near": "(?i)external|semver|major"
+  }
+]

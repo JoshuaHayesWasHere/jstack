@@ -350,7 +350,8 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     per row, square and shaded by what it waits on in Check, and the Chains line. A cell is a
     link to `#/?home=<h>&stage=<s>`, which leaves that home's rows of that stage alone in the
     columns; Esc and the browser's back each undo it, back to the board, after two cells in a row
-    or one cell clicked twice."""
+    or one cell clicked twice, and Esc does after a drawer opened and shut between two cells; over a
+    home chip, Esc undoes the cell back to the chip's board."""
     from view.days import t_moment
     from view.scene import briefed
 
@@ -361,13 +362,15 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     served = Served(scene)
     try:
         seen = look(
-            scene, tmp_path, route="#/", port=served.port, script=MATRIX, at=2000, budget=12000
+            scene, tmp_path, route="#/", port=served.port, script=MATRIX, at=2000, budget=19000
         )
         made = served.json("/panel/pipeline.json")["data"]
     finally:
         served.close()
     assert seen["errors"] == []
-    first, cell, cell2, esc, again, twice, back = seen["seen"]
+    first, cell, cell2, esc, again, twice, back, shut, over, drawn, chip, chipcell, unchip = seen[
+        "seen"
+    ]
     assert first["above"], first
     assert first["heads"] == [
         "home",
@@ -417,3 +420,11 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     assert again["hash"] == twice["hash"] == "#/?home=root&stage=stacked"
     assert back["hash"] in ("", "#/")
     assert len({slug for one in back["stages"] for slug in one["slugs"]}) == 44
+    assert shut["hash"] == "#/?home=jview&stage=check"
+    assert over["hash"] == "#/?home=root&stage=stacked"
+    assert drawn["hash"] == "#/"
+    assert len({slug for one in drawn["stages"] for slug in one["slugs"]}) == 44
+    assert chip["hash"] == "#/?home=jview"
+    assert chipcell["hash"] == "#/?home=jview&stage=check"
+    assert unchip["hash"] == chip["hash"]
+    assert unchip["chips"] == chip["chips"]
