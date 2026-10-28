@@ -215,7 +215,7 @@ def test_what_jbus_finds_that_no_rule_covers_is_a_condition_and_starts_no_post(k
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert kitchen.wakes.posts == [] and kitchen.waiting() == []
-    found = [one for one in box(kitchen).log() if one["event"] != "queue"]
+    found = [one for one in box(kitchen).log() if one["event"] not in ("queue", "act")]
     assert [(one["event"], one["line"], one["loud"]) for one in found] == [
         ("condition", "condition stray: pull request #12 has no brief", "quiet"),
         ("condition", f"condition stuck: {SETTLED}", "quiet"),

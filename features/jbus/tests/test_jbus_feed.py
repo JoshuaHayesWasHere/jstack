@@ -15,8 +15,8 @@ import pytest
 
 import jbus
 import jsettings
+from jbus import feed, wake
 from jbus import view as jview
-from jbus import wake
 from jbus.view import state as view_state
 from jbus.view.panels.you import panel as you
 from test_jbus_acts import CHAT, HOLDS, Route, bot_go, gate, stored
@@ -271,3 +271,30 @@ def test_the_feed_names_a_project_the_state_has(kitchen, after):
     finally:
         view.close()
     assert status == 404
+
+
+def test_a_long_poll_sees_an_event_written_while_it_read_the_log(kitchen, monkeypatch):
+    made = box(kitchen)
+    made.send("alpha", "queue", "queue demo: alpha is queued")
+    cursor = fed(kitchen)["cursor"]
+    entries, reads = wake.entries, []
+
+    def read_then_write(state):
+        found = entries(state)
+        reads.append(len(found))
+        if len(reads) == 1:
+            made.send("beta", "queue", "queue demo: beta is queued")
+        return found
+
+    monkeypatch.setattr(wake, "entries", read_then_write)
+    ticks = iter(range(1000))
+    page = feed.wait(
+        kitchen.state,
+        "demo",
+        cursor,
+        5,
+        list,
+        sleep=lambda _: None,
+        clock=lambda: next(ticks) / 100,
+    )
+    assert lines(page) == ["queue demo: beta is queued"]

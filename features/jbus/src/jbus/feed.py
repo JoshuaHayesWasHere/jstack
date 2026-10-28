@@ -73,9 +73,11 @@ def wait(
     clock: Callable[[], float] = time.monotonic,
 ) -> dict[str, Any]:
     """The page after `after`, once it has an event or once `seconds` are up. The log is read
-    again only when its file changed."""
+    again only when its file changed since the mark taken before the last read, so a line
+    written during a read changes the mark."""
     end = clock() + seconds
-    page, mark = read(state, project, after, needs), _mark(state)
+    mark = _mark(state)
+    page = read(state, project, after, needs)
     while not page["reset"] and not page["events"] and clock() < end:
         sleep(min(TICK, max(0.0, end - clock())))
         if (now := _mark(state)) != mark:

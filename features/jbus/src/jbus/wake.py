@@ -359,13 +359,15 @@ class Box:
         """Return every event the log holds, oldest first, each with `posted`: the time the
         project's home thread first took it, or None.
 
-        A wake names its events by id, and the outbox goes in order, so the wake took the oldest
-        event of that id the home thread had not yet taken. `log` takes no lock and writes
-        nothing.
+        A wake names its events by its own id, which two equal events share, and the outbox goes
+        in order, so the wake took the oldest event of that id the home thread had not yet taken.
+        Each event's `id` is the one a party names it by (`entries`), read in the same pass of the
+        file. `log` takes no lock and writes nothing.
         """
         events: list[dict[str, Any]] = []
         waiting: dict[str, list[dict[str, Any]]] = {}
         names = jbus.old_names()
+        before: dict[str, int] = {}
         for record in _records(self.state / LOG):
             if TOOK in record:
                 for name in record[TOOK]:
@@ -375,6 +377,7 @@ class Box:
                 one = {**current(record, names), "posted": None}
                 events.append(one)
                 waiting.setdefault(one.pop("id", ""), []).append(one)
+                one["id"] = _entry(record, before)
         return events
 
     def forget(self, before: datetime) -> None:
@@ -631,15 +634,19 @@ def entries(state: Path) -> list[dict[str, Any]]:
     a party that read past it reads it."""
     names = jbus.old_names()
     before: dict[str, int] = {}
-    found = []
-    for record in _records(state / LOG):
-        if "event" not in record or TOOK in record:
-            continue
-        line = json.dumps(record, sort_keys=True)
-        before[line] = before.get(line, 0) + 1
-        made = hashlib.sha256(f"{line}#{before[line]}".encode()).hexdigest()[:16]
-        found.append(current(record, names) | {"id": made})
-    return found
+    return [
+        current(record, names) | {"id": _entry(record, before)}
+        for record in _records(state / LOG)
+        if "event" in record and TOOK not in record
+    ]
+
+
+def _entry(record: dict[str, Any], before: dict[str, int]) -> str:
+    """The id of an event line (`entries`), counting it in `before`, the equal lines read so
+    far."""
+    line = json.dumps(record, sort_keys=True)
+    before[line] = before.get(line, 0) + 1
+    return hashlib.sha256(f"{line}#{before[line]}".encode()).hexdigest()[:16]
 
 
 def _prunable(key: str, slugs: set[str]) -> bool:

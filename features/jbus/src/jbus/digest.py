@@ -69,7 +69,6 @@ from jbus import (
     t3,
     verbs,
     waiting,
-    wake,
 )
 from jbus.wake import Box
 
@@ -273,13 +272,12 @@ def _events(args: argparse.Namespace, config: Config) -> int:
     """
     start = _start(args.since, config)
     project = verbs.project(config, args.project)
-    state = config.state(project)
-    for one, named in zip(Box(state, project).log(), wake.entries(state), strict=True):
+    for one in Box(config.state(project), project).log():
         if args.slug is not None and one["slug"] != args.slug:
             continue
         if start is not None and datetime.fromisoformat(one["at"]) < start:
             continue
-        print(json.dumps(one | {"id": named["id"]}, sort_keys=True))
+        print(json.dumps(one, sort_keys=True))
     return 0
 
 
