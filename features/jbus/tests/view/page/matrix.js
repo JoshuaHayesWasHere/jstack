@@ -3,7 +3,7 @@ window.addEventListener("error", function (e) { window.__errs.push(String(e.mess
 window.addEventListener("load", function () { setTimeout(function () {
   var all = function (sel, el) { return [].slice.call((el || document).querySelectorAll(sel)); };
   var text = function (el) { return el ? el.innerText.replace(/\s+/g, " ").trim() : ""; };
-  var board = document.getElementById("pipeline"), out = { errors: window.__errs, seen: [] };
+  var board = document.getElementById("main") || document.body, out = { errors: window.__errs, seen: [] };
   function read(step) {
     var m = board.querySelector("[data-role=matrix]"), box = m && m.getBoundingClientRect();
     var cols = board.querySelector("[data-role=cards]"), top = cols && cols.getBoundingClientRect().top;

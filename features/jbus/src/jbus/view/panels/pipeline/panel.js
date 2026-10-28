@@ -165,7 +165,7 @@ function boardMatrix(view) {
   var legend = [["", "under 1 h"], ["old", "1 h or more"]].concat(MX_WAITS.map(function (one) { return [one[1], one[2]]; }), [["x", "no check ran"]]).map(function (one) {
     return '<span><span class="mx-dots"><i' + (one[0] ? ' class="' + one[0] + '"' : "") + '></i></span>' + one[1] + '</span>';
   }).join("");
-  return '<section class="mx" data-role="matrix" aria-label="Every stage, every home"><div class="mx-hd"><span class="tag">Every stage, every home</span><span class="src">a dot per row, filled at 1 h or more · click a cell for its rows</span></div>' +
+  return '<section class="mx" data-part="pipeline:matrix" data-role="matrix" aria-label="Every stage, every home"><div class="mx-hd"><span class="tag">Every stage, every home</span><span class="src">a dot per row, filled at 1 h or more · click a cell for its rows</span></div>' +
     '<div class="mx-w"><table><thead><tr><th scope="col" class="mx-hm">home</th>' + heads + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
     '<div class="mx-lg">' + legend + '</div>' + mxChains() + '</section>';
 }
@@ -260,8 +260,10 @@ function boardLinks() {
   svg.innerHTML = paths.join("");
 }
 
+function boardOwns(el) { return $("pipeline").contains(el) || $("matrix").contains(el); }
+
 function boardWhere(el) {
-  if (!el || !el.getAttribute || !$("pipeline").contains(el)) return "";
+  if (!el || !el.getAttribute || !boardOwns(el)) return "";
   var cls = el.className.split(" ")[0];
   for (var i = 0, a = ["data-bpick", "data-bproj", "data-bhome", "data-bstill", "data-bcell"], sel = cls ? "." + cls : el.tagName.toLowerCase(), any = false; i < a.length; i++) {
     if (el.hasAttribute(a[i])) { sel += "[" + a[i] + '="' + CSS.escape(el.getAttribute(a[i])) + '"]'; any = true; }
@@ -291,15 +293,17 @@ function boardDraw() {
   if (el.hidden) return;
   if (!BOARD_ASKING && (!BOARD || Date.now() - BOARD_ASKED >= POLL_MS)) boardAsk();
   if (!BOARD) {
+    put($("matrix"), "");
     put(el, BOARD_FAILED ? '<p class="calm">The board could not be read: ' + esc(BOARD_FAILED) + '. <a href="#/homes">Open the homes map</a></p>' : '<p class="calm">Asking the server for the board</p>');
     return;
   }
   var view = boardView(), picked = boardPicked(view), marks = boardMarks(picked), hot = BOARD.stuck && BOARD.stuck.still ? BOARD.stuck.stage : "";
   var stages = boardStages(view), had = boardWhere(document.activeElement);
-  var html = boardMatrix(view) + boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
-  if (el.__drawn !== html) {
+  var matrix = boardMatrix(view), html = boardHeads() + boardStrip(stages, hot) + boardChips(view) + boardCards(stages, hot, marks, !!picked) + boardUnplaced();
+  if (el.__drawn !== html || $("matrix").__drawn !== matrix) {
     put(el, html);
-    var back = had && el.querySelector(had);
+    put($("matrix"), matrix);
+    var back = had && document.querySelector(had);
     if (back) back.focus({ preventScroll: true });
   }
   setTimeout(boardLinks, 0);
@@ -315,7 +319,7 @@ function boardSet(change) {
 
 document.addEventListener("click", function (e) {
   var el = $("pipeline");
-  if (el.hidden || !e.target.closest || !el.contains(e.target)) return;
+  if (el.hidden || !e.target.closest || !boardOwns(e.target)) return;
   var b = e.target.closest("[data-bpick]");
   if (b) {
     var slug = b.getAttribute("data-bpick"), project = b.getAttribute("data-bproj");
