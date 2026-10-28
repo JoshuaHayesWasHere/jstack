@@ -1,74 +1,26 @@
 {
  "root": "mcp:root-home",
- "rootless": [
-  "main",
-  "fl-msg-no-wrong"
- ],
- "homes": {
-  "fl-slot-holder-busy": "root",
-  "red-fix-by-evidence": "root",
-  "browser-pin": "root",
-  "no-webhook-path": "root",
-  "bot-authority-shape": "root",
-  "main-red-d1e3bd5e4c77": "root"
- },
- "tasks": {
-  "browser-pin": "root home, 2026-10-27, from jbus \"ci main: browser failed\"."
- },
- "told": {
-  "wake|jstack|e47e5ce630a80acb": {
-   "need": "approve:fl-slot-holder-busy"
+ "rows": {
+  "browser-pin": {
+   "thread": "mcp:crew-b",
+   "head": "310cfe1b570a",
+   "task": "root home, 2026-10-27, from jbus \"ci main: browser failed\"."
   },
-  "wrong|ci|1508f68bdef2|mcp:root-home": {
-   "wrong": "ci",
-   "subj": "fl-msg-no-wrong",
-   "cause": "browser failed"
+  "no-webhook-path": {
+   "thread": "mcp:crew-a",
+   "head": "49544d1a326c"
   },
-  "wrong|ci|078781e6c52b|mcp:root-home": {
-   "wrong": "ci",
-   "subj": "main",
-   "cause": "browser failed"
-  },
-  "leftover|main-red-d1e3bd5e4c77|685a7c6d8731|mcp:root-home": {
-   "need": "left:main-red-d1e3bd5e4c77"
-  },
-  "wrong|main|36da0d345615|mcp:root-home": {
-   "wrong": "main",
-   "subj": "main",
-   "cause": "red at d1e3bd5"
-  },
-  "wake|jstack|340e04e230291b13": {
-   "alert": "snapshot"
-  },
-  "wrong|ci|c126316659d1|mcp:root-home": {
-   "wrong": "ci",
-   "subj": "main",
-   "cause": "browser failed"
-  },
-  "wake|jstack|7db20dfa3fb027e0": {
-   "gone": "macos-red-2026-10-27"
-  },
-  "wake|jstack|6d946d19b605e7bb": {
-   "need": "approve:red-fix-by-evidence"
-  },
-  "wrong|stall|76956e6bdaf2|mcp:root-home": {
-   "wrong": "stall",
-   "subj": "browser-pin",
-   "cause": "its browser run failed"
-  },
-  "wrong|stall|1b42a5659ff5|mcp:root-home": {
-   "wrong": "stall",
-   "subj": "no-webhook-path",
-   "cause": "its browser run failed"
-  },
-  "wrong|stall|41c8163306ba|mcp:root-home": {
-   "wrong": "stall",
-   "subj": "bot-authority-shape",
-   "cause": "its browser run failed"
-  },
-  "wake|jstack|cd6ca3a459ea746f": {
-   "gone": "red-fix-by-evidence"
+  "bot-authority-shape": {
+   "thread": "mcp:flow-home",
+   "head": "003a9964a33d"
   }
+ },
+ "main": {
+  "red": "d1e3bd5e4c77",
+  "from": "2026-10-27T21:32:14"
+ },
+ "left": {
+  "main-red-d1e3bd5e4c77": "the red main's own fix of its browser run"
  },
  "sets": {
   "A": [
@@ -114,82 +66,6 @@
    "tests": "A+B"
   },
   {
-   "id": 40575141936,
-   "branch": "bot-authority-shape",
-   "created": "2026-10-27T20:07:02Z",
-   "conclusion": "failure",
-   "tests": "A+B"
-  },
-  {
-   "id": 40576009288,
-   "branch": "no-webhook-path",
-   "created": "2026-10-27T20:12:51Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40577302089,
-   "branch": "bot-authority-shape",
-   "created": "2026-10-27T20:21:26Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40578306286,
-   "branch": "no-webhook-path",
-   "created": "2026-10-27T20:28:06Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40579419482,
-   "branch": "bot-authority-shape",
-   "created": "2026-10-27T20:35:32Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40579885096,
-   "branch": "no-webhook-path",
-   "created": "2026-10-27T20:38:43Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40580368806,
-   "branch": "fl-view-thread-act",
-   "created": "2026-10-27T20:42:03Z",
-   "conclusion": "success"
-  },
-  {
-   "id": 40580579163,
-   "branch": "bot-authority-shape",
-   "created": "2026-10-27T20:43:30Z",
-   "conclusion": "failure",
-   "tests": "A+B"
-  },
-  {
-   "id": 40582203094,
-   "branch": "fl-view-thread-act",
-   "created": "2026-10-27T20:54:39Z",
-   "conclusion": "failure",
-   "tests": "B"
-  },
-  {
-   "id": 40582289803,
-   "branch": "bot-authority-shape",
-   "created": "2026-10-27T20:55:14Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40583369327,
-   "branch": "no-webhook-path",
-   "created": "2026-10-27T21:02:42Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
    "id": 40585099704,
    "branch": "main",
    "created": "2026-10-27T21:14:34Z",
@@ -211,24 +87,11 @@
    "tests": "B"
   },
   {
-   "id": 40587183089,
-   "branch": "main",
-   "created": "2026-10-27T21:29:15Z",
-   "conclusion": "failure",
-   "tests": "A+B"
-  },
-  {
    "id": 40587190584,
    "branch": "main",
    "created": "2026-10-27T21:29:18Z",
    "conclusion": "failure",
    "tests": "A"
-  },
-  {
-   "id": 40587395670,
-   "branch": "fl-view-thread-act",
-   "created": "2026-10-27T21:30:44Z",
-   "conclusion": "success"
   },
   {
    "id": 40587882812,
@@ -238,37 +101,9 @@
    "tests": "A+B"
   },
   {
-   "id": 40588714232,
-   "branch": "fl-view-shots-chrome",
-   "created": "2026-10-27T21:40:19Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40597670355,
-   "branch": "fl-view-shots-chrome",
-   "created": "2026-10-27T22:49:11Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
    "id": 40597672172,
    "branch": "browser-pin",
    "created": "2026-10-27T22:49:12Z",
-   "conclusion": "failure",
-   "tests": "A"
-  },
-  {
-   "id": 40597673188,
-   "branch": "fl-view-thread-act",
-   "created": "2026-10-27T22:49:13Z",
-   "conclusion": "failure",
-   "tests": "B"
-  },
-  {
-   "id": 40599079480,
-   "branch": "fl-view-shots-chrome",
-   "created": "2026-10-27T23:00:57Z",
    "conclusion": "failure",
    "tests": "A"
   },
@@ -291,12 +126,6 @@
    "created": "2026-10-27T23:18:53Z",
    "conclusion": "failure",
    "tests": "A"
-  },
-  {
-   "id": 40604328279,
-   "branch": "fl-view-shots-chrome",
-   "created": "2026-10-27T23:45:50Z",
-   "conclusion": "success"
   }
  ]
 }
