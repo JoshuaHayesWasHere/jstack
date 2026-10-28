@@ -297,15 +297,27 @@ SECOND = (
 )
 
 
-def moved(before):
+WATCH_READS = ["queue.load", "questions.read", "queue.load", "questions.read"]
+WATCHED = {
+    "questions.json": WATCH_READS[:2],
+    "queue.json": WATCH_READS[:1],
+}
+
+
+def moved(before, fixture="short"):
     """Return the calls recorded before the move, with the two that moved put where they are now,
-    and the `queue.load` of `queue.follow_ups`, a step added since, first."""
+    the `queue.load` of `queue.follow_ups`, a step added since, first, and what `children.watch`
+    reads after `mainmoved.tell` since it watches the root: the queue and the questions, to know
+    both parse, then the root's `out`, cut short at a file that does not parse (`WATCHED`)."""
     calls = ["queue.load", *before.split()]
     calls.remove("questions.closed_in_files")
     calls.insert(calls.index("word.deliver") + 1, "questions.closed_in_files")
     if "watch.gone" in calls:
         calls.remove("watch.gone")
         calls.insert(calls.index("stall.guarded") + 1, "watch.gone")
+    if "mainmoved.tell" in calls:
+        at = calls.index("mainmoved.tell") + 1
+        calls[at:at] = WATCHED.get(fixture, WATCH_READS)
     return calls
 
 
@@ -417,7 +429,7 @@ def test_a_pass_calls_what_it_called_and_says_what_it_said_before_the_steps(
     FIXTURES[fixture](kitchen)
     calls, events = BEFORE[fixture]
     first, second, said = traced(kitchen, monkeypatch)
-    assert (first, said) == (moved(calls), events)
+    assert (first, said) == (moved(calls, fixture), events)
     assert second == AFTER[fixture].split()
 
 
