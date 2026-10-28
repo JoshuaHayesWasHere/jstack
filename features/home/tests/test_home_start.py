@@ -344,49 +344,6 @@ def test_a_start_prints_this_homes_part_of_the_bus_and_what_came_in_since_the_no
     assert parts(bus.home(START))["to read"] == said["to read"]
 
 
-def test_a_start_prints_the_new_noticed_lines_of_this_home_by_their_keys(bus):
-    from jbus import noticed
-    from test_gates import AT, SCOPED
-
-    assert parts(bus.home(START))["noticed"] == ["none is new"]
-    said = "the view shows a finished row as stuck."
-    for slug in ("speedy", "none-left"):
-        bus.kitchen.brief(slug, "Home: speed\n")
-    bus.kitchen.poll()
-    bus.kitchen.brief("alpha", f"Thread: mcp:crew-alpha\n\n## Result\nNoticed: {said}\n")
-    bus.kitchen.brief("speedy", "Home: speed\n\n## Result\nNoticed: the scope's own line\n")
-    bus.kitchen.brief("none-left", "Home: speed\n\n## Result\nNoticed: the scope's other line\n")
-    bus.kitchen.poll()
-    key = noticed.key("alpha", said)
-    assert parts(bus.home(START))["noticed"] == [f"{key} alpha, Result, new: {said}"]
-    dropped = ("noticed", "drop", key, "--why", "a one-off", "--by", "home", "--at", AT)
-    assert bus.kitchen.main(*dropped)[0] == 0
-    assert parts(bus.home(START))["noticed"] == []
-    scoped = parts(bus.home(START, thread=SCOPED))["noticed"]
-    assert [line.rsplit(": ", 1)[1] for line in scoped] == [
-        "the scope's own line",
-        "the scope's other line",
-    ]
-
-
-def test_a_start_lists_under_to_read_the_records_another_home_kept_for_it(bus):
-    from test_gates import AT, ROOT, SCOPED
-
-    for seen in (bus.dir, bus.dir / "speed"):
-        (seen / "read-seen").write_text("")
-    bus.kitchen.poll()
-    found = ("--project", "demo", "noticed", "add", "--for", "root", "--from", SCOPED)
-    code, kept = bus.kitchen.main(*found, "the train is red on main")
-    assert code == 0, kept
-    line = kept.removeprefix("kept: ").strip()
-    assert parts(bus.home(START))["to read"] == [line]
-    assert parts(bus.home(START, thread=SCOPED))["to read"] == []
-    key = line.split()[0]
-    dropped = ("noticed", "drop", key, "--why", "it is fixed", "--by", "home", "--at", AT)
-    assert bus.kitchen.main(*dropped)[0] == 0
-    assert parts(bus.home(START, thread=ROOT))["to read"] == []
-
-
 def test_however_much_is_there_a_start_prints_under_6000_characters(bus):
     entries = "".join(
         f"## entry-{n}: {'an entry with a long line, ' * 4}\nStage: planned\n\n" for n in range(30)

@@ -329,7 +329,7 @@
     <li>No home writes another home's directory.</li>
     <li>A scoped home's slugs and branches start with its prefix.</li>
     <li><code>jbus</code> is the only merger: it runs <code>jmerge</code> on each pass whatever <code>home-thread</code> holds, and it merges every home's pull request, a scoped home's too. A home's own <code>jmerge --home &lt;threadId&gt;</code> merges nothing.</li>
-    <li>Homes never send each other a message of their own. The root carries your word to a scope with <code>jbus word --scope</code>, a scope reaches the root only with <code>jbus stop</code>, and a finding for another home goes by <code>jbus noticed add --for</code>.</li>
+    <li>Homes never send each other a message of their own. The root carries your word to a scope with <code>jbus word --scope</code>, a scope reaches the root only with <code>jbus stop</code>, and a fault found in another home's work is a queued row of that home's.</li>
     <li>No home asks another what it has out: <code>jmerge --claims</code> prints it.</li>
     <li>A scoped home closes at its handoff when its plan has no open entry and <code>jbus out --scope</code> prints nothing, and then it starts no next home.</li>
     <li>The root home reads a scope's handoff and open plan entries when you ask for status.</li>

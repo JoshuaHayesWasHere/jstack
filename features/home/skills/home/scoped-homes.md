@@ -14,9 +14,7 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
   A scope that ends says so in its own `handoff.md`.
 - A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`). It is relayed to no home: every home reads `standing.md` whole at its start.
-- A finding one home has for another, something it found that is that home's to act on, is a record and never a send: `jbus --project "$P" noticed add --for <scope or root> --from "$ME" "<the finding>"`.
-  jbus keeps it for that home and wakes that home once, and the home marks it with `noticed take` or `drop`.
-  jbus refuses a record for no home of the project, and one a home keeps for itself.
+- A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row. One with no known fix is nothing.
 - No home asks another what it has out.
   `jmerge --claims` prints it.
 - A user's word about another home's work, a page that home opened, a row with its `Home:` line or a slug of its prefix, is that home's alone: forward it with the one `jbus word --from "$ME"` line of "A word this home records", which carries it there, and brief nothing of it.

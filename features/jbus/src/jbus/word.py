@@ -21,9 +21,9 @@ list of `Word`:
   `sent_at` is the time when jbus kept the word. So the word is done, and nobody tells the home
   what it recorded itself. `skipped` is empty for every other word.
 - `waits`: why the word has not gone yet, as the log last said it.
-- `via`: `records` for a word that `jbus word --scope` kept for a scoped home, which a pass carries
-  in that home's one wake for its records (`jbus.noticed.wake`) and not in a message of its own.
-  `words.json` keeps it only when it is set, so a word from before stays as it was.
+
+A record from before may carry `via`, which jbus no longer reads: `load` drops it, and the word
+goes as every other word does.
 
 A word goes to one home of the project, the one that owns its subject (`owner`): the home whose
 directory or brief the page it was given on (`--page`) is of, else the home of the briefs, requests
@@ -37,8 +37,8 @@ work with `--from` forwards it to the home that owns it.
 scoped homes it names in place of `owner`'s one home: the root home runs it for the user's word to
 those homes, and writes no words of its own into them. It takes only `--message`, so the words are
 checked as the user's own. It keeps one record for each scope, whose id hashes the scope too, and
-none for a scope that already holds the same word, by any path: the command says `held` for it. A
-pass carries each new one to its scope in that home's one wake for its records.
+none for a scope that already holds the same word, by any path: the command says `held` for it.
+Each new one goes to its scope's thread at once, as a word of its own.
 
 A word given with neither `--from` nor `--message` names no thread, so when no page or slug decides
 it goes to the root home. In a project with scoped homes that may be a scope's own word, so the
@@ -113,7 +113,6 @@ UNSEEN = (
     "and with neither --from nor --message jbus cannot tell the home it was said in"
 )
 THREAD = re.compile(r"mcp:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")
-RECORDS = "records"
 EVERY = "every"
 SLUG = re.compile(r"[a-z0-9]+(?:\.[a-z0-9]+)*(?:-[a-z0-9]+(?:\.[a-z0-9]+)*)+")
 
@@ -137,7 +136,6 @@ class Word:
     checked: bool = False
     skipped: str = ""
     home: str = ""
-    via: str = ""
 
 
 def path(state: Path) -> Path:
@@ -151,9 +149,14 @@ def load(state: Path) -> list[Word]:
     if not file.exists():
         return []
     try:
-        return [Word(**one) for one in json.loads(file.read_text())]
+        return [Word(**_current(one)) for one in json.loads(file.read_text())]
     except (OSError, ValueError, TypeError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
+
+
+def _current(one: dict[str, object]) -> dict[str, object]:
+    """A record as `Word` takes it: the `via` of a record from before is dropped."""
+    return {key: value for key, value in one.items() if key != "via"}
 
 
 def _whose(home: Path, brief: Path) -> str:
@@ -267,9 +270,9 @@ def keep(
     recorded by that thread, `keep` records the word as sent to that thread and posts it to nobody
     (`skipped`).
 
-    With `scope`, the word is for that scoped home and no other, its id hashes the scope too, and a
-    pass carries it in that home's wake for its records (`via`). A home that already holds the same
-    word, kept by any path, gets no second record: `keep` returns the one it holds.
+    With `scope`, the word is for that scoped home and no other, and its id hashes the scope too.
+    A home that already holds the same word, kept by any path, gets no second record: `keep`
+    returns the one it holds.
     """
     ref = heard.ref if heard else ""
     extra = [*([ref] if ref else []), *([f"scope:{scope}"] if scope is not None else [])]
@@ -290,7 +293,7 @@ def keep(
             ):
                 return one
         kept_at = jsettings.stamp(run.now)
-        made = Word(name, words, by, at, kept_at, home=whose, via=RECORDS if scope else "")
+        made = Word(name, words, by, at, kept_at, home=whose)
         if heard:
             made = replace(made, ref=ref, said_in=heard.said_in, checked=heard.checked)
         mine = thread_of(_homes_dir(run, made))
@@ -373,7 +376,7 @@ def deliver(run: Pass, client: Client | None) -> None:
     `deliver` writes why a word waits once, and again when the reason changes.
     """
     for one in load(run.state):
-        if one.sent_at or one.via == RECORDS:
+        if one.sent_at:
             continue
         thread, name = thread_of(_homes_dir(run, one)), run.project.name
         key = f"{KIND}|{name}|{one.id}|{thread}"
@@ -388,11 +391,6 @@ def deliver(run: Pass, client: Client | None) -> None:
             run.say(f"wait {name}: a word of {one.at} {waits}")
 
 
-def carried(run: Pass, one: Word, thread: str, at: str) -> None:
-    """Write that a home's wake for its records carried the word to its thread at `at`."""
-    _change(run, one, thread=thread, sent_at=at, waits="")
-
-
 def line(run: Pass, was: Word) -> str:
     """Return what `jbus word` prints for one project: the current state of the word that it
     kept as `was`."""
@@ -400,8 +398,6 @@ def line(run: Pass, was: Word) -> str:
     name = run.project.name
     if one.skipped:
         return f"kept: {name}, not posted, {one.skipped}, word {one.id}"
-    if one.via == RECORDS and not one.sent_at:
-        return f"kept: {name}, for the {one.home} home, word {one.id}, in its next wake"
     if one.sent_at:
         how = "already sent" if was.sent_at else "sent"
         to = f"the {one.home} home at {one.thread}" if one.home else one.thread
@@ -508,8 +504,9 @@ def _scoped(
     client: Client | None,
     now: datetime,
 ) -> int:
-    """`jbus word --scope`: keep the user's message as one word for each scoped home named, and say
-    for each whether it is kept for its wake or held there already."""
+    """`jbus word --scope`: keep the user's message as one word for each scoped home named, send
+    each new one to its home's thread, and say for each whether it went, waits, or is held there
+    already."""
     if args.all:
         raise Refused("refused: --scope names the scoped homes of the project --to names")
     if heard is None:
@@ -524,6 +521,7 @@ def _scoped(
     if unknown:
         raise Refused(f"refused: --scope {unknown[0]} is no scoped home of {project.name}")
     before = {one.id for one in load(run.state)}
+    kept: list[tuple[str, Word]] = []
     for scope in named:
         was = keep(
             run,
@@ -534,14 +532,17 @@ def _scoped(
             args.recorder or "",
             scope=scope,
         )
-        if was.id in before:
+        kept.append((scope, was) if was.id in before else ("", was))
+        before.add(was.id)
+    deliver(run, client)
+    for held, was in kept:
+        if held:
             print(
-                f"held: {project.name}, the {scope} home holds word {was.id}, so it is not sent "
+                f"held: {project.name}, the {held} home holds word {was.id}, so it is not sent "
                 "again"
             )
         else:
             print(line(run, was))
-        before.add(was.id)
     return 0
 
 
