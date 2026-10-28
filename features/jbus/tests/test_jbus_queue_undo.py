@@ -8,7 +8,7 @@ import json
 import pytest
 
 import jbus
-from jbus import queue
+from jbus import acts, queue
 from test_jbus_kitchen import NOW, RAN, Kitchen
 from test_jbus_queue import add, brief, go, rows
 from test_jbus_row_history import transitions
@@ -234,29 +234,17 @@ def test_withdraw_refuses_a_launched_row_and_one_another_row_waits_on(kitchen, s
     assert gone(kitchen) == {} and transitions(kitchen) == []
 
 
-def test_remove_by_anyone_but_the_user_withdraws_a_row_that_never_launched(kitchen):
+@pytest.mark.parametrize("launched", [False, True])
+def test_remove_by_anyone_but_the_user_is_refused_and_points_a_home_at_withdraw(kitchen, launched):
+    """A remove rests on the user's own words. One typed by another name used to withdraw a row
+    that never launched; now it is refused whether or not the row launched, and a home takes out
+    its own row with `jbus queue withdraw`."""
     add(kitchen, "alpha")
-    code, said = queue_(kitchen, "remove", "alpha", "--by", "flow home", "--at", AT)
-    assert code == 0, said
-    assert said.splitlines()[0].startswith(
-        f"removed alpha: was queued, {AT} by the demo home, brief kept at "
-    )
-    assert said.splitlines()[0].endswith(
-        ": withdrawn, not removed: only user removes a row, and alpha never launched"
-    )
-    assert "alpha" not in rows(kitchen)
-    assert gone(kitchen)["alpha"]["by"] == "the demo home"
-
-
-def test_remove_by_anyone_but_the_user_of_a_launched_row_is_refused_naming_the_user(kitchen):
-    add(kitchen, "alpha")
-    table(kitchen, "alpha", status="running", thread="mcp:thread-1")
+    if launched:
+        table(kitchen, "alpha", status="running", thread="mcp:thread-1")
     before = (kitchen.state / "queue.json").read_text()
     code, said = queue_(kitchen, "remove", "alpha", "--by", "flow home", "--at", AT)
-    assert (code, said) == (
-        1,
-        "refused: alpha launched, and only user removes a row that launched, not flow home\n",
-    )
+    assert (code, said) == (1, acts.REMOVE_BY.format(user="user", by="flow home") + "\n")
     assert (kitchen.state / "queue.json").read_text() == before
 
 

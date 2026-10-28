@@ -36,6 +36,7 @@ WHERE = "jbus view"
 BATCH = 200
 SEND = 15.0
 HTML, JSON = "text/html; charset=utf-8", "application/json"
+VIEW = party.Party("user", "view")
 
 
 @dataclass(frozen=True)
@@ -133,16 +134,19 @@ class Writes:
         else:
             named = [] if not picked or (picked[0].default and words) else [picked[0].name]
             given = ". ".join([*named, *([words] if words else [])])
+        config = reader(self.sources)
+        run = passes.Pass(config, config.project(name), now, say=lambda line: None)
         try:
-            closed, _ = questions.answer(
-                state_dir,
-                number,
-                party=party.Party("user", "view"),
-                evidence=party.Evidence("view", "", given, user.stamp(now), WHERE),
-                where=WHERE,
+            acts.act(
+                run,
+                VIEW,
+                party.Action("answer", str(number)),
+                party.Evidence("view", "", given, user.stamp(now), WHERE),
                 keeps=keeps,
-                user=user,
+                where=WHERE,
             )
+            closed = questions.question(state_dir, number)
+            assert closed is not None
         except Refused as error:
             first = one.answer if one else None
             first = first or next(
@@ -229,7 +233,10 @@ class Writes:
             return NOT_FOUND
         box = wake.Box(state_dir, reader(self.sources).project(name))
         heard = queue.Said(f"approve {id}", state.iso(now), WHERE, False)
-        try:
+        config = reader(self.sources)
+        run = passes.Pass(config, config.project(name), now, say=lambda line: None)
+
+        def does() -> str:
             made = item.approve(
                 state_dir,
                 box,
@@ -241,6 +248,16 @@ class Writes:
                 user=user,
                 basis=item.Basis("view", WHERE, heard),
             )
+            return str(made["line"])
+
+        try:
+            line = acts.act(
+                run,
+                VIEW,
+                party.Action("item", id),
+                party.Evidence("view", "", heard.words, user.stamp(now), WHERE),
+                does=does,
+            ).line
         except Refused as error:
             say = str(error).removeprefix("refused: ")
             return self._approved(name, 409, id, say, now)
@@ -248,7 +265,7 @@ class Writes:
             traceback.print_exc(file=sys.stderr)
             say = "The server failed during the go: the state below is what the record says."
             return self._approved(name, 500, id, say, now)
-        say = f"{id} approved at {user.clock(now)}: {made['line']}"
+        say = f"{id} approved at {user.clock(now)}: {line}"
         return self._approved(name, 200, id, say, now)
 
     def _approved(self, name: str, status: int, id: str, say: str, now: datetime) -> Answer:

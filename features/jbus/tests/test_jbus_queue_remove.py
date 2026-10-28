@@ -8,7 +8,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import digest, queue, waiting, wake
+from jbus import acts, digest, queue, waiting, wake
 from jbus.view import state as view
 from test_jbus_blocking import Second, relayed
 from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen, asks
@@ -212,7 +212,7 @@ def test_a_removed_rows_thread_that_failed_is_not_told_to_carry_on(kitchen):
         ("open", "refused: alpha is out: its pull request #9 is open"),
         ("merged", "refused: alpha merged as #9, and a merged row stays"),
         ("none", "refused: the queue has no row nope"),
-        ("other", "refused: alpha launched, and only user removes a row that launched, not Chef"),
+        ("other", acts.REMOVE_BY.format(user="user", by="Chef")),
         ("when", 'refused: --at is "<YYYY-MM-DD HH:MM ET>"'),
         ("silent", "refused: T3 Code could not be asked whether alpha's thread is out"),
         (

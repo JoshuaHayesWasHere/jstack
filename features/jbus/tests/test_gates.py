@@ -10,7 +10,7 @@ import json
 import os
 import re
 import subprocess
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -26,7 +26,7 @@ from test_home_thread import (
     git,
     paths,
 )
-from test_jbus_kitchen import Kitchen, complete
+from test_jbus_kitchen import NOW, Kitchen, complete
 from testing.layouts import assembled
 from testing.paths import REPO
 
@@ -36,6 +36,7 @@ SCOPED = "mcp:the-scoped-home"
 CREW = "mcp:crew-alpha"
 SCOPE = "speed"
 AT = "2026-10-12 11:30 ET"
+HEARD = NOW + timedelta(minutes=30)
 POLLED = "<what the poll printed>"
 READS = "OPEN="
 ASKED = "tea or coffee?"
@@ -489,7 +490,7 @@ def test_a_note_on_the_default_is_its_own_kind_and_no_note_on_another_closes_not
 
 def test_a_word_jbus_carried_to_this_home_is_printed_with_its_words_and_time(home):
     assert home.word() == "no word: jbus carried none to this thread"
-    said = ("--by", "user", "--at", AT, "hold", "every", "merge")
+    said = home.kitchen.message("hold every merge", at=HEARD)
     code, went = home.kitchen.main("word", "--to", "demo", *said)
     assert (code, went.startswith(f"sent: demo, to {ROOT}, word ")) == (0, True)
     (sent,) = home.sends()
@@ -504,10 +505,10 @@ def test_a_word_jbus_carried_to_this_home_is_printed_with_its_words_and_time(hom
 def test_a_word_that_waits_or_went_to_another_project_is_not_this_homes(home):
     side = home.kitchen.second()
     (side.home / "home-id").write_text("mcp:their-home\n")
-    said = ("--by", "user", "--at", AT)
-    assert home.kitchen.main("word", "--to", "other", *said, "ship", "it")[0] == 0
+    ship, wait = (home.kitchen.message(words, at=HEARD) for words in ("ship it", "wait for me"))
+    assert home.kitchen.main("word", "--to", "other", *ship)[0] == 0
     (home.dir / "home-id").write_text("")
-    assert home.kitchen.main("word", "--to", "demo", *said, "wait", "for", "me")[0] == 0
+    assert home.kitchen.main("word", "--to", "demo", *wait)[0] == 0
     (home.dir / "home-id").write_text(f"{ROOT}\n")
     assert home.word() == "no word: jbus carried none to this thread"
     home.kitchen.poll()

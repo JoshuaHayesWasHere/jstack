@@ -32,7 +32,7 @@ function wordRow(w, hit) {
 function dWords(arg) {
   var hit = arg || "", kind = WORDKIND[hit] ? hit : (wordEntry(hit) || {}).kind;
   var h = head("Your words", plural(S.words.length, "thing", "things") + " you said, newest first");
-  h += '<p class="src" style="margin-top:15px">From <code>questions.json</code>, <code>words.json</code> and <code>queue.json</code>, as jbus wrote them. Nothing here waits on you, and nothing here writes.</p>';
+  h += '<p class="src" style="margin-top:15px">From <code>questions.json</code>, <code>acts.jsonl</code> with <code>word-sends.json</code>, and <code>queue.json</code>, as jbus wrote them. Nothing here waits on you, and nothing here writes.</p>';
   ["answer", "word", "approval"].forEach(function (k) {
     var items = wordsOf(k);
     h += '<h3' + (k === hit ? ' class="hit"' : "") + '>' + items.length + " " + WORDKIND[k] + '</h3>' +

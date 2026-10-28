@@ -43,7 +43,7 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     """Return what `queue remove` and `queue approve` ask, and the one quiet event a removal
     sends.
 
-    `said` returns the words an approval names: a word of the project's `words.json`, the
+    `said` returns the words an approval names: a word of the project's `acts.jsonl`, the
     answer of a closed question of its `questions.json`, a message read from T3 Code, a pick
     read from Lavish's state file. `integration` is the branches of the home's
     `integration` file, whose syncs are follow-ups (`queue.KINDS`). A follow-up's go reads no

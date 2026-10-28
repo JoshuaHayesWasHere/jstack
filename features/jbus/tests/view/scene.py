@@ -28,7 +28,7 @@ from urllib.parse import quote
 
 import daemons
 import jsettings
-from jbus import leftover, merge, party, questions, queue, view, word, work
+from jbus import acts, leftover, merge, party, questions, queue, view, word, work
 from jbus.view import state as built
 from jmerge import lines as jlines
 from jmerge import ready
@@ -641,30 +641,31 @@ def said_by_him(scene, answer="coffee, please", sent="go ahead with the kettle")
         keeps=False,
         user=user,
     )
-    went = word.Word(
-        "a1b2c3d4e5f6",
-        sent,
-        user.user,
-        et(ago(minutes=20)),
-        iso(ago(minutes=19)),
-        thread="mcp:home",
-        sent_at=iso(ago(minutes=18)),
-        ref="mcp:sous/m1",
-        said_in="Sous Chef",
-        checked=True,
+    went = party.Evidence("t3-message", "mcp:sous/m1", sent, et(ago(minutes=20)), "Sous Chef", True)
+    waits = party.Evidence("typed", "", "hold the lids", et(ago(minutes=5)))
+    action = party.Action("word", "")
+    kept = [
+        party.Act(name, iso(ago(minutes=at)), party.HOME, action, said, "done", word.KEPT)
+        for name, at, said in (("a1b2c3d4e5f6", 19, went), ("f6e5d4c3b2a1", 5, waits))
+    ]
+    scene.lines(acts.LOG, [asdict(one) for one in kept])
+    scene.write(
+        word.NAME,
+        {
+            "a1b2c3d4e5f6": {"thread": "mcp:home", "sent_at": iso(ago(minutes=18)), "waits": ""},
+            "f6e5d4c3b2a1": {"thread": "", "sent_at": "", "waits": "the home has no home-id"},
+        },
     )
-    waits = word.Word(
-        "f6e5d4c3b2a1",
-        "hold the lids",
-        user.user,
-        et(ago(minutes=5)),
-        iso(ago(minutes=5)),
-        waits="the home has no home-id",
-    )
-    scene.write(word.NAME, [asdict(went), asdict(waits)])
     by = {"session": "s-1", "directory": "/made/up/elsewhere"}
     made = queue.Approval(
-        "word", went.id, went.words, went.at, "Sous Chef", True, by, iso(ago(minutes=10))
+        "word",
+        "a1b2c3d4e5f6",
+        went.words,
+        went.said_at,
+        "Sous Chef",
+        True,
+        by,
+        iso(ago(minutes=10)),
     )
     rows = table()
     rows[1] |= {"approved": made.line(), "approval": queue.held(made)}

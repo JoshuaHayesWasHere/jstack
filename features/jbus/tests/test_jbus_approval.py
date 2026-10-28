@@ -65,7 +65,7 @@ def test_an_approval_by_a_word_is_a_record_of_the_word_and_of_who_ran_it(kitchen
 
 def test_a_word_the_project_does_not_keep_approves_nothing(kitchen):
     add(kitchen, "alpha", approve=False)
-    kept = kitchen.state / "words.json"
+    kept = kitchen.state / "acts.jsonl"
     assert go(kitchen, "alpha", "--word", "nope") == (1, f"refused: {kept} has no word nope\n")
     assert rows(kitchen)["alpha"]["approved"] == ""
 
@@ -303,7 +303,7 @@ def test_a_word_given_as_a_message_is_kept_with_the_messages_own_words_and_time(
     assert (code, said) == (0, f"sent: demo, to home-1, word {kept.id}\n")
     assert (kept.words, kept.by, kept.at, kept.ref, kept.said_in, kept.checked) == (
         "launch alpha and beta",
-        "user",
+        "home/cli",
         HEARD_AT,
         f"mcp:sous/{MESSAGE}",
         "Sous Chef",
@@ -316,20 +316,6 @@ def test_a_word_given_as_a_message_is_kept_with_the_messages_own_words_and_time(
     assert (row["approval"]["basis"], row["approval"]["checked"]) == ("word", True)
 
 
-def test_a_typed_word_is_still_taken_and_is_not_checked(kitchen):
-    kitchen.clock_reads(SAID_AT)
-    typed = ("--by", "user", "--at", SAID_AT, "launch", "alpha")
-    assert kitchen.main("word", "--to", "demo", *typed)[0] == 0
-    (kept,) = word.load(kitchen.state)
-    assert (kept.words, kept.at, kept.ref, kept.said_in, kept.checked) == (
-        "launch alpha",
-        SAID_AT,
-        "",
-        "",
-        False,
-    )
-
-
 @pytest.mark.parametrize(
     "given",
     [
@@ -340,19 +326,15 @@ def test_a_typed_word_is_still_taken_and_is_not_checked(kitchen):
         (),
     ],
 )
-def test_a_word_and_an_answer_take_a_message_or_typed_words_and_not_both(kitchen, given):
+def test_an_answer_takes_a_message_or_typed_words_and_not_both(kitchen, given):
+    """A word takes a message alone: `test_jbus_word` holds what it refuses."""
     kitchen.t3.says(HOME, MESSAGE, "yes")
     kitchen.main("gate", "alpha", stdin=ASK)
-    for verb, argv in (
-        ("word", ("word", "--to", "demo")),
-        ("answer", ("answer", "1", "--default")),
-    ):
-        assert kitchen.main(*argv, *given) == (
-            1,
-            f"refused: {verb} takes --message <thread id>/<message id>, or --by and --at with "
-            "the words, and not both\n",
-        )
-    assert not (kitchen.state / "words.json").exists()
+    assert kitchen.main("answer", "1", "--default", *given) == (
+        1,
+        "refused: answer takes --message <thread id>/<message id>, or --by and --at with "
+        "the words, and not both\n",
+    )
     assert questions.read(kitchen.state)[0].answer is None
 
 

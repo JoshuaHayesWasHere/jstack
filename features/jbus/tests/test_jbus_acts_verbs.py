@@ -98,7 +98,9 @@ def test_a_withdraw_is_an_act_by_the_home(kitchen):
 def test_a_batchs_hold_and_remove_lines_are_acts(kitchen):
     add(kitchen, "alpha")
     add(kitchen, "beta")
-    text = batch("hold alpha\n", f'remove beta --by user --at "{AT}"\n', adds("gamma", "--priority 1"))
+    text = batch(
+        "hold alpha\n", f'remove beta --by user --at "{AT}"\n', adds("gamma", "--priority 1")
+    )
     code, said = queue_(kitchen, "apply", stdin=text)
     assert code == 0, said
     assert [one[:2] for one in map(tuple, _verbs(kitchen))][-2:] == [
