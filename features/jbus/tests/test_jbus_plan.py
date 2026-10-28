@@ -66,7 +66,7 @@ def test_add_keeps_the_entry_it_was_given_and_a_row_with_none_is_its_own(kitchen
     assert said.splitlines()[:3] == [
         HEAD,
         RULE,
-        "| part-1 | 1 |  |  |  |  | epic | queued |  |  |  |  |  |  |",
+        "| part-1 | 1 |  |  |  |  | epic | queued |  |  |  |  |  |  |  |",
     ]
     add(kitchen, "part-1", approve=False)
     assert rows(kitchen)["part-1"]["entry"] == "epic"

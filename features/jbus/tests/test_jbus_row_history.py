@@ -57,15 +57,15 @@ def test_two_passes_keep_why_a_row_waits_since_when_and_each_change_of_status(ki
         {"slug": "beta", "from": "running", "to": "pr", "at": "2026-10-12T15:03:00+00:00"},
     ]
     shown = kitchen.main("queue", "show")[1].splitlines()
-    assert shown[0].endswith("| checks | updated | why | since |")
+    assert shown[0].endswith("| checks | updated | why | since | role |")
     assert shown[2].endswith(
-        f"| pr |  | #8 | passed | {FIRST} | wait: it has no review yet | {FIRST} |"
+        f"| pr |  | #8 | passed | {FIRST} | wait: it has no review yet | {FIRST} |  |"
     )
     assert shown[3].endswith(
         f"| pr | mcp:thread-1 | #9 | pending | {SECOND} | wait: a check has not finished "
-        f"| {SECOND} |"
+        f"| {SECOND} |  |"
     )
-    assert shown[4].endswith(f"| queued |  |  |  |  | depends on beta, alpha | {FIRST} |")
+    assert shown[4].endswith(f"| queued |  |  |  |  | depends on beta, alpha | {FIRST} |  |")
 
 
 def test_a_quiet_pass_keeps_since_and_appends_no_transition(kitchen):

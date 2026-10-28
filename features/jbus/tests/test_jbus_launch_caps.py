@@ -9,7 +9,7 @@ import pytest
 import jbus
 import test_jbus_scout as scout
 from test_jbus_kitchen import Kitchen
-from test_jbus_queue import SINCE, add, brief, rows
+from test_jbus_queue import SINCE, add, brief, go, rows
 
 SCOPES = ("flow", "jview", "macos", "infra")
 
@@ -133,7 +133,7 @@ def test_at_both_caps_a_scout_launches_a_reviewer_is_not_counted_and_a_crew_row_
     queue(kitchen, "root1", priority=2)
     queue(kitchen, "root2", priority=3)
     assert scout.add(kitchen, "look")[0] == 0
-    assert scout.approve(kitchen, "look")[0] == 0
+    assert go(kitchen, "look")[0] == 0
 
     said = kitchen.poll()
 
