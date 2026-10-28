@@ -646,19 +646,16 @@ def test_a_removed_browser_red_row_is_not_filed_again(kitchen):
     assert browser_red(kitchen) == []
 
 
-def test_two_red_browser_runs_of_one_day_are_two_briefs_with_two_names(kitchen):
+def test_two_red_browser_runs_of_one_day_are_one_brief(kitchen):
     nightly = browser_run(88, ago=timedelta(hours=2))
     release = browser_run(89, ago=timedelta(minutes=30), event="push", head_branch="v1.0.0")
     browser_runs(kitchen, release, nightly)
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=3))
-    assert sorted(row["slug"] for row in browser_red(kitchen)) == [
-        "browser-red-2026-10-12",
-        "browser-red-2026-10-12-2",
-    ]
+    assert [row["slug"] for row in browser_red(kitchen)] == ["browser-red-2026-10-12"]
     tasks = kitchen.home / "tasks"
     assert "the browser run 88 failed" in (tasks / "browser-red-2026-10-12.md").read_text()
-    assert "the browser run 89 failed" in (tasks / "browser-red-2026-10-12-2.md").read_text()
+    assert list(tasks.glob("browser-red-*-2.md")) == []
 
 
 @pytest.mark.parametrize("conclusion", ["success", "cancelled", "skipped"])
