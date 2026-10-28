@@ -920,7 +920,7 @@ def test_a_red_macos_nightly_on_a_main_that_never_passed_files_no_row_and_pages_
     assert list((kitchen.home / "tasks").glob("macos-red-*")) == []
     assert red_rows(kitchen, "macos-red-") == []
     assert kitchen.lines("retro") == [NEVER_GREEN.format(77, "2026-10-12")]
-    assert kitchen.webhook.posts == []
+    assert kitchen.wakes.posts == []
 
 
 def test_once_main_passed_a_red_night_after_it_files_one_row_and_one_before_it_none(kitchen):

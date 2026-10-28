@@ -20,8 +20,7 @@ from testing.paths import REPO
 PROJECT, THREAD = "p-winnie", "mcp:the-home"
 CONFIG = (
     'server = "http://127.0.0.1:1"\n\n[[project]]\nname = "first"\n'
-    'checkout = "/somewhere/first"\nprojectId = "p-first"\nwebhook_url = "http://127.0.0.1:1/w"\n'
-    'webhook_key = "not-a-real-key"\n'
+    'checkout = "/somewhere/first"\nprojectId = "p-first"\n'
 )
 
 

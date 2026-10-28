@@ -2,7 +2,8 @@
 
 No bot outside watches the homes or the queue.
 Each home clears its own blockers each time it wakes, with `jbus clear` ("Clearing its own blockers" in the home skill), and raises to you only what you have to decide.
-Who pages you is the relay: jbus posts a `decision` to its webhook, the relay sends it on to your chat bot (the agent behind `RELAY_WEBHOOK_URL`, Sous Chef, the brief's Chief Keef), and the bot pages you ([The relay](the-relay.md)).
+jbus sends a `decision` to the project's home thread ([Where wakes go](events-and-wakes.md#where-wakes-go)).
+Where you run the relay, it also gets what blocks and sends it on to your chat bot (the agent behind `RELAY_WEBHOOK_URL`, Sous Chef, the brief's Chief Keef), which pages you ([What blocks](what-blocks.md), [The relay](the-relay.md)).
 
 A decision is one `user` event of the kind `decision`, sent once for each blocker, whoever raises it again.
 Its line is `decision <slug>: <what to decide>. Reply: "<reply>"`, and the reply is a line you can send as it is: it reaches the home as your word ([Your word to a home](your-word-to-a-home.md)).

@@ -220,12 +220,11 @@ def sidebar(scene):
 @pytest.mark.parametrize("screen", [DESK, MIDDLE, PHONE])
 @pytest.mark.parametrize("route", ["#/", "#/demo"])
 def test_no_view_scrolls_sideways(scene, tmp_path, screen, route):
-    """With a top-level webhook that has events, nothing is wider than the screen."""
+    """With wakes that wait and fail, nothing is wider than the screen."""
     lineup(scene, TODAY)
     sidebar(scene)
     status = json.loads((scene.state_dir / "status.json").read_text())
     status["projects"]["demo"] |= {"outbox": 12, "failed_wakes": 6}
-    status["projects"]["demo"]["top_level"] = {"outbox": 10, "failed_wakes": 3, "last_error": "500"}
     scene.write("status.json", status, scene.state_dir)
     seen = look(scene, tmp_path, route=route, screen=screen)
     clean(seen, screen)

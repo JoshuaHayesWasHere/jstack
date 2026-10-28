@@ -1,11 +1,10 @@
 """`jbus project add`: add one more `[[project]]` table at the end of jbus's config.
 
-The config holds a webhook's key, so neither a person nor a skill writes the config. `add` reads the
+The config may hold a key, so neither a person nor a skill writes the config. `add` reads the
 file as text and writes it back with one table after its last byte. Every other table keeps
 the same bytes. First `add` saves a copy of the file as it was, beside it, as
 `config.toml.<time>.bak`, and both stay mode 600. The table has `name`, `checkout` and
-`projectId`, and no webhook. The new project uses the `webhook_url` and `webhook_key` at the
-top of the config when the config has them. With none there, a pass POSTs nothing for the project.
+`projectId`. A pass wakes the new project's home thread for what the user must act on.
 
 The file must load as a pass loads it (`jbus.load`). `add` refuses a config that a pass
 refuses, before it writes anything, with the line `jbus.load` gives.
@@ -152,7 +151,7 @@ def _listed(listed: argparse.ArgumentParser) -> None:
     listed_verbs = listed.add_subparsers(dest="verb", required=True)
     added = listed_verbs.add_parser(
         "add",
-        help="add a project's table to the config, with no webhook",
+        help="add a project's table to the config",
         allow_abbrev=False,
         usage=USAGE,
     )

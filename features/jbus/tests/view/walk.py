@@ -7,8 +7,7 @@ over `work.every`), each liveness of `live.LIVENESS` with each role of `threads.
 kind of `waiting.KINDS`, and each word `state._source` gives a source. Beside them are the gates
 of the root home, of a live scope and of a retired one, with and without a default, open and
 closed; a row of each of those homes, whose brief's `Home:` line names it; a pass that T3 Code
-or GitHub did not answer; and events stranded in the outbox of a route the project's `wake`
-dropped.
+or GitHub did not answer.
 
 `SURFACES` is closed. Its keys are `(class, name)`, and `missing` names each state that has no
 entry, and each entry that names no state. A place is where a person sees the state: an item
@@ -25,7 +24,6 @@ an entry that is right while `KNOWN` still names it fails too.
 import itertools
 import json
 from dataclasses import dataclass
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -143,8 +141,6 @@ SURFACES = {
     ("gate", "retired scope, a default, closed"): Surface(),
     ("silent", work.T3): Surface(broken=f"{work.T3} did not answer", chip="not confirmed"),
     ("silent", work.GITHUB): Surface(broken=f"{work.GITHUB} did not answer", chip="not confirmed"),
-    ("route", "stranded outbox"): Surface(broken="outbox"),
-    ("route", "old error of a dropped route"): Surface(),
     ("owner", "root"): Surface(row=True, rank=QUEUED, home=("", "")),
     ("owner", "live scope"): Surface(row=True, rank=QUEUED, home=("pantry-shelf", "")),
     ("owner", "retired scope"): Surface(row=True, rank=QUEUED, home=("", "old-shelf")),
@@ -182,7 +178,6 @@ def states():
         "source": source_states(),
         "gate": {gate for gate, _ in GATES},
         "silent": {work.T3, work.GITHUB},
-        "route": {"stranded outbox", "old error of a dropped route"},
         "home": {"ended with work out"},
         "owner": set(OWNERS),
     } | {"pairs": pairs}
@@ -251,9 +246,6 @@ GATES = [
     for default in ("no default", "a default")
     for status in ("open", "closed")
 ]
-
-
-STRANDED = 5
 
 
 OWNERS = {"root": "", "live scope": "pantry-shelf", "retired scope": "old-shelf"}
@@ -348,7 +340,7 @@ def build(scene):
     record["projects"][scene.name] |= {"threads": crews, "rows": watched}
     scene.write("pass.json", record, scene.state_dir)
     gates = _gates(scene)
-    _stranded(scene)
+    _status(scene)
     (scene.state / SOURCES["missing"]).unlink()
     (scene.state / SOURCES["unreadable"]).write_text("{not json")
     return Walk(scene, pairs, alone, items, gates, SOURCES | {"stale": "GitHub"}, owners)
@@ -383,17 +375,11 @@ def _gates(scene):
     return asked
 
 
-def _stranded(scene):
-    """The project's `wake` is `home`, so its one route is the home's thread, whose outbox is
-    empty. The route of its webhook was dropped, and its outbox in the state directory still
-    holds `STRANDED` events, with the error that route gave last. `record.status` writes the
-    status file from those outboxes, over a config that names the project, as a pass does."""
-    scene.write("outbox.json", [{"event": "result", "line": f"walk {n}"} for n in range(STRANDED)])
+def _status(scene):
+    """The project's home thread has an empty outbox. `record.status` writes the status file
+    from it, over a config that names the project, as a pass does."""
     (scene.state / "home-thread").mkdir()
     scene.write("outbox.json", [], scene.state / "home-thread")
-    old = (NOW - timedelta(hours=6)).timestamp()
-    said = {"began": True, "last_error": "the config has no webhook_url", "posted": old}
-    scene.write("wake.json", said)
     config = scene.root / "config"
     config.mkdir(exist_ok=True)
     (config / "config.toml").write_text(CONFIG.format(checkout=scene.root, name=scene.name))

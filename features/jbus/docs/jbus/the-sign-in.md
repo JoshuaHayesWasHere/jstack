@@ -8,7 +8,7 @@ Once it runs out, T3 Code refuses jbus and jbus launches nothing.
 ## The reminder
 
 jbus reminds you with a `sign-in` event, which is a `user` event of the machine and not of a project.
-jbus sends it once, to the first project's home thread where that project's `wake` picks it, and to one webhook where its `wake` picks the webhook: the top-level one, or the project's own when there is no top-level pair.
+jbus sends it once, to the first project's home thread.
 It keeps it in the first project's `jbus events`.
 jbus counts the days by the calendar of your zone, up to the day the sign-in runs out:
 

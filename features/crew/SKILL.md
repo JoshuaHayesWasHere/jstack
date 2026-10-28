@@ -158,7 +158,7 @@ Once the pull request is open:
 
    It waits four minutes before it prints `stay`, so give the call a time limit of 6 minutes (`timeout: 360000` in Claude Code), and never send it to the background.
    On `end your turn`, end it.
-   On `stay`, the project's webhook is failing, so a wake this turn waits for may never come: do not end your turn.
+   On `stay`, the wakes to the project's home thread are failing, so a wake this turn waits for may never come: do not end your turn.
    The block has waited four minutes: run the block of "The checks", do what it prints, and then run this block again, in this turn, until it prints `end your turn` or the pull request has merged or closed.
    Add one line to the Result the first time, `Wakes: failing at <head>, checked by hand`.
 
@@ -322,7 +322,12 @@ The block keeps the head before the move under `refs/jstack/pre-rebase/<slug>/<i
 
 ## Telling the home
 
-A repo runs with a home or with none. With none, the block below prints nothing and no message is sent: jbus reads the brief from disk, sends the Chef each new Result, and runs `jmerge`. A home plans, assigns and starts, and what finishes the work is not its to hear. So a crewmate sends its home one message whoever merges: it ends with no pull request ("End"). A gate goes to jbus, and to the home only where jbus cannot take it ("Do the task"). Not when the pull request opens, and not when the findings are handled.
+A repo runs with a home or with none.
+With none, the block below prints nothing and no message is sent: jbus reads the brief from disk, logs each new Result, and runs `jmerge`.
+A home plans, assigns and starts, and what finishes the work is not its to hear.
+So a crewmate sends its home one message whoever merges: it ends with no pull request ("End").
+A gate goes to jbus, and to the home only where jbus cannot take it ("Do the task").
+Not when the pull request opens, and not when the findings are handled.
 
 jbus is the only merger, so a line about a pull request goes where jbus's merge reads it, and not to the home.
 The lines are: that it is fixed and green; that it is green and has no reviewer, or no second or scoped reviewer where its fix needs one (all in "The review"); a link's conflict ("A link that moved").

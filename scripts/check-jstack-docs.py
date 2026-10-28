@@ -46,7 +46,7 @@ EXTERNAL = {
     "code-review": "a Claude Code command",
     "simplify": "a Claude Code command",
     "init": "a Claude Code command",
-    "answer": "a reply to an item jbus asked about, in a webhook's reply",
+    "answer": "the view's route that takes an answer to a gate",
     "ack": "the relay's route that takes an acknowledgement",
     "steer": "the view's route that takes a steer",
     "tmp": "the machine's temporary folder",

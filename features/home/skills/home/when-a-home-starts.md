@@ -7,7 +7,8 @@ In the second case the user's first message is their opening request, unless it 
 
 The first word after `/home` may name a scope: step 1 says. Text after `/home`, or after the scope, that says the previous home wrote it is a seed: that home's handoff launched this thread with it. It is not the user's opening request. Do the five steps, do what the seed says to keep doing, and do not wait for the user: step 5 merges, launches and gives the status by itself.
 
-Escalations reach the user through jbus's webhook, to Sous Chef. A home sends no other thread a status and keeps no registry of homes: jbus is it.
+Escalations reach the user through jbus, which wakes the project's home thread with them.
+A home sends no other thread a status and keeps no registry of homes: jbus is it.
 
 The user opts out with `/nohome` (the `nohome` skill), for one thread or for the repo.
 

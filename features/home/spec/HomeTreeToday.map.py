@@ -1,5 +1,5 @@
 # Chart labels for HomeTreeToday and HomeTreeDesign: what Josh sees of the root and its children.
-reader_actions = ["Answer", "Retire", "ChangeWake", "Steps"]
+reader_actions = ["Answer", "Retire", "Steps"]
 
 LIFE = {"working": "working", "stuck": "stuck", "retired": "retired"}
 WORK = {
@@ -47,12 +47,8 @@ MERGER = {"jbus": "jbus", "root": "the root", "child": "child {k}"}
 def reaching(v):
     calls = [m for m in ("a1", "a2", "b1", "b2") if v["msg"][m] != "none"]
     parts = []
-    if any(v["msg"][m] not in ("told", v["wake"]) for m in calls):
-        parts.append("a call stranded in the old route")
-    if any(v["msg"][m] == v["wake"] for m in calls):
-        parts.append(
-            "a call on its way" if v["up"][v["wake"]] else "a call waits on a failed route"
-        )
+    if any(v["msg"][m] == "home" for m in calls):
+        parts.append("a call on its way" if v["up"] else "a call waits on a failed home thread")
     if any(v["msg"][m] == "told" for m in calls):
         parts.append("a call for you")
     for k in made(v):
@@ -77,8 +73,6 @@ region_names = ["The children", "What reaches you"]
 def group(v, facts):
     if v["blind"] or any(len([a for a, t in v["seen"][k].items() if t != 9]) > 1 for k in made(v)):
         return "Merging"
-    if any(v["msg"][m] not in ("none", "told", v["wake"]) for m in v["msg"]):
-        return "Stranded"
     if any(v["life"][k] == "stuck" for k in made(v)):
         return "Stalled"
     return "Fine"
@@ -87,7 +81,6 @@ def group(v, facts):
 group_colors = {
     "Fine": "#d1f2eb",
     "Stalled": "#fdebd0",
-    "Stranded": "#fadbd8",
     "Merging": "#e8daef",
 }
 
@@ -131,18 +124,17 @@ def step(action, before, after):
         "Retire": f"you retire child {k}",
         "Steps": f"you get child {k} going again",
         "Deliver": "a call reaches you",
-        "Rehome": "jbus moves a waiting call to the route the setting picks",
-        "ChangeWake": "you change the wake setting",
-        "RouteFails": "a route fails",
-        "RouteMends": "the route works again",
+        "Lost": "a failed post takes a call out of the outbox",
+        "RouteFails": "the home thread fails",
+        "RouteMends": "the home thread works again",
     }.get(action, action)
 
 
 def cause(v, facts, invariant):
     return {
         "NoRetireWithOpen": "nothing checks what a scope has out when its handoff ends it",
-        "CallsReachJosh": "a call waits in the outbox of the route it was queued for, and a pass"
-        " posts only to the routes the setting picks now",
+        "CallsReachJosh": "a post to the home thread fails, and the call leaves its outbox"
+        " all the same",
         "StallFlagged": "a hung thread is a quiet event, logged and sent to nobody",
         "OneMerger": "on home merges a child runs jmerge for its own pull request, and the root"
         " may too",

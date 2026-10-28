@@ -29,7 +29,7 @@ The kinds are `item.proposed`, `item.approved`, `item.queued`, `item.launched`, 
 A pass writes a line only when its row moves the item to a new state.
 A pass with nothing new writes none.
 
-Each line is also a card in your chat bot's chat, and a decision made on a card comes back through the relay ([The relay](the-relay.md#cards-in-your-chat-bots-chat)).
+A decision made in your chat bot's chat comes back through the relay ([Decisions from the chat](the-relay.md#decisions-from-the-chat)).
 
 An item's risk is `review` for these, and `routine` for anything else:
 

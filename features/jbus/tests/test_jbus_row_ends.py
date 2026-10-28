@@ -23,9 +23,13 @@ def result(left="none", status="done", pull="none"):
 
 
 def sends(kitchen):
-    """Return each message that a pass sent a thread. The fake keeps one message per request id,
-    so this counts the calls."""
-    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    """Return each message that a pass sent a thread, but for the wakes of a home thread. The fake
+    keeps one message per request id, so this counts the calls."""
+    return [
+        given
+        for tool, given in kitchen.t3.calls
+        if tool == "t3_thread_send" and not given["clientRequestId"].startswith("wake|")
+    ]
 
 
 def listed(kitchen, kind="left"):

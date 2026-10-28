@@ -11,7 +11,7 @@ Read this index before a drive, then use the matching feature file as the recipe
 - Run `"$VERIFY_JSTACK_SCRIPTS/doctor.sh"` and require `doctor: ok`. Anything else is `doctor: not ok`, and nothing is driven in that sandbox, whichever line was `bad`. A `bad  <feature>: seed lacks <x>` line also fails that feature's journey: report it failed with that reason, and add the reason to the feature's `Gotchas`. Never weaken the journey to make it pass. A feature whose own line is `ok   <feature>: seed has ...` has not failed: clean up, and drive it in a new sandbox. A new sandbox with a `seed lacks` line is a fault in `launch.sh` or in the feature's `Needs:` line: drive nothing until it is fixed.
 - Use a new sandbox for each journey, and a feature file may hold several.
   They run side by side, and a pass in one leaves marks (the five-minute gap between wakes, the first pass) that change what the next recipe sees.
-- Never drive the live jstack: `~/.local/state/jbus`, `~/.local/state/home`, the systemd timer, real T3 threads, the real webhook, GitHub.
+- Never drive the live jstack: `~/.local/state/jbus`, `~/.local/state/home`, the systemd timer, real T3 threads, GitHub.
 - The demo project is named `demo`. Its main checkout is `$VERIFY_JSTACK_SANDBOX/demo`, where `env.sh` leaves the shell.
 
 ## Driving conventions
@@ -60,7 +60,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [jbus](../../jbus/verify.md) covers a queue row from `jbus queue add` to the pass that launches the crew thread, a gate that wakes the Chef through `jbus gate`, `jbus done`, the outbox and the webhook, and a red main that files the brief for its fix.
+- [jbus](../../jbus/verify.md) covers a queue row from `jbus queue add` to the pass that launches the crew thread, a decision that wakes the home thread through `jbus gate`, `jbus done`, the outbox and the wake, and a red main that files the brief for its fix.
 - [jmerge says ready, wait or hold](../../../features/jmerge/verify.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, and `jmerge --claims`.
 - [jgauge room](../../../features/jgauge/verify.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
 - [Installing jstack](../../../features/jinstall/verify.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.

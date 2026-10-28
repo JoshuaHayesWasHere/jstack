@@ -110,7 +110,6 @@ ORDER = [
     "close 50 chores.daily",
     "close 60 chores.sweep (budget)",
     "close 70 packs.check",
-    "close 80 cards.post",
     "close 90 noticed.wake (sight, client)",
 ]
 JMERGE = f"wait 7 {URL}: {NO_FIXED}"

@@ -202,16 +202,6 @@ def test_a_stall_of_a_cap_stands_while_the_cap_lasts(tmp_path, monkeypatch):
     assert capped(-1) == []
 
 
-def test_wakes_stranded_in_a_dropped_route_are_wrong(tmp_path, monkeypatch):
-    scene = Scene(tmp_path, monkeypatch)
-    status = json.loads((scene.state_dir / "status.json").read_text())
-    status["stranded"] = {scene.name: {"wake.json": 3}}
-    scene.write("status.json", status, scene.state_dir)
-    (one,) = stack(scene)["wrong"]
-    assert (one["kind"], one["subj"]) == ("bus", "bus")
-    assert "no longer takes" in one["cause"]
-
-
 def test_a_source_the_last_pass_could_not_ask_is_wrong_since_that_pass(tmp_path, monkeypatch):
     scene = Scene(tmp_path, monkeypatch)
     record = json.loads((scene.state_dir / "pass.json").read_text())

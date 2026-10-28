@@ -43,8 +43,8 @@ When a pass writes a list with other keys than the list that it found, the pass 
 event. The event gives how many items wait, the new ones by name (`short`), and each line, marked
 `+` for a new item and `-` for one that is gone. It is `quiet`: the list is for the record and the
 digest, and what on it the user has to decide reaches the user as a `decision` (`jbus.blockers`).
-The first pass that writes the list logs no event. Neither the file nor the event holds a webhook
-URL, key or token, since `redact` removes each of them from the pass's findings before the pass
+The first pass that writes the list logs no event. Neither the file nor the event holds a URL, key
+or token, since `redact` removes each of them from the pass's findings before the pass
 compares those findings with the file.
 
 What blocks is a part of this list, and `blocking` is the one function that decides it. An item
@@ -532,9 +532,9 @@ def _blocks(run: Pass, item: Item, case: str, why: str) -> Item:
 
 def _alarms(run: Pass) -> list[Item]:
     """Return the streaks that alerted and are still open, of this project or of the pass. Leave out
-    the second target's own streak, since jbus would post it to the same webhook that fails."""
+    the second target's own streak, since jbus would post it to the same target that fails."""
     name = run.project.name
-    mine = {alert.PASS, alert.home(name), alert.webhook(name), alert.top_level(name)}
+    mine = {alert.PASS, alert.home(name)}
     mine.add(alert.jmerge(name))
     found = []
     for key, one in sorted(alert.streaks(run.config.state_dir).items()):

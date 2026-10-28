@@ -436,6 +436,7 @@ def kitchen(tmp_path, monkeypatch):
 
 
 def test_the_command_prints_the_measure_writes_nothing_and_holds_no_secret(kitchen, monkeypatch):
+    kitchen.config(blocking_url="http://127.0.0.1:9/relay", blocking_key=KEY)
     secret = table(
         at(2.6),
         "delta",

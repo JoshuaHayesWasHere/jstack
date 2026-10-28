@@ -2,7 +2,7 @@
 out of the code.
 
 Run it in this repo's root. It writes the built part of one page,
-`features/jbus/docs/jbus/events-and-the-webhook.md`: the text between `<!-- built: events -->`
+`features/jbus/docs/jbus/events-and-wakes.md`: the text between `<!-- built: events -->`
 and the `<!-- built: end -->` after it. That part is the table of the kinds of event, one row
 for each level, with the level's kinds sorted, read from `wake.LOUDNESS`. It leaves the rest of
 the page, which a person wrote by hand, as it is. A second run changes nothing.
@@ -22,18 +22,18 @@ from pathlib import Path
 
 from jbus import LEVELS, wake
 
-EVENTS_PAGE = "features/jbus/docs/jbus/events-and-the-webhook.md"
+EVENTS_PAGE = "features/jbus/docs/jbus/events-and-wakes.md"
 RUN = "uv run python -m jbus.pages"
 BUILT = re.compile(
     r"(?P<begin><!-- built: (?P<part>\w+) -->\n)(?P<body>.*?)(?P<end><!-- built: end -->)", re.S
 )
 HAPPENS = {
     "user": (
-        "It starts a POST. The event has `say`, the line for the chat, which begins with the "
-        "project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds "
-        "those lines in order."
+        "It starts a wake of the home thread. The event has `say`, the line for the chat, which "
+        "begins with the project's name, but for a `sign-in`, which is the machine's. The "
+        "top-level `say` holds those lines in order."
     ),
-    "quiet": "It is never posted. It is in the log, which `jbus events` prints and the view shows.",
+    "quiet": "It wakes no thread. It is in the log, which `jbus events` prints and the view shows.",
 }
 
 

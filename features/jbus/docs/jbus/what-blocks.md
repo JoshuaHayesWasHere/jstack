@@ -23,7 +23,7 @@ jbus checks a gate's context for the `PAUSE` words of case a, as it checks the g
 A slug's thread is at work when any of its threads is at work, the crewmate's or its reviewer's.
 
 These go to the second target, `blocking_url` and `blocking_key` at the top of the config ([Configuration](../../../jinstall/docs/configuration.md)).
-The second target is a route of its own, so when it is down it holds back no other webhook.
+The second target is a route of its own, so when it is down it holds back no wake of the home thread.
 Its outbox, gap, last error, failure streak and status are in `blocking/` inside the project's state.
 jbus posts it no events, quiet or not.
 With no such pair, jbus posts nothing more.
@@ -31,7 +31,7 @@ Every body has a top-level `kind`, which the relay routes on:
 
 | `kind` | Sent to | Body |
 |---|---|---|
-| `events` | Every webhook | `{"kind", "say", "events"}`, the events of [Events and the webhook](events-and-the-webhook.md). The body for the second target has an empty `events`, `items` with the items that began to block in that pass, batched, and `project` and `at`. It waits on the five-minute gap. |
+| `events` | The home thread and the second target | `{"kind", "say", "events"}`, the events of [Events and wakes](events-and-wakes.md). The body for the second target has an empty `events`, `items` with the items that began to block in that pass, batched, and `project` and `at`. It waits on the five-minute gap. |
 | `reminder` | The second target | `{"kind", "project", "at", "say", "items"}`, the items due a reminder in that pass. It waits on no gap. |
 | `refresh` | The second target | The same, with every open item, oldest first, or none, and `say` is `<project>: nothing blocks`. It waits on no gap, and a newer refresh takes the place of one still in the outbox. |
 

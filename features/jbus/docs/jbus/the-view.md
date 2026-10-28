@@ -73,14 +73,14 @@ Each home there also has its `health`, from its own home thread, `since` for a h
 Each need also has its `subj`, the row or question it is about, so that no need reads only as its question.
 
 `/stack.json` has one list of what is wrong across the projects, `wrong`, oldest first.
-Its kinds are a red main, a failed or unread CI, failing or stranded wakes, a source that is there and cannot be read, a source the last pass could not ask, a thread that is hung or quiet, a stall jbus logged that still stands, and a pull request whose crew was told what it lacks and has not acted (`expedite.json`).
+Its kinds are a red main, a failed or unread CI, failing wakes of the home thread, a source that is there and cannot be read, a source the last pass could not ask, a thread that is hung or quiet, a stall jbus logged that still stands, and a pull request whose crew was told what it lacks and has not acted (`expedite.json`).
 A file a project has never had is no entry.
 Each entry has its `kind`, its `subj`, its `cause`, `since` when it went wrong, and `where`: each project and home it is in, with the drawer that has it.
 An entry of the bus or of a source with the same subject and cause in several projects is one entry that names them all, and any other entry stays one per project.
 A project's red reasons (`broken`) are built from the same list, so the two never disagree.
 
 Each thing wrong has an `owner`, by one rule for each kind (`OWNERS` in `features/jbus/src/jbus/view/state.py`): the crew of its row, the home of its row, the root home for a fault of the project or the machine, or `user`.
-It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a token GitHub refuses, or T3 Code not answering.
+It is the user's only where no agent can fix it: a row that waits on a gate, which holds only for a case of `gates.md`, a cap, a wake the home thread does not take, or T3 Code not answering.
 A fault whose agent owner has no thread to tell is the user's too.
 Each has `fixing` beside it, what its owner was told and when, read from `outbox.jsonl`, the leftover record or the main-red row.
 `wrong`, the band's wrong tier, the since line and a project's red reasons hold only the user's entries.

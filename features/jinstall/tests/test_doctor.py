@@ -296,6 +296,18 @@ def test_a_jbus_config_the_loader_takes_is_ok_and_one_others_can_read_is_old(use
     )
 
 
+def test_a_jbus_config_with_the_old_wake_keys_is_ok_and_names_them_as_doing_nothing(user):
+    path = user.jbus / "config.toml"
+    old = 'wake = "both"\nwebhook_url = "http://127.0.0.1:9/wake"\nwebhook_key = "an-old-key"\n'
+    user.private(path, JBUS + old)
+    said = user.line("jbus config")
+    assert said == (
+        f"ok optional jbus config {path} -> old keys that do nothing, remove them: "
+        "wake at the top, webhook_url at the top, webhook_key at the top"
+    )
+    assert "an-old-key" not in said and "127.0.0.1" not in said
+
+
 @pytest.mark.parametrize(
     ("written", "why"),
     [

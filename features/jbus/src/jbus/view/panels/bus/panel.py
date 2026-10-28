@@ -1,18 +1,12 @@
 """The bus: what the outbox and the wakes count, what jbus sent today by kind and loudness, and
 the last events of the log. The panel never opens the outbox itself.
 
-The outbox counts what waits in the first route and in each route the project's `wake` dropped,
-and `top_level` counts its own. The last error, the last POST and `since`, when
-the streak of failed wakes began, are the first route's that the project's `wake` picks: the
-home thread's where it picks the home thread. A route it dropped keeps its old error in its
-own `wake.json`, and that error is no fault. `stranded` is what waits in such a route.
+The outbox counts what waits for the home thread. The last error, the last wake and `since`, when
+the streak of failed wakes began, are the home thread's.
 
-`top_level` is the same count for the top-level webhook, which monitors every project. It is
-there where the project posts to that webhook beside its own. The count is that webhook's outbox,
-its failed wakes, its last error and its last POST. It is None where the project has one webhook.
-`blocking` is the same count for the second target. That target is the webhook that jbus tells
-what blocks. `blocking` is None where the config sets no such webhook, and its outbox holds
-bodies, not events."""
+`blocking` is the same count for the second target, the address that jbus tells what blocks.
+`blocking` is None where the config sets no second target, and its outbox holds bodies, not
+events."""
 
 from __future__ import annotations
 
@@ -21,7 +15,7 @@ from typing import Any
 from jbus import read_json
 from jbus.view.clean import ANY
 from jbus.view.state import EVENTS_FILE, Read, Spot, kept, text, when
-from jbus.wake import BLOCKING, HOME, LOUDNESS, TOP_LEVEL
+from jbus.wake import BLOCKING, HOME, LOUDNESS
 
 FIRST = True
 SHOWN = 40
@@ -32,7 +26,6 @@ SHAPE = {
         "failed_wakes": None,
         "last_error": None,
         "since": None,
-        "stranded": None,
         "posted": None,
         "sent": None,
         "sent_kinds": {ANY: None},
@@ -40,7 +33,6 @@ SHAPE = {
         "loudness": {ANY: None},
         "today": {ANY: None},
         "events": [_EVENT],
-        "top_level": {"outbox": None, "failed_wakes": None, "last_error": None, "posted": None},
         "blocking": {"outbox": None, "failed_wakes": None, "last_error": None, "posted": None},
     }
 }
@@ -63,8 +55,7 @@ SOURCES = (
 
 def build(read: Read) -> dict[str, Any]:
     status = read.panel("pulse")["jbus"]["status"]
-    first = f"{HOME}/wake.json" if status["wake"] in ("home", "both") else "wake.json"
-    wake, keys = read.table(first) or {}, read.once(sent) or []
+    wake, keys = read.table(f"{HOME}/wake.json") or {}, read.once(sent) or []
     today: dict[str, int] = {}
     for one in read.events:
         if one["at"] >= read.day:
@@ -80,7 +71,6 @@ def build(read: Read) -> dict[str, Any]:
             "failed_wakes": status["failed_wakes"],
             "last_error": text(wake.get("last_error")) or status["last_error"],
             "since": status["since"],
-            "stranded": status["stranded"],
             "posted": when(wake.get("posted")),
             "sent": len(keys),
             "sent_kinds": by_kind,
@@ -88,15 +78,14 @@ def build(read: Read) -> dict[str, Any]:
             "loudness": dict(LOUDNESS),
             "today": today,
             "events": read.events[-SHOWN:],
-            "top_level": _route(read, status["top_level"], TOP_LEVEL),
             "blocking": _route(read, status["blocking"], BLOCKING),
         }
     }
 
 
 def _route(read: Read, one: dict[str, Any] | None, folder: str) -> dict[str, Any] | None:
-    """A webhook beside the project's own: its counts from the status file, and its last
-    error and POST from its own `wake.json`."""
+    """The second target: its counts from the status file, and its last error and POST from its
+    own `wake.json`."""
     if not one:
         return None
     posts = read.table(f"{folder}/wake.json") or {}

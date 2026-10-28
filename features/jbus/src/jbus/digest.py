@@ -25,8 +25,8 @@ no `jmerge`, no GitHub, no T3 Code. It takes no lock and writes no file. The dic
     the digest lists a row twice at worst and never misses it.
   - `waiting` is the list of what waits on the user, as the last pass left it (`waiting`).
   - `routine` holds `{"at", "event", "slug", "line"}` for each event of a kind in `ROUTINE`
-    that the log has at or after `since`, oldest first. These are quiet: no webhook is posted
-    them, and the digest is where the user reads them. Only a `decision`, a `sign-in` and an
+    that the log has at or after `since`, oldest first. These are quiet: they wake no home
+    thread, and the digest is where the user reads them. Only a `decision`, a `sign-in` and an
     `alert` page (`jbus.blockers`).
   - `sweep` is what the last look at a sweep found.
   - `stops` holds `open`, each stop a scoped home holds open on the root, and `outside`, the
@@ -42,7 +42,8 @@ and a merge's are the string `#<n>`. A `number`, of `pulls` or of a hold, is the
 gate's `number` is a string: the number of a question jbus holds, or whatever the heading of
 a gate in `gates.md` says.
 
-`redact` removes every webhook URL, key and token from every string, so the digest has none.
+`redact` removes the second target's URL and key and every token from every string, so the digest
+has none.
 """
 
 from __future__ import annotations
@@ -231,9 +232,8 @@ def build(
 
 
 def _status(_: argparse.Namespace, config: Config) -> int:
-    """Print the status file and the record of the pass. Print the streaks, the outboxes outside
-    the routes in effect that hold events (`record.stranded`), and the homes that are not on the
-    bus, as they stand now. The view never reads an outbox, so only this command counts them.
+    """Print the status file and the record of the pass. Print the streaks and the homes that are
+    not on the bus as they stand now.
 
     The file's own streaks are a copy from the last pass that ended, and `jbus alarm` keeps
     counting after that pass. A pass writes the record at its start, so this also prints a
@@ -241,8 +241,7 @@ def _status(_: argparse.Namespace, config: Config) -> int:
     """
     if not config.status_path.is_file() and not config.pass_path.is_file():
         raise Refused(f"refused: no status at {config.status_path}: no pass has run")
-    told = status(config) | {"stranded": record.stranded(config)}
-    print(json.dumps(told, indent=2, sort_keys=True))
+    print(json.dumps(status(config), indent=2, sort_keys=True))
     return 0
 
 

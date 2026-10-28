@@ -2,8 +2,8 @@
 follows the row back to its root. It sends one `waiting-on-user` event per root per hour, and
 keeps the roots in the list that `jbus queue show` prints.
 (`features/jbus/tests/test_jbus_digest.py` has the list's other kinds.) Like `test_jbus.py`, the
-tests run the real command and the real pass against a faked T3 Code server, `gh`, `jmerge` and
-webhook."""
+tests run the real command and the real pass against a faked T3 Code server, `gh` and
+`jmerge`."""
 
 import json
 import shlex
@@ -14,7 +14,7 @@ import pytest
 
 import jbus
 from jbus import wake
-from test_jbus_kitchen import KEY, NOW, RESULT, Kitchen
+from test_jbus_kitchen import KEY, NOW, REFUSED, RESULT, Kitchen
 from test_jbus_queue import add, brief, go, sha12, widened
 
 URL = "https://example.test/pull/286"
@@ -253,9 +253,9 @@ def test_a_root_is_sent_once_an_hour_while_it_stands_and_is_dropped_when_it_clea
     assert kitchen.log("notify") == [f"jbus | {MERGE}"] * 2
 
 
-def test_no_line_and_no_file_holds_the_webhooks_url_or_its_key(kitchen):
+def test_no_line_and_no_file_holds_the_key(kitchen):
     held(kitchen)
-    kitchen.webhook.status = 500
+    kitchen.wakes.refused = REFUSED
     said = kitchen.poll() + kitchen.poll(later(61))
     code, table = kitchen.main("queue", "show")
     everything = "\n".join(
@@ -268,8 +268,7 @@ def test_no_line_and_no_file_holds_the_webhooks_url_or_its_key(kitchen):
         ]
     )
     assert MERGE in everything
-    assert kitchen.webhook.url not in everything and KEY not in everything
-    assert "127.0.0.1" not in everything
+    assert KEY not in everything and "127.0.0.1" not in everything
 
 
 def test_queue_show_prints_what_waits_on_the_user_above_the_table(kitchen):
@@ -298,13 +297,6 @@ def test_queue_show_prints_what_waits_on_the_user_above_the_table(kitchen):
     assert kitchen.main("queue", "show")[1].startswith("| slug |")
 
 
-def test_a_webhook_that_is_not_set_is_no_root(kitchen):
-    kitchen.config(url="", project_wake=None)
-    said = kitchen.poll() + kitchen.poll(later(61))
-    assert not [line for line in said if line.startswith("waiting-on-user")]
-    assert waits(kitchen) == [] and shown(kitchen) == []
-
-
 def test_with_no_sign_in_the_root_is_to_sign_in_and_it_unblocks_the_rows_that_wait(kitchen):
     add(kitchen, "alpha")
     (kitchen.config_dir / "t3.json").unlink()
@@ -314,18 +306,22 @@ def test_with_no_sign_in_the_root_is_to_sign_in_and_it_unblocks_the_rows_that_wa
     ]
 
 
-def test_a_webhook_whose_last_post_failed_has_each_root_in_the_journal_each_hour(kitchen):
+def test_a_home_thread_whose_last_wake_failed_has_each_root_in_the_journal_each_hour(kitchen):
     held(kitchen)
     config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo"), config.webhook).send(
+    wake.Box(kitchen.state, config.project("demo")).send(
         "alpha", "decision", "decision alpha: which one?"
     )
-    kitchen.webhook.status = 500
+    kitchen.wakes.refused = REFUSED
     said = kitchen.poll()
-    assert MERGE not in said and "wake failed demo: the webhook answered 500" in said
+    assert MERGE not in said
+    assert (
+        f"wake failed demo home thread: T3 Code did not take the wake: t3_thread_send: {REFUSED}"
+        in said
+    )
     assert MERGE not in kitchen.poll(later(30))
     assert kitchen.poll(later(61)).count(MERGE) == 1
-    assert kitchen.webhook.posts == [] and waits(kitchen) == [MERGE, MERGE]
+    assert kitchen.wakes.posts == [] and waits(kitchen) == [MERGE, MERGE]
 
 
 GUARDED = f"guarded (touches features/jbus/src/jbus/alert.py), no proven safety fact at {HEAD[:12]}"
@@ -354,7 +350,7 @@ def test_a_guarded_wait_is_a_stall_at_its_tenth_pass_at_one_head_and_only_then(k
     assert stalls(kitchen) == [STALLED]
     (event,) = kitchen.events("stall")
     assert (event["slug"], event["loud"], event["posted"]) == ("alpha", "quiet", None)
-    assert kitchen.webhook.posts == []
+    assert kitchen.wakes.posts == []
     kitchen.poll(later(10))
     assert stalls(kitchen) == [STALLED]
 

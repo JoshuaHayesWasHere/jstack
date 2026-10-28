@@ -57,8 +57,8 @@ off, gets the word on the first pass after the next home starts and writes its o
 `home-id`. The retry key is `word|<project>|<id>|<thread>`, and jbus writes `sent_at` only after T3
 Code accepted the message.
 
-No part of a word is an event. A word is in no outbox, so no POST to a project's webhook or to the
-top-level one carries it, and whoever ran the command hears nothing back. The log still has a line
+No part of a word is an event. A word is in no outbox, so no wake carries it, and whoever ran the
+command hears nothing back. The log still has a line
 for the word (`wake.Box.record`), which `jbus events` prints. The line holds the words, `by`, `at`,
 and `to`, which is the thread that received the word, or nothing while the word waits or when jbus
 posted it to nobody. A word that T3 Code refuses gets such a line too, and waits like any other.
@@ -609,7 +609,7 @@ def scratch(
     a chore. A scratch home is not one of the projects that a pass works through
     (`jbus.load`), so `scratch` cannot be one of a project's steps. When a scratch home's
     `words.json` does not parse, `scratch` says so and raises no gate, since a scratch home
-    has no webhook that could take a gate."""
+    has no outbox that could take a gate."""
     for one in config.scratch:
         run = Pass(config, one.addressee(), now, say)
         try:

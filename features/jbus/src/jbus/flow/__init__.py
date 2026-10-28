@@ -24,11 +24,11 @@ T3 Code's store (`jbus.flow.nudges`), and `jbus flow asks <since> <until>` his s
 every thread, per job and per day (`jbus.flow.asks`).
 
 It writes nothing: no state, no lock, no file. It takes no lock, so it runs beside a pass. What it
-prints is passed through `jbus.redact` with the config's secrets, so no webhook URL, key or token
-is in it. `--no-github` skips GitHub. `--jobs` asks for each run's jobs, which give the queue time
-and the run time of each job, at a call per run: it is refused where those calls would spend
-more than half of what is left of GitHub's hourly budget, or take it to the floor that jbus and
-the threads keep for merges (`records.affordable`, `jbus.budget`). Without it a
+prints is passed through `jbus.redact` with the config's secrets, so no URL, key or token of
+the config is in it. `--no-github` skips GitHub. `--jobs` asks for each run's jobs, which give the
+queue time and the run time of each job, at a call per run: it is refused where those calls would
+spend more than half of what is left of GitHub's hourly budget, or take it to the floor that jbus
+and the threads keep for merges (`records.affordable`, `jbus.budget`). Without it a
 run's time is the run's own, from its start to its last update, and no queue time is known.
 """
 
@@ -265,7 +265,7 @@ def text(said: dict[str, Any]) -> str:
         f"jbus: {bus['passes']} passes from {bus['first_pass']}, {bus['failed_passes']} failed "
         f"({bus['failed_hours']} h), {bus['gaps_over_10_min']} gaps over 10 min "
         f"({bus['gap_hours']} h), GitHub unreachable {bus['github_unreachable_hours']} h, "
-        f"{bus['webhook_failures']} webhook failures",
+        f"{bus['wake_failures']} wake failures",
         "",
         "GitHub runs (failure / cancelled / reruns; job queue total, median, 90th, with --jobs; "
         "run total):",

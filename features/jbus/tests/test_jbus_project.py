@@ -63,13 +63,12 @@ def test_it_adds_one_table_after_the_bytes_the_file_had_and_keeps_the_file_as_it
     assert [p.name for p in kitchen.config_dir.iterdir() if p.name.startswith(".")] == []
 
 
-def test_the_table_has_no_webhook_and_the_loader_reads_it(kitchen, added):
+def test_the_table_has_three_keys_and_the_loader_reads_it(kitchen, added):
     add(kitchen, "added", added)
     table = tomllib.loads(config(kitchen).read_text())["project"][-1]
     assert sorted(table) == ["checkout", "name", "projectId"]
     project = jbus.load().project("added")
     assert (project.checkout, project.state, project.project_id) == (added, "added", NEW)
-    assert (project.webhook_url, project.webhook_key) == ("", "")
 
 
 def test_no_line_it_prints_has_a_value_of_a_key_of_the_config(kitchen, added):

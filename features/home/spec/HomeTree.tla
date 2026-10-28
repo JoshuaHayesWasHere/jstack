@@ -3,9 +3,9 @@
 \* feature and is retired. Child b is long-lived: a routine, a home with a declared rhythm.
 \* Each child has one pull request, a crew thread that opens it, and two calls to Josh: a gate
 \* and an item that waits on him. The root's own message to Josh about a child's stall, its
-\* notice, is a call too. A call waits in the outbox of the route the wake setting picks, the
-\* home thread or the webhook, until that route takes it. The setting can change, and a route
-\* can fail. Time is counted in the root's checks, one per jbus pass.
+\* notice, is a call too. A call waits in the outbox of jbus's one route to Josh, the root's
+\* home thread, until a post to it goes through. The home thread can fail and mend. Time is
+\* counted in the root's checks, one per jbus pass.
 \*
 \* This module holds what both models share: the variables, the start, and the rules.
 \* HomeTreeToday.tla models today's code and HomeTreeDesign.tla the design; each extends this
@@ -22,10 +22,10 @@ CONSTANT Modes
 \* siblings that both raise calls are too many states for one run, so canaries.py checks each
 \* rule in each scene: each child alone with both its calls, and the two siblings together with
 \* no calls of their own. One call never waits on another, and what the siblings share is main,
-\* the merge lock and the routes.
+\* the merge lock and the home thread.
 CONSTANTS Made, Raised
-\* Whether, in this run, the wake setting changes and a route fails.
-CONSTANT RoutesMove
+\* Whether, in this run, the home thread fails.
+CONSTANT MayFail
 
 Kids == {"a", "b"}
 Kind == [k \in Kids |-> IF k = "a" THEN "feature" ELSE "routine"]
@@ -35,7 +35,6 @@ Msgs == Calls \cup Notices
 OwnerOf == [m \in Msgs |-> IF m \in {"a1", "a2", "an"} THEN "a" ELSE "b"]
 CallsOf(k) == {c \in Calls : OwnerOf[c] = k}
 NoticeOf(k) == IF k = "a" THEN "an" ELSE "bn"
-Routes == {"home", "webhook"}
 \* Who may run jmerge on a child's pull request: jbus, the root home, or the child home itself.
 Mergers == {"jbus", "root", "child"}
 NoTip == 9
@@ -52,30 +51,27 @@ VARIABLES
                 \* yet), open, ready (green and reviewed), again (it was ready and is not),
                 \* back (ready again, and it drops at most once), merged (its crew still on
                 \* it), done
-    msg,        \* each call: none, waiting in the outbox of a route, or told to Josh
+    msg,        \* each call: none, waiting in the home thread's outbox, or told to Josh
     quiet,      \* each child: the checks since it last did something the root can see, while
                 \* it has work out or, for a routine, always; a nudge does not reset it
     watch,      \* each child: the root's quiet spell for it, calm, nudged once, twice or three
                 \* times, or asked (the root has asked Josh)
-    wake,       \* the route the wake setting picks
-    moved,      \* whether the setting has changed (it changes at most once)
-    up,         \* each route: whether a post to it goes through
-    broke,      \* whether a route has failed (one fails at most once)
+    up,         \* whether a post to the home thread goes through
+    broke,      \* whether the home thread has failed (it fails at most once)
     tip,        \* main's tip, one more after each merge
     seen,       \* each pull request: the tip of main each merger read before its merge
     blind,      \* whether a merge has landed over a tip its merger did not read
     lock,       \* the pull request whose merge holds the repo, or free
     mode        \* who runs jmerge, fixed for a run
-vars == <<life, work, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+vars == <<life, work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 
 TypeOK ==
     /\ life \in [Kids -> {"unmade", "working", "stuck", "retired"}]
     /\ work \in [Kids -> {"none", "crew", "open", "ready", "again", "back", "merged", "done"}]
-    /\ msg \in [Msgs -> {"none", "told"} \cup Routes]
+    /\ msg \in [Msgs -> {"none", "home", "told"}]
     /\ quiet \in [Kids -> 0..Cap]
     /\ watch \in [Kids -> {"calm", "nudged1", "nudged2", "nudged3", "asked"}]
-    /\ wake \in Routes /\ moved \in BOOLEAN
-    /\ up \in [Routes -> BOOLEAN] /\ broke \in BOOLEAN
+    /\ up \in BOOLEAN /\ broke \in BOOLEAN
     /\ tip \in 0..2
     /\ seen \in [Kids -> [Mergers -> 0..2 \cup {NoTip}]]
     /\ blind \in BOOLEAN
@@ -88,16 +84,15 @@ Init ==
     /\ msg = [m \in Msgs |-> "none"]
     /\ quiet = [k \in Kids |-> 0]
     /\ watch = [k \in Kids |-> "calm"]
-    /\ wake \in Routes /\ moved = FALSE
-    /\ up = [r \in Routes |-> TRUE] /\ broke = FALSE
+    /\ up = TRUE /\ broke = FALSE
     /\ tip = 0
     /\ seen = [k \in Kids |-> [a \in Mergers |-> NoTip]]
     /\ blind = FALSE
     /\ lock = "free"
     /\ mode \in Modes
 
-Queued(m) == msg[m] \in Routes
-Open(m) == msg[m] \in Routes \cup {"told"}
+Queued(m) == msg[m] = "home"
+Open(m) == msg[m] \in {"home", "told"}
 \* What a child has out: a crew thread, a pull request not yet merged, or a call not answered.
 Ready(k) == work[k] \in {"ready", "back"}
 WorkOut(k) == work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
@@ -126,8 +121,8 @@ NoRetireWithOpen ==
         /\ work[k] \in {"none", "done"}
         /\ \A c \in CallsOf(k) : ~Open(c)
 
-\* Every call reaches Josh once a route works, including after the route changes: none is
-\* stranded in the outbox of a route the setting no longer picks.
+\* Every call reaches Josh once the home thread works, including after it failed: a failed post
+\* strands none.
 CallsReachJosh == \A m \in Msgs : Queued(m) ~> msg[m] = "told"
 
 \* The root flags a child within K checks of observable quiet with work out, and a routine on

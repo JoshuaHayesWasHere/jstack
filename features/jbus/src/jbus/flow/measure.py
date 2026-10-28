@@ -591,7 +591,7 @@ def jbus_down(lines: list[Line], since: datetime, until: datetime) -> dict:
     ]
     late = [line for line in lines if since <= line.at <= until]
     github = [line.at for line in late if "could not ask GitHub" in line.text]
-    webhook = [line.at for line in late if line.text.startswith("wake failed")]
+    wakes = [line.at for line in late if line.text.startswith("wake failed")]
     gaps = [(a, b) for a, b in itertools.pairwise(starts) if b - a > timedelta(minutes=10)]
     return {
         "first_pass": starts[0].isoformat() if starts else None,
@@ -601,7 +601,7 @@ def jbus_down(lines: list[Line], since: datetime, until: datetime) -> dict:
         "gaps_over_10_min": len(gaps),
         "gap_hours": _hours(gaps),
         "github_unreachable_hours": _hours(intervals(github)),
-        "webhook_failures": len(webhook),
+        "wake_failures": len(wakes),
     }
 
 

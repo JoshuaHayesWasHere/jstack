@@ -1,5 +1,7 @@
-"""The tests run `jbus relay` as the unit runs it, against a fake Sous Chef webhook, a fake Home
-Assistant for the fallback pager, and a fake `notify-send`, all on 127.0.0.1."""
+"""The tests run `jbus relay` as the unit runs it, against a fake Sous Chef, a fake Home Assistant
+for the fallback pager, and a fake `notify-send`, all on 127.0.0.1. The relay has one route,
+`blocking`: it sends what jbus posts its second target, and a body with no item and no reminder or
+refresh goes on no route."""
 
 from __future__ import annotations
 
@@ -39,11 +41,11 @@ LISTENING = re.compile(r"relay: listening on 127\.0\.0\.1:(\d+)$", re.M)
 MARKS = itertools.count(1)
 
 
-class Webhook:
-    """`Webhook` records each POST it takes. `answer` is the status it gives, `delay` is how long
+class Target:
+    """`Target` records each POST it takes. `answer` is the status it gives, `delay` is how long
     it waits first, and `hold` is how long it waits between taking a POST and answering it.
     `arrived` counts the POSTs that reached it, before the delay. `tried` keeps the body of every
-    POST, whether the webhook answered 200 or not."""
+    POST, whether the target answered 200 or not."""
 
     def __init__(self) -> None:
         self.posts: list[tuple[dict, dict]] = []
@@ -92,7 +94,7 @@ class Webhook:
 
 @pytest.fixture
 def hooks():
-    made = [Webhook(), Webhook(), Webhook()]
+    made = [Target(), Target(), Target()]
     yield made
     for hook in made:
         hook.close()
@@ -287,21 +289,19 @@ def test_the_relay_listens_while_a_lookup_of_its_address_never_answers(hooks, tm
     assert relay.ack("an-event-nobody-sent") == 404
 
 
-def test_a_blocking_event_reaches_sous_chef_and_gatekeeper_gets_nothing(relay, hooks):
+def test_a_body_that_blocks_reaches_sous_chef_and_gatekeeper_gets_nothing(relay, hooks):
     sous_chef, gatekeeper, _ = hooks
-    gate, quiet = event("gate", "user"), event("merged", "quiet", "beta")
+    sent = blocks()
 
-    code, said = relay.send(body(gate, quiet))
+    code, said = relay.send(sent)
 
     assert code == 202 and said["id"]
-    until(lambda: len(sous_chef.bodies("blocking")) == 1 and sous_chef.bodies("everything"))
-    ((headers, paged),) = [(h, b) for h, b in sous_chef.posts if b["relay"]["route"] == "blocking"]
-    assert paged["events"] == [gate] and paged["say"] == [gate["say"]]
-    assert paged["relay"]["id"] == said["id"]
+    until(lambda: len(sous_chef.bodies("blocking")) == 1)
+    ((headers, paged),) = sous_chef.posts
+    assert {k: v for k, v in paged.items() if k != "relay"} == sent
+    assert paged["relay"]["id"] == said["id"] and paged["relay"]["route"] == "blocking"
     assert headers["X-Automation-Key"] == SOUS_CHEF_KEY
     assert headers["Authorization"] == f"Bearer {SOUS_CHEF_KEY}"
-    (full,) = sous_chef.bodies("everything")
-    assert full["events"] == [gate, quiet]
     assert gatekeeper.posts == []
 
 
@@ -317,26 +317,14 @@ def test_a_reminder_or_refresh_blocks_whole(relay, hooks, kind):
     assert {k: v for k, v in paged.items() if k != "relay"} == sent
 
 
-def test_a_body_with_nothing_that_blocks_goes_on_the_full_feed_only(relay, hooks):
+@pytest.mark.parametrize("loud", ["user", "quiet"])
+def test_a_body_of_events_with_no_item_goes_on_no_route(relay, hooks, loud):
     sous_chef, _, _ = hooks
 
-    _, said = relay.send(body(event("merged", "quiet")))
+    _, said = relay.send(body(event("gate", loud)))
 
-    until(lambda: sous_chef.bodies("everything"))
-    assert f"relay: took event {said['id']}, spooled for everything\n" in relay.heard()
-    assert sous_chef.bodies("blocking") == []
-
-
-@pytest.mark.parametrize("kind", ["decision", "sign-in", "alert"])
-def test_a_user_loud_kind_given_the_lower_level_stays_off_the_blocking_route(relay, hooks, kind):
-    sous_chef, _, _ = hooks
-    lowered = event(kind, "quiet")
-
-    _, said = relay.send(body(lowered))
-
-    until(lambda: sous_chef.bodies("everything"))
-    assert f"relay: took event {said['id']}, spooled for everything\n" in relay.heard()
-    assert sous_chef.bodies("blocking") == []
+    assert f"relay: took event {said['id']}, spooled for no route\n" in relay.heard()
+    assert sous_chef.posts == [] and relay.spooled("blocking") == []
 
 
 @pytest.mark.parametrize(
@@ -372,51 +360,47 @@ def test_a_target_that_is_not_set_fails_the_start(hooks, tmp_path, key, value, w
 def test_a_duplicate_id_is_sent_once_also_after_a_restart(hooks, tmp_path):
     sous_chef, _, _ = hooks
     sous_chef.hold = 0.5
-    sent = body(event("gate", "user"))
+    sent = blocks()
     first = Relay(env_for(hooks), tmp_path / "state").up()
 
     code, taken = first.send(sent)
     assert code == 202
-    done = [
-        f"relay: sent event {taken['id']} to webhook ({route})"
-        for route in ("everything", "blocking")
-    ]
-    until(lambda: all(line in first.said() for line in done))
+    until(lambda: f"relay: sent event {taken['id']} to webhook (blocking)" in first.said())
     assert first.send(sent)[0] == 202
     first.stop()
     again = Relay(env_for(hooks), tmp_path / "state").up()
     assert again.send(sent)[0] == 202
     assert "not sent again" in again.heard()
-    assert again.spooled("everything") == [] and again.spooled("blocking") == []
+    assert again.spooled("blocking") == []
     said = again.stop()
 
-    assert len(sous_chef.bodies("everything")) == 1 and len(sous_chef.bodies("blocking")) == 1
+    assert len(sous_chef.bodies("blocking")) == 1
     assert "not sent again" in said
 
 
 def test_a_body_with_its_own_id_is_sent_once(relay, hooks):
     sous_chef, _, _ = hooks
 
-    relay.send({**body(event("merged", "quiet")), "id": "evt-1"})
-    relay.send({**body(event("merged", "quiet", "beta")), "id": "evt-1"})
+    relay.send(blocks(id="evt-1"))
+    relay.send(blocks("#12", "hand-merge #12: held", id="evt-1"))
 
-    until(lambda: sous_chef.bodies("everything"))
-    assert "relay: everything has event evt-1 already, not sent again" in relay.heard()
-    (sent,) = sous_chef.bodies("everything")
-    assert sent["relay"]["id"] == "evt-1" and sent["events"][0]["slug"] == "alpha"
+    until(lambda: sous_chef.bodies("blocking"))
+    assert "relay: blocking has event evt-1 already, not sent again" in relay.heard()
+    (sent,) = sous_chef.bodies("blocking")
+    assert sent["relay"]["id"] == "evt-1" and sent["items"][0]["key"] == "gate:q33"
 
 
-def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(relay, hooks):
+def test_a_down_target_keeps_the_event_spooled_and_the_next_is_still_taken(relay, hooks):
     sous_chef, _, _ = hooks
     sous_chef.answer = 503
-    gate = body(event("gate", "user"))
+    gate = blocks()
 
     code, said = relay.send(gate)
 
     assert code == 202
     until(lambda: sous_chef.tries("blocking") >= 2)
     assert [b["relay"]["id"] for b in relay.spooled("blocking")] == [said["id"]]
-    code, later = relay.send(body(event("stall", "user", "beta")))
+    code, later = relay.send(blocks("#12", "hand-merge #12: held"))
     assert code == 202
     assert [b["relay"]["id"] for b in relay.spooled("blocking")] == [said["id"], later["id"]]
 
@@ -429,14 +413,14 @@ def test_a_down_webhook_keeps_the_event_spooled_and_the_next_is_still_taken(rela
     assert SOUS_CHEF_KEY not in log
 
 
-def test_a_slow_webhook_does_not_hold_back_taking_the_next_event(relay, hooks):
+def test_a_slow_target_does_not_hold_back_taking_the_next_event(relay, hooks):
     sous_chef, _, _ = hooks
     sous_chef.delay = 3.0
-    relay.send(body(event("gate", "user")))
-    until(lambda: sous_chef.arrived == 2)
+    relay.send(blocks())
+    until(lambda: sous_chef.arrived == 1)
 
     start = time.monotonic()
-    code, _ = relay.send(body(event("alert", "user", "beta")))
+    code, _ = relay.send(blocks("#12", "hand-merge #12: held"))
 
     assert code == 202 and time.monotonic() - start < 0.5
     assert len(relay.spooled("blocking")) == 2
@@ -444,23 +428,23 @@ def test_a_slow_webhook_does_not_hold_back_taking_the_next_event(relay, hooks):
 
 
 def test_the_wrong_inbound_key_is_refused_and_spools_nothing(relay):
-    assert relay.send(body(event("gate", "user")), key="wrong")[0] == 401
-    assert relay.spooled("blocking") == [] and relay.spooled("everything") == []
+    assert relay.send(blocks(), key="wrong")[0] == 401
+    assert relay.spooled("blocking") == []
 
 
-def test_a_body_the_webhook_refuses_is_kept_aside_and_the_next_goes(relay, hooks):
+def test_a_body_the_target_refuses_is_kept_aside_and_the_next_goes(relay, hooks):
     sous_chef, _, _ = hooks
     sous_chef.answer = 400
-    code, refused = relay.send({**body(event("merged", "quiet")), "id": "refused-1"})
+    code, refused = relay.send(blocks(id="refused-1"))
     assert code == 202
-    dead = relay.state / "dead" / "everything"
+    dead = relay.state / "dead" / "blocking"
     until(lambda: dead.is_dir() and list(dead.glob("*-refused-1.json")))
 
     sous_chef.answer = 200
-    code, later = relay.send(body(event("merged", "quiet", "beta")))
+    code, later = relay.send(blocks("#12", "hand-merge #12: held"))
 
-    until(lambda: sous_chef.bodies("everything"))
-    assert [b["relay"]["id"] for b in sous_chef.bodies("everything")] == [later["id"]]
+    until(lambda: sous_chef.bodies("blocking"))
+    assert [b["relay"]["id"] for b in sous_chef.bodies("blocking")] == [later["id"]]
     assert "failed for event refused-1: HTTP 400, refused for good" in relay.stop()
 
 
@@ -475,17 +459,15 @@ def test_a_target_url_that_is_not_http_fails_the_start(hooks, tmp_path):
 
 def test_the_same_body_after_the_dedup_window_is_sent_again(hooks, tmp_path):
     sous_chef, _, _ = hooks
-    alert = body(event("alert", "user"))
+    alert = blocks()
     running = Relay({**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}, tmp_path / "state").up()
 
     running.send(alert)
     until(lambda: len(sous_chef.bodies("blocking")) == 1)
-    until(lambda: len(sous_chef.bodies("everything")) == 1)
     time.sleep(0.35)
     running.send(alert)
 
     until(lambda: len(sous_chef.bodies("blocking")) == 2)
-    until(lambda: len(sous_chef.bodies("everything")) == 2)
     running.stop()
 
 
@@ -496,7 +478,7 @@ def test_a_target_that_refuses_the_key_or_the_address_keeps_the_body_to_send_aga
     sous_chef, _, _ = hooks
     sous_chef.answer = answer
 
-    code, said = relay.send(body(event("gate", "user")))
+    code, said = relay.send(blocks())
     assert code == 202
     until(lambda: f"(blocking) failed for event {said['id']}: HTTP {answer}\n" in relay.said())
     assert [b["relay"]["id"] for b in relay.spooled("blocking")] == [said["id"]]
@@ -510,29 +492,29 @@ def test_a_body_with_its_own_id_is_not_sent_again_after_the_window(hooks, tmp_pa
     sous_chef, _, _ = hooks
     env = {**env_for(hooks), "RELAY_DEDUP_SECONDS": "0.3"}
     first = Relay(env, tmp_path / "state").up()
-    first.send({**body(event("merged", "quiet")), "id": "evt-1"})
-    until(lambda: sous_chef.bodies("everything"))
+    first.send(blocks(id="evt-1"))
+    until(lambda: sous_chef.bodies("blocking"))
     first.stop()
     time.sleep(0.35)
 
     again = Relay(env, tmp_path / "state").up()
-    again.send({**body(event("merged", "quiet")), "id": "evt-1"})
+    again.send(blocks(id="evt-1"))
     assert "evt-1 already, not sent again" in again.heard()
     said = again.stop()
 
-    assert len(sous_chef.bodies("everything")) == 1
+    assert len(sous_chef.bodies("blocking")) == 1
     assert "evt-1 already, not sent again" in said
 
 
 def test_a_4xx_not_about_the_target_is_kept_aside_and_the_next_goes(relay, hooks):
     sous_chef, _, _ = hooks
     sous_chef.answer = 409
-    relay.send({**body(event("gate", "user")), "id": "conflict-1"})
+    relay.send(blocks(id="conflict-1"))
     dead = relay.state / "dead" / "blocking"
     until(lambda: dead.is_dir() and list(dead.glob("*-conflict-1.json")))
 
     sous_chef.answer = 200
-    code, later = relay.send(body(event("stall", "user", "beta")))
+    code, later = relay.send(blocks("#12", "hand-merge #12: held"))
 
     until(lambda: sous_chef.bodies("blocking"))
     assert [b["relay"]["id"] for b in sous_chef.bodies("blocking")] == [later["id"]]
@@ -572,6 +554,11 @@ def second(kind: str, minutes: float, *items: dict) -> dict:
     }
 
 
+def blocks(key: str = "gate:q33", line: str = "gate 33: tea or coffee?", **more) -> dict:
+    """Return a body of jbus's second target that names one item that blocks."""
+    return {**second("events", 0, item(key, line)), **more}
+
+
 def pages(pager) -> list[str]:
     return [body["message"] for _, body in pager.posts]
 
@@ -580,8 +567,8 @@ def test_a_down_sous_chef_pages_once_per_event_with_its_id(relay, hooks):
     sous_chef, _, pager = hooks
     sous_chef.answer = 503
 
-    _, first = relay.send(body(event("gate", "user")))
-    _, later = relay.send(body(event("stall", "user", "beta")))
+    _, first = relay.send(blocks())
+    _, later = relay.send(blocks("#12", "hand-merge #12: held"))
     until(lambda: len(pager.posts) == 2 and len(relay.notified()) == 2)
     failed = relay.said().count("(blocking) failed for event")
     until(lambda: relay.said().count("(blocking) failed for event") >= failed + 2)
@@ -589,8 +576,8 @@ def test_a_down_sous_chef_pages_once_per_event_with_its_id(relay, hooks):
 
     assert sorted(pages(pager)) == sorted(
         [
-            f"jstack: gate alpha: something, blocking 0 min, event {first['id']}",
-            f"jstack: stall beta: something, blocking 0 min, event {later['id']}",
+            f"jstack: gate 33: tea or coffee?, blocking 0 min, event {first['id']}",
+            f"jstack: hand-merge #12: held, blocking 0 min, event {later['id']}",
         ]
     )
     assert pager.paths == [f"/api/services/notify/{HA_SERVICE}"] * 2
@@ -603,7 +590,7 @@ def test_a_down_sous_chef_pages_once_per_event_with_its_id(relay, hooks):
 def test_a_sous_chef_that_takes_the_page_pages_nothing(relay, hooks):
     sous_chef, _, pager = hooks
 
-    _, said = relay.send(body(event("gate", "user")))
+    _, said = relay.send(blocks())
     until(lambda: f"relay: sent event {said['id']} to webhook (blocking)" in relay.said())
 
     assert "relay: paged" not in relay.heard() and "failed" not in relay.said()
@@ -836,7 +823,7 @@ def test_the_heartbeat_names_the_last_body_heard_and_the_silence_it_is_held_to(h
     until(lambda: (relay.state / "heartbeat.json").exists())
     first = beat(relay)
     assert first["heard"] is None and first["silent_minutes"] == 45 and first["failing"] == []
-    relay.send(body(event("gate", "user")))
+    relay.send(blocks())
     until(lambda: beat(relay)["heard"] is not None)
     heard = datetime.fromisoformat(beat(relay)["heard"])
     assert abs(datetime.now(UTC) - heard) < timedelta(seconds=30)
@@ -850,12 +837,12 @@ def test_the_heartbeat_names_the_last_body_heard_and_the_silence_it_is_held_to(h
 def test_the_heartbeat_names_a_route_whose_posts_fail_until_one_goes(relay, hooks):
     sous_chef, _, _ = hooks
     sous_chef.answer = 503
-    relay.send(body(event("gate", "user")))
+    relay.send(blocks())
     until(lambda: any(one["route"] == "blocking" for one in beat(relay)["failing"]))
     (failing,) = [one for one in beat(relay)["failing"] if one["route"] == "blocking"]
     assert failing["why"] == "HTTP 503" and failing["waiting"] == 1
     sous_chef.answer = 200
-    relay.send(body(event("stall", "user", "beta")))
+    relay.send(blocks("#12", "hand-merge #12: held"))
     until(lambda: beat(relay)["failing"] == [] and relay.spooled("blocking") == [])
 
 
@@ -869,8 +856,8 @@ def test_a_body_refused_for_good_is_in_the_heartbeat_also_after_a_restart(hooks,
     sous_chef, _, _ = hooks
     sous_chef.answer = 400
     relay = Relay(env_for(hooks), tmp_path / "state").up()
-    relay.send(body(event("gate", "user")))
-    until(lambda: {one["route"] for one in beat(relay)["refused"]} == {"everything", "blocking"})
+    relay.send(blocks())
+    until(lambda: {one["route"] for one in beat(relay)["refused"]} == {"blocking"})
     refused = beat(relay)["refused"]
     assert {one["why"] for one in refused} == {"HTTP 400"}
     assert all((relay.state / "dead" / one["route"] / one["file"]).exists() for one in refused)
@@ -887,8 +874,8 @@ def test_a_failing_route_stays_failing_from_when_it_began_across_a_restart(hooks
     sous_chef, _, _ = hooks
     sous_chef.answer = 503
     relay = Relay(env_for(hooks), tmp_path / "state").up()
-    relay.send(body(event("gate", "user")))
-    until(lambda: {one["route"] for one in beat(relay)["failing"]} == {"everything", "blocking"})
+    relay.send(blocks())
+    until(lambda: {one["route"] for one in beat(relay)["failing"]} == {"blocking"})
     began = {one["route"]: one["since"] for one in beat(relay)["failing"]}
     relay.stop()
     beating = relay.state / "heartbeat.json"
@@ -914,13 +901,13 @@ def test_a_body_refused_for_good_keeps_the_failure_of_the_bodies_behind_it(tmp_p
     monkeypatch.setattr(relaying, "post", post)
     config = relaying.settings({**env_for_lane(), "RELAY_STATE": str(tmp_path)})
     lane = relaying.Lane(relaying.ROUTES[0], config.targets["webhook"], config, lambda line: None)
-    lane.take("first", {"id": "first"})
-    lane.take("second", {"id": "second"})
+    lane.take("first", {"id": "first", "items": [item()]})
+    lane.take("second", {"id": "second", "items": [item()]})
     assert lane.drain() is False
     began = lane.failing["since"]
     answers["first"] = relaying.Failed("HTTP 400", final=True)
     assert lane.drain() is False
-    assert lane.failing == {"route": "everything", "since": began, "why": "HTTP 503"}
+    assert lane.failing == {"route": "blocking", "since": began, "why": "HTTP 503"}
     answers["second"] = relaying.Failed("HTTP 400", final=True)
     assert lane.drain() is True and lane.failing is None
 
@@ -972,7 +959,7 @@ def test_an_older_beat_is_never_the_heartbeat_left_behind(tmp_path, monkeypatch)
     assert json.loads((tmp_path / "heartbeat.json").read_text())["failing"] == []
 
 
-def test_the_webhook_has_neutral_names_and_the_older_grok_names_still_set_it(tmp_path):
+def test_the_target_has_neutral_names_and_the_older_grok_names_still_set_it(tmp_path):
     from jbus import relay as relaying
 
     owner = env_for_lane()

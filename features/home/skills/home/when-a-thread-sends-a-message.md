@@ -3,7 +3,7 @@
 The threads this home sent out write what they did to disk: a crewmate its `## Result`, a reviewer its `## Review`, a scout its `## Report`.
 Disk is the record.
 A message to this thread is an interrupt.
-The home plans, assigns and starts, so what it hears is planning: what finishes the work is jbus's to read and whoever the project's webhook is to hear, and reaches this thread only while `$H/home-thread` holds an id, which is the test the crew skill makes in its "Telling the home", though jbus merges either way ("Merging a pull request that is ready").
+The home plans, assigns and starts, so what it hears is planning: what finishes the work is jbus's to read, and reaches this thread only while `$H/home-thread` holds an id, which is the test the crew skill makes in its "Telling the home", though jbus merges either way ("Merging a pull request that is ready").
 These are all of them, and the last column says on which state of that file each is sent:
 
 | The message | From | Sent when | Sent on |

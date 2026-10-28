@@ -302,7 +302,7 @@ def test_a_thread_that_turns_hung_is_one_quiet_event_for_that_thread_and_that_ru
     kitchen.poll()
     assert kitchen.lines("stall") == [STALL]
     assert [one["loud"] for one in kitchen.events("stall")] == ["quiet"]
-    assert kitchen.webhook.posts == []
+    assert kitchen.wakes.posts == []
     kitchen.poll(NOW + MIN)
     kitchen.poll(NOW + 2 * MIN)
     assert kitchen.lines("stall") == [STALL]

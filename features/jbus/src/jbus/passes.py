@@ -92,7 +92,7 @@ class Pass:
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)
         self.home = self.config.home(self.project)
-        self.box = Box(self.state, self.project, self.config.webhook, self.config.blocking)
+        self.box = Box(self.state, self.project, self.config.blocking)
         self.first = not read_json(self.state / "wake.json", {}).get("began")
         self.user = self.config.user
         self.day = self.user.day(self.now)

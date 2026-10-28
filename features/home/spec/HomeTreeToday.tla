@@ -30,24 +30,24 @@ Calm(k) ==
 \* is the root home's, and only on the user's word`).
 MakeChild(k) ==
     /\ k \in Made /\ life[k] = "unmade" /\ life' = Set(life, k, "working")
-    /\ UNCHANGED <<work, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The child home queues a brief and jbus's pass launches its crew. Only a home that runs queues a
 \* row, and the pass launches what is queued. A launched row is a change in what the child has
 \* out, so its spell ends.
 LaunchCrew(k) ==
     /\ life[k] = "working"     \* jbus/dispatch.py:607 `"t3_thread_launch",`
     /\ work[k] = "none" /\ work' = Set(work, k, "crew") /\ Calm(k)
-    /\ UNCHANGED <<life, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<life, up, broke, tip, seen, blind, lock, mode>>
 \* The crew opens the pull request ("Do the task" in the crew skill).
 OpenPr(k) ==
     /\ work[k] = "crew" /\ work' = Set(work, k, "open")
-    /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* Its checks pass (jmerge/cli.py:915 `short = short or ready.short_on_github(`) and its
 \* review is written (jmerge/cli.py:896 `short = short or ready.short_of(text, one.head)`).
 PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
-    /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A check turns red or a review goes stale (jmerge/cli.py:915 `ready.short_on_github(`,
 \* jmerge/cli.py:896 `ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
 \* judges it again. A merge it had begun fails at the head it checked, and its run gives the merge
@@ -56,31 +56,31 @@ PrDrops(k) ==
     /\ work[k] = "ready" /\ work' = Set(work, k, "again")
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
     /\ lock' = IF lock = k THEN "free" ELSE lock
-    /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, blind, mode>>
+    /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, blind, mode>>
 \* A crew stays on its pull request until it merges ("Stay on the pull request" in the crew
 \* skill), and T3 Code settles it then.
 CrewEnds(k) ==
     /\ work[k] = "merged" /\ work' = Set(work, k, "done")
-    /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* A gate or an item for Josh goes into the outbox of each route the setting picks, once: its
-\* key is in sent.json from then on, so it is never queued again (jbus/wake.py:369 `write_json(self.state
-\* / "sent.json", [*sent, key])`). The model's setting picks one route, home or webhook, and
-\* leaves out both. A new call is a change in what the child has out, so its spell ends.
+    /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
+\* A gate or an item for Josh goes into the home thread's outbox, once: its key is in sent.json
+\* from then on, so it is never queued again (jbus/wake.py:316 `write_json(self.state /
+\* "sent.json", [*sent, key])`). A new call is a change in what the child has out, so its spell
+\* ends.
 RaiseCall(c) ==
     /\ c \in Raised
     /\ life[OwnerOf[c]] = "working"     \* jbus/mirror.py:176 `for file in gate_files(home):`
-    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, wake)     \* jbus/wake.py:371 `else self.routes:`
+    /\ msg[c] = "none" /\ msg' = Set(Calmed(OwnerOf[c], msg), c, "home")     \* jbus/wake.py:319 `waiting = [*self._outbox(), made]`
     /\ quiet' = Set(quiet, OwnerOf[c], 0) /\ watch' = Set(watch, OwnerOf[c], "calm")
-    /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<life, work, up, broke, tip, seen, blind, lock, mode>>
 \* The child does something jbus can see: a write of one of its threads, a commit, a push.
 Activity(k) ==
     /\ life[k] = "working"     \* jbus/live.py:64 `if facts.silent < QUIET_MINUTES:`
     /\ Calm(k)
-    /\ UNCHANGED <<life, work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<life, work, up, broke, tip, seen, blind, lock, mode>>
 \* The child stops: its turn ended and nothing will wake it. Only the child could tell.
 GetsStuck(k) ==
     /\ life[k] = "working" /\ life' = Set(life, k, "stuck")
-    /\ UNCHANGED <<work, msg, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The root or Josh retires a child: the scope's handoff closes it. It closes a scope whose plan
 \* has no open entry only when `jbus out --scope` says it has nothing out: no queue row of its
 \* briefs that is not over, no unsettled crew or reviewer thread of theirs, no question and no
@@ -91,52 +91,37 @@ Retire(k) ==
     /\ life[k] \in {"working", "stuck"}
     /\ ~WorkOut(k)     \* handoff/SKILL.md:147 `if ! still=$(jbus out --scope "$scope" 2>&1); then`
     /\ life' = Set(life, k, "retired") /\ Calm(k)
-    /\ UNCHANGED <<work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
 
-\* ---- Josh, and the routes
+\* ---- Josh, and the home thread
 
 Answer(c) ==
     /\ msg[c] = "told" /\ msg' = Set(msg, c, "none")
-    /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* Josh answers the root's question about a stalled child: he gets it going again, and what it
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
     /\ watch[k] = "asked"     \* jbus/children.py:274 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
-    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:684 `why = post(route, body(some))`
+    /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:584 `why = post(body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
-    /\ UNCHANGED <<work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* A pass posts what waits in the outbox of each route the setting picks, and only those. A post
-\* that fails leaves it in the outbox.
+    /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
+\* A pass posts what waits in the home thread's outbox, its one route to Josh. Only a post that
+\* goes through takes a call out of the outbox (jbus/wake.py:589 `write_json(outbox,
+\* waiting[sent:], mode=0o600)`), so one that fails leaves it there for the next pass.
 Deliver(m) ==
-    \E r \in Routes :
-        /\ msg[m] = r
-        /\ r = wake     \* jbus/alert.py:323 `for route in run.box.routes:`
-        /\ up[r]        \* jbus/wake.py:684-686 `why = post(route, body(some)) if why: break`
-        /\ msg' = Set(msg, m, "told")
-        /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock,
-                       mode>>
-\* Each pass first moves what waits for a route the setting leaves out to the route it picks
-\* (pull request 332), so a change of the setting strands no call.
-Rehome(m) ==
-    /\ msg[m] \in Routes
-    /\ msg[m] # wake     \* jbus/alert.py:314 `moved(run)`; jbus/wake.py:538 `for old in self.left:`
-    /\ msg' = Set(msg, m, wake)
-    /\ UNCHANGED <<life, work, quiet, watch, wake, moved, up, broke, tip, seen, blind, lock, mode>>
-\* The wake setting changes between home and webhook (jbus/__init__.py:122-123 `def to_home(self) ->
-\* bool: return self.wake in ("home", "both")`).
-ChangeWake ==
-    /\ RoutesMove
-    /\ ~moved /\ moved' = TRUE
-    /\ wake' = IF wake = "home" THEN "webhook" ELSE "home"
-    /\ UNCHANGED <<life, work, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-RouteFails(r) ==
-    /\ RoutesMove
+    /\ msg[m] = "home"     \* jbus/alert.py:301 `sent = run.box.flush(`
+    /\ up     \* jbus/wake.py:584-586 `why = post(body(some)) if why: break`
+    /\ msg' = Set(msg, m, "told")
+    /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
+\* The home thread fails: T3 Code is down, or the thread is gone.
+RouteFails ==
+    /\ MayFail
     /\ ~broke /\ broke' = TRUE
-    /\ up[r] /\ up' = Set(up, r, FALSE)
-    /\ UNCHANGED <<life, work, msg, quiet, watch, wake, moved, tip, seen, blind, lock, mode>>
-RouteMends(r) ==
-    /\ ~up[r] /\ up' = Set(up, r, TRUE)
-    /\ UNCHANGED <<life, work, msg, quiet, watch, wake, moved, broke, tip, seen, blind, lock, mode>>
+    /\ up /\ up' = FALSE
+    /\ UNCHANGED <<life, work, msg, quiet, watch, tip, seen, blind, lock, mode>>
+RouteMends ==
+    /\ ~up /\ up' = TRUE
+    /\ UNCHANGED <<life, work, msg, quiet, watch, broke, tip, seen, blind, lock, mode>>
 
 \* ---- the root's check, one jbus pass
 
@@ -172,8 +157,8 @@ After(w) ==
 Notice(k) ==
     LET w == After(watch[k]) IN
     IF ~Acts(k) THEN msg[NoticeOf(k)]
-    ELSE IF w = "asked" THEN wake
-    ELSE IF watch[k] = "calm" /\ msg[NoticeOf(k)] = "none" THEN wake
+    ELSE IF w = "asked" THEN "home"
+    ELSE IF watch[k] = "calm" /\ msg[NoticeOf(k)] = "none" THEN "home"
     ELSE msg[NoticeOf(k)]
 \* Each check counts the quiet of every child and acts on each one due, all in one pass
 \* (jbus/children.py:200 `def watch(run: Pass, client: Client, threads: list[dict[str, Any]] |
@@ -186,7 +171,7 @@ Check ==
     /\ \E revived \in SUBSET {k \in Kids : Acts(k) /\ watch'[k] # "asked"} :
            life' = [k \in Kids |-> IF k \in revived /\ life[k] = "stuck" THEN "working"
                                    ELSE life[k]]
-    /\ UNCHANGED <<work, wake, moved, up, broke, tip, seen, blind, lock, mode>>
+    /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
 
 \* ---- merging: jbus alone, every home's pull request, one merge at a time
 
@@ -205,7 +190,7 @@ Read(a, k) ==
     /\ lock = "free"     \* jmerge/cli.py:1239 `while lock.take():`
     /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py:1242 `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
     /\ lock' = k
-    /\ UNCHANGED <<life, work, msg, quiet, watch, wake, moved, up, broke, tip, blind, mode>>
+    /\ UNCHANGED <<life, work, msg, quiet, watch, up, broke, tip, blind, mode>>
 Merge(a, k) ==
     /\ seen[k][a] # NoTip     \* jmerge/cli.py:1243 `if not at.returncode and _first_word(at.stdout) == judged.tip:`
     /\ Ready(k) /\ work' = Set(work, k, "merged")     \* jmerge/cli.py:1274 `"merge",`
@@ -213,20 +198,20 @@ Merge(a, k) ==
     /\ tip' = Up(tip, 2)
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
     /\ lock' = IF lock = k THEN "free" ELSE lock
-    /\ UNCHANGED <<life, msg, quiet, watch, wake, moved, up, broke, mode>>
+    /\ UNCHANGED <<life, msg, quiet, watch, up, broke, mode>>
 
 Next ==
     \/ \E k \in Kids : MakeChild(k) \/ LaunchCrew(k) \/ OpenPr(k) \/ PrReady(k) \/ PrDrops(k)
                        \/ CrewEnds(k) \/ Activity(k)
                        \/ GetsStuck(k) \/ Retire(k) \/ Steps(k)
     \/ \E c \in Calls : RaiseCall(c) \/ Answer(c)
-    \/ \E m \in Msgs : Deliver(m) \/ Rehome(m)
-    \/ ChangeWake \/ \E r \in Routes : RouteFails(r) \/ RouteMends(r)
+    \/ \E m \in Msgs : Deliver(m)
+    \/ RouteFails \/ RouteMends
     \/ Check
     \/ \E a \in Mergers, k \in Kids : Read(a, k) \/ Merge(a, k)
 Fair ==
-    /\ \A m \in Msgs : WF_vars(Deliver(m)) /\ WF_vars(Rehome(m))
-    /\ \A r \in Routes : WF_vars(RouteMends(r))
+    /\ \A m \in Msgs : WF_vars(Deliver(m))
+    /\ WF_vars(RouteMends)
     /\ WF_vars(Check)
     /\ \A k \in Kids : WF_vars(PrReady(k))     \* a crew fixes a pull request that dropped
     /\ \A a \in Mergers, k \in Kids : WF_vars(Read(a, k)) /\ WF_vars(Merge(a, k))

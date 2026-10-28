@@ -15,7 +15,7 @@ Then add the home, with a name you pick:
 jbus project add scratch --scratch --project-id <that id>
 ```
 
-The table it writes has `name`, `kind = "scratch"` and `projectId`, and no checkout and no webhook.
+The table it writes has `name`, `kind = "scratch"` and `projectId`, and no checkout.
 The command refuses it the way it refuses a repo's table.
 It prints `refused: the config already has this project` for the same name and id.
 It prints `refused: the config already has a project of that name` when a project or another scratch home already has the name.

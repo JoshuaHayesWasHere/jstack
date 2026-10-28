@@ -111,7 +111,7 @@ def test_with_no_remote_nothing_alerts_and_a_remote_set_later_gets_every_commit(
 ):
     (tree / "demo" / "notes.md").write_text("# notes\nhere only\n")
     assert take() == (0, [no_remote(tree)])
-    assert kitchen.webhook.posts == [] and kitchen.log("notify") == []
+    assert kitchen.wakes.posts == [] and kitchen.log("notify") == []
     bare = with_origin(tree, tmp_path)
     assert take() == (0, ["snapshot: nothing changed, pushed"])
     assert git(bare, "rev-parse", "main") == git(tree, "rev-parse", "HEAD")
@@ -182,7 +182,7 @@ def test_the_first_failed_snapshot_alerts_once_and_the_next_that_goes_logs_it_re
     with_origin(tree, tmp_path)
     assert alarm() == ["snapshot failed", f"demo: {FAILED}", "alert sent: demo"]
     assert alarm() == ["snapshot failed"]
-    posted = [event for post in kitchen.webhook.posts for event in post]
+    posted = [event for post in kitchen.wakes.posts for event in post]
     assert [(e["event"], e["line"]) for e in posted] == [("alert", FAILED)]
     assert kitchen.log("notify") == [f"jbus | {FAILED}"]
     (tree / "demo" / "notes.md").write_text("# notes\nback\n")

@@ -38,7 +38,7 @@ So nothing is lost and nothing stale is sent.
 Each send and each hold is one line of `outbox.jsonl` in the project's state: the time, the thread,
 the row, the template, what the message needs, its key, `sent` or `held`, and the rule that held it.
 A census of what jbus sent is a read of that one file. It is not `outbox.json`, the queue of events
-that waits for the webhook (`jbus.wake`).
+that waits for the home thread's wake (`jbus.wake`).
 """
 
 from __future__ import annotations

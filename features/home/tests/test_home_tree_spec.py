@@ -44,7 +44,7 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
     """The statechart tool lists no condition of HomeTreeToday.tla that no comment ties to code."""
     today = SPEC / "HomeTreeToday.tla"
     shared = lib.shared_variables(today)
-    assert len(shared) == 14
+    assert len(shared) == 12
     assert lib.uncited_conditions(today.read_text(), shared) == []
 
 

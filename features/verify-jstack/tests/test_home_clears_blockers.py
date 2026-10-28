@@ -1,8 +1,8 @@
-"""A home clears its own blockers, and only what Josh has to decide reaches the webhook.
+"""A home clears its own blockers, and only what Josh has to decide reaches the home thread.
 
 Each test drives the real commands in a verify-jstack sandbox, as a home types them: `jbus gate`,
-`jbus clear`, `jbus queue add` and `jbus poll`. The stand-in webhook keeps every POST in
-`t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
+`jbus clear`, `jbus queue add` and `jbus poll`. The stand-in for T3 Code keeps every wake it is
+sent in `t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
 """
 
 import hashlib
@@ -68,7 +68,7 @@ def demo(sandbox):
         threads.write_text(json.dumps([one | {"settled": True} for one in kept]))
     assert run(sandbox, "jbus poll").returncode == 0
     assert posted(sandbox) == []
-    wakes = root / "state" / "demo" / "wake.json"
+    wakes = root / "state" / "demo" / "home-thread" / "wake.json"
     if wakes.exists():
         wakes.write_text(json.dumps(json.loads(wakes.read_text()) | {"posted": 0}))
     return sandbox
@@ -83,8 +83,8 @@ def run(sandbox, command, stdin=None):
 
 
 def posted(sandbox):
-    """Every event the webhook was posted, in order, but the pages of `jbus health`: those read the
-    host's own state, its disk, which no test sets."""
+    """Every event a wake took to the home thread, in order, but the pages of `jbus health`: those
+    read the host's own state, its disk, which no test sets."""
     wake = sandbox.parent / "t3" / "wake.jsonl"
     lines = wake.read_text().splitlines() if wake.exists() else []
     events = [event for line in lines for event in json.loads(line)["events"]["events"]]
@@ -92,7 +92,7 @@ def posted(sandbox):
 
 
 def waiting_to_post(sandbox):
-    outbox = sandbox.parent / "state" / "demo" / "outbox.json"
+    outbox = sandbox.parent / "state" / "demo" / "home-thread" / "outbox.json"
     return json.loads(outbox.read_text()) if outbox.exists() else []
 
 
@@ -349,17 +349,17 @@ def test_a_batch_of_fixes_past_the_cap_queues_none_and_counts_none(demo):
 
 
 def test_a_scope_change_raised_by_hand_is_one_decision_with_its_reply(demo):
-    question = "--question 'add a second webhook to the plan?' --reply 'scope: yes, add it'"
+    question = "--question 'add a second sign-in to the plan?' --reply 'scope: yes, add it'"
 
     first = run(demo, f"jbus decide alpha {question}")
     again = run(demo, f"jbus decide alpha {question}")
     run(demo, "jbus poll")
 
-    assert first.stdout == "raised: alpha: add a second webhook to the plan?\n"
-    assert again.stdout == "raised already: alpha: add a second webhook to the plan?\n"
+    assert first.stdout == "raised: alpha: add a second sign-in to the plan?\n"
+    assert again.stdout == "raised already: alpha: add a second sign-in to the plan?\n"
     (event,) = posted(demo)
     assert event["say"] == (
-        'demo: decision alpha: add a second webhook to the plan?. Reply: "demo scope: yes, add it"'
+        'demo: decision alpha: add a second sign-in to the plan?. Reply: "demo scope: yes, add it"'
     )
 
 

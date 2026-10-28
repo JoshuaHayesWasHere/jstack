@@ -1,7 +1,8 @@
 """This module is the kitchen that every jbus test runs in: one project with jbus set up for it,
-against fakes of a T3 Code server, `gh`, `jmerge`, `notify-send` and a webhook. The server and the
-webhook listen on a local port. The three commands are functions here, and scripts on PATH for
-another process. Nothing reaches the network.
+against fakes of a T3 Code server, `gh`, `jmerge` and `notify-send`. The server listens on a local
+port, and keeps what each project's home thread was sent as wakes apart from its other messages
+(`Wakes`). The three commands are functions
+here, and scripts on PATH for another process. Nothing reaches the network.
 
 The tests here test the fakes: each fake says the same whether this module calls it or a process
 starts it as a command. One test sends through the fakes into a capped thread, and sees
@@ -53,6 +54,8 @@ SELECTION = {
 }
 SAID, SAID_AT, RAN = "said-by-user", "2026-10-11 17:58 ET", "2026-10-12 11:00 ET"
 SESSION = "a-home-session"
+HOME = "mcp:home-of-demo"
+REFUSED = "the thread takes no messages"
 GO = f"your word, {SAID_AT} (time typed); run {RAN} by the demo home"
 
 
@@ -105,22 +108,21 @@ class Server:
         handler.wfile.write(raw)
 
 
-class Webhook(Server):
-    def __init__(self):
-        self.posts, self.keys, self.sleep, self.status = [], [], 0, 200
-        self.said, self.bodies, self.refused = [], [], {}
-        super().__init__()
+class Wakes:
+    """`Wakes` is what one project's home thread took as wakes: each body's events, its chat lines
+    and the body. A wake is a send whose retry key is `wake|<project>|...`, and the body is the
+    JSON block of its message. While `refused` holds a reason, T3 Code refuses the project's wakes
+    with it."""
 
-    def answer(self, handler, body):
-        time.sleep(self.sleep)
-        if self.status != 200:
-            return self.reply(handler, self.refused, self.status)
-        self.keys.append(handler.headers.get(wake.HEADER))
-        taken = json.loads(body)
-        self.bodies.append(taken)
-        self.posts.append(taken.get("events"))
-        self.said.append(taken["say"])
-        self.reply(handler, {})
+    def __init__(self):
+        self.refused = ""
+        self.posts, self.said, self.bodies = [], [], []
+
+    def took(self, message):
+        body = json.loads(message.split("```json\n", 1)[1].split("\n```", 1)[0])
+        self.bodies.append(body)
+        self.posts.append(body.get("events"))
+        self.said.append(body["say"])
 
 
 class T3(Server):
@@ -132,7 +134,7 @@ class T3(Server):
         self.messages, self.refuse_send, self.lose_send = {}, False, False
         self.status, self.on_list, self.down, self.lose_read = 200, None, set(), False
         self.challenges, self.registered, self.at_work = {}, [], set()
-        self.said, self.forgot = {}, set()
+        self.said, self.forgot, self.wakes, self.woken = {}, set(), {}, {}
         super().__init__()
 
     def thread(
@@ -292,7 +294,16 @@ class T3(Server):
                 return {"isError": True, "content": [{"type": "text", "text": "no"}]}
             if given["threadId"] in self.forgot:
                 return gone(given["threadId"], "was not found")
-            self.messages.setdefault(given["clientRequestId"], given)
+            key = given["clientRequestId"]
+            if key.startswith("wake|"):
+                woken = self.wakes.setdefault(key.split("|")[1], Wakes())
+                if woken.refused:
+                    return {"isError": True, "content": [{"type": "text", "text": woken.refused}]}
+                if key not in self.woken:
+                    woken.took(given["message"])
+                self.woken.setdefault(key, given)
+            else:
+                self.messages.setdefault(key, given)
             for thread in self.threads:
                 if thread["threadId"] == given["threadId"]:
                     thread["updatedAt"] = iso(datetime.now(UTC))
@@ -559,13 +570,14 @@ def on_path(name):
 
 class Side:
     """`Side` is a second project of a kitchen, with its own checkout, state, `projectId` and
-    webhook."""
+    home thread."""
 
     def __init__(self, kitchen, name):
-        self.name, self.project, self.webhook = name, f"{name}-project-id", Webhook()
+        self.name, self.project = name, f"{name}-project-id"
         self.checkout = kitchen.root / name
         self.home = kitchen.root / "home" / name
         self.state = kitchen.state_dir / name
+        self.wakes = kitchen.t3.wakes.setdefault(name, Wakes())
 
 
 class Kitchen:
@@ -579,7 +591,7 @@ class Kitchen:
 
     def __init__(self, tmp_path, monkeypatch):
         tmp_path.mkdir(exist_ok=True)
-        self.root, self.t3, self.webhook = tmp_path, T3(), Webhook()
+        self.root, self.t3 = tmp_path, T3()
         self.stub = tmp_path / "stub"
         self.config_dir, self.state_dir = tmp_path / "config", tmp_path / "state"
         self.home = tmp_path / "home" / "demo"
@@ -587,6 +599,7 @@ class Kitchen:
         for made in (self.stub, self.config_dir, self.home / "tasks", self.home / "scouts"):
             made.mkdir(parents=True)
         self.state = self.state_dir / "demo"
+        self.wakes = self.t3.wakes.setdefault("demo", Wakes())
         self.sides = []
         self.config()
         self.signed_in(timedelta(0))
@@ -692,8 +705,6 @@ class Kitchen:
 
     def close(self):
         self.t3.close()
-        for webhook in (self.webhook, *(side.webhook for side in self.sides)):
-            webhook.close()
 
     @staticmethod
     def write(path, text, mode=0o600):
@@ -710,12 +721,17 @@ class Kitchen:
         }
         self.write(self.config_dir / "t3.json", json.dumps(stored))
 
-    def config(self, url=None, project_wake="webhook", **top):
-        """Write the config. A top-level key given as None stays out of the file. The kitchen's
-        projects send their wakes to their webhook alone unless a test says otherwise:
-        `project_wake` is the `wake` of each project's own table, and None leaves it out."""
-        top = {"dispatch": True, "max_running": 1, "runtimeMode": "full-access", **top}
-        own = [f"wake = {json.dumps(project_wake)}"] if project_wake else []
+    def config(self, own=(), **top):
+        """Write the config. A top-level key given as None stays out of the file, and `own` is
+        more lines for each project's own table. Wakes go to `home_thread` unless a test says
+        otherwise, since no home of the kitchen has a home-id until a test writes one."""
+        top = {
+            "dispatch": True,
+            "max_running": 1,
+            "runtimeMode": "full-access",
+            "home_thread": HOME,
+            **top,
+        }
         lines = [f"server = {json.dumps(self.t3.url)}"]
         for key, value in top.items():
             if value is None:
@@ -731,8 +747,6 @@ class Kitchen:
             f"checkout = {json.dumps(str(self.checkout))}",
             'state = "demo"',
             f"projectId = {json.dumps(PROJECT)}",
-            f"webhook_url = {json.dumps(self.webhook.url + '/wake' if url is None else url)}",
-            f"webhook_key = {json.dumps(KEY)}",
             *own,
         ]
         for side in self.sides:
@@ -741,8 +755,6 @@ class Kitchen:
                 f"name = {json.dumps(side.name)}",
                 f"checkout = {json.dumps(str(side.checkout))}",
                 f"projectId = {json.dumps(side.project)}",
-                f"webhook_url = {json.dumps(side.webhook.url + '/wake')}",
-                f"webhook_key = {json.dumps(KEY)}",
                 *own,
             ]
         self.write(self.config_dir / "config.toml", "\n".join(lines) + "\n")
@@ -798,10 +810,10 @@ class Kitchen:
         return code, out.getvalue()
 
     def waiting(self):
-        return jbus.read_json(self.state / "outbox.json", [])
+        return jbus.read_json(self.state / wake.HOME / "outbox.json", [])
 
     def marks(self):
-        return jbus.read_json(self.state / "wake.json", {})
+        return jbus.read_json(self.state / wake.HOME / "wake.json", {})
 
     def status(self):
         return json.loads((self.state_dir / "status.json").read_text())
@@ -816,11 +828,11 @@ class Kitchen:
         return [event["line"] for event in self.events(kind)]
 
     def forget(self):
-        """Empty the outbox, the log and what the webhook got, so that `events` gives only what
-        comes after."""
-        jbus.write_json(self.state / "outbox.json", [])
+        """Empty the outbox, the log and what the home thread took, so that `events` gives only
+        what comes after."""
+        jbus.write_json(self.state / wake.HOME / "outbox.json", [])
         (self.state / wake.LOG).unlink(missing_ok=True)
-        self.webhook.posts.clear()
+        self.wakes.posts.clear()
 
     def quiet(self):
         """Run a first pass, which records what is already so, and keep no event of it."""
@@ -1218,7 +1230,12 @@ def review(verdict="findings", sent="not sent, no home", findings=FOUND):
 
 
 def sends(kitchen):
-    return [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    """Each message a pass sent a thread, but for the wakes of a home thread (`Wakes`)."""
+    return [
+        given
+        for tool, given in kitchen.t3.calls
+        if tool == "t3_thread_send" and not given["clientRequestId"].startswith("wake|")
+    ]
 
 
 def settles(kitchen, action="settle"):

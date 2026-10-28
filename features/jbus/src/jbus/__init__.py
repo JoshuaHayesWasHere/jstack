@@ -11,32 +11,21 @@ level through it, and `current_kind` reads a kind of event through it. A third l
 started a POST for an event that asked nothing of the user. An event of that level is `quiet`
 now, and jbus reads it as `quiet`.
 
-`IGNORED` is the keys of a project's table that nothing reads any more. `load` still loads a
-config that has one, and `Config.ignored` names each such key, so that each pass can name
-it until the user removes it. A webhook URL and key in any top-level table, whether jbus reads
-that table or nothing reads it any more, are secret while they are in the file.
-`Config.tabled` holds them, and only `secrets` reads them there.
+`IGNORED` is the keys of a project's table that nothing reads any more, and `OLD` the keys
+above the first `[[project]]` that nothing reads any more. `load` still loads a config that has
+one, and `Config.ignored` names each such key, so that each pass, and `jinstall`'s doctor, can name
+it until the user removes it. The old keys of the webhook are among them: jbus wakes a project's
+home thread alone, so a `wake`, a URL and a key of that webhook load and do nothing.
 
-A `webhook_url` and `webhook_key` above the first `[[project]]` are `Config.webhook`, the top-level
-webhook. It receives the events of every project: jbus posts it each event, for the user of each
-project. Every project that has neither key of its own also uses it as its pair. A project with both
-keys of its own uses them as they are. jbus posts the project's events to that pair as well as to
-the top-level one (`wake.Box`), and only once where the two pairs are the same. `load` refuses a
-project with only one of the two keys, because half a pair beside the top-level one would post with
-the wrong key. The top-level pair is secret whether a project uses it or not.
-
-`wake` picks where a project's events for the user go: `home`, the project's home thread through T3
-Code, which is the default; `webhook`, the webhook pair alone; or `both`. Above the first
-`[[project]]` it holds for every project, and a project's own `wake` wins over it. `load` refuses
-any other value, and `webhook` or `both` for a project with no pair to post to. A pair beside
-`wake = "home"` is kept and not posted to. A `home_thread` above the first `[[project]]` is
-`Config.home_thread`: the thread that gets a project's wakes when the project's home has none.
+A project's events for the user go to its home thread through T3 Code (`wake.Box`). A
+`home_thread` above the first `[[project]]` is `Config.home_thread`: the thread that gets a
+project's wakes when the project's home has none.
 
 A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the second
-target: the webhook of what blocks (`waiting.blocking`), which jbus-relay sends on to several
+target: the address of what blocks (`waiting.blocking`), which jbus-relay sends on to several
 places. jbus posts no event to it. It posts only each blocking item when the item opens, each
-reminder, and each refresh (`wake.Box.blocking`). `load` refuses half of that pair as it refuses
-half of the other, and both are secret.
+reminder, and each refresh (`wake.Box.blocking`). `load` refuses half of that pair, and both are
+secret.
 
 A `[[project]]` table whose `kind` is `scratch` is not a repo. It is a scratch home, for throwaway
 questions and drafts, bound to T3 Code's "No project" by its `projectId`. `load` is the one place
@@ -75,7 +64,8 @@ Loud = Literal["user", "quiet"]
 LEVELS: tuple[Loud, ...] = ("user", "quiet")
 NAMED_AFTER = ("user", "waiting-on-user")
 WAS = {"chef": "quiet"}
-IGNORED = ("loud",)
+OLD = ("wake", "webhook_url", "webhook_key")
+IGNORED = ("loud", *OLD)
 NUMBERED = "numbered"
 REPO, SCRATCH = "repo", "scratch"
 TIMESTAMPED = "timestamped"
@@ -96,8 +86,7 @@ class Refused(Exception):
 
 @dataclass(frozen=True)
 class Project:
-    """A `Project` is one repo that jbus looks after, with the webhook where jbus posts what the
-    user must act on: its own pair, or the config's top-level one when it has none.
+    """A `Project` is one repo that jbus looks after.
 
     `migrations` is the directory, from the checkout's root, where the repo keeps its
     migrations. It is empty where the repo has none. `migration_names` says how the repo names a
@@ -111,26 +100,15 @@ class Project:
     checkout: Path
     state: str
     project_id: str
-    webhook_url: str
-    webhook_key: str
     migrations: str = ""
     migration_names: str = NUMBERED
     ci_report: bool = False
-    wake: str = "home"
-
-    @property
-    def to_home(self) -> bool:
-        return self.wake in ("home", "both")
-
-    @property
-    def to_webhook(self) -> bool:
-        return self.wake in ("webhook", "both")
 
 
 @dataclass(frozen=True)
 class Scratch:
     """A `Scratch` is a scratch home: a name, and the T3 Code project its threads run in. It
-    has no repo, so it has no checkout, no webhook and no migrations. It pushes nothing,
+    has no repo, so it has no checkout and no migrations. It pushes nothing,
     opens no pull request and launches no crew."""
 
     name: str
@@ -140,7 +118,7 @@ class Scratch:
         """Return the home as `word` addresses it: a `Project` with no checkout. It is
         for the `passes.Pass` that `word.keep`, `word.deliver` and `word.line` take, and for
         nothing else. Its state and its home are `<name>`, as a repo's are."""
-        return Project(self.name, Path(os.devnull), self.name, self.project_id, "", "")
+        return Project(self.name, Path(os.devnull), self.name, self.project_id)
 
 
 MAX_PER_HOME, MAX_PER_PROJECT = 6, 24
@@ -173,8 +151,6 @@ class Config:
     max_per_home: int = MAX_PER_HOME
     max_per_project: int = MAX_PER_PROJECT
     ignored: tuple[str, ...] = ()
-    tabled: tuple[Hook, ...] = ()
-    webhook: Hook = ("", "")
     blocking: Hook = ("", "")
     scratch: tuple[Scratch, ...] = ()
     home_thread: str = ""
@@ -218,17 +194,12 @@ class Config:
 
     def secrets(self) -> tuple[str, ...]:
         """Return every string that must not leave this machine in a list, a digest or a line:
-        what `secrets` returns for each webhook, and the stored token's `CREDENTIALS`. The
+        what `secrets` returns for the second target, and the stored token's `CREDENTIALS`. The
         token's other strings, such as `Bearer` and its scope, are not secret."""
         stored = read_json(self.token_path, {})
         token = stored.get("token") if isinstance(stored, dict) else None
         strings = [token.get(name) for name in CREDENTIALS] if isinstance(token, dict) else []
-        return secrets(*self.hooks(), *strings)
-
-    def hooks(self) -> list[Project | Hook]:
-        """Return every webhook URL and key the config file holds, whether jbus reads them or
-        not."""
-        return [*self.projects, self.webhook, self.blocking, *self.tabled]
+        return secrets(self.blocking, *strings)
 
     def state(self, project: Project) -> Path:
         """Return where jbus keeps this project's queue, outbox, launches and what it has
@@ -313,9 +284,11 @@ def private(path: Path) -> None:
 
 
 def _ignored(raw: dict[str, Any]) -> tuple[str, ...]:
-    """Return each key of `IGNORED` a project still has, by name, whatever its value is."""
+    """Return each key of `OLD` the config still has above the first `[[project]]`, and each key
+    of `IGNORED` a project still has, by name, whatever its value is."""
+    top = tuple(f"{key} at the top" for key in OLD if key in raw)
     found = ((key, one["name"]) for one in raw.get("project", []) for key in IGNORED if key in one)
-    return tuple(f"{key} of project {name}" for key, name in found)
+    return top + tuple(f"{key} of project {name}" for key, name in found)
 
 
 def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
@@ -338,23 +311,13 @@ def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
     return "/".join(parts), str(names)
 
 
-def _tabled(raw: dict[str, Any]) -> tuple[Hook, ...]:
-    """Return the webhook URL and key of each top-level table that has one. Each is secret,
-    whether jbus reads the table or not."""
-    tables = (table for table in raw.values() if isinstance(table, dict))
-    found = ((table.get("webhook_url"), table.get("webhook_key")) for table in tables)
-    return tuple((str(url or ""), str(key or "")) for url, key in found if url or key)
-
-
-PAIR = ("webhook_url", "webhook_key")
-WAKES = ("home", "webhook", "both")
 BLOCKING = ("blocking_url", "blocking_key")
 
 
-def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
+def _missing(table: dict[str, Any], pair: tuple[str, str]) -> str | None:
     """When the table has one key of its pair and not the other, return the missing key.
     Otherwise return None. A URL with an empty key counts as a missing key, since it would post
-    with no key. An empty URL beside a key is not a webhook, and `load` accepts it."""
+    with no key. An empty URL beside a key is no address, and `load` accepts it."""
     url, key = pair
     present = [name for name in pair if name in table]
     if len(present) == 1:
@@ -364,28 +327,12 @@ def _missing(table: dict[str, Any], pair: tuple[str, str] = PAIR) -> str | None:
     return None
 
 
-def _pair(table: dict[str, Any], default: Hook, pair: tuple[str, str] = PAIR) -> Hook:
-    """Return the table's URL and key, or `default` when it has neither. `_missing` has already
-    refused half a pair."""
+def _pair(table: dict[str, Any], pair: tuple[str, str]) -> Hook:
+    """Return the table's URL and key, or two empty strings when it has neither. `_missing` has
+    already refused half a pair."""
     if not any(name in table for name in pair):
-        return default
+        return "", ""
     return str(table[pair[0]]), str(table[pair[1]])
-
-
-def _wake(name: str, picked: Any, url: str) -> str:
-    """Return a project's `wake`, or `Refused` naming the setting when it is not one of `WAKES` or
-    asks for a webhook the project does not have."""
-    if picked not in WAKES:
-        raise Refused(
-            f"refused: project {name} has wake = {json.dumps(picked)}: "
-            'give "home", "webhook" or "both", or leave it out for "home"'
-        )
-    if picked != "home" and not url:
-        raise Refused(
-            f'refused: project {name} has wake = "{picked}" and no webhook_url and webhook_key '
-            'to post to: give the pair, or wake = "home"'
-        )
-    return picked
 
 
 def load(directory: Path | None = None) -> Config:
@@ -401,14 +348,11 @@ def load(directory: Path | None = None) -> Config:
         raw = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as error:
         raise Refused(f"refused: {path} does not parse: {error}") from error
-    for pair in (PAIR, BLOCKING):
-        if missing := _missing(raw, pair):
-            raise Refused(
-                f"refused: {path} has no top-level {missing} beside the other: "
-                "give it both, or neither"
-            )
-    webhook = _pair(raw, ("", ""))
-    blocking = _pair(raw, ("", ""), BLOCKING)
+    if missing := _missing(raw, BLOCKING):
+        raise Refused(
+            f"refused: {path} has no top-level {missing} beside the other: give it both, or neither"
+        )
+    blocking = _pair(raw, BLOCKING)
     try:
         projects, scratch = [], []
         for entry in raw.get("project", []):
@@ -429,13 +373,6 @@ def load(directory: Path | None = None) -> Config:
             if kind == SCRATCH:
                 scratch.append(Scratch(name, str(entry["projectId"])))
                 continue
-            if missing := _missing(entry):
-                raise Refused(
-                    f"refused: project {entry['name']} has no {missing} of its own beside the "
-                    "other: give it both, or neither to take the top-level pair"
-                )
-            url, key = _pair(entry, webhook)
-            wake = _wake(str(entry["name"]), entry.get("wake", raw.get("wake", "home")), url)
             migrations, names = _migrations(entry)
             if not isinstance(entry.get("ci_report", False), bool):
                 raise Refused(
@@ -447,12 +384,9 @@ def load(directory: Path | None = None) -> Config:
                     checkout=Path(str(entry["checkout"])).expanduser(),
                     state=str(entry.get("state") or entry["name"]),
                     project_id=str(entry["projectId"]),
-                    webhook_url=url,
-                    webhook_key=key,
                     migrations=migrations,
                     migration_names=names,
                     ci_report=entry.get("ci_report", False),
-                    wake=wake,
                 )
             )
         server = str(raw["server"]).rstrip("/")
@@ -483,8 +417,6 @@ def load(directory: Path | None = None) -> Config:
         home_dir=homes_dir(),
         user=user,
         ignored=ignored,
-        tabled=_tabled(raw),
-        webhook=webhook,
         blocking=blocking,
         scratch=tuple(scratch),
         home_thread=str(raw.get("home_thread") or ""),
@@ -515,19 +447,19 @@ def read_dict(path: Path) -> dict:
     return found if isinstance(found, dict) else {}
 
 
-def secrets(*found: Project | Hook | Any, part: int = URL_PART) -> tuple[str, ...]:
-    """Return the secret strings of each webhook and of each other string given, the longest
-    first.
+def secrets(*found: Hook | Any, part: int = URL_PART) -> tuple[str, ...]:
+    """Return the secret strings of each pair of an address and its key, and of each other string
+    given, the longest first.
 
-    A webhook's whole URL and its whole key are secret. So are the URL's host, path and query,
+    An address's whole URL and its whole key are secret. So are the URL's host, path and query,
     except a part shorter than `part`, since taking `/` out of a text hides nothing. For an error
     that quotes the URL, the caller passes a `part` of 2, so a part of two characters counts too.
     """
     whole: set[str] = set()
     parts: set[str] = set()
     for one in found:
-        if isinstance(one, Project | tuple):
-            address, key = one if isinstance(one, tuple) else (one.webhook_url, one.webhook_key)
+        if isinstance(one, tuple):
+            address, key = one
             url = urlsplit(address)
             whole |= {address, key}
             parts |= {url.netloc, url.path, url.query}

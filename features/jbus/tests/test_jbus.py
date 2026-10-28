@@ -4,7 +4,7 @@ also check two things that `jbus/__init__.py` does for every pass: it refuses a 
 writes the status file.
 
 The tests that run a pass run it in the kitchen of `test_jbus_kitchen`, against a faked T3 Code
-server, `gh`, `jmerge` and webhook. Nothing reaches the network.
+server, `gh` and `jmerge`. Nothing reaches the network.
 """
 
 import configparser
@@ -169,16 +169,14 @@ def test_each_pass_rewrites_the_status_file_and_jbus_status_prints_it(kitchen):
                 "outbox": 0,
                 "sign_in": "",
                 "sweep": "",
-                "wake": "webhook",
             }
         },
         "streaks": {},
-        "stranded": {},
         "homes_off_bus": [],
         "scratch": {},
         "token_expires": "2026-11-11 10:00 ET",
         "sign_in_reminder": (
-            "sign-in to the webhook of demo on 2026-11-04, each day from 2026-11-08, "
+            "sign-in to the home thread of demo on 2026-11-04, each day from 2026-11-08, "
             "and when it runs out at 2026-11-11 10:00 ET"
         ),
     }
