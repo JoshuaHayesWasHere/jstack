@@ -231,7 +231,7 @@ def test_each_need_carries_the_fields_the_bots_asked_for_and_its_doors(kitchen, 
     assert status == 200
     shown = {(one["kind"], one["slug"] or one["subj"]): one["doors"] for one in stack["needs"]}
     assert shown == {key: one["doors"] for key, one in needs.items()}
-    (filed,) = [one for one in stack["proceeds"] if one["slug"] == "beta"]
+    filed = needs["gate", "beta"]
     assert (filed["what"], filed["doors"]) == ("drop the old tables?", ["deletes data"])
     assert bot_go(route, kitchen, "alpha")[0] == 200
     (acted,) = [one for one in fed(kitchen, "--after", cursor)["events"] if one["kind"] == "act"]
