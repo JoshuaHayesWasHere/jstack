@@ -44,7 +44,7 @@ Each kind of step matches the code as follows:
 - **lands, jmerge merges**: a home's own `jmerge`, or the one a pass runs, merges `beta`. This event
   may come between any two passes. The merge always reads a whole record, never a half-written one,
   because `write_json` writes a temporary file and `os.replace`s it
-  (`features/jbus/src/jbus/__init__.py:435-445`). The model allows it only where
+  (`features/jbus/src/jbus/__init__.py:501-514`). The model allows it only where
   `rows.red(mainjson.read(state), "beta")` is empty (`features/jmerge/src/jmerge/rows.py`, `red`).
 - **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
