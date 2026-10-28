@@ -1143,7 +1143,9 @@ class Nightly:
     where it is set, is the title of the runs jbus files for: a run of the workflow with any
     other title checked out another ref, and is that ref's concern. `branch`, where it is set, is
     the integration branch those runs check out: until one run of it there has passed, its red
-    runs are that branch's known work, which its home's plan holds, and file no row.
+    runs are that branch's known work, which its home's plan holds, and file no row. `moved`,
+    where it is set, is what a failed job's log says when the browser that drew the kept shots
+    moved: the brief then names the fix, `keep` the files of the run's artifact under `kept`.
     """
 
     file: str
@@ -1158,6 +1160,9 @@ class Nightly:
     home: str = ""
     title: str = ""
     branch: str = ""
+    moved: str = ""
+    keep: str = ""
+    kept: str = ""
 
 
 BROWSER = Nightly(
@@ -1170,6 +1175,11 @@ BROWSER = Nightly(
     done="each failed test named under Read passes under `make check-browser`",
     proves="`make check-browser` passes, and so does a manual run of browser.yml "
     "(workflow_dispatch) on the fix's branch",
+    moved="keep the shots of this run's jbus-view-shots artifact",
+    keep="the shots under `{kept}` and their `browser.txt` are those of the run's "
+    "`jbus-view-shots` artifact, which the browser that draws them now drew: "
+    "`gh run download {number} -n jbus-view-shots -D {kept}`",
+    kept="features/jbus/tests/fixtures/jbus-view/shots",
 )
 MACOS = Nightly(
     file="macos-nightly.yml",
@@ -1200,14 +1210,18 @@ def nightly_red_brief(
     day: str,
     one: dict[str, Any],
     jobs: list[tuple[str, str, Failed]],
+    moved: bool = False,
 ) -> str:
     """Return the brief for the fix of a red run of a nightly workflow, in the shape of
     `features/jbriefs/templates/brief.md`. `one` is the run as GitHub lists it, and `jobs`
-    is each failed job's name, URL and failed tests."""
+    is each failed job's name, URL and failed tests. `moved` is whether a failed job's log
+    says the browser moved (`Nightly.moved`): the brief then names the shots to keep."""
     tests = [test for _, _, failed in jobs for test in failed.tests]
     files = list(dict.fromkeys(test.split("::")[0] for test in tests))
+    files += [f"{nightly.kept}/"] if moved else []
     where = ", ".join(f"`{file}`" for file in files) or nightly.where
     number, event = one.get("id"), one.get("event") or "an event"
+    keep = [f"- {nightly.keep.format(kept=nightly.kept, number=number)}"] if moved else []
     read = [
         f"- the job `{job}`, {url or 'with no URL'}: "
         + (
@@ -1223,6 +1237,7 @@ def nightly_red_brief(
             f'Task: "{nightly.run} {number} failed on {day}, {tests_said(jobs)}" '
             f"(jbus, from {nightly.file})",
             "Done when:",
+            *keep,
             f"- {nightly.done}",
             "- the Result names the cause: the merge that broke it, or a flake with its evidence",
             f"Proves it: {nightly.proves}",
@@ -1264,7 +1279,8 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
     than the default, and marks it seen: that run is the pull request's or the branch's concern,
     and a red one is no red on main. A release's run, a pushed tag or a published release, is
     filed. A run of macos-nightly.yml is on the default branch whatever it checks
-    out, so a nightly with a `title` files only for the runs that carry it.
+    out, so a nightly with a `title` files only for the runs that carry it. Where a failed job's
+    log says the browser moved (`Nightly.moved`), the brief names the shots of the run to keep.
 
     A nightly with a `branch` files a row only for a red run after a run that passed: jbus keeps
     each run that passed as `GREEN` in `seen`, since GitHub lists only the last 20. A red run
@@ -1320,14 +1336,16 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
                 for j in asked.get("jobs") or []
                 if j.get("status") == "completed" and j.get("conclusion") not in NOT_RED
             ]
-            logs = [_log_failed(run, j.get("id")) for j in red]
+            logs = [job_log(run, "{owner}/{repo}", j.get("id")) for j in red]
             if None in logs and run.now - ended < NIGHTLY_GRACE:
                 continue
             jobs = [
-                (j.get("name") or "?", j.get("html_url") or "", failed or Failed())
-                for j, failed in zip(red, logs, strict=True)
+                (j.get("name") or "?", j.get("html_url") or "", failed_in(log or ""))
+                for j, log in zip(red, logs, strict=True)
             ]
-            text = nightly_red_brief(nightly, name, day, one, jobs)
+            said = [_ESCAPE.sub("", log or "") for log in logs]
+            moved = bool(nightly.moved) and any(nightly.moved in log for log in said)
+            text = nightly_red_brief(nightly, name, day, one, jobs, moved)
             (run.home / "tasks").mkdir(parents=True, exist_ok=True)
             (run.home / "tasks" / f"{name}.md").write_text(text)
             try:
