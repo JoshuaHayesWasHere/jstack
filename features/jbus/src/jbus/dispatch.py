@@ -56,6 +56,7 @@ import jroles.mirror
 from jbriefs import parse
 from jbriefs.home import home_of, named
 from jbus import queue, read_json, verbs, watch, write_json
+from jbus.launches import record_path, records
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, End, World, against, crew_threads, ended
@@ -66,18 +67,6 @@ from jroles import ledger, pool
 EVENTS = {"overlap": "quiet"}
 OVERLAP_PATHS = 5
 OVERLAP_RULE = "whichever merges second rebases"
-
-
-def record_path(run: Pass, slug: str, brief_sha: str) -> Path:
-    return run.config.state_dir / "launches" / run.project.name / slug / f"{brief_sha[:12]}.json"
-
-
-def records(run: Pass, slug: str, role: str = "") -> list[tuple[Path, dict[str, Any]]]:
-    """Return the slug's launch records, oldest first, or with `role` only those of that role: a
-    crewmate's record has no `role`, a scout's says `scout`."""
-    directory = run.config.state_dir / "launches" / run.project.name / slug
-    found = [(path, read_json(path, {})) for path in sorted(directory.glob("*.json"))]
-    return [one for one in found if not role or (one[1].get("role") or queue.CREW) == role]
 
 
 def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:

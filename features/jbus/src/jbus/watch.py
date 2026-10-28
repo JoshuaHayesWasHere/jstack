@@ -41,6 +41,7 @@ import jsettings
 from jbriefs import below
 from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, merge, queue, read_json, t3, verbs, work, write_json
+from jbus.launches import records
 from jbus.merge import Said, parse
 from jbus.mirror import last_result, sections
 from jbus.passes import Changed, Depends, Pass, Rerun, Slot
@@ -1410,10 +1411,8 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = 
     needed for a test that turned green by chance, and the home hears of it once. The line that says
     a row is withdrawn is sent once the row is out, and a withdrawn row is never one of `fixes`
     again. A row filed for `green` itself, whose check passed on a rerun, is left as it is, and the
-    home hears of that once too. A row with a launch record is left for the pass that reads T3
-    Code's answer. It imports `dispatch` here, since `dispatch` imports this module."""
-    from jbus import dispatch
-
+    home hears of that once too. A row with a launch record (`jbus.launches`) is left for the pass
+    that reads T3 Code's answer."""
     for row in fixes:
         name = row["slug"]
         if green.startswith(name.rsplit("-", 1)[-1]):
@@ -1428,7 +1427,7 @@ def _withdraw(run: Pass, fixes: list[dict[str, Any]], green: str, branch: str = 
             )
             run.find(name, "retro", line, key=f"launched {name}", past=True)
             continue
-        if dispatch.records(run, name):
+        if records(run, name):
             continue
         why = f"{branch} is green at {green[:12]}, a later commit than the red it was filed for"
         try:

@@ -40,6 +40,7 @@ from jbus import (
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error
 from jbus.threads import ROLES
+from jbus.told import FILE, KIND, told_to
 from jbus.view import state
 from jbus.view.github import RUNS, shaped
 from jbus.watch import NOT_RED, _api, _log_failed
@@ -48,8 +49,6 @@ from jmerge import mainjson
 if TYPE_CHECKING:
     from jbus.cli import Half
 
-FILE = "wakes.json"
-KIND = "wakes"
 UNREAD = "unread"
 CREW = next(role for role in ROLES if role.name == "crew")
 MESSAGE = (
@@ -113,12 +112,6 @@ def kept(items: list[Item], seen: dict[str, Any], told: list[Item], at: str) -> 
     keys = {one.key for one in items}
     record = {key: one for key, one in seen.items() if key in keys}
     return record | {one.key: {"at": at, "wrong": one.wrong} for one in told}
-
-
-def told_to(record: dict[str, Any], thread: str) -> dict[str, dict[str, str]]:
-    """What the one list told the thread, by item key, from the record `tell` keeps in `FILE`:
-    `{"threads": {<thread>: {<key>: {"at", "wrong"}}}, "tests": {<run id>: <its tests>}}`."""
-    return (record.get("threads") or {}).get(thread) or {}
 
 
 @dataclass(frozen=True)

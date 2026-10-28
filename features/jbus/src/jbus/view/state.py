@@ -122,6 +122,9 @@ from jbus import (
 from jbus.live import LIVENESS, OUT
 from jbus.threads import OTHER, REPORT, ROLES
 from jbus.threads import shown as shown_roles
+from jbus.told import FILE as TOLD
+from jbus.told import KIND as TOLD_KIND
+from jbus.told import told_to
 from jbus.view import panels
 from jbus.view.clean import ANY, HOST, keep
 from jbus.view.homes import GROUP, Homes
@@ -1692,11 +1695,9 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
     if held and held.told and held.thread == one["to"]:
         return {"told": when(held.told), "what": leftover.KIND}
     key = key_of(one)
-    from jbus import wakes
-
-    for told in wakes.told_to(read.table(wakes.FILE) or {}, one["to"]).values():
+    for told in told_to(read.table(TOLD) or {}, one["to"]).values():
         if told.get("wrong") == key and when(told.get("at")):
-            return {"told": when(told["at"]), "what": wakes.KIND}
+            return {"told": when(told["at"]), "what": TOLD_KIND}
     sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     for line in reversed(sent):
         at = when(line.get("at"))
