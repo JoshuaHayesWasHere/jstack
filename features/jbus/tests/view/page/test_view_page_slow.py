@@ -42,7 +42,7 @@ def test_red_checks_that_outnumber_the_rest_are_what_slows_us(scene, tmp_path):
     clean(seen, DESK)
     words = said(seen)
     assert "in check 6 4 failing · 1 running or queued · 1 passed" in words
-    assert re.search(r"slowed by \S", words)
+    assert re.search(r"slowed by failing checks 4 ", words), "the largest group first, counted"
 
 
 def test_stacked_rows_are_counted_apart_on_the_check_card(scene, tmp_path):

@@ -11,7 +11,7 @@ var GLANCE_TIER = { wrong: "Wrong", yours: "Waits on you" };
     ".gl-sub { margin: 2px 0 0; font-size: 15px; color: var(--ink-2); } .gl-sub b { color: var(--ink); }" +
     ".gl-v { flex: 1 1 320px; min-width: 0; } .gl-v b { font-weight: 800; }" +
     ".gl-c { flex: none; display: inline-flex; gap: 10px; font-weight: 700; white-space: nowrap; overflow-wrap: normal; } .gl-c b { font-size: 22px; line-height: 1.1; }" +
-    ".gl-cw { color: var(--missed); } .gl-cy { color: var(--due); }" +
+    ".gl-cw { color: var(--missed); }" +
     ".gl-since { margin: 0; font-size: 15px; color: var(--ink-2); }" +
     ".gl-t { border-left: 5px solid var(--due); padding-left: 10px; margin: 6px 0 0; }" +
     ".gl-t.wrong { border-left-color: var(--missed); }" +
