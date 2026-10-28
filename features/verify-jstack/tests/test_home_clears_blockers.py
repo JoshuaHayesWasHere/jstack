@@ -129,8 +129,8 @@ def fix(slug, key, green="When green: `check` passes on the fix's pull request a
 
 
 def at_zoned():
-    """Now in this machine's time zone, as `jbus queue remove --at` takes it: jbus holds a typed time
-    to its own clock, which the sandbox does not fake."""
+    """Now in this machine's time zone, as `jbus queue remove --at` takes it: jbus holds a typed
+    time to its own clock, which the sandbox does not fake."""
     return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z")
 
 
