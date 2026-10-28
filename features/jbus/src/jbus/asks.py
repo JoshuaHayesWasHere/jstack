@@ -29,6 +29,7 @@ from jbus import (
     plan,
     questions,
     queue,
+    scouts,
     t3,
     verbs,
     waiting,
@@ -50,12 +51,13 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     file of the home: jbus knows the rule by what it says. `entry_go` reads the go of a row's plan
     entry (`plan.holding`).
 
-    `out` asks T3 Code and GitHub now for a thread that is at work, an open pull request, or a
-    merged one. A thread that ended or settled is not out. Where `out` cannot ask either of
-    them, it says so, and the answer is unknown. `launched` reads the launch records. A record
-    at `intent` is a launch that T3 Code has not answered yet. A record written after this
-    call began means that a pass launched the slug after `out` asked. The event carries the
-    row as it was, and jbus leaves it in the outbox and starts no POST for it.
+    `out` asks T3 Code and GitHub now for a thread that is at work, `crew: <slug>` or
+    `scout: <slug>`, an open pull request, or a merged one. A thread that ended or settled is
+    not out. Where `out` cannot ask either of them, it says so, and the answer is unknown.
+    `launched` reads the launch records. A record at `intent` is a launch that T3 Code has not
+    answered yet. A record written after this call began means that a pass launched the slug
+    after `out` asked. The event carries the row as it was, and jbus leaves it in the outbox and
+    starts no POST for it.
     """
     run = passes.Pass(config, project, datetime.now(UTC))
     began = time.time()
@@ -79,16 +81,21 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
         blockers.forgo(run, move)
 
     def out(slug: str) -> str:
+        scout = f"{scouts.TITLE}{slug}"
         try:
             client = t3.Client(config.server, config.token_path)
             listed = watch.crew_threads(client, project.project_id, f"{watch.TITLE}{slug}")
+            scouting = t3.listed(client, project.project_id, titleContains=scout)
         except (jbus.Refused, t3.T3Error) as error:
             why = str(error).removeprefix("refused: ")
             asked = f"T3 Code could not be asked whether {slug}'s thread is out"
             raise jbus.Refused(f"refused: {asked} ({why})") from error
-        for thread in listed:
-            if watch.at_work([thread], f"{watch.TITLE}{slug}"):
-                return f"{slug} is out: its thread {thread['threadId']} is {thread['status']}"
+        working = [t for t in listed if watch.at_work([t], f"{watch.TITLE}{slug}")] + [
+            t for t in scouting if str(t.get("title", "")).strip() == scout and watch.at_work([t])
+        ]
+        if working:
+            thread = working[0]
+            return f"{slug} is out: its thread {thread['threadId']} is {thread['status']}"
         for state, said in (
             ("open", "{slug} is out: its pull request #{number} is open"),
             ("merged", "{slug} merged as #{number}, and a merged row stays"),
