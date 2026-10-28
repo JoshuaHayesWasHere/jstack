@@ -964,6 +964,50 @@ def _events(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _acts(read: Read) -> list[dict[str, Any]]:
+    """Every act the project's records keep, oldest first, each with its time, its line and
+    the home it is of (`homes.Homes.of_key`), or None for an act of no home: each change of a
+    row's status in `transitions.jsonl`, each event of `events.jsonl`, a wake and a Result
+    among them, but jbus's hourly heartbeat, which says only that jbus runs, and each line of
+    `merge.log`, by the pull request it names, or the slug a merge names."""
+    pulls = {text(row.get("pr")).removeprefix("#"): row["slug"] for row in read.rows}
+    pulls.pop("", None)
+    rows, homes = {row["slug"] for row in read.rows}, read.homes
+    known: dict[str, str | None] = {}
+
+    def act(at: str | None, key: str, what: str) -> dict[str, Any] | None:
+        if not at:
+            return None
+        if key not in known:
+            known[key] = homes.of_key(key, pulls, rows)
+        return {"at": at, "home": known[key], "what": text(what, 160)}
+
+    made = [
+        act(
+            when(one.get("at")),
+            text(one.get("slug"), 80),
+            f"{one.get('slug')}: {one.get('from')} to {one.get('to')}",
+        )
+        for one in read.moves or []
+    ]
+    made += [
+        act(one["at"], one["slug"], one["line"])
+        for one in read.events
+        if one["kind"] != "heartbeat"
+    ]
+    for logged in read.log or []:
+        stamped = _LOGGED.match(logged)
+        line = merge.parse(stamped[2]) if stamped else None
+        if stamped and line:
+            named = (
+                line.name
+                if line.word == "merged" and str(line.number) not in pulls
+                else f"#{line.number}"
+            )
+            made.append(act(when(stamped[1], read.user), named, stamped[2]))
+    return sorted((one for one in made if one), key=lambda one: one["at"])
+
+
 def threads_seen(sources: Sources, name: str) -> Any:
     """The threads the last pass listed for the project, as `pass.json` has them."""
     record = _table(sources.state_dir / "pass.json") or {}
@@ -1179,6 +1223,11 @@ class Read:
     @cached_property
     def events(self) -> list[dict[str, Any]]:
         return _events(self.logged or [])
+
+    @cached_property
+    def acts(self) -> list[dict[str, Any]]:
+        """Every act the project's records keep, oldest first, each with its home (`_acts`)."""
+        return _acts(self)
 
     @cached_property
     def log(self) -> list[str] | None:
@@ -1452,6 +1501,7 @@ SUMMARY = {
     "merged": None,
     "threads": [THREAD],
     "homes": [GROUP],
+    "last": {"at": None, "home": None, "what": None},
     "broken": [{"what": None, "open": None, "since": None}],
     "unplaced": [None],
     "health": {
@@ -1876,7 +1926,8 @@ def summary(read: Read) -> dict[str, Any]:
         "steps": steps,
         "merged": len(read.panel("merged")["merged"]),
         "threads": read.out,
-        "homes": read.homes.group(read.tasks, read.panel("you")["needs"], read.out),
+        "homes": read.homes.group(read.tasks, read.panel("you")["needs"], read.out, read.acts),
+        "last": read.acts[-1] if read.acts else None,
         "health": {
             "checks": failed,
             "bus": {key: bus[key] for key in ("outbox", "failed_wakes", "last_error")},

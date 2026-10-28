@@ -1,0 +1,654 @@
+{
+ "at": "2026-10-26T13:00:00+00:00",
+ "root": {
+  "home-id": "mcp:root-home",
+  "was": "mcp:root-was"
+ },
+ "scopes": {
+  "flow": {
+   "home-id": "mcp:flow-home",
+   "was": ""
+  },
+  "jview": {
+   "home-id": "mcp:jview-home",
+   "was": "mcp:jview-was"
+  },
+  "macos": {
+   "home-id": "",
+   "was": "mcp:macos-was"
+  }
+ },
+ "rows": [
+  {
+   "slug": "bl-macos-ci-required",
+   "status": "pr",
+   "since": "2026-10-23T13:11:14+00:00",
+   "pr": "#312",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-fl-hold-wakes",
+   "status": "pr",
+   "since": "2026-10-26T03:56:13+00:00",
+   "pr": "#453",
+   "depends": [
+    "fl-hold-wakes"
+   ]
+  },
+  {
+   "slug": "fl-base-red-fix",
+   "status": "pr",
+   "since": "2026-10-26T10:12:15+00:00",
+   "pr": "#459",
+   "depends": [
+    "fl-train-red-row"
+   ]
+  },
+  {
+   "slug": "ux-glance-pr",
+   "status": "pr",
+   "since": "2026-10-26T11:41:21+00:00",
+   "pr": "#463",
+   "depends": []
+  },
+  {
+   "slug": "ux-homes-board-pr",
+   "status": "pr",
+   "since": "2026-10-26T11:42:25+00:00",
+   "pr": "#467",
+   "depends": []
+  },
+  {
+   "slug": "ux-look-pr",
+   "status": "pr",
+   "since": "2026-10-26T11:42:25+00:00",
+   "pr": "#465",
+   "depends": []
+  },
+  {
+   "slug": "ux-telemetry-pr",
+   "status": "pr",
+   "since": "2026-10-26T11:42:25+00:00",
+   "pr": "#466",
+   "depends": []
+  },
+  {
+   "slug": "ux-status-link",
+   "status": "pr",
+   "since": "2026-10-26T11:51:36+00:00",
+   "pr": "#469",
+   "depends": []
+  },
+  {
+   "slug": "ux-find",
+   "status": "pr",
+   "since": "2026-10-26T11:53:46+00:00",
+   "pr": "#471",
+   "depends": []
+  },
+  {
+   "slug": "ux-throughput",
+   "status": "pr",
+   "since": "2026-10-26T11:53:46+00:00",
+   "pr": "#470",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-ux-homes-board-pr",
+   "status": "pr",
+   "since": "2026-10-26T11:56:52+00:00",
+   "pr": "#472",
+   "depends": [
+    "ux-homes-board-pr"
+   ]
+  },
+  {
+   "slug": "mac-sync-main-8",
+   "status": "pr",
+   "since": "2026-10-26T12:00:26+00:00",
+   "pr": "#475",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-ux-telemetry-pr",
+   "status": "pr",
+   "since": "2026-10-26T12:03:16+00:00",
+   "pr": "#476",
+   "depends": [
+    "ux-telemetry-pr"
+   ]
+  },
+  {
+   "slug": "cleanup-ux-look-pr",
+   "status": "pr",
+   "since": "2026-10-26T12:05:47+00:00",
+   "pr": "#477",
+   "depends": [
+    "ux-look-pr"
+   ]
+  },
+  {
+   "slug": "cleanup-ux-milestones-pr",
+   "status": "pr",
+   "since": "2026-10-26T12:08:30+00:00",
+   "pr": "#478",
+   "depends": [
+    "ux-milestones-pr"
+   ]
+  },
+  {
+   "slug": "cleanup-ux-inbox-pr",
+   "status": "pr",
+   "since": "2026-10-26T12:08:30+00:00",
+   "pr": "#479",
+   "depends": [
+    "ux-inbox-pr"
+   ]
+  },
+  {
+   "slug": "ux-since",
+   "status": "pr",
+   "since": "2026-10-26T12:14:00+00:00",
+   "pr": "#480",
+   "depends": []
+  },
+  {
+   "slug": "fl-word-own-scope",
+   "status": "pr",
+   "since": "2026-10-26T12:15:17+00:00",
+   "pr": "#481",
+   "depends": []
+  },
+  {
+   "slug": "ux-slow",
+   "status": "pr",
+   "since": "2026-10-26T12:19:28+00:00",
+   "pr": "#483",
+   "depends": []
+  },
+  {
+   "slug": "ux-flow-model",
+   "status": "gate",
+   "since": "2026-10-26T12:19:28+00:00",
+   "pr": "#512",
+   "depends": [
+    "ux-slow"
+   ]
+  },
+  {
+   "slug": "fl-brief-lint",
+   "status": "pr",
+   "since": "2026-10-26T12:21:06+00:00",
+   "pr": "#484",
+   "depends": []
+  },
+  {
+   "slug": "fl-guard-infra-files",
+   "status": "pr",
+   "since": "2026-10-26T12:22:49+00:00",
+   "pr": "#485",
+   "depends": []
+  },
+  {
+   "slug": "fl-scope-sends",
+   "status": "pr",
+   "since": "2026-10-26T12:22:49+00:00",
+   "pr": "#486",
+   "depends": []
+  },
+  {
+   "slug": "crew-needs-go",
+   "status": "pr",
+   "since": "2026-10-26T12:24:25+00:00",
+   "pr": "#487",
+   "depends": []
+  },
+  {
+   "slug": "ux-flow-cause",
+   "status": "pr",
+   "since": "2026-10-26T12:24:25+00:00",
+   "pr": "#488",
+   "depends": []
+  },
+  {
+   "slug": "ux-flow-shot",
+   "status": "pr",
+   "since": "2026-10-26T12:27:26+00:00",
+   "pr": "#489",
+   "depends": []
+  },
+  {
+   "slug": "ux-flow-status",
+   "status": "pr",
+   "since": "2026-10-26T12:29:02+00:00",
+   "pr": "#490",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-ux-glance-pr",
+   "status": "pr",
+   "since": "2026-10-26T12:30:31+00:00",
+   "pr": "#492",
+   "depends": [
+    "ux-glance-pr"
+   ]
+  },
+  {
+   "slug": "fl-followup-approve",
+   "status": "pr",
+   "since": "2026-10-26T12:33:55+00:00",
+   "pr": "#495",
+   "depends": []
+  },
+  {
+   "slug": "crew-asks-nothing",
+   "status": "pr",
+   "since": "2026-10-26T12:33:55+00:00",
+   "pr": "#496",
+   "depends": []
+  },
+  {
+   "slug": "docs-vision-and-judgment",
+   "status": "pr",
+   "since": "2026-10-26T12:33:55+00:00",
+   "pr": "#493",
+   "depends": []
+  },
+  {
+   "slug": "skills-no-outside-instructions",
+   "status": "pr",
+   "since": "2026-10-26T12:33:55+00:00",
+   "pr": "#494",
+   "depends": []
+  },
+  {
+   "slug": "ux-flow-retire",
+   "status": "pr",
+   "since": "2026-10-26T12:33:55+00:00",
+   "pr": "#497",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-ux-flow-shot",
+   "status": "pr",
+   "since": "2026-10-26T12:43:22+00:00",
+   "pr": "#498",
+   "depends": [
+    "ux-flow-shot"
+   ]
+  },
+  {
+   "slug": "ux-flow-page",
+   "status": "pr",
+   "since": "2026-10-26T12:45:05+00:00",
+   "pr": "#499",
+   "depends": []
+  },
+  {
+   "slug": "fl-brief-review-mode",
+   "status": "pr",
+   "since": "2026-10-26T12:46:54+00:00",
+   "pr": "#500",
+   "depends": []
+  },
+  {
+   "slug": "fl-slot-basetemp",
+   "status": "pr",
+   "since": "2026-10-26T12:51:53+00:00",
+   "pr": "#501",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-ux-flow-cause",
+   "status": "pr",
+   "since": "2026-10-26T12:53:35+00:00",
+   "pr": "#502",
+   "depends": [
+    "ux-flow-cause"
+   ]
+  },
+  {
+   "slug": "cleanup-skills-no-outside-instructions",
+   "status": "pr",
+   "since": "2026-10-26T12:57:10+00:00",
+   "pr": "#503",
+   "depends": [
+    "skills-no-outside-instructions"
+   ]
+  },
+  {
+   "slug": "cleanup-ux-flow-status",
+   "status": "pr",
+   "since": "2026-10-26T12:59:06+00:00",
+   "pr": "#504",
+   "depends": [
+    "ux-flow-status"
+   ]
+  },
+  {
+   "slug": "mac-sync-main-7",
+   "status": "running",
+   "since": "2026-10-26T12:59:06+00:00",
+   "pr": "#508",
+   "depends": [
+    "mac-tree-spec-timeout"
+   ]
+  },
+  {
+   "slug": "cleanup-crew-asks-nothing",
+   "status": "running",
+   "since": "2026-10-26T12:59:06+00:00",
+   "pr": "#507",
+   "depends": [
+    "crew-asks-nothing"
+   ]
+  },
+  {
+   "slug": "cleanup-fl-brief-review-mode",
+   "status": "running",
+   "since": "2026-10-26T12:59:06+00:00",
+   "pr": "#505",
+   "depends": [
+    "fl-brief-review-mode"
+   ]
+  },
+  {
+   "slug": "cleanup-ux-flow-retire",
+   "status": "running",
+   "since": "2026-10-26T12:59:06+00:00",
+   "pr": "#506",
+   "depends": [
+    "ux-flow-retire"
+   ]
+  },
+  {
+   "slug": "mac-sync-main-5",
+   "status": "merged",
+   "since": "2026-10-26T04:31:21+00:00",
+   "pr": "#451",
+   "depends": []
+  },
+  {
+   "slug": "mac-strays-env",
+   "status": "merged",
+   "since": "2026-10-26T04:51:35+00:00",
+   "pr": "#447",
+   "depends": [
+    "mac-sync-main-4"
+   ]
+  },
+  {
+   "slug": "main-red-1b81760225e8",
+   "status": "merged",
+   "since": "2026-10-26T06:52:45+00:00",
+   "pr": "#455",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-mac-verify-standin",
+   "status": "merged",
+   "since": "2026-10-26T06:53:57+00:00",
+   "pr": "#415",
+   "depends": [
+    "mac-verify-standin"
+   ]
+  },
+  {
+   "slug": "cleanup-fl-scope-after-fix",
+   "status": "merged",
+   "since": "2026-10-26T07:07:45+00:00",
+   "pr": "#449",
+   "depends": [
+    "fl-scope-after-fix"
+   ]
+  },
+  {
+   "slug": "cleanup-ap-blocks-rest",
+   "status": "merged",
+   "since": "2026-10-26T07:12:13+00:00",
+   "pr": "#440",
+   "depends": [
+    "ap-blocks-rest"
+   ]
+  },
+  {
+   "slug": "cleanup-fl-crew-short-check",
+   "status": "merged",
+   "since": "2026-10-26T07:23:35+00:00",
+   "pr": "#443",
+   "depends": [
+    "fl-crew-short-check"
+   ]
+  },
+  {
+   "slug": "cleanup-hometree-rules",
+   "status": "merged",
+   "since": "2026-10-26T07:32:06+00:00",
+   "pr": "#437",
+   "depends": [
+    "hometree-rules"
+   ]
+  },
+  {
+   "slug": "tlc-bounded",
+   "status": "merged",
+   "since": "2026-10-26T07:41:16+00:00",
+   "pr": "#435",
+   "depends": []
+  },
+  {
+   "slug": "fl-harness-project",
+   "status": "merged",
+   "since": "2026-10-26T07:56:30+00:00",
+   "pr": "#454",
+   "depends": []
+  },
+  {
+   "slug": "fl-gh-recheck",
+   "status": "merged",
+   "since": "2026-10-26T09:50:21+00:00",
+   "pr": "#444",
+   "depends": [
+    "fl-flowtoday-spec"
+   ]
+  },
+  {
+   "slug": "mac-sync-main-6",
+   "status": "merged",
+   "since": "2026-10-26T09:50:21+00:00",
+   "pr": "#456",
+   "depends": [
+    "main-red-1b81760225e8"
+   ]
+  },
+  {
+   "slug": "mac-blockers-disk",
+   "status": "merged",
+   "since": "2026-10-26T10:03:59+00:00",
+   "pr": "#423",
+   "depends": [
+    "mac-verify-standin"
+   ]
+  },
+  {
+   "slug": "fl-hold-wakes",
+   "status": "merged",
+   "since": "2026-10-26T10:14:16+00:00",
+   "pr": "#450",
+   "depends": []
+  },
+  {
+   "slug": "fl-stack-train-base",
+   "status": "merged",
+   "since": "2026-10-26T10:18:26+00:00",
+   "pr": "#448",
+   "depends": []
+  },
+  {
+   "slug": "mac-strays-env-2",
+   "status": "merged",
+   "since": "2026-10-26T10:27:45+00:00",
+   "pr": "#457",
+   "depends": []
+  },
+  {
+   "slug": "fl-train-red-row",
+   "status": "merged",
+   "since": "2026-10-26T10:42:16+00:00",
+   "pr": "#452",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-fl-stack-train-base",
+   "status": "merged",
+   "since": "2026-10-26T11:07:10+00:00",
+   "pr": "#458",
+   "depends": [
+    "fl-stack-train-base"
+   ]
+  },
+  {
+   "slug": "mac-blockers-approve",
+   "status": "merged",
+   "since": "2026-10-26T11:23:46+00:00",
+   "pr": "#461",
+   "depends": []
+  },
+  {
+   "slug": "mac-jgauge-sample-inodes",
+   "status": "merged",
+   "since": "2026-10-26T11:32:06+00:00",
+   "pr": "#460",
+   "depends": []
+  },
+  {
+   "slug": "ux-milestones-pr",
+   "status": "merged",
+   "since": "2026-10-26T12:09:50+00:00",
+   "pr": "#462",
+   "depends": []
+  },
+  {
+   "slug": "ux-asks-count",
+   "status": "merged",
+   "since": "2026-10-26T12:09:50+00:00",
+   "pr": "#468",
+   "depends": []
+  },
+  {
+   "slug": "ux-inbox-pr",
+   "status": "merged",
+   "since": "2026-10-26T12:30:31+00:00",
+   "pr": "#464",
+   "depends": []
+  },
+  {
+   "slug": "mac-room-cores",
+   "status": "merged",
+   "since": "2026-10-26T12:45:05+00:00",
+   "pr": "#473",
+   "depends": []
+  },
+  {
+   "slug": "cleanup-ux-asks-count",
+   "status": "merged",
+   "since": "2026-10-26T12:53:35+00:00",
+   "pr": "#474",
+   "depends": [
+    "ux-asks-count"
+   ]
+  },
+  {
+   "slug": "mac-tree-spec-timeout",
+   "status": "merged",
+   "since": "2026-10-26T12:57:10+00:00",
+   "pr": "#491",
+   "depends": []
+  },
+  {
+   "slug": "fl-standing-cap",
+   "status": "merged",
+   "since": "2026-10-26T12:59:06+00:00",
+   "pr": "#482",
+   "depends": []
+  }
+ ],
+ "tasks": {
+  "bl-macos-ci-required": "macos",
+  "cleanup-fl-hold-wakes": "",
+  "fl-base-red-fix": "flow",
+  "ux-glance-pr": "jview",
+  "ux-homes-board-pr": "jview",
+  "ux-look-pr": "jview",
+  "ux-telemetry-pr": "jview",
+  "ux-status-link": "jview",
+  "ux-find": "jview",
+  "ux-throughput": "jview",
+  "cleanup-ux-homes-board-pr": "",
+  "mac-sync-main-8": "",
+  "cleanup-ux-telemetry-pr": "",
+  "cleanup-ux-look-pr": "",
+  "cleanup-ux-milestones-pr": "",
+  "cleanup-ux-inbox-pr": "",
+  "ux-since": "jview",
+  "fl-word-own-scope": "flow",
+  "ux-slow": "jview",
+  "ux-flow-model": "jview",
+  "fl-brief-lint": "flow",
+  "fl-guard-infra-files": "flow",
+  "fl-scope-sends": "flow",
+  "crew-needs-go": "",
+  "ux-flow-cause": "jview",
+  "ux-flow-shot": "jview",
+  "ux-flow-status": "jview",
+  "cleanup-ux-glance-pr": "",
+  "fl-followup-approve": "flow",
+  "crew-asks-nothing": "",
+  "docs-vision-and-judgment": "",
+  "skills-no-outside-instructions": "",
+  "ux-flow-retire": "jview",
+  "cleanup-ux-flow-shot": "",
+  "ux-flow-page": "jview",
+  "fl-brief-review-mode": "flow",
+  "fl-slot-basetemp": "flow",
+  "cleanup-ux-flow-cause": "",
+  "cleanup-skills-no-outside-instructions": "",
+  "cleanup-ux-flow-status": "",
+  "mac-sync-main-7": "",
+  "cleanup-crew-asks-nothing": "",
+  "cleanup-fl-brief-review-mode": "",
+  "cleanup-ux-flow-retire": "",
+  "mac-sync-main-5": "macos",
+  "mac-strays-env": "macos",
+  "main-red-1b81760225e8": "",
+  "cleanup-mac-verify-standin": "",
+  "cleanup-fl-scope-after-fix": "",
+  "cleanup-ap-blocks-rest": "",
+  "cleanup-fl-crew-short-check": "",
+  "cleanup-hometree-rules": "",
+  "tlc-bounded": "",
+  "fl-harness-project": "flow",
+  "fl-gh-recheck": "flow",
+  "mac-sync-main-6": "",
+  "mac-blockers-disk": "macos",
+  "fl-hold-wakes": "flow",
+  "fl-stack-train-base": "flow",
+  "mac-strays-env-2": "",
+  "fl-train-red-row": "flow",
+  "cleanup-fl-stack-train-base": "",
+  "mac-blockers-approve": "",
+  "mac-jgauge-sample-inodes": "",
+  "ux-milestones-pr": "jview",
+  "ux-asks-count": "jview",
+  "ux-inbox-pr": "jview",
+  "mac-room-cores": "",
+  "cleanup-ux-asks-count": "",
+  "mac-tree-spec-timeout": "",
+  "fl-standing-cap": "flow"
+ },
+ "scouts": {
+  "jview-baseline": "jview",
+  "jview-flow-board": "jview",
+  "rules-to-code": ""
+ }
+}

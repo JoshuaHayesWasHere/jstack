@@ -284,7 +284,7 @@ def build(read: Read) -> dict[str, Any]:
         made = _thread(thread, by_slug)
         if made is not None and thread["home"] is not None:
             placed.append((thread["home"], made))
-    cards = read.homes.group(read.tasks, read.panel("you")["needs"], read.out)
+    cards = read.homes.group(read.tasks, read.panel("you")["needs"], read.out, read.acts)
     for card in cards:
         mine = [one for home, one in placed if home == card["name"]]
         mine.sort(key=lambda one: (order[one["stage"]], one["since"] or "~", one["slug"]))

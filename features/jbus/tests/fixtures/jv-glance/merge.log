@@ -1,0 +1,286 @@
+2026-10-26 00:02 wait 440 https://github.com/JoshuaHayesWasHere/jstack/pull/440: main is red at 1b81760225e8, its fix merges first
+2026-10-26 00:03 wait 454 https://github.com/JoshuaHayesWasHere/jstack/pull/454: no brief has a Result that names it
+2026-10-26 00:04 wait 454 https://github.com/JoshuaHayesWasHere/jstack/pull/454: it has no review yet
+2026-10-26 00:07 wait 454 https://github.com/JoshuaHayesWasHere/jstack/pull/454: its findings are not handled: the Result has no Fixed line
+2026-10-26 00:09 wait 454 https://github.com/JoshuaHayesWasHere/jstack/pull/454: check has not passed
+2026-10-26 00:10 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: its second review is not written at 1ed99e5e1760
+2026-10-26 00:14 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: check has not passed
+2026-10-26 00:29 wait 451 https://github.com/JoshuaHayesWasHere/jstack/pull/451: the rebase changed the content after its review; scoped review of git range-diff --no-color 6910a8c7d6bafc976622151e5b2f6244eb7615ee..072a25ac0030c43012368f07a34c467a2c8ca9c4 6910a8c7d6bafc976622151e5b2f6244eb7615ee..029a74a357ee554aa513d8c862eb01affd89a81f
+2026-10-26 00:31 merged 451 mac-sync-main-5 baa36e6dae2788125eb9539f2c86fbd002ae308e "merge(main): train/macos takes main at 1a9f9cab, so the train holds #432 and its crews' check block runs", into train/macos, kept: the remote branch mac-sync-main-5, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/451
+2026-10-26 00:37 wait 454 https://github.com/JoshuaHayesWasHere/jstack/pull/454: main is red at 1b81760225e8, its fix merges first
+2026-10-26 00:48 wait 415 https://github.com/JoshuaHayesWasHere/jstack/pull/415: it conflicts with its base
+2026-10-26 00:48 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: a fresh check is queued
+2026-10-26 00:48 wait 447 https://github.com/JoshuaHayesWasHere/jstack/pull/447: the rebase changed the content after its review; scoped review of git range-diff --no-color 41ebb7e25c636eb9111f18b3381d7a7d6c8056be..0ff017ba85532c4b1fede67760ac9bdd6b74c1d5 6910a8c7d6bafc976622151e5b2f6244eb7615ee..d3f3d35f26348cdf982b9be267d629b90f7225e8
+2026-10-26 00:51 merged 447 mac-strays-env f470eafaedd8cd1cfe20a213aa739571a858f5a0 "fix(jbus): test_jbus_left_running asks a Mac only for the stray its working directory ties to a crew", into train/macos, kept: the remote branch mac-strays-env, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/447
+2026-10-26 00:51 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: its second review is not written at a295e5c9becd
+2026-10-26 00:55 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: check has not passed
+2026-10-26 00:56 wait 415 https://github.com/JoshuaHayesWasHere/jstack/pull/415: its Rebase line says the patch is unchanged, and the rebase changed it
+2026-10-26 01:02 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: train/macos is red at f470eafaedd8: its latest check failed
+2026-10-26 01:09 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: merges after fl-gh-recheck (#444), not merged yet
+2026-10-26 02:37 wait 444 https://github.com/JoshuaHayesWasHere/jstack/pull/444: main is red at 1b81760225e8, its fix merges first
+2026-10-26 02:39 wait 455 https://github.com/JoshuaHayesWasHere/jstack/pull/455: it has no review yet
+2026-10-26 02:42 wait 455 https://github.com/JoshuaHayesWasHere/jstack/pull/455: check has not passed
+2026-10-26 02:50 wait 415 https://github.com/JoshuaHayesWasHere/jstack/pull/415: the rebase dropped 6 of main's lines in features/verify-jstack/project-skill/scripts/launch.sh with no Dropped on rebase line at f19dca0f860c
+2026-10-26 02:50 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: jgauge test-slot -- make check-fast BASE=origin/main fails on a2d431181554 over today's main f470eafaedd8
+2026-10-26 02:51 wait 415 https://github.com/JoshuaHayesWasHere/jstack/pull/415: the rebase changed the content after its review; scoped review of git range-diff --no-color bd1a60c3cb2a4b0e4c2bf691bb27a9decfb1aff6..19257bac3af81ba8b2a399d71642b96ea9be4f5e baa36e6dae2788125eb9539f2c86fbd002ae308e..f19dca0f860c3da3270af2eaf68c9f7cb9b0cc00
+2026-10-26 02:52 merged 455 main-red-1b81760225e8 42ed8009a41a2923fa4790b75261812fc938fdf4 "test(home): split the scoped home read test so neither half nears the 120 s timeout", kept: the remote branch main-red-1b81760225e8, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/455
+2026-10-26 02:54 merged 415 cleanup-mac-verify-standin 720c9377a8c3d76cafcd0768e69f9a28216f9538 "fix(verify-jstack): launch.sh no longer aborts a stand-in that does not start", into train/macos, kept: the remote branch cleanup-mac-verify-standin, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/415
+2026-10-26 02:54 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: a fresh check is queued
+2026-10-26 02:57 wait 456 https://github.com/JoshuaHayesWasHere/jstack/pull/456: it is stacked on main-red-1b81760225e8, and merges after main-red-1b81760225e8 merged and jbus moved it onto main
+2026-10-26 02:58 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: check has not passed
+2026-10-26 03:00 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: jgauge test-slot -- make check-fast BASE=origin/main fails on a2d431181554 over today's main 720c9377a8c3
+2026-10-26 03:00 wait 456 https://github.com/JoshuaHayesWasHere/jstack/pull/456: it has no review yet
+2026-10-26 03:01 wait 456 https://github.com/JoshuaHayesWasHere/jstack/pull/456: it is stacked on main, and merges after main-red-1b81760225e8 merged and jbus moved it onto main
+2026-10-26 03:04 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: train/macos is red at 720c9377a8c3: its latest check failed
+2026-10-26 03:07 wait 435 https://github.com/JoshuaHayesWasHere/jstack/pull/435: a fresh check is queued
+2026-10-26 03:07 wait 440 https://github.com/JoshuaHayesWasHere/jstack/pull/440: the rebase dropped 1 of its own in features/crew/do-the-task.md and 7 of its own in features/home/spec/HomeTreeToday.tla with no Dropped on rebase line at 9d7d6a40ef50
+2026-10-26 03:07 wait 444 https://github.com/JoshuaHayesWasHere/jstack/pull/444: a fresh check is queued
+2026-10-26 03:07 merged 449 cleanup-fl-scope-after-fix 75533033c7ec6c8a42a132c536f61cbfc7951b34 "fix(crew): Do the task asks jmerge --scope again before a failed check's push, as The checks does", kept: the remote branch cleanup-fl-scope-after-fix, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/449
+2026-10-26 03:07 wait 454 https://github.com/JoshuaHayesWasHere/jstack/pull/454: a fresh check is queued
+2026-10-26 03:09 wait 435 https://github.com/JoshuaHayesWasHere/jstack/pull/435: main could not be fetched to see what changed after its check
+2026-10-26 03:09 wait 440 https://github.com/JoshuaHayesWasHere/jstack/pull/440: the rebase changed the content after its review; scoped review of git range-diff --no-color d1e9cce2f163981152087e9acba92bd5c9fdafd9..41e556258ffacfc9f3a83152c3a5846f2ef06652 1b81760225e8d9439467a0cca06d842446c09497..9d7d6a40ef5049be123bf6d22c796c0369a602e1
+2026-10-26 03:10 wait 435 https://github.com/JoshuaHayesWasHere/jstack/pull/435: a fresh check is queued
+2026-10-26 03:12 merged 440 cleanup-ap-blocks-rest 30720cc65227fa9bbd89e0dfb7688474478192fa "fix(jmerge): gate.outside_venv takes the venv bin off PATH for the merge gate and --remake", kept: the remote branch cleanup-ap-blocks-rest, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/440
+2026-10-26 03:15 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: merges after fl-gh-recheck (#444), not merged yet
+2026-10-26 03:20 wait 443 https://github.com/JoshuaHayesWasHere/jstack/pull/443: the rebase dropped 3 of main's lines in features/crew/tests/test_crew_check_command.py with no Dropped on rebase line at ef4427ba07be
+2026-10-26 03:21 wait 443 https://github.com/JoshuaHayesWasHere/jstack/pull/443: the rebase changed the content after its review; scoped review of git range-diff --no-color 5039099f996857eae103abd87d87d40423e05edd..34c8155a86b47ff305d00571f1cf570258d0732d 42ed8009a41a2923fa4790b75261812fc938fdf4..ef4427ba07beef4fa0e4d120f30b97824cf12483
+2026-10-26 03:23 merged 443 cleanup-fl-crew-short-check c59577a3f839934d1401b5a9fc11d31a83c1065a "test(crew): the check block selects from the branch a Stack: line names", kept: the remote branch cleanup-fl-crew-short-check, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/443
+2026-10-26 03:26 wait 437 https://github.com/JoshuaHayesWasHere/jstack/pull/437: the rebase dropped 22 of main's lines in features/home/spec/HomeTreeToday.tla and 6 of main's lines in features/jbus/src/jbus/children.py and 10 of its own in features/home/spec/HomeTreeToday.tla and 1 of its own in features/home/tests/test_home_tree_spec.py with no Dropped on rebase line at 43ab347968ca
+2026-10-26 03:26 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: merges after fl-gh-recheck (#444), not merged yet
+2026-10-26 03:27 wait 450 https://github.com/JoshuaHayesWasHere/jstack/pull/450: merges after fl-gh-recheck (#444), not merged yet
+2026-10-26 03:29 wait 437 https://github.com/JoshuaHayesWasHere/jstack/pull/437: the rebase changed the content after its review; scoped review of git range-diff --no-color 479438dd58b985f0260546f47e98227a95264d47..d341e4496da25a4a492da58bcdb0f0755a1cedbc 42ed8009a41a2923fa4790b75261812fc938fdf4..43ab347968ca2f9e513d7f9f991d3f018722037c
+2026-10-26 03:32 merged 437 cleanup-hometree-rules fac38cb149e438887a8a8d156390b1202ed01dc4 "fix(jbus,home): each step of a child's spell waits a patience after the last, and HomeTreeToday's quotes are tested against their lines", kept: the remote branch cleanup-hometree-rules, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/437
+2026-10-26 03:41 merged 435 tlc-bounded 130750f80706dcad973c2dacb6b47ecb6a67530a "fix(statechart): a TLC run takes 2 workers and a jgauge test slot, never -workers auto", kept: the remote branch tlc-bounded, the worktree and the local branch are removed (it is not at the merged head on the origin), fresh: jgauge test-slot -- make check-fast BASE=origin/main passed on 93b700af5432 over fac38cb149e4, revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/435
+2026-10-26 03:49 wait 444 https://github.com/JoshuaHayesWasHere/jstack/pull/444: jgauge test-slot -- make check-fast BASE=origin/main fails on 71450b15ca11 over today's main 130750f80706
+2026-10-26 03:56 merged 454 fl-harness-project 9a203524eaf9dcdc79914a0da8d13e66b007556e "fix(skills): blocks run jstack tools by "$T/../source", never the worktree venv", ran the install again in ~/repos/jstack: the merge changed what it assembles, kept: the remote branch fl-harness-project, the worktree and the local branch are removed (it is not at the merged head on the origin), fresh: jgauge test-slot -- make check-fast BASE=origin/main passed on d426c5ffe3b2 over 130750f80706, revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/454
+2026-10-26 03:57 wait 444 https://github.com/JoshuaHayesWasHere/jstack/pull/444: a fresh check is queued
+2026-10-26 04:05 wait 444 https://github.com/JoshuaHayesWasHere/jstack/pull/444: jgauge test-slot -- make check-fast BASE=origin/main fails on 71450b15ca11 over today's main 9a203524eaf9
+2026-10-26 04:08 wait 456 https://github.com/JoshuaHayesWasHere/jstack/pull/456: train/macos is red at 720c9377a8c3: its latest check failed
+2026-10-26 04:16 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: no brief has a Result that names it
+2026-10-26 04:17 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: it has no review yet
+2026-10-26 04:18 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: no brief has a Result that names it
+2026-10-26 04:19 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: check has not passed
+2026-10-26 04:19 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: it is stacked on fl-stack-train-base, and merges after fl-stack-train-base merged and jbus moved it onto main
+2026-10-26 04:46 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: the rebase changed the content after its review; scoped review of git range-diff --no-color 720c9377a8c3d76cafcd0768e69f9a28216f9538..5f681d6482e788eb8cfc9ff8969c2108251be864 720c9377a8c3d76cafcd0768e69f9a28216f9538..31d90090b7160472c034fddc661a5a215c21abe1
+2026-10-26 04:48 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: train/macos is red at 720c9377a8c3: its latest check failed
+2026-10-26 05:34 wait 444 https://github.com/JoshuaHayesWasHere/jstack/pull/444: check has not passed
+2026-10-26 05:50 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: jgauge test-slot -- make check-fast BASE=origin/main fails on a2d431181554 over today's main 720c9377a8c3
+2026-10-26 05:50 merged 444 fl-gh-recheck 21529a2af62b60696e651eac5385af93aa239cba "fix(jmerge): when main moves, GitHub proves a pull request over today's main, not a local suite", kept: the remote branch fl-gh-recheck, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/444
+2026-10-26 05:50 merged 456 mac-sync-main-6 8c2995fae1d18b85a38faf1712968b45db0b21a9 "merge(main): train/macos takes main at 42ed8009 (#455), so the scoped home read test stops timing out on the train", into train/macos, kept: the remote branch mac-sync-main-6, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/456
+2026-10-26 05:50 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: a fresh check is queued
+2026-10-26 05:51 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: GitHub was asked to merge train/macos at 8c2995fae1d1 into it: train/macos moved after its check started
+2026-10-26 05:51 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: it conflicts with its base
+2026-10-26 05:51 wait 450 https://github.com/JoshuaHayesWasHere/jstack/pull/450: GitHub was asked to merge main at 21529a2af62b into it: main moved after its check started
+2026-10-26 05:51 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: merges after fl-hold-wakes (#450), not merged yet
+2026-10-26 05:51 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: GitHub was asked to merge train/macos at 8c2995fae1d1 into it: train/macos moved after its check started
+2026-10-26 05:52 wait 423 https://github.com/JoshuaHayesWasHere/jstack/pull/423: check has not passed
+2026-10-26 05:52 wait 450 https://github.com/JoshuaHayesWasHere/jstack/pull/450: check has not passed
+2026-10-26 05:52 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: check has not passed
+2026-10-26 06:04 merged 423 mac-blockers-disk b49b153be3e14bd6d261b4e32566201ed013f04c "fix(verify-jstack): test_home_clears_blockers counts no page of the host's disk, and waits no gap after one", into train/macos, kept: mac-blockers-disk is not at the merged head, revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/423
+2026-10-26 06:07 wait 448 https://github.com/JoshuaHayesWasHere/jstack/pull/448: check has not passed
+2026-10-26 06:10 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: GitHub was asked to merge train/macos at b49b153be3e1 into it: train/macos moved after its check started
+2026-10-26 06:11 wait 457 https://github.com/JoshuaHayesWasHere/jstack/pull/457: check has not passed
+2026-10-26 06:12 wait 459 https://github.com/JoshuaHayesWasHere/jstack/pull/459: it is stacked on fl-train-red-row, and merges after fl-train-red-row merged and jbus moved it onto main
+2026-10-26 06:14 merged 450 fl-hold-wakes 9030e1bab1715acb0a03a498de297147b012dab8 "fix(jbus): a hold no thread works on for 30 minutes wakes its home and is on Needs you", kept: the remote branch fl-hold-wakes, the worktree and the local branch are removed (error: failed to push some refs to 'https://github.com/JoshuaHayesWasHere/jstack.git'), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/450
+2026-10-26 06:15 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: GitHub was asked to merge main at 9030e1bab171 into it: main moved after its check started
+2026-10-26 06:15 wait 453 https://github.com/JoshuaHayesWasHere/jstack/pull/453: fl-hold-wakes merged as 9030e1bab171, which its head does not hold: it merges after its crew rebased it onto main
+2026-10-26 06:16 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: check has not passed
+2026-10-26 06:16 wait 453 https://github.com/JoshuaHayesWasHere/jstack/pull/453: check has not passed
+2026-10-26 06:18 merged 448 fl-stack-train-base e065a16aec40a42e8792670dbc30b14a16711465 "fix(jbus): a link whose parent merged into a train is based on that train, not the repo default", kept: the remote branch fl-stack-train-base, the worktree and the local branch are removed (the open pull request 458 is based on it), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/448
+2026-10-26 06:19 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: fl-stack-train-base merged as e065a16aec40, which its head does not hold: it merges after its crew rebased it onto main
+2026-10-26 06:20 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: check has not passed
+2026-10-26 06:27 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: GitHub was asked to merge main at e065a16aec40 into it: main moved after its check started
+2026-10-26 06:27 merged 457 mac-strays-env-2 1d35dd55c6556862e61b5022f7e59733ab8e6417 "fix(jbus): a check under a test slot is left on a Mac, and the pull request case asks a Mac only for the worktree stray", into train/macos, review carried over: range-diff 720c9377a8c3..31d90090b716 b49b153be3e1..ea3f39b85dad clean, every line kept, kept: mac-strays-env-2 is not at the merged head, revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/457
+2026-10-26 06:28 wait 452 https://github.com/JoshuaHayesWasHere/jstack/pull/452: check has not passed
+2026-10-26 06:35 wait 453 https://github.com/JoshuaHayesWasHere/jstack/pull/453: the rebase dropped 2 of main's lines in features/jbus/src/jbus/clock.py and 4 of main's lines in features/jbus/tests/test_jbus_held.py and 2 of its own in features/jbus/src/jbus/clock.py and 1 of its own in features/jbus/tests/test_jbus_held.py with no Dropped on rebase line at 87a270a2700c
+2026-10-26 06:36 wait 453 https://github.com/JoshuaHayesWasHere/jstack/pull/453: the scoped review has not ruled on the drops in features/jbus/src/jbus/clock.py, features/jbus/tests/test_jbus_held.py
+2026-10-26 06:42 merged 452 fl-train-red-row 9b3cd3e06072554a16d8249a7bd7fc1b822941f4 "fix(jbus,jmerge): a red train files one fix row under its home, and a green tip withdraws it", kept: fl-train-red-row is not at the merged head, revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/452
+2026-10-26 06:43 wait 459 https://github.com/JoshuaHayesWasHere/jstack/pull/459: fl-train-red-row merged as 9b3cd3e06072, which its head does not hold: it merges after its crew rebased it onto main
+2026-10-26 06:44 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: the rebase dropped 4 of main's lines in features/jbus/src/jbus/stack.py and 2 of main's lines in features/jmerge/spec/FlowToday.tla and 2 of main's lines in features/jmerge/tests/test_flow_spec.py and 1 of main's lines in features/jmerge/tests/test_jmerge_stacked.py and 5 of its own in features/jmerge/spec/FlowDesign.tla and 5 of its own in features/jmerge/spec/FlowToday.tla and 5 of its own in features/jmerge/spec/canary/NoGuard.tla and 5 of its own in features/jmerge/spec/canary/NoRejudge.tla and 5 of its own in features/jmerge/spec/canary/NoSweep.tla and 5 of its own in features/jmerge/tests/test_flow_spec.py with no Dropped on rebase line at 834be917af75
+2026-10-26 06:44 wait 459 https://github.com/JoshuaHayesWasHere/jstack/pull/459: check has not passed
+2026-10-26 06:45 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: the rebase changed the content after its review; scoped review of git range-diff --no-color 4145de2fa6bc03242d8b9464960cac870814edac..8d778e6b663ee4cb8d8a1bf6e0ba3ad763ec195c e065a16aec40a42e8792670dbc30b14a16711465..834be917af7546e3df8ca135d7bdf7338a1e65f1
+2026-10-26 06:50 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: GitHub was asked to merge main at 9b3cd3e06072 into it: main moved after its check started
+2026-10-26 06:51 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: check has not passed
+2026-10-26 07:03 wait 459 https://github.com/JoshuaHayesWasHere/jstack/pull/459: the scoped review has not ruled on the drops in features/jmerge/src/jmerge/rows.py
+2026-10-26 07:05 wait 458 https://github.com/JoshuaHayesWasHere/jstack/pull/458: the rebase changed the content after its review; scoped review of git range-diff --no-color 9030e1bab1715acb0a03a498de297147b012dab8..834be917af7546e3df8ca135d7bdf7338a1e65f1 9b3cd3e06072554a16d8249a7bd7fc1b822941f4..d03cd7649bd6d1673506e119052014f39843e62c
+2026-10-26 07:07 merged 458 cleanup-fl-stack-train-base acf999a03b9cb3e0180e7b27b1f3ca232b0c250b "fix(jbus): World.stack_on stacks a row only on a depend that goes on its own branch", kept: the remote branch cleanup-fl-stack-train-base, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/458
+2026-10-26 07:08 wait 460 https://github.com/JoshuaHayesWasHere/jstack/pull/460: no brief has a Result that names it
+2026-10-26 07:09 wait 460 https://github.com/JoshuaHayesWasHere/jstack/pull/460: it has no review yet
+2026-10-26 07:09 wait 461 https://github.com/JoshuaHayesWasHere/jstack/pull/461: no brief has a Result that names it
+2026-10-26 07:10 wait 461 https://github.com/JoshuaHayesWasHere/jstack/pull/461: it has no review yet
+2026-10-26 07:11 wait 460 https://github.com/JoshuaHayesWasHere/jstack/pull/460: check has not passed
+2026-10-26 07:12 wait 461 https://github.com/JoshuaHayesWasHere/jstack/pull/461: check has not passed
+2026-10-26 07:15 wait 459 https://github.com/JoshuaHayesWasHere/jstack/pull/459: GitHub was asked to merge main at acf999a03b9c into it: main moved after its check started
+2026-10-26 07:16 wait 459 https://github.com/JoshuaHayesWasHere/jstack/pull/459: check has not passed
+2026-10-26 07:23 merged 461 mac-blockers-approve b89c9eea6b1f3b51afd86918ddbf7dac7eba2d42 "fix(verify-jstack): test_home_clears_blockers approves its rows on a Mac's sh and date", into train/macos, kept: the remote branch mac-blockers-approve, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/461
+2026-10-26 07:30 wait 460 https://github.com/JoshuaHayesWasHere/jstack/pull/460: the rebase changed the content after its review; scoped review of git range-diff --no-color 1d35dd55c6556862e61b5022f7e59733ab8e6417..1280d29d1c424cfa4e6d94018e328cf5a20f7e3f 1d35dd55c6556862e61b5022f7e59733ab8e6417..cc89cc1ef134d44420aaf6b10180dd60f28e0a74
+2026-10-26 07:32 merged 460 mac-jgauge-sample-inodes 2beeaddbdbed59797615ed169b0575d84d7e351b "fix(jgauge): the sample test holds the inode total to the statvfs read it was made of, since APFS moves f_files", into train/macos, kept: the remote branch mac-jgauge-sample-inodes, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/460
+2026-10-26 07:41 wait 462 https://github.com/JoshuaHayesWasHere/jstack/pull/462: it has no review yet
+2026-10-26 07:41 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: no brief has a Result that names it
+2026-10-26 07:42 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: it has no review yet
+2026-10-26 07:42 wait 464 https://github.com/JoshuaHayesWasHere/jstack/pull/464: it has no review yet
+2026-10-26 07:42 wait 465 https://github.com/JoshuaHayesWasHere/jstack/pull/465: it has no review yet
+2026-10-26 07:42 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: no brief has a Result that names it
+2026-10-26 07:42 wait 467 https://github.com/JoshuaHayesWasHere/jstack/pull/467: no brief has a Result that names it
+2026-10-26 07:43 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: it has no review yet
+2026-10-26 07:43 wait 467 https://github.com/JoshuaHayesWasHere/jstack/pull/467: it has no review yet
+2026-10-26 07:45 wait 462 https://github.com/JoshuaHayesWasHere/jstack/pull/462: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:45 wait 468 https://github.com/JoshuaHayesWasHere/jstack/pull/468: no brief has a Result that names it
+2026-10-26 07:46 wait 468 https://github.com/JoshuaHayesWasHere/jstack/pull/468: it has no review yet
+2026-10-26 07:47 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:47 wait 464 https://github.com/JoshuaHayesWasHere/jstack/pull/464: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:47 wait 467 https://github.com/JoshuaHayesWasHere/jstack/pull/467: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:48 wait 467 https://github.com/JoshuaHayesWasHere/jstack/pull/467: its second review is not written at 04dc7a63bbee
+2026-10-26 07:49 wait 462 https://github.com/JoshuaHayesWasHere/jstack/pull/462: its second review is not written at 5a03bc05fd26
+2026-10-26 07:49 wait 465 https://github.com/JoshuaHayesWasHere/jstack/pull/465: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:49 wait 468 https://github.com/JoshuaHayesWasHere/jstack/pull/468: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:50 wait 465 https://github.com/JoshuaHayesWasHere/jstack/pull/465: its second review is not written at 66106e92cb1f
+2026-10-26 07:50 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:50 wait 468 https://github.com/JoshuaHayesWasHere/jstack/pull/468: its second review is not written at c9a1725693a4
+2026-10-26 07:51 wait 464 https://github.com/JoshuaHayesWasHere/jstack/pull/464: its second review is not written at b0f8b59e826b
+2026-10-26 07:51 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: its second review is not written at 6666034e9c7a
+2026-10-26 07:51 wait 467 https://github.com/JoshuaHayesWasHere/jstack/pull/467: check has not passed
+2026-10-26 07:51 wait 469 https://github.com/JoshuaHayesWasHere/jstack/pull/469: it has no review yet
+2026-10-26 07:52 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: its second review is not written at c1c01d419be9
+2026-10-26 07:53 wait 462 https://github.com/JoshuaHayesWasHere/jstack/pull/462: check has not passed
+2026-10-26 07:53 wait 465 https://github.com/JoshuaHayesWasHere/jstack/pull/465: check has not passed
+2026-10-26 07:53 wait 470 https://github.com/JoshuaHayesWasHere/jstack/pull/470: it has no review yet
+2026-10-26 07:53 wait 471 https://github.com/JoshuaHayesWasHere/jstack/pull/471: no brief has a Result that names it
+2026-10-26 07:54 wait 468 https://github.com/JoshuaHayesWasHere/jstack/pull/468: check has not passed
+2026-10-26 07:54 wait 471 https://github.com/JoshuaHayesWasHere/jstack/pull/471: it has no review yet
+2026-10-26 07:55 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: check has not passed
+2026-10-26 07:58 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: check has not passed
+2026-10-26 07:58 wait 469 https://github.com/JoshuaHayesWasHere/jstack/pull/469: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:58 wait 470 https://github.com/JoshuaHayesWasHere/jstack/pull/470: its findings are not handled: the Result has no Fixed line
+2026-10-26 07:58 wait 472 https://github.com/JoshuaHayesWasHere/jstack/pull/472: it is stacked on ux-homes-board-pr, and merges after ux-homes-board-pr merged and jbus moved it onto main
+2026-10-26 07:58 wait 473 https://github.com/JoshuaHayesWasHere/jstack/pull/473: it has no review yet
+2026-10-26 07:59 wait 464 https://github.com/JoshuaHayesWasHere/jstack/pull/464: check has not passed
+2026-10-26 08:00 wait 473 https://github.com/JoshuaHayesWasHere/jstack/pull/473: check has not passed
+2026-10-26 08:00 wait 474 https://github.com/JoshuaHayesWasHere/jstack/pull/474: it is stacked on ux-asks-count, and merges after ux-asks-count merged and jbus moved it onto main
+2026-10-26 08:00 wait 475 https://github.com/JoshuaHayesWasHere/jstack/pull/475: no brief has a Result that names it
+2026-10-26 08:01 wait 469 https://github.com/JoshuaHayesWasHere/jstack/pull/469: its second review is not written at 7a36ea145367
+2026-10-26 08:01 wait 471 https://github.com/JoshuaHayesWasHere/jstack/pull/471: check has not passed
+2026-10-26 08:01 wait 475 https://github.com/JoshuaHayesWasHere/jstack/pull/475: it has no review yet
+2026-10-26 08:04 wait 469 https://github.com/JoshuaHayesWasHere/jstack/pull/469: check has not passed
+2026-10-26 08:04 wait 476 https://github.com/JoshuaHayesWasHere/jstack/pull/476: it is stacked on ux-telemetry-pr, and merges after ux-telemetry-pr merged and jbus moved it onto main
+2026-10-26 08:05 wait 477 https://github.com/JoshuaHayesWasHere/jstack/pull/477: it is stacked on ux-look-pr, and merges after ux-look-pr merged and jbus moved it onto main
+2026-10-26 08:07 wait 475 https://github.com/JoshuaHayesWasHere/jstack/pull/475: check has not passed
+2026-10-26 08:08 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: it is stacked on ux-milestones-pr, and merges after ux-milestones-pr merged and jbus moved it onto main
+2026-10-26 08:09 merged 462 ux-milestones-pr 03aa27012ac3608a0c0ce2a8ed8e643c0426562b "feat(jview): a Milestones drawer draws each plan entry and train as a chain toward its outcome", kept: the remote branch ux-milestones-pr, the worktree and the local branch are removed (the open pull request 478 is based on it), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/462
+2026-10-26 08:09 merged 468 ux-asks-count acc0f5b6e705c050b7272c8aa9fc554c447f5a84 "feat(jbus): jbus flow asks counts the owner's status asks per job and per day", kept: the remote branch ux-asks-count, the worktree and the local branch are removed (the open pull request 474 is based on it), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/468
+2026-10-26 08:09 wait 479 https://github.com/JoshuaHayesWasHere/jstack/pull/479: it is stacked on ux-inbox-pr, and merges after ux-inbox-pr merged and jbus moved it onto main
+2026-10-26 08:11 wait 474 https://github.com/JoshuaHayesWasHere/jstack/pull/474: ux-asks-count merged as acc0f5b6e705, which its head does not hold: it merges after its crew rebased it onto main
+2026-10-26 08:11 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: ux-milestones-pr merged as 03aa27012ac3, which its head does not hold: it merges after its crew rebased it onto main
+2026-10-26 08:12 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: GitHub was asked to merge main at acc0f5b6e705 into it: main moved after its check started
+2026-10-26 08:12 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: GitHub was asked to merge main at acc0f5b6e705 into it: main moved after its check started
+2026-10-26 08:12 wait 474 https://github.com/JoshuaHayesWasHere/jstack/pull/474: check has not passed
+2026-10-26 08:14 wait 463 https://github.com/JoshuaHayesWasHere/jstack/pull/463: check has not passed
+2026-10-26 08:14 wait 466 https://github.com/JoshuaHayesWasHere/jstack/pull/466: check has not passed
+2026-10-26 08:14 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: check has not passed
+2026-10-26 08:14 wait 480 https://github.com/JoshuaHayesWasHere/jstack/pull/480: it has no review yet
+2026-10-26 08:15 wait 470 https://github.com/JoshuaHayesWasHere/jstack/pull/470: its second review is not written at 675a822ee539
+2026-10-26 08:15 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: its fix is not reviewed: the scoped review of it is not written
+2026-10-26 08:15 wait 481 https://github.com/JoshuaHayesWasHere/jstack/pull/481: it has no review yet
+2026-10-26 08:16 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: check has not passed
+2026-10-26 08:16 wait 482 https://github.com/JoshuaHayesWasHere/jstack/pull/482: no brief has a Result that names it
+2026-10-26 08:18 wait 470 https://github.com/JoshuaHayesWasHere/jstack/pull/470: check has not passed
+2026-10-26 08:18 wait 481 https://github.com/JoshuaHayesWasHere/jstack/pull/481: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:18 wait 482 https://github.com/JoshuaHayesWasHere/jstack/pull/482: it has no review yet
+2026-10-26 08:19 wait 483 https://github.com/JoshuaHayesWasHere/jstack/pull/483: it has no review yet
+2026-10-26 08:21 wait 480 https://github.com/JoshuaHayesWasHere/jstack/pull/480: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:21 wait 482 https://github.com/JoshuaHayesWasHere/jstack/pull/482: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:21 wait 484 https://github.com/JoshuaHayesWasHere/jstack/pull/484: it has no review yet
+2026-10-26 08:22 wait 465 https://github.com/JoshuaHayesWasHere/jstack/pull/465: GitHub was asked to merge main at acc0f5b6e705 into it: main moved after its check started
+2026-10-26 08:22 wait 469 https://github.com/JoshuaHayesWasHere/jstack/pull/469: GitHub was asked to merge main at acc0f5b6e705 into it: main moved after its check started
+2026-10-26 08:22 wait 480 https://github.com/JoshuaHayesWasHere/jstack/pull/480: check has not passed
+2026-10-26 08:22 wait 485 https://github.com/JoshuaHayesWasHere/jstack/pull/485: it has no review yet
+2026-10-26 08:22 wait 486 https://github.com/JoshuaHayesWasHere/jstack/pull/486: it has no review yet
+2026-10-26 08:24 wait 465 https://github.com/JoshuaHayesWasHere/jstack/pull/465: check has not passed
+2026-10-26 08:24 wait 469 https://github.com/JoshuaHayesWasHere/jstack/pull/469: check has not passed
+2026-10-26 08:24 wait 481 https://github.com/JoshuaHayesWasHere/jstack/pull/481: its fix is not reviewed: the scoped review of it is not written
+2026-10-26 08:24 wait 487 https://github.com/JoshuaHayesWasHere/jstack/pull/487: it has no review yet
+2026-10-26 08:24 wait 488 https://github.com/JoshuaHayesWasHere/jstack/pull/488: it has no review yet
+2026-10-26 08:26 wait 481 https://github.com/JoshuaHayesWasHere/jstack/pull/481: check has not passed
+2026-10-26 08:26 wait 482 https://github.com/JoshuaHayesWasHere/jstack/pull/482: its fix is not reviewed: the scoped review of it is not written
+2026-10-26 08:27 wait 483 https://github.com/JoshuaHayesWasHere/jstack/pull/483: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:27 wait 484 https://github.com/JoshuaHayesWasHere/jstack/pull/484: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:27 wait 486 https://github.com/JoshuaHayesWasHere/jstack/pull/486: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:27 wait 487 https://github.com/JoshuaHayesWasHere/jstack/pull/487: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:27 wait 488 https://github.com/JoshuaHayesWasHere/jstack/pull/488: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:27 wait 489 https://github.com/JoshuaHayesWasHere/jstack/pull/489: no brief has a Result that names it
+2026-10-26 08:29 wait 487 https://github.com/JoshuaHayesWasHere/jstack/pull/487: check has not passed
+2026-10-26 08:29 wait 489 https://github.com/JoshuaHayesWasHere/jstack/pull/489: it has no review yet
+2026-10-26 08:29 wait 490 https://github.com/JoshuaHayesWasHere/jstack/pull/490: it has no review yet
+2026-10-26 08:30 merged 464 ux-inbox-pr 7a91bc81a0b88f407b5dfaa6b18934ee23fad418 "feat(jbus): jview's Needs you is one inbox, each need with its default and one action, approve with undo", kept: the remote branch ux-inbox-pr, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/464
+2026-10-26 08:30 wait 482 https://github.com/JoshuaHayesWasHere/jstack/pull/482: check has not passed
+2026-10-26 08:30 wait 486 https://github.com/JoshuaHayesWasHere/jstack/pull/486: its fix is not reviewed: the scoped review of it is not written
+2026-10-26 08:30 wait 491 https://github.com/JoshuaHayesWasHere/jstack/pull/491: it has no review yet
+2026-10-26 08:30 wait 492 https://github.com/JoshuaHayesWasHere/jstack/pull/492: it is stacked on ux-glance-pr, and merges after ux-glance-pr merged and jbus moved it onto main
+2026-10-26 08:32 wait 479 https://github.com/JoshuaHayesWasHere/jstack/pull/479: ux-inbox-pr merged as 7a91bc81a0b8, which its head does not hold: it merges after its crew rebased it onto main
+2026-10-26 08:32 wait 485 https://github.com/JoshuaHayesWasHere/jstack/pull/485: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:32 wait 489 https://github.com/JoshuaHayesWasHere/jstack/pull/489: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:34 wait 479 https://github.com/JoshuaHayesWasHere/jstack/pull/479: check has not passed
+2026-10-26 08:34 wait 486 https://github.com/JoshuaHayesWasHere/jstack/pull/486: check has not passed
+2026-10-26 08:34 wait 488 https://github.com/JoshuaHayesWasHere/jstack/pull/488: its second review is not written at d78ae1981a34
+2026-10-26 08:34 wait 489 https://github.com/JoshuaHayesWasHere/jstack/pull/489: its second review is not written at 6ad214f395ec
+2026-10-26 08:34 wait 491 https://github.com/JoshuaHayesWasHere/jstack/pull/491: check has not passed
+2026-10-26 08:34 wait 493 https://github.com/JoshuaHayesWasHere/jstack/pull/493: it has no review yet
+2026-10-26 08:34 wait 494 https://github.com/JoshuaHayesWasHere/jstack/pull/494: it has no review yet
+2026-10-26 08:34 wait 495 https://github.com/JoshuaHayesWasHere/jstack/pull/495: it has no review yet
+2026-10-26 08:34 wait 496 https://github.com/JoshuaHayesWasHere/jstack/pull/496: it has no review yet
+2026-10-26 08:34 wait 497 https://github.com/JoshuaHayesWasHere/jstack/pull/497: no brief has a Result that names it
+2026-10-26 08:35 wait 474 https://github.com/JoshuaHayesWasHere/jstack/pull/474: the scoped review has not ruled on the drops in features/jbus/src/jbus/flow/asks.py, features/jbus/tests/test_jbus_flow_asks.py
+2026-10-26 08:35 wait 483 https://github.com/JoshuaHayesWasHere/jstack/pull/483: its second review is not written at 343098210ccc
+2026-10-26 08:35 wait 497 https://github.com/JoshuaHayesWasHere/jstack/pull/497: it has no review yet
+2026-10-26 08:37 wait 471 https://github.com/JoshuaHayesWasHere/jstack/pull/471: GitHub was asked to merge main at 7a91bc81a0b8 into it: main moved after its check started
+2026-10-26 08:37 wait 493 https://github.com/JoshuaHayesWasHere/jstack/pull/493: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:38 wait 471 https://github.com/JoshuaHayesWasHere/jstack/pull/471: check has not passed
+2026-10-26 08:38 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: GitHub was asked to merge main at 7a91bc81a0b8 into it: main moved after its check started
+2026-10-26 08:38 wait 484 https://github.com/JoshuaHayesWasHere/jstack/pull/484: its fix is not reviewed: the scoped review of it is not written
+2026-10-26 08:38 wait 485 https://github.com/JoshuaHayesWasHere/jstack/pull/485: its fix is not reviewed: the scoped review of it is not written
+2026-10-26 08:38 wait 489 https://github.com/JoshuaHayesWasHere/jstack/pull/489: check has not passed
+2026-10-26 08:38 wait 490 https://github.com/JoshuaHayesWasHere/jstack/pull/490: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:38 wait 493 https://github.com/JoshuaHayesWasHere/jstack/pull/493: its second review is not written at 9d7b7aa031b7
+2026-10-26 08:38 wait 494 https://github.com/JoshuaHayesWasHere/jstack/pull/494: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:38 wait 496 https://github.com/JoshuaHayesWasHere/jstack/pull/496: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:40 wait 478 https://github.com/JoshuaHayesWasHere/jstack/pull/478: check has not passed
+2026-10-26 08:40 wait 483 https://github.com/JoshuaHayesWasHere/jstack/pull/483: check has not passed
+2026-10-26 08:40 wait 488 https://github.com/JoshuaHayesWasHere/jstack/pull/488: check has not passed
+2026-10-26 08:40 wait 495 https://github.com/JoshuaHayesWasHere/jstack/pull/495: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:41 wait 473 https://github.com/JoshuaHayesWasHere/jstack/pull/473: the rebase changed the content after its review; scoped review of git range-diff --no-color 2beeaddbdbed59797615ed169b0575d84d7e351b..2d71a30b8dca797e20acc48fcd2c93570a70fd4e 2beeaddbdbed59797615ed169b0575d84d7e351b..460274b2784eea1c569704a2111ec63815e7f871
+2026-10-26 08:41 wait 493 https://github.com/JoshuaHayesWasHere/jstack/pull/493: check has not passed
+2026-10-26 08:41 wait 494 https://github.com/JoshuaHayesWasHere/jstack/pull/494: its second review is not written at 9f7bf9398161
+2026-10-26 08:43 wait 484 https://github.com/JoshuaHayesWasHere/jstack/pull/484: check has not passed
+2026-10-26 08:43 wait 490 https://github.com/JoshuaHayesWasHere/jstack/pull/490: its second review is not written at 772e503cae3f
+2026-10-26 08:43 wait 495 https://github.com/JoshuaHayesWasHere/jstack/pull/495: check has not passed
+2026-10-26 08:43 wait 498 https://github.com/JoshuaHayesWasHere/jstack/pull/498: it is stacked on ux-flow-shot, and merges after ux-flow-shot merged and jbus moved it onto main
+2026-10-26 08:45 merged 473 mac-room-cores c5abedcea4c19f02b7d8f9cda024ff1c21e5799e "fix(jgauge): room counts the cores of a /proc where nproc is missing, as on a Mac given a fake machine", into train/macos, kept: the remote branch mac-room-cores, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/473
+2026-10-26 08:45 wait 475 https://github.com/JoshuaHayesWasHere/jstack/pull/475: the rebase changed the content after its review; scoped review of git range-diff --no-color 2beeaddbdbed59797615ed169b0575d84d7e351b..3be384c4b6de4e7b36ce9fe12e44e42dcfb0db35 2beeaddbdbed59797615ed169b0575d84d7e351b..1a58aa686821273933bd41d6e1c6cf8cb0c881b9
+2026-10-26 08:45 wait 485 https://github.com/JoshuaHayesWasHere/jstack/pull/485: its findings are not handled: nothing was pushed after them
+2026-10-26 08:45 wait 497 https://github.com/JoshuaHayesWasHere/jstack/pull/497: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:45 wait 499 https://github.com/JoshuaHayesWasHere/jstack/pull/499: no brief has a Result that names it
+2026-10-26 08:47 wait 475 https://github.com/JoshuaHayesWasHere/jstack/pull/475: GitHub was asked to merge train/macos at c5abedcea4c1 into it: train/macos moved after its check started
+2026-10-26 08:47 wait 485 https://github.com/JoshuaHayesWasHere/jstack/pull/485: check has not passed
+2026-10-26 08:47 wait 490 https://github.com/JoshuaHayesWasHere/jstack/pull/490: check has not passed
+2026-10-26 08:47 wait 494 https://github.com/JoshuaHayesWasHere/jstack/pull/494: check has not passed
+2026-10-26 08:47 wait 497 https://github.com/JoshuaHayesWasHere/jstack/pull/497: its second review is not written at 75a334ef84a0
+2026-10-26 08:47 wait 499 https://github.com/JoshuaHayesWasHere/jstack/pull/499: it has no review yet
+2026-10-26 08:47 wait 500 https://github.com/JoshuaHayesWasHere/jstack/pull/500: it has no review yet
+2026-10-26 08:48 wait 475 https://github.com/JoshuaHayesWasHere/jstack/pull/475: check has not passed
+2026-10-26 08:50 wait 496 https://github.com/JoshuaHayesWasHere/jstack/pull/496: its second review is not written at 60802c201f1a
+2026-10-26 08:50 wait 500 https://github.com/JoshuaHayesWasHere/jstack/pull/500: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:52 wait 497 https://github.com/JoshuaHayesWasHere/jstack/pull/497: check has not passed
+2026-10-26 08:52 wait 499 https://github.com/JoshuaHayesWasHere/jstack/pull/499: its findings are not handled: the Result has no Fixed line
+2026-10-26 08:52 wait 500 https://github.com/JoshuaHayesWasHere/jstack/pull/500: its second review is not written at eec88a03f82f
+2026-10-26 08:52 wait 501 https://github.com/JoshuaHayesWasHere/jstack/pull/501: it has no review yet
+2026-10-26 08:53 merged 474 cleanup-ux-asks-count 7d08dce1aafbd90d3c21ecbf9e566add9b058b1e "fix(jbus): asks.jobs searches each sentence alone, so a status question after a bare newline asks J2", kept: the remote branch cleanup-ux-asks-count, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/474
+2026-10-26 08:53 wait 496 https://github.com/JoshuaHayesWasHere/jstack/pull/496: check has not passed
+2026-10-26 08:53 wait 502 https://github.com/JoshuaHayesWasHere/jstack/pull/502: it is stacked on ux-flow-cause, and merges after ux-flow-cause merged and jbus moved it onto main
+2026-10-26 08:55 wait 500 https://github.com/JoshuaHayesWasHere/jstack/pull/500: check has not passed
+2026-10-26 08:55 wait 501 https://github.com/JoshuaHayesWasHere/jstack/pull/501: check has not passed
+2026-10-26 08:57 merged 491 mac-tree-spec-timeout 820334f54f7c033c992765f8c1adac3e7e43b0ab "fix(home): a property's TLC run checks its scene alone, so the CallsReachJosh cases run in a third of the time", kept: the remote branch mac-tree-spec-timeout, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/491
+2026-10-26 08:57 wait 499 https://github.com/JoshuaHayesWasHere/jstack/pull/499: its second review is not written at eb9ddec688df
+2026-10-26 08:57 wait 503 https://github.com/JoshuaHayesWasHere/jstack/pull/503: no brief has a Result that names it
+2026-10-26 08:59 merged 482 fl-standing-cap 889c39c69f70a99c32cb310f358a4f1e95c0267f "fix(jbus): jbus snapshot refuses a standing.md over 3 rules or with a rule no queued row makes code", kept: the remote branch fl-standing-cap, the worktree and the local branch are removed (it is not at the merged head on the origin), revert: gh pr revert https://github.com/JoshuaHayesWasHere/jstack/pull/482
+2026-10-26 08:59 wait 503 https://github.com/JoshuaHayesWasHere/jstack/pull/503: it is stacked on skills-no-outside-instructions, and merges after skills-no-outside-instructions merged and jbus moved it onto main
+2026-10-26 08:59 wait 504 https://github.com/JoshuaHayesWasHere/jstack/pull/504: it is stacked on ux-flow-status, and merges after ux-flow-status merged and jbus moved it onto main
