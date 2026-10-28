@@ -100,6 +100,20 @@ def test_a_check_that_ran_other_tests_does_not_prove_the_fix(replay):
     assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
 
 
+def test_a_passed_browser_run_does_not_prove_the_fix_its_check_did_not(replay):
+    """The browser run's `pytest -m browser` names no path, but it ran only the browser tests:
+    only the check's own parts say what ran of the rest."""
+    tip = red_main(replay)
+    browser = "2026-10-27T17:41:00Z uv run pytest -m browser\n"
+    flow_fix(
+        replay,
+        job(11, log=OTHER, replay=replay),
+        job(12, name="check", log=PARTS, replay=replay),
+        job(14, name="browser", log=browser, replay=replay),
+    )
+    assert replay.run() == [f"wait 576 {url(576)}: {ready.MAIN_RED.format(sha=tip[:12])}"]
+
+
 def test_a_check_whose_part_failed_does_not_prove_the_fix(replay):
     """A part that failed may have stopped before it ran the red test, so its check proves
     nothing, though another part's log names that test's file."""

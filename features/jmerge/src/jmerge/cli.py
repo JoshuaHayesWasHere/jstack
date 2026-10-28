@@ -1037,14 +1037,16 @@ class Repo:
         """What the pull request's own check proved of the red tip `red` (`rows.Ran`), once a
         run for each head. A check proves nothing until every check of the head has passed, and
         nothing where the head lacks `red`. Then each passed job's log says what it ran
-        (`rows.ran_in`), and the logs are read until they cover every test in `failed`."""
+        (`rows.ran_in`), and the logs are read until they cover every test in `failed`. Only the
+        jobs of the required check count (`checked`): a browser run's `pytest -m browser` names no
+        path and ran no test of the rest."""
         key = (one.number, one.head, red, "check")
         if key not in self.proofs:
             self.proofs[key] = rows.UNPROVED
             rollup = self.reds.get(ROLLUP.format(number=one.number), [])
             if passed(rollup) and self.has(one) and not self.outside(red, one.head):
                 every, paths = False, frozenset[str]()
-                for job in jobs(rollup):
+                for job in jobs(checked(rollup)):
                     found = rows.ran_in(self.job_log(job) or "")
                     if found is not None:
                         every, paths = every or found.every, paths | found.paths
@@ -2074,6 +2076,19 @@ def passed(rollup: list[dict]) -> bool:
     return bool(latest) and all(
         one.get("conclusion") in PASSED or one.get("state") == "SUCCESS" for one in latest
     )
+
+
+def checked(rollup: list[dict]) -> list[dict]:
+    """The runs in `rollup` of the required check and its parts, as `check 1 of 4` is of
+    `check`."""
+    return [
+        one
+        for one in rollup
+        if any(
+            (one.get("name") or "") == name or (one.get("name") or "").startswith(f"{name} ")
+            for name in ready.REQUIRED
+        )
+    ]
 
 
 def jobs(rollup: list[dict], ended: tuple[str, ...] = PASSED) -> list[str]:

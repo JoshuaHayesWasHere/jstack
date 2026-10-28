@@ -158,7 +158,8 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   While `main.json` names a red tip and main's tip is not green, `jmerge` merges only a fix of it.
   Every other pull request waits as `main is red at <sha12>, its fix merges first`.
   A fix is known by what its own check proved, whatever its slug, since the row that writes the code is often not the one jbus filed: on 2026-10-27 the fixes were two flow rows, held behind a red whose `main-red-` row closed with no pull request.
-  A pull request is the fix when its head contains the red tip, every check at that head passed, and its jobs ran each test that failed at the red tip.
+  A pull request is the fix when its head contains the red tip, every check at that head passed, and the jobs of its `check` ran each test that failed at the red tip.
+  The browser run's jobs do not count: its `pytest -m browser` names no path, yet it ran only the browser tests.
   `main.json` keeps those tests as `failed`, read once from the red run's logs (`jbus.mainmoved.failed_at`).
   A job's log says what it ran by its one pytest command: the test files and folders it names, or with none the whole suite.
   A log with no such command, or more than one, or one that leaves tests out by name (`-k`, `--deselect`, `--lf`), says nothing.
