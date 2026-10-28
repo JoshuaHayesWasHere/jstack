@@ -644,14 +644,12 @@ COUNTED = 24
 """Looks, each 0.5 s, that outlast the 10-second countdown and the write after it."""
 
 
-@pytest.mark.parametrize("screen", [DESK, PHONE])
-def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends_nothing(
-    scene, tmp_path, screen
-):
-    """The rail's Approve is the project page's: it counts 10 s with an Undo beside it, and only
-    then posts the approval. An Undo tapped in the window posts nothing, and the Approve is back."""
+def approved_and_undone(scene, tmp_path, route, screen):
+    """Tap Approve on `route` and wait out its countdown, and, on a page of its own, tap Approve
+    then Undo inside the window. It gives back what each of the two looks saw, and the brief's
+    sha."""
     sha = one_to_approve(scene)
-    accept, undo = f'#desk [data-accept="{KETTLE}"]', f'#desk [data-undo="{KETTLE}"]'
+    accept, undo = f'main [data-accept="{KETTLE}"]', f'main [data-undo="{KETTLE}"]'
     walks = {
         "kept": ["look", f"tap:{accept}", *["look"] * COUNTED],
         "undone": ["look", f"tap:{accept}", "look", f"tap:{undo}", *["look"] * COUNTED],
@@ -660,7 +658,7 @@ def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends
         name: look(
             scene,
             tmp_path / name,
-            route="#/",
+            route=route,
             screen=screen,
             walk=walk,
             at=4000 + 500 * len(walk),
@@ -670,7 +668,10 @@ def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends
     }
     for one in seen.values():
         assert one["errors"] == []
-    kept, undone = seen["kept"], seen["undone"]
+    return seen["kept"], seen["undone"], sha
+
+
+def approves_once_and_undo_sends_nothing(kept, undone, sha):
     assert kept["walked"][0]["details"] == "Details", kept["walked"][0]
     counting = kept["walked"][1]["acc"]
     assert counting.startswith("Approving it in") and counting.endswith("Undo"), counting
@@ -679,6 +680,15 @@ def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends
     assert undone["writes"] == []
     assert undone["walked"][-1]["acc"] == "", undone["walked"][-1]
     assert undone["walked"][-1]["accept"] == "Approve"
+
+
+@pytest.mark.parametrize("screen", [DESK, PHONE])
+def test_approve_on_the_front_rail_approves_after_its_undo_window_and_undo_sends_nothing(
+    scene, tmp_path, screen
+):
+    """The rail's Approve is the project page's: it counts 10 s with an Undo beside it, and only
+    then posts the approval. An Undo tapped in the window posts nothing, and the Approve is back."""
+    approves_once_and_undo_sends_nothing(*approved_and_undone(scene, tmp_path, "#/", screen))
 
 
 SHOWN = """window.addEventListener("load", function () { setTimeout(function () {

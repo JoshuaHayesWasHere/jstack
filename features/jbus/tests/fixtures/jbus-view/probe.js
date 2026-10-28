@@ -67,8 +67,8 @@ window.addEventListener("load", function () { if (window.__walk) setTimeout(func
         back: drawer.open ? text(document.getElementById("dw-back")) : "", crumbs: Array.prototype.map.call(document.querySelectorAll(drawer.open ? "#dw .crumbs a" : "#title .crumbs a"), function (a) { return [text(a), a.getAttribute("href")]; }),
         notice: drawer.open ? text(document.querySelector("#dw .now")) : text(document.getElementById("none")), focus: focus ? focus.getAttribute("data-open") || focus.id : "",
         said: drawer.open ? text(document.getElementById("dw")) : "", peek: text(document.getElementById("peek")),
-        acc: raw(document.querySelector("#desk .acc, #needs .acc")), accept: raw(document.querySelector("#desk [data-accept]")),
-        details: raw(document.querySelector("#desk [data-details]")), nsaid: raw(document.getElementById("nsaid")),
+        acc: raw(document.querySelector("main .acc")), accept: raw(document.querySelector("main [data-accept]")),
+        details: raw(document.querySelector("main [data-details]")), nsaid: raw(document.getElementById("nsaid")),
         changes: window.__changes.length });
       step(n + 1);
     }, 500);

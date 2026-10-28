@@ -4,11 +4,12 @@ import json
 import shutil
 import subprocess
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from jbus import questions, waiting, work
+from jbus import questions, queue, waiting, work
 from jbus import roles as threads
 from jbus.view.panels.you import panel as panel_you
 from jbus.view.panels.you.panel import ACTS, ANSWERS, APPROVES, OPENS, THREADS
@@ -79,7 +80,7 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
         demo = served.json("/state.json?project=demo")
     finally:
         served.close()
-    kinds = ["config", "gate", "approve", "left", "row", "hold"]
+    kinds = ["config", "approve", "gate", "left", "row", "hold"]
     assert [one["kind"] for one in needs] == kinds
     assert [one["project"] for one in needs] == ["demo"] * 4 + ["pantry", "demo"]
     assert [one["since"] for one in needs] == sorted(one["since"] for one in needs)
@@ -89,8 +90,8 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     }
     assert [one["verb"] for one in needs] == [
         "Set up",
-        "Answer",
         "Approve launch",
+        "Answer",
         "Close it",
         "Fix brief",
         "Review merge",
@@ -102,6 +103,9 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
     assert by["approve"]["why"] == "nobody has approved it"
     assert by["approve"]["unblocks"] == ["tea-cups"]
     assert by["approve"]["open"] == "#/demo/you/approve/tea-kettle"
+    assert by["approve"]["since"] == iso(ago(hours=5))
+    brief = queue.brief_path(scene.state, "tea-kettle")
+    assert by["approve"]["brief_at"] == iso(datetime.fromtimestamp(brief.stat().st_mtime, UTC))
     assert by["hold"]["what"] == "Pull request #14: oat-honey: stir the honey in"
     assert by["hold"]["why"] == "needs user, touches skills/crew/SKILL.md"
     assert by["hold"]["since"] == iso(ago(minutes=12))

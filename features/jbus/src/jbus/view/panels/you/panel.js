@@ -323,7 +323,7 @@ function youFoot(said) {
   return said.length ? '<p class="ovc-f">' + said.join(" &middot; ") + '</p>' : "";
 }
 panel({
-  reads: "mixed", drawer: dYou, draw: renderNeeds, top: true,
+  reads: "mixed", drawer: dYou, draw: renderNeeds, top: true, row: needGo, said: saidHere, tick: ticks,
   parts: { tile: youTile, rail: youRail },
   gloss: { needs: ["Needs you", "What waits on you in every project, oldest first, as jbus's last pass listed it, each with the one thing to do. A gate that goes ahead on its default is counted apart, as the line under the list: it needs nothing from you unless you would say otherwise."] }
 });

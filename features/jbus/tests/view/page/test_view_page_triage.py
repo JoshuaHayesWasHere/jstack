@@ -19,6 +19,10 @@ import pytest
 
 from view.page.browser import BROWSES, LAUNCH, PATIENCE, PHONE, gated, look
 from view.page.test_view_page_budgets import EXTRA, SCENES, SCREENS, a_day_old, another
+from view.page.test_view_page_overview import (
+    approved_and_undone,
+    approves_once_and_undo_sends_nothing,
+)
 from view.scene import Scene, Served, stacked
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 60)]
@@ -359,3 +363,11 @@ def test_one_gate_that_takes_its_default_is_said_in_the_singular(tmp_path):
         seen = look(scene, tmp_path / "look", route="#/triage", script=PROBE, at=1500, alter=one)
     (tail,) = [line for line in seen["parts"]["ask"]["tail"] if "default" in line]
     assert re.fullmatch(r"1 takes its default if you say nothing, the first at \d\d:\d\d ›", tail)
+
+
+def test_a_row_to_approve_in_yours_approves_after_its_undo_window_and_undo_sends_nothing(
+    scene, tmp_path
+):
+    """One approval in Yours is the Approve of Needs you, with its Details beside it, as on the
+    front rail."""
+    approves_once_and_undo_sends_nothing(*approved_and_undone(scene, tmp_path, "#/triage", PHONE))

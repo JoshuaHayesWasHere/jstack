@@ -839,7 +839,7 @@
   }
   function triRow(r, n, fill) {
     return '<div class="nb"><span class="nw"><code>' + esc(r.subj) + '</code>' + (r.what && r.what !== r.subj ? " " + esc(r.what) : "") + '</span><span class="nm">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></div>' +
-      '<div class="na">' + needGo(r, fill && n === 0) + '</div>';
+      '<div class="na">' + PANELS.you.row(r, fill && n === 0) + '</div>';
   }
   function triList(part, rows, count, title, fill) {
     var box = $("tri-" + part), sec = box.parentElement, shown = TRI_ALL[part] ? rows : rows.slice(0, TRI_MAX), rest = rows.length - shown.length;
@@ -868,8 +868,8 @@
   }
   function renderTriage() {
     var mine = yours(), wrong = wrongRows();
-    put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail() + saidHere());
-    ticks();
+    put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail() + PANELS.you.said());
+    PANELS.you.tick();
     $("tri-yl").parentElement.hidden = !mine.length && !STACK.proceeds.length;
     put($("tri-wt"), triList("wl", wrong, wrong.length, "Wrong", false));
     put($("tri-calm"), calmLine(STACK.needs.length, wrong.length));
