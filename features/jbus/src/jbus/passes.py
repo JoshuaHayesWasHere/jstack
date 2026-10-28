@@ -50,7 +50,15 @@ class Slot:
     """A `Slot` is a row that waits only for a slot or room on the machine."""
 
 
-Reason = Changed | Depends | Slot
+@dataclass(frozen=True)
+class Rerun:
+    """A `Rerun` is a fix row of a red main whose own commit, `sha`, went green on a rerun of
+    its check: main has no red left for it to fix, so it never launches."""
+
+    sha: str
+
+
+Reason = Changed | Depends | Slot | Rerun
 
 
 @dataclass

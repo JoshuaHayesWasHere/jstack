@@ -32,6 +32,7 @@ So once it has its go, it is the next launch in that project.
   It says so once: `retro main-red-<sha12>: main is green again at <sha12>, and its row is withdrawn`.
   A row that launched is left to its crew and its pull request.
   A row whose own commit went green on a rerun is left as it is, and the pass says `retro main-red-<sha12>: main is green again at <sha12>, and its row is left as it is`.
+  Such a row never launches, a go given to it later included, and it waits with `main is green again at <sha12>, its own commit, so it has no red to fix`.
 - If the queue refuses the brief, the pass reports a `condition` line.
 
 jbus reads a slug that starts `main-red-` as the fix of a red main, so do not give a brief of your own such a slug.

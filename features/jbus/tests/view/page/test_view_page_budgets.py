@@ -207,7 +207,6 @@ EVERY = [(scene, wide) for scene in ("busy", "many") for wide in SCREENS]
 KNOWN = {
     (budget, scene, wide): unit
     for budget, unit, broken in (
-        ("waits", "jv-needs-from-work", EVERY),
         ("drawers", "jv-drawer-budgets", EVERY),
         ("crumb", "jv-drawer-budgets", EVERY),
         ("words", "jv-drawer-budgets", EVERY),
@@ -252,8 +251,9 @@ def views(tmp_path_factory):
 
 
 def looked(root, name, wide):
-    """What the probe found on `#/homes` and on `#/demo`, what waits on the user in each
-    project as the server gives it, and the slug of every row of the scene."""
+    """What the probe found on `#/homes` and on `#/demo`, what needs the user in each project as
+    the server gives it (`/stack.json`'s needs: what waits on the user less the gates on their
+    default), and the slug of every row of the scene."""
     with pytest.MonkeyPatch.context() as patch:
         scene = Scene(root, patch)
         SCENES[name](scene)
@@ -263,7 +263,8 @@ def looked(root, name, wide):
             every = look(scene, root, route="#/homes", hops=True, budget=60000, **how)
             one = look(scene, root, budget=8000, **how)
             projects = sorted(p.parent.name for p in scene.state_dir.glob("*/queue.json"))
-            waits = {p: len(served.json(f"/state.json?project={p}")["waiting"]) for p in projects}
+            needs = [one["project"] for one in served.json("/stack.json")["needs"]]
+            waits = {p: needs.count(p) for p in projects}
         finally:
             served.close()
     slugs = {
@@ -312,8 +313,9 @@ def count(said):
 
 @pytest.mark.parametrize(("scene", "wide"), cases("waits"))
 def test_every_screen_counts_the_same_waits(views, scene, wide):
-    """The count on every project is the sum of what waits in each project. On demo's page,
-    its band and its drawer of what waits on you give the one count of what waits in demo."""
+    """The count on every project is the sum of what needs the user in each project. On demo's
+    page, its band and its drawer of what waits on you give the one count of what needs the user
+    in demo."""
     seen = views(scene, wide)
     drawer = [one for one in seen["#/demo"]["opened"] if one["target"].split(":")[0] == "you"]
     assert drawer, [one["target"] for one in seen["#/demo"]["opened"]]
