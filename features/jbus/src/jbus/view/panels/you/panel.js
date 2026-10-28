@@ -103,7 +103,7 @@ function renderNeeds() {
   leaveAccepts();
   if (UNFOLDED !== PROJECT) UNFOLDED = "";
   var src = PROJECT ? S : STACK, box = $("needs");
-  box.hidden = !src || !!NOSUCH;
+  box.hidden = !src || !!NOSUCH || !PROJECT && !TRIAGE && !HOMES;
   if (box.hidden) return;
   var needs = src.needs, soon = src.proceeds, bar = !PROJECT;
   box.classList.toggle("bar", bar);
@@ -270,4 +270,26 @@ document.addEventListener("change", function (e) {
   TICKED_GATES[x.getAttribute("data-tick")] = x.checked;
   $("bfoot").innerHTML = batchFoot();
 });
-panel({ reads: "mixed", drawer: dYou, draw: renderNeeds });
+var YOU_RAIL = 4;
+function youTile() {
+  if (!STACK) return "";
+  var needs = oneList(STACK), soon = STACK.proceeds.length, said = [];
+  if (needs.length) said.push("oldest " + esc(ago(needs[0].since)));
+  if (soon) said.push(soon + (soon === 1 ? " takes its default" : " take their default"));
+  return '<a class="tile' + (needs.length ? " op" : "") + '" data-role="needs" href="#/triage"><span class="tag" data-gloss="card:needs">Needs you</span><span class="tile-n">' + needs.length + '</span><span class="tile-s">' + (said.length ? said.join(" &middot; ") : "nothing waits on you") + '</span></a>';
+}
+function youRail() {
+  if (!STACK) return "";
+  var rows = yours(), shown = rows.slice(0, YOU_RAIL), soon = STACK.proceeds.length;
+  return '<section class="ovc' + (rows.length ? " op" : "") + '" data-role="rail-needs" aria-labelledby="ovc-you"><h2 class="ovc-h" id="ovc-you"><span class="tag" data-gloss="card:needs">Needs you <b>' + STACK.needs.length + '</b></span> <span class="ovc-s">jbus&#39;s list at ' + hm(NOW) + '</span></h2>' +
+    (shown.length ? '<ul class="clean">' + shown.map(function (r) {
+      return '<li class="rl"><span class="rl-b"><span class="rl-w" title="' + esc(r.subj + " " + r.what) + '"><code>' + esc(r.subj) + '</code> ' + esc(r.what) + '</span><span class="rl-m">' + esc(r.where) + ' &middot; ' + esc(ago(r.since)) + '</span></span><a class="btn" href="' + esc(r.href) + '">' + esc(r.verb) + '</a></li>';
+    }).join("") + '</ul>' : '<p class="ovc-s">Nothing waits on you' + lastPass() + '.</p>') +
+    (rows.length > shown.length ? '<p class="ovc-f"><a href="#/triage">+' + (rows.length - shown.length) + ' more in Triage</a></p>' : "") +
+    (soon ? '<p class="ovc-f" title="' + falls(STACK).replace(/<[^>]*>/g, "") + '">' + defaultLine(STACK) + '</p>' : "") + '</section>';
+}
+panel({
+  reads: "mixed", drawer: dYou, draw: renderNeeds,
+  parts: { tile: youTile, rail: youRail },
+  gloss: { needs: ["Needs you", "What waits on you in every project, oldest first, as jbus's last pass listed it, each with the one thing to do. A gate that goes ahead on its default is counted apart, as the line under the list: it needs nothing from you unless you would say otherwise."] }
+});

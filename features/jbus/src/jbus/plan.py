@@ -26,6 +26,9 @@ entry of each home's plan, and it is bound to the entry's head (`head`): its hea
 its brief included (`queue.entered`). The go holds while the entry is in the plan with the same
 head and no `jbus plan stop <entry>` stopped it (`holding`). When it no longer holds, each row of
 the entry that has not launched waits for the user's go again, and a launched one goes on.
+
+A go that holds over an entry whose rows are all over is owed (`owed`): the user said go and
+nothing is queued, so its home is woken to queue the next row or close the entry.
 """
 
 from __future__ import annotations
@@ -418,6 +421,29 @@ def _entered(half: Any) -> None:
             run.say(f"queue {run.project.name}: {line}")
     except Refused:
         return
+
+
+def owed(state: Path, home: Path, rows: list[queue.Row]) -> list[Go]:
+    """Return each go that holds whose entry has rows and none live: its last row ended (a scout
+    reported, a row merged) and nothing is queued for what is left. Each is an item of the one
+    list that wakes the entry's home (`jbus.wakes`), and a thing its home has out
+    (`jbus.children.out`). It leaves both on the entry's next row, or on `plan close`."""
+    found = []
+    for made in goes(state):
+        try:
+            text: str | None = (home / made.scope / "plan.md").read_text()
+        except OSError:
+            text = None
+        mine = rows_of(made.entry, rows)
+        if not why_not(made, text) and mine and all(queue.over(row) for row in mine):
+            found.append(made)
+    return found
+
+
+def owed_key(made: Go) -> str:
+    """The key of an owed entry on the one list: `owed <scope>/<entry>`, or `owed <entry>` for an
+    entry of the root home's plan."""
+    return f"owed {made.scope}/{made.entry}" if made.scope else f"owed {made.entry}"
 
 
 STEPS = (verbs.Step("before-watch", 9, "plan.entered", _entered),)
