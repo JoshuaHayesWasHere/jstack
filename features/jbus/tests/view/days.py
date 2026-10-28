@@ -131,6 +131,7 @@ def lineup(scene, counts, merged=30, gates=6):
                         f"approve:{slug}",
                         f"approve {slug}: jbus queue approve",
                         slug=slug,
+                        minutes=20 + 7 * at,
                     )
                 )
             elif kind == "blocked":
