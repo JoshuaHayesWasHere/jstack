@@ -24,9 +24,11 @@ window.addEventListener("load", function () { setTimeout(function () {
   }
   var steps = [
     function () { read("first"); board.querySelector('[data-bcell="jview/check"]').click(); },
-    function () { read("cell"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
+    function () { read("cell"); board.querySelector('[data-bcell="root/stacked"]').click(); },
+    function () { read("cell2"); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); },
     function () { read("esc"); board.querySelector('[data-bcell="root/stacked"]').click(); },
-    function () { read("cell2"); history.back(); },
+    function () { read("again"); board.querySelector('[data-bcell="root/stacked"]').click(); },
+    function () { read("twice"); history.back(); },
     function () {
       read("back");
       var pre = document.createElement("pre"); pre.id = "probe"; pre.textContent = JSON.stringify(out);

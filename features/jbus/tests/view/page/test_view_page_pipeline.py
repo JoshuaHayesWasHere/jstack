@@ -61,7 +61,7 @@ def shown(root, rows, screen, route="#/", pick="", tap="", script=PROBE, at=2000
                 pick=pick,
                 tap=tap,
                 at=at,
-                budget=9000,
+                budget=12000,
                 script=script,
                 **how,
             )
@@ -349,7 +349,8 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     jview 15, flow 8 and macos 1, and infra with no open row, the totals of each stage, a dot
     per row, square and shaded by what it waits on in Check, and the Chains line. A cell is a
     link to `#/?home=<h>&stage=<s>`, which leaves that home's rows of that stage alone in the
-    columns; Esc and the browser's back each undo it."""
+    columns; Esc and the browser's back each undo it, back to the board, after two cells in a row
+    or one cell clicked twice."""
     from view.days import t_moment
     from view.scene import briefed
 
@@ -360,13 +361,13 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     served = Served(scene)
     try:
         seen = look(
-            scene, tmp_path, route="#/", port=served.port, script=MATRIX, at=2000, budget=9000
+            scene, tmp_path, route="#/", port=served.port, script=MATRIX, at=2000, budget=12000
         )
         made = served.json("/panel/pipeline.json")["data"]
     finally:
         served.close()
     assert seen["errors"] == []
-    first, cell, esc, cell2, back = seen["seen"]
+    first, cell, cell2, esc, again, twice, back = seen["seen"]
     assert first["above"], first
     assert first["heads"] == [
         "home",
@@ -409,9 +410,10 @@ def test_the_matrix_reads_the_t_moment_and_a_cell_filters_the_columns_till_esc_o
     assert cell["hash"] == "#/?home=jview&stage=check"
     assert [(one["key"], sorted(one["slugs"])) for one in cell["stages"]] == [("check", mine)]
     assert cell["chips"] == ["jview 15", "Check only ✕"]
-    assert esc["hash"] == "#/"
-    assert len({slug for one in esc["stages"] for slug in one["slugs"]}) == 44
     assert cell2["hash"] == "#/?home=root&stage=stacked"
     assert [one["key"] for one in cell2["stages"]] == ["stacked"]
+    assert esc["hash"] == "#/"
+    assert len({slug for one in esc["stages"] for slug in one["slugs"]}) == 44
+    assert again["hash"] == twice["hash"] == "#/?home=root&stage=stacked"
     assert back["hash"] in ("", "#/")
     assert len({slug for one in back["stages"] for slug in one["slugs"]}) == 44
