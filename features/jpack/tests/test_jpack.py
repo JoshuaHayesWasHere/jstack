@@ -44,15 +44,22 @@ Direct: the line says it.
 """
 
 
+IDENTITY = {
+    "GIT_AUTHOR_NAME": "t",
+    "GIT_AUTHOR_EMAIL": "t@example.com",
+    "GIT_COMMITTER_NAME": "t",
+    "GIT_COMMITTER_EMAIL": "t@example.com",
+}
+
+
 def git(cwd, *args, env=None):
-    identity = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
     done = subprocess.run(
-        ["git", *identity, *args],
+        ["git", *args],
         cwd=cwd,
         check=True,
         capture_output=True,
         text=True,
-        env={**os.environ, **(env or {})},
+        env={**os.environ, **IDENTITY, **(env or {})},
     )
     return done.stdout.strip()
 
@@ -72,12 +79,19 @@ def commit(repo, files, message="work", when=None):
 
 @pytest.fixture
 def subject(tmp_path):
-    """A subject repo with one commit, the one a pack's notes are pinned to."""
+    """A subject repo with one commit, the one a pack's notes are pinned to. Its author, date
+    and files are fixed, so its id is the same on every run: `PINNED`, whose first seven
+    characters hold a digit, as the lint asks of a commit id."""
     repo = tmp_path / "subject"
     repo.mkdir()
     git(repo, "init", "-q", "-b", "main")
-    sha = commit(repo, {"src/upload.py": UPLOAD, "src/other.py": "one\n"}, when=days_ago(30))
+    sha = commit(repo, {"src/upload.py": UPLOAD, "src/other.py": "one\n"}, when=PINNED_AT)
+    assert sha == PINNED
     return repo, sha
+
+
+PINNED_AT = datetime(2026, 9, 1, tzinfo=UTC)
+PINNED = "71703307a3e0071d8706eeb578e6a7365f7b4a96"
 
 
 def days_ago(days):
