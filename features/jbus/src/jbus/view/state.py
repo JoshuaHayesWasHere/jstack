@@ -1956,6 +1956,20 @@ def summary(read: Read) -> dict[str, Any]:
     }
 
 
+def needs(
+    sources: Sources,
+    name: str,
+    now: datetime,
+    runs: Callable[[str], dict[str, Any]],
+    found: tuple[panels.Panel, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """What waits on the user in one project, oldest first, as `/stack.json`'s `needs` has
+    each entry: the feed's catch-up (`jbus.feed`)."""
+    found = panels.found() if found is None else found
+    shape = next(panel.shape for panel in found if panel.name == "you")["needs"]
+    return keep(Read(sources, name, now, runs, found=found).panel("you")["needs"], shape)
+
+
 def stack(
     sources: Sources,
     now: datetime,

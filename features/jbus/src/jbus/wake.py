@@ -35,7 +35,7 @@ one before it, which is out of date.
 
 The log is `events.jsonl`. jbus adds a line for each event when it queues the event, `{"at", "id",
 "event", "slug", "loud", "line", "text"}`, and one for each wake the home thread took,
-`{"at", "posted_home": [ids]}`. The daily prune rewrites the file without its oldest lines. Both
+`{"at", "posted_home": [ids]}`. A party names an event by another id, which is unique (`entries`). The daily prune rewrites the file without its oldest lines. Both
 times come from the clock, so a wake's time is never before the time of what it carries. The id is
 a hash of the event as the outbox holds it, so jbus adds nothing to the outbox or to the wake for
 the log's sake. `Box.log` reads the events and the wakes of the home thread back as one list,
@@ -615,6 +615,30 @@ def _records(path: Path) -> list[dict[str, Any]]:
             continue
         records.append(record)
     return records
+
+
+def entries(state: Path) -> list[dict[str, Any]]:
+    """Every event of the project's log in the order of the file, under today's names, each
+    with its `id`: the one id a party names an event by, as the event it last saw (a go's
+    `seen`) or as the feed's cursor (`jbus.feed`).
+
+    The id is a hash of the line as the file holds it and of how many equal lines come before
+    it, so two equal events have two ids. The file only grows, apart from the daily prune
+    (`Box.forget`), which writes each line it keeps as it was and drops equal lines together,
+    since they have one time: an id names the same line across restarts and prunes. A line
+    jbus owed (`UNLOGGED`) is written late with its first time, so the prune can drop it before
+    a party that read past it reads it."""
+    names = jbus.old_names()
+    before: dict[str, int] = {}
+    found = []
+    for record in _records(state / LOG):
+        if "event" not in record or TOOK in record:
+            continue
+        line = json.dumps(record, sort_keys=True)
+        before[line] = before.get(line, 0) + 1
+        made = hashlib.sha256(f"{line}#{before[line]}".encode()).hexdigest()[:16]
+        found.append(current(record, names) | {"id": made})
+    return found
 
 
 def _prunable(key: str, slugs: set[str]) -> bool:

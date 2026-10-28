@@ -58,7 +58,6 @@ from jbus import (
     Config,
     Project,
     Refused,
-    acts,
     alert,
     merge,
     project,
@@ -70,6 +69,7 @@ from jbus import (
     t3,
     verbs,
     waiting,
+    wake,
 )
 from jbus.wake import Box
 
@@ -264,8 +264,9 @@ def _digest(args: argparse.Namespace, config: Config) -> int:
 
 
 def _events(args: argparse.Namespace, config: Config) -> int:
-    """Print the project's event log, one JSON object per line, oldest first, each sent one with
-    its `id`, the event a go's `--seen` names. It writes nothing.
+    """Print the project's event log, one JSON object per line, oldest first, each with its
+    `id` (`wake.entries`), the event a go's `--seen` and the feed's cursor name. It writes
+    nothing.
 
     `--since` is an ISO 8601 time, or a day alone. A time with no zone is in the user's
     zone.
@@ -273,12 +274,12 @@ def _events(args: argparse.Namespace, config: Config) -> int:
     start = _start(args.since, config)
     project = verbs.project(config, args.project)
     state = config.state(project)
-    for one, raw in zip(Box(state, project).log(), acts.events(state), strict=False):
+    for one, named in zip(Box(state, project).log(), wake.entries(state), strict=True):
         if args.slug is not None and one["slug"] != args.slug:
             continue
         if start is not None and datetime.fromisoformat(one["at"]) < start:
             continue
-        print(json.dumps(one | ({"id": raw["id"]} if "id" in raw else {}), sort_keys=True))
+        print(json.dumps(one | {"id": named["id"]}, sort_keys=True))
     return 0
 
 

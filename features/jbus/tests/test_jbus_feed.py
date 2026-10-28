@@ -32,6 +32,10 @@ EVENT = ("v", "id", "at", "project", "kind", "subject", "line", "need", "act")
 
 
 def box(kitchen):
+    """The project's log, in a project the view knows: one with a queue, here an empty one."""
+    queued = kitchen.state / "queue.json"
+    if not queued.exists():
+        jbus.write_json(queued, [])
     return wake.Box(kitchen.state, jbus.load().project("demo"))
 
 
@@ -120,6 +124,7 @@ def test_a_cursor_reads_every_event_after_it_once_across_a_restart(kitchen):
 def test_an_unknown_or_expired_cursor_resets_with_the_needs_to_catch_up_on(kitchen, monkeypatch):
     add(kitchen, "alpha", approve=False)
     kitchen.poll()
+    box(kitchen).send("alpha", "queue", "queue demo: alpha is queued")
     newest = json.loads(kitchen.main("events")[1].splitlines()[-1])["id"]
     for page in (fed(kitchen, "--after", "not-an-id"), fed(kitchen)):
         assert (page["v"], page["reset"], page["events"], page["cursor"]) == (1, True, [], newest)
@@ -130,10 +135,10 @@ def test_an_unknown_or_expired_cursor_resets_with_the_needs_to_catch_up_on(kitch
     finally:
         view.close()
     old = datetime.now(UTC) - wake.LOG_KEEP - timedelta(days=1)
-    monkeypatch.setattr(wake.Box, "clock", staticmethod(lambda: old))
-    box(kitchen).send("beta", "queue", "queue demo: beta is queued")
+    with monkeypatch.context() as then:
+        then.setattr(wake.Box, "clock", staticmethod(lambda: old))
+        box(kitchen).send("beta", "queue", "queue demo: beta is queued")
     expired = fed(kitchen)["cursor"]
-    monkeypatch.undo()
     box(kitchen).send("gamma", "queue", "queue demo: gamma is queued")
     kept = fed(kitchen)["cursor"]
     box(kitchen).send("delta", "queue", "queue demo: delta is queued")
@@ -198,13 +203,11 @@ def test_each_need_carries_the_fields_the_bots_asked_for_and_its_doors(kitchen, 
     assert alpha["since"] is not None
     assert needs["approve", "beta"]["doors"] == []
     asked = needs["gate", "alpha"]
-    assert (asked["subj"], asked["what"], asked["doors"]) == (
-        str(number),
+    assert (asked["key"], asked["what"], asked["doors"]) == (
+        f"gate:q{number}",
         "which history?",
         ["rewrites history"],
     )
-    filed = needs["gate", "beta"]
-    assert (filed["what"], filed["doors"]) == ("drop the old tables?", ["deletes data"])
     view = View(kitchen)
     try:
         status, stack = view.get("/stack.json")
@@ -213,6 +216,8 @@ def test_each_need_carries_the_fields_the_bots_asked_for_and_its_doors(kitchen, 
     assert status == 200
     shown = {(one["kind"], one["slug"] or one["subj"]): one["doors"] for one in stack["needs"]}
     assert shown == {key: one["doors"] for key, one in needs.items()}
+    (filed,) = [one for one in stack["proceeds"] if one["slug"] == "beta"]
+    assert (filed["what"], filed["doors"]) == ("drop the old tables?", ["deletes data"])
     assert bot_go(route, kitchen, "alpha")[0] == 200
     (acted,) = [one for one in fed(kitchen, "--after", cursor)["events"] if one["kind"] == "act"]
     assert sorted(acted) == sorted(EVENT)
@@ -228,6 +233,7 @@ def test_each_need_carries_the_fields_the_bots_asked_for_and_its_doors(kitchen, 
 
 def test_a_go_seen_after_the_second_of_two_equal_events_is_not_stale(kitchen, route):
     add(kitchen, "beta", approve=False)
+    box(kitchen).send("beta", "queue", "queue demo: beta is queued")
     cursor = fed(kitchen)["cursor"]
     for _ in range(2):
         box(kitchen).send("beta", "queue", "queue demo: beta's brief changed")
