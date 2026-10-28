@@ -343,6 +343,38 @@
     .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   }
+  .mx { margin-bottom: var(--space-5); border: 1.5px solid var(--hair); border-radius: var(--radius-lg); background: var(--surface); padding: var(--space-4) var(--space-7) var(--space-5); }
+  .mx-hd { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0 var(--space-6); }
+  .mx-w { overflow-x: auto; }
+  .mx table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-top: var(--space-3); }
+  .mx th, .mx td { text-align: left; vertical-align: top; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--hair); font-size: var(--text-sm); }
+  .mx thead th { font-size: var(--text-xs); font-weight: 700; color: var(--ink-2); }
+  .mx thead th .mx-c { display: block; font-size: var(--text-lg); color: var(--ink); }
+  .mx th.mx-hm { width: 132px; } .mx th.mx-ck { width: 150px; }
+  .mx tbody th { font-weight: 400; } .mx tbody th b { font-size: var(--text-md); }
+  .mx-la { display: block; font-size: var(--text-xs); color: var(--ink-3); }
+  .mx-c { font-weight: 800; font-size: var(--text-md); }
+  .mx-e { color: var(--line); }
+  .mx-a { display: block; color: var(--ink); text-decoration: none; border-radius: var(--radius-sm); }
+  .mx-a:hover, .mx-a.on { background: var(--sunk); }
+  .mx-a.on { box-shadow: 0 0 0 1.5px var(--ink); }
+  .mx-dots { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+  .mx-dots b { font-size: var(--text-xs); line-height: 9px; }
+  .mx-dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink-2); }
+  .mx-dots i.old { background: var(--ink-2); }
+  .mx-dots i.f, .mx-dots i.w, .mx-dots i.p, .mx-dots i.x { border-radius: var(--radius-xs); }
+  .mx-dots i.f { background: var(--ink); border-color: var(--ink); }
+  .mx-dots i.w { background: var(--line); border-color: var(--line); }
+  .mx-dots i.p { background: var(--hair); border-color: var(--line); }
+  .mx-dots i.x { border-style: dashed; }
+  .mx-lg { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-7); margin-top: var(--space-3); font-size: var(--text-xs); color: var(--ink-3); }
+  .mx-lg .mx-dots { display: inline-flex; margin: 0 var(--space-2) 0 0; }
+  .mx-ch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1.5px dashed var(--hair); }
+  .mx-n { font: inherit; font-family: var(--mono); font-size: var(--text-xs); color: var(--ink); background: var(--surface); border: 1.5px solid var(--ink-2); border-radius: var(--radius-sm); padding: var(--space-px) var(--space-4); cursor: pointer; }
+  .mx-n.hd { border-width: 3px; border-color: var(--ink); }
+  .mx-ar { color: var(--ink-2); }
+  .mx-cs { flex-basis: 100%; font-size: var(--text-sm); color: var(--ink-2); }
+  @media (max-width: 640px) { .mx { display: none; } }
 </style>
 </head>
 <body>
@@ -422,7 +454,7 @@
   function themed() { return HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : ""; }
   function href(project, target) {
     var t = target ? "/" + target.split(":").map(encodeURIComponent).join("/") : "", theme = HASH.theme === "light" || HASH.theme === "dark" ? "&theme=" + HASH.theme : "";
-    var q = project || TRIAGE ? [] : ["home", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
+    var q = project || TRIAGE ? [] : ["home", "stage", "still", "pick"].filter(function (k) { return HASH[k]; }).map(function (k) { return k + "=" + encodeURIComponent(HASH[k]); });
     if (target) q.push("open=" + encodeURIComponent(target));
     if (!project && !TRIAGE && (HOMES || q.length > !!target)) return "#/" + (HOMES ? "homes" : "") + (q.length ? "?" + q.join("&") : "") + theme;
     return "#/" + (project ? encodeURIComponent(project) + t : t.slice(1)) + theme;

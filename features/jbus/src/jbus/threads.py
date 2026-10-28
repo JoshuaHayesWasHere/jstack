@@ -211,6 +211,15 @@ def link(run: Pass, client: Client, world: World) -> None:
 
 
 UNSEEN = "its page has no session in Lavish's state at {}, so its thread stays"
+UNDONE = "its Report does not say Status: done, so its thread stays"
+
+
+def _says_done(report: str) -> bool:
+    """Say whether a scout's Report says `Status: done`, on its last `Status:` line, as the scout
+    skill's own settle block reads it: the word after `Status:` is `done`, so `Status: done, but`
+    is not."""
+    said = [line.split()[1:2] for line in report.splitlines() if line.split()[:1] == ["Status:"]]
+    return bool(said) and said[-1] == ["done"]
 
 
 def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> str:
@@ -238,15 +247,21 @@ def _waits(run: Pass, slug: str, page: str, sessions: list[dict[str, Any]]) -> s
 
 def _scouts(run: Pass) -> dict[str, str]:
     """Return each scout that has a Report, with the reason its thread stays. The reason is empty
-    for a scout that is over."""
-    pages = {}
+    for a scout that is over. A scout whose last Report does not say `Status: done` stays, as the
+    scout skill's End keeps it, and a page that waits is the reason it gives first."""
+    pages, undone = {}, set()
     for slug, text in _briefs(run, "scouts").items():
         whole = mirror.sections(text)
         reports = [body for heading, body in whole if heading == REPORT]
         if reports:
             pages[slug] = mirror.page(reports[-1])
+            if not _says_done(reports[-1]):
+                undone.add(slug)
     sessions = lavish.sessions() if any(pages.values()) else []
-    return {slug: _waits(run, slug, page, sessions) for slug, page in pages.items()}
+    return {
+        slug: _waits(run, slug, page, sessions) or (UNDONE if slug in undone else "")
+        for slug, page in pages.items()
+    }
 
 
 def shut(world: World, briefs: dict[str, str]) -> set[str]:
@@ -274,7 +289,7 @@ def finished(run: Pass, world: World, scouts: dict[str, str] | None = None) -> d
     stays where the user sees it. A reviewer is over when the brief's last Review has a verdict and
     either the reviewer's pull request merged or closed or the reviewer's task is over. A reviewer
     that stopped early stays. jbus archives a reviewer when its pull request merged or closed. A
-    scout is over when it has written its Report and nobody waits on the page that its last Report
+    scout is over when its last Report says `Status: done` and nobody waits on the page that it
     names, if it names one.
     """
     briefs = _briefs(run)
@@ -375,7 +390,7 @@ def out(run: Pass, client: Client, also: frozenset[str] = frozenset()) -> list[O
         same = type(items) is int and was.get("items") == items and was.get("wrote")
         wrote = was["wrote"] if same else thread.get("updatedAt")
         silent = _silent(run.now, wrote)
-        page = role == "scout" and bool(held.get(slug))
+        page = role == "scout" and held.get(slug) not in (None, "", UNDONE)
         facts = Facts(str(thread.get("status", "")), silent, page=page)
         active, started, runs = None, None, None
         asked = was.get("pending") if same and type(was.get("pending")) is int else 0

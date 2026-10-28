@@ -395,9 +395,11 @@ def test_a_later_pass_adds_what_became_of_a_hung_call_once(kitchen, after, becam
     assert len(kitchen.lines("stall")) == 1
 
 
-def test_a_scout_whose_page_still_waits_is_never_hung(kitchen):
+@pytest.mark.parametrize("status", ["done", "blocked"])
+def test_a_scout_whose_page_still_waits_is_never_hung(kitchen, status):
     page = f"reports/look.html, {ADDRESS}ab12"
-    kitchen.brief("look", f"\n## Report\nStatus: done\nBrief: none   Page: {page}\n", kind="scouts")
+    report = f"\n## Report\nStatus: {status}\nBrief: none   Page: {page}\n"
+    kitchen.brief("look", report, kind="scouts")
     kitchen.t3.thread("look", title="scout: look", idle=timedelta(hours=3))
     kitchen.lavish(ab12=(kitchen.home / "reports" / "look.html", "open"))
     kitchen.poll()
