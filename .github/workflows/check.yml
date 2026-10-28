@@ -144,8 +144,8 @@ jobs:
         run: '[ "$PARTS" = success ] || { echo "::error::the parts of the check ended $PARTS, not success"; exit 1; }'
       # As `full` does: a run that ran the whole suite and passed leaves a marker named by the
       # tree, and a fast run leaves none, since a marker says the full suite passed. A later
-      # run of the same tree, main's after a squash merge or jmerge's fresh check, skips the
-      # suite on it. A marker that cannot be kept costs that skip and nothing else.
+      # run of the same tree, main's after a squash merge, skips the suite on it. A marker that
+      # cannot be kept costs that skip and nothing else.
       - name: green tree marker
         id: marker
         if: needs.check-shard.result == 'success' && needs.check-shard.outputs.selection == 'all'

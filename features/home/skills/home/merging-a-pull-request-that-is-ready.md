@@ -3,8 +3,7 @@
 A pull request that is reviewed, fixed and green is merged, and the user is told of it when they ask for status, as "How a turn ends" says.
 Nobody has to give the word for that one.
 A pull request that is anything short of ready is never merged without the user's word.
-Neither is one that changes a protected path (a secret, or one of the two lists of paths), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
-One that changes a guarded path is merged by the same command, under a stricter gate (below).
+Neither is one that changes a protected path (a secret, or the list of protected paths itself), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
 
 The home merges nothing itself, and runs no command that merges.
 One command does all of it, with no model: `jmerge`, from the repo this skill lives in, and jbus alone runs it to merge, on each pass, for every home of the repo, whatever `$H/home-thread` says.
@@ -80,10 +79,8 @@ It prints one line per open pull request, and appends the same lines, dated, to 
 | `merged <number> <slug> <commit> "<title>", revert: <command>` | it is merged as that commit, the main checkout is pulled, and the worktree and both branches are gone. The line ends in the command that undoes it |
 | `merged <number> <slug> <commit> "<title>", the rebase changed the patch in <files>, revert: <command>` | it is merged, and a rebase changed its patch in those files after the last head a review saw: the review stands, and no review saw that change. Name the files on the line's `merged:` line |
 | `merged <number> <slug> <commit> "<title>", kept: <what and why>, revert: <command>` | it is merged, and something was left: a worktree with uncommitted work, a branch that is not at the merged head, a worktree or a branch git would not remove. Do nothing more about it. The same line says so if the pull failed |
-| `merged <number> <slug> <commit> "<title>", guarded: <path>, revert: <command>` | it is merged under the stricter gate of a guarded path, the first one it changes |
 | `wait <number> <url>: <reason>` | it is not merged. The reason is the first thing it is short of |
-| `wait <number> <url>: guarded (touches <path>), <reason>` | it is not merged yet: it is short of nothing else, it changes a guarded path, and that part of the stricter gate does not hold. It is not the user's to merge: a later run merges it once the reason is gone |
-| `hold <number> <url>: needs <the user's name>, touches <path>` | it is not merged and `jmerge` never merges it: it is short of nothing else, and it changes a protected path: a secret, or one of `jmerge`'s two lists. The path is the first one that matches. Tell the user, once: it is theirs to merge |
+| `hold <number> <url>: needs <the user's name>, touches <path>` | it is not merged and `jmerge` never merges it: it is short of nothing else, and it changes a protected path: a secret, or `jmerge`'s list of them. The path is the first one that matches. Tell the user, once: it is theirs to merge |
 | `wait <number> <url>: auto-merge is off for this repo` | it is not merged: it is short of nothing else, and the repo has a `merge-off` file. It is the user's to merge |
 | `wait <number> <url>: another home's` | to a run of `jmerge --home` alone: its brief's `Home:` line names another home of this repo. jbus's own run judges every home's |
 | `wait: could not ask GitHub` | nothing was looked at |
@@ -104,19 +101,17 @@ The rules are in `features/jmerge/src/jmerge/ready.py`, and nowhere else:
 Two more things keep a ready pull request from the command, and only the user lifts them. They are looked at last, so each is said of a pull request that is short of nothing else:
 
 - it changes no protected path.
-  The patterns are in `features/jmerge/src/jmerge/protected.txt`, one per line, `#` for a comment: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the two lists themselves, `/features/jmerge/src/jmerge/protected.txt` and `/features/jmerge/src/jmerge/guarded.txt`, and `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
+  The patterns are in `features/jmerge/src/jmerge/protected.txt`, one per line, `#` for a comment: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the list itself, `/features/jmerge/src/jmerge/protected.txt`, and `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
   A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none.
   Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `features/jbus/src/jbus/merge.py`.
   A `*` matches within one part of a path.
-  `jmerge` refuses to run, and merges nothing, while that file, `guarded.txt` or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
+  `jmerge` refuses to run, and merges nothing, while that file or `ci-paths.txt` is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
   The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it, `--land` included.
   A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not.
   GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else.
   GitHub must have said every path the pull request changes: one whose file list it cut short is held, and so is one whose renames it would not give the old paths of.
-  To protect or guard another path, a pull request adds a line to `protected.txt` or `guarded.txt`, and since it changes one of the two lists the user merges it;
+  To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
 - the repo's merge is on. Every repo is on until `$H/merge-off` is there: `/nohome merge` makes the file and `/nohome merge on` removes it. With it, the line is `wait <number> <url>: auto-merge is off for this repo`, whoever runs the command, a home or `jbus`.
-
-A pull request that changes a path listed in `features/jmerge/src/jmerge/guarded.txt`, and no protected one, is merged by `jmerge` itself, under the stricter gate that `features/jmerge/docs/jmerge.md` gives under "Protected and guarded paths".
 
 A pull request that is held (`hold`) is merged by the user, by hand, and so is any pull request of a repo whose merge is off. The sweep below then removes what its thread left.
 

@@ -1,6 +1,7 @@
 # An example CI: jstack's own
 
-A repo's CI can give `jmerge` a green marker of a tree whose whole suite passed, which [Fresh against main](../jmerge.md#fresh-against-main) uses.
+A repo's CI can keep a green marker of a tree whose whole suite passed, so that main's run after a merge skips a suite that already passed on the same tree.
+`jmerge` does not read the marker.
 Its own `scripts/select_tests.py`, which says which tests a change needs, keeps a pull request's check short.
 
 Your repo needs neither, and `jmerge` merges without them.

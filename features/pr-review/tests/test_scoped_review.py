@@ -12,8 +12,8 @@ import subprocess
 import textwrap
 from itertools import takewhile
 
-import test_jmerge_guarded as guarded
 import test_jmerge_rangediff as rebases
+import test_jmerge_run as jrun
 import test_pr_review_skill as reviews
 from jbus import rebase
 from test_home_merge import FENCED, git, review
@@ -125,7 +125,7 @@ def test_ranges_git_cannot_compare_stop_the_pass(tmp_path):
 
 def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(proven_merged, rules):
     rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
-    (waits,) = guarded.jmerge(proven_merged, rules, "--check")
+    (waits,) = jrun.jmerge(proven_merged, rules, "--check")
     assert waits == rebased.waits()
     _, slug, old, new = asked(7, waits.split("scoped review of ")[1]).groups()
     scope, head, *_ = scoped(proven_merged.tree, old, new)
@@ -133,9 +133,7 @@ def test_a_scoped_review_at_the_rebased_head_makes_the_pull_request_ready(proven
         f"## Review\nVerdict: clean\n{scope}\n{head}   Unchanged by the run: yes\nFindings:\nnone\n"
     )
     rebased.brief(review("clean", rebased.before) + section)
-    assert guarded.jmerge(proven_merged, rules, "--check") == [
-        f"ready 7 {rebased.head} {slug} alpha"
-    ]
+    assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} {slug} alpha"]
 
 
 def test_a_scoped_review_with_a_finding_waits_for_it_to_be_handled(proven_merged, rules):
@@ -144,5 +142,5 @@ def test_a_scoped_review_with_a_finding_waits_for_it_to_be_handled(proven_merged
         "Verdict: findings\n", f"Verdict: findings\nScope: range-diff {rebased.command()[28:]}\n"
     )
     rebased.brief(review("clean", rebased.before) + section)
-    (said,) = guarded.jmerge(proven_merged, rules, "--check")
+    (said,) = jrun.jmerge(proven_merged, rules, "--check")
     assert said.endswith(": its findings are not handled: the Result has no Fixed line")

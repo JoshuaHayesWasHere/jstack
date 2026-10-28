@@ -1,11 +1,7 @@
 """A pull request that changes a protected path is the user's to merge, so `jmerge` prints it
 as `hold` and merges nothing. The patterns are the ones in
 `features/jmerge/src/jmerge/protected.txt`, read as the command reads them, and the tests
-run the command itself against a fake `gh`. The command reads the patterns of a guarded list
-the same way, but a guarded pattern does not hold a pull request. A pull request that
-changes a guarded path merges under a gate, which `test_jmerge_guarded` tests. This file
-reads its guarded list from `test_jmerge_guarded`, because the shipped
-`features/jmerge/src/jmerge/guarded.txt` is empty."""
+run the command itself against a fake `gh`."""
 
 import json
 import re
@@ -17,7 +13,6 @@ import pytest
 import jsettings
 import test_home_merge as merge
 from jmerge import ready
-from test_jmerge_guarded import GUARDED
 from testing.paths import REPO
 
 SOURCE = REPO / "features" / "jmerge" / "src" / "jmerge"
@@ -39,35 +34,10 @@ PATHS = [
         "features/jmerge/src/jmerge/protected.txt",
         "docs/features/jmerge/src/jmerge/protected.txt",
     ),
-    (
-        "/features/jmerge/src/jmerge/guarded.txt",
-        "features/jmerge/src/jmerge/guarded.txt",
-        "features/jmerge/src/jmerge/guarded.txt.md",
-    ),
     ("/policy/", "policy/tailnet.hujson", "docs/policy.md"),
     ("/policy/", "policy/acls/tailnet.hujson", "src/policy/x.py"),
     ("/dns/", "dns/records.tf", "docs/dns.md"),
     ("/dns/", "dns/zones/example.tf", "infra/dns/records.tf"),
-]
-
-GUARDED_PATHS = [
-    ("acceptance/", "acceptance/login.feature", "docs/acceptance.md"),
-    ("acceptance/", "apps/web/acceptance/login.feature", "acceptance"),
-    (".github/workflows/", ".github/workflows/check.yml", ".github/dependabot.yml"),
-    (".github/workflows/", ".github/workflows/deep/x.yml", "docs/.github/workflows/check.yml"),
-    (
-        "features/jmerge/src/jmerge/",
-        "features/jmerge/src/jmerge/ready.py",
-        "features/jmerge/src/jmerger/ready.py",
-    ),
-    (
-        "features/jmerge/src/jmerge/",
-        "features/jmerge/src/jmerge/ci-paths.txt",
-        "src/jmerge/ready.py",
-    ),
-    ("src/jbus/", "src/jbus/dispatch.py", "src/jbusx.py"),
-    ("skills/", "skills/home/SKILL.md", "skills.md"),
-    ("skills/", "plugins/one/skills/x.md", "myskills/home/SKILL.md"),
 ]
 
 
@@ -91,12 +61,10 @@ def test_the_file_has_the_patterns_and_none_of_its_comments():
         "*.pem",
         "*.key",
         "/features/jmerge/src/jmerge/protected.txt",
-        "/features/jmerge/src/jmerge/guarded.txt",
         "/policy/",
         "/dns/",
     )
     assert {pattern for pattern, _, _ in PATHS} == set(PATTERNS)
-    assert {pattern for pattern, _, _ in GUARDED_PATHS} == set(GUARDED)
     assert ready.patterns_of((SOURCE / "ci-paths.txt").read_text()) == (
         ".github/workflows/",
         "/pyproject.toml",
@@ -114,27 +82,12 @@ def test_each_pattern_holds_its_path_and_not_one_that_looks_like_it(pattern, pro
     assert ready.needs_the_user(pull_request(near), PATTERNS, user=jsettings.DEFAULTS) == ""
 
 
-@pytest.mark.parametrize(("pattern", "guarded", "near"), GUARDED_PATHS)
-def test_each_guarded_pattern_names_its_path_and_holds_nothing(pattern, guarded, near):
-    assert ready.guarded_path(pull_request("a.txt", guarded), (pattern,)) == guarded
-    assert ready.guarded_path(pull_request(near), (pattern,)) == ""
-    assert ready.guarded_path(pull_request(near), GUARDED) == ""
-    assert ready.guarded_path(pull_request(near), GUARDED, (guarded,)) == guarded
-    held = (
-        guarded
-        if guarded
-        in (
-            "features/jmerge/src/jmerge/protected.txt",
-            "features/jmerge/src/jmerge/guarded.txt",
-        )
-        else ""
-    )
-    assert ready.needs_the_user(pull_request(guarded), PATTERNS, user=jsettings.DEFAULTS) == (
-        f"needs user, touches {held}" if held else ""
-    )
-
-
 OTHER_SHAPES = [
+    ("acceptance/", "acceptance/login.feature", "docs/acceptance.md"),
+    ("acceptance/", "apps/web/acceptance/login.feature", "acceptance"),
+    (".github/workflows/", ".github/workflows/deep/x.yml", "docs/.github/workflows/check.yml"),
+    ("src/jbus/", "src/jbus/dispatch.py", "src/jbusx.py"),
+    ("skills/", "plugins/one/skills/x.md", "myskills/home/SKILL.md"),
     ("src/jbus/merge.py", "src/jbus/merge.py", "docs/src/jbus/merge.py"),
     ("src/jbus/merge.py", "src/jbus/merge.py", "src/jbus/merge.py/x"),
     ("deploy/*.yml", "deploy/prod.yml", "deploy/envs/prod.yml"),
@@ -179,7 +132,7 @@ def test_the_shipped_lists_hold_patterns_and_nothing_else():
         assert ready.patterns_of("\n".join(lines)) == tuple(lines), name
 
 
-LISTS = ["protected.txt", "guarded.txt", "ci-paths.txt"]
+LISTS = ["protected.txt", "ci-paths.txt"]
 
 
 @pytest.mark.parametrize("name", LISTS)
@@ -232,7 +185,6 @@ def test_the_first_protected_path_github_lists_is_the_one_named():
         ready.needs_the_user(one, PATTERNS, user=jsettings.DEFAULTS)
         == "needs user, touches secrets/a.json"
     )
-    assert ready.guarded_path(one, GUARDED) == "skills/crew/SKILL.md"
 
 
 def test_a_file_list_github_cut_short_is_held_whatever_it_lists():

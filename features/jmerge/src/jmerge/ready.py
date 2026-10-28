@@ -90,8 +90,9 @@ def rules() -> tuple[tuple[str, str, str], ...]:
 
 def code_of(why: str) -> str:
     """The code of a reason: a `Reason`'s own, and for plain text the code of the first rule of
-    `rules` whose pattern matches it, past a `guarded (touches <path>), ` before it. A line
-    from before the codes is read this way too. `UNKNOWN` where no rule names it."""
+    `rules` whose pattern matches it, past a `guarded (touches <path>), ` before it, which an
+    older `jmerge` wrote. A line from before the codes is read this way too. `UNKNOWN` where no
+    rule names it."""
     if isinstance(why, Reason) and why.code:
         return why.code
     reason = _GUARDED.sub("", why)
@@ -116,9 +117,7 @@ NO_BRIEF = Reason("result", "no brief has a Result that names it")
 DRAFT = Reason("findings", "draft")
 UNREADIED = Reason("findings", "draft, and gh pr ready refused it: {said}")
 READIED = Reason("check", "reviewed and fixed, so marked ready, and CI runs its check at {head}")
-RULES = "features/jmerge/src/jmerge/"
 GRAMMAR = "features/jmerge/docs/jmerge.md#patterns"
-RULES_CHANGED = Reason("check", "jmerge's rules changed in this run")
 MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
 NO_MESSAGES = Reason("check", "its commit messages could not be read for the squash")
@@ -205,15 +204,9 @@ UNDECIDED = Reason("check", "GitHub has not decided whether it merges")
 TOUCHES = Reason("hold", "needs {user}, touches {path}")
 RENAMES_UNSAID = Reason("hold", "needs {user}, GitHub did not say which paths its renames left")
 UNLISTED = Reason("hold", "needs {user}, GitHub listed {listed} of the {changed} files it changes")
-NO_START = Reason("check", "its check has no start time")
-NOT_SEEN = Reason("second", "its head is not the one its review saw")
 MAIN_CHANGED = Reason(
     "check",
     "{default} changed {paths} after its check started at {since}; it needs a fresh check",
-)
-MAIN_CHANGED_REBASE = Reason(
-    "rebase",
-    "{default} changed {paths} after its check started at {since}; it needs a rebase",
 )
 ROW_HELD = Reason("hold", "its queue row is held: approve it again to let it merge")
 NO_GO = Reason(
@@ -288,7 +281,6 @@ _REFUSED = "{file}: {why}"
 _RULED = "{id}: {why}"
 _MORE = " and {more} more"
 _CARRIED = "review carried over: range-diff {old} {new} clean"
-_FRESH_SKIPPED = "fresh: skipped, tree {tree} passed in {at}, on {head} over {tip}"
 
 
 @dataclass(frozen=True)
@@ -1108,6 +1100,13 @@ def _protects(pattern: str, path: str) -> bool:
     return any(fnmatchcase(directory, wanted[0]) for directory in directories)
 
 
+def protected_path(one: PullRequest, patterns: tuple[str, ...], left: tuple[str, ...] = ()) -> str:
+    for path in (*one.files, *left):
+        if any(_protects(pattern, path) for pattern in patterns):
+            return path
+    return ""
+
+
 def needs_the_user(
     one: PullRequest,
     patterns: tuple[str, ...],
@@ -1115,9 +1114,9 @@ def needs_the_user(
     *,
     user: Settings,
 ) -> str:
-    for path in (*one.files, *(left or ())):
-        if any(_protects(pattern, path) for pattern in patterns):
-            return TOUCHES.format(user=user.user, path=path)
+    path = protected_path(one, patterns, left or ())
+    if path:
+        return TOUCHES.format(user=user.user, path=path)
     if left is None:
         return RENAMES_UNSAID.format(user=user.user)
     if len(one.files) < one.changed:
@@ -1127,33 +1126,9 @@ def needs_the_user(
 
 @dataclass(frozen=True)
 class Judged:
-    path: str = ""
     tip: str = ""
-    rules: bool = False
     fresh: str = ""
     gate: str = ""
-
-
-def guarded_path(one: PullRequest, patterns: tuple[str, ...], left: tuple[str, ...] = ()) -> str:
-    for path in (*one.files, *left):
-        if any(_protects(pattern, path) for pattern in patterns):
-            return path
-    return ""
-
-
-def changes_the_rules(one: PullRequest, left: tuple[str, ...] = ()) -> bool:
-    return bool(guarded_path(one, (RULES,), left))
-
-
-def short_of_guarded(one: PullRequest, text: str, rebase: Rebase | None, carried: str) -> str:
-    if one.started is None:
-        return NO_START
-    said = said_of(text)
-    if carried or one.head in (said.reviewed, said.fixed):
-        return ""
-    if rebase is not None and rebase.did == "unchanged" and rebase.head == one.head:
-        return ""
-    return NOT_SEEN
 
 
 def stale_paths(
@@ -1175,24 +1150,18 @@ def short_on_main(
     stale: tuple[str, ...],
     since: datetime,
     default: str = "main",
-    rebase: bool = False,
     *,
     user: Settings,
 ) -> str:
     if not stale:
         return ""
     paths = _first_five(stale)
-    reason = MAIN_CHANGED_REBASE if rebase else MAIN_CHANGED
-    return reason.format(default=default, paths=paths, since=user.clock(since))
+    return MAIN_CHANGED.format(default=default, paths=paths, since=user.clock(since))
 
 
 def _first_five(paths: tuple[str, ...]) -> str:
     more = _MORE.format(more=len(paths) - 5) if len(paths) > 5 else ""
     return " ".join(paths[:5]) + more
-
-
-def fresh_skipped(tree: str, at: str, head: str, tip: str) -> str:
-    return _FRESH_SKIPPED.format(tree=tree, at=at, head=head[:12], tip=tip[:12])
 
 
 def fresh_command(text: str) -> str:

@@ -25,9 +25,9 @@ one project. The kitchen's repo is a checkout and its origin. It is a copy of a 
 so a kitchen starts no git process to make its repo.
 
 A test of `jmerge` asks for the `home` and its pull request, `merged`, from `test_home_merge`.
-A test of a guarded path asks for two fixtures from `test_jmerge_guarded`: `rules`, the package
-with a list that guards five paths, and `proven_merged`, a pull request whose review proved the
-one safety fact at its head. Both modules are plugins of the root `conftest.py` too, so every
+A test that runs `jmerge` as a command asks for two fixtures from `test_jmerge_run`: `rules`, a
+copy of the package to run, and `proven_merged`, a pull request whose review proved the one
+safety fact at its head. Both modules are plugins of the root `conftest.py` too, so every
 run loads them. `test_home_merge` runs `uv cache dir` only when a test needs the cache.
 """
 
@@ -234,16 +234,16 @@ def merged(home, tmp_path):
 
 @pytest.fixture
 def rules(tmp_path):
-    import test_jmerge_guarded as guarded
+    import test_jmerge_run as run
 
-    return guarded.checkout(tmp_path, guarded.LISTED)
+    return run.checkout(tmp_path)
 
 
 @pytest.fixture
 def proven_merged(home, tmp_path):
     import test_home_merge as merge
-    import test_jmerge_guarded as guarded
+    import test_jmerge_run as run
 
     made = merge.Merged(home, tmp_path)
-    (made.home.tasks / "alpha.md").write_text(merge.brief(guarded.proven("clean", made.head)))
+    (made.home.tasks / "alpha.md").write_text(merge.brief(run.proven("clean", made.head)))
     return made

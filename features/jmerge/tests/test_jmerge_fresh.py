@@ -12,7 +12,6 @@ fake `gh` whose merge is a squash of the head over the origin's main."""
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
@@ -22,7 +21,7 @@ import pytest
 
 import test_home_merge as merge
 from jmerge import cli, ready, sweep
-from test_jmerge_guarded import ET, GUARDED, LISTED
+from test_jmerge_run import ET
 from testing.paths import REPO
 
 SOURCE = REPO / "features" / "jmerge" / "src"
@@ -294,21 +293,6 @@ def test_a_protected_pull_request_is_held_for_the_user_and_starts_no_fresh_check
     assert kitchen.calls() == []
 
 
-def test_a_guarded_path_main_changed_waits_for_a_rebase_and_gets_no_local_check(kitchen):
-    kitchen.source = kitchen.tmp / "listed"
-    package = kitchen.source / "jmerge"
-    shutil.copytree(SOURCE / "jmerge", package, ignore=shutil.ignore_patterns("__pycache__"))
-    (package / "guarded.txt").write_text(LISTED)
-    kitchen.crew("two", 7, {"skills/home/SKILL.md": "ours\n"})
-    kitchen.on_main({"skills/home/SKILL.md": "theirs\n"})
-    (kitchen.home.state / "fresh-check").write_text("true\n")
-    assert kitchen.run() == [
-        f"wait 7 {url(7)}: guarded (touches skills/home/SKILL.md), main changed "
-        "skills/home/SKILL.md after its check started at 07:00 ET; it needs a rebase"
-    ]
-    assert not (kitchen.home.state / "fresh.json").exists()
-
-
 def repo(kitchen, monkeypatch, merged=None):
     """The command's own view of the repo, in this process, with the fake `gh`."""
     home = kitchen.home
@@ -316,7 +300,7 @@ def repo(kitchen, monkeypatch, merged=None):
     monkeypatch.setenv("STUB", str(home.stub))
     monkeypatch.setenv("ORIGIN", str(home.origin))
     return cli.Repo(
-        home.main, home.state, merge.ME, False, None, PROTECTED, GUARDED, CI, merged=merged, user=ET
+        home.main, home.state, merge.ME, False, None, PROTECTED, CI, merged=merged, user=ET
     )
 
 

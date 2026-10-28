@@ -4,6 +4,5 @@ secrets/
 *.pem
 *.key
 /features/jmerge/src/jmerge/protected.txt
-/features/jmerge/src/jmerge/guarded.txt
 /policy/
 /dns/
