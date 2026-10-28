@@ -1,6 +1,6 @@
 # Session pickup
 
-Run by: the home, for a thread that stopped with its task unfinished (a turn a restart cancelled, a turn that failed, a thread the audit printed as stuck), to be resumed and not started over.
+Run by: the home, for a thread that stopped with its task unfinished (a turn a restart cancelled, a turn that failed, a thread jbus's nudge names), to be resumed and not started over.
 
 Source: pstack, `pstack/skills/poteto-mode/playbooks/session-pickup.md`
 
@@ -17,7 +17,8 @@ A path such as `principles/<name>.md` or `skills/home/SKILL.md` is from the root
 3. Set done against pending. Take the brief's `Done when` lines one by one against the Result's `Proof:` line and the commits of step 2. Name the resume point in one line: the first `Done when` line with no proof, or "open the pull request", "handle the review's findings", "write the Result". Work that has its proof is not redone and not checked again from scratch: a second run of it treats the trail as untrusted.
 4. Pick one verdict and write it beside the resume point. `continue`: the work goes on from the resume point, the usual one. `ship`: the work is there and only the pull request or the Result is missing. `override`: the Result says blocked or not done, and an answer has come since: the answer goes in the message. `postmortem`: this is the third time the same thread or its successor stopped at the same point, so no third pickup: park a gate ("Gates") that asks whether to write a new, smaller brief, with the default that you do.
 5. Send it, once (`principles/principle-make-operations-idempotent.md`). Look the thread up first: one whose state is `running` is not picked up. Then do what "Picking up a thread that stopped" in `skills/home/SKILL.md` says. A message first, when the thread can still take one: the verdict and the resume point in one line. A new thread on the same worktree when it cannot: the `Resume:` line in the brief, with the resume point, then the launch on the worktree that is there, on `go` from `room`, and the new id on the `Thread:` line.
-6. See that it took, by a side effect and not by the thread's reply (`principles/principle-prove-it-works.md`): a new line in the brief or a push to the branch, at the next tick of the audit, or at the next message when no queue is out. A passing report the stopped thread left is a claim: the reviewer and the pull request's checks are its proof, as for any task.
+6. See that it took, by a side effect and not by the thread's reply (`principles/principle-prove-it-works.md`): a new line in the brief or a push to the branch, at the next message, or at jbus's next nudge if none comes.
+   A passing report the stopped thread left is a claim: the reviewer and the pull request's checks are its proof, as for any task.
 
 Never done here, and who does it:
 

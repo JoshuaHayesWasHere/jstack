@@ -14,10 +14,10 @@ Set(f, k, v) == [f EXCEPT ![k] = v]
 
 \* What the child does that the root can see ends its quiet spell: a write of one of its crew or
 \* reviewer threads, or a change in what it has out, its crew, pull request or call
-\* (jbus/children.py:237-238 `elif latest and latest > since: since, step = latest, "calm"`,
-\* jbus/children.py:224 `step = prev.get("step", "calm") if prev.get("sig") == sig else "calm"`).
+\* (jbus/children.py:249-250 `elif latest and latest > since: since, step = latest, "calm"`,
+\* jbus/children.py:236 `step = prev.get("step", "calm") if prev.get("sig") == sig else "calm"`).
 \* A write of its home thread counts only before the root nudged it in this spell
-\* (jbus/children.py:230 `or (one.get("id") == thread and step == "calm")`): a turn the nudge
+\* (jbus/children.py:242 `or (one.get("id") == thread and step == "calm")`): a turn the nudge
 \* started is no progress. A notice Josh has read is done.
 Calmed(k, m) == [m EXCEPT ![NoticeOf(k)] = IF @ = "told" THEN "none" ELSE @]
 Calm(k) ==
@@ -85,9 +85,9 @@ GetsStuck(k) ==
 \* The root or Josh retires a child: the scope's handoff closes it. It closes a scope whose plan
 \* has no open entry only when `jbus out --scope` says it has nothing out: no queue row of its
 \* briefs that is not over, no unsettled crew or reviewer thread of theirs, no question and no
-\* open gate (handoff/SKILL.md:149 `elif [ -z "$still" ]; then`, jbus/children.py:88 `if
+\* open gate (handoff/SKILL.md:149 `elif [ -z "$still" ]; then`, jbus/children.py:94 `if
 \* row["slug"] in mine and not queue.over(row)`). A closed scope has no home-id, and the root
-\* watches it no more (jbus/children.py:218 `if not thread or not (launched or beat):`).
+\* watches it no more (jbus/children.py:230 `if not thread or not (launched or beat):`).
 Retire(k) ==
     /\ life[k] \in {"working", "stuck"}
     /\ ~WorkOut(k)     \* handoff/SKILL.md:147 `if ! still=$(jbus out --scope "$scope" 2>&1); then`
@@ -102,7 +102,7 @@ Answer(c) ==
 \* Josh answers the root's question about a stalled child: he gets it going again, and what it
 \* then does ends the quiet spell. Retiring it instead is Retire.
 Steps(k) ==
-    /\ watch[k] = "asked"     \* jbus/children.py:280 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
+    /\ watch[k] = "asked"     \* jbus/children.py:294 `name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"`
     /\ msg[NoticeOf(k)] = "told"     \* jbus/wake.py:587 `why = post(body(some))`
     /\ life' = Set(life, k, IF life[k] = "stuck" THEN "working" ELSE life[k]) /\ Calm(k)
     /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
@@ -127,34 +127,34 @@ RouteMends ==
 \* ---- the root's check, one jbus pass
 
 \* What the root reads to know a child has work out, from jbus's own records and never from the
-\* child: its launched rows, its crew threads, its questions and gates (jbus/children.py:216
+\* child: its launched rows, its crew threads, its questions and gates (jbus/children.py:228
 \* `launched = [line for line in lines if line.split(": ", 1)[1] not in QUEUED]`).
 \* A routine, a scope with a `rhythm` file, owes its next beat whatever it has out
-\* (jbus/children.py:217 `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
+\* (jbus/children.py:229 `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
 Sees(k) ==
-    /\ life[k] \in {"working", "stuck"}     \* jbus/children.py:218 `if not thread or not (launched or beat):`
-    /\ \/ Kind[k] = "routine"     \* jbus/children.py:239 `patience = beat or PATIENCE`
+    /\ life[k] \in {"working", "stuck"}     \* jbus/children.py:230 `if not thread or not (launched or beat):`
+    /\ \/ Kind[k] = "routine"     \* jbus/children.py:251 `patience = beat or PATIENCE`
        \/ work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
 \* The root acts on a child it sees each time the child has been quiet for its patience again
-\* since its last step (jbus/children.py:247 `if step != "asked" and run.now - start >=
+\* since its last step (jbus/children.py:259 `if step != "asked" and run.now - start >=
 \* timedelta(minutes=patience):`): it nudges it, at most twice in one spell, and then asks Josh.
 \* A nudge is a message to the child's home thread, and it may not work. Each check adds one to
 \* the quiet and takes a step the check it is due, so the last step was at a patience times its
-\* rank (jbus/children.py:244 `start = last or since + timedelta(minutes=patience * rank)`).
+\* rank (jbus/children.py:256 `start = last or since + timedelta(minutes=patience * rank)`).
 Acts(k) ==
-    /\ Sees(k)     \* jbus/children.py:218 `if not thread or not (launched or beat):`
-    /\ watch[k] # "asked"     \* jbus/children.py:247 `if step != "asked"`
-    /\ Ticked[k] >= Patience(k) * (Rank[watch[k]] + 1)     \* jbus/children.py:247 `run.now - start >= timedelta(minutes=patience)`
-\* jbus/children.py:265 `if step in ("calm", "nudged1"):` nudges, and the step after the second
-\* nudge is the question (jbus/children.py:250 `spell["step"] = STEPS_OF[rank + 1]`).
+    /\ Sees(k)     \* jbus/children.py:230 `if not thread or not (launched or beat):`
+    /\ watch[k] # "asked"     \* jbus/children.py:259 `if step != "asked"`
+    /\ Ticked[k] >= Patience(k) * (Rank[watch[k]] + 1)     \* jbus/children.py:259 `run.now - start >= timedelta(minutes=patience)`
+\* jbus/children.py:278 `if step in ("calm", "nudged1"):` nudges, and the step after the second
+\* nudge is the question (jbus/children.py:262 `spell["step"] = STEPS_OF[rank + 1]`).
 After(w) ==
     CASE w = "calm" -> "nudged1"
       [] w = "nudged1" -> "nudged2"
       [] w = "nudged2" -> "asked"
       [] OTHER -> "asked"
-\* On the first strike of a spell Josh hears of it (jbus/children.py:274 `run.find(name, STALL,
+\* On the first strike of a spell Josh hears of it (jbus/children.py:288 `run.find(name, STALL,
 \* f"{line}; jbus nudged it, thread {thread}", key=f"{since} strike")`), and the root's question
-\* after the nudges is the same notice, sent again (jbus/children.py:268).
+\* after the nudges is the same notice, sent again (jbus/children.py:262).
 Notice(k) ==
     LET w == After(watch[k]) IN
     IF ~Acts(k) THEN msg[NoticeOf(k)]
@@ -162,7 +162,7 @@ Notice(k) ==
     ELSE IF watch[k] = "calm" /\ msg[NoticeOf(k)] = "none" THEN "home"
     ELSE msg[NoticeOf(k)]
 \* Each check counts the quiet of every child and acts on each one due, all in one pass
-\* (jbus/children.py:206 `def watch(run: Pass, client: Client, threads: list[dict[str, Any]] |
+\* (jbus/children.py:212 `def watch(run: Pass, client: Client, threads: list[dict[str, Any]] |
 \* None) -> None:`). A spell ends when the root no longer sees work out.
 Check ==
     /\ watch' = [k \in Kids |-> IF ~Sees(k) THEN "calm" ELSE IF Acts(k) THEN After(watch[k])
