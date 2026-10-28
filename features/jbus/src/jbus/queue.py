@@ -132,6 +132,8 @@ from jbus import Refused, party, verbs, write_json
 
 EVENTS = {"queue": "quiet"}
 CHEF = ("slug", "priority", "depends", "merge_after", "approved", "brief_sha", "entry")
+CREW = "crew"
+SCOUT = "scout"
 SEEN = ("status", "thread", "pr", "checks")
 DERIVED = (*SEEN, "updated", "why", "since")
 STATUSES = (
@@ -535,6 +537,7 @@ def _well_formed(row: Any) -> bool:
         and isinstance(row.get("approval", {}), dict)
         and isinstance(row.get("brief_sha", ""), str)
         and isinstance(row.get("item", ""), str)
+        and row.get("role", CREW) in (CREW, SCOUT)
     )
 
 
@@ -600,6 +603,18 @@ def entry(row: Row) -> str:
     """Return the plan entry that the row does work for: the entry given to `add`, or else the
     entry of the parent it follows up (`parent_entry`), or else the row's own slug."""
     return row.get("entry") or row.get("parent_entry") or row["slug"]
+
+
+def role(row: Row) -> str:
+    """Return the role a row launches: `SCOUT` for a scout's request, `CREW` for any other."""
+    return row.get("role") or CREW
+
+
+def requested(text: str) -> bool:
+    """Return whether the text is a scout's request and not a crewmate's brief: its head has a
+    `Request:` line and no `Task:` line."""
+    labels = {label for label, _ in _head(text)}
+    return "Request" in labels and "Task" not in labels
 
 
 def given_entry(row: Row) -> str:
@@ -1240,13 +1255,18 @@ def conduct(text: str) -> list[str]:
     return found
 
 
-def faults(text: str) -> list[str]:
+def faults(text: str, slug: str = "") -> list[str]:
     """Every fault for which `add` refuses a brief: its fields' (`jbriefs.parse.faults`), then
-    its conduct's (`conduct`)."""
+    its conduct's (`conduct`). A scout's request (`requested`) is checked against its own
+    template instead (`jbus.scouts.faults`)."""
+    if requested(text):
+        from jbus import scouts
+
+        return scouts.faults(slug, text)
     return [*briefs.faults(text), *conduct(text)]
 
 
-def _new_faults(row: Row | None, was: str | None, text: str) -> list[str]:
+def _new_faults(row: Row | None, was: str | None, text: str, slug: str = "") -> list[str]:
     """Return the faults for which `add` refuses `text` (`faults`).
 
     A lint runs when a row is first queued. A row whose go holds for `text` is already
@@ -1254,9 +1274,9 @@ def _new_faults(row: Row | None, was: str | None, text: str) -> list[str]:
     newer lint found, that fault does not refuse the row. Only a fault the edit brought
     refuses it.
     """
-    found = faults(body(text))
+    found = faults(body(text), slug)
     if row and row.get("approved") and was is not None and approved_text(row, text):
-        old = faults(body(was))
+        old = faults(body(was), slug)
         return [fault for fault in found if fault not in old]
     return found
 
@@ -1270,7 +1290,7 @@ def grandfathered(state: Path, rows: list[Row]) -> list[tuple[str, list[str]]]:
         text = brief(state, row["slug"])
         if over(row) or not row.get("approved") or text is None or not approved_text(row, text):
             continue
-        said = faults(body(text))
+        said = faults(body(text), row["slug"])
         if said:
             found.append((row["slug"], said))
     return found
@@ -1340,14 +1360,26 @@ def _do(
             raise Refused("refused: no brief on stdin")
         _twin(batch, verb)
         found = [row for row in rows if row["slug"] == verb.slug]
-        faults = _new_faults(found[0] if found else None, batch.brief(verb.slug), verb.text)
+        made = SCOUT if requested(body(verb.text)) else CREW
+        if found and role(found[0]) != made:
+            theirs, given = ("scout's", "crewmate's") if made == CREW else ("crewmate's", "scout's")
+            raise Refused(
+                f"refused: {verb.slug} is a {theirs} row, and its brief is a {given}: a row keeps "
+                "the role it was queued with"
+            )
+        faults = _new_faults(
+            found[0] if found else None, batch.brief(verb.slug), verb.text, verb.slug
+        )
         if faults:
             many = "1 fault" if len(faults) == 1 else f"{len(faults)} faults"
             lines = "".join(f"\n- {fault}" for fault in faults)
-            raise Refused(f"refused: {verb.slug}'s brief has {many}, and nothing is queued{lines}")
+            what = "request" if made == SCOUT else "brief"
+            raise Refused(f"refused: {verb.slug}'s {what} has {many}, and nothing is queued{lines}")
         row = (
             found[0] if found else {"slug": verb.slug, "approved": "", "brief_sha": "", **_blank()}
         )
+        if made == SCOUT:
+            row["role"] = SCOUT
         if verb.item and row.get("item", verb.item) != verb.item:
             raise Refused(f"refused: {verb.slug} is linked to {row['item']}, not {verb.item}")
         row.update(priority=verb.priority, depends=verb.depends, queued_by=ran_by or runner())
@@ -2142,7 +2174,7 @@ def derive(
 
 
 def render(rows: list[Row]) -> str:
-    columns = (*CHEF, *DERIVED)
+    columns = (*CHEF, *DERIVED, "role")
     lines = ["| " + " | ".join(columns) + " |", "|" + " --- |" * len(columns)]
     for row in sorted(rows, key=order):
         cells = []

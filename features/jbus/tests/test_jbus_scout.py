@@ -171,7 +171,7 @@ def test_a_row_keeps_its_role_when_it_is_added_again(kitchen):
 
 def test_a_pass_launches_an_approved_scout_read_only_with_no_branch(kitchen):
     add(kitchen, "alpha")
-    add(kitchen, "beta")
+    assert add(kitchen, "beta", text=request("beta", asked="find out what Y does"))[0] == 0
     assert go(kitchen, "alpha")[0] == 0
 
     said = kitchen.poll()
@@ -277,7 +277,11 @@ def test_a_lost_launch_reply_is_adopted_and_never_launched_again(kitchen):
     assert f"adopted scout alpha: {thread['threadId']}" in said
     (path,) = (kitchen.state_dir / "launches" / "demo" / "alpha").glob("*.json")
     record = json.loads(path.read_text())
-    assert (record["role"], record["thread"], record["adopted"]) == ("scout", thread["threadId"], True)
+    assert (record["role"], record["thread"], record["adopted"]) == (
+        "scout",
+        thread["threadId"],
+        True,
+    )
     assert rows(kitchen)["alpha"]["thread"] == thread["threadId"]
 
 

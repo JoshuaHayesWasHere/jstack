@@ -102,9 +102,10 @@ def keep_work(half: Half) -> None:
         record = held.get(slug)
         home = bool(record and not record.busy and not leftover.his(record, run.now))
         after = watch.after_merge(mirror.last_result(watch.brief_of(run, slug)))
+        role = "scout" if queue.role(row) == queue.SCOUT else ""
         line = work.entry(
             state,
-            work.holder(state, home=home, after=after),
+            work.holder(state, role=role, home=home, after=after),
             key=slug,
             kind="row",
             slug=slug,
@@ -112,7 +113,8 @@ def keep_work(half: Half) -> None:
             pr=row.get("pr", ""),
         )
         listed.append(line)
-    listed += watch.judged(run, half.out, {row["slug"] for row in rows}, half.answered())
+    mine = {(queue.role(row), row["slug"]) for row in rows}
+    listed += watch.judged(run, half.out, mine, half.answered())
     at = jsettings.stamp(run.now)
     work.write(run.state, at, half.answered(), listed)
 
