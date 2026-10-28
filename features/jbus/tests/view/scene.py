@@ -30,6 +30,7 @@ import daemons
 import jsettings
 from jbus import leftover, merge, noticed, party, questions, queue, view, word, work
 from jbus.view import state as built
+from jmerge import lines as jlines
 from jmerge import ready
 from test_jbus_kitchen import GATE as PIPED
 from testing.paths import REPO, sources
@@ -1095,6 +1096,36 @@ def in_check(scene, checks=()):
             for _, number, minutes in IN_CHECK
         )
     )
+
+
+STACKED_ON = ready.STACKED_ON.format(branch="jam-base", slug="jam-base", default="main")
+MERGES_AFTER = ready.MERGES_AFTER.format(slug="jam-base", open="#31 open")
+
+
+def stacked_pr(scene, *more):
+    """Three pull requests on the step check, each with checks that answered. `jam-top` passed
+    and is stacked on `jam-base`, as `jmerge` logs it now, with its reason's code. `jam-lid`
+    failed and merges after `jam-base`, logged before the codes, so its line has none. `jam-pot`
+    passed, waits for `jmerge` and is stacked on nothing. `more` are rows of the table beside
+    them."""
+    waits = {
+        "jam-top": (31, "passed", STACKED_ON, True),
+        "jam-lid": (32, "failed", MERGES_AFTER, False),
+        "jam-pot": (33, "passed", "check has not passed", False),
+    }
+    scene.queue(
+        [
+            row(slug, "pr", pr=f"#{number}", checks=word, why=f"wait: {reason}")
+            for slug, (number, word, reason, _) in waits.items()
+        ]
+        + list(more)
+    )
+    log = []
+    for number, _, reason, coded in waits.values():
+        said = jlines.waits("wait", number, PULL.format(number), reason)
+        stamp = et(ago(minutes=number)).removesuffix(" ET")
+        log.append(f"{stamp} {jlines.logged(said) if coded else said}")
+    scene.merge_log(*log)
 
 
 def slots(scene, monkeypatch, held, total=4):
