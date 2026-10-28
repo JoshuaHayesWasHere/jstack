@@ -4,8 +4,8 @@ brief it.
 Each pass reads every home's plan, the root's and each scope's. An entry whose `Builds on:` line
 names rows or entries that have all merged, and that has no queue row (a scout's included), is an
 item of the one list that wakes the entry's home once: `brief <entry>: <dep> merged`. It leaves
-the list on the entry's first row. A parked entry raises nothing, and the entry's `Decisions:`
-text is never read for a wait. The tests run the real pass against the kitchen's fakes.
+the list on the entry's first row. A parked or scouting entry raises nothing, and the entry's
+`Decisions:` text is never read for a wait. The tests run the real pass against the kitchen's fakes.
 """
 
 import json
