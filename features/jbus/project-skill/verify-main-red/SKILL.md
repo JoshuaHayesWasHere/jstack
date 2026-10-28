@@ -122,11 +122,11 @@ Check every step against this table; a step no line backs is a modeling error, a
 
 | Step | Backed by |
 |---|---|
-| `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/cli.py:215-219`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:222-230` |
-| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:122-129`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/cli.py:146` |
+| `pass (...)` | one `tell` under the pass lock, `features/jbus/src/jbus/cli.py:218-222`, in the `after-expedite` slot, `features/jbus/src/jbus/mainmoved.py:222-230` |
+| `Mn lands: jmerge merges beta` | `rows.red(mainjson.read(state), "beta")` was empty, `features/jmerge/src/jmerge/rows.py:122-129`; a merge inside a pass is read before `tell` writes, `features/jbus/src/jbus/cli.py:149` |
 | `Mn lands: another merge` | a merge that asks no `rows.red`, or that `rows.red` lets through as a fix (S3's `fl-fix`), a merge by hand, `jmerge --accept` |
 | `jmerge holds fl-fix ...` / `jmerge lets fl-fix merge ...` | the last line of an S3 or S1 trace: `rows.red` and `rows.browser_red` over what `jmerge.cli`'s `Repo.proved` and `Repo.proved_browser` read of the pull request's check, which the model's `proof` stands for |
-| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:921-965`; `pending` is a check not ended |
+| `Mn's check settles: <answer>` | an answer `watch._check` gives, `features/jbus/src/jbus/watch.py:965-1009`; `pending` is a check not ended |
 | `T3 Code loses the send` / `refuses the send` | `T3Error` / `T3Refused` from `client.call`, `features/jbus/src/jbus/mainmoved.py:185-195` |
 
 The stubs are the other place a model can lie: `mainmoved.main_check`, `mainmoved.failed_at`, `dispatch.launched`, `dispatch.thread_of` and `rebase.held` (`stubbed()` in the model), and `FakePass.run`'s answer to GitHub's list of main's commits, which `landed` asks for.
