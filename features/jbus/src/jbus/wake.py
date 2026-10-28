@@ -35,7 +35,8 @@ one before it, which is out of date.
 
 The log is `events.jsonl`. jbus adds a line for each event when it queues the event, `{"at", "id",
 "event", "slug", "loud", "line", "text"}`, and one for each wake the home thread took,
-`{"at", "posted_home": [ids]}`. The daily prune rewrites the file without its oldest lines. Both
+`{"at", "posted_home": [ids]}`. A party names an event by another id, which is unique
+(`entries`). The daily prune rewrites the file without its oldest lines. Both
 times come from the clock, so a wake's time is never before the time of what it carries. The id is
 a hash of the event as the outbox holds it, so jbus adds nothing to the outbox or to the wake for
 the log's sake. `Box.log` reads the events and the wakes of the home thread back as one list,
@@ -358,13 +359,15 @@ class Box:
         """Return every event the log holds, oldest first, each with `posted`: the time the
         project's home thread first took it, or None.
 
-        A wake names its events by id, and the outbox goes in order, so the wake took the oldest
-        event of that id the home thread had not yet taken. `log` takes no lock and writes
-        nothing.
+        A wake names its events by its own id, which two equal events share, and the outbox goes
+        in order, so the wake took the oldest event of that id the home thread had not yet taken.
+        Each event's `id` is the one a party names it by (`entries`), read in the same pass of the
+        file. `log` takes no lock and writes nothing.
         """
         events: list[dict[str, Any]] = []
         waiting: dict[str, list[dict[str, Any]]] = {}
         names = jbus.old_names()
+        before: dict[str, int] = {}
         for record in _records(self.state / LOG):
             if TOOK in record:
                 for name in record[TOOK]:
@@ -374,6 +377,7 @@ class Box:
                 one = {**current(record, names), "posted": None}
                 events.append(one)
                 waiting.setdefault(one.pop("id", ""), []).append(one)
+                one["id"] = _entry(record, before)
         return events
 
     def forget(self, before: datetime) -> None:
@@ -615,6 +619,34 @@ def _records(path: Path) -> list[dict[str, Any]]:
             continue
         records.append(record)
     return records
+
+
+def entries(state: Path) -> list[dict[str, Any]]:
+    """Every event of the project's log in the order of the file, under today's names, each
+    with its `id`: the one id a party names an event by, as the event it last saw (a go's
+    `seen`) or as the feed's cursor (`jbus.feed`).
+
+    The id is a hash of the line as the file holds it and of how many equal lines come before
+    it, so two equal events have two ids. The file only grows, apart from the daily prune
+    (`Box.forget`), which writes each line it keeps as it was and drops equal lines together,
+    since they have one time: an id names the same line across restarts and prunes. A line
+    jbus owed (`UNLOGGED`) is written late with its first time, so the prune can drop it before
+    a party that read past it reads it."""
+    names = jbus.old_names()
+    before: dict[str, int] = {}
+    return [
+        current(record, names) | {"id": _entry(record, before)}
+        for record in _records(state / LOG)
+        if "event" in record and TOOK not in record
+    ]
+
+
+def _entry(record: dict[str, Any], before: dict[str, int]) -> str:
+    """The id of an event line (`entries`), counting it in `before`, the equal lines read so
+    far."""
+    line = json.dumps(record, sort_keys=True)
+    before[line] = before.get(line, 0) + 1
+    return hashlib.sha256(f"{line}#{before[line]}".encode()).hexdigest()[:16]
 
 
 def _prunable(key: str, slugs: set[str]) -> bool:

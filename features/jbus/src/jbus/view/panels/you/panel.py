@@ -25,6 +25,9 @@ it in T3 Code, its `thread` (`THREAD`), where the user writes about it; `open` o
 for setup that no home can do.
 Each need says what happens if the user does nothing, its `default` (`IDLE` where the kind has
 none of its own).
+Each need names its `doors`, the cases of the one door table (`party.DOORS`) its action opens, so
+a bot can tell what it may not act on: a row to approve has those its brief's `Holds:` lines name,
+a gate those its own `Holds:` line names, and any other need none.
 
 The panel takes two writes of its own (`WRITES`). `approve` keeps the user's word that approves
 a row and records the go on it, as `jbus word` and `jbus queue approve --word` do, for the brief
@@ -47,7 +50,7 @@ import jbus
 import jsettings
 from jbriefs import below
 from jbriefs import home as jbriefs
-from jbus import asks, dispatch, mirror, passes, questions, queue, t3, waiting, word
+from jbus import asks, dispatch, mirror, party, passes, questions, queue, t3, waiting, word
 from jbus.view.state import (
     _SLUG,
     WAITING_FILE,
@@ -113,7 +116,7 @@ _NEED = {
         "sha",
         "thread",
     )
-} | {"answerable": None, "unblocks": [None]}
+} | {"answerable": None, "unblocks": [None], "doors": [None]}
 SHAPE = {
     "waiting": [_WAITS],
     "gates": [_GATE],
@@ -296,14 +299,19 @@ def _cut(given: str, cap: int = LINE) -> str:
     return given[:cap].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
+def _queued_brief(read: Read, slug: str) -> str:
+    """The brief that `slug` has in the project's `briefs/`, empty where there is no such
+    brief."""
+    try:
+        return (queue.brief(read.state, slug) if _SLUG.fullmatch(slug) else None) or ""
+    except ValueError:
+        return ""
+
+
 def _title(read: Read, slug: str) -> str:
     """The title line of the brief that `slug` has in the project's `briefs/`, empty where
     there is no such brief."""
-    try:
-        brief = queue.brief(read.state, slug) if _SLUG.fullmatch(slug) else None
-    except ValueError:
-        brief = None
-    titled = (line[2:] for line in (brief or "").splitlines() if line.startswith("# "))
+    titled = (line[2:] for line in _queued_brief(read, slug).splitlines() if line.startswith("# "))
     return _cut(next(titled, ""))
 
 
@@ -371,6 +379,7 @@ def _need(
         "answerable": waits["answerable"],
         "default": _cut(default, 600),
         "risk": (one.holds if one else waits["holds"]) or REVERSIBLE,
+        "doors": list(party.held(waits["holds"])) if waits["holds"] else [],
         "unblocks": waits["unblocks"],
         "open": _route(read.name, waits, slug),
         "due": due,
@@ -389,6 +398,7 @@ def _work(read: Read, kind: str, slug: str, waits: dict[str, Any]) -> dict[str, 
         "kind": kind,
         "verb": waiting.verb(kind),
         "risk": MERGES if kind == "hold" else REVERSIBLE,
+        "doors": list(party.doors(_queued_brief(read, slug))) if kind == "approve" else [],
         "open": _route(read.name, waits, slug),
         "answerable": False,
         "default": "",

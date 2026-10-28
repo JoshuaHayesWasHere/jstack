@@ -161,17 +161,17 @@ def opens(party: Party, said: Evidence) -> bool:
     return party.kind == "user" and said.checked
 
 
-def doors(brief: str) -> tuple[str, ...]:
-    """The cases a brief's head holds for, by its `Holds: <case>` lines, in the table's order,
-    as `jbriefs.parse.fields` reads the head. Several cases on a line are split by commas. A line
-    naming no case of the table holds for every door, since its words name one jbus does not
-    know."""
-    named = {
-        one.strip()
-        for label, lines in briefs.fields(brief)
-        if label == "Holds"
-        for one in " ".join(lines).split(",")
-    }
+def held(*lines: str) -> tuple[str, ...]:
+    """The cases that `Holds:` lines name, in the table's order. Several cases on a line are
+    split by commas. A line naming no case of the table holds for every door, since its words
+    name one jbus does not know, and so does an empty one. No line holds for none."""
+    named = {one.strip() for line in lines for one in line.split(",")}
     if named - set(CASES):
         return CASES
     return tuple(case for case in CASES if case in named)
+
+
+def doors(brief: str) -> tuple[str, ...]:
+    """The cases a brief's head holds for, by its `Holds: <case>` lines (`held`), as
+    `jbriefs.parse.fields` reads the head."""
+    return held(*(" ".join(lines) for label, lines in briefs.fields(brief) if label == "Holds"))

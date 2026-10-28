@@ -844,9 +844,10 @@ class Kitchen:
 
     def events(self, kind=None):
         """Return every event the project queued, oldest first, as the log has it. A quiet event
-        is in the log and nowhere else."""
+        is in the log and nowhere else. An act (`jbus.acts`) is left out unless `kind` names it:
+        each go logs one, and the feed is what reads them."""
         every = wake.Box(self.state, jbus.load().project("demo")).log()
-        return [e for e in every if kind is None or e["event"] == kind]
+        return [e for e in every if e["event"] == kind or (kind is None and e["event"] != "act")]
 
     def lines(self, kind=None):
         return [event["line"] for event in self.events(kind)]

@@ -281,7 +281,7 @@ Your own go, `jbus --as user queue approve <slug> --sha <sha12> --message <threa
 
 A second go that the row's go already holds for is a `noop`, and writes nothing to the row.
 A go given with `jbus queue approve <slug> --sha <sha12> --seen <event id>` is refused as stale when the project's event log has an event for the row after that one, or has no event of that id.
-`jbus events` prints the `id` of each event jbus sent, the one a go names.
+`jbus events` prints the `id` of each event, the one a go names and the feed's cursor: two equal events have two ids, and an id names the same event across restarts and the daily prune.
 
 #### The bot's route
 
@@ -299,6 +299,17 @@ jbus keeps only the key's sha256, in `~/.local/state/jbus/bot-key.json`, and com
 The route checks the request's `Host` as the view's other routes do, and takes no `Origin`.
 A refused act answers 409 with its line as `error` and the act as `act`, and a done, gated or noop act answers 200 with the act.
 An answer from the bot closes a gate that does not hold; on a gate that holds it is refused, and the gate stays open.
+
+#### The bot's feed
+
+The bot reads what changed with `GET /feed?project=<name>&after=<id>&wait=<seconds>` on `jbus view`, or `jbus feed --after <id> --wait <seconds>` on the command line, which print the same JSON page.
+The page is `{"v": 1, "project", "reset", "cursor", "events"}`, and the next read is after its `cursor`.
+Each event is `{"v": 1, "id", "at", "project", "kind", "subject", "line", "need", "act"}`, in the order of the project's log, and each act is an event of the kind `act`, with the act as `acts.jsonl` has it.
+`need` is what waits on you about the event's subject now, as `/stack.json`'s `needs` has it, or null.
+A cursor the log does not have, an unknown one or one the 14-day prune dropped, or no cursor, gives `reset` true, no events, the newest cursor, and `needs`, everything that waits on you, to catch up from.
+`wait`, up to 600 seconds, is a long poll: the page comes at the first new event, or empty once the time is up, and a reset never waits.
+Each need names its `doors`, the cases of the one door table its action opens, so the bot can tell what it may not act on: a row to approve has those of its brief's `Holds:` lines, a gate those of its own, and any other need none.
+Nothing is pushed: the bot has no endpoint, and you want no webhook alarms.
 
 ### What an approval is bound to
 
