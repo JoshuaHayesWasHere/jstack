@@ -105,6 +105,7 @@ NARROWED = [
     WHOLE.replace("--shard=2/4", "--ignore=features/a/tests"),
     WHOLE.replace("--shard=2/4", "--collect-only"),
     WHOLE.replace('-m "not browser"', "-m slow"),
+    WHOLE.replace('-m "not browser"', "-m browser"),
 ]
 """Commands that run less than the suite, or none of it, with options other than by name."""
 
