@@ -262,7 +262,12 @@ class Scene:
             [
                 item("gate", ASKED, "gate 4: tea or coffee?", hours=3, number="4"),
                 item("row", "row:jam-lid", "gate jam-lid: which lid?", minutes=50, slug="jam-lid"),
-                item("approve", "approve:tea-kettle", "approve tea-kettle: jbus queue approve"),
+                item(
+                    "approve",
+                    "approve:tea-kettle",
+                    "approve tea-kettle: jbus queue approve",
+                    slug="tea-kettle",
+                ),
                 item("hold", "#14", "hold 14: needs user", minutes=12, number=14),
             ]
         )
@@ -744,6 +749,7 @@ def kinds(scene):
                 slug="fig-vine",
             ),
             item("left", "left:fig-burr", "left fig-burr: status: paused", slug="fig-burr"),
+            item("left", "left:fig-rind", "left fig-rind: a tag is still to push", slug="fig-rind"),
         ]
     )
     scene.merge_log(logged(40, "wait", 32, "it has no review yet"))
@@ -1142,7 +1148,8 @@ def piped(scene):
     cleanup-ux-look-pr stacked on it, a brief with no home; oat-lid at a gate; mac-a merged
     today into the integration branch `release/mac`, which has not landed; rye-loaf merged
     today; bad-row in no state the view knows; and the scout `look` of jview, out with no Report.
-    `pantry` has the root alone, with fig-jam running and fig-tart at a gate."""
+    `pantry` has the root alone, with fig-jam running and fig-tart at a gate. jbus lists each gate
+    as waiting on the user."""
     scene.queue(
         [
             row("tea-pot", "running", thread="mcp:tea-pot", since=stamp(30)),
@@ -1171,6 +1178,9 @@ def piped(scene):
     scene.merge_log(logged(15, "wait", 31, "check has not passed"))
     briefed(scene, tea_pot="jview", tea_cup="jview", tea_saucer=None, ux_look_pr="jview")
     briefed(scene, cleanup_ux_look_pr=None, oat_lid=None)
+    scene.waiting(
+        [item("row", "row:oat-lid", "gate oat-lid: which lid?", minutes=90, slug="oat-lid")]
+    )
     (scene.home / "tasks" / "mac-a.md").write_text(
         "# mac-a: a made-up task\nPull request: open one against release/mac when done\n"
     )
@@ -1193,6 +1203,8 @@ def piped(scene):
     (pantry / "queue.json").write_text(json.dumps(rows))
     lines = [judge_row(one, pantry) for one in rows]
     (pantry / "work.json").write_text(json.dumps({"at": iso(NOW), "work": lines}))
+    tart = item("row", "row:fig-tart", "gate fig-tart: which tin?", minutes=40, slug="fig-tart")
+    scene.write("waiting-on-user.json", [tart], pantry)
 
 
 CAPTURED = "jstack"

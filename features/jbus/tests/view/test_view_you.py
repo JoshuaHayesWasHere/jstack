@@ -15,7 +15,6 @@ from test_jbus_kitchen import GATE as PIPED
 from view.scene import (
     GATE,
     PULL,
-    RACK,
     ROOT,
     SHELF,
     Scene,
@@ -25,7 +24,6 @@ from view.scene import (
     homed,
     iso,
     item,
-    out,
     row,
     stacked,
 )
@@ -39,9 +37,10 @@ def a_brief(scene, slug, title, task):
 
 
 def needing(scene):
-    """One need of each of the six kinds, over two projects: a setup 7 hours old, a question
-    that holds, a row to approve with a brief and a row behind it, a row at a gate of each
-    project, a leftover, and a held pull request. The rows are the user's in `work.json`."""
+    """One need of each of the six kinds, over two projects, each an item of its project's list
+    of what waits on the user: a setup 7 hours old, a question that holds, a row to approve with
+    a brief and a row behind it, a row at a gate of `pantry`, a leftover, and a held pull request.
+    `demo` also has a row at a gate that its list does not hold, which is no need."""
     stacked(scene)
     rows = json.loads((scene.state / "queue.json").read_text())
     for one in rows:
@@ -79,9 +78,9 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
         demo = served.json("/state.json?project=demo")
     finally:
         served.close()
-    kinds = ["config", "gate", "approve", "row", "left", "row", "hold"]
+    kinds = ["config", "gate", "approve", "left", "row", "hold"]
     assert [one["kind"] for one in needs] == kinds
-    assert [one["project"] for one in needs] == ["demo"] * 5 + ["pantry", "demo"]
+    assert [one["project"] for one in needs] == ["demo"] * 4 + ["pantry", "demo"]
     assert [one["since"] for one in needs] == sorted(one["since"] for one in needs)
     assert {one["verb"] for one in needs} <= {
         *(one.verb for one in waiting.KINDS),
@@ -91,12 +90,11 @@ def test_the_stack_lists_what_needs_the_user_across_projects_oldest_first(tmp_pa
         "Set up",
         "Answer",
         "Approve launch",
-        "Fix brief",
         "Close it",
         "Fix brief",
         "Review merge",
     ]
-    assert all(set(one) == set(panel_you._NEED) for one in needs)
+    assert [set(one) ^ set(panel_you._NEED) for one in needs] == [set()] * len(needs)
     assert all("jbus " not in one["what"] + one["why"] for one in needs)
     by = {one["kind"]: one for one in needs}
     assert by["approve"]["what"] == "tea-kettle: boil the water first"
@@ -215,104 +213,52 @@ def test_fourteen_waiting_and_one_with_no_default_path_is_the_only_one_that_need
 YOURS = [pattern.value for pattern in work.PATTERNS if pattern.who == "user"]
 
 
-def test_every_row_the_pass_marks_as_the_users_needs_the_user(scene, served):
-    """Needs you is every line of `work.json` whose holder is the user, whatever the list of
-    what waits on the user has. So a hung, lost or waiting task needs the user as much as one
-    at a gate, each with what holds it and since when."""
+def test_a_row_or_thread_the_pass_marks_as_the_users_and_no_list_holds_is_no_need(scene, served):
+    """Needs you is jbus's list of what waits on the user and nothing else. A task that `work.json`
+    marks as the user's, hung, lost or waiting on a request, is the system's to fix while the list
+    does not hold it, so it is no need and adds nothing to the count."""
     rows = [
         row(f"yours-{value}", since=et(ago(minutes=10 + at))) | {"value": value, "who": "user"}
         for at, value in enumerate(YOURS)
     ]
-    lost = rows[YOURS.index("lost")]
-    lost["facts"] = {"thread": "missing", "launch": "launched"}
-    rows.append(row("crews-own", "running", thread="mcp:crew") | {"value": "working"})
+    rows[YOURS.index("lost")]["facts"] = {"thread": "missing", "launch": "launched"}
     scene.queue(rows)
     scene.waiting([])
-    needs = served.json("/stack.json")["needs"]
-    tasks = {one["slug"]: one for one in served.json("/state.json?project=demo")["tasks"]}
-    found = {one["key"].rpartition(":")[2]: one for one in needs}
-    assert sorted(found) == sorted(f"yours-{value}" for value in YOURS)
-    for value in YOURS:
-        one, task = found[f"yours-{value}"], tasks[f"yours-{value}"]
-        assert one["since"] == task["since"] == iso(ago(minutes=10 + YOURS.index(value)))
-        cause = one["why"] or (one["what"] if one["what"] != task["slug"] else "")
-        assert cause, f"{value}: Needs you does not say what holds it"
-        assert one["open"] == f"#/demo/task/yours-{value}"
-    assert found["yours-hung"]["why"] == "its turn has written nothing, and may be hung"
-    assert found["yours-lost"]["why"] == "T3 Code has no such thread, and it wrote nothing"
-    assert found["yours-waiting"]["why"] == "the thread waits on a request"
-    assert served.json("/stack.json")["projects"][0]["waits"] == len(YOURS)
+    stack = served.json("/stack.json")
+    assert stack["needs"] == []
+    assert stack["projects"][0]["waits"] == 0
 
 
-def test_a_waiting_item_of_a_row_the_pass_does_not_mark_as_the_users_is_no_need(scene, served):
-    """The list of what waits on the user is no second source for a row: an item of a row
-    the pass judged its crewmate's needs nothing of the user."""
-    scene.queue([row("jam-jar", "running", thread="mcp:0000") | {"value": "working"}])
+def test_an_item_of_the_list_that_names_a_row_needs_the_user_in_the_row_s_words(scene, served):
+    """An item of the list that names a row is a need whatever `work.json` says of the row, and
+    says what holds the row in the task's words, since when the row is in that state."""
+    scene.queue([row("jam-jar", "gate", why="a gate the Chef has", since=et(ago(minutes=40)))])
     scene.waiting(
         [
-            item("left", "left:jam-jar", "left jam-jar: a note", slug="jam-jar"),
+            item("row", "row:jam-jar", "condition jam-jar: which tin?", slug="jam-jar"),
             item("config", "config:t3", "no sign-in to T3 Code"),
         ]
     )
-    needs = served.json("/stack.json")["needs"]
-    assert [one["key"] for one in needs] == ["config:t3"]
+    needs = {one["key"]: one for one in served.json("/stack.json")["needs"]}
+    assert sorted(needs) == ["config:t3", "row:jam-jar"]
+    jar = needs["row:jam-jar"]
+    assert (jar["verb"], jar["open"]) == ("Fix brief", "#/demo/you/row/jam-jar")
+    assert jar["since"] == iso(ago(minutes=40))
+    assert "jbus " not in jar["what"] + jar["why"]
 
 
-def test_a_thread_of_no_row_that_the_pass_marks_as_the_users_needs_the_user(scene, served):
-    """A scout's thread that ended with no Report is the user's, and so a need, since when it
-    last wrote."""
-    lost = work.judge(
-        work.Facts(
-            work.Row.ABSENT,
-            work.Thread.COMPLETED,
-            work.Launch.LAUNCHED,
-            work.Written.NONE,
-            work.Pull.NONE,
-            work.Question.NONE,
-            work.Answered.BOTH,
-        )
-    )
-    assert lost.value == "lost"
-    about = {"key": "mcp:scout: tin", "kind": "thread", "slug": "tin", "thread": "mcp:scout: tin"}
-    line = work.entry(
-        lost, work.holder(lost, role="scout"), **about, role="scout", title="scout: tin"
-    )
-    kept = json.loads((scene.state / "work.json").read_text())
-    scene.write("work.json", kept | {"work": [*kept["work"], line]})
-    scene.passed(seconds_ago=20, threads=[out("scout: tin", "ended", "completed", minutes=30)])
-    needs = served.json("/stack.json")["needs"]
-    (one,) = [one for one in needs if one["key"] == "mcp:scout: tin"]
-    assert one["what"] == "scout: tin"
-    assert one["since"] == iso(ago(minutes=30))
-    assert one["why"]
-
-
-def test_each_need_of_work_carries_the_home_of_its_row_or_thread(scene, served):
-    """A need built from a line of `work.json` belongs to a home as every other need does: a
-    row of a scoped home's brief to that home, a row of a brief with no `Home:` line to the
-    root, and a thread to the home of the task or request it is about."""
+def test_each_need_of_a_row_carries_the_home_of_its_row(scene, served):
+    """A need of an item that names a row belongs to a home as every other need does: a row of a
+    scoped home's brief to that home, and a row of a brief with no `Home:` line to the root."""
     homed(scene)
-    waits = work.judge(
-        work.Facts(
-            work.Row.ABSENT,
-            work.Thread.COMPLETED,
-            work.Launch.LAUNCHED,
-            work.Written.NONE,
-            work.Pull.NONE,
-            work.Question.NONE,
-            work.Answered.BOTH,
-        )
+    scene.waiting(
+        [
+            item("row", "row:jam-lid", "condition jam-lid: which lid?", slug="jam-lid"),
+            item("approve", "approve:tea-kettle", "approve tea-kettle: it", slug="tea-kettle"),
+        ]
     )
-    about = {"key": "mcp:scout: look", "kind": "thread", "slug": "look"}
-    line = work.entry(
-        waits, work.holder(waits, role="scout"), **about, role="scout", title="scout: look"
-    )
-    kept = json.loads((scene.state / "work.json").read_text())
-    scene.write("work.json", kept | {"work": [*kept["work"], line]})
     needs = {one["key"]: one["home"] for one in served.json("/stack.json")["needs"]}
-    assert needs["row:jam-lid"] == SHELF
-    assert needs["approve:tea-kettle"] == ROOT
-    assert needs["mcp:scout: look"] == RACK
+    assert (needs["row:jam-lid"], needs["approve:tea-kettle"]) == (SHELF, ROOT)
 
 
 CLOSED = """# {name}: handoff
@@ -393,18 +339,16 @@ process.stdout.write(JSON.stringify(drawn));
 
 def test_each_act_the_inbox_serves_draws_one_filled_control():
     """Whatever a need asks of the user, its row draws one primary action and no second: an
-    answer with a default and one without, an approval, the link to its home's thread, and a
+    answer, an approval, the link to its home's thread, and a
     need with no act of its own, which opens where it is. An act kind added to the server shows
     here first."""
     if not shutil.which("node"):
         pytest.skip("no node on PATH to run the panel's script in")
-    need = {"project": "demo", "key": "k", "what": "w", "open": "gate/3", "item": "", "sha": ""}
+    need = {"project": "demo", "key": "k", "what": "w", "open": "gate/3", "slug": "", "sha": ""}
     need |= {"default": "it waits", "risk": "reversible", "unblocks": [], "since": ""}
     needs = {
-        "answer with a default": need
-        | {"act": ANSWERS, "answerable": True, "verb": "Accept default"},
-        "answer with none": need | {"act": ANSWERS, "answerable": True, "verb": "Answer"},
-        "approve": need | {"act": APPROVES, "item": "tea-kettle", "verb": "Approve"},
+        "answer": need | {"act": ANSWERS, "answerable": True, "verb": "Answer"},
+        "approve": need | {"act": APPROVES, "sha": "0123456789ab", "verb": "Approve"},
         "thread": need | {"act": THREADS, "thread": "t3code://thread/1", "verb": "Write"},
         "no act": need | {"act": OPENS, "verb": "Set it up"},
     }
@@ -421,3 +365,95 @@ def test_each_act_the_inbox_serves_draws_one_filled_control():
     assert {kind: html.count('class="btn fill"') for kind, html in drawn.items()} == {
         kind: 1 for kind in drawn
     }
+
+
+MOMENT = Path(__file__).parent.parent / "fixtures" / "waiting" / "2026-10-26T125904Z.json"
+"""jbus's `waiting` event of 2026-10-26 12:59:04Z on jstack, as it was logged: ten waits, six of
+them questions whose default the thread already acted on (reports/jv-glance/state/events.jsonl)."""
+LIST_KINDS = {"condition": "row", "left": "left", "held": "held"}
+
+
+def replayed(scene, event):
+    """Put the moment of a `waiting` event back in the scene: each question it lists is asked
+    again, as its thread piped it, and every other line it lists is an item of the list, of the
+    kind its first word names. A line marked `-` is gone, and is not put back."""
+    now = [line[2:] for line in event["text"].splitlines() if not line.startswith("-")]
+    items = []
+    for line in now:
+        said, _, rest = line.partition(": ")
+        word, _, subject = said.partition(" ")
+        if word == "question":
+            asked = rest.partition(" Its default is acted on already")[0]
+            piped = PIPED.format(n="<n>", asked=asked, status="open", slug="jam-jar")
+            questions.ask(scene.state, scene.home, "jam-jar", piped, ago(minutes=30))
+            continue
+        kind = LIST_KINDS[word]
+        found = item(kind, f"{kind}:{subject}", line, slug=subject, minutes=40)
+        items.append(found | ({"rows": [subject], "home": ""} if kind == "held" else {}))
+    scene.waiting(items)
+    return now
+
+
+def test_the_waiting_event_of_a_busy_moment_is_four_needs_and_one_line_of_defaults(scene, served):
+    """Needs you is jbus's list of what waits on the user, the list its `waiting` event logs, and
+    nothing else: each item that is not on its default is one need, and every widget that counts
+    Needs you counts those. The gates already on their default are no need. They are counted
+    apart, as one line. At 12:59:04Z jbus listed ten waits: four need Josh and six take their
+    default."""
+    event = json.loads(MOMENT.read_text())
+    (scene.home / "gates.md").unlink(missing_ok=True)
+    assert event["event"] == waiting.EVENT and event["at"] == "2026-10-26T12:59:04+00:00"
+    listed = replayed(scene, event)
+    assert len(listed) == 10
+    stack = served.json("/stack.json")
+    demo = served.json("/state.json?project=demo")
+    keys = {one["key"] for one in stack["needs"]}
+    assert keys == {
+        "row:ux-flow-model",
+        "left:bl-lands",
+        "left:cleanup-ux-flow-status",
+        "held:cleanup-ux-homes-board-pr",
+    }
+    assert {one["key"] for one in demo["needs"]} == keys
+    assert len(stack["proceeds"]) == len(demo["proceeds"]) == 6
+    assert all(one["kind"] == "gate" for one in stack["proceeds"])
+    (project,) = stack["projects"]
+    assert project["waits"] == 4
+    assert sum(home["waits"] for home in project["homes"]) == 4
+    (you,) = [one for one in stack["slow"]["stages"] if one["key"] == "you"]
+    assert you["rows"] == 4
+    board = served.json("/panel/pipeline.json")["data"]
+    (stage,) = [one for one in board["stages"] if one["key"] == "you"]
+    assert stage["count"] == 4
+
+
+DEFAULTS = r"""
+const vm = require("vm"), fs = require("fs");
+const page = {
+  document: { addEventListener() {} }, panel() {}, PROJECT: "demo",
+  esc: String, href: (project, target) => "#/" + project + "/" + target,
+};
+vm.createContext(page);
+vm.runInContext(fs.readFileSync(process.argv[1], "utf8"), page);
+const said = {};
+for (const n of [0, 1, 6]) {
+  said[n] = vm.runInContext("defaultLine", page)({ proceeds: Array(n).fill({}) });
+}
+process.stdout.write(JSON.stringify(said));
+"""
+
+
+def test_the_gates_on_their_default_are_one_line_that_asks_nothing():
+    """The project's Needs you draws the gates already on their default as one line, which opens
+    the list of gates and has no control that answers one. With none, it draws nothing."""
+    if not shutil.which("node"):
+        pytest.skip("no node on PATH to run the panel's script in")
+    script = Path(panel_you.__file__).with_suffix(".js")
+    done = subprocess.run(
+        ["node", "-e", DEFAULTS, str(script)], capture_output=True, text=True, check=True
+    )
+    said = json.loads(done.stdout)
+    assert said["0"] == ""
+    assert "1 takes its default" in said["1"] and "6 take their default" in said["6"]
+    assert 'href="#/demo/you:gate"' in said["6"]
+    assert "button" not in said["6"] and "data-accept" not in said["6"]

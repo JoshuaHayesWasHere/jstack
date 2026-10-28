@@ -3,7 +3,7 @@ chains its rows make and what holds the line, as `/panel/pipeline.json` answers 
 
 import pytest
 
-from view.scene import CAPTURED, Scene, Served, ago, captured, et, iso, piped, row
+from view.scene import CAPTURED, Scene, Served, ago, captured, et, iso, item, piped, row
 
 KEYS = ["scout", "queued", "crew", "you", "review", "fix", "review2", "check", "merge"]
 
@@ -122,7 +122,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
     )
     assert look["waited_by"] == ["cleanup-ux-look-pr"]
     assert rows["demo", "oat-lid"]["home"] == "root"
-    assert rows["demo", "oat-lid"]["cause"] == "asks you: a gate the Chef has"
+    assert rows["demo", "oat-lid"]["cause"] == "asks you: which lid?"
     scout = rows["demo", "look"]
     assert (scout["home"], scout["since"], scout["moving"]) == ("jview", since(45), True)
     assert rows["pantry", "fig-tart"]["home"] == rows["pantry", "fig-jam"]["home"] == "root"
@@ -136,7 +136,7 @@ def test_the_board_of_two_projects_and_three_homes_reads_every_field(scene):
         "project": "demo",
         "stage": "you",
         "since": since(90),
-        "cause": "asks you: a gate the Chef has",
+        "cause": "asks you: which lid?",
     }
     assert got["longest"] == {
         "depth": 3,
@@ -206,9 +206,9 @@ def test_the_scouts_capture_is_stuck_in_check_and_its_longest_chain_is_two_deep(
     [
         ("queued", "ready", "queued"),
         ("running", "working", "crew"),
-        ("running", "hung", "you"),
-        ("gate", "asking", "you"),
-        ("pr", "hold", "you"),
+        ("running", "hung", "crew"),
+        ("gate", "asking", "crew"),
+        ("pr", "hold", "merge"),
         ("pr", "result", "review"),
         ("pr", "review", "review"),
         ("pr", "findings", "fix"),
@@ -226,6 +226,33 @@ def test_a_row_is_placed_by_its_step(scene, status, value, stage):
     unplaced = {one["slug"] for one in got["unplaced"]}
     assert placed.get("one-row") == stage
     assert ("one-row" in unplaced) == (stage is None)
+
+
+def test_needs_you_is_the_rows_jbus_lists_and_counts_every_need_of_the_you_panel(scene):
+    """The stage holds a row jbus's list names, at any step, and none it leaves out, as a gate
+    on its default. Its count is the You panel's, a need that names no row too."""
+    scene.queue(
+        [
+            row("oat-lid", "pr", pr="#5", value="result"),
+            row("oat-cup", "gate", why="a gate on its default"),
+        ]
+    )
+    scene.waiting(
+        [
+            item("left", "left:oat-lid", "left oat-lid: a step only you can take", slug="oat-lid"),
+            item("config", "config:wakes", "config: wakes are off"),
+        ]
+    )
+    got = board(scene)["data"]
+    placed = {one["slug"]: one["stage"] for one in got["rows"]}
+    assert (placed["oat-lid"], placed["oat-cup"]) == ("you", "crew")
+    served = Served(scene)
+    try:
+        mine = served.json("/state.json?project=demo")["needs"]
+    finally:
+        served.close()
+    stage = next(one for one in got["stages"] if one["key"] == "you")
+    assert stage["count"] == len(mine) == 2
 
 
 def test_the_rows_of_a_loop_share_one_depth_and_head_and_a_row_behind_it_is_one_deeper(scene):

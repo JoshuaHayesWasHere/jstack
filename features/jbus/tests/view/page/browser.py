@@ -215,7 +215,12 @@ def lineup(scene, counts, merged=30, gates=6):
             if kind == "yours":
                 rows.append(row(slug, approved="", why="not approved", since=old))
                 listed.append(
-                    item("approve", f"approve:{slug}", f"approve {slug}: jbus queue approve")
+                    item(
+                        "approve",
+                        f"approve:{slug}",
+                        f"approve {slug}: jbus queue approve",
+                        slug=slug,
+                    )
                 )
             elif kind == "blocked":
                 rows.append(row(slug, depends=[first], why=f"depends on {first}", since=old))

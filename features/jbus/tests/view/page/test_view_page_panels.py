@@ -134,7 +134,7 @@ def test_a_folder_added_to_a_copy_of_the_package_opens_its_drawer_and_adds_its_l
         seen = look(scene, tmp_path, port=process.port)
         clean(seen)
         assert unreached(seen, ["sample", "lost", "thrown"]) == ["lost", "thrown"]
-        assert seen["needs"]["head"] == "3 Needs you · 1 goes ahead on its default"
+        assert seen["needs"]["head"] == "3 Needs you · 1 takes its default ›"
         assert (seen["needs"]["extra"][-1]["text"], seen["needs"]["extra"][-1]["open"]) == (
             "1 sample",
             "sample",

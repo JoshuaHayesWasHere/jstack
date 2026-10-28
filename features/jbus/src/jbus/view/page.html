@@ -339,7 +339,7 @@
     #nq .na { flex: 1 1 100%; }
     #nq .na .btn { flex: 1 1 auto; }
     .nq .nf input { min-height: 44px; flex-basis: 100%; }
-    .needs .go:not([hidden]), .hm .cn, .hf, .ql a { min-height: 44px; display: inline-flex; align-items: center; }
+    .needs .go:not([hidden]), .needs h2 a.nm, .hm .cn, .hf, .ql a { min-height: 44px; display: inline-flex; align-items: center; }
     .wl { min-height: 44px; display: flex; align-items: center; }
     .crumbs a { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
   }
@@ -633,7 +633,7 @@
     STACK.proceeds.forEach(function (w) { if (by[w.project]) by[w.project].asks += 1; });
     var cards = [], quiet = [];
     STACK.projects.forEach(function (p) {
-      var m = by[p.name], bad = false, op = m.asks > 0;
+      var m = by[p.name], bad = false, op = false;
       p.homes.forEach(function (h) {
         var tone = (HEALTH[h.health] || [])[1];
         if (m.lines[h.name].length || m.flags[h.name].length || m.said[h.name] || tone === "bad") bad = true;
