@@ -27,12 +27,8 @@ The routes that read are `routes()`, all `GET`:
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
 - `/healthz`: `{"ok": true}`.
 
-Each answer the server builds from the state for the page and the feed, the stack, a project's
-state or a panel and the feed's needs, has one build running at a time (`shared`). A request takes
-a build that began after it came: the one it starts, or the next, which every request that comes
-while one runs shares. It waits for it at most `shared.PATIENCE` seconds, and then gets 503. So a
-build that is slow, or never ends, holds no later request, and requests that come faster than a
-build ends do not each start one more.
+Each answer the route builds from the state has one build at a time, a request takes one begun
+after it came, and it waits at most `shared.PATIENCE` seconds before it gets 503 (`shared`).
 
 The two writes are `WRITES`, `POST /answer` and `POST /approve`. Each acts on the one project
 that `?project=` names. A write that names no project, or one the state directory does not
@@ -138,7 +134,7 @@ from jbus.bind import NoLookup
 from jbus.view import feeds, panels, shot, state, usage
 from jbus.view.clean import ANY, clean, keep
 from jbus.view.github import GitHub
-from jbus.view.shared import PATIENCE, Busy, Shared
+from jbus.view.shared import PATIENCE, Built, Shared
 from jbus.view.state import Sources
 from jbus.view.writes import (
     ACT,
@@ -365,7 +361,7 @@ class Code:
         return newer and not why
 
 
-class App(Writes):
+class App(Writes, Built):
     """What the server answers to a `GET` and to its two writes, on either address.
 
     The app's panels are the panel folders that exist when it starts. It loads each of them
@@ -388,10 +384,6 @@ class App(Writes):
         self.github = GitHub(self.clock)
         self.shared, self.patience = Shared(), PATIENCE
 
-    def _shared(self, key: Any, build: Callable[[], Any]) -> Any:
-        """The answer `key` names, from its one build at a time (`shared`)."""
-        return self.shared.get(key, build, self.patience)
-
     def _project(self, query: dict[str, list[str]]) -> str | None:
         """The project an address names with `?project=`, or None where it names no project,
         or names one the state directory does not have."""
@@ -412,28 +404,6 @@ class App(Writes):
 
         built = state.stack(self.sources, self.clock(), runs, self.code.said(), self.panels, names)
         return clean(built, tuple(repos))
-
-    def _needs(self, name: str) -> list[dict[str, Any]]:
-        """What waits on the user in one project, for the feed (`state.needs`)."""
-
-        def build() -> list[dict[str, Any]]:
-            return state.needs(self.sources, name, self.clock(), self.github.runs, self.panels)
-
-        return self._shared(("needs", name), build)
-
-    def _read(self, name: str, panel: str | None) -> dict[str, Any] | None:
-        """What `/state.json` holds for one project, or what one panel of it builds."""
-        read = state.Read(
-            self.sources,
-            name,
-            self.clock(),
-            self.github.runs,
-            self.code.said(),
-            self.panels,
-            merged=self.github.merged,
-            landed=self.github.landed,
-        )
-        return read.asked(panel) if panel else read.answer()
 
     def _across(self, name: str) -> dict[str, Any] | None:
         """What `/panel/<name>.json` with no project holds for a panel that is `alone`: what its
@@ -463,13 +433,6 @@ class App(Writes):
             ],
         }
         return clean(built, tuple(sorted({state.repo(self.sources, one) for one in names} - {""})))
-
-    def get(self, path: str, query: dict[str, list[str]]) -> Answer:
-        """The answer to a `GET`, or 503 where the build it needs has not given one in time."""
-        try:
-            return self._get(path, query)
-        except Busy:
-            return said(503, {"error": "the server is still building this answer, ask again"})
 
     def _get(self, path: str, query: dict[str, list[str]]) -> Answer:
         if path == "/":
