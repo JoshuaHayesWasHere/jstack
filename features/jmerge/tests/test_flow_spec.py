@@ -38,7 +38,7 @@ CITED = {
     ".github/workflows/browser.yml:22-23": "schedule:",
     "features/jbus/src/jbus/expedite.py:323": "ready.BROWSER_RED.pattern",
     "features/jbus/src/jbus/expedite.py:434": "world.open.items()",
-    "scripts/select_tests.py:847-856,560": "lone = unowned()",
+    "scripts/select_tests.py:884-893,597": "lone = unowned()",
     "features/crew/the-checks.md:84-89": "`jmerge` judges a red pull request again by itself",
     "features/jbus/src/jbus/dispatch.py:343-375": "no room",
     "features/jbus/src/jbus/dispatch.py:526-528": "on = world.stack_on(run, unmerged, brief)",
