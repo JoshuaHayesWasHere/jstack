@@ -383,7 +383,7 @@ document.addEventListener("click", function (e) {
   var h = e.target.closest("[data-bhome]");
   if (h) { var home = h.getAttribute("data-bhome"); boardSet({ home: home && boardView().home === home ? "" : home }); return; }
   if (e.target.closest("[data-bstill]")) { boardSet({ still: !boardView().still }); return; }
-  if (e.target.closest("[data-bclear]")) { boardClear(); return; }
+  if (e.target.closest("[data-bclear]")) { boardAll(); return; }
   var cell = e.target.closest("[data-bcell]");
   if (cell && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
     e.preventDefault();
@@ -394,7 +394,13 @@ document.addEventListener("click", function (e) {
   var s = e.target.closest("summary");
   if (s && s.parentNode.classList.contains("pl-det")) { BOARD_OPEN[s.parentNode.getAttribute("data-stage")] = !s.parentNode.open; setTimeout(boardLinks, 0); }
 });
-function boardClear() { if (history.state && history.state.cell) history.back(); else boardSet({ home: "", stage: "" }); }
+// Esc steps back out of a cell's entry, to the board the cell was clicked on.
+function boardClear() { if (history.state && history.state.cell) history.back(); else boardAll(); }
+// The bar's ✕ shows every home and stage, also over a chip chosen before the cell, so the entry is no cell's any more.
+function boardAll() {
+  if (history.state && history.state.cell) history.replaceState(Object.assign({}, history.state, { cell: false }), "", location.href);
+  boardSet({ home: "", stage: "" });
+}
 document.addEventListener("keydown", function (e) {
   var view = boardView();
   if (e.key !== "Escape" || $("pipeline").hidden || !(view.pick || view.stage || view.home) || drawer.open || typing(e.target)) return;

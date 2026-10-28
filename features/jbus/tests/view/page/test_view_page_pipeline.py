@@ -504,3 +504,64 @@ def test_two_projects_each_with_a_root_are_two_homes_in_every_chip_card_link_and
     assert cleared["hash"] in ("", "#/")
     assert cleared["bar"] == ""
     assert len(cleared["cards"]) == 13
+
+
+def walk_two_roots(tmp_path, route, steps):
+    """Reads the two-roots board at `route` before each of `steps` and after the last."""
+    scene = Scene(tmp_path / "scene", pytest.MonkeyPatch(), name="jstack")
+    two_roots(scene)
+    served = Served(scene)
+    walk = f"window.__cells = {json.dumps(steps)};\n"
+    try:
+        seen = look(
+            scene,
+            tmp_path,
+            route=route,
+            port=served.port,
+            script=walk + MATRIX,
+            at=2000,
+            budget=12000,
+        )
+    finally:
+        served.close()
+    assert seen["errors"] == []
+    return seen["seen"]
+
+
+@pytest.mark.parametrize(
+    ("route", "said", "slugs"),
+    [
+        ("#/?home=jstack", "Showing jstack ✕", 12),
+        ("#/?home=root", "Showing root ✕", 13),
+    ],
+)
+def test_a_project_alone_or_an_older_bare_home_filters_the_two_roots(tmp_path, route, said, slugs):
+    """`?home=jstack` names a project and keeps its rows alone, with no infra row; an older
+    link's bare `?home=root` names no project, so it keeps the root of each project."""
+    (seen,) = walk_two_roots(tmp_path, route, [])
+    cards = [one["slug"] for one in seen["cards"]]
+    assert len(cards) == slugs
+    assert ("stt-bench-run" in cards) == (slugs == 13)
+    assert seen["bar"] == said
+
+
+def test_the_bars_x_shows_every_home_and_esc_or_x_clears_a_chip_alone(tmp_path):
+    """A cell clicked over a chip is a step of its own, yet the bar's ✕ shows every home and
+    stage, as its label says, and does not step back to the chip. Esc and ✕ clear a chip alone."""
+    steps = [
+        "chip:infra/root",
+        "cell:infra/root/crew",
+        "clear",
+        "chip:infra/root",
+        "esc",
+        "chip:infra/root",
+        "clear",
+    ]
+    _, chip, cell, cleared, chip2, esced, chip3, unchipped = walk_two_roots(tmp_path, "#/", steps)
+    assert chip["hash"] == chip2["hash"] == chip3["hash"] == "#/?home=infra/root"
+    assert chip["bar"] == "Showing infra·root ✕"
+    assert cell["hash"] == "#/?home=infra/root&stage=crew"
+    for after in (cleared, esced, unchipped):
+        assert after["hash"] in ("", "#/"), after["hash"]
+        assert after["bar"] == ""
+        assert len(after["cards"]) == 13
