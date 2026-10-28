@@ -1,7 +1,4 @@
 #!/bin/sh
-# `room.sh sweep` runs the sweep alone, whatever share of the file slots is used: a test slot let go
-# runs it. It prints how many runs it removed. A Mac has no /proc to tell a held run by, so there it
-# removes none unless given a PROC.
 sweep() (
   if [ -z "${PROC:-}" ] && [ "$(uname -s 2> /dev/null)" = Darwin ]; then echo 0; return; fi
   PROC=${PROC:-/proc}
