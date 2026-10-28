@@ -28,11 +28,11 @@
    The row launches once that row has merged, or once it has opened its pull request: jbus then launches it stacked on that pull request's branch, writes its `Stacked on:` line, and moves it onto the default branch once that row merged.
    A row that builds on two rows whose pull requests are both open waits until one of them merged, since a stack sits on one branch.
    Every other order is only about merging, such as two rows that touch the same files or that must land in a set order: the row is queued with `--merge-after <that row>`, and has no `Builds on:` line.
+   It launches at once, and `jmerge` holds its pull request until that row has merged.
    A brief stacks only on a parent whose code it changes, calls or imports: a stack holds a row behind its parent's whole review, so a stack with no code edge is a wait for nothing.
    A plan layer is no such need, and neither is docs order or a file two rows share.
    Sibling work of one plan layer queues unstacked, with no `Builds on:` line for the layer under it, and is chained with `--merge-after` only where the order of the merges matters.
    `jbus queue add` refuses a brief whose `Builds on:` line gives a plan layer as its reason, such as `launch-caps: its merged code, the base of layer 2`.
-   It launches at once, and `jmerge` holds its pull request until that row has merged.
    `jbus queue add` refuses a `--depends` that the brief's `Builds on:` line does not name, and queues nothing: write the line, or make the order `--merge-after`.
    A `--merge-after` names a row that is already queued, so a chain is queued from its first link up.
    A wait goes on a `Builds on:` line or a `--depends`, never in prose: no code reads "brief once X lands" under a plan entry's `Decisions:`, so such a wait is forgotten.
