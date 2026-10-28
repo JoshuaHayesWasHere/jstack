@@ -96,7 +96,8 @@ work for, where that is not the row's own slug. An entry is often several briefs
 counts an entry's status by the rows that name it (`jbus.plan`). A row with no `entry` that names
 a parent, as a follow-up does (`named_parent`), does work for its parent's entry: jbus keeps that
 entry in the row's `parent_entry`, at the end of each batch and on each pass (`_inherit`), and
-counts the row for it (`entry`). Any other row with no `entry` is its own entry. The rules that
+counts the row for it (`entry`). Any other row with no `entry` is its own entry, and so is a row
+whose `entry` is its own slug, which `add --entry <its slug>` writes. The rules that
 approve a row by its entry read only the entry the home gave (`given_entry`), so an entry jbus
 inherited approves nothing.
 
@@ -639,8 +640,8 @@ def _row(rows: list[Row], slug: str, gone: dict[str, dict[str, str]]) -> Row:
 class Add:
     """`Add` is the verb that adds a new row, or gives a row its brief, priority, depends and
     merge_after again. It leaves the row's approval as it is, and its entry too where `entry`
-    is empty. An `entry` that is the row's own slug takes the row's entry away: the row is
-    then its own entry, and holds none."""
+    is empty. An `entry` that is the row's own slug makes the row its own entry, and it then
+    takes no entry from a parent it names."""
 
     slug: str
     priority: int
@@ -996,12 +997,12 @@ def follow_up(batch: _Batch, slug: str, branches: tuple[str, ...] = (), units: b
         raise Refused(
             f"refused: {slug}'s go followed {made.follows}, and its brief now follows {named}"
         )
-    unit = units and given_entry(row) == entry(parent)
+    unit = units and given_entry(row) == given_entry(parent)
     if not kind(row, text, branches) and not unit:
         raise Refused(
             f"refused: {slug} is no follow-up's kind (cleanup-, a fix jbus filed, an integration "
-            f"branch's sync) and does not do work for {named}'s plan entry {entry(parent)}: its "
-            f"entry is {given_entry(row)}"
+            f"branch's sync) and does not do work for {named}'s plan entry "
+            f"{given_entry(parent)}: its entry is {given_entry(row)}"
         )
     _parent(batch, slug, named)
     return named
@@ -1355,9 +1356,7 @@ def _do(
             row["merge_after"] = verb.merge_after
         if verb.item:
             row["item"] = verb.item
-        if verb.entry == verb.slug:
-            row.pop("entry", None)
-        elif verb.entry:
+        if verb.entry:
             row["entry"] = verb.entry
         was = batch.brief(verb.slug)
         kept = record(row)
@@ -1661,7 +1660,8 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     """Move an unlaunched row to the slug `new`, with its columns and its go. The brief's head
     line is rewritten, and the rest of it is the brief the go was given for, so a go that held
     is bound to the renamed brief. A row that was its own plan entry keeps the old slug as its
-    entry, and a row that did work for its parent's entry keeps doing it. The old slug goes into
+    entry. A row that did work for its parent's entry keeps doing it where a `Follows:` line names
+    the parent, and not where only its `cleanup-` slug did. The old slug goes into
     `removed.json`, so the pass drops its item and no add brings it back; the row gets its item
     anew from the pass."""
     rows, old, new = batch.rows, verb.slug, verb.new

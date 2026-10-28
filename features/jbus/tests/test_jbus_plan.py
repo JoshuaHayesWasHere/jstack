@@ -73,7 +73,7 @@ def test_add_keeps_the_entry_it_was_given_and_a_row_with_none_is_its_own(kitchen
     kitchen.main(
         "queue", "add", "part-1", "--priority", "1", "--entry", "part-1", stdin=brief("part-1")
     )
-    assert "entry" not in rows(kitchen)["part-1"]
+    assert rows(kitchen)["part-1"]["entry"] == "part-1"
 
 
 def test_a_batch_adds_a_row_with_its_entry_and_a_bad_entry_is_refused(kitchen):
@@ -331,4 +331,22 @@ def test_a_renamed_follow_up_still_counts_for_its_parents_entry(kitchen):
     assert "entry" not in rows(kitchen)["beta-two"]
     assert (
         plan(kitchen)[0] == "epic | one path for each fact | 0 of 2 merged, 2 queued not approved"
+    )
+
+
+def test_a_follow_up_given_its_own_slug_as_entry_takes_none_from_its_parent(kitchen):
+    assert (
+        kitchen.main(
+            "queue", "add", "part-1", "--priority", "1", "--entry", "epic", stdin=brief("part-1")
+        )[0]
+        == 0
+    )
+    argv = ("queue", "add", "cleanup-part-1", "--priority", "1", "--entry", "cleanup-part-1")
+    assert kitchen.main(*argv, stdin=brief("cleanup-part-1"))[0] == 0
+    assert "parent_entry" not in rows(kitchen)["cleanup-part-1"]
+    kitchen.poll()
+    assert "parent_entry" not in rows(kitchen)["cleanup-part-1"]
+    seen(kitchen, part_1="queued", cleanup_part_1="queued")
+    assert plan(kitchen)[0] == (
+        "epic | one path for each fact | 0 of 1 merged, 1 queued not approved"
     )
