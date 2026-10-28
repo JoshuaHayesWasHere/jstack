@@ -823,17 +823,23 @@
     return '<p class="tail"><a href="' + esc(linkOf(soon[0].open)) + '">' + (soon.length === 1 ? "1 takes its default" : soon.length + " take their default") + ' if you say nothing' + (first == null ? "" : ", the first at " + hm(first)) + ' &rsaquo;</a></p>';
   }
   function calmLine(mine, wrong) {
+    var groups = STACK.glance ? STACK.glance.verdict.groups : [], still = 0;
+    groups.forEach(function (g) { still += g.count; });
+    if (still) {
+      var held = groups.slice(0, 2).map(function (g) { return g.count + " " + g.text; });
+      return '<a href="#/">' + esc(plural(still, "row", "rows") + " not moving, held by " + held.join(" and ")) + ' &rsaquo;</a>';
+    }
     var open = 0, merged = 0, out = 0;
     STACK.projects.forEach(function (p) { open += p.open; merged += p.merged; out += p.health.threads || 0; });
     var lead = !mine && !wrong ? "Nothing waits on you and nothing is wrong. " : !mine ? "Nothing waits on you. " : !wrong ? "Nothing is wrong. " : "";
-    return lead + "Everything else moves: " + open + " open in " + plural(STACK.projects.length, "project", "projects") + ", " + merged + " merged today, " + plural(out, "thread", "threads") + " out.";
+    return esc(lead + "Everything else moves: " + open + " open in " + plural(STACK.projects.length, "project", "projects") + ", " + merged + " merged today, " + plural(out, "thread", "threads") + " out.");
   }
   function renderTriage() {
     var mine = yours(), wrong = wrongRows();
     put($("tri-yt"), triList("yl", mine, STACK.needs.length, "Yours", true) + soonTail());
     $("tri-yl").parentElement.hidden = !mine.length && !STACK.proceeds.length;
     put($("tri-wt"), triList("wl", wrong, wrong.length, "Wrong", false));
-    say($("tri-calm"), calmLine(STACK.needs.length, wrong.length));
+    put($("tri-calm"), calmLine(STACK.needs.length, wrong.length));
   }
   document.addEventListener("click", function (e) {
     var more = e.target.closest && e.target.closest("[data-tri]");
@@ -889,7 +895,7 @@
     var h = sm.health, parts = sm.broken.map(function (b) { return hk(brokeSince(b), b.open, "bad"); }), t = jb(), end = t && ms(t.last_end);
     if (t && t.failed) parts.unshift(hk(passWord(end), "pulse", "bad"));
     if (h.blind) parts.push(hk(plural(h.blind, "blind spot", "blind spots"), "blind", "op"));
-    var well = !parts.length, line = well ? ['<span class="hh">All well' + (end == null ? "" : " &middot; " + passWord(end)) + '</span>'] : parts;
+    var well = !parts.length, line = well ? ['<span class="hh">jbus well' + (end == null ? "" : " &middot; " + passWord(end)) + '</span>'] : parts;
     if (h.threads) line.push(hk(plural(h.threads, "thread", "threads") + " out", "threads"));
     return line.join(" &middot; ");
   }
