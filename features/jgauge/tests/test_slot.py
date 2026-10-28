@@ -13,7 +13,7 @@ import pytest
 import daemons
 from jgauge import holders, slot
 from test_machine_sizes import fake_proc
-from test_room import BIN
+from test_room import BIN, STALE, holding, runs
 
 RUNS_UNTIL_RELEASED = (
     'touch "$D/started.$1"; n=0; '
@@ -25,12 +25,14 @@ RUNS_UNTIL_RELEASED = (
 @pytest.fixture
 def slots(tmp_path):
     """Run `jgauge test-slot` on a machine of its own, whose lock files a test can hold: 24
-    processors and 62 GiB, so 4 full slots and 3 short ones, and no limits file."""
-    home, state = tmp_path / "home", tmp_path / "state"
+    processors and 62 GiB, so 4 full slots and 3 short ones, no limits file, and a `/tmp` of its
+    own for the sweep a slot let go runs."""
+    home, state, tmpfs = tmp_path / "home", tmp_path / "state", tmp_path / "tmpfs"
     locks = home / ".local" / "state" / "locks"
     state.mkdir()
+    tmpfs.mkdir()
     proc = fake_proc(tmp_path / "proc", 24, 62)
-    env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc)}
+    env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc), "TMPFS": str(tmpfs)}
     for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT"):
         env.pop(name, None)
     going, taken = [], []
@@ -74,6 +76,7 @@ def slots(tmp_path):
 
     start.waits, start.started, start.release = waits, started, release
     start.hold, start.free, start.locks, start.state = hold, free, locks, state
+    start.tmpfs = tmpfs
     yield start
     free()
     for name in "abc":
@@ -476,6 +479,26 @@ def test_twenty_pytest_runs_at_once_under_slots_leave_nothing_in_pytests_default
         assert ran.returncode == 0, out + err
     assert list(stand_in.iterdir()) == []
     assert list(slots.locks.glob("*.tmp")) == []
+
+
+def test_a_slot_let_go_clears_stale_pytest_runs_no_live_process_holds_from_tmp(slots, tmp_path):
+    """A pytest run outside any slot, or one that was killed, leaves its basetemp under
+    `/tmp/pytest-of-<user>`, and pytest's own retention keeps a killed run's for days. Each slot
+    let go sweeps them, however full `/tmp` is."""
+    stale, *kept = runs(slots.tmpfs, "joshua", [1, 2, 3])
+    (fresh,) = runs(slots.tmpfs, "joshua", [4], age=60)
+    held_open, held_by_lock = kept
+    holding(tmp_path, cwd=held_open / "test_it0")
+    (held_by_lock / ".lock").write_text(str(holding(tmp_path, pid=4343)))
+    os.utime(held_by_lock, (time.time() - STALE,) * 2)
+
+    ran = slots("--slots", "1", command=["true"])
+    assert ran.communicate(timeout=10) == (
+        "",
+        f"test-slot: removed 1 stale pytest directories under {slots.tmpfs}\n",
+    )
+    assert not stale.exists()
+    assert all(run.is_dir() for run in (fresh, held_open, held_by_lock))
 
 
 THREAD = "mcp:thread-9"
