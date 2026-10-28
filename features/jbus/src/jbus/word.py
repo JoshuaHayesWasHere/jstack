@@ -308,9 +308,7 @@ def keep(
             skipped = SAID_IN_HOME.format(thread=mine)
         elif mine and mine == recorder:
             skipped = BY_HOME.format(thread=mine)
-        acts.logged(
-            run, who, party.Action(KIND, whose), heard, "done", skipped or KEPT, id=name
-        )
+        acts.logged(run, who, party.Action(KIND, whose), heard, "done", skipped or KEPT, id=name)
     if skipped:
         about = {"words": words, "by": run.user.user, "at": at, "to": ""}
         run.box.record(KIND, f"{KIND} {run.project.name}: kept, {skipped}", words, word=about)
