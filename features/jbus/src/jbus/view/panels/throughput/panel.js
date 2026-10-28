@@ -23,7 +23,9 @@ function tpFetch(name, then, tries) {
 function dThroughput(arg, data) {
   var t = data.throughput, mine = turn;
   if (!t.read && t.error === TP_WAITING) {
-    tpFetch(PROJECT, function (said) { if (mine === turn && drawer.open) $("dw").innerHTML = tpDrawn(said); }, 2);
+    tpFetch(PROJECT, function (said) {
+      if (mine === turn && drawer.open) $("dw").innerHTML = said.days ? tpDrawn(said) : head("Throughput", "Merges by day") + '<p class="src" style="margin-top:var(--space-8)">The view server did not answer.</p>';
+    }, 2);
     return head("Throughput", "Merges by day") + '<p class="src" style="margin-top:var(--space-8)">Asking GitHub for the merges of each day: it has not answered yet.</p>';
   }
   return tpDrawn(t);

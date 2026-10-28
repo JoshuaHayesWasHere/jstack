@@ -62,15 +62,17 @@ window.addEventListener("load", function () {
 """
 
 
-def waits_once(monkeypatch):
+def waits_once(monkeypatch, then_fails=False):
     """GitHub has not answered the first ask for the merges, and has 22 merges of today for
-    every ask after it."""
+    every ask after it. With `then_fails`, the server fails every ask after the first."""
     asked = []
 
     def merged(self, repo, since):
         asked.append(repo)
         if len(asked) == 1:
             return {"merged": [], "at": None, "error": github.WAITING}
+        if then_fails:
+            raise RuntimeError("the server fails this ask")
         times = [{"number": 100 + n, "at": iso(ago(minutes=n + 1))} for n in range(22)]
         return {"merged": times, "at": iso(NOW), "error": None}
 
@@ -102,3 +104,13 @@ def test_the_drawer_asks_github_again_until_it_answers_with_no_reload(scene, tmp
     assert "the last 7 days 22 merges" in drawer[-1].lower(), drawer
     for back in range(6, -1, -1):
         assert (NOW - timedelta(days=back)).astimezone().strftime("%m-%d") in drawer[-1]
+
+
+def test_the_drawer_says_the_server_did_not_answer_when_an_ask_again_fails(
+    scene, tmp_path, monkeypatch
+):
+    asked = waits_once(monkeypatch, then_fails=True)
+    drawer = watched(scene, tmp_path, ROUTE)["drawer"]
+    assert len(asked) >= 2
+    assert any("Asking GitHub" in one for one in drawer), drawer
+    assert "The view server did not answer." in drawer[-1], drawer
