@@ -2,12 +2,12 @@
 
 Every call is a read through `gh api`. The collector reads the repo's workflow runs created since a
 time and the pull requests updated since then. For each run that completed it reads the jobs the
-ledger does not keep yet, with `filter=all` so that it gets every attempt of a rerun. For each pull
-request whose update the ledger has not kept, it reads the timeline, where a force-push of its branch
-is an event: one the ledger kept at the same update keeps its force-pushes. The pull requests come a
-page at a time, the latest update first, and the collector stops at the first page that reaches back
-past the time. For a red job on a local runner it reads the log once, for the failing tests the log
-names and the runner faults the log shows.
+ledger does not keep yet, with `filter=all` so that it gets every attempt of a rerun. For each
+pull request whose update the ledger has not kept, it reads the timeline, where a force-push of its
+branch is an event: one the ledger kept at the same update keeps its force-pushes. The pull
+requests come a page at a time, the latest update first, and the collector stops at the first page
+that reaches back past the time. For a red job on a local runner it reads the log once, for the
+failing tests the log names and the runner faults the log shows.
 
 `jbus ci` collects the last `days` days (`collect`) and waits for the ledger's lock. Each pass of
 jbus collects too (`keep`, from the step in `jbus.ci`): the runs created in the last `PASS_HOURS`

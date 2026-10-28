@@ -16,9 +16,9 @@ and `workers` (the CPU), and `tmp_inode_pct`. A job writes these with `jbus ci -
 `jbus.ci.notice`.
 
 `ci-prs.jsonl` has one line per pull request, and a collect that finds one changed rewrites the
-file: `number`, `branch`, `head`, `created`, `updated` (GitHub's last update of it, which a line kept
-before this field has not), `merged`, `closed`, `merge_commit` and `pushes`, the times someone
-force-pushed its branch.
+file: `number`, `branch`, `head`, `created`, `updated` (GitHub's last update of it, which a line
+kept before this field has not), `merged`, `closed`, `merge_commit` and `pushes`, the times
+someone force-pushed its branch.
 
 `jbus ci` writes both files, and so does each pass of jbus (`jbus.ci.collect.keep`).
 """
