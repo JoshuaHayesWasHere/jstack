@@ -195,7 +195,6 @@ When the shape of the work is not settled (more than one task, or a design choic
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
 - The user gives the go once per entry, never per row, and to an entry that has a row: queue its first row, a scout's if it needs design, then record the go with `jbus plan go <entry> --message <thread>/<message>`, which refuses an entry with no row.
   Under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
-- An order between entries is a row's `--depends` on `jbus queue add`, never "starts once X merges" in `Decisions:`.
 
 An entry has the shape of `$T/plan-entry.md`: read it before writing the first one.
 
