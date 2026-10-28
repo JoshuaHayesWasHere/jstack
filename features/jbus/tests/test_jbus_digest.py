@@ -200,8 +200,8 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
 
 def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event_never(kitchen):
     """The test runs passes that add an approval, remove one, and do both. A row to approve is
-    raised in the pass after the one that lists it, and the removal of one that was raised wakes
-    the home thread with its withdrawal alone."""
+    raised in the pass after the one that lists it, and the removal of one that was raised posts
+    nothing."""
     four(kitchen)
     kitchen.poll()
     add(kitchen, "second", priority=3, approve=False)
@@ -210,8 +210,7 @@ def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event
     posts = len(kitchen.wakes.posts)
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(30))
-    assert len(kitchen.wakes.posts) == posts + 1
-    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision.withdrawn"]
+    assert len(kitchen.wakes.posts) == posts
     add(kitchen, "third", priority=4, approve=False)
     assert go(kitchen, "second")[0] == 0
     kitchen.poll(later(40))

@@ -27,13 +27,12 @@ A wake's body is `{"kind": "events", "say": [...], "events": [...]}`, and an eve
 <!-- built: events -->
 | `loud` | Kinds | What happens |
 |---|---|---|
-| `user` | `alert`, `decision`, `decision.withdrawn`, `home-stall`, `sign-in` | It starts a wake of the home thread. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
+| `user` | `alert`, `decision`, `home-stall`, `sign-in` | It starts a wake of the home thread. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
 | `quiet` | `cancelled`, `clock`, `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate`, `gate answered`, `green`, `heartbeat`, `hold-stall`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.waiting`, `jmerge`, `leftover`, `mainmoved`, `merged`, `note`, `overlap`, `pack`, `pool-wake`, `proof`, `queue`, `rebase`, `recovered`, `refailed`, `report`, `rereview`, `restack`, `result`, `resume`, `retro`, `review`, `reviewed`, `slot-end`, `slot-wake`, `snapshot`, `stale`, `stall`, `sweep`, `unplaced`, `waiting`, `waiting-on-user` | It wakes no thread. It is in the log, which `jbus events` prints and the view shows. |
 <!-- built: end -->
 
-A wake carries `user` kinds only, such as a `decision`, its `decision.withdrawn`, a `sign-in` and an `alert` that stands.
+A wake carries `user` kinds only, such as a `decision`, a `sign-in` and an `alert` that stands.
 A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).
-A `decision.withdrawn` says that a decision raised before is no longer yours to take, and why.
 A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
 The routine events, `merged`, `stale`, `retro`, `gate`, `stall`, `waiting` and `recovered`, go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
 A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.

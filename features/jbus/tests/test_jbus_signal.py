@@ -56,7 +56,6 @@ def test_every_event_has_its_kind_s_loudness_and_only_one_for_the_chat_has_a_say
     assert sorted(kind for kind, loud in wake.LOUDNESS.items() if loud == "user") == [
         "alert",
         "decision",
-        "decision.withdrawn",
         "home-stall",
         "sign-in",
     ]

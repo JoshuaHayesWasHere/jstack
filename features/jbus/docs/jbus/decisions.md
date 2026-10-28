@@ -23,8 +23,7 @@ Just before it sends, the pass reads again what each item stands on, as dispatch
 A row whose go now holds for its brief, a gate whose question has closed, and a pull request whose row has merged are not raised.
 A row to approve is raised only once it has waited unapproved for `APPROVE_GRACE_SECONDS` (60, one pass), so a row a home queues and approves a moment later never reaches you; a gate that holds is raised at once.
 
-A decision whose item leaves the list of what waits is withdrawn, once: jbus sends one `user` event `decision.withdrawn`, under the key `decision.withdrawn|<the decision's key>`, whose line names that key and why it went (`approved`, `closed`, `merged` or `removed`).
-jbus keeps what it raised from the list in `raised.json` in the project's state directory, so it withdraws only a decision it raised.
+An item that leaves the list of what waits wakes no one: the decision raised for it stays in the log, and no event says it went.
 
 ## Fixes and their stop
 

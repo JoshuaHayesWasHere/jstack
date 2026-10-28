@@ -35,7 +35,7 @@ GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
-USER = ["alert", "decision", "decision.withdrawn", "home-stall", "sign-in"]
+USER = ["alert", "decision", "home-stall", "sign-in"]
 DECIDED = "decision alpha: which one?"
 WHY = f"T3 Code did not take the wake: t3_thread_send: {REFUSED}"
 WHY_APPROVE = "a row with no approval of its brief"
@@ -188,7 +188,7 @@ def test_a_merge_a_result_a_review_and_a_report_start_no_post_and_are_in_the_log
     ]
 
 
-def test_a_list_that_only_lost_an_item_posts_only_the_withdrawal_of_its_decision(kitchen):
+def test_a_list_that_only_lost_an_item_posts_nothing(kitchen):
     kitchen.poll()
     add(kitchen, "unsaid", approve=False)
     kitchen.poll(later(10))
@@ -197,8 +197,7 @@ def test_a_list_that_only_lost_an_item_posts_only_the_withdrawal_of_its_decision
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(kitchen.wakes.posts) == 2 and kitchen.waiting() == []
-    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision.withdrawn"]
+    assert len(kitchen.wakes.posts) == 1 and kitchen.waiting() == []
     gone = ("waiting demo: 0 wait on user, 0 new, 1 gone", "quiet", False)
     assert gone in logged(kitchen)
 
