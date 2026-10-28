@@ -8,7 +8,7 @@ import json
 import os
 
 import jbus
-from jbus import clock, expedite, outbox, passes, rebase, slotwait, t3, watch, word
+from jbus import clock, expedite, outbox, passes, slotwait, t3, watch, word
 from jgauge import slot, waiters
 from test_jbus_github import failed, keys, launched, pull
 from test_jbus_github import passes as at
@@ -152,7 +152,7 @@ def test_a_spared_template_is_one_its_sender_sends():
     assert set(slotwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
     assert outbox.USERS == {word.KIND, "item"}
     kinds = {row.kind for row in expedite.TABLE}
-    asked = {rebase.unproven("a..b", "c..d").kind, "rereview"}
+    asked = {"rereview"}
     assert outbox.ASKS <= kinds | asked and asked <= outbox.ASKS
 
 

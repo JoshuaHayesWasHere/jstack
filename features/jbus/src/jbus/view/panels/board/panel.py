@@ -77,7 +77,6 @@ STAGE_OF_STEP = {
     "result": "pr",
     "review": "review",
     "second": "review",
-    "proof": "review",
     "findings": "fixing",
     "rebase": "fixing",
     "check": "green",

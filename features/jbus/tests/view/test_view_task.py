@@ -62,20 +62,14 @@ def test_the_two_rebase_reasons_are_the_rebase_step_and_the_second_pass(served):
             "wait: its fix changed more than the findings named: the second pass is not written",
             "second",
         ),
-        (
-            "wait: guarded (touches src/a.py), the rebase changed the patch after its review",
-            "second",
-        ),
+        ("wait: the rebase changed the patch after its review", "second"),
         ("wait: a check has not finished", "check"),
         (
             "wait: main changed a.py after its check started at 20:48 ET; it needs a fresh check",
             "check",
         ),
-        ("wait: guarded (touches src/a.py), no proven safety fact at 0123456789ab (x)", "proof"),
-        (
-            "wait: guarded (touches a), main changed b after its check started; it needs a rebase",
-            "rebase",
-        ),
+        ("wait: no proven safety fact at 0123456789ab (x)", "unknown"),
+        ("wait: main changed b after its check started; it needs a rebase", "rebase"),
         ("wait: it conflicts with its base", "rebase"),
         ("hold: needs user, the rebase dropped 1 of main's lines in src/a.py", "hold"),
         ("wait: its brief says Review: none, so it needs the user's word", "hold"),
@@ -88,7 +82,7 @@ def test_a_reason_of_jmerge_puts_a_pull_request_on_its_step(scene, served, why, 
     assert tasks(served.json("/state.json?project=demo"))["oat-bowl"]["step"] == step
 
 
-def test_the_line_has_twelve_steps_and_every_open_row_is_on_one(served):
+def test_the_line_has_eleven_steps_and_every_open_row_is_on_one(served):
     state = served.json("/state.json?project=demo")
     assert [one["key"] for one in state["steps"]] == [
         "queued",
@@ -99,7 +93,6 @@ def test_the_line_has_twelve_steps_and_every_open_row_is_on_one(served):
         "findings",
         "second",
         "check",
-        "proof",
         "rebase",
         "hold",
         "merged",

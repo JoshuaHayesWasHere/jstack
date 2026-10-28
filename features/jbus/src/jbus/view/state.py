@@ -19,7 +19,7 @@ wrote one (`jbus.leftover`), and the log of what the outbox sent, `outbox.jsonl`
 `outbox.json`, or the stored token, and it writes nothing. The one setting it takes is the
 user's time zone (`jsettings`), and it reads a time with no zone as a time in that zone.
 
-The line is `STEPS`, twelve steps from Queued to Merged. Each open row of the queue is a
+The line is `STEPS`, eleven steps from Queued to Merged. Each open row of the queue is a
 task on one step. The holder of the task is the user, a crewmate, a reviewer, the check
 runner, jbus, its home or another task. The view works out no state. The last pass judged
 each row once (`jbus.work`) and wrote it to `work.json`, and the page draws a task as that
@@ -205,7 +205,6 @@ RANK = {
     "review": WAITS,
     "second": WAITS,
     "check": WAITS,
-    "proof": WAITS,
     "behind": WAITS,
     "ready": QUEUED,
     "removed": OVER,
@@ -252,7 +251,6 @@ STEPS = (
     Step("findings", "Findings", "crew", "the crewmate handles the findings"),
     Step("second", "Second pass", "rev", "the content moved past its review"),
     Step("check", "Check", "ci", "its check failed, runs or waits for a runner, or passed"),
-    Step("proof", "Proof", "rev", "a guarded path needs a proven safety fact"),
     Step("rebase", "Rebase", "crew", "main moved under it, or a rebase dropped lines"),
     Step("hold", "Needs you", "user", "jmerge will not merge it until you say"),
     Step("merged", "Merged", "ok", "merged today", "Done"),
@@ -1739,10 +1737,10 @@ def _stalls(read: Read, tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str,
     """The last stall of each open row that still stands, by slug, from the log.
 
     A stall stands while its row is open and has not moved since. One that names a head (`at
-    <head>`) stands while `expedite.json` or `guarded.json` still counts that head, and one of a
-    cap (`capped until <time>`) while the cap lasts. A stall of a hung thread is the thread's,
-    which the list of threads says as it is now, and a stall of a leftover is a need of the
-    user: neither is here."""
+    <head>`) stands while `expedite.json` still counts that head, and one of a cap (`capped
+    until <time>`) while the cap lasts. A stall of a hung thread is the thread's, which the list
+    of threads says as it is now, and a stall of a leftover is a need of the user: neither is
+    here."""
     moved: dict[str, str] = {}
     for one in read.moves or []:
         at = when(one.get("at"))
@@ -1755,8 +1753,7 @@ def _stalls(read: Read, tasks: dict[str, dict[str, Any]]) -> dict[str, dict[str,
             last[one["slug"]] = one | {"cause": said[2]}
     counted = {
         slug: text(entry.get("head"), 40)
-        for file in (expedite.FILE, "guarded.json")
-        for slug, entry in (read.table(file) or {}).items()
+        for slug, entry in (read.table(expedite.FILE) or {}).items()
         if isinstance(entry, dict)
     }
     found = {}

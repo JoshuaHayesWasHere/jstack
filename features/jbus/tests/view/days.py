@@ -21,7 +21,6 @@ REASON = {
     "findings": "its findings are not handled: the Result has no Fixed line",
     "second": "its fix changed more than the findings named: the second pass is not written",
     "check": "check has not passed",
-    "proof": "guarded (touches src/a.py), no proven safety fact at 0123456789ab (step 5)",
     "rebase": "it conflicts with its base",
 }
 
@@ -37,7 +36,6 @@ TODAY = {
     "findings": 2,
     "second": 1,
     "check": 1,
-    "proof": 1,
     "rebase": 1,
 }
 

@@ -76,7 +76,6 @@ def test_each_value_but_unknown_is_one_pattern_and_the_values_are_the_closed_set
         "findings",
         "second",
         "check",
-        "proof",
         "rebase",
         "hold",
         "launching",

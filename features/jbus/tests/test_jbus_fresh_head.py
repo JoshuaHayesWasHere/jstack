@@ -1,8 +1,9 @@
 """A message that names a head goes out only while that head is still the pull request's head and
 its crew's thread is not at work. jbus sends one message for one conflict. Like
-`test_jbus_guarded_ask.py`, the tests run the real pass against the fakes, over commits that are
+`test_jbus_rereview.py`, the tests run the real pass against the fakes, over commits that are
 really there."""
 
+import subprocess
 from datetime import timedelta
 
 import pytest
@@ -10,7 +11,6 @@ import pytest
 import jbus
 from jbus import mainmoved, merge, passes, rebase, t3, watch
 from test_jbus_expedite import NO_FIXED, Short
-from test_jbus_guarded_ask import URL, Fixed
 from test_jbus_kitchen import NOW
 from test_jbus_kitchen import review as findings
 from test_jbus_main_moved import checks, move, pull, tip
@@ -20,8 +20,14 @@ from test_jbus_remarks import one
 from test_jbus_rereview import unsaid, waits
 from test_jbus_unlock import CHANGED, sends
 
-KINDS = ("rebase", "rereview", "drops", "proof", "mainmoved")
+KINDS = ("rebase", "rereview", "drops", "mainmoved")
 CONFLICT = "it conflicts with its base"
+URL = "https://example.test/pull/7"
+DONE = "\n## Result\nStatus: done\nBranch: alpha   Pull request: {url}\nLeft: none\n"
+REVIEW = (
+    "\n## Review\nVerdict: findings\nHead: {head}   Unchanged by the review: yes\n"
+    "Sent to: mcp:thread-1\n"
+)
 
 
 def later(minutes):
@@ -31,6 +37,34 @@ def later(minutes):
 def marks(kitchen, kind):
     sent = jbus.read_json(kitchen.state / "sent.json", [])
     return [key for key in sent if key.startswith(f"{kind}|")]
+
+
+class Fixed:
+    """Alpha is a row that a pass launched. A review saw the first commit of its branch, and the
+    second commit is the fix the crew pushed for the findings. Alpha's branch is open as pull
+    request #7 at the fix. Alpha's thread's turn has ended, since jbus asks nothing of a thread
+    at work."""
+
+    def __init__(self, kitchen):
+        self.kitchen = kitchen
+        add(kitchen, "alpha")
+        assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
+        (self.thread,) = kitchen.t3.threads
+        self.thread["status"] = "completed"
+        self.start = self.commit()
+        self.saw = self.commit("the task")
+        self.head = self.commit("the fix")
+        launched = (kitchen.home / "tasks/alpha.md").read_text()
+        done = DONE.format(url=URL) + REVIEW.format(head=self.saw)
+        (kitchen.home / "tasks/alpha.md").write_text(launched + done)
+        kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "headRefOid": self.head}])
+
+    def commit(self, message=""):
+        if message:
+            self.kitchen.git("commit", "-q", "--allow-empty", "-m", message)
+        asked = ["git", "rev-parse", "HEAD"]
+        ran = subprocess.run(asked, cwd=self.kitchen.checkout, capture_output=True, text=True)
+        return ran.stdout.strip()
 
 
 class Due:
@@ -51,8 +85,6 @@ class Due:
             "rereview": waits(head),
             "drops": unsaid(head),
         }
-        if self.kind == "proof":
-            return self.fixed.out(head=head)
         opened = pull(kitchen, "alpha", 7, "FAILURE" if red else "SUCCESS", mergeable)
         kitchen.set("open.json", [{**opened, "headRefOid": head}])
         kitchen.set("jmerge.txt", "" if red else f"wait 7 {URL}: {says[self.kind]}\n")
