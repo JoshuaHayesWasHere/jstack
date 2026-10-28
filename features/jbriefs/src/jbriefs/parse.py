@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from jbriefs import below, skills, standing
+from jbriefs import asks, below, skills, standing
 
 NO_RESULT = "no result yet"
 DONE = "done"
@@ -296,7 +296,7 @@ def playbook(text: str) -> str:
     elif not crewmates(name):
         fault = f"names {name}, which is not a crewmate's playbook"
     else:
-        return ""
+        return asks.fault(text, name)
     return f"brief's Playbook: line {fault} {_PLAYBOOK}"
 
 

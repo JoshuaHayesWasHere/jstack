@@ -8,12 +8,13 @@ The homes of a repo do not plan each other's work, and they are quiet towards ea
   It is the user's word, carried with `jbus word --to "$P" --message '<thread id>/<message id>' --scope <scope>`, given again for each scope or once as `--scope every`, and never with `t3_thread_send`.
   jbus checks that the message is the user's own, keeps one record for each scope, says `held` for a scope that has it already, and wakes each home once on its next pass.
   The root writes no words of its own into it.
-  A home with no `home-id` is not running: write the decision as a dated line in `$H/standing.md`, which its next start reads whole, and snapshot it as the next point says.
+  A home with no `home-id` is not running: jbus keeps the word, and sends it on the pass after that home's next start.
 - A scoped home reaches the root only when it is stuck and needs steering: a stop on its own open row, which jbus takes only when another home's row or something no home owns holds it ("Stopping on the root" below), and a decision only the user can make is a gate.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
   The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
   A scope that ends says so in its own `handoff.md`.
-- A standing rule from the user is one dated line in `$H/standing.md`, written by the home that heard it, or a change to a skill, which is a task. Right after any edit to it, run `jbus snapshot --why "<repo> standing rule <n> <added, changed or removed>"`, so the edit is a commit of its own in `~/.local/state/home`, pushed, and can be undone ("Undo an edit to standing.md" in `docs/state.md`). It is relayed to no home: every home reads `standing.md` whole at its start.
+- A standing rule from the user becomes code, a lint, a script or a check, queued as a task by the home that heard it, and never a line in `$H/standing.md`.
+  It is relayed to no home: each home meets the rule in the code it runs.
 - A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
   One with no known fix is nothing.
 - No home asks another what it has out.

@@ -182,5 +182,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"jleak: {count(found)}, so the push is refused", file=sys.stderr)
     elif found:
         again = "take the text out and run it again"
+        if all(finding.pattern == "home-path" for finding in found):
+            again = (
+                "drop the cd line, since the shell's working directory already persists, "
+                "and write `~` or `$HOME` for any other path under the home directory"
+            )
         print(f"jleak: {count(found)}, so the command is refused: {again}", file=sys.stderr)
     return (2 if args.command else 1) if found else 0
