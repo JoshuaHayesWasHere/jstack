@@ -43,9 +43,9 @@
     "id": "crew-info-finding",
     "file": "skills/crew/SKILL.md",
     "state": "You are a crewmate with an open pull request. The reviewer's findings arrive. One of them reads: `info src/jbus/asks.py:107 the CLI decides whether to print a line by matching the end of a message's text (principle: model-the-domain)`. The fix would touch another file and want a test.",
-    "expect": "An info finding is declined by default: `Finding: not fixed, <the finding>, because info: left for a follow-up`, and a line `follow-up: <the finding>` under Noticed (\"The review\").",
+    "expect": "An info finding is declined by default: `Finding: not fixed, <the finding>, because info: left for a follow-up`; one worth doing later is queued as a row of its own (`a-fault-outside.md`), and any other is nothing (\"The review\").",
     "must": ["(?i)left for a follow-up"],
-    "near": "(?i)not fixed|follow-?up|noticed"
+    "near": "(?i)not fixed|follow-?up|\\brow\\b"
   },
   {
     "id": "crew-stale-base",
@@ -59,9 +59,9 @@
     "id": "crew-outside-where",
     "file": "skills/crew/SKILL.md",
     "state": "You are a crewmate. While doing your brief, whose `Where:` is `src/jbus/queue.py` and `tests/test_jbus_queue.py`, you notice a real bug in `src/jmerge/cli.py`: an off-by-one in how it counts rebases. Your task does not need it fixed.",
-    "expect": "Leave it out of the diff and write it in the Result under \"Noticed\" (\"Do the task\": anything outside the task goes under Noticed).",
-    "must": ["(?i)noticed"],
-    "near": "(?i)\\bresult\\b|out(?:side)? of (?:the )?(?:scope|diff)|not (?:fix|touch)"
+    "expect": "Leave it out of the diff and queue it, unapproved, as a row of its own with `jbus queue add`, its `Decisions:` line beginning `noticed in <slug>` (\"Do the task\" and `a-fault-outside.md`: a fault outside the task is a queued row or nothing, never a line of the Result).",
+    "must": ["(?i)jbus queue add|queue(?:d|s)? (?:it )?(?:as )?a (?:new |separate )?row"],
+    "near": "(?i)\\bqueue|\\brow\\b|out(?:side)? of (?:the )?(?:scope|diff)|not (?:fix|touch)"
   },
   {
     "id": "scout-not-the-task",
@@ -112,12 +112,12 @@
     "near": "(?i)\\breplace|hand ?off"
   },
   {
-    "id": "pr-review-noticed",
+    "id": "pr-review-outside-where",
     "file": "skills/pr-review/SKILL.md",
     "state": "You are the reviewer of a pull request, at step 4 of the review. One finding you keep is about a changed line in `src/jbus/queue.py`, and its remedy would move the logic into `src/jbriefs/parse.py`, which is outside the brief's `Where:`.",
-    "expect": "Keep it, send it and record it like any other finding, with `for Noticed, not this pull request` at the end of its line (\"Wider than the brief\").",
-    "must": ["(?i)for Noticed, not this pull request"],
-    "near": "(?i)noticed"
+    "expect": "Keep it, send it and record it like any other finding, with `outside Where, not this pull request` at the end of its line (\"Wider than the brief\").",
+    "must": ["(?i)outside Where, not this pull request"],
+    "near": "(?i)outside (?:the brief's )?`?where|not this pull request"
   },
   {
     "id": "pr-review-already",
