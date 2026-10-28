@@ -13,7 +13,7 @@ from jsonschema import Draft202012Validator
 import jbus
 import test_tool_calls as tools
 from jbus import cli, passes, queue, wake
-from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RESULT, SAID, Kitchen
+from test_jbus_kitchen import GO, NOW, PROJECT, QUARTER_PAST_FIVE, RAN, RESULT, SAID, Kitchen
 from test_machine_sizes import fake_proc
 
 AT = "2026-10-11 17:58 ET"
@@ -508,12 +508,12 @@ def test_a_queue_event_holds_the_row_that_changed_and_what_changed_in_it(kitchen
 
 def test_a_removal_is_a_queue_event_of_the_row_that_went(kitchen):
     twenty(kitchen)
-    removal = ("queue", "remove", "row-07", "--by", "user", "--at", AT)
+    removal = ("queue", "remove", "row-07", "--by", "user", "--at", RAN)
     assert kitchen.main(*removal)[0] == 0
     (event,) = kitchen.events("queue")
     assert (event["slug"], event["line"]) == (
         "row-07",
-        f"queue demo: removed row-07, {AT} by user",
+        f"queue demo: removed row-07, {RAN} by user",
     )
     assert (
         event["text"]
@@ -1449,8 +1449,6 @@ def test_a_row_another_merges_after_is_not_removed(kitchen):
     add(kitchen, "alpha", approve=False)
     argv = ["queue", "add", "beta", "--priority", "2", "--merge-after", "alpha"]
     kitchen.main("--project", "demo", *argv, stdin=brief("beta"))
-    code, said = kitchen.main(
-        "queue", "remove", "alpha", "--by", "user", "--at", "2026-10-11 17:58 ET"
-    )
+    code, said = kitchen.main("queue", "remove", "alpha", "--by", "user", "--at", RAN)
     assert code != 0
     assert "beta wait on alpha: remove them first" in said

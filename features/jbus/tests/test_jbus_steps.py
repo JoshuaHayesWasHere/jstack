@@ -79,6 +79,7 @@ ORDER = [
     "tellers 55 failover.failover (client, world)",
     "tellers 60 threads.resume (client, world)",
     "tellers 70 threads.merged (client, world)",
+    "tellers 75 reload.tell (client)",
     "tellers 80 threads.out and stall.hung (client, world)",
     "tellers 100 rebase.tell (client, world)",
     "tellers 110 stall.guarded (client, world)",
@@ -357,6 +358,7 @@ def question(kitchen):
 
 
 def worded(kitchen):
+    kitchen.clock_reads(AT)
     assert kitchen.main("word", "--to", "demo", "--by", "user", "--at", AT, "go", "on")[0] == 0
     (kitchen.home / "home-id").write_text("mcp:a-home\n")
 

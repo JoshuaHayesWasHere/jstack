@@ -286,7 +286,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
     kitchen.brief("alpha", "Thread: mcp:crew-alpha\n")
     held = gate(kitchen, holds=True)
     code, said = kitchen.main(
-        "answer", str(held), "--by", "user", "--at", "2026-10-12 19:30 ET", "--default", "yes"
+        "answer", str(held), "--by", "user", "--at", "2026-10-12 11:00 ET", "--default", "yes"
     )
     assert (code, said.startswith(f"refused: question {held} holds (rewrites history)")) == (
         1,
@@ -309,7 +309,7 @@ def test_a_home_typing_the_users_name_on_a_door_is_refused_and_the_gate_stays_op
         "--by",
         "user",
         "--at",
-        "2026-10-12 19:30 ET",
+        "2026-10-12 11:00 ET",
         "--default",
         "yes",
     )

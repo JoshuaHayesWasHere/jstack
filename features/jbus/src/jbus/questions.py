@@ -117,7 +117,6 @@ import argparse
 import itertools
 import json
 import re
-import sys
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
@@ -948,7 +947,7 @@ def _gate(args: argparse.Namespace, config: Config) -> int:
     """
     project = verbs.here(config, args.project)
     run = Pass(config, project, datetime.now(UTC))
-    text = sys.stdin.read().strip()
+    text = verbs.piped("gate", "the gate's lines").strip()
     if not text:
         raise Refused("refused: no lines on stdin")
     gone = queue.was_removed(run.state, args.slug)
