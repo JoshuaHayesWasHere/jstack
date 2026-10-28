@@ -49,6 +49,16 @@ def test_the_committed_steps_fixture_takes_the_prescribed_step():
     assert score.score_steps(text, case).value == 1.0
 
 
+def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_gives():
+    """The key asks for the words pr-review's SKILL.md tells the reviewer to end such a finding
+    with, so a reviewer that does what the skill says scores 1."""
+    skill = (REPO / "features" / "pr-review" / "SKILL.md").read_text()
+    tag = re.search(r"with these words at the end of its line: `([^`]+)`", skill)[1]
+    case = next(one for one in run.steps_cases() if one["id"] == "pr-review-noticed")
+    answer = f"Keep the finding and send it like any other, its line ending `{tag}`."
+    assert score.score_steps(answer, case).value == 1.0
+
+
 def test_a_finding_with_no_bucket_is_unsettled_until_the_judge_reads_it():
     key = {
         "A1": {"fate": "sent", "fixed": True},
