@@ -498,7 +498,8 @@ def test_a_queue_event_holds_the_row_that_changed_and_what_changed_in_it(kitchen
     assert event["text"] == (
         "row-07: status queued -> running, thread (empty) -> mcp:thread-1\n\n"
         f"{HEAD}\n{RULE}\n"
-        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  | 2026-10-12 11:03 ET |  |  |  |\n"
+        "| row-07 | 7 |  |  |  |  |  | running | mcp:thread-1 |  |  "
+        "| 2026-10-12 11:03 ET |  |  |  |\n"
     )
     whole = table(kitchen)
     assert whole.count("| row-") == 20 and len(whole) == 2062

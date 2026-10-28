@@ -70,7 +70,7 @@ def test_a_request_is_queued_as_a_scout_row_and_waits_for_a_go(kitchen):
     assert "| alpha | 1 |" in said and "| scout |" in said
     kitchen.poll()
     assert launches(kitchen) == []
-    assert not (kitchen.state / "scouts.json").exists()
+    assert not list(kitchen.state.glob("scouts.*"))
 
 
 def test_a_crew_brief_is_still_a_crew_row(kitchen):

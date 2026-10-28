@@ -86,30 +86,25 @@ A head with a `rereview` mark already, or whose Result has a `Scoped reviewer:` 
 
 jbus launches a scout's request as a scout thread, never as a crewmate.
 So research that anyone asks for, an expert bot included, never branches or opens a pull request.
+A request is a row of the queue, queued, approved and ordered as any row is:
 
 ```
-jbus scout add <slug> < request.md
-jbus scout approve <slug> --sha <sha12> --word <id>
-jbus scout approve <slug> --sha <sha12> --answer <number>
-jbus scout approve <slug> --sha <sha12> --message <thread id>/<message id>
-jbus scout approve <slug> --sha <sha12> --page <session key>/<entry id>
-jbus scout show
+jbus queue add <slug> --priority <n> [--entry <entry>] [--depends <slugs>] < scouts/<slug>.md
+jbus queue approve <slug> --sha <sha12> --word <id>
 ```
 
-- **`add`** checks the request against `features/scout/templates/scout-request.md` and stores it as `scouts/<slug>.md` in the home's state directory.
-  It refuses a request with a line that only a crewmate's brief has (`Task:`, `Size:`, `Pull request:`), and names the line.
-  It also refuses a request out of the template's shape.
-  It never takes over a request a home wrote itself, and never changes one whose scout is out.
-- **`approve`** takes the same bases as `jbus queue approve`, except `--follows`.
-  It also takes the first 12 characters of the request's sha, which `add` prints.
-  The go holds for that request alone.
-  An edit after the go, other than to the `Home:` and `Thread:` lines, holds the launch until you approve it again.
-- **A pass** launches each approved request once, as a thread titled `scout: <slug>` whose message is `/scout <slug>`.
+- **`add`** takes a text whose head has a `Request:` line and no `Task:` line as a scout's request, and keeps it as a row whose `role` is `scout`.
+  It checks the request against `features/scout/templates/scout-request.md` in place of a brief's lints.
+  It refuses a request with a line that only a crewmate's brief has (`Size:`, `Pull request:`), and names the line, and a request out of the template's shape.
+  A row keeps the role it was first queued with.
+  `--depends` needs the request's `Builds on:` line to name the row, as a brief's does.
+- **The go** is a row's go: your word with `jbus queue approve`, or the go of the row's plan entry under `go = "entry"`. The follow-up rule approves no request.
+- **A pass** launches each request whose go holds and whose depends are over (merged, a crewmate's row ended `done`, or a scout's row whose Report says `Status: done`), once, as a thread titled `scout: <slug>` whose message is `/scout <slug>`.
   The thread works in the project's own checkout as it stands, with no worktree and no branch, so it has nothing to commit and no pull request to open.
   Its model is the role map's `scout` line, it waits for `jgauge room --light`, and it takes no slot of `max_running`.
-  jbus writes `Thread: <id>` into the request.
+  jbus writes the queued request to `scouts/<slug>.md` in the home's state directory, or holds the launch with a condition where the file there is another request, and writes `Thread: <id>` into it.
   The next pass adopts the thread of a lost reply, so no request launches twice.
-- **`show`** prints each request's state (`requested`, `approved`, `changed`, `launching` or `launched`), its thread, what its last Report says (`none`, `reported`, `blocked` or `not done`) and its go.
+- **`jbus queue show`** lists the row with `scout` in its `role` column. It is `queued` until it launches, then `launched` or `running`, `done` once its last Report says `Status: done`, and `left` for a Report that says anything else.
 
-`jbus queue add` and `jbus scout add` refuse a `Task:` or a `Request:` line longer than 2,000 characters, counting the text of the line and the lines under it.
+`jbus queue add` refuses a `Task:` or a `Request:` line longer than 2,000 characters, counting the text of the line and the lines under it.
 A transcript or a long text goes in a file the line names.
