@@ -3,8 +3,9 @@
 The check workflow runs this after its checkout and before anything else. A tree that passed
 has a marker. There are two kinds, and the script asks for them in this order:
 
-- the desk's: a ref `refs/jstack/green-tree/<kind>/<tree id>`. `jmerge` builds a head merged
-  over main, checks the result again, and pushes the ref when that check passes. The ref is at
+- the desk's: a ref `refs/jstack/green-tree/<kind>/<tree id>`. Before fl-gh-recheck `jmerge`
+  built a head merged over main, checked the result again, and pushed the ref when that check
+  passed; it pushes none now, and `jmerge --sweep` removes old ones. The ref is at
   the commit that passed, and it counts only when that commit's tree is the one checked out.
   Only somebody who may push to the repo can write a ref, so a fork cannot leave one. `<kind>`
   says what the check ran: `full` for a command that ends `make check`, the whole suite, and

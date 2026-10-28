@@ -1,12 +1,11 @@
 """The process skills are gates, and the tests check each one by the line it writes.
 
-A review's step 5 (blast-radius) writes a `Proof:` line in its `## Review` section.
-`jmerge` merges a pull request that changes a guarded path only when that line proves, at the
-pull request's head, the one fact that makes the change safe. `jmerge --accept`, the user's
-hand-merge, lifts a hold, and it asks for the same fact. A design call (`/architect`) writes a
-`Design:` line in the brief, and `jbus queue add` queues no brief without that line. jbus
-still launches a row that the user approved before this rule, and the tests call that row
-grandfathered.
+A review's step 5 (blast-radius) writes a `Proof:` line in its `## Review` section, which
+proves, at the pull request's head, the one fact that makes the change safe. `jmerge --accept`,
+the user's hand-merge, lifts a hold only when that line proves the fact. A design call
+(`/architect`) writes a `Design:` line in the brief, and `jbus queue add` queues no brief
+without that line. jbus still launches a row that the user approved before this rule, and the
+tests call that row grandfathered.
 
 The tests run `jmerge` against `test_home_merge`'s fake `gh` and real origin, and they run the
 pass as `features/jbus/tests/test_jbus.py` runs it: the real command against a faked T3 Code
@@ -29,7 +28,7 @@ from test_briefs import TEMPLATE
 from test_home_thread import as_read
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import add, brief, gates, queued_before
-from test_jmerge_guarded import PROOF, SKILL, STARTED, guarded, jmerge, proven
+from test_jmerge_run import PROOF, proven
 from testing.paths import REPO
 
 HEAD = merge.PUSHED
@@ -350,28 +349,6 @@ def test_the_proof_line_written_as_step_5_says_is_proven_and_its_trap_is_refused
         named = code.replace("<n>", n)
         assert filled(f"then {named}") == ((f"then {named}", "sh proof.sh") if stands else None)
         assert bool(filled(plain, command=f"sh -c 'run || {named}'")) is stands
-
-
-def test_a_guarded_pull_request_with_its_fact_proven_at_the_head_is_merged(proven_merged, rules):
-    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
-    (said,) = jmerge(proven_merged, rules)
-    assert said.startswith("merged 7 alpha ")
-
-
-@pytest.mark.parametrize("case", ["unproven", "an older head", "none"])
-def test_a_guarded_pull_request_with_no_proven_fact_at_the_head_waits(proven_merged, rules, case):
-    review = {
-        "unproven": merge.review("clean", proven_merged.head) + UNPROVEN,
-        "an older head": proven("findings", proven_merged.start)
-        + f"Fixed: {proven_merged.head}\nFinding: fixed, it\n",
-        "none": merge.review("clean", proven_merged.head),
-    }[case]
-    (proven_merged.home.tasks / "alpha.md").write_text(merge.brief(review))
-    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=["a.txt"])
-    assert jmerge(proven_merged, rules, "--check") == [f"ready 7 {proven_merged.head} alpha alpha"]
-    proven_merged.home.open_pull_request(proven_merged.head, checks=(STARTED,), files=[SKILL])
-    assert jmerge(proven_merged, rules) == guarded(no_fact(proven_merged.head))
-    assert proven_merged.untouched()
 
 
 def held(proven_merged):

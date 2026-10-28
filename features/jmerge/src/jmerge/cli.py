@@ -27,7 +27,6 @@ from jmerge import (
     checks,
     claims,
     follow,
-    green,
     lines,
     mainjson,
     proof,
@@ -49,7 +48,6 @@ LIST = (
 )
 PACKAGE = Path(__file__).parent
 PROTECTED = PACKAGE / "protected.txt"
-GUARDED = PACKAGE / "guarded.txt"
 CI_PATHS = PACKAGE / "ci-paths.txt"
 INTEGRATION = "integration"
 REQUIRED_CHECKS = "required-checks"
@@ -114,68 +112,12 @@ def patterns(path: Path) -> tuple[str, ...]:
         ) from None
 
 
-class Behind(str):
-    package: Path
-    default: str
-
-    def __new__(cls, package: Path, default: str) -> Behind:
-        made = super().__new__(
-            cls, f"jmerge's own rules are behind {default}'s, and a run that merges pulls them"
-        )
-        made.package, made.default = package, default
-        return made
-
-    def pull(self) -> str:
-        pulled = _run(self.package, "git", "pull", "-q", "--ff-only")
-        if pulled.returncode:
-            return (
-                f"jmerge's own rules are behind {self.default}'s and were not pulled "
-                f"({lines.said(pulled)})"
-            )
-        return f"jmerge pulled {self.default}'s rules; judged on the next run"
-
-
-def rules_are_mains(package: Path) -> str | Behind:
-    if _run(package, "git", "rev-parse", "--show-toplevel").returncode:
-        return "jmerge's own rules are not in a git checkout"
-    if not _run(package, "git", "ls-files", "--", ".").stdout.strip():
-        return "jmerge's own rules are not tracked in a git checkout"
-    asked = _run(package, "git", "ls-remote", "--symref", "origin", "HEAD")
-    named = re.search(r"^ref: refs/heads/(\S+)\tHEAD$", asked.stdout, re.M)
-    if asked.returncode or not named:
-        return "the origin of jmerge's own rules could not be asked for its default branch"
-    default = named[1]
-    if _run(package, "git", "fetch", "-q", "origin").returncode:
-        return "the origin of jmerge's own rules could not be fetched"
-    status = _run(package, "git", "status", "--porcelain", "--", ".")
-    if status.returncode or status.stdout.strip():
-        return "jmerge's own rules have a change that is not committed"
-    if not _run(package, "git", "diff", "--quiet", f"origin/{default}", "--", ".").returncode:
-        return ""
-    on = _run(package, "git", "symbolic-ref", "-q", "--short", "HEAD").stdout.strip()
-    behind = not _run(
-        package, "git", "merge-base", "--is-ancestor", "HEAD", f"origin/{default}"
-    ).returncode
-    if on != default or not behind:
-        at = f"not behind origin/{default}" if on == default else f"on {on or 'no branch'}"
-        return f"jmerge's own rules are not {default}'s: their checkout is {at}"
-    return Behind(package, default)
-
-
-class Checked(NamedTuple):
-    short: str
-    note: str
-
-
 class Merged:
     """A pull request's head merged over today's base, as GitHub's update of its branch merges
     it. Where the repo's state has a `fresh-check` file, a pull request whose check started before
     its base moved is proven over today's base on GitHub, and no suite runs on this machine for a
-    merge: a merged tree that a check already passed (`green.marker`) is the pass, and otherwise
-    `rejudge.BaseMerge` asks GitHub to update the branch, and GitHub's check at the updated head
-    decides by the normal path."""
-
-    ASK_TIMEOUT = 10
+    merge: `rejudge.BaseMerge` asks GitHub to update the branch, and GitHub's check at the updated
+    head decides by the normal path."""
 
     def __init__(self, main: Path, state: Path, run: bool = True):
         self.main = main
@@ -183,36 +125,14 @@ class Merged:
         self.run = run
         self.command = ready.fresh_command(_read(state / "fresh-check"))
 
-    def of(self, head: str, tip: str) -> Checked | None:
-        """Why the head over `tip` waits, or the note of a tree a check passed, or nothing when
-        GitHub is to update the branch."""
+    def of(self, head: str, tip: str) -> str:
+        """Why the head over `tip` waits, or nothing when GitHub is to update the branch."""
         merged = _run(self.main, "git", "merge-tree", "--write-tree", tip, head)
         if merged.returncode == 1:
-            return Checked(ready.FRESH_CONFLICT, "")
+            return ready.FRESH_CONFLICT
         if merged.returncode:
-            return Checked(ready.UNMERGED.format(why=lines.said(merged)), "")
-        tree = _first_word(merged.stdout)
-        found = self.marked(tree)
-        return Checked("", ready.fresh_skipped(tree, found.at, head, tip)) if found else None
-
-    def marked(self, tree: str) -> green.Marker | None:
-
-        def ask(path: str) -> object:
-            answer = subprocess.run(
-                ["gh", "api", f"repos/{{owner}}/{{repo}}/{path}"],
-                cwd=self.main,
-                capture_output=True,
-                text=True,
-                timeout=self.ASK_TIMEOUT,
-            )
-            if answer.returncode:
-                raise RuntimeError(lines.said(answer))
-            return json.loads(answer.stdout)
-
-        try:
-            return green.marker(ask, tree)[0]
-        except (OSError, subprocess.SubprocessError, RuntimeError, ValueError, LookupError):
-            return None
+            return ready.UNMERGED.format(why=lines.said(merged))
+        return ""
 
 
 class Gated(NamedTuple):
@@ -322,10 +242,7 @@ class Repo:
         every: bool,
         land: str | None = None,
         protected: tuple[str, ...] = (),
-        guarded: tuple[str, ...] = (),
         ci: tuple[str, ...] = (),
-        rules: Callable[[], str] = lambda: "",
-        own: bool = False,
         merged: Merged | None = None,
         *,
         user: jsettings.Settings,
@@ -337,13 +254,9 @@ class Repo:
         self.every = every
         self.land = land or None
         self.protected = protected
-        self.guarded = guarded
         self.ci = ci
         self.merged = merged
         self.gate = gate
-        self.rules = rules
-        self.own = own
-        self.unruly: str | None = None
         self.accepted: tuple[int, str] | None = None
         self.lifts: list[str] = []
         self.carried: dict[int, str] = {}
@@ -805,18 +718,14 @@ class Repo:
         stale = ready.stale_paths(one.files, left, paths, self.ci)
         if not stale:
             return "", tip, ""
-        path = ready.guarded_path(one, self.guarded, left)
-        if path:
-            short = ready.short_on_main(stale, one.started, one.base, rebase=True, user=self.user)
-            return f"guarded (touches {path}), {short}", "", ""
         asks = self.merged is not None and self.merged.command
         if not asks:
             return ready.short_on_main(stale, one.started, one.base, user=self.user), "", ""
-        found = self.merged.of(one.head, tip)
-        if found is None:
-            reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
-            return self.base_merge.of(one, tip, *reasons), "", ""
-        return found.short, "" if found.short else tip, found.note
+        short = self.merged.of(one.head, tip)
+        if short:
+            return short, "", ""
+        reasons = (ready.BASE_MOVED_ASKED, ready.BASE_MOVED_DUE)
+        return self.base_merge.of(one, tip, *reasons), "", ""
 
     def again(self, one: ready.PullRequest, red: str) -> str:
         """Why a pull request whose required checks failed waits, judged over today's base. Its
@@ -832,14 +741,6 @@ class Repo:
         ):
             return red
         return self.base_merge.of(one, moved[0])
-
-    def short_of_guarded(
-        self, one: ready.PullRequest, text: str, rebase: ready.Rebase | None, note: str
-    ) -> str:
-        if self.unruly is None:
-            self.unruly = self.rules()
-        short = self.unruly or ready.short_of_guarded(one, text, rebase, note)
-        return short or proof.short(text, self.proven_at(one))
 
     def proven_at(self, one: ready.PullRequest) -> str:
         return self.carried.get(one.number) or one.head
@@ -967,14 +868,6 @@ class Repo:
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
-        left = left or ()
-        path = ready.guarded_path(one, self.guarded, left)
-        if path:
-            short = self.short_of_guarded(one, text, rebase, note)
-            if short:
-                return Judgement(
-                    brief.stem, "wait", f"guarded (touches {path}), {short}", note, None
-                )
         if (self.state / "merge-off").exists():
             return Judgement(brief.stem, "wait", ready.MERGE_OFF, note, None)
         gated = (
@@ -984,10 +877,9 @@ class Repo:
         )
         if gated and gated.verb:
             return Judgement(brief.stem, gated.verb, gated.why, note, None)
-        rules = bool(path) and ready.changes_the_rules(one, left)
         if one.number in self.order:
             self.through = one.number
-        judged = ready.Judged(path, tip, rules, fresh, gated.note if gated else "")
+        judged = ready.Judged(tip, fresh, gated.note if gated else "")
         return Judgement(brief.stem, "", "", note, judged)
 
     def red(self, one: ready.PullRequest, default: str, slug: str, text: str) -> str:
@@ -1298,8 +1190,6 @@ class Repo:
         judged: ready.Judged | None = None,
     ) -> str:
         judged = judged or ready.Judged()
-        if self.own and self.unruly is None:
-            self.unruly = self.rules()
         from jmerge.lock import MergeLock
 
         lock = MergeLock(self.state)
@@ -1324,9 +1214,8 @@ class Repo:
                 break
             lock.give()
             if again == JUDGED_AGAIN_AT_MOST:
-                guarded = f"guarded (touches {judged.path}), " if judged.path else ""
                 moved = ready.MAIN_MOVED.format(base=one.base)
-                return lines.waits("wait", number, one.url, f"{guarded}{moved}")
+                return lines.waits("wait", number, one.url, moved)
             again += 1
             self.numbers_on.clear()
             again_judged = self.waits(one, self.trunk or one.base)
@@ -1364,8 +1253,6 @@ class Repo:
         )
         if ran.returncode:
             return lines.waits("wait", number, one.url, f"{ready.MERGE_FAILED}: {lines.said(ran)}")
-        if judged.rules:
-            self.unruly = ready.RULES_CHANGED
         notes = [rebase] if rebase else []
         if self.trunk and one.base != self.trunk:
             notes.insert(0, f"into {one.base}")
@@ -1401,8 +1288,6 @@ class Repo:
         )
         if kept:
             notes.append(f"kept: {kept}")
-        if judged.path:
-            notes.append(f"guarded: {judged.path}")
         if judged.fresh:
             notes.append(judged.fresh)
         if judged.gate:
@@ -1743,11 +1628,8 @@ def parser() -> argparse.ArgumentParser:
         "a line waits for its crew to say why and for the scoped review to uphold it, and is "
         "printed as hold when it does not. "
         "One that changes a protected path (features/jmerge/src/jmerge/protected.txt) is "
-        "never merged and is printed as hold. One that changes a guarded path "
-        "(features/jmerge/src/jmerge/guarded.txt) is merged only when its check has a start "
-        "time, its review is finished at the head, main has changed none of its paths or a "
-        "CI path since, and jmerge's own rules are main's; otherwise it is printed as wait, "
-        "guarded (touches <path>). A merge-off file in the repo's state merges nothing. "
+        "never merged and is printed as hold. A merge-off file in the repo's state merges "
+        "nothing. "
         "Where the repo's state has a merge-gate file, its command is run last, in a checkout "
         "of the head with the merge base and the head as its last two arguments, and a "
         "non-zero exit is printed as hold, its merge gate failed. "
@@ -1905,10 +1787,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.scope:
         return Repo(main_checkout, state, args.home, not args.home, user=user).scoped(args.scope)
 
-    def rules() -> str:
-        found = rules_are_mains(PACKAGE)
-        return found.pull() if isinstance(found, Behind) and not args.check else found
-
     gate = Gate(main_checkout, state)
     repo = Repo(
         main_checkout,
@@ -1917,10 +1795,7 @@ def main(argv: list[str] | None = None) -> int:
         not args.home,
         args.land,
         patterns(PROTECTED),
-        patterns(GUARDED),
         patterns(CI_PATHS),
-        rules,
-        PACKAGE.resolve().is_relative_to(main_checkout.resolve()),
         Merged(main_checkout, state, run=not args.check),
         user=user,
         gate=gate,
@@ -1985,8 +1860,7 @@ def main(argv: list[str] | None = None) -> int:
         if found.judged is None:
             say(lines.waits(found.verb, one.number, one.url, found.why))
         elif args.check:
-            guarded = f"guarded: {found.judged.path}" if found.judged.path else ""
-            notes = [found.note, guarded, found.judged.fresh, found.judged.gate]
+            notes = [found.note, found.judged.fresh, found.judged.gate]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
             say(repo.merge(one, found.slug, found.note, found.judged))

@@ -122,7 +122,6 @@ RUNNER = (
     ready.GATE_BUSY,
     ready.GATE_LOCKED,
     ready.MAIN_MOVED,
-    ready.RULES_CHANGED,
     ready.UNDECIDED,
     ready.NOT_PASSED,
     ready.LIVE_RUN,

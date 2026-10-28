@@ -9,8 +9,8 @@ import subprocess
 import pytest
 
 import test_home_merge as merge
-import test_jmerge_guarded as guarded
 import test_jmerge_rangediff as rebases
+import test_jmerge_run as jrun
 from crew_helpers import (
     BRIEF,
     GUARDED,
@@ -386,11 +386,11 @@ def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased
 ):
     rebased = rebases.Rebased(proven_merged, {11: "theirs 11"}, rebases.BOTH)
     listed = "".join(f"- {finding}\n" for finding in INFO)
-    section = guarded.proven("findings", rebased.head).replace(
+    section = jrun.proven("findings", rebased.head).replace(
         "Verdict: findings\n", f"Verdict: findings\nScope: range-diff {rebased.command()[26:]}\n"
     )
     section = re.sub(r"(?m)^- .*\n", listed, section)
-    reviews = guarded.proven("clean", rebased.before) + section
+    reviews = jrun.proven("clean", rebased.before) + section
     rebased.brief(reviews, declined())
     state, brief = proven_merged.home.state, (proven_merged.home.tasks / "alpha.md").read_text()
     assert said(state, "The review", "--left", brief) == [NONE_FIXED]
@@ -398,9 +398,7 @@ def test_a_scoped_review_of_info_findings_all_declined_is_handled_at_the_rebased
         NOTHING_PUSHED
     ]
     rebased.brief(reviews, declined() + ALL_INFO)
-    assert guarded.jmerge(proven_merged, rules, "--check") == [
-        f"ready 7 {rebased.head} alpha alpha"
-    ]
+    assert jrun.jmerge(proven_merged, rules, "--check") == [f"ready 7 {rebased.head} alpha alpha"]
 
 
 SHELLS = [

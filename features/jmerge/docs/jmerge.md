@@ -58,7 +58,7 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 
 | The line | Means |
 |---|---|
-| `merged <number> <slug> <commit> "<title>", ..., revert: gh pr revert <url>` | Merged. The notes between say what was kept, that a review carried over (`review carried over: range-diff ... clean`), that a check over today's main already passed on the same merge tree (`fresh: skipped, tree <tree> passed in <run url>, on <head12> over <main12>`), the guarded path it changes (`guarded: <path>`), or that the repo's merge gate passed (`gate: ok`). The last note is the command that opens a pull request reverting the merge. |
+| `merged <number> <slug> <commit> "<title>", ..., revert: gh pr revert <url>` | Merged. The notes between say what was kept, that a review carried over (`review carried over: range-diff ... clean`), or that the repo's merge gate passed (`gate: ok`). The last note is the command that opens a pull request reverting the merge. |
 | `wait <number> <url>: <reason>` | Not merged. The reason is the first thing the pull request is short of. A later run merges it once the reason is gone. |
 | `hold <number> <url>: needs <user>, <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. |
 | `hold <number> <url>: its merge gate failed: <its first line>` | Not merged: the repo's merge gate did not pass at the head. A gate that passes lifts it, and `--accept` does not. See "Merge gate". |
@@ -77,7 +77,7 @@ A pull request that waits does not make `jmerge` exit non-zero.
 
 Each item below is a reason a pull request waits.
 `jmerge` prints one reason for each pull request, the first one in the order that `Repo.judge` in `features/jmerge/src/jmerge/cli.py` sets.
-The section "Protected and guarded paths" describes one more hold and a stricter gate.
+The section "Protected paths" describes one more hold.
 
 - **A draft waits.**
   `jmerge` never merges a draft, whatever flags you pass.
@@ -126,7 +126,6 @@ The section "Protected and guarded paths" describes one more hold and a stricter
   A review written while the pull request is open does not change its wait reason (`ready.after`).
   Its reviewer still runs, and turns the findings into one queue row, `cleanup-<slug>` (`jbus cleanup`), a follow-up that jbus approves by the follow-up rule, when it is queued or on the next pass, where `<slug>`'s go holds.
   The pull request merges once its required checks pass, and its `Skills run:`, `Rebase:` and `Dropped on rebase:` lines meet their rules.
-  A pull request that changes a guarded path still waits for a review of its head.
 - A brief that says `Review: twice` first waits for three things: its first review, answers by id to that review's findings, and a `Fixed:` line that names a pushed head.
   It then waits for a second review, written at a head later than the first review's (`its second review is not written at <head>`).
   The second review's findings block no merge, since its reviewer files the `warning` and `error` ones as a cleanup row (`jbus cleanup`).
@@ -285,16 +284,7 @@ A repo opts in to proving a pull request over today's main with a `fresh-check` 
 `jmerge` reads only that the file has a line in it: no suite runs on this machine for a merge, and the command on that line is not run.
 An empty `fresh-check` file counts as no file.
 `jmerge` merges the head over today's main with `git merge-tree`.
-It first asks GitHub for a green marker of that merge's tree (`features/jmerge/src/jmerge/green.py`).
-A green marker is one of two things:
-
-- a `green-tree-<tree>` artifact of a successful run of the repo's own `.github/workflows/check.yml`, not a fork's
-- the ref `refs/jstack/green-tree/full/<tree>` or `refs/jstack/green-tree/selected/<tree>` on the origin
-
-A marker counts only for the exact tree it names.
-With a marker, the pull request merges on it, and the `ready` and `merged` lines say `fresh: skipped, tree <tree> passed in <run url or desk commit>, on <head12> over <main12>`.
-`merge.log` keeps that note, and jbus logs it in `events.jsonl` as that line's `jmerge` event.
-When the marker is for another tree, when a red run left it, when there is none, or when GitHub could not answer, `jmerge` asks GitHub to merge main into the branch, as "A failed check over a base that moved" says.
+When it merges cleanly, `jmerge` asks GitHub to merge main into the branch, as "A failed check over a base that moved" says.
 The line is then `GitHub was asked to merge <base> at <tip12> into it: <base> moved after its check started`.
 `--check` asks nothing, and says `<base> moved after its check started: GitHub is to merge <base> at <tip12> into it`.
 GitHub's check at the updated head decides by the normal path: it waits while that check runs, waits while it is red, and merges once it passed there.
@@ -302,7 +292,7 @@ That check runs on the merge result, so a caller main added that the pull reques
 A head that does not merge over today's main waits with `it conflicts with today's main`, and GitHub is not asked.
 A pull request that waits on something else, such as a line its rebase dropped or a hold that only the user can lift, asks GitHub nothing.
 `jmerge` judges whether it is fresh only once it has no other reason to wait.
-`jmerge` pushes no marker: the desk refs it pushed before fl-gh-recheck are only read, and `jmerge --sweep` removes them after seven days.
+`jmerge` neither pushes nor reads a green-tree marker: `jmerge --sweep` removes the desk refs it pushed before fl-gh-recheck after seven days.
 Nothing writes `fresh.json` or `fresh.lock` in the state directory any more, and nothing reads them.
 
 ## A failed check over a base that moved
@@ -350,7 +340,7 @@ It runs the gate in a detached worktree of the head at `<state>/gate/<number>`, 
 `jmerge` runs it as `sh -c '<command> "$@"' merge-gate <base> <head>`.
 So `<base>` and `<head>` are its last two arguments, and they are also `BASE` and `HEAD` in its environment.
 `<base>` is the merge base of the head and today's main, and `<head>` is the head `jmerge` would merge.
-A green-tree marker never makes `jmerge` skip the gate, and `jmerge` keeps no answer from one run to the next.
+`jmerge` keeps no answer from one run to the next.
 It runs the gate again on every run, so it always sees a new head, a moved main or a fix outside git.
 `--check` runs it too, and prints its output under the line, each line after `  | `.
 On exit 0 the merge goes on and the `merged` or `ready` line ends its notes with `gate: ok`.
@@ -445,9 +435,9 @@ When a review of that head does not rule on a file's drops, the line is `hold <n
 `jmerge` treats the same way a push, made after the review, that fixes a failed check.
 The crewmate adds `CI fix: <new head>, after the review of <reviewed head>` to its Result, and `jmerge` compares the two heads by `git range-diff`.
 
-## Protected and guarded paths
+## Protected paths
 
-`jmerge` reads three lists from its own package directory, never from a pull request: `protected.txt`, `guarded.txt` and `features/jmerge/src/jmerge/ci-paths.txt`.
+`jmerge` reads two lists from its own package directory, never from a pull request: `protected.txt` and `features/jmerge/src/jmerge/ci-paths.txt`.
 The last list holds the paths that decide whether a check still counts ([Fresh against main](#fresh-against-main)).
 Each list holds patterns and nothing else.
 
@@ -474,7 +464,7 @@ In every repo `jmerge` merges in, the list jstack ships protects these paths:
 
 - `secrets/`, `.env`, `.env.*`, `*.pem` and `*.key`
 - the directories `/policy/` and `/dns/` at the root of the repo
-- `/features/jmerge/src/jmerge/protected.txt` and `/features/jmerge/src/jmerge/guarded.txt`, the two lists themselves, which match only in a repo laid out as jstack is.
+- `/features/jmerge/src/jmerge/protected.txt`, the list itself, which matches only in a repo laid out as jstack is.
 
 `jmerge` holds a pull request that changes one of them, as `hold <number> <url>: needs <user>, touches <first matching path>`.
 `jmerge` judges every file a pull request changes.
@@ -482,36 +472,6 @@ In every repo `jmerge` merges in, the list jstack ships protects these paths:
 For a longer pull request, `jmerge` reads the whole list, with each file's change type, from GitHub's files endpoint (`repos/{owner}/{repo}/pulls/<number>/files`).
 That endpoint lists up to 3000 files.
 `jmerge` holds a pull request whose whole list it cannot read, because it has more than 3000 files or the read failed, as `hold <number> <url>: needs <user>, GitHub listed <listed> of the <changed> files it changes`.
-
-**Guarded paths** are in `features/jmerge/src/jmerge/guarded.txt`, which is empty.
-No path is guarded, and a ready pull request merges with no proven safety fact at its head.
-Adding a pattern to the file guards that path again.
-The file is protected, so the user merges that change.
-`jmerge` merges a pull request that changes a guarded path only under a stricter gate.
-For each part of the gate that fails, it prints `wait <number> <url>: guarded (touches <first guarded path>), <reason>`:
-
-- **A check with a start time.**
-  `check` passed at the head, and `jmerge` knows when its earliest run there started.
-  Otherwise the reason is `its check has no start time`.
-- **A finished review of that head.**
-  Every blocking finding has its answer, as the rule above asks of every pull request.
-  The head is the one the review saw, the `Fixed:` commit, or a head that a clean range-diff carried the review over to ("After a rebase").
-  In a brief from before the current rule, it can also be the head named on a `Rebase: patch unchanged` line, when the patch-ids of its two commits match.
-  Otherwise the reason is `its head is not the one its review saw`.
-- **A rebase, and no local check.**
-  If main changed one of its paths or a CI path since the check started, a guarded pull request waits for a rebase, and GitHub is not asked to update it.
-  Its line ends `it needs a rebase`.
-- **A proven safety fact.**
-  At the commit it saw, the review proved the one fact that makes the change safe.
-  That proof is the `Proof:` line of the `## Review` section, a command that ended `exit 0`.
-  A proof carries over a rebase, or a `CI fix:` push, whose range-diff is clean.
-  It does not carry over a fix pushed for the review's findings.
-  Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, review step 5)`.
-- **Rules that are main's.**
-  Before it judges a guarded pull request, `jmerge` runs `git fetch` in the checkout that contains its own package.
-  It goes on only if the package there has no uncommitted change and matches the default branch of `origin`.
-  If that checkout is behind, `jmerge` pulls it, and guarded pull requests wait for the next run: `jmerge pulled main's rules; judged on the next run`.
-  After a merge that changes `features/jmerge/src/jmerge/`, every later guarded pull request of that run waits: `jmerge's rules changed in this run`.
 
 ## Accept a held pull request
 
@@ -529,7 +489,7 @@ It lifts the hold at the head where `jmerge` reported it.
 `jmerge` records that head in `holds.json` in the state directory.
 It refuses a pull request that is not held, one whose head is not the head on record, and one with no proven safety fact at that head.
 `--by` takes only the `user` of `~/.config/jstack/config.toml`, which is `user` when that file names none.
-It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so the guarded gate and `merge-off` apply.
+It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` and the merge gate apply.
 `jmerge --accept <number> --check` says what it would do.
 
 ## Arguments

@@ -110,14 +110,14 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1072-1074
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1064-1066
     \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
     /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:126
     \* Its own browser run failed: it waits, as main's red or as its own (#575, #577).
-    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:2019
+    /\ ~brFail[p]                           \* features/jmerge/src/jmerge/cli.py:1893
     \* A link jbus stacked merges only once jbus moved it onto main and its head holds its base's merge.
-    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:451-459
+    /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py:364-372
     \* A merge_after row merges after its row.
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py:237-240
     /\ st' = [st EXCEPT ![p] = "merged"]
@@ -183,10 +183,10 @@ BrowserFix(p) ==
 \* base into the branch and runs check again, and a broken change then fails as its own. No local
 \* fresh check runs.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:856, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:402-405, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:827, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:933, base not red
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:757, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:394-397, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:736, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:834, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,

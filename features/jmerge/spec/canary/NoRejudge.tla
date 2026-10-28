@@ -44,7 +44,7 @@ Check(p) ==
 \* jmerge merges a pull request whose check passed.
 Merge(p) ==
     /\ st[p] = "open"
-    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1072-1074
+    /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py:1064-1066
     /\ ~mainRed \/ proved[p]                \* features/jmerge/src/jmerge/rows.py:126
     /\ st' = [st EXCEPT ![p] = "merged"]
     /\ mainRed' = ((mainRed /\ ~proved[p]) \/ breaks[p])
@@ -75,10 +75,10 @@ CrewFix(p) ==
 \* started and is green now, is checked again over today's base: GitHub merges the base into
 \* the branch and runs check again, and a broken change then fails as its own.
 Rejudge(p) ==
-    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:856, every open one
-    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:402-405, red_only
-    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:827, base moved
-    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:933, base not red
+    /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py:757, every open one
+    /\ ci[p] = "fail"                       \* features/jmerge/src/jmerge/ready.py:394-397, red_only
+    /\ ranRed[p]                            \* features/jmerge/src/jmerge/cli.py:736, base moved
+    /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py:834, base not red
     /\ ~told[p]                             \* features/jmerge/src/jmerge/rejudge.py:93, once a head and tip
     /\ ci' = [ci EXCEPT ![p] = "none"]      \* features/jmerge/src/jmerge/rejudge.py:73, GitHub merges the base in
     /\ UNCHANGED <<st, told, ranRed, breaks, mainRed, redBy, outsideLeft, full, fixRow, fixes, proved>>
