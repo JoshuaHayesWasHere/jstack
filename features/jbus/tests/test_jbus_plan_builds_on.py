@@ -4,8 +4,8 @@ brief it.
 Each pass reads every home's plan, the root's and each scope's. An entry whose `Builds on:` line
 names rows or entries that have all merged, and that has no queue row (a scout's included), is an
 item of the one list that wakes the entry's home once: `brief <entry>: <dep> merged`. It leaves
-the list on the entry's first row. The entry's `Decisions:` text is never read for a wait. The
-tests run the real pass against the kitchen's fakes.
+the list on the entry's first row. A parked entry raises nothing, and the entry's `Decisions:`
+text is never read for a wait. The tests run the real pass against the kitchen's fakes.
 """
 
 import json
@@ -179,3 +179,13 @@ def test_a_scoped_entry_whose_builds_on_names_a_merged_entry_wakes_its_own_home(
     assert "- brief jview/bot-feed: bot-authority merged" in said
     assert "the jview home's plan" in said
     assert briefs(kitchen, root) == []
+
+
+def test_a_parked_entry_wakes_nobody_when_its_builds_on_merged(kitchen):
+    """A parked entry is one the user said waits: its `Builds on:` merging does not ask for it."""
+    thread = home(kitchen)["threadId"]
+    planned(kitchen, PLAN.replace("Stage: planned", "Stage: parked"))
+    queued(kitchen, "a")
+    merged(kitchen, "a")
+    kitchen.poll(NOW)
+    assert briefs(kitchen, thread) == []
