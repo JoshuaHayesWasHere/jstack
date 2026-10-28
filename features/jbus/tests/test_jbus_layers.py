@@ -5,7 +5,7 @@ of imports. An import inside a function is an import all the same. So a cycle ma
 modules reach every test that imports any one of them. These modules once sat in one cycle with
 most of jbus, closed by imports inside functions, and a change to a small module of it selected
 about 316 test files. A module that needs a helper of a module above it now takes the helper from
-a module below both (`jbus.said`, `jbus.review`, `jbus.told`, `jbus.launches`, `jbus.roles`).
+a module below both (`jbus.judged`, `jbus.review`, `jbus.told`, `jbus.launches`, `jbus.roles`).
 """
 
 import importlib.util

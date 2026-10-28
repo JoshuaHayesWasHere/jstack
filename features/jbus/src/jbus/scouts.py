@@ -1,12 +1,13 @@
-"""Check a scout's request, and launch a scout for each row of the queue that is one.
+"""Launch a scout for each row of the queue that is a scout's request.
 
 A scout's request is a row of the queue (`jbus.queue`), queued with `jbus queue add` as any row
 is: `add` takes a text whose head has a `Request:` line and no `Task:` line as a request
-(`jbus.queue.requested`), keeps it as a row of role `scout`, and checks it here (`faults`) against
-`features/scout/templates/scout-request.md`. It refuses a line that only a crewmate's brief has
-(`CREWMATE`), and a `Request:` line over `jbriefs.parse.LONGEST` characters. The row is approved as
-any row is, by the user's word or by its plan entry's go (`jbus.queue.entered`), and it waits on
-its `--depends` as a crewmate's row does.
+(`jbus.queue.requested`), keeps it as a row of role `scout`, and checks it against
+`features/scout/templates/scout-request.md` (`jbus.queue.request_faults`). It refuses a line that
+only a crewmate's brief has (`queue.CREWMATE_ONLY`), and a `Request:` line over
+`jbriefs.parse.LONGEST` characters. The row is approved as any row is, by the user's word or by
+its plan entry's go (`jbus.queue.entered`), and it waits on its `--depends` as a crewmate's row
+does.
 
 A pass launches each scout row whose go holds for its queued request and whose depends are over
 (`watch.final`): one `t3_thread_launch` titled `scout: <slug>`, with the message `/scout <slug>`
@@ -27,71 +28,15 @@ user. jbus records a scout's trouble with `Pass.condition` and never with `Pass.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import jroles
-from jbriefs import parse, skills
 from jbus import dispatch, queue, t3, verbs, watch, write_json
 from jbus.passes import Changed, Depends
 from jbus.t3 import Client, T3Error, T3Refused
 from jroles import pool
 
 TITLE = "scout: "
-TEMPLATE = "scout-request.md"
-CREWMATE = ("Task", "Size", "Pull request")
-OPTIONAL = ("Home",)
-READ_ONLY = "read-only"
-_PLACEHOLDER = re.compile(r"<[^<>\n]* [^<>\n]*>")
-_ITEM = re.compile(r"^\s*[-*+]\s+")
-
-
-def template() -> tuple[tuple[str, ...], tuple[str, ...]]:
-    """Return the labels a request must have, each one the template has less `OPTIONAL`, and
-    the template's own placeholders, each `<...>` span of it with a space in it."""
-    text = skills.where("template", TEMPLATE).read_text()
-    named = (label for label, _ in parse.fields(text) if label not in (parse.TITLE, ""))
-    return tuple(label for label in named if label not in OPTIONAL), tuple(
-        dict.fromkeys(_PLACEHOLDER.findall(text))
-    )
-
-
-def faults(slug: str, text: str) -> list[str]:
-    """Every reason a request may not be stored, one line each.
-
-    A request is in the template's shape when its first line is `# <slug>: <what to find out>`,
-    each label of `labels` has a field whose lines are filled in (not the template's own
-    placeholders), its `Questions:` has at least one item, and its `Out of bounds:` starts
-    `read-only`. It has no line that only a crewmate's brief has, and its `Request:` line is no
-    longer than `jbriefs.parse.LONGEST`. It does not have its scout ask the user mid-task
-    (`jbus.queue.asks`).
-    """
-    found = []
-    held = parse.fields(text)
-    title = held[0][1][0] if held and held[0][0] == parse.TITLE else ""
-    if not title.startswith(f"{slug}: ") or not title.removeprefix(f"{slug}: ").strip():
-        found.append(f"first line is not # {slug}: <what to find out>")
-    fields = {label: lines for label, lines in reversed(held)}
-    labels, placeholders = template()
-    for label in labels:
-        if label not in fields:
-            found.append(f"no {label}: line")
-            continue
-        first, *rest = fields[label]
-        items = [_ITEM.sub("", line).strip() for line in rest if _ITEM.match(line)]
-        lines = [line for line in (first.strip(), *items) if line]
-        if not lines or (label == "Questions" and not items):
-            found.append(f"{label}: line is empty")
-        elif any(held in line for held in placeholders for line in lines):
-            found.append(f"{label}: line is the template's own text")
-        elif label == "Out of bounds" and not first.strip().startswith(READ_ONLY):
-            found.append(f"Out of bounds: line does not start {READ_ONLY}")
-    for label in CREWMATE:
-        if label in fields:
-            found.append(f"a {label}: line, which only a crewmate's brief has")
-    if long := parse.overlong(text, "Request"):
-        found.append(long)
-    return [*found, *queue.asks(text, "request")]
 
 
 def arguments(run: Any, slug: str, routed: pool.Route | None) -> dict[str, Any]:
