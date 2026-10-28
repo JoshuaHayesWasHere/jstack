@@ -396,19 +396,26 @@ def _early(run: Pass, one: waiting.Item) -> bool:
     return run.now - since < timedelta(seconds=APPROVE_GRACE_SECONDS)
 
 
-def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
-    """Raise one decision for each item of the list that the user has to decide and that still
-    stands when it is read again."""
+def deciding(run: Pass, listed: list[waiting.Item] | None) -> list[tuple[waiting.Item, str]]:
+    """Each item of the list that the user has to decide and that still stands when it is read
+    again, with what it asks."""
     if run.first or listed is None:
-        return
+        return []
     context = {questions.item(one)["key"]: one.context for one in questions.load(run.state)}
-    ground = _Ground(run)
+    ground, found = _Ground(run), []
     for one in listed:
         why = needs(one, context.get(one["key"], ""))
         if not why or _early(run, one) or not ground.stands(one):
             continue
         asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
-        said = f"{(asked or one['line']).rstrip('.?')}, {why}"
+        found.append((one, f"{(asked or one['line']).rstrip('.?')}, {why}"))
+    return found
+
+
+def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
+    """Raise one decision for each item that the user has to decide (`deciding`). A home thread
+    hears of it from the one list (`jbus.wakes`), and the log keeps this event."""
+    for one, said in deciding(run, listed):
         key, slug = _keyed(one)
         decide(run.box, slug, key, said, _reply(run.project, one))
 

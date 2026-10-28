@@ -156,7 +156,7 @@ def test_a_clock_s_stall_with_no_scoped_home_to_tell_goes_to_the_root_home_once(
     short.passes(2 * N)
     assert [one for one in kitchen.lines("stall") if "no home to tell" in one]
     (told,) = to(kitchen, root)
-    assert told.startswith("jbus: the stall alpha is wrong in demo")
+    assert told.startswith("jbus: 1 new for this home in demo") and "- stall alpha: " in told
     short.passes(N)
     assert len(to(kitchen, root)) == 1
 

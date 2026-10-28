@@ -18,6 +18,17 @@ A wake that the outbox holds for a capped home thread waits for the reset and co
 The desktop alert shows only where `notify-send` is on the PATH.
 `jbus wakes` prints `wakes fail: <the alert line>` and exits 1 while that streak alerts, and `wakes go: the home thread of <project> is not failing` otherwise.
 
+## One list wakes a home
+
+A home is woken from one list: the open items it owns that are new to it since its last wake (`jbus.wakes`).
+The list is what the view already builds: each entry of [what is wrong](the-view.md) that an agent owns, and each need of yours that the root home passes on.
+An item's key is what it is, with no run and no time in it: a red is its failing tests, so one red is one item whatever runs or branches show it.
+An item the home's own thread caused does not wake it, as a row to approve whose brief is that home's.
+An item whose cause is another open item folds into that item, as the stall of a row whose pull request is red, unless the row is that item's fix.
+An item that leaves the list wakes no one.
+A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.
+A `decision` reaches a home thread only this way.
+
 ## The events
 
 Everything a pass finds is an event.

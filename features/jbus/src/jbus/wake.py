@@ -82,6 +82,9 @@ PRUNE_AFTER = timedelta(days=7)
 LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
 UNPOSTED = "unposted.json"
+LISTED = frozenset({"decision"})
+"""The kinds of event that a home thread hears of from the one list (`jbus.wakes`), and never as
+an event."""
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
 TOP_LEVEL = "top-level"
@@ -314,7 +317,7 @@ class Box:
                 if key in sent:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
-            if made["loud"] == "user":
+            if made["loud"] == "user" and kind not in LISTED:
                 self.home.folder.mkdir(parents=True, exist_ok=True)
                 waiting = [*self._outbox(), made]
                 write_json(self.home.folder / "outbox.json", waiting, mode=0o600)

@@ -1569,6 +1569,8 @@ def _wrong(
 
 
 USER, ROOT_HOME, CREW = "user", "root home", "crew"
+WAKES, WAKES_KIND = "wakes.json", "wakes"
+"""The one record of what a home was told, by thread (`jbus.wakes`), and its template."""
 CHECK_TOLD = ("failed", "refailed")
 """The outbox's templates that tell a crew its pull request's check failed (`jbus.rebase`)."""
 
@@ -1663,7 +1665,7 @@ def key_of(one: dict[str, Any]) -> str:
 
 
 def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
-    """What the owner was told and when: the outbox's message under the entry's key, the
+    """What the owner was told and when: the wake that told it of the entry (`jbus.wakes`), the
     failed-check message to a crew since its run, any other message to the owner about the
     entry's row since the fault began (a stalled row's home line from `jbus.expedite`), the
     main-red row that fixes a red main, or the leftover its row's home was told of
@@ -1680,14 +1682,16 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
     held = leftover.read(read.state).get(one["row"]) if read.name and one["row"] else None
     if held and held.told and held.thread == one["to"]:
         return {"told": when(held.told), "what": leftover.KIND}
-    sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     key = key_of(one)
+    woken = ((read.table(WAKES) or {}).get("threads") or {}).get(one["to"]) or {}
+    for told in woken.values():
+        if isinstance(told, dict) and told.get("wrong") == key and when(told.get("at")):
+            return {"told": when(told["at"]), "what": WAKES_KIND}
+    sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     for line in reversed(sent):
         at = when(line.get("at"))
         if not at or line.get("thread") != one["to"]:
             continue
-        if line.get("key") == key:
-            return {"told": at, "what": text(line.get("template"), 40)}
         about = one["row"] and line.get("row") == one["row"] and at >= (one["since"] or "")
         if about and (one["kind"] != "ci" or line.get("template") in CHECK_TOLD):
             return {"told": at, "what": text(line.get("template"), 40)}

@@ -1,0 +1,302 @@
+{
+ "root": "mcp:root-home",
+ "rootless": [
+  "main",
+  "fl-msg-no-wrong"
+ ],
+ "homes": {
+  "fl-slot-holder-busy": "root",
+  "red-fix-by-evidence": "root",
+  "browser-pin": "root",
+  "no-webhook-path": "root",
+  "bot-authority-shape": "root",
+  "main-red-d1e3bd5e4c77": "root"
+ },
+ "tasks": {
+  "browser-pin": "root home, 2026-10-27, from jbus \"ci main: browser failed\"."
+ },
+ "told": {
+  "wake|jstack|e47e5ce630a80acb": {
+   "need": "approve:fl-slot-holder-busy"
+  },
+  "wrong|ci|1508f68bdef2|mcp:root-home": {
+   "wrong": "ci",
+   "subj": "fl-msg-no-wrong",
+   "cause": "browser failed"
+  },
+  "wrong|ci|078781e6c52b|mcp:root-home": {
+   "wrong": "ci",
+   "subj": "main",
+   "cause": "browser failed"
+  },
+  "leftover|main-red-d1e3bd5e4c77|685a7c6d8731|mcp:root-home": {
+   "need": "left:main-red-d1e3bd5e4c77"
+  },
+  "wrong|main|36da0d345615|mcp:root-home": {
+   "wrong": "main",
+   "subj": "main",
+   "cause": "red at d1e3bd5"
+  },
+  "wake|jstack|340e04e230291b13": {
+   "alert": "snapshot"
+  },
+  "wrong|ci|c126316659d1|mcp:root-home": {
+   "wrong": "ci",
+   "subj": "main",
+   "cause": "browser failed"
+  },
+  "wake|jstack|7db20dfa3fb027e0": {
+   "gone": "macos-red-2026-10-27"
+  },
+  "wake|jstack|6d946d19b605e7bb": {
+   "need": "approve:red-fix-by-evidence"
+  },
+  "wrong|stall|76956e6bdaf2|mcp:root-home": {
+   "wrong": "stall",
+   "subj": "browser-pin",
+   "cause": "its browser run failed"
+  },
+  "wrong|stall|1b42a5659ff5|mcp:root-home": {
+   "wrong": "stall",
+   "subj": "no-webhook-path",
+   "cause": "its browser run failed"
+  },
+  "wrong|stall|41c8163306ba|mcp:root-home": {
+   "wrong": "stall",
+   "subj": "bot-authority-shape",
+   "cause": "its browser run failed"
+  },
+  "wake|jstack|cd6ca3a459ea746f": {
+   "gone": "red-fix-by-evidence"
+  }
+ },
+ "sets": {
+  "A": [
+   "features/jbus/tests/view/page/test_view_page_overview.py::test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_default_and_action[screen0]",
+   "features/jbus/tests/view/page/test_view_page_overview.py::test_the_control_under_the_first_3_needs_opens_the_inbox_each_with_its_default_and_action[screen1]"
+  ],
+  "B": [
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[all-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[help-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[project-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[task-phone-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-desk-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-desk-light]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-phone-dark]",
+   "features/jbus/tests/view/page/test_view_page_look.py::test_each_route_looks_as_its_kept_shot[triage-phone-light]"
+  ]
+ },
+ "runs": [
+  {
+   "id": 40572091158,
+   "branch": "fl-msg-no-wrong",
+   "created": "2026-10-27T19:46:18Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40573411074,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T19:55:17Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40575141936,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T20:07:02Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40576009288,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T20:12:51Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40577302089,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T20:21:26Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40578306286,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T20:28:06Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40579419482,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T20:35:32Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40579885096,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T20:38:43Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40580368806,
+   "branch": "fl-view-thread-act",
+   "created": "2026-10-27T20:42:03Z",
+   "conclusion": "success"
+  },
+  {
+   "id": 40580579163,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T20:43:30Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40582203094,
+   "branch": "fl-view-thread-act",
+   "created": "2026-10-27T20:54:39Z",
+   "conclusion": "failure",
+   "tests": "B"
+  },
+  {
+   "id": 40582289803,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T20:55:14Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40583369327,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T21:02:42Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40585099704,
+   "branch": "main",
+   "created": "2026-10-27T21:14:34Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40585404948,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T21:16:43Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40585542638,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T21:17:43Z",
+   "conclusion": "failure",
+   "tests": "B"
+  },
+  {
+   "id": 40587183089,
+   "branch": "main",
+   "created": "2026-10-27T21:29:15Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40587190584,
+   "branch": "main",
+   "created": "2026-10-27T21:29:18Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40587395670,
+   "branch": "fl-view-thread-act",
+   "created": "2026-10-27T21:30:44Z",
+   "conclusion": "success"
+  },
+  {
+   "id": 40587882812,
+   "branch": "browser-pin",
+   "created": "2026-10-27T21:34:20Z",
+   "conclusion": "failure",
+   "tests": "A+B"
+  },
+  {
+   "id": 40588714232,
+   "branch": "fl-view-shots-chrome",
+   "created": "2026-10-27T21:40:19Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40597670355,
+   "branch": "fl-view-shots-chrome",
+   "created": "2026-10-27T22:49:11Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40597672172,
+   "branch": "browser-pin",
+   "created": "2026-10-27T22:49:12Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40597673188,
+   "branch": "fl-view-thread-act",
+   "created": "2026-10-27T22:49:13Z",
+   "conclusion": "failure",
+   "tests": "B"
+  },
+  {
+   "id": 40599079480,
+   "branch": "fl-view-shots-chrome",
+   "created": "2026-10-27T23:00:57Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40600988294,
+   "branch": "bot-authority-shape",
+   "created": "2026-10-27T23:16:29Z",
+   "conclusion": "failure",
+   "tests": "B"
+  },
+  {
+   "id": 40601264886,
+   "branch": "browser-pin",
+   "created": "2026-10-27T23:18:52Z",
+   "conclusion": "success"
+  },
+  {
+   "id": 40601266649,
+   "branch": "no-webhook-path",
+   "created": "2026-10-27T23:18:53Z",
+   "conclusion": "failure",
+   "tests": "A"
+  },
+  {
+   "id": 40604328279,
+   "branch": "fl-view-shots-chrome",
+   "created": "2026-10-27T23:45:50Z",
+   "conclusion": "success"
+  }
+ ]
+}
