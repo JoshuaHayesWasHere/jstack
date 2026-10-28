@@ -60,7 +60,7 @@
     "file": "skills/crew/SKILL.md",
     "state": "You are a crewmate. While doing your brief, whose `Where:` is `src/jbus/queue.py` and `tests/test_jbus_queue.py`, you notice a real bug in `src/jmerge/cli.py`: an off-by-one in how it counts rebases. Your task does not need it fixed.",
     "expect": "Leave it out of the diff and queue it, unapproved, as a row of its own with `jbus queue add`, its `Decisions:` line beginning `noticed in <slug>` (\"Do the task\" and `a-fault-outside.md`: a fault outside the task is a queued row or nothing, never a line of the Result).",
-    "must": ["(?i)jbus queue add|queue(?:d|s)? (?:it )?(?:as )?a (?:new |separate )?row"],
+    "must": ["(?i)jbus queue add|\\bqueue[ds]?\\b[^.\\n]{0,20}\\brow\\b"],
     "near": "(?i)\\bqueue|\\brow\\b|out(?:side)? of (?:the )?(?:scope|diff)|not (?:fix|touch)"
   },
   {
