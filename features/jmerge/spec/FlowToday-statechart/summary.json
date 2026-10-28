@@ -4,48 +4,78 @@
     "role": "against",
     "label": "the design",
     "lacks": [
+      "brFail",
+      "viewBroken",
+      "brBreaks",
       "busy",
       "idle",
+      "named",
       "on",
-      "link",
-      "fixRow"
+      "brHold",
+      "link"
     ]
   },
-  "modelStates": 4163,
-  "modelTransitions": 11151,
-  "chartStates": 44,
-  "chartTransitions": 44,
+  "modelStates": 61512,
+  "modelTransitions": 263249,
+  "chartStates": 80,
+  "chartTransitions": 81,
   "chartStatus": {
-    "works": 36,
-    "wrong": 6,
+    "works": 47,
+    "wrong": 31,
     "fixed": 2
   },
   "chartGroups": [
     {
       "name": "Done",
       "color": "#d1f2eb",
-      "states": 1
+      "states": 2
     },
     {
       "name": "Moving",
       "color": "#e8eef9",
-      "states": 23
+      "states": 30
     },
     {
       "name": "Waits on you",
       "color": "#fdebd0",
       "states": 16
+    },
+    {
+      "name": "Stuck",
+      "color": "#f9d6d5",
+      "states": 7
     }
   ],
   "mixedGroups": [
+    "Main green, its browser red: 1 its browser run red, 1 merged",
+    "Main green, its browser red: 1 its browser run red, 1 passed, merges after the other",
+    "Main green, its browser red: 1 its browser run red, 1 passed, stacked on the other",
+    "Main green, its browser red: 2 its browser run red",
+    "Main red from a merge, its browser red: 1 holds main's fix, red from its own break, 1 merged",
+    "Main red from a merge, its browser red: 1 its browser run red, 1 merged",
+    "Main red from a merge, its browser red: 1 merged, 1 passed, holds main's fix, not proved",
+    "Main red from a merge, its browser red: 1 merged, 1 red only from main's break",
+    "Main red from a merge, its browser red: 1 merged, 1 red, its own break hidden behind main's",
+    "Main red from a merge: 1 holds main's fix, red from its own break, 1 merged",
+    "Main red from a merge: 1 merged, 1 passed, holds main's fix, not proved",
+    "Main red from a merge: 1 merged, 1 passed, waiting to merge",
     "Main red from a merge: 1 merged, 1 red only from main's break",
     "Main red from a merge: 1 merged, 1 red, its own break hidden behind main's",
+    "Main red from a merge: both merged",
+    "Main red from outside: 1 holds main's fix, red from its own break, 1 merged",
+    "Main red from outside: 1 holds main's fix, red from its own break, 1 passed, waiting to merge",
+    "Main red from outside: 1 holds main's fix, red from its own break, 1 red only from main's break",
+    "Main red from outside: 1 holds main's fix, red from its own break, 1 red, its own break hidden behind main's",
+    "Main red from outside: 1 merged, 1 passed, holds main's fix, not proved",
     "Main red from outside: 1 merged, 1 red only from main's break",
-    "Main red from outside: 1 merged, 1 red, its own break hidden behind main's"
+    "Main red from outside: 1 merged, 1 red, its own break hidden behind main's",
+    "Main red from outside: 1 passed, holds main's fix, proved, 1 passed, waiting to merge",
+    "Main red from outside: 1 passed, holds main's fix, proved, 1 red only from main's break",
+    "Main red from outside: 1 passed, holds main's fix, proved, 1 red, its own break hidden behind main's"
   ],
   "regions": {
     "drawn": false,
-    "why": "\"Main red from outside: 1 merged, 1 red, its crew told\" is \"Breaks a rule today\", and its two region states would show \"Works today\""
+    "why": "\"Main green, its browser red: 1 merged, 1 red only from main's break\" is \"Breaks a rule today\", and its two region states would show \"Works today\""
   },
   "classes": [
     {
@@ -56,7 +86,29 @@
       "cause": "its check missed a test that reads the changed path past what the selector sees, so a change that breaks that test merges",
       "readerSteps": 3,
       "modelSteps": 4,
-      "counterexamples": 244,
+      "counterexamples": 2554,
+      "against": "starts on another screen"
+    },
+    {
+      "n": 2,
+      "end": "Main red from outside: 1 passed, holds main's fix, not proved, 1 passed, waiting to merge",
+      "invariant": "MainFixWaitsOnlyOnYou",
+      "rule": "\"While main is red and nothing else can happen, its fix waits only on your approval.\"",
+      "cause": "main's fix row closed with its fix in an open pull request, whose check proves the fix only if it ran each test main failed, and the selector reads the diff, not those tests",
+      "readerSteps": 6,
+      "modelSteps": 7,
+      "counterexamples": 148,
+      "against": "starts on another screen"
+    },
+    {
+      "n": 3,
+      "end": "Main red from outside: 1 holds main's fix, red from its own break, 1 passed, waiting to merge",
+      "invariant": "MainFixWaitsOnlyOnYou",
+      "rule": "\"While main is red and nothing else can happen, its fix waits only on your approval.\"",
+      "cause": "the pull request that holds main's fix broke a test of its own, and its crew reads that failure as main's red, which only its merge ends",
+      "readerSteps": 6,
+      "modelSteps": 7,
+      "counterexamples": 68,
       "against": "starts on another screen"
     }
   ],

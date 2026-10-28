@@ -1,5 +1,5 @@
 # Chart labels for FlowToday, drawn against FlowDesign.
-reader_actions = ["ApproveMainFix"]
+reader_actions = ["ApproveMainFix", "ApproveBrowserFix"]
 
 
 def _kind(v, p):
@@ -10,8 +10,15 @@ def _kind(v, p):
     ci = v["ci"][p]
     if ci == "none":
         return "waiting for a check"
+    if ("brFail" in v and v["brFail"][p]):
+        return "its browser run red"
+    if ci == "pass" and v["fixes"][p]:
+        proved = v["proved"][p]
+        return "passed, holds main's fix, " + ("proved" if proved else "not proved")
     if ci == "pass":
         return "passed, " + _waits(v, p)
+    if v["fixes"][p]:
+        return "holds main's fix, red from its own break"
     if v["told"].get(p, False):
         return "red, its crew told"
     if not v["breaks"][p]:
@@ -37,6 +44,8 @@ def _main(v):
         where = "Main red from a merge"
     else:
         where = "Main red from outside"
+    if ("brHold" in v and v["brHold"]):
+        where += ", its browser red"
     return where + (", machine full" if v["full"] else "")
 
 
@@ -61,7 +70,8 @@ def group(v, facts):
     if all(v["st"][p] == "merged" for p in ("a", "b")) and not v["mainRed"] and not v["full"]:
         return "Done"
     if getattr(facts, "settled", False):
-        if v["mainRed"] and not v["full"]:
+        red = v["mainRed"] or ("brHold" in v and v["brHold"])
+        if red and not v["full"] and (v.get("fixRow", True) or ("brHold" in v and v["brHold"])):
             return "Waits on you"
         return "Stuck"
     return "Moving"
@@ -76,6 +86,9 @@ group_colors = {
 
 STEPS = {
     "ApproveMainFix": "you approve main's fix",
+    "ApproveBrowserFix": "you approve the fix of main's browser run",
+    "BrowserFix": "its crew fixes what its browser run found",
+    "Nightly": "main's nightly browser run fails, and jbus files its fix",
     "Launch": "jbus launches its crew, which opens its pull request",
     "Check": "its check runs",
     "CrewFix": "its crew fixes its change",
@@ -88,6 +101,8 @@ STEPS = {
 
 
 def step(action, before, after):
+    if action == "ApproveMainFix" and after["mainRed"]:
+        return "you approve main's fix, and its crew puts it in an open pull request"
     return STEPS.get(action, action)
 
 
@@ -121,9 +136,20 @@ def cause(v, facts, invariant):
             "and jbus stops an idle one only once its row ended"
         )
     if invariant == "MainFixWaitsOnlyOnYou":
+        if v["full"]:
+            return (
+                "an idle process a crew left fills the machine, "
+                "so even an approved fix for main cannot start"
+            )
+        if any(v["fixes"][p] and v["ci"][p] == "fail" for p in ("a", "b")):
+            return (
+                "the pull request that holds main's fix broke a test of its own, and its crew "
+                "reads that failure as main's red, which only its merge ends"
+            )
         return (
-            "an idle process a crew left fills the machine, "
-            "so even an approved fix for main cannot start"
+            "main's fix row closed with its fix in an open pull request, whose check proves "
+            "the fix only if it ran each test main failed, and the selector reads the diff, "
+            "not those tests"
         )
     return None
 
