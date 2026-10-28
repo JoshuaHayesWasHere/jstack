@@ -7,14 +7,13 @@ thread ended or hung with no Result at all is a leftover too, once its crew has 
 carry-ons (`watch.unwritten`). For such a row, the `left` text states that reason, and the
 message says to carry the thread on, to remove the row, or to end it with a Result.
 
-jbus closes no leftover and starts no thread for one. `tell` sends the row's home one queued
-message. The message has the slug, its pull request and whether it merged, the whole `Left:`
-line, each question the slug asked with its answer or a note that it is open, and the two
-ways to end it. The retry key is
-`leftover|<slug>|<the first 12 of a hash of the Left: text>|<the home's thread>`, so jbus
-tells a home once for a row and a `Left:` text, and again when the text changes. When a home
-takes over from the one jbus told, jbus tells the new home too, and the new home's 30
-minutes start then.
+jbus closes no leftover and starts no thread for one. `tell` writes each leftover's record, and
+the record is an item of the one list that wakes a home (`jbus.wakes`), keyed `left:<slug>`: its
+home is told of it once while it stays open. The record keeps the text the home is told: the
+slug, its pull request and whether it merged, the whole `Left:` line, each question the slug
+asked with its answer or a note that it is open, and the two ways to end it. A new `Left:` text
+is a new record. When a home takes over from the one jbus told, the new home is told too, and its
+30 minutes start then.
 
 The home is the one the brief's `Home:` line names. Its thread is the first word of that
 home's `home-id`, which jbus reads on each pass. That rule is `jbriefs.home`, which a
@@ -24,20 +23,18 @@ crewmate and `jmerge` also use.
 
 - `left` is the `Left:` text the record is for. A Result with another text starts a new
   record.
-- `thread` and `told` are the home's thread the message went to and when it went, or empty
-  until jbus sends it.
+- `thread` and `told` are the home's thread and when the one list told it (`wakes.json`), or
+  empty until it did.
 - `why` is why the row is the user's at once, or empty. The reasons are that its home has no
-  thread, that T3 Code lists that thread as settled or does not list it, or that the message
-  did not go.
-- `stalled` is when jbus told the root home that the row's home had not closed it, or empty.
-  A new `Left:` text keeps it, so jbus raises a row once.
+  thread, or that T3 Code lists that thread as settled or does not list it.
+- `text` is what its home is told.
 - `busy` is true when a thread was at work on the row in the last pass, so the row waits on
   that thread.
 
 `his` says whose a leftover is: a home's while `his` returns nothing, and the user's with
 the reason `his` gives. A leftover is the user's when it has a `why`, while jbus has told no
-home. Once `CLOSE_MINUTES` have passed since jbus told the home, jbus tells the root home of it
-once (`_raise`), and it is the root home's: it reaches the user only where no root home is
+home. Once `CLOSE_MINUTES` have passed since jbus told the home, it is an item of the root home's
+too, keyed `left-late <slug>: <left>` (`raised`): it reaches the user only where no root home is
 listed to tell (`NO_ROOT`). The list of what waits on the user
 (`waiting.left`) and the view read the same record. The pass that writes the list judges
 every row on it, so each record the list reads has `told` or `why`.
@@ -53,7 +50,6 @@ posts the whole list of what blocks every `REFRESH_MINUTES`.
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path
@@ -62,12 +58,10 @@ from typing import Any
 import jsettings
 from jbriefs import below
 from jbriefs.home import thread_of
-from jbus import mirror, outbox, questions, queue, read_json, verbs, write_json
+from jbus import mirror, questions, queue, read_json, verbs, write_json
 from jbus.passes import Pass
-from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, at_work, brief_of, home_thread, last_result, named
 
-EVENTS = {"leftover": "quiet"}
 KIND = "leftover"
 NAME = "leftover.json"
 CLOSE_MINUTES = 30
@@ -75,12 +69,9 @@ REMIND_MINUTES = 15
 REFRESH_MINUTES = 60
 NO_HOME = "it has no home: no home-id names a thread for the home of its brief"
 UNLISTED = "its home's thread {thread} is not one T3 Code lists as not settled"
-REFUSED = "T3 Code refused the message to its home's thread {thread}"
-SILENT = "T3 Code did not take the message to its home's thread {thread}"
 UNSEEN = "its home is not told yet: T3 Code did not list the threads that are out"
 LATE = "its home, thread {thread}, has not closed it {minutes} min after jbus told it"
 NO_ROOT = LATE + ", and no root home is listed to tell"
-LATE_KIND = "leftover-late"
 RAISED = (
     "jbus: {slug} ended with something left, and {late}. It is the root home's now: {user} is "
     "not asked.\n\n"
@@ -135,8 +126,13 @@ class Record:
     thread: str = ""
     told: str = ""
     why: str = ""
-    stalled: str = ""
     busy: bool = False
+    text: str = ""
+
+
+def _known(one: dict[str, Any]) -> dict[str, Any]:
+    """A record's fields this `Record` has, as one written before `stalled` went still has it."""
+    return {key: value for key, value in one.items() if key in Record.__dataclass_fields__}
 
 
 def path(state: Path) -> Path:
@@ -148,7 +144,7 @@ def read(state: Path) -> dict[str, Record]:
     the file."""
     kept = read_json(path(state), {})
     try:
-        return {slug: Record(**one) for slug, one in kept.items()}
+        return {slug: Record(**_known(one)) for slug, one in kept.items()}
     except (AttributeError, TypeError):
         return {}
 
@@ -245,97 +241,50 @@ def message(run: Pass, world: World, slug: str, brief: str, why: str = "") -> st
     )
 
 
+def key_of(slug: str, left: str, kind: str = "left") -> str:
+    """The key of a leftover's item on the one list: its row and its `Left:` text."""
+    return f"{kind} {slug}: {left}"
+
+
+def raised(run: Pass, slug: str, record: Record) -> str:
+    """What the root home is told of a leftover its own home did not close in time."""
+    late_now = LATE.format(thread=record.thread, minutes=CLOSE_MINUTES)
+    return RAISED.format(slug=slug, late=late_now, user=run.user.user, left=record.left)
+
+
 def _judge(
-    run: Pass,
-    client: Client,
-    world: World,
-    slug: str,
-    brief: str,
-    record: Record,
-    out: set[str] | None,
+    run: Pass, world: World, slug: str, brief: str, record: Record, out: set[str] | None
 ) -> Record:
-    """Return a leftover's record after this pass, and send the message once. The record
-    says whether the home or the user has the leftover."""
+    """Return a leftover's record after this pass. The record says whether the home or the user
+    has the leftover."""
+    from jbus import wakes
+
     thread = home_thread(run, brief)
     if not thread:
         return replace(record, why=NO_HOME)
-    has = bool(record.told) and record.thread == thread
+    told = wakes.told_to(read_json(run.state / wakes.FILE, {}), thread)
+    at = told.get(key_of(slug, record.left), {}).get("at", "")
     if out is None:
-        return record if has else replace(record, why=UNSEEN)
+        return replace(record, told=at) if at else replace(record, why=UNSEEN)
     if thread not in out:
         return replace(record, why=UNLISTED.format(thread=thread))
-    if has and late(record, run.now) and not record.stalled:
-        return _raise(run, client, slug, record, out)
-    if has:
-        return replace(record, why="")
-    digest = hashlib.sha256(record.left.encode()).hexdigest()[:12]
     text = message(run, world, slug, brief, record.left)
-    key = f"{KIND}|{slug}|{digest}|{thread}"
-    try:
-        went = outbox.send(
-            run,
-            client,
-            thread=thread,
-            row=slug,
-            key=key,
-            text=text,
-            template=KIND,
-            needs="decide",
-        )
-    except T3Refused:
-        return replace(record, why=REFUSED.format(thread=thread))
-    except T3Error as error:
-        run.say(f"wait {slug}: its home could not be told of what it left ({error})")
-        return replace(record, why=SILENT.format(thread=thread))
-    if not went:
+    record = replace(record, thread=thread, told=at, why="", text=text)
+    if not late(record, run.now):
         return record
-    line = f"{KIND} {slug}: told its home, thread {thread}, of what it left"
-    run.find(slug, KIND, line, text, key=f"{digest} {thread}")
-    run.say(line)
-    at = jsettings.stamp(run.now)
-    return replace(record, thread=thread, told=at, why="")
-
-
-def _raise(run: Pass, client: Client, slug: str, record: Record, out: set[str]) -> Record:
-    """Tell the root home, once, of a leftover its own home did not close in time. With no root
-    home that T3 Code lists, the leftover is the user's."""
-    late_now = LATE.format(thread=record.thread, minutes=CLOSE_MINUTES)
     root = thread_of(run.home)
     if not root or root not in out:
-        return replace(record, why=NO_ROOT.format(thread=record.thread, minutes=CLOSE_MINUTES))
-    digest = hashlib.sha256(record.left.encode()).hexdigest()[:12]
-    text = RAISED.format(slug=slug, late=late_now, user=run.user.user, left=record.left)
-    try:
-        went = outbox.send(
-            run,
-            client,
-            thread=root,
-            row=slug,
-            key=f"{LATE_KIND}|{slug}|{digest}|{root}",
-            text=text,
-            template=LATE_KIND,
-            needs="act",
-        )
-    except T3Error as error:
-        run.say(f"wait {slug}: the root home could not be told of what it left ({error})")
-        return replace(record, why="")
-    if not went:
-        return replace(record, why="")
-    line = f"{KIND} {slug}: told the root home, thread {root}, that {late_now}"
-    run.find(slug, KIND, line, text, key=f"late {digest} {root}")
-    run.say(line)
-    return replace(record, why="", stalled=jsettings.stamp(run.now))
+        return replace(record, why=NO_ROOT.format(thread=thread, minutes=CLOSE_MINUTES))
+    return record
 
 
 def tell(
     run: Pass,
-    client: Client,
     world: World,
     rows: list[queue.Row],
     out: list[dict[str, Any]] | None,
 ) -> None:
-    """Tell the home of each leftover, once for a row and a `Left:` text, and rewrite
-    `leftover.json`.
+    """Rewrite `leftover.json`, the record of each leftover that the one list tells its home of.
 
     `out` is what `threads.out` returned: the threads that are not settled, or None where T3
     Code could not list them. A row keeps its record while its last Result has the same
@@ -357,9 +306,9 @@ def tell(
             continue
         before = was.get(slug)
         same = before is not None and before.left == text
-        record = before if same else Record(text, stalled=before.stalled if before else "")
+        record = before if same else Record(text)
         if slug in open_now:
-            record = _judge(run, client, world, slug, brief, record, ids)
+            record = _judge(run, world, slug, brief, record, ids)
         kept[slug] = replace(record, busy=slug not in open_now)
     if kept != was:
         _write(run.state, kept)
@@ -370,7 +319,7 @@ STEPS = (
         "after-derive",
         10,
         "leftover.tell",
-        lambda half: tell(half.run, half.client, half.seen.world, half.table, half.out),
-        ("client", "world", "rows"),
+        lambda half: tell(half.run, half.seen.world, half.table, half.out),
+        ("world", "rows"),
     ),
 )

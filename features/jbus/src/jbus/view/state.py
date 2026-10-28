@@ -1649,16 +1649,21 @@ def owner(read: Read, one: dict[str, Any]) -> tuple[str, str, str]:
     return USER, "", row
 
 
+_MOMENT = re.compile(r"\s*\b(?:at |until )?(?:[0-9a-f]{7,40}|\d{4}-\S+)\b")
+"""A commit or a time in a cause, which the key of an entry leaves out."""
+
+
 def key_of(one: dict[str, Any]) -> str:
-    """The outbox's key for the one message that tells an entry's owner of it: the same fault
-    has the same key while its cause stands, and a new owner thread a new one."""
-    stands = f"{one['kind']}|{one['subj']}|{one['since'] or one['cause']}"
+    """The outbox's key for the one message that tells an entry's owner of it: its kind, subject
+    and reason, with no commit, run or time, so one fault is one key whatever runs show it, and a
+    new owner thread a new one."""
+    stands = f"{one['kind']}|{one['subj']}|{_MOMENT.sub('', one['cause'])}"
     digest = hashlib.sha256(stands.encode()).hexdigest()[:12]
     return f"wrong|{one['kind']}|{digest}|{one['to']}"
 
 
 def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
-    """What the owner was told and when: the outbox's message under the entry's key, the
+    """What the owner was told and when: the wake that told it of the entry (`jbus.wakes`), the
     failed-check message to a crew since its run, any other message to the owner about the
     entry's row since the fault began (a stalled row's home line from `jbus.expedite`), the
     main-red row that fixes a red main, or the leftover its row's home was told of
@@ -1675,14 +1680,17 @@ def _fixing(read: Read, one: dict[str, Any]) -> dict[str, str] | None:
     held = leftover.read(read.state).get(one["row"]) if read.name and one["row"] else None
     if held and held.told and held.thread == one["to"]:
         return {"told": when(held.told), "what": leftover.KIND}
-    sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     key = key_of(one)
+    from jbus import wakes
+
+    for told in wakes.told_to(read.table(wakes.FILE) or {}, one["to"]).values():
+        if told.get("wrong") == key and when(told.get("at")):
+            return {"told": when(told["at"]), "what": wakes.KIND}
+    sent = [line for line in read.records(outbox.FILE) or [] if line.get("went") == "sent"]
     for line in reversed(sent):
         at = when(line.get("at"))
         if not at or line.get("thread") != one["to"]:
             continue
-        if line.get("key") == key:
-            return {"told": at, "what": text(line.get("template"), 40)}
         about = one["row"] and line.get("row") == one["row"] and at >= (one["since"] or "")
         if about and (one["kind"] != "ci" or line.get("template") in CHECK_TOLD):
             return {"told": at, "what": text(line.get("template"), 40)}

@@ -435,6 +435,16 @@ def to_home(kitchen):
     return [given for given in sends(kitchen) if given["threadId"] == "mcp:home"]
 
 
+def stalls_told(kitchen):
+    """The stall line of each wake of the home (`jbus.wakes`), without its `stall ` word."""
+    return [
+        line.removeprefix("- stall ")
+        for given in to_home(kitchen)
+        for line in given["message"].splitlines()
+        if line.startswith("- stall ")
+    ]
+
+
 TIMEOUT = (
     "##[error]The job running on runner r has exceeded the maximum execution time of 30 minutes."
 )
@@ -466,8 +476,8 @@ def test_a_check_cancelled_again_at_its_rerun_is_told_to_the_home_once_and_not_r
     launched.set("open.json", [pull(launched, [cancelled()])])
     passes(launched, 0, 3, 6)
     said = "alpha: #7: its check was cancelled twice, at 30 min each: its timeout of 30 min"
-    assert [given["message"] for given in to_home(launched)] == [said]
-    assert reruns(launched) == [] and keys(launched) == ["cancelled|alpha|cccccccccccc"]
+    assert stalls_told(launched) == [said] and reruns(launched) == []
+    assert [key.split("|")[0] for key in keys(launched)] == ["wakes"]
     assert rows(launched)["alpha"]["why"] == said.removeprefix("alpha: ")
     assert len([line for line in launched.log("gh") if "/attempts/1/jobs" in line]) == 1
 
@@ -491,7 +501,7 @@ def test_a_rerun_github_refuses_is_told_to_the_home_once_and_not_tried_again(lau
         "run cannot be rerun"
     )
     assert reruns(launched) == ["run rerun 5 --failed"]
-    assert [given["message"] for given in to_home(launched)] == [said]
+    assert stalls_told(launched) == [said]
 
 
 def sharded(*parts):
@@ -524,7 +534,7 @@ def test_a_part_cancelled_twice_is_told_with_its_own_minutes_and_timeout(launche
     )
     passes(launched, 0, 3)
     said = "alpha: #7: its check was cancelled twice, at 31 min each: its timeout of 30 min"
-    assert [given["message"] for given in to_home(launched)] == [said] and reruns(launched) == []
+    assert stalls_told(launched) == [said] and reruns(launched) == []
 
 
 def test_a_part_that_failed_beside_one_cancelled_is_a_failed_check_for_the_crew(launched):

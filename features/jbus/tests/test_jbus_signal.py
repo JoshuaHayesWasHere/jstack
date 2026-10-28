@@ -19,6 +19,7 @@ import jbus
 import jsettings
 from jbus import alert, alive, cli, item, passes, wake
 from test_jbus_kitchen import ASK, NOW, REFUSED
+from test_jbus_kitchen import HOME as HOME_THREAD
 
 SRC = pathlib.Path(jbus.__file__).parent
 GATE = ASK
@@ -56,7 +57,6 @@ def test_every_event_has_its_kind_s_loudness_and_only_one_for_the_chat_has_a_say
     assert sorted(kind for kind, loud in wake.LOUDNESS.items() if loud == "user") == [
         "alert",
         "decision",
-        "decision.withdrawn",
         "home-stall",
         "sign-in",
     ]
@@ -240,7 +240,7 @@ def test_a_pass_whose_only_events_are_quiet_posts_nothing_and_the_log_keeps_them
     assert kitchen.waiting() == [] and kitchen.status()["projects"]["demo"]["outbox"] == 0
 
 
-def test_one_gate_that_holds_is_one_post_of_its_decision_and_not_the_quiet_events_beside_it(
+def test_one_gate_that_holds_is_one_line_of_the_one_list_and_not_the_quiet_events_beside_it(
     kitchen,
 ):
     kitchen.set("jmerge.txt", "wait 7 its check has not passed\n")
@@ -250,15 +250,12 @@ def test_one_gate_that_holds_is_one_post_of_its_decision_and_not_the_quiet_event
     holds = GATE.replace("which one?", "may I rewrite it?")
     holds = holds.replace("Undo: pick the other\n", f"Undo: pick the other\n{safe}")
     assert kitchen.main("gate", "alpha", stdin=holds)[0] == 0
-    assert "woke demo: 1 events" in kitchen.poll(later(1))
-    ((post,),) = kitchen.wakes.posts
-    asked = (
-        "decision alpha: question 2: may I rewrite it, it holds (rewrites history) for your "
-        'answer. Reply: "demo question 2: default"'
-    )
-    assert (post["event"], post["loud"], post["line"]) == ("decision", "user", asked)
-    assert post["say"] == f"demo: {asked}"
-    assert kitchen.wakes.said == [[f"demo: {asked}"]]
+    asked = "question 2: may I rewrite it, it holds (rewrites history) for your answer"
+    assert f"wakes demo: told {HOME_THREAD} of {asked}" in kitchen.poll(later(1))
+    assert kitchen.wakes.listed == [[asked]] and kitchen.wakes.posts == []
+    (made,) = kitchen.events("decision")
+    reply = 'Reply: "demo question 2: default"'
+    assert (made["loud"], made["line"]) == ("user", f"decision alpha: {asked}. {reply}")
     assert kitchen.waiting() == []
 
 

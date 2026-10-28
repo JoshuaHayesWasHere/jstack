@@ -16,7 +16,7 @@ from jbriefs import findings
 from jbus import merge, wake
 from jmerge import ready
 from jroles import ledger
-from test_jbus_kitchen import GATE, NOW, PROJECT
+from test_jbus_kitchen import GATE, NOW, PROJECT, asks
 from test_jbus_queue import add, gates
 from test_jbus_unlock import sends
 from test_pr_review_skill import ASKED, block
@@ -566,14 +566,15 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
     assert kitchen.lines("waiting")[-1] == "waiting demo: 1 wait on user, 1 new (hold 7), 0 gone"
     assert kitchen.lines("gate") == [] and gates(kitchen) == []
     short.passes(12)
-    posted = [[event["event"] for event in post] for post in kitchen.wakes.posts]
-    assert posted == [["decision"]] and kitchen.waiting() == []
+    ((told,),) = kitchen.wakes.listed
+    assert told.startswith("hold 7 ") and told.endswith("a pull request jmerge holds for your word")
+    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
     (decided,) = kitchen.events("decision")
     assert decided["line"].endswith(
         'a pull request jmerge holds for your word. Reply: "demo #7: merge it"'
     )
     assert listed(kitchen) == ["#7"]
-    assert len(sends(kitchen)) == 1
+    assert len(asks(kitchen)) == 1
 
 
 @pytest.mark.parametrize("changed", ["the head", "the reason"])
@@ -706,7 +707,8 @@ def test_a_hold_for_a_guarded_path_is_the_user_s_at_once(short, kitchen):
         "hold"
     ]
     short.passes(4)
-    assert sends(kitchen) == [] and kitchen.events("expedite") == []
+    assert asks(kitchen) == [] and kitchen.events("expedite") == []
+    assert kitchen.wakes.listed == [[f"{held}, a pull request jmerge holds for your word"]]
 
 
 def test_a_gate_a_crew_parks_is_logged_at_once_and_not_posted(short, kitchen):
@@ -729,7 +731,7 @@ def test_unruled_drops_jbus_cannot_ask_a_crew_about_are_the_user_s_as_before(sho
     short.passes(2)
     assert listed(kitchen) == []
     said = short.passes(1)
-    assert listed(kitchen) == ["#7"] and sends(kitchen) == []
+    assert listed(kitchen) == ["#7"] and asks(kitchen) == []
     assert (
         "wait alpha: its Result has no Rebase line for its head, so the hold is the user's" in said
     )
@@ -756,7 +758,7 @@ def test_unruled_drops_of_a_pull_request_jbus_launched_no_crew_for_are_the_user_
     held = f"hold 8 {URL}: {short.unruled()}"
     kitchen.set("jmerge.txt", held + "\n")
     short.passes(1)
-    assert kitchen.lines("gate") == [] and sends(kitchen) == []
+    assert kitchen.lines("gate") == [] and asks(kitchen) == []
     listed = jbus.read_json(kitchen.state / "waiting-on-user.json", [])
     assert [one["key"] for one in listed if one["kind"] == "hold"] == ["#8"]
 
@@ -764,7 +766,7 @@ def test_unruled_drops_of_a_pull_request_jbus_launched_no_crew_for_are_the_user_
 def test_no_line_jbus_writes_for_a_short_pull_request_has_an_address_in_it(short, kitchen):
     short.out(short.unruled(), "hold", short.rebased())
     said = short.passes(14)
-    (given,) = sends(kitchen)
+    (given,) = asks(kitchen)
     written = [given["message"], *kitchen.lines("expedite"), *kitchen.lines("stall")]
     written += [line for line in said if line.startswith(("expedite", "stall"))]
     assert len(written) == 4
@@ -873,7 +875,7 @@ def test_a_hold_the_user_had_is_off_their_list_while_its_crew_is_asked(short, ki
     assert listed(kitchen) == ["#7"]
     short.out(short.unruled(), "hold", short.rebased())
     short.passes(4)
-    assert len(sends(kitchen)) == 1 and listed(kitchen) == []
+    assert len(asks(kitchen)) == 1 and listed(kitchen) == []
 
 
 @pytest.mark.parametrize("who", ["a reviewer", "the crew"])

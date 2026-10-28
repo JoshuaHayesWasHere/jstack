@@ -91,6 +91,16 @@ def posted(sandbox):
     return [one for one in events if not one["line"].startswith(f"alert: {PREFIX}")]
 
 
+def listed(sandbox):
+    """The lines of each message of the one list (`jbus.wakes`) that reached a home thread, which
+    carries each decision of the list."""
+    calls = sandbox.parent / "t3" / "calls.jsonl"
+    lines = calls.read_text().splitlines() if calls.exists() else []
+    sent = [json.loads(line)["arguments"] for line in lines if '"t3_thread_send"' in line]
+    told = [one["message"] for one in sent if one["clientRequestId"].startswith("wakes|demo|")]
+    return [[line.removeprefix("- ") for line in one.split("\n\n")[1].splitlines()] for one in told]
+
+
 def waiting_to_post(sandbox):
     outbox = sandbox.parent / "state" / "demo" / "home-thread" / "outbox.json"
     return json.loads(outbox.read_text()) if outbox.exists() else []
@@ -192,7 +202,7 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
     assert waiting_to_post(demo) == []
 
 
-def test_a_gate_josh_has_to_decide_gives_exactly_one_decision_event(demo):
+def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_list(demo):
     assert run(demo, "jbus gate alpha", HOLDS).stdout == "queued: question 1\n"
 
     run(demo, "jbus poll")
@@ -200,13 +210,9 @@ def test_a_gate_josh_has_to_decide_gives_exactly_one_decision_event(demo):
     run(demo, "jbus gate alpha", HOLDS)
     run(demo, "jbus poll")
 
-    (event,) = posted(demo)
-    assert event["event"] == "decision"
-    assert event["slug"] == "alpha"
-    assert event["say"].startswith(
-        "demo: decision alpha: question 1: remove the three stale branches, it holds (deletes data)"
-    )
-    assert 'Reply: "demo question 1: default"' in event["say"]
+    assert posted(demo) == []
+    ((line,),) = listed(demo)
+    assert line.startswith("question 1: remove the three stale branches, it holds (deletes data)")
     assert "decision question 1" in cleared.stdout
     assert "cleared question 1" not in cleared.stdout
 

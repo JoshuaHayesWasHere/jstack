@@ -112,11 +112,16 @@ class Wakes:
     """`Wakes` is what one project's home thread took as wakes: each body's events, its chat lines
     and the body. A wake is a send whose retry key is `wake|<project>|...`, and the body is the
     JSON block of its message. While `refused` holds a reason, T3 Code refuses the project's wakes
-    with it."""
+    with it. `listed` holds the lines of each message of the one list (`jbus.wakes`), a send whose
+    retry key is `wakes|<project>|...`, which carries each decision of the list."""
 
     def __init__(self):
         self.refused = ""
-        self.posts, self.said, self.bodies = [], [], []
+        self.posts, self.said, self.bodies, self.listed = [], [], [], []
+
+    def listing(self, message):
+        lines = message.split("\n\n")[1].splitlines()
+        self.listed.append([line.removeprefix("- ") for line in lines])
 
     def took(self, message):
         body = json.loads(message.split("```json\n", 1)[1].split("\n```", 1)[0])
@@ -303,6 +308,8 @@ class T3(Server):
                     woken.took(given["message"])
                 self.woken.setdefault(key, given)
             else:
+                if key.startswith("wakes|") and key not in self.messages:
+                    self.wakes.setdefault(key.split("|")[1], Wakes()).listing(given["message"])
                 self.messages.setdefault(key, given)
             for thread in self.threads:
                 if thread["threadId"] == given["threadId"]:
@@ -1241,6 +1248,12 @@ def sends(kitchen):
         for tool, given in kitchen.t3.calls
         if tool == "t3_thread_send" and not given["clientRequestId"].startswith("wake|")
     ]
+
+
+def asks(kitchen):
+    """Each message a pass sent a thread, but for the wakes of a home thread and the messages of
+    the one list (`jbus.wakes`), which `Wakes.listed` holds."""
+    return [given for given in sends(kitchen) if not given["clientRequestId"].startswith("wakes|")]
 
 
 def settles(kitchen, action="settle"):

@@ -35,7 +35,7 @@ GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
 HELD = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 SETTLED = "a settled thread already has this slug"
-USER = ["alert", "decision", "decision.withdrawn", "home-stall", "sign-in"]
+USER = ["alert", "decision", "home-stall", "sign-in"]
 DECIDED = "decision alpha: which one?"
 WHY = f"T3 Code did not take the wake: t3_thread_send: {REFUSED}"
 WHY_APPROVE = "a row with no approval of its brief"
@@ -70,6 +70,11 @@ def approving(slug):
     command = f"jbus --project demo queue approve {slug} --sha {sha} with {queue.BASIS}"
     reply = f'Reply: "demo approve {slug}: go"'
     return f"decision {slug}: approve {slug}: {command}, {WHY_APPROVE}. {reply}"
+
+
+def listing(line):
+    """Return the line the one list carries a decision of the list as (`jbus.wakes`)."""
+    return re.sub(r'^(?:demo: )?decision [^:]+: (.*)\. Reply: "[^"]*"$', r"\1", line)
 
 
 def decide(kitchen, slug="alpha"):
@@ -124,7 +129,7 @@ def test_a_question_that_holds_is_one_decision_under_the_project_s_name(kitchen)
     assert kitchen.main("gate", "alpha", stdin=holds) == (0, "queued: question 1\n")
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert kitchen.wakes.said == [[HOLDING]]
+    assert kitchen.wakes.listed == [[listing(HOLDING)]] and kitchen.wakes.said == []
 
 
 def test_a_hold_and_an_approval_are_told_once_when_the_list_gains_them(kitchen):
@@ -135,13 +140,13 @@ def test_a_hold_and_an_approval_are_told_once_when_the_list_gains_them(kitchen):
     kitchen.set("jmerge.txt", HELD + "\n")
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    gained = [[f"demo: {HOLDING_9}"], [f"demo: {approving('unsaid')}"]]
-    assert kitchen.wakes.said == gained
+    gained = [[listing(HOLDING_9)], [listing(approving("unsaid"))]]
+    assert kitchen.wakes.listed == gained
     assert (HELD, "quiet", False) in logged(kitchen)
     kitchen.set("jmerge.txt", HELD.replace("crew", "home") + "\n")
     kitchen.poll(later(80))
     kitchen.poll(later(150))
-    assert kitchen.wakes.said == gained
+    assert kitchen.wakes.listed == gained
     assert (HELD.replace("crew", "home"), "quiet", False) in logged(kitchen)
 
 
@@ -154,7 +159,7 @@ def test_an_approval_a_waiting_row_ends_at_is_told_once_and_not_again_each_hour(
     roots = [line for line, _, _ in logged(kitchen) if line.startswith("waiting-on-user demo:")]
     assert len(roots) == 3
     assert [line for line, loud, _ in logged(kitchen) if loud == "user"] == [approving("base")]
-    assert len(kitchen.wakes.posts) == 1
+    assert kitchen.wakes.listed == [[listing(approving("base"))]]
 
 
 def test_the_third_pass_that_did_not_finish_is_an_alert_under_the_project_s_name(kitchen):
@@ -188,17 +193,16 @@ def test_a_merge_a_result_a_review_and_a_report_start_no_post_and_are_in_the_log
     ]
 
 
-def test_a_list_that_only_lost_an_item_posts_only_the_withdrawal_of_its_decision(kitchen):
+def test_a_list_that_only_lost_an_item_posts_nothing(kitchen):
     kitchen.poll()
     add(kitchen, "unsaid", approve=False)
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    assert len(kitchen.wakes.posts) == 1
+    assert len(kitchen.wakes.listed) == 1
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(kitchen.wakes.posts) == 2 and kitchen.waiting() == []
-    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision.withdrawn"]
+    assert len(kitchen.wakes.listed) == 1 and kitchen.waiting() == []
     gone = ("waiting demo: 0 wait on user, 0 new, 1 gone", "quiet", False)
     assert gone in logged(kitchen)
 
@@ -443,14 +447,18 @@ def test_the_replay_counts_by_the_rule_the_decisions_are_raised_by(monkeypatch):
     assert replay(records) == (18, 2)
 
 
-def test_a_hold_found_while_t3_code_cannot_be_asked_is_told_by_jmerge_s_line_alone(kitchen):
+def test_a_hold_found_while_t3_code_cannot_be_asked_is_listed_by_jmerge_s_line_alone(kitchen):
+    """The hold is on the list from jmerge's line alone, and its decision is in the log. The one
+    list reads the threads first (`jbus.wakes`), so no pass that cannot ask T3 Code wakes the
+    home with it."""
     kitchen.poll()
     kitchen.t3.down.add(PROJECT)
     kitchen.set("jmerge.txt", HELD + "\n")
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert [(one["kind"], one["line"]) for one in listed(kitchen)] == [("hold", HELD)]
-    assert kitchen.wakes.said == [[f"demo: {HOLDING_9}"]]
+    assert (HOLDING_9, "user", False) in logged(kitchen)
+    assert kitchen.wakes.listed == [] and kitchen.waiting() == []
     kitchen.set("jmerge.txt", "")
     (kitchen.stub / "jmerge-dies").write_text("jmerge: could not ask GitHub")
     kitchen.poll(later(30))
@@ -481,7 +489,7 @@ def test_a_sign_in_to_t3_code_that_stopped_working_is_told_once_by_the_list_gain
     kitchen.signed_in(timedelta(0))
     kitchen.poll(later(160))
     ((said, *_),) = kitchen.wakes.said
-    assert said == f"demo: {signed_out}"
+    assert said == f"demo: {signed_out}" and kitchen.wakes.listed == []
 
 
 def test_a_quiet_event_whose_log_line_cannot_be_written_is_owed_and_logged_first(kitchen):

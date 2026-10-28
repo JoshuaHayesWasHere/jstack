@@ -1257,18 +1257,10 @@ def nightly_red_brief(
     )
 
 
-def _nightly_name(nightly: Nightly, day: str, taken: set[str]) -> str:
-    """Return `<prefix><day>`, with `-2`, `-3` for each further red run of the same day."""
-    name, more = f"{nightly.prefix}{day}", 1
-    while name in taken:
-        more += 1
-        name = f"{nightly.prefix}{day}-{more}"
-    return name
-
-
 def _nightly_red(run: Pass, nightly: Nightly) -> None:
     """File the brief for the fix of a red run of a nightly workflow, and queue the brief
-    unapproved, once per run. jbus records each run that it has seen in the nightly's `seen`
+    unapproved, once per day: a further red run of the day folds into that day's row, whatever its
+    state, and files no `-2`. jbus records each run that it has seen in the nightly's `seen`
     file, so it files no brief again for a run whose row was removed. On a project's first
     pass, jbus only records the runs that it sees.
 
@@ -1324,8 +1316,8 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
         if run.first:
             seen[number] = ""
             continue
-        name = _nightly_name(nightly, day, {*seen.values(), *run.removed})
-        if queue.fresh(run.state, name) is None:
+        name = f"{nightly.prefix}{day}"
+        if name not in run.removed and queue.fresh(run.state, name) is None:
             asked = _api(run, f"repos/{{owner}}/{{repo}}/actions/runs/{number}/jobs?per_page=100")
             if not isinstance(asked, dict):
                 if run.now - ended < NIGHTLY_GRACE:

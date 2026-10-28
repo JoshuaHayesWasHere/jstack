@@ -49,6 +49,17 @@ def deciding(slug):
     return f"demo: decision {slug}: {approval(slug)}, a row with no approval of its brief. {reply}"
 
 
+def listing(slug):
+    """Return the line the one list carries a row with no approval as."""
+    return deciding(slug).removeprefix(f"demo: decision {slug}: ").split(". Reply:")[0]
+
+
+def listed_wakes(kitchen):
+    """The messages of the one list (`jbus.wakes`), which carries each decision of the list."""
+    sent = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
+    return [one["message"] for one in sent if one["clientRequestId"].startswith("wakes|demo|")]
+
+
 def four(kitchen):
     """Make one of each kind: an open gate, a row at `gate`, a row with no approval, and a hold."""
     kitchen.config(max_running=6)
@@ -186,8 +197,9 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
     (event,) = kitchen.events("waiting")
     assert (event["slug"], event["loud"]) == ("", "quiet")
     assert event["line"] == "waiting demo: 5 wait on user, 1 new (approve second), 1 gone"
-    assert deciding("second") in kitchen.wakes.said[-1]
-    assert not [line for post in kitchen.wakes.said for line in post if "waiting demo" in line]
+    said = listed_wakes(kitchen)[-1]
+    assert f"\n- {listing('second')}" in said and "unsaid" not in said
+    assert not [one for one in listed_wakes(kitchen) if "waiting demo" in one]
     assert event["text"].splitlines() == [
         "  gate 4: which way?",
         "  gate 1: left or right?",
@@ -201,21 +213,23 @@ def test_a_change_of_the_list_is_one_quiet_event_and_what_it_gains_to_decide_one
 def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event_never(kitchen):
     """The test runs passes that add an approval, remove one, and do both. A row to approve is
     raised in the pass after the one that lists it, and the removal of one that was raised wakes
-    the home thread with its withdrawal alone."""
+    no one. A decision of the list reaches the home thread in the list's message, not as an
+    event."""
     four(kitchen)
     kitchen.poll()
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    posts = len(kitchen.wakes.posts)
+    posts = len(listed_wakes(kitchen))
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(30))
-    assert len(kitchen.wakes.posts) == posts + 1
-    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision.withdrawn"]
+    assert len(listed_wakes(kitchen)) == posts
     add(kitchen, "third", priority=4, approve=False)
     assert go(kitchen, "second")[0] == 0
     kitchen.poll(later(40))
     kitchen.poll(later(50))
+    assert len(listed_wakes(kitchen)) == posts + 1
+    assert f"\n- {listing('third')}" in listed_wakes(kitchen)[-1]
     sent = [
         (one["line"], one["loud"], one["posted"] is not None)
         for one in box(kitchen).log()
@@ -231,18 +245,18 @@ def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event
         for one in box(kitchen).log()
         if one["event"] == "decision" and one["slug"] in ("second", "third")
     ]
-    assert decided == [(deciding("second"), True), (deciding("third"), True)]
+    assert decided == [(deciding("second"), False), (deciding("third"), False)]
     assert kitchen.waiting() == []
 
 
 def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(kitchen):
-    """The removal is in the log, and a POST that something else starts does not carry it."""
+    """The removal is in the log, and a wake that something else starts does not carry it."""
     four(kitchen)
     kitchen.poll()
     assert go(kitchen, "unsaid")[0] == 0
     kitchen.poll(later(10))
     kitchen.poll(later(20))
-    posts = len(kitchen.wakes.posts)
+    posts = len(listed_wakes(kitchen))
     gone = "waiting demo: 4 wait on user, 0 new, 1 gone"
     assert kitchen.waiting() == []
     assert [(one["loud"], one["posted"]) for one in box(kitchen).log() if one["line"] == gone] == [
@@ -251,9 +265,9 @@ def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(ki
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(kitchen.wakes.posts) == posts + 1 and kitchen.waiting() == []
-    assert [one["event"] for one in kitchen.wakes.posts[-1]] == ["decision"]
-    assert kitchen.wakes.said[-1] == [deciding("second")]
+    assert len(listed_wakes(kitchen)) == posts + 1 and kitchen.waiting() == []
+    assert listed_wakes(kitchen)[-1].count("\n- ") == 1
+    assert f"\n- {listing('second')}" in listed_wakes(kitchen)[-1]
 
 
 def test_the_line_names_each_new_item_by_its_kind_and_its_slug_or_number(kitchen):

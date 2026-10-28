@@ -13,10 +13,11 @@ the check workflow's `check` job waits on its four parts, and fails when one of 
 
 At its run's first attempt, `rerun` runs the workflow run again, `gh run rerun <run> --failed`,
 once for the run, and journals one `cancelled` line that names the pull request and the run. At a
-later attempt the check was cancelled twice, and a third run is not jbus's to start: `rerun` tells
-the brief's home one line, once for the head, with how long each attempt ran and the cause where the
-job's log names one. A rerun that GitHub refuses is told the same way, and never tried again. The
-line the home got is the row's `why` (`why`) while the check stays stopped at that head. Until then,
+later attempt the check was cancelled twice, and a third run is not jbus's to start: `rerun` logs
+one quiet stall, once for the head, with how long each attempt ran and the cause where the job's
+log names one, and the one list takes it to the brief's home (`jbus.wakes`). A rerun that GitHub
+refuses is logged the same way, and never tried again. The stall's line is the row's `why`
+(`why`) while the check stays stopped at that head. Until then,
 a row whose every failed check is of a run this module runs again is its own (`owns`), and no
 blocker the home's `jbus clear` asks a fix for.
 
@@ -32,10 +33,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-from jbus import outbox, read_json, verbs, write_json
+from jbus import read_json, verbs, write_json
 from jbus.passes import Pass
-from jbus.t3 import Client, T3Error
-from jbus.watch import NEVER, World, brief_of, home_thread, job, job_log
+from jbus.watch import NEVER, World, job, job_log
 from jmerge import ready
 from jmerge.checks import check_state, latest_of_each
 
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
     from jbus.cli import Half
 
 EVENTS = {"cancelled": "quiet"}
+STALL = "stall"
 STOPPED = ("CANCELLED", "TIMED_OUT")
 FILE = "cancelled.json"
 _JOB = re.compile(r"^/([^/]+/[^/]+)/actions/runs/(\d+)/job/(\d+)$")
@@ -108,9 +109,9 @@ def owns(run: Pass, slug: str) -> bool:
     return kept is not None and not kept.get("why")
 
 
-def rerun(run: Pass, client: Client, world: World, slugs: set[str]) -> None:
+def rerun(run: Pass, world: World, slugs: set[str]) -> None:
     """Run each cancelled required check of an open row's pull request again once, at its first
-    attempt, and tell the home of one cancelled again or that GitHub would not run again."""
+    attempt, and log a stall of one cancelled again or that GitHub would not run again."""
     was: dict[str, dict[str, str]] = read_json(run.state / FILE, {})
     kept: dict[str, dict[str, str]] = {}
     names = required(run)
@@ -123,7 +124,7 @@ def rerun(run: Pass, client: Client, world: World, slugs: set[str]) -> None:
         mine = False
         for check in latest:
             if cause := stopped(check, latest, never, names):
-                said = _one(run, client, slug, pull, check, cause)
+                said = _one(run, slug, pull, check, cause)
                 mine = mine or said is not None
                 if said:
                     kept[slug] = {"head": head, "why": said}
@@ -139,9 +140,9 @@ def rerun(run: Pass, client: Client, world: World, slugs: set[str]) -> None:
         write_json(run.state / FILE, kept)
 
 
-def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: dict) -> str | None:
-    """Act on one cancelled check, which the job `stop` stopped, and return the line its home is
-    told, or nothing while it is run again. Return None for a check this module leaves alone."""
+def _one(run: Pass, slug: str, pull: dict, check: dict, stop: dict) -> str | None:
+    """Act on one cancelled check, which the job `stop` stopped, and return the line of its stall,
+    or nothing while it is run again. Return None for a check this module leaves alone."""
     found = _JOB.match(urlsplit(stop.get("detailsUrl") or "").path)
     if not found:
         return None
@@ -156,7 +157,7 @@ def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: di
     kept = read_json(run.state / FILE, {}).get(slug) or {}
     told = kept["why"] if kept.get("head") == head else ""
     if attempt > 1:
-        if told and f"cancelled|{slug}|{head[:12]}" in run.box.sent():
+        if told and _told(slug, head) in run.box.sent():
             return told
         part = stop.get("name") or stop.get("context") or name
         minutes = [_minutes(_before(run, repo, number, attempt, part)), _minutes(given)]
@@ -164,10 +165,10 @@ def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: di
         when = _at(minutes)
         line = f"#{pr}: {its} was cancelled twice{',' + when if when else ''}"
         line += f": {cause}" if cause else ""
-        return _tell(run, client, slug, head, line)
+        return _tell(run, slug, head, line)
     key = f"rerun {number}"
     if f"cancelled|{slug}|{key}" in run.box.sent():
-        return _tell(run, client, slug, head, told) if told else ""
+        return _tell(run, slug, head, told) if told else ""
     asked = run.run("gh", "run", "rerun", number, "--failed")
     if asked.returncode == 0:
         line = f"cancelled {slug}: ran #{pr}'s check again, run {number} at {head[:12]}"
@@ -178,38 +179,18 @@ def _one(run: Pass, client: Client, slug: str, pull: dict, check: dict, stop: di
     run.find(slug, "cancelled", line, asked.stderr, key=key)
     refusal = (asked.stderr.strip().splitlines() or ["no reason given"])[0]
     line = f"#{pr}: {its} was cancelled{_at([_minutes(given)])}, and GitHub did not run it again"
-    return _tell(run, client, slug, head, f"{line}: {refusal}")
+    return _tell(run, slug, head, f"{line}: {refusal}")
 
 
-def _tell(run: Pass, client: Client, slug: str, head: str, line: str) -> str:
-    """Send the home of the slug's brief one line, once for the head, and journal it.
-    Where the brief has no home, the journal is the one record. A send that fails is tried again on
-    the next pass."""
-    if f"cancelled|{slug}|{head[:12]}" in run.box.sent():
-        return line
-    thread = home_thread(run, brief_of(run, slug))
-    if thread:
-        key = f"cancelled|{slug}|{head[:12]}"
-        text = f"{slug}: {line}"
-        try:
-            went = outbox.send(
-                run,
-                client,
-                thread=thread,
-                row=slug,
-                key=key,
-                text=text,
-                template="cancelled",
-                needs="decide",
-            )
-        except T3Error as error:
-            run.say(f"wait {slug}: its home could not be told of its cancelled check ({error})")
-            return line
-        if not went:
-            return line
-    told = f"told its home, thread {thread}" if thread else "it has no home to tell"
-    run.find(slug, "cancelled", f"cancelled {slug}: {line}; {told}", key=head[:12])
-    run.say(f"cancelled {slug}: {line}; {told}")
+def _told(slug: str, head: str) -> str:
+    return f"{STALL}|{slug}|{FILE} {head[:12]}"
+
+
+def _tell(run: Pass, slug: str, head: str, line: str) -> str:
+    """Log the slug's cancelled check as one quiet stall, once for the head: the one list takes it
+    to the brief's home (`jbus.wakes`), and with no home the log is the one record."""
+    run.find(slug, STALL, f"{STALL} {slug}: {line}", key=f"{FILE} {head[:12]}")
+    run.say(f"cancelled {slug}: {line}")
     return line
 
 
@@ -252,7 +233,7 @@ def _cause(run: Pass, repo: str, at: str, check: dict) -> str:
 
 
 def _rerun(half: Half) -> None:
-    rerun(half.run, half.client, half.seen.world, {row["slug"] for row in half.rows or []})
+    rerun(half.run, half.seen.world, {row["slug"] for row in half.rows or []})
 
 
-STEPS = (verbs.Step("after-expedite", 25, "cancelled.rerun", _rerun, ("client", "world")),)
+STEPS = (verbs.Step("after-expedite", 25, "cancelled.rerun", _rerun, ("world",)),)

@@ -18,8 +18,10 @@ import json
 import socket
 from datetime import timedelta
 
+import pytest
+
 import jbus
-from jbus import alert, wake
+from jbus import alert, blockers, wake
 from jroles import ledger
 from test_jbus_kitchen import HOME, NOW
 from test_jbus_signal import decide, later
@@ -82,6 +84,23 @@ def test_the_event_reaches_the_home_thread(kitchen):
     assert body["kind"] == "events" and body["say"] == ["demo: decision alpha: which one?"]
     assert [one["event"] for one in body["events"]] == ["decision"]
     assert "woke demo: 1 events" in said
+
+
+@pytest.mark.parametrize("listed", [False, True], ids=["jbus decide", "an item of the list"])
+def test_a_decision_reaches_the_home_thread_as_an_event_unless_the_one_list_carries_it(
+    kitchen, listed
+):
+    """The review of #585: a decision `jbus decide`, `jbus clear` or a fix past its retry cap
+    raises is on no list, so the home thread gets its event. One of an item on the list does
+    not, since the list wakes the home with it."""
+    homed(kitchen)
+    kitchen.poll(NOW)
+    before = len(wakes(kitchen))
+    box = wake.Box(kitchen.state, jbus.load().project("demo"))
+    blockers.decide(box, "beta", "beta-key", "which way?", "this way", listed=listed)
+    kitchen.poll(later(10))
+    told = [one["message"] for one in wakes(kitchen)[before:]]
+    assert any("decision beta: which way?" in one for one in told) is not listed
 
 
 def test_an_old_config_with_wake_both_and_a_webhook_url_loads_as_home_and_posts_nothing(kitchen):

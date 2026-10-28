@@ -11,7 +11,7 @@ import jbus
 from jbus import digest, queue, waiting, wake
 from jbus.view import state as view
 from test_jbus_blocking import Second, relayed
-from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen
+from test_jbus_kitchen import GATE, NOW, RESULT, Kitchen, asks
 from test_jbus_kitchen import review as review_of
 from test_jbus_queue import add, brief, rows, sha12
 from test_jbus_resume import crew, sends
@@ -126,7 +126,8 @@ def test_no_pass_after_brings_the_slug_back_from_its_brief_its_thread_or_a_gate(
         kitchen.poll(now)
     assert about(kitchen, "alpha") == told
     assert kitchen.lines("gate") == ["gate beta: left or right?"]
-    assert sends(kitchen) == [] and own.read_text() == before
+    assert asks(kitchen) == [] and own.read_text() == before
+    assert not [line for told in kitchen.wakes.listed for line in told if "alpha" in line]
     shown = kitchen.main("queue", "show")[1]
     assert "alpha" not in shown and "approve beta" in shown
     kept = jbus.read_json(kitchen.state / "waiting-on-user.json", [])

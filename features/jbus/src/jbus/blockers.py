@@ -66,12 +66,8 @@ brief, a gate no longer open and a hold whose row has merged are not raised. A r
 raised only once it has waited unapproved for `APPROVE_GRACE_SECONDS`, one pass, since a home
 that queues a row approves it in the moments after. A gate that holds is raised at once.
 
-A decision the pass raised from the list is kept in `raised.json` in the project's state
-directory, and is withdrawn once its item leaves the list: one event `decision.withdrawn` at
-`user`, under the key `decision.withdrawn|<the decision's key>`, whose line names that key and
-why it went (`approved`, `closed`, `merged` or `removed`). Every route takes it as it takes the
-decision, so a surface that showed the decision can drop it. Only a decision in `raised.json`
-is withdrawn, so a decision at its retry cap and one raised by `jbus decide` never are.
+An item that leaves the list is told to no one: the decision raised for it stays in the log, and
+no event says it went.
 """
 
 from __future__ import annotations
@@ -111,10 +107,8 @@ if TYPE_CHECKING:
     from jbus.cli import Half
 
 LOCK = "blockers.lock"
-EVENTS = {"decision": "user", "decision.withdrawn": "user"}
+EVENTS = {"decision": "user"}
 KIND = "decision"
-WITHDRAWN = "decision.withdrawn"
-RAISED = "raised.json"
 APPROVE_GRACE_SECONDS = 60
 LEDGER = "blockers.json"
 FIX_OF, WHEN_GREEN = "Fix of", "When green"
@@ -136,10 +130,12 @@ def head(text: str, name: str) -> str:
     return ""
 
 
-def decide(box: Box, slug: str, key: str, said: str, reply: str) -> bool:
-    """Raise one decision for the key, and return False when it was raised before."""
+def decide(box: Box, slug: str, key: str, said: str, reply: str, *, listed: bool = False) -> bool:
+    """Raise one decision for the key, and return False when it was raised before. A decision
+    `listed` reaches a home thread from the one list (`jbus.wakes`), and only the log keeps its
+    event."""
     line = f'{KIND} {slug}: {said}. Reply: "{reply}"'
-    return box.send(slug, KIND, line, key=f"{KIND}|{key}")
+    return box.send(slug, KIND, line, key=f"{KIND}|{key}", listed=listed)
 
 
 def _count(number: int, noun: str) -> str:
@@ -392,19 +388,6 @@ class _Ground:
             return row is None or row.get("status") not in queue.FINAL
         return True
 
-    def gone(self, kept: dict[str, str]) -> str:
-        """Say why a raised decision's item left the list: approved, merged, removed or closed."""
-        run, slug = self.run, kept.get("slug", "")
-        if kept.get("kind") == "approve":
-            row = queue.fresh(run.state, slug)
-            if row is None or slug in run.removed:
-                return "removed"
-            return "approved" if row.get("approved") else "closed"
-        if kept.get("kind") == "hold":
-            row = _pr_row(run, kept.get("number"))
-            return "merged" if row and row.get("status") == "merged" else "closed"
-        return "closed"
-
 
 def _early(run: Pass, one: waiting.Item) -> bool:
     """Say whether a row to approve is still within its grace: a home that queues a row approves
@@ -415,43 +398,35 @@ def _early(run: Pass, one: waiting.Item) -> bool:
     return run.now - since < timedelta(seconds=APPROVE_GRACE_SECONDS)
 
 
-def withdraw(run: Pass, listed: list[waiting.Item]) -> None:
-    """Withdraw each decision raised for an item that has left the list, once: one event
-    `decision.withdrawn` at `user`, which names the decision's key and why it went."""
-    path = run.state / RAISED
-    raised: dict[str, dict[str, str]] = read_json(path, {})
-    still = {_keyed(one)[0] for one in listed}
-    ground = _Ground(run)
-    for key, kept in list(raised.items()):
-        if key in still:
-            continue
-        decision = f"{KIND}|{key}"
-        line = f"{WITHDRAWN} {kept.get('slug', '')}: {decision}: {ground.gone(kept)}"
-        run.box.send(kept.get("slug", ""), WITHDRAWN, line, key=f"{WITHDRAWN}|{decision}")
-        del raised[key]
-    write_json(path, raised)
-
-
-def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
-    """Raise one decision for each item of the list that the user has to decide and that still
-    stands when it is read again, and withdraw each decision whose item has left the list."""
+def deciding(run: Pass, listed: list[waiting.Item] | None) -> list[tuple[waiting.Item, str]]:
+    """Each item of the list that the user has to decide and that still stands when it is read
+    again, with what it asks."""
     if run.first or listed is None:
-        return
-    withdraw(run, listed)
+        return []
     context = {questions.item(one)["key"]: one.context for one in questions.load(run.state)}
-    ground = _Ground(run)
-    raised: dict[str, dict[str, str]] = read_json(run.state / RAISED, {})
+    ground, found = _Ground(run), []
     for one in listed:
         why = needs(one, context.get(one["key"], ""))
         if not why or _early(run, one) or not ground.stands(one):
             continue
         asked = f"question {one['number']}: {one['question']}" if questions.listed(one) else ""
-        said = f"{(asked or one['line']).rstrip('.?')}, {why}"
+        found.append((one, f"{(asked or one['line']).rstrip('.?')}, {why}"))
+    return found
+
+
+UNLISTED = frozenset({"config"})
+"""The kinds of need the one list does not carry: a setup jbus lacks may be the sign-in to T3
+Code that the list's message needs, so its decision is an event, whose failing wake alerts."""
+
+
+def raise_listed(run: Pass, listed: list[waiting.Item] | None) -> None:
+    """Raise one decision for each item that the user has to decide (`deciding`). A home thread
+    hears of it from the one list (`jbus.wakes`), and the log keeps this event, but for a kind
+    in `UNLISTED`, which is an event of the home thread."""
+    for one, said in deciding(run, listed):
         key, slug = _keyed(one)
-        decide(run.box, slug, key, said, _reply(run.project, one))
-        number = str(one.get("number", ""))
-        raised[key] = {"slug": slug, "kind": one["kind"], "number": number}
-    write_json(run.state / RAISED, raised)
+        carried = one["kind"] not in UNLISTED
+        decide(run.box, slug, key, said, _reply(run.project, one), listed=carried)
 
 
 def _raise(half: Half) -> None:

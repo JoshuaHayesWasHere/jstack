@@ -1,0 +1,13 @@
+{"at":"2026-10-27T19:04:53.995372+00:00","thread":"mcp:root-home","row":"jstack","template":"wake","needs":"decide","key":"wake|jstack|e47e5ce630a80acb","went":"sent","rule":""}
+{"at":"2026-10-27T19:59:18.870186+00:00","thread":"mcp:root-home","row":"jstack","template":"wrong","needs":"act","key":"wrong|ci|1508f68bdef2|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T21:27:02.335844+00:00","thread":"mcp:root-home","row":"jstack","template":"wrong","needs":"act","key":"wrong|ci|078781e6c52b|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T21:31:14.198229+00:00","thread":"mcp:root-home","row":"main-red-d1e3bd5e4c77","template":"leftover","needs":"decide","key":"leftover|main-red-d1e3bd5e4c77|685a7c6d8731|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T21:32:14.458446+00:00","thread":"mcp:root-home","row":"jstack","template":"wrong","needs":"act","key":"wrong|main|36da0d345615|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T21:35:00.452664+00:00","thread":"mcp:root-home","row":"jstack","template":"wake","needs":"decide","key":"wake|jstack|340e04e230291b13","went":"sent","rule":""}
+{"at":"2026-10-27T21:38:22.335762+00:00","thread":"mcp:root-home","row":"jstack","template":"wrong","needs":"act","key":"wrong|ci|c126316659d1|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T22:05:18.360270+00:00","thread":"mcp:root-home","row":"jstack","template":"wake","needs":"decide","key":"wake|jstack|7db20dfa3fb027e0","went":"sent","rule":""}
+{"at":"2026-10-27T22:10:24.748837+00:00","thread":"mcp:root-home","row":"jstack","template":"wake","needs":"decide","key":"wake|jstack|6d946d19b605e7bb","went":"sent","rule":""}
+{"at":"2026-10-27T23:15:50.354711+00:00","thread":"mcp:root-home","row":"browser-pin","template":"wrong","needs":"act","key":"wrong|stall|76956e6bdaf2|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T23:45:20.453820+00:00","thread":"mcp:root-home","row":"no-webhook-path","template":"wrong","needs":"act","key":"wrong|stall|1b42a5659ff5|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T23:47:21.277830+00:00","thread":"mcp:root-home","row":"bot-authority-shape","template":"wrong","needs":"act","key":"wrong|stall|41c8163306ba|mcp:root-home","went":"sent","rule":""}
+{"at":"2026-10-27T23:51:21.467148+00:00","thread":"mcp:root-home","row":"jstack","template":"wake","needs":"decide","key":"wake|jstack|cd6ca3a459ea746f","went":"sent","rule":""}
