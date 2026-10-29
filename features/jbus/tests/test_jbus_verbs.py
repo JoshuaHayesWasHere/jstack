@@ -139,7 +139,7 @@ def test_a_refusal_or_a_t3_error_is_printed_and_the_answer_is_1(error, said, mon
         raise error
 
     verb = verbs.Verb("status", "", verbs.nothing, refuses, config=False)
-    monkeypatch.setattr(verbs, "verb", lambda one: verb)
+    monkeypatch.setattr(verbs, "load_verb", lambda one: verb)
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
         assert cli.main(["status"]) == 1
@@ -174,7 +174,7 @@ def printed(parse, argv):
 def test_every_help_prints_what_the_parser_of_every_verb_prints(monkeypatch):
     monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("NO_COLOR", "1")
-    every = [verbs.verb(one) for one in cli.LISTED.values()]
+    every = [verbs.load_verb(one) for one in cli.LISTED.values()]
     eager = verbs.parser(cli.LISTED, cli.__doc__, every)
     pages = walked(eager, [])
     assert len(pages) > len(every)

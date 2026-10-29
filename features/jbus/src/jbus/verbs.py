@@ -4,10 +4,11 @@ A module declares what it adds to `jbus` at its top level, as `VERBS = (Verb(...
 the name typed after `jbus`, the line that `jbus --help` shows for it, a function that adds its
 arguments to its parser, and the function that runs it. `listed` reads each verb's name and line
 off the sources of jbus's modules (`jbus.sources`) and imports none of them, and `jbus.cli.main`
-lists every verb from what `listed` returns. It imports the module of the one verb that runs
-(`verb`), and adds that verb's arguments alone. So a new verb is a `Verb` in a new module, with no
-line anywhere else, and its name and its line are written out in the `Verb`. When two modules
-declare the same name, importing `jbus.cli` raises a `ValueError` that names both.
+lists every verb from what `listed` returns. It imports the module of the one verb that
+runs (`load_verb`), and adds that verb's arguments alone. So a new verb is a `Verb` in a new
+module, with no line anywhere else, and its name and its line are written out in the `Verb`.
+When two modules declare the same name, importing `jbus.cli` raises a `ValueError` that names
+both.
 
 A module declares a step of a pass the same way, as `STEPS = (Step(...),)`. A `Step` holds the slot
 of `jbus.poll.first_half` or `jbus.poll.second_half` in which it runs, its rank in that slot, its
@@ -97,7 +98,7 @@ class Verb:
 @dataclass(frozen=True)
 class Listed:
     """A verb as its module's source declares it: its name, the line that `jbus --help` shows for
-    it, and its module, which `verb` imports when the verb runs."""
+    it, and its module, which `load_verb` imports when the verb runs."""
 
     name: str
     help: str
@@ -223,7 +224,7 @@ def listed(paths: Iterable[str]) -> dict[str, Listed]:
     return {name: found[name] for name in (*(one for one in FIRST if one in found), *sorted(found))}
 
 
-def verb(one: Listed) -> Verb:
+def load_verb(one: Listed) -> Verb:
     """Import the module that declares a verb, and return its `Verb`."""
     for declared in getattr(importlib.import_module(one.module), "VERBS", ()):
         if declared.name == one.name:

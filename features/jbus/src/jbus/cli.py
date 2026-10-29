@@ -50,7 +50,7 @@ LISTED = verbs.listed(jbus.__path__)
 
 def main(argv: list[str] | None = None) -> int:
     typed, _ = verbs.parser(LISTED, __doc__).parse_known_args(argv)
-    verb = verbs.verb(LISTED[typed.command])
+    verb = verbs.load_verb(LISTED[typed.command])
     parser = verbs.parser(LISTED, __doc__, [verb])
     args, extra = parser.parse_known_args(argv)
     extra = verbs.words_left(args, extra)
