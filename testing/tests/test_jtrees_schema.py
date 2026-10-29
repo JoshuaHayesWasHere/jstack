@@ -28,7 +28,7 @@ def test_the_schemas_are_draft_2020_12_and_closed():
 
 
 def test_every_feature_has_a_manifest_and_each_holds_to_the_schema():
-    assert len(MANIFESTS) == 39
+    assert len(MANIFESTS) == 40
     for path in MANIFESTS:
         manifest = json.loads(path.read_text())
         assert list(Draft202012Validator(FEATURE).iter_errors(manifest)) == [], path
