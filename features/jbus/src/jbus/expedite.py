@@ -324,8 +324,9 @@ TABLE = (
         "Your pull request's own browser run (browser.yml) failed at its head, and main's last "
         "browser run did not: the red is yours. Read its failed tests with `gh run view <run> "
         "--log-failed`, the run `gh pr checks` names for `browser`, fix them, run `make "
-        "check-browser` in your worktree, and push. `jmerge` merges once the browser run of "
-        "the new head passes.",
+        "check-browser` in your worktree, and push. Leave the kept shots of the view as main "
+        "has them: a moved shot fails no pull request's run, and only the shots row redraws "
+        "them. `jmerge` merges once the browser run of the new head passes.",
     ),
     Short(
         "gate",

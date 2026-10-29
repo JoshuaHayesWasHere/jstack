@@ -215,6 +215,9 @@ lavish-axi poll "$H/reports/$S.html"
 
 A tracked command is one whose end your harness gives back to this turn: the call in the foreground, or, where the harness cuts a foreground call short, its own background job with the longest limit it gives, whose output you wait for in this turn. In Claude Code that is the Bash tool with `run_in_background` and a two hour `timeout`, then the Monitor tool on the job's output file until it has an answer. Never end the turn while the poll runs: nothing wakes a thread whose turn has ended, so a poll left in the background of one is heard by nobody. A poll the harness stopped with no answer is run again, and the answers stay queued.
 
+A subagent the scout starts is waited on in the same turn, as a tracked command is: started in the foreground, or in the background and then waited for before the turn ends.
+A turn never ends while a subagent of the scout runs and the Report is not `Status: done`, since a subagent left running when the turn ends reports to nobody and jbus finds the scout left.
+
 When it returns, change the page as the user's feedback asks, update the report when a finding or the recommendation changes, and run it again until the session ends. Send the home nothing while the session lasts. A poll that returns `status: browser_disconnected` is a closed tab, and no answer: each choice the page still asked stays at its default in the report. End the session with `lavish-axi end "$H/reports/<slug>.html"`, go on as when the user ends it, and say here that the page opens again on their word. On that word, serve it again with the block of "Write it down" that runs `lavish-axi "$H/reports/$S.html"`, in one call with the block at the top and `S` set to the slug, then run the poll above. When the user ends it, run this, in one call with the block at the top and `S` set to the slug:
 
 ```sh

@@ -18,3 +18,33 @@ The page's policy is `font-src 'self'`, so it loads fonts from no other host.
 The font's licence is beside it, in `features/jbus/src/jbus/view/OFL.txt`.
 The sizes are 13 px for the scratch-home line, the smallest on the page, 15 for a caption, 18 for body text, 20 for a heading and 24 for a title.
 Mono is for slugs and commits.
+
+## The kept shots
+
+`features/jbus/tests/fixtures/jbus-view/shots/` keeps a shot of each route, and of the overview on each day of `days.DAYS`, with `browser.txt` naming the browser that drew them.
+The shot tests compare the page with them (`test_view_page_look.py`, `test_view_page_days.py`), and only the Chrome for Testing build that browser.yml pins draws them.
+The kept shots are main's, and only the shots row redraws them (`features/jbus/src/jbus/shots.py`).
+
+A feature's pull request leaves the shots as main has them.
+The borders check fails a pull request that changes a kept shot or `browser.txt` beside any other file (`features/jbus/scripts/kept_shots.py`).
+A pull request that changes only kept shots is the shots row's kind, and passes.
+
+The browser run still runs on a pull request that changes the view, and compares its page with main's shots.
+There a shot that moved, or a route with no kept shot, is a skip that says how much moved and where the shot it drew is, as is a browser that is not the one that drew them.
+The same holds for a manual run on a branch and for a run on a desk.
+What moved is the pull request's change, or a look that merged since the last shots row, so a skip is no verdict on the change: read the drawn shot to see it.
+Every other browser test judges a pull request as before.
+
+A CI run on main or on a tag, the nightly and a release, fails each shot that moved, with the line `keep the shots of this run's jbus-view-shots artifact`.
+jbus reads that run and files the shots row of the day, `shots-<day>`, from its failed shot tests, approved by the rule for a row jbus filed from a red run.
+Its other failures, if any, file `browser-red-<day>` as before.
+A job where fewer tests said that line than shot tests failed had a shot test fail some other way, so that job's shot tests are in `browser-red-<day>` too (`jbus.shots.moved_in`).
+A further red run that day folds into the same rows.
+A run whose only failures were shots holds no pull request as a red main in `jmerge`.
+On a day that also has a `browser-red-` row, a shots row's pull request whose own browser run fails waits for that fix as any other pull request does.
+
+The shots row's pull request keeps the run's `jbus-view-shots` artifact under the shots directory and changes nothing else.
+Its review is where a feature's change to the look is looked at, after that feature merged.
+A bump of the pinned Chrome goes in a pull request of its own with no shot in it: the next nightly fails every shot, and its shots row redraws them.
+
+`JSTACK_SHOTS=keep` still writes the shots afresh in place of comparing them, for a look on a desk, and `JSTACK_SHOTS_OUT=<dir>` writes each shot as drawn into that folder.

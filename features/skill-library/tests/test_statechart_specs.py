@@ -793,11 +793,12 @@ Wrote chart.mmd, bug-1.mmd, stories.md, summary.json in SaveCode-statechart.
 """
     )
     uncited_warning = """SaveCode.tla: TypeOK holds, but a rule can also hold because the model \
-waits for a condition that the code does not check. No comment gives the file and line of the \
-code that checks these conditions:
+waits for a condition that the code does not check. No comment cites the code that checks these \
+conditions:
   SaveCode.tla:8 Retry: screen = "Saving"
   SaveCode.tla:9 TimeOut: retries = 1
-Put that file and line in a comment on each condition, as in \\* pay.ts:120, or remove the \
+Put the file of that code in a comment on each condition, with the code it quotes in backticks, \
+as in \\* pay.ts `if (sent > 0)`, or its file and line, as in \\* pay.ts:120, or remove the \
 condition when no code checks it.
 """
     warnings = (

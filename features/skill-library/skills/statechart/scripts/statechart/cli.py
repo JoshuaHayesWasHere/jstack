@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -30,11 +31,11 @@ USAGE = {
     "from-spec": (
         "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE]"
         " | --against AGREED.tla [--against-config FILE]] [--label TEXT] [--map FILE]"
-        " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png]"
+        " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
     ),
     "from-chart": (
         "statechart from-chart CHART.mmd [--module NAME] [--expect-broken RULE]... [--title TEXT]"
-        " [--out DIR] [--png]"
+        " [--out DIR] [--png] [--keep-work]"
     ),
 }
 
@@ -81,7 +82,9 @@ FROM_SPEC = """from-spec SPEC.tla
                      runs TLC. Its comments say what each function gets.
 
   With --fixed or --against, SPEC.tla (and FIXED.tla) models the code, and the command finds each
-  condition of an action that no comment ties to code with a file and line, as in \\* pay.ts:120.
+  condition of an action that no comment ties to code. A comment cites the code by its file and
+  the code it quotes in backticks, as in \\* pay.ts `if (sent > 0)`, or by a file and line, as in
+  \\* pay.ts:120, but a quote needs no edit when the lines above it move.
   A condition is a conjunct of the action that changes nothing and reads a variable that the
   action does not change. A rule can hold only because the model waits for a condition that the
   code does not check, so the command prints these conditions when a rule holds.
@@ -121,6 +124,10 @@ COMMON = f"""Both commands
                      it did not write. On a filesystem that cannot rename, the command copies the
                      files into place, and overlapping runs can mix their files.
   --png              Also render each chart to PNG with npx {MERMAID_CLI}, a pinned version.
+  --keep-work        Keep the temporary folder that the run writes its files and TLC's output in,
+                     and print its path, for a look at what TLC did. Without it, the command
+                     removes that folder when it ends: when it finishes, when it stops on an error,
+                     and when it is interrupted or sent SIGTERM.
   -h, --help         Print this help, and exit 0.
 
 Output
@@ -136,9 +143,9 @@ Output
   stories.md         One entry per bug: the rule, why it breaks, the shortest path in reader
                      steps, and what the --fixed or --against model does instead.
   summary.json       The counts behind the chart. With --fixed or --against, uncited has the
-                     conditions with no file and line for each code model. With --against,
-                     second.listed has what each config beside AGREED.tla expects, and each bug
-                     has the configs that list it.
+                     conditions with no cite for each code model. With --against, second.listed
+                     has what each config beside AGREED.tla expects, and each bug has the
+                     configs that list it.
   tlc/               The config and the TLC output of each run. When the overview has regions,
                      from-spec also writes tlc/regions-all.mmd, the regions with every arrow, and
                      tlc/regions-proof.mmd, every state and step of TLC's graph in one region.
@@ -210,10 +217,11 @@ Exit codes
      or a chart that --png cannot render. When a chart does not render, the command keeps the
      files it wrote and exits 2, whatever the rules give. Otherwise, exit 2 does not change the
      output folder, unless the command moved it aside and cannot put it back. Then the message
-     names the folder's new path. When TLC stops on an error, the message names TLC's output, in a
-     temporary folder that the command keeps. When the command cannot put its files in the output
-     folder, it keeps them in a temporary folder, and the message names it. The command checks
-     its input files again before --png renders, so a changed input stops the run before that."""
+     names the folder's new path. When TLC stops on an error, the message names TLC's output, and
+     when the command cannot put its files in the output folder, the message says so. Both times
+     the command removes its temporary folder, unless --keep-work keeps it, and then the message
+     names the folder. The command checks its input files again before --png renders, so a
+     changed input stops the run before that."""
 
 HELP = {
     "": f"""{usage([*USAGE.values(), "statechart [from-spec|from-chart] --help"])}
@@ -282,6 +290,8 @@ def parse_args(argv):
             return {"help": HELP[command]}
         if a == "--png":
             flags["png"] = True
+        elif a == "--keep-work":
+            flags["keep-work"] = True
         elif a in FLAGS[command]:
             if i + 1 == len(rest):
                 raise CannotFinish(f"{a} needs a value. {more(command)}")
@@ -383,6 +393,41 @@ def split_rules(cfg):
     }
 
 
+def stop_group(child):
+    """Stops the process group that `child` leads: SIGTERM, which `jgauge test-slot` passes on to
+    TLC, then SIGKILL to what is left once `child` ends or after a grace period. A group with no
+    process left is no fault."""
+    for number in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(child.pid, number)
+        except (ProcessLookupError, PermissionError):
+            pass
+        try:
+            child.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+
+
+def run_in_own_group(command, cwd):
+    """Runs `command` in a process group of its own, as subprocess.run does, and on an error, an
+    interrupt or SIGTERM stops the whole group, so a TLC under `jgauge test-slot` does not outlive
+    the run whose folders it writes in."""
+    child = subprocess.Popen(
+        command,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = child.communicate()
+    except BaseException:
+        stop_group(child)
+        raise
+    return subprocess.CompletedProcess(command, child.returncode, stdout, stderr)
+
+
 def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
     with open(f"{base}.cfg", "w", encoding="utf-8") as handle:
         handle.write(cfg)
@@ -411,12 +456,7 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1"):
         os.path.basename(spec),
     ]
     try:
-        r = subprocess.run(
-            in_test_slot(command),
-            cwd=os.path.dirname(os.path.abspath(spec)),
-            capture_output=True,
-            text=True,
-        )
+        r = run_in_own_group(in_test_slot(command), os.path.dirname(os.path.abspath(spec)))
     except OSError as e:
         raise CannotFinish(f"cannot run TLC: {e.strerror or e}") from e
     finally:
@@ -886,21 +926,42 @@ def snapshot(files, inputs=None):
     return inputs
 
 
-def in_work_folder(body):
+class Terminated(BaseException):
+    pass
+
+
+def terminated(signum, frame):
+    raise Terminated()
+
+
+def in_work_folder(body, keep):
+    """Runs `body` in a new temporary folder, and removes the folder when it ends, also on an
+    error, an interrupt or SIGTERM, unless `keep`. Then it names the folder."""
     work = tempfile.mkdtemp(prefix="statechart-")
-    os.mkdir(os.path.join(work, "tlc"))
-    keep = False
+    kept = f"The files that this run wrote are in {rel(work)}."
+    was = signal.signal(signal.SIGTERM, terminated)
+    named = False
     try:
+        os.mkdir(os.path.join(work, "tlc"))
         return body(work)
-    except NotPublished as e:
-        keep = True
-        raise NotPublished(f"{e} The files that this run wrote are in {rel(work)}.") from e
-    except TlcStopped:
-        keep = True
-        raise
+    except CannotFinish as e:
+        if not keep:
+            if isinstance(e, (TlcStopped, NotPublished)):
+                raise type(e)(
+                    f"{e} The command removed this run's files: pass --keep-work to keep them."
+                ) from e
+            raise
+        named = True
+        raise type(e)(f"{e} {kept}") from e
+    except Terminated:
+        sys.exit(128 + signal.SIGTERM)
     finally:
+        signal.signal(signal.SIGTERM, was)
         if not keep:
             shutil.rmtree(work, ignore_errors=True)
+        elif not named:
+            sys.stdout.flush()
+            print(kept, file=sys.stderr)
 
 
 def moved(source, target, *missed):
@@ -1084,12 +1145,11 @@ def warn_uncited(models):
                 f"{rel(spec)}: {join_and(held)} {'holds' if len(held) == 1 else 'hold'}, but a rule"
                 " can"
                 " also hold because the model waits for a condition that the code does not check."
-                " No"
-                " comment gives the file and line of the code that checks"
+                " No comment cites the code that checks"
                 f" {'this condition' if len(found) == 1 else 'these conditions'}:\n{listed}\nPut"
-                " that"
-                " file and line in a comment on each condition, as in \\* pay.ts:120, or remove the"
-                " condition when no code checks it.",
+                " the file of that code in a comment on each condition, with the code it quotes in"
+                " backticks, as in \\* pay.ts `if (sent > 0)`, or its file and line, as in"
+                " \\* pay.ts:120, or remove the condition when no code checks it.",
                 file=sys.stderr,
             )
         found_by_spec[os.path.basename(spec)] = found
@@ -1137,7 +1197,7 @@ def from_spec(given, flags):
             work, out, inputs, drawn, rules_as_expected(now, other, expected), flags.get("png")
         )
 
-    return in_work_folder(body)
+    return in_work_folder(body, flags.get("keep-work"))
 
 
 def from_chart(given, flags):
@@ -1175,7 +1235,7 @@ def from_chart(given, flags):
         ok = rules_as_expected(now, None, expected) and compared.returncode == 0
         return finish(work, out, inputs, drawn, ok, flags.get("png"))
 
-    return in_work_folder(body)
+    return in_work_folder(body, flags.get("keep-work"))
 
 
 def main(argv=None):
