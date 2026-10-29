@@ -25,6 +25,7 @@ import sys
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from importlib import metadata
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -193,6 +194,18 @@ class Machine:
                 continue
             found |= {Path(line.strip()) for line in lines if line.strip().startswith("/")}
         return frozenset(found)
+
+    def tool_entry_points(self, tool: str) -> dict[str, dict[str, str]]:
+        """The entry points of uv's tool `tool`, by group and then by name, from its package's
+        entry_points.txt. An editable install writes that file when uv builds it, and does not
+        rewrite it when pyproject.toml gains a group or a script. There are none when there is
+        no such tool or no such file."""
+        record = f"lib/python*/site-packages/{tool.replace('-', '_')}-*.dist-info"
+        found: dict[str, dict[str, str]] = {}
+        for path in sorted((self._tools() / tool).glob(record)):
+            for point in metadata.PathDistribution(path).entry_points:
+                found.setdefault(point.group, {})[point.name] = point.value
+        return found
 
     def tool_version(self, tool: str) -> str | None:
         """The version of uv's tool `tool`, from the `Version:` of its package's METADATA.
