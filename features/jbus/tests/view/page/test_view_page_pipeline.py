@@ -5,9 +5,10 @@ The server's half of the board, `panels/pipeline/panel.py`, is ux-flow-model's. 
 the board JSON from a fixture (`browser.boarded`), the shape the two halves pin, with 5, 27 and
 80 rows. The 27 are the live rows of 2026-10-26 08:06 EDT that the mock was built from.
 
-At 1440 by 900 the board is three headlines, a strip of the stages and a column of cards for
-each stage. At 390 by 844 the headlines stack and each stage is a `<details>`. Each test reads
-the headlines, picks a row, counts the cards it marks and the cards it dims, and presses Esc.
+At 1440 by 900 the board is three headlines and a column of cards for each stage, headed by
+its name, count and oldest age. At 390 by 844 the headlines stack and each stage is a
+`<details>`. Each test reads the headlines, picks a row, counts the cards it marks and the cards
+it dims, and presses Esc.
 The page never runs wider than the screen, and axe finds no serious issue on it.
 """
 
@@ -201,15 +202,7 @@ def test_each_stage_shows_its_count_and_oldest_and_the_stuck_one_is_outlined(vie
         for c, one in ((c, next(o for o in mine if o["slug"] == c["slug"])) for c in cards):
             assert one["home"] in c["text"] and one["cause"] in c["text"], c
             assert age(made, one["since"]) in c["text"], c
-    if wide == 1440:
-        strip = {one["key"]: one for one in first["strip"]}
-        assert list(strip) == keys
-        assert [k for k, one in strip.items() if one["hot"]] == [stuck]
-        for stage in made["stages"]:
-            assert strip[stage["key"]]["text"].startswith(f"{stage['name']} {stage['count']}")
-            if stage["still"]:
-                assert f"{stage['still']} not moving" in strip[stage["key"]]["text"]
-    else:
+    if wide == 390:
         assert [one["key"] for one in first["stages"] if one["open"]] == [stuck]
 
 
@@ -328,14 +321,14 @@ def test_the_homes_map_moved_to_its_own_tab(tmp_path):
 
 
 @pytest.mark.parametrize("wide", [1440, 900, 390])
-def test_the_headlines_and_the_strip_are_150_words_at_most_with_the_cards_apart(tmp_path, wide):
+def test_the_headlines_are_150_words_at_most_with_the_cards_apart(tmp_path, wide):
     """The first screen's budget of jv-budgets (#337), for the board: the cards are counted
     apart, as the dots of "Later" were. On a phone the header with its Homes tab stays one
     line."""
     seen, _ = shown(tmp_path, "80", (wide, 900 if wide > 390 else 844))
     first = seen["before"]
     assert first["words"]["heads"] > 0, first["words"]
-    assert first["words"]["heads"] + first["words"]["strip"] <= WORDS, first["words"]
+    assert first["words"]["heads"] <= WORDS, first["words"]
     assert first["homes"] == {"hidden": False, "current": ""}
     if wide == 390:
         assert first["header"] <= 56, first["header"]

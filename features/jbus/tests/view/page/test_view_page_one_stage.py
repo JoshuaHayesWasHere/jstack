@@ -3,7 +3,7 @@ them, are the names the project page, the Homes drawer and help say, and a row i
 in each of them.
 
 The names are the board's eleven, with its second review called "Re-review", short enough
-that the board's strip of stages keeps its one line at a desk. Help lists them from the one
+that the board's column heads keep their one line at a desk. Help lists them from the one
 table, in order, and no two of its entries share a name.
 """
 
