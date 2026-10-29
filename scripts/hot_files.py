@@ -15,12 +15,6 @@ first `--top` (20):
    say `the rebase dropped <n> of ... in <file> and ...`. It counts each such line once for each
    pull request and head, and puts the lines dropped beside the count. A hold line names no
    head, so the script counts it once for each drop it reports.
-   The table also counts the rebases that changed the patch. Those are the `Rebase: patch
-   changed in <files>, before <sha>, head <sha>` lines of the home's briefs. The script counts
-   each one once for each head, for a brief whose pull request is in table 1. Their list of
-   files is free text ("a.md and b.md", "12 feature files"). The script counts a word of it
-   when the word is a path of that pull request, or a name that only one of its paths ends
-   with. It names the other words on stderr.
 
 jmerge logs a wait or hold line only when it differs from the last one for its pull request
 (`merge.log.last`). So table 3 counts a rebase once, however long its pull request waited. A pull
@@ -49,8 +43,6 @@ DROPPED = re.compile(
     r"(?: with no Dropped on rebase line at ([0-9a-f]{12}))?$"
 )
 LOST = re.compile(r"(\d+) of (?:main's lines|its own) in (\S+)")
-CHANGED = re.compile(r"^Rebase: patch changed in (.+), before [0-9a-f]+, head ([0-9a-f]+)$", re.M)
-PULL = re.compile(r"(https://\S+?)/pull/(\d+)")
 
 
 def gh(*args):
@@ -118,42 +110,6 @@ def drops(log, repo, since, until):
     return rebases, lines
 
 
-def changed(briefs, repo, files):
-    """The rebases that changed a pull request's patch, counted for each file. `files` maps each
-    pull request's number to the paths it touched. The list of files on a brief's `Rebase:` line is
-    free text, so the script counts a word only when it is a path of that pull request, or a name
-    that only one of its paths ends with. It names the other words on stderr."""
-    heads = set()
-    counted = Counter()
-    for brief in briefs:
-        text = brief.read_text(encoding="utf-8", errors="replace")
-        pulls = [int(number) for url, number in PULL.findall(text) if url == repo]
-        if not pulls or pulls[-1] not in files:
-            continue
-        touched = files[pulls[-1]]
-        for paths, head in CHANGED.findall(text):
-            if head in heads:
-                continue
-            heads.add(head)
-            found, unread = set(), []
-            for word in paths.split():
-                ends = [path for path in touched if path.endswith(f"/{word}")]
-                if word in touched:
-                    found.add(word)
-                elif len(ends) == 1:
-                    found.add(ends[0])
-                elif word != "and":
-                    unread.append(word)
-            counted.update(found)
-            if unread:
-                print(
-                    f"unread: {brief.name} at {head[:12]} names {' '.join(unread)}, "
-                    f"no path of #{pulls[-1]}, so it is not counted",
-                    file=sys.stderr,
-                )
-    return counted
-
-
 def ranked(counts, top):
     return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:top]
 
@@ -205,19 +161,14 @@ def main():
     rebases, lines = drops(
         log.read_text(encoding="utf-8", errors="replace"), repo, args.since, args.until
     )
-    files = {pull["number"]: {one["path"] for one in pull["files"]} for pull in pulls}
-    patched = changed(sorted((home / "tasks").glob("*.md")), repo, files)
     print(
         "Rebases that dropped lines per file (merge.log, once a pull request and head), "
-        "the lines dropped, and the rebases that changed the patch (the briefs of table 1)"
+        "and the lines dropped"
     )
-    print(f"{'drops':>6}  {'lines':>5}  {'changed':>7}  file")
-    order = sorted(
-        set(rebases) | set(patched),
-        key=lambda path: (-rebases[path], -patched[path], -lines[path], path),
-    )
+    print(f"{'drops':>6}  {'lines':>5}  file")
+    order = sorted(rebases, key=lambda path: (-rebases[path], -lines[path], path))
     for path in order[: args.top]:
-        print(f"{rebases[path]:6}  {lines[path]:5}  {patched[path]:7}  {path}")
+        print(f"{rebases[path]:6}  {lines[path]:5}  {path}")
 
 
 if __name__ == "__main__":

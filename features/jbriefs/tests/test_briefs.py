@@ -836,15 +836,6 @@ def test_reviewer_lines_are_read_by_kind_and_a_scoped_one_by_its_head():
     assert not below.launched(below.reviewers(brief, "Second reviewer")[0])
 
 
-def test_a_rebase_line_says_whether_the_patch_changed_and_its_two_heads():
-    before, after = "a" * 40, "b" * 40
-    brief = (
-        f"## Result\nRebase: patch unchanged, before {before}, head {after}\n"
-        f"Rebase: patch changed in src/a.py, before {after}, head {before}\n"
-    )
-    assert below.rebases(brief) == [(False, before, after), (True, after, before)]
-
-
 HEAD_LINES = ("^Thread:", "^Home:", "reviewer", "^Rebase:", "^## ")
 
 

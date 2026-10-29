@@ -1,5 +1,5 @@
 function roundsOf(slug) { return (S.rounds || []).filter(function (r) { return r.slug === slug; })[0] || null; }
-function roundsSay(r) { return plural(r.reviews.length, "review", "reviews") + ", " + plural(r.rebases, "rebase", "rebases") + ", " + plural(r.woke, "wake", "wakes"); }
+function roundsSay(r) { return plural(r.reviews.length, "review", "reviews") + ", " + plural(r.woke, "wake", "wakes"); }
 function yesNo(b) { return b ? "needed" : "not needed"; }
 function dRounds(slug) {
   var r = roundsOf(slug);
@@ -11,8 +11,8 @@ function dRounds(slug) {
     var t = ms(v.at);
     return '<li><span class="t">' + ord(i + 1) + '</span><span><span class="chip ' + (v.verdict === "clean" ? "ok" : v.verdict === "findings" ? "rev" : "gap") + '">' + esc(v.verdict || "no verdict") + '</span> review of <code>' + esc((v.head || "no head").slice(0, 12)) + '</code><span class="r">' + plural(v.findings, "finding", "findings") + '</span></span><span class="d">' + (t == null ? gap("no time kept") : day(t)) + '</span></li>';
   }).join("") + '</ul>' : '<p class="src">No review is written in the brief.</p>');
-  h += '<h3>After the review</h3><dl class="kv"><dt>second pass</dt><dd>' + yesNo(r.second) + '</dd><dt>scoped review</dt><dd>' + yesNo(r.scoped) + '</dd><dt>wakes</dt><dd>' + r.woke + '</dd><dt>rebases</dt><dd>' + r.rebases + '</dd></dl>';
-  return h + '<p class="src" style="margin-top:10px">Read from the brief with the reader <code>jmerge</code> merges by. A review has a time only where the event log has a <code>review</code> event of its head. Wakes are the lines that start <code>Woke</code> or <code>Woken</code>, rebases the <code>Rebase:</code> lines.</p><p>' + taskBtn(slug) + '</p>';
+  h += '<h3>After the review</h3><dl class="kv"><dt>second pass</dt><dd>' + yesNo(r.second) + '</dd><dt>scoped review</dt><dd>' + yesNo(r.scoped) + '</dd><dt>wakes</dt><dd>' + r.woke + '</dd></dl>';
+  return h + '<p class="src" style="margin-top:10px">Read from the brief with the reader <code>jmerge</code> merges by. A review has a time only where the event log has a <code>review</code> event of its head. Wakes are the lines that start <code>Woke</code> or <code>Woken</code>.</p><p>' + taskBtn(slug) + '</p>';
 }
 panel({
   drawer: dRounds,

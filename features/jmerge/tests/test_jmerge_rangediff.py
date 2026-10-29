@@ -486,6 +486,28 @@ def test_a_second_rebase_is_compared_with_the_head_the_review_saw(proven_merged,
     assert run.jmerge(proven_merged, rules) == [rebased.waits()]
 
 
+def test_a_fixed_line_that_names_a_rebased_head_is_compared_from_the_head_kept_before_it(
+    proven_merged, rules
+):
+    """The crew's `Fixed:` line names the head a rebase made of its fix, and a later rebase
+    replaced that head too. `jmerge` compares the head from the fix the crew kept before the
+    first rebase, as it does for a `Fixed:` line it reads from git, so the first rebase's change
+    to the content still waits for its scoped review once the second rebase is clean."""
+    rebased = Rebased(proven_merged, {11: "theirs 11"}, BOTH)
+    first, tree, main = rebased.head, proven_merged.tree, proven_merged.home.main
+    merge.git(main, "update-ref", f"refs/jstack/pre-rebase/alpha/{first[:12]}", first)
+    rebased.tip = commit(main, "theirs again", {}, "other.txt")
+    merge.git(main, "push", "-q", "origin", "main")
+    merge.git(tree, "fetch", "-q", "origin")
+    merge.git(tree, "rebase", "-q", "origin/main")
+    merge.git(tree, "push", "-q", "--force", "origin", "alpha")
+    rebased.head = merge.git(tree, "rev-parse", "HEAD")
+    proven_merged.home.open_pull_request(rebased.head, checks=(LATER,), files=[FILE])
+    rebased.brief(merge.review("findings", rebased.base), FIXED.format(first))
+    assert run.jmerge(proven_merged, rules) == [rebased.waits()]
+    assert run.merges(proven_merged) == []
+
+
 def test_a_rebase_that_left_the_patch_as_it_was_carries_the_review_over(proven_merged, rules):
     rebased = Rebased(proven_merged, {28: "theirs 28"})
     rebased.brief(merge.review("clean", rebased.before))
@@ -821,6 +843,36 @@ def test_findings_written_after_the_fixed_line_keep_a_head_that_moved_on_from_a_
         ready.short_of(merge.brief(reviews, "Finding: fixed, it\n" + FIXED.format(HEAD)), HEAD)
         == ""
     )
+
+
+FIRST_ROUND = (
+    merge.review("findings", REVIEWED)
+    + "Finding: fixed, it is wrong\n"
+    + FIXED.format(FIRST)
+    + f"Scoped review: needed since {REVIEWED}, the fix changed a.py\n"
+    + merge.review("findings", FIRST)
+)
+
+
+def test_a_fixed_line_above_a_later_review_round_is_no_line_for_that_round():
+    """The crew answered the first review with `Fixed:`, and the scoped review of that fix
+    found more. The line answers the first round, so the later one has no `Fixed:` line."""
+    text = merge.brief(FIRST_ROUND)
+    assert ready.said_of(text).fixed == ""
+    assert ready.short_of(text, HEAD) == ready.NO_FIXED
+    above = merge.brief(merge.review("findings", REVIEWED), FIXED.format(FIRST))
+    assert ready.said_of(above).fixed == FIRST
+
+
+def test_jmerge_reads_the_fixed_line_a_later_round_is_owed_from_its_checked_line():
+    handled = (
+        "Finding: fixed, it is wrong\n"
+        "Scoped review: none, the fix stayed inside the reviewed files\n"
+        f"Checked: make check-fast BASE=origin/main exit 0 at {HEAD}\n"
+    )
+    text = merge.brief(FIRST_ROUND + handled)
+    assert ready.unwritten_fixed(text, HEAD) == ready.Unwritten(FIRST)
+    assert ready.unwritten_fixed(text.replace(" exit 0 ", " exit 1 "), HEAD) is None
 
 
 class CiFix:

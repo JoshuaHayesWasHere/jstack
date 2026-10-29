@@ -204,16 +204,17 @@ def test_a_task_drawer_says_its_rounds_in_one_line_that_opens_them(scene, tmp_pa
         other = shown(served.port, tmp_path, "rounds:oat-bowl")
     finally:
         served.close()
-    assert "2 reviews, 1 rebase, 3 wakes" in task
+    assert "2 reviews, 3 wakes" in task
     assert drawer.startswith(
         f"All › demo › oat-milk Rounds oat-milk Updated {NOW.astimezone():%H:%M:%S} "
-        "Close (Esc) Now 2 reviews, 1 rebase, 3 wakes"
+        "Close (Esc) Now 2 reviews, 3 wakes"
     ), drawer
     at = ago(minutes=20).astimezone()
     when = f"{at:%H:%M}" if at.date() == NOW.astimezone().date() else f"{at:%m-%d %H:%M}"
     assert f"1st findings review of {first[:12]} 2 findings {when}" in drawer
     assert f"2nd clean review of {fixed[:12]} 0 findings no time kept" in drawer
-    assert "second pass needed scoped review needed wakes 3 rebases 1" in drawer
+    assert "second pass needed scoped review needed wakes 3" in drawer
+    assert "rebases" not in drawer
     assert "0 reviews" not in other
     assert "not read it has no brief in its home or in jbus's copies." in other
 
