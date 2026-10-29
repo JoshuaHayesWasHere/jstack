@@ -61,6 +61,7 @@ from jmerge import mainjson
 from jmerge import stacked as stacks
 from jroles import ledger, pool
 
+
 def launched(run: Pass, slug: str, role: str = queue.CREW) -> str:
     """Return the thread id of the slug's launch of `role`, or nothing if it has none. A scout's
     row taken over by the crewmate's brief it delivered keeps the scout's record beside the
