@@ -20,6 +20,7 @@ the piece itself names this install's layout.
 """
 
 import copy
+import hashlib
 import json
 import os
 import re
@@ -1086,6 +1087,12 @@ def _t3_order(version: str) -> tuple[tuple[int, ...], tuple[int, ...]]:
     return _numbers(said[1]), (0, int(prerelease[1]), int(prerelease[2]))
 
 
+def t3_command(machine: Machine) -> Path | None:
+    """The `t3` command that the app writes into ~/.t3/bin, or else the one on PATH."""
+    written = machine.home / ".t3" / "bin" / "t3"
+    return written if os.access(written, os.X_OK) else machine.which("t3")
+
+
 @dataclass(frozen=True)
 class T3Code:
     """T3 Code, stable, nightly or preview, which the probe asks through the `t3` command that
@@ -1100,8 +1107,7 @@ class T3Code:
         return get(machine, "t3", arch="t3code-bin", brew="--cask t3-code")
 
     def probe(self, machine: Machine) -> Found:
-        written = machine.home / ".t3" / "bin" / "t3"
-        command = written if os.access(written, os.X_OK) else machine.which("t3")
+        command = t3_command(machine)
         if command is None:
             return Found.missing(
                 f"T3 Code 0.1.2 or newer, stable or nightly ({self.where(machine)})"
@@ -1122,6 +1128,49 @@ class T3Code:
         if machine.platform in WINDOWS:
             return WSL2
         return "on Arch: t3code-bin"
+
+
+T3_JSTACK = re.compile(r"\+jstack\.([0-9a-f]{10})\b")
+
+
+def patch_series(packaging: Path) -> str:
+    """The series a jstack build's version names: the first 10 hex digits of the sha256 of
+    the folder's patches, read in name order, as the PKGBUILD's `_series` reads them."""
+    digest = hashlib.sha256()
+    for one in sorted(packaging.glob("*.patch"), key=lambda path: path.name.encode()):
+        digest.update(one.read_bytes())
+    return digest.hexdigest()[:10]
+
+
+@dataclass(frozen=True)
+class T3JstackBuild:
+    """T3 Code nightly with jstack's tree sidebar, which the PKGBUILD in `packaging` builds
+    from upstream's tag and the folder's patches. Its version carries `+jstack.<series>`.
+    The tree's own switch is T3's setting, which the probe never reads.
+    ok: `t3 --version` names the series of the patches in `packaging`.
+    missing: no `t3` that answers, or an upstream build.
+    old: a build of other patches."""
+
+    packaging: Path
+
+    def ask(self, machine: Machine) -> str:
+        cache = machine.home / ".cache" / "t3code-jstack"
+        dirs = " ".join(f"{name}={cache}" for name in ("BUILDDIR", "PKGDEST", "SRCDEST"))
+        return f"env {dirs} makepkg -si -D {self.packaging}"
+
+    def probe(self, machine: Machine) -> Found:
+        command = t3_command(machine)
+        ran = machine.run([str(command), "--version"]) if command is not None else None
+        said = None if ran is None or ran.code != 0 else T3_VERSION.search(ran.out)
+        if said is None:
+            return Found.missing("no t3 that answers --version, so no jstack build")
+        built = T3_JSTACK.search(ran.out)
+        if built is None:
+            return Found.missing(f"{said[0]} is upstream's build, without the tree sidebar")
+        series = patch_series(self.packaging)
+        if built[1] != series:
+            return Found.old(f"built from patches {built[1]}, and jstack's are {series}")
+        return Found.ok(f"{said[0]}+jstack.{series}")
 
 
 @dataclass(frozen=True)

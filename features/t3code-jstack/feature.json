@@ -1,0 +1,8 @@
+{
+  "$schema": "../../schemas/feature.schema.json",
+  "name": "t3code-jstack",
+  "description": "Builds T3 Code nightly with jstack's tree sidebar, from upstream's tag and jstack's patches, as an Arch package.",
+  "docs": [
+    "docs/t3code-jstack.md"
+  ]
+}

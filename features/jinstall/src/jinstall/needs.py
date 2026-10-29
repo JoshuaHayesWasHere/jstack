@@ -44,10 +44,12 @@ from jinstall.kinds import (
     StateRepo,
     StatusLine,
     T3Code,
+    T3JstackBuild,
     Units,
     claude_homes,
     dead,
     declared,
+    t3_command,
     templates,
 )
 from jinstall.layout import (
@@ -105,6 +107,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     Needs that the install only probes:
       hard      platform                      Platform, ok on Linux and macOS
       hard      t3                            T3Code(T3_FLOOR)
+      optional  t3 jstack build               T3JstackBuild, on Arch with a nightly T3 Code
       hard      claude                        Program("claude", arch="claude-code", ...)
       hard      uv                            Program("uv", floor=UV_FLOOR)
       hard      git                           Program("git", floor=(2, 31))
@@ -175,6 +178,7 @@ def needs(machine: Machine) -> tuple[Need, ...]:
     found = [
         Need("platform", Level.HARD, Platform()),
         Need("t3", Level.HARD, T3Code(T3_FLOOR)),
+        *_t3_jstack(machine),
         Need(
             "claude",
             Level.HARD,
@@ -361,6 +365,19 @@ def _commands(machine: Machine) -> Commands:
         points = metadata.EntryPoints(())
     names = sorted(one.name for one in points if one.group == "console_scripts")
     return Commands(plugin["name"], tuple(names), version=plugin["version"])
+
+
+def _t3_jstack(machine: Machine) -> list[Need]:
+    """The jstack build's need, listed only on Arch with a nightly T3 Code, which the build
+    replaces: its PKGBUILD builds for no other machine, and it reads the nightly's data."""
+    command = t3_command(machine)
+    if not machine.which("pacman") or command is None:
+        return []
+    ran = machine.run([str(command), "--version"])
+    if ran.code != 0 or "-nightly." not in ran.out:
+        return []
+    packaging = machine.source / "features" / "t3code-jstack" / "packaging"
+    return [Need("t3 jstack build", Level.OPTIONAL, T3JstackBuild(packaging))]
 
 
 def _jbus_config(machine: Machine) -> Path:

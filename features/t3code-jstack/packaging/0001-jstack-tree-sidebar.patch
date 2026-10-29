@@ -1,0 +1,2380 @@
+From d81fce80758f717ab59d311ad333455bc32cb8b7 Mon Sep 17 00:00:00 2001
+From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
+Date: Thu, 29 Oct 2026 12:32:44 -0400
+Subject: [PATCH] feat(web): jstack tree sidebar, fed by jbus
+
+The sidebar draws a jstack project as one row merged with its root home,
+its domain homes under it, and its worker tasks (scout, crew, review) as
+quiet rows with stage ticks. The server watches jbus's state and streams
+it over subscribeJbusWork. Settings > Labs switches the tree and its
+options; it is on by default.
+
+A local build's version carries +jstack build metadata, which keeps the
+nightly channel.
+---
+ apps/server/src/auth/RpcAuthorization.ts      |   1 +
+ apps/server/src/jstack/JbusWork.test.ts       |  50 +++
+ apps/server/src/jstack/JbusWork.ts            | 175 +++++++++
+ apps/server/src/jstack/jbusWork.logic.test.ts | 165 ++++++++
+ apps/server/src/jstack/jbusWork.logic.ts      | 218 +++++++++++
+ .../src/observability/RpcInstrumentation.ts   |   1 +
+ apps/server/src/server.ts                     |   8 +-
+ apps/server/src/ws.test.ts                    |   2 +
+ apps/server/src/ws.ts                         |   8 +
+ apps/web/src/components/Sidebar.tsx           |  92 +++++
+ .../settings/JstackTreeSettings.tsx           | 149 +++++++
+ .../components/settings/LabsSettingsPanel.tsx |   2 +
+ .../src/components/settings/settingsSearch.ts |  30 ++
+ .../src/components/sidebar/JstackTreeRows.tsx | 270 +++++++++++++
+ .../components/sidebar/SidebarThreadRow.tsx   |   4 +-
+ .../sidebar/jstackTree.logic.test.ts          | 249 ++++++++++++
+ .../components/sidebar/jstackTree.logic.ts    | 369 ++++++++++++++++++
+ apps/web/src/hooks/useSettings.ts             |  10 +-
+ apps/web/src/lib/jbusWorkState.ts             |  16 +
+ apps/web/src/shortcuts/chatRouteCommands.ts   |   6 +-
+ packages/client-runtime/src/rpc/client.ts     |   1 +
+ packages/client-runtime/src/state/server.ts   |   5 +
+ packages/contracts/src/index.ts               |   1 +
+ packages/contracts/src/jbusWork.ts            |  68 ++++
+ packages/contracts/src/rpc.ts                 |  10 +
+ packages/contracts/src/settings.ts            |  30 ++
+ scripts/build-desktop-artifact.test.ts        |  10 +
+ scripts/build-desktop-artifact.ts             |   3 +-
+ 28 files changed, 1945 insertions(+), 8 deletions(-)
+ create mode 100644 apps/server/src/jstack/JbusWork.test.ts
+ create mode 100644 apps/server/src/jstack/JbusWork.ts
+ create mode 100644 apps/server/src/jstack/jbusWork.logic.test.ts
+ create mode 100644 apps/server/src/jstack/jbusWork.logic.ts
+ create mode 100644 apps/web/src/components/settings/JstackTreeSettings.tsx
+ create mode 100644 apps/web/src/components/sidebar/JstackTreeRows.tsx
+ create mode 100644 apps/web/src/components/sidebar/jstackTree.logic.test.ts
+ create mode 100644 apps/web/src/components/sidebar/jstackTree.logic.ts
+ create mode 100644 apps/web/src/lib/jbusWorkState.ts
+ create mode 100644 packages/contracts/src/jbusWork.ts
+
+diff --git a/apps/server/src/auth/RpcAuthorization.ts b/apps/server/src/auth/RpcAuthorization.ts
+index a1b05c32a0..2d61240c30 100644
+--- a/apps/server/src/auth/RpcAuthorization.ts
++++ b/apps/server/src/auth/RpcAuthorization.ts
+@@ -166,6 +166,7 @@ export const RPC_REQUIRED_SCOPES = {
+   [WS_METHODS.subscribeWorktreeSetup]: AuthOrchestrationReadScope,
+   [WS_METHODS.worktreeSetupCancel]: AuthOrchestrationOperateScope,
+   [WS_METHODS.subscribeResourceTelemetry]: AuthDiagnosticsReadScope,
++  [WS_METHODS.subscribeJbusWork]: AuthOrchestrationReadScope,
+   [WS_METHODS.vcsRefreshStatus]: AuthOrchestrationReadScope,
+   [WS_METHODS.gitResolvePullRequest]: AuthOrchestrationReadScope,
+   [WS_METHODS.vcsListRefs]: AuthOrchestrationReadScope,
+diff --git a/apps/server/src/jstack/JbusWork.test.ts b/apps/server/src/jstack/JbusWork.test.ts
+new file mode 100644
+index 0000000000..82b8d6e718
+--- /dev/null
++++ b/apps/server/src/jstack/JbusWork.test.ts
+@@ -0,0 +1,50 @@
++import * as NodeServices from "@effect/platform-node/NodeServices";
++import { assert, it } from "@effect/vitest";
++import * as Effect from "effect/Effect";
++import * as FileSystem from "effect/FileSystem";
++import * as Option from "effect/Option";
++import * as Path from "effect/Path";
++import * as Stream from "effect/Stream";
++
++import * as JbusWork from "./JbusWork.ts";
++
++const workFile = (value: string) =>
++  JSON.stringify({
++    work: [
++      { kind: "row", slug: "fix-it", value, lane: "running", thread: "mcp:crew", who: "crew" },
++    ],
++  });
++
++const seed = Effect.gen(function* () {
++  const fs = yield* FileSystem.FileSystem;
++  const path = yield* Path.Path;
++  const base = yield* fs.makeTempDirectoryScoped({ prefix: "t3code-jbus-work-" });
++  const roots = { jbus: path.join(base, "jbus"), home: path.join(base, "home") };
++  yield* fs.makeDirectory(path.join(roots.jbus, "jstack"), { recursive: true });
++  yield* fs.makeDirectory(path.join(roots.home, "jstack", "tasks"), { recursive: true });
++  // jbus keeps files beside its repo directories; probing `<file>/work.json` must not end discovery.
++  yield* fs.writeFileString(path.join(roots.jbus, "sign-in.json"), "{}");
++  yield* fs.writeFileString(path.join(roots.jbus, "jstack", "work.json"), workFile("working"));
++  yield* fs.writeFileString(path.join(roots.home, "jstack", "home-id"), "mcp:root\n");
++  return { roots, workPath: path.join(roots.jbus, "jstack", "work.json") };
++});
++
++it.live("reads each repo beside jbus's own files and follows work.json", () =>
++  Effect.gen(function* () {
++    const fs = yield* FileSystem.FileSystem;
++    const { roots, workPath } = yield* seed;
++    const service = yield* JbusWork.make(roots);
++    const { latest, changes } = yield* service.subscribe;
++    assert.deepEqual(
++      latest.tasks.map((task) => [task.slug, task.stage, task.homeThreadId]),
++      [["fix-it", "crew", "mcp:root"]],
++    );
++
++    yield* fs.writeFileString(workPath, workFile("quiet"));
++    const next = yield* Stream.runHead(changes);
++    assert.deepEqual(
++      Option.map(next, (snapshot) => snapshot.tasks.map((task) => task.stage)),
++      Option.some(["quiet"]),
++    );
++  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
++);
+diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
+new file mode 100644
+index 0000000000..85299d8a8e
+--- /dev/null
++++ b/apps/server/src/jstack/JbusWork.ts
+@@ -0,0 +1,175 @@
++// @effect-diagnostics-next-line nodeBuiltinImport:off -- watch must register before the first read; see make.
++import * as NodeFS from "node:fs";
++import * as NodeOS from "node:os";
++
++import { EMPTY_JBUS_WORK_SNAPSHOT, JbusWorkSnapshot } from "@t3tools/contracts";
++import * as Clock from "effect/Clock";
++import * as Context from "effect/Context";
++import * as Duration from "effect/Duration";
++import * as Effect from "effect/Effect";
++import * as FileSystem from "effect/FileSystem";
++import * as Layer from "effect/Layer";
++import * as Path from "effect/Path";
++import * as PubSub from "effect/PubSub";
++import * as Queue from "effect/Queue";
++import * as Ref from "effect/Ref";
++import * as Schema from "effect/Schema";
++import * as Scope from "effect/Scope";
++import * as Semaphore from "effect/Semaphore";
++import * as Stream from "effect/Stream";
++
++import {
++  type SnapshotSubscription,
++  subscribeBeforeSnapshot,
++} from "../utils/subscribeBeforeSnapshot.ts";
++import {
++  buildRepoWork,
++  mergeSnapshots,
++  readHomeLine,
++  slugsNeedingBriefs,
++  type JbusRepoFiles,
++} from "./jbusWork.logic.ts";
++
++export class JbusWork extends Context.Service<
++  JbusWork,
++  {
++    readonly subscribe: Effect.Effect<SnapshotSubscription<JbusWorkSnapshot>, never, Scope.Scope>;
++  }
++>()("t3/jstack/JbusWork") {}
++
++export interface JbusWorkRoots {
++  readonly jbus: string;
++  readonly home: string;
++}
++
++const decodeJson = Schema.decodeUnknownEffect(Schema.fromJsonString(Schema.Unknown));
++const encodeSnapshot = Schema.encodeSync(Schema.fromJsonString(JbusWorkSnapshot));
++
++const defaultJbusWorkRoots = (): JbusWorkRoots => {
++  const state = process.env.XDG_STATE_HOME || `${NodeOS.homedir()}/.local/state`;
++  return { jbus: `${state}/jbus`, home: `${state}/home` };
++};
++
++export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots) {
++  const fs = yield* FileSystem.FileSystem;
++  const path = yield* Path.Path;
++  const state = yield* Ref.make<JbusWorkSnapshot>(EMPTY_JBUS_WORK_SNAPSHOT);
++  const lastJson = yield* Ref.make(encodeSnapshot(EMPTY_JBUS_WORK_SNAPSHOT));
++  const changes = yield* PubSub.unbounded<JbusWorkSnapshot>();
++  const mutex = yield* Semaphore.make(1);
++
++  const readText = (file: string) =>
++    fs.readFileString(file).pipe(
++      Effect.map((value) => value.trim()),
++      Effect.orElseSucceed(() => null),
++    );
++  const readJson = (file: string) =>
++    fs.readFileString(file).pipe(
++      Effect.flatMap(decodeJson),
++      Effect.orElseSucceed((): unknown => null),
++    );
++  const listDirectory = (directory: string) =>
++    fs.readDirectory(directory).pipe(Effect.orElseSucceed((): ReadonlyArray<string> => []));
++
++  // exists fails, not false, when a parent is a file, as jbus/<file>.json/work.json is.
++  const isFile = (file: string) => fs.exists(file).pipe(Effect.orElseSucceed(() => false));
++  const repos = Effect.gen(function* () {
++    const found: Array<string> = [];
++    for (const name of yield* listDirectory(roots.jbus)) {
++      const hasWork = yield* isFile(path.join(roots.jbus, name, "work.json"));
++      const hasHome = yield* isFile(path.join(roots.home, name, "home-id"));
++      if (hasWork && hasHome) found.push(name);
++    }
++    return found.toSorted();
++  });
++
++  const readRepo = Effect.fnUntraced(function* (repo: string, nowMs: number) {
++    const bus = path.join(roots.jbus, repo);
++    const home = path.join(roots.home, repo);
++    const work = yield* readJson(path.join(bus, "work.json"));
++    const merged = yield* readJson(path.join(bus, "merged.json"));
++    const scopes: Array<JbusRepoFiles["scopes"][number]> = [];
++    for (const scope of yield* listDirectory(home)) {
++      const homeId = yield* readText(path.join(home, scope, "home-id"));
++      if (homeId === null || homeId === "") continue;
++      const prefix = yield* readText(path.join(home, scope, "prefix"));
++      scopes.push({ scope, homeId, prefix: prefix === "" ? null : prefix });
++    }
++    const briefHomes = new Map<string, string>();
++    for (const slug of slugsNeedingBriefs({ work, merged }, nowMs)) {
++      const brief = yield* readText(path.join(home, "tasks", `${slug}.md`));
++      const line = brief === null ? null : readHomeLine(brief);
++      if (line !== null) briefHomes.set(slug, line);
++    }
++    return buildRepoWork(
++      {
++        repo,
++        work,
++        merged,
++        questions: yield* readJson(path.join(bus, "questions.json")),
++        scouts: yield* readJson(path.join(bus, "scouts.json")),
++        rootHomeId: yield* readText(path.join(home, "home-id")),
++        scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
++        briefHomes,
++      },
++      nowMs,
++    );
++  });
++
++  // Refreshes run on every debounced file event; tracing each would flood spans.
++  const refresh = Effect.fnUntraced(function* () {
++    const nowMs = yield* Clock.currentTimeMillis;
++    const snapshots: Array<JbusWorkSnapshot> = [];
++    for (const repo of yield* repos) snapshots.push(yield* readRepo(repo, nowMs));
++    const next = mergeSnapshots(snapshots);
++    const json = encodeSnapshot(next);
++    if (json === (yield* Ref.get(lastJson))) return;
++    yield* Ref.set(lastJson, json);
++    yield* Ref.set(state, next);
++    yield* PubSub.publish(changes, next);
++  });
++  const refreshLocked = mutex
++    .withPermits(1)(refresh())
++    .pipe(Effect.ignoreCause({ log: true }));
++
++  // The watched set is fixed at start; a repo jbus starts tracking later shows after a restart.
++  const watched = [roots.jbus];
++  for (const repo of yield* repos) {
++    watched.push(
++      path.join(roots.jbus, repo),
++      path.join(roots.home, repo),
++      path.join(roots.home, repo, "tasks"),
++    );
++  }
++  // node's watch registers synchronously, so no write between this and the first read is lost;
++  // FileSystem.watch registers only once its stream is first pulled.
++  const touched = yield* Queue.sliding<void>(1);
++  yield* Effect.acquireRelease(
++    Effect.sync(() =>
++      watched.flatMap((directory) => {
++        try {
++          const watcher = NodeFS.watch(directory, () => Queue.offerUnsafe(touched, undefined));
++          watcher.on("error", () => watcher.close());
++          return [watcher];
++        } catch {
++          return [];
++        }
++      }),
++    ),
++    (watchers) => Effect.sync(() => watchers.forEach((watcher) => watcher.close())),
++  );
++
++  yield* refreshLocked;
++
++  yield* Stream.fromQueue(touched).pipe(
++    Stream.debounce(Duration.millis(250)),
++    Stream.runForEach(() => refreshLocked),
++    Effect.forkScoped,
++  );
++
++  return JbusWork.of({
++    subscribe: subscribeBeforeSnapshot(changes, Ref.get(state), mutex),
++  });
++});
++
++export const layer = Layer.effect(JbusWork, make(defaultJbusWorkRoots()));
+diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
+new file mode 100644
+index 0000000000..0800ea860a
+--- /dev/null
++++ b/apps/server/src/jstack/jbusWork.logic.test.ts
+@@ -0,0 +1,165 @@
++import { describe, expect, it } from "@effect/vitest";
++
++import {
++  buildRepoWork,
++  homeWord,
++  slugsNeedingBriefs,
++  type JbusRepoFiles,
++} from "./jbusWork.logic.ts";
++
++const NOW = Date.parse("2026-10-29T15:00:00Z");
++
++const row = (slug: string, value: string, lane: string, extra: Record<string, unknown> = {}) => ({
++  kind: "row",
++  slug,
++  value,
++  lane,
++  thread: `mcp:${slug}`,
++  pr: "",
++  who: "crew",
++  ...extra,
++});
++
++const files = (overrides: Partial<JbusRepoFiles> = {}): JbusRepoFiles => ({
++  repo: "jstack",
++  rootHomeId: "mcp:root",
++  scopes: [{ scope: "flow", homeId: "mcp:flow-home", prefix: "fl-" }],
++  work: { work: [] },
++  questions: { next: 1, records: [] },
++  merged: {},
++  scouts: [],
++  briefHomes: new Map(),
++  ...overrides,
++});
++
++describe("buildRepoWork", () => {
++  it("places each jbus lane on one stage word and hides finished rows", () => {
++    const work = {
++      work: [
++        row("a-ready", "ready", "queued", { thread: "" }),
++        row("a-behind", "behind", "queued", { thread: "" }),
++        row("a-unapproved", "unapproved", "queued", { thread: "", who: "user" }),
++        row("a-working", "working", "running"),
++        row("a-quiet", "quiet", "running"),
++        row("a-hung", "hung", "running", { who: "user" }),
++        row("a-review", "review", "review"),
++        row("a-findings", "findings", "findings", { pr: "#725" }),
++        row("a-check", "check", "check"),
++        row("a-merged", "merged", "merged"),
++        row("a-done", "done", "merged"),
++        row("a-removed", "removed", ""),
++        { kind: "thread", slug: "a-thread", value: "done", lane: "running" },
++      ],
++    };
++    const result = buildRepoWork(files({ work }), NOW);
++    expect(
++      result.tasks.map((task) => [task.slug, task.stage, task.threadId, task.waitsOnUser]),
++    ).toEqual([
++      ["a-ready", "ready", null, false],
++      ["a-behind", "behind", null, false],
++      ["a-unapproved", "ready", null, true],
++      ["a-working", "crew", "mcp:a-working", false],
++      ["a-quiet", "quiet", "mcp:a-quiet", false],
++      ["a-hung", "crew", "mcp:a-hung", true],
++      ["a-review", "review", "mcp:a-review", false],
++      ["a-findings", "review", "mcp:a-findings", false],
++      ["a-check", "review", "mcp:a-check", false],
++    ]);
++    expect(result.tasks.find((task) => task.slug === "a-findings")?.pullRequest).toBe("#725");
++  });
++
++  it("nests each task under the home its brief names", () => {
++    const work = {
++      work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
++        row(slug, "working", "running"),
++      ),
++    };
++    const briefHomes = new Map([
++      ["root", "root"],
++      ["flow", "flow"],
++      ["thread", "mcp:other-home"],
++      ["prose", "flow (a second home of this repo). Its plan is `flow/plan.md`."],
++      ["unknown", "nowhere"],
++    ]);
++    const result = buildRepoWork(files({ work, briefHomes }), NOW);
++    expect(result.tasks.map((task) => [task.slug, task.homeThreadId])).toEqual([
++      ["none", "mcp:root"],
++      ["root", "mcp:root"],
++      ["flow", "mcp:flow-home"],
++      ["thread", "mcp:other-home"],
++      ["prose", "mcp:flow-home"],
++      ["unknown", "mcp:root"],
++      ["fl-prefixed", "mcp:flow-home"],
++    ]);
++    expect(result.homes).toEqual([
++      { repo: "jstack", scope: null, threadId: "mcp:root", prefix: null },
++      { repo: "jstack", scope: "flow", threadId: "mcp:flow-home", prefix: "fl-" },
++    ]);
++  });
++
++  it("reads open gates, launched scouts, and merges inside the landed window", () => {
++    const result = buildRepoWork(
++      files({
++        questions: {
++          next: 3,
++          records: [
++            { number: 1, answer: { words: "default" }, thread: "mcp:x", question: "old" },
++            {
++              number: 2,
++              answer: null,
++              thread: "mcp:x",
++              slug: "x",
++              question: "keep it?",
++              asked_at: "2026-10-29T14:00:00Z",
++            },
++          ],
++        },
++        scouts: [
++          { slug: "s-flow", launch: { thread: "mcp:s-flow" }, approval: { scope: "flow" } },
++          { slug: "fl-scout", launch: { thread: "mcp:fl-scout" }, approval: { scope: "" } },
++          { slug: "s-unlaunched", launch: {}, approval: { scope: "" } },
++        ],
++        merged: {
++          recent: { mergedAt: "2026-10-29T10:00:00Z" },
++          stale: { mergedAt: "2026-10-26T10:00:00Z" },
++        },
++        briefHomes: new Map([["recent", "flow"]]),
++      }),
++      NOW,
++    );
++    expect(result.gates).toEqual([
++      {
++        repo: "jstack",
++        number: 2,
++        threadId: "mcp:x",
++        slug: "x",
++        question: "keep it?",
++        askedAt: "2026-10-29T14:00:00Z",
++      },
++    ]);
++    expect(result.tasks.map((task) => [task.slug, task.kind, task.homeThreadId])).toEqual([
++      ["s-flow", "scout", "mcp:flow-home"],
++      ["fl-scout", "scout", "mcp:flow-home"],
++    ]);
++    expect(result.landed).toEqual([
++      {
++        repo: "jstack",
++        slug: "recent",
++        homeThreadId: "mcp:flow-home",
++        mergedAt: "2026-10-29T10:00:00Z",
++      },
++    ]);
++    expect(slugsNeedingBriefs({ work: { work: [] }, merged: files().merged }, NOW)).toEqual([]);
++  });
++
++  it("is empty for a repo with no root home", () => {
++    expect(buildRepoWork(files({ rootHomeId: null }), NOW).homes).toEqual([]);
++  });
++});
++
++describe("homeWord", () => {
++  it("takes the first word without trailing punctuation", () => {
++    expect(homeWord("review-speed (a second home).")).toBe("review-speed");
++    expect(homeWord("flow.")).toBe("flow");
++  });
++});
+diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
+new file mode 100644
+index 0000000000..43e838a2f0
+--- /dev/null
++++ b/apps/server/src/jstack/jbusWork.logic.ts
+@@ -0,0 +1,218 @@
++import {
++  ThreadId,
++  type JbusGate,
++  type JbusHome,
++  type JbusLanded,
++  type JbusTask,
++  type JbusWorkSnapshot,
++  type JbusWorkStage,
++} from "@t3tools/contracts";
++
++/** One repo's raw jbus and home state. Each file is its parsed JSON, or null when absent. */
++export interface JbusRepoFiles {
++  readonly repo: string;
++  readonly work: unknown;
++  readonly questions: unknown;
++  readonly merged: unknown;
++  readonly scouts: unknown;
++  /** `home/<repo>/home-id`. */
++  readonly rootHomeId: string | null;
++  readonly scopes: ReadonlyArray<{
++    readonly scope: string;
++    readonly homeId: string;
++    readonly prefix: string | null;
++  }>;
++  /** The value of each brief's `Home:` line, by slug. Briefs with no line are absent. */
++  readonly briefHomes: ReadonlyMap<string, string>;
++}
++
++/** How far back merges are sent; the sidebar counts those after the user's last look. */
++const LANDED_WINDOW_MS = 48 * 60 * 60 * 1000;
++
++const isRecord = (value: unknown): value is Record<string, unknown> =>
++  typeof value === "object" && value !== null && !Array.isArray(value);
++
++const text = (value: unknown): string | null =>
++  typeof value === "string" && value.trim() !== "" ? value.trim() : null;
++
++const records = (value: unknown): ReadonlyArray<Record<string, unknown>> => {
++  if (Array.isArray(value)) return value.filter(isRecord);
++  if (isRecord(value)) return Object.values(value).filter(isRecord);
++  return [];
++};
++
++const threadIdOf = (value: unknown): ThreadId | null => {
++  const id = text(value);
++  return id === null ? null : ThreadId.make(id);
++};
++
++interface Placement {
++  readonly stage: JbusWorkStage;
++}
++
++/**
++ * Where a work row sits, from jbus's own `value` and `lane` (features/jbus/src/jbus/work.py).
++ * null hides the row: it merged, finished, or was removed.
++ */
++const placeWorkRow = (value: string, lane: string): Placement | null => {
++  if (value === "behind") return { stage: "behind" };
++  if (value === "quiet") return { stage: "quiet" };
++  switch (lane) {
++    case "queued":
++      return { stage: "ready" };
++    case "running":
++    case "result":
++    case "gate":
++      return { stage: "crew" };
++    case "review":
++    case "second":
++    case "check":
++    case "findings":
++    case "rebase":
++      return { stage: "review" };
++    default:
++      return null;
++  }
++};
++
++/** The first word of a brief's `Home:` line: `root`, a scope, or a home's thread id. */
++export const homeWord = (line: string): string => {
++  const first = line.trim().split(/\s+/)[0] ?? "";
++  return first.replace(/[.,;:)]+$/, "");
++};
++
++export const readHomeLine = (brief: string): string | null => {
++  const match = /^Home:\s*(.*)$/m.exec(brief);
++  return match ? (match[1] ?? "").trim() : null;
++};
++
++const resolveHome = (
++  rootId: ThreadId,
++  scopeIds: ReadonlyMap<string, ThreadId>,
++  word: string | null,
++): ThreadId | null => {
++  if (word === "root") return rootId;
++  if (word === null || word === "") return null;
++  const scoped = scopeIds.get(word);
++  if (scoped !== undefined) return scoped;
++  if (word.startsWith("mcp:")) return ThreadId.make(word);
++  return null;
++};
++
++export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnapshot => {
++  const rootId = threadIdOf(files.rootHomeId);
++  if (rootId === null) return { homes: [], tasks: [], gates: [], landed: [] };
++  const { repo } = files;
++  const scopeIds = new Map(files.scopes.map((each) => [each.scope, ThreadId.make(each.homeId)]));
++  const homes: Array<JbusHome> = [
++    { repo, scope: null, threadId: rootId, prefix: null },
++    ...files.scopes.map((each) => ({
++      repo,
++      scope: each.scope,
++      threadId: ThreadId.make(each.homeId),
++      prefix: each.prefix,
++    })),
++  ];
++  const prefixed = files.scopes.filter((each) => each.prefix !== null);
++  // A brief or scout that names no home belongs to the scope whose prefix its slug carries.
++  const homeOf = (slug: string, word: string | null) =>
++    resolveHome(rootId, scopeIds, word) ??
++    scopeIds.get(prefixed.find((each) => slug.startsWith(each.prefix ?? ""))?.scope ?? "") ??
++    rootId;
++  const homeOfSlug = (slug: string) => {
++    const line = files.briefHomes.get(slug);
++    return homeOf(slug, line === undefined ? null : homeWord(line));
++  };
++
++  const tasks: Array<JbusTask> = [];
++  const rows = isRecord(files.work) ? records(files.work.work) : [];
++  for (const row of rows) {
++    const slug = text(row.slug);
++    if (slug === null || row.kind !== "row") continue;
++    const placed = placeWorkRow(text(row.value) ?? "", text(row.lane) ?? "");
++    if (placed === null) continue;
++    tasks.push({
++      repo,
++      slug,
++      kind: "crew",
++      stage: placed.stage,
++      threadId: threadIdOf(row.thread),
++      homeThreadId: homeOfSlug(slug),
++      pullRequest: text(row.pr),
++      waitsOnUser: row.who === "user",
++    });
++  }
++  for (const scout of records(files.scouts)) {
++    const slug = text(scout.slug);
++    const launch = isRecord(scout.launch) ? scout.launch : {};
++    const threadId = threadIdOf(launch.thread);
++    if (slug === null || threadId === null) continue;
++    const scope = isRecord(scout.approval) ? text(scout.approval.scope) : null;
++    tasks.push({
++      repo,
++      slug,
++      kind: "scout",
++      stage: "crew",
++      threadId,
++      homeThreadId: homeOf(slug, scope),
++      pullRequest: null,
++      waitsOnUser: false,
++    });
++  }
++
++  const gates: Array<JbusGate> = [];
++  const questions = isRecord(files.questions) ? records(files.questions.records) : [];
++  for (const question of questions) {
++    if (question.answer !== null && question.answer !== undefined) continue;
++    if (typeof question.number !== "number") continue;
++    gates.push({
++      repo,
++      number: question.number,
++      threadId: threadIdOf(question.thread),
++      slug: text(question.slug),
++      question: text(question.question) ?? "",
++      askedAt: text(question.asked_at) ?? "",
++    });
++  }
++
++  const landed: Array<JbusLanded> = [];
++  if (isRecord(files.merged)) {
++    for (const [slug, pull] of Object.entries(files.merged)) {
++      if (!isRecord(pull)) continue;
++      const mergedAt = text(pull.mergedAt);
++      if (mergedAt === null || nowMs - Date.parse(mergedAt) > LANDED_WINDOW_MS) continue;
++      landed.push({ repo, slug, homeThreadId: homeOfSlug(slug), mergedAt });
++    }
++  }
++
++  return { homes, tasks, gates, landed };
++};
++
++/** The slugs whose briefs `buildRepoWork` reads: live rows and recent merges. */
++export const slugsNeedingBriefs = (
++  files: Pick<JbusRepoFiles, "work" | "merged">,
++  nowMs: number,
++): ReadonlyArray<string> => {
++  const slugs = new Set<string>();
++  const rows = isRecord(files.work) ? records(files.work.work) : [];
++  for (const row of rows) {
++    const slug = text(row.slug);
++    if (slug !== null && placeWorkRow(text(row.value) ?? "", text(row.lane) ?? "") !== null) {
++      slugs.add(slug);
++    }
++  }
++  if (isRecord(files.merged)) {
++    for (const [slug, pull] of Object.entries(files.merged)) {
++      const mergedAt = isRecord(pull) ? text(pull.mergedAt) : null;
++      if (mergedAt !== null && nowMs - Date.parse(mergedAt) <= LANDED_WINDOW_MS) slugs.add(slug);
++    }
++  }
++  return [...slugs];
++};
++
++export const mergeSnapshots = (snapshots: ReadonlyArray<JbusWorkSnapshot>): JbusWorkSnapshot => ({
++  homes: snapshots.flatMap((each) => each.homes),
++  tasks: snapshots.flatMap((each) => each.tasks),
++  gates: snapshots.flatMap((each) => each.gates),
++  landed: snapshots.flatMap((each) => each.landed),
++});
+diff --git a/apps/server/src/observability/RpcInstrumentation.ts b/apps/server/src/observability/RpcInstrumentation.ts
+index 259fa92a66..423f6b3474 100644
+--- a/apps/server/src/observability/RpcInstrumentation.ts
++++ b/apps/server/src/observability/RpcInstrumentation.ts
+@@ -169,6 +169,7 @@ const RPC_AGGREGATES = {
+   [WS_METHODS.subscribeWorktreeSetup]: "vcs",
+   [WS_METHODS.worktreeSetupCancel]: "vcs",
+   [WS_METHODS.subscribeResourceTelemetry]: "server",
++  [WS_METHODS.subscribeJbusWork]: "server",
+   [WS_METHODS.vcsRefreshStatus]: "vcs",
+   [WS_METHODS.vcsPull]: "git",
+   [WS_METHODS.gitRunStackedAction]: "vcs",
+diff --git a/apps/server/src/server.ts b/apps/server/src/server.ts
+index 741fc73103..e478dd7908 100644
+--- a/apps/server/src/server.ts
++++ b/apps/server/src/server.ts
+@@ -87,6 +87,7 @@ import * as PreviewBrowser from "./preview/PreviewBrowser.ts";
+ import * as ProcessRunner from "./processRunner.ts";
+ import * as GitManager from "./git/GitManager.ts";
+ import * as EnvironmentTheme from "./environmentTheme.ts";
++import * as JbusWork from "./jstack/JbusWork.ts";
+ import * as Keybindings from "./keybindings.ts";
+ import * as ServerRuntimeStartup from "./serverRuntimeStartup.ts";
+ import * as ServerOwnership from "./serverOwnership.ts";
+@@ -635,7 +636,12 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
+   Layer.provideMerge(Layer.mergeAll(layerTerminal, layerPreview, layerDevice)),
+   Layer.provideMerge(layerPersistence),
+   Layer.provideMerge(
+-    Layer.mergeAll(Keybindings.layer, EnvironmentTheme.layer, UsageLimitSources.layer),
++    Layer.mergeAll(
++      Keybindings.layer,
++      EnvironmentTheme.layer,
++      UsageLimitSources.layer,
++      JbusWork.layer,
++    ),
+   ),
+   Layer.provideMerge(ProviderRegistry.layer),
+   Layer.provideMerge(ProviderInstanceRegistryHydration.layer),
+diff --git a/apps/server/src/ws.test.ts b/apps/server/src/ws.test.ts
+index bce9450778..8cbad7968b 100644
+--- a/apps/server/src/ws.test.ts
++++ b/apps/server/src/ws.test.ts
+@@ -76,6 +76,7 @@ import * as RelayClient from "@t3tools/shared/relayClient";
+ import * as RemoteOpenTargets from "./environment/RemoteOpenTargets.ts";
+ import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
+ import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
++import * as JbusWork from "./jstack/JbusWork.ts";
+ import * as ReviewService from "./review/ReviewService.ts";
+ import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
+ import * as SecretRequests from "./secrets/SecretRequests.ts";
+@@ -514,6 +515,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
+   Layer.mock(RelayClient.RelayClient)({}),
+   Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({}),
+   Layer.mock(ResourceTelemetry.ResourceTelemetry)({}),
++  Layer.mock(JbusWork.JbusWork)({}),
+   Layer.mock(ReviewService.ReviewService)({}),
+   Layer.mock(ScheduledTasks.ScheduledTaskService)({}),
+   Layer.mock(SecretRequests.SecretRequests)({}),
+diff --git a/apps/server/src/ws.ts b/apps/server/src/ws.ts
+index 8c8509550b..ffe26d1283 100644
+--- a/apps/server/src/ws.ts
++++ b/apps/server/src/ws.ts
+@@ -232,6 +232,7 @@ import { RpcInstrumentation, rpcInstrumentationLayer } from "./observability/Rpc
+ import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
+ import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
+ import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
++import * as JbusWork from "./jstack/JbusWork.ts";
+ import * as HostResources from "./resourceTelemetry/HostResources.ts";
+ import * as AnalyticsService from "./telemetry/AnalyticsService.ts";
+ import { commandFeatureUsage, featureUsage } from "./telemetry/FeatureUsage.ts";
+@@ -1370,6 +1371,7 @@ export const layerWsRpc = (
+       const hostResources = yield* HostResources.HostResources;
+       const processResourceMonitor = yield* ProcessResourceMonitor.ProcessResourceMonitor;
+       const resourceTelemetry = yield* ResourceTelemetry.ResourceTelemetry;
++      const jbusWork = yield* JbusWork.JbusWork;
+       const relayClient = yield* RelayClient.RelayClient;
+       // Webhook URLs start agents; expose them only to operate-scoped sessions while keeping tasks readable.
+       const withVisibleWebhookUrls = (result: ScheduledTaskListResult): ScheduledTaskListResult =>
+@@ -3239,6 +3241,12 @@ export const layerWsRpc = (
+               Stream.concat(Stream.make(latest), changes),
+             ),
+           ),
++        [WS_METHODS.subscribeJbusWork]: (_input) =>
++          Stream.unwrap(
++            Effect.map(jbusWork.subscribe, ({ latest, changes }) =>
++              Stream.concat(Stream.make(latest), changes),
++            ),
++          ),
+       });
+       const splitHandlers: Pick<typeof handlers, SplitWsRpc["_tag"]> = handlers;
+       const otherHandlers: Pick<typeof handlers, Exclude<ServerWsRpc, SplitWsRpc>["_tag"]> =
+diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
+index de16be6d2d..2768d204dc 100644
+--- a/apps/web/src/components/Sidebar.tsx
++++ b/apps/web/src/components/Sidebar.tsx
+@@ -203,6 +203,7 @@ import {
+   type SidebarListItem,
+   type SidebarSection,
+   resolveSidebarRowThreadId,
++  resolveThreadLastVisitedAt,
+ } from "./Sidebar.logic";
+ import {
+   createSidebarCollisionDetection,
+@@ -256,6 +257,9 @@ import {
+   SidebarProjectFolderHeader,
+   sidebarFolderRowId,
+ } from "./sidebar/SidebarProjectFolderHeader";
++import { buildJstackTree, type JstackTree } from "./sidebar/jstackTree.logic";
++import { JstackTreeRowView, type JstackTreeRowActions } from "./sidebar/JstackTreeRows";
++import { useJbusWork } from "../lib/jbusWorkState";
+ import {
+   SidebarDragBoundary,
+   SidebarSectionHeader,
+@@ -1289,6 +1293,70 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+     keepEmptyFolders: scopedProjectGroups.length > 0,
+   });
+ 
++  // jstack fork: a project with a jstack root home draws as the tree instead of its folder.
++  const jstackTreeEnabled = useClientSettings((settings) => settings.jstackTreeSidebarEnabled);
++  const jstackAttention = useClientSettings((settings) => settings.jstackTreeAttention);
++  const jstackLandedCount = useClientSettings((settings) => settings.jstackTreeLandedCount);
++  const jstackQuietMinutes = useClientSettings((settings) => settings.jstackTreeQuietMinutes);
++  const jstackRowCap = useClientSettings((settings) => settings.jstackTreeRowCap);
++  const jbusWork = useJbusWork(jstackTreeEnabled ? primaryEnvironmentId : null);
++  const jstackNowMinute = useNowMinute();
++  const jstackLocalVisits = useUiStateStore((store) => store.threadLastVisitedAtById);
++  const [jstackExpandedHomes, setJstackExpandedHomes] = useState<ReadonlySet<string>>(
++    () => new Set(),
++  );
++  // Rows keep their order while the pointer is in the sidebar, so a row never moves under it.
++  const [jstackFrozenOrder, setJstackFrozenOrder] = useState<ReadonlyMap<
++    string,
++    ReadonlyArray<string>
++  > | null>(null);
++  const jstackTrees = new Map<string, JstackTree>();
++  if (jbusWork !== null && projectFolders !== null && primaryEnvironmentId !== null) {
++    const threadsById = new Map(
++      threads
++        .filter((thread) => thread.environmentId === primaryEnvironmentId)
++        .map((thread) => [thread.id, thread] as const),
++    );
++    for (const folder of projectFolders) {
++      const tree = buildJstackTree({
++        environmentId: primaryEnvironmentId,
++        projectKey: folder.group.projectKey,
++        memberProjectRefs: folder.group.memberProjectRefs,
++        snapshot: jbusWork,
++        threadsById,
++        folderThreads: folder.threads,
++        collapsed: folder.collapsed,
++        routeThreadId:
++          routeThreadRef?.environmentId === primaryEnvironmentId ? routeThreadRef.threadId : null,
++        expandedHomes: jstackExpandedHomes,
++        frozenOrder: jstackFrozenOrder,
++        lastVisitedAt: (thread) =>
++          resolveThreadLastVisitedAt(
++            thread.lastVisitedAt,
++            jstackLocalVisits[scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id))],
++          ) ?? null,
++        nowMs: Date.parse(`${jstackNowMinute}:00.000Z`),
++        options: {
++          attention: jstackAttention,
++          landedCount: jstackLandedCount,
++          quietMinutes: jstackQuietMinutes,
++          rowCap: jstackRowCap,
++        },
++      });
++      if (tree !== null) jstackTrees.set(folder.group.projectKey, tree);
++    }
++  }
++  const jstackOrder = new Map([...jstackTrees.values()].flatMap((tree) => [...tree.order]));
++  const jstackRowActions: JstackTreeRowActions = {
++    onOpenThread: (threadId) => {
++      if (primaryEnvironmentId !== null) {
++        navigateToThread(scopeThreadRef(primaryEnvironmentId, threadId));
++      }
++    },
++    onToggleProject: toggleProjectFolder,
++    onExpandHome: (homeKey) => setJstackExpandedHomes((current) => new Set(current).add(homeKey)),
++  };
++
+   // Ranked across environments as the palette ranks them, so one
+   // environment's list does not sit above another's better matches; rows
+   // already shown keep their places while slower environments answer.
+@@ -3177,6 +3245,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+                   <ul
+                     {...SIDEBAR_TREE_PROPS}
+                     ref={attachTreeRef}
++                    onPointerEnter={
++                      jstackTrees.size > 0 ? () => setJstackFrozenOrder(jstackOrder) : undefined
++                    }
++                    onPointerLeave={
++                      jstackTrees.size > 0 ? () => setJstackFrozenOrder(null) : undefined
++                    }
+                     className={cn(
+                       "relative flex flex-col gap-px",
+                       sidebarListItems.length > 0 && "flex-1",
+@@ -3325,6 +3399,24 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
+                         }
+                         if (projectFolders !== null && item.marker === "active-placeholder") {
+                           for (const folder of projectFolders) {
++                            const tree = jstackTrees.get(folder.group.projectKey);
++                            if (tree !== undefined) {
++                              for (const row of tree.rows) {
++                                items.push(
++                                  row.kind === "loose" ? (
++                                    renderThreadRow(row.thread, "active", row.parentKey)
++                                  ) : (
++                                    <JstackTreeRowView
++                                      key={row.key}
++                                      row={row}
++                                      group={folder.group}
++                                      actions={jstackRowActions}
++                                    />
++                                  ),
++                                );
++                              }
++                              continue;
++                            }
+                             items.push(
+                               <SidebarProjectFolderHeader
+                                 key={`project-folder:${folder.group.projectKey}`}
+diff --git a/apps/web/src/components/settings/JstackTreeSettings.tsx b/apps/web/src/components/settings/JstackTreeSettings.tsx
+new file mode 100644
+index 0000000000..6b1e6f0643
+--- /dev/null
++++ b/apps/web/src/components/settings/JstackTreeSettings.tsx
+@@ -0,0 +1,149 @@
++import {
++  JstackTreeAttention,
++  MAX_JSTACK_TREE_QUIET_MINUTES,
++  MAX_JSTACK_TREE_ROW_CAP,
++  MIN_JSTACK_TREE_QUIET_MINUTES,
++  MIN_JSTACK_TREE_ROW_CAP,
++} from "@t3tools/contracts";
++import { useState } from "react";
++
++import { Input } from "../ui/input";
++import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
++import { Switch } from "../ui/switch";
++import { SettingsRow, SettingsSection } from "./settingsLayout";
++import { searchableSetting } from "./settingsSearch";
++import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
++
++const ATTENTION_LABELS: Record<JstackTreeAttention, string> = {
++  gates: "Gates only",
++  "gates-and-quiet": "Gates and quiet tasks",
++};
++
++const isAttention = (value: unknown): value is JstackTreeAttention =>
++  JstackTreeAttention.literals.some((literal) => literal === value);
++
++function WholeNumberInput(props: {
++  value: number;
++  min: number;
++  max: number;
++  label: string;
++  disabled: boolean;
++  onCommit: (value: number) => void;
++}) {
++  const [draft, setDraft] = useState(String(props.value));
++  const [draftSource, setDraftSource] = useState(props.value);
++  if (draftSource !== props.value) {
++    setDraftSource(props.value);
++    setDraft(String(props.value));
++  }
++  return (
++    <Input
++      size="sm"
++      type="number"
++      min={props.min}
++      max={props.max}
++      className="w-full sm:w-24"
++      value={draft}
++      disabled={props.disabled}
++      onChange={(event) => {
++        setDraft(event.target.value);
++        const parsed = Number(event.target.value);
++        if (Number.isInteger(parsed) && parsed >= props.min && parsed <= props.max) {
++          props.onCommit(parsed);
++        }
++      }}
++      onBlur={() => setDraft(String(props.value))}
++      aria-label={props.label}
++    />
++  );
++}
++
++/** jstack fork: the tree sidebar and what it calls out. */
++export function JstackTreeSettingsSection() {
++  const settings = useScopedSettings();
++  const updateSettings = useUpdateScopedSettings();
++  const off = !settings.jstackTreeSidebarEnabled;
++  return (
++    <SettingsSection id="jstack" title="jstack">
++      <SettingsRow
++        {...searchableSetting("jstack-tree-sidebar")}
++        description="Draw each jstack project as one tree: its main thread, its domain homes, and the jbus tasks under each home with their stage. Projects without a jstack home keep their folder."
++        control={
++          <Switch
++            checked={settings.jstackTreeSidebarEnabled}
++            onCheckedChange={(checked) =>
++              updateSettings({ jstackTreeSidebarEnabled: Boolean(checked) })
++            }
++            aria-label="jstack tree sidebar"
++          />
++        }
++      />
++      <SettingsRow
++        {...searchableSetting("jstack-tree-attention")}
++        description="What the tree raises above the rest. A gate is a jbus question waiting on you. A quiet task has not written for a while."
++        control={
++          <Select
++            value={settings.jstackTreeAttention}
++            disabled={off}
++            onValueChange={(value) => {
++              if (isAttention(value)) updateSettings({ jstackTreeAttention: value });
++            }}
++          >
++            <SelectTrigger size="sm" className="w-full sm:w-52" aria-label="What needs you">
++              <SelectValue>{ATTENTION_LABELS[settings.jstackTreeAttention]}</SelectValue>
++            </SelectTrigger>
++            <SelectPopup align="end" alignItemWithTrigger={false}>
++              {JstackTreeAttention.literals.map((attention) => (
++                <SelectItem hideIndicator key={attention} value={attention}>
++                  {ATTENTION_LABELS[attention]}
++                </SelectItem>
++              ))}
++            </SelectPopup>
++          </Select>
++        }
++      />
++      <SettingsRow
++        {...searchableSetting("jstack-tree-quiet-minutes")}
++        description="Minutes without a write before a crew task reads as quiet."
++        control={
++          <WholeNumberInput
++            value={settings.jstackTreeQuietMinutes}
++            min={MIN_JSTACK_TREE_QUIET_MINUTES}
++            max={MAX_JSTACK_TREE_QUIET_MINUTES}
++            label="Minutes before a task is quiet"
++            disabled={off || settings.jstackTreeAttention === "gates"}
++            onCommit={(minutes) => updateSettings({ jstackTreeQuietMinutes: minutes })}
++          />
++        }
++      />
++      <SettingsRow
++        {...searchableSetting("jstack-tree-landed-count")}
++        description="Show how many tasks merged since you last opened the project's main thread."
++        control={
++          <Switch
++            checked={settings.jstackTreeLandedCount}
++            disabled={off}
++            onCheckedChange={(checked) =>
++              updateSettings({ jstackTreeLandedCount: Boolean(checked) })
++            }
++            aria-label="Landed count"
++          />
++        }
++      />
++      <SettingsRow
++        {...searchableSetting("jstack-tree-row-cap")}
++        description="Task rows per home before the rest fold into a +N row."
++        control={
++          <WholeNumberInput
++            value={settings.jstackTreeRowCap}
++            min={MIN_JSTACK_TREE_ROW_CAP}
++            max={MAX_JSTACK_TREE_ROW_CAP}
++            label="Task rows per home"
++            disabled={off}
++            onCommit={(rows) => updateSettings({ jstackTreeRowCap: rows })}
++          />
++        }
++      />
++    </SettingsSection>
++  );
++}
+diff --git a/apps/web/src/components/settings/LabsSettingsPanel.tsx b/apps/web/src/components/settings/LabsSettingsPanel.tsx
+index ce3f68eac4..7eedab7ff5 100644
+--- a/apps/web/src/components/settings/LabsSettingsPanel.tsx
++++ b/apps/web/src/components/settings/LabsSettingsPanel.tsx
+@@ -8,6 +8,7 @@ import { Switch } from "../ui/switch";
+ import { ScopedSwitch } from "./ScopedSwitch";
+ import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsLayout";
+ import { searchableSetting } from "./settingsSearch";
++import { JstackTreeSettingsSection } from "./JstackTreeSettings";
+ import { LegacyFeaturesSection } from "./SettingsPanels";
+ import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
+ 
+@@ -15,6 +16,7 @@ import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings"
+ export function LabsSettingsPanel() {
+   return (
+     <SettingsPageContainer>
++      <JstackTreeSettingsSection />
+       <SettingsSection id="beta" title="Beta">
+         <BoringSidebarRow />
+         <BoringSidebarMultilineRow />
+diff --git a/apps/web/src/components/settings/settingsSearch.ts b/apps/web/src/components/settings/settingsSearch.ts
+index 1d5c13e72a..48672b764a 100644
+--- a/apps/web/src/components/settings/settingsSearch.ts
++++ b/apps/web/src/components/settings/settingsSearch.ts
+@@ -433,6 +433,36 @@ export const SETTINGS_SEARCH_ITEMS = [
+     to: "/settings/general",
+     searchTerms: ["hide fold running monitoring threads inbox sidebar shelf"],
+   },
++  {
++    id: "jstack-tree-sidebar",
++    title: "jstack tree sidebar",
++    to: "/settings/labs",
++    searchTerms: ["jstack jbus home homes domain crew scout review tasks tree sidebar stage ticks"],
++  },
++  {
++    id: "jstack-tree-attention",
++    title: "What needs you",
++    to: "/settings/labs",
++    searchTerms: ["jstack tree gates quiet stuck attention asks you amber"],
++  },
++  {
++    id: "jstack-tree-quiet-minutes",
++    title: "Quiet after",
++    to: "/settings/labs",
++    searchTerms: ["jstack tree quiet minutes stuck idle crew"],
++  },
++  {
++    id: "jstack-tree-landed-count",
++    title: "Landed count",
++    to: "/settings/labs",
++    searchTerms: ["jstack tree merged landed count since last looked"],
++  },
++  {
++    id: "jstack-tree-row-cap",
++    title: "Task rows per home",
++    to: "/settings/labs",
++    searchTerms: ["jstack tree rows cap limit more overflow"],
++  },
+   {
+     id: "boring-sidebar",
+     title: "Boring sidebar (group by project)",
+diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+new file mode 100644
+index 0000000000..936a72ff86
+--- /dev/null
++++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
+@@ -0,0 +1,270 @@
++import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
++import type { ThreadId } from "@t3tools/contracts";
++import { ChevronDownIcon } from "lucide-react";
++import { memo, type MouseEvent, type ReactNode } from "react";
++
++import { cn } from "~/lib/utils";
++import type { SidebarProjectSnapshot } from "../../sidebarProjectGrouping";
++import { ProjectFavicon } from "../ProjectFavicon";
++import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
++import type { JstackTally, JstackTicks, JstackTreeRow } from "./jstackTree.logic";
++import { RelativeTimeLabel, threadTimeTimestamp } from "./SidebarThreadRow";
++
++// jstack fork: the tree sidebar's rows. Amber is the only colour, and only for what waits on you.
++
++type TreeRow = Exclude<JstackTreeRow, { kind: "loose" }>;
++
++export interface JstackTreeRowActions {
++  readonly onOpenThread: (threadId: ThreadId) => void;
++  readonly onToggleProject: (group: SidebarProjectSnapshot) => void;
++  readonly onExpandHome: (homeKey: string) => void;
++}
++
++const ROW_BUTTON =
++  "flex w-full min-w-0 items-center gap-2 rounded-(--control-radius) px-2 text-left outline-none hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
++
++/** The rule and indent of a nested row, once per level. */
++function Nest(props: { depth: number; children: ReactNode }) {
++  if (props.depth === 0) return props.children;
++  return (
++    <div className="ml-4 border-l border-sidebar-border/70 pl-2">
++      <Nest depth={props.depth - 1}>{props.children}</Nest>
++    </div>
++  );
++}
++
++function Ticks(props: { ticks: JstackTicks }) {
++  const { step, hollow, asks } = props.ticks;
++  return (
++    <span aria-hidden className="flex shrink-0 gap-0.5">
++      {[0, 1, 2, 3].map((index) => (
++        <i
++          key={index}
++          className={cn(
++            "block h-[3px] w-[7px] rounded-full",
++            index < step && "bg-sidebar-foreground/60",
++            index > step && "bg-sidebar-muted-foreground/35",
++            index === step &&
++              (asks
++                ? "bg-warning"
++                : hollow
++                  ? "bg-transparent ring-1 ring-inset ring-sidebar-muted-foreground/70"
++                  : "bg-sidebar-foreground"),
++          )}
++        />
++      ))}
++    </span>
++  );
++}
++
++function AsksYou() {
++  return <span className="shrink-0 text-2xs text-warning">asks you</span>;
++}
++
++function GateDot() {
++  return (
++    <span className="size-1.5 shrink-0 rounded-full bg-warning">
++      <span className="sr-only">, something inside asks you</span>
++    </span>
++  );
++}
++
++function Tally(props: { tally: JstackTally }) {
++  const parts = (["crew", "review", "queue"] as const).filter((stage) => props.tally[stage] > 0);
++  return (
++    <div className="flex gap-2.5 px-2 pb-1 text-2xs text-sidebar-muted-foreground">
++      {parts.length === 0 ? (
++        <span>idle</span>
++      ) : (
++        parts.map((stage) => (
++          <span key={stage}>
++            {stage} <b className="font-semibold text-sidebar-foreground/75">{props.tally[stage]}</b>
++          </span>
++        ))
++      )}
++    </div>
++  );
++}
++
++function TimeLabel(props: { thread: EnvironmentThreadShell | null }) {
++  if (props.thread === null) return null;
++  return (
++    <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
++      <RelativeTimeLabel timestamp={threadTimeTimestamp(props.thread)} />
++    </span>
++  );
++}
++
++/** One tree row. Arrow keys reach rows through an untrusted click, which folds instead. */
++export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
++  row: TreeRow;
++  group: SidebarProjectSnapshot;
++  actions: JstackTreeRowActions;
++}) {
++  const { row, group, actions } = props;
++  const open = (threadId: ThreadId | null) => (event: MouseEvent) => {
++    if (row.kind === "project" && !event.nativeEvent.isTrusted) {
++      actions.onToggleProject(group);
++      return;
++    }
++    if (threadId !== null) actions.onOpenThread(threadId);
++  };
++
++  switch (row.kind) {
++    case "project":
++      return (
++        <li
++          data-testid="jstack-tree-project"
++          className={cn("relative mt-2 list-none first:mt-0", row.faded && "opacity-50")}
++        >
++          <button
++            type="button"
++            role="treeitem"
++            tabIndex={-1}
++            data-sidebar-row={row.key}
++            aria-expanded={!row.collapsed}
++            aria-selected={row.selected}
++            aria-label={`${group.displayName} main thread${row.asksYou || row.dot ? ", asks you" : ""}`}
++            onClick={open(row.thread.id)}
++            className={cn(ROW_BUTTON, "h-8 pr-8", row.selected && "bg-sidebar-row-selected")}
++          >
++            <ProjectFavicon project={group} className="size-4 shrink-0" />
++            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-foreground">
++              {group.displayName}
++            </span>
++            {row.landed > 0 ? (
++              <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
++                {row.landed} merged
++              </span>
++            ) : null}
++            {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}
++            {row.collapsed && row.taskCount > 0 ? (
++              <span className="shrink-0 text-2xs tabular-nums text-sidebar-muted-foreground">
++                {row.taskCount} {row.taskCount === 1 ? "task" : "tasks"}
++              </span>
++            ) : (
++              <TimeLabel thread={row.thread} />
++            )}
++          </button>
++          <span className="absolute inset-y-0 right-1 flex items-center">
++            <button
++              type="button"
++              data-sidebar-action-for={row.key}
++              aria-label={
++                row.collapsed ? `Unfold ${group.displayName}` : `Fold ${group.displayName}`
++              }
++              onClick={() => actions.onToggleProject(group)}
++              className="flex size-6 items-center justify-center rounded-(--control-radius) text-sidebar-muted-foreground outline-none hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
++            >
++              <ChevronDownIcon
++                aria-hidden
++                className={cn("size-3.5 transition-transform", row.collapsed && "-rotate-90")}
++              />
++            </button>
++          </span>
++        </li>
++      );
++    case "domain":
++      return (
++        <li className={cn("list-none", row.faded && "opacity-50")}>
++          <Nest depth={1}>
++            <button
++              type="button"
++              role="treeitem"
++              tabIndex={-1}
++              data-sidebar-row={row.key}
++              data-sidebar-parent={row.parentKey}
++              aria-expanded={row.open}
++              aria-selected={row.selected}
++              aria-label={`${row.scope} home${row.asksYou || row.dot ? ", asks you" : ""}`}
++              onClick={open(row.threadId)}
++              className={cn(ROW_BUTTON, "h-7", row.selected && "bg-sidebar-row-selected")}
++            >
++              <span className="min-w-0 flex-1 truncate text-sm font-medium text-sidebar-foreground">
++                {row.scope}
++              </span>
++              {row.asksYou ? <AsksYou /> : row.dot ? <GateDot /> : null}
++              <TimeLabel thread={row.thread} />
++            </button>
++            {row.open ? null : <Tally tally={row.tally} />}
++          </Nest>
++        </li>
++      );
++    case "worker": {
++      const fullSlug = `${row.prefix ?? ""}${row.slug}`;
++      return (
++        <li className="list-none">
++          <Nest depth={row.depth}>
++            <Tooltip>
++              <TooltipTrigger
++                render={
++                  <button
++                    type="button"
++                    role="treeitem"
++                    tabIndex={-1}
++                    data-sidebar-row={row.key}
++                    data-sidebar-parent={row.parentKey}
++                    aria-selected={row.selected}
++                    aria-disabled={row.threadId === null}
++                    aria-label={`${fullSlug}, ${row.word}${row.ticks === null ? "" : " stage"}`}
++                    onClick={open(row.threadId)}
++                    className={cn(
++                      ROW_BUTTON,
++                      "h-6 text-xs",
++                      row.threadId === null && "cursor-default hover:bg-transparent",
++                      row.selected && "bg-sidebar-row-selected",
++                    )}
++                  >
++                    <span className="min-w-0 flex-1 truncate text-sidebar-foreground/75">
++                      {row.prefix ? (
++                        <span className="text-sidebar-muted-foreground/60">{row.prefix}</span>
++                      ) : null}
++                      {row.slug}
++                    </span>
++                    <span
++                      className={cn(
++                        "shrink-0 text-2xs",
++                        row.tone === "asks" ? "text-warning" : "text-sidebar-muted-foreground",
++                      )}
++                    >
++                      {row.word}
++                    </span>
++                    {row.ticks === null ? (
++                      <span
++                        aria-hidden
++                        className="mx-[13px] size-1.5 shrink-0 rounded-full bg-sidebar-muted-foreground/60"
++                      />
++                    ) : (
++                      <Ticks ticks={row.ticks} />
++                    )}
++                  </button>
++                }
++              />
++              <TooltipPopup side="right">
++                {[fullSlug, row.pullRequest, row.word].filter(Boolean).join(" · ")}
++              </TooltipPopup>
++            </Tooltip>
++          </Nest>
++        </li>
++      );
++    }
++    case "more":
++      return (
++        <li className="list-none">
++          <Nest depth={row.depth}>
++            <button
++              type="button"
++              role="treeitem"
++              tabIndex={-1}
++              data-sidebar-row={row.key}
++              data-sidebar-parent={row.parentKey}
++              onClick={() => actions.onExpandHome(row.homeKey)}
++              className={cn(ROW_BUTTON, "h-6 text-2xs text-sidebar-muted-foreground")}
++            >
++              +{row.count} more
++            </button>
++          </Nest>
++        </li>
++      );
++  }
++});
+diff --git a/apps/web/src/components/sidebar/SidebarThreadRow.tsx b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
+index a111126342..5e9ea0d588 100644
+--- a/apps/web/src/components/sidebar/SidebarThreadRow.tsx
++++ b/apps/web/src/components/sidebar/SidebarThreadRow.tsx
+@@ -135,7 +135,7 @@ function compactSidebarTimeLabel(label: string): string {
+ 
+ // Subscribes to the minute tick itself, so only the label re-renders each
+ // minute. The minute is passed as the clock so it is the formatter's input.
+-function RelativeTimeLabel(props: { timestamp: string | null }) {
++export function RelativeTimeLabel(props: { timestamp: string | null }) {
+   const nowMinute = useNowMinute();
+   return props.timestamp === null
+     ? null
+@@ -144,7 +144,7 @@ function RelativeTimeLabel(props: { timestamp: string | null }) {
+       );
+ }
+ 
+-function threadTimeTimestamp(thread: SidebarThreadSummary): string {
++export function threadTimeTimestamp(thread: SidebarThreadSummary): string {
+   return thread.latestUserMessageAt ?? thread.updatedAt;
+ }
+ 
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+new file mode 100644
+index 0000000000..634306be6a
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
+@@ -0,0 +1,249 @@
++import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
++import {
++  EMPTY_JBUS_WORK_SNAPSHOT,
++  EnvironmentId,
++  ProjectId,
++  ThreadId,
++  type JbusTask,
++  type JbusWorkSnapshot,
++} from "@t3tools/contracts";
++import { describe, expect, it } from "vite-plus/test";
++
++import { makeThreadFixture, type ThreadFixtureOverrides } from "../../test-fixtures";
++import { buildJstackTree, type JstackTreeInput, type JstackTreeRow } from "./jstackTree.logic";
++
++const environmentId = EnvironmentId.make("environment-local");
++const projectId = ProjectId.make("project-jstack");
++const NOW = Date.parse("2026-10-29T12:00:00.000Z");
++const minutesAgo = (minutes: number) => new Date(NOW - minutes * 60_000).toISOString();
++
++const thread = (id: string, overrides: ThreadFixtureOverrides = {}): EnvironmentThreadShell =>
++  makeThreadFixture({
++    environmentId,
++    projectId,
++    id: ThreadId.make(id),
++    title: id,
++    updatedAt: minutesAgo(1),
++    ...overrides,
++  });
++
++const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
++  repo: "jstack",
++  slug,
++  kind: "crew",
++  stage: "crew",
++  threadId: ThreadId.make(`crew-${slug}`),
++  homeThreadId: ThreadId.make("root"),
++  pullRequest: null,
++  waitsOnUser: false,
++  ...overrides,
++});
++
++const HOMES: JbusWorkSnapshot["homes"] = [
++  { repo: "jstack", scope: null, threadId: ThreadId.make("root"), prefix: null },
++  { repo: "jstack", scope: "flow", threadId: ThreadId.make("flow"), prefix: "fl-" },
++];
++
++function build(
++  snapshot: Partial<JbusWorkSnapshot>,
++  overrides: Partial<JstackTreeInput> & { threads?: ReadonlyArray<EnvironmentThreadShell> } = {},
++) {
++  const { threads = [], ...rest } = overrides;
++  const tasks = snapshot.tasks ?? [];
++  const all = [
++    thread("root"),
++    thread("flow"),
++    ...tasks.flatMap((t) =>
++      t.threadId === null || threads.some((known) => known.id === t.threadId)
++        ? []
++        : [thread(t.threadId)],
++    ),
++    ...threads,
++  ];
++  return buildJstackTree({
++    environmentId,
++    projectKey: "project",
++    memberProjectRefs: [{ environmentId, projectId }],
++    snapshot: { ...EMPTY_JBUS_WORK_SNAPSHOT, homes: HOMES, ...snapshot },
++    threadsById: new Map(all.map((shell) => [shell.id, shell])),
++    folderThreads: all,
++    collapsed: false,
++    routeThreadId: null,
++    expandedHomes: new Set(),
++    frozenOrder: null,
++    lastVisitedAt: () => null,
++    nowMs: NOW,
++    options: { attention: "gates-and-quiet", landedCount: true, quietMinutes: 20, rowCap: 8 },
++    ...rest,
++  });
++}
++
++const workers = (rows: ReadonlyArray<JstackTreeRow> | undefined) =>
++  (rows ?? []).flatMap((row) => (row.kind === "worker" ? [`${row.slug}:${row.word}`] : []));
++
++describe("buildJstackTree", () => {
++  it("returns null for a project without a jstack root home", () => {
++    expect(
++      build({}, { memberProjectRefs: [{ environmentId, projectId: ProjectId.make("other") }] }),
++    ).toBeNull();
++  });
++
++  it("ranks needs you, quiet, crew, review, then queued", () => {
++    const tree = build(
++      {
++        tasks: [
++          task("queued", { stage: "ready", threadId: null }),
++          task("reviewing", { stage: "review" }),
++          task("working"),
++          task("silent", { stage: "quiet" }),
++          task("gated"),
++        ],
++        gates: [
++          {
++            repo: "jstack",
++            number: 1,
++            threadId: null,
++            slug: "gated",
++            question: "Ship it?",
++            askedAt: minutesAgo(5),
++          },
++        ],
++      },
++      { threads: [thread("crew-silent", { updatedAt: minutesAgo(45) })] },
++    );
++    expect(workers(tree?.rows)).toEqual([
++      "gated:asks you",
++      "silent:quiet 45m",
++      "working:crew",
++      "reviewing:review",
++      "queued:ready",
++    ]);
++  });
++
++  it("reads a quiet task as crew under its threshold or with gates-only attention", () => {
++    const threads = [thread("crew-silent", { updatedAt: minutesAgo(10) })];
++    const tasks = [task("silent", { stage: "quiet" })];
++    expect(workers(build({ tasks }, { threads })?.rows)).toEqual(["silent:crew"]);
++    expect(
++      workers(
++        build(
++          { tasks },
++          {
++            threads: [thread("crew-silent", { updatedAt: minutesAgo(90) })],
++            options: { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 8 },
++          },
++        )?.rows,
++      ),
++    ).toEqual(["silent:crew"]);
++  });
++
++  it("keeps the frozen order and appends new tasks", () => {
++    const tasks = [task("a", { stage: "review" }), task("b")];
++    const first = build({ tasks });
++    expect(workers(first?.rows)).toEqual(["b:crew", "a:review"]);
++    const frozen = new Map([[ThreadId.make("root"), ["jstack-task:jstack/a"]]]);
++    const next = build(
++      { tasks: [...tasks, task("c", { waitsOnUser: true })] },
++      { frozenOrder: frozen },
++    );
++    expect(workers(next?.rows)).toEqual(["a:review", "c:asks you", "b:crew"]);
++  });
++
++  it("caps a home's rows behind a +N row until it is expanded", () => {
++    const tasks = Array.from({ length: 5 }, (_, index) => task(`t${index}`));
++    const options = { attention: "gates", landedCount: true, quietMinutes: 20, rowCap: 3 } as const;
++    const more = build({ tasks }, { options })?.rows.find((row) => row.kind === "more");
++    expect(more).toMatchObject({ count: 2, homeKey: "root" });
++    const open = build({ tasks }, { options, expandedHomes: new Set(["root"]) });
++    expect(open?.rows.some((row) => row.kind === "more")).toBe(false);
++    expect(workers(open?.rows)).toHaveLength(5);
++  });
++
++  it("opens a domain only while it or one of its tasks is selected", () => {
++    const tasks = [
++      task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true }),
++      task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
++    ];
++    const closed = build({ tasks });
++    expect(closed?.rows.find((row) => row.kind === "domain")).toMatchObject({
++      open: false,
++      dot: true,
++      tally: { queue: 1, crew: 1, review: 0 },
++    });
++    expect(workers(closed?.rows)).toEqual([]);
++
++    const open = build({ tasks }, { routeThreadId: ThreadId.make("crew-fl-pump") });
++    expect(open?.rows.find((row) => row.kind === "domain")).toMatchObject({
++      open: true,
++      dot: false,
++    });
++    const pump = open?.rows.find((row) => row.kind === "worker" && row.slug === "pump");
++    expect(pump).toMatchObject({ prefix: "fl-", selected: true, depth: 2 });
++  });
++
++  it("rolls everything inside up to the project row when folded", () => {
++    const tree = build(
++      { tasks: [task("fl-pump", { homeThreadId: ThreadId.make("flow"), waitsOnUser: true })] },
++      { collapsed: true },
++    );
++    expect(tree?.rows).toHaveLength(1);
++    expect(tree?.rows[0]).toMatchObject({ kind: "project", dot: true, taskCount: 1 });
++  });
++
++  it("counts merges since the root home was last visited", () => {
++    const landed = [
++      {
++        repo: "jstack",
++        slug: "old",
++        homeThreadId: ThreadId.make("root"),
++        mergedAt: minutesAgo(90),
++      },
++      { repo: "jstack", slug: "new", homeThreadId: ThreadId.make("root"), mergedAt: minutesAgo(5) },
++      { repo: "infra", slug: "else", homeThreadId: ThreadId.make("x"), mergedAt: minutesAgo(5) },
++    ];
++    const project = (tree: ReturnType<typeof build>) => tree?.rows[0];
++    expect(project(build({ landed }, { lastVisitedAt: () => minutesAgo(30) }))).toMatchObject({
++      landed: 1,
++    });
++    expect(project(build({ landed }))).toMatchObject({ landed: 2 });
++    expect(
++      project(
++        build(
++          { landed },
++          { options: { attention: "gates", landedCount: false, quietMinutes: 20, rowCap: 8 } },
++        ),
++      ),
++    ).toMatchObject({ landed: 0 });
++  });
++
++  it("drops scouts whose thread settled or archived", () => {
++    const tree = build(
++      {
++        tasks: [
++          task("live", { kind: "scout" }),
++          task("done", { kind: "scout" }),
++          task("gone", { kind: "scout" }),
++        ],
++      },
++      {
++        threads: [
++          thread("crew-done", { settledOverride: "settled" }),
++          thread("crew-gone", { archivedAt: minutesAgo(5) }),
++        ],
++      },
++    );
++    expect(workers(tree?.rows)).toEqual(["live:scout"]);
++  });
++
++  it("lists the folder's other threads loose, minus finished worker threads", () => {
++    const tree = build(
++      { tasks: [task("working")] },
++      {
++        threads: [thread("notes", { title: "Notes" }), thread("old", { title: "crew: old-task" })],
++      },
++    );
++    expect(tree?.rows.flatMap((row) => (row.kind === "loose" ? [row.thread.title] : []))).toEqual([
++      "Notes",
++    ]);
++  });
++});
+diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
+new file mode 100644
+index 0000000000..bdd92721e2
+--- /dev/null
++++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
+@@ -0,0 +1,369 @@
++import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
++import { isThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
++import type {
++  EnvironmentId,
++  JbusHome,
++  JbusTask,
++  JbusWorkSnapshot,
++  ScopedProjectRef,
++  ThreadId,
++} from "@t3tools/contracts";
++
++// jstack fork: the tree sidebar's rows, from jbus's snapshot joined to T3's threads by id.
++
++export type JstackTreeAttention = "gates" | "gates-and-quiet";
++
++export interface JstackTreeOptions {
++  readonly attention: JstackTreeAttention;
++  readonly landedCount: boolean;
++  readonly quietMinutes: number;
++  readonly rowCap: number;
++}
++
++/** Ticks for queue, crew, review and merge. A hollow tick is queued work or a quiet crew. */
++export interface JstackTicks {
++  readonly step: 0 | 1 | 2 | 3;
++  readonly hollow: boolean;
++  readonly asks: boolean;
++}
++
++export interface JstackTally {
++  readonly queue: number;
++  readonly crew: number;
++  readonly review: number;
++}
++
++export type JstackTreeRow =
++  | {
++      readonly kind: "project";
++      readonly key: string;
++      readonly thread: EnvironmentThreadShell;
++      readonly collapsed: boolean;
++      /** The root home itself waits on the user. */
++      readonly asksYou: boolean;
++      /** Something folded inside waits on the user. */
++      readonly dot: boolean;
++      readonly landed: number;
++      readonly taskCount: number;
++      readonly faded: boolean;
++      readonly selected: boolean;
++    }
++  | {
++      readonly kind: "domain";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly scope: string;
++      readonly threadId: ThreadId;
++      /** null when the client has not loaded the home's thread, such as a long-settled one. */
++      readonly thread: EnvironmentThreadShell | null;
++      readonly open: boolean;
++      readonly asksYou: boolean;
++      readonly dot: boolean;
++      readonly tally: JstackTally;
++      readonly faded: boolean;
++      readonly selected: boolean;
++    }
++  | {
++      readonly kind: "worker";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly depth: 1 | 2;
++      readonly slug: string;
++      /** The home's slug prefix, drawn faint, when the slug carries it. */
++      readonly prefix: string | null;
++      readonly word: string;
++      readonly tone: "asks" | "plain";
++      /** null for a scout, which draws one dot. */
++      readonly ticks: JstackTicks | null;
++      /** null until jbus launches the task. */
++      readonly threadId: ThreadId | null;
++      readonly thread: EnvironmentThreadShell | null;
++      readonly pullRequest: string | null;
++      readonly selected: boolean;
++    }
++  | {
++      readonly kind: "more";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly depth: 1 | 2;
++      readonly homeKey: string;
++      readonly count: number;
++    }
++  | {
++      readonly kind: "loose";
++      readonly key: string;
++      readonly parentKey: string;
++      readonly thread: EnvironmentThreadShell;
++    };
++
++export interface JstackTreeInput {
++  readonly environmentId: EnvironmentId;
++  readonly projectKey: string;
++  readonly memberProjectRefs: ReadonlyArray<ScopedProjectRef>;
++  readonly snapshot: JbusWorkSnapshot;
++  /** Every thread of the environment, settled and snoozed ones included. */
++  readonly threadsById: ReadonlyMap<ThreadId, EnvironmentThreadShell>;
++  /** The folder's active threads, in the sidebar's order. */
++  readonly folderThreads: ReadonlyArray<EnvironmentThreadShell>;
++  readonly collapsed: boolean;
++  readonly routeThreadId: ThreadId | null;
++  /** Homes whose "+N" row the user opened. */
++  readonly expandedHomes: ReadonlySet<string>;
++  /** Worker order per home to keep while the pointer is in the sidebar; null re-sorts. */
++  readonly frozenOrder: ReadonlyMap<string, ReadonlyArray<string>> | null;
++  readonly lastVisitedAt: (thread: EnvironmentThreadShell) => string | null;
++  readonly nowMs: number;
++  readonly options: JstackTreeOptions;
++}
++
++export interface JstackTree {
++  readonly rows: ReadonlyArray<JstackTreeRow>;
++  /** Worker keys per home in drawn order, to freeze while the pointer is in the sidebar. */
++  readonly order: ReadonlyMap<string, ReadonlyArray<string>>;
++}
++
++/** Finished worker threads jbus no longer lists. Search still finds them. */
++const WORKER_TITLE = /^(crew|scout|review):/i;
++
++const MINUTE_MS = 60_000;
++
++const formatQuietAge = (minutes: number): string =>
++  minutes < 60
++    ? `${minutes}m`
++    : minutes < 48 * 60
++      ? `${Math.floor(minutes / 60)}h`
++      : `${Math.floor(minutes / 1440)}d`;
++
++const waitsOnUser = (thread: EnvironmentThreadShell | null) =>
++  thread !== null && (thread.hasPendingUserInput || thread.hasPendingApprovals);
++
++interface Worker {
++  readonly row: Extract<JstackTreeRow, { kind: "worker" }>;
++  readonly rank: number;
++  readonly stage: "queue" | "crew" | "review";
++}
++
++const STEP = { ready: 0, behind: 0, crew: 1, quiet: 1, review: 2 } as const;
++
++const toWorker = (
++  input: JstackTreeInput,
++  task: JbusTask,
++  home: JbusHome,
++  parentKey: string,
++  depth: 1 | 2,
++  gateThreads: ReadonlySet<string>,
++  gateSlugs: ReadonlySet<string>,
++): Worker => {
++  const thread = task.threadId === null ? null : (input.threadsById.get(task.threadId) ?? null);
++  const asks =
++    task.waitsOnUser ||
++    gateSlugs.has(`${task.repo}/${task.slug}`) ||
++    (task.threadId !== null && gateThreads.has(task.threadId)) ||
++    waitsOnUser(thread);
++  const quietMinutes =
++    thread === null ? 0 : Math.floor((input.nowMs - Date.parse(thread.updatedAt)) / MINUTE_MS);
++  const quietShown =
++    input.options.attention === "gates-and-quiet" &&
++    task.stage === "quiet" &&
++    quietMinutes >= input.options.quietMinutes;
++  const scout = task.kind === "scout";
++  const [word, rank] = asks
++    ? ["asks you", 0]
++    : scout
++      ? ["scout", 2]
++      : quietShown
++        ? [`quiet ${formatQuietAge(quietMinutes)}`, 1]
++        : task.stage === "quiet"
++          ? ["crew", 2]
++          : ([task.stage, { ready: 4, behind: 5, crew: 2, review: 3 }[task.stage]] as const);
++  const step = STEP[task.stage];
++  const prefix =
++    home.prefix !== null && task.slug.startsWith(home.prefix) && task.slug !== home.prefix
++      ? home.prefix
++      : null;
++  return {
++    rank,
++    stage: step === 0 ? "queue" : step === 1 ? "crew" : "review",
++    row: {
++      kind: "worker",
++      key: `jstack-task:${task.repo}/${task.slug}`,
++      parentKey,
++      depth,
++      slug: prefix === null ? task.slug : task.slug.slice(prefix.length),
++      prefix,
++      word,
++      tone: asks ? "asks" : "plain",
++      ticks: scout ? null : { step, hollow: step === 0 || quietShown, asks },
++      threadId: task.threadId,
++      thread,
++      pullRequest: task.pullRequest,
++      selected: task.threadId !== null && task.threadId === input.routeThreadId,
++    },
++  };
++};
++
++const ordered = (
++  workers: ReadonlyArray<Worker>,
++  frozen: ReadonlyArray<string> | undefined,
++): ReadonlyArray<Worker> => {
++  const ranked = workers
++    .map((worker, index) => ({ worker, index }))
++    .toSorted((a, b) => a.worker.rank - b.worker.rank || a.index - b.index)
++    .map(({ worker }) => worker);
++  if (frozen === undefined) return ranked;
++  const position = new Map(frozen.map((key, index) => [key, index]));
++  const kept = ranked
++    .filter((worker) => position.has(worker.row.key))
++    .toSorted((a, b) => position.get(a.row.key)! - position.get(b.row.key)!);
++  return [...kept, ...ranked.filter((worker) => !position.has(worker.row.key))];
++};
++
++const tallyOf = (workers: ReadonlyArray<Worker>): JstackTally => ({
++  queue: workers.filter((worker) => worker.stage === "queue").length,
++  crew: workers.filter((worker) => worker.stage === "crew").length,
++  review: workers.filter((worker) => worker.stage === "review").length,
++});
++
++const isMember = (input: JstackTreeInput, thread: EnvironmentThreadShell) =>
++  input.memberProjectRefs.some(
++    (ref) => ref.environmentId === input.environmentId && ref.projectId === thread.projectId,
++  );
++
++/** The folder's rows in tree mode, or null when no jstack root home lives in the project. */
++export function buildJstackTree(input: JstackTreeInput): JstackTree | null {
++  const { snapshot, options } = input;
++  const root = snapshot.homes.find((home) => {
++    if (home.scope !== null) return false;
++    const thread = input.threadsById.get(home.threadId);
++    return thread !== undefined && isMember(input, thread);
++  });
++  const rootThread = root === undefined ? undefined : input.threadsById.get(root.threadId);
++  if (root === undefined || rootThread === undefined) return null;
++
++  const projectKey = `jstack-home:${root.threadId}`;
++  const domains = snapshot.homes.filter((home) => home.repo === root.repo && home.scope !== null);
++  const homeIds = new Set([root.threadId, ...domains.map((home) => home.threadId)]);
++  const gates = snapshot.gates.filter((gate) => gate.repo === root.repo);
++  const gateThreads = new Set(
++    gates.flatMap((gate) => (gate.threadId === null ? [] : [gate.threadId])),
++  );
++  const gateSlugs = new Set(
++    gates.flatMap((gate) => (gate.slug === null ? [] : [`${gate.repo}/${gate.slug}`])),
++  );
++  const tasks = snapshot.tasks.filter((task) => {
++    if (task.repo !== root.repo || !homeIds.has(task.homeThreadId)) return false;
++    if (task.kind !== "scout") return true;
++    // jbus never closes a scout; its thread settling or archiving does.
++    const thread = task.threadId === null ? undefined : input.threadsById.get(task.threadId);
++    return (
++      thread !== undefined &&
++      thread.archivedAt === null &&
++      thread.settledOverride !== "settled" &&
++      thread.settledAt === null
++    );
++  });
++
++  const consumed = new Set<string>(homeIds);
++  for (const task of tasks) if (task.threadId !== null) consumed.add(task.threadId);
++
++  const order = new Map<string, ReadonlyArray<string>>();
++  const workersOf = (home: JbusHome, parentKey: string, depth: 1 | 2) => {
++    const workers = ordered(
++      tasks
++        .filter((task) => task.homeThreadId === home.threadId)
++        .map((task) => toWorker(input, task, home, parentKey, depth, gateThreads, gateSlugs)),
++      input.frozenOrder?.get(home.threadId),
++    );
++    order.set(
++      home.threadId,
++      workers.map((worker) => worker.row.key),
++    );
++    return workers;
++  };
++  const capped = (
++    workers: ReadonlyArray<Worker>,
++    homeKey: string,
++    parentKey: string,
++    depth: 1 | 2,
++  ): ReadonlyArray<JstackTreeRow> => {
++    const limit = input.expandedHomes.has(homeKey) ? workers.length : options.rowCap;
++    const shown: Array<JstackTreeRow> = workers.slice(0, limit).map((worker) => worker.row);
++    if (workers.length > limit) {
++      shown.push({
++        kind: "more",
++        key: `jstack-more:${homeKey}`,
++        parentKey,
++        depth,
++        homeKey,
++        count: workers.length - limit,
++      });
++    }
++    return shown;
++  };
++
++  const rootWorkers = workersOf(root, projectKey, 1);
++  const domainRows: Array<JstackTreeRow> = [];
++  let innerAsks = rootWorkers.some((worker) => worker.row.tone === "asks");
++  for (const home of domains) {
++    const thread = input.threadsById.get(home.threadId) ?? null;
++    const key = `jstack-home:${home.threadId}`;
++    const workers = workersOf(home, key, 2);
++    const asksYou = gateThreads.has(home.threadId) || waitsOnUser(thread);
++    const workerAsks = workers.some((worker) => worker.row.tone === "asks");
++    innerAsks ||= asksYou || workerAsks;
++    const selected = home.threadId === input.routeThreadId;
++    const open = selected || workers.some((worker) => worker.row.selected);
++    domainRows.push({
++      kind: "domain",
++      key,
++      parentKey: projectKey,
++      scope: home.scope ?? "",
++      threadId: home.threadId,
++      thread,
++      open,
++      asksYou,
++      dot: !open && workerAsks,
++      tally: tallyOf(workers),
++      faded: workers.length === 0 && !asksYou && (thread === null || !isThreadWorking(thread)),
++      selected,
++    });
++    if (open) domainRows.push(...capped(workers, home.threadId, key, 2));
++  }
++
++  const lastVisitedAt = input.lastVisitedAt(rootThread);
++  const landed = options.landedCount
++    ? snapshot.landed.filter(
++        (merge) =>
++          merge.repo === root.repo &&
++          (lastVisitedAt === null || Date.parse(merge.mergedAt) > Date.parse(lastVisitedAt)),
++      ).length
++    : 0;
++  const rootAsks = gateThreads.has(root.threadId) || waitsOnUser(rootThread);
++  const project: JstackTreeRow = {
++    kind: "project",
++    key: projectKey,
++    thread: rootThread,
++    collapsed: input.collapsed,
++    asksYou: rootAsks,
++    dot: input.collapsed && innerAsks,
++    landed,
++    taskCount: tasks.length,
++    faded: tasks.length === 0 && gates.length === 0 && !rootAsks && !isThreadWorking(rootThread),
++    selected: root.threadId === input.routeThreadId,
++  };
++  if (input.collapsed) return { rows: [project], order };
++
++  const loose: Array<JstackTreeRow> = input.folderThreads
++    .filter((thread) => !consumed.has(thread.id) && !WORKER_TITLE.test(thread.title))
++    .map((thread) => ({
++      kind: "loose",
++      key: `jstack-loose:${thread.id}`,
++      parentKey: projectKey,
++      thread,
++    }));
++
++  return {
++    rows: [project, ...capped(rootWorkers, root.threadId, projectKey, 1), ...domainRows, ...loose],
++    order,
++  };
++}
+diff --git a/apps/web/src/hooks/useSettings.ts b/apps/web/src/hooks/useSettings.ts
+index 2c24f13760..6f2ec9816c 100644
+--- a/apps/web/src/hooks/useSettings.ts
++++ b/apps/web/src/hooks/useSettings.ts
+@@ -415,10 +415,16 @@ export function useEnvironmentIdentificationMode(): EnvironmentIdentificationMod
+   });
+ }
+ 
+-/** Legacy sidebar opt-ins still count, so those users land in the boring sidebar. */
++/**
++ * Legacy sidebar opt-ins still count, so those users land in the boring sidebar. The jstack
++ * tree draws on the boring sidebar's folders, so it turns them on too.
++ */
+ export function useBoringSidebarEnabled(): boolean {
+   return useClientSettings(
+-    (settings) => settings.boringSidebarEnabled || settings.legacySidebarEnabled,
++    (settings) =>
++      settings.boringSidebarEnabled ||
++      settings.legacySidebarEnabled ||
++      settings.jstackTreeSidebarEnabled,
+   );
+ }
+ 
+diff --git a/apps/web/src/lib/jbusWorkState.ts b/apps/web/src/lib/jbusWorkState.ts
+new file mode 100644
+index 0000000000..2aec5d7fc8
+--- /dev/null
++++ b/apps/web/src/lib/jbusWorkState.ts
+@@ -0,0 +1,16 @@
++import { AuthOrchestrationReadScope } from "@t3tools/contracts";
++import type { EnvironmentId, JbusWorkSnapshot } from "@t3tools/contracts";
++
++import { useEnvironmentQuery } from "../state/query";
++import { serverEnvironment } from "../state/server";
++import { useEnvironmentScope } from "../state/session";
++
++/** jbus's tasks and homes on one environment; null while loading or on a server without them. */
++export function useJbusWork(environmentId: EnvironmentId | null): JbusWorkSnapshot | null {
++  const canRead = useEnvironmentScope(environmentId, AuthOrchestrationReadScope);
++  return useEnvironmentQuery(
++    environmentId === null || !canRead
++      ? null
++      : serverEnvironment.jbusWork({ environmentId, input: {} }),
++  ).data;
++}
+diff --git a/apps/web/src/shortcuts/chatRouteCommands.ts b/apps/web/src/shortcuts/chatRouteCommands.ts
+index f0f80dfed8..1bbc876dd3 100644
+--- a/apps/web/src/shortcuts/chatRouteCommands.ts
++++ b/apps/web/src/shortcuts/chatRouteCommands.ts
+@@ -119,8 +119,10 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
+       "chat.new": (event) => {
+         // The boring sidebar's folders already show the context, so it starts in
+         // the current project like the legacy sidebar did.
+-        const { boringSidebarEnabled, legacySidebarEnabled } = getClientSettings();
+-        if (!boringSidebarEnabled && !legacySidebarEnabled && readProjectGroupCount() > 1) {
++        const { boringSidebarEnabled, legacySidebarEnabled, jstackTreeSidebarEnabled } =
++          getClientSettings();
++        const folders = boringSidebarEnabled || legacySidebarEnabled || jstackTreeSidebarEnabled;
++        if (!folders && readProjectGroupCount() > 1) {
+           claim(event);
+           openCommandPalette({ open: "new-thread-in" });
+           return;
+diff --git a/packages/client-runtime/src/rpc/client.ts b/packages/client-runtime/src/rpc/client.ts
+index 2832a4e231..5608c3ca8d 100644
+--- a/packages/client-runtime/src/rpc/client.ts
++++ b/packages/client-runtime/src/rpc/client.ts
+@@ -66,6 +66,7 @@ export type EnvironmentSubscriptionRpcTag =
+   | typeof WS_METHODS.subscribeDiscoveredLocalServers
+   | typeof WS_METHODS.subscribeDeviceState
+   | typeof WS_METHODS.subscribeResourceTelemetry
++  | typeof WS_METHODS.subscribeJbusWork
+   | typeof WS_METHODS.pullRequestsSubscribeRefreshes
+   | typeof WS_METHODS.subscribeVcsStatus
+   | typeof WS_METHODS.subscribeWorktreeSetup
+diff --git a/packages/client-runtime/src/state/server.ts b/packages/client-runtime/src/state/server.ts
+index dadaf2dafb..9082768574 100644
+--- a/packages/client-runtime/src/state/server.ts
++++ b/packages/client-runtime/src/state/server.ts
+@@ -1309,6 +1309,11 @@ export function createServerEnvironmentAtoms<R, E>(
+       tag: WS_METHODS.subscribeResourceTelemetry,
+       idleTtlMs: 0,
+     }),
++    jbusWork: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
++      label: "environment-data:server:jbus-work",
++      tag: WS_METHODS.subscribeJbusWork,
++      idleTtlMs: 0,
++    }),
+     resourceTelemetryHistory: createEnvironmentRpcQueryAtomFamily(runtime, {
+       label: "environment-data:server:resource-telemetry-history",
+       tag: WS_METHODS.serverGetResourceTelemetryHistory,
+diff --git a/packages/contracts/src/index.ts b/packages/contracts/src/index.ts
+index e61597e52e..ebb6e29cea 100644
+--- a/packages/contracts/src/index.ts
++++ b/packages/contracts/src/index.ts
+@@ -64,6 +64,7 @@ export * from "./usage.ts";
+ export * from "./scheduledTask.ts";
+ export * from "./worktreeMcp.ts";
+ export * from "./resourceTelemetry.ts";
++export * from "./jbusWork.ts";
+ export * from "./rpc.ts";
+ export * from "./worktreeSetup.ts";
+ export * from "./secretRequest.ts";
+diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
+new file mode 100644
+index 0000000000..4a1dda396a
+--- /dev/null
++++ b/packages/contracts/src/jbusWork.ts
+@@ -0,0 +1,68 @@
++import * as Schema from "effect/Schema";
++
++import { IsoDateTime, ThreadId, TrimmedNonEmptyString } from "./baseSchemas.ts";
++
++// jstack fork: what jbus (~/.local/state/jbus) and jstack homes (~/.local/state/home) say about
++// each thread, read by the server so remote clients see the same tree.
++
++/** One word, as the tree sidebar prints it. */
++export const JbusWorkStage = Schema.Literals(["ready", "behind", "crew", "quiet", "review"]);
++export type JbusWorkStage = typeof JbusWorkStage.Type;
++
++export const JbusHome = Schema.Struct({
++  repo: TrimmedNonEmptyString,
++  /** null for the repo's root home. */
++  scope: Schema.NullOr(TrimmedNonEmptyString),
++  threadId: ThreadId,
++  /** The slug prefix this home's briefs carry, such as `fl-`. */
++  prefix: Schema.NullOr(TrimmedNonEmptyString),
++});
++export type JbusHome = typeof JbusHome.Type;
++
++export const JbusTask = Schema.Struct({
++  repo: TrimmedNonEmptyString,
++  slug: TrimmedNonEmptyString,
++  kind: Schema.Literals(["crew", "scout"]),
++  stage: JbusWorkStage,
++  /** null until jbus launches the task. */
++  threadId: Schema.NullOr(ThreadId),
++  homeThreadId: ThreadId,
++  pullRequest: Schema.NullOr(TrimmedNonEmptyString),
++  /** jbus waits on the user's word: a gate, an approval, a hung or lost thread. */
++  waitsOnUser: Schema.Boolean,
++});
++export type JbusTask = typeof JbusTask.Type;
++
++/** An unanswered jbus question, which waits on the user until its default applies. */
++export const JbusGate = Schema.Struct({
++  repo: TrimmedNonEmptyString,
++  number: Schema.Int,
++  threadId: Schema.NullOr(ThreadId),
++  slug: Schema.NullOr(TrimmedNonEmptyString),
++  question: Schema.String,
++  askedAt: IsoDateTime,
++});
++export type JbusGate = typeof JbusGate.Type;
++
++export const JbusLanded = Schema.Struct({
++  repo: TrimmedNonEmptyString,
++  slug: TrimmedNonEmptyString,
++  homeThreadId: ThreadId,
++  mergedAt: IsoDateTime,
++});
++export type JbusLanded = typeof JbusLanded.Type;
++
++export const JbusWorkSnapshot = Schema.Struct({
++  homes: Schema.Array(JbusHome),
++  tasks: Schema.Array(JbusTask),
++  gates: Schema.Array(JbusGate),
++  landed: Schema.Array(JbusLanded),
++});
++export type JbusWorkSnapshot = typeof JbusWorkSnapshot.Type;
++
++export const EMPTY_JBUS_WORK_SNAPSHOT: JbusWorkSnapshot = {
++  homes: [],
++  tasks: [],
++  gates: [],
++  landed: [],
++};
+diff --git a/packages/contracts/src/rpc.ts b/packages/contracts/src/rpc.ts
+index aae86bd9db..7403252133 100644
+--- a/packages/contracts/src/rpc.ts
++++ b/packages/contracts/src/rpc.ts
+@@ -339,6 +339,7 @@ import {
+   ResourceTelemetryRetryResult,
+   ResourceTelemetrySnapshot,
+ } from "./resourceTelemetry.ts";
++import { JbusWorkSnapshot } from "./jbusWork.ts";
+ import {
+   UsageLimitSourceError,
+   ProviderConsumeResetCreditInput,
+@@ -600,6 +601,7 @@ export const WS_METHODS = {
+   subscribeServerLifecycle: "subscribeServerLifecycle",
+   subscribeAuthAccess: "subscribeAuthAccess",
+   subscribeResourceTelemetry: "subscribeResourceTelemetry",
++  subscribeJbusWork: "subscribeJbusWork",
+ } as const;
+ 
+ const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
+@@ -1927,6 +1929,13 @@ const WsSubscribeResourceTelemetryRpc = Rpc.make(WS_METHODS.subscribeResourceTel
+   stream: true,
+ });
+ 
++const WsSubscribeJbusWorkRpc = Rpc.make(WS_METHODS.subscribeJbusWork, {
++  payload: Schema.Struct({}),
++  success: JbusWorkSnapshot,
++  error: EnvironmentAuthorizationError,
++  stream: true,
++});
++
+ export class RpcScopeAuthorization extends RpcMiddleware.Service<RpcScopeAuthorization>()(
+   "t3/contracts/RpcScopeAuthorization",
+   { error: EnvironmentAuthorizationError },
+@@ -2119,6 +2128,7 @@ export const WsRpcGroup = RpcGroup.make(
+   WsSubscribeServerLifecycleRpc,
+   WsSubscribeAuthAccessRpc,
+   WsSubscribeResourceTelemetryRpc,
++  WsSubscribeJbusWorkRpc,
+   WsOrchestrationV2DispatchCommandRpc,
+   WsOrchestrationV2GetWorkflowScriptRpc,
+   WsOrchestrationV2StopWorkflowRpc,
+diff --git a/packages/contracts/src/settings.ts b/packages/contracts/src/settings.ts
+index 16eb51aa17..a3b644d7ca 100644
+--- a/packages/contracts/src/settings.ts
++++ b/packages/contracts/src/settings.ts
+@@ -72,6 +72,21 @@ export const SidebarProjectGroupingMode = Schema.Literals([
+ ]);
+ export type SidebarProjectGroupingMode = typeof SidebarProjectGroupingMode.Type;
+ const DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE: SidebarProjectGroupingMode = "repository";
++export const JstackTreeAttention = Schema.Literals(["gates", "gates-and-quiet"]);
++export type JstackTreeAttention = typeof JstackTreeAttention.Type;
++export const MIN_JSTACK_TREE_QUIET_MINUTES = 5;
++export const MAX_JSTACK_TREE_QUIET_MINUTES = 240;
++export const JstackTreeQuietMinutes = Schema.Int.check(
++  Schema.isBetween({
++    minimum: MIN_JSTACK_TREE_QUIET_MINUTES,
++    maximum: MAX_JSTACK_TREE_QUIET_MINUTES,
++  }),
++);
++export const MIN_JSTACK_TREE_ROW_CAP = 3;
++export const MAX_JSTACK_TREE_ROW_CAP = 30;
++export const JstackTreeRowCap = Schema.Int.check(
++  Schema.isBetween({ minimum: MIN_JSTACK_TREE_ROW_CAP, maximum: MAX_JSTACK_TREE_ROW_CAP }),
++);
+ export const MIN_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 1;
+ export const MAX_SIDEBAR_AUTO_SETTLE_AFTER_DAYS = 90;
+ export const SidebarAutoSettleAfterDays = Schema.Number.check(
+@@ -484,6 +499,16 @@ export const ClientSettingsSchema = Schema.Struct({
+   threadDetailsItems: Schema.Record(Schema.String, Schema.Boolean).pipe(
+     Schema.withDecodingDefault(Effect.succeed({})),
+   ),
++  // jstack fork: the tree sidebar draws jstack homes and jbus tasks; it is on in this build.
++  jstackTreeSidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
++  jstackTreeAttention: JstackTreeAttention.pipe(
++    Schema.withDecodingDefault(Effect.succeed("gates-and-quiet")),
++  ),
++  jstackTreeLandedCount: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
++  jstackTreeQuietMinutes: JstackTreeQuietMinutes.pipe(
++    Schema.withDecodingDefault(Effect.succeed(20)),
++  ),
++  jstackTreeRowCap: JstackTreeRowCap.pipe(Schema.withDecodingDefault(Effect.succeed(8))),
+   // Opt-in for the removed legacy sidebar. Still read so those users land in
+   // the boring sidebar; the boring sidebar toggle clears it.
+   legacySidebarEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+@@ -1729,6 +1754,11 @@ export const ClientSettingsPatch = Schema.Struct({
+   boringSidebarMultilineRows: Schema.optionalKey(Schema.Boolean),
+   threadDetailsUsageEnabled: Schema.optionalKey(Schema.Boolean),
+   threadDetailsItems: Schema.optionalKey(Schema.Record(Schema.String, Schema.Boolean)),
++  jstackTreeSidebarEnabled: Schema.optionalKey(Schema.Boolean),
++  jstackTreeAttention: Schema.optionalKey(JstackTreeAttention),
++  jstackTreeLandedCount: Schema.optionalKey(Schema.Boolean),
++  jstackTreeQuietMinutes: Schema.optionalKey(JstackTreeQuietMinutes),
++  jstackTreeRowCap: Schema.optionalKey(JstackTreeRowCap),
+   legacySidebarEnabled: Schema.optionalKey(Schema.Boolean),
+   sidebarWorkingShelfEnabled: Schema.optionalKey(Schema.Boolean),
+   sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),
+diff --git a/scripts/build-desktop-artifact.test.ts b/scripts/build-desktop-artifact.test.ts
+index a4cef9ba03..470dc0ada1 100644
+--- a/scripts/build-desktop-artifact.test.ts
++++ b/scripts/build-desktop-artifact.test.ts
+@@ -38,6 +38,7 @@ import {
+   preflightWindowsDesktopBuild,
+   renderMacPasskeyEntitlements,
+   resolveMacWebAuthnEntitlements,
++  resolveDesktopUpdateChannel,
+   resolveMacPasskeySigningConfiguration,
+   resolveMergedStageDependencies,
+   resolveBuildOptions,
+@@ -1745,3 +1746,12 @@ it.effect.skipIf(!symlinksSupported)("rebases packaged links into the isolated t
+     );
+   }).pipe(Effect.provide(NodeServices.layer)),
+ );
++
++it("keeps a nightly's channel when build metadata marks a local build", () => {
++  assert.strictEqual(
++    resolveDesktopUpdateChannel("0.1.5-nightly.20261029.3877+jstack.1"),
++    "nightly",
++  );
++  assert.strictEqual(resolveDesktopUpdateChannel("0.1.5-nightly.20261029.3877"), "nightly");
++  assert.strictEqual(resolveDesktopUpdateChannel("0.1.5+jstack.1"), "latest");
++});
+diff --git a/scripts/build-desktop-artifact.ts b/scripts/build-desktop-artifact.ts
+index 3a8686f248..47e373e019 100644
+--- a/scripts/build-desktop-artifact.ts
++++ b/scripts/build-desktop-artifact.ts
+@@ -2705,8 +2705,9 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
+   };
+ });
+ 
++// jstack fork: build metadata (`+jstack.1`) marks a local build and keeps its channel.
+ export function resolveDesktopUpdateChannel(version: string): "latest" | "nightly" {
+-  return /-nightly\.\d{8}\.\d+$/.test(version) ? "nightly" : "latest";
++  return /-nightly\.\d{8}\.\d+(\+[0-9A-Za-z.-]+)?$/.test(version) ? "nightly" : "latest";
+ }
+ 
+ export function isDesktopPreviewVersion(version: string): boolean {
+-- 
+2.56.0
+

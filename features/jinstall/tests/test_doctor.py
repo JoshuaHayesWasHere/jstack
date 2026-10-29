@@ -2,9 +2,10 @@
 code.
 
 Each test runs the script under a temporary `HOME`, with a stand-in for each program the doctor
-runs. Three tests are the exception: they give a kind a machine that no argument of the script
+runs. A few tests are the exception: they give a kind a machine that no argument of the script
 can produce."""
 
+import hashlib
 import os
 import shlex
 import shutil
@@ -16,9 +17,11 @@ from dataclasses import replace
 import pytest
 
 from jinstall.__main__ import doctor
-from jinstall.kinds import Program, T3Code
-from jinstall.needs import T3_FLOOR
+from jinstall.kinds import Program, T3Code, T3JstackBuild, patch_series
+from jinstall.needs import T3_FLOOR, needs
 from test_install import REPO, T3_WHERE, Machine, Ran, User, line_for, machine
+
+READ_SET = ("features/t3code-jstack/packaging/",)
 
 T3_STABLE = "0.1.2"
 TOKEN = "gho_a_token_the_doctor_never_prints"
@@ -608,3 +611,73 @@ def test_a_claude_home_with_no_skills_is_missing(user):
         f"missing hard skills {user.home / '.claude_prime'}"
         f" -> link it to {user.home / '.claude' / 'skills'}"
     ]
+
+
+def jstack_build(tmp_path, says):
+    here = machine(REPO, tmp_path, tmp_path, run=lambda args: Ran(0, f"t3 v{says}\n"))
+    (tmp_path / ".t3" / "bin").mkdir(parents=True)
+    (tmp_path / ".t3" / "bin" / "t3").write_text("")
+    (tmp_path / ".t3" / "bin" / "t3").chmod(0o755)
+    packaging = tmp_path / "packaging"
+    packaging.mkdir()
+    (packaging / "0002-b.patch").write_text("b\n")
+    (packaging / "0001-a.patch").write_text("a\n")
+    (packaging / "PKGBUILD").write_text("not a patch\n")
+    return T3JstackBuild(packaging).probe(here)
+
+
+SERIES = hashlib.sha256(b"a\nb\n").hexdigest()[:10]
+
+
+@pytest.mark.parametrize(
+    ("says", "found"),
+    [
+        (
+            f"0.1.5-nightly.20261029.3877+jstack.{SERIES}",
+            ("ok", f"0.1.5-nightly.20261029.3877+jstack.{SERIES}"),
+        ),
+        (
+            "0.1.5-nightly.20261029.3877+jstack.1234567890",
+            ("old", f"built from patches 1234567890, and jstack's are {SERIES}"),
+        ),
+        (
+            "0.1.5-nightly.20261029.3877",
+            (
+                "missing",
+                "0.1.5-nightly.20261029.3877 is upstream's build, without the tree sidebar",
+            ),
+        ),
+    ],
+)
+def test_the_jstack_build_is_ok_only_for_the_patches_jstack_ships(tmp_path, says, found):
+    probed = jstack_build(tmp_path, says)
+    assert (probed.state.value, probed.detail) == found
+
+
+@pytest.mark.parametrize(
+    ("pacman", "says", "listed"),
+    [
+        (True, "0.1.5-nightly.20261029.3877", True),
+        (True, "0.1.5-nightly.20261029.3877+jstack.05899adb5c", True),
+        (True, T3_STABLE, False),
+        (False, "0.1.5-nightly.20261029.3877", False),
+    ],
+)
+def test_the_jstack_build_is_listed_only_on_arch_with_a_nightly(tmp_path, pacman, says, listed):
+    programs = tmp_path / "bin"
+    programs.mkdir()
+    for name in ("t3", "pacman") if pacman else ("t3",):
+        (programs / name).write_text("#!/bin/sh\n")
+        (programs / name).chmod(0o755)
+    here = Machine(
+        REPO, tmp_path, {"PATH": str(programs)}, lambda args: Ran(0, f"t3 v{says}\n"), tmp_path
+    )
+    found = [one.kind for one in needs(here) if one.name == "t3 jstack build"]
+    assert found == ([T3JstackBuild(REPO / "features" / "t3code-jstack" / "packaging")] * listed)
+
+
+def test_the_pkgbuild_names_the_series_and_each_patch_of_its_folder():
+    packaging = REPO / "features" / "t3code-jstack" / "packaging"
+    pkgbuild = (packaging / "PKGBUILD").read_text()
+    assert f".jstack.{patch_series(packaging)}\n" in pkgbuild
+    assert all(one.name in pkgbuild for one in packaging.glob("*.patch"))

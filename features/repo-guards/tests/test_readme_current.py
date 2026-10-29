@@ -71,6 +71,7 @@ OPTIONAL = {
 }
 NO_REQUIREMENT = (
     "config",
+    "t3 jstack build",
     "roles",
     "patterns",
     "provider inventory",
