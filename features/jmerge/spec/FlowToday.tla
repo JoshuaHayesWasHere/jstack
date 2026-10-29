@@ -309,7 +309,7 @@ ApproveBrowserFix ==
 
 \* You approve a row, which gives it its go again (`jbus queue approve`).
 Approve(p) ==
-    /\ ~go[p]                               \* features/jbus/src/jbus/queue.py `again = row.get("approved") and approved_text(row, text) and not row.get("held")`
+    /\ ~go[p]                               \* features/jbus/src/jbus/queue.py `again = row.get("approved") and judgement.approved_text(row, text) and not row.get("held")`
     /\ go' = [go EXCEPT ![p] = TRUE]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
                    Fix, Browser, needs, rv>>
