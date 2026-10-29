@@ -6,15 +6,11 @@ on:
     # draft. A crew opens its pull request as a draft and jmerge marks it ready once it is
     # reviewed and fixed, so `ready_for_review` runs the check on the head that goes to the
     # merge, and a push of work in progress runs none (the jobs' `if` skips a draft). Work into
-    # any other branch, a parent row's branch or an integration branch, is checked on each push
-    # to that integration branch and again when it lands on main.
+    # any other branch, such as a parent row's branch, is checked when it lands on main.
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
-  # An integration branch, any `integration/...`, is checked on each push as main is, so a
-  # break there is seen before it lands, and jmerge's red hold for a pull request into it reads
-  # its tip. A branch of a home's `integration` file is named under `integration/` for this.
   push:
-    branches: [main, 'integration/**']
+    branches: [main]
   # A manual run always runs the suite, whatever marker the tree has.
   workflow_dispatch:
 
