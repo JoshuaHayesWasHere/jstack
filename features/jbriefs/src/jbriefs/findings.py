@@ -745,9 +745,8 @@ def left(said: Triage) -> str:
 
 def fixed_shape(said: Triage) -> tuple[bool, str] | None:
     """The `Fixed:` line `left` asks for once every finding has its ending, or None: whether it
-    names the head pushed for a fix, which is where a finding is fixed (of the last review, once
-    there are more), and why. It is the one place that decides whether a `Fixed:` line is owed:
-    past `left`'s wait and not-yet answers, None is its "write nothing"."""
+    names the head pushed for a fix (where a finding of the last review is fixed), and why. It
+    alone decides whether a `Fixed:` line is owed: past `left`'s waits, None is "write nothing"."""
     sent = said.sent()
     last = _last_round(said) if said.sections else set()
     if not last or said.roster.owed(said.sections) or any(not one.ended for one in sent):
