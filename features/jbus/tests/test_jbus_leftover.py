@@ -17,6 +17,7 @@ from jbus import leftover, threads, view
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add
 from test_jbus_row_ends import PULL, column, listed, result, sends
+from test_work import judged
 from view.scene import Served
 
 NOTE = "the docs page for the new flag, " + "section by section, " * 12 + "to its end"
@@ -158,6 +159,41 @@ def test_a_leftover_its_home_has_is_not_on_the_users_list_and_the_view_says_who_
     assert [one for one in built["tasks"] if one["who"] == "user"] == []
 
 
+def test_a_leftover_jbus_has_not_told_its_home_of_yet_is_held_by_that_home(kitchen):
+    """The first pass writes the record and the next pass tells the home: between the two, the
+    leftover is already the home's, and not the user's."""
+    kitchen.quiet()
+    home(kitchen)
+    ended(kitchen)
+    kitchen.poll()
+    (record,) = leftover.read(kitchen.state).values()
+    assert (record.told, record.why) == ("", "")
+    assert (judged(kitchen)["who"], judged(kitchen)["waits"]) == ("home", "its home")
+    assert listed(kitchen) == [] and loud(kitchen) == []
+    (task,) = state(kitchen)["tasks"]
+    assert task["who"] == "home"
+
+
+def test_a_leftover_a_thread_is_at_work_on_is_held_by_that_thread_and_not_the_user(kitchen):
+    """A merged row whose crewmate is still at work on its note: the record is busy, and the
+    thread at work holds it in `work.json`, the view and the list of what waits on the user."""
+    kitchen.quiet()
+    home(kitchen)
+    add(kitchen, "alpha")
+    kitchen.t3.thread("alpha", "running")
+    kitchen.brief("alpha", result("the docs", pull=PULL))
+    kitchen.set("merged.json", [kitchen.merged("alpha", 9, "a" * 40)])
+    for _ in range(2):
+        kitchen.poll()
+    (record,) = leftover.read(kitchen.state).values()
+    assert record.busy
+    assert (judged(kitchen)["value"], judged(kitchen)["who"]) == ("leftover", "crew")
+    assert judged(kitchen)["waits"] == "its crewmate"
+    assert listed(kitchen) == [] and loud(kitchen) == [] and sends(kitchen) == []
+    (task,) = state(kitchen)["tasks"]
+    assert task["who"] == "crew"
+
+
 def test_a_leftover_open_thirty_minutes_is_said_to_the_root_home_and_not_the_user(kitchen):
     """The home of the row did not close it in time: the root home gets it, once, and the user is
     not asked, since an agent can still close it."""
@@ -196,6 +232,9 @@ def test_a_leftover_open_thirty_minutes_with_no_root_home_to_tell_is_the_users(k
     why = leftover.NO_ROOT.format(thread=scoped, minutes=leftover.CLOSE_MINUTES)
     assert listed(kitchen) == [f"left alpha: left: the docs; {why}"]
     assert len(sends(kitchen)) == 1
+    assert judged(kitchen)["who"] == "user"
+    (task,) = state(kitchen, later(31))["tasks"]
+    assert task["who"] == "user" and f"It waits on you: {why}" in task["state"]["say"]
 
 
 def test_a_leftover_goes_from_the_record_when_its_brief_says_left_none(kitchen):
