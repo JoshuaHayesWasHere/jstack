@@ -458,9 +458,10 @@ def _approvable(run: Pass, slug: str) -> bool:
     return slug not in run.removed and bool((queue.brief(run.state, slug) or "").strip())
 
 
-def paused(text: str) -> str:
-    """Return the always-pause name that matches a text, or nothing."""
-    words = party.prose(text)
+def paused(text: str, slugs: Collection[str] = ()) -> str:
+    """Return the always-pause name that matches a text, or nothing. The `slugs` are the ones
+    jbus knows, which the text may name with no door meant."""
+    words = party.prose(text, slugs)
     return next((name for name, rule in PAUSE.items() if re.search(rule, words, re.I)), "")
 
 
@@ -482,7 +483,11 @@ def _at_work(world: World, slug: str) -> bool:
 
 
 def _why(
-    run: Pass, one: Item, world: World | None, last: dict[str, datetime]
+    run: Pass,
+    one: Item,
+    world: World | None,
+    last: dict[str, datetime],
+    known: frozenset[str],
 ) -> tuple[str, str] | None:
     """Return the case of the Blocking test that an item of the list meets, and why, or None where
     the item does not block. `("?", "")` is a stall this pass cannot judge, since the pass has no
@@ -498,10 +503,10 @@ def _why(
         return None
     if not str(one.get("default") or "").strip():
         return "a", "a gate with no default"
-    named = paused(f"{one.get('question', '')} {one.get('context', '')}")
+    slug = one.get("slug") or ""
+    named = paused(f"{one.get('question', '')} {one.get('context', '')}", known | {slug})
     if named:
         return "a", f"always-pause: {named}"
-    slug = one.get("slug") or ""
     if not slug or slug == "home":
         return None
     if world is None:
@@ -566,9 +571,10 @@ def blocking(
     had = had or {}
     last = _last_events(run)
     context = {questions.item(asked)["key"]: asked.context for asked in questions.load(run.state)}
+    known = queue.known(run.state)
     found = []
     for one in listed:
-        said = _why(run, one | {"context": context.get(one["key"], "")}, world, last)
+        said = _why(run, one | {"context": context.get(one["key"], "")}, world, last, known)
         if said is None:
             continue
         case, why = said
