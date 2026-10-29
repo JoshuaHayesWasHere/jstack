@@ -16,10 +16,6 @@ its events. A wake the outbox holds for a capped home thread waits in the outbox
 and counts as no failure of the route. `failing` gives the line of the home thread's streak once
 it alerted, for `jbus status`, the heartbeat and `jbus wakes`.
 
-jbus had a webhook route once, whose streaks were `webhook <project>` and `top-level webhook
-<project>`, and the second target's was `blocking webhook <project>` (`OLD`). Nothing counts them
-any more, and each pass ends them with no line.
-
 `failed` counts one failure, and returns the alert line once the count has reached the threshold.
 `ok` ends the streak, and returns the recovered line when the streak had alerted. An incident is a
 streak that `opened` starts and `closed` ends, with the line its caller passes. Everything else is
@@ -65,7 +61,6 @@ turn ends" in the home skill, with one line for each, keyed `jbus`, as that sect
 EVENTS = {"alert": "user", "recovered": "quiet"}
 RECOVERED = "recovered"
 AFTER = 3
-OLD = ("webhook {}", "top-level webhook {}", "blocking webhook {}")
 PASS = "pass"
 SNAPSHOT = "snapshot"
 STALE = "stale"
@@ -279,13 +274,9 @@ def flush(run: passes.Pass, client: Client | None = None) -> int:
     This function sends to the second target first, with its own streak, so that an alert from
     that streak goes to the home thread in the same pass. For a second target the config does not
     have any more, it drops what waited for it, and if the pair comes back later, it gets only what
-    is new. Before them both, what waits in an outbox of the old webhook moves to the home
-    thread's (`moved`), and the old webhook's streaks end with no line.
+    is new.
     """
     state, name = run.config.state_dir, run.project.name
-    moved(run)
-    for old in OLD:
-        retire(state, old.format(name))
     if run.box.blocking is None:
         retire(state, blocking(name))
         run.box.drop(wake.BLOCKING)
@@ -305,17 +296,6 @@ def flush(run: passes.Pass, client: Client | None = None) -> int:
         return 0
     _count(run, home(name), went)
     return sent
-
-
-def moved(run: passes.Pass) -> None:
-    """Move what waits in an outbox of the old webhook to the home thread's (`wake.Box.fold`), and
-    say in one journal line how many moved."""
-    count = run.box.fold()
-    if count:
-        run.say(
-            f"moved {run.project.name}: {count} events for the user from the old webhook's outbox "
-            "to the home thread's"
-        )
 
 
 def _thread(run: passes.Pass) -> str:

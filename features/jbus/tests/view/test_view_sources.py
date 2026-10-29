@@ -135,14 +135,14 @@ def test_a_fake_secret_planted_in_every_source_is_in_no_answer(scene, served):
 
 def test_a_link_to_a_pull_request_or_a_run_of_this_repo_is_kept(scene, served):
     line = f"see {PULL.format(13)} and {RUN.format(502)}, not {LINKS[1]} or {LINKS[0]}."
-    scene.events(("result", "chef", "oat-milk", line, 1))
+    scene.events(("result", "quiet", "oat-milk", line, 1))
     said = served.json("/state.json?project=demo")["bus"]["events"][-1]["line"]
     assert said == f"see {PULL.format(13)} and {RUN.format(502)}, not [link] or [link]."
 
 
 def test_a_link_to_a_thread_of_t3_code_is_kept_and_no_other_of_its_scheme(scene, served):
     line = "see t3-thread://v1/mcp:home-demo, not t3-thread://v1/mcp:home-demo/../x?y=z."
-    scene.events(("result", "chef", "oat-milk", line, 1))
+    scene.events(("result", "quiet", "oat-milk", line, 1))
     said = served.json("/state.json?project=demo")["bus"]["events"][-1]["line"]
     assert said == "see t3-thread://v1/mcp:home-demo, not [link]."
 
@@ -151,7 +151,7 @@ def test_a_word_that_only_holds_the_shape_of_a_key_leaves_whole(scene, served):
     slug = "task-drawer-shows-the-github-part"
     line = "result refresh-token: Status: done, see risk-register-of-the-whole-kitchen"
     scene.queue([row(slug, "running"), row("disk-usage-of-the-pantry-shelves-again", "running")])
-    scene.events(("result", "chef", slug, line, 1))
+    scene.events(("result", "quiet", slug, line, 1))
     state = served.json("/state.json?project=demo")
     assert [one["slug"] for one in state["tasks"]] == [
         "disk-usage-of-the-pantry-shelves-again",

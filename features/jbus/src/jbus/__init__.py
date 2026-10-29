@@ -3,20 +3,6 @@
 This module is the shared model: the config, its projects, and the paths under the state
 directory. Every other module takes a `Config` or a `Project` and reads no path by itself.
 
-A level of loudness and one kind of event had one person's name until the name became a
-setting (`jsettings.Settings`). `NAMED_AFTER` holds those two by the names they have now.
-In those old names jbus wrote the person's name, in lower case, where it now writes `user`.
-`old_names` is the map from every old name to the name it has now. `current_level` reads a
-level through it, and `current_kind` reads a kind of event through it. A third level, `chef`,
-started a POST for an event that asked nothing of the user. An event of that level is `quiet`
-now, and jbus reads it as `quiet`.
-
-`IGNORED` is the keys of a project's table that nothing reads any more, and `OLD` the keys
-above the first `[[project]]` that nothing reads any more. `load` still loads a config that has
-one, and `Config.ignored` names each such key, so that each pass, and `jinstall`'s doctor, can name
-it until the user removes it. The old keys of the webhook are among them: jbus wakes a project's
-home thread alone, so a `wake`, a URL and a key of that webhook load and do nothing.
-
 A project's events for the user go to its home thread through T3 Code (`wake.Box`). A
 `home_thread` above the first `[[project]]` is `Config.home_thread`: the thread that gets a
 project's wakes when the project's home has none.
@@ -66,10 +52,6 @@ from jgauge import sizes
 
 Loud = Literal["user", "quiet"]
 LEVELS: tuple[Loud, ...] = ("user", "quiet")
-NAMED_AFTER = ("user", "waiting-on-user")
-WAS = {"chef": "quiet"}
-OLD = ("wake", "webhook_url", "webhook_key")
-IGNORED = ("loud", *OLD)
 NUMBERED = "numbered"
 REPO, SCRATCH = "repo", "scratch"
 TIMESTAMPED = "timestamped"
@@ -202,7 +184,6 @@ class Config:
     user: jsettings.Settings
     max_per_home: int = MAX_PER_HOME
     max_per_project: int = MAX_PER_PROJECT
-    ignored: tuple[str, ...] = ()
     blocking: Hook = ("", "")
     scratch: tuple[Scratch, ...] = ()
     home_thread: str = ""
@@ -265,38 +246,6 @@ class Config:
         return self.home_dir / project.state
 
 
-def old_names() -> dict[str, str]:
-    """Return each name that changed, with the name it has now. The old names are those of `WAS`,
-    and each name of `NAMED_AFTER` spelled with the user's name from the settings, as jbus wrote it
-    then. A name that is a level now, as `user` is with the default settings, is not an old name.
-    This function reads the settings file, so a caller with many names to read calls it once and
-    passes the map to the two functions below."""
-    try:
-        name = jsettings.load().user.lower()
-    except jsettings.Invalid:
-        name = jsettings.DEFAULTS.user
-    named = {now.replace(jsettings.DEFAULTS.user, name): now for now in NAMED_AFTER}
-    return {was: now for was, now in (named | WAS).items() if was not in (*LEVELS, now)}
-
-
-def current_level(name: str, names: dict[str, str]) -> str:
-    """Return a level by the name it has now. `names` is `old_names`."""
-    now = names.get(name, name)
-    return now if now in LEVELS else name
-
-
-def current_kind(name: str, names: dict[str, str]) -> str:
-    """Return a kind of event by the name it has now. `names` is `old_names`.
-
-    `wake.Box` reads the outbox, the keys of what it sent, and the log through this function, and
-    every module reads the keys of what was sent through `wake.Box.sent`. Nothing writes an old
-    name any more. This function maps no old name of a level to a kind, because a key of
-    `sent.json` may begin with any word, the user's name among them.
-    """
-    now = names.get(name, name)
-    return name if now in LEVELS else now
-
-
 class RealDir(RuntimeError):
     """`RealDir` means a test reached the machine's own jbus config or state: one that set
     neither `JBUS_CONFIG_DIR` nor `JBUS_STATE_DIR`, or set one to the real directory."""
@@ -334,14 +283,6 @@ def private(path: Path) -> None:
     mode = path.stat().st_mode & 0o777
     if mode & 0o077:
         raise Refused(f"refused: {path} is mode {mode:03o}, readable by others: chmod 600 it")
-
-
-def _ignored(raw: dict[str, Any]) -> tuple[str, ...]:
-    """Return each key of `OLD` the config still has above the first `[[project]]`, and each key
-    of `IGNORED` a project still has, by name, whatever its value is."""
-    top = tuple(f"{key} at the top" for key in OLD if key in raw)
-    found = ((key, one["name"]) for one in raw.get("project", []) for key in IGNORED if key in one)
-    return top + tuple(f"{key} of project {name}" for key, name in found)
 
 
 def _migrations(entry: dict[str, Any]) -> tuple[str, str]:
@@ -453,7 +394,6 @@ def load(directory: Path | None = None) -> Config:
                 )
             )
         server = str(raw["server"]).rstrip("/")
-        ignored = _ignored(raw)
     except (KeyError, TypeError) as error:
         raise Refused(f"refused: {path} lacks the key {error}") from error
     try:
@@ -479,7 +419,6 @@ def load(directory: Path | None = None) -> Config:
         state_dir=state_dir(),
         home_dir=homes_dir(),
         user=user,
-        ignored=ignored,
         blocking=blocking,
         scratch=tuple(scratch),
         home_thread=str(raw.get("home_thread") or ""),

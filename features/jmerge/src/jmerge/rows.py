@@ -9,9 +9,9 @@ from pathlib import Path
 import jbus
 from jbus import queue
 from jmerge import mainjson, ready
+from jmerge.checks import NOT_RED
 
 NO_PULL = "no pull request yet"
-NOT_RED = ("success", "neutral", "skipped", "cancelled")
 
 
 @dataclass(frozen=True)
@@ -212,7 +212,7 @@ def ran_in(log: str, mark: str) -> Ran | None:
 def base_red(base: str, runs: list[dict], slug: str, text: str = "") -> str:
     """The red hold of a pull request into an integration branch. It holds when a check of the
     branch's tip ended without passing on its latest run, as GitHub's check runs list them
-    (`failed`). A cancelled run is no failed check, as on main (`jbus.watch.NOT_RED`).
+    (`failed`). A cancelled run is no failed check, as on main (`jmerge.checks.NOT_RED`).
 
     It does not hold a fix of a red main, as `red` does not, nor the fix of this branch's red at
     its tip: the row jbus files for it (`integration_fix`, `jbus.sidered.integration_branches`),
@@ -320,7 +320,7 @@ def latest(runs: list[dict]) -> list[dict]:
 
 def failed(runs: list[dict]) -> list[dict]:
     """The checks whose latest run ended without passing. A cancelled run is no failed check,
-    as on main (`jbus.watch.NOT_RED`)."""
+    as on main (`jmerge.checks.NOT_RED`)."""
     return [
         one
         for one in latest(runs)
@@ -366,7 +366,7 @@ def main_browser_run(runs: list[dict], default: str, fixing: set[str]) -> dict |
     """Main's last browser run where it failed and its fix is open, or nothing.
     `runs` are the workflow's completed runs: a pull request's run, or a run on another branch
     than `default`, says nothing of main, and a cancelled or skipped one judged no code
-    (`jbus.watch.NOT_RED`). browser.yml runs on main only nightly, so its last run there stays
+    (`jmerge.checks.NOT_RED`). browser.yml runs on main only nightly, so its last run there stays
     red until the next one: once the fix of that run merged, or where jbus filed none (its id is
     not in `fixing`), that red is nobody's to wait on, and a pull request's own red is its own."""
     ran = [

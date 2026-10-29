@@ -8,11 +8,6 @@ cancelled, which jbus runs again and has not yet told the home of (`cancelled.ow
 (`questions.json`, `queue.json`, `cancelled.json`), asks no service, and prints one line for each
 blocker of that home:
 
-- `cleared question <n>`: a question that does not need the user, open `--after` minutes or more
-  (30 by default, `leftover.CLOSE_MINUTES`). The thread acted on its default when it asked, so
-  the home takes that default: `clear` logs the gate in the home's `gates.md` as answered by the
-  home, and `questions.closed_in_files` closes the record from there, as it closes any gate a
-  home answered in its file. Nothing is posted.
 - `decision question <n>`: a question the user has to decide (`needs`). The pass raises it.
 - `fix <key>`: a blocker the home fixes. It writes a brief whose head has `Fix of: <key>` and a
   `When green:` line, and queues it with `jbus queue add`. `try <n> of <cap>` counts the fixes
@@ -90,7 +85,6 @@ from jbus import (
     Refused,
     cancelled,
     dispatch,
-    leftover,
     locked,
     questions,
     queue,
@@ -458,42 +452,18 @@ class Directory:
         return self.path == self.root
 
 
-def _logged(one: questions.Question, minutes: int, stamp: str) -> str:
-    return (
-        f"\n## Gate q{one.number}: {one.question}\n"
-        f"Status: answered, the default taken by the home, {stamp}: open {minutes} min with no "
-        "answer\n"
-        f"Asked by: {one.slug}\n"
-        f"Default: {one.default}\n"
-        f"Built on it: {one.built_on}\n"
-        f"Undo: {one.undo}\n"
-    )
-
-
-def _gates(run: Pass, home: Directory, after: int) -> list[str]:
-    """Clear each question of the home that the user need not decide and that has been open
-    `after` minutes, and say each question the user has to decide."""
-    said, cleared = [], []
+def _gates(run: Pass, home: Directory) -> list[str]:
+    """Say each open question of the home that the user has to decide. A question that does not
+    need the user is closed with its default by silence, in the first pass that sees it
+    (`questions.silent`), so the home has nothing to clear."""
+    said = []
     silence = questions.waits(run.state, run.user)
     for one in questions.load(run.state):
         if one.answer is not None or not home.has(one.slug):
             continue
-        item = questions.item(one, silence(one))
-        why = needs(item, one.context)
-        minutes = int((run.now - datetime.fromisoformat(one.asked_at)).total_seconds() // 60)
+        why = needs(questions.item(one, silence(one)), one.context)
         if why:
             said.append(f"decision question {one.number}: {why}, it waits on {run.user.user}")
-        elif not one.question.endswith(questions.LINK) and minutes >= after:
-            cleared.append(_logged(one, minutes, run.user.stamp(run.now)))
-            said.append(
-                f"cleared question {one.number}: took its default, {one.default}, logged in "
-                f"{home.path / 'gates.md'}"
-            )
-    if cleared:
-        file = home.path / "gates.md"
-        was = file.read_text() if file.exists() else ""
-        file.write_text(was + "".join(cleared))
-        questions.closed_in_files(run)
     return said
 
 
@@ -559,7 +529,7 @@ def _clear(args: argparse.Namespace, config: Config) -> int:
     if args.scope and not (path / "plan.md").exists():
         raise Refused(f"refused: {path} has no plan.md, so {args.scope} is no scoped home")
     home = Directory(root, path)
-    said = _gates(run, home, args.after) + _rows(run, home)
+    said = _gates(run, home) + _rows(run, home)
     print("\n".join(said) if said else "nothing blocks this home")
     return 0
 
@@ -579,12 +549,6 @@ def _decide(args: argparse.Namespace, config: Config) -> int:
 
 def _clears(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--scope", help="the scoped home whose blockers these are")
-    parser.add_argument(
-        "--after",
-        type=int,
-        default=leftover.CLOSE_MINUTES,
-        help="how many minutes a question stays open before the home takes its default",
-    )
 
 
 def _decides(parser: argparse.ArgumentParser) -> None:

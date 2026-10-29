@@ -1,5 +1,5 @@
-"""The view's `/feed` route: the page `jbus feed` prints for one project, after the cursor
-`after`, long polled for up to `wait` seconds (`jbus.feed`). The wait holds only the request's
+"""The view's `/feed` route: the page of one project's log after the cursor `after`, long
+polled for up to `wait` seconds (`jbus.cursor`). The wait holds only the request's
 own thread of the server, and the needs come from the server's one build of them at a time
 (`jbus.view.shared`)."""
 

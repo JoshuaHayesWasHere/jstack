@@ -277,7 +277,7 @@ def test_an_event_queued_before_events_had_a_loudness_goes_only_if_its_kind_is_f
 def test_an_event_queued_before_events_had_a_say_line_is_said_by_its_line(kitchen):
     old = {"project": "demo", "slug": "a", "event": "decision", "line": "decision a: which?"}
     old["text"] = ""
-    jbus.write_json(kitchen.state / "outbox.json", [old])
+    jbus.write_json(kitchen.state / wake.HOME / "outbox.json", [old])
     assert "woke demo: 1 events" in kitchen.poll(NOW)
     assert kitchen.wakes.posts == [[old]] and kitchen.wakes.said == [["decision a: which?"]]
 

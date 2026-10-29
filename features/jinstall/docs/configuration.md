@@ -152,9 +152,7 @@ Each `[[project]]` table is one repo:
 
 To add a repo, run `jbus project add <name> --checkout <path> --project-id <id>` instead of editing the file by hand.
 [jbus](../../jbus/docs/jbus/add-a-project.md) says what the command writes.
-A table that still has `loud` loads, but `jbus` ignores the key, and each pass says to remove it.
-The same holds for the old keys of the webhook, `wake`, `webhook_url` and `webhook_key`, at the top or in a table.
-Each pass prints `ignored: <config> still has <keys>: jbus reads none of them, remove them`, and the doctor's line on the jbus config says `old keys that do nothing, remove them: <keys>`.
+`jbus` ignores a key it does not read, such as the old `loud`, `wake`, `webhook_url` and `webhook_key`.
 
 `jbus t3 login` writes the sign-in beside the config, as `t3.json`.
 You do not write that file.

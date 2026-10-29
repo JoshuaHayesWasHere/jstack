@@ -5,7 +5,7 @@ jbus view, each call `act` with the `party.Party` that acts, the `party.Action` 
 `party.Evidence` it rests on. `act` checks the action, does it through the existing verb
 (`queue.go`, `questions.answer`), and appends one `party.Act` line to the project's
 `acts.jsonl`, whatever came of it. Each act is also a quiet `act` event of the project's log, with
-the act's id and its `subject`, so the feed (`jbus.feed`) gives events and acts in one order:
+the act's id and its `subject`, so the feed (`jbus.cursor`) gives events and acts in one order:
 
 - A go given with `seen`, the id of the last event the party read (`wake.entries`, the feed's
   cursor), is refused as stale when `events.jsonl` has an event for the row after that one, or

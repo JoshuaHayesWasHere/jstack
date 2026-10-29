@@ -47,7 +47,6 @@ from testing.paths import REPO
 no_daemons_left = daemons.no_daemons_left
 ZONE = 'timezone = "America/New_York"\ntimezone_label = "ET"\n'
 NAMED = f'user = "Robin"\n{ZONE}'
-OLD_LEVEL, OLD_EVENT = "robin", "waiting-on-robin"
 
 
 SYSTEMD_RUN = f"""\
@@ -188,13 +187,6 @@ def harness_templates(harness_root, monkeypatch):
     checkout, so a block that a test runs reaches this checkout's tools. A test that needs the
     real templates sets `T` again itself."""
     monkeypatch.setenv("T", str(harness_root / "templates"))
-
-
-@pytest.fixture
-def named_user(jstack_config):
-    """Settings that name the user Robin. `OLD_LEVEL` and `OLD_EVENT` are a level and a kind of
-    event that once used that name."""
-    jstack_config.write_text(NAMED)
 
 
 @pytest.fixture(scope="session", autouse=True)

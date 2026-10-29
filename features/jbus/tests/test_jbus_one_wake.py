@@ -29,7 +29,6 @@ from test_jbus_kitchen import (
     settles,
 )
 from test_jbus_queue import add, go
-from testing.jstack_fixtures import OLD_EVENT, OLD_LEVEL
 
 GATE = ASK
 ASKED = "gate alpha: question 1: which one?"
@@ -46,8 +45,7 @@ HOLDING = (
     "demo: decision alpha: question 1: which one, it holds (deletes data) for your answer. "
     'Reply: "demo question 1: default"'
 )
-IGNORED = "loud of project demo"
-BEFORE, ROOTED = OLD_LEVEL, OLD_EVENT
+BEFORE, ROOTED = "user", "waiting-on-user"
 
 
 def later(minutes):
@@ -230,89 +228,6 @@ def test_what_jbus_finds_that_no_rule_covers_is_a_condition_and_starts_no_post(k
     ] == [f"condition stuck: {SETTLED}"]
 
 
-def unread(kitchen, *, loud='["user", "chef"]'):
-    """Write the key that nothing reads, `loud` on the project, into the config."""
-    path = kitchen.config_dir / "config.toml"
-    named = 'name = "demo"\n'
-    kitchen.write(path, path.read_text().replace(named, f"{named}loud = {loud}\n"))
-
-
-def test_a_config_that_still_has_the_keys_loads_and_each_pass_says_once_they_are_ignored(kitchen):
-    plain = (kitchen.config_dir / "config.toml").read_text()
-    unread(kitchen)
-    assert jbus.load().ignored == tuple(IGNORED.split(", "))
-    decide(kitchen)
-    box(kitchen).send("alpha", "result", "result alpha: done")
-    said = kitchen.poll()
-    path = kitchen.config_dir / "config.toml"
-    assert [line for line in said if line.startswith("ignored")] == [
-        f"ignored: {path} still has {IGNORED}: jbus reads none of them, remove them"
-    ]
-    assert kitchen.wakes.said == [[f"demo: {DECIDED}"]]
-    assert sorted(kitchen.status()["projects"]["demo"]) == [
-        "failed_wakes",
-        "last_error",
-        "outbox",
-        "sign_in",
-        "sweep",
-    ]
-    kitchen.write(path, plain)
-    assert not [line for line in kitchen.poll(later(10)) if line.startswith("ignored")]
-
-
-@pytest.mark.parametrize(
-    "written",
-    [
-        {"loud": '"user"'},
-        {"loud": '["chef", "everyone"]'},
-        {"loud": "[]"},
-    ],
-    ids=["loud-a-word", "loud-unknown", "loud-empty"],
-)
-def test_a_value_of_an_ignored_key_that_was_once_refused_loads(kitchen, written):
-    unread(kitchen, **written)
-    decide(kitchen)
-    assert len([line for line in kitchen.poll() if line.startswith("ignored")]) == 1
-    assert kitchen.wakes.said == [[f"demo: {DECIDED}"]]
-
-
-@pytest.mark.usefixtures("named_user")
-def test_an_outbox_from_before_posts_only_what_is_for_the_user_and_keeps_nothing_else(kitchen):
-    was = [
-        {"project": "demo", "slug": "a", "event": "result", "line": "result a: done", "text": ""},
-        {**wake.event("demo", "a", "merged", "merged a #7 aaaa"), "loud": "chef"},
-        wake.event("demo", "", "note", "note: a quiet one"),
-        {
-            "project": "demo",
-            "slug": "a",
-            "event": "gate",
-            "line": ASKED,
-            "text": "",
-            "loud": BEFORE,
-        },
-    ]
-    kitchen.state.mkdir(parents=True)
-    jbus.write_json(kitchen.state / "outbox.json", was)
-    assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["line"] for one in post] for post in kitchen.wakes.posts] == [[ASKED]]
-    assert kitchen.wakes.said == [[ASKED]] and kitchen.waiting() == []
-
-
-def test_an_outbox_from_before_with_nothing_for_the_user_is_emptied_with_no_post(kitchen):
-    kitchen.state.mkdir(parents=True)
-    was = [{**wake.event("demo", "a", "merged", "merged a #7 aaaa"), "loud": "chef"}]
-    jbus.write_json(kitchen.state / "outbox.json", was)
-    kitchen.poll()
-    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
-
-
-def test_the_log_reads_what_was_for_the_chef_as_quiet(kitchen):
-    kitchen.state.mkdir(parents=True)
-    record = {"at": NOW.isoformat(), "id": "a", "event": "merged", "slug": "a", "loud": "chef"}
-    (kitchen.state / wake.LOG).write_text(json.dumps({**record, "line": "merged a #7"}) + "\n")
-    assert [(one["line"], one["loud"]) for one in box(kitchen).log()] == [("merged a #7", "quiet")]
-
-
 _HELD = re.compile(r"(?:^gate \S+: hold |hand-merge #|^[+] hold )(\d+)\b")
 _APPROVAL = re.compile(r"(?:^waiting-on-\S+ \S+: |^[+] )(?:re-)?approve (\S+?):? ")
 _LISTED = re.compile(r"^[+] gate \d+: (.+)$")
@@ -344,7 +259,7 @@ def starts(record, told):
     starts a POST. Any other gate was a condition of jbus's own. This looks up every other kind in
     `wake.LOUDNESS`.
     """
-    kind, line = jbus.current_kind(record["event"], jbus.old_names()), record["line"]
+    kind, line = record["event"], record["line"]
     asked = mirror.question(record.get("text", ""))
     if kind == "gate" and line == f"gate {record['slug']}: {asked}":
         told.add(asked)
@@ -372,9 +287,8 @@ def replay(records):
     return posts, started
 
 
-def was(kind, slug, line, text="", loud="chef"):
-    """Return an event as the log had it before, when `user` and `waiting-on-user` had the names
-    that `jbus.old_names` gives."""
+def was(kind, slug, line, text="", loud="quiet"):
+    """Return an event as the log had it before the rule of now."""
     made = {"event": kind, "slug": slug, "line": line, "text": text, "loud": loud}
     name = hashlib.sha256(json.dumps(made, sort_keys=True).encode()).hexdigest()[:16]
     return {"at": NOW.isoformat(), "id": name, **made}
@@ -422,7 +336,6 @@ MADE_UP = [
 ]
 
 
-@pytest.mark.usefixtures("named_user")
 def test_a_made_up_log_of_eighteen_posts_replays_as_five():
     """Thirteen of the old POSTs would start no POST under the rule of now: two that asked nothing,
     the merge alone, a stall, a question with a default, a hold that jbus told again for a new
@@ -438,7 +351,6 @@ def test_a_made_up_log_of_eighteen_posts_replays_as_five():
     ]
 
 
-@pytest.mark.usefixtures("named_user")
 def test_the_replay_counts_by_the_rule_the_decisions_are_raised_by(monkeypatch):
     """With nothing the user has to decide, the holds and approvals of the made-up log start no
     POST, and the two alerts are left."""

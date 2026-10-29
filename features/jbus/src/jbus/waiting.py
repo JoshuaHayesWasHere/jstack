@@ -80,15 +80,10 @@ each item still open `REMIND_MINUTES` after it opened, and a `refresh` of every 
 first. The `refresh` goes on the pass that begins a new `REFRESH_MINUTES` period, also when no item
 is open. A body names an item by its key, the same key that the list uses, so it names a question by
 its number. A pass that cannot judge a stall, or that is blind, closes no item that it had open.
-
-The file once had another name (`jbus.old_names`). Where there is no file of the current name,
-`read` takes a file of the old name, and renames each line's event to the name that the event has
-now. `keep` removes the old file once it has written the new one.
 """
 
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import re
 from collections.abc import Callable, Collection
@@ -104,7 +99,6 @@ from jbus import (
     leftover,
     merge,
     mirror,
-    old_names,
     party,
     questions,
     queue,
@@ -114,7 +108,6 @@ from jbus import (
     write_json,
 )
 from jbus.passes import CONDITION, Pass, Slot
-from jbus.wake import renamed
 from jbus.watch import World, at_work
 
 if TYPE_CHECKING:
@@ -159,10 +152,6 @@ KEEP_REMINDED = timedelta(days=14)
 
 def path(state: Path) -> Path:
     return state / NAME
-
-
-def _named_before(state: Path) -> list[Path]:
-    return [state / f"{was}.json" for was, now in old_names().items() if f"{now}.json" == NAME]
 
 
 def kinds() -> list[str]:
@@ -218,23 +207,17 @@ def read(state: Path) -> list[Item] | None:
     A list written before items had a kind uses `root` as each item's name, and `read` takes that
     name as the item's key.
     """
-    kept = None
-    for file in (path(state), *_named_before(state)):
-        kept = read_json(file, None)
-        if isinstance(kept, list):
-            break
-    else:
+    kept = read_json(path(state), None)
+    if not isinstance(kept, list):
         return None
     items = []
     gone = queue.removed_slugs(state)
-    names = old_names()
     for one in kept:
         if isinstance(one, dict) and one.get("slug") in gone:
             continue
         if isinstance(one, dict) and (one.get("key") or one.get("root")):
             key = one.get("key") or one.pop("root")
-            line = {"line": renamed(one["line"], names)} if isinstance(one.get("line"), str) else {}
-            items.append({"kind": kind(key), **one, **line, "key": key})
+            items.append({"kind": kind(key), **one, "key": key})
     return items
 
 
@@ -464,9 +447,6 @@ def keep(
         marked += [f"- {one['line']}" for one in gone]
         run.box.send("", EVENT, line, "\n".join(marked))
     write_json(path(run.state), listed, mode=0o600)
-    for file in _named_before(run.state):
-        with contextlib.suppress(OSError):
-            file.unlink()
     return listed
 
 

@@ -21,7 +21,7 @@ The routes that read are `routes()`, all `GET`:
 - `/panel/<name>.json?project=<project>`: what one panel builds, for each folder of
   `panels/` (`panels`). With no project, a panel that is `alone` gives what its `stack` builds
   across every project (`App._across`);
-- `/feed?project=<project>&after=<id>&wait=<s>`: what `jbus feed` prints, the project's events
+- `/feed?project=<project>&after=<id>&wait=<s>`: the bot's feed, the project's events
   and acts after a cursor, or a reset with what waits on the user, long polled (`feeds`);
 - `/digest.json?since=`: what `jbus digest --json` prints (`digest.build`);
 - `/task/<slug>/github`: a task's pull request and its checks (`github.GitHub.pull`);
