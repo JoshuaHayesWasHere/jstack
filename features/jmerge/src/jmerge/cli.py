@@ -788,7 +788,7 @@ class Repo:
         short = (
             rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
             or rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
-            or (self.red(one, default, brief.stem) if one.base == default else "")
+            or self.red(one, default, brief.stem)
             or self.short_on_migrations(one, one.base)
         )
         if short:
@@ -832,6 +832,8 @@ class Repo:
         """The red hold on a pull request into main: main's hold, and its browser run's. A pull
         request into another merge base has neither: main's red says nothing of that branch, and
         no fix of main can merge into it."""
+        if one.base != default:
+            return ""
         main, ran = self.main_state, rows.UNPROVED
         if main.red and main.failed and not mainjson.fix_of(slug):
             ran = self.proved(one, main.red, main.failed)
