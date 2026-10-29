@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 
 import jbus.queue
-from test_jbus_kitchen import NOW, iso
+from test_jbus_kitchen import NOW, filed_as, iso
 from test_jbus_watch import main_red
 
 RELEASE, CHECK, DRIFT, BROWSER, MACOS = 11, 12, 13, 14, 16
@@ -103,6 +103,7 @@ def test_eight_push_runs_of_a_side_workflow_with_no_job_file_one_owned_row(kitch
     assert "GitHub started no job" in brief and "a candidate for removal" in brief
     assert "https://example.test/o/r/actions/runs/100" in brief
     assert "https://example.test/o/r/actions/runs/107" in brief
+    filed_as(brief, "workflow-not-run")
     assert kitchen.lines("retro") == [
         f"retro workflow-red-release-{first}: release.yml ran no job on main in 8 runs since "
         "2026-10-12: GitHub could not run it, so fix its file or remove it"
@@ -130,6 +131,7 @@ def test_a_scheduled_workflow_that_fails_files_one_row_naming_its_failed_tests(k
     assert (
         "the job `drift`, https://example.test/job/931: `tests/test_drift.py::test_pinned`" in brief
     )
+    filed_as(brief, "workflow-failed")
     assert kitchen.lines("retro") == [
         f"retro {name}: pstack-drift.yml failed on main in 1 run since 2026-10-12, 1 test named"
     ]
