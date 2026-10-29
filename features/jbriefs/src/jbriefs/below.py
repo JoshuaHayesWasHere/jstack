@@ -1,16 +1,11 @@
 """Read what sits below a brief's head: its labelled lines, its last section of a heading, and
-the lines a crew, a reviewer and jbus add as it runs, the reviewer lines, the `Rebase:` lines and
-the gate headings. A brief's head and its sections are `jbriefs.parse`'s."""
+the lines a crew, a reviewer and jbus add as it runs, the reviewer lines and the gate headings.
+A brief's head and its sections are `jbriefs.parse`'s."""
 
 from __future__ import annotations
 
 import re
 
-_REBASE = re.compile(
-    r"^Rebase: patch (?P<how>unchanged|changed in .+), before (?P<before>[0-9a-f]{40}), "
-    r"head (?P<head>[0-9a-f]{40})$",
-    re.MULTILINE,
-)
 _GATE = re.compile(r"^## Gate (\S+?):\s*(.*)$")
 
 
@@ -47,12 +42,6 @@ def launched(said: str) -> bool:
     """Whether a reviewer line says a reviewer was launched: it names something, and not
     `none`, as `Reviewer: none, <why>` says none runs."""
     return bool(said) and not re.match(r"none\b", said)
-
-
-def rebases(brief: str) -> list[tuple[bool, str, str]]:
-    """Each `Rebase:` line of the brief, in order: whether the rebase changed the patch, the
-    head before it and the head after it."""
-    return [(m["how"] != "unchanged", m["before"], m["head"]) for m in _REBASE.finditer(brief)]
 
 
 def gate(heading: str) -> tuple[str, str] | None:

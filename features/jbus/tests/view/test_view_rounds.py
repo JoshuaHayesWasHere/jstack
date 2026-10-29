@@ -22,7 +22,6 @@ def test_the_rounds_of_a_brief_are_its_review_sections_as_jmerge_reads_them(scen
         "second": True,
         "scoped": True,
         "woke": 3,
-        "rebases": 1,
     }
     merged = ready.said_of(brief)
     assert [(one.verdict, one.head, one.found) for one in merged.rounds] == [

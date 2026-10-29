@@ -13,7 +13,7 @@ import pytest
 import jbus
 import jsettings
 from jbriefs import findings
-from jbus import merge, wake
+from jbus import expedite, merge, wake
 from jmerge import ready
 from jroles import ledger
 from test_jbus_kitchen import GATE, NOW, PROJECT, asks
@@ -51,7 +51,8 @@ def later(minutes):
 
 class Short:
     """Alpha is a row that a pass launched. Its thread ended its turn with pull request #7 open
-    at the second of two commits. A pass has read its Result, and the test has cleared what the
+    at the second of two commits, the rebase of the first, which the crew's keep step kept under
+    `refs/jstack/pre-rebase/alpha/`. A pass has read its Result, and the test has cleared what the
     first passes sent from the outbox and the home thread."""
 
     def __init__(self, kitchen):
@@ -63,6 +64,8 @@ class Short:
         self.start = self.commit()
         self.saw = self.commit("the task")
         self.head = self.commit("the rebase")
+        ref = f"refs/jstack/pre-rebase/alpha/{self.saw[:12]}"
+        kitchen.git("update-ref", ref, self.saw)
         self.launched = (kitchen.home / "tasks/alpha.md").read_text()
         self.minute = 0
         self.heard()
@@ -101,9 +104,6 @@ class Short:
 
     def unruled(self, files="a.py"):
         return f"needs user, the review of {self.head[:12]} did not rule on the drops in {files}"
-
-    def rebased(self):
-        return f"Rebase: patch changed in a.py, before {self.saw}, head {self.head}\n"
 
 
 @pytest.fixture
@@ -369,7 +369,7 @@ def test_a_hold_due_in_a_cap_longer_than_its_idle_passes_stays_in_hand_and_is_se
     """The crew would be asked for a scoped pass over its rebase while its instance is capped for
     40 minutes. The passes of the cap are not the crew's idleness, so the hold is not the user's
     by the reset, and the first pass after it sends the message."""
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     resets = later(2) + timedelta(minutes=40)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
     short.passes(42)
@@ -410,7 +410,7 @@ def test_a_hold_whose_crew_is_at_work_at_the_reset_stays_in_hand_and_is_sent_onc
     40 minutes, and it is at work at the reset. The passes of the cap are not passes the message
     waited to be sent, so the hold is not the user's, and the first pass with the crew idle sends
     the message."""
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     resets = later(2) + timedelta(minutes=40)
     ledger.file_of("claudeAgent").write_text(f"five_hour 100 {int(resets.timestamp())}\n")
     short.passes(42)
@@ -512,8 +512,8 @@ def test_drops_a_review_did_not_rule_on_ask_the_crew_for_the_scoped_pass_not_the
     short, kitchen
 ):
     reason = short.unruled("a.py, b.py")
-    short.heard(short.rebased())
-    short.out(reason, "hold", short.rebased())
+    short.heard()
+    short.out(reason, "hold")
     short.passes(2)
     assert sends(kitchen) == []
     short.passes(1)
@@ -552,7 +552,7 @@ def test_ten_passes_after_the_message_with_nothing_changed_is_one_stall_in_the_l
 def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_next_pass(
     short, kitchen
 ):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(12)
     assert kitchen.lines("stall") == []
     kitchen.wakes.posts.clear()
@@ -582,14 +582,14 @@ def test_a_hold_the_crew_did_not_lift_is_one_stall_and_one_decision_from_the_nex
 def test_a_stalled_hold_is_off_the_user_s_list_once_its_head_or_its_reason_changes(
     changed, short, kitchen
 ):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(14)
     assert listed(kitchen) == ["#7"]
     if changed == "the head":
         short.head = short.commit("a fix")
-        short.out(short.unruled(), "hold", short.rebased())
+        short.out(short.unruled(), "hold")
     else:
-        short.out(short.unruled("b.py"), "hold", short.rebased())
+        short.out(short.unruled("b.py"), "hold")
     short.passes(1)
     assert listed(kitchen) == []
 
@@ -597,7 +597,7 @@ def test_a_stalled_hold_is_off_the_user_s_list_once_its_head_or_its_reason_chang
 def test_a_hold_that_stalls_over_a_review_at_work_is_the_user_s_only_once_that_work_ended(
     short, kitchen
 ):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(3)
     reviewer = kitchen.t3.thread("alpha", title="review: alpha, scoped")
     short.passes(32)
@@ -613,7 +613,7 @@ def test_a_hold_that_stalls_over_a_review_at_work_is_the_user_s_only_once_that_w
 
 
 def test_a_stalled_hold_is_the_user_s_on_a_next_pass_that_cannot_ask_t3_code(short, kitchen):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(13)
     assert len(kitchen.lines("stall")) == 1 and gates(kitchen) == []
     kitchen.t3.down.add(PROJECT)
@@ -623,7 +623,7 @@ def test_a_stalled_hold_is_the_user_s_on_a_next_pass_that_cannot_ask_t3_code(sho
 
 
 def test_a_hold_on_the_user_s_list_no_longer_asks_t3_code_who_is_reviewing(short, kitchen):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(14)
     asked = len(kitchen.t3.calls)
     assert listed(kitchen) == ["#7"]
@@ -683,7 +683,7 @@ def test_a_reviewer_that_is_out_is_whom_the_pull_request_waits_for(
 ):
     reviewer = kitchen.t3.thread("alpha", title=title)
     kitchen.t3.thread("alphabet", title="review: alphabet")
-    short.out(reason or short.unruled(), word, short.rebased())
+    short.out(reason or short.unruled(), word)
     short.passes(5)
     assert sends(kitchen) == [] and gates(kitchen) == []
     reviewer["status"] = "completed"
@@ -728,27 +728,29 @@ def test_a_gate_a_crew_parks_is_logged_at_once_and_not_posted(short, kitchen):
 
 
 def test_unruled_drops_jbus_cannot_ask_a_crew_about_are_the_user_s_as_before(short, kitchen):
+    kitchen.git("update-ref", "-d", f"refs/jstack/pre-rebase/alpha/{short.saw[:12]}")
     short.out(short.unruled(), "hold")
     short.passes(2)
     assert listed(kitchen) == []
     said = short.passes(1)
     assert listed(kitchen) == ["#7"] and asks(kitchen) == []
-    assert (
-        "wait alpha: its Result has no Rebase line for its head, so the hold is the user's" in said
-    )
+    assert f"wait alpha: {expedite.NO_RANGE}" in said
     short.passes(3)
     assert listed(kitchen) == ["#7"] and gates(kitchen) == [] and kitchen.lines("gate") == []
 
 
-def test_unruled_drops_with_no_rebase_line_are_asked_from_the_head_the_crew_kept(short, kitchen):
+def test_unruled_drops_are_asked_from_the_head_the_crew_kept_whatever_rebase_line_it_wrote(
+    short, kitchen
+):
     """The crew skill keeps the head before a rebase under refs/jstack/pre-rebase/<slug>/ and
-    writes no `Rebase:` line. So the old range of the scoped review starts at that ref."""
-    kitchen.git("update-ref", f"refs/jstack/pre-rebase/alpha/{short.saw[:12]}", short.saw)
-    short.out(short.unruled(), "hold")
-    said = short.passes(3)
+    writes no `Rebase:` line. So the old range of the scoped review starts at that ref, and a
+    `Rebase:` line an older brief has, naming another head, is read as no line."""
+    stale = f"Rebase: patch changed in a.py, before {short.start}, head {short.head}\n"
+    short.out(short.unruled(), "hold", stale)
+    short.passes(3)
     (given,) = sends(kitchen)
     assert f"..{short.saw} " in given["message"] and given["message"].count(short.head) >= 1
-    assert not [line for line in said if "no Rebase line" in line]
+    assert f"..{short.start} " not in given["message"]
 
 
 def test_unruled_drops_of_a_pull_request_jbus_launched_no_crew_for_are_the_user_s_at_once(
@@ -765,7 +767,7 @@ def test_unruled_drops_of_a_pull_request_jbus_launched_no_crew_for_are_the_user_
 
 
 def test_no_line_jbus_writes_for_a_short_pull_request_has_an_address_in_it(short, kitchen):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     said = short.passes(14)
     (given,) = asks(kitchen)
     written = [given["message"], *kitchen.lines("expedite"), *kitchen.lines("stall")]
@@ -778,7 +780,6 @@ def test_the_hold_these_tests_give_jmerge_is_the_one_it_prints_and_the_one_merge
     head = short.head
     lost = (ready.Drop("a.py", 1, 0),)
     result = (
-        f"Rebase: patch changed in a.py, before {short.saw}, head {head}\n"
         f"Dropped on rebase: a.py, 1 of main's, 0 of its own, at {head[:12]}: made up\n"
         f"## Review\nVerdict: clean\nHead: {head}\nFindings:\n"
     )
@@ -793,8 +794,8 @@ def listed(kitchen):
 
 
 def test_with_t3_code_silent_nobody_can_be_asked_so_the_hold_is_the_user_s_at_once(short, kitchen):
-    short.heard(short.rebased())
-    short.out(short.unruled(), "hold", short.rebased())
+    short.heard()
+    short.out(short.unruled(), "hold")
     kitchen.t3.down.add(PROJECT)
     short.passes(2)
     assert gates(kitchen) == ["condition demo: T3 Code could not be asked"]
@@ -804,8 +805,8 @@ def test_with_t3_code_silent_nobody_can_be_asked_so_the_hold_is_the_user_s_at_on
 def test_a_hold_in_hand_before_its_crew_is_told_stays_in_hand_through_a_silent_pass(short, kitchen):
     """The test runs three passes: one that can ask, one that cannot, and one that can. The list
     gains nothing and loses nothing."""
-    short.heard(short.rebased())
-    short.out(short.unruled(), "hold", short.rebased())
+    short.heard()
+    short.out(short.unruled(), "hold")
     short.passes(1)
     assert sends(kitchen) == [] and listed(kitchen) == []
     kitchen.t3.down.add(PROJECT)
@@ -818,8 +819,8 @@ def test_a_hold_in_hand_before_its_crew_is_told_stays_in_hand_through_a_silent_p
 
 
 def test_a_silent_pass_after_the_crew_was_told_puts_no_hold_on_the_user_s_list(short, kitchen):
-    short.heard(short.rebased())
-    short.out(short.unruled(), "hold", short.rebased())
+    short.heard()
+    short.out(short.unruled(), "hold")
     short.passes(3)
     assert len(sends(kitchen)) == 1
     kitchen.t3.down.add(PROJECT)
@@ -845,12 +846,12 @@ def test_a_stall_after_work_that_ended_does_not_say_somebody_is_at_work(short, k
 
 @pytest.mark.parametrize("stuck", ["the crew's thread waits", "the send errors"])
 def test_a_hold_whose_crew_is_not_told_by_its_thirteenth_pass_is_the_user_s(stuck, short, kitchen):
-    short.heard(short.rebased())
+    short.heard()
     if stuck == "the send errors":
         kitchen.t3.lose_send = True
     else:
         short.thread["status"] = "waiting"
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(12)
     assert gates(kitchen) == [] and listed(kitchen) == []
     said = short.passes(1)
@@ -870,11 +871,11 @@ def test_a_message_t3_code_refuses_is_a_gate_in_this_ask_s_own_words(short, kitc
 
 
 def test_a_hold_the_user_had_is_off_their_list_while_its_crew_is_asked(short, kitchen):
-    short.heard(short.rebased())
+    short.heard()
     kitchen.set("jmerge.txt", f"hold 7 {URL}: needs user, touches src/jmerge/cli.py\n")
     short.passes(1)
     assert listed(kitchen) == ["#7"]
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(4)
     assert len(asks(kitchen)) == 1 and listed(kitchen) == []
 
@@ -883,7 +884,7 @@ def test_a_hold_the_user_had_is_off_their_list_while_its_crew_is_asked(short, ki
 def test_work_started_after_the_message_is_no_stall_until_it_ends_or_lasts_thirty_passes(
     who, short, kitchen
 ):
-    short.out(short.unruled(), "hold", short.rebased())
+    short.out(short.unruled(), "hold")
     short.passes(3)
     assert len(sends(kitchen)) == 1
     if who == "a reviewer":

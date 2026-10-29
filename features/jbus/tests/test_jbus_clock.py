@@ -202,7 +202,7 @@ def test_a_decline_the_scoped_review_did_not_uphold_waits_on_the_crew_not_the_re
 ):
     reviewer = kitchen.t3.thread("alpha", "completed", title="review: alpha, scoped")
     owed = f"Scoped review: needed since {short.saw}, the fix changed a.py\n"
-    result = owed + short.rebased() + f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n"
+    result = owed + f"Scoped reviewer: {reviewer['threadId']}, of {short.head}\n"
     short.out(ready.DECLINES_OVERRULED.format(ruled="F1"), result=result)
     short.passes(3 * N)
     assert to(kitchen, reviewer) == []

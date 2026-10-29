@@ -982,7 +982,8 @@ Findings:
 
 
 def rounded(scene, slug="oat-milk"):
-    """A brief with two reviews in the home, and a `review` event for the first only."""
+    """A brief with two reviews in the home, and a `review` event for the first only. Its
+    `Rebase:` line is an older brief's, which the Rounds panel counts for nothing."""
     first, fixed = "1a" * 20, "2b" * 20
     brief = ROUNDED.format(pull=PULL.format(13), first=first, fixed=fixed)
     (scene.home / "tasks").mkdir(exist_ok=True)
