@@ -8,6 +8,7 @@ A finding goes out through the project's `Box` (`jbus.wake`), once per key. What
 from __future__ import annotations
 
 import argparse
+import functools
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -114,6 +115,14 @@ class Pass:
         the fresh check's own limit and below the unit's TimeoutStartSec
         (`features/jbus/tests/test_jbus.py`)."""
         return proc.run(*command, cwd=self.project.checkout, timeout=timeout)
+
+    @functools.cached_property
+    def done(self) -> frozenset[str]:
+        """The slugs of the rows the table had at done when the pass first asked, before its
+        `derive` moved any (`watch.owes_pull`)."""
+        return frozenset(
+            row["slug"] for row in queue.load(self.state) if row.get("status") == "done"
+        )
 
     @property
     def removed(self) -> frozenset[str]:

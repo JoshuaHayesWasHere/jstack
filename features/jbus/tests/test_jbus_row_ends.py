@@ -10,7 +10,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import digest, leftover, watch
+from jbus import digest, leftover, queue, watch
 from jbus.view import state
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, brief, rows
@@ -20,6 +20,14 @@ PULL = "https://example.test/pull/9"
 
 def result(left="none", status="done", pull="none"):
     return f"\n## Result\nStatus: {status}\nBranch: a-branch   Pull request: {pull}\nLeft: {left}\n"
+
+
+def branched(kitchen, branch="a-branch", start="main", commits=1):
+    """Make a crew's branch as T3 Code makes a worktree, from `start`, with `commits` of its own."""
+    tree = kitchen.root / "worktrees" / branch
+    kitchen.git("worktree", "add", "-q", "-b", branch, str(tree), start)
+    for n in range(commits):
+        kitchen.git("commit", "-q", "--allow-empty", "-m", f"{branch} {n}", cwd=tree)
 
 
 def sends(kitchen):
@@ -76,9 +84,11 @@ def test_a_thread_that_ended_done_with_nothing_left_and_no_pull_request_is_done(
 
 
 def test_a_done_result_naming_no_pull_request_its_brief_asks_for_leaves_the_row_running(kitchen):
-    """A crew that wrote `Status: done` before it opened the pull request its brief asks for has not
-    finished: its row runs, and once its thread ends that way it is told once to open it."""
+    """A crew that wrote `Status: done` with a commit of its own and before it opened the pull
+    request its brief asks for has not finished: its row runs, and once its thread ends that way it
+    is told once to open it."""
     add(kitchen, "alpha")
+    branched(kitchen)
     kitchen.poll(NOW - timedelta(minutes=3))
     (thread,) = kitchen.t3.threads
     path = kitchen.home / "tasks" / "alpha.md"
@@ -94,6 +104,55 @@ def test_a_done_result_naming_no_pull_request_its_brief_asks_for_leaves_the_row_
     told = [one for one in sends(kitchen) if one["threadId"] == thread["threadId"]]
     assert len(told) == 1 and "names no pull request" in told[0]["message"]
     assert kitchen.lines("gate") == [] and len(kitchen.t3.launches) == 1
+
+
+@pytest.mark.parametrize("made", ["no branch", "from main", "from its base"])
+def test_a_done_result_naming_no_pull_request_with_no_commit_of_its_own_is_done(kitchen, made):
+    """A crew that found nothing to change ends with no pull request, whatever its brief asks for.
+    A branch made from the link it was stacked on holds that link's commits, none its own."""
+    if made == "from its base":
+        branched(kitchen, "base", commits=2)
+        branched(kitchen, start="base", commits=0)
+    elif made == "from main":
+        branched(kitchen, commits=0)
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.poll()
+    assert column(kitchen) == ("done", "", "") and sends(kitchen) == []
+
+
+def test_a_held_row_that_ended_with_no_commit_of_its_own_comes_back_to_done(kitchen):
+    """A row an older rule moved back from done, which the home then held, is done on the next pass
+    and leaves the table `jbus queue show` prints."""
+    add(kitchen, "alpha")
+    branched(kitchen, commits=0)
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.t3.thread("alpha", "completed")
+    assert kitchen.main("--project", "demo", "queue", "hold", "alpha")[0] == 0
+    kitchen.poll()
+    assert column(kitchen) == ("done", "", "")
+    code, shown = kitchen.main("--project", "demo", "queue", "show")
+    assert code == 0 and "| alpha |" not in shown
+
+
+def test_a_done_row_whose_result_names_no_pull_request_its_brief_asks_for_is_not_reopened(kitchen):
+    """The rule on a pull request owed is judged as a row moves to done: a pass never moves a row
+    already done back, even one whose branch has a commit of its own."""
+    add(kitchen, "alpha")
+    branched(kitchen)
+    kitchen.brief("alpha", "Pull request: open one when done\n" + result())
+    kitchen.t3.thread("alpha", "completed")
+    table = json.loads(queue.path(kitchen.state).read_text())
+    for row in table:
+        row["status"] = "done"
+    queue.path(kitchen.state).write_text(json.dumps(table))
+    for minutes in (0, 3):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        assert column(kitchen) == ("done", "", "")
+    moves = kitchen.state / "transitions.jsonl"
+    assert not moves.exists() or moves.read_text() == ""
+    assert sends(kitchen) == []
 
 
 def test_a_done_result_whose_brief_asks_for_no_pull_request_is_done(kitchen):
@@ -182,6 +241,7 @@ def test_a_row_that_depends_on_a_done_row_is_launched_and_on_a_left_row_waits(ki
 def test_a_row_that_depends_on_a_row_whose_result_owes_its_pull_request_waits(kitchen):
     add(kitchen, "design")
     add(kitchen, "build", priority=2, depends="design")
+    branched(kitchen)
     kitchen.brief("design", "Pull request: open one when done\n" + result())
     kitchen.t3.thread("design", "completed")
     kitchen.poll()
