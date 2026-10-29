@@ -22,6 +22,7 @@ from view.page.browser import (
     walked,
 )
 from view.scene import REQUEST, Served, ago, iso, item, said_by_him, stacked
+from view.scene import row as queued
 
 pytestmark = [pytest.mark.browser, pytest.mark.timeout(PATIENCE + BROWSES * (LAUNCH + 5) + 30)]
 
@@ -750,3 +751,61 @@ def test_nothing_needs_you_draws_no_button_to_open(scene, tmp_path, route):
     seen = look(scene, tmp_path, route=route, script=SHOWN, at=4000, budget=6000)
     assert seen["head"].startswith(("Nothing needs you", "Nothing waits on you")), seen
     assert seen["open"] == [], seen
+
+
+SAID = """window.addEventListener("load", function () { setTimeout(function () {
+  var pre = document.createElement("pre");
+  pre.id = "probe";
+  pre.textContent = JSON.stringify({ errors: [], text: document.body.innerText });
+  (window.top === window ? document : window.top.document).body.appendChild(pre);
+}, 4000); });"""
+"""A probe of every word the page draws, once it has drawn."""
+
+
+MERGED_TODAY = re.compile(r"merged today\W*(\d+)|(\d+) merged today", re.I)
+
+
+DONE = re.compile(r"\b(\d+) done\b|\bDone (\d+)\b")
+
+
+DONE_SAID = {"#/": [], "#/triage": [], "#/demo": [2], "#/demo/board": [1, 1, 2]}
+"""The done counts each route draws over that day: the project page's 2 done work items, and on
+the Homes board, drawn over the project page, the 1 done row the board still has, in its
+summary and on its card."""
+
+
+def merged_and_done(scene):
+    """A day with 21 rows merged and 2 rows done, each with a work item done today: jam-jar's row
+    says done, and oat-milk's the pass judged done while its row still says running."""
+    rows = [queued(f"rye-{n}", "merged", pr=f"#{n + 1}") for n in range(21)]
+    rows.append(queued("jam-jar", "done", thread="mcp:jam-jar"))
+    rows.append(queued("oat-milk", "running", thread="mcp:oat-milk", value="done"))
+    scene.queue(rows)
+    scene.moves(*((f"rye-{n}", "pr", "merged", 3 + 11 * n) for n in range(21)))
+    lines = []
+    for at, slug in enumerate(("jam-jar", "oat-milk")):
+        name = f"w{at + 1}"
+        for step, verb in enumerate(("proposed", "approved", "launched", "done")):
+            when = iso(ago(minutes=40 - 10 * step - at))
+            lines.append(
+                {"id": f"{name}.{step + 1}", "item": name, "at": when, "by": "Josh"}
+                | {"where": "chat", "line": verb, "verb": verb, "project": "demo"}
+                | ({"slug": slug} if verb == "proposed" else {})
+            )
+    (scene.state / "items.jsonl").write_text("".join(json.dumps(one) + "\n" for one in lines))
+    (scene.home / "gates.md").write_text("")
+    scene.waiting([])
+
+
+@pytest.mark.parametrize("route", ["#/", "#/triage", "#/demo", "#/demo/board"])
+def test_every_merged_today_reads_the_rows_jbus_merged_today(scene, tmp_path, route):
+    """Over a day of 21 merged rows and 2 done work items, each "Merged today" on the overview's
+    tile, Triage's calm line, the project page and the Homes board reads 21: done work is not a
+    merge, and is counted apart as done."""
+    merged_and_done(scene)
+    seen = look(scene, tmp_path, route=route, script=SAID, at=4000, budget=8000)
+    found = [int(one or two) for one, two in MERGED_TODAY.findall(seen["text"])]
+    assert found, seen["text"]
+    assert set(found) == {21}, (found, seen["text"])
+    done = sorted(int(one or two) for one, two in DONE.findall(seen["text"]))
+    assert done == DONE_SAID[route], (done, seen["text"])

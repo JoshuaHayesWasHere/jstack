@@ -1,6 +1,6 @@
 """The board: each home of a project as one card, with its crews, reviewers and scouts, each on
 a stage of the process with how long it has been on it, under the home's goal and its chain of
-plan entries, and with what merged today apart at the foot.
+plan entries, and with what merged today and what is done apart at the foot.
 
 The stages are `state.STAGES`, the eleven the pipeline names, and a crew is on the stage the
 pipeline puts its row on: the Homes drawer and the board never disagree on where a row is. A
@@ -41,7 +41,7 @@ def workers(said):
     return {
         (one["kind"], one["slug"]): one
         for home in said["homes"]
-        for one in home["workers"] + home["merged"]
+        for one in home["workers"] + home["merged"] + home["done"]
     }
 
 

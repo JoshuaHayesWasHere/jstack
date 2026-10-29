@@ -68,6 +68,18 @@ def gone(thread, said):
     return {"isError": True, "content": [{"type": "text", "text": text}]}
 
 
+FIX_BRIEFS = Path(__file__).parent / "fixtures" / "fix-briefs"
+
+
+def filed_as(text, kind, sha=""):
+    """Assert that a fix brief jbus filed is, byte for byte, the one kept for its kind: the brief
+    each filer wrote before `watch.fix_brief` was their one writer. A commit `sha` that a test
+    makes afresh each run is kept as `<sha>`."""
+    if sha:
+        text = text.replace(sha, "<sha>").replace(sha[:12], "<sha12>")
+    assert text == (FIX_BRIEFS / f"{kind}.md").read_text()
+
+
 def iso(moment):
     return moment.isoformat().replace("+00:00", "Z")
 

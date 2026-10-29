@@ -22,8 +22,10 @@ it. A crew whose row has a fault that an agent owns says who fixes it and when j
 `since` is when the worker came to its stage. For a pull request it is the first line of the
 run of `jmerge`'s lines, last first, whose steps are all on that stage
 (`state.STAGE_OF_STEP`), so waiting on a Result and the review count as one stay in review. A
-card keeps what is merged apart from its other workers, under `merged`: what merged today and
-what the pass judged merged or done.
+card keeps what is over apart from its other workers: under `merged` each crew that merged
+today, the merged panel's rows and so the project's one count of what merged today, and under
+`done` each crew that is over and did not merge today, such as a row the pass judged done. A
+row the merged panel has is merged, also while the pass still has it on another step.
 
 A card also has its home's goal and the chain toward it, from the home's `plan.md` as
 `jbus plan` reads it (`plan.entries`). The goal is the plan's `Goal (<day>, <who>): <goal>` line
@@ -93,7 +95,14 @@ STEP_SHAPE = {"slug": None, "line": None, "mark": None, "prs": [None]}
 SHAPE = {
     "stages": [{"key": None, "name": None, "note": None}],
     "homes": [
-        GROUP | {"goal": None, "chain": [STEP_SHAPE], "workers": [WORKER], "merged": [WORKER]}
+        GROUP
+        | {
+            "goal": None,
+            "chain": [STEP_SHAPE],
+            "workers": [WORKER],
+            "merged": [WORKER],
+            "done": [WORKER],
+        }
     ],
 }
 PLAN = "plan.md"
@@ -201,8 +210,10 @@ def build(read: Read) -> dict[str, Any]:
     crews += [_crew(read, task, "merged") for task in read.ended]
     by_slug = {one["slug"]: one for one in crews}
     homes = {task["slug"]: task["home"] for task in read.tasks + read.ended}
-    for one in read.panel("merged")["merged"]:
+    today = read.panel("merged")["merged"]
+    for one in today:
         if one["slug"] in by_slug:
+            by_slug[one["slug"]] |= {"stage": "merged", "state": "Merged"}
             continue
         crews.append(
             {
@@ -224,10 +235,13 @@ def build(read: Read) -> dict[str, Any]:
         if made is not None and thread["home"] is not None:
             placed.append((thread["home"], made))
     cards = read.homes.group(read.tasks, read.panel("you")["needs"], read.out, read.acts)
+    merged = {one["slug"] for one in today}
     for card in cards:
         mine = [one for home, one in placed if home == card["name"]]
         mine.sort(key=lambda one: (order.get(one["stage"], -1), one["since"] or "~", one["slug"]))
         card["workers"] = [one for one in mine if one["stage"] != "merged"]
-        card["merged"] = [one for one in mine if one["stage"] == "merged"]
+        over = [one for one in mine if one["stage"] == "merged"]
+        card["merged"] = [one for one in over if one["slug"] in merged]
+        card["done"] = [one for one in over if one["slug"] not in merged]
         card["goal"], card["chain"] = _plan(read.home / card["name"], read.rows)
     return {"stages": said_stages(), "homes": cards}

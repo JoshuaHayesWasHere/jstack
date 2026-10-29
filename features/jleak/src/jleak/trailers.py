@@ -4,8 +4,10 @@
 This module is the one place that names them. Two guards read `PATTERNS`: the hook on an agent's
 commands (`jleak --trailers`), which refuses a commit or a pull request whose text has such a line,
 and git's `commit-msg` hook (`jleak --commit-msg`), which takes the line out of a commit's
-message. A pattern is held against one line at a time, as jleak's other patterns are. A
-`Co-authored-by:` line that names a person is not matched, so both guards leave it.
+message. jmerge reads them too (`jmerge.trailers`), to take the lines out of the squash commit it
+writes and for the pull request's check. A pattern is held against one line at a time, as jleak's
+other patterns are. A `Co-authored-by:` line that names a person is not matched, so no reader
+takes it out.
 
     ai-co-author                 a Co-authored-by trailer that names Claude, Codex, OpenAI,
                                  Cursor or Copilot, or an @anthropic.com address

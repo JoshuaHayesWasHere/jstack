@@ -16,7 +16,7 @@ from datetime import timedelta
 import jbus.queue
 from jmerge import ready
 from jmerge import rows as jmerge_rows
-from test_jbus_kitchen import NOW, sends
+from test_jbus_kitchen import NOW, filed_as, sends
 from test_jbus_red_main import withdrawn
 
 BRANCH = "release/demo"
@@ -70,6 +70,7 @@ def test_a_red_branch_files_one_fix_row_under_its_home_and_a_green_tip_withdraws
     assert jbus.queue.order(row) <= min(map(jbus.queue.order, jbus.queue.load(kitchen.state)))
     text = (kitchen.home / "tasks" / f"{name}.md").read_text()
     assert f"Home: {SCOPE}\n" in text and f"Pull request: open one against {BRANCH}" in text
+    filed_as(text, "integration")
     (sent,) = told(kitchen)
     assert name in sent["message"] and "#4" in sent["message"] and "#5" in sent["message"]
     assert jmerge_rows.base_red(BRANCH, runs, name) == ""

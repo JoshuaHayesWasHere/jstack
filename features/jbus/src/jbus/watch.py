@@ -1105,63 +1105,59 @@ def tests_said(jobs: list[tuple[str, str, Failed]]) -> str:
     return f"{tests} failed, {named or 'none'} named"
 
 
-def red_brief(
-    slug: str,
-    sha: str,
-    jobs: list[tuple[str, str, list[str]]],
-    red: list[dict],
-    changed: list[str],
-    reran: Sequence[tuple[str, str, int]] = (),
+def fix_brief(
+    heading: str,
+    task: str,
+    done: Sequence[str],
+    proves: str,
+    filed: str,
+    jobs: Sequence[tuple[str, str, Sequence[str]]],
+    read: Sequence[str] = (),
+    *,
+    files: Sequence[str] = (),
+    nowhere: str = "",
+    untouched: str = ".github/workflows/, the ruleset",
+    design: str = "the failed run names",
+    pull: str = "open one when done",
+    home: str = "",
+    follows: str = "",
 ) -> str:
-    """Return the brief for the fix of a red main at `sha`, in the shape of
-    `features/jbriefs/templates/brief.md`. `jobs` is each failed check run's name, URL and
-    failed tests. `red` is the commits from `sha` down to the last green one, not including
-    it. `changed` is the files those commits changed. `slug` is the briefed merge before the
-    red, or empty where none came in the day before it: the fix is a follow-up of that row, and
-    a pass approves it on the row's go (`queue.follow_ups`). `reran` is each failed push run
-    that ran again and failed again (`_check`), by its name, URL and last attempt: the brief
-    names both of its runs."""
+    """Return the brief for the fix of a red check that jbus files, in the shape of
+    `features/jbriefs/templates/brief.md`: of a red main (`_file`), a red nightly run
+    (`_nightly_red`), a red side workflow (`sidered.owe`) or a red integration branch
+    (`sidered.integration_branches`). `jobs` is each failed job's name, URL and failed tests,
+    which `Read` names before the lines of `read`. `Where` names `files`, then the file of each
+    failed test, or says `nowhere` where there are none. `filed` is what jbus filed it from, and
+    `follows` the row whose work the fix is a follow-up of: a pass approves it on that row's go
+    (`queue.follow_ups`)."""
     tests = [test for _, _, failed in jobs for test in failed]
-    files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
-    where = (
-        ", ".join(f"`{file}`" for file in files)
-        or "`.` (the whole repo: the merges since the last green changed files nobody listed)"
-    )
-    read = [
-        f"- the job `{name}`, {url or 'with no URL'}: "
-        + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
-        for name, url, failed in jobs
-    ]
-    read += [
-        f"- the push run `{name}` failed at its first attempt, {url}/attempts/1, "
-        f"and again when it ran again, {url}/attempts/{attempt}"
-        for name, url, attempt in reran
-    ]
-    read += [
-        f"- the merge {commit['sha'][:12]} {commit['commit']['message'].splitlines()[0]}"
-        for commit in red
-    ]
+    where = dict.fromkeys([*files, *(test.split("::")[0] for test in tests)])
     return "\n".join(
         [
-            f"# {mainjson.FIX}{sha[:12]}: main's check failed at {sha[:12]}, "
-            + (f"after {slug} merged" if slug else "with no briefed merge in the day before it"),
-            f'Task: "main check failed at {sha[:12]}, {len(red)} merges since the last green" '
-            + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)"),
+            f"# {heading}",
+            f"Task: {task}",
             "Done when:",
-            "- each failed test named under Read passes on main, and the failed job passes at "
-            "the commit that merges the fix",
-            "- the Result names the cause: the merge that broke main, or a flake with its evidence",
-            "Proves it: CI's check on main passes at the commit that merges the fix",
+            *done,
+            f"Proves it: {proves}",
             "Size: S",
-            f"Where: {where}",
-            "Do not touch: .github/workflows/, the ruleset",
-            f"Decisions: {queue.FILED}main and the user has not seen it",
-            "Design: none, a fix to what the failed run names",
-            "Pull request: open one when done",
+            f"Where: {', '.join(f'`{file}`' for file in where) or nowhere}",
+            f"Do not touch: {untouched}",
+            f"Decisions: {queue.FILED}{filed} and the user has not seen it",
+            f"Design: none, a fix to what {design}",
+            f"Pull request: {pull}",
             "Review: review",
             "Playbook: bug-fix",
-            *([f"Follows: {slug}"] if slug else []),
+            *([f"Home: {home}"] if home else []),
+            *([f"Follows: {follows}"] if follows else []),
             "Read:",
+            *(
+                f"- the job `{name}`, {url or 'with no URL'}: "
+                + (
+                    ", ".join(f"`{test}`" for test in failed)
+                    or "its log names no failed test, read it"
+                )
+                for name, url, failed in jobs
+            ),
             *read,
             "",
         ]
@@ -1200,7 +1196,34 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
         for r in pushed
         if r.get("conclusion") not in NOT_RED and (r.get("run_attempt") or 1) > 1
     ]
-    text = red_brief(slug, sha, jobs, red, _changed(run, red), reran)
+    after = f"after {slug} merged" if slug else "with no briefed merge in the day before it"
+    text = fix_brief(
+        f"{name}: main's check failed at {sha[:12]}, {after}",
+        f'"main check failed at {sha[:12]}, {len(red)} merges since the last green" '
+        + (f"(jbus, the retro of {slug})" if slug else "(jbus, the retro of main's tip)"),
+        [
+            "- each failed test named under Read passes on main, and the failed job passes at "
+            "the commit that merges the fix",
+            "- the Result names the cause: the merge that broke main, or a flake with its evidence",
+        ],
+        "CI's check on main passes at the commit that merges the fix",
+        "main",
+        jobs,
+        [
+            *(
+                f"- the push run `{job}` failed at its first attempt, {url}/attempts/1, "
+                f"and again when it ran again, {url}/attempts/{attempt}"
+                for job, url, attempt in reran
+            ),
+            *(
+                f"- the merge {commit['sha'][:12]} {commit['commit']['message'].splitlines()[0]}"
+                for commit in red
+            ),
+        ],
+        files=_changed(run, red),
+        nowhere="`.` (the whole repo: the merges since the last green changed files nobody listed)",
+        follows=slug,
+    )
     (run.home / "tasks").mkdir(parents=True, exist_ok=True)
     (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
@@ -1322,54 +1345,6 @@ def _filed(run: Pass, nightly: Nightly, name: str, text: str, number: str, said:
     return True
 
 
-def nightly_red_brief(
-    nightly: Nightly,
-    name: str,
-    day: str,
-    one: dict[str, Any],
-    jobs: list[tuple[str, str, Failed]],
-) -> str:
-    """Return the brief for the fix of a red run of a nightly workflow, in the shape of
-    `features/jbriefs/templates/brief.md`. `one` is the run as GitHub lists it, and `jobs`
-    is each failed job's name, URL and failed tests."""
-    tests = [test for _, _, failed in jobs for test in failed.tests]
-    files = list(dict.fromkeys(test.split("::")[0] for test in tests))
-    where = ", ".join(f"`{file}`" for file in files) or nightly.where
-    number = one.get("id")
-    read = [
-        f"- the job `{job}`, {url or 'with no URL'}: "
-        + (
-            ", ".join(f"`{test}`" for test in failed.tests)
-            or "its log names no failed test, read it"
-        )
-        for job, url, failed in jobs
-    ]
-    read += [ran_at(one)]
-    return "\n".join(
-        [
-            f"# {name}: {nightly.failed} on {day}",
-            f'Task: "{nightly.run} {number} failed on {day}, {tests_said(jobs)}" '
-            f"(jbus, from {nightly.file})",
-            "Done when:",
-            f"- {nightly.done}",
-            "- the Result names the cause: the merge that broke it, or a flake with its evidence",
-            f"Proves it: {nightly.proves}",
-            "Size: S",
-            f"Where: {where}",
-            "Do not touch: .github/workflows/, the ruleset",
-            f"Decisions: {queue.FILED}nightly run and the user has not seen it",
-            "Design: none, a fix to what the failed run names",
-            f"Pull request: {nightly.pull}",
-            "Review: review",
-            "Playbook: bug-fix",
-            *([f"Home: {nightly.home}"] if nightly.home else []),
-            "Read:",
-            *read,
-            "",
-        ]
-    )
-
-
 def _nightly_red(run: Pass, nightly: Nightly) -> None:
     """File the brief for the fix of a red run of a nightly workflow, and queue the brief
     unapproved, once per day: a further red run of the day folds into that day's row, whatever its
@@ -1468,7 +1443,23 @@ def _nightly_red(run: Pass, nightly: Nightly) -> None:
                 if not _filed(run, nightly, redrawn, text, number, f"{day}, {shots.said(drawn)}"):
                     continue
             if fixed and name in free:
-                text = nightly_red_brief(nightly, name, day, one, rest)
+                text = fix_brief(
+                    f"{name}: {nightly.failed} on {day}",
+                    f'"{nightly.run} {number} failed on {day}, {tests_said(rest)}" '
+                    f"(jbus, from {nightly.file})",
+                    [
+                        f"- {nightly.done}",
+                        "- the Result names the cause: the merge that broke it, or a flake with "
+                        "its evidence",
+                    ],
+                    nightly.proves,
+                    "nightly run",
+                    [(job, url, failed.tests) for job, url, failed in rest],
+                    [ran_at(one)],
+                    nowhere=nightly.where,
+                    pull=nightly.pull,
+                    home=nightly.home,
+                )
                 if not _filed(run, nightly, name, text, number, f"{day}, {tests_said(rest)}"):
                     continue
         seen[number] = fixed

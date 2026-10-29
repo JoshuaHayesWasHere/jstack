@@ -15,8 +15,8 @@ kitchen's fakes."""
 import pytest
 
 import jbus
-from jbus import queue, sidered, watch
-from test_jbus_kitchen import SAID, Kitchen
+from jbus import queue, sidered
+from test_jbus_kitchen import FIX_BRIEFS, SAID, Kitchen
 from test_jbus_queue import brief, rows, sha12
 
 BRANCH = "release/demo"
@@ -184,24 +184,22 @@ def test_queue_add_approves_a_follow_up_whatever_number_the_follow_rule_file_hol
     assert went(kitchen, "cleanup-alpha") == ("alpha", queue.RULE)
 
 
+def kept_brief(kind):
+    """Return the brief jbus's filer of `kind` wrote, as `filed_as` keeps it."""
+    text = (FIX_BRIEFS / f"{kind}.md").read_text()
+    return text.replace("<sha12>", "a" * 12).split("\nThread: ")[0].rstrip("\n") + "\n"
+
+
 def red_briefs():
     """Return the brief each filer writes for a red check that no row's merge turned red, by the
     slug it files it under: none names a parent."""
-    run = {
-        "id": 40514143484,
-        "event": "schedule",
-        "head_sha": "c" * 40,
-        "html_url": "https://example.test/o/r/actions/runs/40514143484",
-        "created_at": "2026-10-27T03:00:00Z",
-    }
-    workflow = sidered.Red(".github/workflows/x.yml", sidered.FAILED, (run,))
-    day = "2026-10-27"
     made = [
-        watch.red_brief("", "a" * 40, [], [], []),
-        sidered.red_branch_brief(BRANCH_RED, BRANCH, "b" * 40, "", [7], []),
-        sidered.brief(workflow, day, []),
-        watch.nightly_red_brief(watch.BROWSER, f"browser-red-{day}", day, run, []),
-        watch.nightly_red_brief(watch.MACOS, f"macos-red-{day}", day, run, []),
+        kept_brief("main-quiet"),
+        kept_brief("integration").replace("Follows: one\n", ""),
+        kept_brief("workflow-failed"),
+        kept_brief("workflow-not-run"),
+        kept_brief("browser"),
+        kept_brief("macos"),
     ]
     return {text.split(":")[0].removeprefix("# "): text for text in made}
 
@@ -273,11 +271,10 @@ def test_a_row_jbus_queued_whose_brief_does_not_say_it_was_filed_from_a_red_chec
 def test_the_fix_rows_jbus_files_name_the_row_they_follow():
     """A red main names the briefed merge before it, a red integration branch the first pull
     request it holds, and a red workflow the row whose pull request its run's commit merged."""
-    main = watch.red_brief("alpha", "a" * 40, [], [], [])
-    assert queue.named_parent(RED, main) == "alpha"
-    assert queue.named_parent(RED, watch.red_brief("", "a" * 40, [], [], [])) == ""
-    red = sidered.red_branch_brief(BRANCH_RED, BRANCH, "b" * 40, "", [7], [], "alpha")
-    assert queue.named_parent(BRANCH_RED, red) == "alpha"
+    assert queue.named_parent("main-red-" + "d" * 12, kept_brief("main")) == "alpha"
+    assert queue.named_parent(RED, red_briefs()[RED]) == ""
+    red = kept_brief("integration")
+    assert queue.named_parent("integration-red-release-demo-" + "1" * 12, red) == "one"
     table = [
         {"slug": "beta", "pr": "#6"},
         {"slug": "alpha", "pr": "#7"},

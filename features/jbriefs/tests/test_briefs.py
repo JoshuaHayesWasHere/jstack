@@ -6,7 +6,6 @@ from typing import NamedTuple
 import pytest
 
 from jbriefs import asks, below, cli, home, page, parse, skills
-from jbus import watch
 from testing.paths import REPO
 
 TEMPLATE = REPO / "features" / "jbriefs" / "templates" / "brief.md"
@@ -820,7 +819,7 @@ def test_a_path_is_covered_by_what_it_is_or_sits_under(patterns, path, covered):
 
 
 def test_the_brief_for_a_red_main_with_no_changed_file_has_a_where_the_lint_takes():
-    text = watch.red_brief("red-main-abc", "abc", [("check", "", [])], [], [])
+    text = (REPO / "features/jbus/tests/fixtures/fix-briefs/main-quiet.md").read_text()
     assert parse.where(text) == (".",)
     assert not [fault for fault in parse.faults(text) if "Where" in fault]
 
