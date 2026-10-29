@@ -1,27 +1,22 @@
-"""jbus tells the user through events, a log that records every one, and wakes of the home thread
-for the few that ask something of the user.
+"""jbus records what it finds as events, in a log that keeps every one, and sends no event to a
+thread: a home hears jbus only from the one list of open items (`jbus.wakes`).
 
 An event is one JSON object, `{"project", "slug", "event", "line", "text", "loud"}`. `line` is the
 finding in one line, and `text` is what made it. `loud` says who should see the event, and jbus
 looks `loud` up in `LOUDNESS` by the event's kind. jbus builds `LOUDNESS` at import from the
 `EVENTS` that each of its modules declares at its top, so a new kind needs one line in the module
 that sends it and none in this one. There are two levels. `user` is an escalation: a decision
-the user has to make (`jbus.blockers`), a sign-in, an alert that stands. Such an event waits in the
-outbox for the next wake. It also has `say`, the line to post in the chat as it is. That line begins
-with the project, since the user acts in that project's home. `quiet` is everything else, a fact
-for the record: jbus writes it to the log and never sends it, and the digest lists the routine
-ones. The caller that queues an event may give it the lower level.
+the user has to make (`jbus.blockers`), which the one list carries to a home. `quiet` is everything
+else, a fact for the record, and the digest lists the routine ones. The caller that logs an event
+may give it the lower level.
 
-`Box` keeps a project's outbox and the keys of everything it has sent, so jbus sends a finding only
-once. `Box` takes a short lock for each change, because `jbus gate` and `jbus done` add an event
-while a pass runs. `notify` shows on the desktop what jbus could not send.
+`Box` keeps a project's log and the keys of everything it has logged, so jbus records a finding
+only once. `Box` takes a short lock for each change, because `jbus gate` and `jbus done` add an
+event while a pass runs. `notify` shows a line on the desktop, the desk, which needs no T3 Code.
 
-An event for the user goes to one route, the project's home thread through T3 Code
-(`jbus.alert.flush`), with its outbox, five-minute gap and `last_error` in `home-thread/`.
-
-Every body has a top-level `kind`: `events` for what an outbox of events sends, and `reminder` and
-`refresh` for the timers of what blocks (`waiting.cadence`). The second target, the config's
-`blocking` pair, is a route of its own (`Box.blocking`), which jbus-relay sends on. Its outbox, in
+Every body for the second target has a top-level `kind`: `events`, and `reminder` and `refresh`
+for the timers of what blocks (`waiting.cadence`). The second target, the config's `blocking`
+pair, is the one route of a box (`Box.blocking`), which jbus-relay sends on. Its outbox, in
 `blocking/`, holds whole bodies, not events, and no event goes there. Each pass queues to the
 second target one `events` body that lists the items that began to block in that pass, with
 `items` beside `say` and `events`. The pass also queues a reminder or a refresh as each falls due.
@@ -30,19 +25,13 @@ with no gap, together with every body queued before it, so the bodies go in orde
 a failed POST waits on the gap, whatever the retried body holds. A refresh that waits replaces the
 one before it, which is out of date.
 
-The log is `events.jsonl`. jbus adds a line for each event when it queues the event, `{"at", "id",
-"event", "slug", "loud", "line", "text"}`, and one for each wake the home thread took,
-`{"at", "posted_home": [ids]}`. A party names an event by another id, which is unique
-(`entries`). The daily prune rewrites the file without its oldest lines. Both
-times come from the clock, so a wake's time is never before the time of what it carries. The id is
-a hash of the event as the outbox holds it, so jbus adds nothing to the outbox or to the wake for
-the log's sake. `Box.log` reads the events and the wakes of the home thread back as one list,
-and `jbus events` and the view read quiet events from that list. `Box.record` adds a line for
-what jbus keeps and never sends, such as the user's word to a home (`jbus.word`): that line is in
-the log and in no outbox. jbus never reads
-the log to decide what to send or what counts as sent. jbus leaves out a line it cannot write,
-except one that is in no outbox: that line waits in `unlogged.json` until jbus can write its next
-line.
+The log is `events.jsonl`. jbus adds a line for each event when it logs the event, `{"at", "id",
+"event", "slug", "loud", "line", "text"}`. A party names an event by another id, which is unique
+(`entries`). The daily prune rewrites the file without its oldest lines. `Box.log` reads the
+events back, and `jbus events` and the view read them from that list. `Box.record` adds a line
+for what jbus keeps and never sends, such as the user's word to a home (`jbus.word`). jbus never
+reads the log to decide what to send or what counts as sent. A line jbus cannot write waits in
+`unlogged.json` until jbus can write its next line.
 """
 
 from __future__ import annotations
@@ -56,7 +45,7 @@ import shutil
 import subprocess
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -69,7 +58,6 @@ from jsettings import store
 
 LOCK = "outbox.lock"
 CAP = 8_000
-WAKE_CAP = 100_000
 SNAPSHOT_CAP = 32_000
 GAP = 5 * 60
 TIMEOUT = 8
@@ -81,8 +69,6 @@ LOG = "events.jsonl"
 UNLOGGED = "unlogged.json"
 LOG_KEEP = timedelta(days=14)
 FOUND_AGAIN = ("merged", "merged-left", "retro", "stale", "gate", "condition", "settled")
-TOOK = "posted_home"
-HOME = "home-thread"
 BLOCKING = "blocking"
 EVENTS_KIND = "events"
 TIMERS = ("reminder", "refresh")
@@ -143,26 +129,14 @@ def event(
     text: str = "",
     cap: int = CAP,
     loud: Loud | None = None,
-    machine: bool = False,
 ) -> dict:
     """Return one event, at its kind's level or at `loud`, a lower one. A kind that `LOUDNESS` does
-    not name raises a `KeyError`, and a level above the kind's raises a `ValueError`. The event's
-    chat line names the project, since one person reads every project's events. A line that begins
-    `<kind> <project>:` already names it, and goes unchanged. So does the line of an event of the
-    `machine`, which belongs to no project."""
+    not name raises a `KeyError`, and a level above the kind's raises a `ValueError`."""
     level = LOUDNESS[kind]
     if loud is not None and LEVELS.index(loud) < LEVELS.index(level):
         raise ValueError(f"{kind} is {level}: it cannot be sent as {loud}")
-    loud = loud or level
     made = {"project": project, "slug": slug, "event": kind, "line": line, "text": cut(text, cap)}
-    named = machine or line.startswith(f"{kind} {project}:")
-    say = line if named else f"{project}: {line}"
-    return {**made, "loud": loud} | ({"say": say} if loud == "user" else {})
-
-
-def _loud(one: dict[str, Any]) -> Loud:
-    """Return an event's level: its `loud`, or its kind's level for an older event with none."""
-    return one.get("loud") or LOUDNESS.get(one.get("event", ""), "quiet")
+    return {**made, "loud": loud or level}
 
 
 def _at(now: datetime) -> str:
@@ -170,7 +144,7 @@ def _at(now: datetime) -> str:
 
 
 def _id(one: dict[str, Any]) -> str:
-    """Return the id of an event in the log. Two events equal in the outbox get the same id."""
+    """Return the id of an event in the log. Two equal events get the same id."""
     return hashlib.sha256(json.dumps(one, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -187,9 +161,8 @@ def notify(line: str) -> None:
 
 @dataclass(frozen=True)
 class Route:
-    """A `Route` is one place that gets a project's bodies, with the folder that holds its
-    `outbox.json` and its `wake.json`: the home thread, or the second target (`blocking`), the one
-    with a URL and a key."""
+    """A `Route` is the second target, the place that gets a project's bodies, with the folder that
+    holds its `outbox.json` and its `wake.json`, its URL and its key."""
 
     folder: Path
     url: str = ""
@@ -198,7 +171,8 @@ class Route:
 
 
 class Box:
-    """A `Box` holds a project's outboxes, the keys of what it has sent, and when it last sent.
+    """A `Box` holds a project's log, the keys of what it has logged, and its second target's
+    outbox.
 
     The project's `wake.json` holds the marks: `began`, the day of the last `snapshot`, the
     day whose sweep has not run yet (`sweep_owed`), and the last `sweep`. A route's `wake.json`
@@ -213,11 +187,6 @@ class Box:
         self.second = second
 
     @property
-    def home(self) -> Route:
-        """Return the route of the project's events for the user, its home thread."""
-        return Route(self.state / HOME)
-
-    @property
     def blocking(self) -> Route | None:
         """Return the second target, where the config sets it: a route that gets no event."""
         if not self.second[0]:
@@ -228,9 +197,6 @@ class Box:
     def clock() -> datetime:
         """Return the time that jbus stamps on a line of the log."""
         return datetime.now(UTC)
-
-    def _outbox(self, route: Route | None = None) -> list[dict[str, Any]]:
-        return read_json((route or self.home).folder / "outbox.json", [])
 
     def sent(self) -> list[str]:
         """Return the keys of everything ever sent."""
@@ -246,37 +212,24 @@ class Box:
         key: str | None = None,
         cap: int = CAP,
         loud: Loud | None = None,
-        machine: bool = False,
-        listed: bool = False,
     ) -> bool:
-        """Queue one event. With a key, `send` only ever queues the first event of that key.
-
-        An event for the user waits for a wake in the home thread's outbox. The chat line of an
-        event of the `machine` names no project. An event `listed` is an item of the one list,
-        which takes it to a home thread (`jbus.wakes`), so it waits in no outbox. jbus only logs a
-        quiet event and a listed one, so the log is its one record.
-        If jbus cannot write the event's line, the line is owed: jbus writes it into the log
-        before any later line, as soon as it can write again. `send` returns False only for a
-        key that was sent before.
-        """
-        made = event(self.project.name, slug, kind, line, text, cap, loud, machine)
+        """Log one event. With a key, `send` only ever logs the first event of that key, and
+        returns False for a key that was logged before. If jbus cannot write the event's line,
+        the line is owed: jbus writes it into the log before any later line, as soon as it can
+        write again."""
+        made = event(self.project.name, slug, kind, line, text, cap, loud)
         with locked(self.state, LOCK):
             if key is not None:
                 sent = self.sent()
                 if key in sent:
                     return False
                 write_json(self.state / "sent.json", [*sent, key])
-            queued = made["loud"] == "user" and not listed
-            if queued:
-                self.home.folder.mkdir(parents=True, exist_ok=True)
-                waiting = [*self._outbox(), made]
-                write_json(self.home.folder / "outbox.json", waiting, mode=0o600)
             took = {"event": kind, "slug": slug, "loud": made["loud"], "line": line}
-            self._log(id=_id(made), **took, text=made["text"], owed=not queued)
+            self._log(id=_id(made), **took, text=made["text"], owed=True)
         return True
 
     def record(self, kind: str, line: str, text: str = "", **more: Any) -> None:
-        """Add a line to the log for what jbus never posts: the line goes into no outbox."""
+        """Add a line to the log for what jbus keeps and never sends, such as the user's word."""
         with locked(self.state, LOCK):
             record = {"event": kind, "slug": "", "loud": "quiet", "line": line}
             self._log(owed=True, **record, text=cut(text), **more)
@@ -284,9 +237,9 @@ class Box:
     def _log(self, owed: bool = False, **record: Any) -> None:
         """Add one line to the log, which only the log's owner reads. The caller holds the lock.
 
-        jbus leaves out a line that it cannot write, and the outbox and the wake go on without it. A
-        line that is `owed`, which is in no outbox, waits in `unlogged.json`, and jbus writes it
-        before the next line that it can write.
+        jbus leaves out a line that it cannot write, and the pass goes on without it. A line that
+        is `owed` waits in `unlogged.json`, and jbus writes it before the next line that it can
+        write.
         """
         record = {"at": _at(self.clock()), **record}
         waiting = read_json(self.state / UNLOGGED, [])
@@ -300,28 +253,9 @@ class Box:
             (self.state / UNLOGGED).unlink(missing_ok=True)
 
     def log(self) -> list[dict[str, Any]]:
-        """Return every event the log holds, oldest first, each with `posted`: the time the
-        project's home thread first took it, or None.
-
-        A wake names its events by its own id, which two equal events share, and the outbox goes
-        in order, so the wake took the oldest event of that id the home thread had not yet taken.
-        Each event's `id` is the one a party names it by (`entries`), read in the same pass of the
-        file. `log` takes no lock and writes nothing.
-        """
-        events: list[dict[str, Any]] = []
-        waiting: dict[str, list[dict[str, Any]]] = {}
-        before: dict[str, int] = {}
-        for record in _records(self.state / LOG):
-            if TOOK in record:
-                for name in record[TOOK]:
-                    if waiting.get(name):
-                        waiting[name].pop(0)["posted"] = record["at"]
-            elif "event" in record:
-                one = {**record, "posted": None}
-                events.append(one)
-                waiting.setdefault(one.pop("id", ""), []).append(one)
-                one["id"] = _entry(record, before)
-        return events
+        """Return every event the log holds, oldest first, each with the `id` a party names it
+        by (`entries`). `log` takes no lock and writes nothing."""
+        return entries(self.state)
 
     def forget(self, before: datetime) -> None:
         """Drop the log's lines from before this moment."""
@@ -394,12 +328,9 @@ class Box:
                 write_json(self.state / "sent.json", kept)
 
     def marks(self, route: Route | None = None) -> dict[str, Any]:
-        """Return the marks of a route, or by default the project's, which sit in the project's
-        state folder. `failed` is 1 while the last send of the route, the home thread by default,
-        failed, for a caller that asks only that."""
-        marks = read_json((route.folder if route else self.state) / "wake.json", {})
-        last = marks if route else read_json(self.home.folder / "wake.json", {})
-        return {**marks, "failed": int(bool(last.get("last_error")))}
+        """Return the marks of the second target's route, or by default the project's, which sit
+        in the project's state folder."""
+        return read_json((route.folder if route else self.state) / "wake.json", {})
 
     def drop(self, folder: str) -> None:
         """Remove a route's outbox and marks, `BLOCKING`'s, once the config has no second target."""
@@ -418,9 +349,8 @@ class Box:
                 waiting = [one for one in waiting if one.get("kind") != "refresh"]
             write_json(route.folder / "outbox.json", [*waiting, made], mode=0o600)
 
-    def waiting(self, route: Route | None = None) -> int:
-        blocking = route is not None and route.blocking
-        return len(read_json(route.folder / "outbox.json", []) if blocking else self._outbox(route))
+    def waiting(self, route: Route) -> int:
+        return len(read_json(route.folder / "outbox.json", []))
 
     def flush_blocking(
         self, now: datetime, say=print, *, went: Callable[[str], None] = lambda _: None
@@ -428,8 +358,9 @@ class Box:
         """Post the bodies that wait for the second target, in order. They go once the gap has
         passed since the target's last POST, or at once when a reminder or a refresh waits and
         the last POST did not fail. A retry waits on the gap, as on every route. Each body
-        gets one try, and the first that fails ends the flush. Return how many went. As in
-        `flush`, it calls `went` with how the flush ended."""
+        gets one try, and the first that fails ends the flush. Return how many went. It calls
+        `went` with how the flush ended: nothing for the bodies that went, and the reason for
+        the one that failed."""
         route = self.blocking
         if route is None:
             return 0
@@ -456,62 +387,6 @@ class Box:
             write_json(wakes, {**marks, "last_error": why})
             if why:
                 say(f"wake failed {self.project.name} {BLOCKING}: {why}")
-        if sent:
-            went("")
-        if why:
-            went(why)
-        return sent
-
-    def flush(
-        self,
-        now: datetime,
-        say=print,
-        *,
-        post: Callable[[dict[str, Any]], str],
-        went: Callable[[str], None] = lambda _: None,
-    ) -> int:
-        """Send what waits for the home thread, in order, at most once in five minutes. Return how
-        many went.
-
-        Only events for the user wait in the outbox. An outbox written before jbus only logged
-        quiet events may hold an event of another level: `flush` drops such an event without
-        sending it.
-
-        What waits goes in lists of at most `WAKE_CAP` bytes of JSON, one after another, and
-        each list leaves the outbox as soon as it is sent. `post` sends one list's body and
-        returns why it failed, or nothing. Each list gets one try. The first that fails ends the
-        flush, and that list and the ones after it wait for the next flush.
-
-        Once `flush` unlocks the outbox, it calls `went` with how a flush that sent ended:
-        nothing for the lists that were sent, and the reason for the one that failed. It
-        passes both when both happened.
-        """
-        route = self.home
-        outbox, wakes = route.folder / "outbox.json", route.folder / "wake.json"
-        with locked(self.state, LOCK):
-            waiting = self._outbox(route)
-            marks = read_json(wakes, {})
-            taken = [one for one in waiting if _loud(one) == "user"]
-            if len(taken) < len(waiting):
-                waiting = taken
-                write_json(outbox, waiting, mode=0o600)
-            if not waiting:
-                return 0
-            if now.timestamp() - marks.get("posted", 0) < GAP:
-                return 0
-            marks = {**marks, "posted": now.timestamp()}
-            write_json(wakes, marks)
-            sent, why = 0, ""
-            for some in _lists(waiting):
-                why = post(body(some))
-                if why:
-                    break
-                sent += len(some)
-                self._log(**{TOOK: [_id(one) for one in some]})
-                write_json(outbox, waiting[sent:], mode=0o600)
-            write_json(wakes, {**marks, "last_error": why})
-            if why:
-                say(f"wake failed {self.project.name} home thread: {why}")
         if sent:
             went("")
         if why:
@@ -551,7 +426,7 @@ def entries(state: Path) -> list[dict[str, Any]]:
     return [
         record | {"id": _entry(record, before)}
         for record in _records(state / LOG)
-        if "event" in record and TOOK not in record
+        if "event" in record
     ]
 
 
@@ -566,29 +441,6 @@ def _entry(record: dict[str, Any], before: dict[str, int]) -> str:
 def _prunable(key: str, slugs: set[str]) -> bool:
     kind, _, rest = key.partition("|")
     return kind not in FOUND_AGAIN and rest.partition("|")[0] in slugs
-
-
-def body(events: list[dict[str, Any]]) -> dict[str, Any]:
-    """Return what one wake carries: its `kind`, the chat lines exactly as jbus will send
-    them, and the events.
-
-    An event queued before events had `say` goes to the chat as its `line`.
-    """
-    say = [one.get("say") or one["line"] for one in events]
-    return {"kind": EVENTS_KIND, "say": say, "events": events}
-
-
-def _lists(events: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
-    """Return the events in order, in lists whose body is at most `WAKE_CAP` bytes. An event
-    larger than that goes in a list alone."""
-    some: list[dict[str, Any]] = []
-    for one in events:
-        if some and len(json.dumps(body([*some, one])).encode()) > WAKE_CAP:
-            yield some
-            some = []
-        some.append(one)
-    if some:
-        yield some
 
 
 def _post_blocking(route: Route, made: dict[str, Any]) -> str:

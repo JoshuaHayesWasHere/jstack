@@ -522,17 +522,16 @@ def _blocks(run: Pass, item: Item, case: str, why: str) -> Item:
 
 
 def _alarms(run: Pass) -> list[Item]:
-    """Return the streaks that alerted and are still open, of this project or of the pass. Leave out
-    the second target's own streak, since jbus would post it to the same target that fails."""
-    name = run.project.name
-    mine = {alert.PASS, alert.home(name)}
-    mine.add(alert.jmerge(name))
+    """Return the open alerts whose owner is this project (`jbus.alert`). Leave out the second
+    target's own streak, since jbus would post it to the same target that fails."""
     found = []
-    for key, one in sorted(alert.streaks(run.config.state_dir).items()):
-        if key in mine and one.get("alerted"):
-            line = f"alert: {key} failed {one.get('count')} times in a row"
-            item = {"key": f"alarm:{key}", "kind": "alarm", "line": line, "since": one["since"]}
-            found.append(_blocks(run, item, "d", "a jbus alarm"))
+    for one in alert.open_items(run.config.state_dir, run.now):
+        if one.key == alert.blocking(run.project.name):
+            continue
+        if run.config.owner(one.owner) != run.project:
+            continue
+        item = {"key": f"alarm:{one.key}", "kind": "alarm", "line": one.line, "since": one.since}
+        found.append(_blocks(run, item, "d", "a jbus alarm"))
     return found
 
 

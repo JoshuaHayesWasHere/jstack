@@ -38,8 +38,11 @@ jinstall
 `jinstall --doctor` prints the backup as `ok optional state repo <tree> -> <url>`, or says `not a git repo`, `no remote, so the backup is off`, or `needs gitleaks`.
 To turn it off again, remove the remote, `git -C ~/.local/state/home remote remove origin`, and run `jinstall`.
 
-A snapshot that did not finish fails the unit, whose `OnFailure=jbus-snapshot-failed.service` runs `jbus snapshot --alarm`.
+A snapshot that did not finish fails the unit and raises its own alert.
+When gitleaks found a secret, the alert is for the project whose home holds the file, the first path segment of each file gitleaks names, and only that project's home hears of it.
+Any other failure is the machine's, and goes to the desk and the infra home.
 The first failure alerts at once, and the later ones in the same run of failures do not alert ([When jbus fails](when-jbus-fails.md)).
+A snapshot that the unit's timeout stops raises nothing, and the next one that runs says why it failed.
 The first snapshot that finishes after them says it recovered.
 `systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs on Linux, and `git -C ~/.local/state/home log -1` shows the last one.
 To take one now, run `systemctl --user start jbus-snapshot.service` on Linux, or `jbus snapshot` on macOS.

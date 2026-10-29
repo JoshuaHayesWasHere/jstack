@@ -46,6 +46,7 @@ from jbriefs import home as homes
 from jbus import (
     Config,
     Refused,
+    alert,
     mirror,
     outbox,
     plan,
@@ -59,7 +60,7 @@ from jbus import (
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 
-EVENTS = {"home-stall": "user"}
+EVENTS = {"home-stall": "quiet"}
 STALL = "home-stall"
 FILE = "children.json"
 PATIENCE = 60
@@ -268,8 +269,16 @@ def watch(run: Pass, client: Client, threads: list[dict[str, Any]] | None) -> No
                 spell["step"] = STEPS_OF[rank + 1]
                 spell["at"] = run.now.isoformat()
         kept[name] = spell
+    for name, spell in was.items():
+        if spell.get("step", "calm") != "calm" and kept.get(name, {}).get("step", "calm") == "calm":
+            alert.retire(run.config.state_dir, _stall(run, name))
     if kept != was:
         write_json(run.state / FILE, kept)
+
+
+def _stall(run: Pass, name: str) -> str:
+    """The key of the alert a home's stall raises, which ends when its spell does."""
+    return f"{STALL} {run.project.name} {name}"
 
 
 def _act(
@@ -291,14 +300,16 @@ def _act(
         if n == 2:
             return True
         line = f"{STALL} {name}: {home} has had {what} out and been quiet {quiet} min"
-        run.find(name, STALL, f"{line}; jbus nudged it, thread {thread}", key=f"{since} strike")
+        line = f"{line}; jbus nudged it, thread {thread}"
+        if run.find(name, STALL, line, key=f"{since} strike"):
+            alert.raise_(run.config, _stall(run, name), line, owner=run.project.name, now=run.now)
         return True
     if outbox.capped(run, client, thread):
         return False
     line = f"{STALL} {name}: {home} is still quiet after two nudges, {quiet} min"
-    run.find(
-        name, STALL, f"{line}: get it going, or retire it; thread {thread}", key=f"{since} ask"
-    )
+    line = f"{line}: get it going, or retire it; thread {thread}"
+    if run.find(name, STALL, line, key=f"{since} ask"):
+        alert.raise_(run.config, _stall(run, name), line, owner=run.project.name, now=run.now)
     return True
 
 

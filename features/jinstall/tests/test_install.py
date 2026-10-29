@@ -53,7 +53,6 @@ UNITS = [
     "jbus-ci.timer",
     "jbus-failed.service",
     "jbus-relay.service",
-    "jbus-snapshot-failed.service",
     "jbus-snapshot.service",
     "jbus-snapshot.timer",
     "jbus-stale.service",

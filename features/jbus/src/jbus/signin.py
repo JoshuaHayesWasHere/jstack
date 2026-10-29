@@ -1,122 +1,72 @@
 """jbus reminds the user that jbus's sign-in to T3 Code is running out. Once the sign-in has
 run out, jbus launches nothing until `jbus t3 login` signs in again. So jbus warns the user
-beforehand, with a `sign-in` event.
+beforehand, with an open alert of the machine's (`jbus.alert`).
 
 jbus counts the days left by the calendar of the user's zone, from the day of the pass to the
-day the stored token runs out (`jsettings.t3.expiry`). Each reminder gives the expiry and the days
-left. jbus sends it:
+day the stored token runs out (`jsettings.t3.expiry`). The alert gives the expiry and the days
+left. It opens on the first pass `WEEK` days out or fewer, says the days left again each day from
+`DAILY` days out, the day it runs out included, and says it ran out on the first pass after that.
+Each change of what it says is a new line of the one alert, `sign-in`, so its home hears it once.
+A sign-in renewed beyond `WEEK` days ends the alert.
 
-- once, on the first pass `WEEK` days out or fewer;
-- once a day from `DAILY` days out, the day it runs out included;
-- once more, on the first pass after it has run out.
+The sign-in is the machine's, so the alert's owner is the machine: it goes to the desk and the
+infra home (`jbus.Config.owner`), and is checked once a pass, in a chore of the pass.
 
-Each of the three cases above is a mark. A pass sends the reminder for the mark it is in now, and
-none for a mark already behind it: a first pass 2 days out sends that day's reminder and not the
-week's. jbus stores the last expiry it saw, and the marks it has sent for that expiry, in
-`sign-in.json` in its state. So when the user adds, removes or moves a project in the config, jbus
-repeats no mark. An expiry later than the last one seen is a renewal. jbus reports the renewal once,
-with the new expiry, and starts the count over. The first expiry jbus sees is not a renewal. When
-jbus cannot read the file, it does not treat the expiry that it finds as a renewal either.
-
-The sign-in is the machine's, so jbus gives the reminder once, not once for each project. jbus
-queues the reminder in the box of the config's first project, as an event of the machine
-(`wake.Box.send`). Such an event waits for that project's home thread, and that project's flush
-sends it. `jbus events` of that project lists it.
-
-The `sign_in` line of each project in the status file is separate from the reminder, and
-stays as it was: `expiring`, within `warn_days`.
+The `sign_in` line of each project in the status file is separate from the alert, and stays as it
+was: `expiring`, within `warn_days`.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import jsettings
-from jbus import Config, read_json, verbs, wake, write_json
+from jbus import Config, alert, verbs
 from jsettings import t3
 
-EVENTS = {"sign-in": "user"}
 WEEK = 7
 DAILY = 3
 KIND = "sign-in"
 WHOSE = "jbus's T3 sign-in"
 
 
-def _path(config: Config) -> Path:
-    return config.state_dir / "sign-in.json"
-
-
-def _kept(config: Config) -> tuple[datetime | None, list[str]]:
-    """Return the last expiry seen and the marks sent for it. If jbus cannot read the file
-    as such, it returns no expiry: the count starts there, and reports no renewal."""
-    kept = read_json(_path(config), {})
-    try:
-        return datetime.fromisoformat(kept["expires"]), [str(mark) for mark in kept["said"]]
-    except (KeyError, TypeError, ValueError):
-        return None, []
-
-
 def _days(expires: datetime, now: datetime, user: jsettings.Settings) -> int:
     return (user.local(expires).date() - user.local(now).date()).days
 
 
-def due(expires: datetime, now: datetime, user: jsettings.Settings) -> tuple[str, str] | None:
-    """Return the current mark for a pass at `now`, with its line, or None if there is none."""
+def due(expires: datetime, now: datetime, user: jsettings.Settings) -> str | None:
+    """Return the alert's line for a pass at `now`, or None while none is due. From `DAILY` days
+    out the line names the days left, so it changes each day; before then it says a week."""
     stamp = user.stamp(expires)
     if now >= expires:
-        return "passed", f"{KIND}: {WHOSE} expired {stamp}, no days left: run jbus t3 login"
+        return f"{KIND}: {WHOSE} expired {stamp}, no days left: run jbus t3 login"
     days = _days(expires, now, user)
     if days > WEEK:
         return None
-    mark = f"day {days}" if days <= DAILY else "week"
-    left = "1 day left" if days == 1 else f"{days} days left"
-    return mark, f"{KIND}: {WHOSE} expires {stamp}, {left}: run jbus t3 login"
-
-
-def _box(config: Config) -> wake.Box:
-    return wake.Box(config.state(config.projects[0]), config.projects[0])
+    left = "at most a week left" if days > DAILY else f"{days} day{'' if days == 1 else 's'} left"
+    return f"{KIND}: {WHOSE} expires {stamp}, {left}: run jbus t3 login"
 
 
 def remind(config: Config, now: datetime) -> None:
-    """Queue the reminder lines due at `now`, then store the expiry and the marks sent for it.
-
-    jbus stores the marks beside the expiry, not in the box, so the choice of first project
-    does not change which marks count as sent. A new expiry starts the marks over. jbus
-    writes the marks after it queues the lines. So a pass that stops between the two steps
-    sends a mark twice rather than losing it.
-    """
+    """Open the sign-in alert with the line due at `now`, or end it when none is due."""
     expires = t3.expiry(config.token_path)
-    if expires is None or not config.projects:
+    if expires is None:
         return
-    seen, said = _kept(config)
-    owed = []
-    if seen != expires:
-        said = []
-        if seen is not None and seen < expires:
-            stamp = config.user.stamp(expires)
-            owed.append(("renewed", f"{KIND}: {WHOSE} was renewed, and now expires {stamp}"))
-    found = due(expires, now, config.user)
-    if found and found[0] not in said:
-        owed.append(found)
-    if seen == expires and not owed:
-        return
-    box = _box(config)
-    for _, line in owed:
-        box.send("", KIND, line, machine=True)
-    marks = [*said, *(mark for mark, _ in owed)]
-    write_json(_path(config), {"expires": expires.isoformat(), "said": marks})
+    line = due(expires, now, config.user)
+    if line is None:
+        alert.retire(config.state_dir, KIND)
+    else:
+        alert.raise_(config, KIND, line, now=now)
 
 
 def plan(config: Config, now: datetime) -> str:
-    """Return what `jbus status` says of the reminder: the route that receives it, and the
-    days still ahead."""
+    """Return what `jbus status` says of the reminder: who receives it, and the days still
+    ahead."""
     expires = t3.expiry(config.token_path)
     if expires is None:
         return "none: no sign-in is stored"
-    if not config.projects:
-        return "none: the config has no project to carry it"
-    where = f"the home thread of {config.projects[0].name}"
+    infra = config.owner(alert.MACHINE)
+    where = f"the desk and the home of {infra.name}" if infra else "the desk"
     stamp = config.user.stamp(expires)
     if now >= expires:
         return f"{KIND} to {where}: it ran out at {stamp}, run jbus t3 login"

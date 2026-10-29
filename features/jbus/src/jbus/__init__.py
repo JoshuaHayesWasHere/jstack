@@ -3,8 +3,10 @@
 This module is the shared model: the config, its projects, and the paths under the state
 directory. Every other module takes a `Config` or a `Project` and reads no path by itself.
 
-A project's events for the user go to its home thread through T3 Code (`wake.Box`). A
-`home_thread` above the first `[[project]]` is `Config.home_thread`: the thread that gets a
+A home hears jbus by one path, the one list of open items (`jbus.wakes`), each with an owner.
+`Config.owner` is the one rule that turns an owner into the project whose home gets the item. An
+`infra` above the first `[[project]]` names the project that gets what the machine owns, `infra`
+when it is not set. A `home_thread` there is `Config.home_thread`: the thread that gets a
 project's wakes when the project's home has none.
 
 A `blocking_url` and `blocking_key` above the first `[[project]]` are `Config.blocking`, the second
@@ -111,6 +113,7 @@ class Scratch:
 
 
 MAX_PER_HOME, MAX_PER_PROJECT = 6, 24
+INFRA = "infra"
 """The crews a pass lets one home and one project have out, where the config sets no
 `max_per_home` or `max_per_project`. `max_running` is the third cap, for the whole machine."""
 
@@ -185,6 +188,7 @@ class Config:
     blocking: Hook = ("", "")
     scratch: tuple[Scratch, ...] = ()
     home_thread: str = ""
+    infra: str = INFRA
     view: View = View()
 
     @property
@@ -215,6 +219,16 @@ class Config:
                 return project
         names = ", ".join(project.name for project in self.projects) or "none"
         raise Refused(f"refused: no project {name or '(name one with --project)'}, have {names}")
+
+    def owner(self, name: str) -> Project | None:
+        """Return the project whose home gets what `name` owns: the project of that name, or for
+        the machine (no name) and for a name no project has, the infra project. Never every
+        project, and None only for a config with no infra project."""
+        for wanted in (name, self.infra):
+            for project in self.projects:
+                if wanted and project.name == wanted:
+                    return project
+        return None
 
     def addressee(self, name: str | None) -> Project:
         """Return the home a word is for: a repo project by its name, or a scratch home's
@@ -388,6 +402,7 @@ def load(directory: Path | None = None) -> Config:
         blocking=blocking,
         scratch=tuple(scratch),
         home_thread=str(raw.get("home_thread") or ""),
+        infra=str(raw.get("infra") or INFRA),
         view=view,
     )
 

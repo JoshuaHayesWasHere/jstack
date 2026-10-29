@@ -1,9 +1,4 @@
-"""A flush sends what waits for the home thread in bodies of bounded size, at most once in five
-minutes. Each body is `{"kind": "events", "say": [...], "events": [...]}`: the lines for the chat,
-and the events. The tests here hand `wake.Box.flush` a fake send, the way `jbus.alert` hands it a
-send through T3 Code.
-
-The second target is the one route that still POSTs: it carries the key in two headers. Its tests
+"""The second target is the one route that POSTs: it carries the key in two headers. Its tests
 drive the real `wake.Box.flush_blocking` and `wake._post_blocking` against a target faked on a
 local port. Like the real one, the fake answers 401 unless both headers carry the key exactly.
 Nothing reaches the network.
@@ -13,7 +8,7 @@ import http.server
 import json
 import threading
 import urllib.request
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 
@@ -21,23 +16,6 @@ from jbus import Project, wake
 
 NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 KEY = "wake-key-for-tests"
-REFUSED = "T3 Code did not take the wake: no"
-
-
-class Thread:
-    """A home thread faked as the send that `flush` calls: it keeps each body it took, and refuses
-    the sends whose number is in `fail`."""
-
-    def __init__(self):
-        self.posts, self.sizes, self.tries, self.fail = [], [], 0, set()
-
-    def __call__(self, made):
-        self.tries += 1
-        if self.tries in self.fail:
-            return REFUSED
-        self.posts.append(made)
-        self.sizes.append(len(json.dumps(made).encode()))
-        return ""
 
 
 class Target:
@@ -85,11 +63,6 @@ class Target:
 
 
 @pytest.fixture
-def thread():
-    return Thread()
-
-
-@pytest.fixture
 def target():
     fake = Target()
     yield fake
@@ -100,142 +73,6 @@ def box(tmp_path, target=None, key=KEY):
     project = Project("demo", tmp_path / "checkout", "demo", "project-1")
     second = (f"{target.url}/relay", key) if target else ("", "")
     return wake.Box(tmp_path / "state", project, second)
-
-
-def waiting(made):
-    return json.loads((made.home.folder / "outbox.json").read_text())
-
-
-def flush(made, thread, now=NOW):
-    said = []
-    return made.flush(now, said.append, post=thread), said
-
-
-def sent(thread):
-    return [event for post in thread.posts for event in post["events"]]
-
-
-def test_a_flush_sends_one_body_with_the_chat_lines_and_the_events(tmp_path, thread):
-    made = box(tmp_path)
-    made.send("alpha", "decision", "decision alpha: which?")
-    assert flush(made, thread) == (1, [])
-    (post,) = thread.posts
-    assert sorted(post) == ["events", "kind", "say"] and post["say"] == [
-        "demo: decision alpha: which?"
-    ]
-    assert post["kind"] == "events"
-    assert [event["line"] for event in post["events"]] == ["decision alpha: which?"]
-    assert waiting(made) == []
-
-
-def test_a_body_carries_the_lines_for_the_chat_at_its_top_in_order(tmp_path, thread):
-    made = box(tmp_path)
-    made.send("", "heartbeat", "heartbeat: jbus alive")
-    made.send("alpha", "alert", "alert alpha: no pass in an hour")
-    made.send("alpha", "result", "result alpha: done")
-    made.send("beta", "decision", "decision beta: which?")
-    assert flush(made, thread) == (2, [])
-    (post,) = thread.posts
-    assert post["say"] == ["demo: alert alpha: no pass in an hour", "demo: decision beta: which?"]
-    assert [event.get("say") for event in post["events"]] == post["say"]
-
-
-def test_quiet_events_start_no_wake_and_go_with_none_that_is_started(tmp_path, thread):
-    made = box(tmp_path)
-    made.send("", "heartbeat", "heartbeat: jbus alive")
-    made.send("#7", "jmerge", "wait 7 its check has not passed")
-    made.send("alpha", "result", "result alpha: done")
-    heard = []
-    assert made.flush(NOW, heard.append, post=thread, went=heard.append) == 0
-    assert heard == [] and thread.tries == 0 and "posted" not in made.marks(made.home)
-    assert made.waiting() == 0
-    made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(NOW, heard.append, post=thread, went=heard.append) == 1
-    assert heard == [""] and [event["event"] for event in sent(thread)] == ["decision"]
-    assert [one["event"] for one in made.log() if one["posted"] is None] == [
-        "heartbeat",
-        "jmerge",
-        "result",
-    ]
-
-
-def test_a_refused_send_keeps_the_outbox_and_says_why(tmp_path, thread):
-    thread.fail = {1}
-    made = box(tmp_path)
-    made.send("alpha", "decision", "one")
-    made.send("beta", "decision", "two")
-    before = waiting(made)
-    assert flush(made, thread) == (0, [f"wake failed demo home thread: {REFUSED}"])
-    assert thread.posts == [] and waiting(made) == before
-    assert made.marks(made.home)["last_error"] == REFUSED
-    assert made.marks()["failed"] == 1
-
-
-def backlog(made: wake.Box) -> list[dict]:
-    events: list[dict] = []
-    while len(json.dumps(events).encode()) <= 2 * wake.WAKE_CAP:
-        slug = f"task-{len(events) + 1}"
-        made.send(slug, "decision", f"gate {slug}", "x" * 7000)
-        events = waiting(made)
-    assert len(json.dumps(events[:-1]).encode()) <= 2 * wake.WAKE_CAP
-    return events
-
-
-def test_a_backlog_goes_as_bounded_bodies_in_order_in_one_flush(tmp_path, thread):
-    made = box(tmp_path)
-    events = backlog(made)
-    assert flush(made, thread) == (len(events), [])
-    assert len(thread.posts) == 3
-    assert sent(thread) == events
-    assert all(size <= wake.WAKE_CAP for size in thread.sizes)
-    assert waiting(made) == []
-    assert made.marks(made.home)["posted"] == NOW.timestamp()
-
-
-def test_a_list_that_fails_and_what_follows_it_wait_in_order_for_the_next_flush(tmp_path, thread):
-    made = box(tmp_path)
-    events = backlog(made)
-    thread.fail = {2}
-    went = []
-    took = made.flush(NOW, lambda _: None, post=thread, went=went.append)
-    (first,) = thread.posts
-    assert took == len(first["events"]) and went == ["", REFUSED]
-    assert thread.tries == 2
-    assert waiting(made) == events[took:]
-    assert (made.marks()["failed"], made.marks(made.home)["last_error"]) == (1, REFUSED)
-    assert flush(made, thread, NOW + timedelta(seconds=wake.GAP - 1)) == (0, [])
-    assert flush(made, thread, NOW + timedelta(seconds=wake.GAP)) == (len(events) - took, [])
-    assert len(thread.posts) == 3
-    assert sent(thread) == events
-    assert waiting(made) == [] and made.marks(made.home)["last_error"] == ""
-
-
-def test_a_flush_stopped_in_its_first_send_still_waits_the_gap(tmp_path, thread):
-    class Stopped(BaseException):
-        pass
-
-    def stopped(made):
-        raise Stopped
-
-    made = box(tmp_path)
-    made.send("alpha", "decision", "decision alpha: a line")
-    with pytest.raises(Stopped):
-        made.flush(NOW, post=stopped)
-    assert made.marks(made.home)["posted"] == NOW.timestamp()
-    assert flush(made, thread, NOW + timedelta(seconds=wake.GAP - 1)) == (0, [])
-    assert thread.posts == []
-    assert flush(made, thread, NOW + timedelta(seconds=wake.GAP)) == (1, [])
-
-
-def test_an_event_larger_than_one_body_may_carry_goes_alone(tmp_path, thread):
-    made = box(tmp_path)
-    small = wake.event("demo", "small", "decision", "small")
-    text = "x" * wake.WAKE_CAP
-    large = wake.event("demo", "large", "decision", "large", text, cap=2 * len(text))
-    made.home.folder.mkdir(parents=True)
-    (made.home.folder / "outbox.json").write_text(json.dumps([small, large, small]))
-    assert flush(made, thread) == (3, [])
-    assert [post["events"] for post in thread.posts] == [[small], [large], [small]]
 
 
 ITEMS = {"kind": "blocking", "items": [{"key": "a"}]}

@@ -55,8 +55,8 @@ def _asks(config: jbus.Config, project: jbus.Project) -> queue.Asks:
     not out. Where `out` cannot ask either of them, it says so, and the answer is unknown.
     `launched` reads the launch records. A record at `intent` is a launch that T3 Code has not
     answered yet. A record written after this call began means that a pass launched the slug
-    after `out` asked. The event carries the row as it was, and jbus leaves it in the outbox and
-    starts no POST for it.
+    after `out` asked. The event carries the row as it was, and jbus logs it and sends it to no
+    thread.
     """
     run = passes.Pass(config, project, datetime.now(UTC))
     began = time.time()

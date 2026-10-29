@@ -29,9 +29,8 @@ BUILT = re.compile(
 )
 HAPPENS = {
     "user": (
-        "It starts a wake of the home thread. The event has `say`, the line for the chat, which "
-        "begins with the project's name, but for a `sign-in`, which is the machine's. The "
-        "top-level `say` holds those lines in order."
+        "It is a decision of yours. It is in the log, and the one list carries it to a home "
+        "as an item (`jbus.wakes`)."
     ),
     "quiet": "It wakes no thread. It is in the log, which `jbus events` prints and the view shows.",
 }

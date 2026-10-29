@@ -27,7 +27,7 @@ def at_home(scene, error, streak=0):
     the error of the home thread's last wake, and `streaks.json` the streak of its failed
     wakes."""
     status = json.loads((scene.state_dir / "status.json").read_text())
-    status["projects"][scene.name] |= {"failed_wakes": streak, "last_error": error, "outbox": 0}
+    status["projects"][scene.name] |= {"failed_wakes": streak, "last_error": error}
     scene.write("status.json", status, scene.state_dir)
     (scene.state / "home-thread").mkdir(exist_ok=True)
     said = {"last_error": error, "posted": NOW.timestamp() - 60}

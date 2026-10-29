@@ -2,19 +2,23 @@
 
 ## Where wakes go
 
-A wake is what jbus sends you when a pass finds events for you.
+A wake is what jbus sends a home when a pass finds an item for it.
 It goes to one place, the project's home thread through T3 Code, and jbus has no webhook.
 A config that still has `wake`, `webhook_url` or `webhook_key`, at the top or in a `[[project]]`, loads, and jbus ignores those keys.
 
-A wake to the home thread is one `t3_thread_send` to the thread in the home's `home-id`, in queue mode.
-It carries the chat lines and the events, the body below as JSON, and its retry key is made from that body, so a retry sends the same message once.
-It keeps a five-minute gap, in its own outbox in `home-thread/` inside the project's state folder.
+A wake is one `wakes` message, a `t3_thread_send` to the thread in the home's `home-id`, in queue mode.
 A project whose home has no thread sends its wakes to the thread in a top-level `home_thread = "<thread id>"`, where the config has one.
-With neither, the events wait in the outbox, and the journal says so once.
-A send that T3 Code does not take (T3 Code is down, or the thread is gone) keeps the events in the outbox for the next pass and counts the `home thread <project>` streak, which alerts in the journal and on the desktop at the third failure in a row.
-A wake that the outbox holds for a capped home thread waits for the reset and counts no streak.
-The desktop alert shows only where `notify-send` is on the PATH.
+A send that T3 Code does not take (T3 Code is down, or the thread is gone) counts the `home thread <project>` streak, which alerts at the third failure in a row, and the next pass tries again.
 `jbus wakes` prints `wakes fail: <the alert line>` and exits 1 while that streak alerts, and `wakes go: the home thread of <project> is not failing` otherwise.
+
+## Who an item is for
+
+Every alert is an open item with an owner ([When jbus fails](when-jbus-fails.md)).
+The owner is a project's name, or the machine's for what belongs to no project, as a pass that did not finish or the sign-in.
+An item of a project goes to that project's home only.
+An item of the machine, and an item whose owner names no project, goes to the desk with `notify-send` and to the home of the infra project, the one the config's top-level `infra` names (`infra` by default).
+It never goes to every home.
+The desk shows only where `notify-send` is on the PATH.
 
 ## One list wakes a home
 
@@ -27,9 +31,10 @@ An item the home's own thread caused does not wake it, as a row to approve whose
 An item whose cause is another open item folds into that item, as the stall of a row whose pull request is red, unless the row is that item's fix.
 An item that leaves the list wakes no one.
 A pass sends each home thread at most one `wakes` message, and `wakes.json` in the project's state keeps what each home was told.
-A `decision` of an item on the list reaches a home thread only this way.
-Any other `decision`, as one `jbus decide` or `jbus clear` raises, reaches a home thread as an event.
-A `decision` of a setup jbus lacks reaches a home thread as an event too, since that setup may be the sign-in to T3 Code the list's message needs.
+An item is told again only when what it says changed, and `wakes.json` keeps a closed item for a day, so an item that flaps does not come back as new.
+A `decision` reaches a home thread only this way.
+A decision of the list of what waits is that list's item.
+Any other decision, a retry cap or one raised with `jbus decide`, is the project's alert for a day (`jbus.blockers.decide`).
 
 ## The events
 
@@ -40,18 +45,15 @@ A wake's body is `{"kind": "events", "say": [...], "events": [...]}`, and an eve
 <!-- built: events -->
 | `loud` | Kinds | What happens |
 |---|---|---|
-| `user` | `alert`, `decision`, `home-stall`, `sign-in` | It starts a wake of the home thread. The event has `say`, the line for the chat, which begins with the project's name, but for a `sign-in`, which is the machine's. The top-level `say` holds those lines in order. |
-| `quiet` | `act`, `cancelled`, `clock`, `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate`, `gate answered`, `green`, `heartbeat`, `hold-stall`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.waiting`, `jmerge`, `mainmoved`, `merged`, `note`, `pack`, `pool-wake`, `queue`, `rebase`, `recovered`, `refailed`, `report`, `rereview`, `restack`, `result`, `resume`, `retro`, `review`, `reviewed`, `slot-end`, `slot-wake`, `snapshot`, `stale`, `stall`, `sweep`, `unplaced`, `waiting`, `waiting-on-user` | It wakes no thread. It is in the log, which `jbus events` prints and the view shows. |
+| `user` | `decision` | It is a decision of yours. It is in the log, and the one list carries it to a home as an item (`jbus.wakes`). |
+| `quiet` | `act`, `alert`, `cancelled`, `clock`, `condition`, `conflict`, `drops`, `expedite`, `failed`, `failover`, `gate`, `gate answered`, `green`, `heartbeat`, `hold-stall`, `home-stall`, `item.approved`, `item.done`, `item.dropped`, `item.held`, `item.launched`, `item.linked`, `item.proposed`, `item.queued`, `item.resumed`, `item.waiting`, `jmerge`, `mainmoved`, `merged`, `note`, `pack`, `pool-wake`, `queue`, `rebase`, `recovered`, `refailed`, `report`, `rereview`, `restack`, `result`, `resume`, `retro`, `review`, `reviewed`, `slot-end`, `slot-wake`, `snapshot`, `stale`, `stall`, `sweep`, `unplaced`, `waiting`, `waiting-on-user` | It wakes no thread. It is in the log, which `jbus events` prints and the view shows. |
 <!-- built: end -->
 
-A wake carries `user` kinds only, such as a `decision`, a `sign-in` and an `alert` that stands.
 A `decision` is one thing you have to decide, raised once, with a reply you can send as it is ([Decisions](decisions.md)).
 A `gate` is a question a thread asked, and a `waiting` event a change of the list of what waits on you: both are quiet, and what on them you have to decide reaches you as a `decision`.
 The routine events, `merged`, `stale`, `retro`, `gate`, `stall`, `waiting` and `recovered`, go to the digest's `routine` list (`jbus digest --json`) and not to the pager.
 A `condition` is what jbus found that no rule covers, such as `condition <slug>: brief changed after approval`.
 
-A wake starts only when a `user` event waits, and it carries nothing else.
-jbus sends what waits for a project at most once in five minutes, in wakes of at most 100 KB of JSON each.
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
 With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
 Once a day, too, it runs the stale check of a project's context pack, where its main checkout has `<repo>/docs/context/notes/`, and logs the `stale` and `prune` lines as one `pack` event when there are any ([context.md](../../../jpack/docs/context.md)).

@@ -478,7 +478,7 @@ def out(kitchen, scope="jview"):
 def test_a_holding_go_whose_last_row_ended_wakes_its_home_once_and_jbus_out_says_it(jview):
     """The replay of jv-build: its design scout reported, nothing else queued, and the go still
     holds. The home is woken once, the root once it is still open `CLOSE_MINUTES` later, and the
-    item leaves the list on a new row."""
+    item leaves the list on a new row and the home's record a day later."""
     kitchen, root, scoped = jview
     reported(kitchen, "jv-design")
     kitchen.poll(NOW)
@@ -498,6 +498,8 @@ def test_a_holding_go_whose_last_row_ended_wakes_its_home_once_and_jbus_out_says
     queued(kitchen, "jv-build-2", entry="jv-build", text=text)
     assert not any(line.startswith("out entry ") for line in out(kitchen))
     kitchen.poll(NOW + timedelta(minutes=leftover.CLOSE_MINUTES + 2))
+    assert len(owed_wakes(kitchen, scoped)) == 1
+    kitchen.poll(NOW + wakes.KEEP + timedelta(minutes=leftover.CLOSE_MINUTES + 3))
     told = json.loads((kitchen.state / wakes.FILE).read_text())["threads"]
     assert not any(key.startswith("owed") for seen in told.values() for key in seen)
 

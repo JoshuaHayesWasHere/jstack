@@ -12,12 +12,13 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import acts, party, passes, t3, wake, word
+from jbus import acts, alert, party, passes, t3, word
 from test_jbus_kitchen import NOW, iso, sends
 
 AT = "2026-10-12 10:55 ET"
 WORDS = "hold every merge until I say"
 ID = "9e0a0bcb94dd"
+DECIDE = "decision alpha: which one?"
 
 
 def thread(digit):
@@ -53,11 +54,14 @@ def logged(kitchen, project="demo"):
 
 
 def decide(kitchen):
-    """Queue one decision, the kind of event that starts a POST for the user."""
-    config = jbus.load()
-    wake.Box(kitchen.state, config.project("demo")).send(
-        "alpha", "decision", "decision alpha: which one?"
-    )
+    """Open one alert of the project's, an item the one list tells its home thread of."""
+    ends = (NOW + timedelta(days=1)).isoformat()
+    alert.raise_(jbus.load(), "once which", DECIDE, owner="demo", now=NOW, ends=ends)
+
+
+def told(said):
+    """Say whether a pass told the home thread of an item of the one list."""
+    return any(line.startswith("wakes demo: told") for line in said)
 
 
 def test_a_word_goes_once_to_the_thread_in_the_homes_home_id(kitchen):
@@ -82,7 +86,7 @@ def test_jbus_events_prints_the_word_with_its_words_by_at_and_where_it_went(kitc
     (kitchen.home / "home-id").write_text("home-1\n")
     kitchen.main("word", "--to", "demo", *SAID)
     (one,) = logged(kitchen)
-    assert (one["event"], one["line"], one["posted"]) == ("word", "word demo: sent to home-1", None)
+    assert (one["event"], one["line"]) == ("word", "word demo: sent to home-1")
     assert one["word"] == {"words": WORDS, "by": "user", "at": AT, "to": "home-1"}
 
 
@@ -93,11 +97,10 @@ def test_no_wake_carries_the_word_and_the_wake_another_event_starts_has_none_of_
     kitchen.git("init", "-q", str(desk), cwd=kitchen.root)
     kitchen.monkeypatch.chdir(desk)
     assert kitchen.main("word", "--to", "demo", *SAID) == (0, f"sent: demo, to home-1, word {ID}\n")
-    assert kitchen.waiting() == []
     decide(kitchen)
-    assert "woke demo: 1 events" in kitchen.poll()
-    assert [[one["event"] for one in post] for post in kitchen.wakes.posts] == [["decision"]]
-    carried = json.dumps([kitchen.wakes.posts, kitchen.wakes.said, kitchen.waiting()])
+    assert told(kitchen.poll())
+    assert kitchen.wakes.listed == [[DECIDE]]
+    carried = json.dumps(kitchen.wakes.listed)
     assert "merge" not in carried and "word" not in carried
 
 
@@ -144,11 +147,7 @@ def test_a_word_said_in_the_homes_own_thread_is_kept_and_posted_to_nobody(kitche
     kitchen.poll(NOW + timedelta(minutes=5))
     assert sends(kitchen) == []
     (event,) = logged(kitchen)
-    assert (event["event"], event["line"], event["posted"]) == (
-        "word",
-        f"word demo: kept, {why}",
-        None,
-    )
+    assert (event["event"], event["line"]) == ("word", f"word demo: kept, {why}")
     assert event["word"] == {"words": WORDS, "by": "user", "at": event["word"]["at"], "to": ""}
     assert word.basis(kitchen.state, kept.id).words == WORDS
     assert not word.path(kitchen.state).exists()
@@ -171,7 +170,7 @@ def test_a_word_recorded_by_the_home_is_kept_and_posted_to_nobody(kitchen):
     )
     assert not word.path(kitchen.state).exists()
     kitchen.poll(NOW + timedelta(minutes=5))
-    assert sends(kitchen) == [] and kitchen.wakes.posts == []
+    assert sends(kitchen) == [] and kitchen.wakes.said == []
 
 
 def test_a_word_recorded_anywhere_else_is_posted_to_the_home_once(kitchen):
@@ -294,7 +293,7 @@ def test_a_word_for_a_home_with_no_home_id_waits_and_goes_on_the_pass_after_its_
     kitchen.poll(NOW + timedelta(minutes=10))
     assert [(one["threadId"], one["message"]) for one in sends(kitchen)] == [("home-1", MESSAGE)]
     assert [one["word"]["to"] for one in logged(kitchen)] == ["", "home-1"]
-    assert kitchen.waiting() == [] and kitchen.wakes.posts == []
+    assert kitchen.wakes.said == []
 
 
 def test_the_home_id_is_read_when_the_word_is_sent_not_when_it_was_kept(kitchen):
@@ -322,15 +321,16 @@ def test_a_word_t3_code_refuses_waits_and_no_wake_carries_anything_of_it(kitchen
         f"waits: demo, T3 Code refused it, word {ID}\n",
     )
     decide(kitchen)
-    assert "woke demo: 1 events" not in kitchen.poll()
+    assert not told(kitchen.poll())
     assert [one["line"] for one in logged(kitchen) if one["event"] == "word"] == [
         "word demo: waits, T3 Code refused it"
     ]
     kitchen.t3.refuse_send = False
     said = kitchen.poll(NOW + timedelta(minutes=5))
-    assert "word demo: sent to home-1" in said and "woke demo: 1 events" in said
-    assert [[one["event"] for one in post] for post in kitchen.wakes.posts] == [["decision"]]
-    assert len(kitchen.t3.messages) == 1
+    assert "word demo: sent to home-1" in said and not told(said)
+    assert told(kitchen.poll(NOW + timedelta(minutes=10)))
+    assert kitchen.wakes.listed == [[DECIDE]]
+    assert len([one for one in kitchen.t3.messages if one.startswith("word|")]) == 1
 
 
 def test_a_word_a_pass_sent_meanwhile_is_not_written_back_as_waiting(kitchen):

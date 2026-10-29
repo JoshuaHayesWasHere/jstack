@@ -13,7 +13,6 @@
     "units/jbus-ci.timer",
     "units/jbus-failed.service",
     "units/jbus-relay.service",
-    "units/jbus-snapshot-failed.service",
     "units/jbus-snapshot.service",
     "units/jbus-snapshot.timer",
     "units/jbus-stale.service",

@@ -356,8 +356,8 @@ def test_a_week_with_a_target_missed_alerts_once_and_a_week_without_alerts_nobod
     late = list(nine.values())
     report.escalate(config, project, late, path, KITCHEN_NOW, said.append)
     report.escalate(config, project, late, path, KITCHEN_NOW, said.append)
-    assert len(kitchen.wakes.said) == 1
-    (line,) = kitchen.wakes.said[0]
+    kitchen.poll(KITCHEN_NOW)
+    (line,) = kitchen.wakes.said
     assert "missed" in line and "queue p50 under exec p50 26.6 vs 9.67 min" in line
     assert "flaky tests" not in line and str(path) in line
 

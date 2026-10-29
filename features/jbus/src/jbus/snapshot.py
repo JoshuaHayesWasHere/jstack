@@ -15,21 +15,25 @@ Before it stages anything, a snapshot reads each project's `standing.md`, the ho
 scoped home's (`refusals`). The file holds at most `CAP` numbered rules, and each rule names
 `Code: <slug>`, a row of the project's queue that turns the rule into code. A file that breaks
 either is refused: the snapshot leaves it out of the stage, commits and pushes the rest of the tree,
-says on stderr which file, project, rule and why, and fails, so the alarm names the refused project.
+says on stderr which file, project, rule and why, and fails.
 
-A snapshot that did not finish fails `jbus-snapshot.service`, whose `OnFailure=` runs
-`jbus snapshot --alarm`. The first failure in a row raises an alert, once, to the desk and every
-project, and the next snapshot that succeeds reports the recovery (`alert.sound`, `alert.recover`).
+A snapshot that did not finish raises its alert itself (`alert.sound`), one for each owner: the
+first path segment of each file gitleaks names in its report, or of each refused `standing.md`,
+which is a home's directory and so its project (`owners`). A failure that names no file, such as a
+push that failed, is the machine's. Each alert goes to its owner's home alone, and the next
+snapshot that succeeds ends them all (`alert.recover`).
 """
 
 from __future__ import annotations
 
 import argparse
 import fcntl
+import json
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
@@ -43,18 +47,19 @@ from jsettings import proc
 
 AFTER = 1
 CAP = 3
+FAILED = "the snapshot of the homes' state tree did not finish"
 _RULE = re.compile(r"(\d+)\. ")
 _CODE = re.compile(r"\bCode: ([\w.-]*\w)")
 WAIT = 60.0
-ALARM = (
-    "the last snapshot of the homes' state tree did not finish "
-    "(see journalctl --user -u jbus-snapshot)"
-)
 
 
 class Failed(Exception):
     """A snapshot failed: it did not commit what it should have, or did not push what it
-    committed."""
+    committed. `files` are the files of the tree gitleaks found a secret in."""
+
+    def __init__(self, why: str, files: tuple[str, ...] = ()) -> None:
+        super().__init__(why)
+        self.files = files
 
 
 def _git(tree: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -123,22 +128,26 @@ def _take(
 
 
 def _commit(tree: Path, message: str) -> None:
-    """Commit what is staged, unless gitleaks finds a secret in it or is not on PATH."""
+    """Commit what is staged, unless gitleaks finds a secret in it or is not on PATH. A secret
+    found fails with the files gitleaks names in its report."""
     gitleaks = shutil.which("gitleaks")
-    scanned = (
-        subprocess.run(
-            [gitleaks, "protect", "--staged", "--no-banner", "--redact"],
+    if not gitleaks:
+        _git(tree, "reset", "-q")
+        raise Failed("no gitleaks to read the changes, nothing committed")
+    with tempfile.TemporaryDirectory() as scratch:
+        report = Path(scratch) / "report.json"
+        scanned = subprocess.run(
+            [gitleaks, "protect", "--staged", "--no-banner", "--redact"]
+            + ["--report-format", "json", "--report-path", str(report)],
             cwd=tree,
             capture_output=True,
         ).returncode
-        if gitleaks
-        else None
-    )
+        found = json.loads(report.read_text() or "[]") if report.exists() else []
     if scanned != 0:
         _git(tree, "reset", "-q")
-        if scanned is None:
-            raise Failed("no gitleaks to read the changes, nothing committed")
-        raise Failed("gitleaks found a secret in the changes, nothing committed")
+        files = tuple(sorted({one["File"] for one in found if one.get("File")}))
+        named = f" ({', '.join(files)})" if files else ""
+        raise Failed(f"gitleaks found a secret in the changes{named}, nothing committed", files)
     _must(_git(tree, "commit", "-q", "-m", message), "git commit")
 
 
@@ -202,6 +211,15 @@ def _stderr(line: str) -> None:
     print(line, file=sys.stderr)
 
 
+def owners(config: jbus.Config, files: Iterable[str]) -> list[str]:
+    """Return the owner of each file of the tree, once each: the project whose home directory
+    is the file's first path segment, or that segment where no project's home is it, which
+    `jbus.Config.owner` sends to the infra home."""
+    names = {project.state: project.name for project in config.projects}
+    found = (Path(file).parts[0] for file in files if Path(file).parts)
+    return list(dict.fromkeys(names.get(segment, segment) for segment in found))
+
+
 def snapshot(
     config: jbus.Config,
     now: datetime | None = None,
@@ -210,43 +228,36 @@ def snapshot(
     warn: Callable[[str], None] = _stderr,
 ) -> int:
     """Take a snapshot of `config.home_dir`, with each refused `standing.md` (`refusals`) left
-    out of it and named to `warn`. A snapshot that refused none and succeeds ends a streak of
-    failed ones, and one that fails says why to `warn`. `snapshot` returns 0 even when jbus could
-    not tell a project that snapshots recovered, because the unit runs the snapshot, not the
-    telling."""
+    out of it and named to `warn`. A snapshot that refused none and succeeds ends the alerts of
+    failed ones. One that fails says why to `warn`, and raises an alert for each owner of what
+    failed: see the module."""
     now = now or datetime.now(UTC)
     refused = refusals(config)
     for line in refused.values():
         warn(f"snapshot: refused, left out: {line}")
+    failed: dict[str, str] = {}
     try:
         say(take(config.home_dir, now, config.user, why, refused))
     except Failed as error:
         warn(f"snapshot: {error}")
-        return 1
-    if refused:
-        return 1
-    alert.recover(config, alert.SNAPSHOT, now, say)
-    return 0
-
-
-def alarm(
-    config: jbus.Config, now: datetime | None = None, say: Callable[[str], None] = print
-) -> int:
-    """Count a snapshot that did not finish. The first failure in a row raises an alert, once,
-    and it names each refused `standing.md` with its rule and why."""
-    now = now or datetime.now(UTC)
-    say("snapshot failed")
-    refused = refusals(config)
-    cause = f"{ALARM}: {'; '.join(refused.values())}" if refused else ALARM
-    return alert.sound(config, alert.SNAPSHOT, cause, AFTER, now, say)
+        for owner in owners(config, error.files) or [alert.MACHINE]:
+            failed[owner] = str(error)
+    for path, line in refused.items():
+        owner = owners(config, [str(path.relative_to(config.home_dir))])[0]
+        failed[owner] = "; ".join(filter(None, (failed.get(owner), f"refused {line}")))
+    if not failed:
+        for key in alert.streaks(config.state_dir):
+            if key == alert.SNAPSHOT or key.startswith(f"{alert.SNAPSHOT} "):
+                alert.recover(config, key, say)
+        return 0
+    for owner, cause in failed.items():
+        key = f"{alert.SNAPSHOT} {owner}" if owner else alert.SNAPSHOT
+        alert.sound(config, key, f"{FAILED}: {cause}", AFTER, now, say, owner=owner)
+    return 1
 
 
 def _arguments(shown: argparse.ArgumentParser) -> None:
-    either = shown.add_mutually_exclusive_group()
-    either.add_argument(
-        "--alarm", action="store_true", help="count a snapshot that did not finish, and alert"
-    )
-    either.add_argument("--why", help="what changed, put in the commit message after the time")
+    shown.add_argument("--why", help="what changed, put in the commit message after the time")
 
 
 VERBS = (
@@ -254,6 +265,6 @@ VERBS = (
         "snapshot",
         "commit and push the homes' state tree",
         _arguments,
-        lambda args, config: alarm(config) if args.alarm else snapshot(config, why=args.why),
+        lambda args, config: snapshot(config, why=args.why),
     ),
 )

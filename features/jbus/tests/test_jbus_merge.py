@@ -409,8 +409,9 @@ def test_a_merge_whose_tool_was_not_reinstalled_is_an_alert(kitchen):
         "jmerge.txt", f'merged 7 alpha abc1234 "a move", {UNFOLLOWED}, kept: y, revert: x\n'
     )
     kitchen.poll()
+    kitchen.poll(NOW + timedelta(minutes=1))
     assert kitchen.lines("alert") == [f"alert: demo: {UNFOLLOWED}"]
-    assert loud(kitchen) == [f"alert: demo: {UNFOLLOWED}"]
+    assert kitchen.wakes.said == [f"alert: demo: {UNFOLLOWED}"]
 
 
 NOT_INSTALLED = (
@@ -454,8 +455,9 @@ CHANGED = 'merged 7 alpha abc1234def5 "a skill", skills changed: crew home, reve
 def test_a_merge_that_changes_a_skill_tells_each_thread_out_once(kitchen):
     """notes.md lines 31 and 266: a thread keeps the skill text it loaded, so after a merge that
     changed a skill it runs the old text until told, and the home told 19 crews by hand. Each
-    thread out with a role is told once, naming the skills; a thread started after the merge,
-    a settled one and one whose title gives no role are not."""
+    thread out that loaded a changed skill is told once, naming only those; a reviewer, which
+    loaded neither, a thread started after the merge, a settled one and one whose title gives no
+    role are not."""
     crew = kitchen.t3.thread("alpha")
     reviewer = kitchen.t3.thread("beta", "completed", idle=timedelta(1), title="review: beta")
     home = kitchen.t3.thread("demo", "completed", idle=timedelta(1), title="home: demo")
@@ -464,12 +466,25 @@ def test_a_merge_that_changes_a_skill_tells_each_thread_out_once(kitchen):
     kitchen.set("jmerge.txt", CHANGED)
     kitchen.poll()
     told = {one["threadId"]: one["message"] for one in sends(kitchen)}
-    assert set(told) == {crew["threadId"], reviewer["threadId"], home["threadId"]}
-    for message in told.values():
-        assert "#7" in message and "crew, home" in message and "\n" not in message
+    assert set(told) == {crew["threadId"], home["threadId"]}
+    assert reviewer["threadId"] not in told
+    for thread, name in ((crew, "crew"), (home, "home")):
+        message = told[thread["threadId"]]
+        assert "#7" in message and f"skills: {name}." in message and "\n" not in message
     kitchen.t3.thread("delta", age=-timedelta(minutes=1))
     kitchen.poll(NOW + timedelta(minutes=1))
-    assert len(sends(kitchen)) == 3
+    assert len(sends(kitchen)) == 2
+
+
+def test_a_skill_its_brief_names_is_one_the_thread_loaded(kitchen):
+    kitchen.brief("alpha", "Skills: architect\n")
+    kitchen.brief("beta")
+    named = kitchen.t3.thread("alpha")
+    kitchen.t3.thread("beta")
+    kitchen.set("jmerge.txt", CHANGED.replace("crew home", "architect"))
+    kitchen.poll()
+    (told,) = sends(kitchen)
+    assert told["threadId"] == named["threadId"] and "skills: architect." in told["message"]
 
 
 def test_a_skill_note_t3_did_not_take_is_sent_on_the_next_pass(kitchen):
@@ -483,7 +498,7 @@ def test_a_skill_note_t3_did_not_take_is_sent_on_the_next_pass(kitchen):
     kitchen.poll(NOW + timedelta(minutes=2))
     went = [one for one in sends(kitchen) if one["threadId"] == crew["threadId"]]
     assert len({one["clientRequestId"] for one in went}) == 1
-    assert "crew, home" in went[-1]["message"]
+    assert "skills: crew." in went[-1]["message"]
 
 
 def test_a_skill_note_whose_pass_stops_partway_is_kept_for_the_next(kitchen, monkeypatch):

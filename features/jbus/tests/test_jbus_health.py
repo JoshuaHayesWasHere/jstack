@@ -2,8 +2,10 @@
 check with fake senses and the ledger, on a clock the test moves, through the real pass against
 the kitchen's fakes.
 
-The tests hold the checks to these rules. A check sends one page when an incident starts, none
-while it lasts, and one when it clears. Each page names its number, what it counts and its limit.
+The tests hold the checks to these rules. A check opens one alert of the machine's when an incident
+starts, none while it lasts, and logs one line when it clears. The alert goes to the desk and the
+infra home, so each test has an infra project beside demo. Each page names its number, what it
+counts and its limit.
 For the quota, launches skip the capped instance, no launch starts with the whole pool capped,
 and at the reset jbus starts launches again by itself, with one line that says so."""
 
@@ -56,12 +58,19 @@ def senses(monkeypatch):
 def quiet_plan(kitchen):
     """The kitchen's plan runs on the real clock, so these tests write the ledger themselves."""
     kitchen.machine(plan=None)
+    kitchen.second("infra")
+
+
+def logged(kitchen):
+    config = jbus.load()
+    infra = config.project("infra")
+    return wake.Box(config.state(infra), infra).log()
 
 
 def pages(kitchen):
-    """Every line the health check queued, oldest first: each `alert`, which pages the user, and
-    each `recovered`, which only the log and the digest hold."""
-    return [one["line"] for one in kitchen.events() if one["event"] in ("alert", "recovered")]
+    """Every line the health check logged in the infra project, oldest first: each `alert`, which
+    pages the user, and each `recovered`, which only the log and the digest hold."""
+    return [one["line"] for one in logged(kitchen) if one["event"] in ("alert", "recovered")]
 
 
 def polls(kitchen, *minutes, start=NOW):
@@ -80,31 +89,19 @@ def test_a_full_disk_is_paged_once_while_it_holds_and_logged_once_when_it_clears
     assert pages(kitchen)[1:] == [
         "recovered: health disk /home: 60% of its space used (60.0 of 100.0 GiB), alerts at 80%"
     ]
-    assert [one["loud"] for one in kitchen.events("recovered")] == ["quiet"]
-    assert [one["event"] for post in kitchen.wakes.posts for one in post] == ["alert"]
+    assert [one["loud"] for one in logged(kitchen) if one["event"] == "recovered"] == ["quiet"]
+    assert [line for line in kitchen.t3.wakes["infra"].said if "health" in line] == [
+        "alert: health disk /home: 85% of its space used (85.0 of 100.0 GiB), alerts at 80%"
+    ]
 
 
-def test_the_page_reaches_the_home_thread_once_as_an_event_of_the_machine(kitchen, senses):
+def test_the_page_reaches_the_infra_home_once_and_the_desk_and_no_other_home(kitchen, senses):
     senses.disks["/home"] = (90 * GIB, 10 * GIB, 0, 0)
     polls(kitchen, 0, 10, 20)
     line = "alert: health disk /home: 90% of its space used (90.0 of 100.0 GiB), alerts at 80%"
-    posted = [one for events in kitchen.wakes.posts for one in events if one["event"] == "alert"]
-    assert [one["say"] for one in posted] == [line]
+    assert [one for one in kitchen.t3.wakes["infra"].said if "health" in one] == [line]
+    assert [one for one in kitchen.wakes.said if "health" in one] == []
     assert [one for one in kitchen.log("notify") if "health" in one] == [f"jbus | {line}"]
-
-
-def test_the_page_waits_in_every_project_s_home_thread_outbox_once(kitchen, senses):
-    """The first project stands for infra and the second for jstack: a page of the machine waits
-    in each one's home-thread outbox."""
-    side = kitchen.second("jstack")
-    senses.disks["/home"] = (90 * GIB, 10 * GIB, 0, 0)
-    (kitchen.home / "home-id").unlink(missing_ok=True)
-    kitchen.config(home_thread=None)
-    polls(kitchen, 0, 10)
-    line = "alert: health disk /home: 90% of its space used (90.0 of 100.0 GiB), alerts at 80%"
-    for state in (kitchen.state, side.state):
-        home = jbus.read_json(state / wake.HOME / "outbox.json", [])
-        assert [one["line"] for one in home] == [line]
 
 
 def test_inodes_page_by_their_own_count_and_a_filesystem_with_none_has_no_inode_check(
@@ -145,7 +142,7 @@ def test_a_jmerge_the_pass_stopped_at_its_timeout_is_read_from_the_line_the_pass
     jmerge.write_text("#!/bin/sh\nsleep 5\n")
     monkeypatch.setattr(merge, "JMERGE_TIMEOUT", 0.2)
     said = kitchen.poll()
-    (stopped,) = [line for line in said if "jmerge did not run" in line]
+    stopped = next(line for line in said if "jmerge did not run" in line)
     assert pages(kitchen) == []
     senses.lines = [stopped]
     kitchen.poll(NOW + timedelta(minutes=1))
@@ -356,7 +353,7 @@ def test_jbus_health_prints_each_check_with_its_number_and_limit_and_pages_nothi
         "2026-10-12 14:00 ET, alerts at 80%",
         "ok   health capped claudeAgent: no window full, pauses its launches at 100% of a window",
     ]
-    assert pages(kitchen) == [] and kitchen.waiting() == []
+    assert pages(kitchen) == []
 
 
 def test_a_pass_in_which_a_project_raises_still_looks_at_the_machine_and_pages(
@@ -404,31 +401,6 @@ def test_a_body_refused_for_good_is_paged_with_where_it_is_kept_and_clears_after
     assert pages(kitchen)[1:] == [
         "recovered: health relay refused: 0 bodies refused for good in the last 60 min, "
         "alerts at 1 in the last 60 min"
-    ]
-
-
-def test_an_incident_whose_page_did_not_go_and_that_cleared_is_paged_once_with_both(
-    kitchen, senses, monkeypatch
-):
-    sent = wake.Box.send
-    failed = []
-
-    def flaky(self, slug, kind, line, *more, **named):
-        if kind == "alert" and not failed:
-            failed.append(line)
-            raise OSError("No space left on device")
-        return sent(self, slug, kind, line, *more, **named)
-
-    monkeypatch.setattr(wake.Box, "send", flaky)
-    senses.disks["/home"] = (85 * GIB, 15 * GIB, 0, 0)
-    said = kitchen.poll()
-    assert failed and pages(kitchen) == []
-    assert any(line.startswith("health failed: OSError") for line in said)
-    senses.disks["/home"] = (60 * GIB, 40 * GIB, 0, 0)
-    polls(kitchen, 1, 2, 10)
-    assert pages(kitchen) == [
-        "recovered: health disk /home: 60% of its space used (60.0 of 100.0 GiB), alerts at 80% "
-        "(it began 11:00 ET, and that page did not go)"
     ]
 
 

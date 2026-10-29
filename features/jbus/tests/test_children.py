@@ -38,9 +38,7 @@ def child(kitchen):
 
 
 def told(kitchen):
-    return [
-        e["line"] for e in kitchen.events() if e["loud"] == "user" and "home-stall" in e["line"]
-    ]
+    return [e["line"] for e in kitchen.events(children.STALL)]
 
 
 def test_a_quiet_child_is_nudged_twice_then_the_user_is_asked_and_nothing_more(child):
@@ -98,8 +96,10 @@ def test_a_routine_that_misses_its_beat_is_flagged_with_nothing_out(kitchen):
     (kitchen.home / "beat" / "plan.md").write_text("# beat: plan\n")
     (kitchen.home / "beat" / "rhythm").write_text("30\n")
     kitchen.poll(NOW)
-    assert [one["threadId"] for one in sends(kitchen)] == [found["threadId"]]
-    assert len(told(kitchen)) == 1
+    nudged = [one for one in sends(kitchen) if not one["clientRequestId"].startswith("wakes|")]
+    assert [one["threadId"] for one in nudged] == [found["threadId"]]
+    (line,) = told(kitchen)
+    assert kitchen.wakes.said == [line]
 
 
 def test_a_child_with_nothing_out_is_not_watched(kitchen):

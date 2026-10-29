@@ -230,23 +230,18 @@ def test_only_a_pass_that_adds_a_decision_to_the_list_posts_and_the_list_s_event
     kitchen.poll(later(50))
     assert len(listed_wakes(kitchen)) == posts + 1
     assert f"\n- {listing('third')}" in listed_wakes(kitchen)[-1]
-    sent = [
-        (one["line"], one["loud"], one["posted"] is not None)
-        for one in box(kitchen).log()
-        if one["event"] == "waiting"
-    ]
+    sent = [(one["line"], one["loud"]) for one in box(kitchen).log() if one["event"] == "waiting"]
     assert sent == [
-        ("waiting demo: 6 wait on user, 1 new (approve second), 0 gone", "quiet", False),
-        ("waiting demo: 5 wait on user, 0 new, 1 gone", "quiet", False),
-        ("waiting demo: 5 wait on user, 1 new (approve third), 1 gone", "quiet", False),
+        ("waiting demo: 6 wait on user, 1 new (approve second), 0 gone", "quiet"),
+        ("waiting demo: 5 wait on user, 0 new, 1 gone", "quiet"),
+        ("waiting demo: 5 wait on user, 1 new (approve third), 1 gone", "quiet"),
     ]
     decided = [
-        (f"demo: {one['line']}", one["posted"] is not None)
+        f"demo: {one['line']}"
         for one in box(kitchen).log()
         if one["event"] == "decision" and one["slug"] in ("second", "third")
     ]
-    assert decided == [(deciding("second"), False), (deciding("third"), False)]
-    assert kitchen.waiting() == []
+    assert decided == [deciding("second"), deciding("third")]
 
 
 def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(kitchen):
@@ -258,14 +253,11 @@ def test_a_pass_that_only_removes_starts_no_post_and_its_event_goes_with_none(ki
     kitchen.poll(later(20))
     posts = len(listed_wakes(kitchen))
     gone = "waiting demo: 4 wait on user, 0 new, 1 gone"
-    assert kitchen.waiting() == []
-    assert [(one["loud"], one["posted"]) for one in box(kitchen).log() if one["line"] == gone] == [
-        ("quiet", None)
-    ]
+    assert [one["loud"] for one in box(kitchen).log() if one["line"] == gone] == ["quiet"]
     add(kitchen, "second", priority=3, approve=False)
     kitchen.poll(later(30))
     kitchen.poll(later(40))
-    assert len(listed_wakes(kitchen)) == posts + 1 and kitchen.waiting() == []
+    assert len(listed_wakes(kitchen)) == posts + 1
     assert listed_wakes(kitchen)[-1].count("\n- ") == 1
     assert f"\n- {listing('second')}" in listed_wakes(kitchen)[-1]
 

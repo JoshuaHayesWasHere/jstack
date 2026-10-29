@@ -6,7 +6,7 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 - `home thread <project>`, a wake of the project's that T3 Code did not take for its home thread ([Where wakes go](events-and-wakes.md#where-wakes-go)).
 - `blocking <project>`, a body of the project's that the second target did not take.
 - `jmerge <project>`, a `jmerge` that did not run. When it stopped because it could not ask GitHub, the alert's `<why>` is its line, `wait: could not ask GitHub: gh exited <code>: <what gh said>`; a run of such passes is one streak whatever the text of each says. A pass of jbus that cannot ask GitHub says the same, `wait <project>: could not ask GitHub: gh exited <code>: <what gh said>`.
-- `snapshot`, a snapshot of the homes' state that did not finish. `jbus snapshot --alarm` counts it.
+- `snapshot <project>`, a snapshot of the homes' state that gitleaks refused for a file under that project's home, the first path segment of each file it names; `snapshot` alone is one that did not finish for any other cause. `jbus snapshot` counts it itself.
 - `stale`, a look that found no pass ended in the last 2 hours.
   `jbus-stale.timer` runs `jbus alarm --stale 2h` every 15 minutes, from 2 hours after boot or install on Linux and from 15 minutes after the agent loads on macOS, apart from `jbus.timer`, so a `jbus.timer` that is stopped or disabled, or a `jbus.service` that never starts, is caught: `jbus-failed.service` runs only when a pass fails, and a timer that is stopped fails nothing.
   The look reads the end of the last pass from `~/.local/state/jbus/pass.json`, or its start while a pass runs or after one that died, and with no `pass.json` at all it counts too.
@@ -16,9 +16,10 @@ A failure that repeats is told once, and so is its end. jbus counts these kinds 
 The alert goes out after 3 failures in a row, and for `snapshot` and `stale` after the first, as `alert: <key> failed <n> times in a row since <HH:MM zone>: <why>`.
 Later failures say nothing.
 The first success after an alert logs `recovered: <key> after <n> failures since <HH:MM zone>`, a `quiet` event that `jbus digest` lists and that wakes no thread.
-An alert is a `user` event, so it waits in the project's outbox and goes to its home thread.
-jbus raises a `pass`, `snapshot` or `stale` alert on the desktop with `notify-send`, and the others while the project's home thread is failing.
-On macOS, which has no `notify-send`, jbus raises nothing on the desktop, and the home thread's message is the page.
+An alert is an open item with an owner, and it goes to the owner's home on the one list ([Who an item is for](events-and-wakes.md#who-an-item-is-for)).
+The owner of `jmerge <project>` and of `snapshot <project>` is that project.
+`pass`, `stale`, `snapshot` alone, `home thread <project>` and `blocking <project>` are the machine's, so they go to the desk with `notify-send` and to the infra home.
+On macOS, which has no `notify-send`, jbus raises nothing on the desktop, and the infra home's message is the page.
 An alert that stands also blocks, so it goes to the second target too where the config has one, and from there to the relay ([What blocks](what-blocks.md)).
 Each alert and recovered line is also printed in the journal, as `<project>: <line>`, so `journalctl --user -u jbus` has it on Linux, and `~/Library/Logs/jstack/jstack.jbus.log` has it on macOS.
 
@@ -34,9 +35,9 @@ A fresh check runs outside the pass ([jmerge](../../../jmerge/docs/jmerge.md)), 
 A pass that finds the lock held prints `busy` and ends.
 
 `jbus status` prints `~/.local/state/jbus/status.json`, which every pass rewrites.
-It has the time of the last pass, when the sign-in runs out, `sign_in_reminder`, the days the sign-in reminder is due ([Set up jbus](set-up-jbus.md)), the open failure streaks, the homes not on the bus ([Add a project](add-a-project.md)), and each project's `failed_wakes`, `last_error` and the number of events in its `outbox`, all of its home thread.
-With a second target set, a project also has `blocking`, the same for that one.
-The view's Bus card shows each outbox.
+It has the time of the last pass, when the sign-in runs out, `sign_in_reminder`, the days the sign-in reminder is due ([Set up jbus](set-up-jbus.md)), the open failure streaks, the homes not on the bus ([Add a project](add-a-project.md)), and each project's `failed_wakes` and `last_error`, both of its home thread.
+With a second target set, a project also has `blocking`, the same for that one, with the number of bodies in its `outbox`.
+The view's Bus card shows them.
 The first pass of each hour queues a quiet `heartbeat` event from the same file.
 `alerts` lists the alert line of each project whose home thread's streak alerted, with its last error, one item for each, and the heartbeat adds the same line as a heartbeat of its own.
 

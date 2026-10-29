@@ -1,7 +1,8 @@
 """When jbus is dead or failing, the user finds out. A failure in one project does not stop the
 pass, and the pass always writes the status file. A `jmerge` command cannot hang. When the unit
-fails for the third time in a row, jbus alerts once, through the home thread and the desk. Every
-hour, the first pass queues a heartbeat, which is quiet: it starts no wake.
+fails for the third time in a row, jbus raises the machine's alert once: the desk hears of it at
+once, and the infra home from the one list. Every hour, the first pass queues a heartbeat, which is
+quiet: it starts no wake.
 
 Every test runs the real pass or the real command against the faked T3 Code server of
 `test_jbus_kitchen`. Nothing reaches the network.
@@ -13,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 import jbus
 import jmerge.cli
 import jmerge.lines
+from jbus import alert as alerts
 from jbus import alive, poll, wake
 from test_jbus_kitchen import KEY, NOW, PROJECT, REFUSED
 from test_jbus_wake_failing import alert, fail, refusing
@@ -26,10 +28,30 @@ FAILED = (
 )
 
 
+DECIDE = "decision alpha: which one?"
+
+
 def decide(kitchen):
-    """Queue one decision, the kind of event that starts a POST for the user."""
-    box = wake.Box(kitchen.state, jbus.load().project("demo"))
-    box.send("alpha", "decision", "decision alpha: which one?")
+    """Open one alert of the project's, an item the one list tells its home thread of."""
+    ends = (NOW + timedelta(days=1)).isoformat()
+    alerts.raise_(jbus.load(), "once which", DECIDE, owner="demo", now=NOW, ends=ends)
+
+
+def told(said):
+    """Say whether a pass told demo's home thread of an item of the one list."""
+    return any(line.startswith("wakes demo: told") for line in said)
+
+
+def logged(side, kind):
+    """The lines of one kind in the log of the project `side`."""
+    every = wake.Box(side.state, jbus.load().project(side.name)).log()
+    return [one["line"] for one in every if one["event"] == kind]
+
+
+def machine(kitchen, now):
+    """The keys of the open alerts of the machine's."""
+    open_ = alerts.open_items(kitchen.state_dir, now)
+    return [one.key for one in open_ if one.owner == alerts.MACHINE]
 
 
 def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_written(kitchen):
@@ -51,9 +73,9 @@ def test_a_project_that_raises_does_not_end_the_pass_and_the_status_is_still_wri
     assert poll.poll(jbus.load(), NOW, said.append) == 1
     (failed,) = [line for line in said if line.startswith("pass failed")]
     assert failed.startswith("pass failed broken: FileExistsError: ")
-    assert "woke demo: 1 events" in said
+    assert told(said)
     assert "wait: crews out not known (broken: the pass raised)" in said
-    assert "decision alpha: which one?" in [e["line"] for post in kitchen.wakes.posts for e in post]
+    assert DECIDE in kitchen.wakes.said
     status = kitchen.status()
     assert status["projects"]["broken"]["last_error"] == failed.removeprefix("pass failed broken: ")
     assert status["projects"]["demo"]["last_error"] == ""
@@ -82,57 +104,35 @@ def alarm(now):
     return said
 
 
-def test_the_third_alarm_in_a_row_alerts_once_and_never_shows_the_key(kitchen):
+def test_the_third_alarm_in_a_row_alerts_once_on_the_desk_and_never_shows_the_key(kitchen):
     said = alarm(NOW) + alarm(NOW + timedelta(minutes=1))
     assert said == ["pass failed: 1 in a row", "pass failed: 2 in a row"]
     assert kitchen.events() == [] and kitchen.log("notify") == []
     said += alarm(NOW + timedelta(minutes=2)) + alarm(NOW + timedelta(hours=1))
-    assert said[2:] == [
-        "pass failed: 3 in a row",
-        f"demo: {FAILED}",
-        "alert sent: demo",
-        "pass failed: 4 in a row",
-    ]
-    events = [event for post in kitchen.wakes.posts for event in post]
-    assert [(e["project"], e["slug"], e["event"], e["line"]) for e in events] == [
-        ("demo", "", "alert", FAILED)
-    ]
-    assert kitchen.wakes.said == [[f"demo: {FAILED}"]]
+    assert said[2:] == ["pass failed: 3 in a row", FAILED, "pass failed: 4 in a row"]
+    assert machine(kitchen, NOW + timedelta(hours=1)) == [alerts.PASS]
+    assert kitchen.events() == [] and kitchen.wakes.said == []
     assert kitchen.log("notify") == [f"jbus | {FAILED}"]
     assert not [line for line in said if KEY in line]
 
 
-def test_an_alert_the_home_thread_did_not_take_waits_and_a_pass_keeps_the_streaks(kitchen):
-    """The test runs the command as the unit runs it. What the command could not send goes out
-    with the next flush."""
-    kitchen.wakes.refused = REFUSED
+def test_the_alarm_s_alert_reaches_the_infra_home_and_the_next_pass_ends_it(kitchen):
+    """The test runs the command as the unit runs it."""
+    infra = kitchen.second("infra")
     assert [kitchen.main("alarm") for _ in range(2)] == [
         (0, "pass failed: 1 in a row\n"),
         (0, "pass failed: 2 in a row\n"),
     ]
     code, said = kitchen.main("alarm")
-    (line,) = [one for one in said.splitlines() if one.startswith("demo: alert: pass failed 3 ")]
-    assert (code, said) == (
-        0,
-        f"pass failed: 3 in a row\n{line}\nwake failed demo home thread: {WHY}\n"
-        "alert waits: demo\n",
-    )
+    (line,) = [one for one in said.splitlines() if one.startswith("alert: pass failed 3 ")]
+    assert (code, said) == (0, f"pass failed: 3 in a row\n{line}\n")
     assert KEY not in said
-    (alert,) = kitchen.lines("alert")
-    assert alert.startswith("alert: pass failed 3 times in a row since ")
-    streaks = jbus.read_json(kitchen.state_dir / "streaks.json", {})
-    assert (streaks["pass"]["count"], streaks["pass"]["alerted"]) == (3, True)
-    assert (streaks[HOME]["count"], streaks[HOME]["alerted"]) == (1, False)
-    kitchen.wakes.refused = ""
-    kitchen.poll(datetime.now(UTC) + timedelta(minutes=1))
-    assert kitchen.status()["streaks"] == {HOME: streaks[HOME]}
-    assert kitchen.wakes.posts == []
+    assert logged(infra, "alert") == [line]
     kitchen.poll(datetime.now(UTC) + timedelta(minutes=6))
     assert kitchen.status()["streaks"] == {}
-    assert kitchen.wakes.said == [[f"demo: {alert}"]]
-    (recovered,) = kitchen.lines("recovered")
+    (recovered,) = logged(infra, "recovered")
     assert recovered.startswith("recovered: pass after 3 failures ")
-    assert kitchen.log("notify") == [f"jbus | {alert}", f"jbus | {recovered}"]
+    assert kitchen.wakes.said == [] and kitchen.log("notify") == [f"jbus | {line}"]
 
 
 STALE = (
@@ -153,36 +153,29 @@ def test_no_pass_for_two_hours_alerts_once_and_the_next_pass_logs_that_it_recove
     streak."""
     kitchen.poll(NOW)
     assert stale(NOW + timedelta(hours=1, minutes=59)) == ["pass seen: last ended 11:00 ET"]
-    assert kitchen.wakes.posts == [] and kitchen.log("notify") == []
+    assert kitchen.wakes.said == [] and kitchen.log("notify") == []
     first = STALE.format(since="13:01 ET", last="2026-10-12 11:00 ET")
     assert stale(NOW + timedelta(hours=2, minutes=1)) == [
         "no pass: last ended 2026-10-12 11:00 ET",
-        f"demo: {first}",
-        "alert sent: demo",
+        first,
     ]
     assert stale(NOW + timedelta(hours=3)) == ["no pass: last ended 2026-10-12 11:00 ET"]
-    assert kitchen.wakes.said == [[f"demo: {first}"]]
+    assert machine(kitchen, NOW + timedelta(hours=3)) == [alerts.STALE]
     assert kitchen.log("notify") == [f"jbus | {first}"]
     kitchen.poll(NOW + timedelta(hours=3, minutes=10))
-    recovered = "recovered: stale after 2 failures since 13:01 ET"
-    assert (kitchen.lines("alert"), kitchen.lines("recovered")) == ([first], [recovered])
     assert kitchen.status()["streaks"] == {}
+    assert machine(kitchen, NOW + timedelta(hours=3, minutes=10)) == []
     kitchen.poll(NOW + timedelta(hours=3, minutes=11))
-    assert kitchen.wakes.said == [[f"demo: {first}"]]
-    assert (kitchen.lines("alert"), kitchen.lines("recovered")) == ([first], [recovered])
+    assert kitchen.wakes.said == []
     second = STALE.format(since="16:12 ET", last="2026-10-12 14:11 ET")
-    assert stale(NOW + timedelta(hours=5, minutes=12))[1:] == [
-        f"demo: {second}",
-        "alert sent: demo",
-    ]
-    assert kitchen.wakes.said[1:] == [[f"demo: {second}"]]
+    assert stale(NOW + timedelta(hours=5, minutes=12))[1:] == [second]
     assert kitchen.log("notify")[1:] == [f"jbus | {second}"]
 
 
 def test_a_pass_that_never_ended_counts_from_its_start_and_no_record_is_no_pass(kitchen):
     alert = "alert: stale failed 1 times in a row since 11:00 ET: no pass on record"
-    assert stale(NOW) == ["no pass: none on record", f"demo: {alert}", "alert sent: demo"]
-    assert kitchen.lines("alert") == [alert]
+    assert stale(NOW) == ["no pass: none on record", alert]
+    assert kitchen.log("notify") == [f"jbus | {alert}"]
     jbus.write_json(kitchen.state_dir / "pass.json", {"started": "2026-10-12T15:00:00Z"})
     assert stale(NOW + timedelta(minutes=1), "1m") == ["pass seen: last ended 11:00 ET"]
     assert stale(NOW + timedelta(minutes=2), "1m") == ["no pass: last ended 2026-10-12 11:00 ET"]
@@ -208,7 +201,7 @@ def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(k
     assert kitchen.lines("heartbeat") == [
         "heartbeat: jbus alive, last pass none, failed wakes 0, last error none"
     ]
-    assert kitchen.wakes.posts == [] and kitchen.waiting() == []
+    assert kitchen.wakes.said == []
     kitchen.wakes.refused = REFUSED
     decide(kitchen)
     kitchen.poll(NOW + timedelta(minutes=59, seconds=30))
@@ -218,11 +211,8 @@ def test_the_first_pass_of_each_hour_queues_one_heartbeat_which_starts_no_post(k
         f"heartbeat: jbus alive, last pass 11:59 ET, failed wakes 1, last error {WHY}"
     ]
     (heartbeat,) = [e for e in kitchen.events("heartbeat") if "11:59" in e["line"]]
-    assert (heartbeat["slug"], heartbeat["loud"], heartbeat["posted"]) == ("", "quiet", None)
-    assert "woke demo: 1 events" in kitchen.poll(NOW + timedelta(hours=1, minutes=5))
-    assert [e["event"] for e in kitchen.wakes.posts[0]] == ["decision"]
-    assert kitchen.wakes.said == [["demo: decision alpha: which one?"]]
-    assert [one["posted"] for one in kitchen.events("heartbeat")] == [None, None]
+    assert (heartbeat["slug"], heartbeat["loud"]) == ("", "quiet")
+    assert kitchen.wakes.listed == [[DECIDE]]
 
 
 def test_the_heartbeat_names_a_failing_home_thread_as_an_alert_on_a_line_of_its_own(kitchen):

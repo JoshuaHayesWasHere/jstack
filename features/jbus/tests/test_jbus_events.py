@@ -1,9 +1,9 @@
-"""jbus keeps every event it sends. `events.jsonl` holds each event with its text, the time jbus
-sent it and the time jbus posted it. `jbus events` prints the file and writes nothing.
+"""jbus keeps every event it sends. `events.jsonl` holds each event with its text and the time jbus
+sent it. `jbus events` prints the file and writes nothing.
 
 The tests run the real pass and the real command against the faked T3 Code server of
-`test_jbus_kitchen`, or the real `wake.Box` with a send that the test fakes (`Took`). The log uses
-the test's clock, which the test sets with `clock.at`. Nothing reaches the network.
+`test_jbus_kitchen`, or the real `wake.Box`. The log uses the test's clock, which the test sets
+with `clock.at`. Nothing reaches the network.
 
 jbus builds the table of kinds from what each module of jbus declares in its `EVENTS`. The tests of
 the table import the real `jbus.wake` in a fresh Python, with made-up modules beside jbus's own.
@@ -17,28 +17,10 @@ from datetime import timedelta
 
 import pytest
 
-import jbus
 from jbus import Project, wake
 from test_jbus_kitchen import GATE, KEY, NOW, REFUSED
 
 ASKED = GATE.format(n="<n>", asked="which way?", status="open", slug="alpha")
-
-
-class Took:
-    """`Took` stands for the send of a wake to the home thread: it keeps each body, and fails the
-    sends whose number is in `fail`."""
-
-    def __init__(self):
-        self.posts, self.fail = [], set()
-
-    def __call__(self, body):
-        self.posts.append(body)
-        return "refused" if len(self.posts) in self.fail else ""
-
-
-@pytest.fixture
-def took():
-    return Took()
 
 
 class Clock:
@@ -69,7 +51,7 @@ def at(moment):
 def logged(kitchen):
     """Return the file's own lines that are events, as jbus wrote them."""
     lines = (kitchen.state / "events.jsonl").read_text().splitlines()
-    return [one for one in map(json.loads, lines) if "posted" not in one]
+    return list(map(json.loads, lines))
 
 
 def printed(kitchen, *argv):
@@ -97,7 +79,7 @@ def tree(root):
     }
 
 
-def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events_unposted(kitchen):
+def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events(kitchen):
     assert kitchen.main("gate", "alpha", stdin=ASKED) == (0, "queued: question 1\n")
     kitchen.poll()
     (gate,) = [one for one in logged(kitchen) if one["event"] == "gate"]
@@ -111,23 +93,9 @@ def test_a_gate_sent_in_a_pass_is_read_back_from_the_log_and_from_jbus_events_un
             "loud": "quiet",
             "line": "gate alpha: question 1: which way?",
             "text": ASKED.strip(),
-            "posted": None,
             "id": named,
         }
     ]
-
-
-def test_a_decision_queued_while_a_pass_runs_is_posted_after_it_was_sent(kitchen, clock):
-    """The pass began before the decision, and the event's queued time and posted time both come
-    from the clock, not from the start of the pass."""
-    queued, posting = NOW + timedelta(seconds=30), NOW + timedelta(seconds=40)
-    clock.at(queued)
-    config = jbus.load()
-    made = wake.Box(kitchen.state, config.project("demo"))
-    assert made.send("alpha", "decision", "decision alpha: which way?")
-    clock.at(posting)
-    kitchen.poll(NOW)
-    assert [(one["at"], one["posted"]) for one in printed(kitchen)] == [(at(queued), at(posting))]
 
 
 def test_an_event_a_pass_sends_is_logged_with_its_slug_loudness_and_line(kitchen):
@@ -190,64 +158,11 @@ def test_a_since_that_is_no_time_is_refused(kitchen):
     assert (code, out) == (1, "refused: --since teatime is not a time, as 2026-10-12T15:00 is\n")
 
 
-def test_a_quiet_event_is_never_posted_and_one_for_the_user_is_at_the_next_post(
-    tmp_path, took, clock
-):
-    made = box(tmp_path)
-    made.send("", "note", "note: a quiet one")
-    assert made.flush(NOW, lambda _: None, post=took) == 0
-    assert [(one["line"], one["posted"]) for one in made.log()] == [("note: a quiet one", None)]
-    later = clock.at(NOW + timedelta(minutes=10))
-    made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(later, lambda _: None, post=took) == 1
-    assert [(one["at"], one["line"], one["posted"]) for one in made.log()] == [
-        (at(NOW), "note: a quiet one", None),
-        (at(later), "decision alpha: which?", at(later)),
-    ]
-
-
-def test_a_wake_the_home_thread_refuses_leaves_the_event_not_posted(tmp_path, took):
-    took.fail = {1}
-    made = box(tmp_path)
-    made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(NOW, lambda _: None, post=took) == 0
-    assert [one["posted"] for one in made.log()] == [None]
-
-
-def test_the_same_event_sent_again_after_its_post_is_not_posted(tmp_path, took, clock):
-    made = box(tmp_path)
-    made.send("alpha", "decision", "decision alpha: which?")
-    assert made.flush(NOW, lambda _: None, post=took) == 1
-    later = clock.at(NOW + timedelta(minutes=1))
-    made.send("alpha", "decision", "decision alpha: which?")
-    assert [(one["at"], one["posted"]) for one in made.log()] == [
-        (at(NOW), at(NOW)),
-        (at(later), None),
-    ]
-
-
 def test_an_event_a_key_keeps_out_is_not_logged(tmp_path):
     made = box(tmp_path)
     assert made.send("alpha", "result", "result alpha: done", key="once")
     assert not made.send("alpha", "result", "result alpha: done", key="once")
     assert len(made.log()) == 1
-
-
-def test_a_log_that_cannot_be_written_stops_no_event_and_no_post(tmp_path, took):
-    """The test puts a directory where the log goes, so every append fails, and the home thread
-    still gets both lists."""
-    made = box(tmp_path)
-    (made.state / "events.jsonl").mkdir(parents=True)
-    assert made.send("alpha", "decision", "decision alpha: which?", "a" * 70_000, cap=70_000)
-    assert made.send("beta", "decision", "decision beta: which?", "b" * 70_000, cap=70_000)
-    said, went = [], []
-    assert made.flush(NOW, said.append, went=went.append, post=took) == 2
-    assert [[one["slug"] for one in post["events"]] for post in took.posts] == [
-        ["alpha"],
-        ["beta"],
-    ]
-    assert (said, went, made.waiting(), made.marks(made.home)["last_error"]) == ([], [""], 0, "")
-    assert made.log() == []
 
 
 def test_the_daily_prune_drops_what_is_older_than_two_weeks(kitchen, clock):
@@ -265,11 +180,8 @@ def test_the_daily_prune_drops_what_is_older_than_two_weeks(kitchen, clock):
         ("gamma", at(recent)),
     ]
     poll(kitchen, clock, evening)
-    kept = [(one["event"], one["slug"], one["at"], one["posted"]) for one in printed(kitchen)]
-    assert kept == [
-        ("condition", "gamma", at(recent), None),
-        ("snapshot", "", at(evening), None),
-    ]
+    kept = [(one["event"], one["slug"], one["at"]) for one in printed(kitchen)]
+    assert kept == [("condition", "gamma", at(recent)), ("snapshot", "", at(evening))]
     assert stat.S_IMODE((kitchen.state / "events.jsonl").stat().st_mode) == 0o600
 
 
@@ -277,17 +189,16 @@ TABLE = {
     "act": "quiet",
     "gate": "quiet",
     "waiting": "quiet",
-    "alert": "user",
+    "alert": "quiet",
     "recovered": "quiet",
     "stall": "quiet",
     "decision": "user",
     "failover": "quiet",
-    "sign-in": "user",
     "waiting-on-user": "quiet",
     "condition": "quiet",
     "clock": "quiet",
     "hold-stall": "quiet",
-    "home-stall": "user",
+    "home-stall": "quiet",
     "merged": "quiet",
     "gate answered": "quiet",
     "result": "quiet",

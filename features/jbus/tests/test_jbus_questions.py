@@ -260,7 +260,7 @@ def test_an_answer_nobody_can_give_is_refused_and_the_question_stays_open(kitche
 def test_an_answer_that_differs_goes_once_to_the_askers_thread_and_starts_no_post(kitchen):
     ask(kitchen)
     kitchen.poll()
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     answer(kitchen, 1, "coffee")
     said = kitchen.poll(later(10))
     kitchen.poll(later(20))
@@ -283,7 +283,7 @@ def test_an_answer_that_differs_goes_once_to_the_askers_thread_and_starts_no_pos
     assert len(sends) == 1
     assert "note alpha: told its thread the answer to question 1" in said
     assert records(kitchen)["records"][0]["answer"]["told"]
-    assert kitchen.wakes.posts == []
+    assert kitchen.wakes.said == []
 
 
 def test_an_answer_goes_to_the_thread_of_a_scouts_request(kitchen):
@@ -299,13 +299,13 @@ def test_an_answer_that_is_the_default_sends_nothing(kitchen):
     ask(kitchen)
     ask(kitchen, "milk?")
     kitchen.poll()
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     code, said = answer(kitchen, 1, "yes,", "keep", "it", default=True)
     assert (code, said.endswith("(the default stands): nothing is sent\n")) == (0, True)
     kitchen.poll(later(10))
     kitchen.poll(later(20))
     assert kitchen.t3.messages == {}
-    assert kitchen.wakes.posts == []
+    assert kitchen.wakes.said == []
 
 
 def test_an_answer_t3_code_did_not_take_is_sent_by_the_next_pass(kitchen):
@@ -390,7 +390,7 @@ def test_an_answer_says_whether_it_is_the_default_or_it_is_not_taken(kitchen):
 def test_an_answer_t3_code_refuses_is_a_gate_once_and_is_sent_when_it_is_taken(kitchen):
     ask(kitchen)
     kitchen.poll()
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     answer(kitchen, 1, "coffee")
     kitchen.t3.refuse_send = True
     kitchen.poll(later(10))
@@ -430,7 +430,7 @@ def test_a_question_a_home_closed_in_its_gates_file_is_closed_and_nothing_is_sen
     (kitchen.home / "gates.md").write_text(gate(n=3))
     kitchen.poll()
     assert [one["key"] for one in listed(kitchen)] == ["gate:q1"]
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     (kitchen.home / "gates.md").write_text(gate(n=3, status="answered 2026-10-12: coffee"))
     kitchen.poll(later(10))
     kitchen.poll(later(20))
@@ -447,7 +447,7 @@ def test_a_question_a_home_closed_in_its_gates_file_is_closed_and_nothing_is_sen
         "said_in": "",
         "checked": False,
     }
-    assert kitchen.t3.messages == {} and kitchen.wakes.posts == []
+    assert kitchen.t3.messages == {} and kitchen.wakes.said == []
     assert kitchen.lines("gate answered") == []
     assert answer(kitchen, 1, "tea") == (
         1,
@@ -503,7 +503,7 @@ def test_a_pass_that_cannot_read_the_questions_says_so_and_keeps_what_its_list_h
     ask(kitchen)
     (kitchen.home / "gates.md").write_text(gate(n=3))
     kitchen.poll()
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     file = kitchen.state / "questions.json"
     kept = file.read_text()
     file.write_text("not json")
@@ -522,12 +522,12 @@ def test_a_pass_that_cannot_read_the_questions_says_so_and_keeps_what_its_list_h
 def test_a_gate_of_a_scoped_home_beside_a_question_is_still_listed_and_posted_nowhere(kitchen):
     ask(kitchen)
     kitchen.poll()
-    kitchen.wakes.posts.clear()
+    kitchen.wakes.listed.clear()
     (kitchen.home / "quay").mkdir()
     (kitchen.home / "quay" / "gates.md").write_text(gate("which berth?", slug="home", n=1))
     kitchen.poll(later(10))
     event = kitchen.events("waiting")[-1]
-    assert event["loud"] == "quiet" and kitchen.wakes.posts == []
+    assert event["loud"] == "quiet" and kitchen.wakes.said == []
     assert event["line"] == "waiting demo: 2 wait on user, 1 new (gate quay#1), 0 gone"
     assert [one["line"] for one in listed(kitchen)] == [
         "gate 1: which berth?",
