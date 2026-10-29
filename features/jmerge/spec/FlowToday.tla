@@ -169,7 +169,7 @@ Merge(p) ==
 \* You lift the hold of a pull request that waits on your word, with jmerge --accept, which merges
 \* it at once where nothing else holds it, and refuses it otherwise.
 Accept(p) ==
-    /\ needs[p]                             \* features/jmerge/src/jmerge/cli.py `if lifted and judgement.verb(why) == judgement.HOLD:`
+    /\ needs[p]                             \* features/jmerge/src/jmerge/cli.py `if judgement.verb(why) == judgement.HOLD and ready.code_of(why) in lifted:`
     \* A draft's lifted hold leaves its draft wait, which it refuses (`if found.judged is None:`).
     /\ rv[p] = "ready"                      \* features/jmerge/src/jmerge/cli.py `return Judgement(brief.stem, "wait", ready.DRAFT, note, None)`
     /\ Merges(p)

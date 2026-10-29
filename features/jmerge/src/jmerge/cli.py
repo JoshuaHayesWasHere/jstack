@@ -976,24 +976,42 @@ class Repo:
     def holds(self) -> dict[str, str]:
         return store.read_dict(self.state / "holds.json")
 
-    def accepts(self) -> dict[str, str]:
-        """The head of each held draft whose accept lifted its hold (`accept`): it merges at that
-        head once its check passed, with no second accept."""
+    def accepts(self) -> dict[str, dict]:
+        """The head of each held draft whose accept lifted its holds (`accept`), and the codes of
+        those holds: it merges at that head once its check passed, with no second accept, and a
+        hold of another code holds it still."""
         return store.read_dict(self.state / "accepted.json")
 
-    def accepts_are(self, accepts: dict[str, str]) -> None:
+    def accepts_are(self, accepts: dict[str, dict]) -> None:
         if accepts != self.accepts() and self.state.is_dir():
             store.write_json(self.state / "accepted.json", accepts)
 
-    def lifted(self, one: ready.PullRequest) -> bool:
-        """Whether the user's accept lifts the holds of `one` at its head: in this run, or a
-        draft's, kept until it merged."""
-        number, head = str(one.number), one.head
-        return self.accepted == (one.number, head) or self.accepts().get(number) == head
+    def open_accepts(self, listed: list[ready.PullRequest]) -> None:
+        """Keep only the accepts of pull requests still open at the head they were accepted at:
+        a push or a close drops one."""
+        heads = {str(one.number): one.head for one in listed}
+        self.accepts_are(
+            {
+                number: kept
+                for number, kept in self.accepts().items()
+                if isinstance(kept, dict) and heads.get(number) == kept.get("head")
+            }
+        )
 
-    def lift(self, why: str, lifted: bool) -> str:
-        """`why`, or nothing where it is a hold `--accept` lifts and the accept lifted it."""
-        if lifted and judgement.verb(why) == judgement.HOLD:
+    def lifted(self, one: ready.PullRequest) -> frozenset[str]:
+        """The codes of the holds the user's accept lifts for `one` at its head: every code in
+        the run of the accept, the codes a draft's accept lifted while it is kept, and none
+        otherwise."""
+        if self.accepted == (one.number, one.head):
+            return ready.codes()
+        kept = self.accepts().get(str(one.number))
+        if not isinstance(kept, dict) or kept.get("head") != one.head:
+            return frozenset()
+        return frozenset(kept.get("codes") or ())
+
+    def lift(self, why: str, lifted: frozenset[str]) -> str:
+        """`why`, or nothing where it is a hold `--accept` lifts and the accept lifted its code."""
+        if judgement.verb(why) == judgement.HOLD and ready.code_of(why) in lifted:
             self.lifts.append(why)
             return ""
         return why
@@ -1073,7 +1091,8 @@ class Repo:
                 say(lines.waits("wait", one.number, one.url, readied.why))
                 if readied.why != ready.READIED.format(head=one.head):
                     raise jsettings.Refused(readied.why)
-                self.accepts_are({**self.accepts(), number: one.head})
+                codes = sorted({ready.code_of(reason) for reason in self.lifts})
+                self.accepts_are({**self.accepts(), number: {"head": one.head, "codes": codes}})
                 return str(readied.why)
             said = self.merge(one, found.slug, found.note, found.judged)
             say(said)
@@ -1805,6 +1824,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     listed = [ready.unchecked_into(repo.in_full(one), repo.integration) for one in listed]
     repo.open = listed
+    if not args.check:
+        repo.open_accepts(listed)
 
     if args.accept is not None:
         found = next((one for one in listed if one.number == int(args.accept)), None)
