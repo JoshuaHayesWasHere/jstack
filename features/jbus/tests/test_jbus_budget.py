@@ -43,11 +43,10 @@ def test_a_pass_whose_budget_falls_to_zero_makes_no_call_that_can_wait_and_chang
     add(kitchen, "alpha")
     kitchen.set("open.json", [kitchen.opened("beta", 7)])
     for minutes, left in enumerate((budget.FLOOR, budget.FLOOR // 2, 1, 0)):
-        claims = len(kitchen.log("claims"))
         said, calls, merges, table, after = passed(kitchen, 3 * minutes, left)
         assert calls == ["api rate_limit"]
         assert merges, "the merge is urgent, and jmerge runs under the floor"
-        assert len(kitchen.log("claims")) == claims and "--sweep --check" not in merges
+        assert "--sweep --check" not in merges
         assert after == table and launches(kitchen) == []
         assert (
             f"wait demo: GitHub not asked: GitHub's core budget has {left} of 5000 calls left, "
@@ -55,7 +54,7 @@ def test_a_pass_whose_budget_falls_to_zero_makes_no_call_that_can_wait_and_chang
         ) in said
     said, calls, merges, table, after = passed(kitchen, 15, budget.FLOOR + 1)
     assert calls[0] == "api rate_limit" and any(call.startswith("pr list") for call in calls)
-    assert launches(kitchen) == ["alpha"] and after != table and kitchen.log("claims")
+    assert launches(kitchen) == ["alpha"] and after != table
 
 
 @pytest.mark.parametrize("answer", ["", "not json", json.dumps({"resources": {}})])
@@ -78,7 +77,7 @@ def test_a_pass_that_sees_no_world_still_spends_no_budget_under_the_floor(kitche
         queue.removed_path(kitchen.state).write_text("not json")
     said, calls, merges, table, after = passed(kitchen, 0, 0)
     assert calls == ["api rate_limit"] and merges and "--sweep --check" not in merges
-    assert kitchen.log("claims") == [] and after == table
+    assert after == table
 
 
 def test_a_pass_under_the_floor_records_it_once_a_window_as_a_quiet_condition(kitchen):

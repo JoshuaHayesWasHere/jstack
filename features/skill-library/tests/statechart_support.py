@@ -227,13 +227,13 @@ SWITCH_LAMP = """stateDiagram-v2
 FROM_SPEC_USAGE = (
     "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE] |"
     " --against AGREED.tla [--against-config FILE]] [--label TEXT] [--map FILE] [--expect-broken"
-    " RULE]... [--title TEXT] [--out DIR] [--png]"
+    " RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
 )
 
 
 FROM_CHART_USAGE = (
     "statechart from-chart CHART.mmd [--module NAME] [--expect-broken RULE]... [--title TEXT]"
-    " [--out DIR] [--png]"
+    " [--out DIR] [--png] [--keep-work]"
 )
 
 
@@ -703,7 +703,12 @@ def changed_mid_run(directory, wrap=(), env=None):
     env = env or {}
     out = write_slow_pay(directory, 20000)
     tmp = own_tmp(directory, "tmp-a")
-    first = Run(directory, wrap=wrap, env={**env, "TMPDIR": str(tmp)})
+    first = Run(
+        directory,
+        args=("from-spec", "Pay.tla", "--keep-work"),
+        wrap=wrap,
+        env={**env, "TMPDIR": str(tmp)},
+    )
     second = None
     try:
         until(lambda: tlc_started(tmp))
@@ -729,6 +734,12 @@ def changed_mid_run(directory, wrap=(), env=None):
     assert re.search(r"Receipt", chart)
     assert not re.search(r"Paid", chart)
     assert staged(directory) == []
+    assert left_work(directory / "tmp-b") == []
+
+
+def left_work(tmp):
+    """The work folders that statechart runs left in `tmp`, their own and TLC's."""
+    return sorted(f for f in os.listdir(tmp) if f.startswith(("statechart-", "tlc-")))
 
 
 UNSHARE = ["unshare", "--user", "--map-root-user", "--pid", "--fork", "--mount-proc"]
