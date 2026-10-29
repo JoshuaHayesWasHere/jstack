@@ -121,7 +121,8 @@ Deliver(m) ==
     /\ up     \* jbus/wakes.py `except T3Error as error:`
     /\ msg' = Set(msg, m, "told")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
-\* Without that guard a failed send records them as told all the same, and they never reach Josh.
+\* With the keep-on-fail guard dropped, a send that fails takes the call out all the same, and it
+\* never reaches Josh.
 Lost(m) ==
     /\ ~Kept("keep-on-fail")
     /\ msg[m] = "home"     \* jbus/wakes.py `for thread in sorted(({one.to for one in items} | set(threads)) - {""}):`
