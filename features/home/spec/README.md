@@ -4,10 +4,10 @@ A root home and two sibling child homes on one repo, with the rules Josh set for
 Child a is short-lived and does one feature, and child b is a routine with a declared rhythm.
 Each child has a pull request, a crew thread and two calls to Josh, and a call reaches Josh through the root's home thread, which can fail.
 
-- `HomeTree.tla` holds what both models share: the variables, the start, and the rules, each with its sentence.
+- `HomeTree.tla` holds the variables, the start, and the rules, each with its sentence.
 - `HomeTreeToday.tla` models today's code, and each of its conditions names the file that checks it and quotes the code, with no line number.
   `test_home_tree_spec.py` finds the one place each quote stands, so a rebase that moves the lines leaves no cite to renumber.
-- `HomeTreeDesign.tla` models the design, and its constant `Drop` takes out one of its guards.
+  It is the design too, since the code has each of the design's guards, and its constant `Drop` takes out one of them.
 - `canaries.py` runs TLC on all of it, and `HomeTreeToday.map.py` labels the chart.
 
 ## Check the rules
@@ -17,8 +17,7 @@ python3 features/home/spec/canaries.py
 ```
 
 Run it from the repo root.
-It checks that each rule holds in the design in each scene.
-It checks that each canary, the design with one guard taken out, breaks the rule that rests on that guard, so no rule holds by construction.
+It checks that each canary, today's code with one guard taken out, breaks the rule that rests on that guard, so no rule holds by construction.
 It checks that each rule holds in today's code in each scene, with the merge switch either way.
 It prints one line for each run and ends 0 when every run says what it should.
 TLC is the statechart skill's pinned `tla2tools.jar`, and Java is `JAVA` or a `java` on `PATH`.
@@ -29,6 +28,8 @@ The scene `a` is child a alone with both its calls and a home thread that can fa
 The scene `siblings` is both children, with no calls of their own and a home thread that never fails.
 One call never waits on another, and what the siblings share is main, the merge lock and the home thread, so the siblings' scene checks what they share.
 In the siblings' scene the rules on calls hold with little to check, since only the root's notices are calls there and the home thread never fails: the scenes `a` and `b` check those rules.
+The failed route, `RouteFails` and `RouteMends`, steps only where `MayFail` is `TRUE`, which is the scenes `a` and `b` of `canaries.py` and not `HomeTreeToday.cfg`.
+The canary `keep-on-fail` breaks `CallsReachJosh` in scene `a` only after a post to the home thread fails, so it shows the failed route steps there.
 The run of every invariant checks `SceneStill` on the whole model: no child, call or notice outside the scene ever leaves its start.
 So a run of a property gives TLC the scene alone (`Kids <- Made` in its config), and it finds the same states without a branch and the fairness of each message that never moves.
 
@@ -38,15 +39,16 @@ So a run of a property gives TLC the scene alone (`Kids <- Made` in its config),
 S=features/skill-library/skills/statechart/scripts
 cd features/home/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
-    statechart from-spec HomeTreeToday.tla --against HomeTreeDesign.tla --label "the design" --png
+    statechart from-spec HomeTreeToday.tla --png
 ```
 
 It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`.
 Today's code breaks no rule, so it draws no `bug-N` chart and `stories.md` is empty.
 Its `tlc/` folder holds TLC's output, which is not committed.
-The chart's scene, in `HomeTreeToday.cfg` and `HomeTreeDesign.cfg`, is child a alone with one call, a home thread that never fails, and K at 1.
+The chart's scene, in `HomeTreeToday.cfg`, is child a alone with one call, a home thread that never fails, K at 1, and no guard dropped.
 TLC 2.19 fails in a run of one worker with `-continue` once a rule breaks in some thousands of states, and the statechart command runs one worker, so the chart's scene is small.
 The home thread never fails in the chart's scene, and can fail in the scenes `a` and `b` of `canaries.py`.
+With it able to fail, the chart's scene has 4002 states and not 1334, and Mermaid's PNG of it comes out mostly blank.
 The chart draws only the rules that are invariants.
 A ready pull request that never merges (`ReadyMerges`) is a property, and today's code keeps it since pull request 357 let jbus merge a child's pull request, which the chart draws as a step of today's code.
 Stranding (`CallsReachJosh`) is a property too, and today's code keeps it: jbus has one route to Josh, the home thread, and a post to it that fails leaves the call in its outbox.

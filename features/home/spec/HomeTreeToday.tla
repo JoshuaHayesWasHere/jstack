@@ -4,11 +4,16 @@
 \* home, and jbus's pass is the root's check. Each condition of a step names the file that
 \* checks it, and quotes the code there in backticks, with no line number: jbus/ is features/jbus/src/jbus/,
 \* jmerge/ is features/jmerge/src/jmerge/, jbriefs/ is features/jbriefs/src/jbriefs/, and home/
-\* and handoff/ are the skills in features/home/skills/. Its steps are the design's, guard for
-\* guard, since the code now has each of the design's guards: the retire guard, the watch of a
-\* quiet child (flag, beat, strike, nudge cap and ask), jbus as the only merger for every home,
-\* and the merge lock that a drop gives back.
+\* and handoff/ are the skills in features/home/skills/. It is the design too: the code has each
+\* of the design's guards (#334), the retire guard, the watch of a quiet child (flag, beat,
+\* strike, nudge cap and ask), jbus as the only merger for every home, and the merge lock that a
+\* drop gives back.
+\*
+\* Drop names one guard to take out, or "none". With a guard out, the rule that rests on it must
+\* break: canaries.py checks that it does, so no rule holds by construction.
 EXTENDS HomeTree
+CONSTANT Drop
+Kept(g) == Drop # g
 
 Set(f, k, v) == [f EXCEPT ![k] = v]
 
@@ -58,7 +63,7 @@ PrReady(k) ==
 PrDrops(k) ==
     /\ work[k] = "ready" /\ work' = Set(work, k, "again")
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])
-    /\ lock' = IF lock = k THEN "free" ELSE lock
+    /\ lock' = IF lock = k /\ Kept("drop-release") THEN "free" ELSE lock
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, blind, mode>>
 \* A crew stays on its pull request until it merges ("Stay on the pull request" in the crew
 \* skill), and T3 Code settles it then.
@@ -92,7 +97,7 @@ GetsStuck(k) ==
 \* watches it no more (jbus/children.py `if not thread or not (launched or beat):`).
 Retire(k) ==
     /\ life[k] \in {"working", "stuck"}
-    /\ ~WorkOut(k)     \* handoff/SKILL.md `if ! still=$(jbus out --scope "$scope" 2>&1); then`
+    /\ Kept("retire-guard") => ~WorkOut(k)     \* handoff/SKILL.md `if ! still=$(jbus out --scope "$scope" 2>&1); then`
     /\ life' = Set(life, k, "retired") /\ Calm(k)
     /\ UNCHANGED <<work, up, broke, tip, seen, blind, lock, mode>>
 
@@ -116,6 +121,11 @@ Deliver(m) ==
     /\ up     \* jbus/wakes.py `except T3Error as error:`
     /\ msg' = Set(msg, m, "told")
     /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
+\* Without that guard a failed post takes the call out all the same, and it never reaches Josh.
+Lost(m) ==
+    /\ ~Kept("keep-on-fail")
+    /\ msg[m] = "home" /\ ~up /\ msg' = Set(msg, m, "none")
+    /\ UNCHANGED <<life, work, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* The home thread fails: T3 Code is down, or the thread is gone.
 RouteFails ==
     /\ MayFail
@@ -135,7 +145,7 @@ RouteMends ==
 \* (jbus/children.py `beat = _rhythm(scope)`). The root never reads whether a child is stuck.
 Sees(k) ==
     /\ life[k] \in {"working", "stuck"}     \* jbus/children.py `if not thread or not (launched or beat):`
-    /\ \/ Kind[k] = "routine"     \* jbus/children.py `patience = beat or PATIENCE`
+    /\ \/ Kept("beat") /\ Kind[k] = "routine"     \* jbus/children.py `patience = beat or PATIENCE`
        \/ work[k] \in {"crew", "open", "ready", "again", "back", "merged"} \/ \E c \in CallsOf(k) : Open(c)
 \* The root acts on a child it sees each time the child has been quiet for its patience again
 \* since its last step (jbus/children.py `if step != "asked" and run.now - start >=
@@ -144,7 +154,7 @@ Sees(k) ==
 \* the quiet and takes a step the check it is due, so the last step was at a patience times its
 \* rank (jbus/children.py `start = last or since + timedelta(minutes=patience * rank)`).
 Acts(k) ==
-    /\ Sees(k)     \* jbus/children.py `if not thread or not (launched or beat):`
+    /\ Kept("flag") /\ Sees(k)     \* jbus/children.py `if not thread or not (launched or beat):`
     /\ watch[k] # "asked"     \* jbus/children.py `if step != "asked"`
     /\ Ticked[k] >= Patience(k) * (Rank[watch[k]] + 1)     \* jbus/children.py `run.now - start >= timedelta(minutes=patience)`
 \* jbus/children.py `if step in ("calm", "nudged1"):` nudges, and the step after the second
@@ -152,7 +162,8 @@ Acts(k) ==
 After(w) ==
     CASE w = "calm" -> "nudged1"
       [] w = "nudged1" -> "nudged2"
-      [] w = "nudged2" -> "asked"
+      [] w = "nudged2" -> IF Kept("ask") /\ Kept("nudge-cap") THEN "asked"
+                          ELSE IF Kept("nudge-cap") THEN "nudged2" ELSE "nudged3"
       [] OTHER -> "asked"
 \* On the first strike of a spell Josh hears of it, an alert of the project's on the one list
 \* (jbus/children.py `line = f"{line}; jbus nudged it, thread {thread}"`), and the root's question
@@ -162,7 +173,7 @@ Notice(k) ==
     LET w == After(watch[k]) IN
     IF ~Acts(k) THEN msg[NoticeOf(k)]
     ELSE IF w = "asked" THEN "home"
-    ELSE IF watch[k] = "calm" /\ msg[NoticeOf(k)] = "none" THEN "home"
+    ELSE IF watch[k] = "calm" /\ Kept("strike") /\ msg[NoticeOf(k)] = "none" THEN "home"
     ELSE msg[NoticeOf(k)]
 \* Each check counts the quiet of every child and acts on each one due, all in one pass
 \* (jbus/children.py `def watch(run: Pass, client: Client, threads: list[dict[str, Any]] |
@@ -184,16 +195,17 @@ Check ==
 \* timeout=JMERGE_TIMEOUT)`). A home's run names it, and merges nothing (jmerge/cli.py
 \* `if args.home: args.check = True`).
 MayMerge(a, k) ==
-    /\ a = "jbus"     \* jmerge/cli.py `if args.home: args.check = True`
+    /\ Kept("one-merger") => a = "jbus"     \* jmerge/cli.py `if args.home: args.check = True`
+    /\ a = "jbus" => Kept("all-homes")
 \* The read of main's tip takes the repo's merge lock (jmerge/cli.py `while lock.take():`), a
 \* run that finds it held merges nothing (jmerge/cli.py `return lines.waits("wait", number,
 \* one.url, ready.MERGING)`), and the merge gives it back (jmerge/cli.py `finally: lock.give()`).
 Read(a, k) ==
     /\ MayMerge(a, k)     \* jmerge/cli.py `if self.others(text) and not self.every:`
     /\ Ready(k)     \* jmerge/cli.py `return Judgement(brief.stem, "", "", note, judged)`
-    /\ lock = "free"     \* jmerge/cli.py `while lock.take():`
+    /\ Kept("lock") => lock = "free"     \* jmerge/cli.py `while lock.take():`
     /\ seen[k][a] = NoTip /\ seen' = [seen EXCEPT ![k][a] = tip]     \* jmerge/cli.py `at = _run(self.main, "git", "ls-remote", "origin", f"refs/heads/{one.base}")`
-    /\ lock' = k
+    /\ lock' = IF Kept("lock") THEN k ELSE lock
     /\ UNCHANGED <<life, work, msg, quiet, watch, up, broke, tip, blind, mode>>
 Merge(a, k) ==
     /\ seen[k][a] # NoTip     \* jmerge/cli.py `if not at.returncode and _first_word(at.stdout) == judged.tip:`
@@ -209,7 +221,7 @@ Next ==
                        \/ CrewEnds(k) \/ Activity(k)
                        \/ GetsStuck(k) \/ Retire(k) \/ Steps(k)
     \/ \E c \in Calls : RaiseCall(c) \/ Answer(c)
-    \/ \E m \in Msgs : Deliver(m)
+    \/ \E m \in Msgs : Deliver(m) \/ Lost(m)
     \/ RouteFails \/ RouteMends
     \/ Check
     \/ \E a \in Mergers, k \in Kids : Read(a, k) \/ Merge(a, k)
