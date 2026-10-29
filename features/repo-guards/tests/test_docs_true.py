@@ -12,11 +12,17 @@ the page, since the page is about that one command.
 The other way round, the test reads the code in the README and in every page as a shell would read
 it. After a command's name, a word in a verb's place must be one of its verbs, and a `--flag` must
 be a flag of the verb it follows, in brackets or not. A name counts as a command where a shell would
-run it: as the first word of a piece of code, after `|`, `&&`, `;` or `--`, after the word `run`, or
-in a line that starts with `uv`. So when a line of output names a command, the test does not read
-that name as a command. On a command's own page, a code span that starts with a `--flag` must be a
-flag of that command. So a page that gives another tool's flag puts that tool's name first, as `git
-push --no-verify`.
+run it: as the first word of a piece of code or of a `$(...)` in it, after `|`, `&&`, `;` or `--`,
+after the word `run` or a keyword such as `if` or `then`, or in a line that starts with `uv`. A flag
+spelled with a variable, as `"--$which"`, is not read. So when a line of output names a command, the
+test does not read that name as a command. On a command's own page, a code span that starts with a
+`--flag` must be a flag of that command. So a page that gives another tool's flag puts that tool's
+name first, as `git push --no-verify`.
+
+The test reads the fenced blocks of every other Markdown file under `features/`, the skills and
+their templates but not the tests' fixtures or the recorded eval runs, the same way, so a skill
+teaches no verb or flag that is gone. It reads no inline span there, since a skill's spans quote
+the lines its blocks print, as `jbus is not installed`.
 
 The README's count of skills must match the tree, and so must each count of commands that
 the README or a page gives.
@@ -38,10 +44,16 @@ from testing.paths import REPO
 README = REPO / "README.md"
 DOCS = REPO / "docs"
 PAGES = (README, *sorted(DOCS.glob("**/*.md")), *sorted(REPO.glob("features/*/docs/**/*.md")))
+RUNS = REPO / "features/evals/evals"
+SKILLS = tuple(
+    path
+    for path in sorted(REPO.glob("features/*/**/*.md"))
+    if not {"docs", "tests"} & set(path.relative_to(REPO).parts) and not path.is_relative_to(RUNS)
+)
 SCRIPTS = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"]
 WIDTH = "200"
 ENDS = ("|", "||", "&&", ";", "--", ">", ">>", "<", "<<")
-STARTS = (*ENDS, "run")
+STARTS = (*ENDS, "run", "!", "if", "elif", "then", "else", "do", "while", "until")
 NUMBERS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 
 
@@ -138,15 +150,16 @@ def missing(tree, page):
     return lacks
 
 
-def code(text):
-    """Each piece of code a page shows: a line of a fenced block, or one inline span."""
+def code(text, spans=True):
+    """Each piece of code a page shows: a line of a fenced block, or one inline span unless
+    `spans` is false."""
     found, fenced = [], False
     for line in text.splitlines():
         if line.strip().startswith("```"):
             fenced = not fenced
         elif fenced:
             found.append(line.strip())
-        else:
+        elif spans:
             found += re.findall(r"`([^`\n]+)`", line)
     return found
 
@@ -162,11 +175,11 @@ def is_word(word):
     return re.fullmatch(r"[a-z][a-z0-9-]*", word) is not None
 
 
-def gone(trees, text, own=None):
+def gone(trees, text, own=None, spans=True):
     """The verbs and flags that the code in a text puts after a command's name, where the command's
     help has no such verb or flag."""
     found = []
-    for piece in code(text):
+    for piece in code(text, spans):
         words = words_of(piece)
         if own and words and words[0].startswith("--"):
             flag = words[0].partition("=")[0]
@@ -174,11 +187,24 @@ def gone(trees, text, own=None):
                 flag in at.flags for at in trees[own].walk()
             ):
                 found.append(f"{own}: {flag}, in `{piece}`")
-        for start, word in enumerate(words):
-            if word in trees and (start == 0 or words[start - 1] in STARTS or words[0] == "uv"):
-                after = strays(trees[word], words[start + 1 :])
-                found += [f"{line}, in `{piece}`" for line in after]
+        for part in commands(piece):
+            words = words_of(part)
+            for start, word in enumerate(words):
+                if word in trees and (start == 0 or words[start - 1] in STARTS or words[0] == "uv"):
+                    after = strays(trees[word], words[start + 1 :])
+                    found += [f"{line}, in `{piece}`" for line in after]
     return found
+
+
+def commands(piece):
+    """The command a piece of code runs, and each command inside a `$(...)` of it, up to its `)`."""
+    outer, *parts = piece.split("$(")
+    inner = []
+    for part in parts:
+        own, _, rest = part.partition(")")
+        inner.append(own)
+        outer += f" {rest}"
+    return (outer, *inner)
 
 
 def strays(at, words):
@@ -191,6 +217,8 @@ def strays(at, words):
             break
         elif word.startswith("--"):
             flag = word.partition("=")[0]
+            if "$" in flag:
+                continue
             if flag not in at.flags:
                 found.append(f"{at.command}: {flag}")
             else:
@@ -354,6 +382,42 @@ def test_a_verb_or_a_flag_that_is_gone_is_found_in_a_span_and_in_a_block(trees):
     assert gone(trees, "`--land-all` lands them.", own="jmerge") == [
         "jmerge: --land-all, in `--land-all`"
     ]
+
+
+@pytest.mark.parametrize("path", SKILLS, ids=lambda path: str(path.relative_to(REPO)))
+def test_a_skills_blocks_run_no_verb_and_no_flag_that_the_help_does_not_have(trees, path):
+    assert gone(trees, path.read_text(), spans=False) == []
+
+
+def test_a_verb_or_a_flag_agents_ran_after_it_went_is_found_in_a_skills_block(trees):
+    block = "\n".join(
+        (
+            "```sh",
+            "jbus word --to jstack --by me --at now",
+            'uv run --project "$T/../source" jbus scout add a-slug',
+            'elif ! shown=$(jbus --project "$P" noticed 2>&1); then',
+            "jbus queue list",
+            "```",
+        )
+    )
+    assert gone(trees, block, spans=False) == [
+        "jbus word: --by, in `jbus word --to jstack --by me --at now`",
+        "jbus word: --at, in `jbus word --to jstack --by me --at now`",
+        'jbus: the verb scout, in `uv run --project "$T/../source" jbus scout add a-slug`',
+        'jbus: the verb noticed, in `elif ! shown=$(jbus --project "$P" noticed 2>&1); then`',
+        "jbus queue: the verb list, in `jbus queue list`",
+    ]
+    assert gone(trees, "On `jbus is not installed`, say so.", spans=False) == []
+    told = "\n".join(
+        (
+            "```sh",
+            'n=$(jbriefs --findings "$B" --rounds)',
+            'jbus answer 3 "--$which" -- yes',
+            'jbus answer 3 "$(jmerge --scope x)" --default yes',
+            "```",
+        )
+    )
+    assert gone(trees, told, spans=False) == []
 
 
 def test_what_the_help_has_and_what_is_no_code_of_a_command_is_let_through(trees):
