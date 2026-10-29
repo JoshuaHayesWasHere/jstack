@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 import test_tool_calls as tools
-from crew_helpers import BRIEF, block, git, said
+from crew_helpers import BRIEF, block, git, said, sections
 
 DONE = "Status: done\nBranch: alpha   Pull request: none\nLeft: none\n"
 
@@ -217,3 +217,16 @@ def test_the_settle_is_a_call_the_tool_takes():
     ]
     assert settle.given == {"action": "settle"}
     assert tools.errors(settle, settle.given) == []
+
+
+def test_a_subagent_of_the_crew_is_waited_on_before_the_turn_ends():
+    carry_on = sections()["Carry on"].splitlines()
+    assert (
+        "A subagent the crew starts, such as a playbook's read-only `Explore` read, is waited on "
+        "in the same turn: started in the foreground, or in the background and then waited for "
+        "before the turn ends." in carry_on
+    )
+    assert (
+        "A turn never ends while a subagent of the crew runs, since a subagent left running when "
+        "the turn ends reports to nobody." in carry_on
+    )
