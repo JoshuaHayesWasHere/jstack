@@ -1683,7 +1683,7 @@ def entered(state: Path, user: jsettings.Settings, entry_go: EntryGo) -> list[st
 
 
 def one_pull_request(text: str) -> bool:
-    """Return whether the brief asks for one pull request: it is no link of a stack, and its
+    """Return whether the brief asks for one pull request: it has no `Stack:` line, and its
     `Pull request:` line does not say none."""
     told = {label: " ".join(lines).strip() for label, lines in briefs.fields(text)}
     asked = told.get("Pull request", "")

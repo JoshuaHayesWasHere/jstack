@@ -53,7 +53,6 @@ P=$(awk -v repo="$R" '
     inside && /^[ \t]*state[ \t]*=/ { state = said($(0)) }
     END { table() }' "${JBUS_CONFIG_DIR:-$HOME/.config/jbus}/config.toml" 2> /dev/null)
 OPEN=
-LINKS=
 Q="${JBUS_STATE_DIR:-$HOME/.local/state/jbus}/$P/questions.json"
 if ! command -v jbus > /dev/null; then
     WHY="no jbus: jbus is not installed here, so it holds no question"
@@ -65,15 +64,18 @@ elif ! found=$(jq -r '.records[] | select(.answer == null) | [.number, .slug, .q
     WHY="jbus could not be read: $Q is not the record jbus writes"
 else
     WHY=
-    found=$(printf '%s\n' "$found" | while IFS=$SEP read -r n slug rest; do
+    OPEN=$(printf '%s\n' "$found" | while IFS=$SEP read -r n slug rest; do
         if [ -n "$n" ] && mine "$slug"; then printf '%s\n' "$n$SEP$slug$SEP$rest"; fi
     done)
-    OPEN=$(printf '%s\n' "$found" | grep -v "has a conflict, and it is a link of a stack$SEP")
-    LINKS=$(printf '%s\n' "$found" | grep "has a conflict, and it is a link of a stack$SEP" | cut -d "$SEP" -f 1-3)
 fi
 ```
 
-It prints nothing. `$P` is this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, read from the record jbus keeps of them, `questions.json` in the project's state directory: it is as it is now, with no pass between. This block only reads it: `jbus gate` and `jbus answer` are the two that write it. `$LINKS` holds the ones that ask this home and not the user, a link's conflict, apart from `$OPEN`: no round has them. A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one. One that no brief, no request and no home asked, as an expert's finding is, is the root home's. `$WHY` says why nothing could be read.
+It prints nothing.
+`$P` is this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, read from the record jbus keeps of them, `questions.json` in the project's state directory: it is as it is now, with no pass between.
+This block only reads it: `jbus gate` and `jbus answer` are the two that write it.
+A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one.
+One that no brief, no request and no home asked, as an expert's finding is, is the root home's.
+`$WHY` says why nothing could be read.
 
 **Ask one** when the question is this home's own. Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and act on it only once the user answers. Fill in the lines of `$T/gates.md` (read it first), its `<n>` left as it is, with the `Holds:` and `Fail-safe:` lines under `Undo:` for a gate that holds, and carry on. Under the gate go one `Context:` line and one `Option:` line for every option you weighed, the default you took among them, which is the one you recommend, marked `(default, recommended)`, and the rest with no mark. With the entry in place of the line in angle brackets, and `own` left as it is:
 
@@ -119,7 +121,7 @@ On `not asked`, it is one jbus could not take: the end of this section says what
 : "${SEP:?run the block that reads jbus first}"
 if [ -n "$WHY" ]; then
     echo "$WHY"
-elif [ -z "$OPEN$LINKS" ]; then
+elif [ -z "$OPEN" ]; then
     echo "no open questions"
 else
     printf '%s\n' "$OPEN" | while IFS=$SEP read -r n slug asked took built undo holds safe; do
@@ -132,20 +134,14 @@ else
             fi
         fi
     done
-    printf '%s\n' "$LINKS" | while IFS=$SEP read -r n slug asked; do
-        if [ -z "$n" ]; then continue; fi
-        url=$(printf '%s\n' "$asked" | sed -n 's/^[^ ]*: \(http[^ ]*\) has a conflict, and it is a link of a stack$/\1/p')
-        state=$(gh pr view "$url" --json state,mergeable --jq '"\(.state) \(.mergeable)"' 2> /dev/null)
-        case $state in
-        "OPEN CONFLICTING") echo "for this home, question $n, from $slug: send its line, $url has a conflict" ;;
-        "") echo "for this home, question $n, from $slug: could not ask GitHub about $url" ;;
-        *) echo "for this home, question $n, from $slug: handled, $url is $state, and the question is the user's to close as default" ;;
-        esac
-    done
 fi
 ```
 
-On `no open questions`, say nothing about gates. On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read. One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it. For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe. Ask for nothing more than the answer. A line `for this home, question <number>` is a link's conflict, which asks this home and not the user, and GitHub says which it is now. On `send its line`, do what "A link with a conflict" says for the crewmate's line. On `handled`, tell the user in one line that question <number> is theirs to close, as `default`: silence never closes a link's question, and only their name does. On `could not ask GitHub`, do neither, and say so.
+On `no open questions`, say nothing about gates.
+On `no jbus`, `no project` and `jbus could not be`, say that line: no question could be read.
+One open question is text: give it to the user by its number: the question and the default taken, then what was built on it and how to undo it.
+For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe.
+Ask for nothing more than the answer.
 
 Two or more open questions are one round of the grill page, wherever the grilling skill's "On a page" (`$T/../skills/grilling/SKILL.md`, read it now) puts a round on a page. Each set of open questions has a page of its own: do its step 1 with `gates-<n>` as the `<slug>`, `<n>` being the highest number among them, and for a scoped home `gates-<scope>-<n>`. Then run this in place of its step 2:
 

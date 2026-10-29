@@ -150,13 +150,12 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    if [ -f "$M/gates.md" ]; then echo "a gates file: run the block of \"Move the ones a file still has\" (\"Gates\"), then this block again"; fi
    if [ -n "$WHY" ]; then
        echo "$WHY"
-   elif [ -z "$OPEN$LINKS" ]; then
+   elif [ -z "$OPEN" ]; then
        echo "none is open"
    else
        printf '%s\n' "$OPEN" | while IFS=$SEP read -r n slug asked took rest; do
            if [ -n "$n" ]; then printf 'question %s, from %s: %s (default: %s)\n' "$n" "$slug" "$asked" "$took"; fi
        done | clip | atmost 5 "the block of \"Show the open ones\""
-       printf '%s\n' "$LINKS" | grep -c . | awk '$(1) > 0 {print $(1) " for this home, a link with a conflict: the block of \"Show the open ones\""}'
    fi
    echo "## merged"
    L="$H/merge.log"

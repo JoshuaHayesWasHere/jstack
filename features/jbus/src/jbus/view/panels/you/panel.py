@@ -13,8 +13,7 @@ default is already taken. It asks the user nothing, and the page draws all of th
 A question jbus holds closes with its default in the first pass that sees it
 (`questions.QUIET`). A gate of a home's `gates.md` instead stands until its home closes it, and
 its default says so. A gate of a retired scope (`retired`) waits on nobody: neither queue has
-an open one, and the list of gates keeps only its answered ones. A link's conflict is a
-question for its home, not for the user, so it is on neither queue.
+an open one, and the list of gates keeps only its answered ones.
 
 Each need names the task it is about, its `slug`, or none, so the page draws that task once.
 Every need names its subject, `subj`: the row or question it is about (`waiting.subject`).
@@ -325,17 +324,15 @@ def _after(line: str, slug: str) -> str:
     return line[at + len(mark) :] if 0 <= at <= 12 else line
 
 
-def _tier(waits: dict[str, Any], one: questions.Question | None) -> str | None:
-    """Which queue an item is on: `needs`, `proceeds`, or None for one that asks the user
-    nothing. Only a gate has a default to go ahead on. A question that jbus holds closes when the
-    user stays silent, unless its gate has a `Holds:` line. A gate of a home's file has no timer,
-    and goes ahead on its default where it has one and no `Holds:` line."""
+def _tier(waits: dict[str, Any], one: questions.Question | None) -> str:
+    """Which queue an item is on: `needs` or `proceeds`. Only a gate has a default to go ahead
+    on. A question that jbus holds closes when the user stays silent, unless its gate has a
+    `Holds:` line. A gate of a home's file has no timer, and goes ahead on its default where it
+    has one and no `Holds:` line."""
     if waits["kind"] != "gate":
         return NEEDS
     if one is None:
         return PROCEEDS if waits["default"].strip() and not waits["holds"] else NEEDS
-    if one.question.endswith(questions.LINK):
-        return None
     return NEEDS if one.holds else PROCEEDS
 
 
@@ -471,8 +468,6 @@ def _needs(read: Read, waits: list[dict[str, Any]]) -> tuple[list[Any], list[Any
             continue
         held = asked.get(one["number"]) if one["answerable"] else None
         tier = _tier(one, held)
-        if not tier:
-            continue
         task = _task(read, one) if one["kind"] in ROWS else None
         queues[tier].append(_row(read, one, task) if task else _need(read, one, held, tier))
     needs = oldest(queues[NEEDS])

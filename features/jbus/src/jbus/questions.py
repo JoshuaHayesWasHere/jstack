@@ -150,7 +150,6 @@ HELD = (
     "not take the default: do what the answer says, and add one line to the last Result or "
     "Report saying what you did. " + END_TURN
 )
-LINK = "has a conflict, and it is a link of a stack"
 MESSAGE = (
     "jbus: {user} answered question {number} ({question}), and the answer is not the default "
     'you took ({default}). The words, {at}: "{words}". Undo: {undo}. Built on the default: '
@@ -695,10 +694,9 @@ def _go_gates(state: Path) -> set[str]:
 
 
 def _quiet(one: Question, now: datetime, window: timedelta = QUIET) -> bool:
-    """Return whether silence closes the question now. A gate that holds waits for the user,
-    and a question about a link's conflict goes to its home and not to the user, so silence
-    never closes either."""
-    if one.answer or one.holds or one.question.endswith(LINK):
+    """Return whether silence closes the question now. A gate that holds waits for the user, so
+    silence never closes it."""
+    if one.answer or one.holds:
         return False
     try:
         asked = datetime.fromisoformat(one.asked_at)
@@ -726,17 +724,14 @@ def waits(state: Path, user: jsettings.Settings) -> Callable[[Question], str]:
 def _state(one: Question, why: str) -> str:
     """Return the words that the line of a waiting question adds: that its default holds
     until the user answers, with the fail-safe, or that the thread already acted on the
-    default. A go gate's line says that silence starts its row, or `why` it starts nothing. The
-    line of a link's conflict says neither, because that question asks the home."""
+    default. A go gate's line says that silence starts its row, or `why` it starts nothing."""
     if one.holds:
         return f" It holds ({one.holds}) for your answer, with its fail-safe: {one.fail_safe}."
     if go_gate(one) and why:
         return f" It waits for your answer, since silence starts nothing where {why}."
     if go_gate(one):
         return f" Unless you answer, it starts {one.slug} when its quiet window ends."
-    if not one.question.endswith(LINK):
-        return " Its default is acted on already, and stands unless you stop it."
-    return ""
+    return " Its default is acted on already, and stands unless you stop it."
 
 
 def item(one: Question, why: str = "") -> dict[str, Any]:
