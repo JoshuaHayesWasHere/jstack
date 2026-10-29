@@ -9,8 +9,11 @@ window.addEventListener("load", function () { setTimeout(function () {
     var cols = board.querySelector("[data-role=cards]"), top = cols && cols.getBoundingClientRect().top;
     var table = m && m.querySelector("table"), legend = m && m.querySelector(".mx-lg");
     var bar = board.querySelector("[data-role=showing]"), at = bar && bar.getBoundingClientRect();
+    var map = document.getElementById("map-c"), under = map && map.getBoundingClientRect();
     out.seen.push({
       hash: location.hash,
+      drawn: all('[data-part="pipeline:matrix"]').length,
+      overMap: !!(box && box.height && under && under.height && box.bottom <= under.top),
       heads: all("thead th", m).map(text),
       homes: all("tbody tr", m).map(function (r) {
         return { home: r.getAttribute("data-home"), head: text(r.querySelector("th")), cells: all("td", r).map(function (td) {
@@ -36,7 +39,7 @@ window.addEventListener("load", function () { setTimeout(function () {
     "cell:demo/jview/check", "help", "shut", "cell:demo/root/stacked", "esc", "chip:demo/jview", "cell:demo/jview/check", "esc"
   ];
   function act(step) {
-    if (step.indexOf("cell:") === 0) board.querySelector('[data-bcell="' + step.slice(5) + '"]').click();
+    if (step.indexOf("cell:") === 0) { var c = board.querySelector('[data-bcell="' + step.slice(5) + '"]'); if (c) c.click(); }
     else if (step === "esc") document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
     else if (step === "clear") board.querySelector("[data-role=showing] [data-bclear]").click();
     else if (step === "back") history.back();
