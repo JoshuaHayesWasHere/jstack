@@ -153,3 +153,17 @@ def test_a_scoped_pass_numbered_one_does_not_take_the_place_of_reviewer_one():
     scoped = brief + section(f"{SONNET} #1", "clean", head=FIX).replace("By:", "Scope: a.py\nBy:")
     assert ready.said_of(scoped).ran == 2
     assert ready.short_of(scoped, FIX) == ""
+
+
+def test_a_by_line_written_without_its_label_still_counts_for_its_seat():
+    """A reviewer that wrote its `By:` line's text with no `By: ` label, as #760's did, wrote
+    the line all the same: a first line of the template's shape, `<provider> <model> <effort>
+    #<n>`, is read as its `By:` line. A first line of any other shape is not."""
+    seat = "Reviewer: mcp:9 #1\n"
+    bare = "claudeAgent_claude_prime claude-sonnet-5-5 high #1"
+    rest = f"Verdict: clean\nHead: {SAW}\nMeets the brief: yes\nFindings:\n- none\n"
+    brief = RESULT + seat + f"\n## Review\n{bare}\n{rest}"
+    assert ready.short_of(brief, SAW) == ""
+    assert [one.by for one in ready.said_of(brief).triage.sections] == [bare]
+    prose = RESULT + seat + f"\n## Review\nThe review of #1, high effort\n{rest}"
+    assert ready.short_of(prose, SAW) == ready.NO_VERDICT
