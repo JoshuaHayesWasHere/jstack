@@ -176,6 +176,7 @@ Each command has one page.
 | `jmerge` | [features/jmerge/docs/jmerge.md](features/jmerge/docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [features/jpack/docs/jpack.md](features/jpack/docs/jpack.md) | Checks a context pack. |
 | `jroles` | [features/jroles/docs/jroles.md](features/jroles/docs/jroles.md) | Picks the model for a role from the role map. |
+| `jstack` |  | One command for every feature's command: `jstack leak ...` runs what `jleak ...` runs. |
 <!-- generated: end -->
 
 | Page | Read it to |

@@ -138,6 +138,7 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
         "stale: README.md",
         "stale: CATALOG.md",
         "stale: features/foo/docs/foo.md",
+        "stale: features/jstack/src/jstack/table.py",
         "stale: pyproject.toml",
         "stale: skills.json",
     }
@@ -171,6 +172,8 @@ def test_a_new_feature_shows_in_every_output_with_no_list_edited(copy):
     ]
     project = tomllib.loads((copy / "pyproject.toml").read_text())
     assert project["project"]["scripts"]["foo"] == "foo.cli:main"
+    table = (copy / "features" / "jstack" / "src" / "jstack" / "table.py").read_text()
+    assert '    "foo": ("foo", "foo.cli:main"),\n' in table
     assert (
         "features/foo/src/foo" in project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
     )
