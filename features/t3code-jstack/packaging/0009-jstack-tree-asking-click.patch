@@ -1,4 +1,4 @@
-From 355ea631df19ca00ccfdd882d511034a1adfb51b Mon Sep 17 00:00:00 2001
+From d899a4a8a3478f21fedca4ba6d380b95d93ce405 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:30:56 -0400
 Subject: [PATCH] fix(web): a jstack "asks you" row opens what it asks
@@ -207,7 +207,7 @@ index 3a93cb3923..8c6668fc4d 100644
      });
    }
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index f2f93089a2..9ef1f0454c 100644
+index a84dedda02..4b2b03e508 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 @@ -288,7 +288,7 @@ const asking: JstackTreeRow = {
@@ -219,7 +219,7 @@ index f2f93089a2..9ef1f0454c 100644
  };
  
  const menuItems = () =>
-@@ -439,6 +439,7 @@ const crewTask = (slug: string, home: string) => ({
+@@ -560,6 +560,7 @@ const crewTask = (slug: string, home: string) => ({
    pullRequest: null,
    waitsOnUser: false,
    waits: "",
@@ -227,7 +227,7 @@ index f2f93089a2..9ef1f0454c 100644
  });
  
  // Each home has a task running, so no row draws at the half ink of an idle one.
-@@ -690,3 +691,153 @@ describe("JstackTreeRowView home actions", () => {
+@@ -811,3 +812,153 @@ describe("JstackTreeRowView home actions", () => {
      expect(spies.onStartHome).toHaveBeenCalledTimes(2);
    });
  });
@@ -382,10 +382,10 @@ index f2f93089a2..9ef1f0454c 100644
 +  });
 +});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
-index b5513965f2..2433780c89 100644
+index 19ab5a4544..81e3dbfd3c 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
-@@ -552,6 +552,12 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+@@ -571,6 +571,12 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
              {row.ask !== null && unfolded ? (
                <div className="mb-1 ml-2 border-l border-warning/50 py-0.5 pr-2 pl-2 text-2xs">
                  <p className="text-sidebar-foreground/75">{row.ask.what}</p>
@@ -399,10 +399,10 @@ index b5513965f2..2433780c89 100644
                    type="button"
                    tabIndex={-1}
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index ac8a33f545..bfeb54b41d 100644
+index e92908c53d..661b853377 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -45,6 +45,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+@@ -44,6 +44,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
    pullRequest: null,
    waitsOnUser: false,
    waits: "",
@@ -410,7 +410,7 @@ index ac8a33f545..bfeb54b41d 100644
    ...overrides,
  });
  
-@@ -151,6 +152,7 @@ describe("buildJstackTree", () => {
+@@ -150,6 +151,7 @@ describe("buildJstackTree", () => {
              threadId: null,
              slug: "gated",
              question: "Ship it?",
@@ -418,7 +418,7 @@ index ac8a33f545..bfeb54b41d 100644
              askedAt: minutesAgo(5),
            },
          ],
-@@ -173,6 +175,7 @@ describe("buildJstackTree", () => {
+@@ -172,6 +174,7 @@ describe("buildJstackTree", () => {
          threadId: null,
          waitsOnUser: true,
          waits: "your approval",
@@ -426,7 +426,7 @@ index ac8a33f545..bfeb54b41d 100644
        }),
        task("gated", { stage: "ready", threadId: null }),
        task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
-@@ -184,6 +187,7 @@ describe("buildJstackTree", () => {
+@@ -183,6 +186,7 @@ describe("buildJstackTree", () => {
          threadId: ThreadId.make("asking"),
          slug: "gated",
          question: "Approve?",
@@ -434,7 +434,7 @@ index ac8a33f545..bfeb54b41d 100644
          askedAt: minutesAgo(1),
        },
      ];
-@@ -194,8 +198,19 @@ describe("buildJstackTree", () => {
+@@ -193,8 +197,19 @@ describe("buildJstackTree", () => {
      expect(opens).toEqual(["asked>root", "gated>asking", "ready>flow"]);
      const asks = rows.flatMap((row) => (row.kind === "worker" ? [[row.slug, row.ask]] : []));
      expect(asks).toEqual([
@@ -457,10 +457,10 @@ index ac8a33f545..bfeb54b41d 100644
      ]);
    });
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
-index d799a52282..127ff919a4 100644
+index c915f21f25..540b2fcda1 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
-@@ -20,6 +20,10 @@ import { resolveSidebarThreadStatus } from "../Sidebar.logic";
+@@ -19,6 +19,10 @@ import { resolveSidebarThreadStatus } from "../Sidebar.logic";
  export interface JstackAsk {
    /** The question, else what jbus waits on, such as `waits on your approval`. */
    readonly what: string;
@@ -471,7 +471,7 @@ index d799a52282..127ff919a4 100644
    /** The title of the thread it was asked in, which `openThreadId` opens. */
    readonly askedIn: string | null;
  }
-@@ -260,7 +264,12 @@ const toWorker = (
+@@ -259,7 +263,12 @@ const toWorker = (
        openThreadId,
        ask:
          asks && task.threadId === null
