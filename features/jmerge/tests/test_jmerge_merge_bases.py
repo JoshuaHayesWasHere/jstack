@@ -1,4 +1,4 @@
-"""A project can name merge bases besides the default branch (`jbus project add-base`), as jstack
+"""A project can name merge bases besides the default branch (`jbus project bases --add`): jstack
 names `t3code-jstack`, the branch the sidebar's pull requests go on. `jmerge` merges a pull
 request into a named base on the rules of one into main: its review written and answered, its
 required checks green, and not a draft. A base the project does not name is still held, and

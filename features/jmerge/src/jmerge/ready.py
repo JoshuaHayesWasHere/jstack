@@ -462,9 +462,9 @@ def held(
     bases: tuple[str, ...] = (),
 ) -> str:
     """Why a pull request is held by its base, or nothing. It merges into the default branch, or
-    into a merge base its project names (`bases`, `jbus project add-base`), on the same rules. A
-    link jbus stacked sits on its base's branch until that row merged: it is not held for it, and
-    waits (`on_stack`)."""
+    into a merge base its project names (`bases`, `jbus project bases --add`), on the same
+    rules. A link jbus stacked sits on its base's branch until that row merged: it is not held
+    for it, and waits (`on_stack`)."""
     on_base = stacked is not None and one.base == stacked.branch
     if one.base != default and one.base not in bases and not on_base:
         return BASE.format(base=one.base, default=default)

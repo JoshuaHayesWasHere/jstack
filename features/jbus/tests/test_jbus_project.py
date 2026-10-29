@@ -1,5 +1,5 @@
 """`jbus project add` adds one project's table to the config, and the next pass works on that
-project. `jbus project add-base` names one more branch `jmerge` merges a project's pull requests
+project. `jbus project bases --add` names one more branch `jmerge` merges a project's pull requests
 into, in that project's table alone, and `jbus project bases` reads them back.
 
 Every test runs the real command on the made-up config of `test_jbus_kitchen`, and reads the file,
@@ -139,7 +139,7 @@ def test_a_config_a_pass_would_refuse_is_refused_and_not_written(kitchen, added,
 
 
 def add_base(kitchen, name, branch):
-    return kitchen.main("project", "add-base", name, branch)
+    return kitchen.main("project", "bases", name, "--add", branch)
 
 
 def bases_of(kitchen, name):

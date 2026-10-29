@@ -20,11 +20,12 @@ even a value the caller gave, so a line of this command is safe in any log.
 checks its name as it checks a repo's, against every project and every scratch home of the
 config.
 
-`jbus project add-base <name> <branch>` names one more branch that `jmerge` merges the project's
-pull requests into, beside the default branch: it writes the project's `merge_bases` (`jbus.Project`)
-in that project's table alone, with the same copy and mode as `add`, and refuses a write that would
-change any other key or table. `jbus project bases <name>` prints each branch the table names, one
-a line, and nothing where it names none: the one way to read the key without opening the file.
+`jbus project bases <name> --add <branch>` names one more branch that `jmerge` merges the
+project's pull requests into, beside the default branch: it writes the project's `merge_bases`
+(`jbus.Project`) in that project's table alone, with the same copy and mode as `add`, and refuses a
+write that would change any other key or table. `jbus project bases <name>` prints each branch the
+table names, one a line, and nothing where it names none: the one way to read the key without
+opening the file.
 
 Each pass is a new `jbus poll` that loads the config, so the pass after `add` covers the new
 project, and nobody restarts a unit.
@@ -224,8 +225,8 @@ def missing(config: jbus.Config) -> list[str]:
 
 def _add(args: argparse.Namespace, _: jbus.Config) -> int:
     path = jbus.config_dir() / "config.toml"
-    if args.verb == "add-base":
-        print(add_base(path, args.name, args.branch))
+    if args.verb == "bases" and args.add is not None:
+        print(add_base(path, args.name, args.add))
     elif args.verb == "bases":
         for one in bases(jbus.load(path.parent), args.name):
             print(one)
@@ -252,18 +253,13 @@ def _listed(listed: argparse.ArgumentParser) -> None:
     )
     added.add_argument("--project-id", required=True, help="the T3 Code project's id")
     based = listed_verbs.add_parser(
-        "add-base",
-        help="name one more branch jmerge merges the project's pull requests into",
+        "bases",
+        help="print each branch besides the default one that jmerge merges the project into, "
+        "or name one more with --add",
         allow_abbrev=False,
     )
     based.add_argument("name", help="the project's name in the config")
-    based.add_argument("branch", help="the branch, beside the default one")
-    read = listed_verbs.add_parser(
-        "bases",
-        help="print each branch besides the default one that jmerge merges the project into",
-        allow_abbrev=False,
-    )
-    read.add_argument("name", help="the project's name in the config")
+    based.add_argument("--add", metavar="BRANCH", help="name one more branch, beside the others")
 
 
 VERBS = (verbs.Verb("project", "the projects of the config", _listed, _add, config=False),)

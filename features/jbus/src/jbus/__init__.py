@@ -89,7 +89,7 @@ class Project:
 
     `merge_bases` names each branch besides the default one that `jmerge` merges a pull request
     into, on the rules of a pull request into the default branch. It is empty where the table
-    names none, and `jbus project add-base` is the one writer of it."""
+    names none, and `jbus project bases --add` is the one writer of it."""
 
     name: str
     checkout: Path
