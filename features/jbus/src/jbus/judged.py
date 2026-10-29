@@ -1,5 +1,5 @@
 """What `jmerge` judged of each pull request in a pass: the lines it printed (`Said`), and the
-step each line puts its pull request on (`step`).
+step each line puts its pull request on (`step`, which `jmerge.judgement` makes for both).
 
 `jbus.merge` runs `jmerge` and keeps its lines, and `jbus.watch` reads them. They are here, below
 both, since `jbus.merge` sends through the outbox, and the outbox reads `jbus.watch`.
@@ -7,23 +7,8 @@ both, since `jbus.merge` sends through the outbox, and the outbox reads `jbus.wa
 
 from __future__ import annotations
 
-from jmerge import ready
+from jmerge.judgement import step as step
 from jmerge.lines import one as parse
-
-
-def step(said: str, code: str = "") -> str:
-    """Return the step a pull request waits on, read from the last line `jmerge` printed about it
-    (`<word>: <reason>`) and the reason's code where `merge.log` wrote one. A `hold` is on the
-    `hold` step, and a `wait` is on the step of its code (`ready.step_of`). A line with no code,
-    as `jmerge` prints it or as an older `merge.log` has it, takes the code its reason's text
-    gives (`ready.code_of`). Return nothing for a line with no reason, or for a reason no rule
-    names."""
-    word, _, reason = said.partition(": ")
-    if not reason:
-        return ""
-    if word == "hold":
-        return "hold"
-    return ready.step_of(code or ready.code_of(reason))
 
 
 class Said(list[str]):

@@ -1,4 +1,4 @@
-"""`jmerge --accept` is an act of jbus's (`jmerge.accepts`): every accept is one line of the
+"""`jmerge --accept` is an act of jbus's (`jbus.port`): every accept is one line of the
 project's `acts.jsonl` with the party that accepted and the evidence it rests on. An accept that
 opens a door, a pull request that touches a protected path, is the user's alone on words jbus
 reads itself: a home's accept on typed words parks a gate and merges nothing.

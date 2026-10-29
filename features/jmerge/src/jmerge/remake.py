@@ -16,7 +16,7 @@ import os
 import subprocess
 from pathlib import Path
 
-import jbus
+from jmerge import bus
 from jsettings import paths, proc
 
 DEFAULT = "uv.lock -> uv lock"
@@ -39,14 +39,8 @@ def outside_venv() -> dict[str, str]:
 def table(main: Path) -> list[str]:
     """The `generated` lines of the project whose main checkout is `main`, or the default line
     where jbus's config names none, or cannot be read."""
-    try:
-        config = jbus.load()
-    except jbus.Refused:
-        return [DEFAULT]
-    project = next(
-        (one for one in config.projects if one.checkout.resolve() == main.resolve()), None
-    )
-    return list(project.generated) if project and project.generated else [DEFAULT]
+    found = bus.quiet_place(main)
+    return list(found.generated) if found and found.generated else [DEFAULT]
 
 
 def made_by(lines: list[str], file: str) -> str | None:

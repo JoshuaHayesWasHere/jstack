@@ -118,12 +118,14 @@ MAIN_MOVED = Reason("check", "{base} moved while it was judged")
 MERGE_FAILED = Reason("check", "the merge failed")
 NO_MESSAGES = Reason("check", "its commit messages could not be read for the squash")
 NO_SETTINGS = Reason("check", "the repo's merge settings could not be read")
-LANDING_UNALLOWED = Reason("hold", "the repo allows {allowed} only, not a merge commit or a squash")
+LANDING_UNALLOWED = Reason(
+    "check", "the repo allows {allowed} only, not a merge commit or a squash"
+)
 KEPT = "every line kept"
 FRESH_CONFLICT = Reason("rebase", "it conflicts with today's main")
 NO_HEAD = Reason("second", "its review names no head to compare its rebase with")
 
-BASE = Reason("hold", "its base is {base}, not {default}")
+BASE = Reason("rebase", "its base is {base}, not {default}")
 REVIEW_NONE = Reason("hold", "its brief says Review: none, so it needs the user's word")
 READY_ON = (DRAFT, REVIEW_NONE)
 NO_REVIEW = Reason("review", "it has no review yet")
@@ -217,7 +219,7 @@ CARRIES_UNKNOWN = Reason(
     "check", "its head or {carried}'s (#{number}) cannot be read to see whether it carries it"
 )
 QUEUE_UNREADABLE = Reason(
-    "hold",
+    "check",
     "its queue cannot be read, so its holds and merge order are not known",
 )
 MIGRATION_TAKEN = Reason(

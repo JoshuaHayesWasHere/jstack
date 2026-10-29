@@ -53,7 +53,7 @@ def queue_of(home, rows, more=""):
 
 def given(state, rows):
     """`rows`, each approved one with the brief its go was given for stored in `state`, as jbus
-    stores it, so its go holds (`jbus.queue.has_go`)."""
+    stores it, so its go holds (`jmerge.judgement.has_go`)."""
     for one in rows:
         if one.get("approved") and "brief_sha" not in one:
             text = f"# {one['slug']}: the task\n"
@@ -172,7 +172,7 @@ def test_a_queue_file_the_filesystem_will_not_give_merges_nothing(two):
         (ready.NO_GO, "hold"),
         (ready.MERGES_AFTER.format(slug="alpha", open="#144"), "check"),
         (ready.MERGES_AFTER.format(slug="alpha", open="no pull request yet"), "check"),
-        (ready.QUEUE_UNREADABLE, "hold"),
+        (ready.QUEUE_UNREADABLE, "check"),
     ],
 )
 def test_each_wait_the_queue_gives_lands_on_its_step_and_not_in_unknown(reason, step):

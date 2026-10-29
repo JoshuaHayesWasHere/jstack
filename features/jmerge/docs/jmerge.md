@@ -60,7 +60,7 @@ When a `wait` or `hold` line repeats from run to run, it logs the line only once
 |---|---|
 | `merged <number> <slug> <commit> "<title>", ..., revert: gh pr revert <url>` | Merged. The notes between say what was kept, or that a review carried over (`review carried over: range-diff ... clean`). The last note is the command that opens a pull request reverting the merge. |
 | `wait <number> <url>: <reason>` | Not merged. The reason is the first thing the pull request is short of. A later run merges it once the reason is gone. |
-| `hold <number> <url>: needs <user>, <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. |
+| `hold <number> <url>: <why>` | Not merged, and never by a plain `jmerge`. It is yours to accept. Every reason jbus shows as Needs you is a `hold`, but three your other words lift: `jbus queue approve` the queue's two, and `/nohome merge on` the merge that is off (`jmerge.judgement`). |
 | `ready <number> <head> <branch> <slug>` | With `--check`: what a run would merge. |
 | `wait: could not ask GitHub: gh exited <code>: <what gh said>` | GitHub did not give the open pull requests or the default branch. The line ends on `gh`'s exit code and the first line of its stderr (`it said nothing` where it had none). A `gh` that exited 0 with output that is not JSON says `gh exited 0: its output was not JSON`, and one that named no default branch says `gh exited 0: it named no default branch`. A token and the query of a URL are cut from the text, and it is at most 160 characters. The same text ends the sweep's `could not ask GitHub about its pull request` and the `could not ask GitHub whether a pull request is based on it` that keeps a branch. |
 
@@ -126,7 +126,7 @@ The section "Protected paths" describes one more hold.
   Such a brief waits with `its findings are not handled: <k> of <n> have no Finding line`.
   A decline that says `because .` is not an answer.
   jbus's `expedite` tells the crew about each of these waits, with the ids.
-- A brief that says `Review: none` waits with `its brief says Review: none, so it needs the user's word`.
+- A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
 - A brief that says `Review: after` skips the review's gates.
   `jmerge` asks for no `## Review`, verdict, `Fixed:` line or answered finding.
   A review written while the pull request is open does not change its wait reason (`ready.after`).
@@ -370,7 +370,7 @@ The branch's commits then keep their history on main, and the `merged` line says
 Where the repo allows only squashes, `jmerge` squashes, `gh pr merge <number> --squash --match-head-commit <head>`, with the subject and the cleaned body of any squash ("What a merge does").
 Main then gets one commit for the whole branch, and each unit's pull request into the branch stays its own record.
 The `merged` line then says `landed as a squash: each unit's pull request into <branch> is its own record`.
-A repo that allows neither makes the landing wait with `the repo allows rebase merges only, not a merge commit or a squash` (`LANDING_UNALLOWED`, on the `hold` step).
+A repo that allows neither makes the landing wait with `the repo allows rebase merges only, not a merge commit or a squash` (`LANDING_UNALLOWED`, on the `check` step: no word of yours lifts it, only the repo's settings).
 When GitHub does not give the settings, the landing waits too, with `the repo's merge settings could not be read: <what gh said>` (`NO_SETTINGS`, on the `check` step).
 `jmerge` never removes its branch, whichever way it landed.
 The `merged` line says `kept: <branch> is an integration branch`, and `--sweep` keeps it with the same reason.
@@ -485,6 +485,10 @@ Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, revi
 `--by` takes only the `user` of `~/.config/jstack/config.toml`, which is `user` when that file names none.
 It writes an `accepted` line to `merge.log` that records who accepted and when, and then judges the pull request as any other, so `merge-off` applies.
 `jmerge --accept <number> --check` says what it would do.
+
+A held draft is marked ready by its accept, in place of the merge, since CI runs no check on a draft.
+The accept is kept in `accepted.json` in the state directory at that head, so a later run merges it once its check passed, with no second accept.
+A push drops it, as it drops the hold.
 
 Where the checkout is a project of jbus's, the accept is an act of jbus's, one line of the project's `acts.jsonl`, whatever came of it ([Who acts, and the acts log](../../jbus/docs/jbus/the-queue.md#who-acts-and-the-acts-log)).
 `--as` names the party that accepts: `home`, the default, or `user`, which acts only on `--message` and is refused on typed words.

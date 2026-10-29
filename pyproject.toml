@@ -22,6 +22,10 @@ jpack = "jpack.cli:main"
 jroles = "jroles.cli:main"
 # end generated
 
+# What jmerge asks of jbus (jmerge.bus), which jbus answers: jmerge imports nothing of jbus.
+[project.entry-points."jmerge.bus"]
+jbus = "jbus.port:Port"
+
 [dependency-groups]
 dev = [
     "jsonschema>=4.26.0",

@@ -135,7 +135,7 @@ Check(p) ==
 Merges(p) ==
     /\ st[p] = "open"
     \* Its row's go: a row you held, or whose go does not hold for its brief, waits on your approval.
-    /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not queue.has_go(row, brief):`
+    /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ ci[p] = "pass"                       \* features/jmerge/src/jmerge/ready.py `(CHECK_FAILED if failed else NOT_PASSED).format(check=one.waiting[0])`
     \* While main is red only its fix merges: the main-red row (ApproveMainFix), or the pull request
     \* whose own check proved it. Where the red run's logs name no failed test, nothing is proved.
@@ -163,13 +163,13 @@ Merges(p) ==
 
 \* jmerge merges a pull request that waits on nothing.
 Merge(p) ==
-    /\ ~needs[p]                            \* features/jmerge/src/jmerge/cli.py `hold = ready.needs_the_user(one, self.protected, left, user=self.user)`
+    /\ ~needs[p]                            \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`
     /\ Merges(p)
 
 \* You lift the hold of a pull request that waits on your word, with jmerge --accept, which merges
 \* it at once where nothing else holds it, and refuses it otherwise.
 Accept(p) ==
-    /\ needs[p]                             \* features/jmerge/src/jmerge/cli.py `if lifted and hold:`
+    /\ needs[p]                             \* features/jmerge/src/jmerge/cli.py `if lifted and judgement.verb(why) == judgement.HOLD:`
     \* A draft's lifted hold leaves its draft wait, which it refuses (`if found.judged is None:`).
     /\ rv[p] = "ready"                      \* features/jmerge/src/jmerge/cli.py `return Judgement(brief.stem, "wait", ready.DRAFT, note, None)`
     /\ Merges(p)
@@ -182,11 +182,11 @@ Ready(p) ==
     /\ st[p] = "open"                       \* features/jmerge/src/jmerge/cli.py `found = repo.readied(one, found)`
     /\ rv[p] = "draft"                      \* features/jmerge/src/jmerge/cli.py `if one.draft and found.slug and found.why in ready.READY_ON and not args.check:`
     /\ on[p] = "main"                       \* features/jmerge/src/jmerge/cli.py `short = short or self.on_stack(one, default, stacked)`
-    /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not queue.has_go(row, brief):`
+    /\ go[p]                                \* features/jmerge/src/jmerge/rows.py `if row.get("held"):`, features/jmerge/src/jmerge/rows.py `if row and not judgement.has_go(row, brief):`
     /\ (p = "b" /\ link = "after") => st["a"] = "merged"   \* features/jmerge/src/jmerge/rows.py `for other in row.get("merge_after", []):`
     \* A draft has no check of its own yet, so it proves no fix, and has no browser run.
     /\ ~mainRed                             \* features/jmerge/src/jmerge/cli.py `or self.red(one, default, brief.stem, text)`
-    /\ Draft = "held" => ~needs[p]          \* features/jmerge/src/jmerge/cli.py `hold = ready.needs_the_user(one, self.protected, left, user=self.user)`
+    /\ Draft = "held" => ~needs[p]          \* features/jmerge/src/jmerge/cli.py `hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)`
     /\ rv' = [rv EXCEPT ![p] = "ready"]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,
                    Fix, Browser, go, needs>>
@@ -298,7 +298,7 @@ Nightly ==
                    Machine, Fix, brBreaks, brFail, viewBroken, Row>>
 
 \* You approve the browser-red row, and its crew fixes main's view. Its row is over, so main's
-\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if row.get("status") not in queue.FINAL}`).
+\* last run, still red until the next nightly, holds nobody (features/jmerge/src/jmerge/rows.py `fixing = {row["slug"] for row in rows or [] if row.get("status") not in judgement.FINAL}`).
 ApproveBrowserFix ==
     /\ brHold
     /\ ~full                                \* features/jbus/src/jbus/dispatch.py `def room(`, no room
@@ -317,7 +317,7 @@ Approve(p) ==
 \* You hold a row that is not merged (`jbus queue hold`), which takes its go back.
 HoldRow(p) ==
     \* A merged row's hold holds nothing.
-    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row.get("status") in queue.FINAL:`
+    /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row.get("status") in judgement.FINAL:`
     /\ go[p]                                \* features/jbus/src/jbus/queue.py `_hold(batch.row(verb.slug))`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
     /\ go' = [go EXCEPT ![p] = FALSE]
     /\ UNCHANGED <<st, ci, ranRed, breaks, told, mainRed, redBy, outsideLeft, fixRow, link, on, Machine,

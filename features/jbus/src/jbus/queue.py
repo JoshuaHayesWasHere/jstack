@@ -112,7 +112,6 @@ is a batch of one.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -129,6 +128,14 @@ from jbriefs import chains, meaning, skills
 from jbriefs import home as homes
 from jbriefs import parse as briefs
 from jbus import Refused, party, verbs, write_json
+from jmerge import judgement
+from jmerge.judgement import approved_text as approved_text
+from jmerge.judgement import body as body
+from jmerge.judgement import bound
+from jmerge.judgement import brief_sha as brief_sha
+from jmerge.judgement import fingerprint as fingerprint
+from jmerge.judgement import has_go as has_go
+from jmerge.judgement import sha as sha
 from jsettings import store
 
 EVENTS = {"queue": "quiet"}
@@ -150,12 +157,11 @@ STATUSES = (
     "done",
     "left",
 )
-FINAL = ("merged", "done")
+FINAL = judgement.FINAL
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"
 _SLUG = re.compile(r"[a-z0-9][a-z0-9._-]*")
-_SENT_TO = ("Home:", "Thread:", "Green main:", "Stacked on:")
 PAGE = "page"
 PICK = "pick"
 BASES = ("word", "answer", "message", PICK, PAGE)
@@ -337,7 +343,7 @@ class Said:
 
 
 @dataclass(frozen=True)
-class Approval:
+class Approval(judgement.Go):
     """An `Approval` is the record of a row's go. `basis` is one of `BASES`, and `ref` names the
     record of that basis: a word's id, a question's number, `<thread id>/<message id>`, for
     `PICK` `<thread id>/<item id>`, whose `words` are the one label that names the row and its
@@ -358,22 +364,6 @@ class Approval:
     is the sha256 of that fingerprint (`jbriefs.meaning`): the go holds for a brief that means
     the same. An older record, made before the fingerprint, has none of the three, and the
     row's `brief_sha` is the sha of the brief that the user approved."""
-
-    basis: str
-    ref: str
-    words: str
-    said_at: str
-    said_in: str
-    checked: bool
-    ran_by: dict[str, str]
-    ran_at: str
-    follows: str = ""
-    ground: str = ""
-    brief_sha: str = ""
-    scope: str = ""
-    meaning: list[Any] = field(default_factory=list)
-    message: str = ""
-    closed_by: str = ""
 
     def who(self) -> str:
         return who(self.ran_by)
@@ -408,10 +398,7 @@ class Approval:
 def record(row: Row) -> Approval | None:
     """Return the row's approval as a record, or None for a row with none or with a typed
     string."""
-    try:
-        return Approval(**row["approval"]) if row.get("approval") else None
-    except TypeError:
-        return None
+    return judgement.record(row, Approval)
 
 
 def approval(row: Row) -> str:
@@ -439,75 +426,16 @@ def ran_at(row: Row) -> str:
     return kept.ran_at if kept else ""
 
 
-def sha(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
-
-
-def body(text: str) -> str:
-    """Return the brief with no `Home:`, `Thread:`, `Green main:` or `Stacked on:` line in its
-    head, the lines above its first `## `. The first two name the threads that receive the brief,
-    and they are left out because a brief is the same brief under another home. A launch writes
-    the other two (`dispatch`). A launch sends this text, so every line that a launch sends is a
-    line that `brief_sha` covers."""
-    kept, head = [], True
-    for line in text.splitlines(keepends=True):
-        head = head and not line.startswith("## ")
-        if not (head and line.startswith(_SENT_TO)):
-            kept.append(line)
-    return "".join(kept)
-
-
-def brief_sha(text: str) -> str:
-    """Return the sha256 of the brief's `body`. jbus uses it to approve, show and launch the
-    brief."""
-    return sha(body(text))
-
-
-def fingerprint(text: str) -> meaning.Meaning:
-    """Return what the brief asks for, with its `Home:` and `Thread:` lines left out
-    (`jbriefs.meaning`)."""
-    return meaning.meaning(body(text))
-
-
-def approved_text(row: Row, text: str) -> bool:
-    """Return whether the row's go holds for the brief `text`.
-
-    A go recorded with a fingerprint holds for every brief that means the same (`meaning.same`),
-    whatever its wording. An older go holds only for the text the user approved: its row's
-    `brief_sha`. For a row approved before `brief_sha` left out the two lines, it is the sha256 of
-    the whole text, line for line.
-    """
-    bound = _bound(row)
-    if bound:
-        return meaning.same(bound, fingerprint(text))
-    return row.get("brief_sha") in (brief_sha(text), sha(text))
-
-
-def has_go(row: Row, text: str | None) -> bool:
-    """Return whether the row has a go that holds for its brief `text` as it stands: it is
-    approved, its brief is there, and the go holds for it (`approved_text`). An `add` that changes
-    a brief leaves `approved` set, so the flag alone is no go. jbus's launch and `jmerge` both ask
-    this."""
-    return bool(row.get("approved")) and text is not None and approved_text(row, text)
-
-
-def _bound(row: Row) -> meaning.Meaning:
-    """Return the fingerprint the row's go binds: its record's. Return nothing for a go bound only
-    to a sha."""
-    kept = record(row)
-    return kept.meaning if kept and kept.scope else []
-
-
 def changed(row: Row, text: str | None) -> list[str]:
     """Return the lines of the brief `text` that the row's go does not cover, as
     `meaning.changed` names them. A go bound only to a sha, and a brief that is gone, have no
     lines to name, and each says so in one line."""
     if text is None:
         return ["the stored brief is gone"]
-    bound = _bound(row)
-    if not bound:
+    kept = bound(row)
+    if not kept:
         return ["the go is bound to a sha of the whole brief, so no line can be named"]
-    return meaning.changed(bound, body(text))
+    return meaning.changed(kept, body(text))
 
 
 def verify(row: Row, text: str | None, path: str) -> dict[str, Any]:

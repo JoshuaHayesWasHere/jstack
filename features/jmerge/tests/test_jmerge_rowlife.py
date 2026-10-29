@@ -3,18 +3,21 @@ replayed against the real `jmerge` in the kitchen of `test_jmerge_accept_act` (a
 fake `gh`, a jbus config whose project is the kitchen's main checkout).
 
 A reason on the `hold` step is one `jmerge` prints as `hold`, so `jmerge --accept` takes it:
-`Review: none` and a repo whose auto-merge is off were printed as `wait`, and the accept refused
-them as not held. A held draft was never marked ready, so its accept waited on `draft` for good:
-the accept now lifts its hold and marks it ready, and it merges once its check passed.
+`Review: none` was printed as `wait`, and the accept refused it as not held. A held draft was
+never marked ready, so its accept waited on `draft` for good: the accept now lifts its hold and
+marks it ready, and it merges once its check passed.
 """
 
 import json
 
-from test_jmerge_accept_act import PROOF, accept, held, kitchen, last  # noqa: F401  (the fixture)
+import test_jmerge_accept_act as accept_act
+from test_jmerge_accept_act import PROOF, accept, held, last
 from test_jmerge_fresh import LINES, url
 
+kitchen = accept_act.kitchen
 
-def test_review_none_is_held_and_the_users_accept_merges_it(kitchen):  # noqa: F811
+
+def test_review_none_is_held_and_the_users_accept_merges_it(kitchen):
     held(kitchen, "gamma", 8, {"a.txt": "ours\n" + LINES}, mode="none")
     out = accept(kitchen, 8)
     assert kitchen.home.code == 0, (out, kitchen.home.stderr)
@@ -23,15 +26,11 @@ def test_review_none_is_held_and_the_users_accept_merges_it(kitchen):  # noqa: F
     assert last(kitchen) == ("accept", "home", "typed", "done")
 
 
-def test_a_repo_whose_auto_merge_is_off_holds_and_the_users_accept_merges(kitchen):  # noqa: F811
-    (kitchen.home.state / "merge-off").write_text("")
-    held(kitchen, "delta", 9, {"a.txt": "ours\n" + LINES})
-    out = accept(kitchen, 9)
-    assert kitchen.home.code == 0, (out, kitchen.home.stderr)
-    assert [call.split()[2] for call in kitchen.calls()] == ["9"]
-
-
-def test_an_accept_of_a_held_draft_lifts_its_hold_and_readies_it(kitchen):  # noqa: F811
+def test_an_accept_of_a_held_draft_lifts_its_hold_and_readies_it(kitchen):
+    gh = kitchen.home.stub / "gh"
+    gh.write_text(
+        gh.read_text().replace("    *) exit 64 ;;\n", '    "pr ready") ;;\n    *) exit 64 ;;\n')
+    )
     kitchen.crew("beta", 7, {"a.txt": "ours\n" + LINES})
     kitchen.pulls["beta"] |= {"changedFiles": 3, "isDraft": True}
     kitchen.brief("beta", kitchen.pulls["beta"]["headRefOid"])

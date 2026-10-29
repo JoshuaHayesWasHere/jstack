@@ -6,9 +6,12 @@ the open branch."""
 
 from datetime import timedelta
 
-from test_jbus_chains import head_of, kitchen, launch_of, queue_add  # noqa: F401  (the fixture)
+import test_jbus_chains as chains
+from test_jbus_chains import head_of, launch_of, queue_add
 from test_jbus_kitchen import NOW
 from test_jbus_queue import brief, go, rows
+
+kitchen = chains.kitchen
 
 
 def cleanup_of(slug):
@@ -29,7 +32,7 @@ def cleanup_of(slug):
     )
 
 
-def test_a_cleanup_row_filed_while_its_parent_is_open_launches_once_the_parent_merged(kitchen):  # noqa: F811
+def test_a_cleanup_row_filed_while_its_parent_is_open_launches_once_the_parent_merged(kitchen):
     kitchen.config(max_running=8)
     assert queue_add(kitchen, "one")[0] == 0
     assert go(kitchen, "one")[0] == 0

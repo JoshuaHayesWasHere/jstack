@@ -6,9 +6,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-import jbus
-from jbus import queue
-from jmerge import mainjson, ready
+import jsettings
+from jmerge import bus, judgement, mainjson, ready
+from jmerge.bus import Migrations as Migrations
+from jmerge.bus import Row
 from jmerge.checks import NOT_RED
 from jsettings import brief as brief_head
 from jsettings import store
@@ -16,26 +17,12 @@ from jsettings import store
 NO_PULL = "no pull request yet"
 
 
-@dataclass(frozen=True)
-class Migrations:
-    directory: str
-    numbered: bool
-
-
 def migrations(checkout: Path) -> Migrations | None:
-    try:
-        config = jbus.load()
-    except jbus.Refused:
-        return None
-    project = next(
-        (one for one in config.projects if one.checkout.resolve() == checkout.resolve()), None
-    )
-    if project is None or not project.migrations:
-        return None
-    return Migrations(project.migrations, project.migration_names == jbus.NUMBERED)
+    found = bus.quiet_place(checkout)
+    return None if found is None else found.migrations
 
 
-def merge_order(rows: list[queue.Row] | None, slugs: dict[int, str]) -> list[int]:
+def merge_order(rows: list[Row] | None, slugs: dict[int, str]) -> list[int]:
     table = {row["slug"]: row for row in rows or []}
 
     def before(slug: str) -> set[str]:
@@ -59,47 +46,30 @@ def merge_order(rows: list[queue.Row] | None, slugs: dict[int, str]) -> list[int
     return placed
 
 
-def project(checkout: Path) -> tuple[jbus.Config, jbus.Project] | None:
-    """jbus's config and its project of this checkout, or None where jbus has no config file or
-    no project of it. Raise `jbus.Refused` where the config file is there and does not load, so a
-    caller fails closed."""
-    try:
-        config = jbus.load()
-    except jbus.Refused:
-        if (jbus.config_dir() / "config.toml").exists():
-            raise
-        return None
-    found = next(
-        (one for one in config.projects if one.checkout.resolve() == checkout.resolve()), None
-    )
-    return None if found is None else (config, found)
-
-
 def _state(checkout: Path) -> Path | None | bool:
     try:
-        found = project(checkout)
-    except jbus.Refused:
+        found = bus.place(checkout)
+    except jsettings.Refused:
         return False
-    return None if found is None else found[0].state(found[1])
+    return None if found is None else found.state
 
 
-def read(checkout: Path) -> list[queue.Row] | None:
+def read(checkout: Path) -> list[Row] | None:
     state = _state(checkout)
     if state is False:
         return None
     if state is None:
         return []
-    try:
-        return queue.load(state)
-    except (queue.Unparsable, OSError):
-        return None
+    found = bus.found()
+    return None if found is None else found.rows(state)
 
 
 def stored(checkout: Path, slug: str) -> str | None:
     """The brief of `slug` as jbus stores it for the project of `checkout`, the text its go is
-    judged against (`queue.has_go`), or nothing."""
+    judged against (`judgement.has_go`), or nothing."""
     state = _state(checkout)
-    return queue.brief(state, slug) if isinstance(state, Path) else None
+    found = bus.found()
+    return found.stored(state, slug) if isinstance(state, Path) and found else None
 
 
 def main(checkout: Path) -> mainjson.Main:
@@ -229,18 +199,18 @@ def base_red(base: str, runs: list[dict], slug: str, text: str = "") -> str:
     return ready.BASE_RED.format(base=base, sha=sha)
 
 
-def ordered(rows: list[queue.Row] | None) -> set[str]:
+def ordered(rows: list[Row] | None) -> set[str]:
     """The slugs of the rows that are not over and name a row they merge after: the only rows
     whose commits, carried by another pull request, can hold that one back."""
     return {
         row["slug"]
         for row in rows or []
-        if row.get("status") not in queue.FINAL and row.get("merge_after")
+        if row.get("status") not in judgement.FINAL and row.get("merge_after")
     }
 
 
 def short(
-    rows: list[queue.Row] | None,
+    rows: list[Row] | None,
     slug: str,
     carries: Sequence[tuple[str, int, bool]] = (),
     *,
@@ -248,31 +218,31 @@ def short(
 ) -> str:
     """Why the pull request of `slug` waits on the queue, or nothing. `brief` is the row's brief
     as jbus stores it (`stored`): a row waits on the user's go unless its go holds for that brief,
-    as jbus's launch asks (`queue.has_go`). `carries` holds the open pull requests that a merge of
-    this one may land, each as its slug, its number and whether its head could be read: one whose
+    as jbus's launch asks (`judgement.has_go`). `carries` holds the open pull requests that a merge
+    of this one may land, each as its slug, its number and whether its head could be read: one whose
     commits this head contains and its base does not. This one waits on their rows' `merge_after`
     as on its own, and on one it could not read."""
     if rows is None:
         return ready.QUEUE_UNREADABLE
     table = {row["slug"]: row for row in rows}
     row = table.get(slug, {})
-    if row.get("status") in queue.FINAL:
+    if row.get("status") in judgement.FINAL:
         return ""
     if row.get("held"):
         return ready.ROW_HELD
-    if row and not queue.has_go(row, brief):
+    if row and not judgement.has_go(row, brief):
         return ready.NO_GO
     for other in row.get("merge_after", []):
         ahead = table.get(other)
-        if ahead is not None and ahead.get("status") not in queue.FINAL:
+        if ahead is not None and ahead.get("status") not in judgement.FINAL:
             return ready.MERGES_AFTER.format(slug=other, open=ahead.get("pr") or NO_PULL)
     for carried, number, read in carries:
         under = table.get(carried, {})
-        if under.get("status") in queue.FINAL:
+        if under.get("status") in judgement.FINAL:
             continue
         for other in under.get("merge_after", []):
             ahead = table.get(other)
-            if other == slug or ahead is None or ahead.get("status") in queue.FINAL:
+            if other == slug or ahead is None or ahead.get("status") in judgement.FINAL:
                 continue
             if not read:
                 return ready.CARRIES_UNKNOWN.format(carried=carried, number=number)
@@ -388,10 +358,10 @@ BROWSER_SEEN = "browser-runs.json"
 slug of the fix row it filed for it, or to nothing (`jbus.watch.BROWSER.seen`)."""
 
 
-def browser_fixing(checkout: Path, rows: list[queue.Row] | None) -> set[str]:
+def browser_fixing(checkout: Path, rows: list[Row] | None) -> set[str]:
     """The ids of main's red browser runs whose fix is open: the row jbus filed for the run
     (`BROWSER_SEEN`) is in `rows`, the queue, and is not over."""
     state = _state(checkout)
     seen = store.read_dict(state / BROWSER_SEEN) if isinstance(state, Path) else {}
-    fixing = {row["slug"] for row in rows or [] if row.get("status") not in queue.FINAL}
+    fixing = {row["slug"] for row in rows or [] if row.get("status") not in judgement.FINAL}
     return {str(run) for run, slug in seen.items() if slug and slug in fixing}

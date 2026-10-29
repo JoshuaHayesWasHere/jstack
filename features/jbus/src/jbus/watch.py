@@ -38,7 +38,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import jsettings
-from jbriefs import below
+from jbriefs import below, findings
 from jbriefs.home import home_of, thread_of
 from jbus import Refused, budget, queue, read_json, shots, t3, verbs, work, write_json
 from jbus.judged import Said, parse, step
@@ -132,8 +132,11 @@ class World:
         one row it still waits on, once that row's pull request is open. A stack sits on one
         branch, so a row that waits on two or more rows launches on none, and nor does a row
         whose `brief` goes on another branch than that row's (`against`): a row for an
-        integration branch that builds on a row for main waits for it to merge."""
+        integration branch that builds on a row for main waits for it to merge. Nor does a cleanup
+        row (`Review: cleanup`): its brief says it launches once the row it cleans up merged."""
         if len(unmet) != 1 or unmet[0] not in self.open:
+            return None
+        if findings.mode_of(brief) == findings.CLEANUP:
             return None
         if against(queue.brief(run.state, unmet[0]) or "") != against(brief):
             return None
