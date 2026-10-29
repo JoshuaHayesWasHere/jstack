@@ -734,24 +734,35 @@ def left(said: Triage) -> str:
         ]
         return line + (": " + ", ".join(named) if named else "")
     last = _last_round(said)
-    recent = [one for one in sent if one.lead.section in last]
     if not owes(said, last) and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
         return (
             "write nothing: the last review sends this thread no finding, since only an error "
             "of a later review comes here, and the Fixed: line stays as it is"
         )
-    earlier = len(sent) - len(recent)
-    fixed = any(one.answer and one.answer.fixed for one in sent)
-    if earlier and recent and not any(one.answer and one.answer.fixed for one in recent):
-        return (
-            f"write Fixed: none needed, <reason>: {len(recent)} findings of the last review, "
-            "none fixed"
-        )
-    if fixed:
-        return f"write Fixed: <the head you pushed>, {len(sent)} findings each have their ending"
-    if sent:
-        return f"write Fixed: none needed, <reason>: {len(sent)} findings, none fixed"
-    return "write Fixed: none needed, <reason>: the review has no findings"
+    pushed, why = fixed_shape(said) or (False, "")
+    return f"write Fixed: {'<the head you pushed>, ' if pushed else 'none needed, <reason>: '}{why}"
+
+
+def fixed_shape(said: Triage) -> tuple[bool, str] | None:
+    """The `Fixed:` line `left` asks for once every finding has its ending, or None: whether it
+    names the head pushed for a fix, which is where a finding is fixed (of the last review, once
+    there are more), and why."""
+    sent = said.sent()
+    last = _last_round(said) if said.sections else set()
+    if not last or said.roster.owed(said.sections) or any(not one.ended for one in sent):
+        return None
+    if not owes(said, last) and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
+        return None
+    recent = [one for one in sent if one.lead.section in last]
+    if (
+        len(sent) > len(recent)
+        and recent
+        and not any(one.answer and one.answer.fixed for one in recent)
+    ):
+        return False, f"{len(recent)} findings of the last review, none fixed"
+    if any(one.answer and one.answer.fixed for one in sent):
+        return True, f"{len(sent)} findings each have their ending"
+    return False, f"{len(sent)} findings, none fixed" if sent else "the review has no findings"
 
 
 def owes(said: Triage, last: set[int]) -> bool:

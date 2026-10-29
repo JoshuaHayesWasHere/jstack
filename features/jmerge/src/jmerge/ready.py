@@ -17,7 +17,6 @@ from jsettings import Settings
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _CHECKED = re.compile(r"Checked: .+ exit (\d+) at ([0-9a-f]{40})")
-_NONE_NEEDED = "none needed, <reason>: "
 _RANKS = {"clean": 0, "findings": 1}
 _ACK = re.compile(
     r"Dropped on rebase: (.+?), (\d+) of main's, (\d+) of its own, at ([0-9a-f]{12}): (.+)"
@@ -796,7 +795,8 @@ class Unwritten:
 def unwritten_fixed(text: str, head: str) -> Unwritten | None:
     """The `Fixed:` line the brief has not got at `head`, or None. It is read where the last
     round's verdict owes the crew one (`_owes`), the brief has no `Fixed:` line that names a
-    full commit or the word none, `jbriefs --findings --left` says `write Fixed:`, a `Checked:`
+    full commit or the word none, `jbriefs --findings --left` says `write Fixed:` (its shape is
+    `findings.fixed_shape`), a `Checked:`
     line says the check command exited 0 at `head`, and, in `review` mode, a `Second pass:` or
     `Scoped review:` line says whether the fix is owed a review."""
     said = said_of(text)
@@ -804,12 +804,12 @@ def unwritten_fixed(text: str, head: str) -> Unwritten | None:
         return None
     if said.checked.get(head) != "0" or (said.mode == REVIEW and not said.decided):
         return None
-    left = findings.left(said.triage)
-    if not left.startswith("write Fixed: "):
+    shape = findings.fixed_shape(said.triage)
+    if shape is None:
         return None
-    shape = left.removeprefix("write Fixed: ")
-    if shape.startswith(_NONE_NEEDED):
-        return Unwritten(said.reviewed, shape.removeprefix(_NONE_NEEDED))
+    pushed, why = shape
+    if not pushed:
+        return Unwritten(said.reviewed, why)
     return Unwritten(said.reviewed) if _COMMIT.fullmatch(said.reviewed) else None
 
 
