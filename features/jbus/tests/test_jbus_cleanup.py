@@ -168,7 +168,7 @@ def assert_open(stored):
         ("after", "clean", cleanup.CLEAN),
         ("after", "not run", cleanup.UNREVIEWED),
         ("review", "findings", cleanup.FIRST),
-        ("none", "findings", cleanup.NOT_AFTER),
+        ("none", "findings", cleanup.NO_REVIEW),
     ],
 )
 def test_a_clean_review_or_another_mode_makes_no_row(reviewer, mode, verdict, said):

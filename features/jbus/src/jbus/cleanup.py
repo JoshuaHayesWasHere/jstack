@@ -46,7 +46,7 @@ from jbus import mirror, queue, verbs, watch
 from jmerge import ready
 
 PRIORITY = 50
-NOT_AFTER = "no cleanup row: the brief says Review: none"
+NO_REVIEW = "no cleanup row: the brief says Review: none"
 OWN = "no cleanup row: {slug} is a cleanup row, and a cleanup row files none of its own"
 FIRST = "first review: a brief's first review goes to its crewmate, as step 4 named"
 NO_WARNING = "no cleanup row: its second review has no {kept} finding, {info} info dropped"
@@ -189,7 +189,7 @@ def _run(args: argparse.Namespace, config: jbus.Config) -> int:
     slug = path.stem
     said = ready.said_of(text)
     if said.mode == ready.NONE:
-        print(NOT_AFTER)
+        print(NO_REVIEW)
         return 1
     if said.mode == findings.CLEANUP or slug.startswith(slug_of("")):
         print(OWN.format(slug=slug))
