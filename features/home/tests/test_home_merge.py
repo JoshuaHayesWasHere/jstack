@@ -741,7 +741,6 @@ def test_a_head_no_line_names_is_compared_with_the_commit_its_review_covers(case
     head = listed["head"]
     covered = PUSHED if f"Fixed: {PUSHED}" in text else REVIEWED
     assert ready.short_of(text, head) == ""
-    assert ready.rebase_of(text, head) is None
     assert ready.to_range_diff(text, head) == covered
 
 

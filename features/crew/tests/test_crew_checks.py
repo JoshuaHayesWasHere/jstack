@@ -159,10 +159,12 @@ def test_a_crewmate_links_its_pull_request_and_arms_no_watch():
     assert "watch_pull_request" not in tools.SCHEMAS
 
 
-def test_the_ci_fix_line_the_skill_asks_for_is_one_jmerge_reads():
-    (line,) = set(re.findall(r"`(CI fix: <[^`]+)`", as_read(SKILL)))
+def test_a_push_for_a_failed_check_needs_no_line_for_jmerge_to_compare_it():
+    """The skill asks for no `CI fix:` line: with none, `jmerge` compares the pushed head with
+    the head the review saw, and an older brief's line changes nothing."""
+    assert "CI fix:" not in as_read(SKILL)
     head, reviewed = "b" * 40, "a" * 40
-    filled = re.sub(r"<[^>]+>", "{}", line).format(head, reviewed)
-    brief = merge.brief(merge.review("clean", reviewed), filled + "\n")
-    assert ready.short_of(brief, head) == ""
-    assert ready.to_range_diff(brief, head) == reviewed
+    for line in ("", f"CI fix: {head}, after the review of {reviewed}\n"):
+        brief = merge.brief(merge.review("clean", reviewed), line)
+        assert ready.short_of(brief, head) == ""
+        assert ready.to_range_diff(brief, head) == reviewed

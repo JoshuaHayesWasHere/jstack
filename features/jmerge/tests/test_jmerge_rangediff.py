@@ -672,7 +672,7 @@ def test_a_fixed_line_that_names_a_push_on_the_reviewed_head_is_ready_as_it_was(
     assert run.jmerge(proven_merged, rules, "--check") == [f"ready 7 {pushed} alpha alpha"]
 
 
-def test_the_dropped_lines_are_counted_under_a_ci_fix_line_too(proven_merged, rules):
+def test_the_dropped_lines_are_counted_under_an_older_ci_fix_line_too(proven_merged, rules):
     rebased = Rebased(proven_merged, {11: "theirs 11"}, {11: "the task 11"})
     line = f"CI fix: {rebased.head}, after the review of {rebased.before}\n"
     rebased.brief(merge.review("clean", rebased.before), line)
@@ -778,8 +778,7 @@ def test_a_ci_fix_that_takes_out_a_line_of_its_own_with_no_rebase_drops_nothing(
     pushed = commit(tree, "the check wanted line 20 back", {20: "line 20"})
     merge.git(tree, "push", "-q", "origin", "alpha")
     proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE])
-    line = f"CI fix: {pushed}, after the review of {rebased.head}\n"
-    rebased.brief(merge.review("clean", rebased.head), line)
+    rebased.brief(merge.review("clean", rebased.head))
     (said,) = run.jmerge(proven_merged, rules)
     assert "dropped" not in said
     assert said == (
@@ -798,7 +797,6 @@ def test_a_rebase_line_of_an_older_brief_is_read_as_no_line():
     result = FIXED.format(FIRST)
     for told in ("", TOLD):
         text = merge.brief(merge.review("findings", REVIEWED), told + result)
-        assert ready.rebase_of(text, FIRST) is None
         assert ready.to_range_diff(text, HEAD) == FIRST
 
 
@@ -827,16 +825,10 @@ def test_findings_written_after_the_fixed_line_keep_a_head_that_moved_on_from_a_
 
 class CiFix:
     """The ready pull request of `test_home_merge`, on a file of thirty lines. A review found it
-    clean at one head. Then its crewmate pushed to it again for a failed check, and wrote the
-    line that the crew writes about such a push."""
+    clean at one head. Then its crewmate pushed to it again for a failed check, and wrote no
+    line about the push, or the `CI fix:` line that an older brief may have."""
 
-    def __init__(
-        self,
-        proven_merged,
-        edits,
-        files=(FILE,),
-        line="CI fix: {head}, after the review of {before}",
-    ):
+    def __init__(self, proven_merged, edits, files=(FILE,), line=""):
         self.proven_merged = proven_merged
         main, tree = proven_merged.home.main, proven_merged.tree
         commit(main, "the file", {})
@@ -891,10 +883,7 @@ def test_a_ci_fix_that_changed_the_content_waits_for_one_scoped_review(proven_me
     old, new = fix.ranges().split()
     assert (number, ask.kind, ask.head) == (7, "rereview", fix.head)
     assert f"`/pr-review run {{slug}} scoped {old} {new}`" in ask.message
-    fix.brief(
-        merge.review("clean", fix.before) + run.proven("clean", fix.head),
-        "CI fix: {head}, after the review of {before}",
-    )
+    fix.brief(merge.review("clean", fix.before) + run.proven("clean", fix.head), "")
     assert run.jmerge(proven_merged, rules, "--check") == [f"ready 7 {fix.head} alpha alpha"]
 
 
@@ -902,6 +891,9 @@ def test_a_ci_fix_that_changed_the_content_waits_for_one_scoped_review(proven_me
     "line",
     [
         pytest.param("", id="no line"),
+        pytest.param(
+            "CI fix: {head}, after the review of {before}", id="an older brief's line for it"
+        ),
         pytest.param(
             "CI fix: {before}, after the review of {before}", id="a line of an earlier push"
         ),
@@ -912,16 +904,17 @@ def test_a_ci_fix_that_changed_the_content_waits_for_one_scoped_review(proven_me
         "CI fix: {head}",
     ],
 )
-def test_a_push_no_review_saw_and_no_line_names_waits_for_a_scoped_review(
+def test_a_push_no_review_saw_waits_for_a_scoped_review_whatever_line_it_has(
     proven_merged, rules, line
 ):
-    """The push is not a rebase, because the head adds a commit to the ones the review saw."""
+    """The push is not a rebase, because the head adds a commit to the ones the review saw. A
+    `CI fix:` line is read as no line."""
     fix = CiFix(proven_merged, {15: "what the check asked for"}, line=line)
     assert run.jmerge(proven_merged, rules) == [fix.waits()]
     assert run.merges(proven_merged) == []
 
 
-def test_a_ci_fix_line_changes_nothing_of_a_fix_the_fixed_line_names(proven_merged, rules):
+def test_an_older_ci_fix_line_changes_nothing_of_a_fix_the_fixed_line_names(proven_merged, rules):
     fix = CiFix(proven_merged, {15: "what the check asked for"})
     ended = f"Finding: fixed, it is wrong\nFixed: {fix.head}\n"
     fix.brief(
@@ -936,11 +929,9 @@ def test_a_ci_fix_after_a_rebase_is_compared_with_the_head_the_review_saw(proven
     pushed = commit(tree, "what the check asked for", {15: "what the check asked for"})
     merge.git(tree, "push", "-q", "origin", "alpha")
     proven_merged.home.open_pull_request(pushed, checks=(LATER,), files=[FILE])
-    line = f"CI fix: {pushed}, after the review of {rebased.before}\n"
-    rebased.brief(merge.review("clean", rebased.before), line)
+    rebased.brief(merge.review("clean", rebased.before))
     assert run.jmerge(proven_merged, rules) == [rebased.waits().replace(rebased.head, pushed)]
-    line = f"CI fix: {pushed}, after the review of {rebased.head}\n"
-    rebased.brief(merge.review("clean", rebased.head), line)
+    rebased.brief(merge.review("clean", rebased.head))
     assert run.jmerge(proven_merged, rules) == [
         f"wait 7 {merge.URL}: the rebase changed the content after its review; scoped review "
         f"of git range-diff --no-color {rebased.tip}..{rebased.head} {rebased.tip}..{pushed}"

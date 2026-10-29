@@ -760,8 +760,9 @@ class Repo:
     def proven_at(self, one: ready.PullRequest, text: str) -> str:
         """The head whose review proved the safety fact that holds at `one`'s head: that head's
         own, else the last review's where the range-diff from its head to this one is clean, as
-        over a rebase, a `CI fix:` push or a merge of the base. A fix for the findings changes
-        the content, so no proof carries over it. The rule is the same in every review mode."""
+        over a rebase, a push for a failed check or a merge of the base. A fix for the findings
+        changes the content, so no proof carries over it. The rule is the same in every review
+        mode."""
         last = ready.said_of(text).reviewed
         if proof.fact(text, one.head) or not last or proof.fact(text, last) is None:
             return one.head
@@ -803,14 +804,14 @@ class Repo:
         short = ready.held(one, default, ready.stack_of(text), self.land, self.integration, stacked)
         short = short or self.on_stack(one, default, stacked)
         short = short or ready.short_of(text, one.head)
-        rebase = ready.rebase_of(text, one.head)
+        rebase: ready.Rebase | None = None
         covered = ready.to_range_diff(text, one.head)
         lost: tuple[ready.Drop, ...] = ()
-        if not short and (covered or rebase is not None):
+        if not short and covered:
             if _run(self.main, "git", "fetch", "-q", "origin").returncode:
                 short = f"{one.base} could not be fetched to see what its rebase kept"
-            elif covered:
-                rebase = self.rebase_since_review(one.base, covered, one.head) or rebase
+            else:
+                rebase = self.rebase_since_review(one.base, covered, one.head)
             found = () if short or rebase is None else self.dropped(one.base, rebase, one.head)
             if isinstance(found, ready.NoPatch):
                 short = ready.cannot_check(found.commit)

@@ -445,7 +445,8 @@ When the review does not uphold a drop, the line is `hold <number> <url>: needs 
 When a review of that head does not rule on a file's drops, the line is `hold <number> <url>: needs <user>, the review of <head12> did not rule on the drops in <files>`.
 
 `jmerge` treats the same way a push, made after the review, that fixes a failed check.
-The crewmate adds `CI fix: <new head>, after the review of <reviewed head>` to its Result, and `jmerge` compares the two heads by `git range-diff`.
+The crewmate writes no line about it: `jmerge` compares the head the review covers with the pushed head by `git range-diff`.
+A `CI fix:` line that a brief from before this rule still has is read as no line.
 
 ## Protected paths
 
@@ -507,7 +508,7 @@ It refuses a pull request that is not held, one whose head is not the head on re
 At the commit it saw, the review proved the one fact that makes the change safe.
 That proof is the `Proof:` line of the `## Review` section, a command that ended `exit 0`.
 The last review's proof carries over to a later head whose range-diff from the review's head is clean, in every review mode.
-That head can be a rebase, a `CI fix:` push, or a merge of the base into the branch, such as the one `jmerge` asks GitHub for when the base moved after the check started.
+That head can be a rebase, a push for a failed check, or a merge of the base into the branch, such as the one `jmerge` asks GitHub for when the base moved after the check started.
 It does not carry over a fix pushed for the review's findings, nor a merge of the base that changes the patch, since the range-diff of either is not clean.
 Otherwise the reason is `no proven safety fact at <commit12> (blast-radius, review step 5)`.
 

@@ -23,7 +23,6 @@ _ACK = re.compile(
 _UPHELD = "Drops: upheld "
 _NOT_UPHELD = "Drops: not upheld "
 
-_CI_FIX = re.compile(r"CI fix: ([0-9a-f]{40}), after the review of ([0-9a-f]{40})")
 _MIGRATION = re.compile(r"(\d+)_")
 _VALUE = ".+"
 
@@ -573,8 +572,6 @@ class Said:
     ran: int = 0
     reviewed: str = ""
     fixed: str = ""
-    pushed: str = ""
-    saw: str = ""
     wider: bool = False
     since: str = ""
     owed: bool = False
@@ -617,9 +614,6 @@ def said_of(text: str) -> Said:
             said.scoped = said.scoped or fields[2:3] == ["needed"]
             said.asked = fields[4].rstrip(",") if said.owed and len(fields) > 4 else ""
             said.asked_at = at
-        if line.startswith("CI fix:"):
-            named = _CI_FIX.fullmatch(line.strip())
-            said.pushed, said.saw = (named[1], named[2]) if named else ("", "")
     _round(said)
     said.owes = _owes(said)
     return said
@@ -745,12 +739,6 @@ def _round(said: Said) -> None:
         said.verdict = ""
 
 
-def _ci_fix(said: Said) -> tuple[str, str]:
-    if said.pushed and said.saw == said.reviewed and not _COMMIT.fullmatch(said.fixed):
-        return said.pushed, said.saw
-    return "", ""
-
-
 def short_of(text: str, head: str) -> str:
     said = said_of(text)
     verdict, reviewed, fixed = said.verdict, said.reviewed, said.fixed
@@ -829,7 +817,7 @@ def _named(said: Said, head: str) -> bool:
         return head in (said.reviewed, said.fixed)
     if _COMMIT.fullmatch(said.fixed):
         return head == said.fixed
-    return head in (said.reviewed, _ci_fix(said)[0])
+    return head == said.reviewed
 
 
 def _covered(said: Said) -> str:
@@ -852,21 +840,12 @@ def under_fix(text: str, head: str) -> str:
 class Rebase:
     """A move of the patch from the head `before` to the head `head`, and the files either
     patch changes. `jmerge` works each one out from git (`cli.Repo.rebase_since_review`): a
-    crew writes nothing about its rebase, and a `Rebase:` line in a brief is read as no line.
-    The one a brief names is a `CI fix:` push after the review, whose files git gives too."""
+    crew writes nothing about its rebase or about a push for a failed check, and a `Rebase:` or
+    `CI fix:` line in a brief is read as no line."""
 
     files: tuple[str, ...]
     before: str
     head: str
-
-
-def _told(text: str) -> Rebase | None:
-    pushed, saw = _ci_fix(said_of(text))
-    return Rebase((), saw, pushed) if pushed else None
-
-
-def rebase_of(text: str, head: str) -> Rebase | None:
-    return _told(text) if _named(said_of(text), head) else None
 
 
 def cannot_check(commit: str) -> str:
@@ -925,10 +904,10 @@ def answered(text: str, head: str) -> tuple[Drop, ...]:
 
 def _rulings(text: str, head: str) -> tuple[set[str], dict[str, str]] | None:
     """The drops ruled on by a review of `head`, or of the head a push after the review left:
-    the reviewed head where the `Fixed:` line names `head`, or the one a `CI fix:` line names.
-    None where no such review is written."""
+    the reviewed head where the `Fixed:` line names `head`. None where no such review is
+    written."""
     told = said_of(text)
-    heads = {head, told.reviewed if told.fixed == head else _ci_fix(told)[0]} - {""}
+    heads = {head, told.reviewed if told.fixed == head else ""} - {""}
     found = None
     review = covers = False
     ruled: dict[str, str | None] = {}
@@ -988,14 +967,12 @@ def drops(
 
 def to_range_diff(text: str, head: str) -> str | None:
     """The commit the review covers, which `jmerge` compares `head` with, or None where the
-    review is of `head` itself. That commit is the reviewed head for a `CI fix:` push, and
-    otherwise the `Fixed:` commit or the head the last review saw (`_covered`). An empty string
-    is a review that names no commit to compare with."""
+    review is of `head` itself. That commit is the `Fixed:` commit or the head the last review
+    saw (`_covered`), also for a push for a failed check that no line names. An empty string is
+    a review that names no commit to compare with."""
     said = said_of(text)
     if said.mode in (AFTER, TWICE, CLEANUP):
         return None
-    if _ci_fix(said)[0] == head:
-        return said.reviewed
     if _named(said, head) or head == said.reviewed:
         return None
     covered = _covered(said)
