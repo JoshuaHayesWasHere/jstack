@@ -10,7 +10,7 @@ import pytest
 
 import jbus
 import jsettings
-from jbus import digest, leftover
+from jbus import digest, leftover, watch
 from jbus.view import state
 from test_jbus_kitchen import NOW
 from test_jbus_queue import add, brief, rows
@@ -327,6 +327,35 @@ def test_a_pull_request_is_its_briefs_whatever_its_branch_is_called(kitchen):
     kitchen.poll()
     assert column(kitchen) == ("merged", "#9", "")
     assert kitchen.lines("merged") == [f"merged alpha #9 {'a' * 12}"]
+
+
+def test_a_pull_request_opened_while_a_pass_runs_is_waited_on_and_never_left(kitchen, monkeypatch):
+    """merge-step-alias, 2026-10-29: the pass of 09:03:53 listed the open pull requests before
+    #712 opened at 09:04:11, and its crew wrote the Result naming #712 before the pass read the
+    brief. The row was `left`, "pull request #712 is not open and not merged", and on the list,
+    until the next pass listed #712. The crew had ended its turn on its review and its checks,
+    which jbus wakes it for, so its row stays running until the pass lists the pull request."""
+    add(kitchen, "alpha")
+    thread = kitchen.t3.thread("alpha", "running")
+    kitchen.brief("alpha")
+    listing = watch.pulls
+
+    def opens(run, state, *more):
+        pulls = listing(run, state, *more)
+        if state == "open" and thread["status"] == "running":
+            kitchen.set("open.json", [kitchen.opened("alpha", 9)])
+            kitchen.brief("alpha", result(pull=PULL))
+            thread["status"] = "completed"
+        return pulls
+
+    monkeypatch.setattr(watch, "pulls", opens)
+    kitchen.poll()
+    assert column(kitchen) == ("running", "", "")
+    kitchen.poll(NOW + timedelta(minutes=1))
+    assert column(kitchen)[0] == "pr" and column(kitchen)[1] == "#9"
+    assert listed(kitchen) == [] and kitchen.lines("stale") == []
+    moves = (kitchen.state / "transitions.jsonl").read_text().splitlines()
+    assert "left" not in {json.loads(m)["to"] for m in moves}
 
 
 def test_a_pull_request_of_another_repository_with_the_same_number_claims_nothing(kitchen):

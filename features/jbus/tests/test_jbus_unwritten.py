@@ -129,16 +129,34 @@ def test_a_row_with_no_home_to_tell_waits_on_the_user_and_is_not_stale(kitchen):
     assert leftover.NO_HOME in line
 
 
-def test_a_thread_that_waits_on_a_test_slot_is_not_left_however_long_it_is_quiet(kitchen, slots):
+def test_a_thread_that_waits_on_a_test_slot_stays_running_however_long_it_is_quiet(kitchen, slots):
+    """The crew's turn ended on a wait jbus owns, and jbus wakes it when a slot is free
+    (`slotwait`). Its row is running, with no `stale` line, no leftover for its home, and no
+    carry-on for the thread."""
     slots.hold("full")
     thread = lost(kitchen, quiet=40)
     command = ["make", "check"]
     waiters.register(slot.locks_dir(), thread["threadId"], "full", 2, command, NOW - 40 * MIN)
+    kitchen.brief("alpha", f"Thread: {thread['threadId']}\n")
     at = home(kitchen)["threadId"]
     for minutes in (0, 60, 180):
         kitchen.poll(NOW + minutes * MIN)
-        assert column(kitchen)[0] == "stale"
-    assert told(kitchen, at) == []
+        assert column(kitchen)[0] == "running"
+    assert told(kitchen, at) == [] and told(kitchen, thread["threadId"]) == []
+    assert kitchen.lines("stale") == [] and listed(kitchen) == []
+    assert "alpha" not in leftover.read(kitchen.state)
+
+
+def test_a_thread_that_ended_on_no_wait_of_jbuss_is_still_stale_then_left(kitchen):
+    """The same quiet thread with no slot wait ended its turn on nothing jbus wakes it for."""
+    thread = lost(kitchen, quiet=3)
+    at = home(kitchen)["threadId"]
+    kitchen.poll(NOW)
+    assert column(kitchen)[0] == "stale"
+    assert kitchen.lines("stale") == ["stale alpha: thread completed with no Result"]
+    thread["updatedAt"] = iso(NOW - 3 * MIN)
+    kitchen.poll(NOW + 20 * MIN)
+    assert column(kitchen)[0] == "left" and len(told(kitchen, at)) == 1
 
 
 def gone_pid():
@@ -161,7 +179,7 @@ def test_a_thread_whose_own_run_holds_a_slot_is_not_left_and_is_woken_once_it_en
     at = home(kitchen)["threadId"]
     for minutes in (0, watch.UNWRITTEN_MINUTES + 2, 60, 180):
         kitchen.poll(NOW + minutes * MIN)
-        assert column(kitchen)[0] == "stale"
+        assert column(kitchen)[0] == "running"
     assert told(kitchen, at) == [] and told(kitchen, thread["threadId"]) == []
     holders.end(slot.locks_dir(), run.id, 1, NOW + 181 * MIN)
     for minutes in (182, 183):
@@ -184,7 +202,7 @@ def test_a_run_that_ended_and_whose_wake_did_not_go_still_spares_its_thread(kitc
     at = home(kitchen)["threadId"]
     kitchen.t3.lose_send = True
     kitchen.poll(NOW)
-    assert column(kitchen)[0] == "stale" and told(kitchen, at) == []
+    assert column(kitchen)[0] == "running" and told(kitchen, at) == []
     assert [one.id for one in holders.read(locks)] == [run.id]
 
 
@@ -204,7 +222,7 @@ def test_a_waiter_still_silent_after_its_wake_is_left(kitchen, slots):
     waiters.register(slot.locks_dir(), thread["threadId"], "full", 2, ["make", "check"], NOW)
     at = home(kitchen)["threadId"]
     kitchen.poll(NOW)
-    assert column(kitchen)[0] == "stale"
+    assert column(kitchen)[0] == "running"
     slots.free("full")
     kitchen.poll(NOW + MIN)
     (woken,) = waiters.read(slot.locks_dir())
