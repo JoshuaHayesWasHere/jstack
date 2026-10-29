@@ -60,6 +60,8 @@ It waits for one of the machine-wide test slots, runs the command, and exits wit
 For a short targeted run, use the short lane, `jgauge test-slot --short -- <command>`.
 A short run never waits for a slot that a whole suite holds.
 The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a TLC model check it starts takes no second slot.
+It runs with `TMPDIR` set to the slot's own temporary directory, `/tmp/jgauge-<uid>/<hash of the lock directory>/test-slot.<n>` (or `test-slot-short.<n>`), which is emptied before the command starts and removed once it ends.
+That directory is under `/tmp` (`TMPFS`) and not beside the lock file, since a `TMPDIR` with a hidden directory in it, such as `~/.local`, makes asar unpack no native binaries.
 Once it lets the slot go, it sweeps `/tmp` (`TMPFS`) as `jgauge room` does when `/tmp` is full, whatever share of its file slots is used: each `pytest-of-<user>/pytest-<n>` run of yours over 20 minutes old that no live process holds is removed, and stderr says `test-slot: removed <n> stale pytest directories under /tmp`.
 A run outside any slot, or one that was killed, leaves its basetemp there, and pytest's own retention keeps a killed run's for days.
 
