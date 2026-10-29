@@ -316,6 +316,7 @@ def test_the_template_has_a_design_line_that_jbus_launches_only_once_it_is_fille
     for said in ("Design: scouts/alpha-design.md", "Design: none, a one-line fix"):
         assert parse.designed(text.replace(line, said)) == ""
         assert parse.designed(text.replace(line, "Design: TBD") + RESULT + said) != ""
+    assert parse.designed(text.replace(line + "\n", "") + RESULT + "Design: TBD") == ""
 
 
 CLEAN = (
