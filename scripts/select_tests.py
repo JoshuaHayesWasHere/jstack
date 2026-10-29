@@ -958,8 +958,9 @@ def summary(tests, why, changed):
 
 def unmapped(changed):
     """The changed `.py` files of this tree that are in no module set, so that no import of one
-    selects a test, sorted."""
-    known = set(modules().values())
+    selects a test, sorted. A path every test rests on, as the root `conftest.py`, selects
+    them all."""
+    known = set(modules().values()) | set(EVERYTHING)
     return sorted(
         one
         for one in changed
