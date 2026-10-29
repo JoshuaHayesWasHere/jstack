@@ -43,7 +43,7 @@ from jbus.queue import Row
 from jbus.watch import NEVER, World, checks
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 Say = Callable[[str], None]
 

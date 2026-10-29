@@ -47,7 +47,7 @@ from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import ENDED, STARTING, World, after_merge, unfinished, when
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 EVENTS = {"resume": "quiet"}
 RUNS = 20

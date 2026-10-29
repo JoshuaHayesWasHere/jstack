@@ -55,7 +55,6 @@ import contextlib
 import hashlib
 import json
 import os
-import pkgutil
 import shutil
 import subprocess
 import urllib.error
@@ -68,7 +67,7 @@ from typing import Any
 
 import jbus
 import jsettings
-from jbus import LEVELS, Loud, Project, locked, read_json, refusal, write_json
+from jbus import LEVELS, Loud, Project, locked, read_json, refusal, sources, write_json
 
 LOCK = "outbox.lock"
 CAP = 8_000
@@ -97,42 +96,24 @@ AGENT = "jbus"
 EVENTS = {"heartbeat": "quiet", "snapshot": "quiet"}
 
 
-def _sources(paths: Iterable[str], prefix: str) -> Iterator[tuple[str, str]]:
-    """Return every module under `paths`, including its subfolders, each as name and source."""
-    for module in pkgutil.iter_modules(paths, prefix):
-        spec = module.module_finder.find_spec(module.name)
-        yield module.name, spec.loader.get_source(module.name)
-        if module.ispkg:
-            yield from _sources(spec.submodule_search_locations, f"{module.name}.")
-
-
 def _events(name: str, source: str) -> dict[str, Loud]:
-    """Return what a module's source declares. `_events` reads one form: the first statement
-    at the top of the module that sets the name `EVENTS` alone, `EVENTS = {...}` or
-    `EVENTS: <type> = {...}`. A value there that is not such a dict raises a `ValueError` that
-    names the module. It reads no other statement as a declaration: not `EVENTS` among the
-    names of a tuple, set under an `if` or a `try`, added to with `|=`, or set again below."""
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.Assign):
-            targets = node.targets
-        elif isinstance(node, ast.AnnAssign):
-            targets = [node.target]
-        else:
-            continue
-        if "EVENTS" not in map(ast.unparse, targets):
-            continue
-        try:
-            found = ast.literal_eval(node.value)
-        except (ValueError, TypeError, SyntaxError):
-            found = None
-        if not isinstance(found, dict) or not all(
-            isinstance(kind, str) and level in LEVELS for kind, level in found.items()
-        ):
-            raise ValueError(
-                f"{name}: EVENTS is not a dict written out, of kinds each at one of {LEVELS}"
-            )
-        return found
-    return {}
+    """Return what a module's source declares: its `EVENTS`, as `jbus.sources.statement` finds
+    it, `EVENTS = {...}` or `EVENTS: <type> = {...}`. A value there that is not such a dict
+    raises a `ValueError` that names the module."""
+    try:
+        node = sources.statement(source, "EVENTS")
+        if node is None:
+            return {}
+        found = ast.literal_eval(node.value)
+    except (ValueError, TypeError, SyntaxError):
+        found = None
+    if not isinstance(found, dict) or not all(
+        isinstance(kind, str) and level in LEVELS for kind, level in found.items()
+    ):
+        raise ValueError(
+            f"{name}: EVENTS is not a dict written out, of kinds each at one of {LEVELS}"
+        )
+    return found
 
 
 def declared(paths: Iterable[str]) -> dict[str, Loud]:
@@ -143,7 +124,7 @@ def declared(paths: Iterable[str]) -> dict[str, Loud]:
     `ValueError` that names both."""
     table: dict[str, Loud] = {}
     by: dict[str, str] = {}
-    for name, source in _sources(paths, f"{jbus.__name__}."):
+    for name, source in sources.modules(paths, f"{jbus.__name__}.", deep=True):
         for kind, level in _events(name, source).items():
             if kind in by:
                 raise ValueError(f"{kind} is declared in {by[kind]} and in {name}")

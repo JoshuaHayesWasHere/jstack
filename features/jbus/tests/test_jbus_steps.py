@@ -24,7 +24,6 @@ import pytest
 import jbus
 from jbus import (
     alert,
-    cli,
     dispatch,
     expedite,
     item,
@@ -32,6 +31,7 @@ from jbus import (
     mainmoved,
     merge,
     mirror,
+    poll,
     questions,
     queue,
     rebase,
@@ -334,7 +334,7 @@ def traced(kitchen, monkeypatch, *more, at=NOW + timedelta(hours=1)):
 
         monkeypatch.setattr(module, name, spy)
     for which in calls:
-        real = getattr(cli, which)
+        real = getattr(poll, which)
 
         def half(*args, real=real, which=which):
             inside.append(which)
@@ -343,7 +343,7 @@ def traced(kitchen, monkeypatch, *more, at=NOW + timedelta(hours=1)):
             finally:
                 inside.clear()
 
-        monkeypatch.setattr(cli, which, half)
+        monkeypatch.setattr(poll, which, half)
     kitchen.forget()
     kitchen.poll(at)
     events = [(e["event"], re.sub("[0-9a-f]{12}", "<head>", e["line"])) for e in kitchen.events()]
@@ -459,8 +459,8 @@ def made_up(tmp_path, monkeypatch):
     sys.modules.pop("jbus.madeup", None)
 
 
-def test_a_new_module_s_step_runs_in_its_place_with_no_line_in_cli(kitchen, monkeypatch, made_up):
-    monkeypatch.setattr(cli, "RANKED", verbs.ranked(jbus.__path__))
+def test_a_new_module_s_step_runs_in_its_place_with_no_line_in_poll(kitchen, monkeypatch, made_up):
+    monkeypatch.setattr(poll, "RANKED", verbs.ranked(jbus.__path__))
     short(kitchen)
     calls, _, events = traced(kitchen, monkeypatch, (made_up, "step"))
     expected = moved(BEFORE["short"][0])
@@ -502,10 +502,10 @@ def late(tmp_path, monkeypatch):
     sys.modules.pop("jbus.late", None)
 
 
-def test_a_new_module_s_second_half_step_runs_in_its_place_with_no_line_in_cli(
+def test_a_new_module_s_second_half_step_runs_in_its_place_with_no_line_in_poll(
     kitchen, monkeypatch, late
 ):
-    monkeypatch.setattr(cli, "RANKED", verbs.ranked(jbus.__path__))
+    monkeypatch.setattr(poll, "RANKED", verbs.ranked(jbus.__path__))
     short(kitchen)
     first, second, events = traced(kitchen, monkeypatch, (late, "step"))
     expected = AFTER["short"].split()
@@ -523,7 +523,7 @@ def test_a_new_module_s_second_half_step_is_printed_in_its_place(tmp_path):
 
 def test_a_rank_two_modules_declare_in_one_slot_fails_at_import_and_names_both(tmp_path):
     again = 'from jbus import verbs\nSTEPS = (verbs.Step("tellers", 100, "again", print),)\n'
-    ran = fresh(tmp_path, "import jbus.cli", again=again)
+    ran = fresh(tmp_path, "import jbus.poll", again=again)
     assert ran.returncode != 0
     last = ran.stderr.splitlines()[-1]
     assert last == "ValueError: tellers 100 is declared in jbus.rebase and in jbus.again", (
@@ -545,7 +545,7 @@ def test_a_slot_there_is_not_or_a_need_its_slot_cannot_supply_fails_at_import(
     tmp_path, slot, needs, says
 ):
     odd = f'from jbus import verbs\nSTEPS = (verbs.Step({slot!r}, 5, "odd", print, {needs!r}),)\n'
-    ran = fresh(tmp_path, "import jbus.cli", odd=odd)
+    ran = fresh(tmp_path, "import jbus.poll", odd=odd)
     assert ran.returncode != 0
     assert ran.stderr.splitlines()[-1] == f"ValueError: odd in jbus.odd: {says}", ran.stderr
 

@@ -167,4 +167,4 @@ This page records the pool numbers and changes none of them.
 | A SKILL.md | `features/repo-guards/tests/test_skill_size.py:12` | `CAP = 400` | #122 | A skill keeps a spine | Design choice | Kept |
 | A test file | `features/repo-guards/tests/test_test_size.py:16` | `CAP = 1500` | #128 | A test file stays short | Design choice | Kept |
 | A module | `features/repo-guards/tests/test_module_size.py:11` | `CAP = 800` | #127 | A module stays short | Design choice | Kept |
-| `jbus/cli.py` | `features/jbus/tests/test_jbus_cli_size.py:16` | `LINES = 300` | #126 | The entry point stays thin | Design choice | Kept |
+| `jbus/poll.py` | `features/jbus/tests/test_jbus_poll_size.py:16` | `LINES = 300` | #126 | The pass stays thin | Design choice | Kept |

@@ -47,7 +47,7 @@ from jbus.watch import NOT_RED, _api, _log_failed
 from jmerge import mainjson
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 UNREAD = "unread"
 CREW = next(role for role in ROLES if role.name == "crew")

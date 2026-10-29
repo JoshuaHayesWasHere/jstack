@@ -20,11 +20,14 @@ import itertools
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jbriefs import below
 from jbriefs import parse as briefs
 from jbus import queue, read_json, verbs, write_json
-from jbus.passes import Pass
+
+if TYPE_CHECKING:
+    from jbus.passes import Pass
 
 EVENTS = {
     "gate": "quiet",

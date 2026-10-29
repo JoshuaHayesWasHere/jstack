@@ -35,7 +35,7 @@ import jbus
 import jsettings
 import repo_template
 from jbriefs import meaning
-from jbus import acts, cli, live, party, queue, t3, verbs, wake, word
+from jbus import acts, cli, live, party, poll, queue, t3, verbs, wake, word
 from jgauge import slot, waiters
 from jroles import ledger
 from repo_template import IDENTITY
@@ -821,7 +821,7 @@ class Kitchen:
     def poll(self, now=NOW):
         self.t3.write(now)
         said = []
-        assert cli.poll(jbus.load(), now, said.append) == 0
+        assert poll.poll(jbus.load(), now, said.append) == 0
         return said
 
     def clock_reads(self, at):

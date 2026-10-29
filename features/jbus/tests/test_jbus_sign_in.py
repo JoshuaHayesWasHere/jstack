@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 import pytest
 
 import jbus
-from jbus import cli, record
+from jbus import poll, record
 from test_jbus_kitchen import NOW, TOKEN
 
 EXPIRES = datetime(2026, 10, 20, 21, 8, tzinfo=UTC)
@@ -155,7 +155,7 @@ def test_the_first_expiry_jbus_sees_is_no_renewal(kitchen, first, machine):
 
 def test_with_no_sign_in_stored_nothing_is_said(kitchen, first, machine):
     (kitchen.config_dir / "t3.json").unlink()
-    cli.poll(jbus.load(), at_et(13), lambda _: None)
+    poll.poll(jbus.load(), at_et(13), lambda _: None)
     assert said(first) == [] and kitchen.lines("sign-in") == []
 
 

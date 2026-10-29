@@ -44,7 +44,7 @@ from jmerge import stacked as stacks
 from jmerge.lines import READY
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 EVENTS = {"waiting-on-user": "quiet", "stall": "quiet"}
 EVENT = "waiting-on-user"

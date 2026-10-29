@@ -2,23 +2,26 @@
 
 A module declares what it adds to `jbus` at its top level, as `VERBS = (Verb(...),)`. A `Verb` holds
 the name typed after `jbus`, the line that `jbus --help` shows for it, a function that adds its
-arguments to its parser, and the function that runs it. `declared` imports every module of jbus and
-gathers the verbs, and `jbus.cli.main` builds its parsers from what `declared` returns. So a new
-verb is a `Verb` in a new module, with no line anywhere else. When two modules declare the same
-name, importing `jbus.cli` raises a `ValueError` that names both.
+arguments to its parser, and the function that runs it. `listed` reads each verb's name and line
+off the sources of jbus's modules (`jbus.sources`) and imports none of them, and `jbus.cli.main`
+lists every verb from what `listed` returns. It imports the module of the one verb that
+runs (`load_verb`), and adds that verb's arguments alone. So a new verb is a `Verb` in a new
+module, with no line anywhere else, and its name and its line are written out in the `Verb`.
+When two modules declare the same name, importing `jbus.cli` raises a `ValueError` that names
+both.
 
 A module declares a step of a pass the same way, as `STEPS = (Step(...),)`. A `Step` holds the slot
-of `jbus.cli.first_half` or `jbus.cli.second_half` in which it runs, its rank in that slot, its
+of `jbus.poll.first_half` or `jbus.poll.second_half` in which it runs, its rank in that slot, its
 name, the function that runs it, and what the pass must have for it to run. `ranked` gathers the
 steps and orders each slot's steps by rank. Each half runs a slot's steps at that slot's place in
-the half. So a new step is a `Step` in its feature's module, with no line in `jbus.cli`.
+the half. So a new step is a `Step` in its feature's module, with no line in `jbus.poll`.
 `jbus steps` prints the order. When two modules declare the same rank in one slot, importing
-`jbus.cli` raises a `ValueError` that names both.
+`jbus.poll` raises a `ValueError` that names both.
 
 A chore is work for the machine as a whole: it runs once a pass and for no project. A module
 declares it as `CHORES = (Chore(...),)`, with its rank, its name, and the function that runs
 it. That function takes the config, the T3 Code client or None, the pass's time and its
-`say`. `chores` gathers the chores by rank, and `jbus.cli.poll` runs each one after the
+`say`. `chores` gathers the chores by rank, and `jbus.poll.poll` runs each one after the
 launches, inside `guarded` under the chore's name. The chores are the sign-in reminder and
 the sending of the scratch homes' words. A scratch home is no project of a pass. When two
 modules declare the same rank, `chores` raises a `ValueError`.
@@ -31,12 +34,13 @@ said something: as `jsettings` words a time, and within `TYPED_MINUTES` of `cloc
 further off is a guess and not a reading of `date` or of the message.
 
 This module imports none of jbus's features, so that each feature can import this module. It
-imports `jbus.party`, the shapes of who acts, which imports nothing of jbus.
+imports `jbus.party`, the shapes of who acts, and `jbus.sources`, which import nothing of jbus.
 """
 
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib
 import pkgutil
 import re
@@ -49,7 +53,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
-from jbus import party
+from jbus import party, sources
 
 if TYPE_CHECKING:
     import jsettings
@@ -91,6 +95,16 @@ class Verb:
     config: bool = True
 
 
+@dataclass(frozen=True)
+class Listed:
+    """A verb as its module's source declares it: its name, the line that `jbus --help` shows for
+    it, and its module, which `load_verb` imports when the verb runs."""
+
+    name: str
+    help: str
+    module: str
+
+
 NEEDS = ("sight", "client", "world", "rows", "budget")
 SLOTS = {
     "before-watch": ("first in the pass, before merge.merge", ("client",)),
@@ -107,7 +121,7 @@ SLOTS = {
 
 @dataclass(frozen=True)
 class Step:
-    """A `Step` is one step of a pass. `run` takes the pass's `jbus.cli.Half`.
+    """A `Step` is one step of a pass. `run` takes the pass's `jbus.poll.Half`.
 
     `rank` orders the steps of one slot, in steps of 10. `needs` is what the pass must have
     for the step to run, out of `NEEDS`:
@@ -159,25 +173,63 @@ def nothing(parser: argparse.ArgumentParser) -> None:
     """Add no arguments to the parser of a verb that takes none."""
 
 
-def declared(paths: Iterable[str]) -> dict[str, Verb]:
+def _listed(module: str, source: str) -> tuple[Listed, ...]:
+    """Return the verbs a module's source declares: its `VERBS`, as `jbus.sources.statement` finds
+    it. A `VERBS` that is not a tuple of `Verb(<name>, <help>, ...)`, each with its name and its
+    help written out as strings, raises a `ValueError` that names the module."""
+    odd = ValueError(
+        f"{module}: VERBS is not a tuple of Verb(<name>, <help>, ...) with the name and the help "
+        "written out"
+    )
+    try:
+        node = sources.statement(source, "VERBS")
+    except SyntaxError:
+        raise odd from None
+    if node is None:
+        return ()
+    if not isinstance(node.value, ast.Tuple):
+        raise odd
+    found = []
+    for call in node.value.elts:
+        if not (
+            isinstance(call, ast.Call)
+            and ast.unparse(call.func) in ("Verb", "verbs.Verb")
+            and len(call.args) >= 2
+            and all(
+                isinstance(one, ast.Constant) and isinstance(one.value, str)
+                for one in call.args[:2]
+            )
+        ):
+            raise odd
+        found.append(Listed(call.args[0].value, call.args[1].value, module))
+    return tuple(found)
+
+
+def listed(paths: Iterable[str]) -> dict[str, Listed]:
     """Return every verb that the modules under `paths` declare, by its name, in the order in which
     `jbus --help` lists them. The verbs of `FIRST` come first, in the order that `FIRST` gives them,
     which is the order that they had when one function listed them all. Every other verb follows by
     its name. No new verb goes into `FIRST`.
 
-    A folder declares its verbs in its `__init__`. `__main__` runs the command, and
-    `declared` does not import it.
-    """
-    found: dict[str, Verb] = {}
-    by: dict[str, str] = {}
-    for module in pkgutil.iter_modules(paths, f"{jbus.__name__}."):
-        if module.name.endswith(".__main__"):
-            continue
-        for verb in getattr(importlib.import_module(module.name), "VERBS", ()):
-            if verb.name in by:
-                raise ValueError(f"{verb.name} is declared in {by[verb.name]} and in {module.name}")
-            found[verb.name], by[verb.name] = verb, module.name
+    A folder declares its verbs in its `__init__`. `listed` reads the sources and imports
+    nothing."""
+    found: dict[str, Listed] = {}
+    for module, source in sources.modules(paths, f"{jbus.__name__}."):
+        for one in _listed(module, source):
+            if one.name in found:
+                raise ValueError(
+                    f"{one.name} is declared in {found[one.name].module} and in {module}"
+                )
+            found[one.name] = one
     return {name: found[name] for name in (*(one for one in FIRST if one in found), *sorted(found))}
+
+
+def load_verb(one: Listed) -> Verb:
+    """Import the module that declares a verb, and return its `Verb`."""
+    for declared in getattr(importlib.import_module(one.module), "VERBS", ()):
+        if declared.name == one.name:
+            return declared
+    raise ValueError(f"{one.module} declares {one.name} in its source and not once imported")
 
 
 def ranked(paths: Iterable[str]) -> dict[str, tuple[Step, ...]]:
@@ -291,8 +343,13 @@ def _cli_party(given: str) -> str:
     return given
 
 
-def parser(found: dict[str, Verb], description: str | None) -> argparse.ArgumentParser:
-    """Build the parser of `jbus`, with a parser for each verb that `declared` found."""
+def parser(
+    found: dict[str, Listed], description: str | None, chosen: Iterable[Verb] = ()
+) -> argparse.ArgumentParser:
+    """Build the parser of `jbus`, with a parser for each verb that `listed` found. Only the
+    `chosen` verbs' parsers take their arguments and `--help`: `jbus.cli.main` chooses the one
+    typed. With none chosen, the parser reads which verb was typed, and leaves everything after
+    it unread."""
     made = argparse.ArgumentParser(prog="jbus", description=description, allow_abbrev=False)
     made.add_argument("--project", help="the project's name in the config, when it has several")
     made.add_argument(
@@ -310,8 +367,13 @@ def parser(found: dict[str, Verb], description: str | None) -> argparse.Argument
         "option: t3-message, t3-pick, lavish-page, typed (a word's id) or answer",
     )
     commands = made.add_subparsers(dest="command", required=True)
-    for verb in found.values():
-        verb.arguments(commands.add_parser(verb.name, help=verb.help, allow_abbrev=verb.abbrev))
+    taking = {verb.name: verb for verb in chosen}
+    for one in found.values():
+        if one.name in taking:
+            verb = taking[one.name]
+            verb.arguments(commands.add_parser(one.name, help=one.help, allow_abbrev=verb.abbrev))
+        else:
+            commands.add_parser(one.name, help=one.help, add_help=False)
     made.usage = usage(made)
     return made
 

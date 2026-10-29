@@ -376,7 +376,7 @@ class Red:
 
 def failure(run: Pass, red: Red) -> str:
     """Return the identity of a failure, as the first twelve characters of a digest: the failed
-    checks' names, and the pytest ids that their jobs' logs name as failed (`watch.failed_in`).
+    checks' names, and the pytest ids that their jobs' logs name as failed (`joblog.failed_in`).
     A job whose log GitHub does not give adds no id, so its failure is its check's name."""
     import hashlib
 

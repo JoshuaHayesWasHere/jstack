@@ -471,7 +471,7 @@ def recorded(items: list[dict[str, Any]], now: datetime) -> ledger.Cap:
 
 def _replay(args: argparse.Namespace, config: jbus.Config) -> int:
     """`jbus failover --replay` runs one recorded cap through the move a pass makes, for one
-    live thread. See `REPLAY`."""
+    live thread, as its line in `VERBS` says."""
     project = verbs.project(config, args.project)
     now = datetime.now(UTC)
     run = Pass(config, project, now)
@@ -511,11 +511,15 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
 
 
 REPLAY_ITEMS = "a JSON list of T3 Code thread items, or an object whose items is one"
-REPLAY = (
-    "replay a recorded usage limit on one thread: the move a pass makes, the cap kept out of "
-    "the ledger"
+VERBS = (
+    verbs.Verb(
+        "failover",
+        "replay a recorded usage limit on one thread: the move a pass makes, the cap kept out of "
+        "the ledger",
+        _arguments,
+        _replay,
+    ),
 )
-VERBS = (verbs.Verb("failover", REPLAY, _arguments, _replay),)
 STEPS = (
     verbs.Step(
         "tellers",

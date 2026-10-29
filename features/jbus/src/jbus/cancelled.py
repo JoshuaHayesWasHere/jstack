@@ -40,7 +40,7 @@ from jmerge import ready
 from jmerge.checks import check_state, latest_of_each
 
 if TYPE_CHECKING:
-    from jbus.cli import Half
+    from jbus.poll import Half
 
 EVENTS = {"cancelled": "quiet"}
 STALL = "stall"
