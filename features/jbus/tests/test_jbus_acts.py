@@ -149,6 +149,26 @@ def test_a_gate_whose_prose_names_a_token_still_holds():
     assert waiting.paused("e-mail the api-key") == "changes access or secrets"
 
 
+@pytest.mark.parametrize(
+    "words, case",
+    [
+        ("rotate the API-token", "changes access or secrets"),
+        ("renew the refresh-token", "changes access or secrets"),
+        ("set the db-password", "changes access or secrets"),
+        ("send a one-time-password", "changes access or secrets"),
+        ("re-deploy the site", "touches prod or real users"),
+        ("hard-delete the data rows", "deletes data"),
+    ],
+)
+def test_a_door_word_that_ends_a_hyphenated_compound_still_holds(words, case):
+    assert waiting.paused(words) == case
+
+
+def test_a_hyphenated_config_word_still_makes_a_review():
+    edit = questions.Question(2, "alpha", "", "edit the config-file?", "", "", "", "")
+    assert item.risk("", [edit]) is item.Risk.REVIEW
+
+
 def test_each_go_and_each_answer_is_one_act_and_each_basis_is_its_source(kitchen):
     kitchen.t3.says(HOME, MESSAGE, "yes")
     add(kitchen, "alpha")
