@@ -43,16 +43,18 @@ OpenPr(k) ==
     /\ work[k] = "crew" /\ work' = Set(work, k, "open")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* Its checks pass (jmerge/cli.py `short = short or ready.short_on_github(`) and its
-\* review is written (jmerge/cli.py `short = short or ready.short_of(text, one.head)`).
+\* review is written (jmerge/cli.py
+\* `short = short or self.lift(ready.short_of(text, one.head), lifted)`).
 PrReady(k) ==
     /\ work[k] \in {"open", "again"}
     /\ work' = Set(work, k, IF work[k] = "open" THEN "ready" ELSE "back")
     /\ UNCHANGED <<life, msg, quiet, watch, up, broke, tip, seen, blind, lock, mode>>
 \* A check turns red or a review goes stale (jmerge/cli.py
 \* `short = short or ready.short_on_github(`, jmerge/cli.py
-\* `short = short or ready.short_of(text, one.head)`): the pull request is not ready, and jmerge
-\* judges it again. A merge it had begun fails at the head it checked, and its run gives the merge
-\* lock back as it returns (jmerge/cli.py `finally: lock.give()`).
+\* `short = short or self.lift(ready.short_of(text, one.head), lifted)`): the
+\* pull request is not ready, and jmerge judges it again. A merge it had begun fails at the head
+\* it checked, and its run gives the merge lock back as it returns (jmerge/cli.py
+\* `finally: lock.give()`).
 PrDrops(k) ==
     /\ work[k] = "ready" /\ work' = Set(work, k, "again")
     /\ seen' = Set(seen, k, [b \in Mergers |-> NoTip])

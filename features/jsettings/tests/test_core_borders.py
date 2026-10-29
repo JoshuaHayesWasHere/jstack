@@ -1,8 +1,9 @@
 """jsettings is jstack's core: it imports no other package of jstack, and every package may import
 it. jbus is the top of the tree: no package imports it but jinstall, which installs it.
 
-jmerge still imports three of jbus's own models, each named in `WAITS` with what it waits on.
-The test fails when one goes and `WAITS` still names it, so the list only shrinks.
+A package that has to import jbus for now is named in `WAITS`, with what it waits on. The test
+fails when one goes and `WAITS` still names it, so the list only shrinks. It is empty: jmerge
+reaches jbus's config, queue and act ledger only through its own port (`jmerge.bus`).
 """
 
 import ast
@@ -14,11 +15,7 @@ FEATURES = ROOT / "features"
 CORE = "jsettings"
 TOP = "jbus"
 INSTALLS = "jinstall"
-WAITS = {
-    ("jmerge", "rows.py"): "jbus's config model and its queue's go (queue.has_go)",
-    ("jmerge", "remake.py"): "jbus's config model (jbus.load)",
-    ("jmerge", "accepts.py"): "jbus's act of an accept (acts, party, Pass, t3)",
-}
+WAITS: dict[tuple[str, str], str] = {}
 
 
 def packages() -> dict[str, Path]:

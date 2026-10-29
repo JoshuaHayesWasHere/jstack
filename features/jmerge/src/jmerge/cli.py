@@ -15,14 +15,16 @@ from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 import jsettings
 from jbriefs import home as home_rule
 from jbriefs import parse
 from jmerge import (
+    bus,
     checks,
     claims,
+    judgement,
     lines,
     mainjson,
     proof,
@@ -38,9 +40,6 @@ from jmerge import stacked as stacks
 from jmerge.asked import why as asked_why
 from jmerge.joblog import failed_in
 from jsettings import paths, proc, store
-
-if TYPE_CHECKING:
-    from jmerge.accepts import Acting
 
 LIST = (
     "number,url,title,headRefName,headRefOid,baseRefName,mergeable,statusCheckRollup,"
@@ -194,7 +193,7 @@ class Repo:
         return rows.main(self.main)
 
     @functools.cached_property
-    def migrations(self) -> rows.Migrations | None:
+    def migrations(self) -> bus.Migrations | None:
         return rows.migrations(self.main)
 
     def numbers(self, base: str) -> set[int] | None:
@@ -747,10 +746,12 @@ class Repo:
         if self.others(text) and not self.every:
             return Judgement(brief.stem, "wait", ready.OTHER_HOME, "", None)
         self.trunk = default
+        self.lifts = []
+        lifted = self.lifted(one)
         stacked = stacks.of(text)
-        short = ready.held(one, default, self.integration, stacked)
+        short = self.lift(ready.held(one, default, self.integration, stacked), lifted)
         short = short or self.on_stack(one, default, stacked)
-        short = short or ready.short_of(text, one.head)
+        short = short or self.lift(ready.short_of(text, one.head), lifted)
         rebase: ready.Rebase | None = None
         covered = ready.to_range_diff(text, one.head)
         under = ready.under_fix(text, one.head)
@@ -790,7 +791,7 @@ class Repo:
             short = ready.short_on_content(verdict)
             note = ready.rebase_note(verdict)
         if short:
-            return Judgement(brief.stem, "wait", short, note, None)
+            return Judgement(brief.stem, judgement.verb(short), short, note, None)
         short = (
             rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
             or rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
@@ -798,23 +799,17 @@ class Repo:
             or self.short_on_migrations(one, one.base)
         )
         if short:
-            return Judgement(brief.stem, "wait", short, note, None)
+            return Judgement(brief.stem, judgement.verb(short), short, note, None)
         left = self.left(one)
-        lifted = self.accepted == (one.number, one.head)
         command = verdict.command if verdict else "nothing"
         kind, why = ready.drops(lost, text, one.head, user=self.user, command=command)
         if not kind:
             kind, why = ready.declines(text, user=self.user)
-        self.lifts = []
-        if lifted and kind == "hold":
-            self.lifts.append(why)
+        if kind == judgement.HOLD and not self.lift(why, lifted):
             kind = ""
         if kind:
             return Judgement(brief.stem, kind, why, note, None)
-        hold = ready.needs_the_user(one, self.protected, left, user=self.user)
-        if lifted and hold:
-            self.lifts.append(hold)
-            hold = ""
+        hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)
         if hold:
             return Judgement(brief.stem, "hold", hold, note, None)
         if one.draft:
@@ -832,7 +827,9 @@ class Repo:
             return Judgement(brief.stem, "wait", short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
         if (self.state / "merge-off").exists():
-            return Judgement(brief.stem, "wait", ready.MERGE_OFF, note, None)
+            return Judgement(
+                brief.stem, judgement.verb(ready.MERGE_OFF), ready.MERGE_OFF, note, None
+            )
         if one.number in self.order:
             self.through = one.number
         judged = ready.Judged(tip, fresh)
@@ -979,6 +976,28 @@ class Repo:
     def holds(self) -> dict[str, str]:
         return store.read_dict(self.state / "holds.json")
 
+    def accepts(self) -> dict[str, str]:
+        """The head of each held draft whose accept lifted its hold (`accept`): it merges at that
+        head once its check passed, with no second accept."""
+        return store.read_dict(self.state / "accepted.json")
+
+    def accepts_are(self, accepts: dict[str, str]) -> None:
+        if accepts != self.accepts() and self.state.is_dir():
+            store.write_json(self.state / "accepted.json", accepts)
+
+    def lifted(self, one: ready.PullRequest) -> bool:
+        """Whether the user's accept lifts the holds of `one` at its head: in this run, or a
+        draft's, kept until it merged."""
+        number, head = str(one.number), one.head
+        return self.accepted == (one.number, head) or self.accepts().get(number) == head
+
+    def lift(self, why: str, lifted: bool) -> str:
+        """`why`, or nothing where it is a hold `--accept` lifts and the accept lifted it."""
+        if lifted and judgement.verb(why) == judgement.HOLD:
+            self.lifts.append(why)
+            return ""
+        return why
+
     def readied(self, one: ready.PullRequest, found: Judgement) -> Judgement:
         """Mark ready a draft whose review is written and whose fix is pushed, so CI runs its one
         check now, on this head (check.yml runs none on a draft). A brief that says
@@ -1005,11 +1024,13 @@ class Repo:
         when: str | None,
         say: Callable[[str], None],
         check: bool,
-        acting: Acting | None = None,
+        acting: bus.Acting | None = None,
     ) -> int:
-        """Lift the hold of `one` and merge it, the user's hand-merge. With `acting`, the accept
-        is an act of jbus's (`jmerge.accepts`): a door the party may not open parks a gate and
-        merges nothing. `check` says what it would do, and is no act."""
+        """Lift the hold of `one` and merge it, the user's hand-merge. A draft is marked ready
+        in place of the merge, and its lift is kept (`accepts`), so it merges once its check
+        passed. With `acting`, the accept is an act of the bus's (`jmerge.bus`): a door the party
+        may not open parks a gate and merges nothing. `check` says what it would do, and is no
+        act."""
         about = f"{one.number} {one.url}"
         first = self.waits(one, default)
         if first.verb != "hold":
@@ -1030,24 +1051,35 @@ class Repo:
         safe = f"safe because {proven[0]} (proven at {at[:12]})"
         self.accepted = (one.number, one.head)
         found = self.waits(one, default)
-        if found.judged is None:
+        draft = one.draft and found.why == ready.DRAFT
+        if found.judged is None and not draft:
             say(lines.waits(found.verb, one.number, one.url, found.why))
             return 1
         why = " and ".join(self.lifts) or first.why
         if check:
             notes = [f"accepted: {why}", safe]
+            if draft:
+                notes.append("a draft, marked ready, and it merges once its check passed")
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
             return 0
         ran: list[str] = []
+        number = str(one.number)
 
         def does() -> str:
             ran.append(one.head)
             say(f"accepted {about}: {why}, lifted at {one.head[:12]} by {by} at {when}, {safe}")
+            if draft:
+                readied = self.readied(one, found)
+                say(lines.waits("wait", one.number, one.url, readied.why))
+                if readied.why != ready.READIED.format(head=one.head):
+                    raise jsettings.Refused(readied.why)
+                self.accepts_are({**self.accepts(), number: one.head})
+                return str(readied.why)
             said = self.merge(one, found.slug, found.note, found.judged)
             say(said)
             if not said.startswith("merged "):
                 raise jsettings.Refused(said)
-            self.holds_are({n: head for n, head in self.holds().items() if n != str(one.number)})
+            self.holds_are({n: head for n, head in self.holds().items() if n != number})
             return said
 
         if acting is None:
@@ -1056,11 +1088,10 @@ class Repo:
             except jsettings.Refused:
                 return 1
             return 0
-        from jmerge import accepts
-
         touched = bool(ready.protected_path(one, self.protected, self.left(one) or ()))
-        held = accepts.doors(text, touched)
-        outcome, line = accepts.accept(acting, one.number, found.slug, one.head, held, does)
+        outcome, line = bus.found().accept(
+            acting, one.number, found.slug, one.head, text, touched, does
+        )
         if outcome == "done":
             return 0
         if not ran:
@@ -1782,10 +1813,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         acting = None
         if said and not args.check:
-            from jmerge import accepts
-
             try:
-                acting = accepts.acting(main_checkout, args.message, args.at, args.as_, user)
+                acting = bus.found().acting(main_checkout, args.message, args.at, args.as_, user)
             except jsettings.Refused as error:
                 say(f"refused {args.accept}: {str(error).removeprefix('refused: ')}")
                 return 1
@@ -1794,7 +1823,7 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
         by, at = args.by, args.at
         if acting is not None and args.message:
-            by, at = user.user, acting.said.said_at
+            by, at = user.user, acting.said_at
         return repo.accept(found, default, by, at, say, args.check, acting)
 
     for one in repo.line_up(listed, default):
@@ -1809,7 +1838,10 @@ def main(argv: list[str] | None = None) -> int:
             notes = [found.note, found.judged.fresh]
             say(lines.ready(one.number, one.head, one.branch, found.slug, notes))
         else:
-            say(repo.merge(one, found.slug, found.note, found.judged))
+            said = repo.merge(one, found.slug, found.note, found.judged)
+            say(said)
+            if said.startswith("merged "):
+                repo.accepts_are({n: h for n, h in repo.accepts().items() if n != str(one.number)})
     return 0
 
 

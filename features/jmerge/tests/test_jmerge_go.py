@@ -1,5 +1,5 @@
 """`jmerge` merges a pull request only while its row's go holds for the brief as jbus stores it,
-the same answer jbus's launch gives (`jbus.queue.has_go`). An `add` that changes a brief keeps
+the same answer jbus's launch gives (`jmerge.judgement.has_go`). An `add` that changes a brief keeps
 the row's `approved` set, so the flag alone is no go (simplify-4's story 3, NoMergeWithoutGo).
 
 The tests run the command against a real origin and a fake `gh`, with the kitchen of

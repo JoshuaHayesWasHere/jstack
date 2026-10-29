@@ -1,4 +1,4 @@
-"""`jmerge --accept` is an act of jbus's (`jmerge.accepts`): every accept is one line of the
+"""`jmerge --accept` is an act of jbus's (`jbus.port`): every accept is one line of the
 project's `acts.jsonl` with the party that accepted and the evidence it rests on. An accept that
 opens a door, a pull request that touches a protected path, is the user's alone on words jbus
 reads itself: a home's accept on typed words parks a gate and merges nothing.
@@ -206,3 +206,42 @@ def test_a_merge_of_main_that_changed_the_patch_leaves_no_proven_fact(kitchen):
         f"refused 7 {url(7)}: no proven safety fact at {head[:12]} (blast-radius, review step 5)"
     )
     assert kitchen.calls() == []
+
+
+def unbussed(kitchen, *flags):
+    """`jmerge` as an install from before the `jmerge.bus` entry point runs it: no package names
+    a bus, so nothing tells jmerge of the queue or the acts."""
+    run = (
+        "import runpy, jmerge.bus as bus; bus.entry_points = lambda group: []; "
+        "runpy.run_module('jmerge', run_name='__main__', alter_sys=True)"
+    )
+    return kitchen.home.sh(
+        f'PYTHONPATH="{kitchen.source}" "{sys.executable}" -c "{run}" ' + " ".join(flags)
+    )
+
+
+def test_a_pass_with_no_bus_reads_no_queue_and_merges_nothing(kitchen):
+    kitchen.crew("alpha", 6, {"a.txt": "ours\n" + LINES})
+    with (kitchen.home.tasks / "alpha.md").open("a") as brief:
+        brief.write(PROOF)
+    (said,) = unbussed(kitchen)
+    assert said.startswith("wait 6 ") and "its queue cannot be read" in said, said
+    assert kitchen.calls() == []
+
+
+def test_an_accept_with_no_bus_is_refused_and_merges_nothing(kitchen):
+    held(kitchen, "alpha", 6, {"secrets/prod.json": '{"key": 1}\n'})
+    now = datetime.now(UTC).astimezone(ZoneInfo("America/New_York"))
+    said = unbussed(
+        kitchen,
+        "--accept",
+        "6",
+        "--by",
+        jsettings.DEFAULTS.user,
+        "--at",
+        f'"{now:%Y-%m-%d %H:%M} ET"',
+    )
+    assert kitchen.home.code == 1, (said, kitchen.home.stderr)
+    assert said[-1].startswith("refused 6: "), said
+    assert kitchen.calls() == []
+    assert acts.read(kitchen.jbus) == []

@@ -729,7 +729,8 @@ def test_a_pull_request_short_of_ready_is_printed_with_the_first_reason(home, ca
     if text:
         (home.tasks / "alpha.md").write_text(text)
     home.open_pull_request(**listed)
-    assert home.ready() == [f"wait 7 {URL}: {reason}"]
+    word = "hold" if "Review: none" in reason else "wait"
+    assert home.ready() == [f"{word} 7 {URL}: {reason}"]
 
 
 @pytest.mark.parametrize("case", [case for case in SHORT if SHORT[case][2] == NO_ORIGIN])
