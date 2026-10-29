@@ -56,8 +56,8 @@ function tpPerDay() {
   var bars = '<span class="days" role="img" aria-label="' + esc(order.map(function (d) { return d + ": " + by[d]; }).join(", ")) + '">' + order.map(function (d) {
     return '<i' + (by[d] ? "" : ' class="zero"') + ' title="' + esc(d + ": " + plural(by[d], "merge", "merges")) + '" style="height:' + (by[d] ? Math.max(3, Math.round(60 * by[d] / top)) : 1) + 'px"></i>';
   }).join("") + '</span>';
-  var line = "<b>" + total + "</b> over the last " + order.length + " days, today up to now" + (read.length < said.length ? ", " + (said.length - read.length) + " of " + said.length + " projects not known" : "");
-  return '<section class="ovc" data-role="perday"><h2 class="ovc-h">' + tag + ' <b>' + by[order[order.length - 1]] + '</b> <span class="ovc-s">today</span></h2>' + bars + '<p class="ovc-s">' + (one ? '<a href="' + esc(one) + '">' + line + '</a>' : line) + '</p></section>';
+  var line = "<b>" + total + "</b> on GitHub over the last " + order.length + " days, today up to now" + (read.length < said.length ? ", " + (said.length - read.length) + " of " + said.length + " projects not known" : "");
+  return '<section class="ovc" data-role="perday"><h2 class="ovc-h">' + tag + ' <b>' + by[order[order.length - 1]] + '</b> <span class="ovc-s">today, as GitHub counts it</span></h2>' + bars + '<p class="ovc-s">' + (one ? '<a href="' + esc(one) + '">' + line + '</a>' : line) + '</p></section>';
 }
 panel({
   title: "Throughput",

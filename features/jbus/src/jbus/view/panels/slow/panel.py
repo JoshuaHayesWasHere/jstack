@@ -4,7 +4,8 @@ that has waited longest, and how many of the machine's test slots are held.
 A stage is a row of `STAGES`. Three take the tasks of the line by their step or their holder:
 `check` is the step `check`; `review` is every step a reviewer holds; `rebase` is the step
 `rebase`. The fourth, `you`, is what Needs you lists, so its count is the one the page's Needs you
-gives. A task's age at its stage is its `since`, which the line gives (`state._tasks`). The stage
+gives. The one that has waited longest is named by its slug, or by its line where it has none.
+A task's age at its stage is its `since`, which the line gives (`state._tasks`). The stage
 `check` also has `checks`, how many of its rows have a failing check, one that runs or waits for a
 runner, one that passed and waits for `jmerge`, and how many are stacked and merge after another
 row, whatever their own checks say (`checked`), and `cause`, the largest of the four, which is
@@ -103,7 +104,9 @@ def stages(reads: list[Read], needs: list[dict[str, Any]]) -> list[dict[str, Any
                 "oldest": oldest,
             }
         )
-    oldest = _first([{key: one[key] for key in _OLDEST} for one in needs])
+    oldest = _first(
+        [{key: one[key] for key in _OLDEST} | {"what": one["slug"] or one["what"]} for one in needs]
+    )
     return [
         *found,
         {
