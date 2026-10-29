@@ -1,4 +1,4 @@
-From 2218611e373ca40c2ad4ef32e260b1f739581d59 Mon Sep 17 00:00:00 2001
+From a33940341fd8d1f18aceb548fa6105bddf6179fe Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 15:22:00 -0400
 Subject: [PATCH 4/4] feat(web): jstack tree roots step down in size, every
@@ -12,14 +12,14 @@ the separate folder row goes. T3's "No project" group never takes a home and is
 pinned last, faded while idle.
 ---
  apps/web/src/components/Sidebar.tsx           | 116 ++++-----
- .../sidebar/JstackTreeRows.browser.test.tsx   | 234 ++++++++++++++++++
- .../src/components/sidebar/JstackTreeRows.tsx | 162 +++++-------
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 240 ++++++++++++++++++
+ .../src/components/sidebar/JstackTreeRows.tsx | 162 ++++--------
  .../components/sidebar/SidebarThreadRow.tsx   |   9 +-
- .../sidebar/jstackTree.logic.test.ts          | 141 +++++++++--
- .../components/sidebar/jstackTree.logic.ts    | 111 +++++++--
+ .../sidebar/jstackTree.logic.test.ts          | 141 ++++++++--
+ .../components/sidebar/jstackTree.logic.ts    | 111 ++++++--
  apps/web/src/index.css                        |   9 +
  apps/web/src/lib/utils.ts                     |   2 +-
- 8 files changed, 563 insertions(+), 221 deletions(-)
+ 8 files changed, 569 insertions(+), 221 deletions(-)
  create mode 100644 apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 
 diff --git a/apps/web/src/components/Sidebar.tsx b/apps/web/src/components/Sidebar.tsx
@@ -227,10 +227,10 @@ index 092b833e17..f85cdbe877 100644
                                  key={`project-folder:${folder.group.projectKey}`}
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 new file mode 100644
-index 0000000000..170ca400a3
+index 0000000000..70eb602349
 --- /dev/null
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,240 @@
 +import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
 +import { describe, expect, it, vi } from "vite-plus/test";
 +import { userEvent } from "vite-plus/test/browser";
@@ -423,6 +423,9 @@ index 0000000000..170ca400a3
 +    await userEvent.click(screen.getByRole("treeitem", { name: "jstack main thread" }));
 +    expect(spies.onOpenThread).toHaveBeenCalledWith(ThreadId.make("root"));
 +    expect(spies.onToggleProject).not.toHaveBeenCalled();
++    // Its fold chevron stays in the tab order, since the row's own click opens a thread.
++    const fold = screen.getByRole("button", { name: "Fold jstack" }).element() as HTMLElement;
++    expect(fold.tabIndex).toBe(0);
 +  });
 +
 +  it("folds a project with no home from its name, and offers a new thread in it", async () => {
@@ -435,6 +438,9 @@ index 0000000000..170ca400a3
 +    await userEvent.click(screen.getByRole("treeitem", { name: "Winnifred" }));
 +    expect(spies.onToggleProject).toHaveBeenCalledWith(winnifred);
 +    expect(spies.onOpenThread).not.toHaveBeenCalled();
++    // The row itself folds, so its chevron stays out of the tab order.
++    const fold = screen.getByRole("button", { name: "Fold Winnifred" }).element() as HTMLElement;
++    expect(fold.tabIndex).toBe(-1);
 +    await userEvent.click(screen.getByRole("button", { name: "New thread in Winnifred" }));
 +    expect(spies.onNewThread).toHaveBeenCalledWith(winnifred);
 +  });
