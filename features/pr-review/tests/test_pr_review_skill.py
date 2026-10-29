@@ -888,8 +888,8 @@ def test_each_text_the_review_sends_its_reader_to_is_there(reviewer):
     text = section("### The review")
     skills = set(re.findall(r"`\$T/\.\./(skills/[a-z-]+/SKILL\.md)`", text))
     assert skills == {"skills/interrogate/SKILL.md", "skills/blast-radius/SKILL.md"}
-    references = set(re.findall(r"`references/([a-z-]+\.md)`|\"\$I/([a-z-]+\.md)\"", text))
-    references = {prose or block for prose, block in references}
+    named = r"`references/([a-z-]+\.md)`|\"\$I/([a-z-]+\.md)\"|refs \"/([a-z-]+\.md)\""
+    references = {"".join(found) for found in re.findall(named, text)}
     assert references == {
         "reviewer-prompt.md",
         "rubric.md",
