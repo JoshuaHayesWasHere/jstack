@@ -1,6 +1,6 @@
 # The commands
 
-A release installs the nine commands as `uv`'s tool `jstack`.
+A release installs the ten commands as `uv`'s tool `jstack`.
 A checkout installs them another way.
 [The lines of a checkout](working-on-jstack.md#the-commands-of-a-checkout) lists its lines.
 

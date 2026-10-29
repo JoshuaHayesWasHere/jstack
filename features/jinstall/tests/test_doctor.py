@@ -253,8 +253,8 @@ T3_MISSING = "missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly"
         (
             "win32",
             [
-                "missing hard platform -> this is win32: run jstack inside WSL2",
-                f"{T3_MISSING} (run jstack inside WSL2)",
+                "missing hard platform -> this is win32: install jstack inside WSL2",
+                f"{T3_MISSING} (install jstack inside WSL2)",
             ],
         ),
         (

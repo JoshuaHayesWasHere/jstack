@@ -2,7 +2,7 @@
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard platform -> this is win32: run jstack inside WSL2` | jstack does not run on Windows itself. | Follow [Windows through WSL2](../windows-wsl2.md). |
+| `missing hard platform -> this is win32: install jstack inside WSL2` | jstack does not run on Windows itself. | Follow [Windows through WSL2](../windows-wsl2.md). |
 | `missing hard platform -> this is <platform>: jstack runs on Linux and macOS` | jstack runs on Linux and on macOS, and on no other platform. | Use a Linux machine or a Mac with Apple Silicon. |
 | `missing hard t3 -> T3 Code 0.1.2 or newer, stable or nightly (<where>)` | No `t3` command is in `<home>/.t3/bin` or on `PATH`. `<where>` is `on Arch: t3code-bin`, or on macOS `on a Mac with Apple Silicon: brew install --cask t3-code`. | Install T3 Code, the stable or the nightly build, and open the app once. T3 Code has no `t3` command for an Intel Mac, so jstack does not run there. Under WSL2, install the `t3` command in the distro as [Windows through WSL2](../windows-wsl2.md#4-the-t3-command-in-the-distro) says. |
 | `old hard t3 -> t3 --version did not answer: open the app once` | The `t3` command is there and printed no version. | Open T3 Code once, then run the doctor again. |
@@ -26,7 +26,7 @@
 Each program's own page has the install steps for every platform it supports.
 On macOS, `jinstall --setup` names the Homebrew command, `brew install <formula>`.
 On a Linux machine with `pacman`, it names the Arch package as `yay -S <package>`, and on any other Linux machine it names the program.
-On Windows, it says to run jstack inside WSL2, and there each program is installed in the Linux distribution.
+On Windows, it says to install jstack inside WSL2, and there each program is installed in the Linux distribution.
 
 | Program | Install page | Homebrew, on macOS | Arch package |
 |---|---|---|---|

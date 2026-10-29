@@ -142,7 +142,7 @@ def unseed(machine: Machine, path: Path, word: str) -> Dropped:
 SEEDED = "# Written once by install.sh --setup. Edit it: setup never writes over it.\n"
 
 
-WSL2 = "run jstack inside WSL2"
+WSL2 = "install jstack inside WSL2"
 WINDOWS = ("win32", "cygwin")
 
 
@@ -1114,7 +1114,7 @@ class GhSignIn:
 @dataclass(frozen=True)
 class Platform:
     """ok on Linux and on macOS, with the platform as the detail. missing anywhere else: on
-    Windows the detail says to run jstack inside WSL2."""
+    Windows the detail says to install jstack inside WSL2."""
 
     def probe(self, machine: Machine) -> Found:
         if machine.platform.startswith("linux") or machine.platform == "darwin":

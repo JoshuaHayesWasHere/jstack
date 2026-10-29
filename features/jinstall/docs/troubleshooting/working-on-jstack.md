@@ -29,7 +29,7 @@ A checkout installs the commands as an editable install of itself, `uv tool inst
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the nine commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
+| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the ten commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
 | `old hard commands jstack -> lacks <names>` | The tool was installed before those commands were added. | Run `sh install.sh`. |
 | `old hard commands jstack -> an install of <path>` | The tool runs the code of another checkout. | Run `sh install.sh` in the checkout you want live. |
 | `old hard commands jstack -> stale: its editable paths lack <paths>` | A package moved in the checkout after `uv` built the install, so the install's paths lack its new folder. | Run `sh install.sh`. |
