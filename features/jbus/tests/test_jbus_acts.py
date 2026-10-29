@@ -47,7 +47,8 @@ class Route:
             kitchen.state_dir, kitchen.root / "home", user=jsettings.load()
         )
         self.port = free_port()
-        self.doors = jview.Doors(jview.App(sources), self.port)
+        self.app = jview.App(sources)
+        self.doors = jview.Doors(self.app, self.port)
         self.doors.open()
 
     def act(self, body, key=None, headers=None, project="demo"):
@@ -596,3 +597,25 @@ def test_a_bot_word_with_no_words_is_refused(kitchen, route):
             body["words"] = words
         assert route.act(body) == (400, {"error": SHAPE})
     assert (logged(kitchen), sends(kitchen)) == ([], [])
+
+
+def test_the_bot_sending_one_chat_message_again_later_is_the_same_word(kitchen, route):
+    """The bot's address names its message, so a resend minutes later, after a lost answer,
+    is the same word and goes to the home once."""
+    from datetime import UTC, datetime, timedelta
+
+    (kitchen.home / "home-id").write_text("home-1\n")
+    add(kitchen, "alpha", approve=False)
+    first = datetime(2026, 10, 29, 20, 0, tzinfo=UTC)
+    body = {"action": "word", "words": READ, "evidence": CHAT}
+    route.app.clock = lambda: first
+    status, said = route.act(body)
+    assert status == 200, said
+    route.app.clock = lambda: first + timedelta(minutes=3)
+    again, said_again = route.act(body)
+    assert again == 200, said_again
+    assert said_again["act"]["id"] == said["act"]["id"]
+    assert said_again["say"] == f"already sent: demo, to home-1, word {said['act']['id']}"
+    assert len(sends(kitchen)) == 1
+    other = route.act(body | {"evidence": "bot-chat:+15550100/another-phone"})[1]
+    assert other["act"]["id"] != said["act"]["id"] and len(sends(kitchen)) == 2

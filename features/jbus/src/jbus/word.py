@@ -285,6 +285,10 @@ def keep(
     the home that `owner` names. When it was said in that home's thread, or recorded by that
     thread, `keep` records the word as sent to that thread and posts it to nobody (`skipped`).
 
+    A word from the bot's chat (`bot-chat`) has no time of its own, only the time jbus kept it,
+    and its address names the message, so its id hashes no time: the bot sending the same message
+    again later is the same word.
+
     With `scope`, the word is for that scoped home and no other, and its id hashes the scope too.
     A home that already holds the same word, kept by any path, gets no second act: `keep`
     returns the one it holds.
@@ -295,6 +299,8 @@ def keep(
     words, at, ref = said(heard.words), heard.said_at, heard.ref
     extra = [*([ref] if ref else []), *([f"scope:{scope}"] if scope is not None else [])]
     named = json.dumps([run.project.name, words, run.user.user, at, *extra])
+    if heard.source == queue.BOT_CHAT:
+        named = json.dumps([run.project.name, words, run.user.user, *extra])
     name = hashlib.sha256(named.encode()).hexdigest()[:12]
     heard = replace(heard, words=words)
     with locked(run.state, acts.LOCK):

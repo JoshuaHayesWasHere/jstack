@@ -12,6 +12,7 @@ jbus cannot read the bot's chat, so their evidence is `bot-chat` with `checked: 
 The evidence is checked as a bot's go is, by `party.chat`: `voice:` or any other source, and a chat with no address or no device, is refused with `refused: --evidence is bot-chat:<address>/<device> or t3-message:<thread>/<message>, not <given>`.
 `--words` goes only with `bot-chat` evidence, `--as user` is refused for it since jbus did not read the words, and so is `--scope`, which takes only your own message.
 `--evidence t3-message:<thread id>/<message id>` is the same as `--message`.
+A bot-chat word's id hashes the project, the words, you and the address, and no time, so the bot sending the same message again later is the same word and is not sent twice.
 
 A word is an act ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)), one line of `~/.local/state/jbus/<project>/acts.jsonl` whose verb is `word`.
 Its subject is the scope of the home the word is for, empty for the root home.
