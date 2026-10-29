@@ -1,4 +1,4 @@
-From a2185c5f8cf262c43ad591c5be611275fdb2ae4c Mon Sep 17 00:00:00 2001
+From b602a02764a783b2cfeadfbe50341663b2d06111 Mon Sep 17 00:00:00 2001
 From: JoshuaHayesWasHere <josh.hayes121@icloud.com>
 Date: Thu, 29 Oct 2026 16:30:56 -0400
 Subject: [PATCH] fix(web): a jstack "asks you" row opens what it asks
@@ -9,28 +9,28 @@ the ask with the gate's default and the task's brief. A held row shows
 in review, where it was dropped from the tree.
 ---
  apps/server/src/jstack/JbusWork.ts            |   8 +-
- apps/server/src/jstack/jbusWork.logic.test.ts |  72 +++++++-
- apps/server/src/jstack/jbusWork.logic.ts      |  21 ++-
- .../sidebar/JstackTreeRows.browser.test.tsx   | 174 +++++++++++++++++-
+ apps/server/src/jstack/jbusWork.logic.test.ts |  72 ++++++-
+ apps/server/src/jstack/jbusWork.logic.ts      |  15 +-
+ .../sidebar/JstackTreeRows.browser.test.tsx   | 176 +++++++++++++++++-
  .../src/components/sidebar/JstackTreeRows.tsx |   6 +
- .../sidebar/jstackTree.logic.test.ts          |  19 +-
+ .../sidebar/jstackTree.logic.test.ts          |  20 +-
  .../components/sidebar/jstackTree.logic.ts    |  11 +-
- packages/contracts/src/jbusWork.ts            |   6 +-
- 8 files changed, 309 insertions(+), 8 deletions(-)
+ packages/contracts/src/jbusWork.ts            |   7 +-
+ 8 files changed, 307 insertions(+), 8 deletions(-)
 
 diff --git a/apps/server/src/jstack/JbusWork.ts b/apps/server/src/jstack/JbusWork.ts
-index 49d279aea1..f3c1ebb1f2 100644
+index cd023d437a..0ae67d556b 100644
 --- a/apps/server/src/jstack/JbusWork.ts
 +++ b/apps/server/src/jstack/JbusWork.ts
-@@ -25,6 +25,7 @@ import {
- import {
+@@ -33,6 +33,7 @@ import {
+   briefBody,
    buildRepoWork,
    mergeSnapshots,
 +  readBriefTitle,
    readHomeLine,
    slugsNeedingBriefs,
    type JbusRepoFiles,
-@@ -114,10 +115,14 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+@@ -124,10 +125,14 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
        scopes.push({ scope, homeId, prefix: prefix === "" ? null : prefix });
      }
      const briefHomes = new Map<string, string>();
@@ -46,7 +46,7 @@ index 49d279aea1..f3c1ebb1f2 100644
      }
      return buildRepoWork(
        {
-@@ -130,6 +135,7 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
+@@ -140,6 +145,7 @@ export const make = Effect.fn("JbusWork.make")(function* (roots: JbusWorkRoots)
          scopes: scopes.toSorted((a, b) => a.scope.localeCompare(b.scope)),
          startingScopes: startingScopes.toSorted(),
          briefHomes,
@@ -55,7 +55,7 @@ index 49d279aea1..f3c1ebb1f2 100644
        nowMs,
      );
 diff --git a/apps/server/src/jstack/jbusWork.logic.test.ts b/apps/server/src/jstack/jbusWork.logic.test.ts
-index e8e189670d..976541ef4d 100644
+index 86eeb4c699..635aad5877 100644
 --- a/apps/server/src/jstack/jbusWork.logic.test.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.test.ts
 @@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
@@ -74,16 +74,16 @@ index e8e189670d..976541ef4d 100644
    ...overrides,
  });
  
-@@ -65,7 +67,7 @@ describe("buildRepoWork", () => {
-       ["a-unapproved", "ready", null, true],
-       ["a-working", "crew", "mcp:a-working", false],
-       ["a-quiet", "quiet", "mcp:a-quiet", false],
--      ["a-hung", "crew", "mcp:a-hung", true],
-+      ["a-hung", "crew", "mcp:a-hung", false],
-       ["a-review", "review", "mcp:a-review", false],
-       ["a-findings", "review", "mcp:a-findings", false],
-       ["a-check", "review", "mcp:a-check", false],
-@@ -74,6 +76,73 @@ describe("buildRepoWork", () => {
+@@ -66,7 +68,7 @@ describe("buildRepoWork", () => {
+       ["a-unapproved", "ready", null, "approval"],
+       ["a-working", "crew", "mcp:a-working", null],
+       ["a-quiet", "quiet", "mcp:a-quiet", null],
+-      ["a-hung", "crew", "mcp:a-hung", "word"],
++      ["a-hung", "crew", "mcp:a-hung", null],
+       ["a-asking", "crew", "mcp:a-asking", "answer"],
+       ["a-review", "review", "mcp:a-review", null],
+       ["a-findings", "review", "mcp:a-findings", null],
+@@ -76,6 +78,73 @@ describe("buildRepoWork", () => {
      expect(result.tasks.find((task) => task.slug === "a-unapproved")?.waits).toBe("your approval");
    });
  
@@ -112,18 +112,18 @@ index e8e189670d..976541ef4d 100644
 +      ],
 +    };
 +    const result = buildRepoWork(files({ work }), NOW);
-+    expect(result.tasks.map((task) => [task.slug, task.waitsOnUser])).toEqual([
-+      ["asking", true],
-+      ["unapproved", true],
-+      ["held", true],
-+      ["launching", false],
-+      ["leftover", false],
-+      ["left-home", false],
-+      ["closed", false],
-+      ["hung", false],
-+      ["gone", false],
-+      ["unknown", false],
-+      ["ended", false],
++    expect(result.tasks.map((task) => [task.slug, task.waitsOn])).toEqual([
++      ["asking", "answer"],
++      ["unapproved", "approval"],
++      ["held", "word"],
++      ["launching", null],
++      ["leftover", null],
++      ["left-home", null],
++      ["closed", null],
++      ["hung", null],
++      ["gone", null],
++      ["unknown", null],
++      ["ended", null],
 +    ]);
 +  });
 +
@@ -157,7 +157,7 @@ index e8e189670d..976541ef4d 100644
    it("nests each task under the home its brief names", () => {
      const work = {
        work: ["none", "root", "flow", "thread", "prose", "unknown", "fl-prefixed"].map((slug) =>
-@@ -140,6 +209,7 @@ describe("buildRepoWork", () => {
+@@ -142,6 +211,7 @@ describe("buildRepoWork", () => {
          threadId: "mcp:x",
          slug: "x",
          question: "keep it?",
@@ -166,10 +166,10 @@ index e8e189670d..976541ef4d 100644
        },
      ]);
 diff --git a/apps/server/src/jstack/jbusWork.logic.ts b/apps/server/src/jstack/jbusWork.logic.ts
-index 3a93cb3923..1aecdcdcc8 100644
+index 0a809071ca..81a8cf9db0 100644
 --- a/apps/server/src/jstack/jbusWork.logic.ts
 +++ b/apps/server/src/jstack/jbusWork.logic.ts
-@@ -26,11 +26,20 @@ export interface JbusRepoFiles {
+@@ -27,6 +27,8 @@ export interface JbusRepoFiles {
    readonly startingScopes: ReadonlyArray<string>;
    /** The value of each brief's `Home:` line, by slug. Briefs with no line are absent. */
    readonly briefHomes: ReadonlyMap<string, string>;
@@ -178,19 +178,7 @@ index 3a93cb3923..1aecdcdcc8 100644
  }
  
  /** How far back merges are sent; the sidebar counts those after the user's last look. */
- const LANDED_WINDOW_MS = 48 * 60 * 60 * 1000;
- 
-+/**
-+ * The jbus states that wait on the user's own word: an open question, an approval, a hold.
-+ * jbus also gives the user a leftover, a closed pull request, a hung or lost thread, but those
-+ * are owed by a home or a thread first, so the tree does not say they ask the user.
-+ */
-+const ASKS_USER: ReadonlySet<string> = new Set(["asking", "unapproved", "hold"]);
-+
- const isRecord = (value: unknown): value is Record<string, unknown> =>
-   typeof value === "object" && value !== null && !Array.isArray(value);
- 
-@@ -71,6 +80,7 @@ const placeWorkRow = (value: string, lane: string): Placement | null => {
+@@ -72,6 +74,7 @@ const placeWorkRow = (value: string, lane: string): Placement | null => {
      case "check":
      case "findings":
      case "rebase":
@@ -198,7 +186,17 @@ index 3a93cb3923..1aecdcdcc8 100644
        return { stage: "review" };
      default:
        return null;
-@@ -83,6 +93,12 @@ export const homeWord = (line: string): string => {
+@@ -83,7 +86,8 @@ const waitsOnOf = (value: string, who: unknown): JbusWaitsOn | null => {
+   if (who !== "user") return null;
+   if (value === "unapproved") return "approval";
+   if (value === "asking") return "answer";
+-  return "word";
++  if (value === "hold") return "word";
++  return null;
+ };
+ 
+ /** The lines of a brief's head that jbus adds as it sends one, which its sha leaves out. */
+@@ -109,6 +113,12 @@ export const homeWord = (line: string): string => {
    return first.replace(/[.,;:)]+$/, "");
  };
  
@@ -211,26 +209,23 @@ index 3a93cb3923..1aecdcdcc8 100644
  export const readHomeLine = (brief: string): string | null => {
    const match = /^Home:\s*(.*)$/m.exec(brief);
    return match ? (match[1] ?? "").trim() : null;
-@@ -141,8 +157,9 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
-       threadId: threadIdOf(row.thread),
-       homeThreadId: homeOfSlug(slug),
+@@ -169,6 +179,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
        pullRequest: text(row.pr),
--      waitsOnUser: row.who === "user",
-+      waitsOnUser: row.who === "user" && ASKS_USER.has(text(row.value) ?? ""),
+       waitsOn: waitsOnOf(text(row.value) ?? "", row.who),
        waits: text(row.waits) ?? "",
 +      brief: files.briefTitles.get(slug) ?? null,
      });
    }
    for (const scout of records(files.scouts)) {
-@@ -161,6 +178,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+@@ -187,6 +198,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
        pullRequest: null,
-       waitsOnUser: false,
+       waitsOn: null,
        waits: "",
 +      brief: null,
      });
    }
  
-@@ -175,6 +193,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
+@@ -201,6 +213,7 @@ export const buildRepoWork = (files: JbusRepoFiles, nowMs: number): JbusWorkSnap
        threadId: threadIdOf(question.thread),
        slug: text(question.slug),
        question: text(question.question) ?? "",
@@ -239,10 +234,10 @@ index 3a93cb3923..1aecdcdcc8 100644
      });
    }
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-index a84dedda02..21f13725de 100644
+index f9cb5c8b01..fe847a567f 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.browser.test.tsx
-@@ -288,7 +288,7 @@ const asking: JstackTreeRow = {
+@@ -302,7 +302,7 @@ const asking: JstackTreeRow = {
    ticks: { step: 0, hollow: true, asks: true },
    threadId: null,
    openThreadId: ThreadId.make("gate"),
@@ -251,16 +246,24 @@ index a84dedda02..21f13725de 100644
  };
  
  const menuItems = () =>
-@@ -560,6 +560,7 @@ const crewTask = (slug: string, home: string) => ({
+@@ -586,6 +586,7 @@ const crewTask = (slug: string, home: string) => ({
    pullRequest: null,
-   waitsOnUser: false,
+   waitsOn: null,
    waits: "",
 +  brief: null,
  });
  
  // Each home has a task running, so no row draws at the half ink of an idle one.
-@@ -811,3 +812,174 @@ describe("JstackTreeRowView home actions", () => {
-     expect(spies.onStartHome).toHaveBeenCalledTimes(2);
+@@ -878,6 +879,7 @@ const ROW_SNAPSHOT: JbusWorkSnapshot = {
+       threadId: ThreadId.make("crew-fl-valve"),
+       slug: "fl-valve",
+       question: "Which valve size?",
++      default: "",
+       askedAt: "2026-10-29T11:59:00.000Z",
+     },
+   ],
+@@ -991,3 +993,175 @@ describe("JstackTreeRowView row actions", () => {
+     );
    });
  });
 +
@@ -279,7 +282,7 @@ index a84dedda02..21f13725de 100644
 +      ...crewTask("sb-menus-own-actions", "sidebar"),
 +      stage: "ready",
 +      threadId: null,
-+      waitsOnUser: true,
++      waitsOn: "approval",
 +      waits: "your approval",
 +      brief: "each tree menu item carries its own action",
 +    },
@@ -336,6 +339,7 @@ index a84dedda02..21f13725de 100644
 +    hiddenThreads: [],
 +    collapsed: false,
 +    routeThreadId: sidebarHome,
++    answering: null,
 +    expandedHomes: new Set(),
 +    frozenOrder: null,
 +    lastVisitedAt: () => null,
@@ -435,10 +439,10 @@ index a84dedda02..21f13725de 100644
 +  });
 +});
 diff --git a/apps/web/src/components/sidebar/JstackTreeRows.tsx b/apps/web/src/components/sidebar/JstackTreeRows.tsx
-index 19ab5a4544..81e3dbfd3c 100644
+index 138d22a84e..23cc633a62 100644
 --- a/apps/web/src/components/sidebar/JstackTreeRows.tsx
 +++ b/apps/web/src/components/sidebar/JstackTreeRows.tsx
-@@ -571,6 +571,12 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
+@@ -714,6 +714,12 @@ export const JstackTreeRowView = memo(function JstackTreeRowView(props: {
              {row.ask !== null && unfolded ? (
                <div className="mb-1 ml-2 border-l border-warning/50 py-0.5 pr-2 pl-2 text-2xs">
                  <p className="text-sidebar-foreground/75">{row.ask.what}</p>
@@ -448,22 +452,22 @@ index 19ab5a4544..81e3dbfd3c 100644
 +                {row.ask.brief === null ? null : (
 +                  <p className="text-sidebar-muted-foreground">Brief: {row.ask.brief}</p>
 +                )}
-                 <button
-                   type="button"
-                   tabIndex={-1}
+                 <span className="flex gap-2">
+                   <button
+                     type="button"
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.test.ts b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-index e92908c53d..661b853377 100644
+index e6ec2c9ec1..fd7d640a3f 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.test.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.test.ts
-@@ -44,6 +44,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
+@@ -45,6 +45,7 @@ const task = (slug: string, overrides: Partial<JbusTask> = {}): JbusTask => ({
    pullRequest: null,
-   waitsOnUser: false,
+   waitsOn: null,
    waits: "",
 +  brief: null,
    ...overrides,
  });
  
-@@ -150,6 +151,7 @@ describe("buildJstackTree", () => {
+@@ -152,6 +153,7 @@ describe("buildJstackTree", () => {
              threadId: null,
              slug: "gated",
              question: "Ship it?",
@@ -471,15 +475,15 @@ index e92908c53d..661b853377 100644
              askedAt: minutesAgo(5),
            },
          ],
-@@ -172,6 +174,7 @@ describe("buildJstackTree", () => {
+@@ -174,6 +176,7 @@ describe("buildJstackTree", () => {
          threadId: null,
-         waitsOnUser: true,
+         waitsOn: "approval",
          waits: "your approval",
 +        brief: "the pump stops at the line",
        }),
        task("gated", { stage: "ready", threadId: null }),
        task("fl-ready", { homeThreadId: ThreadId.make("flow"), stage: "ready", threadId: null }),
-@@ -183,6 +186,7 @@ describe("buildJstackTree", () => {
+@@ -185,6 +188,7 @@ describe("buildJstackTree", () => {
          threadId: ThreadId.make("asking"),
          slug: "gated",
          question: "Approve?",
@@ -487,7 +491,7 @@ index e92908c53d..661b853377 100644
          askedAt: minutesAgo(1),
        },
      ];
-@@ -193,8 +197,19 @@ describe("buildJstackTree", () => {
+@@ -195,8 +199,19 @@ describe("buildJstackTree", () => {
      expect(opens).toEqual(["asked>root", "gated>asking", "ready>flow"]);
      const asks = rows.flatMap((row) => (row.kind === "worker" ? [[row.slug, row.ask]] : []));
      expect(asks).toEqual([
@@ -509,8 +513,16 @@ index e92908c53d..661b853377 100644
        ["ready", null],
      ]);
    });
+@@ -505,6 +520,7 @@ describe("row actions: approve, remove, answer and the brief", () => {
+     threadId: ThreadId.make("crew-fl-valve"),
+     slug: null,
+     question: "Which valve size?",
++    default: "",
+     askedAt: minutesAgo(1),
+   };
+   const snapshot = { tasks: [meter, valve, tidy, pump], gates: [gate] };
 diff --git a/apps/web/src/components/sidebar/jstackTree.logic.ts b/apps/web/src/components/sidebar/jstackTree.logic.ts
-index c915f21f25..540b2fcda1 100644
+index b2808a1496..7f135ccfd8 100644
 --- a/apps/web/src/components/sidebar/jstackTree.logic.ts
 +++ b/apps/web/src/components/sidebar/jstackTree.logic.ts
 @@ -19,6 +19,10 @@ import { resolveSidebarThreadStatus } from "../Sidebar.logic";
@@ -524,7 +536,7 @@ index c915f21f25..540b2fcda1 100644
    /** The title of the thread it was asked in, which `openThreadId` opens. */
    readonly askedIn: string | null;
  }
-@@ -259,7 +263,12 @@ const toWorker = (
+@@ -304,7 +308,12 @@ const toWorker = (
        openThreadId,
        ask:
          asks && task.threadId === null
@@ -539,16 +551,18 @@ index c915f21f25..540b2fcda1 100644
        thread,
        pullRequest: task.pullRequest,
 diff --git a/packages/contracts/src/jbusWork.ts b/packages/contracts/src/jbusWork.ts
-index 7213d5a42a..0b2dcb431d 100644
+index 786b16ee36..06cbfce644 100644
 --- a/packages/contracts/src/jbusWork.ts
 +++ b/packages/contracts/src/jbusWork.ts
-@@ -28,10 +28,12 @@ export const JbusTask = Schema.Struct({
-   threadId: Schema.NullOr(ThreadId),
-   homeThreadId: ThreadId,
+@@ -34,11 +34,14 @@ export const JbusTask = Schema.Struct({
    pullRequest: Schema.NullOr(TrimmedNonEmptyString),
--  /** jbus waits on the user's word: a gate, an approval, a hung or lost thread. */
-+  /** jbus waits on the user's own word: an open question, an approval, a hold. */
-   waitsOnUser: Schema.Boolean,
+   /**
+    * What jbus waits on the user for, null for nothing: `approval` of a queued row's brief, an
+-   * `answer` to its open question, or a `word` on a hung, lost or held thread.
++   * `answer` to its open question, or a `word` on a hold. A leftover, a closed pull request, a
++   * hung or lost thread is owed by a home or a thread first, so it is null.
+    */
+   waitsOn: Schema.NullOr(JbusWaitsOn),
    /** What jbus waits on, in its words, such as `your approval`; empty for a scout. */
    waits: Schema.String,
 +  /** The brief's title, after its slug; null with no brief. */
@@ -556,7 +570,7 @@ index 7213d5a42a..0b2dcb431d 100644
  });
  export type JbusTask = typeof JbusTask.Type;
  
-@@ -42,6 +44,8 @@ export const JbusGate = Schema.Struct({
+@@ -49,6 +52,8 @@ export const JbusGate = Schema.Struct({
    threadId: Schema.NullOr(ThreadId),
    slug: Schema.NullOr(TrimmedNonEmptyString),
    question: Schema.String,
