@@ -36,7 +36,7 @@ and so does a finding on one of `RISKS`, whatever its bucket. A decline of a blo
 counts only when its reason cites a `path:line`, a command in backticks, or a gate that the
 Result names (`Gate: question <n>`). `_judge` refuses a reason that the crew gave for an earlier
 finding. A decline of a finding on one of `RISKS` counts only on a gate, which asks the user
-with the default "fix it". Severity is a field and decides nothing.
+with the default "fix it". In a first review, severity is a field and decides nothing.
 
 The scoped pass, a section with a `Scope:` line, rules on each blocking finding that the crew
 declined by id. It writes `Declines: upheld F2, F4`, and `Declines: not upheld F3: <the
@@ -88,6 +88,32 @@ _UPHELD = "Declines: upheld "
 _NOT_UPHELD = "Declines: not upheld "
 _ID = re.compile(r"F\d+")
 OPEN, FIXED, UNRULED, UPHELD, OVERRULED = "open", "fixed", "unruled", "upheld", "overruled"
+REVIEW, NONE, AFTER, TWICE, CLEANUP = "review", "none", "after", "twice", "cleanup"
+MODES = (NONE, AFTER, TWICE, CLEANUP)
+HOLDS, ASKS, FILED, DROPPED, UNSENT = "holds", "asks", "filed", "dropped", "unsent"
+ROUTES = (HOLDS, ASKS, FILED, DROPPED, UNSENT)
+"""Where a finding goes: to the crew, holding the merge until it has an answer that counts
+(`HOLDS`), to the crew, holding nothing (`ASKS`), to the brief's cleanup row (`FILED`), nowhere
+(`DROPPED`), or never sent, as a Noted, Dismissed or superseded finding (`UNSENT`)."""
+_LATER = {
+    REVIEW: {"error": HOLDS, "warning": FILED},
+    TWICE: {"error": FILED, "warning": FILED},
+    CLEANUP: {"error": HOLDS},
+}
+"""The route of a later review's finding, by the brief's mode and the finding's severity: the
+severity is trusted as the review wrote it, and any other severity is `DROPPED`. A `review`
+brief fixes its second review's errors in the pull request and files its warnings, a `twice`
+brief files both, and a cleanup row fixes its errors and files nothing, so no follow-up of a
+follow-up is queued. A cleanup row's one review routes by this table too."""
+
+
+def mode_of(text: str) -> str:
+    """A brief's review mode, from its first `Review:` line: `none`, `after`, `twice`,
+    `cleanup`, or `review`. Any other word reads as `review`, and so does a brief with no such
+    line. Older briefs, written before the reviewer stopped running tests, use other words."""
+    line = next((one for one in text.splitlines() if one.startswith("Review:")), "")
+    said = "".join(line.split()[1:2])
+    return said if said in MODES else REVIEW
 
 
 @dataclass(frozen=True)
@@ -128,7 +154,7 @@ class Section:
     scoped pass, which has a `Scope:` line, and `rulings` contains that pass's ruling on each
     decline, by id. `line` is the index of the section's heading among the brief's lines. `by`
     is the whole `By:` text, the number included, and `seat` is that number, or None for a `By:`
-    line that has no number."""
+    line that has no number. `later` is true for a review after the first (`_later`)."""
 
     by: str = ""
     verdict: str = ""
@@ -139,6 +165,7 @@ class Section:
     scoped: bool = False
     rulings: tuple[tuple[str, Ruling], ...] = ()
     line: int = 0
+    later: bool = False
 
     @property
     def seat(self) -> int | None:
@@ -229,6 +256,7 @@ class Finding:
     refused: str = ""
     first: str = ""
     ruling: Ruling | None = None
+    route: str = UNSENT
 
     @property
     def lead(self) -> Raised:
@@ -280,16 +308,13 @@ class Finding:
 
     @property
     def sent(self) -> bool:
-        """Whether the reviewer sent the finding to the crew, so that the crew must answer it. The
-        reviewer sends a finding of a section that still counts, in a bucket of `SENT`."""
-        return not self.superseded and self.bucket in SENT
+        """Whether the finding goes to the crew, so that the crew must answer it (`route`)."""
+        return self.route in (HOLDS, ASKS)
 
     @property
     def blocks(self) -> bool:
-        """Whether this finding holds the merge until the crew answers it. A finding in the
-        `Act on` bucket holds it, as every finding from before the buckets does, and so does
-        a finding on one of `RISKS` in any bucket."""
-        return self.sent and (self.bucket == ACT_ON or bool(self.risk))
+        """Whether this finding holds the merge until the crew answers it (`route`)."""
+        return self.route == HOLDS
 
     @property
     def ended(self) -> bool:
@@ -323,6 +348,7 @@ class Triage:
     findings: list[Finding] = field(default_factory=list)
     answers: dict[str, Answer] = field(default_factory=dict)
     roster: Roster = field(default_factory=lambda: Legacy(0))
+    mode: str = REVIEW
 
     def blocking(self) -> tuple[Finding, ...]:
         """The findings that hold the merge: each finding in the `Act on` bucket with no answer
@@ -331,6 +357,9 @@ class Triage:
 
     def sent(self) -> list[Finding]:
         return [one for one in self.findings if one.sent]
+
+    def routed(self, route: str) -> list[Finding]:
+        return [one for one in self.findings if one.route == route]
 
     def declines(self, state: str) -> tuple[Finding, ...]:
         """The blocking findings whose `state` is `UNRULED` or `OVERRULED`, in the order of
@@ -544,10 +573,44 @@ def _judge(findings: list[Finding], text: str) -> None:
         given.setdefault(said, one.id)
 
 
+def _later(sections: list[Section]) -> list[Section]:
+    """The sections, each marked `later` where it is a review after the first: a scoped pass,
+    or a section whose seat, the `#<n>` of its `By:` line, already ran at another head. So a
+    seat that writes its first section late, at a head the fix pushed, is still a first review.
+    A section with no number is later where its head is not the first ran section's. With no
+    section that ran, none is later."""
+    first = next((one.head for one in sections if one.ran and one.head), "")
+    if not first:
+        return sections
+    ran: dict[int, set[str]] = {}
+    marked = []
+    for one in sections:
+        before = {first} if one.seat is None else ran.get(one.seat, set())
+        later = bool(one.head) and (one.scoped or bool(before - {one.head}))
+        marked.append(replace(one, later=later))
+        if one.seat is not None and one.ran and one.head:
+            ran.setdefault(one.seat, set()).add(one.head)
+    return marked
+
+
+def _route(mode: str, later: bool, one: Finding) -> str:
+    """Where one finding goes, by `ROUTES`."""
+    if one.superseded or one.bucket == DISMISSED:
+        return UNSENT
+    if mode == AFTER:
+        return FILED if one.bucket in SENT else UNSENT
+    if later or mode == CLEANUP:
+        return _LATER.get(mode, _LATER[REVIEW]).get(one.severity, DROPPED)
+    if one.bucket not in SENT:
+        return UNSENT
+    return HOLDS if one.bucket == ACT_ON or one.risk else ASKS
+
+
 def triage(text: str) -> Triage:
     """The brief's findings after `triage` merges them, gives each its id, sets each beside the
-    dismissals that contradict it, and attaches each one's answer."""
-    sections = _sections(text)
+    dismissals that contradict it, routes each one, and attaches each one's answer."""
+    sections = _later(_sections(text))
+    mode = mode_of(text)
     stale = _superseded(sections)
     findings: list[Finding] = []
     for section in sections:
@@ -571,6 +634,8 @@ def triage(text: str) -> Triage:
             and (apart := _near(other.lead, one.lead)) is not None
         ]
         one.contradicts = min(near, key=lambda pair: (pair[0], int(pair[1][1:])))[1] if near else ""
+    for one in findings:
+        one.route = _route(mode, sections[one.lead.section].later, one)
     answers, old = _answers(text)
     unnumbered = iter(old)
     for one in findings:
@@ -586,7 +651,7 @@ def triage(text: str) -> Triage:
             for ident, ruling in section.rulings:
                 if ident in by_id:
                     by_id[ident].ruling = ruling
-    return Triage(sections, findings, answers, roster(text))
+    return Triage(sections, findings, answers, roster(text), mode)
 
 
 def listed(said: Triage) -> list[str]:
@@ -623,6 +688,10 @@ def _shown(one: Finding) -> list[str]:
         lines.append(f"  dismissed: {lead.reason or 'no reason given'}")
     elif one.superseded:
         lines.append("  superseded: its reviewer wrote this head's section again")
+    elif one.route == FILED:
+        lines.append("  goes to: the cleanup row, and this thread answers nothing for it")
+    elif one.route == DROPPED:
+        lines.append("  goes to: nowhere, dropped, and this thread answers nothing for it")
     elif one.answer is not None:
         answer = one.answer
         said = f"fixed, {answer.what}" if answer.fixed else f"not fixed, {answer.what}"
@@ -666,6 +735,11 @@ def left(said: Triage) -> str:
         return line + (": " + ", ".join(named) if named else "")
     last = _last_round(said)
     recent = [one for one in sent if one.lead.section in last]
+    if not recent and (said.mode == CLEANUP or any(said.sections[n].later for n in last)):
+        return (
+            "write nothing: the last review sends this thread no finding, since only an error "
+            "of a later review comes here, and the Fixed: line stays as it is"
+        )
     earlier = len(sent) - len(recent)
     fixed = any(one.answer and one.answer.fixed for one in sent)
     if earlier and recent and not any(one.answer and one.answer.fixed for one in recent):

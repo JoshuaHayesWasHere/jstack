@@ -184,7 +184,7 @@ def test_the_reasons_these_tests_give_jmerge_are_the_ones_it_prints():
     saw, fix, head = "a" * 40, "b" * 40, "c" * 40
     result = "\n## Result\nStatus: done\n"
     second = f"Second pass: needed since {saw}, the fix also changed b.py\n"
-    first, last = REVIEW.format(saw=saw), REVIEW.format(saw=fix)
+    first, last = REVIEW.format(saw=saw), REVIEW.format(saw=fix).replace("- minor", "- error")
     assert ready.short_of(result + first, head) == NO_FIXED
     assert ready.short_of(result + f"Fixed: {saw}\n" + first, head) == NOT_PUSHED
     assert ready.short_of(result + second + f"Fixed: {head}\n" + first, head) == NO_SECOND

@@ -200,7 +200,7 @@ def brief(review="", result="", field=""):
 
 
 def review(verdict, head=REVIEWED):
-    findings = "- high a.py:1 it is wrong\n" if verdict == "findings" else "none\n"
+    findings = "- error a.py:1 it is wrong\n" if verdict == "findings" else "none\n"
     return (
         "## Review\n"
         f"Verdict: {verdict}\n"

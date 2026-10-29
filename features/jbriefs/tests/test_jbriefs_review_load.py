@@ -26,7 +26,7 @@ def test_twice_and_none_need_no_word(review):
     assert parse.faults(brief(review)) == []
 
 
-@pytest.mark.parametrize("mode", ["review", "after"])
+@pytest.mark.parametrize("mode", ["review", "after", "cleanup"])
 @pytest.mark.parametrize(
     "decisions",
     ["", "Decisions: none\n", "Decisions: None.\n", "Decisions: <any the user made>\n"],
@@ -37,7 +37,7 @@ def test_review_or_after_with_no_word_is_refused(mode, decisions):
     assert "Review: twice" in fault
 
 
-@pytest.mark.parametrize("mode", ["review", "after"])
+@pytest.mark.parametrize("mode", ["review", "after", "cleanup"])
 @pytest.mark.parametrize(
     "decisions",
     [

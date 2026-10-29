@@ -58,7 +58,7 @@ def test_a_second_review_with_a_warning_lets_it_merge_and_its_findings_need_no_a
     assert ready.to_range_diff(None, text, FIX) is None
     assert ready.under_fix(None, text, FIX) == ""
     review_mode = text.replace("Review: twice", "Review: review")
-    assert ready.short_of(review_mode, FIX) == ready.NOT_PUSHED
+    assert ready.short_of(review_mode, FIX) == ""
 
 
 def test_the_first_reviews_findings_left_unanswered_hold_it():
