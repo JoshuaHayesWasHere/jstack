@@ -32,7 +32,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
@@ -68,6 +68,11 @@ RETRO = timedelta(hours=24)
 NOT_RED = ("success", "neutral", "skipped", "cancelled")
 NO_JOB = "nojob"
 """What `_check` answers for a commit on main whose failed check runs started no job."""
+RERUNS = "reruns.json"
+"""The push runs on main whose failed jobs jbus asked GitHub to rerun, by id: when it asked,
+and whether GitHub took the rerun."""
+RERUN_WAIT = timedelta(minutes=30)
+"""How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")
 NIGHTLY_WINDOW = timedelta(days=3)
 NIGHTLY_GRACE = timedelta(hours=1)
@@ -974,7 +979,9 @@ def _api(run: Pass, path: str) -> Any:
         return None
 
 
-def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> str:
+def _check(
+    run: Pass, known: dict[str, str], sha: str, again: bool = False, rerun: bool = False
+) -> str:
     """Return whether the check runs of a commit on main passed. `_check` asks GitHub once
     for a final answer, and keeps it in `known`.
 
@@ -987,6 +994,14 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     `_check` reruns a cancelled run that is at its first attempt, and the commit is `pending` until
     the rerun ends. GitHub's `run_attempt` says whether the run ran again: `cancelled` is a later
     attempt that was cancelled too, and `refused` a run that GitHub did not start again.
+
+    A failed push run is rerun once before the commit is `failed`, since most of main's reds
+    were flakes that passed on a second attempt. With `rerun`, `_check` reruns the failed jobs
+    of each failed push run at its first attempt (`gh run rerun --failed`), and the commit is
+    `pending` while any push run has not ended. A run at a later attempt, rerun by jbus or by
+    hand, is never rerun again: its failure is the commit's. jbus asks for each run's rerun
+    once (`_rerun_failed`): where GitHub refuses it, or still shows the first attempt
+    `RERUN_WAIT` after, the commit is `failed`. An ask is kept for a day (`RETRO`).
 
     A commit whose every failed check run has a job that ran no step, and no check run of which
     passed, is `NO_JOB`, not `failed`: GitHub started no job, as on a spent Actions limit or a
@@ -1006,6 +1021,13 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
         known[sha] = NO_JOB
         return NO_JOB
     bad = bool(failed)
+    if bad and any(r.get("status") != "completed" for r in pushed):
+        return "pending"
+    first = [
+        r for r in pushed if r.get("conclusion") not in NOT_RED and (r.get("run_attempt") or 1) == 1
+    ]
+    if bad and first and _rerun_failed(run, first, ask=rerun):
+        return "pending"
     if bad or (runs and "cancelled" not in ended):
         known[sha] = "failed" if bad else "green"
         return known[sha]
@@ -1019,6 +1041,30 @@ def _check(run: Pass, known: dict[str, str], sha: str, again: bool = False) -> s
     ):
         known[sha] = "refused"
     return known.get(sha, "pending")
+
+
+def _rerun_failed(run: Pass, first: list[dict], ask: bool) -> bool:
+    """Rerun the failed jobs of each push run at its first attempt, once, and return whether
+    each rerun is still to be waited on. Only with `ask` does it ask GitHub for a rerun not
+    asked for yet; without it, such a run is failed.
+
+    `RERUNS` keeps when jbus asked for each and whether GitHub took it, so a run GitHub still
+    shows at its first attempt is not asked again: it is waited on for `RERUN_WAIT`, and is
+    then failed, as is a run whose rerun GitHub refused. An ask is kept for a day (`RETRO`)."""
+    path = run.state / RERUNS
+    asked: dict[str, dict] = read_json(path, {})
+    waiting = True
+    for one in first:
+        key = str(one.get("id"))
+        if key not in asked and not ask:
+            return False
+        if key not in asked:
+            took = run.run("gh", "run", "rerun", "--failed", key).returncode == 0
+            asked[key] = {"at": run.now.isoformat(), "took": took}
+        since = run.now - when(asked[key]["at"])
+        waiting = waiting and asked[key]["took"] and since < RERUN_WAIT
+    write_json(path, {key: one for key, one in asked.items() if run.now - when(one["at"]) < RETRO})
+    return waiting
 
 
 def _judged(run: Pass, sha: str) -> tuple[list[dict], list[dict]]:
@@ -1097,13 +1143,16 @@ def red_brief(
     jobs: list[tuple[str, str, list[str]]],
     red: list[dict],
     changed: list[str],
+    reran: Sequence[tuple[str, str, int]] = (),
 ) -> str:
     """Return the brief for the fix of a red main at `sha`, in the shape of
     `features/jbriefs/templates/brief.md`. `jobs` is each failed check run's name, URL and
     failed tests. `red` is the commits from `sha` down to the last green one, not including
     it. `changed` is the files those commits changed. `slug` is the briefed merge before the
     red, or empty where none came in the day before it: the fix is a follow-up of that row, and
-    a pass approves it on the row's go (`queue.follow_ups`)."""
+    a pass approves it on the row's go (`queue.follow_ups`). `reran` is each failed push run
+    that ran again and failed again (`_check`), by its name, URL and last attempt: the brief
+    names both of its runs."""
     tests = [test for _, _, failed in jobs for test in failed]
     files = list(dict.fromkeys([*changed, *(test.split("::")[0] for test in tests)]))
     where = (
@@ -1114,6 +1163,11 @@ def red_brief(
         f"- the job `{name}`, {url or 'with no URL'}: "
         + (", ".join(f"`{test}`" for test in failed) or "its log names no failed test, read it")
         for name, url, failed in jobs
+    ]
+    read += [
+        f"- the push run `{name}` failed at its first attempt, {url}/attempts/1, "
+        f"and again when it ran again, {url}/attempts/{attempt}"
+        for name, url, attempt in reran
     ]
     read += [
         f"- the merge {commit['sha'][:12]} {commit['commit']['message'].splitlines()[0]}"
@@ -1167,12 +1221,18 @@ def _file(run: Pass, slug: str, sha: str, red: list[dict]) -> None:
     name = f"{mainjson.FIX}{sha[:12]}"
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return
+    runs, pushed = _judged(run, sha)
     jobs = [
         (r.get("name") or "?", r.get("html_url") or "", _failed_tests(run, r.get("id")))
-        for r in _judged(run, sha)[0]
+        for r in runs
         if r.get("status") == "completed" and r.get("conclusion") not in NOT_RED
     ]
-    text = red_brief(slug, sha, jobs, red, _changed(run, red))
+    reran = [
+        (r.get("name") or "?", r.get("html_url") or "", r["run_attempt"])
+        for r in pushed
+        if r.get("conclusion") not in NOT_RED and (r.get("run_attempt") or 1) > 1
+    ]
+    text = red_brief(slug, sha, jobs, red, _changed(run, red), reran)
     (run.home / "tasks").mkdir(parents=True, exist_ok=True)
     (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
@@ -1480,7 +1540,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
         return
     known: dict[str, str] = read_json(run.state / "checks.json", {})
     tip = commits[0]["sha"] if commits else ""
-    if fixes and _check(run, known, tip) == "green":
+    if fixes and _check(run, known, tip, rerun=True) == "green":
         _withdraw(run, fixes, tip)
     by_commit = {(p.get("mergeCommit") or {}).get("oid"): p for p in merges}
     for place, commit in enumerate(commits):
@@ -1500,7 +1560,7 @@ def _retro(run: Pass, world: World, rows: list[dict[str, Any]]) -> None:
             if place != 0:
                 continue
         slug = slug_of[pull["number"]] if pull else ""
-        answer = _check(run, known, sha, again=bool(slug))
+        answer = _check(run, known, sha, again=bool(slug), rerun=place == 0)
         if slug and answer in ("cancelled", "refused"):
             twice = f"main check cancelled twice at {sha[:12]}"
             unasked = f"main check cancelled at {sha[:12]}, and GitHub did not run it again"

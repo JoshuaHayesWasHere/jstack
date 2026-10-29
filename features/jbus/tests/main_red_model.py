@@ -49,12 +49,14 @@ Each kind of step matches the code as follows:
 - **lands, another merge**: a merge that does not ask `rows.red`, such as the fix
   `main-red-<sha12>`, a merge by hand, or `--accept`. The model always allows it.
 - **settles**: a pending tip's check ends with one of the answers of `watch._check`
-  (`features/jbus/src/jbus/watch.py:977-1021`): `green`, `failed`, `cancelled` (a later attempt that
+  (`features/jbus/src/jbus/watch.py:982-1043`): `green`, `failed`, `cancelled` (a later attempt that
   was cancelled too), `refused` (a run GitHub did not start again) or `nojob` (each failed check
   run's job ran no step, `watch.NO_JOB`). `main_check` asks without `again`
   (`features/jbus/src/jbus/mainmoved.py`). So `cancelled` and `refused` reach `tell` only
   through `checks.json`, where watch's retro writes them (`_check(..., again=True)`). No `settles`
-  event reaches a tip whose check never ends, and that tip stays `pending`.
+  event reaches a tip whose check never ends, and that tip stays `pending`. A failed push run at
+  main's tip is rerun once (`main_check(..., rerun=True)`), and the tip is `pending` until the
+  rerun ends: `failed` here is the answer once the rerun failed too, or one that ran no rerun.
 - **rerun passes**: the newest tip's check failed, and a rerun of that check on the same tip passes
   with no new commit. From then on, that tip's check is `green`.
 - Each pass also chooses T3 Code's answer to a send. T3 Code answers it, loses it (`T3Error`,
@@ -236,7 +238,7 @@ def stubbed() -> Iterator[None]:
     """Put in the five stubs and nothing else: GitHub's two answers, the launch record, the
     brief's thread, and a crew whose turn has ended."""
     with (
-        mock.patch.object(mainmoved, "main_check", lambda run, at, again=False: run.checks[at]),
+        mock.patch.object(mainmoved, "main_check", lambda run, at, **_: run.checks[at]),
         mock.patch.object(mainmoved, "failed_at", lambda run, at: [failing(int(at[0]))]),
         mock.patch.object(dispatch, "launched", lambda run, slug: THREAD if slug == RED_PR else ""),
         mock.patch.object(briefs, "thread_of", lambda brief: THREAD),

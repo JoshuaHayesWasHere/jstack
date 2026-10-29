@@ -296,10 +296,12 @@ def test_a_check_on_main_that_failed_beside_a_cancelled_one_is_a_failed_check(ki
 def beside_a_dispatched_browser_run(sha, check):
     """Return the check runs and the workflow runs of a commit on main whose push run's `full`
     job ended `check`, beside browser.yml runs at the same commit that failed: one dispatched by
-    hand, one on a schedule and one for a tag."""
+    hand, one on a schedule and one for a tag. The push run is at its second attempt, so a
+    failure is final and not rerun."""
     done = {"status": "completed"}
     check_runs = [{**done, "conclusion": check, "name": "full", "check_suite": {"id": 11}}]
-    workflow_runs = [{**done, "conclusion": check, "event": "push", "check_suite_id": 11}]
+    pushed = {"event": "push", "check_suite_id": 11, "run_attempt": 2}
+    workflow_runs = [{**done, "conclusion": check, **pushed}]
     for suite, event, branch in (
         (12, "workflow_dispatch", "main"),
         (13, "schedule", "main"),
