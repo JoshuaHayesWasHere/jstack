@@ -1086,12 +1086,11 @@ def warn_uncited(models):
                 f"{rel(spec)}: {join_and(held)} {'holds' if len(held) == 1 else 'hold'}, but a rule"
                 " can"
                 " also hold because the model waits for a condition that the code does not check."
-                " No"
-                " comment gives the file and line of the code that checks"
+                " No comment cites the code that checks"
                 f" {'this condition' if len(found) == 1 else 'these conditions'}:\n{listed}\nPut"
-                " that"
-                " file and line in a comment on each condition, as in \\* pay.ts:120, or remove the"
-                " condition when no code checks it.",
+                " the file of that code in a comment on each condition, with the code it quotes in"
+                " backticks, as in \\* pay.ts `if (sent > 0)`, or its file and line, as in"
+                " \\* pay.ts:120, or remove the condition when no code checks it.",
                 file=sys.stderr,
             )
         found_by_spec[os.path.basename(spec)] = found
