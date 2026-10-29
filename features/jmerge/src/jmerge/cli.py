@@ -288,6 +288,9 @@ class Repo:
     def queue(self) -> list[dict] | None:
         return rows.read(self.main)
 
+    def stored(self, slug: str) -> str | None:
+        return rows.stored(self.main, slug)
+
     @functools.cached_property
     def main_state(self) -> mainjson.Main:
         return rows.main(self.main)
@@ -836,9 +839,11 @@ class Repo:
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
         short = (
-            rows.short(self.queue, brief.stem)
+            rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
             or (
-                rows.short(self.queue, brief.stem, self.carries(one))
+                rows.short(
+                    self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem)
+                )
                 if ready.stack_of(text) is None
                 else ""
             )

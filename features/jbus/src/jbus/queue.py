@@ -485,6 +485,14 @@ def approved_text(row: Row, text: str) -> bool:
     return row.get("brief_sha") in (brief_sha(text), sha(text))
 
 
+def has_go(row: Row, text: str | None) -> bool:
+    """Return whether the row has a go that holds for its brief `text` as it stands: it is
+    approved, its brief is there, and the go holds for it (`approved_text`). An `add` that changes
+    a brief leaves `approved` set, so the flag alone is no go. jbus's launch and `jmerge` both ask
+    this."""
+    return bool(row.get("approved")) and text is not None and approved_text(row, text)
+
+
 def _bound(row: Row) -> meaning.Meaning:
     """Return the fingerprint the row's go binds: its record's, or the one an `add` bound an older
     go to (`rebound`). Return nothing for a go bound only to a sha."""
@@ -516,7 +524,7 @@ def verify(row: Row, text: str | None, path: str) -> dict[str, Any]:
     return {
         "slug": row["slug"],
         "approved": approval(row),
-        "holds": bool(row.get("approved")) and text is not None and approved_text(row, text),
+        "holds": has_go(row, text),
         "brief_sha": row.get("brief_sha", ""),
         "approval": made,
         "rebound": row.get("rebound", []),
@@ -1622,7 +1630,7 @@ def _waits(row: Row | None, text: str | None) -> bool:
     its go does not hold for its brief."""
     if row is None or text is None or row.get("held") or row.get("status", "queued") != "queued":
         return False
-    return not (row.get("approved") and approved_text(row, text))
+    return not has_go(row, text)
 
 
 def _entered(
@@ -1815,7 +1823,7 @@ def _rename(batch: _Batch, verb: Rename, asks: Asks | None) -> str:
     first, cut, rest = text.partition("\n")
     head = f"# {old}:"
     renamed = f"# {new}:{first.removeprefix(head)}{cut}{rest}" if first.startswith(head) else text
-    holds = bool(row.get("approved")) and approved_text(row, text)
+    holds = has_go(row, text)
     if holds:
         kept = record(row)
         if kept and kept.scope:

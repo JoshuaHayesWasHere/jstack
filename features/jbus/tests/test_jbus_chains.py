@@ -148,7 +148,11 @@ def mergeable(kitchen, slugs):
     last pass wrote, as jmerge reads it."""
     table = jrows.read(kitchen.checkout)
     assert table is not None
-    return [slug for slug in slugs if jrows.short(table, slug) == ""]
+    return [
+        slug
+        for slug in slugs
+        if jrows.short(table, slug, brief=jrows.stored(kitchen.checkout, slug)) == ""
+    ]
 
 
 def test_a_chain_only_about_merging_launches_at_once_and_merges_link_by_link(kitchen):
