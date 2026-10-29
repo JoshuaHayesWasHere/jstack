@@ -4,6 +4,7 @@ of `canaries.py` is a test of its own, so the workers share them out, and those 
 no Java runs TLC. The code model's conditions each name a file and line, as the statechart tool
 checks."""
 
+import bisect
 import importlib
 import os
 import re
@@ -48,34 +49,62 @@ def test_every_condition_of_the_code_model_names_its_file_and_line():
     assert lib.uncited_conditions(today.read_text(), shared) == []
 
 
-QUOTE = re.compile(r"([\w./-]+\.(?:py|md)):(\d+(?:-\d+)?)\s*`([^`]+)`")
-"""A citation of HomeTreeToday.tla with the code it quotes: `jbus/children.py:184 `...``."""
+QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
+"""A citation of HomeTreeToday.tla with the code it quotes, and no line number:
+`jbus/children.py `beat = _rhythm(scope)``, so a line that only moves needs no edit."""
+
+
+def located(lines, quote):
+    """Each span of lines, first and last from 1, that holds the quote, white space aside."""
+    words, line_of = [], []
+    for number, line in enumerate(lines, 1):
+        for word in line.split():
+            words.append(word)
+            line_of.append(number)
+    text, want = " ".join(words), " ".join(quote.split())
+    starts = [0]
+    for word in words[:-1]:
+        starts.append(starts[-1] + len(word) + 1)
+    found, at = [], text.find(want)
+    while at >= 0:
+        first = bisect.bisect_right(starts, at) - 1
+        last = bisect.bisect_right(starts, at + len(want) - 1) - 1
+        found.append((line_of[first], line_of[last]))
+        at = text.find(want, at + 1)
+    return found
 
 
 def quoted():
-    """Each quote of HomeTreeToday.tla: its file and span as cited, the quote, and the lines."""
+    """Each quote of HomeTreeToday.tla: its file as cited, the quote, the file's lines, and each
+    span of them that holds the quote."""
     text = (SPEC / "HomeTreeToday.tla").read_text()
     flat = re.sub(r"\s*\n\s*(?:\\\*)?\s*", " ", text)
     files = subprocess.run(
         ["git", "ls-files", "features"], cwd=REPO, capture_output=True, text=True, check=True
     ).stdout.split()
-    for path, span, quote in QUOTE.findall(flat):
+    assert not re.search(r"\.(?:py|md):\d", flat)
+    for path, quote in QUOTE.findall(flat):
         (found,) = [one for one in files if one.endswith(f"/{path}")]
-        first, _, last = span.partition("-")
-        lines = (REPO / found).read_text().splitlines()[int(first) - 1 : int(last or first)]
-        yield path, span, quote, lines
+        lines = (REPO / found).read_text().splitlines()
+        yield path, quote, lines, located(lines, quote)
 
 
-def test_each_quote_of_the_code_model_is_on_the_lines_it_cites():
-    """Each `file:line` the code model quotes holds the quoted text on those lines, so a quote
-    the code has moved off or changed fails here, also where no Java runs TLC."""
+def test_each_quote_of_the_code_model_stands_once_in_its_file():
+    """Each quote of the code model stands in its file once, so the cite finds its line, and a
+    quote the code has moved off its block, changed or copied fails here, also where no Java runs
+    TLC. A line shift alone changes nothing a cite says."""
     quotes = list(quoted())
     assert len(quotes) > 40
-    stale = []
-    for path, span, quote, lines in quotes:
-        if " ".join(quote.split()) not in " ".join(" ".join(lines).split()):
-            stale.append(f"{path}:{span} `{quote}`")
-    assert stale == []
+    wrong = [f"{path} `{quote}`: {len(at)} times" for path, quote, _, at in quotes if len(at) != 1]
+    assert wrong == []
+
+
+def test_a_quote_finds_its_lines_after_a_shift_and_not_once_its_block_is_split():
+    lines = ["if why:", "    break"]
+    assert located(lines, "if why: break") == [(1, 2)]
+    assert located(["", *lines], "if why: break") == [(2, 3)]
+    assert located([lines[0], "    sent += 1", lines[1]], "if why: break") == []
+    assert located([*lines, *lines], "if why:") == [(1, 1), (3, 3)]
 
 
 STRING = re.compile(r"\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*'")
@@ -88,12 +117,16 @@ def disjuncts(code):
 
 
 def test_a_quote_of_one_python_line_holds_each_or_on_it():
-    """A quote of one line of Python names a condition, and holds every `or` that line holds, so
-    a disjunct the code gains fails here until the model takes it in. A span quotes a block."""
+    """A quote that stands on one line of Python names a condition, and holds every `or` that
+    line holds, so a disjunct the code gains fails here until the model takes it in. A quote over
+    several lines names a block."""
     short = [
-        f"{path}:{span} `{quote}`"
-        for path, span, quote, (line, *_) in quoted()
-        if path.endswith(".py") and span.isdigit() and disjuncts(quote) != disjuncts(line)
+        f"{path} `{quote}`"
+        for path, quote, lines, at in quoted()
+        if path.endswith(".py")
+        and len(at) == 1
+        and at[0][0] == at[0][1]
+        and disjuncts(quote) != disjuncts(lines[at[0][0] - 1])
     ]
     assert short == []
 
