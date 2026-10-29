@@ -841,9 +841,7 @@ class Repo:
         short = (
             rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))
             or (
-                rows.short(
-                    self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem)
-                )
+                rows.short(self.queue, brief.stem, self.carries(one), brief=self.stored(brief.stem))
                 if ready.stack_of(text) is None
                 else ""
             )
