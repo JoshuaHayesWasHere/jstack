@@ -173,14 +173,22 @@ def test_a_commit_of_mains_in_the_reviewed_range_that_the_new_head_holds_is_left
 
 
 def test_a_commit_of_its_own_the_new_head_left_out_is_still_a_change(tmp_path):
+    """The reviewed range holds a commit of main's as #562's did, which is left out, and the
+    rebase drops the second of its own two commits, which is not."""
     branch = Branch(tmp_path, commits=({10: "the task 10"}, {20: "the task 20"}))
-    branch.theirs({28: "theirs 28"})
+    branch.theirs({28: "the link under 28"})
+    under = branch.tip
+    merge.git(branch.main, "checkout", "-q", "alpha")
+    merge.git(branch.main, "-c", "core.editor=true", "rebase", "-q", "origin/main")
+    branch.reviewed = merge.git(branch.main, "rev-parse", "HEAD")
+    merge.git(branch.main, "checkout", "-q", "main")
+    branch.theirs({2: "theirs 2"})
     merge.git(branch.main, "checkout", "-q", "-b", "beta", "origin/main")
     merge.git(branch.main, "cherry-pick", f"{branch.reviewed}~1")
     branch.head = merge.git(branch.main, "rev-parse", "HEAD")
     merge.git(branch.main, "checkout", "-q", "main")
-    said = branch.verdict()
-    assert (said.clean, said.command) == (False, branch.command())
+    said = rangediff.verdict(branch.main, branch.reviewed, branch.head, "main", branch.base)
+    assert (said.clean, said.old) == (False, f"{under}..{branch.reviewed}")
 
 
 def test_a_commit_that_is_not_here_and_cannot_be_fetched_is_not_clean(branch):
