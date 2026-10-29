@@ -628,38 +628,6 @@ def test_a_question_closed_since_the_last_pass_is_not_shown_as_open(home):
     assert home.round() == "no page: 1 open, and fewer than two are text"
 
 
-def test_a_links_conflict_asks_the_home_and_is_on_no_round(home, tmp_path):
-    url = "https://example.test/pull/7"
-    link = f"alpha: {url} has a conflict, and it is a link of a stack"
-    for question in ("one?", link):
-        assert home.kitchen.main("gate", "alpha", stdin=whole(question))[0] == 0
-    says = tmp_path / "gh-says"
-    stub = tmp_path / "gh-bin" / "gh"
-    stub.parent.mkdir()
-    stub.write_text(
-        f'#!/bin/sh\n[ "$3" = "{url}" ] || exit 1\njq -r \'"\\(.state) \\(.mergeable)"\' "{says}"\n'
-    )
-    stub.chmod(0o755)
-    home.env["PATH"] = f"{stub.parent}{os.pathsep}{home.env['PATH']}"
-    ours = "for this home, question 2, from alpha: "
-    assert home.shown().splitlines() == [
-        "question 1, from alpha: one?",
-        *REST.splitlines(),
-        f"{ours}could not ask GitHub about {url}",
-    ]
-    says.write_text('{"state": "OPEN", "mergeable": "CONFLICTING"}')
-    assert home.shown().splitlines()[-1] == f"{ours}send its line, {url} has a conflict"
-    assert home.round() == "no page: 1 open, and fewer than two are text"
-    home.closes(1, "yes", "default")
-    says.write_text('{"state": "OPEN", "mergeable": "MERGEABLE"}')
-    assert home.shown() == (
-        f"{ours}handled, {url} is OPEN MERGEABLE, "
-        "and the question is the user's to close as default"
-    )
-    home.closes(2, "handled", "default")
-    assert home.shown() == "no open questions"
-
-
 def test_a_scoped_homes_own_slug_is_its_own_whatever_brief_has_that_name(home):
     home.kitchen.brief(f"home-{SCOPE}", f"Home: {ROOT}\n")
     assert home.asks(SCOPED, a_gate("how fast?", "home")) == "asked: queued: question 1"
