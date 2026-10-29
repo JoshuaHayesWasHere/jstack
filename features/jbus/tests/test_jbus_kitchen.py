@@ -386,8 +386,6 @@ def fake_gh(stub, args, cwd):
     `pr edit` changes nothing and says nothing: the log is its record. With `gh-edit-refused`
     there, it fails and says nothing.
     `api rate_limit` gives GitHub's API budget from `rate-limit.json`, or a full one.
-    `api .../compare/<base>...<head>` gives the status `compare.json` keeps for `<base>...<head>`,
-    or `diverged`.
     `api` picks its answer by the end of the path. It gives a commit's check runs, its runs for a
     push, who owns the repo (with no `repo.json`, GitHub does not say), the commits, and a pull
     request's comments, line comments and reviews. Asked for every page (`--paginate --slurp`), it
@@ -438,10 +436,6 @@ def fake_gh(stub, args, cwd):
         if (stub / "gh-edit-refused").exists():
             return 1, "", ""
         said = ""
-    elif args[0] == "api" and "/compare/" in args[1]:
-        kept = stub / "compare.json"
-        known = json.loads(kept.read_text()) if kept.exists() else {}
-        said = json.dumps({"status": known.get(args[1].split("/compare/")[1], "diverged")})
     elif args[0] == "api" and args[1].split("?")[0].endswith("/annotations"):
         said = "[[]]" if "--slurp" in args else "[]"
     elif args[0] == "api" and "/check-runs" in args[1]:
@@ -913,7 +907,6 @@ class Kitchen:
         (["gh", "api", "repos/{owner}/{repo}"], {}),
         (["gh", "api", "repos/o/r/pulls/7/reviews", "--slurp"], {}),
         (["gh", "api", "repos/o/r/commits"], {}),
-        (["gh", "api", "repos/o/r/compare/a...b"], {"compare.json": '{"a...b": "ahead"}'}),
         (["gh", "pr", "edit", "7", "--base", "main"], {}),
         (["gh", "pr", "list", "--state", "open"], {"gh-down": ""}),
         (["gh", "something", "else"], {}),

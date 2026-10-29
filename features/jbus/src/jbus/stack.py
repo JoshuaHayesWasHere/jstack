@@ -1,5 +1,4 @@
-"""This module keeps a stacked link on its base: it moves a link whose base merged itself, and
-tells its crew when to move it otherwise.
+"""This module moves a stacked link onto the branch its base merged into, or tells its crew to.
 
 A row whose brief builds on another row's code (`--depends`, named on its `Builds on:` line)
 launches once that row has opened its pull request, stacked on that pull request's branch
@@ -7,34 +6,30 @@ launches once that row has opened its pull request, stacked on that pull request
 of the stack: the crew opens its pull request on that branch, and `jmerge` waits on the line
 (`ready.STACKED_ON`).
 
-Each pass reads every open pull request whose brief has the line and has not moved yet:
+While the base is open, its link's crew is told nothing, whatever the base's head does: the link
+is moved once, when the base merged. Each pass reads every open pull request whose brief has the
+line and has not moved yet, and whose base merged:
 
-- While the base is open and its head moved (review fixes, a rebase), the link's crew is told to
-  rebase onto the base's branch with "A link that moved", once for each head of the link and head
-  of the base, under the key `restack|<slug>|<head 12>|<base head 12>`. A link whose head holds
-  the base's head is told nothing: GitHub's compare says so, and the answer is kept under the key
-  `stacked|<slug>|<head 12>|<base head 12>` so it is asked once.
-- Once the base merged, jbus bases the link's pull request on the branch the base merged into,
-  or on the branch the brief's `Pull request:` line opens it against, where GitHub has not done so
-  itself on deleting the base's branch. A base merged into another branch than the default
-  leaves its link on that branch: a rebase onto the default branch would carry the branch's
-  commits there. Then jbus moves the link's own commits onto that branch itself, in the same
-  pass and with no turn of its crew (`_carry`): `git rebase --onto origin/<branch> <base's last
-  head>` in a scratch worktree of its own, never the crew's, and a push with `--force-with-lease` at
-  the head it read. The crew's worktree, where it has one on the branch, is moved to the pushed head
-  with `git reset --keep`.
+- jbus bases the link's pull request on the branch the base merged into, or on the branch the
+  brief's `Pull request:` line opens it against, where GitHub has not done so itself on deleting
+  the base's branch. A base merged into another branch than the default leaves its link on that
+  branch: a rebase onto the default branch would carry the branch's commits there.
+- Then jbus moves the link's own commits onto that branch itself, in the same pass and with no
+  turn of its crew (`_carry`): `git rebase --onto origin/<branch> <base's last head>` in a scratch
+  worktree of its own, never the crew's, and a push with `--force-with-lease` at the head it read.
+  The crew's worktree, where it has one on the branch, is moved to the pushed head with
+  `git reset --keep`.
   jbus moves nothing while the outbox holds the crew (`rebase.held`): its thread is at work, waits
   on a test slot, or waits on a review it launched that jmerge says is not written at the head.
   Such a link waits for a later pass, and its crew is told nothing. Nor does jbus move it while a
   reviewer the crew launched has written no review (`review.reviewing`), since a move would change
   the head under it, or while its worktree has work in it (uncommitted, unpushed or a rebase not
   finished); a rebase that conflicts or a push the lease refuses leaves the branch as it was.
-  For each of those, jbus tells the crew to move its own commits instead, from the base's last
-  head, under the key
-  `restack|<slug>|<head 12>|<merge 12>`. Only once the link moved or that message went does the
-  line say `Stacked on: <slug> <branch> at <merge>`, so a message held for a capped thread is
-  sent on a later pass. `jmerge` then waits until the link's head holds that commit
-  (`ready.STACKED_UNMOVED`), and merges it as any other.
+- For each of those, jbus tells the crew to move its own commits instead, from the base's last
+  head, under the key `restack|<slug>|<head 12>|<merge 12>`. Only once the link moved or that
+  message went does the line say `Stacked on: <slug> <branch> at <merge>`, so a message held for a
+  capped thread is sent on a later pass, and the crew hears of its stack once. `jmerge` then waits
+  until the link's head holds that commit (`ready.STACKED_UNMOVED`), and merges it as any other.
 
 A base closed with no merge leaves its link waiting on `jmerge`'s line: GitHub closes a pull
 request whose base branch is deleted, and what to do with the work is the home's."""
@@ -57,79 +52,33 @@ from jmerge import stacked as stacks
 
 EVENTS = {"restack": "quiet"}
 KIND = "restack"
-HOLDS = "stacked"
-_MOVE = (
-    'In your own worktree, read "A link that moved" in the crew skill again, from the file, '
-    "and run its block with {was} as the branch it sat on."
-)
-RESTACK = (
-    "jbus: {base}'s branch {branch} moved to {tip} under your stacked pull request #{number}. "
-    + _MOVE
-    + " "
-    + END_TURN
-)
 MOVED = (
     "jbus: {base} merged as {merge}, and your stacked pull request #{number} is now based on "
     "{onto}, so its block rebases onto origin/{onto}. "
-    + _MOVE
-    + " That commit is the head {base} merged at. If the block prints `not found`, run it again "
-    "with {branch}. " + END_TURN
+    'In your own worktree, read "A link that moved" in the crew skill again, from the file, '
+    "and run its block with {was} as the branch it sat on. That commit is the head {base} merged "
+    "at. If the block prints `not found`, run it again with {branch}. " + END_TURN
 )
 
 
 def move(run: Pass, client: Client, world: World) -> None:
-    """Tell the crew of each stacked link whose base moved, once for each move, and base a link
-    whose base merged on the branch it merged into, or the one its brief names."""
+    """Base each stacked link whose base merged on the branch it merged into, or the one its
+    brief names, and move it there, or tell its crew to."""
     sent = set(run.box.sent())
     for slug, pull in world.open.items():
         head = str(pull.get("headRefOid") or "")
         brief = task_brief(run, slug)
         stacked = stacks.of(brief)
-        if not head or stacked is None or stacked.at or not rebase.crew(run, slug):
+        if not head or stacked is None or stacked.at or stacked.slug in world.open:
             continue
-        base = world.open.get(stacked.slug)
-        merged = None if base else world.merged.get(stacked.slug)
-        if merged:
-            onto = _onto(run, brief, merged)
-            if onto:
-                _moved(run, client, world, slug, pull, stacked, merged, onto, sent)
-            else:
-                run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
-        elif base:
-            _restack(run, client, world, slug, pull, stacked, base, sent)
-
-
-def _restack(
-    run: Pass,
-    client: Client,
-    world: World,
-    slug: str,
-    pull: dict[str, Any],
-    stacked: stacks.Stacked,
-    base: dict[str, Any],
-    sent: set[str],
-) -> None:
-    head, tip = str(pull["headRefOid"]), str(base.get("headRefOid") or "")
-    if not tip or {rebase.mark(kind, slug, head, tip[:12]) for kind in (KIND, HOLDS)} & sent:
-        return
-    asked = run.run("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{tip}...{head}")
-    try:
-        status = json.loads(asked.stdout).get("status") if asked.returncode == 0 else None
-    except (ValueError, AttributeError):
-        status = None
-    if status is None:
-        run.say(f"wait {slug}: GitHub did not say whether it holds {stacked.slug}'s head")
-        return
-    if status in ("ahead", "identical"):
-        run.box.mark(rebase.mark(HOLDS, slug, head, tip[:12]))
-        return
-    message = (
-        RESTACK.replace("{base}", stacked.slug)
-        .replace("{branch}", stacked.branch)
-        .replace("{tip}", tip[:12])
-        .replace("{was}", stacked.branch)
-    )
-    _tell(run, client, world, slug, pull, message, tip, f"{stacked.slug} moved to {tip[:12]}")
+        merged = world.merged.get(stacked.slug)
+        if not merged or not rebase.crew(run, slug):
+            continue
+        onto = _onto(run, brief, merged)
+        if onto:
+            _moved(run, client, world, slug, pull, stacked, merged, onto, sent)
+        else:
+            run.say(f"wait {slug}: GitHub did not say what {stacked.slug} merged into")
 
 
 def _moved(
@@ -178,21 +127,6 @@ def _moved(
         .replace("{branch}", stacked.branch)
         .replace("{was}", last)
     )
-    if _tell(run, client, world, slug, pull, message, merge, f"{stacked.slug} merged"):
-        _rewrite(run, slug, replace(stacked, branch=onto, at=merge))
-
-
-def _tell(
-    run: Pass,
-    client: Client,
-    world: World,
-    slug: str,
-    pull: dict[str, Any],
-    message: str,
-    under: str,
-    why: str,
-) -> bool:
-    number, head = pull["number"], str(pull["headRefOid"])
     ask = rebase.Ask(
         KIND,
         "told the crew",
@@ -202,13 +136,13 @@ def _tell(
         no_thread="stacked link with no thread to tell",
         refused="T3 Code refused the message to move a stacked link",
     )
-    if not rebase.post(run, client, world, number, why, ask, under[:12]):
-        return False
-    run.box.mark(rebase.mark(KIND, slug, head, under[:12]))
-    line = f"{KIND} {slug}: told the crew {why} (#{number}, {head[:12]})"
-    run.find(slug, KIND, line, message, key=f"{head[:12]} {under[:12]}")
+    if not rebase.post(run, client, world, number, f"{stacked.slug} merged", ask, merge[:12]):
+        return
+    run.box.mark(key)
+    line = f"{KIND} {slug}: told the crew {stacked.slug} merged (#{number}, {head[:12]})"
+    run.find(slug, KIND, line, message, key=f"{head[:12]} {merge[:12]}")
     run.say(line)
-    return True
+    _rewrite(run, slug, replace(stacked, branch=onto, at=merge))
 
 
 def _carry(run: Pass, slug: str, pull: dict[str, Any], last: str, merge: str, onto: str) -> str:
