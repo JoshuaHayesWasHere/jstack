@@ -65,7 +65,7 @@ def _ask(*said: str) -> Any:
         if asked.returncode and allowance.refused(asked.stderr):
             raise Limited(allowance.named(_run(*allowance.ASK)))
         return json.loads(asked.stdout) if asked.returncode == 0 else None
-    except (OSError, subprocess.SubprocessError, ValueError):
+    except ValueError:
         return None
 
 
